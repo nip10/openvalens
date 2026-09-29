@@ -10,6 +10,7 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
+    "@openhealth/audit-security": "workspace:*",
     "@openhealth/auth": "workspace:*",
     "@openhealth/db": "workspace:*",
     "@orpc/client": "catalog:",

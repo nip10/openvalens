@@ -1,0 +1,23 @@
+{
+  "name": "@openhealth/audit-security",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@openhealth/db": "workspace:*",
+    "@openhealth/observability": "workspace:*",
+    "@orpc/server": "catalog:",
+    "drizzle-orm": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openhealth/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { permissionedProcedure, publicProcedure, validateInput } from "../index";
+import { publicProcedure, tenantScopedProcedure, validateInput } from "../index";
 
 const echoInput = z.object({
   message: z.string().min(1).max(500),
@@ -12,12 +12,17 @@ const echoOutput = z.object({
   correlationId: z.string(),
 });
 
+const protectedEchoOutput = echoOutput.extend({
+  targetId: z.string(),
+});
+
 /**
  * Infrastructure round-trip example (Issue #8).
  *
  * `echo` proves publicProcedure + Zod input/output + correlation-id
- * propagation; `protectedEcho` proves the RBAC-aware `permissionedProcedure`
- * end-to-end. Neither is a domain procedure — Phase 3 owns those.
+ * propagation; `protectedEcho` proves the RBAC-aware `tenantScopedProcedure`
+ * end-to-end (Issue #10): the permission guard, the tenant boundary and the
+ * post-handler audit write. Neither is a domain procedure — Phase 3 owns those.
  */
 export const exampleRouter = {
   echo: publicProcedure
@@ -30,13 +35,20 @@ export const exampleRouter = {
       correlationId: context.correlationId,
     })),
 
-  protectedEcho: permissionedProcedure({ resource: "records", action: "read" })
+  protectedEcho: tenantScopedProcedure({
+    resource: "records",
+    action: "read",
+    auditAction: "RECORD_CREATED",
+    targetType: "record",
+  })
     .use(validateInput(echoInput))
     .input(echoInput)
-    .output(echoOutput)
+    .output(protectedEchoOutput)
     .handler(({ input, context }) => ({
       message: input.message,
       userId: context.session?.user?.id ?? null,
       correlationId: context.correlationId,
+      // Demonstrates audit `targetId` extraction from the handler output.
+      targetId: "demo-target-1",
     })),
 };

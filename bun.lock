@@ -134,12 +134,27 @@
     "packages/api": {
       "name": "@openhealth/api",
       "dependencies": {
+        "@openhealth/audit-security": "workspace:*",
         "@openhealth/auth": "workspace:*",
         "@openhealth/db": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/audit-security": {
+      "name": "@openhealth/audit-security",
+      "dependencies": {
+        "@openhealth/db": "workspace:*",
+        "@openhealth/observability": "workspace:*",
+        "@orpc/server": "catalog:",
+        "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
@@ -596,6 +611,8 @@
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
 
     "@openhealth/api": ["@openhealth/api@workspace:packages/api"],
+
+    "@openhealth/audit-security": ["@openhealth/audit-security@workspace:packages/audit-security"],
 
     "@openhealth/auth": ["@openhealth/auth@workspace:packages/auth"],
 

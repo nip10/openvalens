@@ -1,6 +1,16 @@
+import {
+  assertTenantBoundary,
+  TenantViolationError,
+  writeAuditLog,
+  type AuditEventType,
+} from "@openhealth/audit-security";
 import type { Action, Resource } from "@openhealth/auth/access/permissions";
 import type { AuthzRequestContext } from "@openhealth/auth/authz/context";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import {
+  AuthzHttpError,
+  requirePermission,
+  type OrgAuthContext,
+} from "@openhealth/auth/authz/guard";
 import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
 
@@ -57,6 +67,10 @@ function toApiError(error: unknown): ORPCError<ORPCErrorCode, unknown> {
     return raiseApiError(error.code, error.message);
   }
 
+  if (error instanceof TenantViolationError) {
+    return raiseApiError("TENANT_VIOLATION", error.message);
+  }
+
   if (error instanceof ORPCError) {
     return error as ORPCError<ORPCErrorCode, unknown>;
   }
@@ -106,3 +120,114 @@ export const cronProcedure = publicProcedure.use(
     return next({});
   }),
 );
+
+export type TenantScopedProcedureInput = PermissionedProcedureInput & {
+  /** Audit event written after a successful handler run. */
+  auditAction: AuditEventType;
+  /** Persisted as `access_audit_log.target_type` (e.g. `"record"`). */
+  targetType?: string;
+  /**
+   * Resolves the organization that owns the resource being accessed.
+   *
+   * Defaults to reading `organizationId` (or `orgId`) off the procedure input.
+   * When the resolved org differs from the actor's active organization the call
+   * is rejected with `403 TENANT_VIOLATION` and a `TENANT_VIOLATION_BLOCKED`
+   * audit entry is written before the error is raised.
+   */
+  resolveTenantOrgId?: (input: unknown) => string | null | undefined;
+};
+
+function defaultResolveTenantOrgId(input: unknown): string | undefined {
+  if (!input || typeof input !== "object") {
+    return undefined;
+  }
+
+  const candidate = input as { organizationId?: unknown; orgId?: unknown };
+  if (typeof candidate.organizationId === "string") {
+    return candidate.organizationId;
+  }
+  if (typeof candidate.orgId === "string") {
+    return candidate.orgId;
+  }
+
+  return undefined;
+}
+
+function extractTargetId(output: unknown): string | undefined {
+  if (!output || typeof output !== "object" || !("targetId" in output)) {
+    return undefined;
+  }
+
+  const value = (output as { targetId?: unknown }).targetId;
+  return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * Authenticated + RBAC-guarded + tenant-scoped procedure that writes an audit
+ * entry per successful call.
+ *
+ * Composes the existing guards rather than reimplementing them:
+ * `protectedProcedure` (session) → `permissionedProcedure`
+ * (`requireOrgMembership` + `requirePermission`) → tenant boundary → audit.
+ *
+ * On success the handler output is scanned for a `targetId` field and the audit
+ * row records `{ organizationId, actorUserId, eventType, targetType, targetId,
+ * correlationId }`. A handler that throws writes no audit entry; audit-write
+ * failures are logged and swallowed by `writeAuditLog` so they never fail the
+ * request.
+ */
+export function tenantScopedProcedure({
+  resource,
+  action,
+  auditAction,
+  targetType,
+  resolveTenantOrgId,
+}: TenantScopedProcedureInput) {
+  return permissionedProcedure({ resource, action }).use(
+    o.middleware(async ({ context, next }, input) => {
+      // `permissionedProcedure` ran upstream and injected `authz` via
+      // `next({ context: { authz } })`; `o.middleware` only types the base
+      // `Context`, so narrow the runtime value here.
+      const { authz } = context as typeof context & { authz: OrgAuthContext };
+      const tenantOrgId = authz.activeOrganizationId;
+      const resourceOrgId = resolveTenantOrgId
+        ? resolveTenantOrgId(input)
+        : defaultResolveTenantOrgId(input);
+
+      if (resourceOrgId) {
+        try {
+          assertTenantBoundary(tenantOrgId, resourceOrgId);
+        } catch (error) {
+          if (error instanceof TenantViolationError) {
+            await writeAuditLog({
+              db: context.db,
+              organizationId: tenantOrgId,
+              actorUserId: authz.user.id,
+              eventType: "TENANT_VIOLATION_BLOCKED",
+              targetType,
+              targetId: resourceOrgId,
+              correlationId: context.correlationId,
+              metadata: { attemptedOrganizationId: resourceOrgId },
+            });
+          }
+          throw toApiError(error);
+        }
+      }
+
+      const result = await next({ context: { tenantOrgId } });
+
+      await writeAuditLog({
+        db: context.db,
+        organizationId: tenantOrgId,
+        actorUserId: authz.user.id,
+        eventType: auditAction,
+        targetType,
+        targetId: extractTargetId(result.output),
+        correlationId: context.correlationId,
+        metadata: { resource, action },
+      });
+
+      return result;
+    }),
+  );
+}
