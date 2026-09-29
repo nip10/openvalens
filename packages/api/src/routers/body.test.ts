@@ -1,7 +1,13 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Database } from "@openhealth/db";
 import { accessAuditLog } from "@openhealth/db/schema/auth";
-import { dailyWeight, weightCheckin, weightEvent } from "@openhealth/db/schema/body";
+import {
+  dailyWeight,
+  dexaRegional,
+  dexaScan,
+  weightCheckin,
+  weightEvent,
+} from "@openhealth/db/schema/body";
 import { calendarEvent } from "@openhealth/db/schema/plans";
 import { PgDialect } from "drizzle-orm/pg-core";
 
@@ -33,18 +39,56 @@ mock.module("@openhealth/auth/authz/guard", () => ({
 }));
 const { appRouter } = await import("./index");
 
+type CapturedInsert = { table: unknown; payload: Record<string, unknown> };
+type CapturedUpsert = { table: unknown; payload: Record<string, unknown>; conflict: unknown };
+type CapturedSelect = { table: unknown; sql: string; params: unknown[] };
+
 function fakeDb() {
-  const inserts: Array<{ table: unknown; payload: Record<string, unknown> }> = [];
-  const conditions: Array<{ table: unknown; sql: string; params: unknown[] }> = [];
+  const inserts: CapturedInsert[] = [];
+  const upserts: CapturedUpsert[] = [];
+  const conditions: CapturedSelect[] = [];
   const dialect = new PgDialect();
+
+  function makeReturning(table: unknown): Record<string, unknown> {
+    if (table === weightCheckin) {
+      return {
+        id: 501,
+        organizationId: "org-1",
+        date: "2026-03-07",
+        weightKg: 84,
+        bodyFatPct: null,
+        notes: null,
+        createdAt: "2026-03-07T10:00:00Z",
+      };
+    }
+    if (table === weightEvent) return { id: 901 };
+    if (table === dailyWeight) return { id: 701 };
+    if (table === dexaScan) return { id: 601 };
+    return { id: 999 };
+  }
+
   const select = () => {
     let table: unknown;
-    const chain = {
+    const chain: {
+      from: (value: unknown) => typeof chain;
+      where: (condition: Parameters<PgDialect["sqlToQuery"]>[0]) => typeof chain;
+      orderBy: (...args: unknown[]) => typeof chain;
+      leftJoin: (...args: unknown[]) => typeof chain;
+      innerJoin: (...args: unknown[]) => typeof chain;
+      limit: (n?: number) => Promise<unknown[]>;
+      then: <TResult1 = unknown, TResult2 = never>(
+        resolve: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | undefined,
+        reject: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | undefined,
+      ) => Promise<TResult1 | TResult2>;
+    } = {
       from(value: unknown) {
         table = value;
         return chain;
       },
       leftJoin() {
+        return chain;
+      },
+      innerJoin() {
         return chain;
       },
       where(condition: Parameters<PgDialect["sqlToQuery"]>[0]) {
@@ -55,40 +99,41 @@ function fakeDb() {
       orderBy() {
         return chain;
       },
-      async limit() {
-        return [];
+      limit() {
+        return Promise.resolve([]);
+      },
+      // oxlint-disable-next-line unicorn/no-thenable
+      then<TResult1 = unknown, TResult2 = never>(
+        resolve: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | undefined,
+        reject: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | undefined,
+      ): Promise<TResult1 | TResult2> {
+        return Promise.resolve([]).then(resolve, reject);
       },
     };
     return chain;
   };
+
   const insert = (table: unknown) => ({
     values(payload: Record<string, unknown>) {
       inserts.push({ table, payload });
-      const entry = {
-        id: 501,
-        organizationId: "org-1",
-        date: "2026-03-07",
-        weightKg: 84,
-        bodyFatPct: null,
-        notes: null,
-        createdAt: "2026-03-07T10:00:00Z",
-      };
-      const result = table === weightCheckin ? entry : { id: 901 };
+      const returned = makeReturning(table);
       const node = {
         async returning() {
-          return [result];
+          return [returned];
         },
-        async onConflictDoUpdate() {
+        onConflictDoUpdate(conflict: unknown) {
+          upserts.push({ table, payload, conflict });
           return [];
         },
         // oxlint-disable-next-line unicorn/no-thenable
         then(resolve: (value: unknown) => unknown) {
-          return Promise.resolve([]).then(resolve);
+          return Promise.resolve([returned]).then(resolve);
         },
       };
       return node;
     },
   });
+
   const db = {
     select,
     insert,
@@ -96,8 +141,10 @@ function fakeDb() {
       return fn({ insert });
     },
   } as unknown as Database;
-  return { db, inserts, conditions };
+
+  return { db, inserts, upserts, conditions };
 }
+
 function context(db: Database, authenticated = true): Context {
   return {
     session: authenticated ? { user: { id: "user-1" } } : null,
@@ -106,6 +153,10 @@ function context(db: Database, authenticated = true): Context {
     honoContext: { req: { raw: { headers: new Headers() } } },
   } as Context;
 }
+
+beforeEach(() => {
+  requirePermission.mockClear();
+});
 
 describe("body oRPC boundary", () => {
   test("reader sees only active organization check-ins and their own materialized daily weights", async () => {
@@ -222,5 +273,231 @@ describe("body oRPC boundary", () => {
     } as Parameters<ReturnType<typeof appRouter.body.writeManualWeight.callable>>[0]);
     expect(state.inserts[0]?.payload.organizationId).toBe("org-1");
     expect(state.inserts[2]?.payload.userId).toBe("user-1");
+  });
+});
+
+describe("body.ingestAutoWeightEvent", () => {
+  test("inserts source='auto' event, writes RECORD_CREATED audit on weight_event, derives org/user from guard", async () => {
+    role = "owner";
+    const state = fakeDb();
+    const result = await appRouter.body.ingestAutoWeightEvent.callable({
+      context: context(state.db),
+    })({
+      date: "2026-03-07",
+      measuredAt: "2026-03-07T08:15:00.000Z",
+      weightKg: 83.9,
+      sourceDetail: "android_health_connect",
+      metadataJson: { sourceApp: "Health Connect" },
+    });
+    expect(result).toMatchObject({ eventId: 901, reconciled: false, targetId: "901" });
+    const tables = state.inserts.map((write) => write.table);
+    // weightEvent insert + writeAuditLog(accessAuditLog) — exactly one of each.
+    expect(tables).toEqual([weightEvent, accessAuditLog]);
+    expect(state.inserts[0]?.payload).toMatchObject({
+      organizationId: "org-1",
+      userId: "user-1",
+      source: "auto",
+      date: "2026-03-07",
+      weightKg: 83.9,
+    });
+    // sourceDetail is folded into metadataJson with no leakage to logs.
+    const metadata = state.inserts[0]?.payload.metadataJson as Record<string, unknown>;
+    expect(metadata).toMatchObject({
+      sourceDetail: "android_health_connect",
+      sourceApp: "Health Connect",
+    });
+    expect(state.inserts[1]?.payload).toMatchObject({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      eventType: "RECORD_CREATED",
+      targetType: "weight_event",
+      targetId: "901",
+    });
+  });
+
+  test("rejects any attempt to override organizationId or userId via input", async () => {
+    role = "owner";
+    const state = fakeDb();
+    const call = appRouter.body.ingestAutoWeightEvent.callable({ context: context(state.db) });
+    // Schema rejects organizationId / userId at the boundary, so a foreign-tenant
+    // attempt is rejected before authz runs.
+    await expect(
+      call({
+        date: "2026-03-07",
+        measuredAt: "2026-03-07T08:15:00.000Z",
+        weightKg: 83.9,
+        sourceDetail: "android_health_connect",
+        metadataJson: {},
+        organizationId: "org-2",
+      } as Parameters<typeof call>[0]),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT", status: 400 });
+    await expect(
+      call({
+        date: "2026-03-07",
+        measuredAt: "2026-03-07T08:15:00.000Z",
+        weightKg: 83.9,
+        sourceDetail: "android_health_connect",
+        metadataJson: {},
+        userId: "user-2",
+      } as Parameters<typeof call>[0]),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT", status: 400 });
+    expect(state.inserts).toEqual([]);
+  });
+
+  test("viewer cannot ingest; no insert or audit", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    await expect(
+      appRouter.body.ingestAutoWeightEvent.callable({ context: context(state.db) })({
+        date: "2026-03-07",
+        measuredAt: "2026-03-07T08:15:00.000Z",
+        weightKg: 83.9,
+        sourceDetail: "android_health_connect",
+        metadataJson: {},
+      }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+    expect(state.inserts).toEqual([]);
+  });
+
+  test("validates date/measuredAt/weight/sourceDetail/metadataJson", async () => {
+    role = "owner";
+    const state = fakeDb();
+    const call = appRouter.body.ingestAutoWeightEvent.callable({ context: context(state.db) });
+    for (const invalid of [
+      { date: "03-07-2026", measuredAt: "x", weightKg: 1, sourceDetail: "a", metadataJson: {} },
+      { date: "2026-03-07", measuredAt: "", weightKg: 1, sourceDetail: "a", metadataJson: {} },
+      { date: "2026-03-07", measuredAt: "x", weightKg: -1, sourceDetail: "a", metadataJson: {} },
+      { date: "2026-03-07", measuredAt: "x", weightKg: 1, sourceDetail: "", metadataJson: {} },
+      {
+        date: "2026-03-07",
+        measuredAt: "x",
+        weightKg: 1,
+        sourceDetail: "a",
+        metadataJson: "x" as unknown,
+      },
+    ]) {
+      await expect(call(invalid as Parameters<typeof call>[0])).rejects.toMatchObject({
+        code: "INVALID_INPUT",
+        status: 400,
+      });
+    }
+    expect(state.inserts).toEqual([]);
+  });
+});
+
+describe("body list + DEXA + composition reads", () => {
+  test("listWeightHistory is scoped to the active organization", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    const result = await appRouter.body.listWeightHistory.callable({
+      context: context(state.db),
+    })({ limit: 5 });
+    expect(result).toEqual([]);
+    expect(state.conditions.map((c) => c.table)).toContain(weightEvent);
+    expect(state.conditions[0]?.params).toContain("org-1");
+  });
+
+  test("listDexaScans requires no input and scopes by active organization", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    expect(await appRouter.body.listDexaScans.callable({ context: context(state.db) })({})).toEqual(
+      [],
+    );
+    expect(state.conditions.map((c) => c.table)).toContain(dexaScan);
+    expect(state.conditions[0]?.params).toContain("org-1");
+  });
+
+  test("getLatestDexa returns null when no scan exists", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    expect(
+      await appRouter.body.getLatestDexa.callable({ context: context(state.db) })({}),
+    ).toBeNull();
+  });
+
+  test("listDexaRegionals requires a positive scanId", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    const call = appRouter.body.listDexaRegionals.callable({ context: context(state.db) });
+    await expect(call({ scanId: 0 } as Parameters<typeof call>[0])).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      status: 400,
+    });
+    // Validation runs before any DB read; the regionals table must not be
+    // queried for an invalid scanId.
+    expect(state.conditions.map((c) => c.table)).not.toContain(dexaRegional);
+  });
+
+  test("getLatestWeight and getLatestCanonicalWeight are weight:read", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    expect(
+      await appRouter.body.getLatestWeight.callable({ context: context(state.db) })({}),
+    ).toBeNull();
+    expect(
+      await appRouter.body.getLatestCanonicalWeight.callable({
+        context: context(state.db),
+      })({}),
+    ).toBeNull();
+  });
+
+  test("getBodyCompositionTimeline returns empty shapes for an org without data", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    expect(
+      await appRouter.body.getBodyCompositionTimeline.callable({
+        context: context(state.db),
+      })({ limit: 5 }),
+    ).toEqual({ canonicalDailyPoints: [], compositionMarkers: [] });
+  });
+
+  test("viewer is denied every write-bound DEXA or auto path; no inserts are recorded", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    await expect(
+      appRouter.body.ingestAutoWeightEvent.callable({ context: context(state.db) })({
+        date: "2026-03-07",
+        measuredAt: "2026-03-07T08:15:00.000Z",
+        weightKg: 83.9,
+        sourceDetail: "android_health_connect",
+        metadataJson: {},
+      }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    expect(state.inserts).toEqual([]);
+  });
+});
+
+describe("body PHI safety", () => {
+  test("ingestAutoWeightEvent never leaks payload weight or notes to stdout/stderr", async () => {
+    role = "owner";
+    const state = fakeDb();
+    const raw: string[] = [];
+    const originalOut = process.stdout.write;
+    const originalErr = process.stderr.write;
+    process.stdout.write = ((chunk: unknown) => {
+      raw.push(String(chunk));
+      return true;
+    }) as unknown as typeof process.stdout.write;
+    process.stderr.write = ((chunk: unknown) => {
+      raw.push(String(chunk));
+      return true;
+    }) as unknown as typeof process.stderr.write;
+    try {
+      await appRouter.body.ingestAutoWeightEvent.callable({ context: context(state.db) })({
+        date: "2026-03-07",
+        measuredAt: "2026-03-07T08:15:00.000Z",
+        weightKg: 83.9,
+        sourceDetail: "SECRET_SOURCE_DETAIL",
+        metadataJson: { SECRET_METADATA_KEY: "SECRET_METADATA_VALUE" },
+      });
+    } finally {
+      process.stdout.write = originalOut;
+      process.stderr.write = originalErr;
+    }
+    const serialized = raw.join("");
+    expect(serialized).not.toContain("SECRET_SOURCE_DETAIL");
+    expect(serialized).not.toContain("SECRET_METADATA_VALUE");
+    expect(serialized).not.toContain("SECRET_METADATA_KEY");
+    expect(serialized).not.toContain("83.9");
   });
 });
