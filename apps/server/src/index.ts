@@ -1,6 +1,10 @@
 import { appRouter } from "@openhealth/api/routers/index";
 import { ensureActiveOrganization, personalWorkspaceSlug } from "@openhealth/auth/authz/auth-org";
-import { correlationMiddleware, createStructuredLogger } from "@openhealth/observability";
+import {
+  correlationMiddleware,
+  createStructuredLogger,
+  securityHeadersMiddleware,
+} from "@openhealth/observability";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -40,6 +44,18 @@ const app = new Hono();
 // Issue #9 — resolve the correlation id before anything else so the CORS
 // response, every downstream log line and the oRPC context share one id.
 app.use(correlationMiddleware());
+
+// Issue #12 — security headers + CSP on every response. Mounted before the
+// routes so the headers are applied to success, error, root and oRPC
+// responses. Defaults to report-only for a safe staged rollout; set
+// `CSP_MODE=enforce` once the report is clean. `'unsafe-eval'` is only
+// permitted outside production.
+app.use(
+  securityHeadersMiddleware({
+    cspMode: process.env.CSP_MODE === "enforce" ? "enforce" : "report-only",
+    allowDevScriptEval: process.env.NODE_ENV === "development",
+  }),
+);
 
 // Structured request log — one JSON line per request, always tagged with the
 // correlation id. Replaces the plain-text `hono/logger` output so no server
