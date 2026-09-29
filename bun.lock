@@ -159,6 +159,7 @@
         "@openhealth/body": "workspace:*",
         "@openhealth/db": "workspace:*",
         "@openhealth/observability": "workspace:*",
+        "@openhealth/plans": "workspace:*",
         "@openhealth/sleep": "workspace:*",
         "@openhealth/telegram": "workspace:*",
         "@orpc/client": "catalog:",
@@ -266,6 +267,17 @@
       "dependencies": {
         "varlock": "catalog:",
         "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/plans": {
+      "name": "@openhealth/plans",
+      "dependencies": {
+        "@openhealth/db": "workspace:*",
+        "drizzle-orm": "catalog:",
       },
       "devDependencies": {
         "@openhealth/config": "workspace:*",
@@ -712,6 +724,8 @@
     "@openhealth/email": ["@openhealth/email@workspace:packages/email"],
 
     "@openhealth/observability": ["@openhealth/observability@workspace:packages/observability"],
+
+    "@openhealth/plans": ["@openhealth/plans@workspace:packages/plans"],
 
     "@openhealth/sleep": ["@openhealth/sleep@workspace:packages/sleep"],
 

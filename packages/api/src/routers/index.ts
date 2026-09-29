@@ -5,6 +5,7 @@ import { bodyRouter } from "./body";
 import { cronRouter } from "./cron";
 import { exampleRouter } from "./example";
 import { healthRouter } from "./health";
+import { plansRouter } from "./plans";
 import { sleepRouter } from "./sleep";
 import { telegramRouter } from "./telegram";
 
@@ -14,6 +15,7 @@ export const appRouter = {
   cron: cronRouter,
   example: exampleRouter,
   health: healthRouter,
+  plans: plansRouter,
   sleep: sleepRouter,
   telegram: telegramRouter,
 };
