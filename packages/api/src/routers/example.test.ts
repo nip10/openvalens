@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { InMemoryRateLimiter } from "@openhealth/ai";
 import type { Session } from "@openhealth/auth";
 import type { Database } from "@openhealth/db";
 
@@ -20,6 +21,12 @@ function createTestContext(overrides: Partial<Context> = {}): Context {
     },
     telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
     telegramClient: null,
+    aiConfig: {
+      ANTHROPIC_API_KEY: null,
+      AI_MODEL: "claude-sonnet-4-20250514",
+      AI_RATE_LIMIT_PER_MINUTE: 20,
+    },
+    aiRateLimiter: new InMemoryRateLimiter({ limitPerMinute: 20 }),
     honoContext: { req: { raw: { headers: new Headers() } } },
     ...overrides,
   };

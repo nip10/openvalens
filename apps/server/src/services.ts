@@ -1,3 +1,4 @@
+import { InMemoryRateLimiter, parseAiConfig } from "@openhealth/ai";
 import { createAuth, setRegisteredAuth } from "@openhealth/auth";
 import { createDb } from "@openhealth/db";
 import {
@@ -41,6 +42,18 @@ export function telegramWebhookSecret(): string {
   return telegramConfig.TELEGRAM_WEBHOOK_SECRET;
 }
 
+// Issue #13 — server-side AI instantiation. The `@openhealth/ai` package stays
+// pure; the server binds the validated `ENV` to it here. The Anthropic key is
+// optional — when absent, readiness reports `anthropic: false` and `ai.chat`
+// fails closed instead of calling the provider.
+export const aiConfig = parseAiConfig(ENV);
+
+// Process-local sliding-window limiter keyed by `(userId, organizationId)`.
+// TODO(#13-rate-limit): swap for Redis so limits are shared across replicas.
+export const aiRateLimiter = new InMemoryRateLimiter({
+  limitPerMinute: aiConfig.AI_RATE_LIMIT_PER_MINUTE,
+});
+
 /**
  * Readiness capability flags (Issue #11).
  *
@@ -49,7 +62,7 @@ export function telegramWebhookSecret(): string {
  */
 export const capabilities = {
   telegram: telegramConfig.TELEGRAM_BOT_TOKEN !== null,
-  anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
+  anthropic: aiConfig.ANTHROPIC_API_KEY !== null,
   resend: Boolean(process.env.RESEND_API_KEY),
   mobilePairing: true,
 };

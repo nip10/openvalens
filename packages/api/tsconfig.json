@@ -12,6 +12,7 @@
     { "path": "../db" },
     { "path": "../auth" },
     { "path": "../audit-security" },
+    { "path": "../ai" },
     { "path": "../integrations/telegram" }
   ]
 }

@@ -1,11 +1,13 @@
 import type { RouterClient } from "@orpc/server";
 
+import { aiRouter } from "./ai";
 import { cronRouter } from "./cron";
 import { exampleRouter } from "./example";
 import { healthRouter } from "./health";
 import { telegramRouter } from "./telegram";
 
 export const appRouter = {
+  ai: aiRouter,
   cron: cronRouter,
   example: exampleRouter,
   health: healthRouter,

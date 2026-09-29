@@ -12,6 +12,7 @@
     "auth:generate": "varlock run -- bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
   },
   "dependencies": {
+    "@openhealth/ai": "workspace:*",
     "@openhealth/api": "workspace:*",
     "@openhealth/auth": "workspace:*",
     "@openhealth/db": "workspace:*",

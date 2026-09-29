@@ -1,3 +1,4 @@
+import type { AiConfig, InMemoryRateLimiter } from "@openhealth/ai";
 import type { Session } from "@openhealth/auth";
 import type { AuthzRequestContext } from "@openhealth/auth/authz/context";
 import type { Database } from "@openhealth/db";
@@ -62,6 +63,14 @@ export type Context = {
    * Used by the daily-reminder cron to deliver via Telegram.
    */
   telegramClient: TelegramClient | null;
+  /** Issue #13 — parsed Anthropic AI config (owned by the server). */
+  aiConfig: AiConfig;
+  /**
+   * Issue #13 — process-local AI rate limiter keyed by
+   * `(userId, organizationId)`. The server owns the instance so limits are
+   * shared across procedures within a process.
+   */
+  aiRateLimiter: InMemoryRateLimiter;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

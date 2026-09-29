@@ -3,7 +3,15 @@ import { resolveCorrelationId } from "@openhealth/observability";
 import type { Context as HonoContext } from "hono";
 
 import { ENV } from "./env.server";
-import { auth, capabilities, db, telegramClient, telegramConfig } from "./services";
+import {
+  aiConfig,
+  aiRateLimiter,
+  auth,
+  capabilities,
+  db,
+  telegramClient,
+  telegramConfig,
+} from "./services";
 
 export type CreateContextOptions = {
   context: HonoContext;
@@ -34,6 +42,9 @@ export async function createContext({ context }: CreateContextOptions): Promise<
       connectTokenTtlSeconds: telegramConfig.TELEGRAM_CONNECT_TOKEN_TTL_SECONDS,
     },
     telegramClient,
+    // Issue #13 — AI config + process-local rate limiter.
+    aiConfig,
+    aiRateLimiter,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,
