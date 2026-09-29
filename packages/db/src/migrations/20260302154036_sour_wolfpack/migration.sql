@@ -1,0 +1,3 @@
+ALTER TABLE "session" ADD CONSTRAINT "session_active_organization_id_organization_id_fk" FOREIGN KEY ("active_organization_id") REFERENCES "public"."organization"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "session_impersonated_by_idx" ON "session" USING btree ("impersonated_by");--> statement-breakpoint
+CREATE INDEX "session_active_organization_id_idx" ON "session" USING btree ("active_organization_id");

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "telegram_connect_token_user_id_unused_key" ON "telegram_connect_token" USING btree ("user_id") WHERE "telegram_connect_token"."used_at" is null;

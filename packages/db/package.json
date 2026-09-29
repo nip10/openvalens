@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:deploy": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:backfill-org": "bun run src/backfill-org-id.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

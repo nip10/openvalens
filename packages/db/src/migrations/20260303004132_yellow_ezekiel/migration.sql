@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "telegram_account_user_id_active_key" ON "telegram_account" USING btree ("user_id") WHERE "telegram_account"."status" = 'active';
