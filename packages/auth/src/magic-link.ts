@@ -1,3 +1,9 @@
+import {
+  EmailPermanentError,
+  EmailTransientError,
+  sendEmail as defaultSendEmail,
+  type SendEmailFn,
+} from "@openhealth/email";
 import { createStructuredLogger } from "@openhealth/observability";
 
 import { buildMagicLinkSuccessLogMetadata } from "./auth-logging";
@@ -18,11 +24,14 @@ export type MagicLinkPayload = {
 
 export type MagicLinkLogger = {
   info(event: string, metadata?: Record<string, unknown>): void;
+  error(event: string, metadata?: Record<string, unknown>): void;
 };
 
 export type SendAuthMagicLinkOptions = {
   expiresInSeconds?: number;
   logger?: MagicLinkLogger;
+  /** Injectable for tests; defaults to the `@openhealth/email` sender. */
+  sendEmail?: SendEmailFn;
 };
 
 function generateCorrelationId(): string {
@@ -86,13 +95,31 @@ function parseLinkLocation(url: string): { host: string; path: string } | null {
   }
 }
 
+function errorCodeFor(error: unknown): string {
+  if (error instanceof EmailTransientError) {
+    return "EMAIL_TRANSIENT";
+  }
+
+  if (error instanceof EmailPermanentError) {
+    return "EMAIL_PERMANENT";
+  }
+
+  return "EMAIL_UNKNOWN";
+}
+
 /**
- * Stub magic-link sender for Issue #5.
+ * Magic-link sender (Issue #15).
  *
- * Renders the magic-link email and emits a PHI-safe structured log line. The
- * raw token and the full URL (whose query string carries the token) are never
- * logged — only the link host/path, a sha256 fingerprint of the token, the
- * recipient (masked), the correlation id and the expiry.
+ * Renders the magic-link email and hands it to the `@openhealth/email`
+ * transport (Resend, or dry-run when unconfigured), while emitting a PHI-safe
+ * structured log line. The raw token and the full URL (whose query string
+ * carries the token) are never logged — only the link host/path, a sha256
+ * fingerprint of the token, the recipient (masked), the correlation id and the
+ * expiry.
+ *
+ * A permanent provider failure is swallowed (magic-link is a best-effort
+ * signal; the user can retry) while a transient failure is re-thrown so the
+ * caller can surface/retry it.
  */
 export async function sendAuthMagicLink(
   payload: MagicLinkPayload,
@@ -101,9 +128,8 @@ export async function sendAuthMagicLink(
   const correlationId = resolveMagicLinkCorrelationId(payload);
   const expiresInSeconds = options.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS;
   const logger = options.logger ?? createStructuredLogger({ level: "info" });
+  const emailSender = options.sendEmail ?? defaultSendEmail;
 
-  // TODO(#15): render via Resend magic-link template and hand the rendered
-  // payload to the Resend provider instead of logging a stub.
   const rendered = renderMagicLinkEmail({
     url: payload.url,
     correlationId,
@@ -124,12 +150,38 @@ export async function sendAuthMagicLink(
     expiresAt,
   });
 
+  try {
+    await emailSender(
+      {
+        to: payload.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        templateName: "magic-link",
+        tags: ["magic-link"],
+      },
+      { correlationId },
+    );
+  } catch (error) {
+    // Issue #9 — PHI-safe: only the typed code is logged, never the message.
+    logger.error("auth.magic-link.send.failed", {
+      ...metadata,
+      code: errorCodeFor(error),
+    });
+
+    if (error instanceof EmailPermanentError) {
+      return;
+    }
+
+    throw error;
+  }
+
   // Issue #9 — PHI-safe structured log. The logger drops BLOCKED_FIELDS
   // recursively, so the raw token/URL never reach the log even if a caller
   // slips them into the metadata.
   logger.info(event, {
     ...metadata,
     subject: rendered.subject,
-    sender: "stub",
+    sender: "resend",
   });
 }

@@ -1,10 +1,23 @@
 import { createAuth, setRegisteredAuth } from "@openhealth/auth";
 import { createDb } from "@openhealth/db";
+import {
+  parseEmailConfig,
+  sendEmail as sendEmailWithConfig,
+  type SendEmailFn,
+} from "@openhealth/email";
 
 import { ENV } from "./env.server";
 
 export const db = createDb(ENV);
 export const auth = createAuth(ENV, db);
+
+// Issue #15 — server-side email instantiation. The `@openhealth/email`
+// package stays pure; the server binds the validated `ENV` to it here and
+// exports a config-bound sender for call sites that need one.
+export const emailConfig = parseEmailConfig(ENV);
+
+export const sendEmail: SendEmailFn = (input, options) =>
+  sendEmailWithConfig(input, { ...options, config: options?.config ?? emailConfig });
 
 /**
  * Readiness capability flags (Issue #11).

@@ -2,6 +2,12 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { expo } from "@better-auth/expo";
 import type { Database } from "@openhealth/db";
 import * as schema from "@openhealth/db/schema/auth";
+import {
+  EmailPermanentError,
+  EmailTransientError,
+  renderInvitationEmail,
+  sendEmail,
+} from "@openhealth/email";
 import { createStructuredLogger } from "@openhealth/observability";
 import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins/admin";
@@ -63,9 +69,42 @@ export function createAuth(
         // invitation email transport is owned by Issue #15 (Resend).
         requireEmailVerificationOnInvitation: true,
         invitationExpiresIn: INVITATION_EXPIRES_IN_SECONDS,
-        sendInvitationEmail: async ({ email, invitation }) => {
-          // TODO(#15): render via Resend invitation template and hand the
-          // rendered payload to the provider.
+        sendInvitationEmail: async ({ email, invitation, organization, inviter }) => {
+          const rendered = renderInvitationEmail({
+            inviterName: inviter.user.name || inviter.user.email,
+            organizationName: organization.name,
+            acceptUrl: `${env.CORS_ORIGIN.replace(/\/$/, "")}/accept-invitation/${invitation.id}`,
+            expiresInDays: Math.round(INVITATION_EXPIRES_IN_SECONDS / (60 * 60 * 24)),
+            role: invitation.role,
+          });
+
+          try {
+            await sendEmail(
+              {
+                to: email,
+                subject: rendered.subject,
+                html: rendered.html,
+                text: rendered.text,
+                templateName: "invitation",
+                tags: ["invitation"],
+              },
+              { correlationId: undefined },
+            );
+          } catch (error) {
+            logger.error("auth.invitation.send.failed", {
+              recipient: maskEmailRecipient(email),
+              invitationId: invitation.id,
+              code:
+                error instanceof EmailTransientError
+                  ? "EMAIL_TRANSIENT"
+                  : error instanceof EmailPermanentError
+                    ? "EMAIL_PERMANENT"
+                    : "EMAIL_UNKNOWN",
+            });
+
+            return;
+          }
+
           logger.info("auth.invitation.queued", {
             recipient: maskEmailRecipient(email),
             invitationId: invitation.id,

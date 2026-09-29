@@ -1,0 +1,23 @@
+{
+  "name": "@openhealth/email",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./templates/magic-link": "./src/templates/magic-link.tsx",
+    "./templates/*": "./src/templates/*.tsx",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@openhealth/db": "workspace:*",
+    "@openhealth/observability": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openhealth/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

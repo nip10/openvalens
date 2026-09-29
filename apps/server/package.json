@@ -15,6 +15,7 @@
     "@openhealth/api": "workspace:*",
     "@openhealth/auth": "workspace:*",
     "@openhealth/db": "workspace:*",
+    "@openhealth/email": "workspace:*",
     "@openhealth/observability": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
