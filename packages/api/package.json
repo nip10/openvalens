@@ -16,6 +16,7 @@
     "@openhealth/body": "workspace:*",
     "@openhealth/db": "workspace:*",
     "@openhealth/observability": "workspace:*",
+    "@openhealth/sleep": "workspace:*",
     "@openhealth/telegram": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
