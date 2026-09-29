@@ -10,10 +10,12 @@ import { authClient } from "@/lib/auth-client";
 import { queryClient, orpc } from "@/utils/orpc";
 
 export default function Home() {
-  const healthCheck = useQuery(orpc.healthCheck.queryOptions());
-  const privateData = useQuery(orpc.privateData.queryOptions());
-  const isConnected = healthCheck?.data === "OK";
-  const isLoading = healthCheck?.isLoading;
+  const readiness = useQuery(orpc.health.readiness.queryOptions());
+  const protectedEcho = useQuery(
+    orpc.example.protectedEcho.queryOptions({ input: { message: "hello" } }),
+  );
+  const isConnected = readiness?.data?.status === "ok";
+  const isLoading = readiness?.isLoading;
   const { data: session } = authClient.useSession();
 
   const mutedColor = useThemeColor("muted");
@@ -81,7 +83,7 @@ export default function Home() {
 
       <Card variant="secondary" className="mt-6 p-4">
         <Card.Title className="mb-3">Private Data</Card.Title>
-        {privateData && <Card.Description>{privateData.data?.message}</Card.Description>}
+        {protectedEcho && <Card.Description>{protectedEcho.data?.message}</Card.Description>}
       </Card>
 
       {!session?.user && (

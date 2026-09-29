@@ -29,6 +29,9 @@ async function expoFetch(request: Request, init?: RequestInit) {
   });
 }
 
+// TODO(#7 / #29): switch to mobile device-session auth (custom 3-token
+// contract). Until then we use the Better-T-Stack default: Better Auth Expo
+// session cookies forwarded manually on native via `authClient.getCookie()`.
 export const link = new RPCLink({
   url: `${ENV.EXPO_PUBLIC_SERVER_URL}/rpc`,
   fetch(request, init) {

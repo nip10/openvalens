@@ -1,0 +1,51 @@
+import { describe, expect, test } from "bun:test";
+import type { Session } from "@openhealth/auth";
+import type { Database } from "@openhealth/db";
+
+import type { Context } from "../context";
+import { appRouter } from "./index";
+
+function createTestContext(overrides: Partial<Context> = {}): Context {
+  return {
+    session: null,
+    db: {} as Database,
+    correlationId: "test-correlation-id",
+    cronSecret: "test-cron-secret",
+    honoContext: { req: { raw: { headers: new Headers() } } },
+    ...overrides,
+  };
+}
+
+describe("example.echo", () => {
+  test("round-trips the input and echoes the context correlation id", async () => {
+    const echo = appRouter.example.echo.callable({ context: createTestContext() });
+
+    const result = await echo({ message: "hello" });
+
+    expect(result).toEqual({
+      message: "hello",
+      userId: null,
+      correlationId: "test-correlation-id",
+    });
+  });
+
+  test("includes the authenticated user id when a session is present", async () => {
+    const session = { user: { id: "user-1" } } as unknown as Session;
+    const echo = appRouter.example.echo.callable({
+      context: createTestContext({ session }),
+    });
+
+    const result = await echo({ message: "hi" });
+
+    expect(result.userId).toBe("user-1");
+  });
+
+  test("rejects invalid input with the INVALID_INPUT envelope", async () => {
+    const echo = appRouter.example.echo.callable({ context: createTestContext() });
+
+    await expect(echo({ message: "" })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      status: 400,
+    });
+  });
+});

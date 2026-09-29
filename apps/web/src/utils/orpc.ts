@@ -53,4 +53,7 @@ export const link = new RPCLink({
 
 export const client: AppRouterClient = createORPCClient(link);
 
+// TanStack Query utils layer — callers use `orpc.example.echo.useQuery(...)`
+// / `.useMutation(...)`. Failures surface as `ORPCError` carrying the stable
+// `ORPCErrorCode` envelope (see `@openhealth/api/errors`).
 export const orpc = createTanstackQueryUtils(client);
