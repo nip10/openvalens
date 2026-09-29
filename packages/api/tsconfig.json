@@ -8,5 +8,10 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../db" }, { "path": "../auth" }, { "path": "../audit-security" }]
+  "references": [
+    { "path": "../db" },
+    { "path": "../auth" },
+    { "path": "../audit-security" },
+    { "path": "../integrations/telegram" }
+  ]
 }

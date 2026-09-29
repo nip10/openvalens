@@ -1,6 +1,7 @@
 import type { Session } from "@openhealth/auth";
 import type { AuthzRequestContext } from "@openhealth/auth/authz/context";
 import type { Database } from "@openhealth/db";
+import type { TelegramClient } from "@openhealth/telegram";
 
 /**
  * Structural view of the inbound request that the authz guards need.
@@ -25,6 +26,14 @@ export type CapabilityFlags = {
   mobilePairing: boolean;
 };
 
+/** Telegram configuration the server owns and hands to the API package. */
+export type TelegramContextConfig = {
+  /** Expected `X-Telegram-Bot-Api-Secret-Token` value. */
+  webhookSecret: string;
+  /** Connect-token TTL in seconds. */
+  connectTokenTtlSeconds: number;
+};
+
 export type Context = {
   session: Session | null;
   db: Database;
@@ -46,6 +55,13 @@ export type Context = {
   betterAuthSecretConfigured: boolean;
   /** Env-derived capability flags for the readiness probe. */
   capabilities: CapabilityFlags;
+  /** Telegram config for connect-token issuance + webhook binding. */
+  telegram: TelegramContextConfig;
+  /**
+   * Server-built Telegram client, or `null` when no bot token is configured.
+   * Used by the daily-reminder cron to deliver via Telegram.
+   */
+  telegramClient: TelegramClient | null;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

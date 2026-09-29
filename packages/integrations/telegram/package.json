@@ -1,0 +1,24 @@
+{
+  "name": "@openhealth/telegram",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@openhealth/audit-security": "workspace:*",
+    "@openhealth/db": "workspace:*",
+    "@openhealth/email": "workspace:*",
+    "@openhealth/observability": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openhealth/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

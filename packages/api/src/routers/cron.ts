@@ -1,4 +1,5 @@
 import { createStructuredLogger } from "@openhealth/observability";
+import { materializeDailyReminders } from "@openhealth/telegram";
 import { z } from "zod";
 
 import { cronProcedure } from "../index";
@@ -12,6 +13,13 @@ const cronRunOutput = z.object({
   startedAt: z.string(),
   finishedAt: z.string(),
   correlationId: z.string(),
+});
+
+// Issue #14 — the reminder job reports delivery counts.
+const remindersRunOutput = cronRunOutput.extend({
+  sent: z.number(),
+  skipped: z.number(),
+  failed: z.number(),
 });
 
 /**
@@ -28,8 +36,8 @@ const cronRunOutput = z.object({
 export const cronRouter = {
   remindersDailyRun: cronProcedure
     .input(z.object({}))
-    .output(cronRunOutput)
-    .handler(({ context }) => {
+    .output(remindersRunOutput)
+    .handler(async ({ context }) => {
       const startedAt = new Date().toISOString();
 
       logger.info("cron.job.started", {
@@ -37,14 +45,26 @@ export const cronRouter = {
         correlationId: context.correlationId,
       });
 
-      // TODO(#14/#24): materialize + deliver the day's reminders. Issue #11
-      // ships the endpoint contract and auth guard only — no domain logic.
-      const finishedAt = startedAt;
+      // Issue #14 — materialize + deliver the day's reminders. Cron endpoints
+      // have no session, so there is no "active organization" to scope to.
+      // TODO(#14-2): run per-organization in a follow-up.
+      const delivery = await materializeDailyReminders({
+        db: context.db,
+        client: context.telegramClient,
+        logger,
+        correlationId: context.correlationId,
+        organizationId: null,
+      });
 
-      logger.info("cron.job.finished", {
+      const finishedAt = new Date().toISOString();
+
+      logger.info("cron.reminders.daily.completed", {
         job: "reminders.daily",
         correlationId: context.correlationId,
         status: "ok",
+        sent: delivery.sent,
+        skipped: delivery.skipped,
+        failed: delivery.failed,
       });
 
       return {
@@ -52,6 +72,9 @@ export const cronRouter = {
         job: "reminders.daily",
         startedAt,
         finishedAt,
+        sent: delivery.sent,
+        skipped: delivery.skipped,
+        failed: delivery.failed,
         correlationId: context.correlationId,
       };
     }),

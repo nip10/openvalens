@@ -3,7 +3,7 @@ import { resolveCorrelationId } from "@openhealth/observability";
 import type { Context as HonoContext } from "hono";
 
 import { ENV } from "./env.server";
-import { auth, capabilities, db } from "./services";
+import { auth, capabilities, db, telegramClient, telegramConfig } from "./services";
 
 export type CreateContextOptions = {
   context: HonoContext;
@@ -29,6 +29,11 @@ export async function createContext({ context }: CreateContextOptions): Promise<
       typeof ENV.BETTER_AUTH_SECRET === "string" &&
       ENV.BETTER_AUTH_SECRET.length >= MIN_BETTER_AUTH_SECRET_LENGTH,
     capabilities,
+    telegram: {
+      webhookSecret: telegramConfig.TELEGRAM_WEBHOOK_SECRET,
+      connectTokenTtlSeconds: telegramConfig.TELEGRAM_CONNECT_TOKEN_TTL_SECONDS,
+    },
+    telegramClient,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

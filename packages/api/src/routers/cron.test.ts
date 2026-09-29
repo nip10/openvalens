@@ -19,6 +19,8 @@ function createTestContext(headers: Headers = new Headers()): Context {
       resend: false,
       mobilePairing: true,
     },
+    telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
+    telegramClient: null,
     honoContext: { req: { raw: { headers } } },
   };
 }
@@ -41,6 +43,9 @@ describe("cron.remindersDailyRun", () => {
       job: "reminders.daily",
       startedAt: expect.any(String),
       finishedAt: expect.any(String),
+      sent: 0,
+      skipped: 0,
+      failed: 0,
       correlationId: "corr-reminders",
     });
   });

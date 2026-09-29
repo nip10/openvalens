@@ -4,7 +4,8 @@
   "workspaces": {
     "packages": [
       "apps/*",
-      "packages/*"
+      "packages/*",
+      "packages/integrations/*"
     ],
     "catalog": {
       "zod": "^4.5.4",

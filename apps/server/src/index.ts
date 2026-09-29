@@ -5,6 +5,7 @@ import {
   createStructuredLogger,
   securityHeadersMiddleware,
 } from "@openhealth/observability";
+import { handleWebhookUpdate, verifyWebhookSecret } from "@openhealth/telegram";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -15,7 +16,7 @@ import { cors } from "hono/cors";
 
 import { createContext } from "./context";
 import { ENV } from "./env.server";
-import { auth, db } from "./services";
+import { auth, db, telegramClient, telegramWebhookSecret } from "./services";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -127,6 +128,38 @@ app.post("/api/auth/ensure-active-organization", async (c) => {
 });
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
+
+// Issue #14 — Telegram webhook. Plain Hono (NOT oRPC): Telegram is the caller,
+// so the `X-Telegram-Bot-Api-Secret-Token` header is the auth (no session
+// cookie / CSRF). Registered after `securityHeadersMiddleware` and the request
+// logger so those still apply to the 200/401 responses, and before the oRPC
+// catch-all so it is matched first.
+app.post("/api/integrations/telegram/webhook", async (c) => {
+  const correlationId = c.get("correlationId");
+
+  if (!verifyWebhookSecret(c.req.raw.headers, telegramWebhookSecret())) {
+    logger.warn("telegram.webhook.rejected", { correlationId, reason: "WEBHOOK_AUTH_FAILED" });
+    return c.json({ error: "WEBHOOK_AUTH_FAILED" }, 401);
+  }
+
+  let rawUpdate: unknown;
+  try {
+    rawUpdate = await c.req.json();
+  } catch {
+    logger.warn("telegram.webhook.rejected", { correlationId, reason: "INVALID_JSON" });
+    return c.json({ status: "unknown" }, 200);
+  }
+
+  const result = await handleWebhookUpdate({
+    db,
+    client: telegramClient,
+    rawUpdate,
+    logger,
+    correlationId,
+  });
+
+  return c.json(result, 200);
+});
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
   plugins: [

@@ -14,10 +14,12 @@
     "@openhealth/auth": "workspace:*",
     "@openhealth/db": "workspace:*",
     "@openhealth/observability": "workspace:*",
+    "@openhealth/telegram": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
+    "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
