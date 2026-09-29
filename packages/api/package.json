@@ -13,6 +13,7 @@
     "@openhealth/audit-security": "workspace:*",
     "@openhealth/auth": "workspace:*",
     "@openhealth/db": "workspace:*",
+    "@openhealth/observability": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",

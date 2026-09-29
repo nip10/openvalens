@@ -3,11 +3,14 @@ import { resolveCorrelationId } from "@openhealth/observability";
 import type { Context as HonoContext } from "hono";
 
 import { ENV } from "./env.server";
-import { auth, db } from "./services";
+import { auth, capabilities, db } from "./services";
 
 export type CreateContextOptions = {
   context: HonoContext;
 };
+
+/** Minimum length for `BETTER_AUTH_SECRET` (mirrors `.env.schema`). */
+const MIN_BETTER_AUTH_SECRET_LENGTH = 32;
 
 export async function createContext({ context }: CreateContextOptions): Promise<ApiContext> {
   const session = await auth.api.getSession({
@@ -22,6 +25,10 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // raw headers when the middleware is not mounted (e.g. tests).
     correlationId: context.get("correlationId") ?? resolveCorrelationId(context.req.raw.headers),
     cronSecret: ENV.CRON_SECRET,
+    betterAuthSecretConfigured:
+      typeof ENV.BETTER_AUTH_SECRET === "string" &&
+      ENV.BETTER_AUTH_SECRET.length >= MIN_BETTER_AUTH_SECRET_LENGTH,
+    capabilities,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

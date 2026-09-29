@@ -11,6 +11,20 @@ import type { Database } from "@openhealth/db";
  */
 export type ApiRequestContext = AuthzRequestContext;
 
+/**
+ * Optional integration capability flags surfaced by the readiness probe.
+ *
+ * Each flag is `true` only when the env var its capability requires is present
+ * on the server; the server derives them (it owns the env) and hands them to
+ * this package through the oRPC context.
+ */
+export type CapabilityFlags = {
+  telegram: boolean;
+  anthropic: boolean;
+  resend: boolean;
+  mobilePairing: boolean;
+};
+
 export type Context = {
   session: Session | null;
   db: Database;
@@ -23,6 +37,15 @@ export type Context = {
    * never reads server environment directly.
    */
   cronSecret: string;
+  /**
+   * `true` when `BETTER_AUTH_SECRET` is present and meets the minimum length.
+   *
+   * Derived by the server so the readiness probe can report secret presence
+   * without this package reading server environment directly.
+   */
+  betterAuthSecretConfigured: boolean;
+  /** Env-derived capability flags for the readiness probe. */
+  capabilities: CapabilityFlags;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

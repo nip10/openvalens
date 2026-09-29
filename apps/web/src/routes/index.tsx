@@ -24,7 +24,7 @@ const TITLE_TEXT = `
  `;
 
 function HomeComponent() {
-  const readiness = useQuery(orpc.health.readiness.queryOptions());
+  const readiness = useQuery(orpc.health.readiness.queryOptions({ input: {} }));
   const isConnected = readiness.data?.status === "ok";
 
   return (

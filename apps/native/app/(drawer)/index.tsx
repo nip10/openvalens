@@ -10,7 +10,7 @@ import { authClient } from "@/lib/auth-client";
 import { queryClient, orpc } from "@/utils/orpc";
 
 export default function Home() {
-  const readiness = useQuery(orpc.health.readiness.queryOptions());
+  const readiness = useQuery(orpc.health.readiness.queryOptions({ input: {} }));
   const protectedEcho = useQuery(
     orpc.example.protectedEcho.queryOptions({ input: { message: "hello" } }),
   );

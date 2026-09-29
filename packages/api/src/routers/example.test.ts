@@ -11,6 +11,13 @@ function createTestContext(overrides: Partial<Context> = {}): Context {
     db: {} as Database,
     correlationId: "test-correlation-id",
     cronSecret: "test-cron-secret",
+    betterAuthSecretConfigured: true,
+    capabilities: {
+      telegram: false,
+      anthropic: false,
+      resend: false,
+      mobilePairing: true,
+    },
     honoContext: { req: { raw: { headers: new Headers() } } },
     ...overrides,
   };
