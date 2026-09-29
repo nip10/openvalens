@@ -3,6 +3,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./magic-link": "./src/magic-link.ts",
+    "./auth-logging": "./src/auth-logging.ts",
+    "./email/templates/magic-link": "./src/email/templates/magic-link.tsx",
     "./*": "./src/*.ts"
   },
   "scripts": {
