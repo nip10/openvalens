@@ -9,10 +9,23 @@
   },
   "include": ["src/**/*.ts"],
   "references": [
-    { "path": "../db" },
-    { "path": "../auth" },
-    { "path": "../audit-security" },
-    { "path": "../ai" },
-    { "path": "../integrations/telegram" }
+    {
+      "path": "../db"
+    },
+    {
+      "path": "../auth"
+    },
+    {
+      "path": "../audit-security"
+    },
+    {
+      "path": "../ai"
+    },
+    {
+      "path": "../integrations/telegram"
+    },
+    {
+      "path": "../body"
+    }
   ]
 }

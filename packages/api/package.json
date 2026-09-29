@@ -13,6 +13,7 @@
     "@openhealth/ai": "workspace:*",
     "@openhealth/audit-security": "workspace:*",
     "@openhealth/auth": "workspace:*",
+    "@openhealth/body": "workspace:*",
     "@openhealth/db": "workspace:*",
     "@openhealth/observability": "workspace:*",
     "@openhealth/telegram": "workspace:*",

@@ -156,6 +156,7 @@
         "@openhealth/ai": "workspace:*",
         "@openhealth/audit-security": "workspace:*",
         "@openhealth/auth": "workspace:*",
+        "@openhealth/body": "workspace:*",
         "@openhealth/db": "workspace:*",
         "@openhealth/observability": "workspace:*",
         "@openhealth/telegram": "workspace:*",
@@ -196,6 +197,17 @@
         "better-auth": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/body": {
+      "name": "@openhealth/body",
+      "dependencies": {
+        "@openhealth/db": "workspace:*",
+        "drizzle-orm": "catalog:",
       },
       "devDependencies": {
         "@openhealth/config": "workspace:*",
@@ -678,6 +690,8 @@
     "@openhealth/audit-security": ["@openhealth/audit-security@workspace:packages/audit-security"],
 
     "@openhealth/auth": ["@openhealth/auth@workspace:packages/auth"],
+
+    "@openhealth/body": ["@openhealth/body@workspace:packages/body"],
 
     "@openhealth/config": ["@openhealth/config@workspace:packages/config"],
 
