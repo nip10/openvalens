@@ -1,3 +1,4 @@
+import { ensureActiveOrganization } from "@openhealth/auth/authz/auth-org";
 import { appRouter } from "@openhealth/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -10,7 +11,7 @@ import { logger } from "hono/logger";
 
 import { createContext } from "./context";
 import { ENV } from "./env.server";
-import { auth } from "./services";
+import { auth, db } from "./services";
 
 const app = new Hono();
 
@@ -24,6 +25,44 @@ app.use(
     credentials: true,
   }),
 );
+
+// Issue #6 — Personal-workspace bootstrap. Mounted BEFORE the Better Auth
+// catch-all so Hono matches it first.
+app.post("/api/auth/ensure-active-organization", async (c) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const user = session?.user;
+
+  if (!user || typeof user.id !== "string") {
+    return c.json({ error: "UNAUTHENTICATED" }, 401);
+  }
+
+  const result = await ensureActiveOrganization(user.id, db);
+
+  if (result.created) {
+    // Set the new organization as the user's active org so subsequent
+    // Better Auth calls (which read session.activeOrganizationId) resolve
+    // to it.
+    try {
+      await auth.api.setActiveOrganization({
+        headers: c.req.raw.headers,
+        body: { organizationId: result.organizationId },
+      });
+    } catch (error) {
+      // TODO(#9): replace console.error with the structured logger. Do not
+      // log the error message verbatim — sanitize via the BLOCKED_FIELDS list.
+      console.error("auth.ensure-active-organization.set-active-failed", {
+        userId: user.id,
+        organizationId: result.organizationId,
+        error: error instanceof Error ? error.name : "unknown",
+      });
+    }
+
+    // TODO(#9): structured log line for `auth.organization.auto-created` with
+    // correlation id, userId, organizationId, slug.
+  }
+
+  return c.json(result);
+});
 
 app.on(["POST", "GET"], "/api/auth/*", async (c) => auth.handler(c.req.raw));
 
