@@ -1,5 +1,6 @@
-import { ensureActiveOrganization } from "@openhealth/auth/authz/auth-org";
 import { appRouter } from "@openhealth/api/routers/index";
+import { ensureActiveOrganization, personalWorkspaceSlug } from "@openhealth/auth/authz/auth-org";
+import { correlationMiddleware, createStructuredLogger } from "@openhealth/observability";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -7,15 +8,54 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { auth, db } from "./services";
 
+declare module "hono" {
+  interface ContextVariableMap {
+    /** Resolved request correlation id, set by `correlationMiddleware()`. */
+    correlationId: string;
+  }
+}
+
+// Issue #9 — single PHI-safe structured logger for the server process.
+const logger = createStructuredLogger({ level: "info" });
+
+/**
+ * Reads the correlation id off an oRPC interceptor's request context without
+ * depending on the handler's generic context type.
+ */
+function correlationIdFrom(context: unknown): string | undefined {
+  if (context && typeof context === "object" && "correlationId" in context) {
+    const value = (context as { correlationId?: unknown }).correlationId;
+    return typeof value === "string" ? value : undefined;
+  }
+  return undefined;
+}
+
 const app = new Hono();
 
-app.use(logger());
+// Issue #9 — resolve the correlation id before anything else so the CORS
+// response, every downstream log line and the oRPC context share one id.
+app.use(correlationMiddleware());
+
+// Structured request log — one JSON line per request, always tagged with the
+// correlation id. Replaces the plain-text `hono/logger` output so no server
+// log line is emitted without a correlation id.
+app.use("/*", async (c, next) => {
+  const startedAt = performance.now();
+  await next();
+  logger.info("http.request.completed", {
+    correlationId: c.get("correlationId"),
+    method: c.req.method,
+    path: c.req.path,
+    status: c.res.status,
+    durationMs: Math.round(performance.now() - startedAt),
+  });
+});
+
 app.use(
   "/*",
   cors({
@@ -48,17 +88,23 @@ app.post("/api/auth/ensure-active-organization", async (c) => {
         body: { organizationId: result.organizationId },
       });
     } catch (error) {
-      // TODO(#9): replace console.error with the structured logger. Do not
-      // log the error message verbatim — sanitize via the BLOCKED_FIELDS list.
-      console.error("auth.ensure-active-organization.set-active-failed", {
+      // Issue #9 — PHI-safe: the logger serializes the error to
+      // `{ name, code? }` and drops any blocked field values.
+      logger.error("auth.ensure-active-organization.set-active-failed", {
+        correlationId: c.get("correlationId"),
         userId: user.id,
         organizationId: result.organizationId,
-        error: error instanceof Error ? error.name : "unknown",
+        error,
       });
     }
 
-    // TODO(#9): structured log line for `auth.organization.auto-created` with
-    // correlation id, userId, organizationId, slug.
+    logger.info("auth.organization.auto-created", {
+      correlationId: c.get("correlationId"),
+      userId: user.id,
+      organizationId: result.organizationId,
+      slug: personalWorkspaceSlug(user.id),
+      role: result.role,
+    });
   }
 
   return c.json(result);
@@ -73,16 +119,22 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
     }),
   ],
   interceptors: [
-    onError((error) => {
-      console.error(error);
+    onError((error, options) => {
+      logger.error("orpc.request.failed", {
+        correlationId: correlationIdFrom(options.context),
+        error,
+      });
     }),
   ],
 });
 
 export const rpcHandler = new RPCHandler(appRouter, {
   interceptors: [
-    onError((error) => {
-      console.error(error);
+    onError((error, options) => {
+      logger.error("orpc.request.failed", {
+        correlationId: correlationIdFrom(options.context),
+        error,
+      });
     }),
   ],
 });

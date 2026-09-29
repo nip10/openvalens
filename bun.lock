@@ -77,6 +77,7 @@
         "@openhealth/api": "workspace:*",
         "@openhealth/auth": "workspace:*",
         "@openhealth/db": "workspace:*",
+        "@openhealth/observability": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
@@ -152,6 +153,7 @@
         "@better-auth/drizzle-adapter": "1.7.5",
         "@better-auth/expo": "catalog:",
         "@openhealth/db": "workspace:*",
+        "@openhealth/observability": "workspace:*",
         "better-auth": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
@@ -178,6 +180,17 @@
         "drizzle-kit": "1.0.0-rc.4",
         "typescript": "^6.0.3",
         "varlock": "catalog:",
+      },
+    },
+    "packages/observability": {
+      "name": "@openhealth/observability",
+      "dependencies": {
+        "varlock": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
+        "typescript": "^6.0.3",
       },
     },
     "packages/ui": {
@@ -589,6 +602,8 @@
     "@openhealth/config": ["@openhealth/config@workspace:packages/config"],
 
     "@openhealth/db": ["@openhealth/db@workspace:packages/db"],
+
+    "@openhealth/observability": ["@openhealth/observability@workspace:packages/observability"],
 
     "@openhealth/ui": ["@openhealth/ui@workspace:packages/ui"],
 

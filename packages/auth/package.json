@@ -24,6 +24,7 @@
     "@better-auth/drizzle-adapter": "1.7.5",
     "@better-auth/expo": "catalog:",
     "@openhealth/db": "workspace:*",
+    "@openhealth/observability": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"

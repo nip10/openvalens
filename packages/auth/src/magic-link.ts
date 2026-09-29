@@ -1,3 +1,5 @@
+import { createStructuredLogger } from "@openhealth/observability";
+
 import { buildMagicLinkSuccessLogMetadata } from "./auth-logging";
 import { renderMagicLinkEmail } from "./email/templates/magic-link";
 
@@ -14,9 +16,13 @@ export type MagicLinkPayload = {
   requestId?: unknown;
 };
 
+export type MagicLinkLogger = {
+  info(event: string, metadata?: Record<string, unknown>): void;
+};
+
 export type SendAuthMagicLinkOptions = {
   expiresInSeconds?: number;
-  logger?: Pick<Console, "info">;
+  logger?: MagicLinkLogger;
 };
 
 function generateCorrelationId(): string {
@@ -94,7 +100,7 @@ export async function sendAuthMagicLink(
 ): Promise<void> {
   const correlationId = resolveMagicLinkCorrelationId(payload);
   const expiresInSeconds = options.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS;
-  const logger = options.logger ?? console;
+  const logger = options.logger ?? createStructuredLogger({ level: "info" });
 
   // TODO(#15): render via Resend magic-link template and hand the rendered
   // payload to the Resend provider instead of logging a stub.
@@ -108,20 +114,22 @@ export async function sendAuthMagicLink(
   const location = parseLinkLocation(payload.url);
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
 
-  const logRecord = {
-    level: "info",
-    ...buildMagicLinkSuccessLogMetadata({
-      email: payload.email,
-      correlationId,
-      linkHost: location?.host,
-      linkPath: location?.path,
-      tokenFingerprint,
-      expiresInSeconds,
-      expiresAt,
-    }),
-    subject: rendered.subject,
-  };
+  const { event, ...metadata } = buildMagicLinkSuccessLogMetadata({
+    email: payload.email,
+    correlationId,
+    linkHost: location?.host,
+    linkPath: location?.path,
+    tokenFingerprint,
+    expiresInSeconds,
+    expiresAt,
+  });
 
-  // TODO(#9): replace console.info with the PHI-safe structured logger.
-  logger.info(JSON.stringify(logRecord));
+  // Issue #9 — PHI-safe structured log. The logger drops BLOCKED_FIELDS
+  // recursively, so the raw token/URL never reach the log even if a caller
+  // slips them into the metadata.
+  logger.info(event, {
+    ...metadata,
+    subject: rendered.subject,
+    sender: "stub",
+  });
 }

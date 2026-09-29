@@ -2,13 +2,17 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { expo } from "@better-auth/expo";
 import type { Database } from "@openhealth/db";
 import * as schema from "@openhealth/db/schema/auth";
+import { createStructuredLogger } from "@openhealth/observability";
 import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins/admin";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 
 import { ac, roles } from "./access/better-auth";
+import { maskEmailRecipient } from "./auth-logging";
 import { sendAuthMagicLink } from "./magic-link";
+
+const logger = createStructuredLogger({ level: "info" });
 
 const MAGIC_LINK_EXPIRES_IN_SECONDS = 600;
 const INVITATION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 2;
@@ -60,11 +64,10 @@ export function createAuth(
         requireEmailVerificationOnInvitation: true,
         invitationExpiresIn: INVITATION_EXPIRES_IN_SECONDS,
         sendInvitationEmail: async ({ email, invitation }) => {
-          // TODO(#15): render via Resend invitation template and remove this
-          // console stub. Do not log the raw invitation id without a
-          // structured logger (Issue #9).
-          console.info("auth.invitation.queued", {
-            recipient: email,
+          // TODO(#15): render via Resend invitation template and hand the
+          // rendered payload to the provider.
+          logger.info("auth.invitation.queued", {
+            recipient: maskEmailRecipient(email),
             invitationId: invitation.id,
           });
         },
