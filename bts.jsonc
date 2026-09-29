@@ -1,0 +1,28 @@
+// Better-T-Stack project metadata
+//
+// Keep this file to use the `add` command.
+// Add addons: bunx create-better-t-stack@latest add
+//
+// Docs: https://better-t-stack.dev/docs
+// Stack Builder: https://better-t-stack.dev/new
+
+{
+  "$schema": "https://r2.better-t-stack.dev/schema.json",
+  "version": "3.44.2",
+  "createdAt": "2026-09-29T17:40:10.737Z",
+  "reproducibleCommand": "bun create better-t-stack@latest openhealth --frontend tanstack-router native-uniwind --backend hono --runtime bun --database postgres --orm drizzle --api orpc --auth better-auth --payments none --addons oxlint turborepo --examples none --db-setup docker --web-deploy docker --server-deploy docker --git --package-manager bun --install",
+  "database": "postgres",
+  "orm": "drizzle",
+  "backend": "hono",
+  "runtime": "bun",
+  "frontend": ["tanstack-router", "native-uniwind"],
+  "addons": ["oxlint", "turborepo"],
+  "examples": [],
+  "auth": "better-auth",
+  "payments": "none",
+  "packageManager": "bun",
+  "dbSetup": "docker",
+  "api": "orpc",
+  "webDeploy": "docker",
+  "serverDeploy": "docker",
+}

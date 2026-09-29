@@ -1,0 +1,69 @@
+{
+  "name": "openhealth",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "zod": "^4.5.4",
+      "@types/bun": "^1.4.2",
+      "varlock": "1.18.0",
+      "@orpc/server": "^1.15.0",
+      "@orpc/openapi": "^1.15.0",
+      "@orpc/zod": "^1.15.0",
+      "better-auth": "1.7.5",
+      "lucide-react": "^1.41.0",
+      "next-themes": "^0.4.6",
+      "sonner": "^2.0.8",
+      "@orpc/tanstack-query": "^1.15.0",
+      "@orpc/client": "^1.15.0",
+      "@tanstack/react-query": "^5.102.8",
+      "@tanstack/react-form": "^1.33.5",
+      "@types/node": "^26.4.1",
+      "@types/react-dom": "^19.2.7",
+      "tailwindcss": "^4.3.3",
+      "@better-auth/expo": "1.7.5",
+      "drizzle-orm": "1.0.0-rc.4"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "dev:native": "turbo run dev -F native --",
+    "dev:web": "turbo run dev -F web --",
+    "dev:server": "turbo run dev -F server --",
+    "db:push": "turbo run db:push -F @openhealth/db --",
+    "db:studio": "turbo run db:studio -F @openhealth/db --",
+    "db:generate": "turbo run db:generate -F @openhealth/db --",
+    "db:migrate": "turbo run db:migrate -F @openhealth/db --",
+    "db:start": "docker compose up -d postgres",
+    "db:watch": "docker compose up postgres",
+    "db:stop": "docker compose stop postgres",
+    "db:down": "docker compose down postgres",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
+    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
+    "auth:generate": "cd apps/server && bun run auth:generate",
+    "check": "oxlint && oxfmt --write"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@openhealth/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "oxfmt": "^0.66.0",
+    "oxlint": "^1.81.0",
+    "turbo": "^2.10.12",
+    "typescript": "^6.0.3",
+    "varlock": "catalog:"
+  },
+  "packageManager": "bun@1.4.2"
+}
