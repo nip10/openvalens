@@ -32,6 +32,9 @@
     },
     {
       "path": "../plans"
+    },
+    {
+      "path": "../clinical"
     }
   ]
 }
