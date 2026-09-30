@@ -1,0 +1,161 @@
+import { beforeEach, expect, mock, spyOn, test } from "bun:test";
+import type { Context } from "../context";
+import { ProvenanceReferenceError } from "@openhealth/health-record/repository";
+
+let role = "owner";
+class AuthzHttpError extends Error {
+  readonly code = "PERMISSION_DENIED";
+  readonly status = 403;
+}
+const requirePermission = mock(
+  async (_request: unknown, permission: { resource: string; action: string }) => {
+    if (role === "viewer" && permission.action === "write") throw new AuthzHttpError();
+    if (role === "no-member") throw new AuthzHttpError();
+    return { user: { id: "actor" }, activeOrganizationId: "org-a", member: { role }, role };
+  },
+);
+mock.module("@openhealth/auth/authz/guard", () => ({ AuthzHttpError, requirePermission }));
+const list = mock(async (_org: string, _filters: unknown) => ({ items: [], nextCursor: null }));
+const changes = mock(async (_org: string, _options: unknown) => ({ items: [] }));
+const write = mock(async (_link: unknown) => ({ id: 1, createdAt: "2026-09-30T00:00:00Z" }));
+const audit = mock(async (_input: unknown) => {});
+mock.module("@openhealth/audit-security", () => ({
+  writeAuditLog: audit,
+  assertTenantBoundary: mock(),
+  TenantViolationError: class extends Error {},
+}));
+mock.module("@openhealth/health-record", async () => {
+  const helpers = await import("@openhealth/health-record/timeline");
+  const types = await import("@openhealth/health-record/types");
+  return {
+    ...helpers,
+    ...types,
+    ProvenanceReferenceError,
+    PROVENANCE_TABLES: ["health_event", "metric_sample", "ingestion_raw_artifact"],
+    createHealthRecordRepository: () => ({
+      listTimeline: list,
+      listChangesSinceReview: changes,
+      writeProvenanceLink: write,
+    }),
+  };
+});
+const { timelineRouter } = await import("./timeline");
+function context(authenticated = true): Context {
+  return {
+    session: authenticated ? { user: { id: "actor" } } : null,
+    correlationId: "test",
+    honoContext: { req: { raw: { headers: new Headers() } } },
+  } as Context;
+}
+beforeEach(() => {
+  role = "owner";
+  requirePermission.mockClear();
+  list.mockClear();
+  changes.mockClear();
+  write.mockClear();
+  audit.mockClear();
+});
+test("reads require records:read and use only active authz org", async () => {
+  await timelineRouter.list.callable({ context: context() })({
+    source: "manual",
+    from: "2026-09-01",
+    limit: 1,
+  });
+  expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "read" });
+  expect(list.mock.calls[0]?.[0]).toBe("org-a");
+  await timelineRouter.changesSinceReview.callable({ context: context() })({ limit: 5 });
+  expect(changes.mock.calls[0]).toEqual(["org-a", { limit: 5 }]);
+  expect(audit).not.toHaveBeenCalled();
+});
+test("unauthenticated and unauthorized writes do not reach repository or audit", async () => {
+  const input = {
+    targetTable: "health_event" as const,
+    targetId: 1,
+    sourceTable: "metric_sample" as const,
+    sourceId: 2,
+    relation: "derived_from" as const,
+  };
+  await expect(timelineRouter.list.callable({ context: context(false) })({})).rejects.toMatchObject(
+    { code: "UNAUTHENTICATED" },
+  );
+  for (const denied of ["viewer", "no-member"]) {
+    role = denied;
+    await expect(
+      timelineRouter.writeProvenanceLink.callable({ context: context() })(input),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  }
+  expect(write).not.toHaveBeenCalled();
+  expect(audit).not.toHaveBeenCalled();
+});
+test("strict inputs reject org/user/metadata overrides and invalid boundaries", async () => {
+  const call = timelineRouter.list.callable({ context: context() });
+  for (const input of [
+    { organizationId: "org-b" },
+    { userId: "victim" },
+    { from: "2026-02-30" },
+    { from: "2026-09-30", to: "2026-09-01" },
+    { cursor: "bad" },
+  ])
+    await expect(call(input as never)).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  const base = {
+    targetTable: "health_event",
+    targetId: 1,
+    sourceTable: "metric_sample",
+    sourceId: 2,
+    relation: "derived_from",
+  };
+  for (const extra of [
+    { organizationId: "org-b" },
+    { userId: "victim" },
+    { metadataJson: { private: "PRIVATE" } },
+    { targetTable: "preferred_health_event" },
+  ])
+    await expect(
+      timelineRouter.writeProvenanceLink.callable({ context: context() })({
+        ...base,
+        ...extra,
+      } as never),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  expect(write).not.toHaveBeenCalled();
+  expect(audit).not.toHaveBeenCalled();
+  expect(list).not.toHaveBeenCalled();
+});
+test("successful writer audits exactly once, identity authz derived, no PHI logs", async () => {
+  const logs = [spyOn(console, "log"), spyOn(console, "warn"), spyOn(console, "error")];
+  try {
+    const input = {
+      targetTable: "health_event" as const,
+      targetId: 1,
+      sourceTable: "metric_sample" as const,
+      sourceId: 2,
+      relation: "derived_from" as const,
+    };
+    await timelineRouter.writeProvenanceLink.callable({ context: context() })(input);
+    expect(write.mock.calls[0]?.[0]).toEqual({ ...input, organizationId: "org-a" });
+    expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "write" });
+    expect(audit).toHaveBeenCalledTimes(1);
+    expect(audit.mock.calls[0]?.[0]).toMatchObject({
+      organizationId: "org-a",
+      actorUserId: "actor",
+      eventType: "RECORD_CREATED",
+      targetType: "provenance_link",
+      targetId: "1",
+    });
+    for (const log of logs) expect(log).not.toHaveBeenCalled();
+  } finally {
+    for (const log of logs) log.mockRestore();
+  }
+});
+test("tenant reference rejection never audits success or leaks internal payload", async () => {
+  write.mockRejectedValueOnce(new ProvenanceReferenceError());
+  await expect(
+    timelineRouter.writeProvenanceLink.callable({ context: context() })({
+      targetTable: "health_event",
+      targetId: 1,
+      sourceTable: "metric_sample",
+      sourceId: 999,
+      relation: "derived_from",
+    }),
+  ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect(audit).not.toHaveBeenCalled();
+});
