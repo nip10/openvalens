@@ -3,6 +3,7 @@ import type { RouterClient } from "@orpc/server";
 import { aiRouter } from "./ai";
 import { bodyRouter } from "./body";
 import { clinicalRouter } from "./clinical";
+import { coachRouter } from "./coach";
 import { cronRouter } from "./cron";
 import { exampleRouter } from "./example";
 import { healthRouter } from "./health";
@@ -14,6 +15,7 @@ export const appRouter = {
   ai: aiRouter,
   body: bodyRouter,
   clinical: clinicalRouter,
+  coach: coachRouter,
   cron: cronRouter,
   example: exampleRouter,
   health: healthRouter,
