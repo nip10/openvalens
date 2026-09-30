@@ -15,6 +15,7 @@
     "@openhealth/auth": "workspace:*",
     "@openhealth/body": "workspace:*",
     "@openhealth/clinical": "workspace:*",
+    "@openhealth/clinical-export": "workspace:*",
     "@openhealth/coach": "workspace:*",
     "@openhealth/cockpit": "workspace:*",
     "@openhealth/db": "workspace:*",

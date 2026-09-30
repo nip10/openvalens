@@ -7,6 +7,7 @@ import { coachRouter } from "./coach";
 import { cockpitRouter } from "./cockpit";
 import { cronRouter } from "./cron";
 import { exampleRouter } from "./example";
+import { exportsRouter } from "./exports";
 import { healthRouter } from "./health";
 import { plansRouter } from "./plans";
 import { sleepRouter } from "./sleep";
@@ -21,6 +22,7 @@ export const appRouter = {
   cockpit: cockpitRouter,
   cron: cronRouter,
   example: exampleRouter,
+  exports: exportsRouter,
   health: healthRouter,
   plans: plansRouter,
   sleep: sleepRouter,

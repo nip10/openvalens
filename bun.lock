@@ -158,6 +158,7 @@
         "@openhealth/auth": "workspace:*",
         "@openhealth/body": "workspace:*",
         "@openhealth/clinical": "workspace:*",
+        "@openhealth/clinical-export": "workspace:*",
         "@openhealth/coach": "workspace:*",
         "@openhealth/cockpit": "workspace:*",
         "@openhealth/db": "workspace:*",
@@ -222,6 +223,17 @@
     },
     "packages/clinical": {
       "name": "@openhealth/clinical",
+      "dependencies": {
+        "@openhealth/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/clinical-export": {
+      "name": "@openhealth/clinical-export",
       "dependencies": {
         "@openhealth/db": "workspace:*",
         "drizzle-orm": "catalog:",
@@ -766,6 +778,8 @@
     "@openhealth/body": ["@openhealth/body@workspace:packages/body"],
 
     "@openhealth/clinical": ["@openhealth/clinical@workspace:packages/clinical"],
+
+    "@openhealth/clinical-export": ["@openhealth/clinical-export@workspace:packages/clinical-export"],
 
     "@openhealth/coach": ["@openhealth/coach@workspace:packages/coach"],
 
