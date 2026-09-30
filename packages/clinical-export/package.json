@@ -10,8 +10,13 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
+    "@openhealth/body": "workspace:*",
+    "@openhealth/clinical": "workspace:*",
+    "@openhealth/coach": "workspace:*",
     "@openhealth/db": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "@openhealth/plans": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@openhealth/config": "workspace:*",

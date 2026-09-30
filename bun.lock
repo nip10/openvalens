@@ -235,8 +235,13 @@
     "packages/clinical-export": {
       "name": "@openhealth/clinical-export",
       "dependencies": {
+        "@openhealth/body": "workspace:*",
+        "@openhealth/clinical": "workspace:*",
+        "@openhealth/coach": "workspace:*",
         "@openhealth/db": "workspace:*",
+        "@openhealth/plans": "workspace:*",
         "drizzle-orm": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@openhealth/config": "workspace:*",
