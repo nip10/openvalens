@@ -16,7 +16,13 @@ import {
 describe("ingest contract (Issue #17 bounded ingest write seam)", () => {
   describe("resolveCanonicalMetricCode", () => {
     test("resolves every canonical taxonomy code", () => {
-      for (const code of ["weight", "height", "resting_heart_rate", "sleep_session", "blood_marker"] as const) {
+      for (const code of [
+        "weight",
+        "height",
+        "resting_heart_rate",
+        "sleep_session",
+        "blood_marker",
+      ] as const) {
         const result = resolveCanonicalMetricCode({ metricCode: code });
         expect(result).not.toBeNull();
         expect(result?.canonicalMetricCode).toBe(code);

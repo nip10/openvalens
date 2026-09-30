@@ -10,10 +10,7 @@ import {
   metricSample,
 } from "@openhealth/db/schema/health-record";
 import { eq } from "drizzle-orm";
-import {
-  CanonicalMetricNotFoundError,
-  CrossTenantReferenceError,
-} from "./ingest";
+import { CanonicalMetricNotFoundError, CrossTenantReferenceError } from "./ingest";
 import { createHealthRecordRepository } from "./repository";
 
 // Opt-in only; never accept a production URL or existing database. This test
@@ -315,9 +312,9 @@ describe.skipIf(!url)("ingest write seam real PostgreSQL schema", () => {
     expect(bloodFamily.resolved.canonicalMetricCode).toBe("blood_marker_glucose");
     expect(bloodFamily.resolved.isBloodMarkerFamily).toBe(true);
 
-    await expect(
-      repo.resolveCanonicalMetric("org-a", "made_up_marker"),
-    ).rejects.toBeInstanceOf(CanonicalMetricNotFoundError);
+    await expect(repo.resolveCanonicalMetric("org-a", "made_up_marker")).rejects.toBeInstanceOf(
+      CanonicalMetricNotFoundError,
+    );
   });
 
   test("PHI-bearing ingest writes emit no console payloads", async () => {

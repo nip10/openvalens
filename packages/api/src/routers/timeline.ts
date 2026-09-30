@@ -181,43 +181,40 @@ export const timelineRouter = {
   listMetrics: permissionedProcedure({ resource: "records", action: "read" })
     .output(z.array(metricDefinitionReadSchema))
     .handler(({ context }) =>
-      createHealthRecordRepository(context.db).listMetrics(
-        context.authz.activeOrganizationId,
-      ).then((rows) =>
-        rows.map((row) => ({
-          id: row.id,
-          code: row.code,
-          displayName: row.displayName,
-          category: row.category,
-          unit: row.unit,
-          valueType: row.valueType,
-          aggregationDefault: row.aggregationDefault,
-          isActive: row.isActive,
-          canonicalMetricCode: row.canonicalMetricCode,
-          isBloodMarkerFamily: row.isBloodMarkerFamily,
-          taxonomy: row.taxonomy
-            ? {
-                code: row.taxonomy.code,
-                displayName: row.taxonomy.displayName,
-                category: row.taxonomy.category,
-                unit: row.taxonomy.unit,
-                valueType: row.taxonomy.valueType,
-                aggregationDefault: row.taxonomy.aggregationDefault,
-                supportedSources: [...row.taxonomy.supportedSources],
-                hasDefaultPriority: row.taxonomy.hasDefaultPriority,
-              }
-            : null,
-        })),
-      ),
+      createHealthRecordRepository(context.db)
+        .listMetrics(context.authz.activeOrganizationId)
+        .then((rows) =>
+          rows.map((row) => ({
+            id: row.id,
+            code: row.code,
+            displayName: row.displayName,
+            category: row.category,
+            unit: row.unit,
+            valueType: row.valueType,
+            aggregationDefault: row.aggregationDefault,
+            isActive: row.isActive,
+            canonicalMetricCode: row.canonicalMetricCode,
+            isBloodMarkerFamily: row.isBloodMarkerFamily,
+            taxonomy: row.taxonomy
+              ? {
+                  code: row.taxonomy.code,
+                  displayName: row.taxonomy.displayName,
+                  category: row.taxonomy.category,
+                  unit: row.taxonomy.unit,
+                  valueType: row.taxonomy.valueType,
+                  aggregationDefault: row.taxonomy.aggregationDefault,
+                  supportedSources: [...row.taxonomy.supportedSources],
+                  hasDefaultPriority: row.taxonomy.hasDefaultPriority,
+                }
+              : null,
+          })),
+        ),
     ),
   listSourcePriority: permissionedProcedure({ resource: "records", action: "read" })
     .output(z.array(sourcePriorityResolutionSchema))
     .handler(({ context }) =>
       createHealthRecordRepository(context.db)
-        .listSourcePriority(
-          context.authz.activeOrganizationId,
-          context.authz.user.id,
-        )
+        .listSourcePriority(context.authz.activeOrganizationId, context.authz.user.id)
         .then((rows) =>
           rows.map((row) => ({
             metricCode: row.metricCode,

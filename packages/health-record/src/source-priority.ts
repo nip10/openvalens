@@ -81,10 +81,10 @@ export function resolveMetricSourcePriority(
   const defaultOrder = getDefaultSourcePriorityOrder(canonical);
 
   const manualOverride = isValidOrder(userRow?.preferredSources, definition)
-    ? userRow?.preferredSources ?? null
+    ? (userRow?.preferredSources ?? null)
     : null;
   const familyHistoryEntry = isValidOrder(orgRow?.preferredSources, definition)
-    ? orgRow?.preferredSources ?? null
+    ? (orgRow?.preferredSources ?? null)
     : null;
 
   let effectiveOrder: readonly string[];
@@ -156,7 +156,7 @@ function isValidOrder(
 ): order is readonly string[] {
   if (!order || order.length === 0) return false;
   if (!definition) return true;
-  if (definition.code === "blood_marker" as CanonicalMetricCode) {
+  if (definition.code === ("blood_marker" as CanonicalMetricCode)) {
     return order.every((source) => source.length > 0);
   }
   return order.every((source) => definition.supportedSources.includes(source));

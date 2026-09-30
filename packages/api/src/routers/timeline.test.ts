@@ -1,6 +1,9 @@
 import { afterAll, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import type { Context } from "../context";
-import { ProvenanceReferenceError, SourcePreferenceValidationError } from "@openhealth/health-record/repository";
+import {
+  ProvenanceReferenceError,
+  SourcePreferenceValidationError,
+} from "@openhealth/health-record/repository";
 import * as healthRecord from "@openhealth/health-record";
 import * as auditSecurity from "@openhealth/audit-security";
 import * as authzGuard from "@openhealth/auth/authz/guard";
@@ -68,19 +71,21 @@ const listSourcePriority = mock(async (_org: string, _user: string) => [
     reason: "default_order",
   },
 ]);
-const upsertSourcePreference = mock(async (input: {
-  organizationId: string;
-  userId: string;
-  metricCode: string;
-  preferredSources: readonly string[];
-}) => ({
-  id: 7,
-  metricCode: input.metricCode,
-  userId: input.userId,
-  preferredSources: [...input.preferredSources],
-  scope: "user" as const,
-  updatedAt: "2026-09-30T00:00:00Z",
-}));
+const upsertSourcePreference = mock(
+  async (input: {
+    organizationId: string;
+    userId: string;
+    metricCode: string;
+    preferredSources: readonly string[];
+  }) => ({
+    id: 7,
+    metricCode: input.metricCode,
+    userId: input.userId,
+    preferredSources: [...input.preferredSources],
+    scope: "user" as const,
+    updatedAt: "2026-09-30T00:00:00Z",
+  }),
+);
 const deleteSourcePreference = mock(
   async (_input: { organizationId: string; userId: string; metricCode: string }) => ({
     removed: true,
@@ -326,7 +331,12 @@ test("upsertSourcePreference derives org/user from authz, audits once, never log
       preferredSources: ["phone", "watch"],
     });
     expect(upsertSourcePreference.mock.calls[0]).toEqual([
-      { organizationId: "org-a", userId: "actor", metricCode: "weight", preferredSources: ["phone", "watch"] },
+      {
+        organizationId: "org-a",
+        userId: "actor",
+        metricCode: "weight",
+        preferredSources: ["phone", "watch"],
+      },
     ]);
     expect(audit).toHaveBeenCalledTimes(1);
     expect(audit.mock.calls[0]?.[0]).toMatchObject({
@@ -358,7 +368,12 @@ test("deleteSourcePreference audits once with targetType source_preference_delet
     actorUserId: "actor",
     eventType: "RECORD_DELETED",
     targetType: "source_preference_delete",
-    metadata: { resource: "records", action: "write", metricCode: "resting_heart_rate", removed: true },
+    metadata: {
+      resource: "records",
+      action: "write",
+      metricCode: "resting_heart_rate",
+      removed: true,
+    },
   });
   expect(result.removed).toBe(true);
   expect(result.removedIds).toEqual([42]);
@@ -373,7 +388,20 @@ test("strict source-preference upsert rejects org/user overrides and bad inputs"
     { metricCode: "weight", preferredSources: [], metadataJson: { private: "PRIVATE" } },
     { metricCode: "weight", preferredSources: ["phone"], format: "csv" },
     { metricCode: "PRIVATE", preferredSources: ["phone"] },
-    { metricCode: "weight", preferredSources: ["phone", "phone", "phone", "phone", "phone", "phone", "phone", "phone", "phone"] },
+    {
+      metricCode: "weight",
+      preferredSources: [
+        "phone",
+        "phone",
+        "phone",
+        "phone",
+        "phone",
+        "phone",
+        "phone",
+        "phone",
+        "phone",
+      ],
+    },
     { metricCode: "weight" },
     { metricCode: "weight", preferredSources: [123] },
   ])
@@ -400,7 +428,9 @@ test("viewer role is denied records:write for source-preference upsert/delete", 
 });
 
 test("upsert validation failure surfaces as NOT_FOUND without audit", async () => {
-  upsertSourcePreference.mockRejectedValueOnce(new SourcePreferenceValidationError("metric_not_found"));
+  upsertSourcePreference.mockRejectedValueOnce(
+    new SourcePreferenceValidationError("metric_not_found"),
+  );
   await expect(
     timelineRouter.upsertSourcePreference.callable({ context: context() })({
       metricCode: "blood_marker_glucose",

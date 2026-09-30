@@ -8,19 +8,13 @@ import {
   type SourcePreferenceRow,
 } from "./source-priority";
 
-const userRow = (
-  metricCode: string,
-  preferredSources: readonly string[],
-): SourcePreferenceRow => ({
+const userRow = (metricCode: string, preferredSources: readonly string[]): SourcePreferenceRow => ({
   metricCode,
   scope: "user",
   preferredSources,
 });
 
-const orgRow = (
-  metricCode: string,
-  preferredSources: readonly string[],
-): SourcePreferenceRow => ({
+const orgRow = (metricCode: string, preferredSources: readonly string[]): SourcePreferenceRow => ({
   metricCode,
   scope: "organization",
   preferredSources,
@@ -137,10 +131,10 @@ describe("source priority resolver (Issue #17 bounded read-side)", () => {
   });
 
   test("buildSourcePriorityLookup partitions user/organization scopes", () => {
-    const result = buildSourcePriorityLookup(["weight", "resting_heart_rate"], [
-      userRow("weight", ["phone", "watch"]),
-      orgRow("resting_heart_rate", ["phone", "watch"]),
-    ]);
+    const result = buildSourcePriorityLookup(
+      ["weight", "resting_heart_rate"],
+      [userRow("weight", ["phone", "watch"]), orgRow("resting_heart_rate", ["phone", "watch"])],
+    );
     expect(result[0]?.reason).toBe("manual_override");
     expect(result[1]?.reason).toBe("family_history_entry");
   });

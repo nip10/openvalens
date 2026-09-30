@@ -14,16 +14,16 @@ Every response from `apps/server` — root, oRPC (`/rpc`, `/api-reference`),
 Better Auth (`/api/auth/*`), cron endpoints and error responses — carries the
 following headers, built by `buildSecurityHeaders()`:
 
-| Header                           | Value                                                                 | Rationale                                                                 |
-| -------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `Content-Security-Policy`        | see §2                                                                 | Restricts script/style/connect sources; blocks plugin and base-tag abuse |
-| `Strict-Transport-Security`      | `max-age=63072000; includeSubDomains; preload`                         | Force HTTPS for 2 years, all subdomains, eligible for preload lists      |
-| `X-Frame-Options`                | `DENY`                                                                 | Clickjacking defence (paired with CSP `frame-ancestors 'none'`)          |
-| `X-Content-Type-Options`         | `nosniff`                                                              | Stop MIME-type sniffing                                                  |
-| `Referrer-Policy`                | `strict-origin-when-cross-origin`                                      | Send origin only, never the full path, to other origins                  |
-| `Permissions-Policy`             | `camera=(), microphone=(), geolocation=(), interest-cohort=()`         | Disable powerful APIs and FLoC interest-cohort tracking                  |
-| `Cross-Origin-Opener-Policy`     | `same-origin`                                                          | Isolate the browsing context from cross-origin windows                   |
-| `Cross-Origin-Resource-Policy`   | `same-origin`                                                          | Prevent cross-origin reads of responses                                  |
+| Header                         | Value                                                          | Rationale                                                                |
+| ------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `Content-Security-Policy`      | see §2                                                         | Restricts script/style/connect sources; blocks plugin and base-tag abuse |
+| `Strict-Transport-Security`    | `max-age=63072000; includeSubDomains; preload`                 | Force HTTPS for 2 years, all subdomains, eligible for preload lists      |
+| `X-Frame-Options`              | `DENY`                                                         | Clickjacking defence (paired with CSP `frame-ancestors 'none'`)          |
+| `X-Content-Type-Options`       | `nosniff`                                                      | Stop MIME-type sniffing                                                  |
+| `Referrer-Policy`              | `strict-origin-when-cross-origin`                              | Send origin only, never the full path, to other origins                  |
+| `Permissions-Policy`           | `camera=(), microphone=(), geolocation=(), interest-cohort=()` | Disable powerful APIs and FLoC interest-cohort tracking                  |
+| `Cross-Origin-Opener-Policy`   | `same-origin`                                                  | Isolate the browsing context from cross-origin windows                   |
+| `Cross-Origin-Resource-Policy` | `same-origin`                                                  | Prevent cross-origin reads of responses                                  |
 
 Reference: [OWASP Secure Headers Project](https://owasp.org/www-project-secure-headers/).
 
@@ -75,10 +75,10 @@ client before it is validated:
 
 ## 4. Configuration
 
-| Variable     | Values                    | Default       | Effect                                        |
-| ------------ | ------------------------- | ------------- | --------------------------------------------- |
-| `CSP_MODE`   | `enforce` / `report-only` | `report-only` | Which CSP header is emitted                   |
-| `NODE_ENV`   | `development` / …         | `development` | Enables `'unsafe-eval'` only in `development` |
+| Variable   | Values                    | Default       | Effect                                        |
+| ---------- | ------------------------- | ------------- | --------------------------------------------- |
+| `CSP_MODE` | `enforce` / `report-only` | `report-only` | Which CSP header is emitted                   |
+| `NODE_ENV` | `development` / …         | `development` | Enables `'unsafe-eval'` only in `development` |
 
 Both are read from `process.env` directly; no new env vars are introduced and
 the varlock-generated `env.ts` is never edited.

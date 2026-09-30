@@ -24,13 +24,7 @@ import {
  * Anchor-compatible metric taxonomy category set. Mirrors the anchor
  * `MetricCategory` from `apps/web/src/lib/v2/health-record/metric-taxonomy.ts`.
  */
-export type MetricCategory =
-  | "body"
-  | "activity"
-  | "cardiac"
-  | "sleep"
-  | "vitals"
-  | "labs";
+export type MetricCategory = "body" | "activity" | "cardiac" | "sleep" | "vitals" | "labs";
 
 /**
  * Result of resolving a metric code against the canonical taxonomy.
@@ -179,9 +173,10 @@ export function materializeMetricDefinition(input: {
   payload?: Record<string, unknown> | null;
 }): MaterializedMetricDefinition & { sourceId: number | null } {
   const { resolved } = input;
-  const displayName = input.displayNameOverride && input.displayNameOverride.length > 0
-    ? input.displayNameOverride
-    : resolved.displayName;
+  const displayName =
+    input.displayNameOverride && input.displayNameOverride.length > 0
+      ? input.displayNameOverride
+      : resolved.displayName;
   return {
     organizationId: input.organizationId,
     code: resolved.canonicalMetricCode,
@@ -193,7 +188,10 @@ export function materializeMetricDefinition(input: {
     isActive: true,
     sourceId: input.sourceId ?? null,
     payload: input.payload ?? null,
-  } as MaterializedMetricDefinition & { sourceId: number | null; payload: Record<string, unknown> | null };
+  } as MaterializedMetricDefinition & {
+    sourceId: number | null;
+    payload: Record<string, unknown> | null;
+  };
 }
 
 /**
@@ -263,7 +261,10 @@ export function computeMetricSampleDedupeHash(input: {
   return digestStable("metric_sample", payload);
 }
 
-function digestStable(kind: "metric_sample" | "metric_definition", payload: Record<string, unknown>): string {
+function digestStable(
+  kind: "metric_sample" | "metric_definition",
+  payload: Record<string, unknown>,
+): string {
   const serialised = stableSerialize(payload);
   const hasher = typeof Bun !== "undefined" ? new Bun.CryptoHasher("sha256") : null;
   if (hasher) {
@@ -454,9 +455,10 @@ export function buildIngestDefinitionRow(input: {
   aggregationDefault: string;
   isActive: true;
 } {
-  const displayName = input.displayNameOverride && input.displayNameOverride.length > 0
-    ? input.displayNameOverride
-    : input.resolved.displayName;
+  const displayName =
+    input.displayNameOverride && input.displayNameOverride.length > 0
+      ? input.displayNameOverride
+      : input.resolved.displayName;
   return {
     organizationId: input.organizationId,
     code: input.resolved.canonicalMetricCode,

@@ -92,7 +92,12 @@ describe("source preferences (Issue #17 bounded read-side)", () => {
   });
 
   test("decode filters non-string entries", () => {
-    const decoded = decodePreferredSourcesFromRow(["watch", null as unknown as string, 7 as unknown as string, "phone"]);
+    const decoded = decodePreferredSourcesFromRow([
+      "watch",
+      null as unknown as string,
+      7 as unknown as string,
+      "phone",
+    ]);
     expect([...decoded]).toEqual(["watch", "phone"]);
   });
 

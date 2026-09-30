@@ -50,7 +50,10 @@ const TAXONOMY_CATEGORY_TO_DOMAIN: Record<string, CanonicalTimelineDomain> = {
  * adapter fell through to a text-pattern match, which silently
  * fabricated values for tenant-registered metrics.
  */
-function metricDomain(metricCode: string | null, category?: string | null): CanonicalTimelineDomain {
+function metricDomain(
+  metricCode: string | null,
+  category?: string | null,
+): CanonicalTimelineDomain {
   const explicit = (category ?? "").trim().toLowerCase();
   if (explicit && Object.hasOwn(TAXONOMY_CATEGORY_TO_DOMAIN, explicit)) {
     return TAXONOMY_CATEGORY_TO_DOMAIN[explicit]!;
@@ -185,7 +188,7 @@ export function canonicalMetric(row: MetricRow): TimelineEvent {
   const canonicalUnit = row.metricCode
     ? getMetricDefinition(canonicalizeMetricCode(row.metricCode))?.unit
     : undefined;
-  const summaryUnit = row.unit && row.unit.length > 0 ? row.unit : canonicalUnit ?? null;
+  const summaryUnit = row.unit && row.unit.length > 0 ? row.unit : (canonicalUnit ?? null);
   return {
     kind: "metric",
     id: `metric_sample:${row.id}`,

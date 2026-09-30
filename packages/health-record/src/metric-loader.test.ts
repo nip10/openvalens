@@ -59,8 +59,41 @@ describe("metric loader (Issue #17 bounded read-side)", () => {
   });
 
   test("isCanonicalRow detects canonical rows vs family vs unknown", () => {
-    expect(isCanonicalRow({ id: 1, code: "weight", displayName: "W", category: null, unit: null, valueType: "number", aggregationDefault: "latest", isActive: true })).toBe(true);
-    expect(isCanonicalRow({ id: 2, code: "blood_marker_glucose", displayName: "G", category: null, unit: null, valueType: "number", aggregationDefault: "latest", isActive: true })).toBe(false);
-    expect(isCanonicalRow({ id: 3, code: "custom", displayName: "C", category: null, unit: null, valueType: "number", aggregationDefault: "latest", isActive: true })).toBe(false);
+    expect(
+      isCanonicalRow({
+        id: 1,
+        code: "weight",
+        displayName: "W",
+        category: null,
+        unit: null,
+        valueType: "number",
+        aggregationDefault: "latest",
+        isActive: true,
+      }),
+    ).toBe(true);
+    expect(
+      isCanonicalRow({
+        id: 2,
+        code: "blood_marker_glucose",
+        displayName: "G",
+        category: null,
+        unit: null,
+        valueType: "number",
+        aggregationDefault: "latest",
+        isActive: true,
+      }),
+    ).toBe(false);
+    expect(
+      isCanonicalRow({
+        id: 3,
+        code: "custom",
+        displayName: "C",
+        category: null,
+        unit: null,
+        valueType: "number",
+        aggregationDefault: "latest",
+        isActive: true,
+      }),
+    ).toBe(false);
   });
 });

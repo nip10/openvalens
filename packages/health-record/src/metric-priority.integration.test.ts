@@ -10,10 +10,7 @@ import {
   metricSample,
 } from "@openhealth/db/schema/health-record";
 import { and, eq } from "drizzle-orm";
-import {
-  createHealthRecordRepository,
-  SourcePreferenceValidationError,
-} from "./repository";
+import { createHealthRecordRepository, SourcePreferenceValidationError } from "./repository";
 
 // Opt-in only; never accept a production URL or existing database. This test
 // applies the ACTUAL repository migrations to an empty disposable database
@@ -134,12 +131,7 @@ describe.skipIf(!url)("metric taxonomy + source priority real PostgreSQL schema"
     const [weight] = await db
       .select({ id: metricDefinition.id })
       .from(metricDefinition)
-      .where(
-        and(
-          eq(metricDefinition.organizationId, "org-a"),
-          eq(metricDefinition.code, "weight"),
-        ),
-      )
+      .where(and(eq(metricDefinition.organizationId, "org-a"), eq(metricDefinition.code, "weight")))
       .limit(1);
     if (!weight) throw new Error("Missing weight definition for sample.");
     await db.insert(metricSample).values({
@@ -264,9 +256,9 @@ describe.skipIf(!url)("metric taxonomy + source priority real PostgreSQL schema"
       preferredSources: ["phone", "lab"],
     });
     const beforeDelete = await repo.listSourcePriority("org-a", "user-a");
-    expect(
-      beforeDelete.find((row) => row.metricCode === "blood_marker_glucose")?.reason,
-    ).toBe("manual_override");
+    expect(beforeDelete.find((row) => row.metricCode === "blood_marker_glucose")?.reason).toBe(
+      "manual_override",
+    );
     const removed = await repo.deleteSourcePreference({
       organizationId: "org-a",
       userId: "user-a",
@@ -275,9 +267,9 @@ describe.skipIf(!url)("metric taxonomy + source priority real PostgreSQL schema"
     expect(removed.removed).toBe(true);
     expect(removed.ids).toHaveLength(1);
     const afterDelete = await repo.listSourcePriority("org-a", "user-a");
-    expect(
-      afterDelete.find((row) => row.metricCode === "blood_marker_glucose")?.reason,
-    ).toBe("family_history_entry");
+    expect(afterDelete.find((row) => row.metricCode === "blood_marker_glucose")?.reason).toBe(
+      "family_history_entry",
+    );
     // Delete the family-history row as well — proves the
     // organization-scope fallback path.
     const orgRemoved = await repo.deleteSourcePreference({
@@ -287,9 +279,9 @@ describe.skipIf(!url)("metric taxonomy + source priority real PostgreSQL schema"
     });
     expect(orgRemoved.removed).toBe(true);
     const final = await repo.listSourcePriority("org-a", "user-a");
-    expect(
-      final.find((row) => row.metricCode === "blood_marker_glucose")?.reason,
-    ).toBe("default_order");
+    expect(final.find((row) => row.metricCode === "blood_marker_glucose")?.reason).toBe(
+      "default_order",
+    );
   });
 
   test("PHI-bearing repository reads emit no console payloads", async () => {

@@ -12,10 +12,7 @@
  *   - never logs PHI.
  */
 
-import {
-  canonicalizeMetricCode,
-  getMetricDefinition,
-} from "./metric-taxonomy";
+import { canonicalizeMetricCode, getMetricDefinition } from "./metric-taxonomy";
 
 export type MetricQualityFlag =
   | "unknown_metric"
