@@ -10,7 +10,7 @@ import {
   provenanceLink,
 } from "@openhealth/db/schema/health-record";
 import { weeklyReview } from "@openhealth/db/schema/plans";
-import { and, desc, eq, gte, isNull, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { canonicalEvent, canonicalMetric } from "./canonical";
 import { buildTimelinePage, normalizeTimelineDateRange } from "./timeline";
 import type { TimelineFilters, ProvenanceLinkInsert } from "./types";
@@ -29,10 +29,7 @@ import {
   type MetricSourcePriorityResolution,
   type SourcePreferenceRow,
 } from "./source-priority";
-import {
-  encodePreferredSourcesForRow,
-  sanitizeMetricSourcePreference,
-} from "./source-preferences";
+import { encodePreferredSourcesForRow, sanitizeMetricSourcePreference } from "./source-preferences";
 import {
   buildIngestDefinitionRow,
   CanonicalMetricNotFoundError,
@@ -44,6 +41,7 @@ import {
   type IngestMetricDefinitionInput,
   type IngestMetricSampleInput,
 } from "./ingest";
+import { buildRetentionWindow, clusterMetricSamples, policyForMetric } from "./recurrence";
 
 export const PROVENANCE_TABLES = [
   "health_event",
@@ -520,7 +518,8 @@ export function createHealthRecordRepository(db: Database) {
       const qualityFlags = inspectSampleQuality({
         resolved,
         valueNumeric: materialised.numericValue,
-        declaredUnit: typeof input.payload.payload?.unit === "string" ? input.payload.payload.unit : null,
+        declaredUnit:
+          typeof input.payload.payload?.unit === "string" ? input.payload.payload.unit : null,
       });
       if (qualityFlags.length > 0) {
         materialised.metadataJson = {
@@ -639,6 +638,180 @@ export function createHealthRecordRepository(db: Database) {
         createdAt: inserted.createdAt.toISOString(),
         updatedAt: inserted.updatedAt.toISOString(),
       };
+    },
+    /**
+     * Resolve the canonical retention policy for a metric in the
+     * active tenant. Pure read — no audit row, no mutation.
+     */
+    async getMetricRetentionPolicy(input: {
+      organizationId: string;
+      metricCode: string;
+      retentionDays?: number;
+      timezone?: string;
+    }) {
+      const canonical = resolveCanonicalMetricCode({ metricCode: input.metricCode });
+      if (!canonical) {
+        throw new CanonicalMetricNotFoundError(input.metricCode);
+      }
+      // Confirm the tenant has the metric registered — the pure
+      // helper alone accepts the taxonomy shape without the
+      // tenant catalog.
+      const [registered] = await db
+        .select({ id: metricDefinition.id })
+        .from(metricDefinition)
+        .where(
+          and(
+            eq(metricDefinition.organizationId, input.organizationId),
+            eq(metricDefinition.code, canonical.canonicalMetricCode),
+          ),
+        )
+        .limit(1);
+      if (!registered) {
+        throw new CanonicalMetricNotFoundError(canonical.canonicalMetricCode);
+      }
+      return policyForMetric(input);
+    },
+    /**
+     * Prune `metric_sample` rows whose `sampledAt` falls outside the
+     * active tenant's retention window. The window is computed by
+     * `buildRetentionWindow` with the canonical per-metric default
+     * (or a caller override). Tenant-scoped; cross-tenant rows are
+     * never touched. The caller audits.
+     *
+     * Bounded transaction: the catalog lookup and the DELETE share
+     * a single connection so a concurrent write cannot expand the
+     * affected set mid-run.
+     */
+    async pruneMetricSamples(input: {
+      organizationId: string;
+      metricCode: string;
+      now: Date;
+      retentionDays?: number;
+      timezone?: string;
+    }) {
+      const canonical = resolveCanonicalMetricCode({ metricCode: input.metricCode });
+      if (!canonical) {
+        throw new CanonicalMetricNotFoundError(input.metricCode);
+      }
+      return db.transaction(async (tx) => {
+        const [definition] = await tx
+          .select({ id: metricDefinition.id })
+          .from(metricDefinition)
+          .where(
+            and(
+              eq(metricDefinition.organizationId, input.organizationId),
+              eq(metricDefinition.code, canonical.canonicalMetricCode),
+            ),
+          )
+          .limit(1);
+        if (!definition) {
+          throw new CanonicalMetricNotFoundError(canonical.canonicalMetricCode);
+        }
+        const timezone = input.timezone ?? "UTC";
+        const window = buildRetentionWindow({
+          now: input.now,
+          timezone,
+          metricCode: canonical.canonicalMetricCode,
+          ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
+        });
+        const deleted = await tx
+          .delete(metricSample)
+          .where(
+            and(
+              eq(metricSample.organizationId, input.organizationId),
+              eq(metricSample.metricDefinitionId, definition.id),
+              sql`${metricSample.sampledAt} < ${window.fromUtc.toISOString()}`,
+            ),
+          )
+          .returning({ id: metricSample.id });
+        return {
+          deletedCount: deleted.length,
+          fromUtc: window.fromUtc.toISOString(),
+          toUtc: window.toUtc.toISOString(),
+          retentionDays: window.retentionDays,
+          canonicalMetricCode: canonical.canonicalMetricCode,
+        };
+      });
+    },
+    /**
+     * Apply dedupe to the active tenant's `metric_sample` rows for
+     * one metric. For each cluster of rows sharing
+     * `(metricDefinitionId, sampledAt, dedupeHash)`, keep one
+     * (decided by `dedupeDecision`) and delete the rest. Idempotent:
+     * running twice returns `removedDuplicates: 0` the second time.
+     * Tenant-scoped; cross-tenant rows never touched.
+     *
+     * Bounded transaction: the catalog lookup, candidate SELECT, and
+     * the DELETE share a single connection so a concurrent write
+     * cannot expand the affected set mid-run.
+     */
+    async applyDedupeForMetric(input: { organizationId: string; metricCode: string; now: Date }) {
+      void input.now;
+      const canonical = resolveCanonicalMetricCode({ metricCode: input.metricCode });
+      if (!canonical) {
+        throw new CanonicalMetricNotFoundError(input.metricCode);
+      }
+      return db.transaction(async (tx) => {
+        const [definition] = await tx
+          .select({ id: metricDefinition.id })
+          .from(metricDefinition)
+          .where(
+            and(
+              eq(metricDefinition.organizationId, input.organizationId),
+              eq(metricDefinition.code, canonical.canonicalMetricCode),
+            ),
+          )
+          .limit(1);
+        if (!definition) {
+          throw new CanonicalMetricNotFoundError(canonical.canonicalMetricCode);
+        }
+        const rows = await tx
+          .select({
+            id: metricSample.id,
+            organizationId: metricSample.organizationId,
+            metricDefinitionId: metricSample.metricDefinitionId,
+            sampledAt: metricSample.sampledAt,
+            dedupeHash: metricSample.dedupeHash,
+          })
+          .from(metricSample)
+          .where(
+            and(
+              eq(metricSample.organizationId, input.organizationId),
+              eq(metricSample.metricDefinitionId, definition.id),
+            ),
+          );
+        if (rows.length === 0) {
+          return { removedDuplicates: 0, canonicalMetricCode: canonical.canonicalMetricCode };
+        }
+        const clusters = clusterMetricSamples(rows);
+        const idsToDelete: number[] = [];
+        for (const cluster of clusters.values()) {
+          if (cluster.length <= 1) continue;
+          // The cluster key already collapses on dedupeHash + sampledAt,
+          // so the pairwise `dedupeDecision` resolves to `stable_tie`
+          // (existing). Sort by id to make the anchor stable across
+          // repeated runs.
+          const sorted = cluster.slice().sort((left, right) => left.id - right.id);
+          idsToDelete.push(...sorted.slice(1).map((row) => row.id));
+        }
+        if (idsToDelete.length === 0) {
+          return { removedDuplicates: 0, canonicalMetricCode: canonical.canonicalMetricCode };
+        }
+        const removed = await tx
+          .delete(metricSample)
+          .where(
+            and(
+              eq(metricSample.organizationId, input.organizationId),
+              eq(metricSample.metricDefinitionId, definition.id),
+              inArray(metricSample.id, idsToDelete),
+            ),
+          )
+          .returning({ id: metricSample.id });
+        return {
+          removedDuplicates: removed.length,
+          canonicalMetricCode: canonical.canonicalMetricCode,
+        };
+      });
     },
   };
 }

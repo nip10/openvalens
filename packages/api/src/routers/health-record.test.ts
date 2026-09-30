@@ -1,9 +1,6 @@
 import { afterAll, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import type { Context } from "../context";
-import {
-  CanonicalMetricNotFoundError,
-  CrossTenantReferenceError,
-} from "@openhealth/health-record";
+import { CanonicalMetricNotFoundError, CrossTenantReferenceError } from "@openhealth/health-record";
 import * as healthRecord from "@openhealth/health-record";
 import * as auditSecurity from "@openhealth/audit-security";
 import * as authzGuard from "@openhealth/auth/authz/guard";
@@ -32,37 +29,38 @@ mock.module("@openhealth/auth/authz/guard", () => ({
   requirePermission,
 }));
 
-const resolveCanonicalMetric = mock(
-  async (_org: string, metricCode: string) => ({
-    resolved: {
-      canonicalMetricCode: metricCode === "weight" ? "weight" : "blood_marker_glucose",
-      displayName: metricCode === "weight" ? "Weight" : "Glucose",
-      category: metricCode === "weight" ? "body" : "labs",
-      unit: metricCode === "weight" ? "kg" : "varies",
-      valueType: "number" as const,
-      aggregationDefault: "latest" as const,
-      isBloodMarkerFamily: metricCode !== "weight",
-    },
-    tenant:
-      metricCode === "weight"
-        ? {
-            id: 1,
-            code: "weight",
-            displayName: "Weight",
-            category: "body",
-            unit: "kg",
-            valueType: "number",
-            aggregationDefault: "latest",
-            isActive: true,
-            canonicalMetricCode: "weight",
-            isBloodMarkerFamily: false,
-          }
-        : null,
-  }),
-);
+const resolveCanonicalMetric = mock(async (_org: string, metricCode: string) => ({
+  resolved: {
+    canonicalMetricCode: metricCode === "weight" ? "weight" : "blood_marker_glucose",
+    displayName: metricCode === "weight" ? "Weight" : "Glucose",
+    category: metricCode === "weight" ? "body" : "labs",
+    unit: metricCode === "weight" ? "kg" : "varies",
+    valueType: "number" as const,
+    aggregationDefault: "latest" as const,
+    isBloodMarkerFamily: metricCode !== "weight",
+  },
+  tenant:
+    metricCode === "weight"
+      ? {
+          id: 1,
+          code: "weight",
+          displayName: "Weight",
+          category: "body",
+          unit: "kg",
+          valueType: "number",
+          aggregationDefault: "latest",
+          isActive: true,
+          canonicalMetricCode: "weight",
+          isBloodMarkerFamily: false,
+        }
+      : null,
+}));
 
 const ingestMetricDefinition = mock(
-  async (input: { organizationId: string; payload: { metricCode: string; displayName?: string | null; sourceId?: number | null } }) => ({
+  async (input: {
+    organizationId: string;
+    payload: { metricCode: string; displayName?: string | null; sourceId?: number | null };
+  }) => ({
     id: 42,
     code: input.payload.metricCode,
     displayName: input.payload.displayName ?? "Weight",
@@ -133,6 +131,41 @@ const ingestWriteIngestionJob = mock(
   }),
 );
 
+const getMetricRetentionPolicy = mock(
+  async (input: { organizationId: string; metricCode: string }) => ({
+    metricCode: input.metricCode,
+    canonicalMetricCode: input.metricCode === "weight" ? "weight" : "blood_marker_glucose",
+    isBloodMarkerFamily: input.metricCode !== "weight",
+    retentionDays: input.metricCode === "weight" ? 365 : 730,
+    timezone: "UTC",
+    category: input.metricCode === "weight" ? "body" : "labs",
+    unit: input.metricCode === "weight" ? "kg" : "varies",
+  }),
+);
+
+const pruneMetricSamples = mock(
+  async (input: {
+    organizationId: string;
+    metricCode: string;
+    now: Date;
+    retentionDays?: number;
+    timezone?: string;
+  }) => ({
+    deletedCount: 4,
+    fromUtc: "2025-09-30T12:00:00.000Z",
+    toUtc: "2026-09-30T12:00:00.000Z",
+    retentionDays: input.retentionDays ?? 365,
+    canonicalMetricCode: input.metricCode === "weight" ? "weight" : "blood_marker_glucose",
+  }),
+);
+
+const applyDedupeForMetric = mock(
+  async (input: { organizationId: string; metricCode: string; now: Date }) => ({
+    removedDuplicates: 3,
+    canonicalMetricCode: input.metricCode === "weight" ? "weight" : "blood_marker_glucose",
+  }),
+);
+
 const audit = mock(async (_input: unknown) => {});
 
 mock.module("@openhealth/audit-security", () => ({
@@ -150,6 +183,9 @@ mock.module("@openhealth/health-record", () => ({
     ingestMetricDefinition,
     ingestMetricSample,
     ingestWriteIngestionJob,
+    getMetricRetentionPolicy,
+    pruneMetricSamples,
+    applyDedupeForMetric,
   }),
 }));
 const { healthRecordRouter } = await import("./health-record");
@@ -173,6 +209,9 @@ beforeEach(() => {
   ingestMetricDefinition.mockClear();
   ingestMetricSample.mockClear();
   ingestWriteIngestionJob.mockClear();
+  getMetricRetentionPolicy.mockClear();
+  pruneMetricSamples.mockClear();
+  applyDedupeForMetric.mockClear();
   audit.mockClear();
 });
 
@@ -185,9 +224,7 @@ test("healthRecord router mounts at appRouter.healthRecord", () => {
   expect(appRouter.healthRecord.ingestMetricDefinition).toBe(
     healthRecordRouter.ingestMetricDefinition,
   );
-  expect(appRouter.healthRecord.ingestMetricSample).toBe(
-    healthRecordRouter.ingestMetricSample,
-  );
+  expect(appRouter.healthRecord.ingestMetricSample).toBe(healthRecordRouter.ingestMetricSample);
   expect(appRouter.healthRecord.ingestWriteIngestionJob).toBe(
     healthRecordRouter.ingestWriteIngestionJob,
   );
@@ -256,9 +293,7 @@ test("ingestMetricDefinition surfaces CanonicalMetricNotFoundError as NOT_FOUND 
 });
 
 test("ingestMetricDefinition surfaces CrossTenantReferenceError as NOT_FOUND without audit", async () => {
-  ingestMetricDefinition.mockRejectedValueOnce(
-    new CrossTenantReferenceError("data_source", 99),
-  );
+  ingestMetricDefinition.mockRejectedValueOnce(new CrossTenantReferenceError("data_source", 99));
   await expect(
     healthRecordRouter.ingestMetricDefinition.callable({ context: context() })({
       metricCode: "weight",
@@ -314,9 +349,7 @@ test("ingestMetricSample audits once with targetType metric_sample and taxonomy 
 });
 
 test("ingestMetricSample surfaces CanonicalMetricNotFoundError as NOT_FOUND without audit", async () => {
-  ingestMetricSample.mockRejectedValueOnce(
-    new CanonicalMetricNotFoundError("made_up"),
-  );
+  ingestMetricSample.mockRejectedValueOnce(new CanonicalMetricNotFoundError("made_up"));
   await expect(
     healthRecordRouter.ingestMetricSample.callable({ context: context() })({
       metricCode: "weight",
@@ -342,7 +375,12 @@ test("ingestWriteIngestionJob audits once with targetType ingestion_job", async 
     eventType: "RECORD_CREATED",
     targetType: "ingestion_job",
     targetId: "99",
-    metadata: { resource: "records", action: "write", jobType: "health_connect", triggeredBy: "api" },
+    metadata: {
+      resource: "records",
+      action: "write",
+      jobType: "health_connect",
+      triggeredBy: "api",
+    },
   });
   expect(result.status).toBe("queued");
   expect(result.triggeredBy).toBe("api");
@@ -411,7 +449,12 @@ test("strict inputs reject org/user overrides, missing fields, and bad metric co
     { metricCode: "weight", observedAt: "2026-09-29T12:00:00.000Z", valueNumeric: Number.NaN },
     { metricCode: "weight", observedAt: "2026-09-29T12:00:00.000Z", valueString: "" },
     { metricCode: "weight", observedAt: "2026-09-29T12:00:00.000Z", dedupeHash: "short" },
-    { metricCode: "weight", observedAt: "2026-09-29T12:00:00.000Z", valueNumeric: 1, format: "csv" },
+    {
+      metricCode: "weight",
+      observedAt: "2026-09-29T12:00:00.000Z",
+      valueNumeric: 1,
+      format: "csv",
+    },
   ])
     await expect(call(input as never)).rejects.toMatchObject({ code: "INVALID_INPUT" });
   expect(ingestMetricSample).not.toHaveBeenCalled();
@@ -445,4 +488,257 @@ test("ingestWriteIngestionJob strict input rejects overrides and bad job types",
   ])
     await expect(call(input as never)).rejects.toMatchObject({ code: "INVALID_INPUT" });
   expect(ingestWriteIngestionJob).not.toHaveBeenCalled();
+});
+
+// ---- Recurrence surface (Issue #17 bounded recurrence slice) ----
+
+test("metricRetentionPolicy requires records:read and passes only active authz org", async () => {
+  const result = await healthRecordRouter.metricRetentionPolicy.callable({
+    context: context(),
+  })({ metricCode: "weight" });
+  expect(result.metricCode).toBe("weight");
+  expect(result.canonicalMetricCode).toBe("weight");
+  expect(result.retentionDays).toBe(365);
+  expect(getMetricRetentionPolicy.mock.calls[0]?.[0]).toEqual({
+    organizationId: "org-a",
+    metricCode: "weight",
+  });
+  expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "read" });
+  expect(audit).not.toHaveBeenCalled();
+});
+
+test("metricRetentionPolicy surfaces CanonicalMetricNotFoundError as NOT_FOUND without audit", async () => {
+  getMetricRetentionPolicy.mockRejectedValueOnce(new CanonicalMetricNotFoundError("made_up"));
+  await expect(
+    healthRecordRouter.metricRetentionPolicy.callable({ context: context() })({
+      metricCode: "made_up",
+    }),
+  ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect(audit).not.toHaveBeenCalled();
+});
+
+test("runMetricRetention audits once with targetType metric_retention_pruned and no PHI", async () => {
+  const logs = [spyOn(console, "log"), spyOn(console, "warn"), spyOn(console, "error")];
+  try {
+    const result = await healthRecordRouter.runMetricRetention.callable({
+      context: context(),
+    })({ metricCode: "weight" });
+    expect(pruneMetricSamples.mock.calls[0]?.[0]).toMatchObject({
+      organizationId: "org-a",
+      metricCode: "weight",
+    });
+    expect(audit).toHaveBeenCalledTimes(1);
+    const auditArg = audit.mock.calls[0]?.[0] as {
+      eventType: string;
+      targetType: string;
+      targetId: string;
+      metadata: Record<string, unknown>;
+      organizationId: string;
+      actorUserId: string;
+      correlationId: string;
+    };
+    expect(auditArg.eventType).toBe("RECORD_DELETED");
+    expect(auditArg.targetType).toBe("metric_retention_pruned");
+    expect(auditArg.targetId).toBe("weight:4");
+    expect(auditArg.organizationId).toBe("org-a");
+    expect(auditArg.actorUserId).toBe("actor");
+    expect(auditArg.correlationId).toBe("test");
+    // No PHI keys in metadata (only retention bookkeeping + counts).
+    const metadata = auditArg.metadata;
+    expect(metadata.metricCode).toBe("weight");
+    expect(metadata.deletedCount).toBe(4);
+    expect(metadata.fromUtc).toBe("2025-09-30T12:00:00.000Z");
+    expect(metadata.toUtc).toBe("2026-09-30T12:00:00.000Z");
+    expect(metadata.retentionDays).toBe(365);
+    expect(metadata.resource).toBe("records");
+    expect(metadata.action).toBe("write");
+    expect(Object.keys(metadata).sort()).toEqual([
+      "action",
+      "deletedCount",
+      "fromUtc",
+      "metricCode",
+      "resource",
+      "retentionDays",
+      "toUtc",
+    ]);
+    expect(result.deletedCount).toBe(4);
+    expect(result.canonicalMetricCode).toBe("weight");
+    expect(result.targetId).toBe("weight:4");
+    for (const log of logs) expect(log).not.toHaveBeenCalled();
+  } finally {
+    for (const log of logs) log.mockRestore();
+  }
+});
+
+test("runMetricRetention surfaces CanonicalMetricNotFoundError as NOT_FOUND without audit", async () => {
+  pruneMetricSamples.mockRejectedValueOnce(new CanonicalMetricNotFoundError("made_up"));
+  await expect(
+    healthRecordRouter.runMetricRetention.callable({ context: context() })({
+      metricCode: "made_up",
+    }),
+  ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect(audit).not.toHaveBeenCalled();
+});
+
+test("runMetricDedupe audits once with targetType metric_dedupe_applied and no PHI", async () => {
+  const logs = [spyOn(console, "log"), spyOn(console, "warn"), spyOn(console, "error")];
+  try {
+    const result = await healthRecordRouter.runMetricDedupe.callable({ context: context() })({
+      metricCode: "blood_marker_glucose",
+    });
+    expect(applyDedupeForMetric.mock.calls[0]?.[0]).toMatchObject({
+      organizationId: "org-a",
+      metricCode: "blood_marker_glucose",
+    });
+    expect(audit).toHaveBeenCalledTimes(1);
+    const auditArg = audit.mock.calls[0]?.[0] as {
+      eventType: string;
+      targetType: string;
+      targetId: string;
+      metadata: Record<string, unknown>;
+      organizationId: string;
+      actorUserId: string;
+      correlationId: string;
+    };
+    expect(auditArg.eventType).toBe("RECORD_DELETED");
+    expect(auditArg.targetType).toBe("metric_dedupe_applied");
+    expect(auditArg.targetId).toBe("blood_marker_glucose:3");
+    expect(auditArg.organizationId).toBe("org-a");
+    expect(auditArg.actorUserId).toBe("actor");
+    expect(auditArg.correlationId).toBe("test");
+    const metadata = auditArg.metadata;
+    expect(metadata.metricCode).toBe("blood_marker_glucose");
+    expect(metadata.removedDuplicates).toBe(3);
+    expect(metadata.resource).toBe("records");
+    expect(metadata.action).toBe("write");
+    expect(Object.keys(metadata).sort()).toEqual([
+      "action",
+      "metricCode",
+      "removedDuplicates",
+      "resource",
+    ]);
+    expect(result.removedDuplicates).toBe(3);
+    expect(result.canonicalMetricCode).toBe("blood_marker_glucose");
+    expect(result.targetId).toBe("blood_marker_glucose:3");
+    for (const log of logs) expect(log).not.toHaveBeenCalled();
+  } finally {
+    for (const log of logs) log.mockRestore();
+  }
+});
+
+test("runMetricDedupe surfaces CanonicalMetricNotFoundError as NOT_FOUND without audit", async () => {
+  applyDedupeForMetric.mockRejectedValueOnce(new CanonicalMetricNotFoundError("made_up"));
+  await expect(
+    healthRecordRouter.runMetricDedupe.callable({ context: context() })({
+      metricCode: "made_up",
+    }),
+  ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  expect(audit).not.toHaveBeenCalled();
+});
+
+test("runMetricRetention strict input rejects overrides, bad metric codes, and bad retention bounds", async () => {
+  const call = healthRecordRouter.runMetricRetention.callable({ context: context() });
+  for (const input of [
+    { metricCode: "weight", organizationId: "org-b" },
+    { metricCode: "weight", userId: "victim" },
+    { metricCode: "PRIVATE_CODE" },
+    { metricCode: "weight", retentionDays: 0 },
+    { metricCode: "weight", retentionDays: 3651 },
+    { metricCode: "weight", retentionDays: 1.5 },
+    { metricCode: "weight", timezone: "" },
+    { metricCode: "weight", unknownExtra: "nope" },
+  ])
+    await expect(call(input as never)).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  expect(pruneMetricSamples).not.toHaveBeenCalled();
+  expect(audit).not.toHaveBeenCalled();
+});
+
+test("runMetricDedupe strict input rejects overrides and bad metric codes", async () => {
+  const call = healthRecordRouter.runMetricDedupe.callable({ context: context() });
+  for (const input of [
+    { metricCode: "weight", organizationId: "org-b" },
+    { metricCode: "weight", userId: "victim" },
+    { metricCode: "PRIVATE_CODE" },
+    { metricCode: "", unknownExtra: "nope" },
+    { metricCode: "weight", retentionDays: 30 },
+    { metricCode: "weight", timezone: "UTC" },
+  ])
+    await expect(call(input as never)).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  expect(applyDedupeForMetric).not.toHaveBeenCalled();
+  expect(audit).not.toHaveBeenCalled();
+});
+
+test("metricRetentionPolicy rejects unknown metric and bad overrides via strict input", async () => {
+  const call = healthRecordRouter.metricRetentionPolicy.callable({ context: context() });
+  for (const input of [
+    { metricCode: "weight", organizationId: "org-b" },
+    { metricCode: "weight", userId: "victim" },
+    { metricCode: "PRIVATE_CODE" },
+    { metricCode: "weight", retentionDays: 0 },
+    { metricCode: "weight", retentionDays: 3651 },
+    { metricCode: "weight", timezone: "" },
+    { metricCode: "weight", unknownExtra: "nope" },
+  ])
+    await expect(call(input as never)).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  expect(getMetricRetentionPolicy).not.toHaveBeenCalled();
+  expect(audit).not.toHaveBeenCalled();
+});
+
+test("unauthenticated and reviewer (viewer) cannot run retention/dedupe writes; non-members blocked on reads too", async () => {
+  // Viewer can read but cannot write — the role gate rejects writes only.
+  role = "viewer";
+  await expect(
+    healthRecordRouter.runMetricRetention.callable({ context: context() })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  await expect(
+    healthRecordRouter.runMetricDedupe.callable({ context: context() })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  // Reads still go through for viewer.
+  await expect(
+    healthRecordRouter.metricRetentionPolicy
+      .callable({ context: context() })({
+        metricCode: "weight",
+      })
+      .then((result) => result.metricCode),
+  ).resolves.toBe("weight");
+  // Non-members are denied across read + write.
+  role = "no-member";
+  await expect(
+    healthRecordRouter.metricRetentionPolicy.callable({ context: context() })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  await expect(
+    healthRecordRouter.runMetricRetention.callable({ context: context() })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  await expect(
+    healthRecordRouter.runMetricDedupe.callable({ context: context() })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+  // Unauthenticated callers are rejected before any role check.
+  await expect(
+    healthRecordRouter.metricRetentionPolicy.callable({ context: context(false) })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  await expect(
+    healthRecordRouter.runMetricRetention.callable({ context: context(false) })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  await expect(
+    healthRecordRouter.runMetricDedupe.callable({ context: context(false) })({
+      metricCode: "weight",
+    }),
+  ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  expect(pruneMetricSamples).not.toHaveBeenCalled();
+  expect(applyDedupeForMetric).not.toHaveBeenCalled();
+  expect(audit).not.toHaveBeenCalled();
 });

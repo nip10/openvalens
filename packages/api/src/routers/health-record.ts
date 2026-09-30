@@ -51,7 +51,10 @@ const metricSampleInputSchema = z
       .string()
       .min(1)
       .max(80)
-      .refine((value) => Number.isFinite(Date.parse(value)), "observedAt must be a parseable date."),
+      .refine(
+        (value) => Number.isFinite(Date.parse(value)),
+        "observedAt must be a parseable date.",
+      ),
     valueNumeric: z.number().finite().optional(),
     valueString: z.string().min(1).max(2_000).optional(),
     sourceId: z.number().int().positive().optional(),
@@ -75,6 +78,16 @@ const ingestWriteIngestionJobInputSchema = z.strictObject({
   idempotencyKey: z.string().trim().min(1).max(200).optional(),
   windowStart: z.string().datetime().optional(),
   windowEnd: z.string().datetime().optional(),
+});
+
+const retentionInputSchema = z.strictObject({
+  metricCode: metricCodeSchema,
+  retentionDays: z.number().int().min(1).max(3650).optional(),
+  timezone: z.string().trim().min(1).max(80).optional(),
+});
+
+const dedupeInputSchema = z.strictObject({
+  metricCode: metricCodeSchema,
 });
 
 const resolvedCanonicalMetricOutputSchema = z.strictObject({
@@ -154,6 +167,33 @@ const ingestWriteIngestionJobOutputSchema = z.strictObject({
   completedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  targetId: z.string(),
+});
+
+const retentionPolicyOutputSchema = z.strictObject({
+  metricCode: z.string(),
+  canonicalMetricCode: z.string(),
+  isBloodMarkerFamily: z.boolean(),
+  retentionDays: z.number().int().positive(),
+  timezone: z.string(),
+  category: z.string(),
+  unit: z.string(),
+});
+
+const retentionRunOutputSchema = z.strictObject({
+  metricCode: z.string(),
+  canonicalMetricCode: z.string(),
+  deletedCount: z.number().int().nonnegative(),
+  fromUtc: z.string(),
+  toUtc: z.string(),
+  retentionDays: z.number().int().positive(),
+  targetId: z.string(),
+});
+
+const dedupeRunOutputSchema = z.strictObject({
+  metricCode: z.string(),
+  canonicalMetricCode: z.string(),
+  removedDuplicates: z.number().int().nonnegative(),
   targetId: z.string(),
 });
 
@@ -368,6 +408,135 @@ export const healthRecordRouter = {
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         targetId: String(row.id),
+      };
+    }),
+
+  /**
+   * Read the canonical retention policy for a metric in the active
+   * tenant. Optional surface — returns the same shape `policyForMetric`
+   * computes plus the canonical metric-code metadata.
+   */
+  metricRetentionPolicy: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(retentionInputSchema))
+    .input(retentionInputSchema)
+    .output(retentionPolicyOutputSchema)
+    .handler(async ({ context, input }) => {
+      try {
+        const policy = await createHealthRecordRepository(context.db).getMetricRetentionPolicy({
+          organizationId: context.authz.activeOrganizationId,
+          metricCode: input.metricCode,
+          ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
+          ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        });
+        return policy;
+      } catch (error) {
+        if (error instanceof CanonicalMetricNotFoundError)
+          throw raiseApiError("NOT_FOUND", error.message);
+        throw raiseApiError(
+          "INTERNAL",
+          error instanceof Error ? error.message : "Unable to load retention policy.",
+        );
+      }
+    }),
+
+  /**
+   * Prune the active tenant's `metric_sample` rows outside the
+   * retention window. Audited exactly once with `RECORD_DELETED` and
+   * `targetType: "metric_retention_pruned"`. No PHI in metadata.
+   */
+  runMetricRetention: permissionedProcedure({ resource: "records", action: "write" })
+    .use(validateInput(retentionInputSchema))
+    .input(retentionInputSchema)
+    .output(retentionRunOutputSchema)
+    .handler(async ({ context, input }) => {
+      let result;
+      try {
+        result = await createHealthRecordRepository(context.db).pruneMetricSamples({
+          organizationId: context.authz.activeOrganizationId,
+          metricCode: input.metricCode,
+          now: new Date(),
+          ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
+          ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        });
+      } catch (error) {
+        if (error instanceof CanonicalMetricNotFoundError)
+          throw raiseApiError("NOT_FOUND", error.message);
+        throw raiseApiError("INTERNAL", "Unable to run metric retention.");
+      }
+      const targetId = `${result.canonicalMetricCode}:${result.deletedCount}`;
+      await writeAuditLog({
+        db: context.db,
+        organizationId: context.authz.activeOrganizationId,
+        actorUserId: context.authz.user.id,
+        eventType: "RECORD_DELETED",
+        targetType: "metric_retention_pruned",
+        targetId,
+        correlationId: context.correlationId,
+        metadata: {
+          resource: "records",
+          action: "write",
+          metricCode: result.canonicalMetricCode,
+          deletedCount: result.deletedCount,
+          retentionDays: result.retentionDays,
+          fromUtc: result.fromUtc,
+          toUtc: result.toUtc,
+        },
+      });
+      return {
+        metricCode: input.metricCode,
+        canonicalMetricCode: result.canonicalMetricCode,
+        deletedCount: result.deletedCount,
+        fromUtc: result.fromUtc,
+        toUtc: result.toUtc,
+        retentionDays: result.retentionDays,
+        targetId,
+      };
+    }),
+
+  /**
+   * Apply dedupe to the active tenant's `metric_sample` rows for one
+   * metric. Idempotent: running twice returns `removedDuplicates: 0`
+   * the second time. Audited exactly once with `RECORD_DELETED` and
+   * `targetType: "metric_dedupe_applied"`. No PHI in metadata.
+   */
+  runMetricDedupe: permissionedProcedure({ resource: "records", action: "write" })
+    .use(validateInput(dedupeInputSchema))
+    .input(dedupeInputSchema)
+    .output(dedupeRunOutputSchema)
+    .handler(async ({ context, input }) => {
+      let result;
+      try {
+        result = await createHealthRecordRepository(context.db).applyDedupeForMetric({
+          organizationId: context.authz.activeOrganizationId,
+          metricCode: input.metricCode,
+          now: new Date(),
+        });
+      } catch (error) {
+        if (error instanceof CanonicalMetricNotFoundError)
+          throw raiseApiError("NOT_FOUND", error.message);
+        throw raiseApiError("INTERNAL", "Unable to run metric dedupe.");
+      }
+      const targetId = `${result.canonicalMetricCode}:${result.removedDuplicates}`;
+      await writeAuditLog({
+        db: context.db,
+        organizationId: context.authz.activeOrganizationId,
+        actorUserId: context.authz.user.id,
+        eventType: "RECORD_DELETED",
+        targetType: "metric_dedupe_applied",
+        targetId,
+        correlationId: context.correlationId,
+        metadata: {
+          resource: "records",
+          action: "write",
+          metricCode: result.canonicalMetricCode,
+          removedDuplicates: result.removedDuplicates,
+        },
+      });
+      return {
+        metricCode: input.metricCode,
+        canonicalMetricCode: result.canonicalMetricCode,
+        removedDuplicates: result.removedDuplicates,
+        targetId,
       };
     }),
 };
