@@ -472,9 +472,11 @@ describe("workouts — repository", () => {
   });
 
   test("upsertWorkout rolls back when the sets insert throws (transactional atomicity)", async () => {
-    const state = fakeDb({ workouts: [], exercises: [], sets: [] });
+    const store: RowStore = { workouts: [], exercises: [], sets: [] };
+    const state = fakeDb(store);
+    let rolledBack = false;
     // Patch the fake's workout_set insert path so `.values()` is
-    // captured AND its thenable rejects with a sentinel error. The
+    // captured AND its promise rejects with a sentinel error. The
     // repository awaits the insert, so the rejection propagates as a
     // normal Promise rejection — exactly the path a real Drizzle
     // transaction would take if the FK check failed on the sets insert.
@@ -483,13 +485,16 @@ describe("workouts — repository", () => {
       insert: (table: unknown) => {
         if (table === workoutSet) {
           return {
-            values: (payload: Record<string, unknown>) => {
-              state.calls.push({ kind: "insert", table, payload });
-              return {
-                // oxlint-disable-next-line unicorn/no-thenable
-                then: (_resolve: (v: unknown) => unknown, _reject: (e: unknown) => unknown) =>
-                  Promise.reject(new Error("injected sets failure")),
-              };
+            values: (payload: Record<string, unknown> | Array<Record<string, unknown>>) => {
+              state.calls.push({
+                kind: "insert",
+                table,
+                payload: payload as Record<string, unknown>,
+              });
+              // Earlier writes must exist before the transaction rolls back.
+              expect(store.workouts).toHaveLength(1);
+              expect(store.exercises).toHaveLength(1);
+              return Promise.reject(new Error("injected sets failure"));
             },
           };
         }
@@ -499,20 +504,31 @@ describe("workouts — repository", () => {
     const txWrapper: typeof state.db = {
       ...state.db,
       async transaction<T>(cb: (tx: typeof txWithThrowingSets) => Promise<T>): Promise<T> {
-        return cb(txWithThrowingSets);
+        const snapshot = structuredClone(store);
+        try {
+          return await cb(txWithThrowingSets);
+        } catch (error) {
+          Object.assign(store, snapshot);
+          rolledBack = true;
+          throw error;
+        }
       },
     } as unknown as typeof state.db;
     await expect(
-      createWorkoutRepository(txWrapper).upsertWorkout(txWithThrowingSets as never, "org-1", {
-        date: "2026-03-07",
-        type: "weights",
-        exercises: [{ name: "Bench Press", sets: [{ reps: 5, weightKg: 80 }] }],
-      }),
+      txWrapper.transaction((tx) =>
+        createWorkoutRepository(txWrapper).upsertWorkout(tx as never, "org-1", {
+          date: "2026-03-07",
+          type: "weights",
+          exercises: [{ name: "Bench Press", sets: [{ reps: 5, weightKg: 80 }] }],
+        }),
+      ),
     ).rejects.toThrow(/injected sets failure/);
     // Verify the workoutSet insert was attempted (transactional
     // atomicity means it rolled back, but the fake records the call).
     const setInserts = state.calls.filter((c) => c.kind === "insert" && c.table === workoutSet);
     expect(setInserts.length).toBe(1);
+    expect(rolledBack).toBe(true);
+    expect(store).toEqual({ workouts: [], exercises: [], sets: [] });
   });
 
   test("getWorkout returns null when the session is missing for the org", async () => {
