@@ -41,7 +41,7 @@ import {
   type IngestMetricDefinitionInput,
   type IngestMetricSampleInput,
 } from "./ingest";
-import { buildRetentionWindow, policyForMetric } from "./recurrence";
+import { buildRetentionWindow, policyForMetric, RetentionPolicyRequiredError } from "./recurrence";
 
 export const PROVENANCE_TABLES = [
   "health_event",
@@ -59,7 +59,8 @@ type PruneInput = {
   organizationId: string;
   metricCode: string;
   now: Date;
-  retentionDays?: number;
+  /** Required and explicit. There is no default clinical retention. */
+  retentionDays: number;
   timezone?: string;
   maxDeleteCount?: number;
 };
@@ -87,7 +88,20 @@ async function registeredMaintenanceMetric(
   return { id: definition.id, code: canonical.canonicalMetricCode };
 }
 
+/** Samples referenced by provenance (either direction) or diagnostics. */
+function unreferencedSample(organizationId: string) {
+  return [
+    sql`not exists (select 1 from provenance_link p where p.organization_id = ${organizationId} and
+      ((p.target_table = 'metric_sample' and p.target_id = ${metricSample.id}) or
+       (p.source_table = 'metric_sample' and p.source_id = ${metricSample.id})))`,
+    sql`not exists (select 1 from ingestion_error e where e.organization_id = ${organizationId}
+      and e.metric_sample_id = ${metricSample.id})`,
+  ];
+}
+
 async function pruneSamples(db: MaintenanceDb, input: PruneInput) {
+  if ((input as { retentionDays?: unknown }).retentionDays === undefined)
+    throw new RetentionPolicyRequiredError();
   const definition = await registeredMaintenanceMetric(db, input.organizationId, input.metricCode);
   const window = buildRetentionWindow({
     now: input.now,
@@ -109,11 +123,7 @@ async function pruneSamples(db: MaintenanceDb, input: PruneInput) {
         eq(metricSample.organizationId, input.organizationId),
         eq(metricSample.metricDefinitionId, definition.id),
         sql`${metricSample.sampledAt} < ${window.fromUtc.toISOString()}`,
-        sql`not exists (select 1 from provenance_link p where p.organization_id = ${input.organizationId} and
-      ((p.target_table = 'metric_sample' and p.target_id = ${metricSample.id}) or
-       (p.source_table = 'metric_sample' and p.source_id = ${metricSample.id})))`,
-        sql`not exists (select 1 from ingestion_error e where e.organization_id = ${input.organizationId}
-      and e.metric_sample_id = ${metricSample.id})`,
+        ...unreferencedSample(input.organizationId),
       ),
     )
     .orderBy(metricSample.sampledAt, metricSample.id)
@@ -132,6 +142,11 @@ async function pruneSamples(db: MaintenanceDb, input: PruneInput) {
                 metricSample.id,
                 candidates.map((row) => row.id),
               ),
+              // Recheck under this statement's fresh READ COMMITTED snapshot,
+              // taken after the candidate row locks are held. A provenance
+              // link or diagnostic committed between the candidate snapshot
+              // and lock acquisition is visible here, so the sample survives.
+              ...unreferencedSample(input.organizationId),
             ),
           )
           .returning({ id: metricSample.id });
@@ -143,6 +158,9 @@ async function pruneSamples(db: MaintenanceDb, input: PruneInput) {
     canonicalMetricCode: definition.code,
   };
 }
+
+/** The delete-time recheck relies on per-statement snapshots. */
+const MAINTENANCE_TX = { isolationLevel: "read committed" } as const;
 
 async function dedupeSamples(
   db: MaintenanceDb,
@@ -273,14 +291,17 @@ export function createHealthRecordRepository(db: Database) {
           hashtextextended(${"health-record-maintenance:" + input.organizationId}, 0)) as locked`);
         if (!lock.rows[0]?.locked) return { status: "busy" as const };
         const dedupe = await dedupeSamples(tx, input);
-        const retention = input.retentionDays === undefined ? null : await pruneSamples(tx, input);
+        const retention =
+          input.retentionDays === undefined
+            ? null
+            : await pruneSamples(tx, { ...input, retentionDays: input.retentionDays });
         return {
           status: "completed" as const,
           canonicalMetricCode: dedupe.canonicalMetricCode,
           removedDuplicates: dedupe.removedDuplicates,
           retention,
         };
-      });
+      }, MAINTENANCE_TX);
     },
     listTimeline,
     // Preserve anchor's meaning: occurrence window since latest weekStart, NOT
@@ -798,14 +819,15 @@ export function createHealthRecordRepository(db: Database) {
       return policyForMetric(input);
     },
     /**
-     * Prune `metric_sample` rows whose `sampledAt` falls outside the
-     * active tenant's retention window. Legacy standalone operation:
-     * defaults remain for compatibility, NOT authorized scheduler policy.
-     * Bounded to 100 rows by default; referenced records are retained.
-     * The caller audits; this transaction does not exclude concurrent ingest.
+     * Prune `metric_sample` rows older than an EXPLICIT `retentionDays`.
+     * No default window: omitting retention throws
+     * `RetentionPolicyRequiredError` before any read or delete. Callers must
+     * be trusted server code with an authorized policy; the public API does
+     * not expose this. Bounded to 100 rows by default; referenced records
+     * are retained. The caller audits.
      */
     async pruneMetricSamples(input: PruneInput) {
-      return db.transaction((tx) => pruneSamples(tx, input));
+      return db.transaction((tx) => pruneSamples(tx, input), MAINTENANCE_TX);
     },
     /**
      * Apply dedupe to the active tenant's `metric_sample` rows for

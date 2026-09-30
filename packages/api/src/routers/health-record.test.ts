@@ -136,7 +136,7 @@ const getMetricRetentionPolicy = mock(
     metricCode: input.metricCode,
     canonicalMetricCode: input.metricCode === "weight" ? "weight" : "blood_marker_glucose",
     isBloodMarkerFamily: input.metricCode !== "weight",
-    retentionDays: input.metricCode === "weight" ? 365 : 730,
+    retentionDays: null,
     timezone: "UTC",
     category: input.metricCode === "weight" ? "body" : "labs",
     unit: input.metricCode === "weight" ? "kg" : "varies",
@@ -498,7 +498,7 @@ test("metricRetentionPolicy requires records:read and passes only active authz o
   })({ metricCode: "weight" });
   expect(result.metricCode).toBe("weight");
   expect(result.canonicalMetricCode).toBe("weight");
-  expect(result.retentionDays).toBe(365);
+  expect(result.retentionDays).toBeNull();
   expect(getMetricRetentionPolicy.mock.calls[0]?.[0]).toEqual({
     organizationId: "org-a",
     metricCode: "weight",
@@ -517,67 +517,19 @@ test("metricRetentionPolicy surfaces CanonicalMetricNotFoundError as NOT_FOUND w
   expect(audit).not.toHaveBeenCalled();
 });
 
-test("runMetricRetention audits once with targetType metric_retention_pruned and no PHI", async () => {
+test("runMetricRetention is disabled: refuses owners with or without retentionDays, never prunes or audits", async () => {
   const logs = [spyOn(console, "log"), spyOn(console, "warn"), spyOn(console, "error")];
   try {
-    const result = await healthRecordRouter.runMetricRetention.callable({
-      context: context(),
-    })({ metricCode: "weight" });
-    expect(pruneMetricSamples.mock.calls[0]?.[0]).toMatchObject({
-      organizationId: "org-a",
-      metricCode: "weight",
-    });
-    expect(audit).toHaveBeenCalledTimes(1);
-    const auditArg = audit.mock.calls[0]?.[0] as {
-      eventType: string;
-      targetType: string;
-      targetId: string;
-      metadata: Record<string, unknown>;
-      organizationId: string;
-      actorUserId: string;
-      correlationId: string;
-    };
-    expect(auditArg.eventType).toBe("RECORD_DELETED");
-    expect(auditArg.targetType).toBe("metric_retention_pruned");
-    expect(auditArg.targetId).toBe("weight:4");
-    expect(auditArg.organizationId).toBe("org-a");
-    expect(auditArg.actorUserId).toBe("actor");
-    expect(auditArg.correlationId).toBe("test");
-    // No PHI keys in metadata (only retention bookkeeping + counts).
-    const metadata = auditArg.metadata;
-    expect(metadata.metricCode).toBe("weight");
-    expect(metadata.deletedCount).toBe(4);
-    expect(metadata.fromUtc).toBe("2025-09-30T12:00:00.000Z");
-    expect(metadata.toUtc).toBe("2026-09-30T12:00:00.000Z");
-    expect(metadata.retentionDays).toBe(365);
-    expect(metadata.resource).toBe("records");
-    expect(metadata.action).toBe("write");
-    expect(Object.keys(metadata).sort()).toEqual([
-      "action",
-      "deletedCount",
-      "fromUtc",
-      "metricCode",
-      "resource",
-      "retentionDays",
-      "toUtc",
-    ]);
-    expect(result.deletedCount).toBe(4);
-    expect(result.canonicalMetricCode).toBe("weight");
-    expect(result.targetId).toBe("weight:4");
+    const call = healthRecordRouter.runMetricRetention.callable({ context: context() });
+    for (const input of [{ metricCode: "weight" }, { metricCode: "weight", retentionDays: 7 }])
+      for (let attempt = 0; attempt < 2; attempt += 1)
+        await expect(call(input)).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    expect(pruneMetricSamples).not.toHaveBeenCalled();
+    expect(audit).not.toHaveBeenCalled();
     for (const log of logs) expect(log).not.toHaveBeenCalled();
   } finally {
     for (const log of logs) log.mockRestore();
   }
-});
-
-test("runMetricRetention surfaces CanonicalMetricNotFoundError as NOT_FOUND without audit", async () => {
-  pruneMetricSamples.mockRejectedValueOnce(new CanonicalMetricNotFoundError("made_up"));
-  await expect(
-    healthRecordRouter.runMetricRetention.callable({ context: context() })({
-      metricCode: "made_up",
-    }),
-  ).rejects.toMatchObject({ code: "NOT_FOUND" });
-  expect(audit).not.toHaveBeenCalled();
 });
 
 test("runMetricDedupe audits once with targetType metric_dedupe_applied and no PHI", async () => {

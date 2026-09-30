@@ -109,20 +109,27 @@ export function createMetricMaintenanceRunner(dependencies: {
       ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
     });
     if (result.status === "busy") return result;
-    const auditId = await dependencies.writeAudit({
-      ...trustedScope,
-      eventType: "METRIC_RECURRENCE_RUN",
-      targetType: "metric_maintenance",
-      targetId: resolved.canonicalMetricCode,
-      metadata: {
-        metricCode: resolved.canonicalMetricCode,
-        runAt: runAt.toISOString(),
-        removedDuplicates: result.removedDuplicates,
-        deletedCount: result.retention?.deletedCount ?? 0,
-        retentionDays: input.retentionDays ?? null,
-        maxDeleteCount,
-      },
-    });
+    // The maintenance transaction has already committed. An audit failure
+    // must not be reported as a failed (rolled back) run.
+    let auditId: number | null = null;
+    try {
+      auditId = await dependencies.writeAudit({
+        ...trustedScope,
+        eventType: "METRIC_RECURRENCE_RUN",
+        targetType: "metric_maintenance",
+        targetId: resolved.canonicalMetricCode,
+        metadata: {
+          metricCode: resolved.canonicalMetricCode,
+          runAt: runAt.toISOString(),
+          removedDuplicates: result.removedDuplicates,
+          deletedCount: result.retention?.deletedCount ?? 0,
+          retentionDays: input.retentionDays ?? null,
+          maxDeleteCount,
+        },
+      });
+    } catch {
+      auditId = null;
+    }
     return { ...result, auditWritten: auditId !== null };
   };
 }

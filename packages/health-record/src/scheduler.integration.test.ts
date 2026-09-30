@@ -10,7 +10,7 @@ import {
 } from "@openhealth/db/schema/health-record";
 import { eq } from "drizzle-orm";
 import { CanonicalMetricNotFoundError } from "./ingest";
-import { createHealthRecordRepository } from "./repository";
+import { createHealthRecordRepository, ProvenanceReferenceError } from "./repository";
 import { createMetricMaintenanceRunner, type MetricMaintenanceAudit } from "./scheduler";
 
 const url = process.env.MAINTENANCE_TEST_DATABASE_URL;
@@ -206,5 +206,120 @@ describe.skipIf(!url)("scheduler disposable PostgreSQL schema", () => {
       (await db.select().from(metricDefinition).where(eq(metricDefinition.organizationId, "org-a")))
         .length,
     ).toBe(2);
+  });
+
+  // ── Concurrency: provenance / diagnostic references vs pruning ──────────
+  // Three real connections from the pool. `pool` is node-postgres.
+  const pool = db.$client;
+  async function waitForBlockedMetricSampleLock() {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const blocked = await db.execute(sql`select 1 from pg_locks
+        where not granted and relation = 'metric_sample'::regclass limit 1`);
+      if (blocked.rows.length) return;
+      await Bun.sleep(10);
+    }
+    throw new Error("Prune never blocked on metric_sample.");
+  }
+
+  test("reference committed after the candidate snapshot but before DELETE keeps the sample (delete-time recheck)", async () => {
+    const victim = await sample("race-target");
+    await sample("race-unlinked");
+    const gate = await pool.connect();
+    try {
+      // SHARE mode admits the candidate SELECT ... FOR UPDATE (ROW SHARE)
+      // but blocks the DELETE (ROW EXCLUSIVE) between the two statements.
+      await gate.query("begin");
+      await gate.query("lock table metric_sample in share mode");
+      const pruning = run(scope, { ...request, retentionDays: 7 }, now);
+      await waitForBlockedMetricSampleLock();
+      // Candidates are locked; commit a link from an unlocked direct writer.
+      await db.insert(provenanceLink).values({
+        organizationId: "org-a",
+        targetTable: "metric_sample",
+        targetId: victim.id,
+        sourceTable: "ingestion_raw_artifact",
+        sourceId: 999,
+      });
+      await gate.query("commit");
+      const result = await pruning;
+      expect(result).toMatchObject({ status: "completed", retention: { deletedCount: 1 } });
+    } finally {
+      gate.release();
+    }
+    expect(await hashes()).toEqual(["race-target"]);
+    const [link] = await db.select().from(provenanceLink);
+    const target = await db.select().from(metricSample).where(eq(metricSample.id, link!.targetId));
+    expect(target).toHaveLength(1);
+  });
+
+  test("uncommitted share-locked provenance writer: prune skips the sample; link is valid after commit", async () => {
+    const victim = await sample("writer-first");
+    const writer = await pool.connect();
+    try {
+      await writer.query("begin");
+      await writer.query(
+        "select id from metric_sample where organization_id = $1 and id = $2 for share",
+        ["org-a", victim.id],
+      );
+      await writer.query(
+        `insert into provenance_link (organization_id, target_table, target_id, source_table, source_id)
+         values ('org-a', 'metric_sample', $1, 'ingestion_raw_artifact', 1)`,
+        [victim.id],
+      );
+      const result = await run(scope, { ...request, retentionDays: 7 }, now);
+      expect(result).toMatchObject({ retention: { deletedCount: 0 } });
+      await writer.query("commit");
+    } finally {
+      writer.release();
+    }
+    expect(await hashes()).toEqual(["writer-first"]);
+    expect(await db.select().from(provenanceLink)).toHaveLength(1);
+  });
+
+  test("pending ingestion_error insert (composite FK key-share lock) makes prune skip the sample", async () => {
+    const victim = await sample("diagnostic-pending");
+    const writer = await pool.connect();
+    try {
+      await writer.query("begin");
+      await writer.query(
+        `insert into ingestion_error (organization_id, metric_sample_id, error_code, message)
+         values ('org-a', $1, 'test', 'x')`,
+        [victim.id],
+      );
+      const result = await run(scope, { ...request, retentionDays: 7 }, now);
+      expect(result).toMatchObject({ retention: { deletedCount: 0 } });
+      await writer.query("commit");
+    } finally {
+      writer.release();
+    }
+    expect(await hashes()).toEqual(["diagnostic-pending"]);
+    expect(await db.select().from(ingestionError)).toHaveLength(1);
+  });
+
+  test("deletion first: later provenance and diagnostic writes fail instead of dangling", async () => {
+    const victim = await sample("deleted-first");
+    await run(scope, { ...request, retentionDays: 7 }, now);
+    expect(await hashes()).toEqual([]);
+    await expect(
+      repo.writeProvenanceLink({
+        organizationId: "org-a",
+        targetTable: "metric_sample",
+        targetId: victim.id,
+        sourceTable: "metric_sample",
+        sourceId: victim.id,
+        relation: "derived_from",
+      }),
+    ).rejects.toBeInstanceOf(ProvenanceReferenceError);
+    await expect(
+      (async () =>
+        await db.insert(ingestionError).values({
+          organizationId: "org-a",
+          metricSampleId: victim.id,
+          errorCode: "test",
+          message: "x",
+        }))(),
+    ).rejects.toThrow();
+    expect(await db.select().from(provenanceLink)).toHaveLength(0);
+    expect(await db.select().from(ingestionError)).toHaveLength(0);
   });
 });

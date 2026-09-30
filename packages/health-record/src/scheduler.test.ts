@@ -166,3 +166,15 @@ test("failed audit is observable without pretending the committed run rolled bac
   });
   expect(await run(scope, input, now)).toMatchObject({ status: "completed", auditWritten: false });
 });
+
+test("throwing audit callback preserves completed outcome and exposes audit failure", async () => {
+  const { maintenance } = fixture();
+  const run = createMetricMaintenanceRunner({
+    repository: { runMetricMaintenance: maintenance },
+    writeAudit: async () => {
+      throw new Error("clinical secret");
+    },
+  });
+  expect(await run(scope, input, now)).toMatchObject({ status: "completed", auditWritten: false });
+  expect(maintenance).toHaveBeenCalledTimes(1);
+});

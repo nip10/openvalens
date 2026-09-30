@@ -174,7 +174,7 @@ const retentionPolicyOutputSchema = z.strictObject({
   metricCode: z.string(),
   canonicalMetricCode: z.string(),
   isBloodMarkerFamily: z.boolean(),
-  retentionDays: z.number().int().positive(),
+  retentionDays: z.number().int().positive().nullable(),
   timezone: z.string(),
   category: z.string(),
   unit: z.string(),
@@ -440,57 +440,23 @@ export const healthRecordRouter = {
     }),
 
   /**
-   * Prune the active tenant's `metric_sample` rows outside the
-   * retention window. Audited exactly once with `RECORD_DELETED` and
-   * `targetType: "metric_retention_pruned"`. No PHI in metadata.
+   * DISABLED. Pruning clinical `metric_sample` history requires an explicit
+   * retention policy authorized by trusted server code (see
+   * `createMetricMaintenanceRunner` in `@openhealth/health-record`). A
+   * caller-supplied `retentionDays` is not approval, and there is no default
+   * clinical retention (the anchovy source only purges raw ingest payloads).
+   * The route stays mounted so clients get a stable, sanitized refusal. It
+   * never reaches the repository and writes no audit row.
    */
   runMetricRetention: permissionedProcedure({ resource: "records", action: "write" })
     .use(validateInput(retentionInputSchema))
     .input(retentionInputSchema)
     .output(retentionRunOutputSchema)
-    .handler(async ({ context, input }) => {
-      let result;
-      try {
-        result = await createHealthRecordRepository(context.db).pruneMetricSamples({
-          organizationId: context.authz.activeOrganizationId,
-          metricCode: input.metricCode,
-          now: new Date(),
-          ...(input.retentionDays !== undefined ? { retentionDays: input.retentionDays } : {}),
-          ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
-        });
-      } catch (error) {
-        if (error instanceof CanonicalMetricNotFoundError)
-          throw raiseApiError("NOT_FOUND", error.message);
-        throw raiseApiError("INTERNAL", "Unable to run metric retention.");
-      }
-      const targetId = `${result.canonicalMetricCode}:${result.deletedCount}`;
-      await writeAuditLog({
-        db: context.db,
-        organizationId: context.authz.activeOrganizationId,
-        actorUserId: context.authz.user.id,
-        eventType: "RECORD_DELETED",
-        targetType: "metric_retention_pruned",
-        targetId,
-        correlationId: context.correlationId,
-        metadata: {
-          resource: "records",
-          action: "write",
-          metricCode: result.canonicalMetricCode,
-          deletedCount: result.deletedCount,
-          retentionDays: result.retentionDays,
-          fromUtc: result.fromUtc,
-          toUtc: result.toUtc,
-        },
-      });
-      return {
-        metricCode: input.metricCode,
-        canonicalMetricCode: result.canonicalMetricCode,
-        deletedCount: result.deletedCount,
-        fromUtc: result.fromUtc,
-        toUtc: result.toUtc,
-        retentionDays: result.retentionDays,
-        targetId,
-      };
+    .handler(async () => {
+      throw raiseApiError(
+        "PERMISSION_DENIED",
+        "Metric retention is only available to trusted server maintenance.",
+      );
     }),
 
   /**

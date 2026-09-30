@@ -9,6 +9,7 @@ import {
   MAX_RETENTION_DAYS,
   MIN_RETENTION_DAYS,
   policyForMetric,
+  RetentionPolicyRequiredError,
 } from "./recurrence";
 
 describe("recurrence helpers (Issue #17 bounded recurrence slice)", () => {
@@ -44,26 +45,14 @@ describe("recurrence helpers (Issue #17 bounded recurrence slice)", () => {
 
   describe("buildRetentionWindow", () => {
     const now = new Date("2026-09-30T12:00:00.000Z");
-    test("weight uses 365-day default when no override is supplied", () => {
-      const window = buildRetentionWindow({
-        now,
-        timezone: "UTC",
-        metricCode: "weight",
-      });
-      expect(window.retentionDays).toBe(365);
-      expect(window.toUtc.toISOString()).toBe("2026-09-30T12:00:00.000Z");
-      expect(window.fromUtc.toISOString()).toBe("2025-09-30T12:00:00.000Z");
+    test("missing retentionDays throws instead of inventing a default", () => {
+      for (const metricCode of ["weight", "height", "blood_marker_glucose", "sleep_session"]) {
+        expect(() => buildRetentionWindow({ now, timezone: "UTC", metricCode } as never)).toThrow(
+          RetentionPolicyRequiredError,
+        );
+      }
     });
-    test("blood_marker family inherits the 730-day default", () => {
-      const window = buildRetentionWindow({
-        now,
-        timezone: "UTC",
-        metricCode: "blood_marker_glucose",
-      });
-      expect(window.retentionDays).toBe(730);
-      expect(window.fromUtc.toISOString()).toBe("2024-09-30T12:00:00.000Z");
-    });
-    test("caller override wins over the taxonomy default", () => {
+    test("explicit retentionDays defines the window", () => {
       const window = buildRetentionWindow({
         now,
         timezone: "UTC",
@@ -73,22 +62,19 @@ describe("recurrence helpers (Issue #17 bounded recurrence slice)", () => {
       expect(window.retentionDays).toBe(7);
       expect(window.fromUtc.toISOString()).toBe("2026-09-23T12:00:00.000Z");
     });
-    test("height uses 3650-day default", () => {
-      const window = buildRetentionWindow({
-        now,
-        timezone: "UTC",
-        metricCode: "height",
-      });
-      expect(window.retentionDays).toBe(3650);
-    });
     test("unknown metric code throws", () => {
-      expect(() => buildRetentionWindow({ now, timezone: "UTC", metricCode: "made_up" })).toThrow(
-        /Unknown metric/,
-      );
+      expect(() =>
+        buildRetentionWindow({ now, timezone: "UTC", metricCode: "made_up", retentionDays: 7 }),
+      ).toThrow(/Unknown metric/);
     });
     test("invalid timezone throws", () => {
       expect(() =>
-        buildRetentionWindow({ now, timezone: "Mars/Olympus", metricCode: "weight" }),
+        buildRetentionWindow({
+          now,
+          timezone: "Mars/Olympus",
+          metricCode: "weight",
+          retentionDays: 7,
+        }),
       ).toThrow(/Invalid IANA timezone/);
     });
     test("invalid retentionDays override throws", () => {
@@ -107,6 +93,7 @@ describe("recurrence helpers (Issue #17 bounded recurrence slice)", () => {
           now: new Date("invalid"),
           timezone: "UTC",
           metricCode: "weight",
+          retentionDays: 7,
         }),
       ).toThrow(/now must be a valid Date/);
     });
@@ -215,23 +202,23 @@ describe("recurrence helpers (Issue #17 bounded recurrence slice)", () => {
   });
 
   describe("policyForMetric", () => {
-    test("weight uses 365d default + UTC", () => {
+    test("weight has no retention configured by default (null) + UTC", () => {
       const policy = policyForMetric({ metricCode: "weight" });
       expect(policy).toMatchObject({
         metricCode: "weight",
         canonicalMetricCode: "weight",
         isBloodMarkerFamily: false,
-        retentionDays: 365,
+        retentionDays: null,
         timezone: "UTC",
         category: "body",
         unit: "kg",
       });
     });
-    test("blood_marker_glucose inherits the family defaults", () => {
+    test("blood_marker_glucose resolves the family with no invented retention", () => {
       const policy = policyForMetric({ metricCode: "blood_marker_glucose" });
       expect(policy.isBloodMarkerFamily).toBe(true);
       expect(policy.canonicalMetricCode).toBe("blood_marker_glucose");
-      expect(policy.retentionDays).toBe(730);
+      expect(policy.retentionDays).toBeNull();
     });
     test("caller can override retentionDays and timezone", () => {
       const policy = policyForMetric({
@@ -281,6 +268,7 @@ describe("recurrence helpers (Issue #17 bounded recurrence slice)", () => {
             now: observedAt,
             timezone: "Mars/Olympus",
             metricCode: "weight",
+            retentionDays: 7,
           }),
         ).toThrow(/Invalid IANA timezone/);
         expect(() =>
@@ -288,6 +276,7 @@ describe("recurrence helpers (Issue #17 bounded recurrence slice)", () => {
             now: observedAt,
             timezone: "UTC",
             metricCode: "made_up_metric",
+            retentionDays: 7,
           }),
         ).toThrow(/Unknown metric/);
         expect(() =>

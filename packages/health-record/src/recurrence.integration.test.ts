@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { readdir } from "node:fs/promises";
 import { createDb, sql } from "@openhealth/db";
-import { organization, user, member, accessAuditLog } from "@openhealth/db/schema/auth";
+import { organization, user, member } from "@openhealth/db/schema/auth";
 import { providerConnection } from "@openhealth/db/schema/ingestion";
 import { dataSource, metricDefinition, metricSample } from "@openhealth/db/schema/health-record";
 import { eq } from "drizzle-orm";
 import { CanonicalMetricNotFoundError } from "./ingest";
+import { RetentionPolicyRequiredError } from "./recurrence";
 import { createHealthRecordRepository } from "./repository";
 
 // Opt-in only; never accept a production URL or existing database. This test
@@ -105,13 +106,14 @@ describe.skipIf(!url)("recurrence real PostgreSQL schema", () => {
     await db.$client.end();
   });
 
-  test("getMetricRetentionPolicy returns the canonical retention for weight + UTC", async () => {
+  test("getMetricRetentionPolicy reports no default retention for weight + UTC", async () => {
     const policy = await repo.getMetricRetentionPolicy({
       organizationId: "org-a",
       metricCode: "weight",
     });
     expect(policy.canonicalMetricCode).toBe("weight");
-    expect(policy.retentionDays).toBe(365);
+    // No invented clinical retention: nothing is configured by default.
+    expect(policy.retentionDays).toBeNull();
     expect(policy.timezone).toBe("UTC");
     expect(policy.category).toBe("body");
     expect(policy.unit).toBe("kg");
@@ -136,6 +138,37 @@ describe.skipIf(!url)("recurrence real PostgreSQL schema", () => {
         metricCode: "resting_heart_rate",
       }),
     ).rejects.toBeInstanceOf(CanonicalMetricNotFoundError);
+  });
+
+  test("pruneMetricSamples without explicit retention throws and deletes nothing, even for ancient samples", async () => {
+    const [aDefinition] = await db
+      .select()
+      .from(metricDefinition)
+      .where(eq(metricDefinition.organizationId, "org-a"));
+    if (!aDefinition) throw new Error("Missing org-a definition.");
+    await db.insert(metricSample).values({
+      organizationId: "org-a",
+      metricDefinitionId: aDefinition.id,
+      sampledAt: new Date("1990-01-01T00:00:00Z"),
+      numericValue: 81,
+      unit: "kg",
+      dedupeHash: "ancient-no-policy",
+    });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await expect(
+        repo.pruneMetricSamples({
+          organizationId: "org-a",
+          metricCode: "weight",
+          now: new Date("2026-09-30T12:00:00Z"),
+        } as never),
+      ).rejects.toThrow(RetentionPolicyRequiredError);
+    }
+    const survivors = await db
+      .select({ id: metricSample.id })
+      .from(metricSample)
+      .where(eq(metricSample.dedupeHash, "ancient-no-policy"));
+    expect(survivors).toHaveLength(1);
+    await db.delete(metricSample).where(eq(metricSample.dedupeHash, "ancient-no-policy"));
   });
 
   test("pruneMetricSamples deletes only out-of-window rows and leaves foreign-tenant rows alone", async () => {
@@ -205,6 +238,7 @@ describe.skipIf(!url)("recurrence real PostgreSQL schema", () => {
       organizationId: "org-a",
       metricCode: "weight",
       now,
+      retentionDays: 365,
     });
 
     expect(result.canonicalMetricCode).toBe("weight");
@@ -233,12 +267,14 @@ describe.skipIf(!url)("recurrence real PostgreSQL schema", () => {
       organizationId: "org-a",
       metricCode: "weight",
       now,
+      retentionDays: 365,
     });
     expect(first.deletedCount).toBe(0);
     const second = await repo.pruneMetricSamples({
       organizationId: "org-a",
       metricCode: "weight",
       now,
+      retentionDays: 365,
     });
     expect(second.deletedCount).toBe(0);
     expect(second.canonicalMetricCode).toBe("weight");
@@ -367,42 +403,6 @@ describe.skipIf(!url)("recurrence real PostgreSQL schema", () => {
     expect(sharedA).toHaveLength(2);
   });
 
-  test("audit log retains one RECORD_DELETED row with targetType metric_retention_pruned when retention runs", async () => {
-    // Persist an audit row exactly like the router does. The router
-    // wraps this; the repository itself does not audit — we verify the
-    // shape here so the integration covers the canonical shape.
-    await db.insert(accessAuditLog).values({
-      organizationId: "org-a",
-      actorUserId: "user-a",
-      eventType: "RECORD_DELETED",
-      targetType: "metric_retention_pruned",
-      targetId: "weight:0",
-      afterJson: {
-        metadata: {
-          resource: "records",
-          action: "write",
-          metricCode: "weight",
-          deletedCount: 0,
-          retentionDays: 365,
-          fromUtc: "2025-09-30T12:00:00.000Z",
-          toUtc: "2026-09-30T12:00:00.000Z",
-        },
-      },
-    });
-    const rows = await db
-      .select({
-        eventType: accessAuditLog.eventType,
-        targetType: accessAuditLog.targetType,
-        targetId: accessAuditLog.targetId,
-      })
-      .from(accessAuditLog)
-      .where(eq(accessAuditLog.organizationId, "org-a"));
-    const retentionRow = rows.find((row) => row.targetType === "metric_retention_pruned");
-    expect(retentionRow).toBeDefined();
-    expect(retentionRow?.eventType).toBe("RECORD_DELETED");
-    expect(retentionRow?.targetId).toBe("weight:0");
-  });
-
   test("PHI-bearing retention and dedupe calls emit no console payloads", async () => {
     const logs = [spyOn(console, "log"), spyOn(console, "warn"), spyOn(console, "error")];
     try {
@@ -410,6 +410,7 @@ describe.skipIf(!url)("recurrence real PostgreSQL schema", () => {
         organizationId: "org-a",
         metricCode: "weight",
         now: new Date("2026-09-30T12:00:00Z"),
+        retentionDays: 365,
       });
       await repo.applyDedupeForMetric({
         organizationId: "org-a",

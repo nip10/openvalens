@@ -21,19 +21,17 @@ import {
 } from "./metric-taxonomy";
 
 /**
- * Default retention policy per canonical metric code, in days. The
- * scheduler falls back to this when the caller does not supply a
- * `retentionDays` override. Blood-marker family codes inherit the
- * `blood_marker` default. Unknown metrics reject with
- * `CanonicalMetricNotFoundError`.
+ * There is deliberately NO default clinical retention. The anchovy source
+ * only expires raw ingestion payloads (`raw-payload-purge.ts`); it never
+ * expires canonical `metric_sample` history. Any prune must therefore be
+ * driven by an explicit, trusted-server-authorized `retentionDays`.
  */
-const DEFAULT_RETENTION_DAYS: Record<string, number> = {
-  weight: 365,
-  height: 3650,
-  resting_heart_rate: 365,
-  sleep_session: 365,
-  blood_marker: 730,
-};
+export class RetentionPolicyRequiredError extends Error {
+  constructor() {
+    super("An explicit retention policy is required.");
+    this.name = "RetentionPolicyRequiredError";
+  }
+}
 
 export const MIN_RETENTION_DAYS = 1;
 export const MAX_RETENTION_DAYS = 3650;
@@ -42,7 +40,8 @@ export type RetentionPolicyRecord = {
   metricCode: string;
   canonicalMetricCode: string;
   isBloodMarkerFamily: boolean;
-  retentionDays: number;
+  /** `null` = no retention configured; samples are kept indefinitely. */
+  retentionDays: number | null;
   timezone: string;
   category: string;
   unit: string;
@@ -72,46 +71,34 @@ export function isValidRetentionDays(days: number): boolean {
 }
 
 /**
- * Resolve the canonical retention policy for a metric code. Returns
- * `null` when the metric code is unknown (not a canonical taxonomy
- * code and not a `blood_marker_*` family code).
- */
-export function defaultRetentionDaysFor(metricCode: string): number | null {
-  const canonical = canonicalizeMetricCode(metricCode);
-  if (isBloodMarkerFamilyCode(canonical)) {
-    const days = DEFAULT_RETENTION_DAYS.blood_marker;
-    return days === undefined ? null : days;
-  }
-  const definition = getMetricDefinition(canonical);
-  if (!definition) return null;
-  const days = DEFAULT_RETENTION_DAYS[definition.code];
-  return days === undefined ? null : days;
-}
-
-/**
- * Inclusive retention window computed at the `now` instant. The
+ * Inclusive retention window computed at the `now` instant for an
+ * explicit `retentionDays` (required; throws `RetentionPolicyRequiredError`). The
  * `toUtc` is the present moment; the `fromUtc` is `now - retentionDays`
  * days (UTC). The repository uses `observedAt < fromUtc` as the
  * pruning predicate so a sample sitting exactly on `fromUtc` is
  * retained.
  *
  * Throws when the metric code is unknown, the timezone is invalid, or
- * the retention override is out of range. Never logs the inputs.
+ * retention is missing or out of range. Never logs the inputs.
  */
 export function buildRetentionWindow(input: {
   now: Date;
   timezone: string;
   metricCode: string;
-  retentionDays?: number;
+  retentionDays: number;
 }): { fromUtc: Date; toUtc: Date; retentionDays: number } {
   if (!isValidTimezone(input.timezone)) {
     throw new Error(`Invalid IANA timezone: ${input.timezone}.`);
   }
-  const defaultDays = defaultRetentionDaysFor(input.metricCode);
-  if (defaultDays === null) {
+  const canonical = canonicalizeMetricCode(input.metricCode);
+  if (!isBloodMarkerFamilyCode(canonical) && !getMetricDefinition(canonical)) {
     throw new Error(`Unknown metric code: ${input.metricCode}.`);
   }
-  const retentionDays = input.retentionDays ?? defaultDays;
+  // Runtime guard for untyped callers: never fall back to a default window.
+  if ((input as { retentionDays?: unknown }).retentionDays === undefined) {
+    throw new RetentionPolicyRequiredError();
+  }
+  const retentionDays = input.retentionDays;
   if (!isValidRetentionDays(retentionDays)) {
     throw new Error(
       `retentionDays must be an integer in [${MIN_RETENTION_DAYS}, ${MAX_RETENTION_DAYS}].`,
@@ -160,7 +147,8 @@ export function dedupeDecision(input: {
 
 /**
  * Stable policy record for a metric. Combines the canonical taxonomy
- * shape with the retention window parameters. Used by the optional
+ * shape with the retention window parameters. `retentionDays` is `null`
+ * unless explicitly supplied: there is no default clinical retention. Used by the optional
  * read API + the cron scheduler contract surface.
  */
 export function policyForMetric(input: {
@@ -185,12 +173,8 @@ export function policyForMetric(input: {
   category = definition.category;
   unit = definition.unit;
 
-  const defaultDays = DEFAULT_RETENTION_DAYS[definition.code];
-  const retentionDays = input.retentionDays ?? defaultDays;
-  if (retentionDays === undefined) {
-    throw new Error(`Unknown metric code: ${input.metricCode}.`);
-  }
-  if (!isValidRetentionDays(retentionDays)) {
+  const retentionDays = input.retentionDays ?? null;
+  if (retentionDays !== null && !isValidRetentionDays(retentionDays)) {
     throw new Error(
       `retentionDays must be an integer in [${MIN_RETENTION_DAYS}, ${MAX_RETENTION_DAYS}].`,
     );
@@ -228,5 +212,4 @@ export function clusterMetricSamples<
   return clusters;
 }
 
-export const DEFAULT_RETENTION_DAYS_MAP = DEFAULT_RETENTION_DAYS;
 export const BLOOD_MARKER_FAMILY_PREFIX = BLOOD_MARKER_CODE_PREFIX;
