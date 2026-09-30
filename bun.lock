@@ -159,6 +159,7 @@
         "@openhealth/body": "workspace:*",
         "@openhealth/clinical": "workspace:*",
         "@openhealth/coach": "workspace:*",
+        "@openhealth/cockpit": "workspace:*",
         "@openhealth/db": "workspace:*",
         "@openhealth/observability": "workspace:*",
         "@openhealth/plans": "workspace:*",
@@ -231,6 +232,17 @@
     },
     "packages/coach": {
       "name": "@openhealth/coach",
+      "dependencies": {
+        "@openhealth/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/cockpit": {
+      "name": "@openhealth/cockpit",
       "dependencies": {
         "@openhealth/db": "workspace:*",
         "drizzle-orm": "catalog:",
@@ -744,6 +756,8 @@
     "@openhealth/clinical": ["@openhealth/clinical@workspace:packages/clinical"],
 
     "@openhealth/coach": ["@openhealth/coach@workspace:packages/coach"],
+
+    "@openhealth/cockpit": ["@openhealth/cockpit@workspace:packages/cockpit"],
 
     "@openhealth/config": ["@openhealth/config@workspace:packages/config"],
 

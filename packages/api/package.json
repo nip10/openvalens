@@ -16,6 +16,7 @@
     "@openhealth/body": "workspace:*",
     "@openhealth/clinical": "workspace:*",
     "@openhealth/coach": "workspace:*",
+    "@openhealth/cockpit": "workspace:*",
     "@openhealth/db": "workspace:*",
     "@openhealth/observability": "workspace:*",
     "@openhealth/plans": "workspace:*",
