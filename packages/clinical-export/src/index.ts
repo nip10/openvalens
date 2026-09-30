@@ -42,6 +42,7 @@ export {
   type ExportPayloadScope,
 } from "./build-payload";
 export { renderCsvExport, type CsvExportFile } from "./render-csv";
+export { renderPdfExport, type PdfExportRenderResult } from "./render-pdf";
 export {
   selectLatestBodyWeight,
   maxIsoDate,

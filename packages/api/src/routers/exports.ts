@@ -8,6 +8,7 @@ import {
   normalizeClinicalExportLimit,
   parseExportRequest,
   renderCsvExport,
+  renderPdfExport,
   type CsvExportFile,
   type ExportDomain,
   type ExportPayload,
@@ -36,6 +37,22 @@ const legacyDownloadInput = z.strictObject({
       return valid;
     }),
   format: z.literal("csv").optional().default("csv"),
+});
+
+const legacyPdfDownloadInput = z.strictObject({
+  domains: z
+    .array(z.string())
+    .optional()
+    .transform((domains, ctx) => {
+      if (!domains) return undefined;
+      const valid = domains.filter(isExportDomain) as ExportDomain[];
+      if (valid.length === 0) {
+        ctx.addIssue({ code: "custom", message: "Request body failed validation." });
+        return z.NEVER;
+      }
+      return valid;
+    }),
+  format: z.literal("pdf").optional().default("pdf"),
 });
 
 export const exportsRouter = {
@@ -111,6 +128,67 @@ export const exportsRouter = {
         files,
         contentType: "text/csv",
         contentDisposition: `attachment; filename="health-export-${payload.generatedAt.slice(0, 10)}.zip"`,
+      };
+    }),
+  legacyPdfDownload: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(legacyPdfDownloadInput))
+    .input(legacyPdfDownloadInput)
+    .handler(async ({ context, input }) => {
+      // Reject tenant-override headers — identity is exclusively authz-derived.
+      if (context.honoContext.req.raw.headers.has("x-organization-id"))
+        throw raiseApiError("INVALID_INPUT", "Organization overrides are not supported.");
+
+      // The strict schema rejects empty domain arrays; when the caller omits
+      // `domains` we fall back to the anchor's canonical defaults.
+      const domains: ExportDomain[] =
+        input.domains ?? (["blood", "body", "medications", "supplements"] as ExportDomain[]);
+
+      // Defense in depth: the source validates via `parseExportRequest` even
+      // though Zod has already filtered unknowns — keep the validation surface
+      // and error codes identical to the source. The format literal is "pdf".
+      const requestCheck: ParseExportRequestResult = parseExportRequest({
+        format: "pdf",
+        domains,
+      });
+      if (!requestCheck.ok) {
+        throw raiseApiError("INVALID_INPUT", "Request body failed validation.");
+      }
+
+      const payload: ExportPayload = await buildExportPayload(
+        context.db as unknown as Database,
+        requestCheck.data.domains as readonly ExportDomain[],
+        { organizationId: context.authz.activeOrganizationId },
+      );
+
+      const rendered = renderPdfExport(payload);
+
+      // Single audit row, sanitized metadata — no payload values, no row
+      // contents. The route is the "HTML attachment" view of the legacy
+      // export; one file per render.
+      await writeAuditLog({
+        db: context.db as unknown as Database,
+        organizationId: context.authz.activeOrganizationId,
+        actorUserId: context.authz.user.id,
+        eventType: "EXPORT_GENERATED",
+        targetType: "records",
+        targetId: payload.generatedAt,
+        correlationId: context.correlationId,
+        metadata: {
+          schemaVersion: EXPORT_SCHEMA_VERSION,
+          format: "pdf",
+          selectedDomains: payload.selectedDomains,
+          fileCount: 1,
+        },
+      });
+
+      return {
+        generatedAt: payload.generatedAt,
+        schemaVersion: payload.schemaVersion,
+        selectedDomains: payload.selectedDomains,
+        fileName: rendered.fileName,
+        content: rendered.html,
+        contentType: rendered.contentTypeHint,
+        contentDisposition: `attachment; filename="${rendered.fileName}"`,
       };
     }),
 };
