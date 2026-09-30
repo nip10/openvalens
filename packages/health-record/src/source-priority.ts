@@ -162,6 +162,6 @@ function isValidOrder(
   return order.every((source) => definition.supportedSources.includes(source));
 }
 
-export const __testHelpers = {
+export const __testHelpersSourcePriority = {
   BLOOD_MARKER_CODE_PREFIX,
 };

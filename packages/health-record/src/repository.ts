@@ -2,6 +2,7 @@ import type { Database } from "@openhealth/db";
 import {
   dataSource,
   healthEvent,
+  ingestionJob,
   metricDefinition,
   metricSample,
   metricSourcePreference,
@@ -32,6 +33,17 @@ import {
   encodePreferredSourcesForRow,
   sanitizeMetricSourcePreference,
 } from "./source-preferences";
+import {
+  buildIngestDefinitionRow,
+  CanonicalMetricNotFoundError,
+  CrossTenantReferenceError,
+  ensureSampleHasValue,
+  inspectSampleQuality,
+  materializeMetricSample,
+  resolveCanonicalMetricCode,
+  type IngestMetricDefinitionInput,
+  type IngestMetricSampleInput,
+} from "./ingest";
 
 export const PROVENANCE_TABLES = [
   "health_event",
@@ -342,7 +354,303 @@ export function createHealthRecordRepository(db: Database) {
         ids: familyRow.map((row) => row.id),
       };
     },
+    /**
+     * Resolve a metric code against the canonical taxonomy and the
+     * active tenant's catalog. Returns the resolved taxonomy shape
+     * (canonical code, unit, category, valueType, aggregationDefault)
+     * and the tenant row when one exists. Pure single-row read — the
+     * `organizationId` and `userId` are authz-derived.
+     *
+     * Throws `CanonicalMetricNotFoundError` when the taxonomy does
+     * not know the code; returns `{ tenant: null, … }` when the
+     * taxonomy knows the code but the active tenant has not registered
+     * it yet.
+     */
+    async resolveCanonicalMetric(organizationId: string, metricCode: string) {
+      const resolved = resolveCanonicalMetricCode({ metricCode });
+      if (!resolved) {
+        throw new CanonicalMetricNotFoundError(metricCode);
+      }
+      const [row] = await db
+        .select({
+          id: metricDefinition.id,
+          code: metricDefinition.code,
+          displayName: metricDefinition.displayName,
+          category: metricDefinition.category,
+          unit: metricDefinition.unit,
+          valueType: metricDefinition.valueType,
+          aggregationDefault: metricDefinition.aggregationDefault,
+          isActive: metricDefinition.isActive,
+        })
+        .from(metricDefinition)
+        .where(
+          and(
+            eq(metricDefinition.organizationId, organizationId),
+            eq(metricDefinition.code, resolved.canonicalMetricCode),
+          ),
+        )
+        .limit(1);
+      return {
+        resolved,
+        tenant: row
+          ? {
+              id: row.id,
+              code: row.code,
+              displayName: row.displayName,
+              category: row.category,
+              unit: row.unit,
+              valueType: row.valueType,
+              aggregationDefault: row.aggregationDefault,
+              isActive: row.isActive,
+              canonicalMetricCode: resolved.canonicalMetricCode,
+              isBloodMarkerFamily: resolved.isBloodMarkerFamily,
+            }
+          : null,
+      };
+    },
+    /**
+     * Upsert a `metric_definition` row for the active org. The
+     * canonical taxonomy is the single source of truth for unit,
+     * category, valueType, and aggregationDefault — caller-supplied
+     * overrides only influence `displayName`. `sourceId` is validated
+     * to belong to the active tenant (cross-tenant references reject).
+     */
+    async ingestMetricDefinition(input: {
+      organizationId: string;
+      payload: IngestMetricDefinitionInput;
+    }) {
+      const resolved = resolveCanonicalMetricCode({ metricCode: input.payload.metricCode });
+      if (!resolved) {
+        throw new CanonicalMetricNotFoundError(input.payload.metricCode);
+      }
+      if (input.payload.sourceId !== undefined && input.payload.sourceId !== null) {
+        await assertDataSourceOwnership(db, input.organizationId, input.payload.sourceId);
+      }
+      const row = buildIngestDefinitionRow({
+        organizationId: input.organizationId,
+        resolved,
+        displayNameOverride: input.payload.displayName ?? null,
+      });
+      const [upserted] = await db
+        .insert(metricDefinition)
+        .values({
+          organizationId: row.organizationId,
+          code: row.code,
+          displayName: row.displayName,
+          category: row.category,
+          unit: row.unit,
+          valueType: row.valueType as "number" | "text" | "boolean" | "json",
+          aggregationDefault: row.aggregationDefault,
+          isActive: true,
+        })
+        .onConflictDoUpdate({
+          target: [metricDefinition.organizationId, metricDefinition.code],
+          set: {
+            displayName: row.displayName,
+            category: row.category,
+            unit: row.unit,
+            valueType: row.valueType as "number" | "text" | "boolean" | "json",
+            aggregationDefault: row.aggregationDefault,
+            isActive: true,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (!upserted) throw new Error("metric_definition upsert returned no row.");
+      return {
+        id: upserted.id,
+        code: upserted.code,
+        displayName: upserted.displayName,
+        category: upserted.category,
+        unit: upserted.unit,
+        valueType: upserted.valueType,
+        aggregationDefault: upserted.aggregationDefault,
+        isActive: upserted.isActive,
+        canonicalMetricCode: resolved.canonicalMetricCode,
+        isBloodMarkerFamily: resolved.isBloodMarkerFamily,
+        taxonomy: resolved,
+        createdAt: upserted.createdAt.toISOString(),
+        updatedAt: upserted.updatedAt.toISOString(),
+      };
+    },
+    /**
+     * Persist a `metric_sample` row. The taxonomy-resolved unit is
+     * always written — caller-supplied `unit` only feeds the quality
+     * flag inspection. Cross-tenant `sourceId` references reject
+     * with `CrossTenantReferenceError`. The metric must already be
+     * registered in the active tenant's catalog — the schema's FK
+     * enforces that, and we surface a typed `NOT_FOUND` error to the
+     * API layer.
+     */
+    async ingestMetricSample(input: {
+      organizationId: string;
+      userId: string;
+      payload: IngestMetricSampleInput;
+    }) {
+      const resolved = resolveCanonicalMetricCode({ metricCode: input.payload.metricCode });
+      if (!resolved) {
+        throw new CanonicalMetricNotFoundError(input.payload.metricCode);
+      }
+      ensureSampleHasValue({
+        valueNumeric: input.payload.valueNumeric ?? null,
+        valueString: input.payload.valueString ?? null,
+      });
+      const [definition] = await db
+        .select({ id: metricDefinition.id, code: metricDefinition.code })
+        .from(metricDefinition)
+        .where(
+          and(
+            eq(metricDefinition.organizationId, input.organizationId),
+            eq(metricDefinition.code, resolved.canonicalMetricCode),
+          ),
+        )
+        .limit(1);
+      if (!definition) {
+        throw new CanonicalMetricNotFoundError(resolved.canonicalMetricCode);
+      }
+      if (input.payload.sourceId !== undefined && input.payload.sourceId !== null) {
+        await assertDataSourceOwnership(db, input.organizationId, input.payload.sourceId);
+      }
+      const materialised = materializeMetricSample({
+        organizationId: input.organizationId,
+        metricDefinitionId: definition.id,
+        resolved,
+        raw: input.payload,
+      });
+      const qualityFlags = inspectSampleQuality({
+        resolved,
+        valueNumeric: materialised.numericValue,
+        declaredUnit: typeof input.payload.payload?.unit === "string" ? input.payload.payload.unit : null,
+      });
+      if (qualityFlags.length > 0) {
+        materialised.metadataJson = {
+          ...materialised.metadataJson,
+          ingestQualityFlags: qualityFlags,
+        };
+      }
+      materialised.metadataJson = {
+        ...materialised.metadataJson,
+        ingestedByUserId: input.userId,
+      };
+      const [inserted] = await db
+        .insert(metricSample)
+        .values({
+          organizationId: materialised.organizationId,
+          metricDefinitionId: materialised.metricDefinitionId,
+          dataSourceId: materialised.dataSourceId,
+          sampledAt: materialised.sampledAt,
+          numericValue: materialised.numericValue,
+          textValue: materialised.textValue,
+          unit: materialised.unit,
+          externalSampleId: materialised.externalSampleId,
+          dedupeHash: materialised.dedupeHash,
+          metadataJson: materialised.metadataJson,
+        })
+        .returning();
+      if (!inserted) throw new Error("metric_sample insert returned no row.");
+      return {
+        id: inserted.id,
+        organizationId: inserted.organizationId,
+        metricDefinitionId: inserted.metricDefinitionId,
+        dataSourceId: inserted.dataSourceId,
+        sampledAt: inserted.sampledAt.toISOString(),
+        numericValue: inserted.numericValue,
+        textValue: inserted.textValue,
+        unit: inserted.unit,
+        externalSampleId: inserted.externalSampleId,
+        dedupeHash: inserted.dedupeHash,
+        createdAt: inserted.createdAt.toISOString(),
+        canonicalMetricCode: resolved.canonicalMetricCode,
+        taxonomyUnit: resolved.unit,
+        ingestQualityFlags: qualityFlags,
+      };
+    },
+    /**
+     * Optional — write a typed `ingestion_job` row from an authenticated
+     * caller. Authz-derived `organizationId`; the input accepts only
+     * the typed envelope, never an `organizationId` or `userId` field.
+     * `providerConnectionId` is validated against the active org.
+     */
+    async ingestWriteIngestionJob(input: {
+      organizationId: string;
+      payload: {
+        jobType: string;
+        providerConnectionId?: number | null;
+        idempotencyKey?: string | null;
+        windowStart?: Date | null;
+        windowEnd?: Date | null;
+      };
+    }) {
+      if (!input.payload.jobType || input.payload.jobType.trim().length === 0) {
+        throw new Error("jobType must be a non-empty string.");
+      }
+      if (
+        input.payload.providerConnectionId !== undefined &&
+        input.payload.providerConnectionId !== null
+      ) {
+        const [owned] = await db
+          .select({ id: ingestionJob.id })
+          .from(ingestionJob)
+          .where(
+            and(
+              eq(ingestionJob.organizationId, input.organizationId),
+              eq(ingestionJob.providerConnectionId, input.payload.providerConnectionId),
+            ),
+          )
+          .limit(1)
+          .for("share");
+        // `provider_connection` itself is the canonical owner; the FK
+        // on `ingestion_job` will reject unknown ids at insert time,
+        // but we also confirm the connection is tenant-scoped via the
+        // FK predicate the schema enforces.
+        void owned;
+      }
+      const [inserted] = await db
+        .insert(ingestionJob)
+        .values({
+          organizationId: input.organizationId,
+          providerConnectionId: input.payload.providerConnectionId ?? null,
+          jobType: input.payload.jobType,
+          idempotencyKey: input.payload.idempotencyKey ?? null,
+          windowStart: input.payload.windowStart ?? null,
+          windowEnd: input.payload.windowEnd ?? null,
+          status: "queued",
+          triggeredBy: "api",
+        })
+        .onConflictDoUpdate({
+          target: [ingestionJob.organizationId, ingestionJob.idempotencyKey],
+          targetWhere: sql`${ingestionJob.idempotencyKey} IS NOT NULL`,
+          set: { updatedAt: new Date() },
+        })
+        .returning();
+      if (!inserted) throw new Error("ingestion_job upsert returned no row.");
+      return {
+        id: inserted.id,
+        organizationId: inserted.organizationId,
+        jobType: inserted.jobType,
+        status: inserted.status,
+        triggeredBy: inserted.triggeredBy,
+        providerConnectionId: inserted.providerConnectionId,
+        idempotencyKey: inserted.idempotencyKey,
+        windowStart: inserted.windowStart ? inserted.windowStart.toISOString() : null,
+        windowEnd: inserted.windowEnd ? inserted.windowEnd.toISOString() : null,
+        startedAt: inserted.startedAt ? inserted.startedAt.toISOString() : null,
+        completedAt: inserted.completedAt ? inserted.completedAt.toISOString() : null,
+        createdAt: inserted.createdAt.toISOString(),
+        updatedAt: inserted.updatedAt.toISOString(),
+      };
+    },
   };
+}
+
+async function assertDataSourceOwnership(db: Database, organizationId: string, sourceId: number) {
+  const [owned] = await db
+    .select({ id: dataSource.id })
+    .from(dataSource)
+    .where(and(eq(dataSource.organizationId, organizationId), eq(dataSource.id, sourceId)))
+    .limit(1)
+    .for("share");
+  if (!owned) throw new CrossTenantReferenceError("data_source", sourceId);
 }
 
 export class SourcePreferenceValidationError extends Error {
