@@ -1,6 +1,15 @@
-import { beforeEach, expect, mock, spyOn, test } from "bun:test";
+import { afterAll, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import type { Context } from "../context";
 import { ProvenanceReferenceError } from "@openhealth/health-record/repository";
+import * as healthRecord from "@openhealth/health-record";
+import * as auditSecurity from "@openhealth/audit-security";
+import * as authzGuard from "@openhealth/auth/authz/guard";
+
+// Module mocks persist across files, and their namespace bindings are live.
+// Snapshot exports before mocking so cleanup cannot capture our replacements.
+const actualHealthRecord = { ...healthRecord };
+const actualAuditSecurity = { ...auditSecurity };
+const actualAuthzGuard = { ...authzGuard };
 
 let role = "owner";
 class AuthzHttpError extends Error {
@@ -14,22 +23,26 @@ const requirePermission = mock(
     return { user: { id: "actor" }, activeOrganizationId: "org-a", member: { role }, role };
   },
 );
-mock.module("@openhealth/auth/authz/guard", () => ({ AuthzHttpError, requirePermission }));
+mock.module("@openhealth/auth/authz/guard", () => ({
+  ...actualAuthzGuard,
+  AuthzHttpError,
+  requirePermission,
+}));
 const list = mock(async (_org: string, _filters: unknown) => ({ items: [], nextCursor: null }));
 const changes = mock(async (_org: string, _options: unknown) => ({ items: [] }));
 const write = mock(async (_link: unknown) => ({ id: 1, createdAt: "2026-09-30T00:00:00Z" }));
 const audit = mock(async (_input: unknown) => {});
 mock.module("@openhealth/audit-security", () => ({
+  ...actualAuditSecurity,
   writeAuditLog: audit,
   assertTenantBoundary: mock(),
   TenantViolationError: class extends Error {},
 }));
-mock.module("@openhealth/health-record", async () => {
-  const helpers = await import("@openhealth/health-record/timeline");
-  const types = await import("@openhealth/health-record/types");
+// Resolve the real export graph before replacing it: importing from inside an
+// async factory can deadlock when another router has already loaded the barrel.
+mock.module("@openhealth/health-record", () => {
   return {
-    ...helpers,
-    ...types,
+    ...actualHealthRecord,
     ProvenanceReferenceError,
     PROVENANCE_TABLES: ["health_event", "metric_sample", "ingestion_raw_artifact"],
     createHealthRecordRepository: () => ({
@@ -40,6 +53,11 @@ mock.module("@openhealth/health-record", async () => {
   };
 });
 const { timelineRouter } = await import("./timeline");
+afterAll(() => {
+  mock.module("@openhealth/health-record", () => actualHealthRecord);
+  mock.module("@openhealth/audit-security", () => actualAuditSecurity);
+  mock.module("@openhealth/auth/authz/guard", () => actualAuthzGuard);
+});
 function context(authenticated = true): Context {
   return {
     session: authenticated ? { user: { id: "actor" } } : null,
