@@ -13,6 +13,8 @@ import { canonicalEvent, canonicalMetric } from "./canonical";
 import { buildTimelinePage, normalizeTimelineDateRange } from "./timeline";
 import type { TimelineFilters, ProvenanceLinkInsert } from "./types";
 import { buildTimelineChangeSummary } from "./changes-since-review";
+import { createDomainTimelineReader } from "./domain-reader";
+import { buildDomainTimelineItems } from "./timeline-adapters";
 
 export const PROVENANCE_TABLES = [
   "health_event",
@@ -26,7 +28,11 @@ export class ProvenanceReferenceError extends Error {
 }
 export type HealthRecordRepository = ReturnType<typeof createHealthRecordRepository>;
 export function createHealthRecordRepository(db: Database) {
-  async function listTimeline(organizationId: string, filters: TimelineFilters = {}) {
+  async function listTimeline(
+    organizationId: string,
+    filters: TimelineFilters = {},
+    excludedIds: readonly string[] = [],
+  ) {
     const { fromIso, toIso } = normalizeTimelineDateRange(filters);
     const sourceFields = {
       id: dataSource.id,
@@ -37,7 +43,7 @@ export function createHealthRecordRepository(db: Database) {
     };
     // Full org-scoped candidate scan is deliberate: derived filters must run BEFORE
     // pagination. SQL keyset/filter pushdown is a follow-up, not silent truncation.
-    const [events, metrics, links] = await Promise.all([
+    const [events, metrics, links, domainRows] = await Promise.all([
       db
         .select({
           id: healthEvent.id,
@@ -98,6 +104,7 @@ export function createHealthRecordRepository(db: Database) {
           ),
         ),
       db.select().from(provenanceLink).where(eq(provenanceLink.organizationId, organizationId)),
+      createDomainTimelineReader(db).read(organizationId),
     ]);
     const items = [...events.map(canonicalEvent), ...metrics.map(canonicalMetric)];
     const linksByTarget = new Map<string, typeof links>();
@@ -115,7 +122,11 @@ export function createHealthRecordRepository(db: Database) {
         .filter((ref) => ref.sourceTable === "health_event" || ref.sourceTable === "metric_sample")
         .map((ref) => ({ table: ref.sourceTable, id: ref.sourceId, relation: ref.relation }));
     }
-    return buildTimelinePage(items, filters);
+    const excluded = new Set(excludedIds);
+    return buildTimelinePage(
+      [...items, ...buildDomainTimelineItems(domainRows)].filter((item) => !excluded.has(item.id)),
+      filters,
+    );
   }
   return {
     listTimeline,
@@ -135,7 +146,11 @@ export function createHealthRecordRepository(db: Database) {
       fallback.setUTCDate(fallback.getUTCDate() - 7);
       const from = review?.weekStart ?? fallback.toISOString().slice(0, 10);
       const limit = Math.min(200, Math.max(1, Math.trunc(options.limit ?? 50)));
-      const page = await listTimeline(organizationId, { from, limit });
+      const page = await listTimeline(
+        organizationId,
+        { from, limit },
+        review ? [`weekly_review:${review.id}`] : [],
+      );
       return {
         since: {
           reviewId: review?.id ?? null,

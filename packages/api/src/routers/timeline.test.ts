@@ -67,6 +67,31 @@ test("reads require records:read and use only active authz org", async () => {
   expect(changes.mock.calls[0]).toEqual(["org-a", { limit: 5 }]);
   expect(audit).not.toHaveBeenCalled();
 });
+test("domain cursors retain records:read authority and accept only migrated record kinds", async () => {
+  for (const table of [
+    "consultation",
+    "imaging_study",
+    "cardiac_exam",
+    "weekly_review",
+    "insight",
+    "scheduled_event",
+    "daily_reminder",
+  ]) {
+    const cursor = `2026-09-29T00:00:00.000Z|${table}:1`;
+    await timelineRouter.list.callable({ context: context() })({ cursor, limit: 1 });
+    expect(list.mock.calls.at(-1)).toEqual(["org-a", { cursor, limit: 1 }]);
+    expect(requirePermission.mock.calls.at(-1)?.[1]).toEqual({
+      resource: "records",
+      action: "read",
+    });
+  }
+  await expect(
+    timelineRouter.list.callable({ context: context() })({
+      cursor: "2026-09-29T00:00:00.000Z|medication_change:1",
+    }),
+  ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  expect(audit).not.toHaveBeenCalled();
+});
 test("unauthenticated and unauthorized writes do not reach repository or audit", async () => {
   const input = {
     targetTable: "health_event" as const,

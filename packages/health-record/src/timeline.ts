@@ -125,7 +125,9 @@ export function decodeCursor(cursor: string): { at: string; id: string } | null 
     !match ||
     !Number.isFinite(Date.parse(match[1] ?? "")) ||
     new Date(match[1] ?? "").toISOString() !== match[1] ||
-    !/^(health_event|metric_sample):[1-9]\d*$/.test(match[2] ?? "")
+    !/^(health_event|metric_sample|consultation|imaging_study|cardiac_exam|weekly_review|insight|scheduled_event|daily_reminder):[1-9]\d*$/.test(
+      match[2] ?? "",
+    )
   )
     return null;
   return { at: match[1] ?? "", id: match[2] ?? "" };

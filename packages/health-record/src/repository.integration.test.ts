@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { readdir } from "node:fs/promises";
 import { createDb, sql } from "@openhealth/db";
-import { organization } from "@openhealth/db/schema/auth";
+import { organization, user, member } from "@openhealth/db/schema/auth";
 import { providerConnection } from "@openhealth/db/schema/ingestion";
 import {
   dataSource,
@@ -11,7 +11,10 @@ import {
   ingestionRawArtifact,
   provenanceLink,
 } from "@openhealth/db/schema/health-record";
-import { weeklyReview } from "@openhealth/db/schema/plans";
+import { weeklyReview, scheduledEvent } from "@openhealth/db/schema/plans";
+import { consultation, imagingStudy, cardiacExam } from "@openhealth/db/schema/clinical";
+import { insight } from "@openhealth/db/schema/coach";
+import { dailyReminder } from "@openhealth/db/schema/integrations";
 import { and, eq } from "drizzle-orm";
 import { createHealthRecordRepository, ProvenanceReferenceError } from "./repository";
 
@@ -34,6 +37,8 @@ describe.skipIf(!url)("timeline real PostgreSQL schema", () => {
   let metricId = 0;
   let artifactId = 0;
   let foreignArtifactId = 0;
+  let foreignSourceId = 0;
+  let foreignDefinitionId = 0;
   const at = new Date("2026-09-29T12:00:00Z");
   beforeAll(async () => {
     const existing = await db.execute(
@@ -113,6 +118,8 @@ describe.skipIf(!url)("timeline real PostgreSQL schema", () => {
       } else {
         foreignEventId = event.id;
         foreignArtifactId = artifact.id;
+        foreignSourceId = source.id;
+        foreignDefinitionId = definition.id;
       }
     }
     await db.insert(healthEvent).values([
@@ -175,6 +182,49 @@ describe.skipIf(!url)("timeline real PostgreSQL schema", () => {
     const ids = (await repo.listTimeline("org-a")).items.map((item) => item.id);
     expect(ids).not.toContain(`health_event:${foreignEventId}`);
     expect((await repo.listTimeline("missing-org")).items).toEqual([]);
+  });
+  test("actual schema rejects foreign source and metric definition ownership", async () => {
+    await expect(
+      Promise.resolve(
+        db.insert(healthEvent).values({
+          organizationId: "org-a",
+          dataSourceId: foreignSourceId,
+          eventType: "foreign-source",
+          eventAt: at,
+          dedupeHash: "foreign-source",
+        }),
+      ),
+    ).rejects.toThrow();
+    await expect(
+      Promise.resolve(
+        db.insert(metricSample).values({
+          organizationId: "org-a",
+          metricDefinitionId: foreignDefinitionId,
+          sampledAt: at,
+          numericValue: 1,
+          dedupeHash: "foreign-definition",
+        }),
+      ),
+    ).rejects.toThrow();
+    const [definition] = await db
+      .select({ id: metricDefinition.id })
+      .from(metricDefinition)
+      .where(eq(metricDefinition.organizationId, "org-a"))
+      .limit(1);
+    if (!definition) throw new Error("Missing owned definition.");
+    await expect(
+      Promise.resolve(
+        db.insert(metricSample).values({
+          organizationId: "org-a",
+          metricDefinitionId: definition.id,
+          dataSourceId: foreignSourceId,
+          sampledAt: at,
+          numericValue: 1,
+          dedupeHash: "foreign-source",
+        }),
+      ),
+    ).rejects.toThrow();
+    expect((await repo.listTimeline("org-a")).items).toHaveLength(4);
   });
   test("derived source filter is not truncated by per-source candidate limits", async () => {
     const noise = Array.from({ length: 210 }, (_, index) => ({
@@ -261,5 +311,213 @@ describe.skipIf(!url)("timeline real PostgreSQL schema", () => {
     expect(result.summary.total).toBe(2);
     expect(result.items.every((item) => !("changeKind" in item))).toBe(true);
     expect(result.items.map((item) => item.canonical.type)).not.toContain("historical");
+    expect(result.items.map((item) => item.id)).not.toContain(`weekly_review:${review?.id}`);
+    const single = await repo.listChangesSinceReview("org-a", { limit: 1 });
+    expect(single.items).toHaveLength(1);
+    expect(single.page.hasMore).toBe(true);
+  });
+  test("all domain sources are org isolated, merge with canonical records and paginate exact timestamp ties", async () => {
+    const expected = new Map<string, string[]>();
+    for (const org of ["org-a", "org-b"]) {
+      const actor = `domain-${org}`;
+      await db
+        .insert(user)
+        .values({ id: actor, email: `${actor}@example.invalid`, name: "Synthetic" });
+      await db
+        .insert(member)
+        .values({ id: actor, userId: actor, organizationId: org, role: "owner" });
+      const [consult] = await db
+        .insert(consultation)
+        .values({
+          organizationId: org,
+          date: "2026-08-15",
+          type: "follow-up",
+          diagnosis: `PRIVATE ${org}`,
+          sourceFile: "shared.pdf",
+        })
+        .returning();
+      const [imaging] = await db
+        .insert(imagingStudy)
+        .values({
+          organizationId: org,
+          date: "2026-08-15",
+          type: "MRI",
+          bodyPart: "Knee",
+          sourceFile: "shared.pdf",
+        })
+        .returning();
+      const [cardiac] = await db
+        .insert(cardiacExam)
+        .values({ organizationId: org, date: "2026-08-15T03:00:00+03:00", type: "ECG" })
+        .returning();
+      const [review] = await db
+        .insert(weeklyReview)
+        .values({ organizationId: org, weekStart: "2026-08-15", notes: `PRIVATE ${org}` })
+        .returning();
+      // A non-Z ISO text timestamp must compare by normalized UTC occurrence,
+      // not get incorrectly excluded by lexical SQL timestamp bounds.
+      const [flag] = await db
+        .insert(insight)
+        .values({
+          organizationId: org,
+          createdAt: "2026-08-15T03:00:00+03:00",
+          type: "flag",
+          severity: "critical",
+          title: `PRIVATE ${org}`,
+        })
+        .returning();
+      const [schedule] = await db
+        .insert(scheduledEvent)
+        .values({
+          organizationId: org,
+          userId: actor,
+          startDate: "2026-08-15",
+          title: `PRIVATE ${org}`,
+          type: "medication",
+          frequency: "weekly",
+        })
+        .returning();
+      const [reminder] = await db
+        .insert(dailyReminder)
+        .values({
+          organizationId: org,
+          userId: actor,
+          date: "2026-08-15",
+          sourceType: "activity",
+          sourceId: 987,
+          label: `PRIVATE ${org}`,
+        })
+        .returning();
+      const [canonical] = await db
+        .insert(healthEvent)
+        .values({
+          organizationId: org,
+          eventType: "sleep_session",
+          eventAt: new Date("2026-08-15T00:00:00Z"),
+          dedupeHash: "domain-tie",
+        })
+        .returning();
+      const [definition] = await db
+        .select({ id: metricDefinition.id })
+        .from(metricDefinition)
+        .where(eq(metricDefinition.organizationId, org))
+        .limit(1);
+      if (!definition) throw new Error("Missing metric definition.");
+      const [sample] = await db
+        .insert(metricSample)
+        .values({
+          organizationId: org,
+          metricDefinitionId: definition.id,
+          sampledAt: new Date("2026-08-15T00:00:00Z"),
+          numericValue: 77,
+          dedupeHash: "domain-tie",
+        })
+        .returning();
+      if (
+        !consult ||
+        !imaging ||
+        !cardiac ||
+        !review ||
+        !flag ||
+        !schedule ||
+        !reminder ||
+        !canonical ||
+        !sample
+      )
+        throw new Error("Missing domain seed rows.");
+      expected.set(org, [
+        `cardiac_exam:${cardiac.id}`,
+        `consultation:${consult.id}`,
+        `daily_reminder:${reminder.id}`,
+        `health_event:${canonical.id}`,
+        `imaging_study:${imaging.id}`,
+        `insight:${flag.id}`,
+        `metric_sample:${sample.id}`,
+        `scheduled_event:${schedule.id}`,
+        `weekly_review:${review.id}`,
+      ]);
+    }
+    const date = { from: "2026-08-15", to: "2026-08-15" };
+    const whole = await repo.listTimeline("org-a", date);
+    expect(whole.items.map((item) => item.id)).toEqual(expected.get("org-a")!);
+    expect(whole.items.every((item) => item.at === "2026-08-15T00:00:00.000Z")).toBe(true);
+    const other = await repo.listTimeline("org-b", date);
+    expect(other.items.map((item) => item.id)).toEqual(expected.get("org-b")!);
+    expect(whole.items.some((item) => other.items.some((foreign) => foreign.id === item.id))).toBe(
+      false,
+    );
+    let cursor: string | undefined;
+    const paged: string[] = [];
+    for (let pageIndex = 0; pageIndex < 9; pageIndex++) {
+      const page = await repo.listTimeline("org-a", { ...date, limit: 1, cursor });
+      paged.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor ?? undefined;
+    }
+    expect(paged).toEqual(expected.get("org-a")!);
+    expect(cursor).toBeUndefined();
+    expect(
+      (await repo.listTimeline("org-a", { ...date, source: "SHARED.PDF" })).items.map(
+        (item) => item.id,
+      ),
+    ).toEqual(
+      whole.items
+        .filter((item) => ["consultation", "imaging_study"].includes(String(item.canonical.table)))
+        .map((item) => item.id),
+    );
+    expect((await repo.listTimeline("org-a", { ...date, source: "shared" })).items).toEqual([]);
+    const flagged = await repo.listTimeline("org-a", {
+      ...date,
+      severity: "critical",
+      confidence: "medium",
+      reviewState: "needs_review",
+      limit: 1,
+    });
+    expect(flagged.items[0]?.id).toBe(expected.get("org-a")?.[5]);
+    expect(flagged.nextCursor).toBeNull();
+    expect(
+      (await repo.listTimeline("org-a", { ...date, domain: "meds_supplements" })).items.map(
+        (item) => item.id,
+      ),
+    ).toEqual([expected.get("org-a")![7]!]);
+    expect(
+      (await repo.listTimeline("org-a", { ...date, from: "2026-08-15T00:00:00.001Z" })).items,
+    ).toEqual([]);
+    const refs = whole.items[0]?.provenanceRefs;
+    expect(refs).toEqual([
+      {
+        sourceTable: "cardiac_exam",
+        sourceId: Number(whole.items[0]?.id.split(":")[1]),
+        relation: "source_record",
+      },
+    ]);
+    expect((await repo.listTimeline("missing-org", date)).items).toEqual([]);
+  });
+  test("domain source filters precede candidate slicing", async () => {
+    await db.insert(imagingStudy).values(
+      Array.from({ length: 210 }, () => ({
+        organizationId: "org-a",
+        date: "2026-09-30",
+        type: "candidate-noise",
+        bodyPart: "Knee",
+        sourceFile: "noise.pdf",
+      })),
+    );
+    try {
+      const page = await repo.listTimeline("org-a", { source: "shared.pdf", limit: 1 });
+      expect(page.items[0]?.canonical.table).toBe("consultation");
+      const next = await repo.listTimeline("org-a", {
+        source: "shared.pdf",
+        limit: 1,
+        cursor: page.nextCursor ?? undefined,
+      });
+      expect(next.items[0]?.canonical.table).toBe("imaging_study");
+      expect(next.nextCursor).toBeNull();
+    } finally {
+      await db
+        .delete(imagingStudy)
+        .where(
+          and(eq(imagingStudy.organizationId, "org-a"), eq(imagingStudy.type, "candidate-noise")),
+        );
+    }
   });
 });
