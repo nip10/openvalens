@@ -1,4 +1,5 @@
 import type { TimelineEvent, CanonicalTimelineDomain } from "./types";
+import { canonicalizeMetricCode, getMetricDefinition } from "./metric-taxonomy";
 
 type Source = {
   id: number;
@@ -32,6 +33,35 @@ function bag(value: unknown): Record<string, unknown> {
     ? (value as Record<string, unknown>)
     : {};
 }
+
+const TAXONOMY_CATEGORY_TO_DOMAIN: Record<string, CanonicalTimelineDomain> = {
+  body: "body",
+  vitals: "vitals",
+  cardiac: "cardiac",
+  sleep: "sleep",
+  labs: "labs",
+};
+
+/**
+ * Resolve the canonical domain for a metric row. When the tenant's
+ * `metric_definition.category` is present we honour it; otherwise we
+ * fall back to the canonical taxonomy's category for known codes.
+ * This is the seam the bounded read-side adds — previously the
+ * adapter fell through to a text-pattern match, which silently
+ * fabricated values for tenant-registered metrics.
+ */
+function metricDomain(metricCode: string | null, category?: string | null): CanonicalTimelineDomain {
+  const explicit = (category ?? "").trim().toLowerCase();
+  if (explicit && Object.hasOwn(TAXONOMY_CATEGORY_TO_DOMAIN, explicit)) {
+    return TAXONOMY_CATEGORY_TO_DOMAIN[explicit]!;
+  }
+  if (metricCode) {
+    const definition = getMetricDefinition(canonicalizeMetricCode(metricCode));
+    if (definition) return TAXONOMY_CATEGORY_TO_DOMAIN[definition.category] ?? "unknown";
+  }
+  return "unknown";
+}
+
 function domain(text: string, category?: string | null): CanonicalTimelineDomain {
   const v = (category ?? "").trim().toLowerCase();
   const domains: CanonicalTimelineDomain[] = [
@@ -148,19 +178,27 @@ export function canonicalEvent(row: EventRow): TimelineEvent {
 export function canonicalMetric(row: MetricRow): TimelineEvent {
   const value = row.numericValue ?? row.textValue;
   const title = row.metricDisplayName || row.metricCode || "Metric";
+  // Taxonomy seam: prefer the tenant's declared category when it
+  // matches the canonical set; otherwise look the metric up in the
+  // taxonomy to honour its declared unit and category. This is the
+  // bounded read-side's wiring point — no more guessing.
+  const canonicalUnit = row.metricCode
+    ? getMetricDefinition(canonicalizeMetricCode(row.metricCode))?.unit
+    : undefined;
+  const summaryUnit = row.unit && row.unit.length > 0 ? row.unit : canonicalUnit ?? null;
   return {
     kind: "metric",
     id: `metric_sample:${row.id}`,
     at: row.sampledAt.toISOString(),
-    domain: domain(`${row.metricCategory ?? ""} ${row.metricCode}`, row.metricCategory),
+    domain: metricDomain(row.metricCode, row.metricCategory),
     title,
-    summary: `${title} ${value ?? ""}${row.unit ? ` ${row.unit}` : ""}`.trim(),
+    summary: `${title} ${value ?? ""}${summaryUnit ? ` ${summaryUnit}` : ""}`.trim(),
     canonical: {
       metricCode: row.metricCode,
       metricDisplayName: row.metricDisplayName,
       metricCategory: row.metricCategory,
       value,
-      unit: row.unit,
+      unit: summaryUnit,
     },
     ...common(row.dataSource, row.metadataJson),
   };

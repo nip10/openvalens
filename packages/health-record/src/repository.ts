@@ -4,17 +4,34 @@ import {
   healthEvent,
   metricDefinition,
   metricSample,
+  metricSourcePreference,
   ingestionRawArtifact,
   provenanceLink,
 } from "@openhealth/db/schema/health-record";
 import { weeklyReview } from "@openhealth/db/schema/plans";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte, sql } from "drizzle-orm";
 import { canonicalEvent, canonicalMetric } from "./canonical";
 import { buildTimelinePage, normalizeTimelineDateRange } from "./timeline";
 import type { TimelineFilters, ProvenanceLinkInsert } from "./types";
 import { buildTimelineChangeSummary } from "./changes-since-review";
 import { createDomainTimelineReader } from "./domain-reader";
 import { buildDomainTimelineItems } from "./timeline-adapters";
+import {
+  listActiveMetricCodes,
+  listMetricDefinitions,
+  listSourcePreferences,
+  type TenantMetricDefinition,
+  type TenantSourcePreferenceRow,
+} from "./metric-loader";
+import {
+  resolveSourcePriorityList,
+  type MetricSourcePriorityResolution,
+  type SourcePreferenceRow,
+} from "./source-priority";
+import {
+  encodePreferredSourcesForRow,
+  sanitizeMetricSourcePreference,
+} from "./source-preferences";
 
 export const PROVENANCE_TABLES = [
   "health_event",
@@ -202,5 +219,155 @@ export function createHealthRecordRepository(db: Database) {
         return { ...row, createdAt: row.createdAt.toISOString() };
       });
     },
+    /**
+     * Read the tenant-scoped metric catalog. Pure read — no
+     * mutations. The taxonomy module owns the canonical codes; this
+     * method intersects with the active tenant rows.
+     */
+    async listMetrics(organizationId: string) {
+      return listMetricDefinitions(db, organizationId);
+    },
+    /**
+     * Resolve per-metric source-priority for the active org. Combines
+     * the org-level (family-history) and user-level (manual override)
+     * rows with the default orders.
+     */
+    async listSourcePriority(organizationId: string, userId: string) {
+      const [catalog, preferences] = await Promise.all([
+        listActiveMetricCodes(db, organizationId),
+        listSourcePreferences(db, organizationId, userId),
+      ]);
+      return resolveSourcePriorityForCatalog(catalog, preferences);
+    },
+    /**
+     * Upsert a tenant's metric source preference. The preference is
+     * scoped by `userId` (when non-null) or by `organizationId`
+     * (family-history) — the unique index on `(organizationId,
+     * metricCode)` / `(organizationId, userId, metricCode)` enforces
+     * that. Returns the inserted/updated row.
+     *
+     * The metric code must exist for the active tenant — the schema
+     * foreign-key constraint enforces the catalog membership, and we
+     * surface a `NOT_FOUND` error to the API when the metric is
+     * missing.
+     */
+    async upsertSourcePreference(input: {
+      organizationId: string;
+      userId: string;
+      metricCode: string;
+      preferredSources: readonly string[];
+    }) {
+      const sanitized = sanitizeMetricSourcePreference({
+        metricCode: input.metricCode,
+        preferredSources: input.preferredSources,
+      });
+      if (!sanitized) throw new SourcePreferenceValidationError();
+      const [definition] = await db
+        .select({ id: metricDefinition.id, code: metricDefinition.code })
+        .from(metricDefinition)
+        .where(
+          and(
+            eq(metricDefinition.organizationId, input.organizationId),
+            eq(metricDefinition.code, sanitized.canonicalMetricCode),
+          ),
+        )
+        .limit(1);
+      if (!definition) throw new SourcePreferenceValidationError("metric_not_found");
+      const encoded = encodePreferredSourcesForRow(sanitized.preferredSources);
+      const [row] = await db
+        .insert(metricSourcePreference)
+        .values({
+          organizationId: input.organizationId,
+          userId: input.userId,
+          metricCode: sanitized.canonicalMetricCode,
+          preferredSources: [...encoded],
+        })
+        .onConflictDoUpdate({
+          target: [
+            metricSourcePreference.organizationId,
+            metricSourcePreference.userId,
+            metricSourcePreference.metricCode,
+          ],
+          targetWhere: sql`${metricSourcePreference.userId} IS NOT NULL`,
+          set: {
+            preferredSources: [...encoded],
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      if (!row) throw new SourcePreferenceValidationError("insert_returned_no_row");
+      return {
+        id: row.id,
+        metricCode: row.metricCode,
+        userId: row.userId,
+        preferredSources: Array.isArray(row.preferredSources) ? row.preferredSources : [],
+        scope: row.userId === null ? ("organization" as const) : ("user" as const),
+        updatedAt: row.updatedAt.toISOString(),
+      };
+    },
+    /**
+     * Delete a tenant's metric source preference (user-scoped or
+     * family-history entry). Returns `true` when a row was removed,
+     * `false` when the row was already absent. The caller still audits
+     * — the audit row is the durable record, not the DB row.
+     */
+    async deleteSourcePreference(input: {
+      organizationId: string;
+      userId: string;
+      metricCode: string;
+    }) {
+      const target = await db
+        .delete(metricSourcePreference)
+        .where(
+          and(
+            eq(metricSourcePreference.organizationId, input.organizationId),
+            eq(metricSourcePreference.userId, input.userId),
+            eq(metricSourcePreference.metricCode, input.metricCode),
+          ),
+        )
+        .returning({ id: metricSourcePreference.id });
+      if (target.length > 0) return { removed: true as const, ids: target.map((row) => row.id) };
+      const familyRow = await db
+        .delete(metricSourcePreference)
+        .where(
+          and(
+            eq(metricSourcePreference.organizationId, input.organizationId),
+            isNull(metricSourcePreference.userId),
+            eq(metricSourcePreference.metricCode, input.metricCode),
+          ),
+        )
+        .returning({ id: metricSourcePreference.id });
+      return {
+        removed: familyRow.length > 0,
+        ids: familyRow.map((row) => row.id),
+      };
+    },
   };
+}
+
+export class SourcePreferenceValidationError extends Error {
+  readonly code: string;
+  constructor(code = "invalid_source_preference") {
+    super("Invalid metric source preference payload.");
+    this.code = code;
+  }
+}
+
+export type SourcePreferenceRowWithScope = SourcePreferenceRow;
+export type SourcePriorityResolution = MetricSourcePriorityResolution;
+export type TenantMetricDefinitionRead = TenantMetricDefinition;
+export type TenantSourcePreferenceRead = TenantSourcePreferenceRow;
+
+function resolveSourcePriorityForCatalog(
+  catalog: readonly string[],
+  preferences: readonly TenantSourcePreferenceRow[],
+): MetricSourcePriorityResolution[] {
+  const rows: SourcePreferenceRow[] = preferences.map((row) => ({
+    metricCode: row.metricCode,
+    scope: row.scope,
+    preferredSources: row.preferredSources,
+  }));
+  const userRows = rows.filter((row) => row.scope === "user");
+  const organizationRows = rows.filter((row) => row.scope === "organization");
+  return resolveSourcePriorityList(catalog, { organizationRows, userRows });
 }
