@@ -375,7 +375,7 @@ export const healthRecordRouter = {
             ...(input.windowEnd !== undefined ? { windowEnd: new Date(input.windowEnd) } : {}),
           },
         });
-      } catch (error) {
+      } catch {
         throw raiseApiError("INTERNAL", "Unable to write ingestion job.");
       }
       await writeAuditLog({

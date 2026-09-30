@@ -319,7 +319,7 @@ export function materializeMetricSample(input: {
   const metadataJson: Record<string, unknown> = {
     canonicalMetricCode: input.resolved.canonicalMetricCode,
     taxonomyUnit: input.resolved.unit,
-    ...(input.raw.payload ?? {}),
+    ...input.raw.payload,
   };
 
   return {
