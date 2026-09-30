@@ -12,26 +12,25 @@
  * is the shared reference vocabulary used by that loader and by any
  * downstream package that needs to interpret metric codes.
  *
- * Canonical codes are limited to the body's, sleep's and clinical's
- * identifiers: body weight / height, resting heart rate, sleep
- * sessions, and blood markers. The `blood_marker_*` family is exposed
+ * `weight`, `steps`, `heart_rate` and `sleep_duration` are the anchovy
+ * source codes (Health Connect ingest writes them). `height`,
+ * `resting_heart_rate`, `sleep_session` and `blood_marker` are target
+ * extensions used by body/sleep/clinical read paths. The `blood_marker_*` family is exposed
  * as a wildcard prefix; specific markers (glucose, hba1c, ast, …) live
  * on the tenant `metric_definition` table.
  */
 
 export type CanonicalMetricCode =
   | "weight"
+  | "steps"
+  | "heart_rate"
+  | "sleep_duration"
   | "height"
   | "resting_heart_rate"
   | "sleep_session"
   | "blood_marker";
 
-export type CanonicalMetricCategory =
-  | "body"
-  | "vitals"
-  | "cardiac"
-  | "sleep"
-  | "labs";
+export type CanonicalMetricCategory = "body" | "activity" | "vitals" | "cardiac" | "sleep" | "labs";
 
 export type CanonicalMetricValueType = "number" | "text" | "boolean" | "json";
 
@@ -68,6 +67,36 @@ const METRIC_TAXONOMY: Record<CanonicalMetricCode, CanonicalMetricDefinition> = 
     valueType: "number",
     aggregationDefault: "latest",
     supportedSources: Object.freeze(["watch", "phone", "scale"]),
+    hasDefaultPriority: true,
+  },
+  steps: {
+    code: "steps",
+    displayName: "Steps",
+    category: "activity",
+    unit: "count",
+    valueType: "number",
+    aggregationDefault: "sum",
+    supportedSources: Object.freeze(["watch", "phone"]),
+    hasDefaultPriority: true,
+  },
+  heart_rate: {
+    code: "heart_rate",
+    displayName: "Heart Rate",
+    category: "cardiac",
+    unit: "bpm",
+    valueType: "number",
+    aggregationDefault: "avg",
+    supportedSources: Object.freeze(["watch", "phone"]),
+    hasDefaultPriority: true,
+  },
+  sleep_duration: {
+    code: "sleep_duration",
+    displayName: "Sleep Duration",
+    category: "sleep",
+    unit: "min",
+    valueType: "number",
+    aggregationDefault: "sum",
+    supportedSources: Object.freeze(["watch", "phone"]),
     hasDefaultPriority: true,
   },
   height: {
@@ -113,7 +142,9 @@ const METRIC_TAXONOMY: Record<CanonicalMetricCode, CanonicalMetricDefinition> = 
 };
 
 const METRIC_CODE_ALIASES = Object.freeze({
-  heartRate: "resting_heart_rate",
+  // Source parity: instantaneous heart-rate samples are `heart_rate`,
+  // not resting heart rate.
+  heartRate: "heart_rate",
   restingHeartRate: "resting_heart_rate",
   sleepSession: "sleep_session",
   bloodMarker: "blood_marker",
@@ -141,8 +172,7 @@ export function isBloodMarkerFamilyCode(code: string): boolean {
 }
 
 export function canonicalizeMetricCode(code: string): string {
-  const aliased =
-    METRIC_CODE_ALIASES[code as keyof typeof METRIC_CODE_ALIASES] ?? code;
+  const aliased = METRIC_CODE_ALIASES[code as keyof typeof METRIC_CODE_ALIASES] ?? code;
   if (isCanonicalMetricCode(aliased)) return aliased;
   if (isBloodMarkerFamilyCode(aliased)) return aliased;
   return aliased;
@@ -167,6 +197,10 @@ export function getDefaultSourcePriorityOrder(code: string): readonly string[] |
   switch (definition.code) {
     case "weight":
       return Object.freeze(["phone", "watch", "scale"]);
+    case "steps":
+    case "heart_rate":
+    case "sleep_duration":
+      return Object.freeze(["watch", "phone"]);
     case "height":
       return Object.freeze(["manual", "watch", "phone"]);
     case "resting_heart_rate":

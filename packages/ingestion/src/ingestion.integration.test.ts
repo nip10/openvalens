@@ -3,10 +3,13 @@ import { readdir } from "node:fs/promises";
 import { createDb, sql } from "@openhealth/db";
 import { member, organization, user } from "@openhealth/db/schema/auth";
 import {
+  healthEvent,
   ingestionBatch,
   ingestionError,
   ingestionJob,
   ingestionRawArtifact,
+  metricDefinition,
+  metricSample,
 } from "@openhealth/db/schema/health-record";
 import { mobileSyncSession, mobileSyncSessionChunk } from "@openhealth/db/schema/ingestion";
 import { eq } from "drizzle-orm";
@@ -14,7 +17,9 @@ import { eq } from "drizzle-orm";
 import { claimNextQueuedJob, reclaimStaleRunningJobs } from "./claim-jobs";
 import { failClaimedJob } from "./job-runner-state";
 import { createDatabaseIngestionTick } from "./orchestrator";
+import { persistCanonicalRecords } from "./persist-canonical-records";
 import { runRawPayloadPurge } from "./raw-payload-purge";
+import { RawArtifactNotFoundError, requestReplay, runReplayJob } from "./replay";
 
 const url = process.env.INGESTION_TEST_DATABASE_URL;
 if (url) {
@@ -55,6 +60,9 @@ describe.skipIf(!url)("ingestion cron on disposable PostgreSQL", () => {
       .values({ id: "m1", organizationId: "org-a", userId: "u1", role: "owner" });
   }, 120000);
   beforeEach(async () => {
+    await db.delete(metricSample);
+    await db.delete(healthEvent);
+    await db.delete(metricDefinition);
     await db.delete(mobileSyncSessionChunk);
     await db.delete(mobileSyncSession);
     await db.delete(ingestionRawArtifact);
@@ -221,5 +229,214 @@ describe.skipIf(!url)("ingestion cron on disposable PostgreSQL", () => {
     const [row] = await db.select().from(ingestionJob);
     expect(row?.status).toBe("queued");
     expect(logs).toEqual([]);
+  });
+
+  // ── raw_artifact_replay ────────────────────────────────────────────────
+  const records = [
+    { type: "weight", startTime: "2026-09-29T07:00:00Z", weightKg: 81.2, externalRecordId: "w1" },
+    { type: "steps", startTime: "2026-09-29T08:00:00Z", count: 4200 },
+    { type: "heartRate", startTime: "2026-09-29T08:00:00Z", samples: [{ bpm: 62 }] },
+    { type: "weight", startTime: "2026-09-29T09:00:00Z", weightKg: -3 },
+    {
+      type: "sleep_session",
+      startTime: "2026-09-28T23:00:00Z",
+      endTime: "2026-09-29T06:00:00Z",
+      stages: [{ stage: "deep", start: "2026-09-29T01:00:00Z", end: "2026-09-29T02:00:00Z" }],
+    },
+    { type: "unknown", startTime: "2026-09-29T08:00:00Z" },
+  ];
+  async function rawArtifact(
+    org = "org-a",
+    payloadJson: unknown = { provider: "health_connect", records },
+  ) {
+    const [row] = await db
+      .insert(ingestionRawArtifact)
+      .values({
+        organizationId: org,
+        artifactType: "mobile_sync_chunk",
+        payloadJson,
+        sizeBytes: 1,
+        retentionUntil: future,
+      })
+      .returning();
+    return row!;
+  }
+  const tickFor = () =>
+    createDatabaseIngestionTick({
+      db,
+      logger: { info: () => {}, warn: () => {}, error: () => {} },
+      runners: { raw_artifact_replay: (input) => runReplayJob(db, input, () => now) },
+      now: () => now,
+    });
+
+  test("replay request → cron tick persists canonical records into a new batch", async () => {
+    const artifact = await rawArtifact();
+    const request = await requestReplay(db, {
+      organizationId: "org-a",
+      rawArtifactId: artifact.id,
+      requestedByUserId: "u1",
+      now: past,
+    });
+    expect(request.status).toBe("queued");
+    const result = await tickFor()("corr");
+    expect(result).toMatchObject({
+      status: "ok",
+      processed: 1,
+      succeeded: 1,
+      jobIds: [request.jobId],
+    });
+
+    const [job] = await db.select().from(ingestionJob).where(eq(ingestionJob.id, request.jobId));
+    const [batch] = await db
+      .select()
+      .from(ingestionBatch)
+      .where(eq(ingestionBatch.ingestionJobId, request.jobId));
+    expect(job?.status).toBe("succeeded");
+    expect(batch).toMatchObject({
+      status: "completed",
+      recordCount: 6,
+      acceptedCount: 4,
+      rejectedCount: 2,
+    });
+
+    const samples = await db
+      .select({
+        code: metricDefinition.code,
+        value: metricSample.numericValue,
+        batch: metricSample.ingestionBatchId,
+        org: metricSample.organizationId,
+      })
+      .from(metricSample)
+      .innerJoin(metricDefinition, eq(metricDefinition.id, metricSample.metricDefinitionId));
+    expect(samples.map((row) => [row.code, row.value]).sort()).toEqual([
+      ["heart_rate", 62],
+      ["steps", 4200],
+      ["weight", 81.2],
+    ]);
+    expect(samples.every((row) => row.batch === batch!.id && row.org === "org-a")).toBe(true);
+    const events = await db.select().from(healthEvent);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ eventType: "sleep_session", ingestionBatchId: batch!.id });
+    expect(
+      (events[0]!.payloadJson as { sleepStageIntervals: unknown[] }).sleepStageIntervals,
+    ).toHaveLength(1);
+  });
+
+  test("replay requests are idempotent per artifact and tenant-scoped", async () => {
+    const artifact = await rawArtifact();
+    const first = await requestReplay(db, {
+      organizationId: "org-a",
+      rawArtifactId: artifact.id,
+      requestedByUserId: "u1",
+    });
+    const second = await requestReplay(db, {
+      organizationId: "org-a",
+      rawArtifactId: artifact.id,
+      requestedByUserId: "u1",
+    });
+    expect(second.jobId).toBe(first.jobId);
+    expect(await db.select().from(ingestionJob)).toHaveLength(1);
+    expect(
+      (await db.select().from(ingestionRawArtifact)).filter(
+        (row) => row.artifactType === "raw_artifact_replay_metadata",
+      ),
+    ).toHaveLength(1);
+    await expect(
+      requestReplay(db, {
+        organizationId: "org-b",
+        rawArtifactId: artifact.id,
+        requestedByUserId: "u1",
+      }),
+    ).rejects.toBeInstanceOf(RawArtifactNotFoundError);
+  });
+
+  test("persisting the same records twice is idempotent; definitions are per organization", async () => {
+    const first = await db.transaction((tx) =>
+      persistCanonicalRecords(tx, {
+        organizationId: "org-a",
+        dataSourceId: null,
+        ingestionBatchId: null,
+        provider: "health_connect",
+        records,
+      }),
+    );
+    const again = await db.transaction((tx) =>
+      persistCanonicalRecords(tx, {
+        organizationId: "org-a",
+        dataSourceId: null,
+        ingestionBatchId: null,
+        provider: "health_connect",
+        records,
+      }),
+    );
+    await db.transaction((tx) =>
+      persistCanonicalRecords(tx, {
+        organizationId: "org-b",
+        dataSourceId: null,
+        ingestionBatchId: null,
+        provider: "health_connect",
+        records,
+      }),
+    );
+    expect(first).toMatchObject({ metricSampleCount: 3, healthEventCount: 1, duplicateCount: 0 });
+    expect(again).toMatchObject({ metricSampleCount: 0, healthEventCount: 0, duplicateCount: 4 });
+    const definitions = await db
+      .select()
+      .from(metricDefinition)
+      .where(eq(metricDefinition.code, "weight"));
+    expect(definitions.map((row) => row.organizationId).sort()).toEqual(["org-a", "org-b"]);
+    const samples = await db.select().from(metricSample);
+    for (const sample of samples) {
+      const definition = (
+        await db
+          .select()
+          .from(metricDefinition)
+          .where(eq(metricDefinition.id, sample.metricDefinitionId))
+      )[0];
+      expect(definition?.organizationId).toBe(sample.organizationId);
+    }
+  });
+
+  test("purged source artifact fails the job with a reference-only diagnostic", async () => {
+    const artifact = await rawArtifact("org-a", {});
+    const request = await requestReplay(db, {
+      organizationId: "org-a",
+      rawArtifactId: artifact.id,
+      requestedByUserId: "u1",
+    });
+    expect(await tickFor()("corr")).toMatchObject({ processed: 1, failed: 1 });
+    const [job] = await db.select().from(ingestionJob).where(eq(ingestionJob.id, request.jobId));
+    const [batch] = await db.select().from(ingestionBatch);
+    const [error] = await db.select().from(ingestionError);
+    expect(job?.status).toBe("failed");
+    expect(batch?.status).toBe("failed");
+    expect(error).toMatchObject({
+      errorCode: "replay_source_unreadable",
+      rawPayloadJson: { sourceRawArtifactId: artifact.id },
+    });
+    expect(await db.select().from(metricSample)).toHaveLength(0);
+  });
+
+  test("missing replay metadata fails the job instead of looping as stale", async () => {
+    const job = await queue("raw_artifact_replay", past);
+    expect(await tickFor()("corr")).toMatchObject({ processed: 1, failed: 1 });
+    const [row] = await db.select().from(ingestionJob).where(eq(ingestionJob.id, job.id));
+    const [error] = await db.select().from(ingestionError);
+    expect(row?.status).toBe("failed");
+    expect(error?.errorCode).toBe("replay_metadata_unreadable");
+  });
+
+  test("sync_session_finalize jobs stay queued while replay runs", async () => {
+    const finalize = await queue("sync_session_finalize", new Date("2026-08-01T00:00:00Z"));
+    const artifact = await rawArtifact();
+    await requestReplay(db, {
+      organizationId: "org-a",
+      rawArtifactId: artifact.id,
+      requestedByUserId: "u1",
+      now: past,
+    });
+    expect(await tickFor()("corr")).toMatchObject({ succeeded: 1 });
+    const [row] = await db.select().from(ingestionJob).where(eq(ingestionJob.id, finalize.id));
+    expect(row?.status).toBe("queued");
   });
 });

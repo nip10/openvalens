@@ -35,7 +35,7 @@ describe("ingest contract (Issue #17 bounded ingest write seam)", () => {
 
     test("aliases resolve to the canonical metric", () => {
       expect(resolveCanonicalMetricCode({ metricCode: "heartRate" })?.canonicalMetricCode).toBe(
-        "resting_heart_rate",
+        "heart_rate",
       );
       expect(resolveCanonicalMetricCode({ metricCode: "weightKg" })?.canonicalMetricCode).toBe(
         "weight",
@@ -202,7 +202,7 @@ describe("ingest contract (Issue #17 bounded ingest write seam)", () => {
         externalSampleId: null,
       });
       const canonical = computeMetricSampleDedupeHash({
-        metricCode: "resting_heart_rate",
+        metricCode: "heart_rate",
         observedAt,
         valueNumeric: 70,
         valueString: null,

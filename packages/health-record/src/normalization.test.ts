@@ -72,6 +72,6 @@ describe("normalization helpers (Issue #17 bounded read-side)", () => {
       metricCode: "heartRate",
       value: 70,
     });
-    expect(result.canonicalMetricCode).toBe("resting_heart_rate");
+    expect(result.canonicalMetricCode).toBe("heart_rate");
   });
 });

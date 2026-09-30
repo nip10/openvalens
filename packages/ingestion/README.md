@@ -15,6 +15,36 @@ Ingestion job orchestration, ported from anchovy `apps/web/src/lib/v2/ingestion`
    `running` for the stale reclaim (source parity).
 4. Always run the raw-payload purge; a purge failure is logged, not fatal.
 
+## Replay (`raw_artifact_replay`)
+
+`ingestion.requestReplay({ rawArtifactId })` (oRPC, `records:write`, org and
+user from the session) queues one replay job per artifact (idempotency key
+`raw-artifact-replay:<org>:<artifactId>`) plus a `raw_artifact_replay_metadata`
+artifact. The cron runner then, in one transaction: locks the job, creates its
+processing batch, reads the metadata and the source artifact, parses the
+Health Connect envelope, and persists `weight` / `steps` / `heart_rate`
+samples and `sleep_session` / `workout` events. Batch counts record
+total/accepted/rejected. A missing or purged source fails the job with
+`replay_source_unreadable`; missing metadata with `replay_metadata_unreadable`.
+
+Source bugs fixed (both made anchovy replay a permanent no-op):
+
+- The runner required a processing batch nothing created, so the job was never
+  found, never failed, and was re-claimed as stale every 15 minutes.
+- The request stored `raw_artifact_replay_metadata` but the runner queried
+  `replay_metadata`.
+
+Other replay deviations:
+
+- Metric definitions are resolved or registered **per organization**. The
+  source passed hardcoded ids `{ weight: 1, steps: 2, heart_rate: 3 }`.
+- Inserts skip `(organization_id, dedupe_hash)` conflicts and count them as
+  duplicates, so re-persisting is idempotent (the source would throw).
+- Error diagnostics store the replay metadata or `{ sourceRawArtifactId }`,
+  never the source health payload; messages are fixed strings.
+- A failed replay cannot be re-requested for the same artifact (the
+  idempotency key returns the existing job), as in the source.
+
 ## Raw-payload purge
 
 Redacts `payload_json` to `{}` and sets `purged_at` on rows whose
@@ -28,10 +58,9 @@ never erased. This is the only retention the source applies; clinical
 ## Deviations from the source
 
 - **Runner registry.** Only job types with a registered runner are claimed or
-  reclaimed. The source's `raw_artifact_replay` and `sync_session_finalize`
-  runners are **not ported yet**, so production registers none: queued jobs
-  are left untouched and each tick only purges. The source would claim such a
-  job and fail it.
+  reclaimed. Production registers `raw_artifact_replay`. The mobile
+  `sync_session_finalize` runner is **not ported yet**, so those jobs stay
+  queued instead of being claimed and failed.
 - **No PHI in errors.** `ingestion_error.message` stores the error class name,
   not `error.message`.
 - **Parameterized SQL** instead of interpolated timestamps in `sql.raw`.
@@ -44,5 +73,6 @@ never erased. This is the only retention the source applies; clinical
 `bun test packages/ingestion` runs unit tests. The DB suite needs an empty
 disposable database: `INGESTION_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port>/ingestion_cron`.
 
-Deferred: replay and finalize runners, provider adapters, canonical-record
-persistence from sync sessions (mobile, Phase 4).
+Deferred: the `sync_session_finalize` runner and mobile upload endpoints
+(Phase 4), Apple Health canonical mapping, provenance links from raw
+artifacts to canonical rows.

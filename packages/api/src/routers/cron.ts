@@ -1,4 +1,10 @@
-import { createDatabaseIngestionTick, type IngestionJobRunners } from "@openhealth/ingestion";
+import type { Database } from "@openhealth/db";
+import {
+  createDatabaseIngestionTick,
+  RAW_ARTIFACT_REPLAY_JOB_TYPE,
+  runReplayJob,
+  type IngestionJobRunners,
+} from "@openhealth/ingestion";
 import { createStructuredLogger } from "@openhealth/observability";
 import { materializeDailyReminders } from "@openhealth/telegram";
 import { z } from "zod";
@@ -34,12 +40,14 @@ const ingestionRunOutput = cronRunOutput.extend({
 });
 
 /**
- * Ingestion job runners by job type. The source's `raw_artifact_replay` and
- * `sync_session_finalize` runners are not ported yet, so none are
- * registered: queued jobs are left untouched (never claimed or failed) and
- * each tick only performs the raw-payload retention purge.
+ * Ingestion job runners by job type. `sync_session_finalize` (mobile sync)
+ * is not ported yet: such jobs are left queued, never claimed or failed.
  */
-export const INGESTION_JOB_RUNNERS: IngestionJobRunners = {};
+export function createIngestionJobRunners(db: Database): IngestionJobRunners {
+  return {
+    [RAW_ARTIFACT_REPLAY_JOB_TYPE]: (input) => runReplayJob(db, input),
+  };
+}
 
 /**
  * Cron-only procedures (Issue #11).
@@ -105,7 +113,7 @@ export const cronRouter = {
       const tick = createDatabaseIngestionTick({
         db: context.db,
         logger,
-        runners: INGESTION_JOB_RUNNERS,
+        runners: createIngestionJobRunners(context.db),
       });
       const result = await tick(context.correlationId);
       // Source parity: an orchestration failure (claim/reclaim threw) is a 500.

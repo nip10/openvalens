@@ -12,15 +12,37 @@ import {
 } from "./metric-taxonomy";
 
 describe("metric taxonomy (Issue #17 bounded read-side)", () => {
-  test("canonical codes cover body / vitals / sleep / labs identifiers", () => {
+  test("canonical codes include the anchovy source codes plus target extensions", () => {
     expect(CANONICAL_METRIC_CODES).toEqual([
       "weight",
+      "steps",
+      "heart_rate",
+      "sleep_duration",
       "height",
       "resting_heart_rate",
       "sleep_session",
       "blood_marker",
     ]);
-    expect(CANONICAL_METRIC_CODES).toHaveLength(5);
+  });
+
+  test("source codes match anchovy units, categories and default priority", () => {
+    expect(getMetricDefinition("steps")).toMatchObject({
+      unit: "count",
+      category: "activity",
+      aggregationDefault: "sum",
+    });
+    expect(getMetricDefinition("heart_rate")).toMatchObject({
+      unit: "bpm",
+      category: "cardiac",
+      aggregationDefault: "avg",
+    });
+    expect(getMetricDefinition("sleep_duration")).toMatchObject({
+      unit: "min",
+      category: "sleep",
+      aggregationDefault: "sum",
+    });
+    for (const code of ["steps", "heart_rate", "sleep_duration"])
+      expect(getDefaultSourcePriorityOrder(code)).toEqual(["watch", "phone"]);
   });
 
   test("canonical definitions expose unit, value type and aggregation default", () => {
@@ -65,7 +87,7 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
   });
 
   test("canonicalizeMetricCode maps legacy aliases", () => {
-    expect(canonicalizeMetricCode("heartRate")).toBe("resting_heart_rate");
+    expect(canonicalizeMetricCode("heartRate")).toBe("heart_rate");
     expect(canonicalizeMetricCode("restingHeartRate")).toBe("resting_heart_rate");
     expect(canonicalizeMetricCode("sleepSession")).toBe("sleep_session");
     expect(canonicalizeMetricCode("bloodMarker")).toBe("blood_marker");

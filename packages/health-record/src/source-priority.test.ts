@@ -147,10 +147,10 @@ describe("source priority resolver (Issue #17 bounded read-side)", () => {
 
   test("aliased metric code resolves to the canonical code", () => {
     const result = resolveMetricSourcePriority("heartRate", {
-      organizationRows: [orgRow("resting_heart_rate", ["phone", "watch"])],
+      organizationRows: [orgRow("heart_rate", ["phone", "watch"])],
       userRows: [],
     });
-    expect(result.canonicalMetricCode).toBe("resting_heart_rate");
+    expect(result.canonicalMetricCode).toBe("heart_rate");
     expect(result.familyHistoryEntry).toEqual(["phone", "watch"]);
   });
 

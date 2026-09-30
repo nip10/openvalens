@@ -10,6 +10,7 @@ import { exampleRouter } from "./example";
 import { exportsRouter } from "./exports";
 import { healthRouter } from "./health";
 import { healthRecordRouter } from "./health-record";
+import { ingestionRouter } from "./ingestion";
 import { plansRouter } from "./plans";
 import { sleepRouter } from "./sleep";
 import { telegramRouter } from "./telegram";
@@ -26,6 +27,7 @@ export const appRouter = {
   exports: exportsRouter,
   health: healthRouter,
   healthRecord: healthRecordRouter,
+  ingestion: ingestionRouter,
   plans: plansRouter,
   sleep: sleepRouter,
   telegram: telegramRouter,

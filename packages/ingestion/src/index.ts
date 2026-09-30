@@ -4,3 +4,6 @@ export * from "./job-state";
 export * from "./orchestrator";
 export * from "./raw-payload-purge";
 export * from "./run-job";
+export * from "./health-connect";
+export * from "./persist-canonical-records";
+export * from "./replay";

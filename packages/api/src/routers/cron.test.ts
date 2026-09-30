@@ -74,9 +74,16 @@ describe("cron.remindersDailyRun", () => {
 });
 
 describe("cron.ingestionRun", () => {
+  // Empty job queue: claim statements return no rows. The purge's query
+  // builder is absent from this stub, so it fails and is logged, not fatal.
+  const emptyQueueDb = {
+    transaction: async (callback: (tx: unknown) => unknown) =>
+      callback({ execute: async () => ({ rows: [] }) }),
+  } as unknown as Database;
+
   test("returns the ok envelope with the context correlation id", async () => {
     const result = await appRouter.cron.ingestionRun.callable({
-      context: authorizedContext("corr-ingestion"),
+      context: { ...authorizedContext("corr-ingestion"), db: emptyQueueDb },
     })({});
 
     expect(result).toEqual({
@@ -95,20 +102,18 @@ describe("cron.ingestionRun", () => {
     });
   });
 
-  test("with no registered runners the job queue is never claimed", async () => {
-    let transactions = 0;
+  test("a job-queue database failure surfaces as INTERNAL (source: 500)", async () => {
     const context = {
       ...authorizedContext("corr-ingestion"),
       db: {
-        transaction: () => {
-          transactions += 1;
-          throw new Error("job queue must not be touched");
+        transaction: async () => {
+          throw new Error("db down");
         },
       } as unknown as Database,
     };
-    const result = await appRouter.cron.ingestionRun.callable({ context })({});
-    expect(transactions).toBe(0);
-    expect(result).toMatchObject({ status: "ok", processed: 0, jobIds: [] });
+    await expect(appRouter.cron.ingestionRun.callable({ context })({})).rejects.toMatchObject({
+      code: "INTERNAL",
+    });
   });
 
   test("rejects when the bearer token is missing", async () => {
