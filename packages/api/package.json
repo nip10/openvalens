@@ -20,6 +20,7 @@
     "@openhealth/cockpit": "workspace:*",
     "@openhealth/db": "workspace:*",
     "@openhealth/health-record": "workspace:*",
+    "@openhealth/ingestion": "workspace:*",
     "@openhealth/observability": "workspace:*",
     "@openhealth/plans": "workspace:*",
     "@openhealth/sleep": "workspace:*",

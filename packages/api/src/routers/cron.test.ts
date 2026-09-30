@@ -84,8 +84,31 @@ describe("cron.ingestionRun", () => {
       job: "ingestion.daily",
       startedAt: expect.any(String),
       finishedAt: expect.any(String),
+      processed: 0,
+      succeeded: 0,
+      failed: 0,
+      jobIds: [],
+      reclaimedStale: 0,
+      rawArtifactsPurged: 0,
+      mobileChunksPurged: 0,
       correlationId: "corr-ingestion",
     });
+  });
+
+  test("with no registered runners the job queue is never claimed", async () => {
+    let transactions = 0;
+    const context = {
+      ...authorizedContext("corr-ingestion"),
+      db: {
+        transaction: () => {
+          transactions += 1;
+          throw new Error("job queue must not be touched");
+        },
+      } as unknown as Database,
+    };
+    const result = await appRouter.cron.ingestionRun.callable({ context })({});
+    expect(transactions).toBe(0);
+    expect(result).toMatchObject({ status: "ok", processed: 0, jobIds: [] });
   });
 
   test("rejects when the bearer token is missing", async () => {

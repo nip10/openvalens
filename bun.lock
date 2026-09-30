@@ -163,6 +163,7 @@
         "@openhealth/cockpit": "workspace:*",
         "@openhealth/db": "workspace:*",
         "@openhealth/health-record": "workspace:*",
+        "@openhealth/ingestion": "workspace:*",
         "@openhealth/observability": "workspace:*",
         "@openhealth/plans": "workspace:*",
         "@openhealth/sleep": "workspace:*",
@@ -303,6 +304,17 @@
     },
     "packages/health-record": {
       "name": "@openhealth/health-record",
+      "dependencies": {
+        "@openhealth/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/ingestion": {
+      "name": "@openhealth/ingestion",
       "dependencies": {
         "@openhealth/db": "workspace:*",
         "drizzle-orm": "catalog:",
@@ -797,6 +809,8 @@
     "@openhealth/email": ["@openhealth/email@workspace:packages/email"],
 
     "@openhealth/health-record": ["@openhealth/health-record@workspace:packages/health-record"],
+
+    "@openhealth/ingestion": ["@openhealth/ingestion@workspace:packages/ingestion"],
 
     "@openhealth/observability": ["@openhealth/observability@workspace:packages/observability"],
 

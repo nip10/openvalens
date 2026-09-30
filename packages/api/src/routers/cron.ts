@@ -1,8 +1,9 @@
+import { createDatabaseIngestionTick, type IngestionJobRunners } from "@openhealth/ingestion";
 import { createStructuredLogger } from "@openhealth/observability";
 import { materializeDailyReminders } from "@openhealth/telegram";
 import { z } from "zod";
 
-import { cronProcedure } from "../index";
+import { cronProcedure, raiseApiError } from "../index";
 
 // Issue #11 — PHI-safe structured logger for cron lifecycle events.
 const logger = createStructuredLogger({ level: "info" });
@@ -22,13 +23,30 @@ const remindersRunOutput = cronRunOutput.extend({
   failed: z.number(),
 });
 
+const ingestionRunOutput = cronRunOutput.extend({
+  processed: z.number(),
+  succeeded: z.number(),
+  failed: z.number(),
+  jobIds: z.array(z.number()),
+  reclaimedStale: z.number(),
+  rawArtifactsPurged: z.number(),
+  mobileChunksPurged: z.number(),
+});
+
+/**
+ * Ingestion job runners by job type. The source's `raw_artifact_replay` and
+ * `sync_session_finalize` runners are not ported yet, so none are
+ * registered: queued jobs are left untouched (never claimed or failed) and
+ * each tick only performs the raw-payload retention purge.
+ */
+export const INGESTION_JOB_RUNNERS: IngestionJobRunners = {};
+
 /**
  * Cron-only procedures (Issue #11).
  *
  * Both endpoints are guarded by `cronProcedure` (`Authorization: Bearer
- * ${CRON_SECRET}`) and are **contract stubs**: they emit a structured
- * start/finish log and return an ok envelope. The actual reminder and
- * ingestion work lands in Phase 3.
+ * ${CRON_SECRET}`). `ingestionRun` runs one ingestion orchestrator tick
+ * (see `@openhealth/ingestion`).
  *
  * oRPC routes these at `/rpc/cron/<name>`; the `/api-reference/cron/<name>`
  * OpenAPI mount accepts raw JSON for manual runs.
@@ -81,30 +99,22 @@ export const cronRouter = {
 
   ingestionRun: cronProcedure
     .input(z.object({}))
-    .output(cronRunOutput)
-    .handler(({ context }) => {
+    .output(ingestionRunOutput)
+    .handler(async ({ context }) => {
       const startedAt = new Date().toISOString();
-
-      logger.info("cron.job.started", {
-        job: "ingestion.daily",
-        correlationId: context.correlationId,
+      const tick = createDatabaseIngestionTick({
+        db: context.db,
+        logger,
+        runners: INGESTION_JOB_RUNNERS,
       });
-
-      // TODO(#16/#17): wire real ingestion logic. Issue #11 ships the endpoint
-      // contract and auth guard only — no domain logic.
-      const finishedAt = startedAt;
-
-      logger.info("cron.job.finished", {
-        job: "ingestion.daily",
-        correlationId: context.correlationId,
-        status: "ok",
-      });
-
+      const result = await tick(context.correlationId);
+      // Source parity: an orchestration failure (claim/reclaim threw) is a 500.
+      if (result.status === "failed") throw raiseApiError("INTERNAL", "Ingestion run failed.");
       return {
-        status: "ok" as const,
+        ...result,
         job: "ingestion.daily",
         startedAt,
-        finishedAt,
+        finishedAt: new Date().toISOString(),
         correlationId: context.correlationId,
       };
     }),

@@ -11,6 +11,7 @@
   "references": [
     { "path": "../clinical-export" },
     { "path": "../health-record" },
+    { "path": "../ingestion" },
     {
       "path": "../db"
     },
