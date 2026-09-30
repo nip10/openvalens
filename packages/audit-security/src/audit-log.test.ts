@@ -2,6 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import type { Database } from "@openhealth/db";
 
 import { writeAuditLog } from "./audit-log";
+import { auditEventTypeSchema } from "./types";
 
 type CapturedInsert = Record<string, unknown>;
 
@@ -37,6 +38,23 @@ afterEach(() => {
 });
 
 describe("writeAuditLog", () => {
+  test("typed target maintenance summary event uses the redacting writer", async () => {
+    const { db, inserts } = createMockDb();
+    expect(auditEventTypeSchema.parse("METRIC_RECURRENCE_RUN")).toBe("METRIC_RECURRENCE_RUN");
+    await writeAuditLog({
+      db,
+      organizationId: "org-1",
+      eventType: "METRIC_RECURRENCE_RUN",
+      metadata: {
+        deletedCount: 0,
+        retentionDays: null,
+        payload: { phi: true },
+        email: "patient@example.invalid",
+      },
+    });
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]?.afterJson).toEqual({ metadata: { deletedCount: 0 } });
+  });
   test("builds the insert payload and returns the inserted row id", async () => {
     const { db, inserts } = createMockDb();
 

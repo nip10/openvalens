@@ -15,6 +15,8 @@ export const AUDIT_EVENT_TYPES = [
   "RECORD_CREATED",
   "RECORD_UPDATED",
   "RECORD_DELETED",
+  // Target-only server maintenance extension; not a source cron event.
+  "METRIC_RECURRENCE_RUN",
   "SHARING_INVITATION_SENT",
   "SHARING_INVITATION_ACCEPTED",
   "SHARING_INVITATION_DECLINED",
