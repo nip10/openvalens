@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "web": "expo start --web",
-    "check-types": "tsc -b ../../packages/api && tsc --noEmit",
+    "check-types": "tsc -b ../../packages/api && tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "env:generate": "varlock codegen"
   },
   "dependencies": {
@@ -29,7 +29,9 @@
     "better-auth": "catalog:",
     "expo": "~57.0.20",
     "expo-background-fetch": "~57.0.21",
+    "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.17",
+    "expo-crypto": "~57.0.3",
     "expo-font": "~57.0.3",
     "expo-haptics": "~57.0.2",
     "expo-linear-gradient": "~57.0.2",
@@ -65,10 +67,11 @@
   },
   "devDependencies": {
     "@openhealth/config": "workspace:*",
+    "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "~19.2.18",
     "babel-preset-expo": "~57.0.10",
     "typescript": "~6.0.3"
   },
-  "//health-deps-deferred": "expo-health-connect is superseded by react-native-health-connect (only 0.1.x published, no SDK 57 tag). @kingstinct/react-native-healthkit (iOS) is deferred until its react-native-nitro-modules peer is added; iOS source path is stubbed in lib/health-connect/sources.ts."
+  "//health-deps-deferred": "@kingstinct/react-native-healthkit (iOS) is deferred until its react-native-nitro-modules peer is added (#26); lib/health-sync is Android-only until then."
 }
