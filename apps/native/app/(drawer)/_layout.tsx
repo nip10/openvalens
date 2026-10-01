@@ -16,6 +16,7 @@ const DRAWER_ITEMS = [
   { label: "Vitals", href: "/records/vitals" as const, icon: "pulse-outline" as const },
   { label: "Labs", href: "/records/labs" as const, icon: "flask-outline" as const },
   { label: "Coach", href: "/coach" as const, icon: "chatbubbles-outline" as const },
+  { label: "Sharing", href: "/sharing" as const, icon: "people-outline" as const },
   { label: "Settings", href: "/settings" as const, icon: "settings-outline" as const },
 ];
 
@@ -141,6 +142,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="coach"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="sharing"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
