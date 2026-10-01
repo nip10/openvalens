@@ -43,6 +43,8 @@ function BodyPage() {
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <h1 className="text-2xl font-semibold">Body</h1>
 
+      <AddWeightForm onSaved={() => void daily.refetch()} />
+
       {daily.isPending ? (
         <Skeleton className="h-64 w-full" />
       ) : daily.isError ? (

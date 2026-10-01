@@ -5,9 +5,16 @@ import {
   summarizeDailyWeights,
   weightSourceLabel,
 } from "@openhealth/api/presenters/body";
-import { useQuery } from "@tanstack/react-query";
-import { Card, Spinner } from "heroui-native";
-import { Pressable, RefreshControl, Text, View } from "react-native";
+import {
+  defaultObservedAt,
+  MANUAL_ENTRY_FIELDS,
+  makeManualEntryHash,
+  parseManualEntryValue,
+} from "@openhealth/api/presenters/manual-entry";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button, Card, Spinner } from "heroui-native";
+import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
+import { useState } from "react";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
@@ -23,6 +30,77 @@ function Stat({ label, value }: { label: string; value: string }) {
       <Text className="text-sm text-muted-foreground">{label}</Text>
       <Text className="font-mono text-lg text-foreground">{value}</Text>
     </View>
+  );
+}
+
+function AddWeightForm({ onSaved }: { onSaved: () => void }) {
+  const field = MANUAL_ENTRY_FIELDS.weight;
+  const [value, setValue] = useState("");
+  const [observedAt, setObservedAt] = useState(defaultObservedAt());
+
+  const save = useMutation(
+    orpc.healthRecord.ingestMetricSample.mutationOptions({
+      onSuccess: () => {
+        setValue("");
+        setObservedAt(defaultObservedAt());
+        onSaved();
+      },
+    }),
+  );
+
+  const numeric = parseManualEntryValue(field, value);
+  const submit = () => {
+    if (numeric === null) return;
+    save.mutate({
+      metricCode: "weight",
+      observedAt,
+      valueNumeric: numeric,
+      dedupeHash: makeManualEntryHash("weight", observedAt, numeric),
+    });
+  };
+
+  return (
+    <CardStack title="Add weight">
+      <Card variant="secondary" className="gap-3 p-4">
+        <View className="flex-row gap-3">
+          <View className="flex-1 gap-2">
+            <Text className="text-sm font-medium text-foreground">Weight ({field.unit})</Text>
+            <TextInput
+              value={value}
+              onChangeText={setValue}
+              placeholder={`${field.min}–${field.max}`}
+              keyboardType="numeric"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+          <View className="flex-1 gap-2">
+            <Text className="text-sm font-medium text-foreground">Observed at</Text>
+            <TextInput
+              value={observedAt}
+              onChangeText={setObservedAt}
+              placeholder="YYYY-MM-DDTHH:MM"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+        </View>
+        <View className="flex-row items-center gap-3">
+          <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+          {numeric === null && value.length > 0 ? (
+            <Text className="text-sm text-destructive">
+              {field.min}–{field.max} {field.unit}
+            </Text>
+          ) : save.isSuccess ? (
+            <Text className="text-sm text-success">Saved</Text>
+          ) : save.isError ? (
+            <Text className="text-sm text-destructive">Could not save.</Text>
+          ) : null}
+        </View>
+      </Card>
+    </CardStack>
   );
 }
 
@@ -108,6 +186,8 @@ export default function BodyScreen() {
           <Text className="text-sm text-muted-foreground">Body</Text>
           <Text className="font-mono text-3xl text-foreground">Weight</Text>
         </View>
+
+        <AddWeightForm onSaved={() => void daily.refetch()} />
 
         <CardStack>
           <Card variant="secondary" className="p-4">

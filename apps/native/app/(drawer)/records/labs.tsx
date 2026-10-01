@@ -1,12 +1,95 @@
 import { formatLabDate, formatLabValue } from "@openhealth/api/presenters/labs";
-import { useQuery } from "@tanstack/react-query";
-import { Card, Spinner } from "heroui-native";
-import { Pressable, RefreshControl, Text, View } from "react-native";
+import {
+  defaultObservedAt,
+  makeManualEntryHash,
+  parseManualEntryValue,
+} from "@openhealth/api/presenters/manual-entry";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Button, Card, Spinner } from "heroui-native";
+import { useState } from "react";
+import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+
+function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
+  const [value, setValue] = useState("");
+  const [observedAt, setObservedAt] = useState(defaultObservedAt());
+
+  const save = useMutation(
+    orpc.healthRecord.ingestMetricSample.mutationOptions({
+      onSuccess: () => {
+        setValue("");
+        setObservedAt(defaultObservedAt());
+        onSaved();
+      },
+    }),
+  );
+
+  const field = {
+    metric: "weight",
+    label: "Value",
+    unit: "",
+    min: 0,
+    max: 100_000,
+    step: 1,
+  } as const;
+  const numeric = parseManualEntryValue(field, value);
+
+  const submit = () => {
+    if (numeric === null) return;
+    save.mutate({
+      metricCode: markerCode as never,
+      observedAt,
+      valueNumeric: numeric,
+      dedupeHash: makeManualEntryHash(markerCode as never, observedAt, numeric),
+    });
+  };
+
+  return (
+    <CardStack title="Add reading">
+      <Card variant="secondary" className="gap-3 p-4">
+        <View className="flex-row gap-3">
+          <View className="flex-1 gap-2">
+            <Text className="text-sm font-medium text-foreground">Value</Text>
+            <TextInput
+              value={value}
+              onChangeText={setValue}
+              placeholder="0–100000"
+              keyboardType="numeric"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+          <View className="flex-1 gap-2">
+            <Text className="text-sm font-medium text-foreground">Observed at</Text>
+            <TextInput
+              value={observedAt}
+              onChangeText={setObservedAt}
+              placeholder="YYYY-MM-DDTHH:MM"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+        </View>
+        <View className="flex-row items-center gap-3">
+          <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+          {numeric === null && value.length > 0 ? (
+            <Text className="text-sm text-destructive">0–100000</Text>
+          ) : save.isSuccess ? (
+            <Text className="text-sm text-success">Saved</Text>
+          ) : save.isError ? (
+            <Text className="text-sm text-destructive">Could not save.</Text>
+          ) : null}
+        </View>
+      </Card>
+    </CardStack>
+  );
+}
 
 export default function LabsScreen() {
   const foreground = useThemeColor("foreground");
@@ -61,35 +144,41 @@ export default function LabsScreen() {
             </Text>
           </Card>
         ) : (
-          <CardStack>
-            <Card variant="secondary" className="p-0">
-              {list.map((marker, index) => (
-                <View
-                  key={marker.code}
-                  className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                    index < list.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-base text-foreground">{marker.displayName}</Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {marker.latestValue === null
-                        ? "No readings yet"
-                        : `${formatLabDate(marker.latestSampledAt)} · ${marker.sampleCount} reading${marker.sampleCount === 1 ? "" : "s"}`}
-                    </Text>
+          <>
+            <AddReadingForm
+              markerCode={list[0]?.code ?? ""}
+              onSaved={() => void markers.refetch()}
+            />
+            <CardStack>
+              <Card variant="secondary" className="p-0">
+                {list.map((marker, index) => (
+                  <View
+                    key={marker.code}
+                    className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
+                      index < list.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <View className="min-w-0 flex-1">
+                      <Text className="text-base text-foreground">{marker.displayName}</Text>
+                      <Text className="text-xs text-muted-foreground">
+                        {marker.latestValue === null
+                          ? "No readings yet"
+                          : `${formatLabDate(marker.latestSampledAt)} · ${marker.sampleCount} reading${marker.sampleCount === 1 ? "" : "s"}`}
+                      </Text>
+                    </View>
+                    <View className="shrink-0 items-end">
+                      <Text className="font-mono text-base text-foreground">
+                        {formatLabValue(marker.latestValue, marker.unit)}
+                      </Text>
+                      {marker.unit ? (
+                        <Text className="text-xs text-muted-foreground">{marker.unit}</Text>
+                      ) : null}
+                    </View>
                   </View>
-                  <View className="shrink-0 items-end">
-                    <Text className="font-mono text-base text-foreground">
-                      {formatLabValue(marker.latestValue, marker.unit)}
-                    </Text>
-                    {marker.unit ? (
-                      <Text className="text-xs text-muted-foreground">{marker.unit}</Text>
-                    ) : null}
-                  </View>
-                </View>
-              ))}
-            </Card>
-          </CardStack>
+                ))}
+              </Card>
+            </CardStack>
+          </>
         )}
       </View>
     </Container>
