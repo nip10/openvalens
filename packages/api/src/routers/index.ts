@@ -12,6 +12,7 @@ import { exportsRouter } from "./exports";
 import { healthRouter } from "./health";
 import { healthRecordRouter } from "./health-record";
 import { ingestionRouter } from "./ingestion";
+import { labsRouter } from "./labs";
 import { mobileRouter } from "./mobile";
 import { plansRouter } from "./plans";
 import { sleepRouter } from "./sleep";
@@ -32,6 +33,7 @@ export const appRouter = {
   health: healthRouter,
   healthRecord: healthRecordRouter,
   ingestion: ingestionRouter,
+  labs: labsRouter,
   mobile: mobileRouter,
   plans: plansRouter,
   sleep: sleepRouter,
