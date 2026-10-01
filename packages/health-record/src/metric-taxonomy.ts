@@ -28,7 +28,10 @@ export type CanonicalMetricCode =
   | "height"
   | "resting_heart_rate"
   | "sleep_session"
-  | "blood_marker";
+  | "blood_marker"
+  | "body_fat"
+  | "active_calories"
+  | "distance";
 
 export type CanonicalMetricCategory = "body" | "activity" | "vitals" | "cardiac" | "sleep" | "labs";
 
@@ -139,6 +142,37 @@ const METRIC_TAXONOMY: Record<CanonicalMetricCode, CanonicalMetricDefinition> = 
     supportedSources: Object.freeze(["watch", "phone", "lab"]),
     hasDefaultPriority: true,
   },
+  // Issue #45 — wearable types the mobile ingest contract carries.
+  body_fat: {
+    code: "body_fat",
+    displayName: "Body Fat",
+    category: "body",
+    unit: "%",
+    valueType: "number",
+    aggregationDefault: "latest",
+    supportedSources: Object.freeze(["scale", "phone", "watch"]),
+    hasDefaultPriority: true,
+  },
+  active_calories: {
+    code: "active_calories",
+    displayName: "Active Calories",
+    category: "activity",
+    unit: "kcal",
+    valueType: "number",
+    aggregationDefault: "sum",
+    supportedSources: Object.freeze(["watch", "phone"]),
+    hasDefaultPriority: true,
+  },
+  distance: {
+    code: "distance",
+    displayName: "Distance",
+    category: "activity",
+    unit: "m",
+    valueType: "number",
+    aggregationDefault: "sum",
+    supportedSources: Object.freeze(["watch", "phone"]),
+    hasDefaultPriority: true,
+  },
 };
 
 const METRIC_CODE_ALIASES = Object.freeze({
@@ -150,6 +184,8 @@ const METRIC_CODE_ALIASES = Object.freeze({
   bloodMarker: "blood_marker",
   weightKg: "weight",
   heightCm: "height",
+  bodyFat: "body_fat",
+  activeCalories: "active_calories",
 } as const satisfies Record<string, CanonicalMetricCode>);
 
 export const CANONICAL_METRIC_CODES = Object.freeze(
@@ -209,5 +245,10 @@ export function getDefaultSourcePriorityOrder(code: string): readonly string[] |
       return Object.freeze(["watch", "ring", "phone"]);
     case "blood_marker":
       return Object.freeze(["lab", "phone", "watch"]);
+    case "body_fat":
+      return Object.freeze(["scale", "phone", "watch"]);
+    case "active_calories":
+    case "distance":
+      return Object.freeze(["watch", "phone"]);
   }
 }
