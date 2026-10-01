@@ -120,3 +120,37 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/*
+ * Semantic health states (in range / near limit / informational) and the
+ * destructive foreground. Shared by web and mobile.
+ */
+@theme inline {
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-destructive-foreground: var(--destructive-foreground);
+}
+
+:root {
+  --success: oklch(0.627 0.194 144.637);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.66 0.138 95.27);
+  --warning-foreground: oklch(0.985 0 0);
+  --info: oklch(0.585 0.233 261.069);
+  --info-foreground: oklch(0.985 0 0);
+  --destructive-foreground: oklch(0.985 0 0);
+}
+
+.dark {
+  --success: oklch(0.723 0.219 142.495);
+  --success-foreground: oklch(0.145 0 0);
+  --warning: oklch(0.852 0.199 91.936);
+  --warning-foreground: oklch(0.145 0 0);
+  --info: oklch(0.72 0.176 254.13);
+  --info-foreground: oklch(0.145 0 0);
+  --destructive-foreground: oklch(0.145 0 0);
+}
