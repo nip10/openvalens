@@ -11,6 +11,7 @@ import { useThemeColor } from "@/utils/theme";
 const DRAWER_ITEMS = [
   { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
   { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
+  { label: "Sleep", href: "/records/sleep" as const, icon: "moon-outline" as const },
   { label: "Settings", href: "/settings" as const, icon: "settings-outline" as const },
 ];
 
@@ -69,7 +70,13 @@ function DrawerLayout() {
   const renderThemeToggle = useCallback(() => <ThemeToggle />, []);
 
   const headerTitle =
-    pathname === "/timeline" ? "Timeline" : pathname === "/settings" ? "Settings" : "Cockpit";
+    pathname === "/timeline"
+      ? "Timeline"
+      : pathname === "/records/sleep"
+        ? "Sleep"
+        : pathname === "/settings"
+          ? "Settings"
+          : "Cockpit";
 
   return (
     <Drawer
@@ -91,6 +98,13 @@ function DrawerLayout() {
         options={{
           headerTitle,
           drawerLabel: () => null,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="records/sleep"
+        options={{
+          headerTitle,
           drawerItemStyle: { display: "none" },
         }}
       />
