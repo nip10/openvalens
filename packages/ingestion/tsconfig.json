@@ -8,5 +8,15 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../db" }, { "path": "../health-record" }]
+  "references": [
+    {
+      "path": "../db"
+    },
+    {
+      "path": "../health-record"
+    },
+    {
+      "path": "../body"
+    }
+  ]
 }

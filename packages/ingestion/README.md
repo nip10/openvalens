@@ -74,6 +74,11 @@ cursor once the server answers `applied`, `queued` or `duplicate`.
   older version is stored already superseded. The timeline, sleep and
   clinical export reads skip superseded rows.
 - Heart-rate records fan out to one sample per reading.
+- **Body bridge:** each newly stored phone weight also goes through the body
+  domain's auto-weight reconciliation (`weight_event` + `daily_weight`) for
+  the device owner (`provider_connection.user_id`, set by `registerDevice`),
+  dated in the batch's `clientTimezone`. Superseding a weight supersedes its
+  `weight_event` and recomputes the day. Devices with no owner skip it.
 
 ## Raw-payload purge
 

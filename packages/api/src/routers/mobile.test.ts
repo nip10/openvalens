@@ -132,6 +132,7 @@ test("registerDevice uses the session org, requires records:write and audits the
   expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "write" });
   expect(registerMobileDevice.mock.calls[0]?.[1]).toMatchObject({
     organizationId: "org-a",
+    userId: "actor",
     deviceId: DEVICE,
     platform: "android",
   });

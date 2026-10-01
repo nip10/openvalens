@@ -1,6 +1,6 @@
 import type { Database } from "@openhealth/db";
 import { dailyWeight, dailyWeightOverride, weightEvent } from "@openhealth/db/schema/body";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { resolveCanonicalWeight, type CanonicalWeightAutoEvent } from "./canonical-weight";
 
@@ -55,6 +55,12 @@ export type AutoWeightEventDependencies = {
     userId: string;
     date: string;
   }) => Promise<Array<{ id: number; measuredAt: string; weightKg: number }>>;
+  /** Remove the derived `source = 'auto'` row when no active auto event remains. */
+  deleteAutoDailyWeight: (input: {
+    organizationId: string;
+    userId: string;
+    date: string;
+  }) => Promise<void>;
   /** Upsert the materialized `daily_weight` row with the winning auto event. */
   upsertAutoDailyWeight: (input: {
     organizationId: string;
@@ -86,131 +92,199 @@ export async function ingestAutoWeightEvent(
     metadataJson: input.metadataJson,
   });
 
-  const activeOverride = await dependencies.getActiveOverride({
-    organizationId: input.organizationId,
-    userId: input.userId,
-    date: input.date,
-  });
-  if (activeOverride) {
-    return { eventId, reconciled: false };
+  const { reconciled } = await reconcileAutoDailyWeight(input, dependencies);
+  return { eventId, reconciled };
+}
+
+/**
+ * Recompute one day's canonical `daily_weight` from its active auto events,
+ * unless an active override owns the day. With `removeWhenEmpty` (the
+ * supersession path), a day whose auto events were all superseded loses its
+ * derived auto row; the events themselves stay.
+ */
+export async function reconcileAutoDailyWeight(
+  input: { organizationId: string; userId: string; date: string; removeWhenEmpty?: boolean },
+  dependencies: Pick<
+    AutoWeightEventDependencies,
+    "getActiveOverride" | "listAutoWeightEvents" | "upsertAutoDailyWeight" | "deleteAutoDailyWeight"
+  >,
+): Promise<{ reconciled: boolean }> {
+  const day = { organizationId: input.organizationId, userId: input.userId, date: input.date };
+  if (await dependencies.getActiveOverride(day)) return { reconciled: false };
+
+  const autoEvents = await dependencies.listAutoWeightEvents(day);
+  if (autoEvents.length === 0) {
+    if (input.removeWhenEmpty) await dependencies.deleteAutoDailyWeight(day);
+    return { reconciled: false };
   }
-
-  const autoEvents = await dependencies.listAutoWeightEvents({
-    organizationId: input.organizationId,
-    userId: input.userId,
-    date: input.date,
-  });
-
   const resolution = resolveCanonicalWeight({
     autoEvents: autoEvents as ReadonlyArray<CanonicalWeightAutoEvent>,
     override: null,
   });
-
-  if (!resolution || resolution.source !== "auto" || resolution.resolvedFromEventId === null) {
-    return { eventId, reconciled: false };
-  }
+  if (!resolution || resolution.source !== "auto" || resolution.resolvedFromEventId === null)
+    return { reconciled: false };
 
   await dependencies.upsertAutoDailyWeight({
-    organizationId: input.organizationId,
-    userId: input.userId,
-    date: input.date,
+    ...day,
     weightKg: resolution.weightKg,
     resolvedFromEventId: resolution.resolvedFromEventId,
   });
-
-  return { eventId, reconciled: true };
+  return { reconciled: true };
 }
 
 /**
  * Concrete service factory backed by Drizzle. The procedure wrapper supplies
  * `db` so each request runs against the caller's transaction pool.
  */
-export function createAutoReconciliationService(db: Database) {
+/** A database handle or a transaction. */
+type DbLike = Pick<Database, "select" | "insert" | "update" | "delete">;
+
+export function createAutoReconciliationService(db: DbLike) {
+  const dependencies: AutoWeightEventDependencies = {
+    async insertAutoWeightEvent(autoInput) {
+      const [row] = await db
+        .insert(weightEvent)
+        .values({
+          organizationId: autoInput.organizationId,
+          userId: autoInput.userId,
+          source: "auto",
+          date: autoInput.date,
+          measuredAt: autoInput.measuredAt,
+          weightKg: autoInput.weightKg,
+          confidence: null,
+          // `sourceDetail` is folded into the metadata envelope; the
+          // `weight_event` table has no dedicated column.
+          metadataJson: {
+            sourceDetail: autoInput.sourceDetail,
+            ...autoInput.metadataJson,
+          },
+        })
+        .returning({ id: weightEvent.id });
+      if (!row) throw new Error("Auto weight event insert did not return a row");
+      return { id: row.id };
+    },
+
+    async getActiveOverride(query) {
+      const rows = await db
+        .select({ id: dailyWeightOverride.id })
+        .from(dailyWeightOverride)
+        .where(
+          and(
+            eq(dailyWeightOverride.organizationId, query.organizationId),
+            eq(dailyWeightOverride.userId, query.userId),
+            eq(dailyWeightOverride.date, query.date),
+            isNull(dailyWeightOverride.revokedAt),
+          ),
+        )
+        .limit(1);
+      return rows[0] ?? null;
+    },
+
+    async listAutoWeightEvents(query) {
+      return db
+        .select({
+          id: weightEvent.id,
+          measuredAt: weightEvent.measuredAt,
+          weightKg: weightEvent.weightKg,
+        })
+        .from(weightEvent)
+        .where(
+          and(
+            eq(weightEvent.organizationId, query.organizationId),
+            eq(weightEvent.userId, query.userId),
+            eq(weightEvent.source, "auto"),
+            eq(weightEvent.date, query.date),
+            isNull(weightEvent.supersededAt),
+          ),
+        )
+        .orderBy(desc(weightEvent.measuredAt), desc(weightEvent.id));
+    },
+
+    async upsertAutoDailyWeight(upsert) {
+      await db
+        .insert(dailyWeight)
+        .values({
+          organizationId: upsert.organizationId,
+          userId: upsert.userId,
+          date: upsert.date,
+          weightKg: upsert.weightKg,
+          source: "auto",
+          resolvedFromEventId: upsert.resolvedFromEventId,
+        })
+        .onConflictDoUpdate({
+          target: [dailyWeight.organizationId, dailyWeight.userId, dailyWeight.date],
+          set: {
+            weightKg: upsert.weightKg,
+            source: "auto",
+            resolvedFromEventId: upsert.resolvedFromEventId,
+            updatedAt: new Date().toISOString(),
+          },
+        });
+    },
+
+    async deleteAutoDailyWeight(day) {
+      await db
+        .delete(dailyWeight)
+        .where(
+          and(
+            eq(dailyWeight.organizationId, day.organizationId),
+            eq(dailyWeight.userId, day.userId),
+            eq(dailyWeight.date, day.date),
+            eq(dailyWeight.source, "auto"),
+          ),
+        );
+    },
+  };
+
   return {
     async ingestAutoWeightEvent(
       input: IngestAutoWeightEventInput,
     ): Promise<IngestAutoWeightEventResult> {
-      return ingestAutoWeightEvent(input, {
-        async insertAutoWeightEvent(autoInput) {
-          const [row] = await db
-            .insert(weightEvent)
-            .values({
-              organizationId: autoInput.organizationId,
-              userId: autoInput.userId,
-              source: "auto",
-              date: autoInput.date,
-              measuredAt: autoInput.measuredAt,
-              weightKg: autoInput.weightKg,
-              confidence: null,
-              // `sourceDetail` is folded into the metadata envelope; the
-              // `weight_event` table has no dedicated column.
-              metadataJson: {
-                sourceDetail: autoInput.sourceDetail,
-                ...autoInput.metadataJson,
-              },
-            })
-            .returning({ id: weightEvent.id });
-          if (!row) throw new Error("Auto weight event insert did not return a row");
-          return { id: row.id };
-        },
+      return ingestAutoWeightEvent(input, dependencies);
+    },
 
-        async getActiveOverride(query) {
-          const rows = await db
-            .select({ id: dailyWeightOverride.id })
-            .from(dailyWeightOverride)
-            .where(
-              and(
-                eq(dailyWeightOverride.organizationId, query.organizationId),
-                eq(dailyWeightOverride.userId, query.userId),
-                eq(dailyWeightOverride.date, query.date),
-                isNull(dailyWeightOverride.revokedAt),
-              ),
-            )
-            .limit(1);
-          return rows[0] ?? null;
-        },
+    reconcileDay(day: { organizationId: string; userId: string; date: string }) {
+      return reconcileAutoDailyWeight(day, dependencies);
+    },
 
-        async listAutoWeightEvents(query) {
-          return db
-            .select({
-              id: weightEvent.id,
-              measuredAt: weightEvent.measuredAt,
-              weightKg: weightEvent.weightKg,
-            })
-            .from(weightEvent)
-            .where(
-              and(
-                eq(weightEvent.organizationId, query.organizationId),
-                eq(weightEvent.userId, query.userId),
-                eq(weightEvent.source, "auto"),
-                eq(weightEvent.date, query.date),
-              ),
-            )
-            .orderBy(desc(weightEvent.measuredAt), desc(weightEvent.id));
-        },
-
-        async upsertAutoDailyWeight(upsert) {
-          await db
-            .insert(dailyWeight)
-            .values({
-              organizationId: upsert.organizationId,
-              userId: upsert.userId,
-              date: upsert.date,
-              weightKg: upsert.weightKg,
-              source: "auto",
-              resolvedFromEventId: upsert.resolvedFromEventId,
-            })
-            .onConflictDoUpdate({
-              target: [dailyWeight.organizationId, dailyWeight.userId, dailyWeight.date],
-              set: {
-                weightKg: upsert.weightKg,
-                source: "auto",
-                resolvedFromEventId: upsert.resolvedFromEventId,
-                updatedAt: new Date().toISOString(),
-              },
-            });
-        },
-      });
+    /**
+     * Supersede the auto weight events derived from the given canonical
+     * `metric_sample` rows (mobile deletions and edits, #44), then recompute
+     * each affected day.
+     */
+    async supersedeForMetricSamples(input: {
+      organizationId: string;
+      metricSampleIds: number[];
+      supersededAt: Date;
+    }): Promise<number> {
+      if (input.metricSampleIds.length === 0) return 0;
+      const affected = await db
+        .update(weightEvent)
+        .set({ supersededAt: input.supersededAt.toISOString() })
+        .where(
+          and(
+            eq(weightEvent.organizationId, input.organizationId),
+            eq(weightEvent.source, "auto"),
+            isNull(weightEvent.supersededAt),
+            inArray(
+              sql`(${weightEvent.metadataJson}->>'metricSampleId')::int`,
+              input.metricSampleIds,
+            ),
+          ),
+        )
+        .returning({ userId: weightEvent.userId, date: weightEvent.date });
+      const days = new Map(affected.map((row) => [`${row.userId}|${row.date}`, row]));
+      for (const row of days.values())
+        await reconcileAutoDailyWeight(
+          {
+            organizationId: input.organizationId,
+            userId: row.userId,
+            date: row.date,
+            removeWhenEmpty: true,
+          },
+          dependencies,
+        );
+      return affected.length;
     },
 
     /**

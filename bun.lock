@@ -329,6 +329,7 @@
     "packages/ingestion": {
       "name": "@openhealth/ingestion",
       "dependencies": {
+        "@openhealth/body": "workspace:*",
         "@openhealth/db": "workspace:*",
         "@openhealth/health-record": "workspace:*",
         "drizzle-orm": "catalog:",
