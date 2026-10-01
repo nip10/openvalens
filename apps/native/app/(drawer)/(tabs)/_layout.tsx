@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { useThemeColor } from "heroui-native";
+import { useThemeColor } from "@/utils/theme";
 
 export default function TabLayout() {
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
+  const themeColorPrimary = useThemeColor("primary");
+  const themeColorMutedForeground = useThemeColor("muted-foreground");
 
   return (
     <Tabs
@@ -21,20 +23,29 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: themeColorBackground,
         },
+        tabBarActiveTintColor: themeColorPrimary,
+        tabBarInactiveTintColor: themeColorMutedForeground,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Cockpit",
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="timeline"
         options={{
-          title: "Explore",
-          tabBarIcon: ({ color, size }) => <Ionicons name="compass" size={size} color={color} />,
+          title: "Timeline",
+          tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
         }}
       />
     </Tabs>

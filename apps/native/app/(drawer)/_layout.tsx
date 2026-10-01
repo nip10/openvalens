@@ -1,20 +1,80 @@
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Link, usePathname } from "expo-router";
 import { Drawer } from "expo-router/drawer";
-import { useThemeColor } from "heroui-native";
+import { cn } from "heroui-native";
 import React, { useCallback } from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useThemeColor } from "@/utils/theme";
+
+const DRAWER_ITEMS = [
+  { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
+  { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
+  { label: "Settings", href: "/settings" as const, icon: "settings-outline" as const },
+];
+
+function DrawerContent() {
+  const pathname = usePathname();
+  const foreground = useThemeColor("foreground");
+  const primary = useThemeColor("primary");
+  const background = useThemeColor("background");
+
+  return (
+    <ScrollView
+      contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}
+      accessibilityRole="menu"
+    >
+      <View className="px-4 pb-4 pt-2">
+        <Text className="text-2xl font-semibold text-foreground">openhealth</Text>
+      </View>
+
+      <View className="mt-2">
+        {DRAWER_ITEMS.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link key={item.href} href={item.href} asChild>
+              <Pressable
+                className={cn(
+                  "flex-row items-center gap-3 px-4 py-3 active:opacity-70",
+                  active && "bg-accent",
+                )}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={item.label}
+              >
+                <Ionicons name={item.icon} size={20} color={active ? primary : foreground} />
+                <Text
+                  className={cn(
+                    "text-base",
+                    active ? "font-medium text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            </Link>
+          );
+        })}
+      </View>
+    </ScrollView>
+  );
+}
 
 function DrawerLayout() {
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
+  const pathname = usePathname();
 
   const renderThemeToggle = useCallback(() => <ThemeToggle />, []);
 
+  const headerTitle =
+    pathname === "/timeline" ? "Timeline" : pathname === "/settings" ? "Settings" : "Cockpit";
+
   return (
     <Drawer
+      initialRouteName="(tabs)"
+      drawerContent={() => <DrawerContent />}
       screenOptions={{
         headerTintColor: themeColorForeground,
         headerStyle: { backgroundColor: themeColorBackground },
@@ -27,42 +87,11 @@ function DrawerLayout() {
       }}
     >
       <Drawer.Screen
-        name="index"
-        options={{
-          headerTitle: "Home",
-          drawerLabel: ({ color, focused }) => (
-            <Text style={{ color: focused ? color : themeColorForeground }}>Home</Text>
-          ),
-          drawerIcon: ({ size, color, focused }) => (
-            <Ionicons
-              name="home-outline"
-              size={size}
-              color={focused ? color : themeColorForeground}
-            />
-          ),
-        }}
-      />
-      <Drawer.Screen
         name="(tabs)"
         options={{
-          headerTitle: "Tabs",
-          drawerLabel: ({ color, focused }) => (
-            <Text style={{ color: focused ? color : themeColorForeground }}>Tabs</Text>
-          ),
-          drawerIcon: ({ size, color, focused }) => (
-            <MaterialIcons
-              name="border-bottom"
-              size={size}
-              color={focused ? color : themeColorForeground}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable className="mr-4">
-                <Ionicons name="add-outline" size={24} color={themeColorForeground} />
-              </Pressable>
-            </Link>
-          ),
+          headerTitle,
+          drawerLabel: () => null,
+          drawerItemStyle: { display: "none" },
         }}
       />
     </Drawer>
