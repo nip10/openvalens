@@ -193,6 +193,7 @@
         "@openhealth/plans": "workspace:*",
         "@openhealth/sleep": "workspace:*",
         "@openhealth/telegram": "workspace:*",
+        "@openhealth/vitals": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -425,6 +426,17 @@
         "@types/react": "^19.2.18",
         "@types/react-dom": "catalog:",
         "tailwindcss": "catalog:",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/vitals": {
+      "name": "@openhealth/vitals",
+      "dependencies": {
+        "@openhealth/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openhealth/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
@@ -858,6 +870,8 @@
     "@openhealth/telegram": ["@openhealth/telegram@workspace:packages/integrations/telegram"],
 
     "@openhealth/ui": ["@openhealth/ui@workspace:packages/ui"],
+
+    "@openhealth/vitals": ["@openhealth/vitals@workspace:packages/vitals"],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 

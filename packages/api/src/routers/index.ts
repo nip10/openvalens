@@ -17,6 +17,7 @@ import { plansRouter } from "./plans";
 import { sleepRouter } from "./sleep";
 import { telegramRouter } from "./telegram";
 import { timelineRouter } from "./timeline";
+import { vitalsRouter } from "./vitals";
 
 export const appRouter = {
   activity: activityRouter,
@@ -36,6 +37,7 @@ export const appRouter = {
   sleep: sleepRouter,
   telegram: telegramRouter,
   timeline: timelineRouter,
+  vitals: vitalsRouter,
 };
 
 export type AppRouter = typeof appRouter;

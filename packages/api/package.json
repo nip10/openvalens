@@ -26,6 +26,7 @@
     "@openhealth/plans": "workspace:*",
     "@openhealth/sleep": "workspace:*",
     "@openhealth/telegram": "workspace:*",
+    "@openhealth/vitals": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
