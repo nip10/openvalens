@@ -1,3 +1,23 @@
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
+@import "@openhealth/ui/globals.css";
+
+/*
+ * Bridge heroui-native tokens to the openhealth palette.
+ *
+ * The `@import "@openhealth/ui/globals.css"` above makes every CSS variable
+ * declared in `packages/ui/src/styles/globals.css` available to uniwind and
+ * heroui-native. For tokens with the same name (background, foreground,
+ * primary, secondary, muted, accent, success, warning, info, border, input,
+ * ring, chart-1..5, sidebar-*) openhealth's declaration wins because this
+ * import is processed last.
+ *
+ * heroui-native uses `danger` where openhealth uses `destructive`, so alias
+ * the heroui-native name to the openhealth token so error surfaces share
+ * the web palette.
+ */
+@theme inline {
+  --color-danger: var(--color-destructive);
+  --color-danger-foreground: var(--color-destructive-foreground);
+}
