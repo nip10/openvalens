@@ -1,6 +1,6 @@
 import type { Database } from "@openhealth/db";
 import { healthEvent } from "@openhealth/db/schema/health-record";
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
 
 import { deriveSleepDailySummaries } from "./derive-daily-summary";
 import { summarizeSleepWindow } from "./scoring";
@@ -111,6 +111,7 @@ export async function getSleepSummary(
       and(
         eq(healthEvent.organizationId, organizationId),
         eq(healthEvent.eventType, "sleep_session"),
+        isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, cutoff),
       ),
     )
@@ -149,6 +150,7 @@ export async function getSleepSummaryForRange(
       and(
         eq(healthEvent.organizationId, organizationId),
         eq(healthEvent.eventType, "sleep_session"),
+        isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, new Date(queryStart)),
         lte(healthEvent.eventAt, new Date(queryEnd)),
       ),
@@ -180,6 +182,7 @@ export async function listSleepDailySummaries(
       and(
         eq(healthEvent.organizationId, organizationId),
         eq(healthEvent.eventType, "sleep_session"),
+        isNull(healthEvent.supersededAt),
         gte(healthEvent.eventAt, cutoff),
       ),
     )

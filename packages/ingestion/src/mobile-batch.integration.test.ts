@@ -383,6 +383,168 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     expect(job?.status).toBe("queued");
   });
 
+  const active = async () =>
+    (await db.select().from(metricSample)).filter((row) => row.supersededAt === null);
+
+  test("a deletion supersedes the record's rows, keeps them, and links the deleting batch", async () => {
+    await register();
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ deletions: [] }),
+      traceId: "t",
+      now,
+    });
+    const res = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ upserts: [], deletions: [{ externalRecordId: "w-1" }] }),
+      traceId: "t",
+      now,
+    });
+    expect(res).toMatchObject({ status: "applied", superseded: 1 });
+    const rows = await db.select().from(metricSample);
+    expect(rows).toHaveLength(2);
+    const gone = rows.find((row) => row.externalSampleId === "w-1");
+    expect(gone?.supersededAt?.toISOString()).toBe(now.toISOString());
+    expect((await active()).map((row) => row.externalSampleId)).toEqual(["w-2"]);
+    const [link] = await db
+      .select()
+      .from(provenanceLink)
+      .where(eq(provenanceLink.relation, "superseded_by_raw_artifact"));
+    expect(link).toMatchObject({
+      targetTable: "metric_sample",
+      targetId: gone!.id,
+      sourceTable: "ingestion_raw_artifact",
+      sourceId: res.rawArtifactId,
+    });
+  });
+
+  test("a deletion only affects rows from the same device", async () => {
+    await register();
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ deletions: [] }),
+      traceId: "t",
+      now,
+    });
+    const OTHER = "0b7e4d2a-1c3f-4a5b-9d8e-7f6a5b4c3d2e";
+    await registerMobileDevice(db, {
+      organizationId: "org-a",
+      deviceId: OTHER,
+      platform: "android",
+      now,
+    });
+    const res = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ deviceId: OTHER, upserts: [], deletions: [{ externalRecordId: "w-1" }] }),
+      traceId: "t",
+      now,
+    });
+    expect(res.superseded).toBe(0);
+    expect(await active()).toHaveLength(2);
+  });
+
+  test("deleting a heart-rate record supersedes every sample and deleting a sleep session supersedes the event", async () => {
+    await register();
+    const hr = {
+      type: "heart_rate" as const,
+      externalRecordId: "hr-1",
+      sourceApp: "com.samsung.health",
+      startTime: "2026-10-01T07:00:00.000Z",
+      endTime: "2026-10-01T07:02:00.000Z",
+      samples: [
+        { time: "2026-10-01T07:00:00.000Z", bpm: 61 },
+        { time: "2026-10-01T07:01:00.000Z", bpm: 64 },
+      ],
+    };
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ recordType: "heart_rate", upserts: [hr], deletions: [] }),
+      traceId: "t",
+      now,
+    });
+    const res = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({
+        recordType: "heart_rate",
+        upserts: [],
+        deletions: [{ externalRecordId: "hr-1" }],
+      }),
+      traceId: "t",
+      now,
+    });
+    expect(res.superseded).toBe(2);
+    expect(await active()).toHaveLength(0);
+
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({
+        recordType: "sleep_session",
+        deletions: [],
+        upserts: [
+          {
+            type: "sleep_session",
+            externalRecordId: "s-1",
+            sourceApp: "com.samsung.health",
+            startTime: "2026-09-30T23:00:00.000Z",
+            endTime: "2026-10-01T07:00:00.000Z",
+          },
+        ],
+      }),
+      traceId: "t",
+      now,
+    });
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({
+        recordType: "sleep_session",
+        upserts: [],
+        deletions: [{ externalRecordId: "s-1" }],
+      }),
+      traceId: "t",
+      now,
+    });
+    const [event] = await db.select().from(healthEvent);
+    expect(event?.supersededAt).not.toBeNull();
+  });
+
+  test("an edited record supersedes the older version; an older version arriving late stays superseded", async () => {
+    await register();
+    type Weight = Extract<MobileIngestBatch["upserts"][number], { type: "weight" }>;
+    const [w1] = batch().upserts as Weight[];
+    const v1 = { ...w1!, lastModifiedAt: "2026-10-01T08:00:00.000Z" };
+    const v2 = { ...w1!, lastModifiedAt: "2026-10-01T09:00:00Z", valueKg: 72.0 };
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ upserts: [v1], deletions: [] }),
+      traceId: "t",
+      now,
+    });
+    const edit = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ upserts: [v2], deletions: [] }),
+      traceId: "t",
+      now,
+    });
+    expect(edit).toMatchObject({ accepted: 1, superseded: 1 });
+    expect((await active()).map((row) => row.numericValue)).toEqual([72.0]);
+
+    // A queued batch carrying the old version is applied after the edit.
+    const late = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({
+        upserts: [
+          { ...v1, lastModifiedAt: "2026-10-01T07:00:00.000Z", valueKg: 71.9 },
+          batch().upserts[1]!,
+        ],
+        deletions: [],
+      }),
+      traceId: "t",
+      now,
+    });
+    expect(late.status).toBe("applied");
+    expect((await active()).map((row) => row.numericValue).sort()).toEqual([72.0, 72.1]);
+  });
+
   test("syncStatus reports per-device, per-type metadata only", async () => {
     await register();
     await ingestMobileBatch(db, { organizationId: "org-a", batch: batch(), traceId: "t", now });

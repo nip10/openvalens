@@ -13,6 +13,8 @@ export type RunClaimedJobResult = {
     healthEventCount: number;
     /** Records skipped by per-record dedupe (mobile batches only). */
     duplicateCount?: number;
+    /** Canonical rows superseded by deletions or newer versions (mobile batches only). */
+    supersededCount?: number;
   } | null;
   errorCode: string | null;
 };

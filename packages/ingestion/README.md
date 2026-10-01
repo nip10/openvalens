@@ -67,7 +67,12 @@ cursor once the server answers `applied`, `queued` or `duplicate`.
   throws, the response is `queued` and the `mobile_ingest_batch` cron runner
   retries it. A purged or unreadable artifact fails the job with
   `mobile_batch_unreadable`.
-- Deletions are stored in the raw artifact but not yet applied (#44).
+- **Supersession (#44):** canonical rows are never deleted. A deletion from
+  the device, or a newer version of a record (later `lastModifiedAt`), sets
+  `superseded_at` on that record's rows from the same device connection and
+  adds a `superseded_by_raw_artifact` provenance link to the batch. A late,
+  older version is stored already superseded. The timeline, sleep and
+  clinical export reads skip superseded rows.
 - Heart-rate records fan out to one sample per reading.
 
 ## Raw-payload purge
@@ -103,5 +108,4 @@ disposable database: `INGESTION_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port
 `MOBILE_INGEST_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port>/mobile_ingest_issue7`.
 `scripts/test-integration.sh` creates both.
 
-Deferred: applying mobile deletions (#44), provenance links for the legacy
-replay path.
+Deferred: provenance links for the legacy replay path.

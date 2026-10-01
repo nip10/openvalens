@@ -183,6 +183,25 @@ describe.skipIf(!url)("timeline real PostgreSQL schema", () => {
     expect(ids).not.toContain(`health_event:${foreignEventId}`);
     expect((await repo.listTimeline("missing-org")).items).toEqual([]);
   });
+  test("superseded canonical rows are hidden from the timeline (#44)", async () => {
+    const before = (await repo.listTimeline("org-a")).items.map((item) => item.id);
+    expect(before).toContain(`health_event:${eventId}`);
+    expect(before).toContain(`metric_sample:${metricId}`);
+    const at = new Date("2026-10-01T00:00:00Z");
+    await db.update(healthEvent).set({ supersededAt: at }).where(eq(healthEvent.id, eventId));
+    await db.update(metricSample).set({ supersededAt: at }).where(eq(metricSample.id, metricId));
+    try {
+      const after = (await repo.listTimeline("org-a")).items.map((item) => item.id);
+      expect(after).not.toContain(`health_event:${eventId}`);
+      expect(after).not.toContain(`metric_sample:${metricId}`);
+    } finally {
+      await db.update(healthEvent).set({ supersededAt: null }).where(eq(healthEvent.id, eventId));
+      await db
+        .update(metricSample)
+        .set({ supersededAt: null })
+        .where(eq(metricSample.id, metricId));
+    }
+  });
   test("actual schema rejects foreign source and metric definition ownership", async () => {
     await expect(
       Promise.resolve(

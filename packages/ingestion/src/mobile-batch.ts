@@ -10,7 +10,7 @@ import {
 } from "@openhealth/db/schema/health-record";
 import { providerConnection } from "@openhealth/db/schema/ingestion";
 import { buildDataSourceIdentity, stableSerialize } from "@openhealth/health-record";
-import { and, desc, eq, inArray, like } from "drizzle-orm";
+import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 
 import type { MOBILE_INGESTION_PROVIDERS } from "./health-connect";
 import { IngestionStateError } from "./job-runner-state";
@@ -38,7 +38,11 @@ import type { RunClaimedJobResult } from "./run-job";
  *    `provenance_link` per inserted row. If apply throws, the job stays
  *    `queued` and the `mobile_ingest_batch` cron runner retries it.
  *
- * Deletions are stored in the raw artifact only; applying them is #44.
+ * Supersession (#44): canonical rows are never deleted. A deletion from the
+ * device, or a newer version of a record (later `lastModifiedAt`), sets
+ * `superseded_at` on the affected rows of the same device connection and
+ * links them to the batch with a `superseded_by_raw_artifact` provenance
+ * link. Read paths skip superseded rows.
  * PHI: errors store ids and fixed codes, never the payload.
  */
 export const MOBILE_INGEST_JOB_TYPE = "mobile_ingest_batch";
@@ -405,6 +409,39 @@ export async function runMobileIngestBatchJob(
         )
         .onConflictDoNothing();
 
+    const target = EVENT_TYPES.has(batch.recordType) ? TARGETS.health_event : TARGETS.metric_sample;
+    const scope = {
+      organizationId,
+      providerConnectionId: job.providerConnectionId,
+      now: now(),
+    };
+    const superseded = [
+      ...(await supersede(tx, target, {
+        ...scope,
+        externalIds: [...new Set(batch.deletions.map((d) => d.externalRecordId))],
+        mode: "deleted",
+      })),
+      ...(await supersede(tx, target, {
+        ...scope,
+        externalIds: [...new Set(batch.upserts.map((r) => r.externalRecordId))],
+        mode: "older_versions",
+      })),
+    ];
+    if (superseded.length)
+      await tx
+        .insert(provenanceLink)
+        .values(
+          superseded.map((id) => ({
+            organizationId,
+            targetTable: target.table,
+            targetId: id,
+            sourceTable: "ingestion_raw_artifact",
+            sourceId: artifact.id,
+            relation: "superseded_by_raw_artifact",
+          })),
+        )
+        .onConflictDoNothing();
+
     const accepted = totals.metricSampleCount + totals.healthEventCount;
     const completedAt = await finish(
       { job: "succeeded", batch: "completed" },
@@ -430,6 +467,7 @@ export async function runMobileIngestBatchJob(
         metricSampleCount: totals.metricSampleCount,
         healthEventCount: totals.healthEventCount,
         duplicateCount: totals.duplicateCount,
+        supersededCount: superseded.length,
       },
       errorCode: null,
     };
@@ -489,6 +527,83 @@ async function resolveDataSource(
   return row.id;
 }
 
+const EVENT_TYPES = new Set<MobileHealthRecordType>(["sleep_session", "workout"]);
+
+type SupersedeTarget = {
+  table: "metric_sample" | "health_event";
+  idColumn: string;
+  versionColumn: string;
+  touchesUpdatedAt: boolean;
+};
+
+const TARGETS = {
+  metric_sample: {
+    table: "metric_sample",
+    idColumn: "external_sample_id",
+    versionColumn: "metadata_json",
+    touchesUpdatedAt: false,
+  },
+  health_event: {
+    table: "health_event",
+    idColumn: "source_event_id",
+    versionColumn: "payload_json",
+    touchesUpdatedAt: true,
+  },
+} satisfies Record<string, SupersedeTarget>;
+
+/**
+ * Marks active rows superseded and returns their ids. Only rows written for
+ * this device connection (via `data_source`) are touched.
+ * - `deleted`: every active row of the given source records.
+ * - `older_versions`: rows whose `lastModifiedAt` is older than the newest
+ *   version stored for the same source record (missing counts as oldest),
+ *   so an edit hides the previous version and a late, older batch never
+ *   resurfaces it.
+ */
+async function supersede(
+  tx: Pick<Database, "execute">,
+  target: SupersedeTarget,
+  input: {
+    organizationId: string;
+    providerConnectionId: number;
+    externalIds: string[];
+    mode: "deleted" | "older_versions";
+    now: Date;
+  },
+): Promise<number[]> {
+  if (input.externalIds.length === 0) return [];
+  const table = sql.identifier(target.table);
+  const idColumn = sql.identifier(target.idColumn);
+  const versionColumn = sql.identifier(target.versionColumn);
+  const ids = sql.join(
+    input.externalIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+  const version = (alias: string) =>
+    sql`(${sql.identifier(alias)}.${versionColumn}->>'lastModifiedAt')::timestamptz`;
+  const olderThanNewest =
+    input.mode === "older_versions"
+      ? sql`and coalesce(${version("r")}, '-infinity'::timestamptz) < (
+          select max(${version("r2")}) from ${table} r2
+          join data_source d2 on d2.id = r2.data_source_id and d2.organization_id = r2.organization_id
+          where r2.organization_id = ${input.organizationId}
+            and d2.provider_connection_id = ${input.providerConnectionId}
+            and r2.${idColumn} = r.${idColumn})`
+      : sql``;
+  const touch = target.touchesUpdatedAt ? sql`, updated_at = ${input.now}` : sql``;
+  const result = await tx.execute(sql`
+    update ${table} r set superseded_at = ${input.now} ${touch}
+    from data_source d
+    where d.id = r.data_source_id and d.organization_id = r.organization_id
+      and r.organization_id = ${input.organizationId}
+      and d.provider_connection_id = ${input.providerConnectionId}
+      and r.${idColumn} in (${ids})
+      and r.superseded_at is null
+      ${olderThanNewest}
+    returning r.id`);
+  return (result.rows as { id: number }[]).map((row) => Number(row.id));
+}
+
 export type IngestMobileBatchResult = {
   status: "applied" | "queued" | "duplicate";
   jobId: number;
@@ -496,6 +611,7 @@ export type IngestMobileBatchResult = {
   accepted: number;
   duplicates: number;
   rejected: number;
+  superseded: number;
 };
 
 /**
@@ -523,10 +639,18 @@ export async function ingestMobileBatch(
       accepted: 0,
       duplicates: input.batch.upserts.length,
       rejected: 0,
+      superseded: 0,
     };
 
   const apply = input.apply ?? runMobileIngestBatchJob;
-  const queued = { status: "queued" as const, ...base, accepted: 0, duplicates: 0, rejected: 0 };
+  const queued = {
+    status: "queued" as const,
+    ...base,
+    accepted: 0,
+    duplicates: 0,
+    rejected: 0,
+    superseded: 0,
+  };
   let result: RunClaimedJobResult;
   try {
     const clock = input.now ? () => input.now! : undefined;
@@ -545,6 +669,7 @@ export async function ingestMobileBatch(
     accepted: result.counts.acceptedCount,
     duplicates: result.counts.duplicateCount ?? 0,
     rejected: result.counts.rejectedCount,
+    superseded: result.counts.supersededCount ?? 0,
   };
 }
 

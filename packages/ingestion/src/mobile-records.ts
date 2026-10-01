@@ -49,10 +49,14 @@ export type MobileHealthRecordType = MobileHealthRecord["type"];
 export function adaptMobileHealthRecords(records: MobileHealthRecord[]): CanonicalWriteIntent[] {
   const intents: CanonicalWriteIntent[] = [];
   for (const record of records) {
+    // Normalized so stored versions compare consistently (`…00Z` vs `…00.000Z`).
+    const lastModifiedAt = record.lastModifiedAt
+      ? new Date(record.lastModifiedAt).toISOString()
+      : undefined;
     const common = {
       externalId: record.externalRecordId,
       sourceApp: record.sourceApp,
-      ...(record.lastModifiedAt ? { lastModifiedAt: record.lastModifiedAt } : {}),
+      ...(lastModifiedAt ? { lastModifiedAt } : {}),
     };
     const metric = (
       canonicalType: CanonicalMetricWriteIntent["canonicalType"],
@@ -111,7 +115,7 @@ export function adaptMobileHealthRecords(records: MobileHealthRecord[]): Canonic
           sourceApp: record.sourceApp,
           rawRecord: record,
           ...(sleepStageIntervals.length ? { payloadJson: { sleepStageIntervals } } : {}),
-          ...(record.lastModifiedAt ? { lastModifiedAt: record.lastModifiedAt } : {}),
+          ...(lastModifiedAt ? { lastModifiedAt } : {}),
         });
         break;
       }
@@ -126,7 +130,7 @@ export function adaptMobileHealthRecords(records: MobileHealthRecord[]): Canonic
           sourceApp: record.sourceApp,
           rawRecord: record,
           payloadJson: { activity: record.activity },
-          ...(record.lastModifiedAt ? { lastModifiedAt: record.lastModifiedAt } : {}),
+          ...(lastModifiedAt ? { lastModifiedAt } : {}),
         });
         break;
     }
