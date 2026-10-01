@@ -1,13 +1,13 @@
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
-@import "@openhealth/ui/globals.css";
+@import "@openhealth/ui/tokens.css";
 
 /*
  * Bridge heroui-native tokens to the openhealth palette.
  *
- * The `@import "@openhealth/ui/globals.css"` above makes every CSS variable
- * declared in `packages/ui/src/styles/globals.css` available to uniwind and
+ * The `@import "@openhealth/ui/tokens.css"` above makes every token
+ * declared in `packages/ui/src/styles/tokens.css` available to uniwind and
  * heroui-native. For tokens with the same name (background, foreground,
  * primary, secondary, muted, accent, success, warning, info, border, input,
  * ring, chart-1..5, sidebar-*) openhealth's declaration wins because this
