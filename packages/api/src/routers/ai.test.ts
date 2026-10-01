@@ -205,6 +205,7 @@ describe("ai.chat success", () => {
 
     expect(result).toEqual({
       status: "ok",
+      conversationId: CORRELATION_ID,
       chunks: 2,
       usage: { inputTokens: 11, outputTokens: 4 },
       model: "claude-sonnet-4-20250514",

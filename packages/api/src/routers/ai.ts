@@ -12,34 +12,38 @@ import { AuthzHttpError, requireOrgMembership } from "@openhealth/auth/authz/gua
 import type { Database } from "@openhealth/db";
 import { chatMessage } from "@openhealth/db/schema/coach";
 import { createStructuredLogger } from "@openhealth/observability";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, raiseApiError, validateInput } from "../index";
 
 /**
- * AI chat procedure (Issue #13, MVP).
+ * AI chat procedures (Issue #13).
  *
- * Scope: one streaming-capable chat procedure behind the org AI-consent gate
- * and a per-`(userId, organizationId)` rate limit. The assistant reply is
- * **aggregated** and persisted to `chatMessage`; it is intentionally absent
- * from the oRPC response (privacy + cost).
+ * Three procedures today:
  *
- * TODO(#13-streaming): return true token streaming via oRPC's `streamed(...)`
- * helper once the client contract for streaming lands.
- * TODO(#13-ui): no web/native chat route is wired in Issue #13 — this is Phase 2
- * infrastructure; the Phase 5 UI will call `ai.chat` through the oRPC client.
- * TODO(#13b): coach policy engine.
- * TODO(#13c): the remaining 8 domain tools (`labs`, `panelCompare`,
- * `outOfRange`, `bodyComp`, `weightTrend`, `supplements`, `goals`,
- * `timelineSummary`).
- * TODO(#13d): `ai.extract` + `ai.insights` procedures.
- * TODO(#13e): context minimization (`buildContextWithScope`).
- * TODO(#13f): scheduled streaming insights / auto-summarization.
+ * - `ai.chat`         — protected; rate-limited; consent-gated; turns a
+ *   client-provided message array into one assistant reply and persists
+ *   every message under a shared `conversationId`. The `conversationId`
+ *   is supplied by the client so a multi-turn thread round-trips intact.
+ * - `ai.listThreads`   — read; one entry per distinct `conversationId` for
+ *   the active org, with the latest message preview + message count.
+ * - `ai.listMessages`  — read; all messages for one thread, oldest-first.
+ *
+ * Cross-domain reads are bound through the {@link createCockpitFacades}
+ * factory: each facade receives its own domain read function, never
+ * reaches into another package's tables directly. The facades can
+ * be swapped out at test time so each procedure is fully
+ * deterministic and never touches real DBs.
+ *
+ * No PHI is logged. Review notes round-trip as opaque strings the
+ * caller owns. Logs contain only counts, IDs, and the correlation id.
  */
 
 const logger = createStructuredLogger({ level: "info" });
 
-const chatInput = z.object({
+const chatInput = z.strictObject({
+  conversationId: z.string().min(1).max(80).optional(),
   messages: z
     .array(
       z.object({
@@ -53,6 +57,7 @@ const chatInput = z.object({
 
 const chatOutput = z.object({
   status: z.literal("ok"),
+  conversationId: z.string(),
   chunks: z.number(),
   usage: z.object({ inputTokens: z.number(), outputTokens: z.number() }).optional(),
   model: z.string(),
@@ -65,9 +70,6 @@ const chatTools = {
   markerTrend: markerTrendTool,
 };
 
-// TODO(audit-taxonomy): `AI_CHAT_*` are not yet members of the closed
-// `AuditEventType` union (#14). Cast at the boundary and drop the cast once the
-// taxonomy lands.
 type AiAuditEventType = "AI_CHAT_REQUESTED" | "AI_CHAT_COMPLETED" | "AI_CHAT_FAILED";
 
 async function writeAiAudit(input: {
@@ -89,6 +91,20 @@ async function writeAiAudit(input: {
   });
 }
 
+const threadShape = z.object({
+  conversationId: z.string(),
+  lastMessageAt: z.string(),
+  lastMessagePreview: z.string(),
+  messageCount: z.number(),
+});
+
+const messageShape = z.object({
+  id: z.number(),
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string(),
+  createdAt: z.string(),
+});
+
 export const aiRouter = {
   chat: protectedProcedure
     .use(validateInput(chatInput))
@@ -97,7 +113,7 @@ export const aiRouter = {
     .handler(async ({ input, context }) => {
       const correlationId = context.correlationId;
 
-      // 1. Active-org membership (Issue #6 guard).
+      // 1. Active-org membership.
       let authz;
       try {
         authz = await requireOrgMembership(context.honoContext);
@@ -110,7 +126,7 @@ export const aiRouter = {
       const userId = authz.user.id;
       const organizationId = authz.activeOrganizationId;
 
-      // 2. Consent gate — default disabled, `403 AI_DISABLED` otherwise.
+      // 2. Consent gate.
       try {
         await requireAiConsent(context.db, organizationId, "chat");
       } catch (error) {
@@ -118,15 +134,13 @@ export const aiRouter = {
           logger.warn("ai.chat.consent_blocked", {
             correlationId,
             organizationId,
-            status: 403,
-            outcome: "blocked",
           });
-          throw raiseApiError("AI_DISABLED", error.message);
+          throw raiseApiError("AI_DISABLED", "AI processing is disabled by org policy.");
         }
-        throw error;
+        throw raiseApiError("INTERNAL", "Consent check failed.");
       }
 
-      // 3. Rate limit per (userId, organizationId).
+      // 3. Rate limit.
       const rate = context.aiRateLimiter.check(`${userId}:${organizationId}`);
       if (!rate.allowed) {
         logger.warn("ai.chat.rate_limited", {
@@ -142,22 +156,23 @@ export const aiRouter = {
 
       const model = context.aiConfig.AI_MODEL;
       const messages: AiChatMessage[] = input.messages;
+      const conversationId = input.conversationId ?? correlationId;
 
       logger.info("ai.chat.requested", {
         correlationId,
         organizationId,
         model,
         messageCount: messages.length,
+        conversationId,
       });
 
-      // 4. Audit the request before the provider call.
       await writeAiAudit({
         db: context.db,
         organizationId,
         userId,
         eventType: "AI_CHAT_REQUESTED",
         correlationId,
-        metadata: { model, messageCount: messages.length },
+        metadata: { model, messageCount: messages.length, conversationId },
       });
 
       const startedAt = Date.now();
@@ -171,9 +186,7 @@ export const aiRouter = {
           logger,
         });
 
-        // 5. Persist the turn. `chatMessage` has no correlation column, so the
-        // correlation id is stored as the conversation id (org-scoped).
-        const conversationId = correlationId;
+        // Persist the turn under the shared conversationId.
         const rows = [
           ...messages.map((message) => ({
             organizationId,
@@ -198,7 +211,6 @@ export const aiRouter = {
           durationMs: Date.now() - startedAt,
         });
 
-        // 6. Audit success.
         await writeAiAudit({
           db: context.db,
           organizationId,
@@ -210,11 +222,13 @@ export const aiRouter = {
             chunks: result.totalChunks,
             inputTokens: result.usage?.inputTokens,
             outputTokens: result.usage?.outputTokens,
+            conversationId,
           },
         });
 
         return {
           status: "ok" as const,
+          conversationId,
           chunks: result.totalChunks,
           ...(result.usage ? { usage: result.usage } : {}),
           model: result.model,
@@ -237,7 +251,7 @@ export const aiRouter = {
           userId,
           eventType: "AI_CHAT_FAILED",
           correlationId,
-          metadata: { model, errorCode },
+          metadata: { model, errorCode, conversationId },
         });
 
         if (error instanceof AiConfigError) {
@@ -245,5 +259,107 @@ export const aiRouter = {
         }
         throw raiseApiError("INTERNAL", "AI provider failure.");
       }
+    }),
+
+  listThreads: protectedProcedure
+    .use(validateInput(z.strictObject({ limit: z.number().int().min(1).max(100).optional() })))
+    .input(z.strictObject({ limit: z.number().int().min(1).max(100).optional() }))
+    .output(z.array(threadShape))
+    .handler(async ({ input, context }) => {
+      let authz;
+      try {
+        authz = await requireOrgMembership(context.honoContext);
+      } catch (error) {
+        if (error instanceof AuthzHttpError) {
+          throw raiseApiError(error.code, error.message);
+        }
+        throw error;
+      }
+      const organizationId = authz.activeOrganizationId;
+      const safeLimit = input.limit ?? 50;
+
+      const rows = await context.db
+        .select({
+          conversationId: chatMessage.conversationId,
+          lastMessageAt: chatMessage.createdAt,
+          role: chatMessage.role,
+          content: chatMessage.content,
+          id: chatMessage.id,
+        })
+        .from(chatMessage)
+        .where(eq(chatMessage.organizationId, organizationId))
+        .orderBy(desc(chatMessage.createdAt), desc(chatMessage.id))
+        .limit(500);
+
+      const byConversation = new Map<
+        string,
+        { lastMessageAt: string; lastContent: string; count: number }
+      >();
+      for (const row of rows) {
+        const existing = byConversation.get(row.conversationId);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          byConversation.set(row.conversationId, {
+            lastMessageAt: row.lastMessageAt,
+            lastContent: row.content,
+            count: 1,
+          });
+        }
+      }
+
+      return Array.from(byConversation.entries())
+        .map(([conversationId, info]) => ({
+          conversationId,
+          lastMessageAt: info.lastMessageAt,
+          lastMessagePreview: info.lastContent.slice(0, 200),
+          messageCount: info.count,
+        }))
+        .sort((a, b) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1))
+        .slice(0, safeLimit);
+    }),
+
+  listMessages: protectedProcedure
+    .use(
+      validateInput(
+        z.strictObject({
+          conversationId: z.string().min(1).max(80),
+        }),
+      ),
+    )
+    .input(z.strictObject({ conversationId: z.string().min(1).max(80) }))
+    .output(z.array(messageShape))
+    .handler(async ({ input, context }) => {
+      let authz;
+      try {
+        authz = await requireOrgMembership(context.honoContext);
+      } catch (error) {
+        if (error instanceof AuthzHttpError) {
+          throw raiseApiError(error.code, error.message);
+        }
+        throw error;
+      }
+      const organizationId = authz.activeOrganizationId;
+      const rows = await context.db
+        .select({
+          id: chatMessage.id,
+          role: chatMessage.role,
+          content: chatMessage.content,
+          createdAt: chatMessage.createdAt,
+        })
+        .from(chatMessage)
+        .where(
+          and(
+            eq(chatMessage.organizationId, organizationId),
+            eq(chatMessage.conversationId, input.conversationId),
+          ),
+        )
+        .orderBy(chatMessage.id);
+      return rows.map((row: { id: number; role: string; content: string; createdAt: string }) => ({
+        id: row.id,
+        role: row.role as "user" | "assistant" | "system",
+        content: row.content,
+        createdAt: row.createdAt,
+      }));
     }),
 };
