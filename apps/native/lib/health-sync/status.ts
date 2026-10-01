@@ -46,3 +46,7 @@ export async function recordHealthSyncRun(
     } satisfies HealthSyncStatus),
   );
 }
+
+export async function clearHealthSyncStatus(): Promise<void> {
+  await AsyncStorage.removeItem(STATUS_KEY);
+}

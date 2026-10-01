@@ -27,3 +27,8 @@ export async function ensureDeviceRegistered(deviceId: string): Promise<void> {
   });
   await AsyncStorage.setItem(REGISTERED_KEY, deviceId);
 }
+
+/** Sign-out: the next account must register this device itself. */
+export async function forgetDeviceRegistration(): Promise<void> {
+  await AsyncStorage.removeItem(REGISTERED_KEY);
+}

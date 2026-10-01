@@ -60,7 +60,8 @@
             "minSdkVersion": 26
           }
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true,

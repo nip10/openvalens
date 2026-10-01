@@ -6,8 +6,10 @@ import { Pressable, Text, View } from "react-native";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { HealthSyncSettings } from "@/components/health-sync-settings";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
+import { resetHealthSync } from "@/lib/health-sync";
 import { queryClient } from "@/utils/orpc";
 
 export default function SettingsScreen() {
@@ -17,9 +19,11 @@ export default function SettingsScreen() {
 
   const foreground = useThemeColor("foreground");
 
-  const handleSignOut = () => {
-    void authClient.signOut();
-    void queryClient.invalidateQueries();
+  const handleSignOut = async () => {
+    // Stop background sync and drop cursors before the session goes away.
+    await resetHealthSync();
+    await authClient.signOut();
+    queryClient.clear();
   };
 
   return (
@@ -39,6 +43,8 @@ export default function SettingsScreen() {
             </Card>
           </CardStack>
         )}
+
+        {session?.user && <HealthSyncSettings />}
 
         <CardStack title="Preferences">
           <Card variant="secondary" className="overflow-hidden p-0">
@@ -76,7 +82,7 @@ export default function SettingsScreen() {
         </CardStack>
 
         <Pressable
-          onPress={handleSignOut}
+          onPress={() => void handleSignOut()}
           className="min-h-14 items-center justify-center rounded-lg bg-destructive active:opacity-70"
           accessibilityRole="button"
           accessibilityLabel="Sign out"
