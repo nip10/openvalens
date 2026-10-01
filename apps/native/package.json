@@ -19,9 +19,9 @@
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@openhealth/api": "workspace:*",
-    "@react-native-async-storage/async-storage": "2.2.0",
     "@orpc/client": "catalog:",
     "@orpc/tanstack-query": "catalog:",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@varlock/expo-integration": "1.2.1",
@@ -45,8 +45,8 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
-    "react-native-health-connect": "^4.1.3",
     "react-native-gifted-charts": "^1.4.79",
+    "react-native-health-connect": "^4.1.3",
     "react-native-keyboard-controller": "1.21.9",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -61,7 +61,6 @@
     "varlock": "catalog:",
     "zod": "catalog:"
   },
-  "//health-deps-deferred": "expo-health-connect is superseded by react-native-health-connect (only 0.1.x published, no SDK 57 tag). @kingstinct/react-native-healthkit (iOS) is deferred until its react-native-nitro-modules peer is added; iOS source path is stubbed in lib/health-connect/sources.ts.",
   "devDependencies": {
     "@openhealth/config": "workspace:*",
     "@types/node": "catalog:",
@@ -69,5 +68,6 @@
     "babel-preset-expo": "~57.0.10",
     "gifted-charts-core": "^0.1.83",
     "typescript": "~6.0.3"
-  }
+  },
+  "//health-deps-deferred": "expo-health-connect is superseded by react-native-health-connect (only 0.1.x published, no SDK 57 tag). @kingstinct/react-native-healthkit (iOS) is deferred until its react-native-nitro-modules peer is added; iOS source path is stubbed in lib/health-connect/sources.ts."
 }

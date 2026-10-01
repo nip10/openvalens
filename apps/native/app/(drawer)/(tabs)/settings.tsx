@@ -32,7 +32,9 @@ export default function SettingsScreen() {
                 {session.user.name ?? session.user.email}
               </Text>
               {session.user.email && (
-                <Text className="font-mono text-sm text-muted-foreground">{session.user.email}</Text>
+                <Text className="font-mono text-sm text-muted-foreground">
+                  {session.user.email}
+                </Text>
               )}
             </Card>
           </CardStack>
@@ -41,7 +43,13 @@ export default function SettingsScreen() {
         <CardStack title="Preferences">
           <Card variant="secondary" className="overflow-hidden p-0">
             <ListRow
-              icon={<Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={20} color={foreground} />}
+              icon={
+                <Ionicons
+                  name={isDark ? "sunny-outline" : "moon-outline"}
+                  size={20}
+                  color={foreground}
+                />
+              }
               title="Dark mode"
               subtitle={isDark ? "On" : "Off"}
               onPress={toggleTheme}
@@ -55,7 +63,9 @@ export default function SettingsScreen() {
               icon={<Ionicons name="list-outline" size={20} color={foreground} />}
               title="Compact density"
               subtitle={density === "compact" ? "On" : "Off"}
-              onPress={() => setDensity((prev) => (prev === "comfortable" ? "compact" : "comfortable"))}
+              onPress={() =>
+                setDensity((prev) => (prev === "comfortable" ? "compact" : "comfortable"))
+              }
               trailing={
                 <Chip size="sm" variant="secondary">
                   <Chip.Label>{density}</Chip.Label>

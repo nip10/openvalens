@@ -1,10 +1,7 @@
 import { useThemeColor } from "@/utils/theme";
 import { type ReactNode } from "react";
 import { Text, View } from "react-native";
-import {
-  BarChart as RNBarChart,
-  LineChart as RNLineChart,
-} from "react-native-gifted-charts";
+import { BarChart as RNBarChart, LineChart as RNLineChart } from "react-native-gifted-charts";
 
 function useChartColors() {
   return {

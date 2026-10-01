@@ -16,9 +16,7 @@ export default function CockpitScreen() {
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const foreground = useThemeColor("foreground");
-  const muted = useThemeColor("muted");
   const success = useThemeColor("success");
-  const warning = useThemeColor("warning");
   const danger = useThemeColor("danger");
 
   const status = readiness.data?.status ?? "unknown";
@@ -46,7 +44,11 @@ export default function CockpitScreen() {
       className="p-4"
       scrollViewProps={{
         refreshControl: (
-          <RefreshControl refreshing={readiness.isFetching} onRefresh={onRefresh} tintColor={foreground} />
+          <RefreshControl
+            refreshing={readiness.isFetching}
+            onRefresh={onRefresh}
+            tintColor={foreground}
+          />
         ),
       }}
     >
@@ -63,7 +65,13 @@ export default function CockpitScreen() {
               <Chip
                 size="sm"
                 color={
-                  status === "ok" ? "success" : status === "degraded" ? "warning" : status === "unready" ? "danger" : "default"
+                  status === "ok"
+                    ? "success"
+                    : status === "degraded"
+                      ? "warning"
+                      : status === "unready"
+                        ? "danger"
+                        : "default"
                 }
               >
                 <Chip.Label>{statusLabel}</Chip.Label>
@@ -86,7 +94,10 @@ export default function CockpitScreen() {
                   icon={<Ionicons name="server-outline" size={20} color={foreground} />}
                   title="Database"
                   trailing={
-                    <Chip size="sm" color={readiness.data.checks.database === "ok" ? "success" : "danger"}>
+                    <Chip
+                      size="sm"
+                      color={readiness.data.checks.database === "ok" ? "success" : "danger"}
+                    >
                       <Chip.Label>{readiness.data.checks.database}</Chip.Label>
                     </Chip>
                   }
@@ -97,7 +108,11 @@ export default function CockpitScreen() {
                   trailing={
                     <Chip
                       size="sm"
-                      color={readiness.data.checks.secrets.betterAuthSecret === "ok" ? "success" : "warning"}
+                      color={
+                        readiness.data.checks.secrets.betterAuthSecret === "ok"
+                          ? "success"
+                          : "warning"
+                      }
                     >
                       <Chip.Label>{readiness.data.checks.secrets.betterAuthSecret}</Chip.Label>
                     </Chip>
@@ -109,7 +124,9 @@ export default function CockpitScreen() {
                   trailing={
                     <Chip
                       size="sm"
-                      color={readiness.data.checks.secrets.cronSecret === "ok" ? "success" : "warning"}
+                      color={
+                        readiness.data.checks.secrets.cronSecret === "ok" ? "success" : "warning"
+                      }
                     >
                       <Chip.Label>{readiness.data.checks.secrets.cronSecret}</Chip.Label>
                     </Chip>
@@ -130,19 +147,23 @@ export default function CockpitScreen() {
                   Readiness checked at {readiness.data.timestamp}
                 </Text>
                 <View>
-                  {Object.entries(readiness.data.checks.capabilities).map(([name, enabled], index, arr) => (
-                    <ListRow
-                      key={name}
-                      icon={capabilityIcon(enabled)}
-                      title={name}
-                      trailing={
-                        <Text className={cn("text-sm", enabled ? "text-success" : "text-destructive")}>
-                          {enabled ? "Enabled" : "Disabled"}
-                        </Text>
-                      }
-                      showDivider={index < arr.length - 1}
-                    />
-                  ))}
+                  {Object.entries(readiness.data.checks.capabilities).map(
+                    ([name, enabled], index, arr) => (
+                      <ListRow
+                        key={name}
+                        icon={capabilityIcon(enabled)}
+                        title={name}
+                        trailing={
+                          <Text
+                            className={cn("text-sm", enabled ? "text-success" : "text-destructive")}
+                          >
+                            {enabled ? "Enabled" : "Disabled"}
+                          </Text>
+                        }
+                        showDivider={index < arr.length - 1}
+                      />
+                    ),
+                  )}
                 </View>
               </View>
             )}

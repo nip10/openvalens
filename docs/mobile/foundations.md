@@ -23,13 +23,13 @@ This mirrors the web app’s persistent left sidebar: the most-used sections mov
 
 The web sidebar (from `@openhealth/ui/components/sidebar`) is a persistent rail on desktop. On mobile it is split into three surfaces:
 
-| Web sidebar section | Mobile home | File / notes |
-|---|---|---|
-| Top-level dashboards / Cockpit | Primary bottom tab | `app/(drawer)/(tabs)/index.tsx`. Label "Review" or "Cockpit". |
-| Timeline / History | Primary or secondary bottom tab | `app/(drawer)/(tabs)/timeline.tsx`. The canonical health timeline is central enough to be a tab. |
-| Labs / Body / Plans / Workouts / Calendar | Bottom tabs or grouped under a "Data" tab | If space is tight, group into `app/(drawer)/(tabs)/data/_layout.tsx` with a sub-nav screen. |
-| Settings / Account / Integrations | Drawer | `app/(drawer)/settings.tsx` or nested under `app/(drawer)/settings/`. Lower-frequency items live in the drawer. |
-| AI assistant | Floating action or top-level tab | Accessible from the cockpit and via a persistent FAB if it is a frequent action. |
+| Web sidebar section                       | Mobile home                               | File / notes                                                                                                    |
+| ----------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Top-level dashboards / Cockpit            | Primary bottom tab                        | `app/(drawer)/(tabs)/index.tsx`. Label "Review" or "Cockpit".                                                   |
+| Timeline / History                        | Primary or secondary bottom tab           | `app/(drawer)/(tabs)/timeline.tsx`. The canonical health timeline is central enough to be a tab.                |
+| Labs / Body / Plans / Workouts / Calendar | Bottom tabs or grouped under a "Data" tab | If space is tight, group into `app/(drawer)/(tabs)/data/_layout.tsx` with a sub-nav screen.                     |
+| Settings / Account / Integrations         | Drawer                                    | `app/(drawer)/settings.tsx` or nested under `app/(drawer)/settings/`. Lower-frequency items live in the drawer. |
+| AI assistant                              | Floating action or top-level tab          | Accessible from the cockpit and via a persistent FAB if it is a frequent action.                                |
 
 ### Bottom tab bar
 
@@ -68,18 +68,18 @@ expo-router handles these paths automatically from the file tree. Configure `sch
 
 The app uses a consistent gesture vocabulary across iOS and Android. All gestures have visible affordances or are paired with equivalent tap actions.
 
-| Gesture | Action | Platform notes |
-|---|---|---|
-| **Swipe right from left edge** | Go back | iOS system gesture; Android optional but recommended via screen edge listener. |
-| **Swipe left on list row** | Secondary action (e.g., delete, archive) | Reveals a single secondary action. Destructive actions require a second tap or a confirmation sheet. |
-| **Swipe right on list row** | Mark done / quick log | Same guardrails as left-swipe. |
-| **Long press on list row** | Peek or power menu | Shows a context menu with relevant actions. Never the only way to access a feature. |
-| **Long press on icon-only button** | Tooltip / label reveal | Used sparingly for toolbar icons. |
-| **Pull down on list / scroll view** | Refresh | Native refresh control on iOS; `RefreshControl` on Android. Color `colors.primary`. |
-| **Pinch on charts** | Zoom / scale | Optional. Default is crosshair on tap. |
-| **Tap and drag on chart** | Crosshair / scrub | Shows a tooltip at the touch point. |
-| **Double-tap on value** | Edit in place | For quick adjustments like weight or dose. |
-| **Drag on sheet handle** | Expand / dismiss | Bottom sheets support drag to dismiss and snap points. |
+| Gesture                             | Action                                   | Platform notes                                                                                       |
+| ----------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Swipe right from left edge**      | Go back                                  | iOS system gesture; Android optional but recommended via screen edge listener.                       |
+| **Swipe left on list row**          | Secondary action (e.g., delete, archive) | Reveals a single secondary action. Destructive actions require a second tap or a confirmation sheet. |
+| **Swipe right on list row**         | Mark done / quick log                    | Same guardrails as left-swipe.                                                                       |
+| **Long press on list row**          | Peek or power menu                       | Shows a context menu with relevant actions. Never the only way to access a feature.                  |
+| **Long press on icon-only button**  | Tooltip / label reveal                   | Used sparingly for toolbar icons.                                                                    |
+| **Pull down on list / scroll view** | Refresh                                  | Native refresh control on iOS; `RefreshControl` on Android. Color `colors.primary`.                  |
+| **Pinch on charts**                 | Zoom / scale                             | Optional. Default is crosshair on tap.                                                               |
+| **Tap and drag on chart**           | Crosshair / scrub                        | Shows a tooltip at the touch point.                                                                  |
+| **Double-tap on value**             | Edit in place                            | For quick adjustments like weight or dose.                                                           |
+| **Drag on sheet handle**            | Expand / dismiss                         | Bottom sheets support drag to dismiss and snap points.                                               |
 
 ### Swipe-action confirmation
 
@@ -107,7 +107,9 @@ const schema = z.object({
 const form = useForm({
   defaultValues: { email: "" },
   validators: { onSubmit: schema },
-  onSubmit: async ({ value }) => { /* ... */ },
+  onSubmit: async ({ value }) => {
+    /* ... */
+  },
 });
 ```
 
@@ -115,18 +117,18 @@ const form = useForm({
 
 Mobile forms adapt the web input primitives to touch and on-screen keyboards.
 
-| Field type | Keyboard | Autofill / content type |
-|---|---|---|
-| Weight, dose, numeric lab value | `decimal-pad` | — |
-| Steps, count | `number-pad` | — |
-| Date | `DateTimePicker` | — |
-| Time | `DateTimePicker` | — |
-| Email | `email-address` | `emailAddress` |
-| Password / PIN | `default` secure | `password` / `newPassword` |
-| Text note | `default` multiline | — |
-| Search | `search` | — |
-| URL | `url` | `URL` |
-| Telephone | `phone-pad` | `telephoneNumber` |
+| Field type                      | Keyboard            | Autofill / content type    |
+| ------------------------------- | ------------------- | -------------------------- |
+| Weight, dose, numeric lab value | `decimal-pad`       | —                          |
+| Steps, count                    | `number-pad`        | —                          |
+| Date                            | `DateTimePicker`    | —                          |
+| Time                            | `DateTimePicker`    | —                          |
+| Email                           | `email-address`     | `emailAddress`             |
+| Password / PIN                  | `default` secure    | `password` / `newPassword` |
+| Text note                       | `default` multiline | —                          |
+| Search                          | `search`            | —                          |
+| URL                             | `url`               | `URL`                      |
+| Telephone                       | `phone-pad`         | `telephoneNumber`          |
 
 ### Inline error timing
 
@@ -162,12 +164,12 @@ Mobile forms adapt the web input primitives to touch and on-screen keyboards.
 
 The web app uses Recharts SVG charts. Mobile uses a native charting library.
 
-| Chart type | Mobile adaptation |
-|---|---|
-| Line chart | Native line chart with crosshair on tap. Legend below or inline. |
-| Bar chart | Native bar chart. Horizontal scroll if categories exceed screen width. |
-| Area chart | Area chart with gradient fill matching the line color at 20 % opacity. |
-| Pie / donut | Avoid on phone; use if there are ≤ 5 categories and labels fit. |
+| Chart type   | Mobile adaptation                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| Line chart   | Native line chart with crosshair on tap. Legend below or inline.                                |
+| Bar chart    | Native bar chart. Horizontal scroll if categories exceed screen width.                          |
+| Area chart   | Area chart with gradient fill matching the line color at 20 % opacity.                          |
+| Pie / donut  | Avoid on phone; use if there are ≤ 5 categories and labels fit.                                 |
 | Multi-series | Use the `chart-1` through `chart-5` palette. Add dashed or dotted lines for color independence. |
 
 Chart tooltips become:
@@ -199,14 +201,14 @@ The user can toggle comfortable / compact density in Settings → Display. See [
 
 ### Skeleton vs. spinner
 
-| Scenario | Use | Notes |
-|---|---|---|
-| Initial screen load | Skeleton | Match the eventual layout: card shapes, list rows, text blocks. |
-| Pull-to-refresh | Native spinner | Color `colors.primary`. |
-| Submitting a form | Button spinner | Disable button, show spinner on the button, keep existing screen content. |
-| Waiting for AI response | Skeleton paragraph + pulsing dot | Do not use a fake typing indicator. |
-| Image / avatar | Placeholder initials or gray box | Fade in image on load. |
-| Background sync | Subtle inline status | "Syncing…" text or small spinner in the header, not a full-screen blocker. |
+| Scenario                | Use                              | Notes                                                                      |
+| ----------------------- | -------------------------------- | -------------------------------------------------------------------------- |
+| Initial screen load     | Skeleton                         | Match the eventual layout: card shapes, list rows, text blocks.            |
+| Pull-to-refresh         | Native spinner                   | Color `colors.primary`.                                                    |
+| Submitting a form       | Button spinner                   | Disable button, show spinner on the button, keep existing screen content.  |
+| Waiting for AI response | Skeleton paragraph + pulsing dot | Do not use a fake typing indicator.                                        |
+| Image / avatar          | Placeholder initials or gray box | Fade in image on load.                                                     |
+| Background sync         | Subtle inline status             | "Syncing…" text or small spinner in the header, not a full-screen blocker. |
 
 ### Skeleton rules
 
@@ -221,12 +223,12 @@ Empty states follow the pattern in [`tone-of-voice.md`](./tone-of-voice.md): wha
 
 ### The four common scenarios
 
-| Scenario | Icon | Headline | Action |
-|---|---|---|---|
-| **No data** | Empty inbox or document | "No [items] yet" | Create / import / add |
-| **No permission** | Lock or shield | "[Data source] is unavailable" | Open Settings or request permission |
-| **No network** | Cloud off-line | "Could not load [items]" | Retry |
-| **No result** | Search | "No results match your filters" | Clear filters or adjust query |
+| Scenario          | Icon                    | Headline                        | Action                              |
+| ----------------- | ----------------------- | ------------------------------- | ----------------------------------- |
+| **No data**       | Empty inbox or document | "No [items] yet"                | Create / import / add               |
+| **No permission** | Lock or shield          | "[Data source] is unavailable"  | Open Settings or request permission |
+| **No network**    | Cloud off-line          | "Could not load [items]"        | Retry                               |
+| **No result**     | Search                  | "No results match your filters" | Clear filters or adjust query       |
 
 ### Example: no lab results
 
@@ -281,13 +283,13 @@ When a file or payload fails to parse:
 
 ### Error recovery paths
 
-| Error | Primary recovery | Secondary recovery |
-|---|---|---|
+| Error        | Primary recovery  | Secondary recovery            |
+| ------------ | ----------------- | ----------------------------- |
 | Network down | Retry when online | Work offline with cached data |
-| Sync failed | Retry sync | View queued records |
-| Parse failed | Re-upload file | Contact support |
-| Server 500 | Retry | Copy error ID |
-| Auth expired | Re-authenticate | — |
+| Sync failed  | Retry sync        | View queued records           |
+| Parse failed | Re-upload file    | Contact support               |
+| Server 500   | Retry             | Copy error ID                 |
+| Auth expired | Re-authenticate   | —                             |
 
 ## Accessibility
 
@@ -352,20 +354,20 @@ When a file or payload fails to parse:
 
 ### Durations
 
-| Token | Value | Use |
-|---|---|---|
-| `duration.fast` | 150 ms | Press feedback, opacity changes, small shifts. |
-| `duration.normal` | 200 ms | Standard transitions, focus rings. |
-| `duration.medium` | 300 ms | Sheet/dialog entrances. |
-| `duration.slow` | 500 ms | Layout shifts, page transitions. |
+| Token             | Value  | Use                                            |
+| ----------------- | ------ | ---------------------------------------------- |
+| `duration.fast`   | 150 ms | Press feedback, opacity changes, small shifts. |
+| `duration.normal` | 200 ms | Standard transitions, focus rings.             |
+| `duration.medium` | 300 ms | Sheet/dialog entrances.                        |
+| `duration.slow`   | 500 ms | Layout shifts, page transitions.               |
 
 ### Easings
 
-| Token | Value | Use |
-|---|---|---|
-| `easing.standard` | `[0.4, 0, 0.2, 1]` | Most transitions. |
-| `easing.decelerate` | `[0, 0, 0.2, 1]` | Entrances. |
-| `easing.accelerate` | `[0.4, 0, 1, 1]` | Exits. |
+| Token               | Value              | Use               |
+| ------------------- | ------------------ | ----------------- |
+| `easing.standard`   | `[0.4, 0, 0.2, 1]` | Most transitions. |
+| `easing.decelerate` | `[0, 0, 0.2, 1]`   | Entrances.        |
+| `easing.accelerate` | `[0.4, 0, 1, 1]`   | Exits.            |
 
 ### Reduce-motion fallback
 
@@ -377,17 +379,17 @@ When reduce motion is enabled:
 
 ## Performance budgets
 
-| Metric | Target | Measurement |
-|---|---|---|
-| Time to first content | < 1.5 s on a mid-tier device | From app launch to first meaningful paint after splash. |
-| First contentful interaction | < 2.5 s | Time until bottom tabs and first list render. |
-| List scroll FPS | 60 fps | FlatList with 100+ rows, default item height. |
-| Chart render | < 100 ms | Initial render of a 90-point line chart. |
-| Image load (avatar) | < 200 ms | From URL to visible, cached. |
-| Sync roundtrip | < 3 s median | Health Connect sync upload + ack on Wi-Fi. |
-| Form submit feedback | < 100 ms | Button disabled + spinner visible. |
-| Dialog open | < 150 ms | From tap to fully rendered dialog. |
-| Bottom sheet open | < 200 ms | From tap to first snap point. |
+| Metric                       | Target                       | Measurement                                             |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------- |
+| Time to first content        | < 1.5 s on a mid-tier device | From app launch to first meaningful paint after splash. |
+| First contentful interaction | < 2.5 s                      | Time until bottom tabs and first list render.           |
+| List scroll FPS              | 60 fps                       | FlatList with 100+ rows, default item height.           |
+| Chart render                 | < 100 ms                     | Initial render of a 90-point line chart.                |
+| Image load (avatar)          | < 200 ms                     | From URL to visible, cached.                            |
+| Sync roundtrip               | < 3 s median                 | Health Connect sync upload + ack on Wi-Fi.              |
+| Form submit feedback         | < 100 ms                     | Button disabled + spinner visible.                      |
+| Dialog open                  | < 150 ms                     | From tap to fully rendered dialog.                      |
+| Bottom sheet open            | < 200 ms                     | From tap to first snap point.                           |
 
 ### Bundle budgets
 

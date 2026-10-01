@@ -14,68 +14,68 @@ The app speaks to an adult who already knows what a fasting window is, who can r
 
 ## Voice principles
 
-| Principle | Description |
-|---|---|
-| **Be direct** | Say the thing in the fewest accurate words. Avoid hedging, throat-clearing, and marketing language. |
-| **Be calm** | Health data can be serious. The copy should not amplify drama. Routine variance is routine. |
-| **Be specific** | Name the object, the action, and the consequence. “Sync failed” is not enough. |
-| **Be technically honest** | Use real units, real codes, and real status names. Do not dumb down precision. |
-| **Never blame the user** | Errors describe the state and the recovery path, not the user's mistake. |
-| **Offer one clear action** | Every state that needs attention should end with or point to a single primary action. |
+| Principle                  | Description                                                                                         |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Be direct**              | Say the thing in the fewest accurate words. Avoid hedging, throat-clearing, and marketing language. |
+| **Be calm**                | Health data can be serious. The copy should not amplify drama. Routine variance is routine.         |
+| **Be specific**            | Name the object, the action, and the consequence. “Sync failed” is not enough.                      |
+| **Be technically honest**  | Use real units, real codes, and real status names. Do not dumb down precision.                      |
+| **Never blame the user**   | Errors describe the state and the recovery path, not the user's mistake.                            |
+| **Offer one clear action** | Every state that needs attention should end with or point to a single primary action.               |
 
 ### 1. Be direct
 
 Say exactly what the user needs to know. Cut filler.
 
-| Bad | Good |
-|---|---|
-| "It looks like we were unable to successfully complete your most recent sync attempt." | "Sync failed. Tap to retry." |
+| Bad                                                                                      | Good                             |
+| ---------------------------------------------------------------------------------------- | -------------------------------- |
+| "It looks like we were unable to successfully complete your most recent sync attempt."   | "Sync failed. Tap to retry."     |
 | "Please take a moment to review the following information about your latest lab result." | "Review your latest lab result." |
 
 ### 2. Be calm
 
 Avoid alarmist words for normal situations. Destructive color and urgent words are reserved for actual problems.
 
-| Bad | Good |
-|---|---|
-| "Warning: your LDL is dangerously high!" | "LDL is above your reference range. Review the trend." |
-| "Critical alert — no workouts logged this week!" | "No workouts logged this week. Add one?" |
+| Bad                                              | Good                                                   |
+| ------------------------------------------------ | ------------------------------------------------------ |
+| "Warning: your LDL is dangerously high!"         | "LDL is above your reference range. Review the trend." |
+| "Critical alert — no workouts logged this week!" | "No workouts logged this week. Add one?"               |
 
 ### 3. Be specific
 
 Name the service, file, device, or value involved. Generic copy forces the user to guess.
 
-| Bad | Good |
-|---|---|
-| "Upload failed." | "Health Connect upload failed: 12 records queued." |
+| Bad                     | Good                                                   |
+| ----------------------- | ------------------------------------------------------ |
+| "Upload failed."        | "Health Connect upload failed: 12 records queued."     |
 | "Something went wrong." | "Could not connect to the server. Check your network." |
 
 ### 4. Be technically honest
 
 Use correct units, ranges, and status terms. The user understands them.
 
-| Bad | Good |
-|---|---|
-| "Your sugar level is a bit off." | "Glucose is 112 mg/dL, 4 mg/dL above your upper limit." |
-| "This might take a little while." | "Syncing 3,400 records. This may take 2–3 minutes." |
+| Bad                               | Good                                                    |
+| --------------------------------- | ------------------------------------------------------- |
+| "Your sugar level is a bit off."  | "Glucose is 112 mg/dL, 4 mg/dL above your upper limit." |
+| "This might take a little while." | "Syncing 3,400 records. This may take 2–3 minutes."     |
 
 ### 5. Never blame the user
 
 Errors describe the problem and the fix. They do not assume user error.
 
-| Bad | Good |
-|---|---|
+| Bad                                    | Good                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------- |
 | "You denied permission to read steps." | "Step data is unavailable. Allow Health Connect access in Settings." |
-| "Invalid date format entered." | "Use YYYY-MM-DD." |
+| "Invalid date format entered."         | "Use YYYY-MM-DD."                                                    |
 
 ### 6. Offer one clear action
 
 If the copy describes a problem or empty state, pair it with a single primary action.
 
-| Bad | Good |
-|---|---|
-| "No lab results found." | "No lab results yet. Import a lab PDF." |
-| "Permissions missing." | "Health Connect needs access. Open Settings." |
+| Bad                     | Good                                          |
+| ----------------------- | --------------------------------------------- |
+| "No lab results found." | "No lab results yet. Import a lab PDF."       |
+| "Permissions missing."  | "Health Connect needs access. Open Settings." |
 
 ## Capitalization and formatting
 
@@ -116,16 +116,16 @@ Do not use title case for generic screen titles. The screen is "Lab history", no
 
 ### Units
 
-| Domain | Default unit | Toggle |
-|---|---|---|
-| Weight | kg | lb |
-| Height | cm | ft/in |
-| Glucose | mg/dL | mmol/L |
-| Cholesterol | mg/dL | mmol/L |
-| Blood pressure | mmHg | — |
-| Heart rate | bpm | — |
-| Body fat | % | — |
-| Sleep | hours:minutes | — |
+| Domain         | Default unit  | Toggle |
+| -------------- | ------------- | ------ |
+| Weight         | kg            | lb     |
+| Height         | cm            | ft/in  |
+| Glucose        | mg/dL         | mmol/L |
+| Cholesterol    | mg/dL         | mmol/L |
+| Blood pressure | mmHg          | —      |
+| Heart rate     | bpm           | —      |
+| Body fat       | %             | —      |
+| Sleep          | hours:minutes | —      |
 
 Use the user’s preferred unit everywhere. If a value was imported in a different unit, store the canonical value and display it converted.
 
@@ -172,14 +172,14 @@ Avoid "a moment ago" or "recently". Be specific.
 
 Use status terms consistently:
 
-| State | Badge text | Color token |
-|---|---|---|
-| Within reference range | "In range" | `success` |
-| Near limit | "Near limit" | `warning` |
-| Outside reference range | "Out of range" | `warning` or `destructive` depending on severity |
-| Unknown / no reference range | "No range" | `mutedForeground` |
-| Improving trend | "Improving" | `info` |
-| Worsening trend | "Worsening" | `warning` |
+| State                        | Badge text     | Color token                                      |
+| ---------------------------- | -------------- | ------------------------------------------------ |
+| Within reference range       | "In range"     | `success`                                        |
+| Near limit                   | "Near limit"   | `warning`                                        |
+| Outside reference range      | "Out of range" | `warning` or `destructive` depending on severity |
+| Unknown / no reference range | "No range"     | `mutedForeground`                                |
+| Improving trend              | "Improving"    | `info`                                           |
+| Worsening trend              | "Worsening"    | `warning`                                        |
 
 Do not label a value "good" or "bad". Label it relative to the user's configured reference range or trend.
 
@@ -205,14 +205,14 @@ Every empty state has three parts:
 
 ### Common patterns
 
-| Scenario | Headline | Context | Action |
-|---|---|---|---|
-| No data yet | "No lab results yet" | "Import a lab PDF or connect a provider." | "Import lab" |
-| No permission | "Step data is unavailable" | "Health Connect needs read access to steps." | "Open Settings" |
-| No network | "Could not load results" | "Check your connection and try again." | "Retry" |
-| No matches | "No results match your filters" | — | "Clear filters" |
-| No upcoming events | "No events this week" | — | "Add event" |
-| No AI review | "No review generated" | "Run a weekly review after syncing this week’s data." | "Run review" |
+| Scenario           | Headline                        | Context                                               | Action          |
+| ------------------ | ------------------------------- | ----------------------------------------------------- | --------------- |
+| No data yet        | "No lab results yet"            | "Import a lab PDF or connect a provider."             | "Import lab"    |
+| No permission      | "Step data is unavailable"      | "Health Connect needs read access to steps."          | "Open Settings" |
+| No network         | "Could not load results"        | "Check your connection and try again."                | "Retry"         |
+| No matches         | "No results match your filters" | —                                                     | "Clear filters" |
+| No upcoming events | "No events this week"           | —                                                     | "Add event"     |
+| No AI review       | "No review generated"           | "Run a weekly review after syncing this week’s data." | "Run review"    |
 
 Empty states do not use the word "Oops" or "Nothing here". They state the fact and offer the fix.
 
@@ -224,15 +224,15 @@ Error strings follow a strict shape:
 
 They never blame the user and never use exclamation points.
 
-| Scenario | Copy |
-|---|---|
-| Network failure | "Could not connect. Check your network and retry." |
-| Sync failure | "Health Connect sync failed. 12 records queued. Retry now." |
-| Permission denied | "Camera access is required to scan a label. Open Settings." |
-| Server error | "Server error. Try again in a moment." |
-| Validation error | "Date must be today or earlier." |
+| Scenario                | Copy                                                                |
+| ----------------------- | ------------------------------------------------------------------- |
+| Network failure         | "Could not connect. Check your network and retry."                  |
+| Sync failure            | "Health Connect sync failed. 12 records queued. Retry now."         |
+| Permission denied       | "Camera access is required to scan a label. Open Settings."         |
+| Server error            | "Server error. Try again in a moment."                              |
+| Validation error        | "Date must be today or earlier."                                    |
 | Ingestion parse failure | "Could not read the uploaded file. Check the format and re-upload." |
-| AI unavailable | "AI review is paused. Enable it in Settings → AI." |
+| AI unavailable          | "AI review is paused. Enable it in Settings → AI."                  |
 
 ### Inline validation
 
@@ -299,10 +299,10 @@ Notifications are high-leverage. The first ~60 characters are the preview; the b
 - Keep it under 60 characters.
 - No emoji.
 
-| Bad preview | Good preview |
-|---|---|
-| "openhealth reminder" | "Take 10 mg Atorvastatin" |
-| "You have a new update!" | "Weekly review is ready" |
+| Bad preview                  | Good preview                    |
+| ---------------------------- | ------------------------------- |
+| "openhealth reminder"        | "Take 10 mg Atorvastatin"       |
+| "You have a new update!"     | "Weekly review is ready"        |
 | "Don't forget your workout!" | "Workout scheduled for 6:00 PM" |
 
 ### Body
@@ -326,12 +326,12 @@ Take 2000 IU Vitamin D with food.
 
 ### Notification categories
 
-| Category | Preview style | Body style |
-|---|---|---|
-| Reminder | Imperative verb + object | Dose, timing, or context |
-| Sync / ingestion | State + source | Count or duration |
-| Review / summary | Headline result | One-line breakdown |
-| Error | State + system | Recovery action |
+| Category         | Preview style            | Body style               |
+| ---------------- | ------------------------ | ------------------------ |
+| Reminder         | Imperative verb + object | Dose, timing, or context |
+| Sync / ingestion | State + source           | Count or duration        |
+| Review / summary | Headline result          | One-line breakdown       |
+| Error            | State + system           | Recovery action          |
 
 ## Buttons and actions
 

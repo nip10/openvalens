@@ -8,5 +8,5 @@ import { useThemeColor as useHeroThemeColor } from "heroui-native";
  * runtime. This wrapper casts the name so TypeScript stays happy.
  */
 export function useThemeColor(name: string): string {
-  return (useHeroThemeColor(name as any) as unknown) as string;
+  return useHeroThemeColor(name as any) as unknown as string;
 }

@@ -93,7 +93,7 @@ async function request<T>(path: string, init: JsonRequestInit): Promise<T> {
   const { fetch } = await import("expo/fetch");
   const response = await fetch(`${serverUrl()}${path}`, {
     ...init,
-    headers: { ...(await authHeaders()), ...(init.headers ?? {}) },
+    headers: { ...(await authHeaders()), ...init.headers },
   });
 
   const bodyText = await response.text();
@@ -179,8 +179,11 @@ export async function completeSyncSession(sessionId: string): Promise<void> {
 
 /** Aborts an in-flight session. Placeholder endpoint — see file header. */
 export async function abortSyncSession(sessionId: string, reason: string): Promise<void> {
-  await request<{ status: string }>(`${SYNC_SESSIONS_PATH}/${encodeURIComponent(sessionId)}/abort`, {
-    method: "POST",
-    body: JSON.stringify({ reason }),
-  });
+  await request<{ status: string }>(
+    `${SYNC_SESSIONS_PATH}/${encodeURIComponent(sessionId)}/abort`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    },
+  );
 }

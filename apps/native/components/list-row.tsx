@@ -40,9 +40,7 @@ export function ListRow({
         className,
       )}
     >
-      <View className="h-10 w-10 items-center justify-center rounded-lg bg-muted">
-        {icon}
-      </View>
+      <View className="h-10 w-10 items-center justify-center rounded-lg bg-muted">{icon}</View>
       <View className="flex-1">
         <Text className="text-base text-foreground">{title}</Text>
         {subtitle ? <Text className="text-sm text-muted-foreground">{subtitle}</Text> : null}
@@ -76,9 +74,7 @@ type CardStackProps = PropsWithChildren<{
 export function CardStack({ title, children, className }: CardStackProps) {
   return (
     <View className={cn("gap-3", className)}>
-      {title ? (
-        <Text className="text-sm font-medium text-muted-foreground">{title}</Text>
-      ) : null}
+      {title ? <Text className="text-sm font-medium text-muted-foreground">{title}</Text> : null}
       {children}
     </View>
   );
