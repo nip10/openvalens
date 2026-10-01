@@ -9,11 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/compone
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { orpc } from "@/utils/orpc";
+import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { client, orpc } from "@/utils/orpc";
+import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
 export const Route = createFileRoute("/_auth/records/labs")({
   component: LabsPage,
@@ -30,6 +32,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
         setObservedAt(defaultObservedAt());
         onSaved();
       },
+      onError: (error, variables) => enqueueMetricSample(variables, error),
     }),
   );
 
@@ -94,12 +97,15 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
 }
 
 function LabsPage() {
-  const markers = useQuery(orpc.labs.latest.queryOptions({ input: { recentLimit: 10 } }));
+  const markers = useCacheFirst("labs.latest", () => client.labs.latest({ recentLimit: 10 }));
 
   if (markers.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Labs</h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Labs</h1>
+          <SyncStatusBadge />
+        </div>
         <Skeleton className="h-64 w-full" />
       </div>
     );
@@ -108,7 +114,10 @@ function LabsPage() {
   if (markers.isError || !markers.data) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Labs</h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Labs</h1>
+          <SyncStatusBadge />
+        </div>
         <p className="text-sm text-muted-foreground">
           Could not load labs.{" "}
           <button className="underline" onClick={() => void markers.refetch()}>
@@ -123,7 +132,10 @@ function LabsPage() {
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Labs</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Labs</h1>
+        <SyncStatusBadge />
+      </div>
 
       {list.length === 0 ? (
         <Card>

@@ -30,12 +30,14 @@ import {
   SelectValue,
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { orpc } from "@/utils/orpc";
+import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { client, orpc } from "@/utils/orpc";
+import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
 export const Route = createFileRoute("/_auth/records/activity")({
   component: ActivityPage,
@@ -67,6 +69,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         setObservedAt(defaultObservedAt());
         onSaved();
       },
+      onError: (error, variables) => enqueueMetricSample(variables, error),
     }),
   );
 
@@ -146,12 +149,17 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function ActivityPage() {
-  const totals = useQuery(orpc.activity.dailyTotals.queryOptions({ input: { days: 30 } }));
+  const totals = useCacheFirst("activity.dailyTotals", () =>
+    client.activity.dailyTotals({ days: 30 }),
+  );
 
   if (totals.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Activity</h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Activity</h1>
+          <SyncStatusBadge />
+        </div>
         <Skeleton className="h-64 w-full" />
       </div>
     );
@@ -160,7 +168,10 @@ function ActivityPage() {
   if (totals.isError || !totals.data) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Activity</h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Activity</h1>
+          <SyncStatusBadge />
+        </div>
         <p className="text-sm text-muted-foreground">
           Could not load activity.{" "}
           <button className="underline" onClick={() => void totals.refetch()}>
@@ -176,7 +187,10 @@ function ActivityPage() {
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Activity</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Activity</h1>
+        <SyncStatusBadge />
+      </div>
 
       <AddReadingForm onSaved={() => void totals.refetch()} />
 

@@ -11,14 +11,16 @@ import {
   makeManualEntryHash,
   parseManualEntryValue,
 } from "@openvalens/api/presenters/manual-entry";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { LineChart } from "@/components/chart";
+import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -45,6 +47,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
         setObservedAt(defaultObservedAt());
         onSaved();
       },
+      onError: (error, variables) => enqueueMetricSample(variables, error),
     }),
   );
 
@@ -109,7 +112,10 @@ export default function BodyScreen() {
   const muted = useThemeColor("muted");
   const chart1 = useThemeColor("chart-1");
 
-  const daily = useQuery(orpc.body.dailyWeights.queryOptions({ input: { limit: SERIES_DAYS } }));
+  const daily = useCacheFirst(
+    "body.dailyWeights",
+    orpc.body.dailyWeights.queryOptions({ input: { limit: SERIES_DAYS } }),
+  );
   const summary = summarizeDailyWeights(daily.data ?? []);
 
   if (daily.isPending)
@@ -147,9 +153,12 @@ export default function BodyScreen() {
         }}
       >
         <View className="gap-6 p-4">
-          <View>
-            <Text className="text-sm text-muted-foreground">Today</Text>
-            <Text className="font-mono text-3xl text-foreground">Body</Text>
+          <View className="flex-row items-start justify-between gap-3">
+            <View>
+              <Text className="text-sm text-muted-foreground">Today</Text>
+              <Text className="font-mono text-3xl text-foreground">Body</Text>
+            </View>
+            <SyncStatusBadge />
           </View>
           <Card variant="secondary" className="items-center gap-1 p-8">
             <Text className="font-medium text-foreground">No weight yet</Text>
@@ -182,9 +191,12 @@ export default function BodyScreen() {
       }}
     >
       <View className="gap-6 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">Body</Text>
-          <Text className="font-mono text-3xl text-foreground">Weight</Text>
+        <View className="flex-row items-start justify-between gap-3">
+          <View>
+            <Text className="text-sm text-muted-foreground">Body</Text>
+            <Text className="font-mono text-3xl text-foreground">Weight</Text>
+          </View>
+          <SyncStatusBadge />
         </View>
 
         <AddWeightForm onSaved={() => void daily.refetch()} />
