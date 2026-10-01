@@ -1,4 +1,5 @@
 import { buildCockpitBlocks, type CockpitSnapshot } from "@openhealth/api/presenters/cockpit";
+import { Badge } from "@openhealth/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
 import { Skeleton } from "@openhealth/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -61,26 +62,69 @@ function DashboardPage() {
       ) : isError ? (
         <p className="text-sm text-muted-foreground">Could not load your data. Pull to retry.</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {blocks.map((block) => (
-            <Card key={block.key}>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {block.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="font-mono text-2xl">{block.primary}</div>
-                <div className="mt-1 text-sm text-muted-foreground">{block.secondary}</div>
-                {block.tertiary ? (
-                  <div className="mt-1 text-sm text-muted-foreground">{block.tertiary}</div>
-                ) : null}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {blocks.map((block) => (
+              <Card key={block.key}>
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {block.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="font-mono text-2xl">{block.primary}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">{block.secondary}</div>
+                  {block.tertiary ? (
+                    <div className="mt-1 text-sm text-muted-foreground">{block.tertiary}</div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="mt-6">
+            <InsightCard snapshot={snapshot} />
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+function InsightCard({ snapshot }: { snapshot: CockpitSnapshot }) {
+  const insight = useQuery({
+    ...orpc.ai.generateInsight.queryOptions({
+      input: { topic: "today's health snapshot", snapshot },
+    }),
+    retry: false,
+  });
+
+  if (insight.isPending) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium text-muted-foreground">AI insight</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (insight.isError || !insight.data) return null;
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm font-medium text-muted-foreground">AI insight</CardTitle>
+        <Badge variant="outline">{insight.data.severity}</Badge>
+      </CardHeader>
+      <CardContent>
+        <div className="font-medium">{insight.data.title}</div>
+        <p className="mt-1 text-sm text-muted-foreground">{insight.data.body}</p>
+      </CardContent>
+    </Card>
   );
 }
 

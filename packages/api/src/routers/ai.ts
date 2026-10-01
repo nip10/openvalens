@@ -1,6 +1,8 @@
 import {
   AiConfigError,
   AiConsentError,
+  extractStructured,
+  generateInsight,
   healthSnapshotTool,
   markerTrendTool,
   requireAiConsent,
@@ -361,5 +363,105 @@ export const aiRouter = {
         content: row.content,
         createdAt: row.createdAt,
       }));
+    }),
+
+  extract: protectedProcedure
+    .use(
+      validateInput(
+        z.strictObject({
+          text: z.string().min(1).max(20_000),
+          promptHint: z.string().min(1).max(500),
+          jsonShape: z.string().min(1).max(1000),
+        }),
+      ),
+    )
+    .input(
+      z.strictObject({
+        text: z.string().min(1).max(20_000),
+        promptHint: z.string().min(1).max(500),
+        jsonShape: z.string().min(1).max(1000),
+      }),
+    )
+    .output(
+      z.object({
+        data: z.unknown(),
+        model: z.string(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      let authz;
+      try {
+        authz = await requireOrgMembership(context.honoContext);
+      } catch (error) {
+        if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
+        throw raiseApiError("INTERNAL", "Authorization failed.");
+      }
+      await requireAiConsent(context.db, authz.activeOrganizationId, "insights");
+      try {
+        const result = await extractStructured({
+          config: context.aiConfig,
+          text: input.text,
+          promptHint: input.promptHint,
+          jsonShape: input.jsonShape,
+        });
+        return { data: result.data, model: result.model };
+      } catch (error) {
+        if (error instanceof AiConfigError) {
+          throw raiseApiError("INTERNAL", "AI provider is not configured.");
+        }
+        throw raiseApiError("INTERNAL", "AI extraction failed.");
+      }
+    }),
+
+  generateInsight: protectedProcedure
+    .use(
+      validateInput(
+        z.strictObject({
+          topic: z.string().min(1).max(120),
+          snapshot: z.unknown(),
+        }),
+      ),
+    )
+    .input(
+      z.strictObject({
+        topic: z.string().min(1).max(120),
+        snapshot: z.unknown(),
+      }),
+    )
+    .output(
+      z.object({
+        title: z.string(),
+        body: z.string(),
+        severity: z.enum(["info", "warning", "critical"]),
+        model: z.string(),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      let authz;
+      try {
+        authz = await requireOrgMembership(context.honoContext);
+      } catch (error) {
+        if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
+        throw raiseApiError("INTERNAL", "Authorization failed.");
+      }
+      await requireAiConsent(context.db, authz.activeOrganizationId, "insights");
+      try {
+        const result = await generateInsight({
+          config: context.aiConfig,
+          topic: input.topic,
+          snapshot: input.snapshot,
+        });
+        return {
+          title: result.title,
+          body: result.body,
+          severity: result.severity,
+          model: result.model,
+        };
+      } catch (error) {
+        if (error instanceof AiConfigError) {
+          throw raiseApiError("INTERNAL", "AI provider is not configured.");
+        }
+        throw raiseApiError("INTERNAL", "AI insight failed.");
+      }
     }),
 };
