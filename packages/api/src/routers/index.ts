@@ -1,5 +1,6 @@
 import type { RouterClient } from "@orpc/server";
 
+import { activityRouter } from "./activity";
 import { aiRouter } from "./ai";
 import { bodyRouter } from "./body";
 import { clinicalRouter } from "./clinical";
@@ -18,6 +19,7 @@ import { telegramRouter } from "./telegram";
 import { timelineRouter } from "./timeline";
 
 export const appRouter = {
+  activity: activityRouter,
   ai: aiRouter,
   body: bodyRouter,
   clinical: clinicalRouter,

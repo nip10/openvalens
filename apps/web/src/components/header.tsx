@@ -10,6 +10,7 @@ export default function Header() {
     { to: "/body", label: "Body" },
     { to: "/records/timeline", label: "Timeline" },
     { to: "/records/sleep", label: "Sleep" },
+    { to: "/records/activity", label: "Activity" },
   ] as const;
 
   return (

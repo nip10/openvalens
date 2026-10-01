@@ -12,6 +12,7 @@ const DRAWER_ITEMS = [
   { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
   { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
   { label: "Sleep", href: "/records/sleep" as const, icon: "moon-outline" as const },
+  { label: "Activity", href: "/records/activity" as const, icon: "walk-outline" as const },
   { label: "Settings", href: "/settings" as const, icon: "settings-outline" as const },
 ];
 
@@ -74,9 +75,11 @@ function DrawerLayout() {
       ? "Timeline"
       : pathname === "/records/sleep"
         ? "Sleep"
-        : pathname === "/settings"
-          ? "Settings"
-          : "Cockpit";
+        : pathname === "/records/activity"
+          ? "Activity"
+          : pathname === "/settings"
+            ? "Settings"
+            : "Cockpit";
 
   return (
     <Drawer
@@ -103,6 +106,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="records/sleep"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="records/activity"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
