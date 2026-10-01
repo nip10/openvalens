@@ -282,9 +282,15 @@ export const metricSample = pgTable(
     dedupeHash: text("dedupe_hash").notNull(),
     metadataJson: jsonb("metadata_json"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    /** Set when the source deleted or replaced this reading; the row is kept for lineage. */
+    supersededAt: timestamp("superseded_at", { withTimezone: true, mode: "date" }),
   },
   (table) => ({
     metricSampleOrgIdx: index("metric_sample_organization_id_idx").on(table.organizationId),
+    metricSampleOrgExternalIdx: index("metric_sample_organization_id_external_sample_id_idx").on(
+      table.organizationId,
+      table.externalSampleId,
+    ),
     metricSampleMetricTimeIdx: index("metric_sample_metric_definition_id_sampled_at_idx").on(
       table.metricDefinitionId,
       table.sampledAt,
@@ -340,9 +346,15 @@ export const healthEvent = pgTable(
     dedupeHash: text("dedupe_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    /** Set when the source deleted or replaced this event; the row is kept for lineage. */
+    supersededAt: timestamp("superseded_at", { withTimezone: true, mode: "date" }),
   },
   (table) => ({
     healthEventOrgIdx: index("health_event_organization_id_idx").on(table.organizationId),
+    healthEventOrgSourceEventIdx: index("health_event_organization_id_source_event_id_idx").on(
+      table.organizationId,
+      table.sourceEventId,
+    ),
     healthEventTypeTimeIdx: index("health_event_event_type_event_at_idx").on(
       table.eventType,
       table.eventAt,

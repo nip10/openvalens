@@ -90,6 +90,7 @@ export const mobileRouter = {
           accepted: result.accepted,
           duplicates: result.duplicates,
           rejected: result.rejected,
+          superseded: result.superseded,
           targetId: String(result.rawArtifactId),
         };
       } catch (error) {

@@ -153,6 +153,8 @@ export const ingestBatchOutput = z.object({
   accepted: z.number(),
   duplicates: z.number(),
   rejected: z.number(),
+  /** Previously stored rows this batch deleted or replaced with a newer version. */
+  superseded: z.number(),
   /** Audit target: the raw artifact id. */
   targetId: z.string(),
 });

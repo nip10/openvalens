@@ -7,7 +7,7 @@ import {
   provenanceLink,
   ingestionRawArtifact,
 } from "@openhealth/db/schema/health-record";
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   buildClinicalExportBundle,
   normalizeClinicalExportLimit,
@@ -35,6 +35,7 @@ export function createClinicalExportRepository(db: Database) {
               .where(
                 and(
                   eq(healthEvent.organizationId, organizationId),
+                  isNull(healthEvent.supersededAt),
                   sql`(${healthEvent.dataSourceId} is null or exists (
               select 1 from ${dataSource} where ${dataSource.id} = ${healthEvent.dataSourceId}
               and ${dataSource.organizationId} = ${organizationId}))`,
@@ -56,6 +57,7 @@ export function createClinicalExportRepository(db: Database) {
               .where(
                 and(
                   eq(metricSample.organizationId, organizationId),
+                  isNull(metricSample.supersededAt),
                   sql`exists (select 1 from ${metricDefinition}
               where ${metricDefinition.id} = ${metricSample.metricDefinitionId}
               and ${metricDefinition.organizationId} = ${organizationId})`,

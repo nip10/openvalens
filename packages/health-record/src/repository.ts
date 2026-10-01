@@ -211,6 +211,7 @@ export function createHealthRecordRepository(db: Database) {
         .where(
           and(
             eq(healthEvent.organizationId, organizationId),
+            isNull(healthEvent.supersededAt),
             ...(fromIso ? [gte(healthEvent.eventAt, new Date(fromIso))] : []),
             ...(toIso ? [lte(healthEvent.eventAt, new Date(toIso))] : []),
           ),
@@ -246,6 +247,7 @@ export function createHealthRecordRepository(db: Database) {
         .where(
           and(
             eq(metricSample.organizationId, organizationId),
+            isNull(metricSample.supersededAt),
             ...(fromIso ? [gte(metricSample.sampledAt, new Date(fromIso))] : []),
             ...(toIso ? [lte(metricSample.sampledAt, new Date(toIso))] : []),
           ),

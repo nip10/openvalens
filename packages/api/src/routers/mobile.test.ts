@@ -45,6 +45,7 @@ const ingestMobileBatch = mock(async (_db: unknown, _input: Record<string, unkno
     accepted: 1,
     duplicates: 0,
     rejected: 0,
+    superseded: 0,
   };
 });
 const getMobileSyncStatus = mock(async (_db: unknown, _input: Record<string, unknown>) => ({
@@ -150,6 +151,7 @@ test("ingestBatch passes the session org and correlation id, and audits the raw 
     accepted: 1,
     duplicates: 0,
     rejected: 0,
+    superseded: 0,
     targetId: "42",
   });
   expect(ingestMobileBatch.mock.calls[0]?.[1]).toMatchObject({

@@ -7,6 +7,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import {
   buildSleepSummaryFromEventRows,
   getSleepSummary,
+  getSleepSummaryForRange,
   listSleepDailySummaries,
 } from "./queries";
 import type { SleepWindowSummary } from "./types";
@@ -135,4 +136,13 @@ describe("listSleepDailySummaries Drizzle query", () => {
     expect(fake.selects[0]?.params).toContain("org-1");
     expect(fake.selects[0]?.params).toContain("sleep_session");
   });
+});
+
+test("every sleep read skips superseded sessions (#44)", async () => {
+  const fake = fakeDb([]);
+  await getSleepSummary(fake.db, "org-1", 30);
+  await getSleepSummaryForRange(fake.db, "org-1", "2026-03-01", "2026-03-08");
+  await listSleepDailySummaries(fake.db, "org-1", 30);
+  expect(fake.selects).toHaveLength(3);
+  for (const select of fake.selects) expect(select.sql).toContain('"superseded_at" is null');
 });

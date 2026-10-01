@@ -188,6 +188,22 @@ describe.skipIf(!url)("clinical-export real PostgreSQL schema", () => {
       }
     }
   });
+  test("superseded canonical rows are left out of the export (#44)", async () => {
+    const at = new Date("2026-10-01T00:00:00Z");
+    await db.update(healthEvent).set({ supersededAt: at }).where(eq(healthEvent.id, eventId));
+    await db.update(metricSample).set({ supersededAt: at }).where(eq(metricSample.id, metricId));
+    try {
+      const bundle = await repo.buildBundle("org-a");
+      expect(bundle.items).toEqual([]);
+      expect(bundle.generation.itemCount).toBe(0);
+    } finally {
+      await db.update(healthEvent).set({ supersededAt: null }).where(eq(healthEvent.id, eventId));
+      await db
+        .update(metricSample)
+        .set({ supersededAt: null })
+        .where(eq(metricSample.id, metricId));
+    }
+  });
   test("empty tenant returns envelope with no items, no provenance, schema metadata intact", async () => {
     const bundle = await repo.buildBundle("missing-org");
     expect(bundle.generation).toMatchObject({
