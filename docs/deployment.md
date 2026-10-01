@@ -222,3 +222,56 @@ Run these after deploy:
   provisioned.
 - Check platform logs for cron failures and readiness degradation after each
   deploy.
+
+## 11. Rollback runbook
+
+When a deploy goes wrong (broken migrations, failing readiness, AI regression,
+etc.), roll back with the smallest possible change first.
+
+### Image rollback
+
+The Hetzner/Coolify platform keeps every successful build tagged with its
+commit SHA. To roll back the server:
+
+1. In the platform UI, stop the running `server` service.
+2. Set the image tag to the previous known-good SHA (the prior deploy's
+   commit).
+3. Start the service and watch the readiness probe:
+   `curl -fsS https://<your-domain>/api-reference/health/readiness -H 'Content-Type: application/json' -d '{}'`.
+   The response should show `status: "ok"`.
+4. Repeat for the `web` service if the regression is UI-side.
+
+The platform keeps the rolled-back tag live so you can re-promote it later.
+
+### Database rollback
+
+Schema migrations are append-only. A destructive migration in the migration
+queue is the only case where a database rollback is required; see
+[docs/migration-safety.md](migration-safety.md) for the exact rules
+(quarantine-over-DELETE, `NOT VALID` → `VALIDATE CONSTRAINT`).
+
+When you do need to revert a schema change:
+
+1. Restore the most recent pre-migration snapshot/pg_dump to a side database.
+2. Run the application's `bun run db:migrate` against that side DB until it
+   catches up to the prior schema.
+3. Swap `DATABASE_URL` to the restored DB and roll the server image back as
+   above.
+4. If the rollback affects retention or supersession, run the dedupe
+   procedures manually before re-enabling cron.
+
+Never run destructive SQL against production without a verified backup and
+the rollback image tag pinned in the platform.
+
+### Crash-only rollback (faster)
+
+For most regressions (UI bug, AI chat edge case, missing env var), a code-only
+rollback is enough — no DB change. The image rollback procedure above
+covers this path.
+
+### After rollback
+
+1. Open an issue referencing the failing commit SHA and the symptom.
+2. Re-run the post-deploy smoke checks (section 8).
+3. Once the regression is fixed in a follow-up commit, re-deploy as normal;
+   the prior broken image stays in the platform for traceability.
