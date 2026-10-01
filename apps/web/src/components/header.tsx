@@ -13,6 +13,7 @@ export default function Header() {
     { to: "/records/activity", label: "Activity" },
     { to: "/records/vitals", label: "Vitals" },
     { to: "/records/labs", label: "Labs" },
+    { to: "/settings", label: "Settings" },
   ] as const;
 
   return (
