@@ -1,7 +1,11 @@
 import {
+  exportBundleArtifact,
+  exportCsvArtifacts,
+  exportPdfArtifact,
   formatBytes,
   pickExportDomains,
   utf8ByteLength,
+  type ExportArtifact,
   type ExportDomain,
 } from "@openvalens/api/presenters/clinical-export";
 import { Badge } from "@openvalens/ui/components/badge";
@@ -18,12 +22,6 @@ import { orpc } from "@/utils/orpc";
 export const Route = createFileRoute("/_auth/exports")({
   component: ExportsPage,
 });
-
-type ExportArtifact = {
-  fileName: string;
-  content: string;
-  mime: string;
-};
 
 function triggerDownload(artifact: ExportArtifact) {
   const blob = new Blob([artifact.content], { type: `${artifact.mime};charset=utf-8` });
@@ -57,11 +55,7 @@ function BundleCard() {
   const bundle = useMutation(
     orpc.exports.clinicalBundle.mutationOptions({
       onSuccess: (data) => {
-        const artifact = {
-          fileName: `health-export-bundle-${data.generation.generatedAt.slice(0, 10)}.json`,
-          content: JSON.stringify(data, null, 2),
-          mime: "application/json",
-        };
+        const artifact = exportBundleArtifact(data);
         triggerDownload(artifact);
         setArtifacts([artifact]);
       },
@@ -111,11 +105,7 @@ function DomainCard() {
   const csv = useMutation(
     orpc.exports.legacyDownload.mutationOptions({
       onSuccess: (data) => {
-        const files = data.files.map((file) => ({
-          fileName: file.fileName,
-          content: file.content,
-          mime: "text/csv",
-        }));
+        const files = exportCsvArtifacts(data.files);
         files.forEach(triggerDownload);
         setArtifacts(files);
       },
@@ -124,7 +114,7 @@ function DomainCard() {
   const pdf = useMutation(
     orpc.exports.legacyPdfDownload.mutationOptions({
       onSuccess: (data) => {
-        const artifact = { fileName: data.fileName, content: data.content, mime: "text/html" };
+        const artifact = exportPdfArtifact(data);
         triggerDownload(artifact);
         setArtifacts([artifact]);
       },

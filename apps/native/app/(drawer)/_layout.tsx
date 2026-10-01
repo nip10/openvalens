@@ -92,9 +92,11 @@ function DrawerLayout() {
                 ? "Supplements"
                 : pathname === "/workouts"
                   ? "Workouts"
-                  : pathname === "/settings"
-                    ? "Settings"
-                    : "Cockpit";
+                  : pathname === "/exports"
+                    ? "Clinical export"
+                    : pathname === "/settings"
+                      ? "Settings"
+                      : "Cockpit";
 
   return (
     <Drawer
