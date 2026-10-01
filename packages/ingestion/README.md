@@ -45,6 +45,31 @@ Other replay deviations:
 - A failed replay cannot be re-requested for the same artifact (the
   idempotency key returns the existing job), as in the source.
 
+## Mobile ingest (`mobile_ingest_batch`)
+
+`mobile.registerDevice` / `mobile.ingestBatch` / `mobile.syncStatus` (oRPC,
+contract in `@openhealth/api/contracts/mobile-ingest`) implement the design in
+`docs/architecture/mobile-sync-decision.md`. The device reads Health Connect /
+HealthKit change cursors and sends one record type per batch; it advances a
+cursor once the server answers `applied`, `queued` or `duplicate`.
+
+- **Device:** a `provider_connection` keyed on `(org, provider, deviceId)`.
+  A missing connection or a non-active one (`revoked`, `disconnected`) gets
+  `PERMISSION_DENIED`; re-registering never reactivates a revoked device.
+- **Accept** (transaction 1): `ingestion_job` with idempotency key
+  `mobile-ingest:<recordType>:<sha256 of org, device, provider, type, records>`
+  plus an `ingestion_raw_artifact` (`mobile_health_batch`, 30-day retention).
+  The same content again returns `duplicate`.
+- **Apply** (transaction 2, inline): one `data_source` per source app and
+  device, canonical rows via `persistCanonicalIntents` with the `mobile` dedupe
+  key (provider, type, external id, `lastModifiedAt`, time, value), and one
+  `provenance_link` (`derived_from_raw_artifact`) per inserted row. If apply
+  throws, the response is `queued` and the `mobile_ingest_batch` cron runner
+  retries it. A purged or unreadable artifact fails the job with
+  `mobile_batch_unreadable`.
+- Deletions are stored in the raw artifact but not yet applied (#44).
+- Heart-rate records fan out to one sample per reading.
+
 ## Raw-payload purge
 
 Redacts `payload_json` to `{}` and sets `purged_at` on rows whose
@@ -58,9 +83,10 @@ never erased. This is the only retention the source applies; clinical
 ## Deviations from the source
 
 - **Runner registry.** Only job types with a registered runner are claimed or
-  reclaimed. Production registers `raw_artifact_replay`. The mobile
-  `sync_session_finalize` runner is **not ported yet**, so those jobs stay
-  queued instead of being claimed and failed.
+  reclaimed. Production registers `raw_artifact_replay` and
+  `mobile_ingest_batch`. The legacy mobile `sync_session_finalize` runner is
+  superseded by the mobile ingest design (#40) and never registered, so those
+  jobs stay queued instead of being claimed and failed.
 - **No PHI in errors.** `ingestion_error.message` stores the error class name,
   not `error.message`.
 - **Parameterized SQL** instead of interpolated timestamps in `sql.raw`.
@@ -73,6 +99,9 @@ never erased. This is the only retention the source applies; clinical
 `bun test packages/ingestion` runs unit tests. The DB suite needs an empty
 disposable database: `INGESTION_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port>/ingestion_cron`.
 
-Deferred: the `sync_session_finalize` runner and mobile upload endpoints
-(Phase 4), Apple Health canonical mapping, provenance links from raw
-artifacts to canonical rows.
+`mobile-batch.integration.test.ts` needs its own empty database:
+`MOBILE_INGEST_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port>/mobile_ingest_issue7`.
+`scripts/test-integration.sh` creates both.
+
+Deferred: applying mobile deletions (#44), provenance links for the legacy
+replay path.

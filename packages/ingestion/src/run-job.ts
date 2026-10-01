@@ -11,6 +11,8 @@ export type RunClaimedJobResult = {
     rejectedCount: number;
     metricSampleCount: number;
     healthEventCount: number;
+    /** Records skipped by per-record dedupe (mobile batches only). */
+    duplicateCount?: number;
   } | null;
   errorCode: string | null;
 };
