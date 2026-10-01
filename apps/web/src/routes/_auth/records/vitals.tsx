@@ -1,10 +1,18 @@
 import {
+  defaultObservedAt,
+  MANUAL_ENTRY_FIELDS,
+  makeManualEntryHash,
+  parseManualEntryValue,
+  type ManualEntryMetric,
+} from "@openhealth/api/presenters/manual-entry";
+import {
   formatBpm,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
   vitalsSourceLabel,
 } from "@openhealth/api/presenters/vitals";
+import { Button } from "@openhealth/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
 import {
   ChartContainer,
@@ -12,9 +20,19 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@openhealth/ui/components/chart";
+import { Input } from "@openhealth/ui/components/input";
+import { Label } from "@openhealth/ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@openhealth/ui/components/select";
 import { Skeleton } from "@openhealth/ui/components/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 
 import { orpc } from "@/utils/orpc";
@@ -31,6 +49,99 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-sm text-muted-foreground">{label}</div>
       <div className="font-mono text-lg">{value}</div>
     </div>
+  );
+}
+
+const MANUAL_METRICS: ManualEntryMetric[] = ["heart_rate", "resting_heart_rate"];
+
+function AddReadingForm({ onSaved }: { onSaved: () => void }) {
+  const [metric, setMetric] = useState<ManualEntryMetric>("heart_rate");
+  const field = MANUAL_ENTRY_FIELDS[metric];
+  const [value, setValue] = useState("");
+  const [observedAt, setObservedAt] = useState(defaultObservedAt);
+
+  const save = useMutation(
+    orpc.healthRecord.ingestMetricSample.mutationOptions({
+      onSuccess: () => {
+        setValue("");
+        setObservedAt(defaultObservedAt());
+        onSaved();
+      },
+    }),
+  );
+
+  const numeric = parseManualEntryValue(field, value);
+  const submit = () => {
+    if (numeric === null) return;
+    save.mutate({
+      metricCode: metric,
+      observedAt,
+      valueNumeric: numeric,
+      dedupeHash: makeManualEntryHash(metric, observedAt, numeric),
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Add reading</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-2">
+          <Label className="text-sm font-medium">Metric</Label>
+          <Select
+            value={metric}
+            onValueChange={(next) => {
+              if (next === "heart_rate" || next === "resting_heart_rate") setMetric(next);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue>{field.label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {MANUAL_METRICS.map((code) => (
+                <SelectItem key={code} value={code}>
+                  {MANUAL_ENTRY_FIELDS[code].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label className="text-sm font-medium">Value ({field.unit})</Label>
+            <Input
+              inputMode="decimal"
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              placeholder={`${field.min}–${field.max}`}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label className="text-sm font-medium">Observed at</Label>
+            <Input
+              type="datetime-local"
+              value={observedAt}
+              onChange={(event) => setObservedAt(event.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={submit} disabled={numeric === null || save.isPending}>
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+          {numeric === null && value.length > 0 ? (
+            <span className="text-sm text-destructive">
+              Value must be between {field.min} and {field.max} {field.unit}.
+            </span>
+          ) : save.isSuccess ? (
+            <span className="text-sm text-success">Saved</span>
+          ) : save.isError ? (
+            <span className="text-sm text-destructive">Could not save.</span>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -73,6 +184,13 @@ function VitalsPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <h1 className="text-2xl font-semibold">Vitals</h1>
+
+      <AddReadingForm
+        onSaved={() => {
+          void daily.refetch();
+          void samples.refetch();
+        }}
+      />
 
       {!summary.today ? (
         <Card>

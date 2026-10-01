@@ -1,14 +1,21 @@
 import {
+  defaultObservedAt,
+  MANUAL_ENTRY_FIELDS,
+  makeManualEntryHash,
+  parseManualEntryValue,
+  type ManualEntryMetric,
+} from "@openhealth/api/presenters/manual-entry";
+import {
   formatBpm,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
   vitalsSourceLabel,
 } from "@openhealth/api/presenters/vitals";
-import { useQuery } from "@tanstack/react-query";
-import { Card, Spinner } from "heroui-native";
-import { useMemo } from "react";
-import { Pressable, RefreshControl, Text, View } from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, Card, Spinner } from "heroui-native";
+import { useMemo, useState } from "react";
+import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
@@ -27,7 +34,109 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+const MANUAL_METRICS: ManualEntryMetric[] = ["heart_rate", "resting_heart_rate"];
+
+function AddReadingForm({ onSaved }: { onSaved: () => void }) {
+  const [metric, setMetric] = useState<ManualEntryMetric>("heart_rate");
+  const field = MANUAL_ENTRY_FIELDS[metric];
+  const [value, setValue] = useState("");
+  const [observedAt, setObservedAt] = useState(defaultObservedAt());
+
+  const save = useMutation(
+    orpc.healthRecord.ingestMetricSample.mutationOptions({
+      onSuccess: () => {
+        setValue("");
+        setObservedAt(defaultObservedAt());
+        onSaved();
+      },
+    }),
+  );
+
+  const numeric = parseManualEntryValue(field, value);
+  const submit = () => {
+    if (numeric === null) return;
+    save.mutate({
+      metricCode: metric,
+      observedAt,
+      valueNumeric: numeric,
+      dedupeHash: makeManualEntryHash(metric, observedAt, numeric),
+    });
+  };
+
+  return (
+    <CardStack title="Add reading">
+      <Card variant="secondary" className="gap-4 p-4">
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-foreground">Metric</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {MANUAL_METRICS.map((code) => {
+              const selected = code === metric;
+              return (
+                <Pressable
+                  key={code}
+                  onPress={() => setMetric(code)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
+                    selected ? "border-primary bg-primary/15" : "border-border bg-card"
+                  }`}
+                >
+                  <Text
+                    className={`text-sm ${
+                      selected ? "font-medium text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {MANUAL_ENTRY_FIELDS[code].label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+        <View className="flex-row gap-3">
+          <View className="flex-1 gap-2">
+            <Text className="text-sm font-medium text-foreground">Value ({field.unit})</Text>
+            <TextInput
+              value={value}
+              onChangeText={setValue}
+              placeholder={`${field.min}–${field.max}`}
+              keyboardType="numeric"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+          <View className="flex-1 gap-2">
+            <Text className="text-sm font-medium text-foreground">Observed at</Text>
+            <TextInput
+              value={observedAt}
+              onChangeText={setObservedAt}
+              placeholder="YYYY-MM-DDTHH:MM"
+              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+        </View>
+        <View className="flex-row items-center gap-3">
+          <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+          {numeric === null && value.length > 0 ? (
+            <Text className="text-sm text-destructive">
+              {field.min}–{field.max} {field.unit}
+            </Text>
+          ) : save.isSuccess ? (
+            <Text className="text-sm text-success">Saved</Text>
+          ) : save.isError ? (
+            <Text className="text-sm text-destructive">Could not save.</Text>
+          ) : null}
+        </View>
+      </Card>
+    </CardStack>
+  );
+}
+
 export default function VitalsScreen() {
+  const queryClient = useQueryClient();
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
   const chart1 = useThemeColor("chart-1");
@@ -87,6 +196,14 @@ export default function VitalsScreen() {
           <Text className="text-sm text-muted-foreground">Vitals</Text>
           <Text className="font-mono text-3xl text-foreground">Last 30 days</Text>
         </View>
+
+        <AddReadingForm
+          onSaved={() => {
+            void daily.refetch();
+            void samples.refetch();
+            void queryClient.invalidateQueries({ queryKey: ["vitals"] });
+          }}
+        />
 
         {!summary.today ? (
           <Card variant="secondary" className="items-center gap-1 p-8">
