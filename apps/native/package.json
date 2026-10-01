@@ -28,7 +28,7 @@
     "@varlock/expo-integration": "1.2.1",
     "better-auth": "catalog:",
     "expo": "~57.0.20",
-    "expo-background-fetch": "~57.0.21",
+    "expo-background-task": "~57.0.21",
     "expo-build-properties": "~57.0.22",
     "expo-constants": "~57.0.17",
     "expo-crypto": "~57.0.3",

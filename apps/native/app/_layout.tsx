@@ -6,6 +6,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+// Defines the background sync task on every launch, including headless ones.
+import "@/lib/health-sync/scheduler";
 import { queryClient } from "@/utils/orpc";
 
 export const unstable_settings = {

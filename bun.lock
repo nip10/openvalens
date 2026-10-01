@@ -35,7 +35,7 @@
         "@varlock/expo-integration": "1.2.1",
         "better-auth": "catalog:",
         "expo": "~57.0.20",
-        "expo-background-fetch": "~57.0.21",
+        "expo-background-task": "~57.0.21",
         "expo-build-properties": "~57.0.22",
         "expo-constants": "~57.0.17",
         "expo-crypto": "~57.0.3",
@@ -1698,7 +1698,7 @@
 
     "expo-asset": ["expo-asset@57.0.18", "", { "dependencies": { "@expo/image-utils": "^0.11.5", "expo-constants": "~57.0.19" }, "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-zDIQkUr0NM2S7YRj98Zohf/OBuM1q0o4ctxLz1C1oe4/33lHNLjp+2v3qUtBWVwn0zKka8UGADmS8M+83Wi6pw=="],
 
-    "expo-background-fetch": ["expo-background-fetch@57.0.21", "", { "dependencies": { "expo-task-manager": "~57.0.21" }, "peerDependencies": { "expo": "*" } }, "sha512-lxFAWkcDk5gajHHYlRxdFBqmxABcnyCpcaZiFCHR9AblwdIIywwqSwEtvb2v2JElYmdkExSpYZZJOisrxm/q9A=="],
+    "expo-background-task": ["expo-background-task@57.0.21", "", { "dependencies": { "expo-task-manager": "~57.0.21" }, "peerDependencies": { "expo": "*" } }, "sha512-2wDZvuE/Lu6+uCSHo4A7aEzkV7UXuVXdeL+NJjTu8KaefvGirCKBaDvFOtHWHxtvpcmR9yANGo1tk4HHi5/ckA=="],
 
     "expo-build-properties": ["expo-build-properties@57.0.22", "", { "dependencies": { "@expo/schema-utils": "^57.0.2", "resolve-from": "^5.0.0", "semver": "^7.6.0" }, "peerDependencies": { "expo": "*" } }, "sha512-A5oRf2I02XDRu2NnqKo7Au5kUu244unvyoRMUsB+xvg/BOlsR+G/oyDFGkjbda1cJbeKm9eqposIXbA2ri5UrQ=="],
 
