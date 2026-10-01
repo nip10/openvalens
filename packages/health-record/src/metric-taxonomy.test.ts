@@ -22,7 +22,33 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
       "resting_heart_rate",
       "sleep_session",
       "blood_marker",
+      "body_fat",
+      "active_calories",
+      "distance",
     ]);
+  });
+
+  test("mobile wearable codes (Issue #45) have units, categories and default priority", () => {
+    expect(getMetricDefinition("body_fat")).toMatchObject({
+      unit: "%",
+      category: "body",
+      aggregationDefault: "latest",
+    });
+    expect(getMetricDefinition("active_calories")).toMatchObject({
+      unit: "kcal",
+      category: "activity",
+      aggregationDefault: "sum",
+    });
+    expect(getMetricDefinition("distance")).toMatchObject({
+      unit: "m",
+      category: "activity",
+      aggregationDefault: "sum",
+    });
+    expect(getDefaultSourcePriorityOrder("body_fat")).toEqual(["scale", "phone", "watch"]);
+    expect(getDefaultSourcePriorityOrder("active_calories")).toEqual(["watch", "phone"]);
+    expect(getDefaultSourcePriorityOrder("distance")).toEqual(["watch", "phone"]);
+    expect(canonicalizeMetricCode("bodyFat")).toBe("body_fat");
+    expect(canonicalizeMetricCode("activeCalories")).toBe("active_calories");
   });
 
   test("source codes match anchovy units, categories and default priority", () => {
