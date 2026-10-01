@@ -18,6 +18,7 @@
     "@expo/metro-runtime": "~57.0.15",
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.2.14",
+    "@kingstinct/react-native-healthkit": "^16.0.0",
     "@openhealth/api": "workspace:*",
     "@openhealth/ui": "workspace:*",
     "@orpc/client": "catalog:",
@@ -52,6 +53,7 @@
     "react-native-gifted-charts": "^1.4.79",
     "react-native-health-connect": "^4.1.3",
     "react-native-keyboard-controller": "1.21.9",
+    "react-native-nitro-modules": "^0.37.1",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
@@ -72,6 +74,5 @@
     "@types/react": "~19.2.18",
     "babel-preset-expo": "~57.0.10",
     "typescript": "~6.0.3"
-  },
-  "//health-deps-deferred": "@kingstinct/react-native-healthkit (iOS) is deferred until its react-native-nitro-modules peer is added (#26); lib/health-sync is Android-only until then."
+  }
 }

@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Chip, Spinner } from "heroui-native";
-import { Platform } from "react-native";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import {
@@ -11,7 +10,7 @@ import {
   registerHealthSyncTask,
   requestHealthAccess,
   runHealthSync,
-  SYNCED_TYPES,
+  syncableTypes,
   unregisterHealthSyncTask,
 } from "@/lib/health-sync";
 import { useThemeColor } from "@/utils/theme";
@@ -23,7 +22,7 @@ const ERROR_COPY: Record<string, string> = {
   PERMISSION_DENIED: "This device's access was revoked. Reconnect from the web app.",
   UNAUTHENTICATED: "Sign in again to sync.",
   NO_MEMBERSHIP: "Your account has no organization. Sync is paused.",
-  SOURCE_FAILED: "Could not read from Health Connect. Check permissions.",
+  SOURCE_FAILED: "Could not read your health data. Check permissions.",
 };
 
 /** `2026-10-01 08:42` in local time, matching the timeline. */
@@ -66,29 +65,21 @@ export function HealthSyncSettings() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: keys.background }),
   });
 
-  if (Platform.OS !== "android") {
-    return (
-      <CardStack title="Health data">
-        <Card variant="secondary" className="overflow-hidden p-0">
-          <ListRow
-            icon={<Ionicons name="heart-outline" size={20} color={foreground} />}
-            title="Apple Health"
-            subtitle="Not supported yet"
-          />
-        </Card>
-      </CardStack>
-    );
-  }
-
+  const total = syncableTypes().length;
+  const appleHealth = access.data?.platform === "apple_health";
+  const sourceName = appleHealth ? "Apple Health" : "Health Connect";
   const granted = access.data?.grantedTypes.length ?? 0;
   const connected = granted > 0;
   const connectionSubtitle = !access.data
     ? "Checking…"
     : !access.data.available
-      ? "Health Connect is not available on this device"
-      : connected
-        ? `${granted} of ${SYNCED_TYPES.length} data types${access.data.background ? "" : " · background access off"}`
-        : "Not connected";
+      ? `${sourceName} is not available on this device`
+      : !connected
+        ? "Not connected"
+        : appleHealth
+          ? // HealthKit never says which read permissions were granted.
+            `Access requested for ${total} data types`
+          : `${granted} of ${total} data types${access.data.background ? "" : " · background access off"}`;
 
   const last = status.data;
   const errorCode = last?.lastErrorCode;
@@ -105,15 +96,15 @@ export function HealthSyncSettings() {
       <Card variant="secondary" className="overflow-hidden p-0">
         <ListRow
           icon={<Ionicons name="fitness-outline" size={20} color={foreground} />}
-          title="Health Connect"
+          title={sourceName}
           subtitle={connectionSubtitle}
           showDivider
           onPress={
-            access.data?.available && (granted < SYNCED_TYPES.length || !access.data.background)
+            access.data?.available && (granted < total || !access.data.background)
               ? () => connect.mutate()
               : undefined
           }
-          accessibilityHint="Opens Health Connect permissions"
+          accessibilityHint={`Opens ${sourceName} permissions`}
           trailing={
             <Chip size="sm" variant="secondary">
               <Chip.Label>{connected ? "Connected" : "Connect"}</Chip.Label>

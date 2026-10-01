@@ -61,7 +61,15 @@
           }
         }
       ],
-      "expo-background-task"
+      "expo-background-task",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "openhealth reads your health data from Apple Health to keep your health record up to date.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

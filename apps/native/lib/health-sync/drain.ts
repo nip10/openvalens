@@ -32,6 +32,11 @@ export type ChangesPage = {
 };
 
 export type HealthSource = {
+  /**
+   * `false` for sources whose initial token already walks the history
+   * (HealthKit anchors): no window backfill, straight to changes.
+   */
+  backfill?: boolean;
   /** Types the user granted read access to. */
   grantedTypes(): Promise<MobileRecordType[]>;
   /** A changes token positioned at "now" for this type. */
@@ -142,6 +147,14 @@ export async function drainHealthChanges(
     try {
       let cursor = await deps.cursors.get(type);
       for (;;) {
+        if (!cursor && deps.source.backfill === false) {
+          cursor = {
+            phase: "changes",
+            changesToken: await deps.source.captureToken(type),
+            lastAckedAt: deps.now().toISOString(),
+          };
+          await deps.cursors.set(type, cursor);
+        }
         if (!cursor) {
           const now = deps.now();
           const changesToken = await deps.source.captureToken(type);
