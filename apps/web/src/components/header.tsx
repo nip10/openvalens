@@ -9,11 +9,13 @@ export default function Header() {
     { to: "/dashboard", label: "Dashboard" },
     { to: "/coach", label: "Coach" },
     { to: "/body", label: "Body" },
+    { to: "/supplements", label: "Supplements" },
     { to: "/records/timeline", label: "Timeline" },
     { to: "/records/sleep", label: "Sleep" },
     { to: "/records/activity", label: "Activity" },
     { to: "/records/vitals", label: "Vitals" },
     { to: "/records/labs", label: "Labs" },
+    { to: "/exports", label: "Clinical export" },
     { to: "/sharing", label: "Sharing" },
     { to: "/settings", label: "Settings" },
   ] as const;

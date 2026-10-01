@@ -35,11 +35,7 @@ const bindChatOutput = z.object({
 
 export const telegramRouter = {
   status: protectedProcedure
-    .use(
-      validateInput(
-        z.object({}).optional().default({}),
-      ),
-    )
+    .use(validateInput(z.object({}).optional().default({})))
     .input(z.object({}).optional().default({}))
     .output(
       z.object({

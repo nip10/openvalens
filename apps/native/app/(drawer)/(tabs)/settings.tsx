@@ -19,6 +19,7 @@ import {
 } from "@openhealth/api/presenters/coach-settings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Chip, useThemeColor } from "heroui-native";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -64,6 +65,19 @@ export default function SettingsScreen() {
         {session?.user && <HealthSyncSettings />}
 
         {session?.user && <CoachSection />}
+
+        {session?.user && (
+          <CardStack title="Integrations">
+            <Card variant="secondary" className="overflow-hidden p-0">
+              <ListRow
+                icon={<Text className="text-lg">✈</Text>}
+                title="Telegram"
+                subtitle="Daily reminders"
+                onPress={() => router.push("/settings/telegram")}
+              />
+            </Card>
+          </CardStack>
+        )}
 
         <CardStack title="Preferences">
           <Card variant="secondary" className="overflow-hidden p-0">

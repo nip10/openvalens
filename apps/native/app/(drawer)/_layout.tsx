@@ -10,11 +10,13 @@ import { useThemeColor } from "@/utils/theme";
 
 const DRAWER_ITEMS = [
   { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
+  { label: "Supplements", href: "/supplements" as const, icon: "medkit-outline" as const },
   { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
   { label: "Sleep", href: "/records/sleep" as const, icon: "moon-outline" as const },
   { label: "Activity", href: "/records/activity" as const, icon: "walk-outline" as const },
   { label: "Vitals", href: "/records/vitals" as const, icon: "pulse-outline" as const },
   { label: "Labs", href: "/records/labs" as const, icon: "flask-outline" as const },
+  { label: "Clinical export", href: "/exports" as const, icon: "download-outline" as const },
   { label: "Coach", href: "/coach" as const, icon: "chatbubbles-outline" as const },
   { label: "Sharing", href: "/sharing" as const, icon: "people-outline" as const },
   { label: "Settings", href: "/settings" as const, icon: "settings-outline" as const },
@@ -85,9 +87,11 @@ function DrawerLayout() {
             ? "Vitals"
             : pathname === "/records/labs"
               ? "Labs"
-              : pathname === "/settings"
-                ? "Settings"
-                : "Cockpit";
+              : pathname === "/supplements"
+                ? "Supplements"
+                : pathname === "/settings"
+                  ? "Settings"
+                  : "Cockpit";
 
   return (
     <Drawer
@@ -141,6 +145,20 @@ function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="supplements"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="exports"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
         name="coach"
         options={{
           headerTitle,
@@ -149,6 +167,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="sharing"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="settings/telegram"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },

@@ -43,20 +43,14 @@ function TelegramSettingsPage() {
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div>
-            <div className="font-medium">
-              {connected ? "Connected" : "Not connected"}
-            </div>
+            <div className="font-medium">{connected ? "Connected" : "Not connected"}</div>
             <div className="text-sm text-muted-foreground">
               {connected
                 ? "Daily reminders will be sent to your Telegram chat."
                 : "Connect a Telegram chat to receive daily reminders."}
             </div>
           </div>
-          <Button
-            onPress={undefined as never}
-            onClick={() => connect.mutate({})}
-            disabled={connect.isPending}
-          >
+          <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
             {connect.isPending ? "Generating link…" : connected ? "Re-link" : "Connect"}
           </Button>
         </CardContent>
