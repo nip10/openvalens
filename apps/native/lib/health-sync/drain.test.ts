@@ -20,6 +20,7 @@ type FakeOptions = {
   windows?: Record<string, MobileHealthRecordInput[]>; // key: from ISO
   changes?: Record<string, ChangesPage>; // key: token
   failSend?: (batch: IngestBatchInput, call: number) => Error | null;
+  backfill?: boolean;
   cursors?: Partial<Record<MobileRecordType, CursorState>>;
 };
 
@@ -38,6 +39,7 @@ function fake(options: FakeOptions = {}) {
     clientTimezone: "Europe/Lisbon",
     now: () => NOW,
     source: {
+      ...(options.backfill === false ? { backfill: false } : {}),
       grantedTypes: async () => options.granted ?? ["weight"],
       captureToken: async () => `token-${++tokenCounter}`,
       readWindow: async (type, from, to) => {
@@ -284,5 +286,34 @@ describe("drainHealthChanges", () => {
     const summary = await drainHealthChanges(deps, { maxBatches: 100 });
     expect(summary.fatalErrorCode).toBe("PERMISSION_DENIED");
     expect(reads.some((r) => r.startsWith("steps:"))).toBe(false);
+  });
+
+  test("a source without backfill starts at its initial token and reads changes in the same run", async () => {
+    const { deps, cursors, sent, reads } = fake({
+      backfill: false,
+      changes: {
+        "token-1": {
+          upserts: [weight("old")],
+          deletions: [],
+          nextToken: "a-1",
+          hasMore: true,
+          expired: false,
+        },
+        "a-1": {
+          upserts: [weight("new")],
+          deletions: [],
+          nextToken: "a-2",
+          hasMore: false,
+          expired: false,
+        },
+      },
+    });
+    await drainHealthChanges(deps, { maxBatches: 10 });
+    expect(reads).toHaveLength(0);
+    expect(sent.map((b) => [b.mode, b.upserts[0]!.externalRecordId])).toEqual([
+      ["changes", "old"],
+      ["changes", "new"],
+    ]);
+    expect(cursors.get("weight")).toMatchObject({ phase: "changes", changesToken: "a-2" });
   });
 });

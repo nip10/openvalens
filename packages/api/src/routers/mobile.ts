@@ -55,6 +55,7 @@ export const mobileRouter = {
       try {
         const { providerConnectionId } = await registerMobileDevice(context.db, {
           organizationId: context.authz.activeOrganizationId,
+          userId: context.authz.user.id,
           deviceId: input.deviceId,
           platform: input.platform,
         });

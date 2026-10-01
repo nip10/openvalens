@@ -6,6 +6,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import {
   createAutoReconciliationService,
   ingestAutoWeightEvent,
+  reconcileAutoDailyWeight,
   type AutoWeightEventDependencies,
   type IngestAutoWeightEventInput,
 } from "./auto-reconciliation";
@@ -126,6 +127,7 @@ describe("ingestAutoWeightEvent orchestration", () => {
           { id: 902, measuredAt: "2026-03-07T09:10:00.000Z", weightKg: 84.4 },
         ];
       },
+      async deleteAutoDailyWeight() {},
       async upsertAutoDailyWeight(input) {
         calls.push({ name: "upsertAutoDailyWeight", payload: input });
       },
@@ -171,6 +173,7 @@ describe("ingestAutoWeightEvent orchestration", () => {
         calls.push({ name: "listAutoWeightEvents", payload: {} });
         return [];
       },
+      async deleteAutoDailyWeight() {},
       async upsertAutoDailyWeight() {
         calls.push({ name: "upsertAutoDailyWeight", payload: {} });
       },
@@ -198,6 +201,7 @@ describe("ingestAutoWeightEvent orchestration", () => {
           { id: 901, measuredAt: "2026-03-07T08:15:00.000Z", weightKg: 83.9 },
         ];
       },
+      async deleteAutoDailyWeight() {},
       async upsertAutoDailyWeight() {
         throw new Error("upsertAutoDailyWeight must not be called for invalid-only inputs");
       },
@@ -218,6 +222,7 @@ describe("ingestAutoWeightEvent orchestration", () => {
       async listAutoWeightEvents() {
         return [];
       },
+      async deleteAutoDailyWeight() {},
       async upsertAutoDailyWeight(input) {
         upserts.push(input);
       },
@@ -227,6 +232,29 @@ describe("ingestAutoWeightEvent orchestration", () => {
 
     expect(result).toEqual({ eventId: 901, reconciled: false });
     expect(upserts).toEqual([]);
+  });
+
+  test("a day left with no active auto events loses its derived auto row", async () => {
+    const deleted: unknown[] = [];
+    const result = await reconcileAutoDailyWeight(
+      { organizationId: "org-1", userId: "user-1", date: "2026-10-01", removeWhenEmpty: true },
+      {
+        async getActiveOverride() {
+          return null;
+        },
+        async listAutoWeightEvents() {
+          return [];
+        },
+        async deleteAutoDailyWeight(day) {
+          deleted.push(day);
+        },
+        async upsertAutoDailyWeight() {
+          throw new Error("must not upsert");
+        },
+      },
+    );
+    expect(result).toEqual({ reconciled: false });
+    expect(deleted).toEqual([{ organizationId: "org-1", userId: "user-1", date: "2026-10-01" }]);
   });
 
   test("deterministic median tie-break survives same weight + same measuredAt", async () => {
@@ -244,6 +272,7 @@ describe("ingestAutoWeightEvent orchestration", () => {
           { id: 901, measuredAt: "2026-03-07T08:15:00.000Z", weightKg: 83.9 },
         ];
       },
+      async deleteAutoDailyWeight() {},
       async upsertAutoDailyWeight(input) {
         upserts.push(input);
       },

@@ -43,7 +43,20 @@ export type PersistCanonicalRecordsResult = {
   rejectedCount: number;
 };
 
-export type CanonicalRowRef = { table: "metric_sample" | "health_event"; id: number };
+export type CanonicalRowRef =
+  | {
+      table: "metric_sample";
+      id: number;
+      /** What was stored, for domain bridges (e.g. body weight). */
+      metric: {
+        code: string;
+        sampledAt: string;
+        value: number;
+        externalId: string | null;
+        sourceApp: string | null;
+      };
+    }
+  | { table: "health_event"; id: number };
 
 export type PersistCanonicalIntentsResult = PersistCanonicalRecordsResult & {
   /** Rows actually inserted by this call (duplicates excluded), for provenance links. */
@@ -193,7 +206,17 @@ export async function persistCanonicalIntents(
         .returning({ id: metricSample.id });
       if (inserted[0]) {
         result.metricSampleCount += 1;
-        result.inserted.push({ table: "metric_sample", id: inserted[0].id });
+        result.inserted.push({
+          table: "metric_sample",
+          id: inserted[0].id,
+          metric: {
+            code: intent.canonicalType,
+            sampledAt: intent.sampledAt,
+            value: normalized.value,
+            externalId: intent.externalId,
+            sourceApp: intent.sourceApp,
+          },
+        });
       } else result.duplicateCount += 1;
       continue;
     }

@@ -116,21 +116,20 @@ CONSTRAINT` sequence. Document this in `docs/migration-safety.md` in this
 - Acceptance: `requirePermission({resource,action})` reproduces existing
   behavior.
 
-### Issue 7 — Mobile device-session auth (custom)
+### Issue 7 — Mobile ingest contract + mobile auth
 
-- Replicate the **custom** mobile auth in `anchovy` —
-  **not** Better Auth sessions:
-  `apps/web/src/lib/integrations/mobile/{device-session.ts,pairing.ts,
-pairing-rate-limit.ts,security.ts}`,
-  `apps/web/src/lib/authz/mobile-guard.ts`.
-- Three tokens: access 15 min, refresh 90 d, deviceRenew 365 d.
-  sha256-hashed with `MOBILE_SESSION_PEPPER`. Previous-token reuse
-  detection revokes the session.
-- Endpoint parity: `pairing/code`, `pairing/exchange`, `token/refresh`,
-  `token/renew-device`, `mobile/organizations`, `mobile/organization/select`,
-  `mobile/logout-device`.
-- Acceptance: existing `MobileAuthSessionManager.kt` behavior reproduced
-  server-side (we will reimplement the client side in Issue 29).
+Rescoped by #40 ([`docs/architecture/mobile-sync-decision.md`](architecture/mobile-sync-decision.md)). The anchovy pairing / sync-session endpoints are
+**not** ported.
+
+- **Done:** `appRouter.mobile` with `registerDevice`, `ingestBatch` and
+  `syncStatus` (contract in `packages/api/src/contracts/mobile-ingest.ts`,
+  domain in `packages/ingestion/src/mobile-batch.ts`). Ingest is idempotent
+  by batch content hash; deletions and edited records supersede canonical
+  rows (#44).
+- **Pending #42 (auth spike):** if a Better Auth Expo session survives
+  background sync on a locked or long-idle phone, add the `emailOTP` plugin
+  and 30-day sliding sessions and drop the 3-token contract; otherwise add a
+  long-lived device token scoped to `mobile.ingestBatch` only.
 
 ### Issue 8 — oRPC server + web client + mobile client
 
@@ -302,21 +301,13 @@ build-v2-policy-instruction,templates}.ts`, routes `api/chat`, `api/analyze`,
 
 ### Issue 25 — react-native-health-connect integration
 
-- Library: `react-native-health-connect` v4.1.3+ (matinzd) — actively
-  maintained, ships its own Expo config plugin in v4.
-- Config plugin in `apps/native/app.json`:
-  - `react-native-health-connect`
-  - `expo-build-properties` for `minSdkVersion: 26`, `compileSdkVersion: 36`.
-- Record types (5, matching anchovy companion): `WeightRecord`,
-  `ExerciseSessionRecord`, `StepsRecord`, `HeartRateRecord`,
-  `SleepSessionRecord`.
-- Permissions rationale: plugin auto-wires
-  `ACTION_SHOW_PERMISSIONS_RATIONALE` (Android ≤ 13) +
-  `ViewPermissionUsageActivity` (Android 14+).
-- Manifest perms (mirror `anchovy/apps/android/app/src/main/AndroidManifest.xml`):
-  `INTERNET`, `android.permission.health.{READ_WEIGHT,READ_EXERCISE,
-READ_STEPS,READ_HEART_RATE,READ_SLEEP,READ_HEALTH_DATA_IN_BACKGROUND,
-READ_HEALTH_DATA_HISTORY}`.
+- **Done:** `react-native-health-connect` v4 with its Expo config plugin,
+  `expo-build-properties` (`minSdkVersion: 26`), and the read permissions
+  declared in `apps/native/app.json` (weight, body fat, steps, heart rate,
+  active calories, distance, sleep, exercise, background, history).
+- Eight record types (anchovy had five), mapped to the shared contract in
+  `apps/native/lib/health-sync/map-health-connect.ts`. Read-only: the app
+  requests no write scopes and drops records it wrote itself.
 - Health apps declaration in Play Console (now through Console, not the
   retired standalone form).
 - **Do not** install `expo-health-connect` (archived 2026-08-01, merged
@@ -324,61 +315,46 @@ READ_HEALTH_DATA_HISTORY}`.
 
 ### Issue 26 — @kingstinct/react-native-healthkit integration
 
-- Library: `@kingstinct/react-native-healthkit` v16.0.0+ (Kingstinct) —
-  Nitro-based, background delivery wired through JS in v16.
-- Config plugin sets `NSHealthShareUsageDescription`,
-  `NSHealthUpdateUsageDescription`, `background: true`.
-- Entitlements: HealthKit + `com.apple.developer.healthkit.background-delivery`.
-- Same 5 record types as Issue 25; include `HKWorkoutType` for exercise.
-- Read authorization opacity: cannot detect read revocation — design for
-  graceful empty results, gate on share/write status only.
+- **Done (unverified on device):** `@kingstinct/react-native-healthkit` v16
+  with `react-native-nitro-modules`; config plugin with read usage text,
+  no write usage text and the background-delivery entitlement.
+- Anchored queries per type (`apps/native/lib/health-sync/healthkit-source.ts`),
+  including deleted samples. Types: weight, body fat, steps, heart rate,
+  active calories, walking/running distance, workouts. Sleep needs segments
+  grouped into sessions (#52).
+- Read authorization is unobservable: once asked, every type is queried and
+  denied types return nothing.
 
-### Issue 27 — Mobile sync client
+### Issue 27 — Mobile ingest client
 
-- TS port of `anchovy/apps/android/.../sync/{SyncRunner,SyncApiClient,
-SyncCheckpointStore,SyncRunLease,ChunkPlanner,BackfillPlanner,
-StreamingChunkAccumulator,Scheduler,BackgroundSyncWorkerRunner,
-FrequentSyncWorker,OpportunisticBackfillWorker}.kt`.
-- Server contract is byte-compatible (do **not** change the 10 mobile
-  endpoints in Issue 7).
-- Lease semantics: 10-min TTL, sha256 chunk hash, skip-by-index/hash on
-  resume.
-- Backfill: 14-day slices, 6-month horizon, 30-day incremental fallback.
-- Streaming accumulator flushes at `min(SYNC_SESSION_MAX_CHUNK_BYTES,
-DEFAULT_APP_CHUNK_CAP_BYTES)` (`5_000_000` server, `256 KiB` client).
-- Local persistence: `expo-secure-store` (replaces EncryptedSharedPreferences).
-- Unit tests port the 10 existing test classes
-  (`SyncRunnerTest`, `SyncViewModelTest`, etc.) — they are the behavior
-  spec.
+Rescoped by #40 ([`docs/architecture/mobile-sync-decision.md`](architecture/mobile-sync-decision.md)); the Kotlin sync engine is **not** ported.
 
-### Issue 28 — Background sync + secure storage
+- **Done:** `apps/native/lib/health-sync/drain.ts`. One cursor per record
+  type (Health Connect changes token or HealthKit anchor), advanced only
+  after every batch read from it is acknowledged. Deterministic batches
+  (≤1000 records, ~900 KB) so retries are answered `duplicate`. Health
+  Connect backfills 30 days one day at a time; HealthKit walks its history
+  through the anchor. Runs are bounded by a batch budget and deadline.
 
-- `expo-background-task` (WorkManager on Android, BGTaskScheduler on iOS)
-  replacing `BackgroundSyncWorkerRunner`.
-- 15-min OS-throttled scheduling (single native worker, sequential JS).
-- Health Connect: `READ_HEALTH_DATA_IN_BACKGROUND` permission +
-  `getChanges` with change tokens.
-- HealthKit: `configureBackgroundTypes` + `subscribeToChanges` with
-  native observer re-registration at launch
-  (`UIApplicationDidFinishLaunchingNotification`); frequencies
-  `immediate | hourly | daily | weekly`.
-- Accept iOS force-quit / OEM battery-optimization constraints; design
-  for "best effort" not "guaranteed."
-- Locked-device protection: check `isProtectedDataAvailable()` and
-  retry (HealthKit).
-- Mid-upload Health Connect revocation: poll `getGrantedPermissions()`
-  before each chunk/lease acquisition; on revoke, abort run + open
-  `openHealthConnectSettings()`.
+### Issue 28 — Background sync
+
+- **Done:** `expo-background-task` (WorkManager / BGTaskScheduler), 6-hour
+  minimum interval, 10 batches or 20 s per run; the cursor resumes next run.
+  The task is defined at module scope (root layout import) for headless
+  launches. Settings has Sync now and a background toggle; sign-out clears
+  cursors and the device registration.
+- Permission revoked mid-run surfaces as `SOURCE_FAILED` for that type and
+  leaves its cursor in place.
+- Not done: HealthKit `subscribeToChanges` observers and the iOS
+  locked-device check (depends on #42's outcome for the session store).
+- Accept iOS force-quit / OEM battery-optimization constraints; design for
+  "best effort" not "guaranteed."
 
 ### Issue 29 — Mobile auth client
 
-- TS port of `anchovy/apps/android/.../sync/MobileAuthSessionManager.kt`.
-- Pairing flow (web → mobile): generate code, scan/enter, exchange for
-  tokens.
-- Token rotation: access → refresh → renew → clear+expire.
-- Secure store: `expo-secure-store` with prefix.
-- Recovery: detect 401 → run rotation → retry once → re-pair on second
-  failure.
+Blocked on #42. If the spike passes, close this: the Better Auth Expo client
+in `apps/native/lib/auth-client.ts` already stores and forwards the session.
+If it fails, this becomes the client for the device token scoped to ingest.
 
 ---
 
@@ -481,6 +457,8 @@ These are non-negotiable and apply to every issue:
    `docs/migration-safety.md`.
 7. **No Better Auth sessions for mobile** — the mobile device-session
    contract (Issue 7) is intentional and not interchangeable.
+   _Under review:_ #40 proposes replacing it with the Better Auth Expo
+   session; this rule stands until the auth spike (#42) passes.
 8. **No server actions** — every API surface is an oRPC procedure on the
    Hono server.
 9. **Health Connect change tokens are valid 30 days** — never let them

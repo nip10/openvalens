@@ -26,7 +26,7 @@ integration(
       sql`CREATE TABLE calendar_event (id serial PRIMARY KEY, organization_id text NOT NULL, date text NOT NULL, type text NOT NULL, category text, title text NOT NULL CHECK (title NOT LIKE '%999%'), reference_table text, reference_id integer)`,
     );
     await db.execute(
-      sql`CREATE TABLE weight_event (id serial PRIMARY KEY, organization_id text NOT NULL, user_id text NOT NULL, source text NOT NULL, measured_at text NOT NULL, date text NOT NULL, weight_kg real NOT NULL, confidence real, metadata_json jsonb, created_at text NOT NULL DEFAULT 'now')`,
+      sql`CREATE TABLE weight_event (id serial PRIMARY KEY, organization_id text NOT NULL, user_id text NOT NULL, source text NOT NULL, measured_at text NOT NULL, date text NOT NULL, weight_kg real NOT NULL, confidence real, metadata_json jsonb, created_at text NOT NULL DEFAULT 'now', superseded_at text)`,
     );
     await db.execute(
       sql`CREATE TABLE daily_weight_override (id serial PRIMARY KEY, organization_id text NOT NULL, user_id text NOT NULL, date text NOT NULL, weight_kg real NOT NULL, reason text, created_by_user_id text, created_at text NOT NULL DEFAULT 'now', revoked_at text)`,

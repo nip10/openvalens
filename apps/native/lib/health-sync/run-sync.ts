@@ -4,6 +4,7 @@ import { asyncStorageCursorStore, clearCursors } from "./cursor-store";
 import { ensureDeviceRegistered, getDeviceId } from "./device";
 import { drainHealthChanges, type DrainOptions, type DrainSummary } from "./drain";
 import { healthConnectSource } from "./health-connect-source";
+import { healthKitSource } from "./healthkit-source";
 import { getHealthAccess } from "./permissions";
 import { recordHealthSyncRun } from "./status";
 
@@ -29,7 +30,9 @@ export function runHealthSync(options: DrainOptions): Promise<HealthSyncResult> 
 
 async function run(options: DrainOptions): Promise<HealthSyncResult> {
   const startedAt = new Date();
-  if (Platform.OS !== "android") return { status: "skipped", reason: "unsupported_platform" };
+  if (Platform.OS !== "android" && Platform.OS !== "ios")
+    return { status: "skipped", reason: "unsupported_platform" };
+  const ios = Platform.OS === "ios";
   const access = await getHealthAccess();
   if (!access.available) return { status: "skipped", reason: "unavailable" };
   if (access.grantedTypes.length === 0) return { status: "skipped", reason: "no_permissions" };
@@ -40,10 +43,10 @@ async function run(options: DrainOptions): Promise<HealthSyncResult> {
     const summary = await drainHealthChanges(
       {
         deviceId,
-        provider: "health_connect",
+        provider: ios ? "apple_health" : "health_connect",
         clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         now: () => new Date(),
-        source: healthConnectSource,
+        source: ios ? healthKitSource : healthConnectSource,
         cursors: asyncStorageCursorStore,
         send: async (batch) => {
           await client.mobile.ingestBatch(batch);

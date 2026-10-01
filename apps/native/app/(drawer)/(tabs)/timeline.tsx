@@ -1,105 +1,128 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Card, Chip } from "heroui-native";
-import { useThemeColor } from "@/utils/theme";
-import { Text, View } from "react-native";
+import {
+  domainLabel,
+  groupTimelineByDay,
+  severityTone,
+  sourceLabel,
+} from "@openhealth/api/presenters/timeline";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { Chip, Spinner } from "heroui-native";
+import { Pressable, RefreshControl, SectionList, Text, View } from "react-native";
 
-import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { ListRow } from "@/components/list-row";
+import { orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
-type EventStatus = "success" | "warning" | "info" | "danger";
+const PAGE_SIZE = 50;
 
-const MOCK_EVENTS: {
-  id: string;
-  timestamp: string;
-  title: string;
-  subtitle: string;
-  status: EventStatus;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}[] = [
-  {
-    id: "1",
-    timestamp: "2026-09-30 08:42",
-    title: "Health Connect sync",
-    subtitle: "240 records imported",
-    status: "success",
-    label: "Complete",
-    icon: "sync-outline",
-  },
-  {
-    id: "2",
-    timestamp: "2026-09-29 14:15",
-    title: "LDL",
-    subtitle: "142 mg/dL, reference range 125–200 mg/dL",
-    status: "warning",
-    label: "Near limit",
-    icon: "fitness-outline",
-  },
-  {
-    id: "3",
-    timestamp: "2026-09-28 09:03",
-    title: "Weight",
-    subtitle: "72.4 kg",
-    status: "success",
-    label: "In range",
-    icon: "scale-outline",
-  },
-  {
-    id: "4",
-    timestamp: "2026-09-27 22:10",
-    title: "Supplementation plan updated",
-    subtitle: "Vitamin D and magnesium",
-    status: "info",
-    label: "Updated",
-    icon: "medical-outline",
-  },
-  {
-    id: "5",
-    timestamp: "2026-09-26 07:50",
-    title: "Server sync failed",
-    subtitle: "12 records queued",
-    status: "danger",
-    label: "Failed",
-    icon: "cloud-offline-outline",
-  },
-];
-
-function chipColor(status: EventStatus) {
-  if (status === "info") return "default";
-  return status;
-}
+const DOMAIN_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  sleep: "moon-outline",
+  activity: "walk-outline",
+  body: "body-outline",
+  vitals: "pulse-outline",
+  labs: "flask-outline",
+  meds_supplements: "medkit-outline",
+  calendar: "calendar-outline",
+  sync: "sync-outline",
+  imaging: "scan-outline",
+  cardiac: "heart-outline",
+};
 
 export default function TimelineScreen() {
   const foreground = useThemeColor("foreground");
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const query = useInfiniteQuery(
+    orpc.timeline.list.infiniteOptions({
+      input: (cursor: string | undefined) => ({ limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) }),
+      initialPageParam: undefined,
+      getNextPageParam: (page) => page.nextCursor ?? undefined,
+    }),
+  );
+  const items = query.data?.pages.flatMap((page) => page.items) ?? [];
+  const sections = groupTimelineByDay(items, timeZone).map((group) => ({
+    title: group.day,
+    data: group.items,
+  }));
+
+  if (query.isPending)
+    return (
+      <Container className="items-center justify-center" isScrollable={false}>
+        <Spinner />
+      </Container>
+    );
+
+  if (query.isError)
+    return (
+      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
+        <Text className="text-base text-foreground">Could not load the timeline.</Text>
+        <Pressable
+          onPress={() => void query.refetch()}
+          className="min-h-11 justify-center px-4"
+          accessibilityRole="button"
+        >
+          <Text className="font-medium text-foreground underline">Retry</Text>
+        </Pressable>
+      </Container>
+    );
 
   return (
-    <Container className="p-4">
-      <View className="gap-4">
-        <View className="rounded-lg border border-warning/20 bg-warning/10 p-3">
-          <Text className="text-sm text-warning">
-            Sample data — wire to /api/timeline when available.
-          </Text>
-        </View>
-
-        <CardStack>
-          <Card variant="secondary" className="overflow-hidden p-0">
-            {MOCK_EVENTS.map((event, index) => (
+    <Container isScrollable={false}>
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        contentContainerClassName="p-4 gap-1"
+        stickySectionHeadersEnabled={false}
+        refreshControl={
+          <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
+        }
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
+        }}
+        ListEmptyComponent={
+          <View className="items-center gap-1 py-16">
+            <Text className="text-base font-medium text-foreground">No records yet</Text>
+            <Text className="text-center text-sm text-muted-foreground">
+              Connect Health Connect or Apple Health in Settings to sync your data.
+            </Text>
+          </View>
+        }
+        renderSectionHeader={({ section }) => (
+          <Text className="pt-4 pb-2 font-mono text-sm text-muted-foreground">{section.title}</Text>
+        )}
+        renderItem={({ item }) => {
+          const tone = severityTone(item.severity);
+          const source = sourceLabel(item);
+          return (
+            <View className="overflow-hidden rounded-xl bg-card">
               <ListRow
-                key={event.id}
-                icon={<Ionicons name={event.icon} size={20} color={foreground} />}
-                title={event.title}
-                subtitle={`${event.timestamp} · ${event.subtitle}`}
-                trailing={
-                  <Chip size="sm" color={chipColor(event.status)}>
-                    <Chip.Label>{event.label}</Chip.Label>
-                  </Chip>
+                icon={
+                  <Ionicons
+                    name={DOMAIN_ICONS[item.domain] ?? "ellipse-outline"}
+                    size={20}
+                    color={foreground}
+                  />
                 }
-                showDivider={index < MOCK_EVENTS.length - 1}
+                title={item.title}
+                subtitle={[item.time, item.summary, source ?? domainLabel(item.domain)]
+                  .filter(Boolean)
+                  .join(" · ")}
+                trailing={
+                  tone ? (
+                    <Chip size="sm" color={tone === "destructive" ? "danger" : "warning"}>
+                      <Chip.Label>
+                        {tone === "destructive" ? "Needs attention" : "Check"}
+                      </Chip.Label>
+                    </Chip>
+                  ) : undefined
+                }
               />
-            ))}
-          </Card>
-        </CardStack>
-      </View>
+            </View>
+          );
+        }}
+        ListFooterComponent={query.isFetchingNextPage ? <Spinner className="my-4" /> : null}
+      />
     </Container>
   );
 }

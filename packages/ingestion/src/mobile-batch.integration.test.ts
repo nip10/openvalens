@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
 import { createDb, sql } from "@openhealth/db";
-import { organization } from "@openhealth/db/schema/auth";
+import { member, organization, user } from "@openhealth/db/schema/auth";
+import { dailyWeight, weightEvent } from "@openhealth/db/schema/body";
 import {
   dataSource,
   healthEvent,
@@ -91,8 +92,18 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
       { id: "org-a", name: "A", slug: "a" },
       { id: "org-b", name: "B", slug: "b" },
     ]);
+    await db.insert(user).values([
+      { id: "u1", name: "U1", email: "u1@example.invalid" },
+      { id: "u2", name: "U2", email: "u2@example.invalid" },
+    ]);
+    await db.insert(member).values([
+      { id: "m1", organizationId: "org-a", userId: "u1", role: "owner" },
+      { id: "m2", organizationId: "org-a", userId: "u2", role: "member" },
+    ]);
   }, 120000);
   beforeEach(async () => {
+    await db.delete(dailyWeight);
+    await db.delete(weightEvent);
     await db.delete(provenanceLink);
     await db.delete(metricSample);
     await db.delete(healthEvent);
@@ -111,6 +122,7 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
   const register = () =>
     registerMobileDevice(db, {
       organizationId: "org-a",
+      userId: "u1",
       deviceId: DEVICE,
       platform: "android",
       now,
@@ -429,6 +441,7 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     const OTHER = "0b7e4d2a-1c3f-4a5b-9d8e-7f6a5b4c3d2e";
     await registerMobileDevice(db, {
       organizationId: "org-a",
+      userId: "u1",
       deviceId: OTHER,
       platform: "android",
       now,
@@ -543,6 +556,126 @@ describe.skipIf(!url)("mobile ingest batch on disposable PostgreSQL", () => {
     });
     expect(late.status).toBe("applied");
     expect((await active()).map((row) => row.numericValue).sort()).toEqual([72.0, 72.1]);
+  });
+
+  const days = () => db.select().from(dailyWeight);
+  const autoEvents = () => db.select().from(weightEvent);
+
+  test("phone weights feed the owner's daily weight on the local date", async () => {
+    await register();
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({
+        deletions: [],
+        // 23:30 UTC on 30 Sep is 00:30 on 1 Oct in Lisbon.
+        upserts: [
+          {
+            type: "weight",
+            externalRecordId: "w-late",
+            sourceApp: "com.withings.wiscale2",
+            startTime: "2026-09-30T23:30:00.000Z",
+            valueKg: 71.5,
+          },
+        ],
+      }),
+      traceId: "t",
+      now,
+    });
+    const [event] = await autoEvents();
+    expect(event).toMatchObject({
+      userId: "u1",
+      source: "auto",
+      date: "2026-10-01",
+      weightKg: 71.5,
+      supersededAt: null,
+    });
+    const [sample] = await db.select().from(metricSample);
+    expect(event?.metadataJson).toMatchObject({
+      metricSampleId: sample!.id,
+      externalRecordId: "w-late",
+    });
+    expect(await days()).toMatchObject([
+      {
+        userId: "u1",
+        date: "2026-10-01",
+        weightKg: 71.5,
+        source: "auto",
+        resolvedFromEventId: event!.id,
+      },
+    ]);
+  });
+
+  test("deleting a phone weight supersedes its auto event and clears the derived day", async () => {
+    await register();
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ deletions: [], upserts: [batch().upserts[0]!] }),
+      traceId: "t",
+      now,
+    });
+    expect(await days()).toHaveLength(1);
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ upserts: [], deletions: [{ externalRecordId: "w-1" }] }),
+      traceId: "t",
+      now,
+    });
+    const [event] = await autoEvents();
+    expect(event?.supersededAt).not.toBeNull();
+    expect(await days()).toEqual([]);
+  });
+
+  test("an edited phone weight replaces the day's value", async () => {
+    await register();
+    type Weight = Extract<MobileIngestBatch["upserts"][number], { type: "weight" }>;
+    const [w1] = batch().upserts as Weight[];
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({
+        deletions: [],
+        upserts: [{ ...w1!, lastModifiedAt: "2026-10-01T08:00:00.000Z" }],
+      }),
+      traceId: "t",
+      now,
+    });
+    await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({
+        deletions: [],
+        upserts: [{ ...w1!, lastModifiedAt: "2026-10-01T09:00:00.000Z", valueKg: 70.9 }],
+      }),
+      traceId: "t",
+      now,
+    });
+    expect((await days()).map((d) => d.weightKg)).toEqual([70.9]);
+    const active = (await autoEvents()).filter((e) => e.supersededAt === null);
+    expect(active.map((e) => e.weightKg)).toEqual([70.9]);
+  });
+
+  test("a device with no owner still ingests but skips the body bridge", async () => {
+    await register();
+    await db.update(providerConnection).set({ userId: null });
+    const res = await ingestMobileBatch(db, {
+      organizationId: "org-a",
+      batch: batch({ deletions: [] }),
+      traceId: "t",
+      now,
+    });
+    expect(res.status).toBe("applied");
+    expect(await autoEvents()).toEqual([]);
+  });
+
+  test("registering under another account moves ownership", async () => {
+    await register();
+    await registerMobileDevice(db, {
+      organizationId: "org-a",
+      userId: "u2",
+      deviceId: DEVICE,
+      platform: "android",
+      now,
+    });
+    const [row] = await db.select().from(providerConnection);
+    expect(row?.userId).toBe("u2");
   });
 
   test("syncStatus reports per-device, per-type metadata only", async () => {

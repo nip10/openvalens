@@ -101,6 +101,8 @@ export const weightEvent = pgTable(
     createdAt: text("created_at")
       .notNull()
       .$defaultFn(() => new Date().toISOString()),
+    /** Set when the source reading was deleted or replaced (#44); kept for lineage. */
+    supersededAt: text("superseded_at"),
   },
   (table) => ({
     weightEventOrgIdx: index("weight_event_organization_id_idx").on(table.organizationId),

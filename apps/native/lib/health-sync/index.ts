@@ -9,7 +9,12 @@
  *   reset       — sign-out cleanup
  *   drain       — the cursor algorithm (pure, unit-tested)
  */
-export { getHealthAccess, requestHealthAccess, type HealthAccess } from "./permissions";
+export {
+  getHealthAccess,
+  requestHealthAccess,
+  syncableTypes,
+  type HealthAccess,
+} from "./permissions";
 export { runHealthSync, type HealthSyncResult } from "./run-sync";
 export {
   HEALTH_SYNC_TASK,
@@ -20,4 +25,3 @@ export {
 } from "./scheduler";
 export { getHealthSyncStatus, type HealthSyncStatus } from "./status";
 export { resetHealthSync } from "./reset";
-export { SYNCED_TYPES } from "./record-types";

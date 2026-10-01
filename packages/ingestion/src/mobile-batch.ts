@@ -9,6 +9,7 @@ import {
   provenanceLink,
 } from "@openhealth/db/schema/health-record";
 import { providerConnection } from "@openhealth/db/schema/ingestion";
+import { createAutoReconciliationService } from "@openhealth/body";
 import { buildDataSourceIdentity, stableSerialize } from "@openhealth/health-record";
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 
@@ -92,7 +93,14 @@ const PLATFORM_PROVIDER: Record<"android" | "ios", MobileProvider> = {
  */
 export async function registerMobileDevice(
   db: Database,
-  input: { organizationId: string; deviceId: string; platform: "android" | "ios"; now?: Date },
+  input: {
+    organizationId: string;
+    /** The signed-in user registering the device becomes its owner. */
+    userId: string;
+    deviceId: string;
+    platform: "android" | "ios";
+    now?: Date;
+  },
 ): Promise<{ providerConnectionId: number }> {
   const now = input.now ?? new Date();
   const provider = PLATFORM_PROVIDER[input.platform];
@@ -102,6 +110,7 @@ export async function registerMobileDevice(
       organizationId: input.organizationId,
       provider,
       externalUserId: input.deviceId,
+      userId: input.userId,
       status: "active",
       connectedAt: now,
       createdAt: now,
@@ -117,6 +126,18 @@ export async function registerMobileDevice(
   const connection = await findConnection(db, input.organizationId, provider, input.deviceId);
   if (!connection) throw new Error("Provider connection was not resolvable.");
   if (connection.status !== "active") throw new MobileDeviceRevokedError();
+  // The latest account to register this install owns it (sign-out then
+  // sign-in as someone else re-registers the same device id).
+  if (connection.userId !== input.userId)
+    await db
+      .update(providerConnection)
+      .set({ userId: input.userId, updatedAt: now })
+      .where(
+        and(
+          eq(providerConnection.id, connection.id),
+          eq(providerConnection.organizationId, input.organizationId),
+        ),
+      );
   return { providerConnectionId: connection.id };
 }
 
@@ -127,7 +148,11 @@ async function findConnection(
   deviceId: string,
 ) {
   const [row] = await db
-    .select({ id: providerConnection.id, status: providerConnection.status })
+    .select({
+      id: providerConnection.id,
+      status: providerConnection.status,
+      userId: providerConnection.userId,
+    })
     .from(providerConnection)
     .where(
       and(
@@ -409,6 +434,37 @@ export async function runMobileIngestBatchJob(
         )
         .onConflictDoNothing();
 
+    // Body bridge: phone weights feed the per-user daily weight, as the old
+    // Health Connect import did. Needs the device owner.
+    const [owner] = await tx
+      .select({ userId: providerConnection.userId })
+      .from(providerConnection)
+      .where(
+        and(
+          eq(providerConnection.id, job.providerConnectionId),
+          eq(providerConnection.organizationId, organizationId),
+        ),
+      )
+      .limit(1);
+    const body = createAutoReconciliationService(tx);
+    if (owner?.userId)
+      for (const row of inserted) {
+        if (row.table !== "metric_sample" || row.metric.code !== "weight") continue;
+        await body.ingestAutoWeightEvent({
+          organizationId,
+          userId: owner.userId,
+          date: localDate(row.metric.sampledAt, batch.clientTimezone),
+          measuredAt: row.metric.sampledAt,
+          weightKg: row.metric.value,
+          sourceDetail: row.metric.sourceApp ?? batch.provider,
+          metadataJson: {
+            provider: batch.provider,
+            metricSampleId: row.id,
+            externalRecordId: row.metric.externalId,
+          },
+        });
+      }
+
     const target = EVENT_TYPES.has(batch.recordType) ? TARGETS.health_event : TARGETS.metric_sample;
     const scope = {
       organizationId,
@@ -427,6 +483,12 @@ export async function runMobileIngestBatchJob(
         mode: "older_versions",
       })),
     ];
+    if (target.table === "metric_sample")
+      await body.supersedeForMetricSamples({
+        organizationId,
+        metricSampleIds: superseded,
+        supersededAt: scope.now,
+      });
     if (superseded.length)
       await tx
         .insert(provenanceLink)
@@ -602,6 +664,20 @@ async function supersede(
       ${olderThanNewest}
     returning r.id`);
   return (result.rows as { id: number }[]).map((row) => Number(row.id));
+}
+
+/** `YYYY-MM-DD` of an instant in the device's time zone (falls back to UTC). */
+function localDate(iso: string, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso.slice(0, 10);
+  }
 }
 
 export type IngestMobileBatchResult = {
