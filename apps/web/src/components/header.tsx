@@ -10,6 +10,7 @@ export default function Header() {
     { to: "/coach", label: "Coach" },
     { to: "/body", label: "Body" },
     { to: "/supplements", label: "Supplements" },
+    { to: "/workouts", label: "Workouts" },
     { to: "/records/timeline", label: "Timeline" },
     { to: "/records/sleep", label: "Sleep" },
     { to: "/records/activity", label: "Activity" },

@@ -16,6 +16,7 @@ const DRAWER_ITEMS = [
   { label: "Activity", href: "/records/activity" as const, icon: "walk-outline" as const },
   { label: "Vitals", href: "/records/vitals" as const, icon: "pulse-outline" as const },
   { label: "Labs", href: "/records/labs" as const, icon: "flask-outline" as const },
+  { label: "Workouts", href: "/workouts" as const, icon: "barbell-outline" as const },
   { label: "Clinical export", href: "/exports" as const, icon: "download-outline" as const },
   { label: "Coach", href: "/coach" as const, icon: "chatbubbles-outline" as const },
   { label: "Sharing", href: "/sharing" as const, icon: "people-outline" as const },
@@ -89,9 +90,11 @@ function DrawerLayout() {
               ? "Labs"
               : pathname === "/supplements"
                 ? "Supplements"
-                : pathname === "/settings"
-                  ? "Settings"
-                  : "Cockpit";
+                : pathname === "/workouts"
+                  ? "Workouts"
+                  : pathname === "/settings"
+                    ? "Settings"
+                    : "Cockpit";
 
   return (
     <Drawer
@@ -153,6 +156,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="exports"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="workouts"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
