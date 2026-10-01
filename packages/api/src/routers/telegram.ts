@@ -34,6 +34,52 @@ const bindChatOutput = z.object({
 });
 
 export const telegramRouter = {
+  status: protectedProcedure
+    .use(
+      validateInput(
+        z.object({}).optional().default({}),
+      ),
+    )
+    .input(z.object({}).optional().default({}))
+    .output(
+      z.object({
+        connected: z.boolean(),
+        chatId: z.string().nullable(),
+        status: z.string().nullable(),
+        lastWebhookAt: z.string().nullable(),
+      }),
+    )
+    .handler(async ({ context }) => {
+      const userId = context.session?.user?.id;
+      const organizationId = context.session?.session?.activeOrganizationId;
+      if (!userId || !organizationId) {
+        return { connected: false, chatId: null, status: null, lastWebhookAt: null };
+      }
+      const rows = await context.db
+        .select({
+          chatId: telegramAccount.telegramChatId,
+          status: telegramAccount.status,
+          lastWebhookAt: telegramAccount.lastWebhookAt,
+        })
+        .from(telegramAccount)
+        .where(
+          and(
+            eq(telegramAccount.userId, userId),
+            eq(telegramAccount.organizationId, organizationId),
+          ),
+        )
+        .orderBy(telegramAccount.createdAt)
+        .limit(1);
+      const row = rows[0];
+      if (!row) return { connected: false, chatId: null, status: null, lastWebhookAt: null };
+      return {
+        connected: row.status === "active",
+        chatId: row.chatId,
+        status: row.status,
+        lastWebhookAt: row.lastWebhookAt,
+      };
+    }),
+
   issueConnectToken: protectedProcedure
     .use(validateInput(issueConnectTokenInput))
     .input(issueConnectTokenInput)
