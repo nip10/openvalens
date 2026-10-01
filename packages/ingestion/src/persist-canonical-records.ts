@@ -9,7 +9,11 @@ import {
 } from "@openhealth/health-record";
 import { and, eq } from "drizzle-orm";
 
-import { adaptHealthConnectCanonicalRecords } from "./health-connect";
+import {
+  adaptHealthConnectCanonicalRecords,
+  type CanonicalWriteIntent,
+  type MOBILE_INGESTION_PROVIDERS,
+} from "./health-connect";
 
 /**
  * Persist Health Connect records as canonical `metric_sample` /
@@ -22,7 +26,13 @@ import { adaptHealthConnectCanonicalRecords } from "./health-connect";
  * - Inserts skip `(organization_id, dedupe_hash)` conflicts, so replaying
  *   an artifact is idempotent; skipped rows are counted as duplicates. The
  *   source's plain insert would fail the whole job on a re-run.
- * Dedupe hashes are computed exactly as in the source.
+ * Dedupe hashes:
+ * - `legacy` (anchovy envelope replay): computed exactly as in the source,
+ *   including the full raw record.
+ * - `mobile` (`mobile.ingestBatch`): keyed on provider, type, external record
+ *   id, source revision (`lastModifiedAt`) and time/value, so re-serializing
+ *   a record client-side never creates a duplicate row, while an edited
+ *   record (new `lastModifiedAt`) is stored as a new version.
  */
 type Tx = Pick<Database, "select" | "insert">;
 
@@ -32,6 +42,15 @@ export type PersistCanonicalRecordsResult = {
   duplicateCount: number;
   rejectedCount: number;
 };
+
+export type CanonicalRowRef = { table: "metric_sample" | "health_event"; id: number };
+
+export type PersistCanonicalIntentsResult = PersistCanonicalRecordsResult & {
+  /** Rows actually inserted by this call (duplicates excluded), for provenance links. */
+  inserted: CanonicalRowRef[];
+};
+
+type Provider = (typeof MOBILE_INGESTION_PROVIDERS)[number];
 
 function dedupeHash(kind: "metric_sample" | "health_event", payload: Record<string, unknown>) {
   return createHash("sha256")
@@ -77,12 +96,33 @@ export async function persistCanonicalRecords(
   },
 ): Promise<PersistCanonicalRecordsResult> {
   const intents = adaptHealthConnectCanonicalRecords(input.records);
+  const { inserted: _inserted, ...result } = await persistCanonicalIntents(tx, {
+    ...input,
+    intents,
+    dedupe: "legacy",
+  });
+  return { ...result, rejectedCount: result.rejectedCount + input.records.length - intents.length };
+}
+
+export async function persistCanonicalIntents(
+  tx: Tx,
+  input: {
+    organizationId: string;
+    dataSourceId: number | null;
+    ingestionBatchId: number | null;
+    provider: Provider;
+    intents: CanonicalWriteIntent[];
+    dedupe: "legacy" | "mobile";
+  },
+): Promise<PersistCanonicalIntentsResult> {
+  const { intents } = input;
   const definitions = new Map<string, number>();
-  const result: PersistCanonicalRecordsResult = {
+  const result: PersistCanonicalIntentsResult = {
     metricSampleCount: 0,
     healthEventCount: 0,
     duplicateCount: 0,
-    rejectedCount: input.records.length - intents.length,
+    rejectedCount: 0,
+    inserted: [],
   };
 
   for (const intent of intents) {
@@ -118,26 +158,43 @@ export async function persistCanonicalRecords(
           textValue: null,
           unit: normalized.unit,
           externalSampleId: intent.externalId,
-          dedupeHash: dedupeHash("metric_sample", {
-            canonicalType: intent.canonicalType,
-            sampledAt: intent.sampledAt,
-            value: normalized.value,
-            unit: normalized.unit,
-            externalId: intent.externalId,
-            rawRecord: intent.rawRecord,
-          }),
+          dedupeHash: dedupeHash(
+            "metric_sample",
+            input.dedupe === "mobile"
+              ? {
+                  provider: input.provider,
+                  canonicalType: intent.canonicalType,
+                  externalId: intent.externalId,
+                  lastModifiedAt: intent.lastModifiedAt ?? null,
+                  sampledAt: intent.sampledAt,
+                  value: normalized.value,
+                  unit: normalized.unit,
+                }
+              : {
+                  canonicalType: intent.canonicalType,
+                  sampledAt: intent.sampledAt,
+                  value: normalized.value,
+                  unit: normalized.unit,
+                  externalId: intent.externalId,
+                  rawRecord: intent.rawRecord,
+                },
+          ),
           metadataJson: {
             provider: input.provider,
             canonicalType: intent.canonicalType,
             sourceApp: intent.sourceApp,
+            ...(intent.endAt ? { endAt: intent.endAt } : {}),
+            ...(intent.lastModifiedAt ? { lastModifiedAt: intent.lastModifiedAt } : {}),
             rawRecord: intent.rawRecord,
             ...(flags.length ? { normalizationFlags: flags } : {}),
           },
         })
         .onConflictDoNothing({ target: [metricSample.organizationId, metricSample.dedupeHash] })
         .returning({ id: metricSample.id });
-      if (inserted.length) result.metricSampleCount += 1;
-      else result.duplicateCount += 1;
+      if (inserted[0]) {
+        result.metricSampleCount += 1;
+        result.inserted.push({ table: "metric_sample", id: inserted[0].id });
+      } else result.duplicateCount += 1;
       continue;
     }
 
@@ -155,24 +212,39 @@ export async function persistCanonicalRecords(
           canonicalType: intent.canonicalType,
           sourceApp: intent.sourceApp,
           ...(intent.endAt ? { endAt: intent.endAt } : {}),
+          ...(intent.lastModifiedAt ? { lastModifiedAt: intent.lastModifiedAt } : {}),
           ...intent.payloadJson,
           rawRecord: intent.rawRecord,
         },
         sourceEventId: intent.sourceEventId,
-        dedupeHash: dedupeHash("health_event", {
-          canonicalType: intent.canonicalType,
-          eventAt: intent.eventAt,
-          endAt: intent.endAt,
-          title: intent.title,
-          sourceEventId: intent.sourceEventId,
-          payloadJson: intent.payloadJson,
-          rawRecord: intent.rawRecord,
-        }),
+        dedupeHash: dedupeHash(
+          "health_event",
+          input.dedupe === "mobile"
+            ? {
+                provider: input.provider,
+                canonicalType: intent.canonicalType,
+                externalId: intent.sourceEventId,
+                lastModifiedAt: intent.lastModifiedAt ?? null,
+                eventAt: intent.eventAt,
+                endAt: intent.endAt,
+              }
+            : {
+                canonicalType: intent.canonicalType,
+                eventAt: intent.eventAt,
+                endAt: intent.endAt,
+                title: intent.title,
+                sourceEventId: intent.sourceEventId,
+                payloadJson: intent.payloadJson,
+                rawRecord: intent.rawRecord,
+              },
+        ),
       })
       .onConflictDoNothing({ target: [healthEvent.organizationId, healthEvent.dedupeHash] })
       .returning({ id: healthEvent.id });
-    if (inserted.length) result.healthEventCount += 1;
-    else result.duplicateCount += 1;
+    if (inserted[0]) {
+      result.healthEventCount += 1;
+      result.inserted.push({ table: "health_event", id: inserted[0].id });
+    } else result.duplicateCount += 1;
   }
   return result;
 }

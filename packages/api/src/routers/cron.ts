@@ -1,7 +1,9 @@
 import type { Database } from "@openhealth/db";
 import {
   createDatabaseIngestionTick,
+  MOBILE_INGEST_JOB_TYPE,
   RAW_ARTIFACT_REPLAY_JOB_TYPE,
+  runMobileIngestBatchJob,
   runReplayJob,
   type IngestionJobRunners,
 } from "@openhealth/ingestion";
@@ -40,12 +42,14 @@ const ingestionRunOutput = cronRunOutput.extend({
 });
 
 /**
- * Ingestion job runners by job type. `sync_session_finalize` (mobile sync)
- * is not ported yet: such jobs are left queued, never claimed or failed.
+ * Ingestion job runners by job type. `mobile_ingest_batch` retries mobile
+ * batches whose inline apply failed. The legacy `sync_session_finalize` is
+ * superseded by #40 and never registered: such jobs stay queued.
  */
 export function createIngestionJobRunners(db: Database): IngestionJobRunners {
   return {
     [RAW_ARTIFACT_REPLAY_JOB_TYPE]: (input) => runReplayJob(db, input),
+    [MOBILE_INGEST_JOB_TYPE]: (input) => runMobileIngestBatchJob(db, input),
   };
 }
 

@@ -1,0 +1,621 @@
+import { createHash } from "node:crypto";
+import type { Database } from "@openhealth/db";
+import {
+  dataSource,
+  ingestionBatch,
+  ingestionError,
+  ingestionJob,
+  ingestionRawArtifact,
+  provenanceLink,
+} from "@openhealth/db/schema/health-record";
+import { providerConnection } from "@openhealth/db/schema/ingestion";
+import { buildDataSourceIdentity, stableSerialize } from "@openhealth/health-record";
+import { and, desc, eq, inArray, like } from "drizzle-orm";
+
+import type { MOBILE_INGESTION_PROVIDERS } from "./health-connect";
+import { IngestionStateError } from "./job-runner-state";
+import {
+  adaptMobileHealthRecords,
+  type MobileHealthRecord,
+  type MobileHealthRecordType,
+} from "./mobile-records";
+import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
+import type { RunClaimedJobResult } from "./run-job";
+
+/**
+ * `mobile.ingestBatch` domain logic (issue #7, decided in
+ * docs/architecture/mobile-sync-decision.md).
+ *
+ * The device sends batches read from Health Connect / HealthKit change
+ * cursors and advances a cursor only after the server acknowledges. The
+ * server makes that safe in two transactions:
+ *
+ * 1. **Accept** (durable): an `ingestion_job` keyed on the batch content hash
+ *    plus an `ingestion_raw_artifact` holding the validated batch. A repeat of
+ *    the same content hits the job's idempotency key and returns `duplicate`.
+ * 2. **Apply**: canonical rows via `persistCanonicalIntents` (per-record
+ *    dedupe), one `data_source` per source app/device, and one
+ *    `provenance_link` per inserted row. If apply throws, the job stays
+ *    `queued` and the `mobile_ingest_batch` cron runner retries it.
+ *
+ * Deletions are stored in the raw artifact only; applying them is #44.
+ * PHI: errors store ids and fixed codes, never the payload.
+ */
+export const MOBILE_INGEST_JOB_TYPE = "mobile_ingest_batch";
+export const MOBILE_BATCH_ARTIFACT_TYPE = "mobile_health_batch";
+/** Raw batches are purged after this many days; canonical rows are kept. */
+export const MOBILE_BATCH_RETENTION_DAYS = 30;
+
+const IDEMPOTENCY_PREFIX = "mobile-ingest:";
+
+export type MobileProvider = (typeof MOBILE_INGESTION_PROVIDERS)[number];
+
+export type MobileIngestBatch = {
+  schemaVersion: 1;
+  deviceId: string;
+  provider: MobileProvider;
+  recordType: MobileHealthRecordType;
+  mode: "changes" | "backfill";
+  window?: { from: string; to: string };
+  upserts: MobileHealthRecord[];
+  deletions: { externalRecordId: string }[];
+  clientTimezone: string;
+};
+
+export class MobileDeviceNotRegisteredError extends Error {
+  constructor() {
+    super("Mobile device is not registered in the active organization.");
+    this.name = "MobileDeviceNotRegisteredError";
+  }
+}
+
+export class MobileDeviceRevokedError extends Error {
+  constructor() {
+    super("Mobile device access has been revoked.");
+    this.name = "MobileDeviceRevokedError";
+  }
+}
+
+const PLATFORM_PROVIDER: Record<"android" | "ios", MobileProvider> = {
+  android: "health_connect",
+  ios: "apple_health",
+};
+
+/**
+ * Upsert the device's `provider_connection` (`external_user_id = deviceId`).
+ * A revoked or disconnected device stays that way: re-registering must not
+ * silently undo a revocation.
+ */
+export async function registerMobileDevice(
+  db: Database,
+  input: { organizationId: string; deviceId: string; platform: "android" | "ios"; now?: Date },
+): Promise<{ providerConnectionId: number }> {
+  const now = input.now ?? new Date();
+  const provider = PLATFORM_PROVIDER[input.platform];
+  await db
+    .insert(providerConnection)
+    .values({
+      organizationId: input.organizationId,
+      provider,
+      externalUserId: input.deviceId,
+      status: "active",
+      connectedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing({
+      target: [
+        providerConnection.organizationId,
+        providerConnection.provider,
+        providerConnection.externalUserId,
+      ],
+    });
+  const connection = await findConnection(db, input.organizationId, provider, input.deviceId);
+  if (!connection) throw new Error("Provider connection was not resolvable.");
+  if (connection.status !== "active") throw new MobileDeviceRevokedError();
+  return { providerConnectionId: connection.id };
+}
+
+async function findConnection(
+  db: Pick<Database, "select">,
+  organizationId: string,
+  provider: MobileProvider,
+  deviceId: string,
+) {
+  const [row] = await db
+    .select({ id: providerConnection.id, status: providerConnection.status })
+    .from(providerConnection)
+    .where(
+      and(
+        eq(providerConnection.organizationId, organizationId),
+        eq(providerConnection.provider, provider),
+        eq(providerConnection.externalUserId, deviceId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Content hash of a batch. Retrying after a crash re-reads the same changes
+ * from the unadvanced cursor and produces the same hash.
+ */
+export function mobileBatchContentHash(organizationId: string, batch: MobileIngestBatch): string {
+  return createHash("sha256")
+    .update(
+      [
+        organizationId,
+        batch.deviceId,
+        batch.provider,
+        batch.recordType,
+        stableSerialize({ upserts: batch.upserts, deletions: batch.deletions }),
+      ].join("|"),
+    )
+    .digest("hex");
+}
+
+/** The record type is kept in the job key so status survives the raw-payload purge. */
+function idempotencyKey(recordType: string, hash: string) {
+  return `${IDEMPOTENCY_PREFIX}${recordType}:${hash}`;
+}
+
+export type AcceptMobileBatchResult =
+  | { status: "accepted"; jobId: number; rawArtifactId: number }
+  | { status: "duplicate"; jobId: number; rawArtifactId: number };
+
+/** Transaction 1: durably record the batch, or detect that it was seen before. */
+export async function acceptMobileBatch(
+  db: Database,
+  input: { organizationId: string; batch: MobileIngestBatch; traceId: string; now?: Date },
+): Promise<AcceptMobileBatchResult> {
+  const now = input.now ?? new Date();
+  const { batch, organizationId } = input;
+  const connection = await findConnection(db, organizationId, batch.provider, batch.deviceId);
+  if (!connection) throw new MobileDeviceNotRegisteredError();
+  if (connection.status !== "active") throw new MobileDeviceRevokedError();
+
+  const hash = mobileBatchContentHash(organizationId, batch);
+  const key = idempotencyKey(batch.recordType, hash);
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(ingestionJob)
+      .values({
+        organizationId,
+        providerConnectionId: connection.id,
+        jobType: MOBILE_INGEST_JOB_TYPE,
+        status: "queued",
+        triggeredBy: "mobile_device",
+        idempotencyKey: key,
+        windowStart: batch.window ? new Date(batch.window.from) : null,
+        windowEnd: batch.window ? new Date(batch.window.to) : null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing({ target: [ingestionJob.organizationId, ingestionJob.idempotencyKey] })
+      .returning({ id: ingestionJob.id });
+
+    if (!created) {
+      const [existing] = await tx
+        .select({ jobId: ingestionJob.id, rawArtifactId: ingestionRawArtifact.id })
+        .from(ingestionJob)
+        .innerJoin(
+          ingestionRawArtifact,
+          and(
+            eq(ingestionRawArtifact.ingestionJobId, ingestionJob.id),
+            eq(ingestionRawArtifact.organizationId, ingestionJob.organizationId),
+            eq(ingestionRawArtifact.artifactType, MOBILE_BATCH_ARTIFACT_TYPE),
+          ),
+        )
+        .where(
+          and(
+            eq(ingestionJob.organizationId, organizationId),
+            eq(ingestionJob.idempotencyKey, key),
+          ),
+        )
+        .limit(1);
+      if (!existing) throw new IngestionStateError("duplicate mobile batch has no raw artifact");
+      return { status: "duplicate", ...existing };
+    }
+
+    const serialized = JSON.stringify(batch);
+    const [artifact] = await tx
+      .insert(ingestionRawArtifact)
+      .values({
+        organizationId,
+        providerConnectionId: connection.id,
+        ingestionJobId: created.id,
+        artifactType: MOBILE_BATCH_ARTIFACT_TYPE,
+        traceId: input.traceId,
+        payloadJson: batch,
+        payloadHash: hash,
+        sizeBytes: Buffer.byteLength(serialized, "utf8"),
+        capturedAt: now,
+        retentionUntil: new Date(now.getTime() + MOBILE_BATCH_RETENTION_DAYS * 86_400_000),
+        retentionClass: MOBILE_BATCH_ARTIFACT_TYPE,
+      })
+      .returning({ id: ingestionRawArtifact.id });
+    return { status: "accepted", jobId: created.id, rawArtifactId: artifact!.id };
+  });
+}
+
+function isMobileBatchPayload(payload: unknown): payload is MobileIngestBatch {
+  if (!payload || typeof payload !== "object") return false;
+  const candidate = payload as Partial<MobileIngestBatch>;
+  return (
+    candidate.schemaVersion === 1 &&
+    typeof candidate.provider === "string" &&
+    Array.isArray(candidate.upserts)
+  );
+}
+
+/**
+ * Transaction 2: apply a queued (inline call) or running (cron claim) batch.
+ * Also the `mobile_ingest_batch` cron runner.
+ */
+export async function runMobileIngestBatchJob(
+  db: Database,
+  input: { jobId: number; organizationId: string },
+  now: () => Date = () => new Date(),
+): Promise<RunClaimedJobResult> {
+  return db.transaction(async (tx) => {
+    const { organizationId } = input;
+    const [job] = await tx
+      .select({ id: ingestionJob.id, providerConnectionId: ingestionJob.providerConnectionId })
+      .from(ingestionJob)
+      .where(
+        and(
+          eq(ingestionJob.id, input.jobId),
+          eq(ingestionJob.organizationId, organizationId),
+          eq(ingestionJob.jobType, MOBILE_INGEST_JOB_TYPE),
+          inArray(ingestionJob.status, ["queued", "running"]),
+        ),
+      )
+      .limit(1)
+      .for("update");
+    if (!job) throw new IngestionStateError("pending mobile ingest job not found");
+
+    const startedAt = now();
+    await tx
+      .update(ingestionJob)
+      .set({ status: "running", startedAt, updatedAt: startedAt })
+      .where(and(eq(ingestionJob.id, job.id), eq(ingestionJob.organizationId, organizationId)));
+    const [batchRow] = await tx
+      .insert(ingestionBatch)
+      .values({ organizationId, ingestionJobId: job.id, status: "processing", startedAt })
+      .returning({ id: ingestionBatch.id });
+    const batchId = batchRow!.id;
+
+    const finish = async (
+      outcome: { job: "succeeded"; batch: "completed" } | { job: "failed"; batch: "failed" },
+      counts: { record: number; accepted: number; rejected: number },
+    ) => {
+      const completedAt = now();
+      await tx
+        .update(ingestionBatch)
+        .set({
+          status: outcome.batch,
+          recordCount: counts.record,
+          acceptedCount: counts.accepted,
+          rejectedCount: counts.rejected,
+          completedAt,
+          updatedAt: completedAt,
+        })
+        .where(
+          and(eq(ingestionBatch.id, batchId), eq(ingestionBatch.organizationId, organizationId)),
+        );
+      await tx
+        .update(ingestionJob)
+        .set({ status: outcome.job, completedAt, updatedAt: completedAt })
+        .where(and(eq(ingestionJob.id, job.id), eq(ingestionJob.organizationId, organizationId)));
+      return completedAt;
+    };
+
+    const [artifact] = await tx
+      .select({ id: ingestionRawArtifact.id, payloadJson: ingestionRawArtifact.payloadJson })
+      .from(ingestionRawArtifact)
+      .where(
+        and(
+          eq(ingestionRawArtifact.organizationId, organizationId),
+          eq(ingestionRawArtifact.ingestionJobId, job.id),
+          eq(ingestionRawArtifact.artifactType, MOBILE_BATCH_ARTIFACT_TYPE),
+        ),
+      )
+      .limit(1);
+    if (!artifact || !isMobileBatchPayload(artifact.payloadJson)) {
+      const completedAt = await finish(
+        { job: "failed", batch: "failed" },
+        { record: 0, accepted: 0, rejected: 0 },
+      );
+      await tx.insert(ingestionError).values({
+        organizationId,
+        ingestionJobId: job.id,
+        ingestionBatchId: batchId,
+        errorCode: "mobile_batch_unreadable",
+        message: "Mobile batch raw artifact missing, purged, or unreadable.",
+        rawPayloadJson: { rawArtifactId: artifact?.id ?? null },
+        occurredAt: completedAt,
+      });
+      return {
+        jobId: job.id,
+        jobType: MOBILE_INGEST_JOB_TYPE,
+        batchId,
+        status: "failed",
+        counts: null,
+        errorCode: "mobile_batch_unreadable",
+      };
+    }
+    const batch = artifact.payloadJson;
+    if (job.providerConnectionId === null)
+      throw new IngestionStateError("mobile ingest job has no provider connection");
+
+    // One data_source per (source app, device) so source priority can tell a
+    // scale from a watch.
+    const groups = new Map<string, { identity: SourceIdentity; records: MobileHealthRecord[] }>();
+    for (const record of batch.upserts) {
+      const identity = sourceIdentity(batch.provider, record);
+      const group = groups.get(identity.sourceKey);
+      if (group) group.records.push(record);
+      else groups.set(identity.sourceKey, { identity, records: [record] });
+    }
+
+    const totals = {
+      metricSampleCount: 0,
+      healthEventCount: 0,
+      duplicateCount: 0,
+      rejectedCount: 0,
+    };
+    const inserted: CanonicalRowRef[] = [];
+    let intentCount = 0;
+    for (const { identity, records } of groups.values()) {
+      const dataSourceId = await resolveDataSource(
+        tx,
+        organizationId,
+        job.providerConnectionId,
+        identity,
+      );
+      const intents = adaptMobileHealthRecords(records);
+      intentCount += intents.length;
+      const persisted = await persistCanonicalIntents(tx, {
+        organizationId,
+        dataSourceId,
+        ingestionBatchId: batchId,
+        provider: batch.provider,
+        intents,
+        dedupe: "mobile",
+      });
+      totals.metricSampleCount += persisted.metricSampleCount;
+      totals.healthEventCount += persisted.healthEventCount;
+      totals.duplicateCount += persisted.duplicateCount;
+      totals.rejectedCount += persisted.rejectedCount;
+      inserted.push(...persisted.inserted);
+    }
+
+    if (inserted.length)
+      await tx
+        .insert(provenanceLink)
+        .values(
+          inserted.map((row) => ({
+            organizationId,
+            targetTable: row.table,
+            targetId: row.id,
+            sourceTable: "ingestion_raw_artifact",
+            sourceId: artifact.id,
+            relation: "derived_from_raw_artifact",
+          })),
+        )
+        .onConflictDoNothing();
+
+    const accepted = totals.metricSampleCount + totals.healthEventCount;
+    const completedAt = await finish(
+      { job: "succeeded", batch: "completed" },
+      { record: intentCount, accepted, rejected: totals.rejectedCount },
+    );
+    await tx
+      .update(providerConnection)
+      .set({ lastSyncedAt: completedAt, updatedAt: completedAt })
+      .where(
+        and(
+          eq(providerConnection.id, job.providerConnectionId),
+          eq(providerConnection.organizationId, organizationId),
+        ),
+      );
+    return {
+      jobId: job.id,
+      jobType: MOBILE_INGEST_JOB_TYPE,
+      batchId,
+      status: "succeeded",
+      counts: {
+        acceptedCount: accepted,
+        rejectedCount: totals.rejectedCount,
+        metricSampleCount: totals.metricSampleCount,
+        healthEventCount: totals.healthEventCount,
+        duplicateCount: totals.duplicateCount,
+      },
+      errorCode: null,
+    };
+  });
+}
+
+type SourceIdentity = ReturnType<typeof sourceIdentity>;
+
+function sourceIdentity(provider: MobileProvider, record: MobileHealthRecord) {
+  const identity = buildDataSourceIdentity({
+    provider,
+    importChannel: "mobile_ingest",
+    deviceType: record.sourceDevice?.type ?? null,
+    deviceModel: record.sourceDevice?.model ?? null,
+    sourceAppId: record.sourceApp,
+  });
+  return {
+    ...identity,
+    sourceType: record.sourceDevice?.type?.toLowerCase() || "unknown",
+    deviceType: record.sourceDevice?.type ?? null,
+    deviceModel: record.sourceDevice?.model ?? null,
+    sourceAppId: record.sourceApp,
+  };
+}
+
+async function resolveDataSource(
+  tx: Pick<Database, "select" | "insert">,
+  organizationId: string,
+  providerConnectionId: number,
+  identity: SourceIdentity,
+) {
+  await tx
+    .insert(dataSource)
+    .values({
+      organizationId,
+      providerConnectionId,
+      sourceType: identity.sourceType,
+      sourceKey: identity.sourceKey,
+      importChannel: "mobile_ingest",
+      deviceType: identity.deviceType,
+      deviceModel: identity.deviceModel,
+      sourceAppId: identity.sourceAppId,
+      displayName: identity.sourceAppId,
+    })
+    .onConflictDoNothing({ target: [dataSource.organizationId, dataSource.sourceKey] });
+  const [row] = await tx
+    .select({ id: dataSource.id })
+    .from(dataSource)
+    .where(
+      and(
+        eq(dataSource.organizationId, organizationId),
+        eq(dataSource.sourceKey, identity.sourceKey),
+      ),
+    )
+    .limit(1);
+  if (!row) throw new Error("Data source was not resolvable.");
+  return row.id;
+}
+
+export type IngestMobileBatchResult = {
+  status: "applied" | "queued" | "duplicate";
+  jobId: number;
+  rawArtifactId: number;
+  accepted: number;
+  duplicates: number;
+  rejected: number;
+};
+
+/**
+ * Accept then apply. A failed apply still returns `queued`: the raw artifact
+ * is durable, so the device may advance its cursor and the cron runner
+ * finishes the work.
+ */
+export async function ingestMobileBatch(
+  db: Database,
+  input: {
+    organizationId: string;
+    batch: MobileIngestBatch;
+    traceId: string;
+    now?: Date;
+    /** Test seam: replaces the inline apply step. */
+    apply?: typeof runMobileIngestBatchJob;
+  },
+): Promise<IngestMobileBatchResult> {
+  const accepted = await acceptMobileBatch(db, input);
+  const base = { jobId: accepted.jobId, rawArtifactId: accepted.rawArtifactId };
+  if (accepted.status === "duplicate")
+    return {
+      status: "duplicate",
+      ...base,
+      accepted: 0,
+      duplicates: input.batch.upserts.length,
+      rejected: 0,
+    };
+
+  const apply = input.apply ?? runMobileIngestBatchJob;
+  const queued = { status: "queued" as const, ...base, accepted: 0, duplicates: 0, rejected: 0 };
+  let result: RunClaimedJobResult;
+  try {
+    const clock = input.now ? () => input.now! : undefined;
+    result = await apply(
+      db,
+      { jobId: accepted.jobId, organizationId: input.organizationId },
+      clock,
+    );
+  } catch {
+    return queued;
+  }
+  if (result.status !== "succeeded" || !result.counts) return queued;
+  return {
+    status: "applied",
+    ...base,
+    accepted: result.counts.acceptedCount,
+    duplicates: result.counts.duplicateCount ?? 0,
+    rejected: result.counts.rejectedCount,
+  };
+}
+
+export type MobileSyncStatus = {
+  devices: {
+    deviceId: string;
+    provider: string;
+    status: string;
+    lastIngestAt: string | null;
+    perType: Record<string, { lastAt: string | null; lastStatus: string | null }>;
+  }[];
+};
+
+/** Safe status metadata only: ids, timestamps and job statuses. No PHI. */
+export async function getMobileSyncStatus(
+  db: Database,
+  input: { organizationId: string; jobsPerDevice?: number },
+): Promise<MobileSyncStatus> {
+  const connections = await db
+    .select({
+      id: providerConnection.id,
+      deviceId: providerConnection.externalUserId,
+      provider: providerConnection.provider,
+      status: providerConnection.status,
+      lastSyncedAt: providerConnection.lastSyncedAt,
+    })
+    .from(providerConnection)
+    .where(
+      and(
+        eq(providerConnection.organizationId, input.organizationId),
+        inArray(providerConnection.provider, ["health_connect", "apple_health"]),
+      ),
+    )
+    .orderBy(providerConnection.id);
+
+  const devices: MobileSyncStatus["devices"] = [];
+  for (const connection of connections) {
+    const jobs = await db
+      .select({
+        key: ingestionJob.idempotencyKey,
+        status: ingestionJob.status,
+        createdAt: ingestionJob.createdAt,
+        completedAt: ingestionJob.completedAt,
+      })
+      .from(ingestionJob)
+      .where(
+        and(
+          eq(ingestionJob.organizationId, input.organizationId),
+          eq(ingestionJob.providerConnectionId, connection.id),
+          eq(ingestionJob.jobType, MOBILE_INGEST_JOB_TYPE),
+          like(ingestionJob.idempotencyKey, `${IDEMPOTENCY_PREFIX}%`),
+        ),
+      )
+      .orderBy(desc(ingestionJob.createdAt), desc(ingestionJob.id))
+      .limit(input.jobsPerDevice ?? 200);
+    const perType: MobileSyncStatus["devices"][number]["perType"] = {};
+    for (const job of jobs) {
+      const recordType = job.key?.slice(IDEMPOTENCY_PREFIX.length).split(":")[0];
+      if (!recordType || perType[recordType]) continue;
+      perType[recordType] = {
+        lastAt: (job.completedAt ?? job.createdAt).toISOString(),
+        lastStatus: job.status,
+      };
+    }
+    devices.push({
+      deviceId: connection.deviceId,
+      provider: connection.provider,
+      status: connection.status,
+      lastIngestAt: connection.lastSyncedAt?.toISOString() ?? null,
+      perType,
+    });
+  }
+  return { devices };
+}

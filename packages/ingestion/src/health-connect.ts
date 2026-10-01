@@ -14,8 +14,12 @@ export type SleepStageInterval = { stage: string; start: string; end: string };
 
 export type CanonicalMetricWriteIntent = {
   kind: "metric_sample";
-  canonicalType: "weight" | "steps" | "heart_rate";
+  canonicalType: "weight" | "steps" | "heart_rate" | "body_fat" | "active_calories" | "distance";
   sampledAt: string;
+  /** Interval end for interval metrics (steps, calories, distance); stored in metadata. */
+  endAt?: string;
+  /** Source revision; part of the dedupe key on the mobile path only. */
+  lastModifiedAt?: string;
   value: number;
   unit: string;
   externalId: string | null;
@@ -32,7 +36,9 @@ export type CanonicalHealthEventWriteIntent = {
   sourceEventId: string | null;
   sourceApp: string | null;
   rawRecord: Record<string, unknown>;
-  payloadJson?: { sleepStageIntervals?: SleepStageInterval[] };
+  payloadJson?: { sleepStageIntervals?: SleepStageInterval[]; activity?: string };
+  /** Source revision; part of the dedupe key on the mobile path only. */
+  lastModifiedAt?: string;
 };
 
 export type CanonicalWriteIntent = CanonicalMetricWriteIntent | CanonicalHealthEventWriteIntent;

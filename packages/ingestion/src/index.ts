@@ -7,3 +7,5 @@ export * from "./run-job";
 export * from "./health-connect";
 export * from "./persist-canonical-records";
 export * from "./replay";
+export * from "./mobile-records";
+export * from "./mobile-batch";

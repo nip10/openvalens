@@ -27,6 +27,7 @@ SUITES=(
   "BODY_TEST_DATABASE_URL|bodytest|packages/body/src/daily-weight.integration.test.ts"
   "LEGACY_EXPORT_TEST_DATABASE_URL|legacy_export_issue20|packages/clinical-export/src/repository.legacy.integration.test.ts"
   "CLINICAL_EXPORT_TEST_DATABASE_URL|clinical_export_issue20|packages/clinical-export/src/repository.integration.test.ts"
+  "MOBILE_INGEST_TEST_DATABASE_URL|mobile_ingest_issue7|packages/ingestion/src/mobile-batch.integration.test.ts"
 )
 
 reset_db() {
