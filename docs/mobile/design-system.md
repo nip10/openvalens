@@ -36,18 +36,18 @@ The web palette is declared in `packages/ui/src/styles/globals.css`:
 1. `@theme inline { --color-background: var(--background); ... }` maps semantic names to CSS variables.
 2. `:root { --background: oklch(1 0 0); ... }` and `.dark { --background: oklch(0.145 0 0); ... }` define the actual OKLCH values.
 
-To make the mobile app use the same palette, `apps/native/global.css` should import the web global CSS:
+To make the mobile app use the same palette, `apps/native/global.css` imports the tokens-only stylesheet (not the web `globals.css`, whose fonts, animations, and `@source` paths are web-only and break uniwind):
 
 ```css
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
-@import "@openhealth/ui/globals.css";
+@import "@openhealth/ui/tokens.css";
 ```
 
 After the import, uniwind exposes the same variables to React Native. Tailwind classes like `bg-background`, `text-foreground`, and `text-muted` resolve to the openhealth OKLCH values. heroui-native components read the same variables through `useThemeColor('foreground')`.
 
-Verify the bridge in `apps/native/app/(drawer)/index.tsx`, which already uses `text-foreground`, `text-muted`, `bg-danger`, and `bg-success`. Once `@openhealth/ui/globals.css` is imported, those classes will resolve to the openhealth tokens rather than heroui-native’s default palette.
+Verify the bridge in `apps/native/app/(drawer)/index.tsx`, which already uses `text-foreground`, `text-muted`, `bg-danger`, and `bg-success`. Once `@openhealth/ui/tokens.css` is imported, those classes will resolve to the openhealth tokens rather than heroui-native’s default palette.
 
 ### Token name alignment
 
@@ -286,29 +286,29 @@ heroui-native components already use reanimated internally; prefer their built-i
 
 The web exports 21 primitive families. On mobile the better-t-stack scaffold already wires most of them through `heroui-native`, `expo-router`, and `@gorhom/bottom-sheet`. The table below maps each web primitive to the actual mobile implementation, notes platform-specific behavior, and calls out where mobile diverges from web.
 
-| #   | Web primitive  | Mobile implementation                                                                        | Source / notes                                                                                                                   |
-| --- | -------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `Avatar`       | Thin wrapper around `expo-image` `Image`                                                     | Build in `apps/native/components/avatar.tsx`. Sizes sm (24), default (32), lg (40). Ring and badge via `className`.              |
-| 2   | `Badge`        | `Chip` from `heroui-native`                                                                  | Use `variant` and `color` props. Minimum height 20 pt.                                                                           |
-| 3   | `Button`       | `Button` from `heroui-native`                                                                | Variants `default`, `secondary`, `destructive`/`danger`, `outline`, `ghost`. Icon-only sizes must still hit 44 pt.               |
-| 4   | `Card`         | `Card` / `Surface` from `heroui-native`                                                      | `Card`, `Card.Title`, `Card.Description`. Use `variant="secondary"` or `variant="tertiary"` for muted surfaces.                  |
-| 5   | `Chart`        | `victory-native` or `react-native-gifted-charts`                                             | **Not in scaffold yet; must be added.** Wrap in `ChartContainer`. Map web `chart-1`…`chart-5` via inline OKLCH or CSS variables. |
-| 6   | `Dialog`       | `Dialog` from `heroui-native`, or platform `Alert`                                           | Centered modal. Destructive primary action requires explicit confirmation.                                                       |
-| 7   | `DropdownMenu` | `Menu` from `heroui-native` if exported, else `@gorhom/bottom-sheet`                         | On phones prefer a bottom-sheet action list. Destructive items tinted `destructive` / `danger`.                                  |
-| 8   | `Input`        | `TextField` + `Input` from `heroui-native`                                                   | Pair with `Label` and `FieldError`. See `apps/native/components/sign-in.tsx` for the working pattern.                            |
-| 9   | `Label`        | `Label` from `heroui-native`                                                                 | Associated with inputs via `accessibilityLabelledBy` or by nesting inside `TextField`.                                           |
-| 10  | `Progress`     | `Progress` from `heroui-native` if exported, else `@react-native-community/slider` style bar | Track `bg-muted`, indicator maps to web thresholds (`success`/`warning`/`destructive`).                                          |
-| 11  | `ScrollArea`   | `ScrollView` / `FlatList` from React Native                                                  | No custom scrollbar. Horizontal overflow via `horizontal` prop.                                                                  |
-| 12  | `Select`       | `Select` from `heroui-native` if exported, else `@gorhom/bottom-sheet` radio list            | Long lists: searchable bottom sheet. Short lists: native picker on Android, action sheet on iOS.                                 |
-| 13  | `Separator`    | `View` with `bg-border` or heroui `Divider` if exported                                      | 1 pt / `hairlineWidth`.                                                                                                          |
-| 14  | `Sheet`        | `@gorhom/bottom-sheet`                                                                       | Slides from bottom. Radius `rounded-3xl` (22 pt). Grabber on iOS; back gesture on Android.                                       |
-| 15  | `Sidebar`      | `Drawer` from `expo-router/drawer`                                                           | Already wired in `apps/native/app/(drawer)/_layout.tsx`. Bottom tabs expose top-level sections.                                  |
-| 16  | `Skeleton`     | `Skeleton` from `heroui-native` if exported, else custom pulse                               | `bg-muted` / `bg-accent` pulse. Respect reduce motion.                                                                           |
-| 17  | `Sonner`       | `useToast` from `heroui-native`                                                              | `toast.show({ variant: 'success'                                                                                                 | 'danger' | ... })`. Position top on iOS, bottom on Android. |
-| 18  | `Table`        | `Table` family from `heroui-native` if exported, else `FlatList` rows                        | Native list-first. Horizontal scroll when needed. Mono numeric columns.                                                          |
-| 19  | `Tabs`         | `Tabs` from `heroui-native` if exported; layout tabs via `expo-router` `Tabs`                | Screen-level tabs use `expo-router`. In-screen segmented controls use heroui `Tabs`.                                             |
-| 20  | `Textarea`     | Multiline `Input` / `TextField` from `heroui-native`                                         | Min height 64 pt, auto-grow up to 200 pt. `returnKeyType="done"`.                                                                |
-| 21  | `Tooltip`      | Avoid                                                                                        | Use `accessibilityHint` or inline helper text. Only for icon-only toolbar items, revealed on long-press.                         |
+| #   | Web primitive  | Mobile implementation                                                                        | Source / notes                                                                                                                                                                       |
+| --- | -------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `Avatar`       | Thin wrapper around `expo-image` `Image`                                                     | Build in `apps/native/components/avatar.tsx`. Sizes sm (24), default (32), lg (40). Ring and badge via `className`.                                                                  |
+| 2   | `Badge`        | `Chip` from `heroui-native`                                                                  | Use `variant` and `color` props. Minimum height 20 pt.                                                                                                                               |
+| 3   | `Button`       | `Button` from `heroui-native`                                                                | Variants `default`, `secondary`, `destructive`/`danger`, `outline`, `ghost`. Icon-only sizes must still hit 44 pt.                                                                   |
+| 4   | `Card`         | `Card` / `Surface` from `heroui-native`                                                      | `Card`, `Card.Title`, `Card.Description`. Use `variant="secondary"` or `variant="tertiary"` for muted surfaces.                                                                      |
+| 5   | `Chart`        | `react-native-gifted-charts` (+ `expo-linear-gradient` peer)                                 | Wrapped in `apps/native/components/chart.tsx`; series colors read `chart-1`…`chart-5` via `useThemeColor`. The gradient peer is required: gifted-charts throws at import without it. |
+| 6   | `Dialog`       | `Dialog` from `heroui-native`, or platform `Alert`                                           | Centered modal. Destructive primary action requires explicit confirmation.                                                                                                           |
+| 7   | `DropdownMenu` | `Menu` from `heroui-native` if exported, else `@gorhom/bottom-sheet`                         | On phones prefer a bottom-sheet action list. Destructive items tinted `destructive` / `danger`.                                                                                      |
+| 8   | `Input`        | `TextField` + `Input` from `heroui-native`                                                   | Pair with `Label` and `FieldError`. See `apps/native/components/sign-in.tsx` for the working pattern.                                                                                |
+| 9   | `Label`        | `Label` from `heroui-native`                                                                 | Associated with inputs via `accessibilityLabelledBy` or by nesting inside `TextField`.                                                                                               |
+| 10  | `Progress`     | `Progress` from `heroui-native` if exported, else `@react-native-community/slider` style bar | Track `bg-muted`, indicator maps to web thresholds (`success`/`warning`/`destructive`).                                                                                              |
+| 11  | `ScrollArea`   | `ScrollView` / `FlatList` from React Native                                                  | No custom scrollbar. Horizontal overflow via `horizontal` prop.                                                                                                                      |
+| 12  | `Select`       | `Select` from `heroui-native` if exported, else `@gorhom/bottom-sheet` radio list            | Long lists: searchable bottom sheet. Short lists: native picker on Android, action sheet on iOS.                                                                                     |
+| 13  | `Separator`    | `View` with `bg-border` or heroui `Divider` if exported                                      | 1 pt / `hairlineWidth`.                                                                                                                                                              |
+| 14  | `Sheet`        | `@gorhom/bottom-sheet`                                                                       | Slides from bottom. Radius `rounded-3xl` (22 pt). Grabber on iOS; back gesture on Android.                                                                                           |
+| 15  | `Sidebar`      | `Drawer` from `expo-router/drawer`                                                           | Already wired in `apps/native/app/(drawer)/_layout.tsx`. Bottom tabs expose top-level sections.                                                                                      |
+| 16  | `Skeleton`     | `Skeleton` from `heroui-native` if exported, else custom pulse                               | `bg-muted` / `bg-accent` pulse. Respect reduce motion.                                                                                                                               |
+| 17  | `Sonner`       | `useToast` from `heroui-native`                                                              | `toast.show({ variant: 'success'                                                                                                                                                     | 'danger' | ... })`. Position top on iOS, bottom on Android. |
+| 18  | `Table`        | `Table` family from `heroui-native` if exported, else `FlatList` rows                        | Native list-first. Horizontal scroll when needed. Mono numeric columns.                                                                                                              |
+| 19  | `Tabs`         | `Tabs` from `heroui-native` if exported; layout tabs via `expo-router` `Tabs`                | Screen-level tabs use `expo-router`. In-screen segmented controls use heroui `Tabs`.                                                                                                 |
+| 20  | `Textarea`     | Multiline `Input` / `TextField` from `heroui-native`                                         | Min height 64 pt, auto-grow up to 200 pt. `returnKeyType="done"`.                                                                                                                    |
+| 21  | `Tooltip`      | Avoid                                                                                        | Use `accessibilityHint` or inline helper text. Only for icon-only toolbar items, revealed on long-press.                                                                             |
 
 ### Mobile-specific primitive variants
 
@@ -324,7 +324,7 @@ The web exports 21 primitive families. On mobile the better-t-stack scaffold alr
 
 The better-t-stack scaffold already chose and wired this stack. Do not introduce a second theming or primitive layer.
 
-- **uniwind 1.12.0** — Tailwind v4 on React Native. It reads the same CSS variables as the web app, so `bg-background`, `text-foreground`, `rounded-xl`, `p-4`, etc. work out of the box once `@openhealth/ui/globals.css` is imported.
+- **uniwind 1.12.0** — Tailwind v4 on React Native. It reads the same CSS variables as the web app, so `bg-background`, `text-foreground`, `rounded-xl`, `p-4`, etc. work out of the box once `@openhealth/ui/tokens.css` is imported.
 - **heroui-native 1.0.9** — Pre-styled Tailwind component primitives. Use `Button`, `Card`, `Chip`, `Input`, `TextField`, `Label`, `FieldError`, `Surface`, `Spinner`, `useToast`, `useThemeColor`, and `cn` directly. These components accept `className`, so web parity is achieved by applying the same Tailwind tokens.
 - **tailwind-merge + tailwind-variants** — Keeps Tailwind class composition predictable and mirrors the web's `class-variance-authority` pattern.
 - **react-native-reanimated 4.5.1** — Animation engine, used by heroui-native internally and available for custom animations.
@@ -455,6 +455,6 @@ To keep performance high:
 | Backdrop / dim | `bg-black/50`                                          | `bg-black/50` via uniwind + platform backdrop blur if available       | Same Tailwind class works because the same CSS variables are loaded.            |
 | Shadow         | Tailwind `shadow-sm` / `shadow-lg`                     | Tailwind shadow utilities via uniwind                                 | heroui-native surfaces handle elevation; manual shadows use `shadow-*` classes. |
 | Tables         | `<table>` markup                                       | `FlatList` rows + horizontal `ScrollView` for overflow                | Native lists are more performant and accessible.                                |
-| Charts         | Recharts SVG                                           | Native charting library (victory-native / react-native-gifted-charts) | Recharts is DOM-dependent and not available in RN.                              |
+| Charts         | Recharts SVG                                           | Native charting library (react-native-gifted-charts)                  | Recharts is DOM-dependent and not available in RN.                              |
 
 These divergences keep the app recognizable — the same colors, radii, type, and component vocabulary — while honoring the constraints of touch, smaller viewports, and the React Native renderer.

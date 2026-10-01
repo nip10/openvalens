@@ -26,6 +26,7 @@
         "@expo/vector-icons": "^15.0.2",
         "@gorhom/bottom-sheet": "^5.2.14",
         "@openhealth/api": "workspace:*",
+        "@openhealth/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/tanstack-query": "catalog:",
         "@react-native-async-storage/async-storage": "2.2.0",
@@ -38,6 +39,7 @@
         "expo-constants": "~57.0.17",
         "expo-font": "~57.0.3",
         "expo-haptics": "~57.0.2",
+        "expo-linear-gradient": "~57.0.2",
         "expo-linking": "~57.0.9",
         "expo-network": "~57.0.1",
         "expo-router": "~57.0.19",
@@ -73,7 +75,6 @@
         "@types/node": "catalog:",
         "@types/react": "~19.2.18",
         "babel-preset-expo": "~57.0.10",
-        "gifted-charts-core": "^0.1.83",
         "typescript": "~6.0.3",
       },
     },
@@ -1707,6 +1708,8 @@
     "expo-haptics": ["expo-haptics@57.0.3", "", { "peerDependencies": { "expo": "*" } }, "sha512-qucUXtwtJdtECKSQK5D6TQBc/0SxKj7s5wQ4mrfSxhZsHrS9a4rcxINl/gbruMaY9spTXStco32ST4pV0vXmxw=="],
 
     "expo-keep-awake": ["expo-keep-awake@57.0.2", "", { "peerDependencies": { "expo": "*", "react": "*" } }, "sha512-GqgH746wtJImmsbyHmCQoi7cOslKuWQBbJHXr53S35Bpf5UvxCAztvnitUEd7D0QvFN2rvkOhylbZpgZZfBLlQ=="],
+
+    "expo-linear-gradient": ["expo-linear-gradient@57.0.2", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-eGNSfcbdXYvw0B/TQ3nmXKQgj0jLUi3EgsXGlvI79rlXg5RR5dQTkY2yqkf7BQDM3PMd3tqBMZdsLhvBqSUaMg=="],
 
     "expo-linking": ["expo-linking@57.0.11", "", { "dependencies": { "expo-constants": "~57.0.19", "invariant": "^2.2.4" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-bfTyiPb8szacs8XkGowXt5ssH/vbF26vFG8WUWQar8CcRpQcIzXY980ZkP7pK7Pcdy5MattwFdujrWOxwv5s3Q=="],
 

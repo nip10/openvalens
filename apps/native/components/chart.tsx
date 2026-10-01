@@ -1,5 +1,5 @@
 import { useThemeColor } from "@/utils/theme";
-import { type ReactNode } from "react";
+import { type ComponentProps, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { BarChart as RNBarChart, LineChart as RNLineChart } from "react-native-gifted-charts";
 
@@ -27,7 +27,7 @@ const defaultPointerConfig = {
   },
 };
 
-export function LineChart(props: any) {
+export function LineChart(props: ComponentProps<typeof RNLineChart>) {
   const colors = useChartColors();
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
@@ -58,7 +58,7 @@ export function LineChart(props: any) {
   );
 }
 
-export function BarChart(props: any) {
+export function BarChart(props: ComponentProps<typeof RNBarChart>) {
   const colors = useChartColors();
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
