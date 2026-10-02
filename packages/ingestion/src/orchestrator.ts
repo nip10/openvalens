@@ -44,9 +44,7 @@ export type IngestionTickDependencies = {
   }) => Promise<ClaimableIngestionJob | null>;
   runClaimedJob: (job: ClaimableIngestionJob) => Promise<RunClaimedJobResult>;
   failClaimedJob: (job: ClaimableIngestionJob, error: unknown) => Promise<unknown>;
-  runRawPayloadPurge: (input: {
-    now: Date;
-  }) => Promise<{ rawArtifactsPurged: number; mobileChunksPurged: number }>;
+  runRawPayloadPurge: (input: { now: Date }) => Promise<{ rawArtifactsPurged: number }>;
 };
 
 export type IngestionTickResult = {
@@ -57,7 +55,6 @@ export type IngestionTickResult = {
   jobIds: number[];
   reclaimedStale: number;
   rawArtifactsPurged: number;
-  mobileChunksPurged: number;
 };
 
 export function createIngestionTick(deps: IngestionTickDependencies) {
@@ -67,7 +64,7 @@ export function createIngestionTick(deps: IngestionTickDependencies) {
     const nowMs = deps.nowMs ?? Date.now;
     const startedAtMs = nowMs();
     const staleBefore = new Date(now.getTime() - STALE_RUNNING_JOB_THRESHOLD_MS);
-    let outcome: Omit<IngestionTickResult, "rawArtifactsPurged" | "mobileChunksPurged">;
+    let outcome: Omit<IngestionTickResult, "rawArtifactsPurged">;
     logger.info("cron.ingestion.run.start", { correlationId, jobTypes: deps.jobTypes.length });
 
     try {
@@ -152,7 +149,7 @@ export function createIngestionTick(deps: IngestionTickDependencies) {
       };
     }
 
-    let purge = { rawArtifactsPurged: 0, mobileChunksPurged: 0 };
+    let purge = { rawArtifactsPurged: 0 };
     try {
       purge = await deps.runRawPayloadPurge({ now });
     } catch (error) {

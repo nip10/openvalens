@@ -1,7 +1,6 @@
 import type { Database } from "@openhealth/db";
-import { ingestionJob, ingestionRawArtifact } from "@openhealth/db/schema/health-record";
-import { mobileSyncSession, mobileSyncSessionChunk } from "@openhealth/db/schema/ingestion";
-import { and, eq, exists, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { ingestionRawArtifact } from "@openhealth/db/schema/health-record";
+import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 /**
  * Raw-payload retention purge, ported from anchovy
@@ -9,9 +8,10 @@ import { and, eq, exists, isNotNull, isNull, lte, sql } from "drizzle-orm";
  * Drizzle executor. Only raw ingest payloads are redacted (`payload_json`
  * → `{}` and `purged_at` set). Rows, hashes and canonical records are kept.
  *
- * Mobile chunks are only purged once their session was finalized by a
- * succeeded `sync_session_finalize` job, so an unprocessed upload is never
- * erased. Each run is bounded to 25 artifacts and 25 chunk sessions.
+ * Each run is bounded to 25 artifacts. Legacy mobile sync chunks are not
+ * purged here: their tables were quarantined by migration
+ * 20261001200000_retire_legacy_mobile_tables and are dropped wholesale
+ * after the retention window.
  *
  * Deviation: expiry is `retention_until <= now` in SQL, matching the
  * source's `isRetentionExpired` (the source SQL used `<`, then re-filtered).
@@ -26,7 +26,7 @@ export async function runRawPayloadPurge(
   db: Database,
   now: Date,
   limit = DEFAULT_PURGE_LIMIT,
-): Promise<{ rawArtifactsPurged: number; mobileChunksPurged: number }> {
+): Promise<{ rawArtifactsPurged: number }> {
   const artifacts = await db
     .select({ id: ingestionRawArtifact.id, organizationId: ingestionRawArtifact.organizationId })
     .from(ingestionRawArtifact)
@@ -55,50 +55,5 @@ export async function runRawPayloadPurge(
     rawArtifactsPurged += updated.length;
   }
 
-  const sessions = await db
-    .selectDistinct({ sessionId: mobileSyncSessionChunk.sessionId })
-    .from(mobileSyncSessionChunk)
-    .innerJoin(mobileSyncSession, eq(mobileSyncSession.id, mobileSyncSessionChunk.sessionId))
-    .where(
-      and(
-        isNotNull(mobileSyncSessionChunk.retentionUntil),
-        lte(mobileSyncSessionChunk.retentionUntil, now),
-        isNull(mobileSyncSessionChunk.purgedAt),
-        exists(
-          db
-            .select({ one: sql`1` })
-            .from(ingestionJob)
-            .where(
-              and(
-                eq(ingestionJob.organizationId, mobileSyncSession.organizationId),
-                eq(ingestionJob.jobType, "sync_session_finalize"),
-                eq(ingestionJob.status, "succeeded"),
-                isNotNull(ingestionJob.completedAt),
-                eq(
-                  ingestionJob.idempotencyKey,
-                  sql`concat('mobile-sync-finalize:', ${mobileSyncSessionChunk.sessionId})`,
-                ),
-              ),
-            ),
-        ),
-      ),
-    )
-    .limit(limit);
-  let mobileChunksPurged = 0;
-  for (const { sessionId } of sessions) {
-    const updated = await db
-      .update(mobileSyncSessionChunk)
-      .set({ payloadJson: sql`'{}'::jsonb`, purgedAt: now })
-      .where(
-        and(
-          eq(mobileSyncSessionChunk.sessionId, sessionId),
-          isNotNull(mobileSyncSessionChunk.retentionUntil),
-          lte(mobileSyncSessionChunk.retentionUntil, now),
-          isNull(mobileSyncSessionChunk.purgedAt),
-        ),
-      )
-      .returning({ id: mobileSyncSessionChunk.id });
-    mobileChunksPurged += updated.length;
-  }
-  return { rawArtifactsPurged, mobileChunksPurged };
+  return { rawArtifactsPurged };
 }
