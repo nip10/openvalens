@@ -14,3 +14,4 @@ These documents inform product decisions. They are not clinical guidance and not
 | [Preventive care recommendation evidence](reports/Preventive%20care%20recommendation%20evidence.md) | #97 |
 | [Self hosting foundations evidence](reports/Self%20hosting%20foundations%20evidence.md) | #56, #57, #58, #61, #62, #63, #64, #68, #89 |
 | [Nutrition tracking evidence synthesis](reports/Nutrition%20tracking%20evidence%20synthesis.md) | #69–#88 |
+| [Integrations and tracking extras evidence](reports/Integrations%20and%20tracking%20extras%20evidence.md) | #59, #60, #65, #66, #67, #90, #91, #93, #94 |
