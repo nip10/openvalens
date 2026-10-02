@@ -11,7 +11,6 @@ import {
   metricDefinition,
   metricSample,
 } from "@openhealth/db/schema/health-record";
-import { mobileSyncSession, mobileSyncSessionChunk } from "@openhealth/db/schema/ingestion";
 import { eq } from "drizzle-orm";
 
 import { claimNextQueuedJob, reclaimStaleRunningJobs } from "./claim-jobs";
@@ -63,8 +62,6 @@ describe.skipIf(!url)("ingestion cron on disposable PostgreSQL", () => {
     await db.delete(metricSample);
     await db.delete(healthEvent);
     await db.delete(metricDefinition);
-    await db.delete(mobileSyncSessionChunk);
-    await db.delete(mobileSyncSession);
     await db.delete(ingestionRawArtifact);
     await db.delete(ingestionError);
     await db.delete(ingestionBatch);
@@ -175,45 +172,6 @@ describe.skipIf(!url)("ingestion cron on disposable PostgreSQL", () => {
     expect(rows.filter((row) => JSON.stringify(row.payloadJson) === "{}")).toHaveLength(2);
     expect(rows.every((row) => row.payloadHash === "h")).toBe(true);
     expect(await runRawPayloadPurge(db, now)).toMatchObject({ rawArtifactsPurged: 0 });
-  });
-
-  test("mobile chunks are purged only after a succeeded finalize job for that session", async () => {
-    for (const id of ["s-final", "s-pending"])
-      await db.insert(mobileSyncSession).values({
-        id,
-        organizationId: "org-a",
-        userId: "u1",
-        deviceId: "d",
-        payloadVersion: "1",
-        timezone: "UTC",
-        windowStart: "2026-09-01",
-        windowEnd: "2026-09-02",
-        expectedChunkCount: 1,
-        expiresAt: future,
-      });
-    for (const sessionId of ["s-final", "s-pending"])
-      await db.insert(mobileSyncSessionChunk).values({
-        id: `${sessionId}-0`,
-        sessionId,
-        chunkIndex: 0,
-        chunkCount: 1,
-        chunkHash: "c",
-        payloadJson: { hr: 61 },
-        retentionUntil: past,
-      });
-    await db.insert(ingestionJob).values({
-      organizationId: "org-a",
-      jobType: "sync_session_finalize",
-      status: "succeeded",
-      completedAt: past,
-      idempotencyKey: "mobile-sync-finalize:s-final",
-    });
-    expect(await runRawPayloadPurge(db, now)).toMatchObject({ mobileChunksPurged: 1 });
-    const chunks = await db.select().from(mobileSyncSessionChunk);
-    expect(chunks.find((chunk) => chunk.sessionId === "s-final")?.payloadJson).toEqual({});
-    expect(chunks.find((chunk) => chunk.sessionId === "s-pending")?.payloadJson).toEqual({
-      hr: 61,
-    });
   });
 
   test("production tick with no runners purges but never touches queued jobs", async () => {

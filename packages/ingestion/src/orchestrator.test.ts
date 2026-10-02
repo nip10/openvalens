@@ -47,7 +47,7 @@ function setup(overrides: Partial<Parameters<typeof createIngestionTick>[0]> = {
       errorCode: null,
     })),
     failClaimedJob: mock(async () => true),
-    runRawPayloadPurge: mock(async () => ({ rawArtifactsPurged: 2, mobileChunksPurged: 1 })),
+    runRawPayloadPurge: mock(async () => ({ rawArtifactsPurged: 2 })),
     ...overrides,
   };
   return { deps, logs, tick: createIngestionTick(deps) };
@@ -61,7 +61,6 @@ describe("ingestion tick", () => {
       processed: 0,
       jobIds: [],
       rawArtifactsPurged: 2,
-      mobileChunksPurged: 1,
     });
     expect(deps.runRawPayloadPurge).toHaveBeenCalledTimes(1);
   });

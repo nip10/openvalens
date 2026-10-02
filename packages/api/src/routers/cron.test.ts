@@ -97,7 +97,6 @@ describe("cron.ingestionRun", () => {
       jobIds: [],
       reclaimedStale: 0,
       rawArtifactsPurged: 0,
-      mobileChunksPurged: 0,
       correlationId: "corr-ingestion",
     });
   });

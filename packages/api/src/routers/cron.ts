@@ -38,7 +38,6 @@ const ingestionRunOutput = cronRunOutput.extend({
   jobIds: z.array(z.number()),
   reclaimedStale: z.number(),
   rawArtifactsPurged: z.number(),
-  mobileChunksPurged: z.number(),
 });
 
 /**
