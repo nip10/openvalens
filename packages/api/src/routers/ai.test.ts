@@ -39,7 +39,7 @@ const streamChat = mock(async () => ({
   totalChunks: 2,
   text: "ASSISTANT_SECRET_REPLY",
   usage: { inputTokens: 11, outputTokens: 4 },
-  model: "claude-sonnet-4-20250514",
+  model: "claude-sonnet-5-5",
 }));
 mock.module("@openhealth/ai", () => ({ ...actualAi, streamChat }));
 
@@ -97,7 +97,7 @@ function createContext(
     telegramClient: null,
     aiConfig: {
       ANTHROPIC_API_KEY: apiKey,
-      AI_MODEL: "claude-sonnet-4-20250514",
+      AI_MODEL: "claude-sonnet-5-5",
       AI_RATE_LIMIT_PER_MINUTE: limitPerMinute,
     },
     aiRateLimiter: new actualAi.InMemoryRateLimiter({ limitPerMinute }),
@@ -208,7 +208,7 @@ describe("ai.chat success", () => {
       conversationId: CORRELATION_ID,
       chunks: 2,
       usage: { inputTokens: 11, outputTokens: 4 },
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-5-5",
       correlationId: CORRELATION_ID,
     });
     expect("text" in result).toBe(false);
