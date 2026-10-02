@@ -23,7 +23,7 @@ function createTestContext(overrides: Partial<Context> = {}): Context {
     telegramClient: null,
     aiConfig: {
       ANTHROPIC_API_KEY: null,
-      AI_MODEL: "claude-sonnet-4-20250514",
+      AI_MODEL: "claude-sonnet-5-5",
       AI_RATE_LIMIT_PER_MINUTE: 20,
     },
     aiRateLimiter: new InMemoryRateLimiter({ limitPerMinute: 20 }),

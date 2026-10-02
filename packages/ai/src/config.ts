@@ -6,8 +6,11 @@
  * package through the oRPC context.
  */
 
-/** Default model. Mirrors anchovy's `apps/web/src/app/api/chat/route.ts`. */
-export const AI_DEFAULT_MODEL = "claude-sonnet-4-20250514";
+/**
+ * Default model. `claude-sonnet-4-20250514` was retired on 2026-06-15; see
+ * https://platform.claude.com/docs/en/about-claude/model-deprecations.
+ */
+export const AI_DEFAULT_MODEL = "claude-sonnet-5-5";
 
 /** Default per-`(userId, organizationId)` chat budget. */
 export const AI_DEFAULT_RATE_LIMIT_PER_MINUTE = 20;
