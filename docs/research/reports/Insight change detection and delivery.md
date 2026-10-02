@@ -10,13 +10,13 @@ Consumer wearable data in general adults behaves differently from athletes' stan
 
 Averaging over 7 days shrinks the noise by roughly √7, which gives the starting thresholds below. Autocorrelation in daily series makes the true standard error larger than these figures, so the thresholds sit deliberately above it.
 
-| Signal | Within-person day-to-day noise | Approx. noise of a 7-day mean | Suggested starting trigger (unvalidated) | Comparison window |
-|---|---|---|---|---|
-| Resting HR | ~3 bpm SD (wearables) | ~1.1 bpm | 7-day mean ≥ 3 bpm from baseline, plus persistence | 7-day vs trailing 4–8 weeks |
-| HRV (Ln rMSSD) | ~12% CV (athletes only) | ~4–5% | Exceeds personal SD band and a ~3% floor; needs ≥ 3–4 readings/week | 7-day vs trailing 4–8 weeks |
-| Sleep duration | ~60–80 min SD | ~25–30 min | 7-day mean ≥ 30–45 min shorter/longer | 7-day vs trailing 4–8 weeks |
-| Steps | 35–60% CV | large | ≥ 20–30% drop in weekly total or 14-day mean | 14-day or weekly totals |
-| Weight | 0.5–0.7% SD, 0.35% weekly cycle | ~0.2% | Smoothed slope over ≥ 3–4 weeks projecting > ~1–1.5% change | EWMA/slope over weeks |
+| Signal         | Within-person day-to-day noise  | Approx. noise of a 7-day mean | Suggested starting trigger (unvalidated)                            | Comparison window           |
+| -------------- | ------------------------------- | ----------------------------- | ------------------------------------------------------------------- | --------------------------- |
+| Resting HR     | ~3 bpm SD (wearables)           | ~1.1 bpm                      | 7-day mean ≥ 3 bpm from baseline, plus persistence                  | 7-day vs trailing 4–8 weeks |
+| HRV (Ln rMSSD) | ~12% CV (athletes only)         | ~4–5%                         | Exceeds personal SD band and a ~3% floor; needs ≥ 3–4 readings/week | 7-day vs trailing 4–8 weeks |
+| Sleep duration | ~60–80 min SD                   | ~25–30 min                    | 7-day mean ≥ 30–45 min shorter/longer                               | 7-day vs trailing 4–8 weeks |
+| Steps          | 35–60% CV                       | large                         | ≥ 20–30% drop in weekly total or 14-day mean                        | 14-day or weekly totals     |
+| Weight         | 0.5–0.7% SD, 0.35% weekly cycle | ~0.2%                         | Smoothed slope over ≥ 3–4 weeks projecting > ~1–1.5% change         | EWMA/slope over weeks       |
 
 The HRV row is the weakest. No large general-adult study of within-person variability in consumer nightly HRV turned up, so openhealth should estimate each user's HRV noise from their own data rather than borrow the athlete 12% figure.
 
