@@ -50,7 +50,9 @@ Adopt a written §7 additional permission now, before any external contribution 
 
 - **Rules to adopt with it.**
   1. Commit the exception before merging the first external PR. Add it to `CONTRIBUTING.md`: "By signing off (DCO) you license your contribution under AGPL-3.0-or-later together with the additional permission in LICENSE-APP-STORE."
+  <!-- REUSE-IgnoreStart -->
   2. Name the licence in every file header, e.g. `SPDX-License-Identifier: AGPL-3.0-or-later` plus a pointer to LICENSE-APP-STORE. The SPDX exceptions list probably has no ID for this text, so use a `LicenseRef-`/`AdditionRef-` custom identifier or the plain pointer **[unverified: check the current SPDX list and the AdditionRef syntax]**.
+  <!-- REUSE-IgnoreEnd -->
   3. Audit the mobile dependency tree. Any third-party GPL/AGPL component without such a permission would block store distribution, as libsignal shows. Permissive (MIT/Apache) dependencies are fine.
   4. Any code copied in from other AGPL projects must carry the same permission, or it cannot go into the mobile app.
   5. Link the source repo from inside the app and from the store listing.
