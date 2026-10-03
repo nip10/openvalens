@@ -303,6 +303,17 @@
       "name": "@openvalens/config",
       "version": "0.0.0",
     },
+    "packages/data-rights": {
+      "name": "@openvalens/data-rights",
+      "dependencies": {
+        "@openvalens/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
     "packages/db": {
       "name": "@openvalens/db",
       "dependencies": {
@@ -869,6 +880,8 @@
     "@openvalens/cockpit": ["@openvalens/cockpit@workspace:packages/cockpit"],
 
     "@openvalens/config": ["@openvalens/config@workspace:packages/config"],
+
+    "@openvalens/data-rights": ["@openvalens/data-rights@workspace:packages/data-rights"],
 
     "@openvalens/db": ["@openvalens/db@workspace:packages/db"],
 

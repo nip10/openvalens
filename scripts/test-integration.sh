@@ -31,6 +31,7 @@ SUITES=(
   "ACTIVITY_TEST_DATABASE_URL|activity_test|packages/activity/src/queries.integration.test.ts"
   "VITALS_TEST_DATABASE_URL|vitals_test|packages/vitals/src/queries.integration.test.ts"
   "LABS_TEST_DATABASE_URL|labs_test|packages/labs/src/queries.integration.test.ts"
+  "DATA_RIGHTS_TEST_DATABASE_URL|data_rights_test|packages/data-rights/src/export.integration.test.ts"
 )
 
 reset_db() {
