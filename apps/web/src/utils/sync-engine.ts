@@ -1,6 +1,9 @@
 import {
   CACHE_TTL_MS,
   SYNC_INTERVAL_MS,
+  isAuthSyncError,
+  isPermanentSyncError,
+  offlineScope,
   queueKey,
   type MetricSamplePayload,
   type OutboxEntry,
@@ -8,7 +11,16 @@ import {
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import { popOutbox, pushOutbox, readCache, readOutbox, writeCache } from "./offline-cache";
+import { authClient } from "@/lib/auth-client";
+
+import {
+  clearOfflineData,
+  popOutbox,
+  pushOutbox,
+  readCache,
+  readOutbox,
+  writeCache,
+} from "./offline-cache";
 import { orpc } from "./orpc";
 
 /**
@@ -16,6 +28,10 @@ import { orpc } from "./orpc";
  * `healthRecord.ingestMetricSample` every `SYNC_INTERVAL_MS` while the tab is
  * visible, and exposes the cache-first query hook and outbox status badge
  * state used by the metric-domain screens.
+ *
+ * All offline data is scoped to the signed-in account (`offlineScope`): reads
+ * and drains only touch the current account's entries, and
+ * `prepareOfflineSignOut` syncs then wipes everything before sign-out.
  */
 
 export type OutboxState = "online" | "offline" | "syncing";
@@ -26,7 +42,9 @@ export type OutboxStatus = {
 };
 
 const ingestOptions = orpc.healthRecord.ingestMetricSample.mutationOptions();
+const SIGN_OUT_SYNC_TIMEOUT_MS = 3_000;
 
+let currentScope: string | null = null;
 let syncing = false;
 let started = false;
 let interval: number | null = null;
@@ -38,7 +56,7 @@ function isOffline(): boolean {
 }
 
 function computeStatus(): OutboxStatus {
-  const pending = readOutbox().length;
+  const pending = currentScope ? readOutbox(currentScope).length : 0;
   const state: OutboxState = syncing ? "syncing" : isOffline() ? "offline" : "online";
   return { pending, state };
 }
@@ -62,35 +80,33 @@ function messageOf(error: unknown): string {
 }
 
 /**
- * A write is poisoned (dropped) only when the server definitively rejects it:
- * unauthenticated or invalid input. Everything else — offline, 429, 5xx — stays
- * queued for the next tick.
+ * Drains the current account's queued writes oldest-first. Safe to call
+ * concurrently. Stops when the account changes, the session is gone (entries
+ * stay queued for that account) or a transient error occurs; only writes the
+ * server rejects as invalid are dropped.
  */
-function isPoison(error: unknown): boolean {
-  const shape = error as { code?: unknown; status?: unknown } | null;
-  return (
-    shape?.code === "UNAUTHENTICATED" || shape?.code === "INVALID_INPUT" || shape?.status === 401
-  );
-}
-
-/** Drains queued writes oldest-first. Safe to call concurrently. */
 export async function drainOutbox(): Promise<void> {
-  if (typeof window === "undefined" || syncing || isOffline()) return;
+  const scope = currentScope;
+  if (typeof window === "undefined" || syncing || isOffline() || !scope) return;
   syncing = true;
   emit();
   try {
-    let queued: OutboxEntry | null = popOutbox();
+    let queued: OutboxEntry | null = popOutbox(scope);
     while (queued) {
+      if (currentScope !== scope) {
+        pushOutbox(queued);
+        break;
+      }
       try {
         await ingestOptions.mutationFn!(queued.payload, undefined as never);
       } catch (error) {
-        if (!isPoison(error)) {
+        if (!isPermanentSyncError(error)) {
           pushOutbox({ ...queued, lastError: messageOf(error) });
           break;
         }
-        // Poison: the row was already popped, so dropping it is a no-op.
+        // Rejected as invalid: the row was already popped, so dropping it is a no-op.
       }
-      queued = popOutbox();
+      queued = popOutbox(scope);
     }
   } finally {
     syncing = false;
@@ -104,14 +120,17 @@ export function syncNow(): Promise<void> {
 }
 
 /**
- * Queues a failed `ingestMetricSample` write for retry. Poison errors
- * (unauthenticated / invalid input) are surfaced to the form instead of being
- * queued forever.
+ * Queues a failed `ingestMetricSample` write for retry under the current
+ * account. Invalid-input and auth errors are surfaced to the form instead of
+ * being queued; nothing is queued while signed out.
  */
 export function enqueueMetricSample(payload: MetricSamplePayload, error?: unknown): void {
-  if (error !== undefined && isPoison(error)) return;
-  const dedupeHash = payload.dedupeHash ?? queueKey(payload.metricCode);
+  const scope = currentScope;
+  if (!scope) return;
+  if (error !== undefined && (isPermanentSyncError(error) || isAuthSyncError(error))) return;
+  const dedupeHash = payload.dedupeHash ?? queueKey(payload.metricCode, payload.observedAt);
   pushOutbox({
+    scope,
     dedupeHash,
     payload,
     savedAt: Date.now(),
@@ -119,6 +138,20 @@ export function enqueueMetricSample(payload: MetricSamplePayload, error?: unknow
   });
   emit();
   void drainOutbox();
+}
+
+/**
+ * Call before `authClient.signOut()`: tries to send pending writes for a few
+ * seconds, then wipes every cached read and queued write from this browser.
+ */
+export async function prepareOfflineSignOut(): Promise<void> {
+  await Promise.race([
+    drainOutbox(),
+    new Promise<void>((resolve) => setTimeout(resolve, SIGN_OUT_SYNC_TIMEOUT_MS)),
+  ]);
+  clearOfflineData();
+  currentScope = null;
+  emit();
 }
 
 /** Starts the interval + connectivity listeners once per tab. */
@@ -146,8 +179,22 @@ export function stopSyncEngine(): void {
   started = false;
 }
 
+/** The signed-in account's offline scope; keeps the engine's scope in sync. */
+function useOfflineScope(): string | null {
+  const { data } = authClient.useSession();
+  const scope = offlineScope(data as Parameters<typeof offlineScope>[0]);
+  useEffect(() => {
+    if (currentScope === scope) return;
+    currentScope = scope;
+    emit();
+    if (scope) void drainOutbox();
+  }, [scope]);
+  return scope;
+}
+
 /** Live outbox status: pending write count plus the engine state. */
 export function useOutboxStatus(): OutboxStatus {
+  useOfflineScope();
   useEffect(() => {
     startSyncEngine();
   }, []);
@@ -157,24 +204,26 @@ export function useOutboxStatus(): OutboxStatus {
 /**
  * Cache-first query hook. Serves a fresh cached value without a network round
  * trip; a stale value renders immediately and revalidates in the background.
- * Falls back to the stale value when the network fails.
+ * Falls back to the stale value when the network fails. Cached values belong
+ * to the signed-in account; nothing is cached while signed out.
  */
 export function useCacheFirst<T>(
   queryKey: string,
   queryFn: () => Promise<T>,
   ttlMs: number = CACHE_TTL_MS,
 ): UseQueryResult<T, Error> {
-  const cached = useMemo(() => readCache<T>(queryKey), [queryKey]);
+  const scope = useOfflineScope();
+  const cached = useMemo(() => (scope ? readCache<T>(scope, queryKey) : null), [scope, queryKey]);
 
   return useQuery<T, Error>({
-    queryKey: ["offline-cache", queryKey],
+    queryKey: ["offline-cache", scope, queryKey],
     queryFn: async () => {
       try {
         const data = await queryFn();
-        writeCache(queryKey, data, ttlMs);
+        if (scope) writeCache(scope, queryKey, data);
         return data;
       } catch (error) {
-        const stale = readCache<T>(queryKey);
+        const stale = scope ? readCache<T>(scope, queryKey) : null;
         if (stale) return stale.data;
         throw error;
       }

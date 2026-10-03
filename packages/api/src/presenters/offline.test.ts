@@ -1,12 +1,47 @@
 import { describe, expect, test } from "bun:test";
 
-import { OUTBOX_MAX_ENTRIES, parseTimestamp, queueKey, recentlySynced } from "./offline";
+import {
+  OUTBOX_MAX_ENTRIES,
+  isAuthSyncError,
+  isPermanentSyncError,
+  offlineScope,
+  parseTimestamp,
+  queueKey,
+  recentlySynced,
+} from "./offline";
 
 describe("offline presenter", () => {
-  test("queueKey: stable per metric, distinct across metrics, namespaced", () => {
-    expect(queueKey("heart_rate")).toBe(queueKey("heart_rate"));
-    expect(queueKey("heart_rate")).not.toBe(queueKey("steps"));
-    expect(queueKey("heart_rate").startsWith("metric-sample:")).toBe(true);
+  test("queueKey: stable per metric+time, distinct across metrics and times, namespaced", () => {
+    const t1 = "2026-10-01T07:00:00.000Z";
+    const t2 = "2026-10-02T07:00:00.000Z";
+    expect(queueKey("weight", t1)).toBe(queueKey("weight", t1));
+    expect(queueKey("weight", t1)).not.toBe(queueKey("weight", t2));
+    expect(queueKey("weight", t1)).not.toBe(queueKey("steps", t1));
+    expect(queueKey("weight", t1).startsWith("metric-sample:")).toBe(true);
+  });
+
+  test("offlineScope: user + active org; null when signed out", () => {
+    expect(offlineScope({ user: { id: "u1" }, session: { activeOrganizationId: "o1" } })).toBe(
+      "u1:o1",
+    );
+    expect(offlineScope({ user: { id: "u1" }, session: { activeOrganizationId: null } })).toBe(
+      "u1:-",
+    );
+    expect(offlineScope({ user: { id: "u1" }, session: { activeOrganizationId: "o2" } })).not.toBe(
+      offlineScope({ user: { id: "u1" }, session: { activeOrganizationId: "o1" } }),
+    );
+    expect(offlineScope(null)).toBeNull();
+    expect(offlineScope({ user: null })).toBeNull();
+  });
+
+  test("sync errors: only invalid input is permanent; auth failures pause, never drop", () => {
+    expect(isPermanentSyncError({ code: "INVALID_INPUT" })).toBe(true);
+    expect(isPermanentSyncError({ code: "UNAUTHENTICATED" })).toBe(false);
+    expect(isPermanentSyncError({ status: 401 })).toBe(false);
+    expect(isPermanentSyncError(new Error("network"))).toBe(false);
+    expect(isAuthSyncError({ code: "UNAUTHENTICATED" })).toBe(true);
+    expect(isAuthSyncError({ status: 401 })).toBe(true);
+    expect(isAuthSyncError({ status: 503 })).toBe(false);
   });
 
   test("parseTimestamp: accepts ISO strings, epoch ms and Date; rejects junk", () => {

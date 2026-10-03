@@ -7,6 +7,7 @@ import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { SignUp } from "@/components/sign-up";
 import { authClient } from "@/lib/auth-client";
+import { prepareOfflineSignOut } from "@/lib/offline/sync";
 import { queryClient, orpc } from "@/utils/orpc";
 
 export default function Home() {
@@ -36,8 +37,9 @@ export default function Home() {
           <Text className="text-muted text-sm mb-4">{session.user.email}</Text>
           <Pressable
             className="bg-danger py-3 px-4 rounded-lg self-start active:opacity-70"
-            onPress={() => {
-              authClient.signOut();
+            onPress={async () => {
+              await prepareOfflineSignOut();
+              await authClient.signOut();
               queryClient.invalidateQueries();
             }}
           >

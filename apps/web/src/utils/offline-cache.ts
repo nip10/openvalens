@@ -4,6 +4,10 @@ import { OUTBOX_MAX_ENTRIES, type OutboxEntry } from "@openvalens/api/presenters
  * Web offline store (Issue #43). Backed entirely by `localStorage` — no
  * dependencies beyond browser globals. Holds the stale-while-revalidate read
  * cache for metric-domain queries and the manual-entry outbox.
+ *
+ * Every cache key and outbox entry carries the account scope from
+ * `offlineScope`, so on a shared browser one account never reads or sends
+ * another's health data. `clearOfflineData` wipes everything on sign-out.
  */
 
 const CACHE_PREFIX = "openhealth.cache.";
@@ -24,6 +28,10 @@ function store(): Storage | null {
   }
 }
 
+function cacheKey(scope: string, queryKey: string): string {
+  return `${CACHE_PREFIX}${scope}:${queryKey}`;
+}
+
 function isCacheEntry(value: unknown): value is CacheEntry<unknown> {
   return (
     typeof value === "object" &&
@@ -38,6 +46,7 @@ function isOutboxEntry(value: unknown): value is OutboxEntry {
   return (
     typeof value === "object" &&
     value !== null &&
+    typeof (value as { scope?: unknown }).scope === "string" &&
     typeof (value as { dedupeHash?: unknown }).dedupeHash === "string" &&
     typeof (value as { savedAt?: unknown }).savedAt === "number" &&
     typeof (value as { payload?: unknown }).payload === "object" &&
@@ -45,9 +54,9 @@ function isOutboxEntry(value: unknown): value is OutboxEntry {
   );
 }
 
-/** Reads a cached query result, or `null` when absent/corrupt. */
-export function readCache<T>(queryKey: string): CacheEntry<T> | null {
-  const raw = store()?.getItem(CACHE_PREFIX + queryKey);
+/** Reads a cached query result for this account, or `null` when absent/corrupt. */
+export function readCache<T>(scope: string, queryKey: string): CacheEntry<T> | null {
+  const raw = store()?.getItem(cacheKey(scope, queryKey));
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -57,18 +66,18 @@ export function readCache<T>(queryKey: string): CacheEntry<T> | null {
   }
 }
 
-/** Writes a query result into the cache, stamped with the current time. */
-export function writeCache<T>(queryKey: string, data: T, _ttlMs: number): void {
+/** Writes a query result into this account's cache, stamped with the current time. */
+export function writeCache<T>(scope: string, queryKey: string, data: T): void {
   const entry: CacheEntry<T> = { data, savedAt: Date.now() };
   try {
-    store()?.setItem(CACHE_PREFIX + queryKey, JSON.stringify(entry));
+    store()?.setItem(cacheKey(scope, queryKey), JSON.stringify(entry));
   } catch {
     // Quota exceeded / private mode: caching is best-effort.
   }
 }
 
-/** Reads every queued write, oldest first. */
-export function readOutbox(): OutboxEntry[] {
+/** Every queued write across accounts, oldest first. Entries without a scope are dropped. */
+function readAllOutbox(): OutboxEntry[] {
   const raw = store()?.getItem(OUTBOX_KEY);
   if (!raw) return [];
   try {
@@ -79,39 +88,54 @@ export function readOutbox(): OutboxEntry[] {
   }
 }
 
-/**
- * Appends a queued write. The oldest entries are dropped once the outbox
- * exceeds `OUTBOX_MAX_ENTRIES`, and a repeated `dedupeHash` replaces the
- * existing row so a retry never duplicates.
- */
-export function pushOutbox(entry: OutboxEntry): void {
-  const existing = readOutbox().filter((row) => row.dedupeHash !== entry.dedupeHash);
-  existing.push(entry);
-  const trimmed = existing.slice(-OUTBOX_MAX_ENTRIES);
-  try {
-    store()?.setItem(OUTBOX_KEY, JSON.stringify(trimmed));
-  } catch {
-    // Best-effort.
-  }
-}
-
-/** Removes and returns the oldest queued write, or `null` when empty. */
-export function popOutbox(): OutboxEntry | null {
-  const rows = readOutbox();
-  const first = rows.shift() ?? null;
-  if (!first) return null;
+function writeAllOutbox(rows: OutboxEntry[]): void {
   try {
     store()?.setItem(OUTBOX_KEY, JSON.stringify(rows));
   } catch {
     // Best-effort.
   }
-  return first;
 }
 
-/** Empties the outbox. */
-export function clearOutbox(): void {
+/** This account's queued writes, oldest first. */
+export function readOutbox(scope: string): OutboxEntry[] {
+  return readAllOutbox().filter((row) => row.scope === scope);
+}
+
+/**
+ * Appends a queued write. A repeated `dedupeHash` within the same account
+ * replaces the existing row so a retry never duplicates; the oldest rows are
+ * dropped once the outbox exceeds `OUTBOX_MAX_ENTRIES`.
+ */
+export function pushOutbox(entry: OutboxEntry): void {
+  const existing = readAllOutbox().filter(
+    (row) => !(row.scope === entry.scope && row.dedupeHash === entry.dedupeHash),
+  );
+  existing.push(entry);
+  writeAllOutbox(existing.slice(-OUTBOX_MAX_ENTRIES));
+}
+
+/** Removes and returns this account's oldest queued write, or `null` when empty. */
+export function popOutbox(scope: string): OutboxEntry | null {
+  const rows = readAllOutbox();
+  const index = rows.findIndex((row) => row.scope === scope);
+  if (index === -1) return null;
+  const [first] = rows.splice(index, 1);
+  writeAllOutbox(rows);
+  return first ?? null;
+}
+
+/** Wipes every cached read and queued write, for all accounts (sign-out). */
+export function clearOfflineData(): void {
+  const storage = store();
+  if (!storage) return;
   try {
-    store()?.removeItem(OUTBOX_KEY);
+    const keys: string[] = [];
+    for (let i = 0; i < storage.length; i += 1) {
+      const key = storage.key(i);
+      if (key?.startsWith(CACHE_PREFIX)) keys.push(key);
+    }
+    for (const key of keys) storage.removeItem(key);
+    storage.removeItem(OUTBOX_KEY);
   } catch {
     // Best-effort.
   }

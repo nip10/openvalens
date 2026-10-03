@@ -9,9 +9,15 @@ import * as SQLite from "expo-sqlite";
  * Tables:
  *   query_cache (key TEXT PRIMARY KEY, data TEXT, saved_at INTEGER)
  *   outbox      (id INTEGER PRIMARY KEY AUTOINCREMENT, dedupe_hash TEXT UNIQUE,
- *                payload TEXT, last_error TEXT, saved_at INTEGER)
+ *                payload TEXT, last_error TEXT, saved_at INTEGER, scope TEXT)
+ *
+ * Every cache key and outbox row carries the account scope from
+ * `offlineScope`, so one account never reads or sends another's health data.
+ * `dedupe_hash` stores `scope|hash` to keep dedupe per account. Rows written
+ * before scoping existed have a NULL scope and are never sent.
  */
 
+// Pre-rename (openhealth) file name kept so existing installs keep their data.
 const DB_NAME = "openhealth-offline.db";
 
 let database: SQLite.SQLiteDatabase | null = null;
@@ -34,99 +40,32 @@ function getDb(): SQLite.SQLiteDatabase {
         saved_at INTEGER
       );
     `);
+    const columns = database.getAllSync<{ name: string }>("PRAGMA table_info(outbox)");
+    if (!columns.some((column) => column.name === "scope")) {
+      database.execSync("ALTER TABLE outbox ADD COLUMN scope TEXT");
+    }
   }
   return database;
 }
 
-/** A cached query result plus when it was written. */
-export type CacheEntry<T> = {
-  data: T;
-  savedAt: number;
+type OutboxRow = {
+  id: number;
+  dedupe_hash: string;
+  payload: string;
+  last_error: string | null;
+  saved_at: number;
+  scope: string;
 };
 
-/** Reads a cached query result, or `null` when absent/corrupt. */
-export function readCache<T>(queryKey: string): CacheEntry<T> | null {
-  const row = getDb().getFirstSync<{ data: string; saved_at: number }>(
-    "SELECT data, saved_at FROM query_cache WHERE key = ?",
-    queryKey,
-  );
-  if (!row) return null;
-  try {
-    return { data: JSON.parse(row.data) as T, savedAt: row.saved_at };
-  } catch {
-    return null;
-  }
+function rowKey(scope: string, dedupeHash: string): string {
+  return `${scope}|${dedupeHash}`;
 }
 
-/** Writes a query result into the cache, stamped with the current time. */
-export function writeCache<T>(queryKey: string, data: T, _ttlMs: number): void {
-  getDb().runSync(
-    "INSERT OR REPLACE INTO query_cache (key, data, saved_at) VALUES (?, ?, ?)",
-    queryKey,
-    JSON.stringify(data),
-    Date.now(),
-  );
-}
-
-/** Reads every queued write, oldest first. */
-export function readOutbox(): OutboxEntry[] {
-  const rows = getDb().getAllSync<{
-    dedupe_hash: string;
-    payload: string;
-    last_error: string | null;
-    saved_at: number;
-  }>("SELECT dedupe_hash, payload, last_error, saved_at FROM outbox ORDER BY id ASC");
-
-  const entries: OutboxEntry[] = [];
-  for (const row of rows) {
-    try {
-      entries.push({
-        dedupeHash: row.dedupe_hash,
-        payload: JSON.parse(row.payload),
-        savedAt: row.saved_at,
-        lastError: row.last_error,
-      });
-    } catch {
-      // Skip a corrupt row rather than wedging the whole queue.
-    }
-  }
-  return entries;
-}
-
-/**
- * Upserts a queued write by `dedupeHash`, then drops the oldest rows once the
- * outbox exceeds `OUTBOX_MAX_ENTRIES`.
- */
-export function pushOutbox(entry: OutboxEntry): void {
-  const db = getDb();
-  db.runSync(
-    "INSERT OR REPLACE INTO outbox (dedupe_hash, payload, last_error, saved_at) VALUES (?, ?, ?, ?)",
-    entry.dedupeHash,
-    JSON.stringify(entry.payload),
-    entry.lastError,
-    entry.savedAt,
-  );
-  db.runSync(
-    "DELETE FROM outbox WHERE id NOT IN (SELECT id FROM outbox ORDER BY id DESC LIMIT ?)",
-    OUTBOX_MAX_ENTRIES,
-  );
-}
-
-/** Removes and returns the oldest queued write, or `null` when empty. */
-export function popOutbox(): OutboxEntry | null {
-  const db = getDb();
-  const row = db.getFirstSync<{
-    id: number;
-    dedupe_hash: string;
-    payload: string;
-    last_error: string | null;
-    saved_at: number;
-  }>("SELECT id, dedupe_hash, payload, last_error, saved_at FROM outbox ORDER BY id ASC LIMIT 1");
-  if (!row) return null;
-  db.runSync("DELETE FROM outbox WHERE id = ?", row.id);
+function toEntry(row: OutboxRow): OutboxEntry | null {
   try {
     return {
-      dedupeHash: row.dedupe_hash,
+      scope: row.scope,
+      dedupeHash: row.dedupe_hash.slice(row.scope.length + 1),
       payload: JSON.parse(row.payload),
       savedAt: row.saved_at,
       lastError: row.last_error,
@@ -136,7 +75,86 @@ export function popOutbox(): OutboxEntry | null {
   }
 }
 
-/** Empties the outbox. */
-export function clearOutbox(): void {
-  getDb().runSync("DELETE FROM outbox");
+/** A cached query result plus when it was written. */
+export type CacheEntry<T> = {
+  data: T;
+  savedAt: number;
+};
+
+/** Reads a cached query result for this account, or `null` when absent/corrupt. */
+export function readCache<T>(scope: string, queryKey: string): CacheEntry<T> | null {
+  const row = getDb().getFirstSync<{ data: string; saved_at: number }>(
+    "SELECT data, saved_at FROM query_cache WHERE key = ?",
+    `${scope}:${queryKey}`,
+  );
+  if (!row) return null;
+  try {
+    return { data: JSON.parse(row.data) as T, savedAt: row.saved_at };
+  } catch {
+    return null;
+  }
+}
+
+/** Writes a query result into this account's cache, stamped with the current time. */
+export function writeCache<T>(scope: string, queryKey: string, data: T): void {
+  getDb().runSync(
+    "INSERT OR REPLACE INTO query_cache (key, data, saved_at) VALUES (?, ?, ?)",
+    `${scope}:${queryKey}`,
+    JSON.stringify(data),
+    Date.now(),
+  );
+}
+
+/** This account's queued writes, oldest first. */
+export function readOutbox(scope: string): OutboxEntry[] {
+  const rows = getDb().getAllSync<OutboxRow>(
+    "SELECT id, dedupe_hash, payload, last_error, saved_at, scope FROM outbox WHERE scope = ? ORDER BY id ASC",
+    scope,
+  );
+  const entries: OutboxEntry[] = [];
+  for (const row of rows) {
+    const entry = toEntry(row);
+    // Skip a corrupt row rather than wedging the whole queue.
+    if (entry) entries.push(entry);
+  }
+  return entries;
+}
+
+/**
+ * Upserts a queued write by account + `dedupeHash`, then drops the oldest
+ * rows once the outbox exceeds `OUTBOX_MAX_ENTRIES`.
+ */
+export function pushOutbox(entry: OutboxEntry): void {
+  const db = getDb();
+  db.runSync(
+    "INSERT OR REPLACE INTO outbox (dedupe_hash, payload, last_error, saved_at, scope) VALUES (?, ?, ?, ?, ?)",
+    rowKey(entry.scope, entry.dedupeHash),
+    JSON.stringify(entry.payload),
+    entry.lastError,
+    entry.savedAt,
+    entry.scope,
+  );
+  db.runSync(
+    "DELETE FROM outbox WHERE id NOT IN (SELECT id FROM outbox ORDER BY id DESC LIMIT ?)",
+    OUTBOX_MAX_ENTRIES,
+  );
+}
+
+/** Removes and returns this account's oldest queued write, or `null` when empty. */
+export function popOutbox(scope: string): OutboxEntry | null {
+  const db = getDb();
+  const row = db.getFirstSync<OutboxRow>(
+    "SELECT id, dedupe_hash, payload, last_error, saved_at, scope FROM outbox WHERE scope = ? ORDER BY id ASC LIMIT 1",
+    scope,
+  );
+  if (!row) return null;
+  db.runSync("DELETE FROM outbox WHERE id = ?", row.id);
+  return toEntry(row);
+}
+
+/** Wipes every cached read and queued write, for all accounts (sign-out). */
+export function clearOfflineData(): void {
+  const db = getDb();
+  db.runSync("DELETE FROM query_cache");
+  db.runSync("DELETE FROM outbox");
 }

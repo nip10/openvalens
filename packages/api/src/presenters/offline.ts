@@ -19,6 +19,8 @@ export type MetricSamplePayload = {
 
 /** One queued write awaiting sync. */
 export type OutboxEntry = {
+  /** Account the write belongs to (see `offlineScope`); never sent under another. */
+  scope: string;
   /** Stable dedupe hash (see `makeManualEntryHash`), unique per queued write. */
   dedupeHash: string;
   /** The `ingestMetricSample` input, ready to send unchanged. */
@@ -39,12 +41,48 @@ export const CACHE_TTL_MS = 60_000;
 export const SYNC_INTERVAL_MS = 5_000;
 
 /**
- * Stable key for an outbox row, namespaced by the metric code. Callers use it
- * to group or look up queued writes for one metric without exposing the raw
- * payload.
+ * Default outbox key for a manual metric write: one entry per metric and
+ * observation time, so two offline readings of the same metric never
+ * overwrite each other.
  */
-export function queueKey(metric: string): string {
-  return `metric-sample:${metric}`;
+export function queueKey(metric: string, observedAt: string): string {
+  return `metric-sample:${metric}:${observedAt}`;
+}
+
+/**
+ * Offline storage scope for the signed-in account: `userId:organizationId`.
+ * Cached reads and queued writes are keyed by it so one account never sees or
+ * sends another's data on a shared device. `null` when signed out — callers
+ * must then neither read nor write offline data.
+ */
+export function offlineScope(
+  session:
+    | {
+        user?: { id?: string | null } | null;
+        session?: { activeOrganizationId?: string | null } | null;
+      }
+    | null
+    | undefined,
+): string | null {
+  const userId = session?.user?.id;
+  if (!userId) return null;
+  return `${userId}:${session?.session?.activeOrganizationId ?? "-"}`;
+}
+
+/**
+ * A queued write is dropped only when the server rejects its content. Auth
+ * failures (expired session) keep it queued for when the same account signs
+ * back in; offline, 429 and 5xx keep it queued for the next tick.
+ */
+export function isPermanentSyncError(error: unknown): boolean {
+  const shape = error as { code?: unknown } | null;
+  return shape?.code === "INVALID_INPUT";
+}
+
+/** Whether a sync error means the session is gone, so draining should pause. */
+export function isAuthSyncError(error: unknown): boolean {
+  const shape = error as { code?: unknown; status?: unknown } | null;
+  return shape?.code === "UNAUTHENTICATED" || shape?.status === 401;
 }
 
 /**

@@ -28,6 +28,7 @@ import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
+import { prepareOfflineSignOut } from "@/lib/offline/sync";
 import { resetHealthSync } from "@/lib/health-sync";
 import { orpc, queryClient } from "@/utils/orpc";
 
@@ -40,6 +41,7 @@ export default function SettingsScreen() {
 
   const handleSignOut = async () => {
     await resetHealthSync();
+    await prepareOfflineSignOut();
     await authClient.signOut();
     queryClient.clear();
   };
