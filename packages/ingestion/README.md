@@ -1,4 +1,4 @@
-# @openhealth/ingestion
+# @openvalens/ingestion
 
 Ingestion job orchestration, ported from anchovy `apps/web/src/lib/v2/ingestion`
 (`run-cron-orchestrator.ts`, `claim-jobs.ts`, `job-state.ts`, `job-runner-state.ts`,
@@ -48,7 +48,7 @@ Other replay deviations:
 ## Mobile ingest (`mobile_ingest_batch`)
 
 `mobile.registerDevice` / `mobile.ingestBatch` / `mobile.syncStatus` (oRPC,
-contract in `@openhealth/api/contracts/mobile-ingest`) implement the design in
+contract in `@openvalens/api/contracts/mobile-ingest`) implement the design in
 `docs/architecture/mobile-sync-decision.md`. The device reads Health Connect /
 HealthKit change cursors and sends one record type per batch; it advances a
 cursor once the server answers `applied`, `queued` or `duplicate`.

@@ -1,4 +1,4 @@
-import type { StructuredLogger } from "@openhealth/observability";
+import type { StructuredLogger } from "@openvalens/observability";
 
 import { DEFAULT_TELEGRAM_API_BASE_URL } from "./config";
 import { createTelegramLogger } from "./logging";

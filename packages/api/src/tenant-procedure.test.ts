@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import { z } from "zod";
 
 import type { Context } from "./context";
@@ -21,7 +21,7 @@ const requirePermission = mock(async () => ({
 
 // Stub the authz guard so the tenant/audit behaviour can be exercised without a
 // live Better Auth instance. `mock.module` must run before `./index` is loaded.
-mock.module("@openhealth/auth/authz/guard", () => ({
+mock.module("@openvalens/auth/authz/guard", () => ({
   AuthzHttpError: class AuthzHttpError extends Error {
     readonly status = 403;
     readonly code = "PERMISSION_DENIED";

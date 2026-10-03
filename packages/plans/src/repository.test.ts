@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   medication,
   supplement,
   supplementChange,
   supplementSchedule,
-} from "@openhealth/db/schema/plans";
+} from "@openvalens/db/schema/plans";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import { createPlansRepository } from "./repository";

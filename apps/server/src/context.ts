@@ -1,5 +1,5 @@
-import type { Context as ApiContext } from "@openhealth/api/context";
-import { resolveCorrelationId } from "@openhealth/observability";
+import type { Context as ApiContext } from "@openvalens/api/context";
+import { resolveCorrelationId } from "@openvalens/observability";
 import type { Context as HonoContext } from "hono";
 
 import { ENV } from "./env.server";

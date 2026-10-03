@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { Database } from "@openhealth/db";
-import type { SendEmailFn } from "@openhealth/email";
-import { createStructuredLogger } from "@openhealth/observability";
+import type { Database } from "@openvalens/db";
+import type { SendEmailFn } from "@openvalens/email";
+import { createStructuredLogger } from "@openvalens/observability";
 
 import type { TelegramClient } from "./client";
 import { EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID, materializeDailyReminders } from "./reminders";

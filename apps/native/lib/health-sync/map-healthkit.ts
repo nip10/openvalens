@@ -1,7 +1,7 @@
 import {
   mobileHealthRecord,
   type MobileHealthRecordInput,
-} from "@openhealth/api/contracts/mobile-ingest";
+} from "@openvalens/api/contracts/mobile-ingest";
 
 import type { MobileRecordType } from "./map-health-connect";
 

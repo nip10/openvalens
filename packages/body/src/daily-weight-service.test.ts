@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   dailyWeight,
   dailyWeightOverride,
   weightCheckin,
   weightEvent,
-} from "@openhealth/db/schema/body";
-import { calendarEvent } from "@openhealth/db/schema/plans";
+} from "@openvalens/db/schema/body";
+import { calendarEvent } from "@openvalens/db/schema/plans";
 
 import { createDailyWeightService } from "./daily-weight-service";
 

@@ -4,7 +4,7 @@
  * docs/mobile/tone-of-voice.md: sentence case, activity types as recorded
  * ("Run", "Strength", "Swim"), real units.
  *
- * The workout type and goal status unions live in `@openhealth/plans`; we
+ * The workout type and goal status unions live in `@openvalens/plans`; we
  * accept the raw string here so this module stays dependency-free (the
  * presenters bundle must not pull in the DB layer).
  */

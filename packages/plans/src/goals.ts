@@ -1,11 +1,11 @@
-import type { Database } from "@openhealth/db";
-import { goal, goalCheckin } from "@openhealth/db/schema/plans";
+import type { Database } from "@openvalens/db";
+import { goal, goalCheckin } from "@openvalens/db/schema/plans";
 import { and, asc, desc, eq } from "drizzle-orm";
 
 /**
  * Goals — public type surface + repository (Issue #23).
  *
- * Mirrors the openhealth tables in `packages/db/src/schema/plans.ts`:
+ * Mirrors the OpenValens tables in `packages/db/src/schema/plans.ts`:
  *
  * - `goal`           — org-scoped title/category/horizon/status/target row.
  * - `goalCheckin`    — org-scoped check-in row (date, value, notes).

@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/ai",
+  "name": "@openvalens/ai",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -11,15 +11,15 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "catalog:",
-    "@openhealth/audit-security": "workspace:*",
-    "@openhealth/db": "workspace:*",
-    "@openhealth/observability": "workspace:*",
+    "@openvalens/audit-security": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@openvalens/observability": "workspace:*",
     "ai": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

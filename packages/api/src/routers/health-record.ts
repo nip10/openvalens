@@ -1,9 +1,9 @@
-import { writeAuditLog } from "@openhealth/audit-security";
+import { writeAuditLog } from "@openvalens/audit-security";
 import {
   CanonicalMetricNotFoundError,
   CrossTenantReferenceError,
   createHealthRecordRepository,
-} from "@openhealth/health-record";
+} from "@openvalens/health-record";
 import { z } from "zod";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 
@@ -442,7 +442,7 @@ export const healthRecordRouter = {
   /**
    * DISABLED. Pruning clinical `metric_sample` history requires an explicit
    * retention policy authorized by trusted server code (see
-   * `createMetricMaintenanceRunner` in `@openhealth/health-record`). A
+   * `createMetricMaintenanceRunner` in `@openvalens/health-record`). A
    * caller-supplied `retentionDays` is not approval, and there is no default
    * clinical retention (the anchovy source only purges raw ingest payloads).
    * The route stays mounted so clients get a stable, sanitized refusal. It

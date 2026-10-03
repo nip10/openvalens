@@ -6,7 +6,7 @@
  */
 import { generateText, type LanguageModelUsage } from "ai";
 
-import { createStructuredLogger } from "@openhealth/observability";
+import { createStructuredLogger } from "@openvalens/observability";
 
 const structuredLogger = createStructuredLogger({ level: "info" });
 

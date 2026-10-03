@@ -1,7 +1,7 @@
 // Source: anchovy/apps/web/src/lib/export/extractors/family.ts
 // Family-history extractor. Reads from the target `clinical` repository.
-import type { Database } from "@openhealth/db";
-import { createClinicalRepository } from "@openhealth/clinical";
+import type { Database } from "@openvalens/db";
+import { createClinicalRepository } from "@openvalens/clinical";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";
 

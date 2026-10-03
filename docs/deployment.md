@@ -3,7 +3,7 @@
 Last updated: 2026-09-29
 
 > This document mirrors the structure of `anchovy/docs/deployment.md` for the
-> openhealth stack (Hono + oRPC server in `apps/server`, TanStack web in
+> OpenValens stack (Hono + oRPC server in `apps/server`, TanStack web in
 > `apps/web`). The readiness probe, cron schedule and bearer-secret guard
 > described here were implemented in Issue #11.
 
@@ -204,7 +204,7 @@ Run these after deploy:
 ## 9. Observability baseline
 
 - Structured logs are PHI-safe and machine-readable (JSON to stdout for
-  info/debug, stderr for warn/error) via `@openhealth/observability`.
+  info/debug, stderr for warn/error) via `@openvalens/observability`.
 - Every log line carries a `correlationId` resolved from
   `x-correlation-id` → `x-request-id` → UUID and echoed back on the response.
 - Capture and search both stdout and stderr.

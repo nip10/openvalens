@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { mapHealthKitSample, type HealthKitSampleLike } from "./map-healthkit";
 
-const OWN = "com.anonymous.openhealth";
+const OWN = "com.openvalens.app";
 const opts = {
   ownBundleId: OWN,
   workoutActivityNames: { 37: "running", 50: "traditionalStrengthTraining" },

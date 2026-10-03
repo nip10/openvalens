@@ -16,7 +16,7 @@ import {
   type CoachRiskTolerance,
   type CoachTemplateId,
   type CoachTone,
-} from "@openhealth/api/presenters/coach-settings";
+} from "@openvalens/api/presenters/coach-settings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Chip, useThemeColor } from "heroui-native";
 import { router } from "expo-router";

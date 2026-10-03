@@ -1,4 +1,4 @@
-import { listDailyVitals, listRecentHeartRateSamples } from "@openhealth/vitals";
+import { listDailyVitals, listRecentHeartRateSamples } from "@openvalens/vitals";
 import { z } from "zod";
 
 import { permissionedProcedure, validateInput } from "../index";

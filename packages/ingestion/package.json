@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/ingestion",
+  "name": "@openvalens/ingestion",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -10,13 +10,13 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@openhealth/body": "workspace:*",
-    "@openhealth/db": "workspace:*",
-    "@openhealth/health-record": "workspace:*",
+    "@openvalens/body": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@openvalens/health-record": "workspace:*",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

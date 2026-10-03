@@ -1,8 +1,8 @@
 // Source: anchovy/apps/web/src/lib/export/extractors/activity.ts
 // Workouts extractor. Reads from `packages/plans/src/workouts.ts` and projects
 // the row shape used by the source CSV column set.
-import type { Database } from "@openhealth/db";
-import { createWorkoutRepository } from "@openhealth/plans";
+import type { Database } from "@openvalens/db";
+import { createWorkoutRepository } from "@openvalens/plans";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";
 

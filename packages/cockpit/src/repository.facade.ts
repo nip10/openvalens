@@ -11,12 +11,12 @@ import type { CockpitSleepInput } from "./types";
  * is allowed to know.
  *
  * Domain ownership:
- * - `@openhealth/body`      — weight trend, latest weight, latest dexa.
- * - `@openhealth/clinical`   — latest blood panel, out-of-range markers.
- * - `@openhealth/coach`      — recent insights (read-only).
- * - `@openhealth/plans`      — latest workout, recent goal check-ins.
- * - `@openhealth/sleep`      — sleep coach context (last 7d window).
- * - `@openhealth/cockpit`    — the cockpit engine + weekly review table.
+ * - `@openvalens/body`      — weight trend, latest weight, latest dexa.
+ * - `@openvalens/clinical`   — latest blood panel, out-of-range markers.
+ * - `@openvalens/coach`      — recent insights (read-only).
+ * - `@openvalens/plans`      — latest workout, recent goal check-ins.
+ * - `@openvalens/sleep`      — sleep coach context (last 7d window).
+ * - `@openvalens/cockpit`    — the cockpit engine + weekly review table.
  *
  * If a domain hasn't shipped its procedure yet, the contract exposes
  * `null` and the engine simply treats the slice as missing — no PHI

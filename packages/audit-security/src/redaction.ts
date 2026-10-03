@@ -1,10 +1,10 @@
-import { BLOCKED_FIELDS } from "@openhealth/observability";
+import { BLOCKED_FIELDS } from "@openvalens/observability";
 
 /**
  * Recursive redaction primitive for audit payloads (Issue #10).
  *
  * Reuses the PHI-safe {@link BLOCKED_FIELDS} list from
- * `@openhealth/observability` — the single source of truth for keys that must
+ * `@openvalens/observability` — the single source of truth for keys that must
  * never reach a log line or an audit row. This module must not redefine it.
  *
  * Behaviour mirrors the observability logger's serializer so an audit payload

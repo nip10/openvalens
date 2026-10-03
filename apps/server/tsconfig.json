@@ -1,5 +1,5 @@
 {
-  "extends": "@openhealth/config/tsconfig.base.json",
+  "extends": "@openvalens/config/tsconfig.base.json",
   "references": [{ "path": "../../packages/api" }],
   "compilerOptions": {
     "noEmit": true,

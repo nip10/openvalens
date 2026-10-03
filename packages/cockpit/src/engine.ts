@@ -79,7 +79,7 @@ export function applyRules(
  * Build the canonical "ready-to-evaluate" cockpit input from the
  * cockpit-shaped slices each domain already publishes. Anchovy wraps
  * the same kind of projection in `lib/dashboard/today-data.ts`;
- * openhealth keeps the projection here so the cockpit owns its own
+ * OpenValens keeps the projection here so the cockpit owns its own
  * deterministic boundary.
  */
 export function projectEngineInput(params: {

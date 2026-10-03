@@ -8,7 +8,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "@types/bun": "catalog:",
         "oxfmt": "^0.66.0",
         "oxlint": "^1.81.0",
@@ -26,8 +26,8 @@
         "@expo/vector-icons": "^15.0.2",
         "@gorhom/bottom-sheet": "^5.2.14",
         "@kingstinct/react-native-healthkit": "^16.0.0",
-        "@openhealth/api": "workspace:*",
-        "@openhealth/ui": "workspace:*",
+        "@openvalens/api": "workspace:*",
+        "@openvalens/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/tanstack-query": "catalog:",
         "@react-native-async-storage/async-storage": "2.2.0",
@@ -75,7 +75,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "@types/bun": "catalog:",
         "@types/node": "catalog:",
         "@types/react": "~19.2.18",
@@ -86,13 +86,13 @@
     "apps/server": {
       "name": "server",
       "dependencies": {
-        "@openhealth/ai": "workspace:*",
-        "@openhealth/api": "workspace:*",
-        "@openhealth/auth": "workspace:*",
-        "@openhealth/db": "workspace:*",
-        "@openhealth/email": "workspace:*",
-        "@openhealth/observability": "workspace:*",
-        "@openhealth/telegram": "workspace:*",
+        "@openvalens/ai": "workspace:*",
+        "@openvalens/api": "workspace:*",
+        "@openvalens/auth": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/email": "workspace:*",
+        "@openvalens/observability": "workspace:*",
+        "@openvalens/telegram": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
@@ -102,7 +102,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "@types/bun": "catalog:",
         "tsdown": "^0.23.0",
         "typescript": "^6.0.3",
@@ -112,8 +112,8 @@
       "name": "web",
       "version": "0.0.0",
       "dependencies": {
-        "@openhealth/api": "workspace:*",
-        "@openhealth/ui": "workspace:*",
+        "@openvalens/api": "workspace:*",
+        "@openvalens/ui": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/tanstack-query": "catalog:",
@@ -133,7 +133,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "@tanstack/react-query-devtools": "^5.102.8",
         "@tanstack/react-router-devtools": "^1.167.1",
         "@tanstack/router-plugin": "^1.168.35",
@@ -148,53 +148,53 @@
       },
     },
     "packages/activity": {
-      "name": "@openhealth/activity",
+      "name": "@openvalens/activity",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/ai": {
-      "name": "@openhealth/ai",
+      "name": "@openvalens/ai",
       "dependencies": {
         "@ai-sdk/anthropic": "catalog:",
-        "@openhealth/audit-security": "workspace:*",
-        "@openhealth/db": "workspace:*",
-        "@openhealth/observability": "workspace:*",
+        "@openvalens/audit-security": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/observability": "workspace:*",
         "ai": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/api": {
-      "name": "@openhealth/api",
+      "name": "@openvalens/api",
       "dependencies": {
-        "@openhealth/activity": "workspace:*",
-        "@openhealth/ai": "workspace:*",
-        "@openhealth/audit-security": "workspace:*",
-        "@openhealth/auth": "workspace:*",
-        "@openhealth/body": "workspace:*",
-        "@openhealth/clinical": "workspace:*",
-        "@openhealth/clinical-export": "workspace:*",
-        "@openhealth/coach": "workspace:*",
-        "@openhealth/cockpit": "workspace:*",
-        "@openhealth/db": "workspace:*",
-        "@openhealth/health-record": "workspace:*",
-        "@openhealth/ingestion": "workspace:*",
-        "@openhealth/labs": "workspace:*",
-        "@openhealth/observability": "workspace:*",
-        "@openhealth/plans": "workspace:*",
-        "@openhealth/sleep": "workspace:*",
-        "@openhealth/telegram": "workspace:*",
-        "@openhealth/vitals": "workspace:*",
+        "@openvalens/activity": "workspace:*",
+        "@openvalens/ai": "workspace:*",
+        "@openvalens/audit-security": "workspace:*",
+        "@openvalens/auth": "workspace:*",
+        "@openvalens/body": "workspace:*",
+        "@openvalens/clinical": "workspace:*",
+        "@openvalens/clinical-export": "workspace:*",
+        "@openvalens/coach": "workspace:*",
+        "@openvalens/cockpit": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/health-record": "workspace:*",
+        "@openvalens/ingestion": "workspace:*",
+        "@openvalens/labs": "workspace:*",
+        "@openvalens/observability": "workspace:*",
+        "@openvalens/plans": "workspace:*",
+        "@openvalens/sleep": "workspace:*",
+        "@openvalens/telegram": "workspace:*",
+        "@openvalens/vitals": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -203,114 +203,114 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/audit-security": {
-      "name": "@openhealth/audit-security",
+      "name": "@openvalens/audit-security",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
-        "@openhealth/observability": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/observability": "workspace:*",
         "@orpc/server": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/auth": {
-      "name": "@openhealth/auth",
+      "name": "@openvalens/auth",
       "dependencies": {
         "@better-auth/drizzle-adapter": "1.7.5",
         "@better-auth/expo": "catalog:",
-        "@openhealth/db": "workspace:*",
-        "@openhealth/email": "workspace:*",
-        "@openhealth/observability": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/email": "workspace:*",
+        "@openvalens/observability": "workspace:*",
         "better-auth": "catalog:",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/body": {
-      "name": "@openhealth/body",
+      "name": "@openvalens/body",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/clinical": {
-      "name": "@openhealth/clinical",
+      "name": "@openvalens/clinical",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/clinical-export": {
-      "name": "@openhealth/clinical-export",
+      "name": "@openvalens/clinical-export",
       "dependencies": {
-        "@openhealth/body": "workspace:*",
-        "@openhealth/clinical": "workspace:*",
-        "@openhealth/coach": "workspace:*",
-        "@openhealth/db": "workspace:*",
-        "@openhealth/plans": "workspace:*",
+        "@openvalens/body": "workspace:*",
+        "@openvalens/clinical": "workspace:*",
+        "@openvalens/coach": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/plans": "workspace:*",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/coach": {
-      "name": "@openhealth/coach",
+      "name": "@openvalens/coach",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/cockpit": {
-      "name": "@openhealth/cockpit",
+      "name": "@openvalens/cockpit",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/config": {
-      "name": "@openhealth/config",
+      "name": "@openvalens/config",
       "version": "0.0.0",
     },
     "packages/db": {
-      "name": "@openhealth/db",
+      "name": "@openvalens/db",
       "dependencies": {
         "drizzle-orm": "catalog:",
         "pg": "^8.23.0",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "@types/pg": "^8.23.1",
         "drizzle-kit": "1.0.0-rc.4",
         "typescript": "^6.0.3",
@@ -318,102 +318,102 @@
       },
     },
     "packages/email": {
-      "name": "@openhealth/email",
+      "name": "@openvalens/email",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
-        "@openhealth/observability": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/observability": "workspace:*",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/health-record": {
-      "name": "@openhealth/health-record",
+      "name": "@openvalens/health-record",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/ingestion": {
-      "name": "@openhealth/ingestion",
+      "name": "@openvalens/ingestion",
       "dependencies": {
-        "@openhealth/body": "workspace:*",
-        "@openhealth/db": "workspace:*",
-        "@openhealth/health-record": "workspace:*",
+        "@openvalens/body": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/health-record": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/integrations/telegram": {
-      "name": "@openhealth/telegram",
+      "name": "@openvalens/telegram",
       "dependencies": {
-        "@openhealth/audit-security": "workspace:*",
-        "@openhealth/db": "workspace:*",
-        "@openhealth/email": "workspace:*",
-        "@openhealth/observability": "workspace:*",
+        "@openvalens/audit-security": "workspace:*",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/email": "workspace:*",
+        "@openvalens/observability": "workspace:*",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/labs": {
-      "name": "@openhealth/labs",
+      "name": "@openvalens/labs",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/observability": {
-      "name": "@openhealth/observability",
+      "name": "@openvalens/observability",
       "dependencies": {
         "varlock": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/plans": {
-      "name": "@openhealth/plans",
+      "name": "@openvalens/plans",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/sleep": {
-      "name": "@openhealth/sleep",
+      "name": "@openvalens/sleep",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
     "packages/ui": {
-      "name": "@openhealth/ui",
+      "name": "@openvalens/ui",
       "version": "0.0.0",
       "dependencies": {
         "@fontsource-variable/geist": "^5.2.8",
@@ -433,7 +433,7 @@
         "tw-animate-css": "^1.4.0",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "@tailwindcss/postcss": "^4.3.3",
         "@types/react": "^19.2.18",
         "@types/react-dom": "catalog:",
@@ -442,13 +442,13 @@
       },
     },
     "packages/vitals": {
-      "name": "@openhealth/vitals",
+      "name": "@openvalens/vitals",
       "dependencies": {
-        "@openhealth/db": "workspace:*",
+        "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
       },
       "devDependencies": {
-        "@openhealth/config": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
     },
@@ -843,53 +843,53 @@
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
 
-    "@openhealth/activity": ["@openhealth/activity@workspace:packages/activity"],
-
-    "@openhealth/ai": ["@openhealth/ai@workspace:packages/ai"],
-
-    "@openhealth/api": ["@openhealth/api@workspace:packages/api"],
-
-    "@openhealth/audit-security": ["@openhealth/audit-security@workspace:packages/audit-security"],
-
-    "@openhealth/auth": ["@openhealth/auth@workspace:packages/auth"],
-
-    "@openhealth/body": ["@openhealth/body@workspace:packages/body"],
-
-    "@openhealth/clinical": ["@openhealth/clinical@workspace:packages/clinical"],
-
-    "@openhealth/clinical-export": ["@openhealth/clinical-export@workspace:packages/clinical-export"],
-
-    "@openhealth/coach": ["@openhealth/coach@workspace:packages/coach"],
-
-    "@openhealth/cockpit": ["@openhealth/cockpit@workspace:packages/cockpit"],
-
-    "@openhealth/config": ["@openhealth/config@workspace:packages/config"],
-
-    "@openhealth/db": ["@openhealth/db@workspace:packages/db"],
-
-    "@openhealth/email": ["@openhealth/email@workspace:packages/email"],
-
-    "@openhealth/health-record": ["@openhealth/health-record@workspace:packages/health-record"],
-
-    "@openhealth/ingestion": ["@openhealth/ingestion@workspace:packages/ingestion"],
-
-    "@openhealth/labs": ["@openhealth/labs@workspace:packages/labs"],
-
-    "@openhealth/observability": ["@openhealth/observability@workspace:packages/observability"],
-
-    "@openhealth/plans": ["@openhealth/plans@workspace:packages/plans"],
-
-    "@openhealth/sleep": ["@openhealth/sleep@workspace:packages/sleep"],
-
-    "@openhealth/telegram": ["@openhealth/telegram@workspace:packages/integrations/telegram"],
-
-    "@openhealth/ui": ["@openhealth/ui@workspace:packages/ui"],
-
-    "@openhealth/vitals": ["@openhealth/vitals@workspace:packages/vitals"],
-
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 
     "@opentelemetry/semantic-conventions": ["@opentelemetry/semantic-conventions@1.43.0", "", {}, "sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg=="],
+
+    "@openvalens/activity": ["@openvalens/activity@workspace:packages/activity"],
+
+    "@openvalens/ai": ["@openvalens/ai@workspace:packages/ai"],
+
+    "@openvalens/api": ["@openvalens/api@workspace:packages/api"],
+
+    "@openvalens/audit-security": ["@openvalens/audit-security@workspace:packages/audit-security"],
+
+    "@openvalens/auth": ["@openvalens/auth@workspace:packages/auth"],
+
+    "@openvalens/body": ["@openvalens/body@workspace:packages/body"],
+
+    "@openvalens/clinical": ["@openvalens/clinical@workspace:packages/clinical"],
+
+    "@openvalens/clinical-export": ["@openvalens/clinical-export@workspace:packages/clinical-export"],
+
+    "@openvalens/coach": ["@openvalens/coach@workspace:packages/coach"],
+
+    "@openvalens/cockpit": ["@openvalens/cockpit@workspace:packages/cockpit"],
+
+    "@openvalens/config": ["@openvalens/config@workspace:packages/config"],
+
+    "@openvalens/db": ["@openvalens/db@workspace:packages/db"],
+
+    "@openvalens/email": ["@openvalens/email@workspace:packages/email"],
+
+    "@openvalens/health-record": ["@openvalens/health-record@workspace:packages/health-record"],
+
+    "@openvalens/ingestion": ["@openvalens/ingestion@workspace:packages/ingestion"],
+
+    "@openvalens/labs": ["@openvalens/labs@workspace:packages/labs"],
+
+    "@openvalens/observability": ["@openvalens/observability@workspace:packages/observability"],
+
+    "@openvalens/plans": ["@openvalens/plans@workspace:packages/plans"],
+
+    "@openvalens/sleep": ["@openvalens/sleep@workspace:packages/sleep"],
+
+    "@openvalens/telegram": ["@openvalens/telegram@workspace:packages/integrations/telegram"],
+
+    "@openvalens/ui": ["@openvalens/ui@workspace:packages/ui"],
+
+    "@openvalens/vitals": ["@openvalens/vitals@workspace:packages/vitals"],
 
     "@orpc/client": ["@orpc/client@1.15.4", "", { "dependencies": { "@orpc/shared": "1.15.4", "@orpc/standard-server": "1.15.4", "@orpc/standard-server-fetch": "1.15.4", "@orpc/standard-server-peer": "1.15.4" } }, "sha512-8Iv2K8Rj8hf6xHCTxmQ+gxgiY6EATDossQk4gdt3oSbGVV0x2RSeLtRK9Zry+KVsmOqPJfnLahfRp7H2rQ/Vgg=="],
 

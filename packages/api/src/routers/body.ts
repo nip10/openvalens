@@ -1,5 +1,5 @@
-import { writeAuditLog } from "@openhealth/audit-security";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import { writeAuditLog } from "@openvalens/audit-security";
+import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   createAutoReconciliationService,
   createDailyWeightService,
@@ -11,7 +11,7 @@ import {
   listCanonicalDailyWeights,
   listDexaRegionals,
   listLegacyCheckins,
-} from "@openhealth/body";
+} from "@openvalens/body";
 import { z } from "zod";
 
 import {

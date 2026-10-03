@@ -1,5 +1,5 @@
-import { writeAuditLog, type AuditEventType } from "@openhealth/audit-security";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   createClinicalRepository,
   type BloodPanel,
@@ -12,7 +12,7 @@ import {
   type Consultation,
   type FamilyHistoryEntry,
   type ImagingStudy,
-} from "@openhealth/clinical";
+} from "@openvalens/clinical";
 import { z } from "zod";
 
 import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput } from "../index";
@@ -41,7 +41,7 @@ import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput
  * use (RECORD_CREATED / RECORD_UPDATED / RECORD_DELETED) is in
  * `AUDIT_EVENT_TYPES`.
  *
- * DEXA reads are owned by `@openhealth/body` (Issue #21). This router
+ * DEXA reads are owned by `@openvalens/body` (Issue #21). This router
  * intentionally does **not** duplicate the DEXA surface to avoid drift.
  *
  * No PHI is logged. Notes / report / diagnosis / findings / notes /

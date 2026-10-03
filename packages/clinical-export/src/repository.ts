@@ -1,4 +1,4 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   healthEvent,
   metricSample,
@@ -6,7 +6,7 @@ import {
   dataSource,
   provenanceLink,
   ingestionRawArtifact,
-} from "@openhealth/db/schema/health-record";
+} from "@openvalens/db/schema/health-record";
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   buildClinicalExportBundle,

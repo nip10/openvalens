@@ -3,14 +3,14 @@ import {
   TenantViolationError,
   writeAuditLog,
   type AuditEventType,
-} from "@openhealth/audit-security";
-import type { Action, Resource } from "@openhealth/auth/access/permissions";
-import type { AuthzRequestContext } from "@openhealth/auth/authz/context";
+} from "@openvalens/audit-security";
+import type { Action, Resource } from "@openvalens/auth/access/permissions";
+import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
 import {
   AuthzHttpError,
   requirePermission,
   type OrgAuthContext,
-} from "@openhealth/auth/authz/guard";
+} from "@openvalens/auth/authz/guard";
 import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
 
@@ -81,7 +81,7 @@ function toApiError(error: unknown): ORPCError<ORPCErrorCode, unknown> {
 /**
  * Authenticated + RBAC-guarded procedure.
  *
- * Delegates to `requirePermission` from `@openhealth/auth/authz/guard` and
+ * Delegates to `requirePermission` from `@openvalens/auth/authz/guard` and
  * exposes the resolved org context to the handler as `context.authz`.
  */
 export function permissionedProcedure({ resource, action }: PermissionedProcedureInput) {

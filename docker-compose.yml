@@ -1,4 +1,4 @@
-name: openhealth
+name: openvalens
 
 services:
   web:
@@ -62,15 +62,17 @@ services:
 
   postgres:
     image: postgres:18
-    container_name: openhealth-postgres
+    container_name: openvalens-postgres
     environment:
+      # Database and volume keep their pre-rename (openhealth) names so existing
+      # installs keep their data; they are internal identifiers only.
       POSTGRES_DB: openhealth
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
       - "5432:5432"
     volumes:
-      - openhealth_postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -79,7 +81,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  openhealth_postgres_data:
+  postgres_data:
+    name: openhealth_openhealth_postgres_data
 
 # BuildKit makes these available only while install/build commands run.
 secrets:

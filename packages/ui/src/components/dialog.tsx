@@ -2,8 +2,8 @@ import * as React from "react";
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
-import { cn } from "@openhealth/ui/lib/utils";
-import { Button } from "@openhealth/ui/components/button";
+import { cn } from "@openvalens/ui/lib/utils";
+import { Button } from "@openvalens/ui/components/button";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;

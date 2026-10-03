@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Progress as ProgressPrimitive } from "radix-ui";
 
-import { cn } from "@openhealth/ui/lib/utils";
+import { cn } from "@openvalens/ui/lib/utils";
 
 function progressColor(value: number) {
   if (value < 25) return "bg-red-500";

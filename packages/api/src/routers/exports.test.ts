@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, expect, mock, spyOn, test } from "bun:test";
-import * as clinicalExport from "@openhealth/clinical-export";
-import * as authzGuard from "@openhealth/auth/authz/guard";
-import * as auditSecurity from "@openhealth/audit-security";
+import * as clinicalExport from "@openvalens/clinical-export";
+import * as authzGuard from "@openvalens/auth/authz/guard";
+import * as auditSecurity from "@openvalens/audit-security";
 import type { Context } from "../context";
 
 const actualExport = { ...clinicalExport };
@@ -57,24 +57,24 @@ const renderPdfExport = mock((payload: { generatedAt: string; selectedDomains: s
 }));
 const audit = mock(async (_input: unknown) => {});
 // Eager complete snapshots and synchronous factories, following repaired timeline tests.
-mock.module("@openhealth/clinical-export", () => ({
+mock.module("@openvalens/clinical-export", () => ({
   ...actualExport,
   createClinicalExportRepository: () => ({ buildBundle: build }),
   buildExportPayload: buildLegacy,
   renderPdfExport,
 }));
-mock.module("@openhealth/auth/authz/guard", () => ({
+mock.module("@openvalens/auth/authz/guard", () => ({
   ...actualGuard,
   AuthzHttpError,
   requirePermission,
 }));
-mock.module("@openhealth/audit-security", () => ({ ...actualAudit, writeAuditLog: audit }));
+mock.module("@openvalens/audit-security", () => ({ ...actualAudit, writeAuditLog: audit }));
 const { exportsRouter } = await import("./exports");
 const { appRouter } = await import("./index");
 afterAll(() => {
-  mock.module("@openhealth/clinical-export", () => actualExport);
-  mock.module("@openhealth/auth/authz/guard", () => actualGuard);
-  mock.module("@openhealth/audit-security", () => actualAudit);
+  mock.module("@openvalens/clinical-export", () => actualExport);
+  mock.module("@openvalens/auth/authz/guard", () => actualGuard);
+  mock.module("@openvalens/audit-security", () => actualAudit);
 });
 function context(authenticated = true, headers = new Headers()): Context {
   return {

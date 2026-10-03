@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/api",
+  "name": "@openvalens/api",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -10,24 +10,24 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@openhealth/activity": "workspace:*",
-    "@openhealth/ai": "workspace:*",
-    "@openhealth/audit-security": "workspace:*",
-    "@openhealth/auth": "workspace:*",
-    "@openhealth/body": "workspace:*",
-    "@openhealth/clinical": "workspace:*",
-    "@openhealth/clinical-export": "workspace:*",
-    "@openhealth/coach": "workspace:*",
-    "@openhealth/cockpit": "workspace:*",
-    "@openhealth/db": "workspace:*",
-    "@openhealth/health-record": "workspace:*",
-    "@openhealth/ingestion": "workspace:*",
-    "@openhealth/labs": "workspace:*",
-    "@openhealth/observability": "workspace:*",
-    "@openhealth/plans": "workspace:*",
-    "@openhealth/sleep": "workspace:*",
-    "@openhealth/telegram": "workspace:*",
-    "@openhealth/vitals": "workspace:*",
+    "@openvalens/activity": "workspace:*",
+    "@openvalens/ai": "workspace:*",
+    "@openvalens/audit-security": "workspace:*",
+    "@openvalens/auth": "workspace:*",
+    "@openvalens/body": "workspace:*",
+    "@openvalens/clinical": "workspace:*",
+    "@openvalens/clinical-export": "workspace:*",
+    "@openvalens/coach": "workspace:*",
+    "@openvalens/cockpit": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@openvalens/health-record": "workspace:*",
+    "@openvalens/ingestion": "workspace:*",
+    "@openvalens/labs": "workspace:*",
+    "@openvalens/observability": "workspace:*",
+    "@openvalens/plans": "workspace:*",
+    "@openvalens/sleep": "workspace:*",
+    "@openvalens/telegram": "workspace:*",
+    "@openvalens/vitals": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
@@ -36,7 +36,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

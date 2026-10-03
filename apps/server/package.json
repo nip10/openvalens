@@ -12,13 +12,13 @@
     "auth:generate": "varlock run -- bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
   },
   "dependencies": {
-    "@openhealth/ai": "workspace:*",
-    "@openhealth/api": "workspace:*",
-    "@openhealth/auth": "workspace:*",
-    "@openhealth/db": "workspace:*",
-    "@openhealth/email": "workspace:*",
-    "@openhealth/observability": "workspace:*",
-    "@openhealth/telegram": "workspace:*",
+    "@openvalens/ai": "workspace:*",
+    "@openvalens/api": "workspace:*",
+    "@openvalens/auth": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@openvalens/email": "workspace:*",
+    "@openvalens/observability": "workspace:*",
+    "@openvalens/telegram": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",
@@ -28,7 +28,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "tsdown": "^0.23.0",
     "typescript": "^6.0.3"

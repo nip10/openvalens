@@ -1,21 +1,21 @@
 // Source: anchovy/apps/web/src/lib/export/extractors/clinical.ts
 // Clinical / body / weight domain extractors. Every read goes through the
-// existing target repositories in `@openhealth/clinical`, `@openhealth/body`,
+// existing target repositories in `@openvalens/clinical`, `@openvalens/body`,
 // and Drizzle tables, each filtered by the active organization id. The package
 // does not invent new DB access — the only direct DB queries are simple
 // `bloodMarker`-by-`bloodPanel` and `supplement`+`supplementSchedule` joins,
 // both already filtered by the target repositories' contracts.
-import type { Database } from "@openhealth/db";
-import { bloodMarker, bloodPanel, cardiacExam, imagingStudy } from "@openhealth/db/schema/clinical";
-import { medication, supplement, supplementSchedule } from "@openhealth/db/schema/plans";
-import { weightCheckin } from "@openhealth/db/schema/body";
+import type { Database } from "@openvalens/db";
+import { bloodMarker, bloodPanel, cardiacExam, imagingStudy } from "@openvalens/db/schema/clinical";
+import { medication, supplement, supplementSchedule } from "@openvalens/db/schema/plans";
+import { weightCheckin } from "@openvalens/db/schema/body";
 import { desc, eq, sql } from "drizzle-orm";
 import {
   getLatestCanonicalWeight,
   getLatestDexaScan,
   listAllDexaScans,
   listLegacyCheckins,
-} from "@openhealth/body";
+} from "@openvalens/body";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";
 import { maxIsoDate, selectLatestBodyWeight } from "./body-source";

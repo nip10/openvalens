@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { metricDefinition, metricSample } from "@openhealth/db/schema/health-record";
+import type { Database } from "@openvalens/db";
+import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { and, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
 import type { DailyActivitySummary, DailyActivityTotals } from "./types";

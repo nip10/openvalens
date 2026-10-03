@@ -21,7 +21,7 @@ This mirrors the web app’s persistent left sidebar: the most-used sections mov
 
 ### Web sidebar → mobile mapping
 
-The web sidebar (from `@openhealth/ui/components/sidebar`) is a persistent rail on desktop. On mobile it is split into three surfaces:
+The web sidebar (from `@openvalens/ui/components/sidebar`) is a persistent rail on desktop. On mobile it is split into three surfaces:
 
 | Web sidebar section                       | Mobile home                               | File / notes                                                                                                    |
 | ----------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------- |

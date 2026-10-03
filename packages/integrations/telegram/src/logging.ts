@@ -1,4 +1,4 @@
-import { createStructuredLogger, type StructuredLogger } from "@openhealth/observability";
+import { createStructuredLogger, type StructuredLogger } from "@openvalens/observability";
 
 const CHAT_ID_MASK = "***";
 

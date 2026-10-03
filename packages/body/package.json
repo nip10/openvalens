@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/body",
+  "name": "@openvalens/body",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -10,11 +10,11 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@openhealth/db": "workspace:*",
+    "@openvalens/db": "workspace:*",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

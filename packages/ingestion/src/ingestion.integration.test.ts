@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
-import { createDb, sql } from "@openhealth/db";
-import { member, organization, user } from "@openhealth/db/schema/auth";
+import { createDb, sql } from "@openvalens/db";
+import { member, organization, user } from "@openvalens/db/schema/auth";
 import {
   healthEvent,
   ingestionBatch,
@@ -10,7 +10,7 @@ import {
   ingestionRawArtifact,
   metricDefinition,
   metricSample,
-} from "@openhealth/db/schema/health-record";
+} from "@openvalens/db/schema/health-record";
 import { eq } from "drizzle-orm";
 
 import { claimNextQueuedJob, reclaimStaleRunningJobs } from "./claim-jobs";

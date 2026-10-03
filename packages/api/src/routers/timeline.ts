@@ -1,5 +1,5 @@
-import { writeAuditLog } from "@openhealth/audit-security";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import { writeAuditLog } from "@openvalens/audit-security";
+import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   createHealthRecordRepository,
   decodeCursor,
@@ -11,7 +11,7 @@ import {
   CANONICAL_TIMELINE_SEVERITIES,
   CANONICAL_TIMELINE_CONFIDENCES,
   CANONICAL_TIMELINE_REVIEW_STATES,
-} from "@openhealth/health-record";
+} from "@openvalens/health-record";
 import { z } from "zod";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 

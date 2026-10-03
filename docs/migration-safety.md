@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-26
 
-> ## Port note (openhealth)
+> ## Port note (OpenValens)
 >
 > This document was ported verbatim from `anchovy/docs/migration-safety.md`.
 > It applies to **this repo's migrations as well**.

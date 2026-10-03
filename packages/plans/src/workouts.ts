@@ -1,11 +1,11 @@
-import type { Database } from "@openhealth/db";
-import { workout, workoutExercise, workoutSet } from "@openhealth/db/schema/plans";
+import type { Database } from "@openvalens/db";
+import { workout, workoutExercise, workoutSet } from "@openvalens/db/schema/plans";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 /**
  * Workouts — public type surface + repository (Issue #23).
  *
- * Mirrors the openhealth tables in `packages/db/src/schema/plans.ts`:
+ * Mirrors the OpenValens tables in `packages/db/src/schema/plans.ts`:
  *
  * - `workout`        — org-scoped session header (date, type, duration, notes).
  * - `workoutExercise` — org-scoped exercise row (workout_id, sortOrder, name, notes).

@@ -1,7 +1,7 @@
-import { previewLine, relativeTime, truncate } from "@openhealth/api/presenters/cochat";
-import { Button } from "@openhealth/ui/components/button";
-import { Card, CardContent } from "@openhealth/ui/components/card";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+import { previewLine, relativeTime, truncate } from "@openvalens/api/presenters/cochat";
+import { Button } from "@openvalens/ui/components/button";
+import { Card, CardContent } from "@openvalens/ui/components/card";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";

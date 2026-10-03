@@ -1,5 +1,5 @@
-import { writeAuditLog } from "@openhealth/audit-security";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import { writeAuditLog } from "@openvalens/audit-security";
+import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   createCockpitRepository,
   deriveCockpitState,
@@ -10,7 +10,7 @@ import {
   type CockpitState,
   type WeeklyReport,
   type WeeklySlices,
-} from "@openhealth/cockpit";
+} from "@openvalens/cockpit";
 import { z } from "zod";
 
 import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput } from "../index";

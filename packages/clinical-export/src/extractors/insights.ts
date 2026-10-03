@@ -2,8 +2,8 @@
 // Insights extractor — delegates to the target `coach` repository, which is
 // already tenant-scoped. We derive the snapshot counts here so the
 // dependencies on `coach` stay bounded to a single read.
-import type { Database } from "@openhealth/db";
-import { createCoachRepository } from "@openhealth/coach";
+import type { Database } from "@openvalens/db";
+import { createCoachRepository } from "@openvalens/coach";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";
 

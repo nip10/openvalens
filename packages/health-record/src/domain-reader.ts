@@ -1,8 +1,8 @@
-import type { Database } from "@openhealth/db";
-import { consultation, imagingStudy, cardiacExam } from "@openhealth/db/schema/clinical";
-import { insight } from "@openhealth/db/schema/coach";
-import { scheduledEvent, weeklyReview } from "@openhealth/db/schema/plans";
-import { dailyReminder } from "@openhealth/db/schema/integrations";
+import type { Database } from "@openvalens/db";
+import { consultation, imagingStudy, cardiacExam } from "@openvalens/db/schema/clinical";
+import { insight } from "@openvalens/db/schema/coach";
+import { scheduledEvent, weeklyReview } from "@openvalens/db/schema/plans";
+import { dailyReminder } from "@openvalens/db/schema/integrations";
 import { eq } from "drizzle-orm";
 import type { DomainTimelineRows } from "./timeline-adapters";
 

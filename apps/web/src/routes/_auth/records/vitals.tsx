@@ -4,32 +4,32 @@ import {
   makeManualEntryHash,
   parseManualEntryValue,
   type ManualEntryMetric,
-} from "@openhealth/api/presenters/manual-entry";
+} from "@openvalens/api/presenters/manual-entry";
 import {
   formatBpm,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
   vitalsSourceLabel,
-} from "@openhealth/api/presenters/vitals";
-import { Button } from "@openhealth/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
+} from "@openvalens/api/presenters/vitals";
+import { Button } from "@openvalens/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@openhealth/ui/components/chart";
-import { Input } from "@openhealth/ui/components/input";
-import { Label } from "@openhealth/ui/components/label";
+} from "@openvalens/ui/components/chart";
+import { Input } from "@openvalens/ui/components/input";
+import { Label } from "@openvalens/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@openhealth/ui/components/select";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+} from "@openvalens/ui/components/select";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";

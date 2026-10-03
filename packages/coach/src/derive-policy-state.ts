@@ -8,7 +8,7 @@
  *
  * Cross-domain slicing (sleep coach context, weight trend, blood marker
  * out-of-range count) lives in the originating domain packages
- * (`@openhealth/sleep`, `@openhealth/body`, `@openhealth/clinical`).
+ * (`@openvalens/sleep`, `@openvalens/body`, `@openvalens/clinical`).
  * The coach package only consumes their sanitized shapes.
  */
 

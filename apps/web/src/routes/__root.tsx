@@ -1,4 +1,4 @@
-import { Toaster } from "@openhealth/ui/components/sonner";
+import { Toaster } from "@openvalens/ui/components/sonner";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
@@ -20,11 +20,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "openhealth",
+        title: "OpenValens",
       },
       {
         name: "description",
-        content: "openhealth is a web application",
+        content: "OpenValens is an open-source, private health record",
       },
     ],
     links: [

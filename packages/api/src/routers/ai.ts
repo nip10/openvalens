@@ -8,12 +8,12 @@ import {
   requireAiConsent,
   streamChat,
   type AiChatMessage,
-} from "@openhealth/ai";
-import { writeAuditLog, type AuditEventType } from "@openhealth/audit-security";
-import { AuthzHttpError, requireOrgMembership } from "@openhealth/auth/authz/guard";
-import type { Database } from "@openhealth/db";
-import { chatMessage } from "@openhealth/db/schema/coach";
-import { createStructuredLogger } from "@openhealth/observability";
+} from "@openvalens/ai";
+import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { AuthzHttpError, requireOrgMembership } from "@openvalens/auth/authz/guard";
+import type { Database } from "@openvalens/db";
+import { chatMessage } from "@openvalens/db/schema/coach";
+import { createStructuredLogger } from "@openvalens/observability";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 

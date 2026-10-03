@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { metricDefinition, metricSample } from "@openhealth/db/schema/health-record";
+import type { Database } from "@openvalens/db";
+import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { and, desc, eq, isNull, like, sql } from "drizzle-orm";
 
 import type { LabMarkerLatest } from "./types";

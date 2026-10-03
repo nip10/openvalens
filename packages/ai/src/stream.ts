@@ -1,5 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createStructuredLogger, type StructuredLogger } from "@openhealth/observability";
+import { createStructuredLogger, type StructuredLogger } from "@openvalens/observability";
 import { streamText } from "ai";
 
 import { AiConfigError, type AiConfig } from "./config";

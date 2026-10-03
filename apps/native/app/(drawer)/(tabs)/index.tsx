@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { buildCockpitBlocks, type CockpitSnapshot } from "@openhealth/api/presenters/cockpit";
+import { buildCockpitBlocks, type CockpitSnapshot } from "@openvalens/api/presenters/cockpit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Chip } from "heroui-native";
 import { useMemo } from "react";

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { InMemoryRateLimiter } from "@openhealth/ai";
-import type { Session } from "@openhealth/auth";
-import type { Database } from "@openhealth/db";
-import { issueConnectToken, verifyConnectToken } from "@openhealth/telegram";
+import { InMemoryRateLimiter } from "@openvalens/ai";
+import type { Session } from "@openvalens/auth";
+import type { Database } from "@openvalens/db";
+import { issueConnectToken, verifyConnectToken } from "@openvalens/telegram";
 
 import type { Context } from "../context";
 import { appRouter } from "./index";

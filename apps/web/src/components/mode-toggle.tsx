@@ -1,10 +1,10 @@
-import { Button } from "@openhealth/ui/components/button";
+import { Button } from "@openvalens/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@openhealth/ui/components/dropdown-menu";
+} from "@openvalens/ui/components/dropdown-menu";
 import { Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/components/theme-provider";

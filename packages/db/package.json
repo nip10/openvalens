@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/db",
+  "name": "@openvalens/db",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -21,7 +21,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "1.0.0-rc.4",
     "typescript": "^6.0.3",

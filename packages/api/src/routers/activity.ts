@@ -1,4 +1,4 @@
-import { listDailyActivityTotals } from "@openhealth/activity";
+import { listDailyActivityTotals } from "@openvalens/activity";
 import { z } from "zod";
 
 import { permissionedProcedure, validateInput } from "../index";

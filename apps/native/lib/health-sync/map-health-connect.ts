@@ -2,7 +2,7 @@ import {
   mobileHealthRecord,
   type MOBILE_RECORD_TYPES,
   type MobileHealthRecordInput,
-} from "@openhealth/api/contracts/mobile-ingest";
+} from "@openvalens/api/contracts/mobile-ingest";
 
 /**
  * Health Connect records → the `mobile.ingestBatch` contract.

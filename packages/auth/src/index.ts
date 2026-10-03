@@ -1,14 +1,14 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { expo } from "@better-auth/expo";
-import type { Database } from "@openhealth/db";
-import * as schema from "@openhealth/db/schema/auth";
+import type { Database } from "@openvalens/db";
+import * as schema from "@openvalens/db/schema/auth";
 import {
   EmailPermanentError,
   EmailTransientError,
   renderInvitationEmail,
   sendEmail,
-} from "@openhealth/email";
-import { createStructuredLogger } from "@openhealth/observability";
+} from "@openvalens/email";
+import { createStructuredLogger } from "@openvalens/observability";
 import { betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins/admin";
 import { magicLink } from "better-auth/plugins/magic-link";
@@ -44,7 +44,7 @@ export function createAuth(
       ...desktopOrigins,
       // TODO(#7 / #29): replace with the finalized native app scheme origin
       // once mobile device-session auth lands.
-      "openhealth://",
+      "openvalens://",
       // Expo Go / dev-client deep links.
       "exp://",
       "exp://*",

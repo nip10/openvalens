@@ -2,7 +2,7 @@
 // Builds the legacy CSV/PDF export payload by running the registered extractors
 // for the requested domains in canonical order. The schema version is fixed by
 // the source route and must remain a literal string.
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import { EXPORT_DOMAIN_ORDER, type ExportDomain } from "./domains";
 import type { ExportPayloadDataByDomain, ExportPayloadDataFor, ExportPayloadFor } from "./types";
 import {

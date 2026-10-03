@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 
 import type { Context } from "../context";
 
@@ -22,7 +22,7 @@ const requireOrgMembership = mock(async () => ({
 
 // Stub the authz guard so the procedure runs without a live Better Auth
 // instance. `mock.module` must run before `./index` is loaded.
-mock.module("@openhealth/auth/authz/guard", () => ({
+mock.module("@openvalens/auth/authz/guard", () => ({
   AuthzHttpError: class AuthzHttpError extends Error {
     readonly status = 403;
     readonly code = "NO_MEMBERSHIP";
@@ -34,18 +34,18 @@ mock.module("@openhealth/auth/authz/guard", () => ({
 
 // Replace only `streamChat`; keep the real consent/config/limiter exports so the
 // gate behaviour under test is genuine.
-const actualAi = await import("@openhealth/ai");
+const actualAi = await import("@openvalens/ai");
 const streamChat = mock(async () => ({
   totalChunks: 2,
   text: "ASSISTANT_SECRET_REPLY",
   usage: { inputTokens: 11, outputTokens: 4 },
   model: "claude-sonnet-5-5",
 }));
-mock.module("@openhealth/ai", () => ({ ...actualAi, streamChat }));
+mock.module("@openvalens/ai", () => ({ ...actualAi, streamChat }));
 
 const { appRouter } = await import("./index");
-const { chatMessage } = await import("@openhealth/db/schema/coach");
-const { accessAuditLog } = await import("@openhealth/db/schema/auth");
+const { chatMessage } = await import("@openvalens/db/schema/coach");
+const { accessAuditLog } = await import("@openvalens/db/schema/auth");
 
 type CapturedInsert = { table: unknown; payload: unknown };
 

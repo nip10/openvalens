@@ -3,7 +3,7 @@ import {
   pickExportDomains,
   utf8ByteLength,
   type ExportDomain,
-} from "@openhealth/api/presenters/clinical-export";
+} from "@openvalens/api/presenters/clinical-export";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Card, Chip, Spinner } from "heroui-native";
 import { useMemo, useState } from "react";

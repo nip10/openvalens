@@ -12,7 +12,7 @@
     "rootDirs": ["."],
     "paths": {
       "@/*": ["./src/*"],
-      "@openhealth/ui/*": ["../../packages/ui/src/*"]
+      "@openvalens/ui/*": ["../../packages/ui/src/*"]
     }
   }
 }

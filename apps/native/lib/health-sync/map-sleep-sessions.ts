@@ -1,4 +1,4 @@
-import type { MobileHealthRecordInput } from "@openhealth/api/contracts/mobile-ingest";
+import type { MobileHealthRecordInput } from "@openvalens/api/contracts/mobile-ingest";
 
 /**
  * HealthKit sleep stage segments → one or more `sleep_session` records on the

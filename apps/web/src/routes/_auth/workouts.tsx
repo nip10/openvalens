@@ -4,20 +4,20 @@ import {
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
-} from "@openhealth/api/presenters/workouts";
-import { Button } from "@openhealth/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
-import { Input } from "@openhealth/ui/components/input";
-import { Label } from "@openhealth/ui/components/label";
+} from "@openvalens/api/presenters/workouts";
+import { Button } from "@openvalens/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Input } from "@openvalens/ui/components/input";
+import { Label } from "@openvalens/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@openhealth/ui/components/select";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
-import { Textarea } from "@openhealth/ui/components/textarea";
+} from "@openvalens/ui/components/select";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";

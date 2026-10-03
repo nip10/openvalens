@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
-import { createDb, sql } from "@openhealth/db";
-import { member, organization, user } from "@openhealth/db/schema/auth";
-import { dailyWeight, weightEvent } from "@openhealth/db/schema/body";
+import { createDb, sql } from "@openvalens/db";
+import { member, organization, user } from "@openvalens/db/schema/auth";
+import { dailyWeight, weightEvent } from "@openvalens/db/schema/body";
 import {
   dataSource,
   healthEvent,
@@ -13,8 +13,8 @@ import {
   metricDefinition,
   metricSample,
   provenanceLink,
-} from "@openhealth/db/schema/health-record";
-import { providerConnection } from "@openhealth/db/schema/ingestion";
+} from "@openvalens/db/schema/health-record";
+import { providerConnection } from "@openvalens/db/schema/ingestion";
 import { and, eq } from "drizzle-orm";
 
 import {

@@ -40,7 +40,7 @@ export type AuthzRequestContext = {
 
 /**
  * Loosely-typed view of the Better Auth API surface used by the authz layer.
- * Kept narrow so `@openhealth/auth` does not depend on the generated plugin
+ * Kept narrow so `@openvalens/auth` does not depend on the generated plugin
  * endpoint types (which differ between web and future native call sites).
  */
 export type AuthzAuthApi = {

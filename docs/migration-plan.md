@@ -1,7 +1,7 @@
-# openhealth migration plan
+# OpenValens migration plan
 
 Source: [`health/anchovy`](../) (private, sibling monorepo).
-Target: this monorepo (`openhealth`) — `create-better-t-stack` v3.44.2 scaffold
+Target: this monorepo (`openvalens`, formerly openhealth) — `create-better-t-stack` v3.44.2 scaffold
 (TanStack Router web + Expo/UniWind native + Hono + oRPC + Better Auth +
 Drizzle/Postgres + Turborepo).
 
@@ -411,7 +411,7 @@ If it fails, this becomes the client for the device token scoped to ingest.
 
 ## Phase 6 — Cutover
 
-### Issue 35 — Data migration script (anchovy → openhealth Postgres)
+### Issue 35 — Data migration script (anchovy → OpenValens Postgres)
 
 - One-shot ETL: old Postgres → new Postgres with schema mapping
   (largely 1:1 since both are Drizzle/Postgres).
@@ -433,7 +433,7 @@ If it fails, this becomes the client for the device token scoped to ingest.
 
 - Old anchovy code is read-only by this point.
 - Cutover checklist: backup, freeze writes on old, run Issue 35, flip
-  DNS/deploy target to openhealth, smoke, unfreeze.
+  DNS/deploy target to OpenValens, smoke, unfreeze.
 - Rollback: keep previous image/tag + pg_dump/volume snapshot.
 - Acceptance: documented runbook + dry-run on staging.
 

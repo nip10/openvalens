@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { mapHealthConnectRecord, type HealthConnectRecordLike } from "./map-health-connect";
 
-const OWN = "com.anonymous.openhealth";
+const OWN = "com.openvalens.app";
 const opts = { ownPackage: OWN, exerciseTypeNames: { 56: "RUNNING" } };
 const meta = {
   id: "hc-1",
@@ -37,7 +37,7 @@ describe("mapHealthConnectRecord", () => {
     });
   });
 
-  test("records written by openhealth itself are dropped", () => {
+  test("records written by OpenValens itself are dropped", () => {
     expect(
       map("weight", {
         metadata: { ...meta, dataOrigin: OWN },

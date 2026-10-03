@@ -1,5 +1,5 @@
-import { writeAuditLog, type AuditEventType } from "@openhealth/audit-security";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   buildSleepCoachContext,
   getSleepSummary,
@@ -7,7 +7,7 @@ import {
   type SleepCoachContext,
   type SleepDailySummary,
   type SleepWindowSummary,
-} from "@openhealth/sleep";
+} from "@openvalens/sleep";
 import { z } from "zod";
 
 import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput } from "../index";
@@ -44,7 +44,7 @@ const listDailyInput = z.strictObject({
   days: z.number().int().min(7).max(365).optional(),
 });
 
-// Sleep stage payload mirrors the openhealth `payloadJson` envelope used by
+// Sleep stage payload mirrors the OpenValens `payloadJson` envelope used by
 // the anchovy Health Connect sync. `endAt` is the session end (required for
 // derivation); `sourceApp`, `sourceDevice` and `sleepStageIntervals` are all
 // optional but strongly recommended for accurate scoring.
@@ -184,7 +184,7 @@ export const sleepRouter = {
         throw raiseApiError("INTERNAL", "Authorization failed.");
       }
 
-      const { healthEvent } = await import("@openhealth/db/schema/health-record");
+      const { healthEvent } = await import("@openvalens/db/schema/health-record");
       const db = context.db;
       const organizationId = authz.activeOrganizationId;
 

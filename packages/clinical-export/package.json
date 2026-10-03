@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/clinical-export",
+  "name": "@openvalens/clinical-export",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -10,16 +10,16 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@openhealth/body": "workspace:*",
-    "@openhealth/clinical": "workspace:*",
-    "@openhealth/coach": "workspace:*",
-    "@openhealth/db": "workspace:*",
-    "@openhealth/plans": "workspace:*",
+    "@openvalens/body": "workspace:*",
+    "@openvalens/clinical": "workspace:*",
+    "@openvalens/coach": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@openvalens/plans": "workspace:*",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

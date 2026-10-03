@@ -7,7 +7,7 @@ import {
 /**
  * Typed records sent by the mobile app through `mobile.ingestBatch`
  * (docs/architecture/mobile-sync-decision.md). The Zod contract in
- * `@openhealth/api/contracts/mobile-ingest` validates the wire shape and is
+ * `@openvalens/api/contracts/mobile-ingest` validates the wire shape and is
  * checked against these types; this package stays free of Zod.
  * Timestamps are canonical UTC ISO strings.
  */

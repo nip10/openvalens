@@ -1,11 +1,11 @@
-import { appRouter } from "@openhealth/api/routers/index";
-import { ensureActiveOrganization, personalWorkspaceSlug } from "@openhealth/auth/authz/auth-org";
+import { appRouter } from "@openvalens/api/routers/index";
+import { ensureActiveOrganization, personalWorkspaceSlug } from "@openvalens/auth/authz/auth-org";
 import {
   correlationMiddleware,
   createStructuredLogger,
   securityHeadersMiddleware,
-} from "@openhealth/observability";
-import { handleWebhookUpdate, verifyWebhookSecret } from "@openhealth/telegram";
+} from "@openvalens/observability";
+import { handleWebhookUpdate, verifyWebhookSecret } from "@openvalens/telegram";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";

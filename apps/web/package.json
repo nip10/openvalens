@@ -12,8 +12,8 @@
     "env:generate": "varlock codegen"
   },
   "dependencies": {
-    "@openhealth/api": "workspace:*",
-    "@openhealth/ui": "workspace:*",
+    "@openvalens/api": "workspace:*",
+    "@openvalens/ui": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/tanstack-query": "catalog:",
@@ -33,7 +33,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "@tanstack/react-query-devtools": "^5.102.8",
     "@tanstack/react-router-devtools": "^1.167.1",
     "@tanstack/router-plugin": "^1.168.35",

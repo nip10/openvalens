@@ -1,9 +1,9 @@
 import { afterAll, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import type { Context } from "../context";
-import { CanonicalMetricNotFoundError, CrossTenantReferenceError } from "@openhealth/health-record";
-import * as healthRecord from "@openhealth/health-record";
-import * as auditSecurity from "@openhealth/audit-security";
-import * as authzGuard from "@openhealth/auth/authz/guard";
+import { CanonicalMetricNotFoundError, CrossTenantReferenceError } from "@openvalens/health-record";
+import * as healthRecord from "@openvalens/health-record";
+import * as auditSecurity from "@openvalens/audit-security";
+import * as authzGuard from "@openvalens/auth/authz/guard";
 
 // Module mocks persist across files, and their namespace bindings are live.
 // Snapshot exports before mocking so cleanup cannot capture our replacements.
@@ -23,7 +23,7 @@ const requirePermission = mock(
     return { user: { id: "actor" }, activeOrganizationId: "org-a", member: { role }, role };
   },
 );
-mock.module("@openhealth/auth/authz/guard", () => ({
+mock.module("@openvalens/auth/authz/guard", () => ({
   ...actualAuthzGuard,
   AuthzHttpError,
   requirePermission,
@@ -168,13 +168,13 @@ const applyDedupeForMetric = mock(
 
 const audit = mock(async (_input: unknown) => {});
 
-mock.module("@openhealth/audit-security", () => ({
+mock.module("@openvalens/audit-security", () => ({
   ...actualAuditSecurity,
   writeAuditLog: audit,
   assertTenantBoundary: mock(),
   TenantViolationError: class extends Error {},
 }));
-mock.module("@openhealth/health-record", () => ({
+mock.module("@openvalens/health-record", () => ({
   ...actualHealthRecord,
   CanonicalMetricNotFoundError,
   CrossTenantReferenceError,
@@ -191,9 +191,9 @@ mock.module("@openhealth/health-record", () => ({
 const { healthRecordRouter } = await import("./health-record");
 const { appRouter } = await import("./index");
 afterAll(() => {
-  mock.module("@openhealth/health-record", () => actualHealthRecord);
-  mock.module("@openhealth/audit-security", () => actualAuditSecurity);
-  mock.module("@openhealth/auth/authz/guard", () => actualAuthzGuard);
+  mock.module("@openvalens/health-record", () => actualHealthRecord);
+  mock.module("@openvalens/audit-security", () => actualAuditSecurity);
+  mock.module("@openvalens/auth/authz/guard", () => actualAuthzGuard);
 });
 function context(authenticated = true): Context {
   return {

@@ -19,8 +19,8 @@
     "@expo/vector-icons": "^15.0.2",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@kingstinct/react-native-healthkit": "^16.0.0",
-    "@openhealth/api": "workspace:*",
-    "@openhealth/ui": "workspace:*",
+    "@openvalens/api": "workspace:*",
+    "@openvalens/ui": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/tanstack-query": "catalog:",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -68,7 +68,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "~19.2.18",

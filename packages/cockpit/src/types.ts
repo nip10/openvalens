@@ -58,9 +58,9 @@ export type CockpitSleepInput = {
 /**
  * Engine input. The cockpit itself is pure — callers compose
  * sanitized domain slices from the relevant packages
- * (`@openhealth/body` for weight, `@openhealth/clinical` for blood,
- * `@openhealth/sleep` for sleep coach context, `@openhealth/plans`
- * for workouts / goals, `@openhealth/coach` for insights) and hand
+ * (`@openvalens/body` for weight, `@openvalens/clinical` for blood,
+ * `@openvalens/sleep` for sleep coach context, `@openvalens/plans`
+ * for workouts / goals, `@openvalens/coach` for insights) and hand
  * the resulting shape to the engine.
  */
 export type CockpitEngineInput = {

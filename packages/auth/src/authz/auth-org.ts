@@ -1,11 +1,11 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   accessAuditLog,
   member,
   onboardingState,
   organization,
   user,
-} from "@openhealth/db/schema/auth";
+} from "@openvalens/db/schema/auth";
 import { asc, eq } from "drizzle-orm";
 
 export type AuthOrgUser = {

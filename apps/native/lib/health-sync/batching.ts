@@ -1,4 +1,4 @@
-import type { MobileHealthRecordInput } from "@openhealth/api/contracts/mobile-ingest";
+import type { MobileHealthRecordInput } from "@openvalens/api/contracts/mobile-ingest";
 
 export type BatchLimits = { maxRecords: number; maxBytes: number };
 

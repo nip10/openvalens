@@ -1,4 +1,4 @@
-import { listLabMarkerLatest } from "@openhealth/labs";
+import { listLabMarkerLatest } from "@openvalens/labs";
 import { z } from "zod";
 
 import { permissionedProcedure, validateInput } from "../index";

@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { healthEvent } from "@openhealth/db/schema/health-record";
+import type { Database } from "@openvalens/db";
+import { healthEvent } from "@openvalens/db/schema/health-record";
 import { and, desc, eq, gte, isNull, lte } from "drizzle-orm";
 
 import { deriveSleepDailySummaries } from "./derive-daily-summary";

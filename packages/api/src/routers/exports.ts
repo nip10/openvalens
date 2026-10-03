@@ -1,5 +1,5 @@
-import { type Database } from "@openhealth/db";
-import { writeAuditLog } from "@openhealth/audit-security";
+import { type Database } from "@openvalens/db";
+import { writeAuditLog } from "@openvalens/audit-security";
 import {
   buildExportPayload,
   createClinicalExportRepository,
@@ -13,7 +13,7 @@ import {
   type ExportDomain,
   type ExportPayload,
   type ParseExportRequestResult,
-} from "@openhealth/clinical-export";
+} from "@openvalens/clinical-export";
 import { z } from "zod";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 

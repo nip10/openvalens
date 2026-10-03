@@ -12,11 +12,11 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@openhealth/ui/components",
-    "utils": "@openhealth/ui/lib/utils",
-    "hooks": "@openhealth/ui/hooks",
-    "lib": "@openhealth/ui/lib",
-    "ui": "@openhealth/ui/components"
+    "components": "@openvalens/ui/components",
+    "utils": "@openvalens/ui/lib/utils",
+    "hooks": "@openvalens/ui/hooks",
+    "lib": "@openvalens/ui/lib",
+    "ui": "@openvalens/ui/components"
   },
   "menuColor": "default",
   "menuAccent": "subtle",

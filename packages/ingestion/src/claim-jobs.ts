@@ -1,4 +1,4 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import { sql, type SQL } from "drizzle-orm";
 
 /**

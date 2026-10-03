@@ -7,17 +7,17 @@ import {
   sleepSeries,
   sleepStatusLabel,
   sleepStatusTone,
-} from "@openhealth/api/presenters/sleep";
-import { Badge } from "@openhealth/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
+} from "@openvalens/api/presenters/sleep";
+import { Badge } from "@openvalens/ui/components/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@openhealth/ui/components/chart";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
-import { cn } from "@openhealth/ui/lib/utils";
+} from "@openvalens/ui/components/chart";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { cn } from "@openvalens/ui/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bar, BarChart, Cell, Line, LineChart, XAxis, YAxis } from "recharts";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createStructuredLogger } from "@openhealth/observability";
+import { createStructuredLogger } from "@openvalens/observability";
 
 import { TelegramClient, TelegramPermanentError, TelegramTransientError } from "./client";
 

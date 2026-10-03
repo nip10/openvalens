@@ -1,4 +1,4 @@
-import type { StructuredLogger } from "@openhealth/observability";
+import type { StructuredLogger } from "@openvalens/observability";
 
 import { shouldAuditBcc } from "./audit-bcc";
 import { getEmailConfig, type EmailConfig } from "./config";

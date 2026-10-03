@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
-import { aiFeedback, coachProfile, coachTemplate, insight } from "@openhealth/db/schema/coach";
+import type { Database } from "@openvalens/db";
+import { aiFeedback, coachProfile, coachTemplate, insight } from "@openvalens/db/schema/coach";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import { createCoachRepository } from "./repository";

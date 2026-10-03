@@ -5,8 +5,8 @@ import {
   type SendEmailFn,
   type SendEmailInput,
   type SendEmailOptions,
-} from "@openhealth/email";
-import { createStructuredLogger } from "@openhealth/observability";
+} from "@openvalens/email";
+import { createStructuredLogger } from "@openvalens/observability";
 
 import { sendAuthMagicLink } from "./magic-link";
 

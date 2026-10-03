@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
-import { createStructuredLogger } from "@openhealth/observability";
+import type { Database } from "@openvalens/db";
+import { createStructuredLogger } from "@openvalens/observability";
 
 import { handleWebhookUpdate } from "./webhook";
 
