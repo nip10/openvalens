@@ -30,12 +30,14 @@ import {
   SelectValue,
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 
-import { orpc } from "@/utils/orpc";
+import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { client, orpc } from "@/utils/orpc";
+import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
 export const Route = createFileRoute("/_auth/records/vitals")({
   component: VitalsPage,
@@ -67,6 +69,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         setObservedAt(defaultObservedAt());
         onSaved();
       },
+      onError: (error, variables) => enqueueMetricSample(variables, error),
     }),
   );
 
@@ -146,13 +149,18 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function VitalsPage() {
-  const daily = useQuery(orpc.vitals.daily.queryOptions({ input: { days: 30 } }));
-  const samples = useQuery(orpc.vitals.recentSamples.queryOptions({ input: { limit: 20 } }));
+  const daily = useCacheFirst("vitals.daily", () => client.vitals.daily({ days: 30 }));
+  const samples = useCacheFirst("vitals.recentSamples", () =>
+    client.vitals.recentSamples({ limit: 20 }),
+  );
 
   if (daily.isPending || samples.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Vitals</h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Vitals</h1>
+          <SyncStatusBadge />
+        </div>
         <Skeleton className="h-64 w-full" />
       </div>
     );
@@ -161,7 +169,10 @@ function VitalsPage() {
   if (daily.isError || !daily.data || samples.isError) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Vitals</h1>
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Vitals</h1>
+          <SyncStatusBadge />
+        </div>
         <p className="text-sm text-muted-foreground">
           Could not load vitals.{" "}
           <button
@@ -183,7 +194,10 @@ function VitalsPage() {
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Vitals</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Vitals</h1>
+        <SyncStatusBadge />
+      </div>
 
       <AddReadingForm
         onSaved={() => {

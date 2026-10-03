@@ -12,6 +12,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
+import { prepareOfflineSignOut } from "@/utils/sync-engine";
 
 export default function UserMenu() {
   const navigate = useNavigate();
@@ -41,7 +42,8 @@ export default function UserMenu() {
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
-            onClick={() => {
+            onClick={async () => {
+              await prepareOfflineSignOut();
               authClient.signOut({
                 fetchOptions: {
                   onSuccess: () => {

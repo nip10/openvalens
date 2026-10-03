@@ -12,14 +12,16 @@ import {
   summarizeVitals,
   vitalsSourceLabel,
 } from "@openvalens/api/presenters/vitals";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { LineChart } from "@/components/chart";
+import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -49,6 +51,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         setObservedAt(defaultObservedAt());
         onSaved();
       },
+      onError: (error, variables) => enqueueMetricSample(variables, error),
     }),
   );
 
@@ -141,8 +144,14 @@ export default function VitalsScreen() {
   const muted = useThemeColor("muted");
   const chart1 = useThemeColor("chart-1");
 
-  const daily = useQuery(orpc.vitals.daily.queryOptions({ input: { days: TREND_WINDOW_DAYS } }));
-  const samples = useQuery(orpc.vitals.recentSamples.queryOptions({ input: { limit: 20 } }));
+  const daily = useCacheFirst(
+    "vitals.daily",
+    orpc.vitals.daily.queryOptions({ input: { days: TREND_WINDOW_DAYS } }),
+  );
+  const samples = useCacheFirst(
+    "vitals.recentSamples",
+    orpc.vitals.recentSamples.queryOptions({ input: { limit: 20 } }),
+  );
 
   const summary = useMemo(
     () => (daily.data && samples.data ? summarizeVitals(daily.data, samples.data) : null),
@@ -159,6 +168,7 @@ export default function VitalsScreen() {
   if (daily.isError || !daily.data || samples.isError || !summary)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
+        <SyncStatusBadge />
         <Text className="text-base text-foreground">Could not load vitals.</Text>
         <Pressable
           onPress={() => {
@@ -192,9 +202,12 @@ export default function VitalsScreen() {
       }}
     >
       <View className="gap-6 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">Vitals</Text>
-          <Text className="font-mono text-3xl text-foreground">Last 30 days</Text>
+        <View className="flex-row items-start justify-between gap-3">
+          <View>
+            <Text className="text-sm text-muted-foreground">Vitals</Text>
+            <Text className="font-mono text-3xl text-foreground">Last 30 days</Text>
+          </View>
+          <SyncStatusBadge />
         </View>
 
         <AddReadingForm

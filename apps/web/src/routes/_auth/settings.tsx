@@ -33,6 +33,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { prepareOfflineSignOut } from "@/utils/sync-engine";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/settings")({
@@ -72,13 +73,14 @@ function AccountSection() {
         </div>
         <Button
           variant="destructive"
-          onClick={() =>
-            authClient.signOut({
+          onClick={async () => {
+            await prepareOfflineSignOut();
+            await authClient.signOut({
               fetchOptions: {
                 onSuccess: () => navigate({ to: "/" }),
               },
-            })
-          }
+            });
+          }}
         >
           Sign out
         </Button>

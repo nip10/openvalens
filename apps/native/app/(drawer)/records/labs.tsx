@@ -4,13 +4,15 @@ import {
   makeManualEntryHash,
   parseManualEntryValue,
 } from "@openvalens/api/presenters/manual-entry";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -25,6 +27,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
         setObservedAt(defaultObservedAt());
         onSaved();
       },
+      onError: (error, variables) => enqueueMetricSample(variables, error),
     }),
   );
 
@@ -93,7 +96,10 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
 
 export default function LabsScreen() {
   const foreground = useThemeColor("foreground");
-  const markers = useQuery(orpc.labs.latest.queryOptions({ input: { recentLimit: 10 } }));
+  const markers = useCacheFirst(
+    "labs.latest",
+    orpc.labs.latest.queryOptions({ input: { recentLimit: 10 } }),
+  );
 
   if (markers.isPending)
     return (
@@ -105,6 +111,7 @@ export default function LabsScreen() {
   if (markers.isError || !markers.data)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
+        <SyncStatusBadge />
         <Text className="text-base text-foreground">Could not load labs.</Text>
         <Pressable
           onPress={() => void markers.refetch()}
@@ -131,9 +138,12 @@ export default function LabsScreen() {
       }}
     >
       <View className="gap-6 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">Labs</Text>
-          <Text className="font-mono text-3xl text-foreground">Latest markers</Text>
+        <View className="flex-row items-start justify-between gap-3">
+          <View>
+            <Text className="text-sm text-muted-foreground">Labs</Text>
+            <Text className="font-mono text-3xl text-foreground">Latest markers</Text>
+          </View>
+          <SyncStatusBadge />
         </View>
 
         {list.length === 0 ? (
