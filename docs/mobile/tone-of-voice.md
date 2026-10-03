@@ -301,7 +301,7 @@ Notifications are high-leverage. The first ~60 characters are the preview; the b
 
 | Bad preview                  | Good preview                    |
 | ---------------------------- | ------------------------------- |
-| "openhealth reminder"        | "Take 10 mg Atorvastatin"       |
+| "OpenValens reminder"        | "Take 10 mg Atorvastatin"       |
 | "You have a new update!"     | "Weekly review is ready"        |
 | "Don't forget your workout!" | "Workout scheduled for 6:00 PM" |
 

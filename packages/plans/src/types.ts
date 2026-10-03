@@ -1,7 +1,7 @@
 /**
  * Supplements & medications — public type surface (Issue #22).
  *
- * Mirrors the four openhealth tables in `packages/db/src/schema/plans.ts`:
+ * Mirrors the four OpenValens tables in `packages/db/src/schema/plans.ts`:
  *
  * - `supplement`           — catalog row (name, dose, form, category). Shared
  *   across orgs (no `organizationId`); org scoping happens via the schedule

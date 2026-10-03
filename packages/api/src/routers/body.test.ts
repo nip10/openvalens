@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import type { Database } from "@openhealth/db";
-import { accessAuditLog } from "@openhealth/db/schema/auth";
+import type { Database } from "@openvalens/db";
+import { accessAuditLog } from "@openvalens/db/schema/auth";
 import {
   dailyWeight,
   dexaRegional,
   dexaScan,
   weightCheckin,
   weightEvent,
-} from "@openhealth/db/schema/body";
-import { calendarEvent } from "@openhealth/db/schema/plans";
+} from "@openvalens/db/schema/body";
+import { calendarEvent } from "@openvalens/db/schema/plans";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import type { Context } from "../context";
@@ -31,7 +31,7 @@ class AuthzHttpError extends Error {
   readonly status = 403;
   readonly code = "PERMISSION_DENIED";
 }
-mock.module("@openhealth/auth/authz/guard", () => ({
+mock.module("@openvalens/auth/authz/guard", () => ({
   AuthzHttpError,
   requirePermission,
   requireOrgMembership: mock(),

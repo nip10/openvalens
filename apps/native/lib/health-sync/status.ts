@@ -10,6 +10,7 @@ export type HealthSyncStatus = {
   types: DrainSummary["types"];
 };
 
+// Pre-rename (openhealth) prefix kept so existing installs keep their sync state.
 const STATUS_KEY = "openhealth.health-sync.status";
 const EMPTY: HealthSyncStatus = {
   lastRunAt: null,

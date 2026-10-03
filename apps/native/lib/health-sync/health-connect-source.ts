@@ -1,4 +1,4 @@
-import type { MobileHealthRecordInput } from "@openhealth/api/contracts/mobile-ingest";
+import type { MobileHealthRecordInput } from "@openvalens/api/contracts/mobile-ingest";
 import Constants from "expo-constants";
 import type { RecordType } from "react-native-health-connect";
 
@@ -29,7 +29,7 @@ async function getMapOptions(): Promise<MapOptions> {
   for (const [name, value] of Object.entries(ExerciseType))
     exerciseTypeNames[value as number] = name;
   mapOptions = {
-    ownPackage: Constants.expoConfig?.android?.package ?? "com.anonymous.openhealth",
+    ownPackage: Constants.expoConfig?.android?.package ?? "com.openvalens.app",
     exerciseTypeNames,
   };
   return mapOptions;

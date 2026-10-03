@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { ingestionBatch, ingestionError, ingestionJob } from "@openhealth/db/schema/health-record";
+import type { Database } from "@openvalens/db";
+import { ingestionBatch, ingestionError, ingestionJob } from "@openvalens/db/schema/health-record";
 import { and, eq } from "drizzle-orm";
 
 /**

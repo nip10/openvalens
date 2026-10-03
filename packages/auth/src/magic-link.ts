@@ -3,8 +3,8 @@ import {
   EmailTransientError,
   sendEmail as defaultSendEmail,
   type SendEmailFn,
-} from "@openhealth/email";
-import { createStructuredLogger } from "@openhealth/observability";
+} from "@openvalens/email";
+import { createStructuredLogger } from "@openvalens/observability";
 
 import { buildMagicLinkSuccessLogMetadata } from "./auth-logging";
 import { renderMagicLinkEmail } from "./email/templates/magic-link";
@@ -30,7 +30,7 @@ export type MagicLinkLogger = {
 export type SendAuthMagicLinkOptions = {
   expiresInSeconds?: number;
   logger?: MagicLinkLogger;
-  /** Injectable for tests; defaults to the `@openhealth/email` sender. */
+  /** Injectable for tests; defaults to the `@openvalens/email` sender. */
   sendEmail?: SendEmailFn;
 };
 
@@ -110,7 +110,7 @@ function errorCodeFor(error: unknown): string {
 /**
  * Magic-link sender (Issue #15).
  *
- * Renders the magic-link email and hands it to the `@openhealth/email`
+ * Renders the magic-link email and hands it to the `@openvalens/email`
  * transport (Resend, or dry-run when unconfigured), while emitting a PHI-safe
  * structured log line. The raw token and the full URL (whose query string
  * carries the token) are never logged — only the link host/path, a sha256

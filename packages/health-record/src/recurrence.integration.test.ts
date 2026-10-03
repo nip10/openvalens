@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { readdir } from "node:fs/promises";
-import { createDb, sql } from "@openhealth/db";
-import { organization, user, member } from "@openhealth/db/schema/auth";
-import { providerConnection } from "@openhealth/db/schema/ingestion";
-import { dataSource, metricDefinition, metricSample } from "@openhealth/db/schema/health-record";
+import { createDb, sql } from "@openvalens/db";
+import { organization, user, member } from "@openvalens/db/schema/auth";
+import { providerConnection } from "@openvalens/db/schema/ingestion";
+import { dataSource, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { eq } from "drizzle-orm";
 import { CanonicalMetricNotFoundError } from "./ingest";
 import { RetentionPolicyRequiredError } from "./recurrence";

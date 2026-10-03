@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "openhealth",
-    "slug": "openhealth",
+    "name": "OpenValens",
+    "slug": "openvalens",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "openhealth",
+    "scheme": "openvalens",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.openhealth"
+      "bundleIdentifier": "com.openvalens.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.openhealth",
+      "package": "com.openvalens.app",
       "permissions": [
         "android.permission.health.READ_STEPS",
         "android.permission.health.READ_HEART_RATE",
@@ -65,7 +65,7 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "openhealth reads your health data from Apple Health to keep your health record up to date.",
+          "NSHealthShareUsageDescription": "OpenValens reads your health data from Apple Health to keep your health record up to date.",
           "NSHealthUpdateUsageDescription": false,
           "background": true
         }

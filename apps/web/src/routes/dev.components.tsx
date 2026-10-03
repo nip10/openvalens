@@ -1,19 +1,19 @@
-import { Avatar, AvatarFallback } from "@openhealth/ui/components/avatar";
-import { Badge } from "@openhealth/ui/components/badge";
-import { Button } from "@openhealth/ui/components/button";
+import { Avatar, AvatarFallback } from "@openvalens/ui/components/avatar";
+import { Badge } from "@openvalens/ui/components/badge";
+import { Button } from "@openvalens/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@openhealth/ui/components/card";
+} from "@openvalens/ui/components/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@openhealth/ui/components/chart";
+} from "@openvalens/ui/components/chart";
 import {
   Dialog,
   DialogContent,
@@ -21,25 +21,25 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@openhealth/ui/components/dialog";
+} from "@openvalens/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@openhealth/ui/components/dropdown-menu";
-import { Input } from "@openhealth/ui/components/input";
-import { Label } from "@openhealth/ui/components/label";
-import { Progress } from "@openhealth/ui/components/progress";
-import { ScrollArea } from "@openhealth/ui/components/scroll-area";
+} from "@openvalens/ui/components/dropdown-menu";
+import { Input } from "@openvalens/ui/components/input";
+import { Label } from "@openvalens/ui/components/label";
+import { Progress } from "@openvalens/ui/components/progress";
+import { ScrollArea } from "@openvalens/ui/components/scroll-area";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@openhealth/ui/components/select";
-import { Separator } from "@openhealth/ui/components/separator";
+} from "@openvalens/ui/components/select";
+import { Separator } from "@openvalens/ui/components/separator";
 import {
   Sheet,
   SheetContent,
@@ -47,8 +47,8 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@openhealth/ui/components/sheet";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+} from "@openvalens/ui/components/sheet";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import {
   Table,
   TableBody,
@@ -56,15 +56,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@openhealth/ui/components/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@openhealth/ui/components/tabs";
-import { Textarea } from "@openhealth/ui/components/textarea";
+} from "@openvalens/ui/components/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@openvalens/ui/components/tabs";
+import { Textarea } from "@openvalens/ui/components/textarea";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@openhealth/ui/components/tooltip";
+} from "@openvalens/ui/components/tooltip";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { Line, LineChart, XAxis } from "recharts";
 

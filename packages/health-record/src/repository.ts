@@ -1,4 +1,4 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   dataSource,
   healthEvent,
@@ -8,8 +8,8 @@ import {
   metricSourcePreference,
   ingestionRawArtifact,
   provenanceLink,
-} from "@openhealth/db/schema/health-record";
-import { weeklyReview } from "@openhealth/db/schema/plans";
+} from "@openvalens/db/schema/health-record";
+import { weeklyReview } from "@openvalens/db/schema/plans";
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { canonicalEvent, canonicalMetric } from "./canonical";
 import { buildTimelinePage, normalizeTimelineDateRange } from "./timeline";

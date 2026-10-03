@@ -1,4 +1,4 @@
-import { cn } from "@openhealth/ui/lib/utils";
+import { cn } from "@openvalens/ui/lib/utils";
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (

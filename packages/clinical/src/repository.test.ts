@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   bloodMarker,
   bloodMarkerInfo,
@@ -10,7 +10,7 @@ import {
   familyHistory,
   imagingStudy,
   optimalRange,
-} from "@openhealth/db/schema/clinical";
+} from "@openvalens/db/schema/clinical";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import { createClinicalRepository } from "./repository";

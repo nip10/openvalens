@@ -1,4 +1,4 @@
-import { RawArtifactNotFoundError, requestReplay } from "@openhealth/ingestion";
+import { RawArtifactNotFoundError, requestReplay } from "@openvalens/ingestion";
 import { z } from "zod";
 
 import { raiseApiError, tenantScopedProcedure, validateInput } from "../index";

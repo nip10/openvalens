@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { readdir } from "node:fs/promises";
-import { createDb, sql } from "@openhealth/db";
-import { organization } from "@openhealth/db/schema/auth";
-import { providerConnection } from "@openhealth/db/schema/ingestion";
+import { createDb, sql } from "@openvalens/db";
+import { organization } from "@openvalens/db/schema/auth";
+import { providerConnection } from "@openvalens/db/schema/ingestion";
 import {
   dataSource,
   healthEvent,
@@ -10,7 +10,7 @@ import {
   metricSample,
   ingestionRawArtifact,
   provenanceLink,
-} from "@openhealth/db/schema/health-record";
+} from "@openvalens/db/schema/health-record";
 import { and, eq } from "drizzle-orm";
 import { createClinicalExportRepository } from "./repository";
 

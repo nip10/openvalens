@@ -1,7 +1,7 @@
 import type {
   IngestBatchInput,
   MobileHealthRecordInput,
-} from "@openhealth/api/contracts/mobile-ingest";
+} from "@openvalens/api/contracts/mobile-ingest";
 
 import { DEFAULT_BATCH_LIMITS, splitIntoBatches, type BatchLimits } from "./batching";
 import type { MobileRecordType } from "./map-health-connect";

@@ -1,6 +1,6 @@
-import type { Database } from "@openhealth/db";
-import { accessAuditLog } from "@openhealth/db/schema/auth";
-import { createStructuredLogger } from "@openhealth/observability";
+import type { Database } from "@openvalens/db";
+import { accessAuditLog } from "@openvalens/db/schema/auth";
+import { createStructuredLogger } from "@openvalens/observability";
 
 import { redactMetadata } from "./redaction";
 import type { AuditEventType } from "./types";

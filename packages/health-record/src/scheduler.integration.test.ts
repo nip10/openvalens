@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
-import { createDb, sql } from "@openhealth/db";
-import { organization } from "@openhealth/db/schema/auth";
+import { createDb, sql } from "@openvalens/db";
+import { organization } from "@openvalens/db/schema/auth";
 import {
   ingestionError,
   metricDefinition,
   metricSample,
   provenanceLink,
-} from "@openhealth/db/schema/health-record";
+} from "@openvalens/db/schema/health-record";
 import { eq } from "drizzle-orm";
 import { CanonicalMetricNotFoundError } from "./ingest";
 import { createHealthRecordRepository, ProvenanceReferenceError } from "./repository";

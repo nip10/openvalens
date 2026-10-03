@@ -4,20 +4,20 @@ import {
   SUPPLEMENT_FREQUENCIES,
   supplementDoseLabel,
   supplementFrequencyLabel,
-} from "@openhealth/api/presenters/supplements";
-import { Badge } from "@openhealth/ui/components/badge";
-import { Button } from "@openhealth/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
-import { Input } from "@openhealth/ui/components/input";
-import { Label } from "@openhealth/ui/components/label";
+} from "@openvalens/api/presenters/supplements";
+import { Badge } from "@openvalens/ui/components/badge";
+import { Button } from "@openvalens/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Input } from "@openvalens/ui/components/input";
+import { Label } from "@openvalens/ui/components/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@openhealth/ui/components/select";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+} from "@openvalens/ui/components/select";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";

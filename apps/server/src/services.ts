@@ -1,20 +1,20 @@
-import { InMemoryRateLimiter, parseAiConfig } from "@openhealth/ai";
-import { createAuth, setRegisteredAuth } from "@openhealth/auth";
-import { createDb } from "@openhealth/db";
+import { InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
+import { createAuth, setRegisteredAuth } from "@openvalens/auth";
+import { createDb } from "@openvalens/db";
 import {
   parseEmailConfig,
   sendEmail as sendEmailWithConfig,
   type EmailEnv,
   type SendEmailFn,
-} from "@openhealth/email";
-import { parseTelegramConfig, TelegramClient } from "@openhealth/telegram";
+} from "@openvalens/email";
+import { parseTelegramConfig, TelegramClient } from "@openvalens/telegram";
 
 import { ENV } from "./env.server";
 
 export const db = createDb(ENV);
 export const auth = createAuth(ENV, db);
 
-// Issue #15 — server-side email instantiation. The `@openhealth/email`
+// Issue #15 — server-side email instantiation. The `@openvalens/email`
 // package stays pure; the server binds the validated `ENV` to it here and
 // exports a config-bound sender for call sites that need one.
 //
@@ -26,7 +26,7 @@ export const emailConfig = parseEmailConfig(ENV as unknown as EmailEnv);
 export const sendEmail: SendEmailFn = (input, options) =>
   sendEmailWithConfig(input, { ...options, config: options?.config ?? emailConfig });
 
-// Issue #14 — server-side Telegram instantiation. The `@openhealth/telegram`
+// Issue #14 — server-side Telegram instantiation. The `@openvalens/telegram`
 // package stays pure; the server binds the validated `ENV` here. The client is
 // `null` when no bot token is configured, which disables delivery.
 export const telegramConfig = parseTelegramConfig(ENV);
@@ -42,7 +42,7 @@ export function telegramWebhookSecret(): string {
   return telegramConfig.TELEGRAM_WEBHOOK_SECRET;
 }
 
-// Issue #13 — server-side AI instantiation. The `@openhealth/ai` package stays
+// Issue #13 — server-side AI instantiation. The `@openvalens/ai` package stays
 // pure; the server binds the validated `ENV` to it here. The Anthropic key is
 // optional — when absent, readiness reports `anthropic: false` and `ai.chat`
 // fails closed instead of calling the provider.
@@ -67,7 +67,7 @@ export const capabilities = {
   mobilePairing: true,
 };
 
-// Register the auth singleton so the guards in `@openhealth/auth/authz/*`
+// Register the auth singleton so the guards in `@openvalens/auth/authz/*`
 // can resolve the active Better Auth instance without it being threaded
 // through every call site.
 setRegisteredAuth(auth);

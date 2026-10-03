@@ -1,5 +1,5 @@
-import { writeAuditLog, type AuditEventType } from "@openhealth/audit-security";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   buildV2PolicyInstruction,
   COACH_DISCLAIMER_MODES,
@@ -13,7 +13,7 @@ import {
   type CoachTemplate,
   type Insight,
   type InstructionPreset,
-} from "@openhealth/coach";
+} from "@openvalens/coach";
 import { z } from "zod";
 
 import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput } from "../index";

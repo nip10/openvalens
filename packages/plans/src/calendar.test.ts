@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
-import { calendarEvent } from "@openhealth/db/schema/plans";
+import type { Database } from "@openvalens/db";
+import { calendarEvent } from "@openvalens/db/schema/plans";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import {

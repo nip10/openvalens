@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 
 import { AiConsentError, parseAiConsent, readAiConsent, requireAiConsent } from "./consent";
 

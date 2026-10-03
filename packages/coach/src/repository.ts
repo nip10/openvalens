@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { aiFeedback, coachProfile, coachTemplate, insight } from "@openhealth/db/schema/coach";
+import type { Database } from "@openvalens/db";
+import { aiFeedback, coachProfile, coachTemplate, insight } from "@openvalens/db/schema/coach";
 import { and, desc, eq } from "drizzle-orm";
 
 import { GLOBAL_COACH_PROFILE_DEFAULTS } from "./templates";

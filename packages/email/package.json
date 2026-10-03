@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/email",
+  "name": "@openvalens/email",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -12,12 +12,12 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@openhealth/db": "workspace:*",
-    "@openhealth/observability": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@openvalens/observability": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

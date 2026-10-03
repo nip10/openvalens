@@ -5,7 +5,7 @@ import { HEALTHKIT_READ_TYPES, HEALTHKIT_SYNCED_TYPES } from "./healthkit-source
 import { HEALTH_CONNECT_RECORD_TYPES, SYNCED_TYPES } from "./record-types";
 
 /**
- * Read-only Health Connect access. openhealth does not write to Health
+ * Read-only Health Connect access. OpenValens does not write to Health
  * Connect (#25), so it asks for no write scopes. Background and history
  * access let sync run while the app is closed and backfill past 30 days.
  */
@@ -78,7 +78,7 @@ export async function getHealthAccess(): Promise<HealthAccess> {
 export async function requestHealthAccess(): Promise<HealthAccess> {
   if (Platform.OS === "ios") {
     const hk = await import("@kingstinct/react-native-healthkit");
-    // Read-only: openhealth never writes to Apple Health.
+    // Read-only: OpenValens never writes to Apple Health.
     await hk.requestAuthorization({ toRead: HEALTHKIT_READ_TYPES });
     return getHealthKitAccess();
   }

@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { telegramWebhookEvent } from "@openhealth/db/schema/integrations";
+import type { Database } from "@openvalens/db";
+import { telegramWebhookEvent } from "@openvalens/db/schema/integrations";
 import { eq } from "drizzle-orm";
 
 /**

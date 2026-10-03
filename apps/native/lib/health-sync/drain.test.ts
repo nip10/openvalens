@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type {
   IngestBatchInput,
   MobileHealthRecordInput,
-} from "@openhealth/api/contracts/mobile-ingest";
+} from "@openvalens/api/contracts/mobile-ingest";
 
 import { splitIntoBatches } from "./batching";
 import { drainHealthChanges, type ChangesPage, type CursorState, type DrainDeps } from "./drain";

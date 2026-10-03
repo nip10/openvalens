@@ -1,4 +1,4 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   createDatabaseIngestionTick,
   MOBILE_INGEST_JOB_TYPE,
@@ -6,9 +6,9 @@ import {
   runMobileIngestBatchJob,
   runReplayJob,
   type IngestionJobRunners,
-} from "@openhealth/ingestion";
-import { createStructuredLogger } from "@openhealth/observability";
-import { materializeDailyReminders } from "@openhealth/telegram";
+} from "@openvalens/ingestion";
+import { createStructuredLogger } from "@openvalens/observability";
+import { materializeDailyReminders } from "@openvalens/telegram";
 import { z } from "zod";
 
 import { cronProcedure, raiseApiError } from "../index";
@@ -57,7 +57,7 @@ export function createIngestionJobRunners(db: Database): IngestionJobRunners {
  *
  * Both endpoints are guarded by `cronProcedure` (`Authorization: Bearer
  * ${CRON_SECRET}`). `ingestionRun` runs one ingestion orchestrator tick
- * (see `@openhealth/ingestion`).
+ * (see `@openvalens/ingestion`).
  *
  * oRPC routes these at `/rpc/cron/<name>`; the `/api-reference/cron/<name>`
  * OpenAPI mount accepts raw JSON for manual runs.

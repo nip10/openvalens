@@ -1,5 +1,5 @@
 {
-  "name": "openhealth",
+  "name": "openvalens",
   "private": true,
   "workspaces": {
     "packages": [
@@ -39,10 +39,10 @@
     "dev:native": "turbo run dev -F native --",
     "dev:web": "turbo run dev -F web --",
     "dev:server": "turbo run dev -F server --",
-    "db:push": "turbo run db:push -F @openhealth/db --",
-    "db:studio": "turbo run db:studio -F @openhealth/db --",
-    "db:generate": "turbo run db:generate -F @openhealth/db --",
-    "db:migrate": "turbo run db:migrate -F @openhealth/db --",
+    "db:push": "turbo run db:push -F @openvalens/db --",
+    "db:studio": "turbo run db:studio -F @openvalens/db --",
+    "db:generate": "turbo run db:generate -F @openvalens/db --",
+    "db:migrate": "turbo run db:migrate -F @openvalens/db --",
     "db:start": "docker compose up -d postgres",
     "db:watch": "docker compose up postgres",
     "db:stop": "docker compose stop postgres",
@@ -60,7 +60,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "oxfmt": "^0.66.0",
     "oxlint": "^1.81.0",

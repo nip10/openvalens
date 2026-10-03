@@ -8,9 +8,9 @@ import {
   DEFAULT_EXPORT_DOMAINS,
   EXPORT_DOMAINS,
   type ExportDomain,
-} from "@openhealth/clinical-export/domains";
+} from "@openvalens/clinical-export/domains";
 
-export type { ExportDomain } from "@openhealth/clinical-export/domains";
+export type { ExportDomain } from "@openvalens/clinical-export/domains";
 
 /** Sentence-case label for every domain in the closed export enum. */
 const EXPORT_DOMAIN_LABELS: Record<ExportDomain, string> = {

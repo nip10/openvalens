@@ -1,6 +1,6 @@
-import type { Database } from "@openhealth/db";
-import { dailyReminder, telegramAccount } from "@openhealth/db/schema/integrations";
-import type { StructuredLogger } from "@openhealth/observability";
+import type { Database } from "@openvalens/db";
+import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
+import type { StructuredLogger } from "@openvalens/observability";
 import { and, eq } from "drizzle-orm";
 
 import { writeTelegramAuditLog } from "./audit";

@@ -4,7 +4,7 @@ import {
   formatYear,
   imagingTypeLabel,
   summaryText,
-} from "@openhealth/api/presenters/clinical-records";
+} from "@openvalens/api/presenters/clinical-records";
 import { useQuery } from "@tanstack/react-query";
 import { Card, Spinner } from "heroui-native";
 import { Pressable, RefreshControl, Text, View } from "react-native";

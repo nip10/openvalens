@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { readdir } from "node:fs/promises";
-import { createDb, sql } from "@openhealth/db";
-import { organization, user, member } from "@openhealth/db/schema/auth";
-import { providerConnection } from "@openhealth/db/schema/ingestion";
+import { createDb, sql } from "@openvalens/db";
+import { organization, user, member } from "@openvalens/db/schema/auth";
+import { providerConnection } from "@openvalens/db/schema/ingestion";
 import {
   dataSource,
   healthEvent,
@@ -10,11 +10,11 @@ import {
   metricSample,
   ingestionRawArtifact,
   provenanceLink,
-} from "@openhealth/db/schema/health-record";
-import { weeklyReview, scheduledEvent } from "@openhealth/db/schema/plans";
-import { consultation, imagingStudy, cardiacExam } from "@openhealth/db/schema/clinical";
-import { insight } from "@openhealth/db/schema/coach";
-import { dailyReminder } from "@openhealth/db/schema/integrations";
+} from "@openvalens/db/schema/health-record";
+import { weeklyReview, scheduledEvent } from "@openvalens/db/schema/plans";
+import { consultation, imagingStudy, cardiacExam } from "@openvalens/db/schema/clinical";
+import { insight } from "@openvalens/db/schema/coach";
+import { dailyReminder } from "@openvalens/db/schema/integrations";
 import { and, eq } from "drizzle-orm";
 import { createHealthRecordRepository, ProvenanceReferenceError } from "./repository";
 

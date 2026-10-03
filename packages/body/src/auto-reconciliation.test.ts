@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
-import { dailyWeight, dailyWeightOverride, weightEvent } from "@openhealth/db/schema/body";
+import type { Database } from "@openvalens/db";
+import { dailyWeight, dailyWeightOverride, weightEvent } from "@openvalens/db/schema/body";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import {

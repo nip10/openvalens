@@ -5,13 +5,13 @@ import { z } from "zod";
  *
  * Shared by the server router and `apps/native`, so this file imports only
  * `zod`: nothing server-side may leak into the app bundle. The server checks
- * these types against `@openhealth/ingestion`'s `MobileIngestBatch`.
+ * these types against `@openvalens/ingestion`'s `MobileIngestBatch`.
  *
  * Schemas are strict: unknown keys (including any `organizationId` or
  * `userId`) are rejected. The organization always comes from the session.
  */
 
-/** Same rule as `isCanonicalUtcTimestamp` in `@openhealth/ingestion`. */
+/** Same rule as `isCanonicalUtcTimestamp` in `@openvalens/ingestion`. */
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const isoUtc = z
   .string()

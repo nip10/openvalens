@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
-import { healthEvent } from "@openhealth/db/schema/health-record";
+import type { Database } from "@openvalens/db";
+import { healthEvent } from "@openvalens/db/schema/health-record";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import {

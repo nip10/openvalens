@@ -1,10 +1,10 @@
-import { telegramAccount } from "@openhealth/db/schema/integrations";
+import { telegramAccount } from "@openvalens/db/schema/integrations";
 import {
   issueConnectToken,
   TelegramConnectTokenError,
   verifyConnectToken,
   writeTelegramAuditLog,
-} from "@openhealth/telegram";
+} from "@openvalens/telegram";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 

@@ -4,9 +4,9 @@ import {
   formatYear,
   imagingTypeLabel,
   summaryText,
-} from "@openhealth/api/presenters/clinical-records";
-import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+} from "@openvalens/api/presenters/clinical-records";
+import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 

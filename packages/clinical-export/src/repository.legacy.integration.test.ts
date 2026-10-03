@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { readdir } from "node:fs/promises";
-import { createDb, sql } from "@openhealth/db";
-import { organization, user, member } from "@openhealth/db/schema/auth";
-import { providerConnection } from "@openhealth/db/schema/ingestion";
-import { bloodMarker, bloodPanel, cardiacExam, imagingStudy } from "@openhealth/db/schema/clinical";
+import { createDb, sql } from "@openvalens/db";
+import { organization, user, member } from "@openvalens/db/schema/auth";
+import { providerConnection } from "@openvalens/db/schema/ingestion";
+import { bloodMarker, bloodPanel, cardiacExam, imagingStudy } from "@openvalens/db/schema/clinical";
 import {
   goal,
   goalCheckin,
@@ -11,9 +11,9 @@ import {
   scheduledEvent,
   supplement,
   supplementSchedule,
-} from "@openhealth/db/schema/plans";
-import { weightCheckin } from "@openhealth/db/schema/body";
-import { accessAuditLog } from "@openhealth/db/schema/auth";
+} from "@openvalens/db/schema/plans";
+import { weightCheckin } from "@openvalens/db/schema/body";
+import { accessAuditLog } from "@openvalens/db/schema/auth";
 import { buildExportPayload, parseExportRequest, renderCsvExport } from "./index";
 
 // Opt-in only; never accept a production URL or existing database. This test

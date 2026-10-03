@@ -7,6 +7,7 @@ import type { CursorState, CursorStore } from "./drain";
  * data, so AsyncStorage is enough. The encrypted SQLite store arrives with
  * the offline read cache (#43), which does hold PHI.
  */
+// Pre-rename (openhealth) prefix kept so existing installs keep their sync state.
 const KEY_PREFIX = "openhealth.health-sync.cursor.";
 
 export const asyncStorageCursorStore: CursorStore = {

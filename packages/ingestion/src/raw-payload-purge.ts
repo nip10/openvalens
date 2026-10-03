@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { ingestionRawArtifact } from "@openhealth/db/schema/health-record";
+import type { Database } from "@openvalens/db";
+import { ingestionRawArtifact } from "@openvalens/db/schema/health-record";
 import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 /**

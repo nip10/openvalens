@@ -5,7 +5,7 @@
  * surface (#13) and any future web/native consumers share one shape.
  *
  * The domain model is org-scoped: `health_event` rows with `eventType =
- * "sleep_session"` carry no per-user id (the openhealth schema intentionally
+ * "sleep_session"` carry no per-user id (the OpenValens schema intentionally
  * keeps sleep sessions org-scoped until #18 follow-ups land a `user_id` column).
  * Callers that want per-user slicing must filter post-query.
  */

@@ -1,4 +1,4 @@
-import { previewLine, relativeTime, truncate } from "@openhealth/api/presenters/cochat";
+import { previewLine, relativeTime, truncate } from "@openvalens/api/presenters/cochat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useState } from "react";

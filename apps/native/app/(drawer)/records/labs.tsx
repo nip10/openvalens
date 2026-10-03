@@ -1,9 +1,9 @@
-import { formatLabDate, formatLabValue } from "@openhealth/api/presenters/labs";
+import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
   makeManualEntryHash,
   parseManualEntryValue,
-} from "@openhealth/api/presenters/manual-entry";
+} from "@openvalens/api/presenters/manual-entry";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useState } from "react";

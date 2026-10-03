@@ -1,4 +1,4 @@
-import type { AppRouterClient } from "@openhealth/api/routers/index";
+import type { AppRouterClient } from "@openvalens/api/routers/index";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
@@ -55,5 +55,5 @@ export const client: AppRouterClient = createORPCClient(link);
 
 // TanStack Query utils layer — callers use `orpc.example.echo.useQuery(...)`
 // / `.useMutation(...)`. Failures surface as `ORPCError` carrying the stable
-// `ORPCErrorCode` envelope (see `@openhealth/api/errors`).
+// `ORPCErrorCode` envelope (see `@openvalens/api/errors`).
 export const orpc = createTanstackQueryUtils(client);

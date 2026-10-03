@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { organization } from "@openhealth/db/schema/auth";
+import type { Database } from "@openvalens/db";
+import { organization } from "@openvalens/db/schema/auth";
 import { eq } from "drizzle-orm";
 
 /**

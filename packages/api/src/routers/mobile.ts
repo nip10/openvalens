@@ -5,7 +5,7 @@ import {
   MobileDeviceRevokedError,
   registerMobileDevice,
   type MobileIngestBatch,
-} from "@openhealth/ingestion";
+} from "@openvalens/ingestion";
 import { z } from "zod";
 
 import {
@@ -38,7 +38,7 @@ function toApiError(error: unknown, fallback: string) {
 /**
  * Mobile ingestion (issue #7, docs/architecture/mobile-sync-decision.md).
  * Organization and user come only from the session; the strict contract
- * rejects overrides. Domain logic lives in `@openhealth/ingestion`.
+ * rejects overrides. Domain logic lives in `@openvalens/ingestion`.
  */
 export const mobileRouter = {
   /** Upsert this device's provider connection. A revoked device stays revoked. */

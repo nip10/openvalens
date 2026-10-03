@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { weeklyReview } from "@openhealth/db/schema/plans";
+import type { Database } from "@openvalens/db";
+import { weeklyReview } from "@openvalens/db/schema/plans";
 import { and, eq, gte, lte } from "drizzle-orm";
 
 /**

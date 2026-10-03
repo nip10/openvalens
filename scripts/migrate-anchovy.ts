@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 /**
- * One-shot ETL: anchovy Postgres → openhealth Postgres (Issue #35).
+ * One-shot ETL: anchovy Postgres → OpenValens Postgres (Issue #35).
  *
  * Usage:
- *   ANCHOVY_DATABASE_URL=postgres://... OPENHEALTH_DATABASE_URL=postgres://... \
+ *   ANCHOVY_DATABASE_URL=postgres://... OPENVALENS_DATABASE_URL=postgres://... \
  *     bun run scripts/migrate-anchovy.ts [--dry-run] [--limit=1000]
  *
  * Honors docs/migration-safety.md:
@@ -18,7 +18,7 @@
  *
  * Required env:
  *   - ANCHOVY_DATABASE_URL (source)
- *   - OPENHEALTH_DATABASE_URL (destination)
+ *   - OPENVALENS_DATABASE_URL (destination; OPENHEALTH_DATABASE_URL also accepted)
  *
  * Optional:
  *   - MIGRATE_LIMIT=N   cap rows per table (default unlimited; for smoke tests)
@@ -31,11 +31,12 @@ import { sql } from "drizzle-orm";
 type Db = ReturnType<typeof drizzle>;
 
 const ANCHOVY_URL = process.env.ANCHOVY_DATABASE_URL;
-const OPENHEALTH_URL = process.env.OPENHEALTH_DATABASE_URL;
+// OPENHEALTH_DATABASE_URL is the pre-rename name, still accepted.
+const OPENHEALTH_URL = process.env.OPENVALENS_DATABASE_URL ?? process.env.OPENHEALTH_DATABASE_URL;
 if (!ANCHOVY_URL || !OPENHEALTH_URL) {
   console.error(
-    "ANCHOVY_DATABASE_URL and OPENHEALTH_DATABASE_URL must be set.\n" +
-      "Example: ANCHOVY_DATABASE_URL=postgres://u:p@h:5432/anchovy OPENHEALTH_DATABASE_URL=postgres://u:p@h:5432/openhealth bun run scripts/migrate-anchovy.ts --dry-run",
+    "ANCHOVY_DATABASE_URL and OPENVALENS_DATABASE_URL must be set.\n" +
+      "Example: ANCHOVY_DATABASE_URL=postgres://u:p@h:5432/anchovy OPENVALENS_DATABASE_URL=postgres://u:p@h:5432/openhealth bun run scripts/migrate-anchovy.ts --dry-run",
   );
   process.exit(2);
 }

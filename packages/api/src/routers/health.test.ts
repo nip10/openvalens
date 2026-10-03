@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { InMemoryRateLimiter } from "@openhealth/ai";
-import type { Database } from "@openhealth/db";
+import { InMemoryRateLimiter } from "@openvalens/ai";
+import type { Database } from "@openvalens/db";
 
 import type { CapabilityFlags, Context } from "../context";
 import { readinessOutput } from "./health";

@@ -35,7 +35,7 @@ function DrawerContent() {
       accessibilityRole="menu"
     >
       <View className="px-4 pb-4 pt-2">
-        <Text className="text-2xl font-semibold text-foreground">openhealth</Text>
+        <Text className="text-2xl font-semibold text-foreground">OpenValens</Text>
       </View>
 
       <View className="mt-2">

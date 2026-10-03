@@ -1,5 +1,5 @@
-import { sql, type Database } from "@openhealth/db";
-import { createStructuredLogger } from "@openhealth/observability";
+import { sql, type Database } from "@openvalens/db";
+import { createStructuredLogger } from "@openvalens/observability";
 import { z } from "zod";
 
 import { publicProcedure } from "../index";

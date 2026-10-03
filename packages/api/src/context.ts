@@ -1,13 +1,13 @@
-import type { AiConfig, InMemoryRateLimiter } from "@openhealth/ai";
-import type { Session } from "@openhealth/auth";
-import type { AuthzRequestContext } from "@openhealth/auth/authz/context";
-import type { Database } from "@openhealth/db";
-import type { TelegramClient } from "@openhealth/telegram";
+import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
+import type { Session } from "@openvalens/auth";
+import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
+import type { Database } from "@openvalens/db";
+import type { TelegramClient } from "@openvalens/telegram";
 
 /**
  * Structural view of the inbound request that the authz guards need.
  *
- * `@openhealth/auth/authz/*` guards accept any object shaped like
+ * `@openvalens/auth/authz/*` guards accept any object shaped like
  * `{ req: { raw: { headers: Headers } } }`, and Hono's `Context` satisfies it,
  * so the server can hand its Hono context straight through.
  */

@@ -1,20 +1,20 @@
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
-@import "@openhealth/ui/tokens.css";
+@import "@openvalens/ui/tokens.css";
 
 /*
- * Bridge heroui-native tokens to the openhealth palette.
+ * Bridge heroui-native tokens to the OpenValens palette.
  *
- * The `@import "@openhealth/ui/tokens.css"` above makes every token
+ * The `@import "@openvalens/ui/tokens.css"` above makes every token
  * declared in `packages/ui/src/styles/tokens.css` available to uniwind and
  * heroui-native. For tokens with the same name (background, foreground,
  * primary, secondary, muted, accent, success, warning, info, border, input,
- * ring, chart-1..5, sidebar-*) openhealth's declaration wins because this
+ * ring, chart-1..5, sidebar-*) OpenValens's declaration wins because this
  * import is processed last.
  *
- * heroui-native uses `danger` where openhealth uses `destructive`, so alias
- * the heroui-native name to the openhealth token so error surfaces share
+ * heroui-native uses `danger` where OpenValens uses `destructive`, so alias
+ * the heroui-native name to the OpenValens token so error surfaces share
  * the web palette.
  */
 @theme inline {

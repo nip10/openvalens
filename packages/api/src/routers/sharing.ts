@@ -1,6 +1,6 @@
-import { writeAuditLog, type AuditEventType } from "@openhealth/audit-security";
-import { AuthzHttpError, requireOrgMembership } from "@openhealth/auth/authz/guard";
-import { invitation, member, user } from "@openhealth/db/schema/auth";
+import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { AuthzHttpError, requireOrgMembership } from "@openvalens/auth/authz/guard";
+import { invitation, member, user } from "@openvalens/db/schema/auth";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 

@@ -3,25 +3,25 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 import { Slot } from "radix-ui";
 
-import { useIsMobile } from "@openhealth/ui/hooks/use-mobile";
-import { cn } from "@openhealth/ui/lib/utils";
-import { Button } from "@openhealth/ui/components/button";
-import { Input } from "@openhealth/ui/components/input";
-import { Separator } from "@openhealth/ui/components/separator";
+import { useIsMobile } from "@openvalens/ui/hooks/use-mobile";
+import { cn } from "@openvalens/ui/lib/utils";
+import { Button } from "@openvalens/ui/components/button";
+import { Input } from "@openvalens/ui/components/input";
+import { Separator } from "@openvalens/ui/components/separator";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@openhealth/ui/components/sheet";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+} from "@openvalens/ui/components/sheet";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@openhealth/ui/components/tooltip";
+} from "@openvalens/ui/components/tooltip";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;

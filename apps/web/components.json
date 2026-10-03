@@ -13,8 +13,8 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
-    "utils": "@openhealth/ui/lib/utils",
-    "ui": "@openhealth/ui/components",
+    "utils": "@openvalens/ui/lib/utils",
+    "ui": "@openvalens/ui/components",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },

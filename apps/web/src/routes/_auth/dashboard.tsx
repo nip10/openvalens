@@ -1,7 +1,7 @@
-import { buildCockpitBlocks, type CockpitSnapshot } from "@openhealth/api/presenters/cockpit";
-import { Badge } from "@openhealth/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@openhealth/ui/components/card";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+import { buildCockpitBlocks, type CockpitSnapshot } from "@openvalens/api/presenters/cockpit";
+import { Badge } from "@openvalens/ui/components/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 

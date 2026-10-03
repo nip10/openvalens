@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/observability",
+  "name": "@openvalens/observability",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -14,7 +14,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

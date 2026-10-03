@@ -3,8 +3,8 @@
 // `accessAuditLog` table; in target the clinical-record audit timeline is
 // composed by the `health-record` repository. We read both sources here with
 // strict org filters and merge them with deterministic ordering.
-import type { Database } from "@openhealth/db";
-import { accessAuditLog } from "@openhealth/db/schema/auth";
+import type { Database } from "@openvalens/db";
+import { accessAuditLog } from "@openvalens/db/schema/auth";
 import { desc, eq } from "drizzle-orm";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";

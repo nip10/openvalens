@@ -1,11 +1,11 @@
-import type { Database } from "@openhealth/db";
-import { calendarEvent } from "@openhealth/db/schema/plans";
+import type { Database } from "@openvalens/db";
+import { calendarEvent } from "@openvalens/db/schema/plans";
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 
 /**
  * Calendar — public type surface + repository (Issue #23).
  *
- * Mirrors the openhealth `calendar_event` table in
+ * Mirrors the OpenValens `calendar_event` table in
  * `packages/db/src/schema/plans.ts`. The table is also written by the
  * body `#21` daily-weight service (`type='weight'`) and the plans `#22`
  * upsert paths (`type='supplement_schedule'`); this repository scopes

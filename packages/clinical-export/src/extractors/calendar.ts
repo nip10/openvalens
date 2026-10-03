@@ -1,8 +1,8 @@
 // Source: anchovy/apps/web/src/lib/export/extractors/calendar.ts
 // Calendar extractor — merges `calendar_event` and `scheduledEvent` rows for the
 // active tenant into a single CSV row shape with deterministic ordering.
-import type { Database } from "@openhealth/db";
-import { calendarEvent, scheduledEvent } from "@openhealth/db/schema/plans";
+import type { Database } from "@openvalens/db";
+import { calendarEvent, scheduledEvent } from "@openvalens/db/schema/plans";
 import { desc, eq } from "drizzle-orm";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";

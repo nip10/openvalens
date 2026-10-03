@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
-import type { Database } from "@openhealth/db";
-import { healthEvent, metricDefinition, metricSample } from "@openhealth/db/schema/health-record";
+import type { Database } from "@openvalens/db";
+import { healthEvent, metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import {
   buildIngestDefinitionRow,
   normalizeMetricSample,
   resolveCanonicalMetricCode,
   stableSerialize,
-} from "@openhealth/health-record";
+} from "@openvalens/health-record";
 import { and, eq } from "drizzle-orm";
 
 import {

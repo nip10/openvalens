@@ -4,14 +4,14 @@ import {
   makeManualEntryHash,
   parseManualEntryValue,
   type ManualEntryMetric,
-} from "@openhealth/api/presenters/manual-entry";
+} from "@openvalens/api/presenters/manual-entry";
 import {
   formatBpm,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
   vitalsSourceLabel,
-} from "@openhealth/api/presenters/vitals";
+} from "@openvalens/api/presenters/vitals";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useMemo, useState } from "react";

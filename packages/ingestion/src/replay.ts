@@ -1,10 +1,10 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   ingestionBatch,
   ingestionError,
   ingestionJob,
   ingestionRawArtifact,
-} from "@openhealth/db/schema/health-record";
+} from "@openvalens/db/schema/health-record";
 import { and, desc, eq } from "drizzle-orm";
 
 import { parseMobileIngestionEnvelope } from "./health-connect";

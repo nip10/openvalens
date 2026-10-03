@@ -1,5 +1,5 @@
-import type { Database } from "@openhealth/db";
-import { dailyWeight, dailyWeightOverride, weightEvent } from "@openhealth/db/schema/body";
+import type { Database } from "@openvalens/db";
+import { dailyWeight, dailyWeightOverride, weightEvent } from "@openvalens/db/schema/body";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { resolveCanonicalWeight, type CanonicalWeightAutoEvent } from "./canonical-weight";

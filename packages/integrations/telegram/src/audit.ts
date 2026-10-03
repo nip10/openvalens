@@ -1,10 +1,10 @@
-import { writeAuditLog, type AuditEventType } from "@openhealth/audit-security";
-import type { Database } from "@openhealth/db";
+import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import type { Database } from "@openvalens/db";
 
 /**
  * Telegram audit events (Issue #14).
  *
- * `@openhealth/audit-security` ships a closed `AuditEventType` union that does
+ * `@openvalens/audit-security` ships a closed `AuditEventType` union that does
  * not (yet) include the Telegram vocabulary. The persisted `event_type` column
  * is plain `text`, so the new values are valid at the storage layer; only the
  * TypeScript union needs extending.

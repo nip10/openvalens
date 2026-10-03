@@ -1,7 +1,7 @@
 /**
  * Coach — public type surface (Issue #19).
  *
- * Mirrors the openhealth tables in `packages/db/src/schema/coach.ts`:
+ * Mirrors the OpenValens tables in `packages/db/src/schema/coach.ts`:
  *
  * - `coachProfile`     — org-scoped profile (tone, assertiveness,
  *   riskTolerance, medicalDisclaimerMode, selectedTemplateKey).

@@ -1,5 +1,5 @@
 {
-  "name": "@openhealth/audit-security",
+  "name": "@openvalens/audit-security",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -10,14 +10,14 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@openhealth/db": "workspace:*",
-    "@openhealth/observability": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@openvalens/observability": "workspace:*",
     "@orpc/server": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openhealth/config": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "typescript": "^6.0.3"
   }
 }

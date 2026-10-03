@@ -4,7 +4,7 @@ import {
   groupTimelineByDay,
   severityTone,
   sourceLabel,
-} from "@openhealth/api/presenters/timeline";
+} from "@openvalens/api/presenters/timeline";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Chip, Spinner } from "heroui-native";
 import { Pressable, RefreshControl, SectionList, Text, View } from "react-native";

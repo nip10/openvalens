@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
-import * as auditSecurity from "@openhealth/audit-security";
-import * as authzGuard from "@openhealth/auth/authz/guard";
-import * as ingestion from "@openhealth/ingestion";
+import * as auditSecurity from "@openvalens/audit-security";
+import * as authzGuard from "@openvalens/auth/authz/guard";
+import * as ingestion from "@openvalens/ingestion";
 
 import type { Context } from "../context";
 
@@ -22,14 +22,14 @@ const requirePermission = mock(
     return { user: { id: "actor" }, activeOrganizationId: "org-a", member: { role }, role };
   },
 );
-mock.module("@openhealth/auth/authz/guard", () => ({
+mock.module("@openvalens/auth/authz/guard", () => ({
   ...actualAuthzGuard,
   AuthzHttpError,
   requirePermission,
 }));
 
 const audit = mock(async (_input: unknown) => {});
-mock.module("@openhealth/audit-security", () => ({ ...actualAuditSecurity, writeAuditLog: audit }));
+mock.module("@openvalens/audit-security", () => ({ ...actualAuditSecurity, writeAuditLog: audit }));
 
 let ingestError: Error | null = null;
 const registerMobileDevice = mock(async (_db: unknown, _input: Record<string, unknown>) => {
@@ -51,7 +51,7 @@ const ingestMobileBatch = mock(async (_db: unknown, _input: Record<string, unkno
 const getMobileSyncStatus = mock(async (_db: unknown, _input: Record<string, unknown>) => ({
   devices: [],
 }));
-mock.module("@openhealth/ingestion", () => ({
+mock.module("@openvalens/ingestion", () => ({
   ...actualIngestion,
   registerMobileDevice,
   ingestMobileBatch,
@@ -62,9 +62,9 @@ const { mobileRouter } = await import("./mobile");
 const { appRouter } = await import("./index");
 
 afterAll(() => {
-  mock.module("@openhealth/ingestion", () => actualIngestion);
-  mock.module("@openhealth/audit-security", () => actualAuditSecurity);
-  mock.module("@openhealth/auth/authz/guard", () => actualAuthzGuard);
+  mock.module("@openvalens/ingestion", () => actualIngestion);
+  mock.module("@openvalens/audit-security", () => actualAuditSecurity);
+  mock.module("@openvalens/auth/authz/guard", () => actualAuthzGuard);
 });
 
 function context(): Context {

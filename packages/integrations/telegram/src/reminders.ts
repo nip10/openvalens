@@ -1,8 +1,8 @@
-import type { Database } from "@openhealth/db";
-import { user } from "@openhealth/db/schema/auth";
-import { dailyReminder, telegramAccount } from "@openhealth/db/schema/integrations";
-import { sendEmail, type SendEmailFn } from "@openhealth/email";
-import type { StructuredLogger } from "@openhealth/observability";
+import type { Database } from "@openvalens/db";
+import { user } from "@openvalens/db/schema/auth";
+import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
+import { sendEmail, type SendEmailFn } from "@openvalens/email";
+import type { StructuredLogger } from "@openvalens/observability";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import type { TelegramClient } from "./client";
@@ -15,7 +15,7 @@ import type { TelegramClient } from "./client";
  * - if the owning user has an active Telegram account, deliver via
  *   `sendMessage` and persist the returned `message_id` so the reaction webhook
  *   can map a later ✅/⏸/❌ back to the reminder;
- * - otherwise fall back to email via `@openhealth/email` (dry-run when the
+ * - otherwise fall back to email via `@openvalens/email` (dry-run when the
  *   provider is unconfigured).
  *
  * When no Telegram bot token is configured (`client === null`) the job
@@ -39,7 +39,7 @@ export type MaterializeDailyRemindersDeps = {
   correlationId: string;
   /** `null` runs across every organization. */
   organizationId: string | null;
-  /** Injectable for tests; defaults to `@openhealth/email`'s `sendEmail`. */
+  /** Injectable for tests; defaults to `@openvalens/email`'s `sendEmail`. */
   sendEmail?: SendEmailFn;
 };
 

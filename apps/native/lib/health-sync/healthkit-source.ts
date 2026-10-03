@@ -1,4 +1,4 @@
-import type { MobileHealthRecordInput } from "@openhealth/api/contracts/mobile-ingest";
+import type { MobileHealthRecordInput } from "@openvalens/api/contracts/mobile-ingest";
 import Constants from "expo-constants";
 
 import type { ChangesPage, HealthSource } from "./drain";
@@ -52,7 +52,7 @@ async function getMapOptions(): Promise<HealthKitMapOptions> {
   for (const [name, value] of Object.entries(WorkoutActivityType))
     if (typeof value === "number") workoutActivityNames[value] = name;
   mapOptions = {
-    ownBundleId: Constants.expoConfig?.ios?.bundleIdentifier ?? "com.anonymous.openhealth",
+    ownBundleId: Constants.expoConfig?.ios?.bundleIdentifier ?? "com.openvalens.app",
     workoutActivityNames,
   };
   return mapOptions;

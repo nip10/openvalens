@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document adapts the web design system in `@openhealth/ui` to a React Native / Expo mobile surface. It is the single source of truth for tokens, primitives, theming, and cross-platform typography. It is intentionally implementation-agnostic enough to be reviewed before code, but concrete enough that the first components can be built directly from it.
+This document adapts the web design system in `@openvalens/ui` to a React Native / Expo mobile surface. It is the single source of truth for tokens, primitives, theming, and cross-platform typography. It is intentionally implementation-agnostic enough to be reviewed before code, but concrete enough that the first components can be built directly from it.
 
 It is paired with:
 
@@ -12,14 +12,14 @@ It is paired with:
 
 ## Source of truth
 
-The web system lives in `/Users/dc/orca/workspaces/health/openhealth/packages/ui/`:
+The web system lives in `packages/ui/`:
 
 - `src/styles/globals.css` — Tailwind v4 tokens (`@theme inline`), OKLCH colors, font stack, radius scale.
 - `src/components/*.tsx` — 21 primitives built on top of Radix UI primitives.
 - `src/hooks/use-mobile.ts` — 768 px breakpoint.
 - `src/lib/utils.ts` — `cn` helper (`clsx` + `tailwind-merge`).
 
-The mobile app lives in `/Users/dc/orca/workspaces/health/openhealth/apps/native/`:
+The mobile app lives in `apps/native/`:
 
 - `global.css` — Tailwind v4 entry that imports `tailwindcss`, `uniwind`, and `heroui-native/styles`.
 - `app/(drawer)/_layout.tsx` — `Drawer` from `expo-router/drawer`.
@@ -29,7 +29,7 @@ The mobile app lives in `/Users/dc/orca/workspaces/health/openhealth/apps/native
 
 The shared source of truth for color, font, and radius tokens is `packages/ui/src/styles/globals.css`. The mobile surface consumes those tokens through Tailwind v4 CSS variables, enabled by uniwind.
 
-## Palette bridge (openhealth → mobile)
+## Palette bridge (OpenValens → mobile)
 
 The web palette is declared in `packages/ui/src/styles/globals.css`:
 
@@ -42,21 +42,21 @@ To make the mobile app use the same palette, `apps/native/global.css` imports th
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
-@import "@openhealth/ui/tokens.css";
+@import "@openvalens/ui/tokens.css";
 ```
 
-After the import, uniwind exposes the same variables to React Native. Tailwind classes like `bg-background`, `text-foreground`, and `text-muted` resolve to the openhealth OKLCH values. heroui-native components read the same variables through `useThemeColor('foreground')`.
+After the import, uniwind exposes the same variables to React Native. Tailwind classes like `bg-background`, `text-foreground`, and `text-muted` resolve to the OpenValens OKLCH values. heroui-native components read the same variables through `useThemeColor('foreground')`.
 
-Verify the bridge in `apps/native/app/(drawer)/index.tsx`, which already uses `text-foreground`, `text-muted`, `bg-danger`, and `bg-success`. Once `@openhealth/ui/tokens.css` is imported, those classes will resolve to the openhealth tokens rather than heroui-native’s default palette.
+Verify the bridge in `apps/native/app/(drawer)/index.tsx`, which already uses `text-foreground`, `text-muted`, `bg-danger`, and `bg-success`. Once `@openvalens/ui/tokens.css` is imported, those classes will resolve to the OpenValens tokens rather than heroui-native’s default palette.
 
 ### Token name alignment
 
-| openhealth token                                            | heroui-native token | Status                                                                                                                                            |
+| OpenValens token                                            | heroui-native token | Status                                                                                                                                            |
 | ----------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `background`, `foreground`, `muted`, `primary`, `secondary` | same names          | Bridge automatically via CSS variables.                                                                                                           |
 | `destructive`                                               | `danger`            | **Needs alias.** Either add `--color-danger: var(--destructive)` to mobile CSS, or wrap heroui-native components to map `danger` → `destructive`. |
 | `success`                                                   | `success`           | Bridge automatically if both define `--color-success`. Verify values match.                                                                       |
-| `warning`, `info`                                           | `warning`, `info`   | Verify values; heroui-native defaults may differ from the openhealth semantic palette.                                                            |
+| `warning`, `info`                                           | `warning`, `info`   | Verify values; heroui-native defaults may differ from the OpenValens semantic palette.                                                            |
 | `chart-1` … `chart-5`                                       | —                   | **Not bridged.** Add explicit `--color-chart-1` … `--color-chart-5` to mobile globals, or use inline `oklch()` values in chart configs.           |
 | `sidebar-*`                                                 | —                   | **Not bridged.** Sidebar-specific tokens are only needed in the drawer; import or duplicate them in mobile globals.                               |
 | `ring`, `border`, `input`, `accent`                         | same names          | Bridge automatically.                                                                                                                             |
@@ -324,7 +324,7 @@ The web exports 21 primitive families. On mobile the better-t-stack scaffold alr
 
 The better-t-stack scaffold already chose and wired this stack. Do not introduce a second theming or primitive layer.
 
-- **uniwind 1.12.0** — Tailwind v4 on React Native. It reads the same CSS variables as the web app, so `bg-background`, `text-foreground`, `rounded-xl`, `p-4`, etc. work out of the box once `@openhealth/ui/tokens.css` is imported.
+- **uniwind 1.12.0** — Tailwind v4 on React Native. It reads the same CSS variables as the web app, so `bg-background`, `text-foreground`, `rounded-xl`, `p-4`, etc. work out of the box once `@openvalens/ui/tokens.css` is imported.
 - **heroui-native 1.0.9** — Pre-styled Tailwind component primitives. Use `Button`, `Card`, `Chip`, `Input`, `TextField`, `Label`, `FieldError`, `Surface`, `Spinner`, `useToast`, `useThemeColor`, and `cn` directly. These components accept `className`, so web parity is achieved by applying the same Tailwind tokens.
 - **tailwind-merge + tailwind-variants** — Keeps Tailwind class composition predictable and mirrors the web's `class-variance-authority` pattern.
 - **react-native-reanimated 4.5.1** — Animation engine, used by heroui-native internally and available for custom animations.

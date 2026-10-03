@@ -1,7 +1,7 @@
 /**
  * Clinical records — public type surface (Issue #24).
  *
- * Mirrors the openhealth tables in `packages/db/src/schema/clinical.ts`:
+ * Mirrors the OpenValens tables in `packages/db/src/schema/clinical.ts`:
  *
  * - `bloodPanel`           + `bloodMarker`            + `optimalRange`
  *   + `bloodMarkerInfo`     — blood work.
@@ -14,7 +14,7 @@
  * `diagnosis`, `notes` round-trip as opaque strings the caller owns.
  * Logs never carry them.
  *
- * DEXA scans already live in `@openhealth/body` (Issue #21). This package
+ * DEXA scans already live in `@openvalens/body` (Issue #21). This package
  * intentionally does **not** duplicate that surface.
  */
 

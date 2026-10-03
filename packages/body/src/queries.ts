@@ -1,4 +1,4 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   bodyCompEvent,
   dailyWeight,
@@ -6,7 +6,7 @@ import {
   dexaScan,
   weightCheckin,
   weightEvent,
-} from "@openhealth/db/schema/body";
+} from "@openvalens/db/schema/body";
 import { and, desc, eq } from "drizzle-orm";
 
 /** Historical check-ins, intentionally independent of the materialized daily canonical view. */

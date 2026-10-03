@@ -4,13 +4,13 @@ import {
   formatKgDelta,
   summarizeDailyWeights,
   weightSourceLabel,
-} from "@openhealth/api/presenters/body";
+} from "@openvalens/api/presenters/body";
 import {
   defaultObservedAt,
   MANUAL_ENTRY_FIELDS,
   makeManualEntryHash,
   parseManualEntryValue,
-} from "@openhealth/api/presenters/manual-entry";
+} from "@openvalens/api/presenters/manual-entry";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";

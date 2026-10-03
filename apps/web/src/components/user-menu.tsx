@@ -1,4 +1,4 @@
-import { Button } from "@openhealth/ui/components/button";
+import { Button } from "@openvalens/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,8 +7,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@openhealth/ui/components/dropdown-menu";
-import { Skeleton } from "@openhealth/ui/components/skeleton";
+} from "@openvalens/ui/components/dropdown-menu";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";

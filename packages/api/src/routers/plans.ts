@@ -1,5 +1,5 @@
-import { writeAuditLog, type AuditEventType } from "@openhealth/audit-security";
-import { AuthzHttpError, requirePermission } from "@openhealth/auth/authz/guard";
+import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { AuthzHttpError, requirePermission } from "@openvalens/auth/authz/guard";
 import {
   ALLOWED_MEDICATION_STATUSES,
   ALLOWED_SUPPLEMENT_CHANGE_TYPES,
@@ -25,7 +25,7 @@ import {
   type SupplementChange,
   type SupplementListItem,
   type SupplementSchedule,
-} from "@openhealth/plans";
+} from "@openvalens/plans";
 import { z } from "zod";
 
 import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput } from "../index";
@@ -945,7 +945,7 @@ export const plansRouter = {
     /**
      * List calendar events in a `[from, to]` window with an optional type
      * filter. Anchovy `/api/events` uses `scheduled_event` (recurrence
-     * semantics), but the openhealth `calendar_event` table here is the
+     * semantics), but the OpenValens `calendar_event` table here is the
      * flat day-event surface used by the body #21 weight reconciliation
      * and the plans #22 supplement scheduler. Reads are happy to include
      * `weight` events; writes through this router reject them so the

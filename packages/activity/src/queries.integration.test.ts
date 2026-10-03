@@ -1,8 +1,8 @@
 import { readdir } from "node:fs/promises";
 import { afterEach, beforeAll, describe, expect, test } from "bun:test";
-import { createDb, sql } from "@openhealth/db";
-import { organization } from "@openhealth/db/schema/auth";
-import { metricDefinition, metricSample } from "@openhealth/db/schema/health-record";
+import { createDb, sql } from "@openvalens/db";
+import { organization } from "@openvalens/db/schema/auth";
+import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { eq, and } from "drizzle-orm";
 
 import { fillDailyActivityTotals, listDailyActivityTotals } from "./queries";

@@ -3,8 +3,8 @@
 // already returns goals + checkins via `listGoalsWithCheckins` style aggregations,
 // but here we project the anchor's row shape directly: each goal with its
 // `checkins` array.
-import type { Database } from "@openhealth/db";
-import { goal, goalCheckin } from "@openhealth/db/schema/plans";
+import type { Database } from "@openvalens/db";
+import { goal, goalCheckin } from "@openvalens/db/schema/plans";
 import { desc, eq, inArray } from "drizzle-orm";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";

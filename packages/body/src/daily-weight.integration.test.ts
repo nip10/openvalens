@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createDb, sql } from "@openhealth/db";
+import { createDb, sql } from "@openvalens/db";
 
 import { createDailyWeightService } from "./daily-weight-service";
 

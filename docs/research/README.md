@@ -2,6 +2,8 @@
 
 Research behind product decisions on insights, scoring, benchmarks, preventive care and onboarding. Each report in `reports/` synthesises the source notes in the matching `notes/` folder.
 
+Reports written before 2026-10-03 use the project's former name, openhealth; it is now OpenValens (#102).
+
 These documents inform product decisions. They are not clinical guidance and not a record of user data.
 
 | Report                                                                                                    | Tickets                                                     |

@@ -4,7 +4,7 @@ import {
   SUPPLEMENT_FREQUENCIES,
   supplementDoseLabel,
   supplementFrequencyLabel,
-} from "@openhealth/api/presenters/supplements";
+} from "@openvalens/api/presenters/supplements";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Card, Chip, Spinner } from "heroui-native";
 import { useState } from "react";

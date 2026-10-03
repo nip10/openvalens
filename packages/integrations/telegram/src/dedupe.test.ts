@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 
 import { claimWebhookUpdate, STALE_WEBHOOK_WINDOW_MS } from "./dedupe";
 

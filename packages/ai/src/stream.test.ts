@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createStructuredLogger, type LogLevel } from "@openhealth/observability";
+import { createStructuredLogger, type LogLevel } from "@openvalens/observability";
 
 import { AI_DEFAULT_MODEL, AiConfigError, parseAiConfig } from "./config";
 import { streamChat, type StreamTextFn } from "./stream";

@@ -4,7 +4,7 @@ import {
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
-} from "@openhealth/api/presenters/workouts";
+} from "@openvalens/api/presenters/workouts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useState } from "react";

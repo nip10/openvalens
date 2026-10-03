@@ -1,4 +1,4 @@
-import { relativeTime } from "@openhealth/api/presenters/cochat";
+import { relativeTime } from "@openvalens/api/presenters/cochat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";

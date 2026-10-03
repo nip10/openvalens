@@ -1,6 +1,6 @@
-import { Button } from "@openhealth/ui/components/button";
-import { Input } from "@openhealth/ui/components/input";
-import { Label } from "@openhealth/ui/components/label";
+import { Button } from "@openvalens/ui/components/button";
+import { Input } from "@openvalens/ui/components/input";
+import { Label } from "@openvalens/ui/components/label";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";

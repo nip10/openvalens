@@ -1,4 +1,4 @@
-import type { Database } from "@openhealth/db";
+import type { Database } from "@openvalens/db";
 import {
   bloodMarker,
   bloodMarkerInfo,
@@ -9,7 +9,7 @@ import {
   familyHistory,
   imagingStudy,
   optimalRange,
-} from "@openhealth/db/schema/clinical";
+} from "@openvalens/db/schema/clinical";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
 import { decorateMarkersWithContext, isValidAgeOfOnset, trimOrNull } from "./derived";
@@ -37,7 +37,7 @@ import type {
  * - `consultation`                                     — clinical visits.
  * - `familyHistory`                                    — family history.
  *
- * DEXA reads are owned by `@openhealth/body` (Issue #21). This repository
+ * DEXA reads are owned by `@openvalens/body` (Issue #21). This repository
  * intentionally does **not** re-export DEXA queries to avoid drift.
  *
  * No PHI is logged. Notes / report / diagnosis / findings round-trip but
