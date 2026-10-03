@@ -69,8 +69,12 @@ services:
       POSTGRES_DB: openhealth
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    # Loopback only: Docker-published ports bypass host firewalls, so binding
+    # 0.0.0.0 would expose the health database to the network. The server
+    # container reaches Postgres over the compose network; host tools
+    # (bun run dev, db:studio) use localhost.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
