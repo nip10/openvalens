@@ -34,10 +34,11 @@ This project uses PostgreSQL with Drizzle ORM.
 1. Make sure you have a PostgreSQL database set up.
 2. Update your `apps/server/.env` file with your PostgreSQL connection details.
 
-3. Apply the schema to your database:
+3. Start the local database (bound to localhost only) and apply migrations:
 
 ```bash
-bun run db:push
+bun run db:start
+bun run db:migrate
 ```
 
 Then, run the development server:
@@ -128,7 +129,7 @@ openvalens/
 - `bun run dev:server`: Start only the server
 - `bun run check-types`: Check TypeScript types across all apps
 - `bun run dev:native`: Start the React Native/Expo development server
-- `bun run db:push`: Push schema changes to database
+- `bun run db:migrate`: Apply database migrations (never use `db:push` on real data)
 - `bun run db:generate`: Generate database client/types
 - `bun run db:migrate`: Run database migrations
 - `bun run db:studio`: Open database studio UI
@@ -141,3 +142,9 @@ openvalens/
 ## Better Auth Schema Generation
 
 After changing auth plugins or schema options, run `bun run auth:generate` from the project root. The script runs the Better Auth CLI through `varlock run` from the owning app directory, loading the auth instance from `src/services.ts`. Review the schema changes, then use your ORM's migration workflow to apply them.
+
+## License
+
+Copyright (C) 2026 The OpenValens contributors.
+
+OpenValens is free software under the [GNU Affero General Public License v3.0 or later](LICENSE), with an [additional permission for app-store distribution](LICENSE-APP-STORE). Contributions are accepted under the same terms with a DCO sign-off; see [CONTRIBUTING.md](CONTRIBUTING.md). The OpenValens name and logo are covered by the [trademark policy](TRADEMARK.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).

@@ -1,0 +1,27 @@
+Additional permission under GNU AGPL version 3 section 7 (application store distribution)
+
+As an additional permission under section 7 of the GNU Affero General Public
+License version 3, the copyright holders of OpenValens grant you permission to
+convey the Program, or a work based on the Program, in object code form through
+an application distribution platform (including without limitation the Apple
+App Store, Google Play, and comparable services), notwithstanding that the
+terms of service, usage rules, or technical measures of such a platform impose
+restrictions on recipients' exercise of the rights granted by this License,
+including (a) limits on redistribution or further conveyance of the conveyed
+copy, (b) limits on the number of devices or accounts on which it may be
+installed or used, (c) a requirement that recipients accept the platform
+operator's terms, and (d) technical measures that control installation or
+execution of the conveyed copy;
+
+provided that (1) you comply with this License in all other respects, and (2)
+the Corresponding Source of the exact version you convey is also available,
+under this License with or without this permission, free of charge through a
+channel that does not impose those restrictions (for example, a public source
+repository), and the conveyed app or its store listing gives recipients a
+notice of how to obtain it.
+
+This permission applies only to conveyance through such platforms. It covers
+only material whose copyright holders have granted it. It does not and cannot
+grant permission for separately licensed components. As provided in section 7,
+you may remove this additional permission from any copy of the Program, or any
+part of it, that you convey.
