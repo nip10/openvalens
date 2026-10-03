@@ -1,7 +1,11 @@
 import {
+  exportBundleArtifact,
+  exportCsvArtifacts,
+  exportPdfArtifact,
   formatBytes,
   pickExportDomains,
   utf8ByteLength,
+  type ExportArtifact,
   type ExportDomain,
 } from "@openvalens/api/presenters/clinical-export";
 import { useMutation } from "@tanstack/react-query";
@@ -13,12 +17,6 @@ import { Container } from "@/components/container";
 import { CardStack } from "@/components/list-row";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
-
-type ExportArtifact = {
-  fileName: string;
-  content: string;
-  mime: string;
-};
 
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -125,33 +123,21 @@ export default function ExportsScreen() {
   const bundle = useMutation(
     orpc.exports.clinicalBundle.mutationOptions({
       onSuccess: (data) => {
-        setBundleArtifacts([
-          {
-            fileName: `health-export-bundle-${data.generation.generatedAt.slice(0, 10)}.json`,
-            content: JSON.stringify(data, null, 2),
-            mime: "application/json",
-          },
-        ]);
+        setBundleArtifacts([exportBundleArtifact(data)]);
       },
     }),
   );
   const csv = useMutation(
     orpc.exports.legacyDownload.mutationOptions({
       onSuccess: (data) => {
-        setDomainArtifacts(
-          data.files.map((file) => ({
-            fileName: file.fileName,
-            content: file.content,
-            mime: "text/csv",
-          })),
-        );
+        setDomainArtifacts(exportCsvArtifacts(data.files));
       },
     }),
   );
   const pdf = useMutation(
     orpc.exports.legacyPdfDownload.mutationOptions({
       onSuccess: (data) => {
-        setDomainArtifacts([{ fileName: data.fileName, content: data.content, mime: "text/html" }]);
+        setDomainArtifacts([exportPdfArtifact(data)]);
       },
     }),
   );

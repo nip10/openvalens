@@ -36,6 +36,13 @@ export type ExportDomainOption = {
   defaultSelected: boolean;
 };
 
+/** A rendered export ready to hand to a platform download or share surface. */
+export type ExportArtifact = {
+  fileName: string;
+  content: string;
+  mime: string;
+};
+
 /** Sentence-case label for a domain in the closed export enum. */
 export function formatExportDomainLabel(domain: ExportDomain): string {
   return EXPORT_DOMAIN_LABELS[domain];
@@ -70,6 +77,36 @@ export function utf8ByteLength(text: string): number {
     bytes += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
   }
   return bytes;
+}
+
+/**
+ * Bundle artifact for `exports.clinicalBundle`. The filename is derived from
+ * the generation timestamp so web and mobile produce the same name.
+ */
+export function exportBundleArtifact(bundle: {
+  generation: { generatedAt: string };
+}): ExportArtifact {
+  return {
+    fileName: `health-export-bundle-${bundle.generation.generatedAt.slice(0, 10)}.json`,
+    content: JSON.stringify(bundle, null, 2),
+    mime: "application/json",
+  };
+}
+
+/** CSV artifacts for `exports.legacyDownload`, one file per rendered domain. */
+export function exportCsvArtifacts(
+  files: readonly { fileName: string; content: string }[],
+): ExportArtifact[] {
+  return files.map((file) => ({
+    fileName: file.fileName,
+    content: file.content,
+    mime: "text/csv",
+  }));
+}
+
+/** HTML artifact for `exports.legacyPdfDownload`. */
+export function exportPdfArtifact(file: { fileName: string; content: string }): ExportArtifact {
+  return { fileName: file.fileName, content: file.content, mime: "text/html" };
 }
 
 /**

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  exportBundleArtifact,
+  exportCsvArtifacts,
+  exportPdfArtifact,
   formatBytes,
   formatExportDomainLabel,
   pickExportDomains,
@@ -54,5 +57,28 @@ describe("clinical export presenter", () => {
     expect(options.find((option) => option.domain === "blood")?.defaultSelected).toBe(true);
     expect(options.find((option) => option.domain === "audit")?.defaultSelected).toBe(false);
     expect(options.every((option) => option.label.length > 0)).toBe(true);
+  });
+
+  test("artifact builders: shared filenames, mime types, and JSON body", () => {
+    const bundle = exportBundleArtifact({
+      generation: { generatedAt: "2026-03-08T10:00:00.000Z" },
+    });
+    expect(bundle.fileName).toBe("health-export-bundle-2026-03-08.json");
+    expect(bundle.mime).toBe("application/json");
+    expect(JSON.parse(bundle.content).generation.generatedAt).toBe("2026-03-08T10:00:00.000Z");
+
+    expect(
+      exportCsvArtifacts([{ fileName: "health-export-blood-2026-03-08.csv", content: "a,b\n" }]),
+    ).toEqual([
+      { fileName: "health-export-blood-2026-03-08.csv", content: "a,b\n", mime: "text/csv" },
+    ]);
+
+    expect(
+      exportPdfArtifact({ fileName: "health-export-2026-03-08.html", content: "<html></html>" }),
+    ).toEqual({
+      fileName: "health-export-2026-03-08.html",
+      content: "<html></html>",
+      mime: "text/html",
+    });
   });
 });
