@@ -16,10 +16,12 @@ export type ORPCErrorCode =
   | "INVALID_INPUT"
   | "INTERNAL"
   | "RATE_LIMITED"
-  | "NOT_FOUND";
+  | "NOT_FOUND"
+  | "REAUTH_REQUIRED"
+  | "CONFLICT";
 
 /** HTTP statuses reachable through the error envelope. */
-export type ORPCErrorStatus = 400 | 401 | 403 | 404 | 429 | 500;
+export type ORPCErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500;
 
 const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
   UNAUTHENTICATED: 401,
@@ -31,6 +33,8 @@ const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
   INTERNAL: 500,
   RATE_LIMITED: 429,
   NOT_FOUND: 404,
+  REAUTH_REQUIRED: 403,
+  CONFLICT: 409,
 };
 
 /**

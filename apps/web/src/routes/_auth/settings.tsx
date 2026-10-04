@@ -19,6 +19,7 @@ import {
 } from "@openvalens/api/presenters/coach-settings";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import {
   Select,
@@ -29,8 +30,9 @@ import {
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
@@ -47,6 +49,7 @@ function SettingsPage() {
       <div className="grid gap-6">
         <AccountSection />
         <CoachSection />
+        <DeleteAccountSection />
       </div>
     </div>
   );
@@ -273,5 +276,109 @@ function Field({
       {children}
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
+  );
+}
+
+/**
+ * "Delete everything" (Issue #89): preview, export-first link, co-owner
+ * blockers, fresh sign-in via magic link, typed confirmation, then sign-out.
+ */
+function DeleteAccountSection() {
+  const navigate = useNavigate();
+  const { data: session } = authClient.useSession();
+  const preview = useQuery(orpc.dataRights.deletionPreview.queryOptions({ input: {} }));
+  const [typed, setTyped] = useState("");
+  const [linkSent, setLinkSent] = useState(false);
+
+  const remove = useMutation(
+    orpc.dataRights.deleteEverything.mutationOptions({
+      onSuccess: async () => {
+        await prepareOfflineSignOut();
+        await authClient.signOut({ fetchOptions: { onSuccess: () => navigate({ to: "/" }) } });
+      },
+      onError: (error) => {
+        if ((error as { code?: string }).code === "REAUTH_REQUIRED") void preview.refetch();
+        toast.error(error.message);
+      },
+    }),
+  );
+
+  if (preview.isPending) return <Skeleton className="h-40 w-full" />;
+  if (preview.isError || !preview.data) return null;
+  const data = preview.data;
+
+  const sendSignInLink = async () => {
+    const email = session?.user.email;
+    if (!email) return;
+    const { error } = await authClient.signIn.magicLink({
+      email,
+      callbackURL: `${window.location.origin}/settings`,
+    });
+    if (error) toast.error(error.message ?? "Could not send the sign-in link.");
+    else setLinkSent(true);
+  };
+
+  return (
+    <Card className="border-destructive/40">
+      <CardHeader>
+        <CardTitle>Delete account and all data</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4 text-sm">
+        <p>
+          This permanently deletes your account and {data.totalRows.toLocaleString()} stored rows
+          across{" "}
+          {data.organizations.length === 1
+            ? "your health record"
+            : `${data.organizations.length} health records`}
+          {data.organizations.length > 0 &&
+            ` (${data.organizations.map((o) => o.name).join(", ")})`}
+          . It can't be undone.{" "}
+          <Link to="/exports" className="underline">
+            Download an export first
+          </Link>
+          .
+        </p>
+
+        {data.blockers.length > 0 ? (
+          <p className="text-destructive">
+            {data.blockers.map((b) => b.organizationName).join(", ")} also{" "}
+            {data.blockers.length === 1 ? "has" : "have"} another owner. Remove them or transfer the
+            record before deleting.
+          </p>
+        ) : data.reauthRequired ? (
+          <div className="grid gap-2">
+            <p>For your security, confirm it's you with a fresh sign-in.</p>
+            <div>
+              <Button variant="outline" onClick={sendSignInLink} disabled={linkSent}>
+                {linkSent ? "Sign-in link sent — check your email" : "Email me a sign-in link"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <label htmlFor="delete-confirmation">
+              Type <span className="font-mono font-semibold">{data.confirmationPhrase}</span> to
+              confirm
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="delete-confirmation"
+                autoComplete="off"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                className="max-w-48"
+              />
+              <Button
+                variant="destructive"
+                disabled={typed !== data.confirmationPhrase || remove.isPending}
+                onClick={() => remove.mutate({ confirmation: typed })}
+              >
+                {remove.isPending ? "Deleting…" : "Delete everything"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

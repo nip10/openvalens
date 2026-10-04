@@ -21,7 +21,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Chip, useThemeColor } from "heroui-native";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
@@ -124,8 +124,88 @@ export default function SettingsScreen() {
         >
           <Text className="font-medium text-destructive-foreground">Sign out</Text>
         </Pressable>
+
+        {session?.user && <DeleteAccountSection onSignOut={handleSignOut} />}
       </View>
     </Container>
+  );
+}
+
+/**
+ * "Delete everything" (Issue #89): preview, co-owner blockers, fresh sign-in
+ * (sign out and back in), typed confirmation, then local wipe and sign-out.
+ */
+function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> }) {
+  const preview = useQuery(orpc.dataRights.deletionPreview.queryOptions({ input: {} }));
+  const [typed, setTyped] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const remove = useMutation(
+    orpc.dataRights.deleteEverything.mutationOptions({
+      onSuccess: () => void onSignOut(),
+      onError: (err) => {
+        setError(err.message);
+        void preview.refetch();
+      },
+    }),
+  );
+
+  if (preview.isPending || preview.isError || !preview.data) return null;
+  const data = preview.data;
+  const records =
+    data.organizations.length === 1
+      ? "your health record"
+      : `${data.organizations.length} health records`;
+
+  return (
+    <CardStack title="Delete account">
+      <Card variant="secondary" className="gap-3 p-4">
+        <Text className="text-sm text-foreground">
+          Permanently deletes your account and {data.totalRows.toLocaleString()} stored rows across{" "}
+          {records}. This can't be undone. Export your data from Clinical export first.
+        </Text>
+        {data.blockers.length > 0 ? (
+          <Text className="text-sm text-destructive">
+            {data.blockers.map((b) => b.organizationName).join(", ")} also has another owner. Remove
+            them or transfer the record before deleting.
+          </Text>
+        ) : data.reauthRequired ? (
+          <>
+            <Text className="text-sm text-muted-foreground">
+              For your security, sign out and sign back in, then return here within 10 minutes.
+            </Text>
+            <Button variant="secondary" onPress={() => void onSignOut()}>
+              <Button.Label>Sign out to confirm it's you</Button.Label>
+            </Button>
+          </>
+        ) : (
+          <>
+            <Text className="text-sm text-foreground">
+              Type {data.confirmationPhrase} to confirm
+            </Text>
+            <TextInput
+              value={typed}
+              onChangeText={setTyped}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel={`Type ${data.confirmationPhrase} to confirm`}
+              className="rounded-lg border border-border px-3 py-2 font-mono text-foreground"
+            />
+            <Pressable
+              onPress={() => remove.mutate({ confirmation: typed })}
+              disabled={typed !== data.confirmationPhrase || remove.isPending}
+              className="min-h-12 items-center justify-center rounded-lg bg-destructive active:opacity-70 disabled:opacity-40"
+              accessibilityRole="button"
+              accessibilityLabel="Delete everything"
+            >
+              <Text className="font-medium text-destructive-foreground">
+                {remove.isPending ? "Deleting…" : "Delete everything"}
+              </Text>
+            </Pressable>
+          </>
+        )}
+        {error && <Text className="text-sm text-destructive">{error}</Text>}
+      </Card>
+    </CardStack>
   );
 }
 

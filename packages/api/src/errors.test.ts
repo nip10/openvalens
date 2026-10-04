@@ -15,6 +15,8 @@ describe("codeToStatus", () => {
       INTERNAL: 500,
       RATE_LIMITED: 429,
       NOT_FOUND: 404,
+      REAUTH_REQUIRED: 403,
+      CONFLICT: 409,
     };
 
     for (const code of Object.keys(expected) as ORPCErrorCode[]) {
