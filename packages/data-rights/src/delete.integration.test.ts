@@ -155,7 +155,14 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
   });
 
   test("preview matches what deletion removed", () => {
-    for (const table of ["metric_sample", "daily_weight", "weight_event", "health_connect_record", "session", "account"])
+    for (const table of [
+      "metric_sample",
+      "daily_weight",
+      "weight_event",
+      "health_connect_record",
+      "session",
+      "account",
+    ])
       expect(preview[table]).toBe(report.rowCounts[table]);
     // Preview lists every supplement the record uses; deletion keeps the shared one.
     expect(preview.supplement).toBe(2);

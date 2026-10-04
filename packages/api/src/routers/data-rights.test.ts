@@ -11,12 +11,14 @@ const resolveSubject = mock(async (_db: unknown, userId: string) => ({
   blockers,
 }));
 const previewSubjectData = mock(async () => ({ metric_sample: 3, session: 1 }));
-const deleteSubjectData = mock(async (_db: unknown, subject: { userId: string; organizationIds: string[] }) => ({
-  erasedAt: "2026-10-04T12:00:00.000Z",
-  userId: subject.userId,
-  organizationIds: subject.organizationIds,
-  rowCounts: { metric_sample: 3, user: 1 },
-}));
+const deleteSubjectData = mock(
+  async (_db: unknown, subject: { userId: string; organizationIds: string[] }) => ({
+    erasedAt: "2026-10-04T12:00:00.000Z",
+    userId: subject.userId,
+    organizationIds: subject.organizationIds,
+    rowCounts: { metric_sample: 3, user: 1 },
+  }),
+);
 mock.module("@openvalens/data-rights", () => ({
   ...actual,
   resolveSubject,
@@ -60,7 +62,11 @@ beforeEach(() => {
 describe("dataRights.deletionPreview", () => {
   test("summarises counts and flags a stale sign-in", async () => {
     const fresh = await dataRightsRouter.deletionPreview.callable({ context: context() })({});
-    expect(fresh).toMatchObject({ totalRows: 4, reauthRequired: false, confirmationPhrase: "DELETE" });
+    expect(fresh).toMatchObject({
+      totalRows: 4,
+      reauthRequired: false,
+      confirmationPhrase: "DELETE",
+    });
     const stale = await dataRightsRouter.deletionPreview.callable({
       context: context({ sessionAgeMs: 11 * MINUTE }),
     })({});
@@ -69,7 +75,9 @@ describe("dataRights.deletionPreview", () => {
 
   test("requires sign-in", async () => {
     expect(
-      await code(dataRightsRouter.deletionPreview.callable({ context: context({ signedIn: false }) })({})),
+      await code(
+        dataRightsRouter.deletionPreview.callable({ context: context({ signedIn: false }) })({}),
+      ),
     ).toBe("UNAUTHENTICATED");
   });
 });
@@ -91,9 +99,9 @@ describe("dataRights.deleteEverything", () => {
   });
 
   test("stale sign-in requires re-authentication", async () => {
-    expect(await code(call(context({ sessionAgeMs: 11 * MINUTE }), { confirmation: "DELETE" }))).toBe(
-      "REAUTH_REQUIRED",
-    );
+    expect(
+      await code(call(context({ sessionAgeMs: 11 * MINUTE }), { confirmation: "DELETE" })),
+    ).toBe("REAUTH_REQUIRED");
     expect(deleteSubjectData).not.toHaveBeenCalled();
   });
 

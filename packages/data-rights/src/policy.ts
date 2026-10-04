@@ -44,7 +44,11 @@ export async function resolveSubject(db: Database, userId: string): Promise<Subj
     organizations: owned.map(({ id, name }) => ({ id, name })),
     blockers: owned
       .filter((row) => row.shared)
-      .map((row) => ({ organizationId: row.id, organizationName: row.name, reason: "OTHER_OWNER" })),
+      .map((row) => ({
+        organizationId: row.id,
+        organizationName: row.name,
+        reason: "OTHER_OWNER",
+      })),
   };
 }
 
