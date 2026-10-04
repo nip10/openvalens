@@ -3,6 +3,7 @@ import { createDb, sql } from "@openvalens/db";
 
 import { deleteSubjectData, type DeletionReport } from "./delete";
 import { rowFilter } from "./export";
+import { previewSubjectData, resolveSubject, type SubjectResolution } from "./policy";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
 import { assertDisposable, migrateEmptyDatabase, seedAccount } from "./testing";
 
@@ -16,6 +17,9 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/data_rights_delete_test" });
   let report: DeletionReport;
   let bBefore: Record<string, number>;
+  let preview: Record<string, number>;
+  let resolvedA: SubjectResolution;
+  let resolvedB: SubjectResolution;
 
   const count = async (table: string, where: ReturnType<typeof sql>) =>
     Number(
@@ -75,6 +79,19 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     `),
     );
 
+    // B co-owns a second record with a third person: deleting it must be blocked.
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('user-z', 'z@example.test');
+      insert into organization (id, name, slug) values ('org-c', 'Shared record', 'record-c');
+      insert into member (id, organization_id, user_id, role)
+        values ('m-b-in-c', 'org-c', 'user-b', 'owner'), ('m-z-in-c', 'org-c', 'user-z', 'owner');
+    `),
+    );
+
+    resolvedA = await resolveSubject(db, "user-a");
+    resolvedB = await resolveSubject(db, "user-b");
+    preview = await previewSubjectData(db, A);
     bBefore = await subjectCounts(B);
     report = await deleteSubjectData(db, A, new Date("2026-10-04T00:00:00.000Z"));
   });
@@ -126,5 +143,22 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(ledger[0]!.subject_user_id).toBe("user-a");
     expect(ledger[0]!.organization_ids).toEqual(["org-a"]);
     expect(ledger[0]!.row_counts).toEqual(report.rowCounts);
+  });
+
+  test("subject resolution: owned records only, co-owned records block", () => {
+    expect(resolvedA.subject).toEqual(A);
+    expect(resolvedA.blockers).toEqual([]);
+    expect(resolvedB.subject.organizationIds).toEqual(["org-b", "org-c"]);
+    expect(resolvedB.blockers).toEqual([
+      { organizationId: "org-c", organizationName: "Shared record", reason: "OTHER_OWNER" },
+    ]);
+  });
+
+  test("preview matches what deletion removed", () => {
+    for (const table of ["metric_sample", "daily_weight", "weight_event", "health_connect_record", "session", "account"])
+      expect(preview[table]).toBe(report.rowCounts[table]);
+    // Preview lists every supplement the record uses; deletion keeps the shared one.
+    expect(preview.supplement).toBe(2);
+    expect(report.rowCounts.supplement).toBe(1);
   });
 });

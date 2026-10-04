@@ -7,6 +7,7 @@ import { clinicalRouter } from "./clinical";
 import { coachRouter } from "./coach";
 import { cockpitRouter } from "./cockpit";
 import { cronRouter } from "./cron";
+import { dataRightsRouter } from "./data-rights";
 import { exampleRouter } from "./example";
 import { exportsRouter } from "./exports";
 import { healthRouter } from "./health";
@@ -29,6 +30,7 @@ export const appRouter = {
   coach: coachRouter,
   cockpit: cockpitRouter,
   cron: cronRouter,
+  dataRights: dataRightsRouter,
   example: exampleRouter,
   exports: exportsRouter,
   health: healthRouter,

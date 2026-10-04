@@ -20,6 +20,7 @@
     "@openvalens/clinical-export": "workspace:*",
     "@openvalens/coach": "workspace:*",
     "@openvalens/cockpit": "workspace:*",
+    "@openvalens/data-rights": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/health-record": "workspace:*",
     "@openvalens/ingestion": "workspace:*",
