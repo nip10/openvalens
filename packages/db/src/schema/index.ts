@@ -6,3 +6,4 @@ export * from "./health-record";
 export * from "./ingestion";
 export * from "./integrations";
 export * from "./plans";
+export * from "./data-rights";
