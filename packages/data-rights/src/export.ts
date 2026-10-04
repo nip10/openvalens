@@ -41,7 +41,7 @@ export type DataExport = { manifest: ExportManifest; files: ExportFile[] };
 type Row = Record<string, unknown>;
 
 /** `column in (...)`; `false` for an empty list so nothing matches. */
-function inList(column: string, values: readonly string[]): SQL {
+export function inList(column: string, values: readonly string[]): SQL {
   if (values.length === 0) return sql`false`;
   return sql`${sql.identifier(column)} in (${sql.join(
     values.map((value) => sql`${value}`),
@@ -62,7 +62,10 @@ const CHILD_QUERIES: Record<string, (orgIds: string[]) => SQL> = {
     )`,
 };
 
-function filterFor(table: string, entry: TableEntry, subject: DataRightsSubject): SQL {
+/** WHERE clause selecting the subject's rows in an exported table. */
+export function rowFilter(table: string, subject: DataRightsSubject): SQL {
+  const entry: TableEntry | undefined = DATA_RIGHTS_REGISTRY[table];
+  if (!entry) throw new Error(`${table} is not in the data-rights registry`);
   const orgIds = [...subject.organizationIds];
   switch (entry.kind) {
     case "organization":
@@ -108,7 +111,7 @@ export async function exportSubjectData(
     }
 
     const result = await db.execute(
-      sql`select * from ${sql.identifier(table)} where ${filterFor(table, entry, subject)} order by 1`,
+      sql`select * from ${sql.identifier(table)} where ${rowFilter(table, subject)} order by 1`,
     );
     const rows = (result.rows as Row[]).map((row) => {
       if (!entry.redact?.length) return row;

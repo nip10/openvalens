@@ -119,6 +119,13 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   },
   daily_reminder: organization,
 
+  // Data rights
+  erasure_ledger: {
+    kind: "system",
+    reason:
+      "Erasure records (ids and row counts only) that must outlive deleted data so restores can be re-erased.",
+  },
+
   // Plans
   supplement: { kind: "child", parent: "supplement_schedule" },
   supplement_schedule: organization,
