@@ -1,2 +1,7 @@
 import "varlock/auto-load";
-export { ENV } from "./env";
+import { ENV } from "./env";
+import { validateProductionSecrets } from "./validate-production-secrets";
+
+validateProductionSecrets(ENV);
+
+export { ENV };
