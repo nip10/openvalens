@@ -39,6 +39,9 @@ bun run dev           # web on :3001, API on :3000
 
 Environment variables are validated by Varlock from each app's `.env.schema`;
 copy values into `apps/*/.env` (never commit them).
+The server also rejects a bounded set of obvious placeholder values for
+`BETTER_AUTH_SECRET` and `CRON_SECRET` at production startup. Configure real
+secrets before deploying; this check is not a general secret-strength test.
 
 ## Schema changes
 
