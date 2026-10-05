@@ -1,168 +1,98 @@
-import { useForm } from "@tanstack/react-form";
-import {
-  Button,
-  FieldError,
-  Input,
-  Label,
-  Spinner,
-  Surface,
-  TextField,
-  useToast,
-} from "heroui-native";
-import { useRef } from "react";
-import { Text, TextInput, View } from "react-native";
+import { Button, Input, Label, Spinner, Surface, TextField, useToast } from "heroui-native";
+import { useRef, useState } from "react";
+import { Text, View } from "react-native";
 import z from "zod";
 
-import { authClient } from "@/lib/auth-client";
-import { queryClient } from "@/utils/orpc";
+import { cancelPendingMagicLink, requestMagicLink } from "@/lib/magic-link";
 
-const signInSchema = z.object({
-  email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
-  password: z.string().min(1, "Password is required").min(8, "Use at least 8 characters"),
-});
+const emailSchema = z.string().trim().email("Enter a valid email address");
 
-function getErrorMessage(error: unknown): string | null {
-  if (!error) return null;
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (Array.isArray(error)) {
-    for (const issue of error) {
-      const message = getErrorMessage(issue);
-      if (message) {
-        return message;
-      }
-    }
-    return null;
-  }
-
-  if (typeof error === "object" && error !== null) {
-    const maybeError = error as { message?: unknown };
-    if (typeof maybeError.message === "string") {
-      return maybeError.message;
-    }
-  }
-
-  return null;
-}
-
-function SignIn() {
-  const passwordInputRef = useRef<TextInput>(null);
+/**
+ * Passwordless sign-in. The server only supports magic links; the first
+ * sign-in creates the account. Open the emailed link on this phone.
+ */
+export function SignIn() {
   const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const inFlight = useRef(false);
 
-  const form = useForm({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-    validators: {
-      onSubmit: signInSchema,
-    },
-    onSubmit: async ({ value, formApi }) => {
-      await authClient.signIn.email(
-        {
-          email: value.email.trim(),
-          password: value.password,
-        },
-        {
-          onError(error) {
-            toast.show({
-              variant: "danger",
-              label: error.error?.message || "Failed to sign in",
-            });
-          },
-          onSuccess() {
-            formApi.reset();
-            toast.show({
-              variant: "success",
-              label: "Signed in successfully",
-            });
-            queryClient.refetchQueries();
-          },
-        },
-      );
-    },
-  });
+  const submit = async () => {
+    if (inFlight.current) return;
+    const parsed = emailSchema.safeParse(email);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Enter a valid email address");
+      return;
+    }
+    inFlight.current = true;
+    setError(null);
+    setSending(true);
+    try {
+      const result = await requestMagicLink(parsed.data);
+      if (result.error) setError("Could not send the sign-in link. Please try again.");
+      else setSentTo(parsed.data);
+    } catch {
+      setError("Could not send the sign-in link. Please try again.");
+    } finally {
+      inFlight.current = false;
+      setSending(false);
+    }
+  };
+
+  const useDifferentEmail = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    try {
+      await cancelPendingMagicLink();
+      setSentTo(null);
+      setError(null);
+    } catch {
+      toast.show({
+        variant: "danger",
+        label: "Could not clear the pending sign-in. Please try again.",
+      });
+    } finally {
+      inFlight.current = false;
+    }
+  };
 
   return (
-    <Surface variant="secondary" className="p-4 rounded-lg">
-      <Text className="text-foreground font-medium mb-4">Sign In</Text>
-
-      <form.Subscribe
-        selector={(state) => ({
-          isSubmitting: state.isSubmitting,
-          validationError: getErrorMessage(state.errorMap.onSubmit),
-        })}
-      >
-        {({ isSubmitting, validationError }) => {
-          const formError = validationError;
-
-          return (
-            <>
-              <FieldError isInvalid={!!formError} className="mb-3">
-                {formError}
-              </FieldError>
-
-              <View className="gap-3">
-                <form.Field name="email">
-                  {(field) => (
-                    <TextField>
-                      <Label>Email</Label>
-                      <Input
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChangeText={field.handleChange}
-                        placeholder="email@example.com"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        textContentType="emailAddress"
-                        returnKeyType="next"
-                        blurOnSubmit={false}
-                        onSubmitEditing={() => {
-                          passwordInputRef.current?.focus();
-                        }}
-                      />
-                    </TextField>
-                  )}
-                </form.Field>
-
-                <form.Field name="password">
-                  {(field) => (
-                    <TextField>
-                      <Label>Password</Label>
-                      <Input
-                        ref={passwordInputRef}
-                        value={field.state.value}
-                        onBlur={field.handleBlur}
-                        onChangeText={field.handleChange}
-                        placeholder="••••••••"
-                        secureTextEntry
-                        autoComplete="password"
-                        textContentType="password"
-                        returnKeyType="go"
-                        onSubmitEditing={form.handleSubmit}
-                      />
-                    </TextField>
-                  )}
-                </form.Field>
-
-                <Button onPress={form.handleSubmit} isDisabled={isSubmitting} className="mt-1">
-                  {isSubmitting ? (
-                    <Spinner size="sm" color="default" />
-                  ) : (
-                    <Button.Label>Sign In</Button.Label>
-                  )}
-                </Button>
-              </View>
-            </>
-          );
-        }}
-      </form.Subscribe>
+    <Surface variant="secondary" className="rounded-lg p-4">
+      <Text className="mb-1 font-medium text-foreground">Sign in</Text>
+      {sentTo ? (
+        <View className="gap-3">
+          <Text className="text-sm text-muted">
+            We sent a sign-in link to {sentTo}. Open it on this phone within 10 minutes.
+          </Text>
+          <Button variant="secondary" onPress={() => void useDifferentEmail()} isDisabled={sending}>
+            <Button.Label>Use a different email</Button.Label>
+          </Button>
+        </View>
+      ) : (
+        <View className="gap-3">
+          <Text className="text-sm text-muted">We'll email you a link. No password needed.</Text>
+          <TextField isInvalid={!!error}>
+            <Label>Email</Label>
+            <Input
+              value={email}
+              onChangeText={setEmail}
+              placeholder="email@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="go"
+              onSubmitEditing={() => void submit()}
+            />
+          </TextField>
+          {error && <Text className="text-sm text-danger">{error}</Text>}
+          <Button onPress={() => void submit()} isDisabled={sending}>
+            {sending ? <Spinner size="sm" /> : <Button.Label>Email me a sign-in link</Button.Label>}
+          </Button>
+        </View>
+      )}
     </Surface>
   );
 }
-
-export { SignIn };

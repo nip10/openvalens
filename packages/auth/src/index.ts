@@ -27,13 +27,28 @@ export type AuthConfig = {
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
   CORS_ORIGIN: string;
+  NODE_ENV?: string;
+  /** Local dev: print magic sign-in links to the console when email is a dry run. */
+  AUTH_DEV_MAGIC_LINK_CONSOLE?: boolean;
 };
+
+/** Console sink for dry-run magic links; never enabled in production. */
+export function devMagicLinkSink(env: AuthConfig): ((url: string) => void) | undefined {
+  if (env.NODE_ENV !== "development" || env.AUTH_DEV_MAGIC_LINK_CONSOLE !== true) return undefined;
+  return (url) => {
+    // A sign-in URL is a credential. This explicit local-only path writes it
+    // to the developer console; console output may be retained by the host.
+    console.info(`\n[dev] Magic sign-in link (expires in 10 min):\n${url}\n`);
+  };
+}
 
 export function createAuth(
   env: AuthConfig,
   database: Database,
   desktopOrigins: readonly string[] = [],
 ) {
+  const devLinkSink = devMagicLinkSink(env);
+
   return betterAuth({
     database: drizzleAdapter(database, {
       provider: "pg",
@@ -128,7 +143,7 @@ export function createAuth(
               correlationId: ctx?.getHeader("x-correlation-id"),
               requestId: ctx?.getHeader("x-request-id"),
             },
-            { expiresInSeconds: MAGIC_LINK_EXPIRES_IN_SECONDS },
+            { expiresInSeconds: MAGIC_LINK_EXPIRES_IN_SECONDS, devLinkSink },
           ),
       }),
     ],

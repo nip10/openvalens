@@ -32,6 +32,12 @@ export type SendAuthMagicLinkOptions = {
   logger?: MagicLinkLogger;
   /** Injectable for tests; defaults to the `@openvalens/email` sender. */
   sendEmail?: SendEmailFn;
+  /**
+   * Local development only: receives the sign-in URL when the email was a
+   * dry run (no provider configured), so a developer can sign in. Never set
+   * in production (see `createAuth`).
+   */
+  devLinkSink?: (url: string) => void;
 };
 
 function generateCorrelationId(): string {
@@ -96,6 +102,10 @@ function parseLinkLocation(url: string): { host: string; path: string } | null {
 }
 
 function errorCodeFor(error: unknown): string {
+  if (error instanceof DryRunMagicLinkUnavailable) {
+    return "DRY_RUN_UNAVAILABLE";
+  }
+
   if (error instanceof EmailTransientError) {
     return "EMAIL_TRANSIENT";
   }
@@ -105,6 +115,13 @@ function errorCodeFor(error: unknown): string {
   }
 
   return "EMAIL_UNKNOWN";
+}
+
+class DryRunMagicLinkUnavailable extends Error {
+  constructor() {
+    super("Magic-link email delivery is not configured.");
+    this.name = "DryRunMagicLinkUnavailable";
+  }
 }
 
 /**
@@ -151,7 +168,7 @@ export async function sendAuthMagicLink(
   });
 
   try {
-    await emailSender(
+    const result = await emailSender(
       {
         to: payload.email,
         subject: rendered.subject,
@@ -162,6 +179,14 @@ export async function sendAuthMagicLink(
       },
       { correlationId },
     );
+    if (result.dryRun) {
+      if (!options.devLinkSink) throw new DryRunMagicLinkUnavailable();
+      try {
+        options.devLinkSink(payload.url);
+      } catch {
+        throw new DryRunMagicLinkUnavailable();
+      }
+    }
   } catch (error) {
     // Issue #9 — PHI-safe: only the typed code is logged, never the message.
     logger.error("auth.magic-link.send.failed", {
