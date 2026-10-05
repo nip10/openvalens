@@ -38,7 +38,7 @@ describe("sendAuthMagicLink", () => {
     const calls: CapturedCall[] = [];
     const emailSender: SendEmailFn = async (input, options) => {
       calls.push({ input, options });
-      return { id: "dry-run", dryRun: true };
+      return { id: "msg-1", dryRun: false };
     };
 
     const { logger, lines } = createCapturingLogger();
@@ -99,5 +99,72 @@ describe("sendAuthMagicLink", () => {
       .find((line) => line.event === "auth.magic-link.send.failed");
     expect(failure).toBeDefined();
     expect(failure?.code).toBe("EMAIL_PERMANENT");
+  });
+
+  test("dev link sink receives the URL only when the email was a dry run", async () => {
+    const seen: string[] = [];
+    const { logger, lines } = createCapturingLogger();
+
+    await sendAuthMagicLink(PAYLOAD, {
+      sendEmail: async () => ({ id: "dry-run", dryRun: true }),
+      logger,
+      devLinkSink: (url) => seen.push(url),
+    });
+    expect(seen).toEqual([PAYLOAD.url]);
+    // The structured log still never carries the token.
+    expect(lines.join("\n")).not.toContain("raw-token-value");
+
+    await sendAuthMagicLink(PAYLOAD, {
+      sendEmail: async () => ({ id: "msg-1", dryRun: false }),
+      logger,
+      devLinkSink: (url) => seen.push(url),
+    });
+    expect(seen).toHaveLength(1);
+  });
+
+  test("dry-run without an enabled sink rejects without logging a sent event", async () => {
+    const { logger, lines } = createCapturingLogger();
+
+    await expect(
+      sendAuthMagicLink(PAYLOAD, {
+        sendEmail: async () => ({ id: "dry-run", dryRun: true }),
+        logger,
+      }),
+    ).rejects.toThrow("Magic-link email delivery is not configured.");
+
+    expect(lines.map(parseLine).some((line) => line.event === "auth.magic-link.sent")).toBe(false);
+    expect(lines.join("\n")).not.toContain("raw-token-value");
+    expect(lines.join("\n")).not.toContain("https://app.example");
+  });
+
+  test("a throwing dry-run sink rejects with a sanitized error and no sent event", async () => {
+    const { logger, lines } = createCapturingLogger();
+
+    await expect(
+      sendAuthMagicLink(PAYLOAD, {
+        sendEmail: async () => ({ id: "dry-run", dryRun: true }),
+        logger,
+        devLinkSink: () => {
+          throw new Error(`sink failed for ${PAYLOAD.url}`);
+        },
+      }),
+    ).rejects.toThrow("Magic-link email delivery is not configured.");
+
+    expect(lines.map(parseLine).some((line) => line.event === "auth.magic-link.sent")).toBe(false);
+    expect(lines.join("\n")).not.toContain("raw-token-value");
+    expect(lines.join("\n")).not.toContain("https://app.example");
+  });
+
+  test("real provider delivery does not require a development sink", async () => {
+    const { logger, lines } = createCapturingLogger();
+
+    await expect(
+      sendAuthMagicLink(PAYLOAD, {
+        sendEmail: async () => ({ id: "msg-1", dryRun: false }),
+        logger,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(lines.map(parseLine).some((line) => line.event === "auth.magic-link.sent")).toBe(true);
   });
 });

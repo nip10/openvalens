@@ -1,17 +1,21 @@
 import { expoClient } from "@better-auth/expo/client";
+import { magicLinkClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
 
 import { ENV } from "../src/env";
+import { authSessionBackingStorage, authSessionStorage } from "./auth-session-storage";
+
+const scheme = Constants.expoConfig?.scheme as string;
+const expoOptions = {
+  scheme,
+  storagePrefix: scheme,
+  cookiePrefix: "better-auth",
+  storage: authSessionBackingStorage,
+};
+const expoPlugin = authSessionStorage.wrapExpoPlugin(expoClient(expoOptions), expoOptions);
 
 export const authClient = createAuthClient({
   baseURL: ENV.EXPO_PUBLIC_SERVER_URL,
-  plugins: [
-    expoClient({
-      scheme: Constants.expoConfig?.scheme as string,
-      storagePrefix: Constants.expoConfig?.scheme as string,
-      storage: SecureStore,
-    }),
-  ],
+  plugins: [expoPlugin, magicLinkClient()],
 });
