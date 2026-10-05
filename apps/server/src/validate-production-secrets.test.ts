@@ -97,7 +97,7 @@ describe("validateProductionSecrets", () => {
     }
   });
 
-  test("production startup import uses the loaded Varlock ENV and reports names only", async () => {
+  test("production startup import uses Varlock ENV and reports names only with configuration docs", async () => {
     const fixtureDir = await mkdtemp(join(tmpdir(), "server-secret-startup-"));
     const schema = [
       "# @defaultRequired=true",
@@ -139,6 +139,9 @@ describe("validateProductionSecrets", () => {
 
       expect(exitCode).not.toBe(0);
       expect(output).toContain("BETTER_AUTH_SECRET");
+      expect(output).toContain(
+        "https://github.com/nip10/openvalens/blob/main/CONTRIBUTING.md#development-setup",
+      );
       expect(output).not.toContain("changeme");
       expect(output).not.toContain(validCronSecret);
     } finally {

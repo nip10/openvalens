@@ -46,7 +46,9 @@ export function validateProductionSecrets(env: ProductionSecrets): void {
 
   if (invalidKeys.length > 0) {
     throw new Error(
-      `Production secrets must not be obvious placeholders: ${invalidKeys.join(", ")}`,
+      `Production secrets must not be obvious placeholders: ${invalidKeys.join(", ")}. ` +
+        "Configure them before deploying: " +
+        "https://github.com/nip10/openvalens/blob/main/CONTRIBUTING.md#development-setup",
     );
   }
 }
