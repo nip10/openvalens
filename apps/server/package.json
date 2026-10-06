@@ -10,12 +10,13 @@
     "dev": "bun run --hot src/index.ts",
     "start": "bun run dist/index.mjs",
     "env:generate": "varlock codegen",
-    "auth:generate": "varlock run -- bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
+    "auth:generate": "bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
   },
   "dependencies": {
     "@openvalens/ai": "workspace:*",
     "@openvalens/api": "workspace:*",
     "@openvalens/auth": "workspace:*",
+    "@openvalens/config": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/email": "workspace:*",
     "@openvalens/observability": "workspace:*",
@@ -29,7 +30,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "tsdown": "^0.23.0",
     "typescript": "^6.0.3"

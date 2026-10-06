@@ -1,5 +1,7 @@
-import { defineConfig } from "drizzle-kit";
+import "@openvalens/config/file-secrets-preload.database";
 import "varlock/auto-load";
+import { defineConfig } from "drizzle-kit";
+import { ENV } from "./src/env";
 
 export default defineConfig({
   schema: "./src/schema/index.ts",
@@ -7,6 +9,6 @@ export default defineConfig({
   dialect: "postgresql",
   schemaFilter: ["public"],
   dbCredentials: {
-    url: process.env.DATABASE_URL || "",
+    url: ENV.DATABASE_URL,
   },
 });

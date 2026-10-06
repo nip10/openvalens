@@ -97,6 +97,34 @@ capabilities; it does not verify that external provider credentials are usable.
 Set `BETTER_AUTH_URL` and build-time `VITE_SERVER_URL` to the public API origin;
 set `CORS_ORIGIN` to the distinct, exact public web origin.
 
+### File-based secrets
+
+Every sensitive key above also accepts a `<KEY>_FILE` variant, so platform
+secret mounts can replace plain environment values. This covers
+`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN`, `DATABASE_URL`,
+`CRON_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, `RESEND_API_KEY`, `EMAIL_AUDIT_BCC`,
+`TELEGRAM_BOT_TOKEN` and `ANTHROPIC_API_KEY`; the same-origin rules for
+`BETTER_AUTH_URL` and `CORS_ORIGIN` apply to their file contents.
+
+- Point `<KEY>_FILE` at a mounted secret path such as `/run/secrets/<key>`.
+  Relative paths resolve against the process working directory; use absolute
+  paths in containers. `_FILE` values come from the **runtime environment**
+  (standard Bun `.env` autoloading and platform variables); a standalone
+  `varlock load`/`varlock run` does not resolve them.
+- The runtime process runs as the non-root `bun` user (uid 1000). Prefer secret
+  files owned by that UID with mode `0400`/`0600` and a directory readable only
+  by it (`0700`/`0500`). If host and container UIDs differ, fall back to mode
+  `0444` files inside a `0755` subdirectory under a `0700` host parent; the
+  read-only mount exposes only `/run/secrets`.
+- A non-empty `<KEY>` together with a non-empty `<KEY>_FILE` fails before the
+  process starts. An empty `<KEY>_FILE` is treated as unset.
+- Files must be regular (symlinked targets are followed), strict UTF-8 without
+  NUL bytes, non-empty and at most 64 KiB. Only trailing CR/LF is stripped.
+  Varlock schema failures are reported with masked values; file-resolution
+  failures name keys only, never paths or contents.
+
+See `CONTRIBUTING.md` ("File-based secrets") for examples.
+
 ## 5. Database and migrations
 
 - Provision PostgreSQL as a separate service.

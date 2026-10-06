@@ -2,5 +2,21 @@
   "name": "@openvalens/config",
   "version": "0.0.0",
   "private": true,
-  "license": "AGPL-3.0-or-later"
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./file-secrets": "./src/file-secrets.ts",
+    "./file-secrets-preload.server": "./src/file-secrets-preload.server.ts",
+    "./file-secrets-preload.database": "./src/file-secrets-preload.database.ts",
+    "./varlock-safe-error": "./src/varlock-safe-error.ts"
+  },
+  "scripts": {
+    "check-types": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:",
+    "typescript": "^6.0.3",
+    "varlock": "catalog:"
+  }
 }

@@ -8,6 +8,38 @@ import { validateProductionSecrets } from "./validate-production-secrets";
 const validAuthSecret = "synthetic-auth-secret-for-tests-0123456789";
 const validCronSecret = "synthetic-cron-secret-for-tests-0123456789";
 
+const minimalSchema = [
+  "# @defaultRequired=true",
+  "# ---",
+  "# @public @type=enum(development, production, test)",
+  "NODE_ENV=development",
+  "# @type=string(minLength=32)",
+  "BETTER_AUTH_SECRET=",
+  "# @type=string(minLength=16)",
+  "CRON_SECRET=",
+].join("\n");
+
+async function runEnvServerImport(
+  fixtureDir: string,
+  env: Record<string, string | undefined>,
+): Promise<{ exitCode: number | null; output: string }> {
+  const envServerUrl = new URL("./env.server.ts", import.meta.url).href;
+  const child = spawn(process.execPath, ["-e", `await import(${JSON.stringify(envServerUrl)});`], {
+    cwd: fixtureDir,
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
+  child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
+  const [exitCode] = await new Promise<[number | null]>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code) => resolve([code]));
+  });
+  return { exitCode, output: `${stdout}\n${stderr}` };
+}
+
 describe("validateProductionSecrets", () => {
   test("rejects each listed placeholder for either production secret", () => {
     const placeholders = [
@@ -144,6 +176,58 @@ describe("validateProductionSecrets", () => {
       );
       expect(output).not.toContain("changeme");
       expect(output).not.toContain(validCronSecret);
+    } finally {
+      await rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  test("production startup rejects a placeholder secret supplied via BETTER_AUTH_SECRET_FILE", async () => {
+    const fixtureDir = await mkdtemp(join(tmpdir(), "server-secret-file-placeholder-"));
+    const placeholder = "changeme".repeat(4);
+    const secretPath = join(fixtureDir, "better-auth.secret");
+    try {
+      await writeFile(join(fixtureDir, ".env.schema"), minimalSchema);
+      await writeFile(secretPath, `${placeholder}\n`);
+
+      const { exitCode, output } = await runEnvServerImport(fixtureDir, {
+        PATH: process.env.PATH,
+        NODE_ENV: "production",
+        BETTER_AUTH_SECRET_FILE: secretPath,
+        CRON_SECRET: validCronSecret,
+      });
+
+      expect(exitCode).not.toBe(0);
+      expect(output).toContain("BETTER_AUTH_SECRET");
+      expect(output).toContain(
+        "https://github.com/nip10/openvalens/blob/main/CONTRIBUTING.md#development-setup",
+      );
+      expect(output).not.toContain(placeholder);
+      expect(output).not.toContain(secretPath);
+    } finally {
+      await rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  test("production startup fails closed on an empty *_FILE secret without leaking its path", async () => {
+    const fixtureDir = await mkdtemp(join(tmpdir(), "server-secret-file-empty-"));
+    const secretPath = join(fixtureDir, "better-auth.secret");
+    try {
+      await writeFile(join(fixtureDir, ".env.schema"), minimalSchema);
+      await writeFile(secretPath, "   \n");
+
+      const { exitCode, output } = await runEnvServerImport(fixtureDir, {
+        PATH: process.env.PATH,
+        NODE_ENV: "production",
+        BETTER_AUTH_SECRET_FILE: secretPath,
+        CRON_SECRET: validCronSecret,
+      });
+
+      expect(exitCode).not.toBe(0);
+      expect(output).toContain("BETTER_AUTH_SECRET");
+      expect(output).toContain(
+        "https://github.com/nip10/openvalens/blob/main/CONTRIBUTING.md#file-based-secrets",
+      );
+      expect(output).not.toContain(secretPath);
     } finally {
       await rm(fixtureDir, { recursive: true, force: true });
     }

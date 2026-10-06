@@ -23,10 +23,12 @@ import {
   DockerSmokeResourceExecutor,
   fetchWithSmokeTimeout,
   getCanonicalRepositoryRoot,
+  makeEnvFiles,
   parseSmokeArguments,
   preflightSmokeResources,
   removePrivateFixtures,
   resolveArtifactRoot,
+  runCommand,
   type SmokeResource,
   type SmokeResourceExecutor,
   writePrivateFixtures,
@@ -220,10 +222,12 @@ exit 0
     } finally {
       await rm(external, { recursive: true, force: true });
     }
-    expect(parseSmokeArguments([])).toEqual({ help: false });
-    expect(parseSmokeArguments(["--help"])).toEqual({ help: true });
+    expect(parseSmokeArguments([])).toEqual({ help: false, fileSecrets: false });
+    expect(parseSmokeArguments(["--help"])).toEqual({ help: true, fileSecrets: false });
+    expect(parseSmokeArguments(["--file-secrets"])).toEqual({ help: false, fileSecrets: true });
     expect(() => parseSmokeArguments(["--dry-run"])).toThrow();
     expect(() => parseSmokeArguments(["--help", "--dry-run"])).toThrow();
+    expect(() => parseSmokeArguments(["--file-secrets", "--dry-run"])).toThrow();
   });
 
   test("CLI rejects repository artifact overrides before creating fixtures or calling Docker", async () => {
@@ -305,6 +309,95 @@ exit 0
     expect(yaml).not.toContain("container_name:");
     expect(yaml).not.toContain("openhealth_openhealth_postgres_data");
     expect(yaml).not.toMatch(/\n\s+ports:\n\s+- .*5432/);
+    expect(yaml).not.toContain("/run/secrets");
+  });
+
+  test("mounts *_FILE secrets read-only only in the file-secrets profile", () => {
+    const yaml = createSmokeComposeConfig({
+      project: "ov-smoke-ab12cdef3456",
+      runId: "run-1",
+      serverImage: "openvalens-smoke-server:run-1",
+      webImage: "openvalens-smoke-web:run-1",
+      serverEnvFile: "/private/server.env",
+      webEnvFile: "/private/web.env",
+      postgresEnvFile: "/private/postgres.env",
+      serverPort: 43210,
+      webPort: 43211,
+      serverSecretsDir: "/private/secrets",
+    });
+
+    expect(yaml).toContain('"/private/secrets:/run/secrets:ro"');
+    expect(yaml).toContain("server:");
+    expect(yaml).toContain("smoke_data:/var/lib/postgresql");
+  });
+
+  test("file-secrets profile supplies *_FILE mounts and no direct sensitive values", () => {
+    const base = {
+      apiOrigin: "http://127.0.0.1:43210",
+      webOrigin: "http://127.0.0.1:43211",
+      databaseUrl: "postgresql://postgres:pw@db:5432/openhealth",
+      authSecret: "synthetic-auth-secret-value-0123456789",
+      cronSecret: "synthetic-cron-secret-value-0123456789",
+      webhookSecret: "synthetic-webhook-secret-0123456789",
+      postgresPassword: "synthetic-postgres-password",
+    };
+
+    const direct = makeEnvFiles(base);
+    expect(direct.server).toContain("BETTER_AUTH_SECRET=synthetic-auth-secret-value-0123456789");
+    expect(direct.server).not.toContain("_FILE=");
+    expect(direct.secretFiles).toBeUndefined();
+
+    const fileSecrets = makeEnvFiles(base, { fileSecrets: true });
+    expect(fileSecrets.secretFiles).toBeDefined();
+    expect(Object.keys(fileSecrets.secretFiles ?? {}).sort()).toEqual(
+      [
+        "ANTHROPIC_API_KEY",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "CORS_ORIGIN",
+        "CRON_SECRET",
+        "DATABASE_URL",
+        "EMAIL_AUDIT_BCC",
+        "RESEND_API_KEY",
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_WEBHOOK_SECRET",
+      ].sort(),
+    );
+    expect(fileSecrets.server).toContain("BETTER_AUTH_SECRET_FILE=/run/secrets/BETTER_AUTH_SECRET");
+    expect(fileSecrets.server).not.toMatch(/^BETTER_AUTH_SECRET=/m);
+    expect(fileSecrets.server).toContain("EMAIL_DRY_RUN=true");
+    // The web and postgres fixtures are unchanged by the profile.
+    expect(fileSecrets.web).toBe(direct.web);
+    expect(fileSecrets.postgres).toBe(direct.postgres);
+  });
+
+  test("raw leak detection flags a forbidden token even after output sanitization", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "ov-smoke-leak-test-"));
+    try {
+      const canary = "SYNTHETIC-LEAK-CANARY-VALUE";
+      const leaking = await runCommand(
+        [
+          "bun",
+          "-e",
+          `process.stdout.write(${JSON.stringify(canary)});process.stderr.write("stderr-ok")`,
+        ],
+        join(directory, "leak.log"),
+        { forbiddenOutputTokens: [canary] },
+      );
+      // The flag is computed from the raw streams, so it is true even though the
+      // returned (sanitized) output no longer contains the canary.
+      expect(leaking.leakedSensitiveOutput).toBe(true);
+      expect(leaking.output).not.toContain(canary);
+
+      const safe = await runCommand(
+        ["bun", "-e", 'process.stdout.write("all-clear");process.stderr.write("ok")'],
+        join(directory, "safe.log"),
+        { forbiddenOutputTokens: [canary] },
+      );
+      expect(safe.leakedSensitiveOutput).toBe(false);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   test("preflight refuses project-name collisions before any startup", async () => {

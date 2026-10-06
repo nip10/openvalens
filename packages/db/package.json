@@ -17,12 +17,12 @@
     "db:backfill-org": "bun run src/backfill-org-id.ts"
   },
   "dependencies": {
+    "@openvalens/config": "workspace:*",
     "drizzle-orm": "catalog:",
     "pg": "^8.23.0",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@openvalens/config": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "1.0.0-rc.4",
     "typescript": "^6.0.3",
