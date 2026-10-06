@@ -222,6 +222,21 @@ outside the build context with private permissions and removed during cleanup;
 uniquely tagged images and image-ID records are retained for audit. Sanitized
 progress is printed while detailed command logs remain in the private temp
 artifact folder.
+Unknown command-line arguments are rejected before temporary files or Docker
+are accessed; `--help` is the only accepted option. Artifacts use a unique
+mode-`0700` child of the OS temporary directory. Set `OPENVALENS_SMOKE_TMPDIR`
+to an absolute parent path to select another location; the script does not
+delete or chmod that parent. Synthetic env files are mode-`0600` and removed in
+a finalizer even when Docker cleanup fails. Catchable SIGINT/SIGTERM stop the
+active child command and attempt cleanup; SIGKILL and host failure cannot run
+finalizers.
+
+Before building or starting containers, the script checks for project-name and
+ownership-label collisions and fails closed if any exist. Services, volume, and
+network have run-unique ownership labels. Cleanup re-inspects exact resource
+identities and project/run labels, then removes verified containers followed by
+the unreferenced owned network and volume; it does not use project-wide
+`compose down`.
 The test does not configure Resend, AI, Telegram, TLS, backups, or production
 provisioning, and does not prove external email delivery.
 

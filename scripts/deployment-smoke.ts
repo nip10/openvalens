@@ -1,11 +1,75 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { access, chmod, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { access, chmod, mkdir, mkdtemp, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { isAbsolute, join, parse, resolve } from "node:path";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 
 const repository = new URL("../", import.meta.url).pathname;
-const artifactRoot = "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode";
 const ownershipLabel = "com.openvalens.deployment-smoke.run";
+const composeProjectLabel = "com.docker.compose.project";
+const composeServiceLabel = "com.docker.compose.service";
+
+const activeChildren = new Set<ReturnType<typeof Bun.spawn>>();
+let receivedSignal: "SIGINT" | "SIGTERM" | undefined;
+let interruptController: AbortController | null = null;
+const sensitiveValues = new Set<string>();
+
+export type SmokeResourceKind = "container" | "network" | "volume";
+
+export type SmokeResource = {
+  kind: SmokeResourceKind;
+  id: string;
+  name: string;
+  labels: Record<string, string | undefined>;
+  service?: string;
+  references?: string[];
+};
+
+export interface SmokeResourceExecutor {
+  list(kind: SmokeResourceKind, project: string, runId: string): Promise<SmokeResource[]>;
+  inspect(kind: SmokeResourceKind, id: string): Promise<SmokeResource | null>;
+  remove(kind: SmokeResourceKind, id: string): Promise<void>;
+}
+
+export function parseSmokeArguments(args: string[]): { help: boolean } {
+  if (args.length === 0) return { help: false };
+  if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
+    return { help: true };
+  }
+  throw new Error("Unknown or unsupported smoke-test arguments. Run with --help for usage.");
+}
+
+export function resolveArtifactRoot(override: string | undefined, defaultRoot = tmpdir()): string {
+  const selected = override?.trim() || defaultRoot;
+  if (!isAbsolute(selected)) {
+    throw new Error("OPENVALENS_SMOKE_TMPDIR must be an absolute directory path");
+  }
+  const root = resolve(selected);
+  if (root === parse(root).root) {
+    throw new Error("Smoke artifact directory cannot be a filesystem root");
+  }
+  return root;
+}
+
+function rememberSensitiveEnv(content: string): void {
+  for (const line of content.split("\n")) {
+    const separator = line.indexOf("=");
+    if (separator < 1) continue;
+    const key = line.slice(0, separator);
+    const value = line.slice(separator + 1);
+    if (/(?:SECRET|PASSWORD|DATABASE_URL)/.test(key) && value.length > 0) {
+      sensitiveValues.add(value);
+    }
+  }
+}
+
+function sanitizeOutput(output: string): string {
+  let sanitized = output;
+  for (const value of sensitiveValues) {
+    sanitized = sanitized.replaceAll(value, "[REDACTED]");
+  }
+  return sanitized;
+}
 
 type SmokeConfiguration = {
   project: string;
@@ -78,6 +142,10 @@ volumes:
   smoke_data:
     labels:
       ${ownershipLabel}: ${quote(config.runId)}
+networks:
+  default:
+    labels:
+      ${ownershipLabel}: ${quote(config.runId)}
 `;
 }
 
@@ -85,6 +153,9 @@ function help(): void {
   console.log("Usage: bun scripts/deployment-smoke.ts [--help]");
   console.log("Build and exercise production images against a new, isolated Postgres volume.");
   console.log("The smoke test never reads repository .env files or the legacy compose project.");
+  console.log(
+    "Set OPENVALENS_SMOKE_TMPDIR to choose an absolute private artifact parent directory.",
+  );
 }
 
 function log(message: string): void {
@@ -92,8 +163,19 @@ function log(message: string): void {
 }
 
 async function writePrivateFile(path: string, content: string): Promise<void> {
+  assertNotInterrupted();
   await writeFile(path, content, { mode: 0o600 });
   await chmod(path, 0o600);
+  assertNotInterrupted();
+}
+
+function assertNotInterrupted(): void {
+  if (receivedSignal) throw new Error("Deployment smoke interrupted");
+}
+
+function requestSignal(timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return interruptController ? AbortSignal.any([timeout, interruptController.signal]) : timeout;
 }
 
 async function availablePort(): Promise<number> {
@@ -116,29 +198,47 @@ type CommandResult = { code: number; output: string };
 async function runCommand(
   args: string[],
   logPath: string,
-  options: { cwd?: string; env?: Record<string, string>; timeoutMs?: number } = {},
+  options: {
+    cwd?: string;
+    env?: Record<string, string>;
+    timeoutMs?: number;
+    allowDuringShutdown?: boolean;
+  } = {},
 ): Promise<CommandResult> {
-  const process = Bun.spawn(args, {
+  if (!options.allowDuringShutdown) assertNotInterrupted();
+  const child = Bun.spawn(args, {
     cwd: options.cwd ?? repository,
     env: options.env,
     stdout: "pipe",
     stderr: "pipe",
   });
+  activeChildren.add(child);
   const outputPromise = Promise.all([
-    new Response(process.stdout).text(),
-    new Response(process.stderr).text(),
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
   ]);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let killTimer: ReturnType<typeof setTimeout> | undefined;
   if (options.timeoutMs) {
-    timer = setTimeout(() => process.kill("SIGTERM"), options.timeoutMs);
+    timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      killTimer = setTimeout(() => child.kill("SIGKILL"), 1_000);
+    }, options.timeoutMs);
   }
-  const code = await process.exited;
-  if (timer) clearTimeout(timer);
-  const [stdout, stderr] = await outputPromise;
-  const output = `${stdout}${stderr ? `\n${stderr}` : ""}`;
-  await Bun.write(logPath, output);
-  await chmod(logPath, 0o600);
-  return { code, output: output.trim() };
+  try {
+    const code = await child.exited;
+    if (timer) clearTimeout(timer);
+    if (killTimer) clearTimeout(killTimer);
+    const [stdout, stderr] = await outputPromise;
+    const output = sanitizeOutput(`${stdout}${stderr ? `\n${stderr}` : ""}`);
+    await writeFile(logPath, output, { mode: 0o600 });
+    await chmod(logPath, 0o600);
+    if (!options.allowDuringShutdown) assertNotInterrupted();
+    return { code, output: output.trim() };
+  } finally {
+    if (timer) clearTimeout(timer);
+    activeChildren.delete(child);
+  }
 }
 
 function ensureSuccess(result: CommandResult, operation: string): string {
@@ -147,21 +247,305 @@ function ensureSuccess(result: CommandResult, operation: string): string {
   return result.output;
 }
 
-async function inspectLabels(
+function expectedResourceName(kind: SmokeResourceKind, project: string): string[] {
+  if (kind === "container") {
+    return [`${project}-db-1`, `${project}-server-1`, `${project}-web-1`, `${project}-migration`];
+  }
+  return [kind === "network" ? `${project}_default` : `${project}_smoke_data`];
+}
+
+function isCandidateResource(resource: SmokeResource, project: string, runId: string): boolean {
+  return (
+    resource.labels[composeProjectLabel] === project ||
+    resource.labels[ownershipLabel] === runId ||
+    expectedResourceName(resource.kind, project).includes(resource.name)
+  );
+}
+
+function isExpectedOwnedResource(resource: SmokeResource, project: string, runId: string): boolean {
+  const correctLabels =
+    resource.labels[composeProjectLabel] === project && resource.labels[ownershipLabel] === runId;
+  if (!correctLabels) return false;
+  if (resource.kind === "network") return resource.name === `${project}_default`;
+  if (resource.kind === "volume") return resource.name === `${project}_smoke_data`;
+  const services = new Map([
+    [`${project}-db-1`, "db"],
+    [`${project}-server-1`, "server"],
+    [`${project}-web-1`, "web"],
+    [`${project}-migration`, "migration"],
+  ]);
+  return services.get(resource.name) === resource.service;
+}
+
+function ensureValidCandidateSet(resources: SmokeResource[], project: string, runId: string): void {
+  for (const kind of ["container", "network", "volume"] as const) {
+    const seenNames = new Set<string>();
+    for (const resource of resources.filter((item) => item.kind === kind)) {
+      if (!isExpectedOwnedResource(resource, project, runId)) {
+        throw new Error("Docker resource ownership verification failed");
+      }
+      if (seenNames.has(resource.name)) {
+        throw new Error("Docker resource identity was duplicated");
+      }
+      seenNames.add(resource.name);
+    }
+  }
+}
+
+export async function preflightSmokeResources(
+  executor: SmokeResourceExecutor,
+  project: string,
+  runId: string,
+): Promise<void> {
+  const inventories: SmokeResource[][] = [];
+  for (const kind of ["container", "network", "volume"] as const) {
+    inventories.push(await executor.list(kind, project, runId));
+  }
+  const candidates = inventories
+    .flat()
+    .filter((resource) => isCandidateResource(resource, project, runId));
+  if (candidates.length > 0) {
+    throw new Error("Smoke project resource collision detected; refusing to start");
+  }
+}
+
+export async function getOwnedSmokeNetworkName(
+  executor: SmokeResourceExecutor,
+  project: string,
+  runId: string,
+): Promise<string> {
+  const resources = (await executor.list("network", project, runId)).filter((resource) =>
+    isCandidateResource(resource, project, runId),
+  );
+  ensureValidCandidateSet(resources, project, runId);
+  if (resources.length !== 1 || resources[0]?.name !== `${project}_default`) {
+    throw new Error("Expected exactly one run-owned smoke network");
+  }
+  return resources[0].name;
+}
+
+export async function cleanupOwnedSmokeResources(
+  executor: SmokeResourceExecutor,
+  project: string,
+  runId: string,
+): Promise<boolean> {
+  try {
+    const inventories: SmokeResource[][] = [];
+    for (const kind of ["container", "network", "volume"] as const) {
+      inventories.push(await executor.list(kind, project, runId));
+    }
+    const candidates = inventories
+      .flat()
+      .filter((resource) => isCandidateResource(resource, project, runId));
+    ensureValidCandidateSet(candidates, project, runId);
+
+    const containers = candidates
+      .filter((resource) => resource.kind === "container")
+      .sort((left, right) => {
+        const order = ["web", "server", "db"];
+        return order.indexOf(left.service ?? "") - order.indexOf(right.service ?? "");
+      });
+    const networks = candidates.filter((resource) => resource.kind === "network");
+    const volumes = candidates.filter((resource) => resource.kind === "volume");
+
+    for (const expected of containers) {
+      const current = await executor.inspect("container", expected.id);
+      if (current === null) continue;
+      if (current.id !== expected.id || !isExpectedOwnedResource(current, project, runId)) {
+        throw new Error("Container changed ownership before cleanup");
+      }
+      await executor.remove("container", current.id);
+    }
+    for (const expected of networks) {
+      const current = await executor.inspect("network", expected.id);
+      if (current === null) continue;
+      if (
+        current.id !== expected.id ||
+        !isExpectedOwnedResource(current, project, runId) ||
+        (current.references?.length ?? 0) > 0
+      ) {
+        throw new Error("Network changed ownership or remains attached before cleanup");
+      }
+      await executor.remove("network", current.id);
+    }
+    for (const expected of volumes) {
+      const current = await executor.inspect("volume", expected.id);
+      if (current === null) continue;
+      if (current.id !== expected.id || !isExpectedOwnedResource(current, project, runId)) {
+        throw new Error("Volume changed ownership before cleanup");
+      }
+      await executor.remove("volume", current.id);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+class DockerSmokeResourceExecutor implements SmokeResourceExecutor {
+  private logIndex = 0;
+  private readonly shutdownDeadline: number;
+
+  constructor(
+    private readonly artifacts: string,
+    private readonly allowDuringShutdown: boolean,
+  ) {
+    this.shutdownDeadline = allowDuringShutdown ? Date.now() + 60_000 : Number.POSITIVE_INFINITY;
+  }
+
+  private async command(args: string[], label: string): Promise<CommandResult> {
+    const remaining = this.shutdownDeadline - Date.now();
+    if (remaining <= 0) throw new Error("Docker cleanup time budget exhausted");
+    const result = await runCommand(
+      args,
+      join(
+        this.artifacts,
+        `${this.allowDuringShutdown ? "cleanup" : "preflight"}-${++this.logIndex}-${label}.log`,
+      ),
+      {
+        timeoutMs: Math.min(10_000, remaining),
+        allowDuringShutdown: this.allowDuringShutdown,
+      },
+    );
+    if (result.code !== 0) throw new Error("Docker command failed; inspect private logs");
+    return result;
+  }
+
+  async list(kind: SmokeResourceKind, project: string, runId: string): Promise<SmokeResource[]> {
+    const [cli, baseArgs] =
+      kind === "container"
+        ? ["container", ["ls", "-aq"]]
+        : kind === "network"
+          ? ["network", ["ls", "-q"]]
+          : ["volume", ["ls", "-q"]];
+    const filters = [
+      `name=${project}`,
+      `label=${composeProjectLabel}=${project}`,
+      `label=${ownershipLabel}=${runId}`,
+    ];
+    const ids = new Set<string>();
+    for (const [index, filter] of filters.entries()) {
+      const result = await this.command(
+        ["docker", cli, ...baseArgs, "--filter", filter],
+        `${kind}-list-${index}`,
+      );
+      for (const id of result.output.split(/\s+/).filter(Boolean)) ids.add(id);
+    }
+    const resources: SmokeResource[] = [];
+    for (const id of ids) {
+      const inspected = await this.inspect(kind, id);
+      if (inspected) resources.push(inspected);
+    }
+    return resources;
+  }
+
+  async inspect(kind: SmokeResourceKind, id: string): Promise<SmokeResource | null> {
+    const args =
+      kind === "container"
+        ? ["docker", "inspect", "--type", "container", "--format", "{{json .}}", id]
+        : ["docker", kind, "inspect", "--format", "{{json .}}", id];
+    const remaining = this.shutdownDeadline - Date.now();
+    if (remaining <= 0) throw new Error("Docker cleanup time budget exhausted");
+    const result = await runCommand(
+      args,
+      join(
+        this.artifacts,
+        `${this.allowDuringShutdown ? "cleanup" : "preflight"}-${++this.logIndex}-${kind}-inspect.log`,
+      ),
+      {
+        timeoutMs: Math.min(10_000, remaining),
+        allowDuringShutdown: this.allowDuringShutdown,
+      },
+    );
+    if (result.code !== 0) {
+      const message = result.output.toLowerCase();
+      const knownGone =
+        (kind === "container" &&
+          (message.includes("no such object") || message.includes("no such container"))) ||
+        (kind === "network" &&
+          (message.includes("no such network") ||
+            (message.includes("network") && message.includes("not found")))) ||
+        (kind === "volume" &&
+          (message.includes("no such volume") ||
+            (message.includes("volume") && message.includes("not found"))));
+      if (knownGone) return null;
+      throw new Error("Docker resource inspection failed; inspect private logs");
+    }
+    let raw: Record<string, unknown>;
+    try {
+      raw = JSON.parse(result.output) as Record<string, unknown>;
+    } catch {
+      throw new Error("Docker returned malformed resource metadata");
+    }
+    const config = raw.Config as Record<string, unknown> | undefined;
+    const labels = (kind === "container" ? config?.Labels : raw.Labels) as
+      | Record<string, string | undefined>
+      | undefined;
+    const name = String(raw.Name ?? "").replace(/^\/+/, "");
+    const rawId = kind === "volume" ? name : String(raw.Id ?? "");
+    if (!rawId || !name || !labels) throw new Error("Docker resource metadata is incomplete");
+    const containers = raw.Containers as Record<string, unknown> | undefined;
+    return {
+      kind,
+      id: rawId,
+      name,
+      labels,
+      service: labels[composeServiceLabel],
+      references: kind === "network" ? Object.keys(containers ?? {}) : undefined,
+    };
+  }
+
+  async remove(kind: SmokeResourceKind, id: string): Promise<void> {
+    const args =
+      kind === "container"
+        ? ["docker", "container", "rm", "--force", id]
+        : ["docker", kind, "rm", id];
+    await this.command(args, `${kind}-remove`);
+  }
+}
+
+export async function cleanupAndRemoveFixtures(
+  cleanupResources: () => Promise<unknown>,
+  removeFixtures: () => Promise<void>,
+): Promise<void> {
+  try {
+    await cleanupResources();
+  } finally {
+    await removeFixtures();
+  }
+}
+
+export async function writePrivateFixtures(
+  directory: string,
+  files: Record<string, string>,
+  writer: (path: string, content: string) => Promise<void> = writePrivateFile,
+): Promise<void> {
+  for (const [name, content] of Object.entries(files)) {
+    await writer(join(directory, name), content);
+  }
+}
+
+export async function removePrivateFixtures(directory: string): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      lastError = error;
+      await Bun.sleep(100 * (attempt + 1));
+    }
+  }
+  void lastError;
+  throw new Error("Private fixture removal failed");
+}
+
+async function inspectImageLabels(
   target: string,
   logPath: string,
-  resource: "container" | "volume" | "image" = "container",
 ): Promise<Record<string, string> | null> {
   const result = await runCommand(
-    [
-      "docker",
-      ...(resource === "volume"
-        ? ["volume", "inspect", "--format", "{{json .Labels}}"]
-        : resource === "image"
-          ? ["image", "inspect", "--format", "{{json .Config.Labels}}"]
-          : ["inspect", "--format", "{{json .Config.Labels}}"]),
-      target,
-    ],
+    ["docker", "image", "inspect", "--format", "{{json .Config.Labels}}", target],
     logPath,
     { timeoutMs: 15_000 },
   );
@@ -171,84 +555,6 @@ async function inspectLabels(
   } catch {
     return null;
   }
-}
-
-async function cleanup(
-  config: SmokeConfiguration,
-  composePath: string,
-  artifacts: string,
-): Promise<boolean> {
-  const logPath = join(artifacts, "cleanup.log");
-  const composeBase = ["docker", "compose", "-p", config.project, "-f", composePath];
-  const listing = await runCommand([...composeBase, "ps", "-aq"], logPath, { timeoutMs: 15_000 });
-  if (listing.code !== 0) {
-    log("cleanup skipped: isolated compose project could not be verified");
-    return false;
-  }
-
-  const containers = listing.output.split(/\s+/).filter(Boolean);
-  for (const container of containers) {
-    const labels = await inspectLabels(container, logPath);
-    if (!labels || !canRemoveSmokeResource(labels, config.project, config.runId)) {
-      log("cleanup skipped: a compose container failed ownership verification");
-      return false;
-    }
-  }
-
-  const volumeList = await runCommand(
-    [
-      "docker",
-      "volume",
-      "ls",
-      "--filter",
-      `label=${ownershipLabel}=${config.runId}`,
-      "--format",
-      "{{.Name}}",
-    ],
-    logPath,
-    { timeoutMs: 15_000 },
-  );
-  if (volumeList.code !== 0) {
-    log("cleanup skipped: isolated volume could not be verified");
-    return false;
-  }
-  const volumes = volumeList.output.split(/\s+/).filter(Boolean);
-  for (const volume of volumes) {
-    const labels = await inspectLabels(volume, logPath, "volume");
-    if (
-      !labels ||
-      labels[ownershipLabel] !== config.runId ||
-      labels["com.docker.compose.project"] !== config.project
-    ) {
-      log("cleanup skipped: a volume failed ownership verification");
-      return false;
-    }
-  }
-
-  const down = await runCommand([...composeBase, "down", "--timeout", "10"], logPath, {
-    timeoutMs: 30_000,
-  });
-  if (down.code !== 0) {
-    log("cleanup incomplete: isolated containers/network need manual review");
-    return false;
-  }
-  for (const volume of volumes) {
-    const labels = await inspectLabels(volume, logPath, "volume");
-    if (
-      labels?.[ownershipLabel] === config.runId &&
-      labels["com.docker.compose.project"] === config.project
-    ) {
-      const removed = await runCommand(["docker", "volume", "rm", volume], logPath, {
-        timeoutMs: 15_000,
-      });
-      if (removed.code !== 0) {
-        log("cleanup incomplete: owned smoke volume could not be removed");
-        return false;
-      }
-    }
-  }
-
-  return true;
 }
 
 async function countTrackedMigrations(): Promise<number> {
@@ -306,7 +612,7 @@ async function assertProductionGuard(
   let lastStatus = "unavailable";
   for (let attempt = 0; attempt < 40; attempt += 1) {
     try {
-      const response = await fetch(root, { signal: AbortSignal.timeout(2_000) });
+      const response = await fetch(root, { signal: requestSignal(2_000) });
       lastStatus = String(response.status);
       if (response.status === 200 && (await response.text()) === "OK") return;
     } catch {
@@ -321,52 +627,67 @@ async function assertProductionGuard(
 async function performSmoke(): Promise<void> {
   const runId = randomUUID();
   const project = createSmokeProjectName(runId);
-  await Bun.$`mkdir -p ${artifactRoot}`.quiet();
-  const artifacts = await mkdtemp(join(artifactRoot, `${project}-`));
-  await chmod(artifacts, 0o700);
-  const privateDir = join(artifacts, "private");
-  await Bun.$`mkdir -p ${privateDir}`.quiet();
-  await chmod(privateDir, 0o700);
-
-  const serverPort = await availablePort();
-  let webPort = await availablePort();
-  while (webPort === serverPort) webPort = await availablePort();
-  const apiOrigin = `http://127.0.0.1:${serverPort}`;
-  const webOrigin = `http://127.0.0.1:${webPort}`;
-  const postgresPassword = randomBytes(32).toString("hex");
-  const config: SmokeConfiguration = {
-    project,
-    runId,
-    serverImage: `openvalens-smoke-server:${runId.slice(0, 12)}`,
-    webImage: `openvalens-smoke-web:${runId.slice(0, 12)}`,
-    serverEnvFile: join(privateDir, "server.env"),
-    webEnvFile: join(privateDir, "web.env"),
-    postgresEnvFile: join(privateDir, "postgres.env"),
-    serverPort,
-    webPort,
-  };
-  const composePath = join(artifacts, "compose.yaml");
-  const composeBase = ["docker", "compose", "-p", project, "-f", composePath];
-  const imageLabel = `${ownershipLabel}=${runId}`;
-  const imageIds: string[] = [];
-  const password = postgresPassword;
-  const envFiles = makeEnvFiles({
-    apiOrigin,
-    webOrigin,
-    databaseUrl: `postgresql://postgres:${password}@db:5432/openhealth`,
-    authSecret: randomBytes(48).toString("hex"),
-    cronSecret: randomBytes(24).toString("hex"),
-    webhookSecret: randomBytes(24).toString("hex"),
-    postgresPassword,
-  });
-  await writePrivateFile(config.serverEnvFile, envFiles.server);
-  await writePrivateFile(config.webEnvFile, envFiles.web);
-  await writePrivateFile(config.postgresEnvFile, envFiles.postgres);
-  await writePrivateFile(composePath, createSmokeComposeConfig(config));
-
-  log(`private artifacts: ${artifacts}`);
-  log("building pinned production images with frozen workspace lockfile");
+  let artifacts: string | undefined;
+  let privateDir: string | undefined;
+  let config: SmokeConfiguration | undefined;
+  let rootExecutor: DockerSmokeResourceExecutor | undefined;
+  let imagesRetained = false;
   try {
+    const configuredArtifactRoot = resolveArtifactRoot(process.env.OPENVALENS_SMOKE_TMPDIR);
+    await mkdir(configuredArtifactRoot, { recursive: true, mode: 0o700 });
+    const artifactRoot = resolveArtifactRoot(await realpath(configuredArtifactRoot));
+    artifacts = await mkdtemp(join(artifactRoot, `${project}-`));
+    await chmod(artifacts, 0o700);
+    privateDir = join(artifacts, "private");
+    await mkdir(privateDir, { mode: 0o700 });
+    await chmod(privateDir, 0o700);
+
+    rootExecutor = new DockerSmokeResourceExecutor(artifacts, false);
+    await preflightSmokeResources(rootExecutor, project, runId);
+
+    const serverPort = await availablePort();
+    let webPort = await availablePort();
+    while (webPort === serverPort) webPort = await availablePort();
+    const apiOrigin = `http://127.0.0.1:${serverPort}`;
+    const webOrigin = `http://127.0.0.1:${webPort}`;
+    const postgresPassword = randomBytes(32).toString("hex");
+    config = {
+      project,
+      runId,
+      serverImage: `openvalens-smoke-server:${runId.slice(0, 12)}`,
+      webImage: `openvalens-smoke-web:${runId.slice(0, 12)}`,
+      serverEnvFile: join(privateDir, "server.env"),
+      webEnvFile: join(privateDir, "web.env"),
+      postgresEnvFile: join(privateDir, "postgres.env"),
+      serverPort,
+      webPort,
+    };
+    const smokeConfig = config;
+    const smokeComposePath = join(privateDir, "compose.yaml");
+    const composeBase = ["docker", "compose", "-p", project, "-f", smokeComposePath];
+    const imageLabel = `${ownershipLabel}=${runId}`;
+    const imageIds: string[] = [];
+    const password = postgresPassword;
+    const envFiles = makeEnvFiles({
+      apiOrigin,
+      webOrigin,
+      databaseUrl: `postgresql://postgres:${password}@db:5432/openhealth`,
+      authSecret: randomBytes(48).toString("hex"),
+      cronSecret: randomBytes(24).toString("hex"),
+      webhookSecret: randomBytes(24).toString("hex"),
+      postgresPassword,
+    });
+    rememberSensitiveEnv(envFiles.server);
+    rememberSensitiveEnv(envFiles.postgres);
+    await writePrivateFixtures(privateDir, {
+      "server.env": envFiles.server,
+      "web.env": envFiles.web,
+      "postgres.env": envFiles.postgres,
+      "compose.yaml": createSmokeComposeConfig(smokeConfig),
+    });
+
+    log("private logs retained under the selected smoke artifact directory");
+    log("building pinned production images with frozen workspace lockfile");
     const buildDeadline = Date.now() + 20 * 60 * 1000;
     for (const [image, dockerfile, secretArgs] of [
       [config.serverImage, "apps/server/Dockerfile", []],
@@ -403,11 +724,12 @@ async function performSmoke(): Promise<void> {
         { timeoutMs: 15_000 },
       );
       const imageId = ensureSuccess(imageInfo, "built image inspection").trim();
-      const labels = await inspectLabels(image, join(artifacts, "image-label-check.log"), "image");
+      const labels = await inspectImageLabels(image, join(artifacts, "image-label-check.log"));
       if (labels?.[ownershipLabel] !== runId || !/^sha256:[0-9a-f]{64}$/.test(imageId)) {
         throw new Error("Built image failed run-ownership verification");
       }
       imageIds.push(`${image} ${imageId}`);
+      imagesRetained = true;
       await writePrivateFile(join(artifacts, "images.txt"), `${imageIds.join("\n")}\n`);
       log(`retained image ${image} (${imageId})`);
       log(`${image.includes("server") ? "server" : "web"} image build passed`);
@@ -425,22 +747,7 @@ async function performSmoke(): Promise<void> {
 
     // Run the package's direct Drizzle script, avoiding the root's interactive Turbo task.
     // The generated database is reachable only over this isolated network.
-    const networkListing = await runCommand(
-      [
-        "docker",
-        "network",
-        "ls",
-        "--filter",
-        `label=com.docker.compose.project=${project}`,
-        "--format",
-        "{{.Name}}",
-      ],
-      join(artifacts, "compose-network.log"),
-      { timeoutMs: 15_000 },
-    );
-    const network = networkListing.output.split(/\s+/).filter(Boolean)[0];
-    if (networkListing.code !== 0 || !network)
-      throw new Error("Could not verify isolated migration network");
+    const network = await getOwnedSmokeNetworkName(rootExecutor, project, runId);
     const migrated = await runCommand(
       [
         "docker",
@@ -452,6 +759,12 @@ async function performSmoke(): Promise<void> {
         config.serverEnvFile,
         "--label",
         imageLabel,
+        "--label",
+        `${composeProjectLabel}=${project}`,
+        "--label",
+        `${composeServiceLabel}=migration`,
+        "--name",
+        `${project}-migration`,
         "--workdir",
         "/app/packages/db",
         config.serverImage,
@@ -529,7 +842,8 @@ async function performSmoke(): Promise<void> {
     const negativeEnv = envFiles.server
       .replace(/BETTER_AUTH_SECRET=[^\n]*/, `BETTER_AUTH_SECRET=${placeholderAuth}`)
       .replace(/CRON_SECRET=[^\n]*/, `CRON_SECRET=${placeholderCron}`);
-    const negativeEnvPath = join(privateDir, "placeholder-secrets.env");
+    const negativeEnvPath = join(privateDir as string, "placeholder-secrets.env");
+    rememberSensitiveEnv(negativeEnv);
     await writePrivateFile(negativeEnvPath, negativeEnv);
     const negativeGuard = await runCommand(
       [
@@ -594,7 +908,7 @@ async function performSmoke(): Promise<void> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
-      signal: AbortSignal.timeout(10_000),
+      signal: requestSignal(10_000),
     });
     const readinessBody = (await readiness.json()) as {
       status?: string;
@@ -611,14 +925,14 @@ async function performSmoke(): Promise<void> {
     }
     log("readiness POST passed with database and required secret checks OK");
 
-    const webResponse = await fetch(`${webOrigin}/login`, { signal: AbortSignal.timeout(10_000) });
+    const webResponse = await fetch(`${webOrigin}/login`, { signal: requestSignal(10_000) });
     const html = await webResponse.text();
     if (webResponse.status !== 200 || !html.includes("<html"))
       throw new Error("Web SPA did not return an HTML page");
     const scriptAsset = html.match(/(?:src|href)="([^"]+\.(?:js|css)(?:\?[^"]*)?)"/i)?.[1];
     if (!scriptAsset) throw new Error("Web SPA HTML did not reference a compiled asset");
     const assetResponse = await fetch(new URL(scriptAsset, webOrigin), {
-      signal: AbortSignal.timeout(10_000),
+      signal: requestSignal(10_000),
     });
     if (!assetResponse.ok) throw new Error("Web compiled asset did not load");
     log("web SPA and compiled asset returned HTTP 200");
@@ -626,8 +940,8 @@ async function performSmoke(): Promise<void> {
     const cssAsset = html.match(/<link\b[^>]*href="([^"]+\.css(?:\?[^"]*)?)"/i)?.[1];
     if (!jsAsset || !cssAsset) throw new Error("Web /login did not reference JS and CSS assets");
     const [jsResponse, cssResponse] = await Promise.all([
-      fetch(new URL(jsAsset, webOrigin), { signal: AbortSignal.timeout(10_000) }),
-      fetch(new URL(cssAsset, webOrigin), { signal: AbortSignal.timeout(10_000) }),
+      fetch(new URL(jsAsset, webOrigin), { signal: requestSignal(10_000) }),
+      fetch(new URL(cssAsset, webOrigin), { signal: requestSignal(10_000) }),
     ]);
     if (!jsResponse.ok || !cssResponse.ok)
       throw new Error("Web JavaScript or CSS asset did not load");
@@ -638,7 +952,7 @@ async function performSmoke(): Promise<void> {
         "-p",
         project,
         "-f",
-        composePath,
+        smokeComposePath,
         "exec",
         "-T",
         "web",
@@ -679,7 +993,7 @@ async function performSmoke(): Promise<void> {
         "-p",
         project,
         "-f",
-        composePath,
+        smokeComposePath,
         "exec",
         "-T",
         "server",
@@ -696,22 +1010,73 @@ async function performSmoke(): Promise<void> {
       "synthetic fixture had no Resend/AI/Telegram credentials; external integrations were not exercised",
     );
   } finally {
-    const cleaned = await cleanup(config, composePath, artifacts);
-    if (cleaned)
-      log("owned smoke containers, network, and volume cleaned up; tagged images retained");
-    await rm(privateDir, { recursive: true, force: true });
-    log(`private logs retained at ${artifacts}`);
+    if (artifacts) {
+      const cleanupExecutor = new DockerSmokeResourceExecutor(artifacts, true);
+      try {
+        if (config) {
+          let cleaned = false;
+          const cleanupAttempts = receivedSignal ? 3 : 1;
+          for (let attempt = 0; attempt < cleanupAttempts; attempt += 1) {
+            cleaned = await cleanupOwnedSmokeResources(cleanupExecutor, project, runId);
+            if (cleaned) break;
+            if (attempt + 1 < cleanupAttempts) await Bun.sleep(300);
+          }
+          if (!cleaned) log("cleanup incomplete: owned resources could not be safely removed");
+          else log("verified owned smoke containers, network, and volume cleaned up");
+        }
+      } catch {
+        log("cleanup incomplete: inspect private artifact logs for owned resource details");
+      } finally {
+        if (privateDir) {
+          try {
+            await removePrivateFixtures(privateDir);
+            log("synthetic environment fixtures removed");
+          } catch {
+            log("fixture removal failed; private artifact directory requires manual cleanup");
+          }
+        }
+        log(
+          imagesRetained
+            ? "run-owned image tags retained for audit"
+            : "no run-owned image retained",
+        );
+        log("private logs retained under the selected smoke artifact directory");
+      }
+    }
   }
 }
 
 if (import.meta.main) {
-  if (Bun.argv.includes("--help") || Bun.argv.includes("-h")) {
-    help();
-  } else {
-    performSmoke().catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : "unknown deployment smoke failure";
-      log(`failed: ${message}`);
-      process.exitCode = 1;
-    });
+  let shuttingDown = false;
+  const handleSignal = (signal: "SIGINT" | "SIGTERM") => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    receivedSignal = signal;
+    if (interruptController) interruptController.abort();
+    for (const child of activeChildren) {
+      child.kill("SIGTERM");
+      setTimeout(() => child.kill("SIGKILL"), 2_000).unref?.();
+    }
+  };
+  process.on("SIGINT", () => handleSignal("SIGINT"));
+  process.on("SIGTERM", () => handleSignal("SIGTERM"));
+  try {
+    const parsed = parseSmokeArguments(Bun.argv.slice(2));
+    if (parsed.help) help();
+    else {
+      interruptController = new AbortController();
+      performSmoke().catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "unknown deployment smoke failure";
+        log(
+          receivedSignal
+            ? "failed: interrupted; owned-resource cleanup attempted"
+            : `failed: ${message}`,
+        );
+        process.exitCode = 1;
+      });
+    }
+  } catch {
+    log("Invalid smoke-test arguments or temporary directory configuration. Run --help for usage.");
+    process.exitCode = 2;
   }
 }
