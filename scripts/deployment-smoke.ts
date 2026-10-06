@@ -1,10 +1,22 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { access, chmod, mkdir, mkdtemp, readdir, realpath, rm, writeFile } from "node:fs/promises";
-import { isAbsolute, join, parse, resolve } from "node:path";
+import {
+  access,
+  chmod,
+  mkdir,
+  mkdtemp,
+  readdir,
+  realpath,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 
-const repository = new URL("../", import.meta.url).pathname;
+const repository = fileURLToPath(new URL("../", import.meta.url));
+const canonicalRepository = realpath(repository);
 const ownershipLabel = "com.openvalens.deployment-smoke.run";
 const composeProjectLabel = "com.docker.compose.project";
 const composeServiceLabel = "com.docker.compose.service";
@@ -39,16 +51,69 @@ export function parseSmokeArguments(args: string[]): { help: boolean } {
   throw new Error("Unknown or unsupported smoke-test arguments. Run with --help for usage.");
 }
 
-export function resolveArtifactRoot(override: string | undefined, defaultRoot = tmpdir()): string {
+async function canonicalizeCandidate(path: string): Promise<string> {
+  let candidate = resolve(path);
+  const suffix: string[] = [];
+  while (true) {
+    try {
+      const info = await stat(candidate);
+      if (!info.isDirectory()) {
+        throw new Error("Smoke artifact path has a non-directory ancestor");
+      }
+      const canonicalAncestor = await realpath(candidate);
+      return resolve(canonicalAncestor, ...suffix.reverse());
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      const parent = dirname(candidate);
+      if (parent === candidate) throw new Error("Could not resolve smoke artifact path");
+      suffix.push(candidate.slice(parent.length + (parent.endsWith(parse(parent).root) ? 0 : 1)));
+      candidate = parent;
+    }
+  }
+}
+
+function assertOutsideRepository(path: string, repositoryPath: string): void {
+  const relativePath = relative(repositoryPath, path);
+  if (
+    relativePath === "" ||
+    (relativePath !== ".." && !relativePath.startsWith(`..${sep}`) && !isAbsolute(relativePath))
+  ) {
+    throw new Error("Smoke artifacts must be outside the repository and Docker build context");
+  }
+}
+
+export async function getCanonicalRepositoryRoot(): Promise<string> {
+  return canonicalRepository;
+}
+
+export async function resolveArtifactRoot(
+  override: string | undefined,
+  defaultRoot = tmpdir(),
+): Promise<string> {
   const selected = override?.trim() || defaultRoot;
   if (!isAbsolute(selected)) {
     throw new Error("OPENVALENS_SMOKE_TMPDIR must be an absolute directory path");
   }
-  const root = resolve(selected);
+  const [root, repositoryPath] = await Promise.all([
+    canonicalizeCandidate(selected),
+    canonicalRepository,
+  ]);
+  assertOutsideRepository(root, repositoryPath);
   if (root === parse(root).root) {
     throw new Error("Smoke artifact directory cannot be a filesystem root");
   }
   return root;
+}
+
+export function fetchWithSmokeTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+  abortSignal?: AbortSignal,
+): Promise<Response> {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = abortSignal ? AbortSignal.any([timeout, abortSignal]) : timeout;
+  return fetch(input, { ...init, signal });
 }
 
 function rememberSensitiveEnv(content: string): void {
@@ -173,9 +238,8 @@ function assertNotInterrupted(): void {
   if (receivedSignal) throw new Error("Deployment smoke interrupted");
 }
 
-function requestSignal(timeoutMs: number): AbortSignal {
-  const timeout = AbortSignal.timeout(timeoutMs);
-  return interruptController ? AbortSignal.any([timeout, interruptController.signal]) : timeout;
+function smokeFetch(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 10_000) {
+  return fetchWithSmokeTimeout(input, init, timeoutMs, interruptController?.signal);
 }
 
 async function availablePort(): Promise<number> {
@@ -194,6 +258,14 @@ async function availablePort(): Promise<number> {
 }
 
 type CommandResult = { code: number; output: string };
+
+function signalChildProcess(child: ReturnType<typeof Bun.spawn>, signal: "SIGTERM" | "SIGKILL") {
+  try {
+    process.kill(child.pid, signal);
+  } catch {
+    // A child can exit between inventory and the signal attempt.
+  }
+}
 
 async function runCommand(
   args: string[],
@@ -221,8 +293,8 @@ async function runCommand(
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   if (options.timeoutMs) {
     timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      killTimer = setTimeout(() => child.kill("SIGKILL"), 1_000);
+      signalChildProcess(child, "SIGTERM");
+      killTimer = setTimeout(() => signalChildProcess(child, "SIGKILL"), 1_000);
     }, options.timeoutMs);
   }
   try {
@@ -382,13 +454,14 @@ export async function cleanupOwnedSmokeResources(
   }
 }
 
-class DockerSmokeResourceExecutor implements SmokeResourceExecutor {
+export class DockerSmokeResourceExecutor implements SmokeResourceExecutor {
   private logIndex = 0;
   private readonly shutdownDeadline: number;
 
   constructor(
     private readonly artifacts: string,
     private readonly allowDuringShutdown: boolean,
+    private readonly dockerExecutable = "docker",
   ) {
     this.shutdownDeadline = allowDuringShutdown ? Date.now() + 60_000 : Number.POSITIVE_INFINITY;
   }
@@ -426,7 +499,7 @@ class DockerSmokeResourceExecutor implements SmokeResourceExecutor {
     const ids = new Set<string>();
     for (const [index, filter] of filters.entries()) {
       const result = await this.command(
-        ["docker", cli, ...baseArgs, "--filter", filter],
+        [this.dockerExecutable, cli, ...baseArgs, "--filter", filter],
         `${kind}-list-${index}`,
       );
       for (const id of result.output.split(/\s+/).filter(Boolean)) ids.add(id);
@@ -440,10 +513,32 @@ class DockerSmokeResourceExecutor implements SmokeResourceExecutor {
   }
 
   async inspect(kind: SmokeResourceKind, id: string): Promise<SmokeResource | null> {
+    const format =
+      kind === "container"
+        ? [
+            "{{json .Id}}",
+            "{{json .Name}}",
+            `{{json (index .Config.Labels "${composeProjectLabel}")}}`,
+            `{{json (index .Config.Labels "${ownershipLabel}")}}`,
+            `{{json (index .Config.Labels "${composeServiceLabel}")}}`,
+          ].join("\n")
+        : kind === "network"
+          ? [
+              "{{json .Id}}",
+              "{{json .Name}}",
+              `{{json (index .Labels "${composeProjectLabel}")}}`,
+              `{{json (index .Labels "${ownershipLabel}")}}`,
+              '{{range $id, $attachment := .Containers}}{{json $id}}{{"\\n"}}{{end}}',
+            ].join("\n")
+          : [
+              "{{json .Name}}",
+              `{{json (index .Labels "${composeProjectLabel}")}}`,
+              `{{json (index .Labels "${ownershipLabel}")}}`,
+            ].join("\n");
     const args =
       kind === "container"
-        ? ["docker", "inspect", "--type", "container", "--format", "{{json .}}", id]
-        : ["docker", kind, "inspect", "--format", "{{json .}}", id];
+        ? [this.dockerExecutable, "inspect", "--type", "container", "--format", format, id]
+        : [this.dockerExecutable, kind, "inspect", "--format", format, id];
     const remaining = this.shutdownDeadline - Date.now();
     if (remaining <= 0) throw new Error("Docker cleanup time budget exhausted");
     const result = await runCommand(
@@ -471,35 +566,50 @@ class DockerSmokeResourceExecutor implements SmokeResourceExecutor {
       if (knownGone) return null;
       throw new Error("Docker resource inspection failed; inspect private logs");
     }
-    let raw: Record<string, unknown>;
     try {
-      raw = JSON.parse(result.output) as Record<string, unknown>;
+      const fields = result.output.split("\n").map((field) => JSON.parse(field) as unknown);
+      if (fields.length < (kind === "container" ? 5 : kind === "network" ? 4 : 3)) {
+        throw new Error("Docker returned incomplete resource metadata");
+      }
+      const labelValue = (field: unknown) => (typeof field === "string" ? field : undefined);
+      const labels: Record<string, string | undefined> =
+        kind === "container"
+          ? {
+              [composeProjectLabel]: labelValue(fields[2]),
+              [ownershipLabel]: labelValue(fields[3]),
+              [composeServiceLabel]: labelValue(fields[4]),
+            }
+          : kind === "network"
+            ? {
+                [composeProjectLabel]: labelValue(fields[2]),
+                [ownershipLabel]: labelValue(fields[3]),
+              }
+            : {
+                [composeProjectLabel]: labelValue(fields[1]),
+                [ownershipLabel]: labelValue(fields[2]),
+              };
+      const name = String(fields[kind === "volume" ? 0 : 1] ?? "").replace(/^\/+/, "");
+      const rawId = kind === "volume" ? name : String(fields[0] ?? "");
+      if (!rawId || !name) throw new Error("Docker resource identity is incomplete");
+      const service = kind === "container" ? labelValue(fields[4]) : undefined;
+      return {
+        kind,
+        id: rawId,
+        name,
+        labels,
+        service,
+        references: kind === "network" ? fields.slice(4).map(String) : undefined,
+      };
     } catch {
       throw new Error("Docker returned malformed resource metadata");
     }
-    const config = raw.Config as Record<string, unknown> | undefined;
-    const labels = (kind === "container" ? config?.Labels : raw.Labels) as
-      | Record<string, string | undefined>
-      | undefined;
-    const name = String(raw.Name ?? "").replace(/^\/+/, "");
-    const rawId = kind === "volume" ? name : String(raw.Id ?? "");
-    if (!rawId || !name || !labels) throw new Error("Docker resource metadata is incomplete");
-    const containers = raw.Containers as Record<string, unknown> | undefined;
-    return {
-      kind,
-      id: rawId,
-      name,
-      labels,
-      service: labels[composeServiceLabel],
-      references: kind === "network" ? Object.keys(containers ?? {}) : undefined,
-    };
   }
 
   async remove(kind: SmokeResourceKind, id: string): Promise<void> {
     const args =
       kind === "container"
-        ? ["docker", "container", "rm", "--force", id]
-        : ["docker", kind, "rm", id];
+        ? [this.dockerExecutable, "container", "rm", "--force", id]
+        : [this.dockerExecutable, kind, "rm", id];
     await this.command(args, `${kind}-remove`);
   }
 }
@@ -612,7 +722,7 @@ async function assertProductionGuard(
   let lastStatus = "unavailable";
   for (let attempt = 0; attempt < 40; attempt += 1) {
     try {
-      const response = await fetch(root, { signal: requestSignal(2_000) });
+      const response = await smokeFetch(root, {}, 2_000);
       lastStatus = String(response.status);
       if (response.status === 200 && (await response.text()) === "OK") return;
     } catch {
@@ -633,10 +743,11 @@ async function performSmoke(): Promise<void> {
   let rootExecutor: DockerSmokeResourceExecutor | undefined;
   let imagesRetained = false;
   try {
-    const configuredArtifactRoot = resolveArtifactRoot(process.env.OPENVALENS_SMOKE_TMPDIR);
+    const configuredArtifactRoot = await resolveArtifactRoot(process.env.OPENVALENS_SMOKE_TMPDIR);
     await mkdir(configuredArtifactRoot, { recursive: true, mode: 0o700 });
-    const artifactRoot = resolveArtifactRoot(await realpath(configuredArtifactRoot));
-    artifacts = await mkdtemp(join(artifactRoot, `${project}-`));
+    const artifactRoot = await resolveArtifactRoot(await realpath(configuredArtifactRoot));
+    artifacts = await realpath(await mkdtemp(join(artifactRoot, `${project}-`)));
+    await resolveArtifactRoot(artifacts);
     await chmod(artifacts, 0o700);
     privateDir = join(artifacts, "private");
     await mkdir(privateDir, { mode: 0o700 });
@@ -668,6 +779,7 @@ async function performSmoke(): Promise<void> {
     const imageLabel = `${ownershipLabel}=${runId}`;
     const imageIds: string[] = [];
     const password = postgresPassword;
+    await resolveArtifactRoot(artifacts);
     const envFiles = makeEnvFiles({
       apiOrigin,
       webOrigin,
@@ -904,11 +1016,10 @@ async function performSmoke(): Promise<void> {
     }
     log(`server runtime UID is non-root (${serverUid})`);
 
-    const readiness = await fetch(`${apiOrigin}/api-reference/health/readiness`, {
+    const readiness = await smokeFetch(`${apiOrigin}/api-reference/health/readiness`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
-      signal: requestSignal(10_000),
     });
     const readinessBody = (await readiness.json()) as {
       status?: string;
@@ -925,23 +1036,21 @@ async function performSmoke(): Promise<void> {
     }
     log("readiness POST passed with database and required secret checks OK");
 
-    const webResponse = await fetch(`${webOrigin}/login`, { signal: requestSignal(10_000) });
+    const webResponse = await smokeFetch(`${webOrigin}/login`);
     const html = await webResponse.text();
     if (webResponse.status !== 200 || !html.includes("<html"))
       throw new Error("Web SPA did not return an HTML page");
     const scriptAsset = html.match(/(?:src|href)="([^"]+\.(?:js|css)(?:\?[^"]*)?)"/i)?.[1];
     if (!scriptAsset) throw new Error("Web SPA HTML did not reference a compiled asset");
-    const assetResponse = await fetch(new URL(scriptAsset, webOrigin), {
-      signal: requestSignal(10_000),
-    });
+    const assetResponse = await smokeFetch(new URL(scriptAsset, webOrigin));
     if (!assetResponse.ok) throw new Error("Web compiled asset did not load");
     log("web SPA and compiled asset returned HTTP 200");
     const jsAsset = html.match(/<script\b[^>]*src="([^"]+\.js(?:\?[^"]*)?)"/i)?.[1];
     const cssAsset = html.match(/<link\b[^>]*href="([^"]+\.css(?:\?[^"]*)?)"/i)?.[1];
     if (!jsAsset || !cssAsset) throw new Error("Web /login did not reference JS and CSS assets");
     const [jsResponse, cssResponse] = await Promise.all([
-      fetch(new URL(jsAsset, webOrigin), { signal: requestSignal(10_000) }),
-      fetch(new URL(cssAsset, webOrigin), { signal: requestSignal(10_000) }),
+      smokeFetch(new URL(jsAsset, webOrigin)),
+      smokeFetch(new URL(cssAsset, webOrigin)),
     ]);
     if (!jsResponse.ok || !cssResponse.ok)
       throw new Error("Web JavaScript or CSS asset did not load");
@@ -968,14 +1077,14 @@ async function performSmoke(): Promise<void> {
     ensureSuccess(configuredOrigin, "compiled web API origin check");
     log("web JS/CSS served and bundle contains the compiled API origin");
 
-    const allowedCors = await fetch(`${apiOrigin}/api/auth/get-session`, {
+    const allowedCors = await smokeFetch(`${apiOrigin}/api/auth/get-session`, {
       method: "OPTIONS",
       headers: { Origin: webOrigin, "Access-Control-Request-Method": "GET" },
     });
     const allowedOrigin = allowedCors.headers.get("access-control-allow-origin");
     if (allowedOrigin !== webOrigin)
       throw new Error("API CORS did not allow the configured test web origin");
-    const forbiddenCors = await fetch(`${apiOrigin}/api/auth/get-session`, {
+    const forbiddenCors = await smokeFetch(`${apiOrigin}/api/auth/get-session`, {
       method: "OPTIONS",
       headers: {
         Origin: "https://not-the-smoke-origin.invalid",
@@ -1013,28 +1122,39 @@ async function performSmoke(): Promise<void> {
     if (artifacts) {
       const cleanupExecutor = new DockerSmokeResourceExecutor(artifacts, true);
       try {
-        if (config) {
-          let cleaned = false;
-          const cleanupAttempts = receivedSignal ? 3 : 1;
-          for (let attempt = 0; attempt < cleanupAttempts; attempt += 1) {
-            cleaned = await cleanupOwnedSmokeResources(cleanupExecutor, project, runId);
-            if (cleaned) break;
-            if (attempt + 1 < cleanupAttempts) await Bun.sleep(300);
-          }
-          if (!cleaned) log("cleanup incomplete: owned resources could not be safely removed");
-          else log("verified owned smoke containers, network, and volume cleaned up");
-        }
+        await cleanupAndRemoveFixtures(
+          async () => {
+            try {
+              if (config) {
+                let cleaned = false;
+                const cleanupAttempts = receivedSignal ? 3 : 1;
+                for (let attempt = 0; attempt < cleanupAttempts; attempt += 1) {
+                  cleaned = await cleanupOwnedSmokeResources(cleanupExecutor, project, runId);
+                  if (cleaned) break;
+                  if (attempt + 1 < cleanupAttempts) await Bun.sleep(300);
+                }
+                if (!cleaned) {
+                  log("cleanup incomplete: owned resources could not be safely removed");
+                } else {
+                  log("verified owned smoke containers, network, and volume cleaned up");
+                }
+              }
+            } catch {
+              log("cleanup incomplete: inspect private artifact logs for owned resource details");
+            }
+          },
+          async () => {
+            if (privateDir) {
+              await removePrivateFixtures(privateDir);
+              log("synthetic environment fixtures removed");
+            }
+          },
+        );
       } catch {
-        log("cleanup incomplete: inspect private artifact logs for owned resource details");
-      } finally {
         if (privateDir) {
-          try {
-            await removePrivateFixtures(privateDir);
-            log("synthetic environment fixtures removed");
-          } catch {
-            log("fixture removal failed; private artifact directory requires manual cleanup");
-          }
+          log("fixture removal failed; private artifact directory requires manual cleanup");
         }
+      } finally {
         log(
           imagesRetained
             ? "run-owned image tags retained for audit"
@@ -1052,10 +1172,11 @@ if (import.meta.main) {
     if (shuttingDown) return;
     shuttingDown = true;
     receivedSignal = signal;
+    log(`received ${signal}; stopping ${activeChildren.size} owned child command(s)`);
     if (interruptController) interruptController.abort();
     for (const child of activeChildren) {
-      child.kill("SIGTERM");
-      setTimeout(() => child.kill("SIGKILL"), 2_000).unref?.();
+      signalChildProcess(child, "SIGTERM");
+      setTimeout(() => signalChildProcess(child, "SIGKILL"), 2_000).unref?.();
     }
   };
   process.on("SIGINT", () => handleSignal("SIGINT"));

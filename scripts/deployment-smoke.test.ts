@@ -1,15 +1,31 @@
 import { describe, expect, test } from "bun:test";
-import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
 import {
   canRemoveSmokeResource,
   cleanupAndRemoveFixtures,
   cleanupOwnedSmokeResources,
   createSmokeComposeConfig,
   createSmokeProjectName,
+  DockerSmokeResourceExecutor,
+  fetchWithSmokeTimeout,
+  getCanonicalRepositoryRoot,
   parseSmokeArguments,
   preflightSmokeResources,
+  removePrivateFixtures,
   resolveArtifactRoot,
   type SmokeResource,
   type SmokeResourceExecutor,
@@ -94,14 +110,32 @@ describe("deployment smoke safety seams", () => {
     }
   });
 
-  test("catchable interruption stops the child and removes its private fixture directory", async () => {
+  test("SIGTERM stops an active child after fixtures exist and removes private fixtures", async () => {
     const directory = await mkdtemp(join(tmpdir(), "ov-smoke-signal-test-"));
     const artifactParent = join(directory, "artifacts");
     const marker = join(directory, "docker-started");
+    const childTerminated = join(directory, "docker-terminated");
+    const fixturePathFile = join(directory, "fixture-path");
     const fakeDocker = join(directory, "docker");
     await writeFile(
       fakeDocker,
-      `#!/usr/bin/env node\nconst fs=require('node:fs');const marker=${JSON.stringify(marker)};if(!fs.existsSync(marker)){fs.writeFileSync(marker,'started');fs.writeFileSync(marker+'-pid',String(process.pid));process.kill(process.ppid,'SIGTERM')}\n`,
+      `#!/bin/bash
+case "$1 $2" in
+  "container ls"|"network ls"|"volume ls") exit 0 ;;
+esac
+if [ "$1" = "build" ]; then
+  fixture=
+  for arg in "$@"; do
+    case "$arg" in id=server_env,src=*) fixture="\${arg#id=server_env,src=}" ;; esac
+  done
+  [ -n "$fixture" ] && [ -f "$fixture" ] || exit 31
+  printf '%s' "$$" > ${JSON.stringify(marker)}
+  printf '%s' "$fixture" > ${JSON.stringify(fixturePathFile)}
+  trap 'printf term > ${childTerminated}; exit 0' TERM
+  while :; do :; done
+fi
+exit 0
+`,
     );
     await chmod(fakeDocker, 0o700);
     const child = Bun.spawn({
@@ -116,10 +150,45 @@ describe("deployment smoke safety seams", () => {
       stderr: "ignore",
     });
     try {
-      expect(await child.exited).not.toBe(0);
-      await readFile(marker);
-      const childPid = Number(await readFile(`${marker}-pid`, "utf8"));
-      expect(() => process.kill(childPid, 0)).toThrow();
+      let signalEvidence: { pid: number; fixture: string } | undefined;
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        try {
+          signalEvidence = {
+            pid: Number(await readFile(marker, "utf8")),
+            fixture: await readFile(fixturePathFile, "utf8"),
+          };
+          break;
+        } catch {
+          await Bun.sleep(25);
+        }
+      }
+      expect(signalEvidence).toBeDefined();
+      await access(signalEvidence!.fixture);
+      child.kill("SIGTERM");
+      let termHandled = false;
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        try {
+          await access(childTerminated);
+          termHandled = true;
+          break;
+        } catch {
+          await Bun.sleep(25);
+        }
+      }
+      expect(termHandled).toBe(true);
+      const exitCode = await Promise.race([child.exited, Bun.sleep(15_000).then(() => null)]);
+      if (exitCode === null) child.kill("SIGKILL");
+      expect(exitCode).not.toBeNull();
+      expect(exitCode).not.toBe(0);
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        try {
+          process.kill(signalEvidence!.pid, 0);
+          await Bun.sleep(25);
+        } catch {
+          break;
+        }
+      }
+      expect(() => process.kill(signalEvidence!.pid, 0)).toThrow();
       const artifactDirs = await readdir(artifactParent);
       expect(artifactDirs).toHaveLength(1);
       const remaining = await readdir(join(artifactParent, artifactDirs[0]!));
@@ -131,17 +200,72 @@ describe("deployment smoke safety seams", () => {
       }
       await rm(directory, { recursive: true, force: true });
     }
-  }, 20_000);
+  }, 25_000);
 
-  test("uses a portable temp root and rejects relative or filesystem-root overrides", () => {
-    expect(resolveArtifactRoot(undefined, "/tmp/system-temp")).toBe("/tmp/system-temp");
-    expect(resolveArtifactRoot("/tmp/private-smoke")).toBe("/tmp/private-smoke");
-    expect(() => resolveArtifactRoot("relative/path")).toThrow();
-    expect(() => resolveArtifactRoot("/")).toThrow();
+  test("canonical artifact roots reject repository paths and accept external temp paths", async () => {
+    const repository = await getCanonicalRepositoryRoot();
+    const external = await mkdtemp(join(tmpdir(), "ov-smoke-path-test-"));
+    const link = join(external, "repo-link");
+    try {
+      await symlink(repository, link);
+      expect(await resolveArtifactRoot(undefined, external)).toBe(await realpath(external));
+      await expect(resolveArtifactRoot(undefined, repository)).rejects.toThrow(/outside/);
+      await expect(resolveArtifactRoot(join(repository, "nested-temp"))).rejects.toThrow(/outside/);
+      await expect(
+        resolveArtifactRoot(undefined, join(repository, "nested-default")),
+      ).rejects.toThrow(/outside/);
+      await expect(resolveArtifactRoot(join(link, "nested-temp"))).rejects.toThrow(/outside/);
+      await expect(resolveArtifactRoot("relative/path")).rejects.toThrow();
+      await expect(resolveArtifactRoot("/")).rejects.toThrow();
+    } finally {
+      await rm(external, { recursive: true, force: true });
+    }
     expect(parseSmokeArguments([])).toEqual({ help: false });
     expect(parseSmokeArguments(["--help"])).toEqual({ help: true });
     expect(() => parseSmokeArguments(["--dry-run"])).toThrow();
     expect(() => parseSmokeArguments(["--help", "--dry-run"])).toThrow();
+  });
+
+  test("CLI rejects repository artifact overrides before creating fixtures or calling Docker", async () => {
+    const repository = await getCanonicalRepositoryRoot();
+    const outside = await mkdtemp(join(tmpdir(), "ov-smoke-repo-override-test-"));
+    const marker = join(outside, "docker-called");
+    const fakeDocker = join(outside, "docker");
+    const forbiddenOverride = join(repository, `.ov-smoke-forbidden-${randomUUID()}`);
+    const forbiddenDefault = join(repository, `.ov-smoke-default-${randomUUID()}`);
+    try {
+      await writeFile(fakeDocker, `#!/bin/sh\ntouch '${marker}'\nexit 0\n`);
+      await chmod(fakeDocker, 0o700);
+      const overrideEnv = {
+        ...process.env,
+        PATH: `${outside}:${process.env.PATH}`,
+        OPENVALENS_SMOKE_TMPDIR: forbiddenOverride,
+      };
+      const overrideResult = Bun.spawnSync({
+        cmd: ["bun", "scripts/deployment-smoke.ts"],
+        cwd: process.cwd(),
+        env: overrideEnv,
+      });
+      expect(overrideResult.exitCode).not.toBe(0);
+
+      const defaultEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        PATH: `${outside}:${process.env.PATH}`,
+        TMPDIR: forbiddenDefault,
+      };
+      delete defaultEnv.OPENVALENS_SMOKE_TMPDIR;
+      const defaultResult = Bun.spawnSync({
+        cmd: ["bun", "scripts/deployment-smoke.ts"],
+        cwd: process.cwd(),
+        env: defaultEnv,
+      });
+      expect(defaultResult.exitCode).not.toBe(0);
+      await expect(readFile(marker)).rejects.toThrow();
+      await expect(access(forbiddenOverride)).rejects.toThrow();
+      await expect(access(forbiddenDefault)).rejects.toThrow();
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 
   test("creates a unique compose-safe project without a tracking service name", () => {
@@ -190,6 +314,76 @@ describe("deployment smoke safety seams", () => {
     );
     await expect(preflightSmokeResources(executor, project, runId)).rejects.toThrow(/collision/);
     expect(executor.removed).toEqual([]);
+  });
+
+  test("Docker collision inspection requests and logs only ownership metadata", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "ov-smoke-inspect-test-"));
+    const trace = join(directory, "formats.log");
+    const fakeDocker = join(directory, "docker");
+    const secretSentinel = "ForeignConfigEnv_SENTINEL_93";
+    await writeFile(
+      fakeDocker,
+      `#!/usr/bin/env node
+const fs=require('node:fs');const args=process.argv.slice(2);const trace=${JSON.stringify(trace)};
+if(args[0]==='container'&&args[1]==='ls'){
+ const filter=args[args.indexOf('--filter')+1];if(filter==='name=${project}')process.stdout.write('container-id\\n');process.exit(0);
+}
+if(args[0]==='network'||args[0]==='volume'){process.exit(0)}
+if(args[0]==='inspect'){
+ const format=args[args.indexOf('--format')+1];fs.appendFileSync(trace,format+'\\n');
+ if(format.includes('{{json .}}')){
+  process.stdout.write(JSON.stringify({Id:'container-id',Name:'/${project}-server-1',Config:{Labels:{'com.docker.compose.project':'${project}','com.openvalens.deployment-smoke.run':'foreign-run','com.docker.compose.service':'server'},Env:['SYNTHETIC_UNKNOWN_SECRET=${secretSentinel}']}}));
+ }else{
+  process.stdout.write(['container-id','/${project}-server-1','${project}','foreign-run','server'].map(value=>JSON.stringify(value)).join('\\n'));
+ }
+ process.exit(0);
+}
+process.exit(0);
+`,
+    );
+    await chmod(fakeDocker, 0o700);
+    try {
+      const executor = new DockerSmokeResourceExecutor(directory, false, fakeDocker);
+      await expect(preflightSmokeResources(executor, project, runId)).rejects.toThrow(/collision/);
+      const formatTrace = await readFile(trace, "utf8");
+      expect(formatTrace).toContain(".Config.Labels");
+      expect(formatTrace).not.toContain(".Config.Env");
+      expect(formatTrace).not.toContain("json .}}");
+      for (const file of await readdir(directory)) {
+        if (!file.endsWith(".log")) continue;
+        expect(await readFile(join(directory, file), "utf8")).not.toContain(secretSentinel);
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("blocked smoke HTTP requests abort promptly", async () => {
+    let requestSeen!: () => void;
+    const receivedRequest = new Promise<void>((resolve) => {
+      requestSeen = resolve;
+    });
+    const server = Bun.serve({
+      port: 0,
+      fetch: () => {
+        requestSeen();
+        return new Promise<Response>(() => {});
+      },
+    });
+    const controller = new AbortController();
+    try {
+      const pending = fetchWithSmokeTimeout(
+        server.url,
+        { method: "OPTIONS" },
+        10_000,
+        controller.signal,
+      );
+      await receivedRequest;
+      controller.abort();
+      await expect(pending).rejects.toThrow();
+    } finally {
+      server.stop(true);
+    }
   });
 
   test("cleanup refuses missing/wrong labels and foreign candidate resources before deleting anything", async () => {
@@ -273,6 +467,26 @@ describe("deployment smoke safety seams", () => {
       ).catch(() => undefined);
       await expect(readdir(privateDir)).rejects.toThrow();
       expect(await readdir(directory)).toContain("marker");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("production fixture finalizer removes successful fixture writes after Docker cleanup throws", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "ov-smoke-cleanup-finalizer-test-"));
+    const privateDir = join(directory, "private");
+    await mkdir(privateDir, { mode: 0o700 });
+    try {
+      await writePrivateFixtures(privateDir, { "server.env": "synthetic-only" });
+      await expect(
+        cleanupAndRemoveFixtures(
+          async () => {
+            throw new Error("injected Docker daemon failure");
+          },
+          () => removePrivateFixtures(privateDir),
+        ),
+      ).rejects.toThrow(/injected Docker daemon failure/);
+      await expect(access(privateDir)).rejects.toThrow();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

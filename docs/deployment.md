@@ -226,7 +226,8 @@ Unknown command-line arguments are rejected before temporary files or Docker
 are accessed; `--help` is the only accepted option. Artifacts use a unique
 mode-`0700` child of the OS temporary directory. Set `OPENVALENS_SMOKE_TMPDIR`
 to an absolute parent path to select another location; the script does not
-delete or chmod that parent. Synthetic env files are mode-`0600` and removed in
+delete or chmod that parent. The resolved path (including symlink targets) must
+remain outside the repository and Docker build context. Synthetic env files are mode-`0600` and removed in
 a finalizer even when Docker cleanup fails. Catchable SIGINT/SIGTERM stop the
 active child command and attempt cleanup; SIGKILL and host failure cannot run
 finalizers.
