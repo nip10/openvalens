@@ -1,6 +1,6 @@
 # Deployment
 
-Last updated: 2026-09-29
+Last updated: 2026-10-06
 
 > This document mirrors the structure of `anchovy/docs/deployment.md` for the
 > OpenValens stack (Hono + oRPC server in `apps/server`, TanStack web in
@@ -38,14 +38,23 @@ Platform build settings:
 | Setting                | Value                    |
 | ---------------------- | ------------------------ |
 | Build pack / type      | Dockerfile               |
+| Build context          | Repository root          |
 | Server Dockerfile path | `apps/server/Dockerfile` |
 | Web Dockerfile path    | `apps/web/Dockerfile`    |
 | Server exposed port    | `3000`                   |
+| Web exposed port       | `80`                     |
 | Health check path      | `/` (server liveness)    |
 
 Notes:
 
 - Point the platform at the repository root.
+- The web image embeds `VITE_SERVER_URL` at build time. Set it to the public API
+  origin (including `https://`) when building the web service; changing a
+  runtime environment variable alone does not change the compiled web bundle.
+- Build-time `.env` values are supplied only through BuildKit secret mounts.
+  The image install uses the committed Bun lockfile in frozen mode. Runtime
+  secrets and configuration must be set separately as platform environment
+  variables and are not loaded from those build mounts.
 - Add PostgreSQL as a separate service or use an external database.
 - Prefer internal/private networking for the database when app and DB live on
   the same platform.
@@ -60,32 +69,41 @@ Notes:
 
 ## 4. Required environment variables
 
-See `apps/server/.env.schema` for the canonical, validated list
-(`NODE_ENV`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN`,
-`DATABASE_URL`, `CRON_SECRET`).
+See `apps/server/.env.schema` for the canonical, validated runtime settings.
+In addition to the application settings below, that schema currently requires
+`TELEGRAM_WEBHOOK_SECRET` even when Telegram delivery is disabled. Runtime
+settings with schema defaults still receive those defaults when not overridden.
 
 Production checklist:
 
-| Variable             |    Required | Notes                                                                    |
-| -------------------- | ----------: | ------------------------------------------------------------------------ |
-| `DATABASE_URL`       |         yes | Use internal/private URL when possible.                                  |
-| `BETTER_AUTH_SECRET` |         yes | Auth signing secret, minimum 32 characters.                              |
-| `BETTER_AUTH_URL`    |         yes | Public auth base URL.                                                    |
-| `CORS_ORIGIN`        |         yes | Allowed browser origin for the web app.                                  |
-| `CRON_SECRET`        |         yes | Bearer token for the cron endpoints, minimum 16 characters.              |
-| `TELEGRAM_BOT_TOKEN` | conditional | Capability flag only until Issue #14; required when Telegram is enabled. |
-| `RESEND_API_KEY`     | conditional | Capability flag only until Issue #15; required for real email delivery.  |
-| `ANTHROPIC_API_KEY`  | conditional | Capability flag only until Issue #13; required when AI is enabled.       |
+| Variable                  |    Required | Notes                                                                                                       |
+| ------------------------- | ----------: | ----------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                |         yes | Set to `production`.                                                                                        |
+| `DATABASE_URL`            |         yes | Use an internal/private URL when possible.                                                                  |
+| `BETTER_AUTH_SECRET`      |         yes | Use a non-placeholder secret of at least 32 characters.                                                     |
+| `BETTER_AUTH_URL`         |         yes | Public API/auth base URL; align with the API origin compiled into the web bundle.                           |
+| `CORS_ORIGIN`             |         yes | Exact browser origin serving the deployed web app.                                                          |
+| `CRON_SECRET`             |         yes | Use a non-placeholder bearer token of at least 16 characters.                                               |
+| `TELEGRAM_WEBHOOK_SECRET` |         yes | Required by the schema even when Telegram is disabled; use a private synthetic value if not configured.     |
+| `EMAIL_FROM`              |         yes | Sender address; configure a verified sender for real outbound mail.                                         |
+| `RESEND_API_KEY`          | conditional | Required for real magic-link delivery. Without it, mail is dry-run only and sign-in email is not delivered. |
+| `TELEGRAM_BOT_TOKEN`      | conditional | Needed to enable Telegram delivery.                                                                         |
+| `ANTHROPIC_API_KEY`       | conditional | Needed to enable AI-provider calls.                                                                         |
 
-The three integration variables above are optional and are **not** yet declared
-in `.env.schema`; they arrive with their integration issues. The readiness
-probe reports each as a capability flag (`telegram`, `resend`, `anthropic`) and
-treats a missing value as "capability disabled" (HTTP 200 `degraded` is not
-raised for these — only missing required secrets degrade readiness).
+`EMAIL_DRY_RUN`, `TELEGRAM_CONNECT_TOKEN_TTL_SECONDS`, `TELEGRAM_API_BASE_URL`,
+`AI_MODEL`, and `AI_RATE_LIMIT_PER_MINUTE` have schema defaults. Do not set
+`AUTH_DEV_MAGIC_LINK_CONSOLE=true` in production. Readiness reports provider
+capabilities; it does not verify that external provider credentials are usable.
+Set `BETTER_AUTH_URL` and build-time `VITE_SERVER_URL` to the public API origin;
+set `CORS_ORIGIN` to the distinct, exact public web origin.
 
 ## 5. Database and migrations
 
 - Provision PostgreSQL as a separate service.
+- The standalone deployment smoke test creates a fresh project-scoped Postgres
+  18 volume and network. It deliberately does not merge the legacy root
+  `docker-compose.yml`, whose named volume is retained for existing installs.
+  Never reuse the smoke test's generated project or database for real data.
 - Use an internal/private `DATABASE_URL` when the app and database are on the
   same platform/network.
 - Before storing real PHI, configure encrypted Postgres backups and complete a
@@ -193,6 +211,20 @@ jobs are no-op stubs.
 
 ## 8. Smoke checks
 
+For a local production-image smoke test, run `bun scripts/deployment-smoke.ts`.
+It builds both Dockerfiles from the repository-root context, provisions an
+isolated synthetic Postgres database, applies tracked migrations as a one-off,
+then checks API readiness, web static assets, and configured-origin CORS. It
+binds app ports to loopback only and removes only resources carrying its unique
+ownership labels. Migrations run directly through the `packages/db` workspace
+script, not the root interactive Turbo task. Generated secret files are kept
+outside the build context with private permissions and removed during cleanup;
+uniquely tagged images and image-ID records are retained for audit. Sanitized
+progress is printed while detailed command logs remain in the private temp
+artifact folder.
+The test does not configure Resend, AI, Telegram, TLS, backups, or production
+provisioning, and does not prove external email delivery.
+
 Run these after deploy:
 
 - App opens in the browser.
@@ -215,6 +247,10 @@ Run these after deploy:
 ## 10. Operational notes
 
 - Keep secrets out of the image; use platform environment variables.
+- Use production values rather than the `.env.schema` development defaults.
+  The server rejects known placeholder `BETTER_AUTH_SECRET` and `CRON_SECRET`
+  values in production; this is not a general entropy check. Use at least 32 and
+  16 characters respectively, and never rely on the default compose password.
 - Prefer one server container and one database service per environment.
 - If you rotate `CRON_SECRET`, update the scheduler and the platform together;
   the readiness probe will report `cronSecret: "missing"` until both agree.
