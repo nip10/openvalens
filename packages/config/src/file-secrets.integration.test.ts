@@ -219,12 +219,13 @@ describe("actual server schema sensitive coverage", () => {
       }
 
       expect([...sensitiveByDefault].sort()).toEqual([...FILE_SECRET_KEYS].sort());
-      // The nine schema keys that must NOT be file-resolved.
+      // The ten schema keys that must NOT be file-resolved.
       expect([...explicitlyPublic].sort()).toEqual(
         [
           "AI_MODEL",
           "AI_RATE_LIMIT_PER_MINUTE",
           "AUTH_DEV_MAGIC_LINK_CONSOLE",
+          "CSP_MODE",
           "EMAIL_DRY_RUN",
           "EMAIL_FROM",
           "EMAIL_REPLY_TO",

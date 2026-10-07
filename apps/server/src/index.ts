@@ -48,13 +48,14 @@ app.use(correlationMiddleware());
 
 // Issue #12 — security headers + CSP on every response. Mounted before the
 // routes so the headers are applied to success, error, root and oRPC
-// responses. Defaults to report-only for a safe staged rollout; set
-// `CSP_MODE=enforce` once the report is clean. `'unsafe-eval'` is only
-// permitted outside production.
+// responses. `CSP_MODE` is schema-validated (`report-only` default, or
+// `enforce`); an invalid value fails startup instead of silently falling back.
+// `'unsafe-eval'` is added only when `NODE_ENV=development` — never in
+// production or test.
 app.use(
   securityHeadersMiddleware({
-    cspMode: process.env.CSP_MODE === "enforce" ? "enforce" : "report-only",
-    allowDevScriptEval: process.env.NODE_ENV === "development",
+    cspMode: ENV.CSP_MODE,
+    allowDevScriptEval: ENV.NODE_ENV === "development",
   }),
 );
 
