@@ -63,7 +63,7 @@ export const aiRateLimiter = new InMemoryRateLimiter({
 export const capabilities = {
   telegram: telegramConfig.TELEGRAM_BOT_TOKEN !== null,
   anthropic: aiConfig.ANTHROPIC_API_KEY !== null,
-  resend: Boolean(process.env.RESEND_API_KEY),
+  resend: Boolean(ENV.RESEND_API_KEY),
   mobilePairing: true,
 };
 
