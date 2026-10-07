@@ -27,6 +27,8 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      - name: Check generated environment reference
+        run: bun run docs:check
       - run: bunx oxlint
       - run: bunx oxfmt --check .
       - run: bun run check-types

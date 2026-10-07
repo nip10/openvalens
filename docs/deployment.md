@@ -73,6 +73,8 @@ See `apps/server/.env.schema` for the canonical, validated runtime settings.
 In addition to the application settings below, that schema currently requires
 `TELEGRAM_WEBHOOK_SECRET` even when Telegram delivery is disabled. Runtime
 settings with schema defaults still receive those defaults when not overridden.
+The full generated list, with types, defaults and `_FILE` support, is in
+[`docs/reference/env.md`](reference/env.md).
 
 Production checklist:
 

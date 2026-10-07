@@ -43,6 +43,8 @@ The server also rejects a bounded set of obvious placeholder values for
 `BETTER_AUTH_SECRET` and `CRON_SECRET` at production startup. Configure real
 secrets before deploying; this check is not a general secret-strength test.
 
+The complete variable list, with types, defaults and `_FILE` support, is generated into [`docs/reference/env.md`](docs/reference/env.md); run `bun run docs:generate` after editing a schema.
+
 ### File-based secrets
 
 Every sensitive key in `apps/server/.env.schema` accepts a `<KEY>_FILE` variant,

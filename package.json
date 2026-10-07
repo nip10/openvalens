@@ -55,12 +55,15 @@
     "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
     "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./apps/server/ && varlock codegen --path ./apps/native/ && varlock codegen --path ./packages/db/",
     "auth:generate": "cd apps/server && bun run auth:generate",
+    "docs:generate": "bun scripts/generate-env-docs.ts && oxfmt docs/reference/env.md",
+    "docs:check": "bun run docs:generate && git ls-files --error-unmatch docs/reference/env.md && git diff --exit-code -- docs/reference/env.md",
     "check": "oxlint && oxfmt --write"
   },
   "dependencies": {
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@env-spec/parser": "0.5.1",
     "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "oxfmt": "^0.66.0",
