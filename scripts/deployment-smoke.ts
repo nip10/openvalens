@@ -43,10 +43,13 @@ export interface SmokeResourceExecutor {
   remove(kind: SmokeResourceKind, id: string): Promise<void>;
 }
 
-export function parseSmokeArguments(args: string[]): { help: boolean } {
-  if (args.length === 0) return { help: false };
+export function parseSmokeArguments(args: string[]): { help: boolean; fileSecrets: boolean } {
+  if (args.length === 0) return { help: false, fileSecrets: false };
   if (args.length === 1 && (args[0] === "--help" || args[0] === "-h")) {
-    return { help: true };
+    return { help: true, fileSecrets: false };
+  }
+  if (args.length === 1 && args[0] === "--file-secrets") {
+    return { help: false, fileSecrets: true };
   }
   throw new Error("Unknown or unsupported smoke-test arguments. Run with --help for usage.");
 }
@@ -136,6 +139,10 @@ function sanitizeOutput(output: string): string {
   return sanitized;
 }
 
+function rememberSensitiveValue(value: string): void {
+  if (value.length > 0) sensitiveValues.add(value);
+}
+
 type SmokeConfiguration = {
   project: string;
   runId: string;
@@ -146,6 +153,8 @@ type SmokeConfiguration = {
   postgresEnvFile: string;
   serverPort: number;
   webPort: number;
+  /** When set, the server mounts this directory read-only at `/run/secrets`. */
+  serverSecretsDir?: string;
 };
 
 export function createSmokeProjectName(id: string): string {
@@ -168,6 +177,9 @@ export function canRemoveSmokeResource(
 
 export function createSmokeComposeConfig(config: SmokeConfiguration): string {
   const quote = (value: string) => JSON.stringify(value);
+  const serverVolumes = config.serverSecretsDir
+    ? `    volumes:\n      - ${quote(`${config.serverSecretsDir}:/run/secrets:ro`)}\n`
+    : "";
   return `services:
   db:
     image: postgres:18
@@ -187,7 +199,7 @@ export function createSmokeComposeConfig(config: SmokeConfiguration): string {
     image: ${quote(config.serverImage)}
     env_file:
       - ${quote(config.serverEnvFile)}
-    depends_on:
+${serverVolumes}    depends_on:
       db:
         condition: service_healthy
     ports:
@@ -215,8 +227,9 @@ networks:
 }
 
 function help(): void {
-  console.log("Usage: bun scripts/deployment-smoke.ts [--help]");
+  console.log("Usage: bun scripts/deployment-smoke.ts [--help] [--file-secrets]");
   console.log("Build and exercise production images against a new, isolated Postgres volume.");
+  console.log("  --file-secrets  Supply all sensitive keys via read-only *_FILE mounts.");
   console.log("The smoke test never reads repository .env files or the legacy compose project.");
   console.log(
     "Set OPENVALENS_SMOKE_TMPDIR to choose an absolute private artifact parent directory.",
@@ -257,7 +270,7 @@ async function availablePort(): Promise<number> {
   return address.port;
 }
 
-type CommandResult = { code: number; output: string };
+type CommandResult = { code: number; output: string; leakedSensitiveOutput: boolean };
 
 function signalChildProcess(child: ReturnType<typeof Bun.spawn>, signal: "SIGTERM" | "SIGKILL") {
   try {
@@ -267,7 +280,7 @@ function signalChildProcess(child: ReturnType<typeof Bun.spawn>, signal: "SIGTER
   }
 }
 
-async function runCommand(
+export async function runCommand(
   args: string[],
   logPath: string,
   options: {
@@ -275,6 +288,12 @@ async function runCommand(
     env?: Record<string, string>;
     timeoutMs?: number;
     allowDuringShutdown?: boolean;
+    /**
+     * Bounded literal tokens (values/paths) that must never reach raw command
+     * output. They are registered for redaction and the raw streams are scanned
+     * before sanitization; only a boolean is returned, never the raw output.
+     */
+    forbiddenOutputTokens?: readonly string[];
   } = {},
 ): Promise<CommandResult> {
   if (!options.allowDuringShutdown) assertNotInterrupted();
@@ -302,11 +321,17 @@ async function runCommand(
     if (timer) clearTimeout(timer);
     if (killTimer) clearTimeout(killTimer);
     const [stdout, stderr] = await outputPromise;
-    const output = sanitizeOutput(`${stdout}${stderr ? `\n${stderr}` : ""}`);
+    // Scan the raw streams (all stdout/stderr, including timeout cases) before
+    // any sanitization or logging. Literal `includes`, bounded strings only.
+    const rawOutput = `${stdout}${stderr ? `\n${stderr}` : ""}`;
+    const forbidden = options.forbiddenOutputTokens ?? [];
+    for (const token of forbidden) rememberSensitiveValue(token);
+    const leakedSensitiveOutput = forbidden.some((token) => rawOutput.includes(token));
+    const output = sanitizeOutput(rawOutput);
     await writeFile(logPath, output, { mode: 0o600 });
     await chmod(logPath, 0o600);
     if (!options.allowDuringShutdown) assertNotInterrupted();
-    return { code, output: output.trim() };
+    return { code, output: output.trim(), leakedSensitiveOutput };
   } finally {
     if (timer) clearTimeout(timer);
     activeChildren.delete(child);
@@ -635,6 +660,21 @@ export async function writePrivateFixtures(
   }
 }
 
+export async function writeFileSecretFixtures(
+  directory: string,
+  files: Record<string, string>,
+): Promise<void> {
+  for (const [name, value] of Object.entries(files)) {
+    assertNotInterrupted();
+    const path = join(directory, name);
+    // 0444 so the container's non-root runtime user can read the mounted secret.
+    await writeFile(path, `${value}\n`, { mode: 0o444 });
+    await chmod(path, 0o444);
+    rememberSensitiveValue(value);
+    assertNotInterrupted();
+  }
+}
+
 export async function removePrivateFixtures(directory: string): Promise<void> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -683,34 +723,67 @@ async function countTrackedMigrations(): Promise<number> {
   return count;
 }
 
-function makeEnvFiles(config: {
-  apiOrigin: string;
-  webOrigin: string;
-  databaseUrl: string;
-  authSecret: string;
-  cronSecret: string;
-  webhookSecret: string;
-  postgresPassword: string;
-}): { server: string; web: string; postgres: string } {
-  const server = [
-    "NODE_ENV=production",
-    `BETTER_AUTH_SECRET=${config.authSecret}`,
-    `BETTER_AUTH_URL=${config.apiOrigin}`,
-    `CORS_ORIGIN=${config.webOrigin}`,
-    `DATABASE_URL=${config.databaseUrl}`,
-    `CRON_SECRET=${config.cronSecret}`,
+const SYNTHETIC_PROVIDER_SECRETS = {
+  RESEND_API_KEY: "synthetic-resend-key-not-real",
+  EMAIL_AUDIT_BCC: "smoke-audit@example.com",
+  TELEGRAM_BOT_TOKEN: "0:synthetic-telegram-token-not-real",
+  ANTHROPIC_API_KEY: "sk-ant-synthetic-not-real",
+} as const;
+
+export function makeEnvFiles(
+  config: {
+    apiOrigin: string;
+    webOrigin: string;
+    databaseUrl: string;
+    authSecret: string;
+    cronSecret: string;
+    webhookSecret: string;
+    postgresPassword: string;
+  },
+  options: { fileSecrets?: boolean } = {},
+): { server: string; web: string; postgres: string; secretFiles?: Record<string, string> } {
+  const publicLines = [
     "EMAIL_FROM=Smoke Test <smoke@example.invalid>",
     "EMAIL_DRY_RUN=true",
     "AUTH_DEV_MAGIC_LINK_CONSOLE=false",
-    `TELEGRAM_WEBHOOK_SECRET=${config.webhookSecret}`,
     "TELEGRAM_CONNECT_TOKEN_TTL_SECONDS=600",
     "TELEGRAM_API_BASE_URL=https://api.telegram.org",
     "AI_MODEL=claude-sonnet-5-5",
     "AI_RATE_LIMIT_PER_MINUTE=20",
-  ].join("\n");
+  ];
+
+  let server: string;
+  let secretFiles: Record<string, string> | undefined;
+  if (options.fileSecrets) {
+    secretFiles = {
+      BETTER_AUTH_SECRET: config.authSecret,
+      BETTER_AUTH_URL: config.apiOrigin,
+      CORS_ORIGIN: config.webOrigin,
+      DATABASE_URL: config.databaseUrl,
+      CRON_SECRET: config.cronSecret,
+      TELEGRAM_WEBHOOK_SECRET: config.webhookSecret,
+      ...SYNTHETIC_PROVIDER_SECRETS,
+    };
+    server = [
+      "NODE_ENV=production",
+      ...Object.keys(secretFiles).map((key) => `${key}_FILE=/run/secrets/${key}`),
+      ...publicLines,
+    ].join("\n");
+  } else {
+    server = [
+      "NODE_ENV=production",
+      `BETTER_AUTH_SECRET=${config.authSecret}`,
+      `BETTER_AUTH_URL=${config.apiOrigin}`,
+      `CORS_ORIGIN=${config.webOrigin}`,
+      `DATABASE_URL=${config.databaseUrl}`,
+      `CRON_SECRET=${config.cronSecret}`,
+      `TELEGRAM_WEBHOOK_SECRET=${config.webhookSecret}`,
+      ...publicLines,
+    ].join("\n");
+  }
   const web = `NODE_ENV=production\nVITE_SERVER_URL=${config.apiOrigin}\n`;
   const postgres = `POSTGRES_DB=openhealth\nPOSTGRES_USER=postgres\nPOSTGRES_PASSWORD=${config.postgresPassword}\n`;
-  return { server: `${server}\n`, web, postgres };
+  return { server: `${server}\n`, web, postgres, secretFiles };
 }
 
 async function assertProductionGuard(
@@ -734,11 +807,51 @@ async function assertProductionGuard(
   throw new Error(`API liveness did not become ready (last HTTP status: ${lastStatus})`);
 }
 
-async function performSmoke(): Promise<void> {
+/**
+ * Runs the in-image `env.server.ts` bootstrap with the given env file/mount and
+ * asserts it fails closed. The raw command streams are scanned (via
+ * `forbiddenOutputTokens`) for leaked values/paths before sanitization, so the
+ * leak verdict is real rather than defeated by redaction.
+ */
+async function runPlaceholderGuard(options: {
+  artifacts: string;
+  serverImage: string;
+  envFile: string;
+  secretsMount?: string;
+  expectedKeys: readonly string[];
+  forbiddenOutputTokens: readonly string[];
+  logName: string;
+}): Promise<{ rejected: boolean; leakedSensitiveOutput: boolean }> {
+  const args = [
+    "docker",
+    "run",
+    "--rm",
+    "--env-file",
+    options.envFile,
+    ...(options.secretsMount ? ["--volume", `${options.secretsMount}:/run/secrets:ro`] : []),
+    "--workdir",
+    "/app/apps/server",
+    "--entrypoint",
+    "bun",
+    options.serverImage,
+    "-e",
+    "import './src/env.server.ts'",
+  ];
+  const result = await runCommand(args, join(options.artifacts, options.logName), {
+    timeoutMs: 30_000,
+    forbiddenOutputTokens: options.forbiddenOutputTokens,
+  });
+  const rejected =
+    result.code !== 0 && options.expectedKeys.every((key) => result.output.includes(key));
+  return { rejected, leakedSensitiveOutput: result.leakedSensitiveOutput };
+}
+
+async function performSmoke(options: { fileSecrets: boolean }): Promise<void> {
   const runId = randomUUID();
   const project = createSmokeProjectName(runId);
   let artifacts: string | undefined;
   let privateDir: string | undefined;
+  let secretsDir: string | undefined;
   let config: SmokeConfiguration | undefined;
   let rootExecutor: DockerSmokeResourceExecutor | undefined;
   let imagesRetained = false;
@@ -752,6 +865,13 @@ async function performSmoke(): Promise<void> {
     privateDir = join(artifacts, "private");
     await mkdir(privateDir, { mode: 0o700 });
     await chmod(privateDir, 0o700);
+    if (options.fileSecrets) {
+      // A 0755 subdirectory under the 0700 host parent: the container's non-root
+      // user can read the 0444 files while the host directory stays private.
+      secretsDir = join(privateDir, "secrets");
+      await mkdir(secretsDir, { mode: 0o755 });
+      await chmod(secretsDir, 0o755);
+    }
 
     rootExecutor = new DockerSmokeResourceExecutor(artifacts, false);
     await preflightSmokeResources(rootExecutor, project, runId);
@@ -772,6 +892,7 @@ async function performSmoke(): Promise<void> {
       postgresEnvFile: join(privateDir, "postgres.env"),
       serverPort,
       webPort,
+      serverSecretsDir: secretsDir,
     };
     const smokeConfig = config;
     const smokeComposePath = join(privateDir, "compose.yaml");
@@ -780,15 +901,18 @@ async function performSmoke(): Promise<void> {
     const imageIds: string[] = [];
     const password = postgresPassword;
     await resolveArtifactRoot(artifacts);
-    const envFiles = makeEnvFiles({
-      apiOrigin,
-      webOrigin,
-      databaseUrl: `postgresql://postgres:${password}@db:5432/openhealth`,
-      authSecret: randomBytes(48).toString("hex"),
-      cronSecret: randomBytes(24).toString("hex"),
-      webhookSecret: randomBytes(24).toString("hex"),
-      postgresPassword,
-    });
+    const envFiles = makeEnvFiles(
+      {
+        apiOrigin,
+        webOrigin,
+        databaseUrl: `postgresql://postgres:${password}@db:5432/openhealth`,
+        authSecret: randomBytes(48).toString("hex"),
+        cronSecret: randomBytes(24).toString("hex"),
+        webhookSecret: randomBytes(24).toString("hex"),
+        postgresPassword,
+      },
+      { fileSecrets: options.fileSecrets },
+    );
     rememberSensitiveEnv(envFiles.server);
     rememberSensitiveEnv(envFiles.postgres);
     await writePrivateFixtures(privateDir, {
@@ -797,6 +921,10 @@ async function performSmoke(): Promise<void> {
       "postgres.env": envFiles.postgres,
       "compose.yaml": createSmokeComposeConfig(smokeConfig),
     });
+    if (envFiles.secretFiles && secretsDir) {
+      await writeFileSecretFixtures(secretsDir, envFiles.secretFiles);
+      log("synthetic *_FILE secret fixtures written outside the build context");
+    }
 
     log("private logs retained under the selected smoke artifact directory");
     log("building pinned production images with frozen workspace lockfile");
@@ -860,6 +988,7 @@ async function performSmoke(): Promise<void> {
     // Run the package's direct Drizzle script, avoiding the root's interactive Turbo task.
     // The generated database is reachable only over this isolated network.
     const network = await getOwnedSmokeNetworkName(rootExecutor, project, runId);
+    const secretsMountArgs = secretsDir ? ["--volume", `${secretsDir}:/run/secrets:ro`] : [];
     const migrated = await runCommand(
       [
         "docker",
@@ -869,6 +998,7 @@ async function performSmoke(): Promise<void> {
         network,
         "--env-file",
         config.serverEnvFile,
+        ...secretsMountArgs,
         "--label",
         imageLabel,
         "--label",
@@ -949,46 +1079,79 @@ async function performSmoke(): Promise<void> {
     );
     ensureSuccess(appsUp, "isolated application startup");
 
-    const placeholderAuth = "changeme".repeat(4);
-    const placeholderCron = "password".repeat(4);
-    const negativeEnv = envFiles.server
-      .replace(/BETTER_AUTH_SECRET=[^\n]*/, `BETTER_AUTH_SECRET=${placeholderAuth}`)
-      .replace(/CRON_SECRET=[^\n]*/, `CRON_SECRET=${placeholderCron}`);
-    const negativeEnvPath = join(privateDir as string, "placeholder-secrets.env");
-    rememberSensitiveEnv(negativeEnv);
-    await writePrivateFile(negativeEnvPath, negativeEnv);
-    const negativeGuard = await runCommand(
-      [
-        "docker",
-        "run",
-        "--rm",
-        "--env-file",
-        negativeEnvPath,
-        "--workdir",
-        "/app/apps/server",
-        "--entrypoint",
-        "bun",
-        config.serverImage,
-        "-e",
-        "import './src/env.server.ts'",
-      ],
-      join(artifacts, "production-placeholder-guard.log"),
-      { timeoutMs: 30_000 },
-    );
-    if (
-      negativeGuard.code === 0 ||
-      !negativeGuard.output.includes("BETTER_AUTH_SECRET") ||
-      !negativeGuard.output.includes("CRON_SECRET") ||
-      negativeGuard.output.includes(placeholderAuth) ||
-      negativeGuard.output.includes(placeholderCron)
-    ) {
-      throw new Error(
-        "Production placeholder guard did not reject test values without printing them",
+    if (options.fileSecrets && secretsDir && envFiles.secretFiles) {
+      // A placeholder written into a *_FILE mount must still be rejected by the
+      // production guard after Varlock resolves the file value.
+      const placeholderAuth = "changeme".repeat(4);
+      const placeholderSecretsDir = join(privateDir as string, "placeholder-secrets");
+      await mkdir(placeholderSecretsDir, { mode: 0o755 });
+      await chmod(placeholderSecretsDir, 0o755);
+      await writeFileSecretFixtures(placeholderSecretsDir, {
+        ...envFiles.secretFiles,
+        BETTER_AUTH_SECRET: placeholderAuth,
+      });
+      const placeholderGuard = await runPlaceholderGuard({
+        artifacts,
+        serverImage: config.serverImage,
+        envFile: config.serverEnvFile,
+        secretsMount: placeholderSecretsDir,
+        expectedKeys: ["BETTER_AUTH_SECRET"],
+        forbiddenOutputTokens: [placeholderAuth, "/run/secrets"],
+        logName: "production-file-placeholder-guard.log",
+      });
+      if (!placeholderGuard.rejected || placeholderGuard.leakedSensitiveOutput) {
+        throw new Error("File-based placeholder guard did not reject the mounted placeholder");
+      }
+      log("production guard rejected a placeholder supplied through a *_FILE mount");
+
+      // An ambiguous direct + *_FILE value must fail closed without echoing either.
+      const conflictCanary = "conflict-canary-value";
+      const conflictEnvPath = join(privateDir as string, "conflict-secrets.env");
+      await writePrivateFile(
+        conflictEnvPath,
+        `${envFiles.server}RESEND_API_KEY=${conflictCanary}\n`,
+      );
+      const conflictGuard = await runPlaceholderGuard({
+        artifacts,
+        serverImage: config.serverImage,
+        envFile: conflictEnvPath,
+        secretsMount: secretsDir,
+        expectedKeys: ["RESEND_API_KEY"],
+        forbiddenOutputTokens: [conflictCanary, "/run/secrets"],
+        logName: "file-secret-conflict-guard.log",
+      });
+      if (!conflictGuard.rejected || conflictGuard.leakedSensitiveOutput) {
+        throw new Error(
+          "Ambiguous *_FILE configuration did not fail closed without leaking values",
+        );
+      }
+      log("ambiguous direct + *_FILE configuration failed closed without echoing values");
+    } else {
+      const placeholderAuth = "changeme".repeat(4);
+      const placeholderCron = "password".repeat(4);
+      const negativeEnv = envFiles.server
+        .replace(/BETTER_AUTH_SECRET=[^\n]*/, `BETTER_AUTH_SECRET=${placeholderAuth}`)
+        .replace(/CRON_SECRET=[^\n]*/, `CRON_SECRET=${placeholderCron}`);
+      const negativeEnvPath = join(privateDir as string, "placeholder-secrets.env");
+      rememberSensitiveEnv(negativeEnv);
+      await writePrivateFile(negativeEnvPath, negativeEnv);
+      const negativeGuard = await runPlaceholderGuard({
+        artifacts,
+        serverImage: config.serverImage,
+        envFile: negativeEnvPath,
+        expectedKeys: ["BETTER_AUTH_SECRET", "CRON_SECRET"],
+        forbiddenOutputTokens: [placeholderAuth, placeholderCron],
+        logName: "production-placeholder-guard.log",
+      });
+      if (!negativeGuard.rejected || negativeGuard.leakedSensitiveOutput) {
+        throw new Error(
+          "Production placeholder guard did not reject test values without printing them",
+        );
+      }
+      log(
+        "production placeholder-secret guard rejected both generated invalid values without echoing them",
       );
     }
-    log(
-      "production placeholder-secret guard rejected both generated invalid values without echoing them",
-    );
 
     await assertProductionGuard(
       String(serverPort),
@@ -1115,9 +1278,15 @@ async function performSmoke(): Promise<void> {
     );
     ensureSuccess(secretFiles, "runtime secret-file absence check");
     log("runtime API image contains no mounted/copied .env value files");
-    log(
-      "synthetic fixture had no Resend/AI/Telegram credentials; external integrations were not exercised",
-    );
+    if (options.fileSecrets) {
+      log(
+        "synthetic *_FILE mounts were read-only; provider keys were synthetic and EMAIL_DRY_RUN=true, so no external provider calls were made",
+      );
+    } else {
+      log(
+        "synthetic fixture had no Resend/AI/Telegram credentials; external integrations were not exercised",
+      );
+    }
   } finally {
     if (artifacts) {
       const cleanupExecutor = new DockerSmokeResourceExecutor(artifacts, true);
@@ -1186,7 +1355,7 @@ if (import.meta.main) {
     if (parsed.help) help();
     else {
       interruptController = new AbortController();
-      performSmoke().catch((error: unknown) => {
+      performSmoke({ fileSecrets: parsed.fileSecrets }).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : "unknown deployment smoke failure";
         log(
           receivedSignal

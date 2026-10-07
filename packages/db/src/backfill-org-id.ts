@@ -11,8 +11,10 @@
  * this package so no extra dependency is required. The table list and
  * behavior are preserved verbatim.
  */
-import { Client } from "pg";
+import "@openvalens/config/file-secrets-preload.database";
 import "varlock/auto-load";
+import { Client } from "pg";
+import { ENV } from "./env";
 
 const TABLES = [
   "blood_panel",
@@ -47,11 +49,12 @@ const TABLES = [
 ] as const;
 
 async function main() {
-  if (!process.env.DATABASE_URL) {
+  const databaseUrl = ENV.DATABASE_URL;
+  if (!databaseUrl) {
     throw new Error("DATABASE_URL is required");
   }
 
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: databaseUrl });
   await client.connect();
 
   try {

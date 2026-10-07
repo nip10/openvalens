@@ -90,6 +90,7 @@
         "@openvalens/ai": "workspace:*",
         "@openvalens/api": "workspace:*",
         "@openvalens/auth": "workspace:*",
+        "@openvalens/config": "workspace:*",
         "@openvalens/db": "workspace:*",
         "@openvalens/email": "workspace:*",
         "@openvalens/observability": "workspace:*",
@@ -103,7 +104,6 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openvalens/config": "workspace:*",
         "@types/bun": "catalog:",
         "tsdown": "^0.23.0",
         "typescript": "^6.0.3",
@@ -303,6 +303,10 @@
     "packages/config": {
       "name": "@openvalens/config",
       "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "catalog:",
+        "typescript": "^6.0.3",
+      },
     },
     "packages/data-rights": {
       "name": "@openvalens/data-rights",
@@ -318,12 +322,12 @@
     "packages/db": {
       "name": "@openvalens/db",
       "dependencies": {
+        "@openvalens/config": "workspace:*",
         "drizzle-orm": "catalog:",
         "pg": "^8.23.0",
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@openvalens/config": "workspace:*",
         "@types/pg": "^8.23.1",
         "drizzle-kit": "1.0.0-rc.4",
         "typescript": "^6.0.3",
