@@ -1,6 +1,13 @@
-import { extractDisplayName, getEmailConfig } from "../config";
-
 const FALLBACK_ORGANIZATION_NAME = "Health";
+
+/**
+ * Branding options threaded from a bound `EmailService` (which structurally
+ * satisfies this) or supplied directly. `organizationName` is presentation
+ * only — never delivery config — and defaults to the `Health` brand.
+ */
+export type EmailRenderOptions = {
+  organizationName?: string;
+};
 
 export function escapeHtml(value: string): string {
   return value
@@ -35,14 +42,6 @@ export type RenderedLayout = {
   text: string;
 };
 
-function resolveOrganizationName(): string {
-  try {
-    return extractDisplayName(getEmailConfig().EMAIL_FROM) ?? FALLBACK_ORGANIZATION_NAME;
-  } catch {
-    return FALLBACK_ORGANIZATION_NAME;
-  }
-}
-
 /**
  * Shared plain-HTML email scaffold. Inline CSS only, 560px max width, `#111`
  * body text, footer with the organization name and the current year.
@@ -51,8 +50,11 @@ function resolveOrganizationName(): string {
  * anchovy, Issue #15) — the returned shape stays compatible with a future
  * React Email swap.
  */
-export function renderLayout(input: RenderLayoutInput): RenderedLayout {
-  const organizationName = resolveOrganizationName();
+export function renderLayout(
+  input: RenderLayoutInput,
+  options: EmailRenderOptions = {},
+): RenderedLayout {
+  const organizationName = options.organizationName ?? FALLBACK_ORGANIZATION_NAME;
   const year = new Date().getFullYear();
   const footerText = input.footerText ?? `This is an automated message from ${organizationName}.`;
 

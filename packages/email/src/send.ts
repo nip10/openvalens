@@ -1,7 +1,7 @@
 import type { StructuredLogger } from "@openvalens/observability";
 
 import { shouldAuditBcc } from "./audit-bcc";
-import { getEmailConfig, type EmailConfig } from "./config";
+import { EmailConfigError, extractDisplayName, type EmailConfig } from "./config";
 import { createEmailLogger, maskEmailRecipient } from "./logging";
 import {
   EmailPermanentError,
@@ -29,7 +29,7 @@ export type SendEmailInput = {
 export type SendEmailOptions = {
   correlationId?: string;
   dryRun?: boolean;
-  /** Defaults to {@link getEmailConfig}. */
+  /** Bound config from {@link createEmailService}; required by the unbound {@link sendEmail}. */
   config?: EmailConfig;
   /** Injectable for tests; defaults to {@link ResendProvider}. */
   provider?: EmailProvider;
@@ -43,6 +43,49 @@ export type SendEmailFn = (
   input: SendEmailInput,
   options?: SendEmailOptions,
 ) => Promise<SendEmailResult>;
+
+/**
+ * A config-bound email sender plus its branding name. Created by
+ * {@link createEmailService}; never exposes the raw config or API key.
+ */
+export type EmailService = {
+  readonly sendEmail: SendEmailFn;
+  readonly organizationName: string;
+};
+
+/**
+ * Binds a validated {@link EmailConfig} to a {@link SendEmailFn}.
+ *
+ * The five config fields are copied into a frozen snapshot behind a closure, so
+ * later mutation of the original object cannot change delivery. `defaults` are
+ * merged first, then per-call options, then `config` (the snapshot unless the
+ * call supplies its own). The returned object is frozen and exposes only
+ * `sendEmail` and `organizationName`.
+ */
+export function createEmailService(
+  config: EmailConfig,
+  defaults: Omit<SendEmailOptions, "config"> = {},
+): EmailService {
+  const snapshot: EmailConfig = Object.freeze({
+    RESEND_API_KEY: config.RESEND_API_KEY,
+    EMAIL_FROM: config.EMAIL_FROM,
+    EMAIL_REPLY_TO: config.EMAIL_REPLY_TO,
+    EMAIL_AUDIT_BCC: config.EMAIL_AUDIT_BCC,
+    EMAIL_DRY_RUN: config.EMAIL_DRY_RUN,
+  });
+
+  const boundSend: SendEmailFn = (input, options) =>
+    sendEmail(input, {
+      ...defaults,
+      ...options,
+      config: options?.config ?? snapshot,
+    });
+
+  return Object.freeze({
+    sendEmail: boundSend,
+    organizationName: extractDisplayName(snapshot.EMAIL_FROM) ?? "Health",
+  });
+}
 
 function mergeBcc(
   base: string | string[] | undefined,
@@ -75,6 +118,11 @@ function mergeBcc(
  * Sends a rendered email through Resend, or logs a dry-run event when no API
  * key is configured / `EMAIL_DRY_RUN` is on.
  *
+ * The unbound export requires an explicit `options.config` — there is no
+ * ambient fallback. Prefer {@link createEmailService}, which binds the config
+ * once and preserves per-call overrides. A missing config fails with a
+ * value-free {@link EmailConfigError} before any provider is constructed.
+ *
  * All log lines are PHI-safe: masked recipients, subject, template name,
  * provider id and typed error codes only. The raw recipient, token and body are
  * never logged. Provider exceptions are re-thrown after logging so callers can
@@ -82,9 +130,15 @@ function mergeBcc(
  */
 export async function sendEmail(
   input: SendEmailInput,
-  options: SendEmailOptions = {},
+  options: SendEmailOptions & { config: EmailConfig },
 ): Promise<SendEmailResult> {
-  const config = options.config ?? getEmailConfig();
+  const config = options?.config;
+
+  if (!config) {
+    // Value-free error: never echo the input, options, or a raw cause.
+    throw new EmailConfigError(["email config is required"]);
+  }
+
   const logger = options.logger ?? createEmailLogger(options.correlationId);
   const templateName = input.templateName ?? input.tags?.[0] ?? "unknown";
   const dryRun = options.dryRun ?? config.EMAIL_DRY_RUN;

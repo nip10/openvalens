@@ -19,6 +19,9 @@
       "path": "../db"
     },
     {
+      "path": "../email"
+    },
+    {
       "path": "../auth"
     },
     {

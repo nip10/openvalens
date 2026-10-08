@@ -22,6 +22,7 @@
     "@openvalens/cockpit": "workspace:*",
     "@openvalens/data-rights": "workspace:*",
     "@openvalens/db": "workspace:*",
+    "@openvalens/email": "workspace:*",
     "@openvalens/health-record": "workspace:*",
     "@openvalens/ingestion": "workspace:*",
     "@openvalens/labs": "workspace:*",

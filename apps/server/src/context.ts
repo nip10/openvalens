@@ -9,6 +9,7 @@ import {
   auth,
   capabilities,
   db,
+  email,
   telegramClient,
   telegramConfig,
 } from "./services";
@@ -42,6 +43,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
       connectTokenTtlSeconds: telegramConfig.TELEGRAM_CONNECT_TOKEN_TTL_SECONDS,
     },
     telegramClient,
+    // Issue #58 — config-bound email service for the reminder cron fallback.
+    email,
     // Issue #13 — AI config + process-local rate limiter.
     aiConfig,
     aiRateLimiter,

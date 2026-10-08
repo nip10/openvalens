@@ -74,6 +74,13 @@ export const cronRouter = {
         correlationId: context.correlationId,
       });
 
+      // Issue #58 — the email fallback needs an explicit config-bound service.
+      // Fail closed (generic, value-free) rather than reaching an ambient
+      // sender. The server always supplies it.
+      if (!context.email) {
+        throw raiseApiError("INTERNAL", "Email service is not configured.");
+      }
+
       // Issue #14 — materialize + deliver the day's reminders. Cron endpoints
       // have no session, so there is no "active organization" to scope to.
       // TODO(#14-2): run per-organization in a follow-up.
@@ -83,6 +90,7 @@ export const cronRouter = {
         logger,
         correlationId: context.correlationId,
         organizationId: null,
+        email: context.email,
       });
 
       const finishedAt = new Date().toISOString();
