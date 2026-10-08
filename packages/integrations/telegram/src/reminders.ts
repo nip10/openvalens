@@ -1,7 +1,7 @@
 import type { Database } from "@openvalens/db";
 import { user } from "@openvalens/db/schema/auth";
 import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
-import { sendEmail, type SendEmailFn } from "@openvalens/email";
+import type { EmailService } from "@openvalens/email";
 import type { StructuredLogger } from "@openvalens/observability";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
@@ -39,8 +39,11 @@ export type MaterializeDailyRemindersDeps = {
   correlationId: string;
   /** `null` runs across every organization. */
   organizationId: string | null;
-  /** Injectable for tests; defaults to `@openvalens/email`'s `sendEmail`. */
-  sendEmail?: SendEmailFn;
+  /**
+   * Config-bound email transport, required. The email fallback delivers via
+   * `email.sendEmail`; there is no ambient/global sender fallback.
+   */
+  email: EmailService;
 };
 
 export type MaterializeDailyRemindersResult = {
@@ -128,7 +131,7 @@ export async function materializeDailyReminders(
     : [];
   const emailByUser = new Map(users.map((row) => [row.id, row.email]));
 
-  const emailSender = deps.sendEmail ?? sendEmail;
+  const emailSender = deps.email.sendEmail;
 
   let sent = 0;
   let skipped = 0;

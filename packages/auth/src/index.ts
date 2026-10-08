@@ -5,8 +5,8 @@ import * as schema from "@openvalens/db/schema/auth";
 import {
   EmailPermanentError,
   EmailTransientError,
+  type EmailService,
   renderInvitationEmail,
-  sendEmail,
 } from "@openvalens/email";
 import { createStructuredLogger } from "@openvalens/observability";
 import { betterAuth } from "better-auth";
@@ -42,11 +42,28 @@ export function devMagicLinkSink(env: AuthConfig): ((url: string) => void) | und
   };
 }
 
-export function createAuth(
-  env: AuthConfig,
-  database: Database,
-  desktopOrigins: readonly string[] = [],
-) {
+/**
+ * Explicit dependencies for {@link createAuth}.
+ *
+ * `email` is the config-bound `EmailService` the server owns. It is required so
+ * an old/JS caller that omits it cannot silently fall back to an ambient
+ * provider; the email service also carries the branding name used by the
+ * rendered templates.
+ */
+export type CreateAuthOptions = {
+  email: EmailService;
+  desktopOrigins?: readonly string[];
+};
+
+export function createAuth(env: AuthConfig, database: Database, options: CreateAuthOptions) {
+  // Fail closed before constructing Better Auth. Value-free: never echoes the
+  // env, database, or email config.
+  if (!options || typeof options.email?.sendEmail !== "function") {
+    throw new Error("Auth email service is not configured.");
+  }
+
+  const desktopOrigins = options.desktopOrigins ?? [];
+  const email = options.email;
   const devLinkSink = devMagicLinkSink(env);
 
   return betterAuth({
@@ -84,19 +101,22 @@ export function createAuth(
         // invitation email transport is owned by Issue #15 (Resend).
         requireEmailVerificationOnInvitation: true,
         invitationExpiresIn: INVITATION_EXPIRES_IN_SECONDS,
-        sendInvitationEmail: async ({ email, invitation, organization, inviter }) => {
-          const rendered = renderInvitationEmail({
-            inviterName: inviter.user.name || inviter.user.email,
-            organizationName: organization.name,
-            acceptUrl: `${env.CORS_ORIGIN.replace(/\/$/, "")}/accept-invitation/${invitation.id}`,
-            expiresInDays: Math.round(INVITATION_EXPIRES_IN_SECONDS / (60 * 60 * 24)),
-            role: invitation.role,
-          });
+        sendInvitationEmail: async ({ email: recipient, invitation, organization, inviter }) => {
+          const rendered = renderInvitationEmail(
+            {
+              inviterName: inviter.user.name || inviter.user.email,
+              organizationName: organization.name,
+              acceptUrl: `${env.CORS_ORIGIN.replace(/\/$/, "")}/accept-invitation/${invitation.id}`,
+              expiresInDays: Math.round(INVITATION_EXPIRES_IN_SECONDS / (60 * 60 * 24)),
+              role: invitation.role,
+            },
+            email,
+          );
 
           try {
-            await sendEmail(
+            await email.sendEmail(
               {
-                to: email,
+                to: recipient,
                 subject: rendered.subject,
                 html: rendered.html,
                 text: rendered.text,
@@ -107,7 +127,7 @@ export function createAuth(
             );
           } catch (error) {
             logger.error("auth.invitation.send.failed", {
-              recipient: maskEmailRecipient(email),
+              recipient: maskEmailRecipient(recipient),
               invitationId: invitation.id,
               code:
                 error instanceof EmailTransientError
@@ -121,7 +141,7 @@ export function createAuth(
           }
 
           logger.info("auth.invitation.queued", {
-            recipient: maskEmailRecipient(email),
+            recipient: maskEmailRecipient(recipient),
             invitationId: invitation.id,
           });
         },
@@ -143,7 +163,12 @@ export function createAuth(
               correlationId: ctx?.getHeader("x-correlation-id"),
               requestId: ctx?.getHeader("x-request-id"),
             },
-            { expiresInSeconds: MAGIC_LINK_EXPIRES_IN_SECONDS, devLinkSink },
+            {
+              expiresInSeconds: MAGIC_LINK_EXPIRES_IN_SECONDS,
+              devLinkSink,
+              sendEmail: email.sendEmail,
+              organizationName: email.organizationName,
+            },
           ),
       }),
     ],

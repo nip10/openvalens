@@ -1,4 +1,4 @@
-import { renderLayout, renderParagraphs } from "./layout";
+import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "Health";
 
@@ -16,7 +16,10 @@ export type RenderedInvitationEmail = {
   text: string;
 };
 
-export function renderInvitationEmail(input: InvitationEmailInput): RenderedInvitationEmail {
+export function renderInvitationEmail(
+  input: InvitationEmailInput,
+  options: EmailRenderOptions = {},
+): RenderedInvitationEmail {
   const subject = `${input.inviterName} invited you to ${input.organizationName} on ${APP_NAME}`;
   const expiryLine =
     input.expiresInDays === 1
@@ -30,15 +33,18 @@ export function renderInvitationEmail(input: InvitationEmailInput): RenderedInvi
     "If you were not expecting this invitation, you can ignore this email.",
   ];
 
-  const layout = renderLayout({
-    title: "You are invited",
-    preheader: `${input.inviterName} invited you to join ${input.organizationName}.`,
-    bodyHtml: renderParagraphs(bodyLines),
-    bodyText: bodyLines.join("\n\n"),
-    ctaLabel: "Accept invitation",
-    ctaUrl: input.acceptUrl,
-    footerText: `This invitation was sent by ${APP_NAME}.`,
-  });
+  const layout = renderLayout(
+    {
+      title: "You are invited",
+      preheader: `${input.inviterName} invited you to join ${input.organizationName}.`,
+      bodyHtml: renderParagraphs(bodyLines),
+      bodyText: bodyLines.join("\n\n"),
+      ctaLabel: "Accept invitation",
+      ctaUrl: input.acceptUrl,
+      footerText: `This invitation was sent by ${APP_NAME}.`,
+    },
+    options,
+  );
 
   return { subject, html: layout.html, text: layout.text };
 }

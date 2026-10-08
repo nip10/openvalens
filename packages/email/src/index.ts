@@ -4,6 +4,8 @@ export * from "./logging";
 export * from "./provider";
 export * from "./send";
 
+export type { EmailRenderOptions } from "./templates/layout";
+
 export * from "./templates/access-request-approved";
 export * from "./templates/access-request-denied";
 export * from "./templates/access-request-submitted";

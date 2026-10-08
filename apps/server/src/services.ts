@@ -1,30 +1,35 @@
 import { InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
 import { createDb } from "@openvalens/db";
-import {
-  parseEmailConfig,
-  sendEmail as sendEmailWithConfig,
-  type EmailEnv,
-  type SendEmailFn,
-} from "@openvalens/email";
+import { createEmailService, parseEmailConfig } from "@openvalens/email";
 import { parseTelegramConfig, TelegramClient } from "@openvalens/telegram";
 
 import { ENV } from "./env.server";
 
 export const db = createDb(ENV);
-export const auth = createAuth(ENV, db);
 
-// Issue #15 — server-side email instantiation. The `@openvalens/email`
-// package stays pure; the server binds the validated `ENV` to it here and
-// exports a config-bound sender for call sites that need one.
-//
-// The cast narrows away the numeric Telegram TTL that now lives on `ENV`
-// (`EmailEnv` only models string/boolean vars). The email package is not
-// modified by Issue #14.
-export const emailConfig = parseEmailConfig(ENV as unknown as EmailEnv);
+// Issue #58 — server-side email instantiation. The `@openvalens/email` package
+// stays pure; the server binds the five validated email fields explicitly
+// (never casting the whole `ENV`) and composes a frozen `EmailService` before
+// `createAuth` so the auth callbacks receive an injected sender. The raw
+// config/API key are never exposed on the service.
+export const emailConfig = parseEmailConfig({
+  RESEND_API_KEY: ENV.RESEND_API_KEY,
+  EMAIL_FROM: ENV.EMAIL_FROM,
+  EMAIL_REPLY_TO: ENV.EMAIL_REPLY_TO,
+  EMAIL_AUDIT_BCC: ENV.EMAIL_AUDIT_BCC,
+  EMAIL_DRY_RUN: ENV.EMAIL_DRY_RUN,
+});
 
-export const sendEmail: SendEmailFn = (input, options) =>
-  sendEmailWithConfig(input, { ...options, config: options?.config ?? emailConfig });
+export const email = createEmailService(emailConfig);
+
+// Legacy alias for the config-bound sender. Unused across the repo; retained
+// for external compatibility. `EmailService.sendEmail` already preserves
+// per-call overrides.
+export const sendEmail = email.sendEmail;
+
+// Issue #58 — auth must be constructed only after the email service exists.
+export const auth = createAuth(ENV, db, { email });
 
 // Issue #14 — server-side Telegram instantiation. The `@openvalens/telegram`
 // package stays pure; the server binds the validated `ENV` here. The client is

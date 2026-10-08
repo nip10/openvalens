@@ -109,6 +109,20 @@ The `auth:generate` script runs the Better Auth CLI against
 uses the same checked Varlock bootstrap (including `*_FILE`) and needs no
 separate `varlock run` wrapper.
 
+### Email configuration (explicit, no ambient env)
+
+`@openvalens/email` no longer reads the environment at send time:
+`parseEmailConfig` validates an explicit five-field object (`RESEND_API_KEY`,
+`EMAIL_FROM`, `EMAIL_REPLY_TO`, `EMAIL_AUDIT_BCC`, `EMAIL_DRY_RUN`), and
+`createEmailService(config, defaults?)` returns a frozen `EmailService` that
+exposes only `sendEmail` and `organizationName`. The unbound `sendEmail`
+requires an explicit `config`; per-call overrides (`config`, `provider`,
+`dryRun`, `logger`, `correlationId`) are retained. The ambient
+`getEmailConfig`/`resetEmailConfigCache` getters were removed. `createAuth(env,
+db, { email, desktopOrigins? })` now takes the bound service as a required
+third argument, and template render functions accept an optional
+`{ organizationName }` that is presentation-only.
+
 ## Schema changes
 
 1. Edit `packages/db/src/schema/*`.

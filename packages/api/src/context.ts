@@ -2,6 +2,7 @@ import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
 import type { Session } from "@openvalens/auth";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
 import type { Database } from "@openvalens/db";
+import type { EmailService } from "@openvalens/email";
 import type { TelegramClient } from "@openvalens/telegram";
 
 /**
@@ -63,6 +64,12 @@ export type Context = {
    * Used by the daily-reminder cron to deliver via Telegram.
    */
   telegramClient: TelegramClient | null;
+  /**
+   * Issue #58 — config-bound email service the server owns. Optional at the
+   * type level so unrelated context factories stay valid; procedures that
+   * need email (the daily-reminder cron) fail closed when it is absent.
+   */
+  email?: EmailService;
   /** Issue #13 — parsed Anthropic AI config (owned by the server). */
   aiConfig: AiConfig;
   /**

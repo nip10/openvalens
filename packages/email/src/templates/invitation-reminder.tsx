@@ -1,4 +1,4 @@
-import { renderLayout, renderParagraphs } from "./layout";
+import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "Health";
 
@@ -18,6 +18,7 @@ export type RenderedInvitationReminderEmail = {
 
 export function renderInvitationReminderEmail(
   input: InvitationReminderEmailInput,
+  options: EmailRenderOptions = {},
 ): RenderedInvitationReminderEmail {
   const subject = `Reminder: join ${input.organizationName} on ${APP_NAME}`;
   const expiryLine =
@@ -32,15 +33,18 @@ export function renderInvitationReminderEmail(
     "If you no longer need access, you can ignore this message.",
   ];
 
-  const layout = renderLayout({
-    title: "Invitation reminder",
-    preheader: `You still have a pending invitation to ${input.organizationName}.`,
-    bodyHtml: renderParagraphs(bodyLines),
-    bodyText: bodyLines.join("\n\n"),
-    ctaLabel: "Accept invitation",
-    ctaUrl: input.acceptUrl,
-    footerText: `This reminder was sent by ${APP_NAME}.`,
-  });
+  const layout = renderLayout(
+    {
+      title: "Invitation reminder",
+      preheader: `You still have a pending invitation to ${input.organizationName}.`,
+      bodyHtml: renderParagraphs(bodyLines),
+      bodyText: bodyLines.join("\n\n"),
+      ctaLabel: "Accept invitation",
+      ctaUrl: input.acceptUrl,
+      footerText: `This reminder was sent by ${APP_NAME}.`,
+    },
+    options,
+  );
 
   return { subject, html: layout.html, text: layout.text };
 }

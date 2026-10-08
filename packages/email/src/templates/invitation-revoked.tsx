@@ -1,4 +1,4 @@
-import { renderLayout, renderParagraphs } from "./layout";
+import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "Health";
 
@@ -15,6 +15,7 @@ export type RenderedInvitationRevokedEmail = {
 
 export function renderInvitationRevokedEmail(
   input: InvitationRevokedEmailInput,
+  options: EmailRenderOptions = {},
 ): RenderedInvitationRevokedEmail {
   const subject = `Your invitation to ${input.organizationName} has been revoked`;
   const bodyLines = [
@@ -22,13 +23,16 @@ export function renderInvitationRevokedEmail(
     "If you still need access, contact your administrator.",
   ];
 
-  const layout = renderLayout({
-    title: "Invitation revoked",
-    preheader: `Your invitation to ${input.organizationName} is no longer active.`,
-    bodyHtml: renderParagraphs(bodyLines),
-    bodyText: bodyLines.join("\n\n"),
-    footerText: `This is an automated update from ${APP_NAME}.`,
-  });
+  const layout = renderLayout(
+    {
+      title: "Invitation revoked",
+      preheader: `Your invitation to ${input.organizationName} is no longer active.`,
+      bodyHtml: renderParagraphs(bodyLines),
+      bodyText: bodyLines.join("\n\n"),
+      footerText: `This is an automated update from ${APP_NAME}.`,
+    },
+    options,
+  );
 
   return { subject, html: layout.html, text: layout.text };
 }

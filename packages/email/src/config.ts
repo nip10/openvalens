@@ -3,8 +3,8 @@
  *
  * The server owns the environment (`apps/server/.env.schema`); this package is
  * deliberately pure — {@link parseEmailConfig} takes the raw env object and
- * returns the validated shape, while {@link getEmailConfig} is a lazy cache
- * over `process.env` for call sites that cannot thread config through.
+ * returns the validated shape. Callers bind the resulting config explicitly via
+ * `createEmailService`; the package never reads the ambient environment itself.
  *
  * Validation never includes secret values in the thrown error; only the failing
  * variable names and the reason.
@@ -189,20 +189,4 @@ export function parseEmailConfig(env: EmailEnv): EmailConfig {
     // A missing key can never reach the provider, so dry-run is mandatory.
     EMAIL_DRY_RUN: apiKey === null ? true : requestedDryRun,
   };
-}
-
-let cachedConfig: EmailConfig | null = null;
-
-/**
- * Lazily parses and caches the email config from `process.env`. Prefer
- * {@link parseEmailConfig} with the server's validated `ENV` when available.
- */
-export function getEmailConfig(): EmailConfig {
-  cachedConfig ??= parseEmailConfig(process.env as EmailEnv);
-  return cachedConfig;
-}
-
-/** Clears the {@link getEmailConfig} cache (test helper). */
-export function resetEmailConfigCache(): void {
-  cachedConfig = null;
 }

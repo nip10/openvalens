@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import type { Database } from "@openvalens/db";
-import type { SendEmailFn } from "@openvalens/email";
+import type { EmailService, SendEmailInput, SendEmailOptions } from "@openvalens/email";
 import { createStructuredLogger } from "@openvalens/observability";
 
 import type { TelegramClient } from "./client";
@@ -73,6 +73,16 @@ function createLogger() {
   return { logger, lines };
 }
 
+/** Fake config-bound email service; the injected sender is the only path. */
+function createFakeEmailService(organizationName = "Health") {
+  const sendEmail = mock(async (_input: SendEmailInput, _options?: SendEmailOptions) => ({
+    id: "email-1",
+    dryRun: false,
+  }));
+  const service = { sendEmail, organizationName } as unknown as EmailService;
+  return { service, sendEmail };
+}
+
 const PENDING = [{ id: 1, userId: "user-1", label: "Vitamin D" }];
 const ACCOUNTS = [{ userId: "user-1", chatId: "chat-1" }];
 const USERS = [{ id: "user-1", email: "patient@example.com" }];
@@ -90,10 +100,7 @@ describe("materializeDailyReminders", () => {
       result: { message_id: 10 },
     }));
     const client = { sendMessage } as unknown as TelegramClient;
-    const sendEmail = mock(async () => ({
-      id: "email-1",
-      dryRun: false,
-    })) as unknown as SendEmailFn;
+    const { service: email, sendEmail } = createFakeEmailService();
 
     const result = await materializeDailyReminders({
       db,
@@ -101,7 +108,7 @@ describe("materializeDailyReminders", () => {
       logger,
       correlationId: "corr-1",
       organizationId: "org-1",
-      sendEmail,
+      email,
     });
 
     expect(result).toEqual({ sent: 1, skipped: 0, failed: 0 });
@@ -120,10 +127,7 @@ describe("materializeDailyReminders", () => {
 
     const sendMessage = mock(async () => ({ ok: true, result: { message_id: 10 } }));
     const client = { sendMessage } as unknown as TelegramClient;
-    const sendEmail = mock(async () => ({
-      id: "email-1",
-      dryRun: false,
-    })) as unknown as SendEmailFn;
+    const { service: email, sendEmail } = createFakeEmailService();
 
     const result = await materializeDailyReminders({
       db,
@@ -131,18 +135,58 @@ describe("materializeDailyReminders", () => {
       logger,
       correlationId: "corr-2",
       organizationId: "org-1",
-      sendEmail,
+      email,
     });
 
     expect(result).toEqual({ sent: 1, skipped: 0, failed: 0 });
     expect(sendMessage).not.toHaveBeenCalled();
+    // The injected service's sender is invoked exactly once (never an ambient
+    // module-level sender).
     expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail.mock.calls[0]?.[0]).toMatchObject({
+      to: "patient@example.com",
+      templateName: "daily-reminder",
+    });
     expect(updated).toContainEqual({ telegramMessageId: EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID });
+  });
+
+  test("email payload keeps the original subject/HTML/text regardless of organizationName", async () => {
+    // Custom branding must not leak into the reminder payload: the fallback is
+    // plain, escaped, and uses the original constant subject.
+    const label = `Vitamin <D> & "C"`;
+    const { db } = createFakeDb({
+      select: [[{ id: 7, userId: "user-1", label }], [], USERS],
+      update: [[]],
+    });
+    const { logger } = createLogger();
+    const { service: email, sendEmail } = createFakeEmailService("Alpha");
+    const client = { sendMessage: mock(async () => ({ ok: true })) } as unknown as TelegramClient;
+
+    const result = await materializeDailyReminders({
+      db,
+      client,
+      logger,
+      correlationId: "corr-payload",
+      organizationId: "org-1",
+      email,
+    });
+
+    expect(result).toEqual({ sent: 1, skipped: 0, failed: 0 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendEmail.mock.calls[0]?.[0]).toEqual({
+      to: "patient@example.com",
+      subject: "Your daily reminder",
+      html: `<p>Vitamin &lt;D&gt; &amp; &quot;C&quot;</p>`,
+      text: label,
+      templateName: "daily-reminder",
+    });
+    expect(sendEmail.mock.calls[0]?.[1]).toEqual({ correlationId: "corr-payload" });
   });
 
   test("short-circuits with zero counts when no Telegram client is configured", async () => {
     const { db } = createFakeDb({});
     const { logger, lines } = createLogger();
+    const { service: email, sendEmail } = createFakeEmailService();
 
     const result = await materializeDailyReminders({
       db,
@@ -150,15 +194,18 @@ describe("materializeDailyReminders", () => {
       logger,
       correlationId: "corr-3",
       organizationId: null,
+      email,
     });
 
     expect(result).toEqual({ sent: 0, skipped: 0, failed: 0 });
     expect(lines.some((line) => line.includes("telegram.materialize.skipped"))).toBe(true);
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   test("counts a failed Telegram delivery without throwing", async () => {
     const { db } = createFakeDb({ select: [PENDING, ACCOUNTS, USERS], update: [[]] });
     const { logger } = createLogger();
+    const { service: email, sendEmail } = createFakeEmailService();
 
     const sendMessage = mock(async () => {
       throw new Error("boom");
@@ -171,14 +218,17 @@ describe("materializeDailyReminders", () => {
       logger,
       correlationId: "corr-4",
       organizationId: "org-1",
+      email,
     });
 
     expect(result).toEqual({ sent: 0, skipped: 0, failed: 1 });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   test("never logs the raw chat id, email or reminder text", async () => {
     const { db } = createFakeDb({ select: [PENDING, ACCOUNTS, USERS], update: [[]] });
     const { logger, lines } = createLogger();
+    const { service: email, sendEmail } = createFakeEmailService();
 
     const sendMessage = mock(async () => ({ ok: true, result: { message_id: 10 } }));
     const client = { sendMessage } as unknown as TelegramClient;
@@ -189,11 +239,13 @@ describe("materializeDailyReminders", () => {
       logger,
       correlationId: "corr-5",
       organizationId: "org-1",
+      email,
     });
 
     const serialized = lines.join("\n");
     expect(serialized).not.toContain("chat-1");
     expect(serialized).not.toContain("patient@example.com");
     expect(serialized).not.toContain("Vitamin D");
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

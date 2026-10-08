@@ -1,6 +1,6 @@
 // TODO(#15): migrate to React Email if/when the react-email dep family is
 // adopted. Plain functions keep the `{ subject, html, text }` contract stable.
-import { renderLayout, renderParagraphs } from "./layout";
+import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "Health";
 
@@ -16,7 +16,10 @@ export type RenderedMagicLinkEmail = {
   text: string;
 };
 
-export function renderMagicLinkEmail(input: MagicLinkEmailInput): RenderedMagicLinkEmail {
+export function renderMagicLinkEmail(
+  input: MagicLinkEmailInput,
+  options: EmailRenderOptions = {},
+): RenderedMagicLinkEmail {
   const expiresLine = input.expiresInMinutes
     ? `For your security, this link expires in ${input.expiresInMinutes} minutes.`
     : "For your security, this link expires soon.";
@@ -31,18 +34,21 @@ export function renderMagicLinkEmail(input: MagicLinkEmailInput): RenderedMagicL
 
   // The URL is server-built, so only HTML-escaping is applied — the query
   // string (which carries the token) is never re-encoded.
-  const layout = renderLayout({
-    title: "Secure sign-in link",
-    preheader: `Use this link to securely sign in to ${APP_NAME}.`,
-    bodyHtml: renderParagraphs(bodyLines),
-    bodyText: [
-      ...bodyLines,
-      `If the button does not work, paste this link into your browser: ${input.url}`,
-    ].join("\n\n"),
-    ctaLabel: "Sign in",
-    ctaUrl: input.url,
-    footerText: `This is an automated security message from ${APP_NAME}.`,
-  });
+  const layout = renderLayout(
+    {
+      title: "Secure sign-in link",
+      preheader: `Use this link to securely sign in to ${APP_NAME}.`,
+      bodyHtml: renderParagraphs(bodyLines),
+      bodyText: [
+        ...bodyLines,
+        `If the button does not work, paste this link into your browser: ${input.url}`,
+      ].join("\n\n"),
+      ctaLabel: "Sign in",
+      ctaUrl: input.url,
+      footerText: `This is an automated security message from ${APP_NAME}.`,
+    },
+    options,
+  );
 
   return { subject, html: layout.html, text: layout.text };
 }

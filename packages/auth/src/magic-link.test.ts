@@ -64,6 +64,27 @@ describe("sendAuthMagicLink", () => {
     expect(success?.linkHost).toBe("app.example");
   });
 
+  test("fails closed without any provider call when no sender is injected", async () => {
+    await expect(sendAuthMagicLink(PAYLOAD, {} as never)).rejects.toThrow(
+      "Magic-link email delivery is not configured.",
+    );
+  });
+
+  test("threads the injected branding name into the rendered email", async () => {
+    const calls: CapturedCall[] = [];
+    const emailSender: SendEmailFn = async (input, options) => {
+      calls.push({ input, options });
+      return { id: "msg-1", dryRun: false };
+    };
+
+    await sendAuthMagicLink(PAYLOAD, {
+      sendEmail: emailSender,
+      organizationName: "Alpha Health",
+    });
+
+    expect(calls[0]?.input.html).toContain("Alpha Health");
+  });
+
   test("logs EMAIL_TRANSIENT and rethrows on a transient provider failure", async () => {
     const emailSender: SendEmailFn = async () => {
       throw new EmailTransientError(503, "provider_unavailable");

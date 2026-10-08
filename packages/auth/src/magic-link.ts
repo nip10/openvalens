@@ -1,7 +1,7 @@
 import {
   EmailPermanentError,
   EmailTransientError,
-  sendEmail as defaultSendEmail,
+  type EmailRenderOptions,
   type SendEmailFn,
 } from "@openvalens/email";
 import { createStructuredLogger } from "@openvalens/observability";
@@ -30,8 +30,14 @@ export type MagicLinkLogger = {
 export type SendAuthMagicLinkOptions = {
   expiresInSeconds?: number;
   logger?: MagicLinkLogger;
-  /** Injectable for tests; defaults to the `@openvalens/email` sender. */
-  sendEmail?: SendEmailFn;
+  /**
+   * Injected config-bound sender. Required — there is no ambient fallback, so
+   * a caller that forgets to thread the email service fails closed instead of
+   * silently reaching the raw provider.
+   */
+  sendEmail: SendEmailFn;
+  /** Branding name for the rendered email; defaults to the `Health` brand. */
+  organizationName?: EmailRenderOptions["organizationName"];
   /**
    * Local development only: receives the sign-in URL when the email was a
    * dry run (no provider configured), so a developer can sign in. Never set
@@ -125,6 +131,17 @@ class DryRunMagicLinkUnavailable extends Error {
 }
 
 /**
+ * Thrown when no sender was injected. Value-free: never carries the recipient,
+ * token, URL, or any provider detail, and is raised before any provider call.
+ */
+class MagicLinkEmailNotConfigured extends Error {
+  constructor() {
+    super("Magic-link email delivery is not configured.");
+    this.name = "MagicLinkEmailNotConfigured";
+  }
+}
+
+/**
  * Magic-link sender (Issue #15).
  *
  * Renders the magic-link email and hands it to the `@openvalens/email`
@@ -140,18 +157,27 @@ class DryRunMagicLinkUnavailable extends Error {
  */
 export async function sendAuthMagicLink(
   payload: MagicLinkPayload,
-  options: SendAuthMagicLinkOptions = {},
+  options: SendAuthMagicLinkOptions,
 ): Promise<void> {
+  if (!options || typeof options.sendEmail !== "function") {
+    // Fail closed before rendering or touching any provider: the sender is an
+    // explicit dependency, never an ambient default.
+    throw new MagicLinkEmailNotConfigured();
+  }
+
   const correlationId = resolveMagicLinkCorrelationId(payload);
   const expiresInSeconds = options.expiresInSeconds ?? DEFAULT_EXPIRES_IN_SECONDS;
   const logger = options.logger ?? createStructuredLogger({ level: "info" });
-  const emailSender = options.sendEmail ?? defaultSendEmail;
+  const emailSender = options.sendEmail;
 
-  const rendered = renderMagicLinkEmail({
-    url: payload.url,
-    correlationId,
-    expiresInMinutes: Math.round(expiresInSeconds / 60),
-  });
+  const rendered = renderMagicLinkEmail(
+    {
+      url: payload.url,
+      correlationId,
+      expiresInMinutes: Math.round(expiresInSeconds / 60),
+    },
+    { organizationName: options.organizationName },
+  );
 
   const tokenFingerprint = await fingerprintToken(payload.token);
   const location = parseLinkLocation(payload.url);

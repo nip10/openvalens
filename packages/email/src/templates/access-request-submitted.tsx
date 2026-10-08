@@ -1,4 +1,4 @@
-import { renderLayout, renderParagraphs } from "./layout";
+import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "Health";
 
@@ -16,6 +16,7 @@ export type RenderedAccessRequestSubmittedEmail = {
 
 export function renderAccessRequestSubmittedEmail(
   input: AccessRequestSubmittedEmailInput,
+  options: EmailRenderOptions = {},
 ): RenderedAccessRequestSubmittedEmail {
   const subject = `${input.requesterName} requested access to ${input.organizationName}`;
   const bodyLines = [
@@ -24,15 +25,18 @@ export function renderAccessRequestSubmittedEmail(
     "Please process pending requests promptly to keep access up to date.",
   ];
 
-  const layout = renderLayout({
-    title: "Access request received",
-    preheader: `${input.requesterName} requested access to ${input.organizationName}.`,
-    bodyHtml: renderParagraphs(bodyLines),
-    bodyText: bodyLines.join("\n\n"),
-    ctaLabel: "Review request",
-    ctaUrl: input.reviewUrl,
-    footerText: `You are receiving this because you can review access requests in ${APP_NAME}.`,
-  });
+  const layout = renderLayout(
+    {
+      title: "Access request received",
+      preheader: `${input.requesterName} requested access to ${input.organizationName}.`,
+      bodyHtml: renderParagraphs(bodyLines),
+      bodyText: bodyLines.join("\n\n"),
+      ctaLabel: "Review request",
+      ctaUrl: input.reviewUrl,
+      footerText: `You are receiving this because you can review access requests in ${APP_NAME}.`,
+    },
+    options,
+  );
 
   return { subject, html: layout.html, text: layout.text };
 }
