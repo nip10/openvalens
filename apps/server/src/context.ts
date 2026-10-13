@@ -2,6 +2,7 @@ import type { Context as ApiContext } from "@openvalens/api/context";
 import { resolveCorrelationId } from "@openvalens/observability";
 import type { Context as HonoContext } from "hono";
 
+import { buildAdminConfigInventory } from "./admin-config-inventory";
 import { ENV } from "./env.server";
 import {
   aiConfig,
@@ -48,6 +49,9 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // Issue #13 — AI config + process-local rate limiter.
     aiConfig,
     aiRateLimiter,
+    // Issue #58 — value-free global configuration inventory. Built here from
+    // the validated `ENV` so the API package never reads server environment.
+    adminConfigInventory: buildAdminConfigInventory(ENV),
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

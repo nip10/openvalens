@@ -15,6 +15,7 @@
     "./authz/dashboard-policy": "./src/authz/dashboard-policy.ts",
     "./authz/dashboard-nav": "./src/authz/dashboard-nav.ts",
     "./authz/guard": "./src/authz/guard.ts",
+    "./authz/instance-admin": "./src/authz/instance-admin.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {

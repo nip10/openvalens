@@ -36,6 +36,20 @@ export type TelegramContextConfig = {
   connectTokenTtlSeconds: number;
 };
 
+/**
+ * Issue #58 — one value-free entry in the server's global configuration
+ * inventory. The API only ever sees these three fields; the server never
+ * exposes a configuration value (or any extra field) through this shape.
+ */
+export type AdminConfigInventoryEntry = {
+  readonly key: string;
+  readonly configured: boolean;
+  readonly sensitive: boolean;
+};
+
+/** Issue #58 — the server-owned, read-only global configuration inventory. */
+export type AdminConfigInventory = readonly AdminConfigInventoryEntry[];
+
 export type Context = {
   session: Session | null;
   db: Database;
@@ -78,6 +92,14 @@ export type Context = {
    * shared across procedures within a process.
    */
   aiRateLimiter: InMemoryRateLimiter;
+  /**
+   * Issue #58 — read-only, value-free view of the server's global
+   * configuration keys. The server builds it from validated `ENV`; the API
+   * only projects `key`/`configured`/`sensitive`. Optional at the type level so
+   * unrelated context factories stay valid; the configuration procedure fails
+   * closed (generic `INTERNAL`) when it is absent.
+   */
+  adminConfigInventory?: AdminConfigInventory;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

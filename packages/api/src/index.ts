@@ -6,6 +6,7 @@ import {
 } from "@openvalens/audit-security";
 import type { Action, Resource } from "@openvalens/auth/access/permissions";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
+import { isInstanceAdmin } from "@openvalens/auth/authz/instance-admin";
 import {
   AuthzHttpError,
   requirePermission,
@@ -35,6 +36,61 @@ const requireAuth = o.middleware(async ({ context, next }) => {
 });
 
 export const protectedProcedure = publicProcedure.use(requireAuth);
+
+/**
+ * Session-only procedure that *resolves* instance-administrator status
+ * (Issue #58) without enforcing it.
+ *
+ * This is a *global* authority, so it never consults the active organization,
+ * membership roles or any client input. On every call it performs a fresh
+ * database lookup keyed by the trusted `context.session.user.id` and injects
+ * the resulting `instanceAdmin` boolean into the handler context. A non-admin
+ * is simply `false`; this procedure allows them through, so it is used only by
+ * endpoints that need the boolean (e.g. `adminSettings.access`). Endpoints that
+ * require the privilege must build on {@link instanceAdminProcedure}.
+ *
+ * A database failure is mapped to a generic `INTERNAL` envelope and the raw
+ * cause/value is never surfaced.
+ */
+export const resolveInstanceAdminProcedure = protectedProcedure.use(async ({ context, next }) => {
+  // `protectedProcedure` already guarantees a session; this is defensive and
+  // keeps the fresh lookup keyed only by the trusted session user id.
+  const userId = context.session?.user?.id;
+  if (!userId) {
+    throw raiseApiError("UNAUTHENTICATED", "Authentication required.");
+  }
+
+  let instanceAdmin: boolean;
+  try {
+    instanceAdmin = await isInstanceAdmin(context.db, userId);
+  } catch {
+    throw raiseApiError("INTERNAL", "Something went wrong.");
+  }
+
+  return next({ context: { instanceAdmin } });
+});
+
+/**
+ * Instance-administrator-only procedure (Issue #58).
+ *
+ * Derives from {@link resolveInstanceAdminProcedure} and default-denies: when
+ * the resolved `instanceAdmin` is `false` it raises `403 PERMISSION_DENIED`
+ * *before* the handler runs. Handlers therefore never need a manual role check,
+ * and any future privileged endpoint built on this procedure inherits the
+ * default-deny behaviour.
+ */
+export const instanceAdminProcedure = resolveInstanceAdminProcedure.use(
+  async ({ context, next }) => {
+    if (!context.instanceAdmin) {
+      throw raiseApiError(
+        "PERMISSION_DENIED",
+        "You do not have permission to perform this action.",
+      );
+    }
+
+    return next({});
+  },
+);
 
 /**
  * Validates the procedure input with a Zod schema and raises the stable
