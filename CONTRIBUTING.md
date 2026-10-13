@@ -160,6 +160,25 @@ against a disposable Postgres.
   `docs/research/reports/Legal and clinical gate decisions.md`: describe what
   the app records and shows; never claim to diagnose, detect, predict or treat.
 
+## Roles and permissions
+
+- **Workspace roles are organization-scoped.** `owner`, `admin`, `collaborator`
+  and `viewer` (see `@openvalens/auth/access/roles`) grant authority inside a
+  single workspace and never imply installation-wide authority.
+- **Instance administrators are a separate, global authority.** An instance
+  administrator is an explicit operator role for the whole installation. It is
+  assigned deliberately by a trusted operator; the application never
+  auto-promotes a user — not the first user, not a workspace owner, and not the
+  creator of an organization.
+- **The global settings surface is read-only.** It reports only whether each
+  known server configuration key is present and whether it is sensitive; it
+  never returns a configuration value. There are no settings writes, tables or
+  toggles in this foundation.
+- **There is no global read audit yet.** The existing access audit is
+  organization-scoped, so global settings reads and future global mutations are
+  not audited. Closing that gap (with an organization-independent audit path) is
+  tracked separately.
+
 ## Pull requests
 
 Keep them focused, link the issue, and describe how you verified the change.

@@ -19,8 +19,8 @@ import {
 } from "@openvalens/api/presenters/coach-settings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Chip, useThemeColor } from "heroui-native";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
 import { CardStack, ListRow } from "@/components/list-row";
@@ -31,11 +31,12 @@ import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/lib/offline/sync";
 import { resetHealthSync } from "@/lib/health-sync";
 import { orpc, queryClient } from "@/utils/orpc";
+import { adminAccessQueryOptions } from "@/utils/admin-settings";
 
 export default function SettingsScreen() {
   const { isDark, toggleTheme } = useAppTheme();
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending: sessionPending } = authClient.useSession();
 
   const foreground = useThemeColor("foreground");
 
@@ -79,6 +80,10 @@ export default function SettingsScreen() {
               />
             </Card>
           </CardStack>
+        )}
+
+        {session?.user && (
+          <AdministrationRow userId={session.user.id} sessionPending={sessionPending} />
         )}
 
         <CardStack title="Preferences">
@@ -339,6 +344,56 @@ function CoachForm({
             <Text className="text-sm text-destructive">Could not save.</Text>
           ) : null}
         </View>
+      </Card>
+    </CardStack>
+  );
+}
+
+function AdministrationRow({
+  userId,
+  sessionPending,
+}: {
+  userId: string;
+  sessionPending: boolean;
+}) {
+  const access = useQuery({
+    ...adminAccessQueryOptions(userId),
+    enabled: !!userId,
+  });
+
+  // The settings tab can stay mounted; refresh admin access on focus so a
+  // revoked role removes the link promptly.
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        void access.refetch();
+      }
+    }, [access.refetch, userId]),
+  );
+
+  const foreground = useThemeColor("foreground");
+
+  const showAdministration =
+    !!userId &&
+    !sessionPending &&
+    !access.isPending &&
+    !access.isFetching &&
+    !access.isError &&
+    access.data?.isInstanceAdmin === true;
+
+  if (!showAdministration) {
+    return null;
+  }
+
+  return (
+    <CardStack title="Administration">
+      <Card variant="secondary" className="overflow-hidden p-0">
+        <ListRow
+          icon={<Ionicons name="shield-outline" size={20} color={foreground} />}
+          title="Instance configuration"
+          subtitle="View global environment settings"
+          onPress={() => router.push("/admin/settings")}
+        />
       </Card>
     </CardStack>
   );

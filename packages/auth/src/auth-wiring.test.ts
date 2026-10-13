@@ -8,6 +8,7 @@ import {
   type SendEmailOptions,
 } from "@openvalens/email";
 
+import { roles } from "./access/better-auth";
 import { createAuth } from "./index";
 
 /**
@@ -168,5 +169,24 @@ describe("createAuth email wiring", () => {
     expect(withDesktop.options.trustedOrigins).toContain("openvalens://desktop");
     expect(withoutDesktop.options.trustedOrigins).not.toContain("openvalens://desktop");
     expect(withoutDesktop.options.trustedOrigins).toContain("http://localhost:3000");
+  });
+});
+
+describe("global role boundary (Issue #58)", () => {
+  test("the admin plugin marks user.role as a non-input field", () => {
+    const { service } = createFakeEmailService();
+    const auth = buildAuth(service);
+    const plugins = auth.options.plugins as unknown as Array<{
+      id: string;
+      schema?: { user?: { fields?: Record<string, { input?: boolean }> } };
+    }>;
+    const admin = plugins.find((candidate) => candidate.id === "admin");
+
+    expect(admin?.schema?.user?.fields?.role?.input).toBe(false);
+  });
+
+  test("a workspace owner cannot set a global user role; an admin can", () => {
+    expect(roles.owner.authorize({ user: ["set-role"] }).success).toBe(false);
+    expect(roles.admin.authorize({ user: ["set-role"] }).success).toBe(true);
   });
 });

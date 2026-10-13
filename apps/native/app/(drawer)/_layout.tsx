@@ -191,6 +191,13 @@ function DrawerLayout() {
           drawerItemStyle: { display: "none" },
         }}
       />
+      <Drawer.Screen
+        name="admin/settings"
+        options={{
+          headerTitle: "Instance configuration",
+          drawerItemStyle: { display: "none" },
+        }}
+      />
     </Drawer>
   );
 }

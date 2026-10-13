@@ -16,31 +16,88 @@ function parseLine(line: string): Record<string, unknown> {
   return JSON.parse(line) as Record<string, unknown>;
 }
 
+// Unique, test-owned event names. Asserting on these instead of raw
+// `process.stdout`/`process.stderr` call counts keeps the stream-routing check
+// correct even when other test files write to the same process streams
+// concurrently, while still catching a genuine misroute or duplicate emit.
+const INFO_EVENT = "logger.route.sentinel.info.6c1f";
+const WARN_EVENT = "logger.route.sentinel.warn.6c1f";
+const ERROR_EVENT = "logger.route.sentinel.error.6c1f";
+
+/** Captures everything written to the process streams while `run` executes. */
+function captureStreams(run: () => void): { stdout: string[]; stderr: string[] } {
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const outSpy = spyOn(process.stdout, "write").mockImplementation((chunk) => {
+    stdout.push(String(chunk));
+    return true;
+  });
+  const errSpy = spyOn(process.stderr, "write").mockImplementation((chunk) => {
+    stderr.push(String(chunk));
+    return true;
+  });
+
+  try {
+    run();
+  } finally {
+    outSpy.mockRestore();
+    errSpy.mockRestore();
+  }
+
+  return { stdout, stderr };
+}
+
+/** The captured lines that belong to this test (identified by its sentinel). */
+function ownedLines(lines: string[], event: string): string[] {
+  return lines.filter((line) => line.includes(event));
+}
+
 describe("createStructuredLogger", () => {
   test("routes info to stdout and warn/error to stderr", () => {
-    const stdout = spyOn(process.stdout, "write").mockImplementation(() => true);
-    const stderr = spyOn(process.stderr, "write").mockImplementation(() => true);
+    const logger = createStructuredLogger();
+    const { stdout, stderr } = captureStreams(() => {
+      logger.info(INFO_EVENT, { a: 1 });
+      logger.warn(WARN_EVENT, { a: 2 });
+      logger.error(ERROR_EVENT, { a: 3 });
+    });
 
-    try {
-      const logger = createStructuredLogger();
-      logger.info("event.info", { a: 1 });
-      logger.warn("event.warn", { a: 2 });
-      logger.error("event.error", { a: 3 });
+    const infoLines = ownedLines(stdout, INFO_EVENT);
+    const warnLines = ownedLines(stderr, WARN_EVENT);
+    const errorLines = ownedLines(stderr, ERROR_EVENT);
 
-      expect(stdout).toHaveBeenCalledTimes(1);
-      expect(stderr).toHaveBeenCalledTimes(2);
+    // Each logger message is emitted exactly once, on its correct stream.
+    expect(infoLines).toHaveLength(1);
+    expect(warnLines).toHaveLength(1);
+    expect(errorLines).toHaveLength(1);
 
-      const stdoutLine = String(stdout.mock.calls[0]?.[0]);
-      const stderrLines = stderr.mock.calls.map((call) => String(call[0]));
+    expect(infoLines[0]).toContain('"level":"info"');
+    expect(infoLines[0]?.endsWith("\n")).toBe(true);
+    expect(warnLines[0]).toContain('"level":"warn"');
+    expect(errorLines[0]).toContain('"level":"error"');
 
-      expect(stdoutLine).toContain('"level":"info"');
-      expect(stdoutLine.endsWith("\n")).toBe(true);
-      expect(stderrLines[0]).toContain('"level":"warn"');
-      expect(stderrLines[1]).toContain('"level":"error"');
-    } finally {
-      stdout.mockRestore();
-      stderr.mockRestore();
-    }
+    // No logger message is emitted on the wrong stream.
+    expect(ownedLines(stdout, WARN_EVENT)).toHaveLength(0);
+    expect(ownedLines(stdout, ERROR_EVENT)).toHaveLength(0);
+    expect(ownedLines(stderr, INFO_EVENT)).toHaveLength(0);
+  });
+
+  test("stays correct when unrelated stderr output is interleaved", () => {
+    const logger = createStructuredLogger();
+    const { stdout, stderr } = captureStreams(() => {
+      // Simulates another test file writing to the shared process stream. A
+      // raw total-call-count assertion would over-count because of this noise.
+      process.stderr.write("unrelated noise from a concurrent test file\n");
+      logger.warn(WARN_EVENT, { a: 2 });
+      logger.error(ERROR_EVENT, { a: 3 });
+    });
+
+    // The unrelated write is present, so a total-count assertion would fail...
+    expect(stderr.length).toBeGreaterThan(2);
+    // ...yet the logger-owned messages remain exactly one each, on stderr only.
+    expect(ownedLines(stderr, WARN_EVENT)).toHaveLength(1);
+    expect(ownedLines(stderr, ERROR_EVENT)).toHaveLength(1);
+    expect(ownedLines(stdout, WARN_EVENT)).toHaveLength(0);
+    expect(ownedLines(stdout, ERROR_EVENT)).toHaveLength(0);
   });
 
   test("suppresses levels below the configured minimum", () => {
