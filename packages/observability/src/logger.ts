@@ -50,6 +50,16 @@ export const BLOCKED_FIELDS = [
   "rawPayload",
   "aiPrompt",
   "aiResponse",
+  // Admission credentials (Issue #63) — never log a bearer, proof code or hash.
+  "credential",
+  "setupToken",
+  "verificationCode",
+  "invitationToken",
+  "tokenHash",
+  "codeHash",
+  "setup_token_hash",
+  "invitation_token_hash",
+  "verification_code_hash",
 ] as const;
 
 const BLOCKED_FIELD_SET = new Set<string>(BLOCKED_FIELDS);

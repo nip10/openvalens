@@ -1,4 +1,5 @@
 import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
+import type { AdmissionService } from "@openvalens/auth/admission";
 import type { Session } from "@openvalens/auth";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
 import type { Database } from "@openvalens/db";
@@ -100,6 +101,23 @@ export type Context = {
    * closed (generic `INTERNAL`) when it is absent.
    */
   adminConfigInventory?: AdminConfigInventory;
+  /**
+   * Issue #63 — normalized web origin (`new URL(CORS_ORIGIN).origin`) that an
+   * admission mutation's `Origin` header must equal. The server derives it;
+   * the API never reads the environment.
+   */
+  admissionOrigin?: string;
+  /**
+   * Issue #63 — server-built admission service. Optional at the type level so
+   * unrelated context factories stay valid; admission procedures fail closed
+   * (generic `INTERNAL`) when it is absent.
+   */
+  admissionService?: AdmissionService;
+  /**
+   * Issue #63 — process-local admission rate limiter keyed by fixed endpoint
+   * names. The server owns the instance.
+   */
+  admissionRateLimiter?: InMemoryRateLimiter;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

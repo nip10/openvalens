@@ -7,6 +7,8 @@ import { ENV } from "./env.server";
 import {
   aiConfig,
   aiRateLimiter,
+  admissionRateLimiter,
+  admissionService,
   auth,
   capabilities,
   db,
@@ -21,6 +23,20 @@ export type CreateContextOptions = {
 
 /** Minimum length for `BETTER_AUTH_SECRET` (mirrors `.env.schema`). */
 const MIN_BETTER_AUTH_SECRET_LENGTH = 32;
+
+/**
+ * Normalized web origin (`scheme://host[:port]`) that an admission mutation's
+ * `Origin` header must equal. `CORS_ORIGIN` is schema-validated, but the parse
+ * is defensive: an unparseable value yields `undefined`, which makes admission
+ * mutations fail closed (`INTERNAL`).
+ */
+function admissionOriginFrom(corsOrigin: string): string | undefined {
+  try {
+    return new URL(corsOrigin).origin;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function createContext({ context }: CreateContextOptions): Promise<ApiContext> {
   const session = await auth.api.getSession({
@@ -52,6 +68,11 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // Issue #58 — value-free global configuration inventory. Built here from
     // the validated `ENV` so the API package never reads server environment.
     adminConfigInventory: buildAdminConfigInventory(ENV),
+    // Issue #63 — admission service, limiter and the normalized web origin an
+    // admission mutation's `Origin` header must match.
+    admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
+    admissionService,
+    admissionRateLimiter,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

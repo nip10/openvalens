@@ -15,15 +15,35 @@ export function assertDisposable(url: string | undefined, database: string): voi
     throw new Error(`Empty disposable loopback ${database} database required.`);
 }
 
-export async function migrateEmptyDatabase(db: Database): Promise<void> {
+const MIGRATIONS_ROOT = new URL("../../db/src/migrations/", import.meta.url);
+
+/** Tracked migration directories (timestamp-prefixed), in application order. */
+async function migrationDirectories(): Promise<string[]> {
+  return (await readdir(MIGRATIONS_ROOT)).filter((name) => /^\d/.test(name)).sort();
+}
+
+/** Applies one tracked migration folder's `migration.sql`. */
+export async function applyMigration(db: Database, directory: string): Promise<void> {
+  const text = await Bun.file(new URL(`${directory}/migration.sql`, MIGRATIONS_ROOT)).text();
+  for (const statement of text.split("--> statement-breakpoint"))
+    if (statement.trim()) await db.execute(sql.raw(statement));
+}
+
+/**
+ * Applies every tracked migration to an empty disposable database. Pass
+ * `stopBefore` to apply only the migrations that sort before it (used to seed
+ * pre-existing rows, then apply a migration whose data-bootstrap depends on
+ * them).
+ */
+export async function migrateEmptyDatabase(
+  db: Database,
+  options: { stopBefore?: string } = {},
+): Promise<void> {
   const tables = await db.execute(sql`select tablename from pg_tables where schemaname = 'public'`);
   if (tables.rows.length) throw new Error("Integration database must be empty.");
-  const root = new URL("../../db/src/migrations/", import.meta.url);
-  for (const directory of (await readdir(root)).sort()) {
-    if (!/^\d/.test(directory)) continue;
-    const text = await Bun.file(new URL(`${directory}/migration.sql`, root)).text();
-    for (const statement of text.split("--> statement-breakpoint"))
-      if (statement.trim()) await db.execute(sql.raw(statement));
+  for (const directory of await migrationDirectories()) {
+    if (options.stopBefore && directory >= options.stopBefore) break;
+    await applyMigration(db, directory);
   }
 }
 

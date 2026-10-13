@@ -182,3 +182,12 @@ against a disposable Postgres.
 ## Pull requests
 
 Keep them focused, link the issue, and describe how you verified the change.
+
+## Accounts and instance admission
+
+OpenValens has no public sign-up. Accounts are created only by the admission
+flow (Issue #63): a one-time setup token bootstraps the first global instance
+administrator, after which only a global administrator may invite accounts, and
+organization invitations may target existing accounts only. Do not add a Better
+Auth sign-up, magic-link provisioning, or admin create-user path — the auth
+factory intentionally rejects all SDK account creation.

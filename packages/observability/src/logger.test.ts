@@ -141,6 +141,48 @@ describe("createStructuredLogger", () => {
     expect(raw).not.toContain("raw-text");
   });
 
+  test("drops admission credential fields (Issue #63) at any depth", () => {
+    const { logger, lines } = createCapturingLogger();
+
+    logger.error("admission.failure", {
+      safe: "keep",
+      credential: "raw-credential",
+      setupToken: "raw-setup-token",
+      verificationCode: "raw-code",
+      invitationToken: "raw-invite",
+      tokenHash: "deadbeef",
+      codeHash: "cafef00d",
+      setup_token_hash: "s-hash",
+      invitation_token_hash: "i-hash",
+      verification_code_hash: "v-hash",
+      nested: [{ credential: "nested-credential", verificationCode: "nested-code" }],
+    });
+
+    const record = parseLine(lines[0]?.line ?? "");
+    expect(record).toEqual({
+      level: "error",
+      event: "admission.failure",
+      safe: "keep",
+      nested: [{}],
+    });
+
+    const raw = lines[0]?.line ?? "";
+    for (const canary of [
+      "raw-credential",
+      "raw-setup-token",
+      "raw-code",
+      "raw-invite",
+      "deadbeef",
+      "cafef00d",
+      "s-hash",
+      "i-hash",
+      "v-hash",
+      "nested-credential",
+      "nested-code",
+    ])
+      expect(raw).not.toContain(canary);
+  });
+
   test("serializes errors as { name, code? } only", () => {
     const { logger, lines } = createCapturingLogger();
 

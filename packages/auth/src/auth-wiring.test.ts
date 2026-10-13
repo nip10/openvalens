@@ -190,3 +190,70 @@ describe("global role boundary (Issue #58)", () => {
     expect(roles.admin.authorize({ user: ["set-role"] }).success).toBe(true);
   });
 });
+
+// ─── Issue #63 admission wiring ─────────────────────────────────
+
+type AnyOptions = {
+  user?: { validateUserInfo?: (input?: unknown) => unknown };
+  databaseHooks?: { user?: { create?: { before?: () => unknown } } };
+  hooks?: { before?: unknown };
+};
+
+function fakeDatabaseWithRows(rows: { id: string }[]): Database {
+  return {
+    execute: async () => ({ rows }),
+  } as unknown as Database;
+}
+
+describe("createAuth admission wiring (Issue #63)", () => {
+  test("rejects every SDK user creation (validateUserInfo + databaseHooks)", async () => {
+    const { service } = createFakeEmailService();
+    const auth = buildAuth(service);
+    const options = auth.options as unknown as AnyOptions;
+
+    expect(options.user?.validateUserInfo?.()).toEqual({ error: "registration_not_allowed" });
+    expect(await options.databaseHooks?.user?.create?.before?.()).toBe(false);
+  });
+
+  test("magic link disables sign-up and stores only hashed tokens", () => {
+    const { service } = createFakeEmailService();
+    const auth = buildAuth(service);
+    const magic = pluginOptions(auth, "magic-link") as unknown as {
+      disableSignUp?: boolean;
+      storeToken?: string;
+    };
+
+    expect(magic.disableSignUp).toBe(true);
+    expect(magic.storeToken).toBe("hashed");
+  });
+
+  test("the /admin/* hook is registered", () => {
+    const { service } = createFakeEmailService();
+    const auth = buildAuth(service);
+    const options = auth.options as unknown as AnyOptions;
+    expect(typeof options.hooks?.before).toBe("function");
+  });
+
+  test("organization invitations allow existing accounts only", async () => {
+    const { service } = createFakeEmailService();
+    const args = {
+      invitation: { email: "invitee@example.com" },
+      inviter: { user: { email: "inviter@example.com" } },
+      organization: { name: "Acme" },
+    };
+
+    const existing = createAuth(ENV, fakeDatabaseWithRows([{ id: "user-1" }]), { email: service });
+    const orgHooks = pluginOptions(existing, "organization") as unknown as {
+      organizationHooks?: { beforeCreateInvitation?: (a: unknown) => Promise<unknown> };
+    };
+    await expect(
+      orgHooks.organizationHooks?.beforeCreateInvitation?.(args),
+    ).resolves.toBeUndefined();
+
+    const missing = createAuth(ENV, fakeDatabaseWithRows([]), { email: service });
+    const missingHooks = pluginOptions(missing, "organization") as unknown as {
+      organizationHooks?: { beforeCreateInvitation?: (a: unknown) => Promise<unknown> };
+    };
+    await expect(missingHooks.organizationHooks?.beforeCreateInvitation?.(args)).rejects.toThrow();
+  });
+});

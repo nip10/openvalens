@@ -1,4 +1,5 @@
 import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
+import { hasExistingAccount } from "@openvalens/auth/authz/existing-account";
 import { AuthzHttpError, requireOrgMembership } from "@openvalens/auth/authz/guard";
 import { invitation, member, user } from "@openvalens/db/schema/auth";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -161,7 +162,17 @@ export const sharingRouter = {
       ensureOwner(authz.role);
       const organizationId = authz.activeOrganizationId;
       const inviterId = authz.user.id;
-      const expiresAt = new Date(Date.now() + 14 * 86_400_000);
+      // New accounts come only from the global admission flow: an org
+      // invitation may target an existing account only. The lookup is
+      // lower-only, unambiguous (exactly one row) and value-free on denial.
+      if (!(await hasExistingAccount(context.db, input.email))) {
+        throw raiseApiError(
+          "PERMISSION_DENIED",
+          "That email does not belong to an existing account.",
+        );
+      }
+      // Two-day invitation window (mirrors the Better Auth org plugin).
+      const expiresAt = new Date(Date.now() + 2 * 86_400_000);
       const id = `${organizationId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
       const [row] = await context.db
         .insert(invitation)

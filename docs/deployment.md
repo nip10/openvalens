@@ -357,3 +357,47 @@ covers this path.
 2. Re-run the post-deploy smoke checks (section 8).
 3. Once the regression is fixed in a follow-up commit, re-deploy as normal;
    the prior broken image stays in the platform for traceability.
+
+## Instance admission (Issue #63)
+
+A fresh installation starts `pending`: no account can sign in until the first
+global instance administrator is bootstrapped with a one-time setup token.
+
+1. Mint the token on a host with database access — never through the API, and
+   always via the supported launcher (it disables Bun's `.env` autoload so an
+   ambient developer file can never supply the database):
+
+   ```bash
+   scripts/admission.sh mint --output /path/to/setup-token   # private file (0600)
+   scripts/admission.sh mint --stdout                        # print for manual paste
+   ```
+
+   Exactly one output selector is required. The token is written once and never
+   logged. Do **not** use `bun run` or a bare `bun scripts/admission.ts` — both
+   may load `.env`. The CLI requires an explicit `DATABASE_URL` or
+   `DATABASE_URL_FILE`.
+
+2. Enter the token in the web setup screen (phase 2) to create the first
+   account; it becomes the global instance administrator.
+
+3. Once a global administrator exists the installation is `invite_only`: only a
+   global administrator may invite new accounts, and organization invitations
+   (`/organization/invite-member`) may target existing accounts only. New
+   accounts come exclusively from the admission flow; Better Auth sign-up and
+   magic-link provisioning are disabled.
+
+The CLI requires an explicit `DATABASE_URL` (or `DATABASE_URL_FILE`) and refuses
+a non-loopback host unless `--allow-remote` is passed. It is an operator tool
+and is never invoked by the server or an automated agent.
+
+### Daily maintenance
+
+Expired admission grants are cleaned by an operator-scheduled command; there is
+no background job yet:
+
+```bash
+scripts/admission.sh prune --limit 500
+```
+
+Schedule this daily (cron/runbook) against the production database. It is
+expiry-only and bounded.

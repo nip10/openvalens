@@ -58,6 +58,17 @@ describe("data-rights registry", () => {
     expect(unredacted).toEqual([]);
   });
 
+  test("admission grant credential hashes are explicitly redacted", () => {
+    const entry = DATA_RIGHTS_REGISTRY.admission_grant;
+    expect(entry).toBeDefined();
+    expect(entry && isExported(entry)).toBe(true);
+    expect(entry?.redact ?? []).toContain("invitation_token_hash");
+    expect(entry?.redact ?? []).toContain("verification_code_hash");
+    // The shared credential pattern happens not to match `verification_code_hash`,
+    // so guard it explicitly instead of widening that pattern.
+    expect(CREDENTIAL_COLUMN.test("verification_code_hash")).toBe(false);
+  });
+
   test("redacted columns exist", () => {
     const byName = new Map(tables.map((t) => [t.name, t.columns.map((column) => column.name)]));
     const unknown = Object.entries(DATA_RIGHTS_REGISTRY).flatMap(([name, entry]) =>
