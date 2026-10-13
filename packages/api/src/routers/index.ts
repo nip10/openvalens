@@ -2,6 +2,7 @@ import type { RouterClient } from "@orpc/server";
 
 import { activityRouter } from "./activity";
 import { adminSettingsRouter } from "./admin-settings";
+import { admissionRouter } from "./admission";
 import { aiRouter } from "./ai";
 import { bodyRouter } from "./body";
 import { clinicalRouter } from "./clinical";
@@ -26,6 +27,7 @@ import { vitalsRouter } from "./vitals";
 export const appRouter = {
   activity: activityRouter,
   adminSettings: adminSettingsRouter,
+  admission: admissionRouter,
   ai: aiRouter,
   body: bodyRouter,
   clinical: clinicalRouter,

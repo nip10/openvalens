@@ -1,5 +1,6 @@
 import { InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
+import { createAdmissionService } from "@openvalens/auth/admission";
 import { createDb } from "@openvalens/db";
 import { createEmailService, parseEmailConfig } from "@openvalens/email";
 import { parseTelegramConfig, TelegramClient } from "@openvalens/telegram";
@@ -76,3 +77,56 @@ export const capabilities = {
 // can resolve the active Better Auth instance without it being threaded
 // through every call site.
 setRegisteredAuth(auth);
+
+// ─── Admission (Issue #63) ──────────────────────────────────────
+//
+// The admission core is pure; the server injects the Resend-backed email
+// delivery callbacks here. The verification code / invitation bearer appear in
+// the message body only (never a URL, never logged), and the template names are
+// deliberately outside the audit-BCC allow-list so credentials are never BCC'd.
+// A dry-run send is treated as a generic delivery failure — never a claimed
+// delivery.
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+export const admissionService = createAdmissionService({
+  db,
+  deliverVerification: async ({ email: recipient, verificationCode }) => {
+    const result = await email.sendEmail({
+      to: recipient,
+      subject: "Verify your email for OpenValens",
+      text: `Your verification code is ${verificationCode}. It expires in 10 minutes.`,
+      html: `<p>Your verification code is <strong>${escapeHtml(verificationCode)}</strong>.</p><p>It expires in 10 minutes.</p>`,
+      templateName: "admission-verification",
+      tags: ["admission-verification"],
+    });
+
+    if (result.dryRun) {
+      throw new Error("Admission verification email was not delivered.");
+    }
+  },
+  deliverInvitation: async ({ email: recipient, invitationToken }) => {
+    const result = await email.sendEmail({
+      to: recipient,
+      subject: "You\u2019re invited to OpenValens",
+      text: `You have been invited to OpenValens. Your invitation token is ${invitationToken}.`,
+      html: `<p>You have been invited to OpenValens.</p><p>Your invitation token is <strong>${escapeHtml(invitationToken)}</strong>.</p>`,
+      templateName: "admission-invitation",
+      tags: ["admission-invitation"],
+    });
+
+    if (result.dryRun) {
+      throw new Error("Admission invitation email was not delivered.");
+    }
+  },
+});
+
+// Process-local admission limiter with fixed endpoint keys (see `@openvalens/api`).
+export const admissionRateLimiter = new InMemoryRateLimiter({ limitPerMinute: 20 });

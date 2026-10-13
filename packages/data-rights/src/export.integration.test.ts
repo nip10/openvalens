@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createDb } from "@openvalens/db";
+import { createDb, sql } from "@openvalens/db";
 
 import { exportSubjectData, verifyExport, type DataExport } from "./export";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
@@ -22,6 +22,20 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     await migrateEmptyDatabase(db);
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
+
+    // Admission grants (#63): A is a recipient (by target user and by pending
+    // email), B has its own, and A invited a third party (must never surface in
+    // A's export — that would list A's other recipients).
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('user-inviter', 'inviter@example.test'), ('user-z', 'z@example.test');
+      insert into admission_grant (id, kind, canonical_email, target_user_id, inviter_user_id, invitation_token_hash, expires_at, verification_code_hash, verification_expires_at, created_at, updated_at) values
+        ('grant-a-target', 'invitation', 'a@example.test', 'user-a', 'user-inviter', 'token-hash-a-target', now() + interval '1 day', 'code-hash-a-target', now() + interval '1 hour', now(), now()),
+        ('grant-a-email', 'invitation', 'a@example.test', null, 'user-inviter', 'token-hash-a-email', now() + interval '1 day', null, null, now(), now()),
+        ('grant-b', 'invitation', 'b@example.test', 'user-b', 'user-inviter', 'token-hash-b', now() + interval '1 day', 'code-hash-b', now() + interval '1 hour', now(), now()),
+        ('grant-a-inviter', 'invitation', 'z@example.test', 'user-z', 'user-a', 'token-hash-a-inviter', now() + interval '1 day', null, null, now(), now());
+    `),
+    );
 
     exported = await exportSubjectData(
       db,
@@ -63,9 +77,29 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(parse("account")[0]).not.toHaveProperty("password");
     expect(exported.manifest.redacted.map((r) => r.table).sort()).toEqual([
       "account",
+      "admission_grant",
       "session",
       "telegram_connect_token",
     ]);
+  });
+
+  test("admission grants export only the recipient scope, never the inviter's other recipients", () => {
+    const grants = parse("admission_grant")
+      .map((r) => r.id)
+      .sort();
+    expect(grants).toEqual(["grant-a-email", "grant-a-target"]);
+    const all = exported.files.map((f) => f.content).join("\n");
+    // Invitation/verification hashes are never exported (canary values).
+    expect(all).not.toContain("token-hash-a-target");
+    expect(all).not.toContain("code-hash-a-target");
+    expect(all).not.toContain("token-hash-a-email");
+    // The third party A invited is not in A's export.
+    expect(all).not.toContain("z@example.test");
+    expect(all).not.toContain("user-z");
+    for (const row of parse("admission_grant"))
+      expect(row).not.toHaveProperty("invitation_token_hash");
+    for (const row of parse("admission_grant"))
+      expect(row).not.toHaveProperty("verification_code_hash");
   });
 
   test("row counts match files and checksums verify; tampering is detected", () => {

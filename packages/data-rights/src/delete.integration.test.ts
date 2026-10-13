@@ -5,7 +5,7 @@ import { deleteSubjectData, type DeletionReport } from "./delete";
 import { rowFilter } from "./export";
 import { previewSubjectData, resolveSubject, type SubjectResolution } from "./policy";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
-import { assertDisposable, migrateEmptyDatabase, seedAccount } from "./testing";
+import { applyMigration, assertDisposable, migrateEmptyDatabase, seedAccount } from "./testing";
 
 const url = process.env.DATA_RIGHTS_DELETE_TEST_DATABASE_URL;
 assertDisposable(url, "data_rights_delete_test");
@@ -89,6 +89,21 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     `),
     );
 
+    // Admission grants (#63) and durable security events.
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('user-admin', 'admin@example.test');
+      insert into admission_grant (id, kind, canonical_email, target_user_id, inviter_user_id, invitation_token_hash, expires_at, created_at, updated_at) values
+        ('grant-a-target', 'invitation', 'a@example.test', 'user-a', 'user-admin', 'tok-a-target', now() + interval '1 day', now(), now()),
+        ('grant-a-email', 'invitation', 'a@example.test', null, 'user-admin', 'tok-a-email', now() + interval '1 day', now(), now()),
+        ('grant-b', 'invitation', 'b@example.test', 'user-b', 'user-admin', 'tok-b', now() + interval '1 day', now(), now()),
+        ('grant-a-inviter', 'invitation', 'z@example.test', 'user-z', 'user-a', 'tok-a-inviter', now() + interval '1 day', now(), now());
+      insert into global_security_event (id, event_type, actor_user_id, target_user_id, grant_id) values
+        ('evt-a-actor', 'admission_invitation_issued', 'user-a', 'user-z', 'grant-a-inviter'),
+        ('evt-a-target', 'setup_completed', null, 'user-a', null);
+    `),
+    );
+
     resolvedA = await resolveSubject(db, "user-a");
     resolvedB = await resolveSubject(db, "user-b");
     preview = await previewSubjectData(db, A);
@@ -167,5 +182,133 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     // Preview lists every supplement the record uses; deletion keeps the shared one.
     expect(preview.supplement).toBe(2);
     expect(report.rowCounts.supplement).toBe(1);
+  });
+
+  test("admission grants: recipient and issued grants erased, third-party grants survive", async () => {
+    // Recipient rows (target user / pending email) are explicitly erased.
+    expect(await count("admission_grant", sql`id = 'grant-a-target'`)).toBe(0);
+    expect(await count("admission_grant", sql`id = 'grant-a-email'`)).toBe(0);
+    // A grant A issued to a third party goes with the issuer via FK cascade.
+    expect(await count("admission_grant", sql`id = 'grant-a-inviter'`)).toBe(0);
+    // Another admin's grant to B is untouched.
+    expect(await count("admission_grant", sql`id = 'grant-b'`)).toBe(1);
+    // Only explicit (non-cascade) deletions are counted.
+    expect(report.rowCounts.admission_grant).toBe(2);
+  });
+
+  test("global security events survive with identifiers nulled, not erased", async () => {
+    const rows = (
+      await db.execute(
+        sql`select id, event_type, actor_user_id, target_user_id from global_security_event order by id`,
+      )
+    ).rows as {
+      id: string;
+      event_type: string;
+      actor_user_id: string | null;
+      target_user_id: string | null;
+    }[];
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    expect(byId.get("evt-a-actor")).toMatchObject({
+      event_type: "admission_invitation_issued",
+      actor_user_id: null,
+      target_user_id: "user-z",
+    });
+    expect(byId.get("evt-a-target")).toMatchObject({
+      event_type: "setup_completed",
+      actor_user_id: null,
+      target_user_id: null,
+    });
+  });
+
+  test("instance admission singleton is untouched by subject deletion", async () => {
+    const rows = (await db.execute(sql`select id, state, completed_at from instance_admission`))
+      .rows as { id: string; state: string; completed_at: string | null }[];
+    expect(rows).toEqual([{ id: "instance", state: "pending", completed_at: null }]);
+  });
+});
+
+const ADMISSION_MIGRATION = "20261013140951_instance_admission";
+
+describe.skipIf(!url)("admission bootstrap migration against disposable PostgreSQL", () => {
+  const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/data_rights_delete_test" });
+
+  const resetBaseline = async () => {
+    await db.execute(sql`drop schema public cascade`);
+    await db.execute(sql`create schema public`);
+    await migrateEmptyDatabase(db, { stopBefore: ADMISSION_MIGRATION });
+  };
+
+  const bootstrapState = async () => {
+    const rows = (
+      await db.execute(
+        sql`select state, generation, setup_token_hash, completed_at from instance_admission`,
+      )
+    ).rows as {
+      state: string;
+      generation: number;
+      setup_token_hash: string | null;
+      completed_at: string | null;
+    }[];
+    expect(rows).toHaveLength(1);
+    return rows[0]!;
+  };
+
+  const userCount = async () =>
+    Number(
+      ((await db.execute(sql`select count(*)::int as n from "user"`)).rows[0] as { n: number }).n,
+    );
+
+  // The baseline seeds one `__migration_owner__` account, so preserved rows are
+  // that owner plus whatever the test seeded.
+  const userIds = async () =>
+    (await db.execute(sql`select id from "user" order by id`)).rows.map((row) =>
+      String((row as { id: string }).id),
+    );
+
+  test("a pre-existing exact-CSV admin (banned included) closes the bootstrap", async () => {
+    await resetBaseline();
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email, role, banned) values
+        ('u-admin', 'admin@example.test', 'admin', false),
+        ('u-banned', 'banned@example.test', 'admin', true),
+        ('u-owner', 'owner@example.test', 'owner', false);
+    `),
+    );
+    await applyMigration(db, ADMISSION_MIGRATION);
+
+    const row = await bootstrapState();
+    expect(row.state).toBe("invite_only");
+    expect(row.completed_at).not.toBeNull();
+    expect(row.generation).toBe(0);
+    expect(row.setup_token_hash).toBeNull();
+    // Every pre-existing account is preserved; no role is granted.
+    expect(await userIds()).toEqual(
+      expect.arrayContaining(["__migration_owner__", "u-admin", "u-banned", "u-owner"]),
+    );
+    expect(await userCount()).toBe(4);
+  });
+
+  test("no admin (owner / superadmin / spaced token) stays pending", async () => {
+    await resetBaseline();
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email, role, banned) values
+        ('u-owner', 'owner@example.test', 'owner', false),
+        ('u-super', 'super@example.test', 'superadmin', false),
+        ('u-spaced', 'spaced@example.test', ' admin ', false);
+    `),
+    );
+    await applyMigration(db, ADMISSION_MIGRATION);
+
+    const row = await bootstrapState();
+    expect(row.state).toBe("pending");
+    expect(row.completed_at).toBeNull();
+    expect(row.generation).toBe(0);
+    expect(row.setup_token_hash).toBeNull();
+    expect(await userIds()).toEqual(
+      expect.arrayContaining(["__migration_owner__", "u-owner", "u-super", "u-spaced"]),
+    );
+    expect(await userCount()).toBe(4);
   });
 });

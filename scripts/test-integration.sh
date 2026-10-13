@@ -34,6 +34,11 @@ SUITES=(
   "DATA_RIGHTS_TEST_DATABASE_URL|data_rights_test|packages/data-rights/src/export.integration.test.ts"
   "DATA_RIGHTS_DELETE_TEST_DATABASE_URL|data_rights_delete_test|packages/data-rights/src/delete.integration.test.ts"
   "INSTANCE_ADMIN_TEST_DATABASE_URL|instance_admin_test|packages/auth/src/authz/instance-admin.integration.test.ts"
+  "ADMISSION_TEST_DATABASE_URL|admission_test|packages/auth/src/admission/admission.integration.test.ts"
+  "ADMISSION_AUTH_TEST_DATABASE_URL|admission_auth_test|packages/auth/src/admission-auth.integration.test.ts"
+  "ADMISSION_AUTH_TEST_DATABASE_URL|admission_rpc_test|packages/api/src/admission-rpc.integration.test.ts"
+  "ADMISSION_AUTH_TEST_DATABASE_URL|admission_cli_test|scripts/admission.integration.test.ts"
+  "ADMISSION_AUTH_TEST_DATABASE_URL|admission_sharing_test|packages/api/src/routers/sharing.integration.test.ts"
 )
 
 reset_db() {

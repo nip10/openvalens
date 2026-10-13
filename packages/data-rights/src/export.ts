@@ -74,6 +74,12 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
       return sql`user_id = ${subject.userId}`;
     case "self":
       return entry.match === "user" ? sql`id = ${subject.userId}` : inList("id", orgIds);
+    case "admission":
+      // Recipient scope only: the target user, or a pending grant addressed to
+      // the subject's current email. The inviter is deliberately excluded so an
+      // export can never reveal other recipients of the same invitation.
+      return sql`target_user_id = ${subject.userId}
+        or canonical_email = lower((select email from "user" where id = ${subject.userId}))`;
     case "child": {
       const query = CHILD_QUERIES[table];
       if (!query) throw new Error(`No child query registered for ${table}`);

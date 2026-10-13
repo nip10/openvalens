@@ -17,6 +17,11 @@ export type TableOwnership =
   | { kind: "user" }
   /** Rows reachable only through a parent table; see `CHILD_QUERIES` in export.ts. */
   | { kind: "child"; parent: string }
+  /**
+   * Admission grants (#63) keyed by recipient, not by owner column: matched by
+   * `target_user_id` or `canonical_email`. Never by inviter — see `rowFilter`.
+   */
+  | { kind: "admission" }
   /** Shared catalog, no personal data. Excluded. */
   | { kind: "reference"; reason: string }
   /** Short-lived or system rows with no lasting personal data. Excluded. */
@@ -126,6 +131,21 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
       "Erasure records (ids and row counts only) that must outlive deleted data so restores can be re-erased.",
   },
 
+  // Instance admission (#63)
+  instance_admission: {
+    kind: "system",
+    reason: "Singleton bootstrap row (admission state and generation) with no personal data.",
+  },
+  admission_grant: {
+    kind: "admission",
+    redact: ["invitation_token_hash", "verification_code_hash"],
+  },
+  global_security_event: {
+    kind: "system",
+    reason:
+      "Minimal global security record (ids and event type only, no email); user references are nulled on delete.",
+  },
+
   // Plans
   supplement: { kind: "child", parent: "supplement_schedule" },
   supplement_schedule: organization,
@@ -147,6 +167,7 @@ export function isExported(entry: TableEntry): boolean {
     entry.kind === "organization" ||
     entry.kind === "self" ||
     entry.kind === "user" ||
-    entry.kind === "child"
+    entry.kind === "child" ||
+    entry.kind === "admission"
   );
 }

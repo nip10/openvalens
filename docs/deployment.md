@@ -357,3 +357,154 @@ covers this path.
 2. Re-run the post-deploy smoke checks (section 8).
 3. Once the regression is fixed in a follow-up commit, re-deploy as normal;
    the prior broken image stays in the platform for traceability.
+
+## Instance admission (Issue #63)
+
+> **Release status.** The admission backend, web setup/join screens (`/setup`,
+> `/join`) and workspace acceptance route (`/accept-invitation/{id}`) are implemented
+> and independently reviewed on `feat/63-setup-token`. They are **not live**.
+> Merging the pull request does **not** deploy them — automatic deployment is
+> disabled. Activating the flow requires an approved merge **and** a separately
+> authorized deployment that includes the approved migration. The steps below
+> describe this release's behavior; this document does not deploy, run the
+> migration, or otherwise activate anything.
+
+A fresh installation starts `pending`: no account can sign in until the first
+global instance administrator is bootstrapped with a one-time setup token.
+
+### 1. Mint the setup token (operator)
+
+The setup token is an operator secret and is minted only from a host with
+database access — never through the API. Always use the supported launcher
+(it suppresses Bun's `.env` autoload so an ambient developer file can never
+select the database implicitly):
+
+```bash
+DATABASE_URL='postgres://USER:PASSWORD@HOST:PORT/DBNAME' \
+  scripts/admission.sh mint --output /path/to/private/setup-token
+DATABASE_URL_FILE=/path/to/private/db-url \
+  scripts/admission.sh mint --stdout
+```
+
+- `mint` requires **exactly one** output selector:
+  - `--output <path>` — private `0600` file, created exclusively (fails if it
+    already exists); the file is reserved before the token is generated, so a
+    pre-existing file never advances the generation.
+  - `--stdout` — explicit, intentional terminal output of a live secret. Do
+    **not** paste it into chat, tickets or logs.
+- Supply the database explicitly with `DATABASE_URL` or `DATABASE_URL_FILE` (a
+  private local file). Never use `bun run` or a bare `bun scripts/admission.ts`;
+  both may load `.env`.
+- A non-loopback host is refused unless `--allow-remote` is passed explicitly.
+  The launcher rejects unknown/secret-like flags without echoing their values.
+- Minting again advances the generation and **invalidates any previously
+  reserved** setup token.
+- The setup token is never emailed: the operator obtains it from the private file
+  or terminal. Only admission invitation bearers and proof codes are delivered
+  by email, and only in the message body.
+
+The README/self-host installer and the backup scope are unchanged by this flow.
+
+### 2. Create the first administrator (web)
+
+Open `/setup` and paste the token. A high-entropy email proof code is then
+delivered to the address you enter, **in the message body only** (never as a
+URL); enter it to complete. The outcome depends on the address:
+
+- **New address** (no account): completion creates the first global
+  administrator (verified, role `admin`); sign in afterwards through the normal
+  existing-account magic-link flow. Completion does **not** auto-log-in.
+- **Existing account**: completion additionally requires a matching live,
+  non-impersonated, verified, unbanned account/session _before_ completing, and
+  promotes that account to the global admin claim (organization roles
+  untouched).
+
+The entered secrets are volatile: if the page is closed or reloaded before
+completion they must be re-pasted/re-requested; they are never kept in browser
+storage.
+
+While the installation is `pending`, the bootstrap does not disable ordinary
+sign-in for existing accounts — relevant on a legacy installation that has users
+but no administrator. A fresh empty installation has no such accounts.
+
+### 3. Global invitations (`/join`)
+
+Once any global administrator exists the installation is `invite_only`. A global
+administrator may invite **new** addresses as well as existing ones:
+
+- **New address**: the invitation bearer plus email proof code complete the
+  admission and atomically create a verified account with role `user` — no prior
+  session is required for a new recipient.
+- **Existing account**: completion additionally requires a matching live,
+  non-impersonated, verified, unbanned account/session; the existing role is
+  preserved.
+
+Better Auth sign-up, magic-link provisioning and admin create-user stay closed
+and do **not** reopen even if the last administrator is later removed. The
+invitation bearer and proof code are delivered in the message body only (never a
+copyable URL, never generated in the browser).
+
+### 4. Workspace invitations (`/accept-invitation/{id}`)
+
+Workspace (organization) invitations are a **separate** flow: they target an
+**existing** account only and never admit a new account. A workspace `owner`
+keeps its organization-scoped sharing powers but cannot admit a new account or
+grant instance-administrator authority.
+
+### Resend and verification limits
+
+- At most **3 sends** per grant per **10 minutes**.
+- At most **5 failed proof attempts**; the proof code expires after **10
+  minutes**.
+- Setup token TTL **24 hours**; invitation TTL **2 days**.
+
+During global admission, resending a proof issues a new code **within the
+original bearer/grant expiry** — it does not renew the credential or its
+invitation TTL, and admission grants carry no organization or role fields. Only
+the workspace Better Auth resend (`/organization/invite-member` with
+`resend: true`) refreshes the two-day invitation expiry for the same invitation
+id, organization and role. If a global admission issuer is demoted or banned, an
+in-flight global completion is invalidated; workspace invitation policy is
+separate and is not transferred.
+
+### Maintenance: prune expired grants
+
+An operator-scheduled command removes expired **pending and consumed** grants,
+bounded to **500**:
+
+```bash
+DATABASE_URL='postgres://USER:PASSWORD@HOST:PORT/DBNAME' \
+  scripts/admission.sh prune --limit 500
+```
+
+Opaque security events are retained and survive deletion of the referenced
+recipient or issuer (their user references are anonymized). Schedule this
+bounded command from the operator runbook; there is no background job. Backup
+and restore handling for this data is out of scope here.
+
+### Database migration
+
+The admission feature adds exactly **one** migration (the 40th) on top of the
+existing 39 production migrations. It is applied only by a normal, explicitly
+approved `db:migrate` — this document does not run it. On an installation whose
+`user.role` already carries the exact CSV token `admin` (banned included) the
+migration closes the bootstrap to `invite_only`; otherwise it stays `pending`.
+It preserves all existing users, roles, organizations and sessions and grants no
+role.
+
+### Configuration and native
+
+Current instance configuration stays read-only startup `ENV` (Issue #58): this
+admission change does not make it database-editable, and it is not a UI write
+surface. Editable database-backed product settings remain separate Issue #58
+work (other product areas already use their own database tables). Email delivery
+is **Resend-only** (no SMTP). Admission is a **web-only** flow; existing native
+accounts keep signing in as before (native handoff is assumed, not verified).
+CI/production provider credentials and live email delivery are outside this
+document's scope.
+
+Related: #63. The setup-token minting path described above is implemented; the
+remaining admission work is installer/headless tooling, operator/resource
+guidance and deferred backup handling. Editable product settings and settings-change
+auditing remain separate Issue #58 work. The admission web UI has passed its
+independent security gate; production activation requires separate authorization.

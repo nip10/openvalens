@@ -7,13 +7,30 @@ import { toast } from "sonner";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { validateReturnUrl } from "@/utils/return-url";
+
+export type MagicLinkFormProps = {
+  linkError?: boolean;
+  setupAvailable?: boolean;
+  returnUrl?: string | null;
+};
 
 /**
- * Passwordless sign-in. The server only supports magic links (email and
- * password are disabled); the first sign-in creates the account.
+ * Passwordless sign-in. The server only supports magic links for existing
+ * accounts (email/password and public sign-up are disabled).
  */
-export default function MagicLinkForm({ linkError }: { linkError?: boolean }) {
+export default function MagicLinkForm({
+  linkError,
+  setupAvailable,
+  returnUrl,
+}: MagicLinkFormProps) {
   const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const callbackURL = (() => {
+    const origin = window.location.origin;
+    const safe = validateReturnUrl(returnUrl);
+    return safe ? `${origin}${safe}` : `${origin}/dashboard`;
+  })();
 
   const form = useForm({
     defaultValues: { email: "" },
@@ -23,7 +40,7 @@ export default function MagicLinkForm({ linkError }: { linkError?: boolean }) {
       try {
         const { error } = await authClient.signIn.magicLink({
           email,
-          callbackURL: `${origin}/dashboard`,
+          callbackURL,
           errorCallbackURL: `${origin}/login?error=link`,
         });
         if (error) toast.error("Could not send the sign-in link. Please try again.");
@@ -104,6 +121,20 @@ export default function MagicLinkForm({ linkError }: { linkError?: boolean }) {
           )}
         </form.Subscribe>
       </form>
+
+      <div className="mt-6 space-y-2 border-t pt-6 text-center text-sm text-muted-foreground">
+        <p>New accounts require an invitation.</p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {setupAvailable ? (
+            <a href="/setup" className="text-primary underline underline-offset-4">
+              First setup
+            </a>
+          ) : null}
+          <a href="/join" className="text-primary underline underline-offset-4">
+            Redeem invitation
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
