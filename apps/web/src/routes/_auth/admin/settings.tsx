@@ -41,6 +41,27 @@ function AdminSettingsPage() {
   return <ConfigurationPage userId={userId} accessVerified />;
 }
 
+function AdminNav() {
+  return (
+    <nav className="container mx-auto max-w-3xl px-4 pt-4" aria-label="Instance administration">
+      <div className="flex gap-2">
+        <a
+          href="/admin/settings"
+          className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
+        >
+          Configuration
+        </a>
+        <a
+          href="/admin/invitations"
+          className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        >
+          Invitations
+        </a>
+      </div>
+    </nav>
+  );
+}
+
 function ConfigurationPage({
   userId,
   accessVerified,
@@ -54,28 +75,53 @@ function ConfigurationPage({
   });
 
   if (config.isPending || config.isFetching) {
-    return <AdminSettingsView accessState="granted" configState="loading" />;
+    return (
+      <>
+        <AdminNav />
+        <AdminSettingsView accessState="granted" configState="loading" />
+      </>
+    );
   }
 
   if (config.isError) {
     if (isConfigPermissionDenied(config.error)) {
-      return <AdminSettingsView accessState="granted" configState="denied" />;
+      return (
+        <>
+          <AdminNav />
+          <AdminSettingsView accessState="granted" configState="denied" />
+        </>
+      );
     }
 
     return (
-      <AdminSettingsView
-        accessState="granted"
-        configState="error"
-        onRetryConfig={() => void config.refetch()}
-      />
+      <>
+        <AdminNav />
+        <AdminSettingsView
+          accessState="granted"
+          configState="error"
+          onRetryConfig={() => void config.refetch()}
+        />
+      </>
     );
   }
 
   if (config.data) {
     return (
-      <AdminSettingsView accessState="granted" configState="ready" entries={config.data.entries} />
+      <>
+        <AdminNav />
+        <AdminSettingsView
+          accessState="granted"
+          configState="ready"
+          entries={config.data.entries}
+        />
+      </>
     );
   }
 
-  return <AdminSettingsView accessState="granted" configState="loading" />;
+  return (
+    <>
+      <AdminNav />
+      <AdminSettingsView accessState="granted" configState="loading" />
+    </>
+  );
 }

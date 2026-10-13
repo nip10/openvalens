@@ -186,8 +186,37 @@ Keep them focused, link the issue, and describe how you verified the change.
 ## Accounts and instance admission
 
 OpenValens has no public sign-up. Accounts are created only by the admission
-flow (Issue #63): a one-time setup token bootstraps the first global instance
-administrator, after which only a global administrator may invite accounts, and
-organization invitations may target existing accounts only. Do not add a Better
-Auth sign-up, magic-link provisioning, or admin create-user path — the auth
-factory intentionally rejects all SDK account creation.
+flow: a one-time setup token bootstraps the first global instance administrator,
+after which only a global administrator may invite accounts. When contributing
+to auth, keep these invariants:
+
+- Do **not** add a Better Auth sign-up, magic-link provisioning, or admin
+  create-user path — the auth factory intentionally rejects every SDK account
+  creation, and this must not reopen even if the last administrator is removed.
+- Global admission (`/join`) may admit a **new** account: proof completion
+  atomically creates a verified `user` role with no prior session. An
+  **existing** global recipient additionally needs a matching live,
+  non-impersonated, verified, unbanned account/session, and its role is
+  preserved.
+- Workspace invitations (SDK `/organization/invite-member` and the oRPC sharing
+  surface) may target an **existing** unambiguous account only. The shared
+  lookup confirms the account exists at **issuance**; the live, verified,
+  unbanned session is required at **acceptance** by the current auth SDK guard.
+  Do not require the target to be logged in at issuance, and never let an
+  invitation create an account.
+- A workspace `owner` has organization-scoped powers only; never grant
+  instance-administrator authority through an organization role or invite.
+- This admission change leaves current instance configuration read-only startup
+  `ENV`. Editable database-backed product settings remain separate Issue #58
+  work — do not introduce a UI-write or database-editable settings surface here.
+- Secrets: the setup token is minted privately by the operator and is never
+  emailed. Admission invitation bearers and proof codes are delivered in the
+  message body only — never as a URL — and admission secrets are never echoed in
+  logs or generated in the client.
+- Never phrase a change as closing the remaining admission work: use
+  **Related:** #63 and describe remaining work explicitly.
+
+Related: #63 — remaining admission work is installer/headless tooling,
+operator/resource guidance and deferred backup handling; editable product
+settings and settings-change auditing remain separate Issue #58 work. The admission
+web UI has passed its independent security gate; deployment is separately authorized.
