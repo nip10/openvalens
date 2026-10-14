@@ -5,7 +5,9 @@ import {
   formatSleepDuration,
   formatSleepDurationWithHours,
   formatSleepEfficiency,
+  LATEST_NIGHT_LOOKBACK_DAYS,
   lastNightStages,
+  latestNightCaption,
   sleepSeries,
   sleepStatusLabel,
   sleepStatusTone,
@@ -32,6 +34,17 @@ const lastNight = {
 };
 
 describe("sleep presenter", () => {
+  test("dashboard lookback is the shortest window sleep.summary accepts", () => {
+    expect(LATEST_NIGHT_LOOKBACK_DAYS).toBe(7);
+  });
+
+  test("latest-night caption names the night's own date, never 'today'", () => {
+    expect(latestNightCaption(lastNight)).toBe("Latest night · 2026-10-01 · Acceptable");
+    expect(latestNightCaption({ date: "2026-09-27", status: "high_sleep_debt" })).toBe(
+      "Latest night · 2026-09-27 · High sleep debt",
+    );
+  });
+
   test("formats durations the way copy wants", () => {
     expect(formatSleepDuration(452)).toBe("7h 32m");
     expect(formatSleepDuration(60)).toBe("1h");

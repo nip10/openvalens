@@ -2,9 +2,14 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Database } from "@openvalens/db";
 import { accessAuditLog } from "@openvalens/db/schema/auth";
 import { healthEvent } from "@openvalens/db/schema/health-record";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import { RPCHandler } from "@orpc/server/fetch";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import type { Context } from "../context";
+import { LATEST_NIGHT_LOOKBACK_DAYS } from "../presenters/sleep";
+import type { AppRouterClient } from "./index";
 
 let role = "owner";
 const requirePermission = mock(
@@ -35,7 +40,11 @@ const { appRouter } = await import("./index");
 type CapturedInsert = { table: unknown; payload: Record<string, unknown> };
 type CapturedSelect = { table: unknown; sql: string; params: unknown[] };
 
-function fakeDb(): { db: Database; inserts: CapturedInsert[]; selects: CapturedSelect[] } {
+function fakeDb(rows: unknown[] = []): {
+  db: Database;
+  inserts: CapturedInsert[];
+  selects: CapturedSelect[];
+} {
   const inserts: CapturedInsert[] = [];
   const selects: CapturedSelect[] = [];
   const dialect = new PgDialect();
@@ -97,7 +106,7 @@ function fakeDb(): { db: Database; inserts: CapturedInsert[]; selects: CapturedS
         resolve: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | undefined,
         reject: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | undefined,
       ): Promise<TResult1 | TResult2> {
-        return Promise.resolve([]).then(resolve, reject);
+        return Promise.resolve(rows).then(resolve, reject);
       },
     };
     return chain;
@@ -199,6 +208,87 @@ describe("sleep oRPC read boundary", () => {
       }),
     ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
     expect(state.inserts).toEqual([]);
+  });
+});
+
+/**
+ * Issue #134 — the dashboard's sleep request over the real RPC wire: the same
+ * `RPCHandler` the server mounts and the same `RPCLink` client the web app
+ * uses, so a contract drift between them surfaces as a status code here.
+ */
+describe("sleep.summary over HTTP (dashboard contract)", () => {
+  function httpClient(db: Database): {
+    client: AppRouterClient;
+    statuses: number[];
+  } {
+    const handler = new RPCHandler(appRouter);
+    const statuses: number[] = [];
+    const link = new RPCLink({
+      url: "http://test.local/rpc",
+      async fetch(request, init) {
+        const { matched, response } = await handler.handle(new Request(request, init), {
+          prefix: "/rpc",
+          context: context(db),
+        });
+        if (!matched || !response) throw new Error("unmatched RPC path");
+        statuses.push(response.status);
+        return response;
+      },
+    });
+    return { client: createORPCClient(link), statuses };
+  }
+
+  test("the dashboard lookback is accepted (200) and an empty org yields no night", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    const { client, statuses } = httpClient(state.db);
+    const summary = await client.sleep.summary({ days: LATEST_NIGHT_LOOKBACK_DAYS });
+    expect(statuses).toEqual([200]);
+    expect(summary.lastNight).toBeNull();
+    expect(summary.days).toEqual([]);
+    expect(state.selects[0]?.params).toContain("org-1");
+  });
+
+  test("a populated window returns the latest night with its own date", async () => {
+    role = "viewer";
+    const state = fakeDb([
+      {
+        id: 11,
+        eventAt: new Date("2026-03-06T23:00:00.000Z"),
+        title: "sleep_session",
+        payloadJson: { endAt: "2026-03-07T06:30:00.000Z" },
+      },
+      {
+        id: 12,
+        eventAt: new Date("2026-03-07T23:30:00.000Z"),
+        title: "sleep_session",
+        payloadJson: { endAt: "2026-03-08T07:00:00.000Z", sourceApp: "Oura" },
+      },
+    ]);
+    const { client, statuses } = httpClient(state.db);
+    const summary = await client.sleep.summary({ days: LATEST_NIGHT_LOOKBACK_DAYS });
+    expect(statuses).toEqual([200]);
+    expect(summary.days.map((day) => day.date)).toEqual(["2026-03-07", "2026-03-08"]);
+    expect(summary.lastNight).toMatchObject({
+      date: "2026-03-08",
+      mainSleepStart: "2026-03-07T23:30:00.000Z",
+      mainSleepEnd: "2026-03-08T07:00:00.000Z",
+      asleepMinutes: 450,
+    });
+  });
+
+  test("the old `days: 1` request is still a 400 INVALID_INPUT and never reaches the DB", async () => {
+    role = "viewer";
+    const state = fakeDb();
+    const { client, statuses } = httpClient(state.db);
+    for (const days of [1, 6, 366]) {
+      await expect(client.sleep.summary({ days })).rejects.toMatchObject({
+        code: "INVALID_INPUT",
+        status: 400,
+      });
+    }
+    expect(statuses).toEqual([400, 400, 400]);
+    expect(state.selects).toEqual([]);
   });
 });
 

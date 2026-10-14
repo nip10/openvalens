@@ -5,7 +5,12 @@ import {
 } from "@openvalens/api/presenters/activity";
 import { formatKg } from "@openvalens/api/presenters/body";
 import { type CockpitSnapshot } from "@openvalens/api/presenters/cockpit";
-import { formatClockTime, formatSleepDuration } from "@openvalens/api/presenters/sleep";
+import {
+  LATEST_NIGHT_LOOKBACK_DAYS,
+  formatClockTime,
+  formatSleepDuration,
+  latestNightCaption,
+} from "@openvalens/api/presenters/sleep";
 import { formatBpm } from "@openvalens/api/presenters/vitals";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -31,7 +36,9 @@ type CockpitBlock = {
 
 function DashboardPage() {
   const weight = useQuery(orpc.body.dailyWeights.queryOptions({ input: { limit: 1 } }));
-  const sleep = useQuery(orpc.sleep.summary.queryOptions({ input: { days: 1 } }));
+  const sleep = useQuery(
+    orpc.sleep.summary.queryOptions({ input: { days: LATEST_NIGHT_LOOKBACK_DAYS } }),
+  );
   const activity = useQuery(orpc.activity.dailyTotals.queryOptions({ input: { days: 1 } }));
   const vitals = useQuery(orpc.vitals.daily.queryOptions({ input: { days: 1 } }));
   const settingsQuery = useProductSettings();
@@ -57,7 +64,9 @@ function DashboardPage() {
       key: "sleep",
       title: "Sleep",
       primary: sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—",
-      secondary: sleepRow ? `${sleepRow.date} · ${sleepRow.status}` : "No sleep logged",
+      secondary: sleepRow
+        ? latestNightCaption(sleepRow)
+        : `No sleep logged in the last ${LATEST_NIGHT_LOOKBACK_DAYS} days`,
       tertiary:
         sleepRow && sleepRow.mainSleepStart && sleepRow.mainSleepEnd
           ? `${formatClockTime(sleepRow.mainSleepStart, settings)} → ${formatClockTime(sleepRow.mainSleepEnd, settings)}`

@@ -6,9 +6,11 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { ENV } from "../env";
+import { shouldRetryQuery } from "./query-retry";
 
 export function createQueryClient() {
   return new QueryClient({
+    defaultOptions: { queries: { retry: shouldRetryQuery } },
     queryCache: new QueryCache({
       onError: (error, query) => {
         toast.error(`Error: ${error.message}`, {

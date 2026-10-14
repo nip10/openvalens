@@ -43,6 +43,20 @@ export type SleepWindowLike = {
   confidence: SleepDailyLike["confidence"];
 };
 
+/**
+ * Lookback, in days, the dashboard uses to find the most recent night (#134).
+ * `sleep.summary` only accepts windows of `[7, 365]` days, and a single night
+ * is never a meaningful aggregate, so the dashboard asks for the shortest valid
+ * window and shows `lastNight` — the latest night inside it — labelled with its
+ * own date. Never present this window as "today".
+ */
+export const LATEST_NIGHT_LOOKBACK_DAYS = 7;
+
+/** "Latest night · 2026-10-01 · Acceptable" — the dashboard sleep caption. */
+export function latestNightCaption(night: Pick<SleepDailyLike, "date" | "status">): string {
+  return `Latest night · ${night.date} · ${sleepStatusLabel(night.status)}`;
+}
+
 const STATUS_LABEL: Record<SleepDailyLike["status"], string> = {
   optimal: "Optimal",
   acceptable: "Acceptable",
