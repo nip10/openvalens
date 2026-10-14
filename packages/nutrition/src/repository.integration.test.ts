@@ -129,7 +129,7 @@ describe.skipIf(!url)("nutrition core against disposable PostgreSQL", () => {
     expect(rowsAfter).toEqual(rowsBefore);
     const created = (
       await db.execute(
-        sql`select tablename from pg_tables where schemaname = 'public' and tablename like 'nutrition\_%' order by 1`,
+        sql`select tablename from pg_tables where schemaname = 'public' and tablename like 'nutrition\_%' and tablename not like 'nutrition\_catalog\_%' order by 1`,
       )
     ).rows.map((row) => (row as { tablename: string }).tablename);
     expect(created).toEqual([

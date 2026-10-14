@@ -17,3 +17,11 @@ The person who owns a workspace and holds full authority within it. Workspace
 ownership is scoped to that one workspace and never confers instance
 administrator authority.
 _Avoid_: Organization owner, account owner, org admin
+
+**Food catalog**:
+An instance-wide, read-only mirror of one public food database (USDA FoodData
+Central or Open Food Facts), kept in its own table with its own license and
+attribution. It holds no personal data and is never merged with another
+catalog or with a person's custom foods; logging copies a catalog food into a
+snapshot.
+_Avoid_: Food database (ambiguous), canonical foods table
