@@ -2,7 +2,7 @@
  * CSP violation-report sanitiser (Issue #127).
  *
  * Pure, dependency-free helpers that turn a raw `application/csp-report` /
- * `application/reports+csp` payload into a PHI-safe row payload. Every value is
+ * `application/reports+json` payload into a PHI-safe row payload. Every value is
  * reduced to a host + path-prefix (never the full URI) or a length-capped
  * scalar, and the CSP policy literal is hashed, never stored. Unknown fields are
  * rejected; `referrer` / `sample` / `script-sample` / `style-sample` are dropped
@@ -33,6 +33,7 @@ export const SILENTLY_DROPPED_CSP_REPORT_FIELDS = [
   "sample",
   "script-sample",
   "style-sample",
+  "status-code",
 ] as const;
 
 const ACCEPTED_FIELD_SET = new Set<string>(ACCEPTED_CSP_REPORT_FIELDS);
@@ -273,18 +274,53 @@ export function sanitiseCspReport(rawBody: unknown): CspReportSanitiseResult {
 }
 
 /**
+ * Reporting API (`report-to`) bodies use camelCase keys; the legacy
+ * `report-uri` payload uses the kebab-case keys the allow-list is written in.
+ * Reporting API reports carry no `violated-directive`, so the effective
+ * directive stands in for it. Unknown keys pass through unchanged so the
+ * allow-list still rejects them.
+ */
+const REPORTING_API_KEY_MAP: Record<string, string> = {
+  documentURL: "document-uri",
+  blockedURL: "blocked-uri",
+  effectiveDirective: "effective-directive",
+  originalPolicy: "original-policy",
+  sourceFile: "source-file",
+  lineNumber: "line-number",
+  columnNumber: "column-number",
+  disposition: "disposition",
+  statusCode: "status-code",
+  referrer: "referrer",
+  sample: "sample",
+};
+
+function fromReportingApiBody(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const normalised: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+    normalised[REPORTING_API_KEY_MAP[key] ?? key] = value;
+  }
+  if (!("violated-directive" in normalised) && "effective-directive" in normalised) {
+    normalised["violated-directive"] = normalised["effective-directive"];
+  }
+  return normalised;
+}
+
+/**
  * Normalises a parsed request body into a list of report objects.
  *
  * Supports the legacy `{ "csp-report": {…} }` envelope, the Reporting API array
- * of `{ type: "csp-violation", body: {…} }` items and a bare report object.
+ * of `{ type: "csp-violation", body: {…} }` items (other report types in the
+ * batch are skipped) and a bare report object.
  */
 export function extractCspReports(body: unknown): unknown[] {
   if (Array.isArray(body)) {
-    return body.map((item) => {
+    return body.flatMap((item) => {
       if (item && typeof item === "object" && "body" in (item as Record<string, unknown>)) {
-        return (item as Record<string, unknown>).body;
+        const record = item as Record<string, unknown>;
+        return record.type === "csp-violation" ? [fromReportingApiBody(record.body)] : [];
       }
-      return item;
+      return [item];
     });
   }
 
@@ -294,7 +330,7 @@ export function extractCspReports(body: unknown): unknown[] {
       return [record["csp-report"]];
     }
     if ("type" in record && "body" in record) {
-      return [record.body];
+      return record.type === "csp-violation" ? [fromReportingApiBody(record.body)] : [];
     }
     return [record];
   }

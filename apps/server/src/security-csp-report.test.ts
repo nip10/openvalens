@@ -293,4 +293,65 @@ describe("POST /api/security/csp-report", () => {
     expect(denied.status).toBe(429);
     expect(inserted.length).toBe(60);
   });
+
+  test("the budget binds per origin even when every report gets its own correlation id", async () => {
+    const { app, inserted } = buildHarness();
+
+    for (let i = 0; i < 60; i += 1) {
+      const response = await post(app, reportBody(), { "x-correlation-id": `corr-${i}` });
+      expect(response.status).toBe(204);
+    }
+
+    const denied = await post(app, reportBody(), { "x-correlation-id": "corr-fresh" });
+    expect(denied.status).toBe(429);
+    expect(inserted.length).toBe(60);
+  });
+
+  test("accepts a legacy report-uri payload as Chromium sends it (status-code dropped)", async () => {
+    const { app, inserted } = buildHarness();
+    const response = await post(
+      app,
+      reportBody({ referrer: "", "status-code": 200, "script-sample": "" }),
+    );
+
+    expect(response.status).toBe(204);
+    expect(inserted.length).toBe(1);
+  });
+
+  test("accepts a Reporting API batch and skips non-CSP report types", async () => {
+    const { app, inserted } = buildHarness();
+    const batch = [
+      {
+        type: "csp-violation",
+        age: 10,
+        url: "https://example.com/login",
+        user_agent: "Mozilla/5.0",
+        body: {
+          documentURL: "https://example.com/login",
+          referrer: "",
+          blockedURL: "https://blocked.example/probe.png?secret=1",
+          effectiveDirective: "img-src",
+          originalPolicy: "default-src 'self'; img-src 'self'",
+          sourceFile: "https://example.com/assets/index.js",
+          sample: "",
+          disposition: "enforce",
+          statusCode: 200,
+          lineNumber: 1,
+          columnNumber: 2,
+        },
+      },
+      { type: "deprecation", age: 1, url: "https://example.com/", body: { id: "x" } },
+    ];
+    const response = await post(app, JSON.stringify(batch), {
+      "content-type": "application/reports+json",
+    });
+
+    expect(response.status).toBe(204);
+    expect(inserted.length).toBe(1);
+    expect(inserted[0]?.length).toBe(1);
+    const row = inserted[0]?.[0];
+    expect(row?.violatedDirective).toBe("img-src");
+    expect(row?.blockedUriHost).toBe("blocked.example");
+    expect(JSON.stringify(inserted)).not.toContain("secret");
+  });
 });
