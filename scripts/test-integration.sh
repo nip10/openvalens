@@ -30,6 +30,7 @@ SUITES=(
   "MOBILE_INGEST_TEST_DATABASE_URL|mobile_ingest_issue7|packages/ingestion/src/mobile-batch.integration.test.ts"
   "ACTIVITY_TEST_DATABASE_URL|activity_test|packages/activity/src/queries.integration.test.ts"
   "VITALS_TEST_DATABASE_URL|vitals_test|packages/vitals/src/queries.integration.test.ts"
+  "NUTRITION_TEST_DATABASE_URL|nutrition_test|packages/nutrition/src/repository.integration.test.ts"
   "LABS_TEST_DATABASE_URL|labs_test|packages/labs/src/queries.integration.test.ts"
   "AI_TOOLS_TEST_DATABASE_URL|ai_tools_test|packages/ai/src/tools/health-tools.integration.test.ts"
   "DATA_RIGHTS_TEST_DATABASE_URL|data_rights_test|packages/data-rights/src/export.integration.test.ts"

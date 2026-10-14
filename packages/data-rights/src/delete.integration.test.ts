@@ -61,6 +61,19 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
           values ('legacy-${who}', 'org-${who}', 'user-${who}', 'dev', '1', 'UTC', '2026-09-01', '2026-09-02', 1, now());
         insert into "_quarantine_legacy_mobile_sync_session_chunk" (id, session_id, chunk_index, chunk_count, chunk_hash, payload_json)
           values ('legacy-chunk-${who}', 'legacy-${who}', 0, 1, 'c', '{"hr": 61}');
+        insert into nutrition_food (organization_id, user_id, name, nutrient_basis_amount, nutrient_basis_unit, energy_kcal)
+          values ('org-${who}', 'user-${who}', 'Synthetic food ${who}', 100, 'g', 120);
+        insert into nutrition_food_snapshot (organization_id, source, source_food_id, source_version, custom_food_id, name, nutrient_basis_amount, nutrient_basis_unit, energy_kcal, content_hash)
+          select 'org-${who}', 'custom', id::text, '1', id, name, 100, 'g', 120, 'hash-${who}'
+          from nutrition_food where organization_id = 'org-${who}';
+        insert into nutrition_meal (organization_id, user_id, local_date, time_zone, slot)
+          values ('org-${who}', 'user-${who}', '2026-10-01', 'UTC', 'lunch');
+        insert into nutrition_meal_entry (organization_id, user_id, meal_id, snapshot_id, amount, unit, nutrient_factor, method)
+          select 'org-${who}', 'user-${who}', m.id, s.id, 50, 'g', 0.5, 'manual'
+          from nutrition_meal m, nutrition_food_snapshot s
+          where m.organization_id = 'org-${who}' and s.organization_id = 'org-${who}';
+        insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
+          values ('org-${who}', 'user-${who}', 'protein_g', 80);
       `),
       );
     }
@@ -147,6 +160,14 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
   test("report and erasure ledger record ids and counts, no health values", async () => {
     expect(report.rowCounts.metric_sample).toBe(3);
     expect(report.rowCounts.daily_weight).toBe(1);
+    for (const table of [
+      "nutrition_food",
+      "nutrition_food_snapshot",
+      "nutrition_meal",
+      "nutrition_meal_entry",
+      "nutrition_goal",
+    ])
+      expect(report.rowCounts[table]).toBe(1);
     expect(report.rowCounts.user).toBe(1);
     expect(report.rowCounts.organization).toBe(1);
     const ledger = (await db.execute(sql`select * from erasure_ledger`)).rows as {
