@@ -9,9 +9,11 @@
  *
  * CSP rollout strategy: emit `Content-Security-Policy-Report-Only` first
  * (`cspMode: "report-only"`) so violations can be monitored without breaking
- * the app, then flip to `cspMode: "enforce"` once the report is clean. The
- * report-only header intentionally has no reporting destination yet — a
- * report-uri endpoint is a follow-up.
+ * the app, then flip to `cspMode: "enforce"` once the report is clean. When a
+ * reporting group is supplied, an enforced policy additionally advertises it via
+ * the `report-to <group>` directive and — when a URL is also supplied — a
+ * `Report-To` JSON-document header (Issue #127); the report-only header stays
+ * destination-free.
  */
 
 export type CspMode = "enforce" | "report-only";
@@ -27,6 +29,21 @@ export type SecurityHeadersOptions = {
    * (dev-friendly). Production callers should pass `false`.
    */
   allowDevScriptEval?: boolean;
+  /**
+   * Reporting group name (Issue #127). CSP3 defines `report-to` as a *group
+   * name token* — not a URL — that browsers look up in the `Report-To`
+   * JSON-document header to find the endpoint. When set and `cspMode` is
+   * `"enforce"`, `report-to <reportToGroup>` is appended. Ignored for
+   * `"report-only"` (legacy browsers fall back to the plain report-only header).
+   */
+  reportToGroup?: string;
+  /**
+   * Endpoint URL for the reporting group (Issue #127). The URL belongs only in
+   * the `Report-To` JSON body, never in the `report-to` directive. Emitted only
+   * when both `reportToGroup` and `reportToUrl` are set and `cspMode` is
+   * `"enforce"`.
+   */
+  reportToUrl?: string;
 };
 
 /** Allowlisted third-party origins the app connects to. */
@@ -45,6 +62,8 @@ export const CSP_CONNECT_SRC = ["'self'", "api.resend.com", "api.telegram.org"] 
 export function buildSecurityHeaders({
   cspMode,
   allowDevScriptEval = true,
+  reportToGroup,
+  reportToUrl,
 }: SecurityHeadersOptions): Record<string, string> {
   const scriptSrc = ["'self'", "'unsafe-inline'", ...(allowDevScriptEval ? ["'unsafe-eval'"] : [])];
 
@@ -61,10 +80,16 @@ export function buildSecurityHeaders({
     "object-src 'none'",
   ];
 
+  const reportingGroup = cspMode === "enforce" && reportToGroup ? reportToGroup : undefined;
+
+  if (reportingGroup) {
+    directives.push(`report-to ${reportingGroup}`);
+  }
+
   const cspHeader =
     cspMode === "report-only" ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy";
 
-  return {
+  const headers: Record<string, string> = {
     [cspHeader]: directives.join("; "),
     "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
     "X-Frame-Options": "DENY",
@@ -74,4 +99,14 @@ export function buildSecurityHeaders({
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
   };
+
+  if (reportingGroup && reportToUrl) {
+    headers["Report-To"] = JSON.stringify({
+      group: reportingGroup,
+      max_age: 10886400,
+      endpoints: [{ url: reportToUrl }],
+    });
+  }
+
+  return headers;
 }

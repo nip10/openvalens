@@ -42,6 +42,7 @@ console.log(
       enforce: Boolean(csp),
       reportOnly: Boolean(cspReportOnly),
       csp: csp ?? cspReportOnly ?? "",
+      reportTo: headers.get("report-to"),
       resend: services.capabilities.resend,
     }),
 );
@@ -67,6 +68,7 @@ type SecurityResult = {
   enforce: boolean;
   reportOnly: boolean;
   csp: string;
+  reportTo: string | null;
   resend: boolean;
 };
 
@@ -194,6 +196,52 @@ describe("schema-validated security configuration (cold boot)", () => {
       expect(run.result?.reportOnly).toBe(true);
       expect(run.result?.enforce).toBe(false);
       expect(run.result?.csp).not.toContain("'unsafe-eval'");
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "production defaults to the enforced header when CSP_MODE is unset",
+    async () => {
+      const run = await runColdChild({ NODE_ENV: "production" });
+      expect(run.exitCode).toBe(0);
+      expect(run.result?.enforce).toBe(true);
+      expect(run.result?.reportOnly).toBe(false);
+      expect(run.result?.csp).toContain("report-to csp-endpoint");
+      expect(run.result?.reportTo).not.toBeNull();
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "an explicit CSP_MODE=report-only overrides the production default",
+    async () => {
+      const run = await runColdChild({ NODE_ENV: "production", CSP_MODE: "report-only" });
+      expect(run.exitCode).toBe(0);
+      expect(run.result?.enforce).toBe(false);
+      expect(run.result?.reportOnly).toBe(true);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "an explicit CSP_MODE=enforce in production advertises the Report-To destination",
+    async () => {
+      const run = await runColdChild({ NODE_ENV: "production", CSP_MODE: "enforce" });
+      expect(run.exitCode).toBe(0);
+      expect(run.result?.enforce).toBe(true);
+      expect(run.result?.reportOnly).toBe(false);
+      expect(run.result?.csp).toContain("report-to csp-endpoint");
+      expect(run.result?.csp).not.toContain("report-to /api/security/csp-report");
+      expect(run.result?.reportTo).toBeTruthy();
+      const parsed = JSON.parse(run.result?.reportTo ?? "{}") as {
+        group?: string;
+        max_age?: number;
+        endpoints?: Array<{ url?: string }>;
+      };
+      expect(parsed.group).toBe("csp-endpoint");
+      expect(parsed.max_age).toBe(10886400);
+      expect(parsed.endpoints?.[0]?.url).toBe("/api/security/csp-report");
     },
     TEST_TIMEOUT_MS,
   );

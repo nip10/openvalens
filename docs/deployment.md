@@ -310,6 +310,10 @@ Run these after deploy:
 When a deploy goes wrong (broken migrations, failing readiness, AI regression,
 etc.), roll back with the smallest possible change first.
 
+For a CSP enforcement regression (a supported flow blocked after Issue #127
+made `CSP_MODE=enforce` the production default), set `CSP_MODE=report-only` and
+redeploy — see [docs/security-csp.md](security-csp.md).
+
 ### Image rollback
 
 The Hetzner/Coolify platform keeps every successful build tagged with its

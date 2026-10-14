@@ -11,6 +11,14 @@ Last updated: 2026-10-01
 
 Before the cutover window opens, every box must be true:
 
+> **CSP posture (Issue #127).** Production now defaults to `CSP_MODE=enforce`
+> when the variable is unset, so the staged instance must boot clean under
+> enforcement before the cutover (login, invitation, app shell and asset
+> connections verified). The rollback lever for an enforced production
+> deployment is to set `CSP_MODE=report-only` explicitly — an explicit value
+> always overrides the production default. See
+> [docs/security-csp.md](security-csp.md) for the runbook.
+
 - [ ] `bun run db:migrate` has been run against the new OpenValens DB and the
       latest schema is live. Compare against the source list in
       `packages/db/src/migrations/`.
