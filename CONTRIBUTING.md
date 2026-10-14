@@ -225,7 +225,8 @@ to auth, keep these invariants:
 - Never phrase a change as closing the remaining admission work: use
   **Related:** #63 and describe remaining work explicitly.
 
-Related: #63 — remaining admission work is installer/headless tooling,
-operator/resource guidance and deferred backup handling; editable product
+Related: #63 — the self-host installer (`deploy/setup.sh`, see
+`docs/self-hosting.md`) mints the setup token; encrypted backup/restore remains
+deferred to #64 and reference-VPS resource measurement is outstanding; editable product
 settings and settings-change auditing remain separate Issue #58 work. The admission
 web UI has passed its independent security gate; deployment is separately authorized.

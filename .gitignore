@@ -59,3 +59,7 @@ temp
 
 # Issue #127 — rendered by scripts/render-web-security-headers.ts at image build
 apps/web/security-headers/
+
+# Issue #63 — self-host install state written by deploy/setup.sh
+deploy/secrets/
+deploy/hooks/pre-migrate

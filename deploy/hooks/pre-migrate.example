@@ -1,0 +1,18 @@
+#!/bin/sh
+# Example operator pre-migrate backup hook (Issue #63).
+#
+# To use it: copy to deploy/hooks/pre-migrate, make it executable, and set
+# OPENVALENS_PRE_MIGRATE_BACKUP=hook in deploy/.env. It runs inside the
+# `backup` service (postgres image) with PGHOST/PGUSER/PGDATABASE/PGPASSWORD
+# set and the `backups` volume at /backups. Exit 0 ONLY after a backup you
+# trust exists; any other exit code stops the upgrade before migrations run.
+#
+# Never print database contents or credentials.
+set -eu
+
+# Example: dump, then copy to off-host storage with your own tool.
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+umask 077
+pg_dump --format=custom --no-password --file="/backups/hook-$stamp.dump"
+pg_restore --list "/backups/hook-$stamp.dump" >/dev/null
+# your-offsite-copy-command "/backups/hook-$stamp.dump"
