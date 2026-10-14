@@ -21,6 +21,7 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
+import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { auth, db, telegramClient, telegramWebhookSecret } from "./services";
@@ -87,6 +88,19 @@ app.post(
     insert: async (rows) => {
       await db.insert(cspViolationEvent).values(rows);
     },
+  }),
+);
+
+// Issue #126 — request-body size limit. Mounted after the correlation-id
+// middleware (so rejections can carry an id), before CORS and every route
+// handler, so oversized bodies are rejected before oRPC's parser, the
+// Better Auth catch-all, the Telegram webhook or any future handler sees
+// them. `API_MAX_BODY_BYTES` is schema-validated and falls back to
+// `DEFAULT_MAX_BODY_BYTES` (1 MiB) when the value is missing or invalid.
+app.use(
+  bodyLimitMiddleware({
+    maxBytes: resolveMaxBodyBytes(ENV.API_MAX_BODY_BYTES),
+    logger,
   }),
 );
 

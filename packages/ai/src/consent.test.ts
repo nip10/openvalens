@@ -36,10 +36,7 @@ type ConsentRow = {
  * Table-aware fake: returns `[{ metadata }]` for the organization table and the
  * supplied per-user consent row (or none) for `user_ai_consent`.
  */
-function dbWithConsent(options: {
-  metadata?: unknown;
-  userConsent?: ConsentRow | null;
-}): Database {
+function dbWithConsent(options: { metadata?: unknown; userConsent?: ConsentRow | null }): Database {
   return {
     select: () => ({
       from: (table: unknown) => ({
