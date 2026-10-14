@@ -20,28 +20,61 @@ const requireOrgMembership = mock(async () => ({
   role: "owner",
 }));
 
+class FakeAuthzHttpError extends Error {
+  readonly status = 403;
+  readonly code: string;
+
+  constructor(code = "NO_MEMBERSHIP") {
+    super(code);
+    this.code = code;
+  }
+}
+
+// `records:read` check used by the chat health tools (Issue #124). Resolves
+// (granted) by default; individual tests make it reject.
+const requirePermission = mock(
+  async (_context: unknown, _input: unknown): Promise<unknown> => ({}),
+);
+
 // Stub the authz guard so the procedure runs without a live Better Auth
 // instance. `mock.module` must run before `./index` is loaded.
 mock.module("@openvalens/auth/authz/guard", () => ({
-  AuthzHttpError: class AuthzHttpError extends Error {
-    readonly status = 403;
-    readonly code = "NO_MEMBERSHIP";
-  },
-  requirePermission: mock(),
+  AuthzHttpError: FakeAuthzHttpError,
+  requirePermission,
   requireSession: mock(),
   requireOrgMembership,
 }));
 
-// Replace only `streamChat`; keep the real consent/config/limiter exports so the
-// gate behaviour under test is genuine.
+// Replace only `streamChat` (the fake provider) and the domain read ports of the
+// health tools; keep the real consent/config/limiter/tool exports so the gate
+// behaviour under test is genuine.
 const actualAi = await import("@openvalens/ai");
-const streamChat = mock(async () => ({
-  totalChunks: 2,
-  text: "ASSISTANT_SECRET_REPLY",
-  usage: { inputTokens: 11, outputTokens: 4 },
-  model: "claude-sonnet-5-5",
-}));
-mock.module("@openvalens/ai", () => ({ ...actualAi, streamChat }));
+const { createFakeSources, marker } = await import("@openvalens/ai/tools/test-fixtures");
+const streamChat = mock(
+  async (_input: { tools?: Record<string, unknown> }): Promise<StreamChatResultShape> => ({
+    totalChunks: 2,
+    text: "ASSISTANT_SECRET_REPLY",
+    usage: { inputTokens: 11, outputTokens: 4 },
+    model: "claude-sonnet-5-5",
+  }),
+);
+
+type StreamChatResultShape = {
+  totalChunks: number;
+  text: string;
+  usage: { inputTokens: number; outputTokens: number };
+  model: string;
+};
+
+const OTHER_ORG_ID = "org-2";
+let fakeSources = createFakeSources({});
+// Capture the real factory first: `mock.module` rebinds the live namespace, so
+// calling `actualAi.createAiHealthTools` later would recurse into the mock.
+const realCreateAiHealthTools = actualAi.createAiHealthTools;
+const createAiHealthTools = mock((context: Parameters<typeof realCreateAiHealthTools>[0]) =>
+  realCreateAiHealthTools({ ...context, sources: fakeSources.sources }),
+);
+mock.module("@openvalens/ai", () => ({ ...actualAi, streamChat, createAiHealthTools }));
 
 const { appRouter } = await import("./index");
 const { chatMessage } = await import("@openvalens/db/schema/coach");
@@ -255,6 +288,9 @@ async function captureLogs(fn: () => Promise<unknown>): Promise<Array<Record<str
 beforeEach(() => {
   streamChat.mockClear();
   requireOrgMembership.mockClear();
+  requirePermission.mockClear();
+  createAiHealthTools.mockClear();
+  fakeSources = createFakeSources({});
 });
 
 describe("ai.chat consent gate", () => {
@@ -532,5 +568,188 @@ describe("ai.consent PHI safety", () => {
     for (const line of lines) {
       expect(line.correlationId).toBe(CORRELATION_ID);
     }
+  });
+});
+
+type ExecutableTool = { execute: (input: unknown, options: unknown) => Promise<unknown> };
+
+/**
+ * Fake provider: instead of a model, call the offered tools the way the AI SDK
+ * would and fold their JSON results into the reply text.
+ */
+function streamChatCallingTools(calls: Array<{ name: string; input: unknown }>) {
+  return async (input: { tools?: Record<string, unknown> }): Promise<StreamChatResultShape> => {
+    const results: unknown[] = [];
+    for (const call of calls) {
+      const offered = input.tools?.[call.name] as ExecutableTool | undefined;
+      if (!offered) throw new Error(`tool ${call.name} not offered`);
+      results.push(await offered.execute(call.input, { toolCallId: "t-1", messages: [] }));
+    }
+    return {
+      totalChunks: 1,
+      text: JSON.stringify(results),
+      usage: { inputTokens: 1, outputTokens: 1 },
+      model: "claude-sonnet-5-5",
+    };
+  };
+}
+
+function assistantText(inserts: CapturedInsert[]): unknown[] {
+  const rows = inserts.find((insert) => insert.table === chatMessage)?.payload as Array<{
+    role: string;
+    content: string;
+  }>;
+  const assistant = rows.find((row) => row.role === "assistant");
+  return JSON.parse(assistant?.content ?? "[]") as unknown[];
+}
+
+const INSIGHTS_CONSENT = { aiConsent: { enabled: true, scope: "insights" } };
+
+describe("ai.chat health tools (Issue #124)", () => {
+  test("offers healthSnapshot and markerTrend bound to the session org and user", async () => {
+    const { db } = createMockDb(INSIGHTS_CONSENT);
+
+    await callChat(createContext(db));
+
+    const tools = streamChat.mock.calls[0]?.[0].tools ?? {};
+    expect(Object.keys(tools).sort()).toEqual(["healthSnapshot", "markerTrend"]);
+    expect(createAiHealthTools).toHaveBeenCalledTimes(1);
+    expect(createAiHealthTools.mock.calls[0]?.[0]).toMatchObject({
+      organizationId: ORG_ID,
+      userId: USER_ID,
+      correlationId: CORRELATION_ID,
+    });
+  });
+
+  test("tool calls read real data for the active org only", async () => {
+    fakeSources = createFakeSources({
+      [ORG_ID]: {
+        labs: [marker("blood_marker_ferritin", "Ferritin", "ng/mL", [40, 52])],
+        latestWeight: { date: "2026-03-08", weightKg: 72 },
+      },
+      [OTHER_ORG_ID]: {
+        labs: [marker("blood_marker_ferritin", "Ferritin", "ng/mL", [900, 999])],
+        latestWeight: { date: "2026-03-08", weightKg: 123.4 },
+      },
+    });
+    streamChat.mockImplementationOnce(
+      streamChatCallingTools([
+        { name: "healthSnapshot", input: {} },
+        { name: "markerTrend", input: { markerKey: "ferritin" } },
+      ]),
+    );
+    const { db, inserts } = createMockDb(INSIGHTS_CONSENT);
+
+    await callChat(createContext(db));
+
+    const [snapshot, trend] = assistantText(inserts) as Array<Record<string, unknown>>;
+    expect(snapshot).toMatchObject({
+      status: "ok",
+      body: { latestWeightKg: 72 },
+      labs: { markersWithReadings: 1 },
+    });
+    expect(trend).toMatchObject({ status: "ok", trend: "up", latest: { value: 52 } });
+    expect(fakeSources.calls.length).toBeGreaterThan(0);
+    expect(fakeSources.calls.every((call) => call.organizationId === ORG_ID)).toBe(true);
+    expect(JSON.stringify([snapshot, trend])).not.toContain("999");
+    expect(JSON.stringify([snapshot, trend])).not.toContain("123.4");
+  });
+
+  test("re-checks records:read on every tool call and returns unavailable when denied", async () => {
+    fakeSources = createFakeSources({
+      [ORG_ID]: { latestWeight: { date: "2026-03-08", weightKg: 72 } },
+    });
+    requirePermission.mockImplementation(async () => {
+      throw new FakeAuthzHttpError("PERMISSION_DENIED");
+    });
+    streamChat.mockImplementationOnce(
+      streamChatCallingTools([
+        { name: "healthSnapshot", input: {} },
+        { name: "markerTrend", input: { markerKey: "ferritin" } },
+      ]),
+    );
+    const { db, inserts } = createMockDb(INSIGHTS_CONSENT);
+
+    try {
+      await callChat(createContext(db));
+    } finally {
+      requirePermission.mockImplementation(async () => ({}));
+    }
+
+    expect(requirePermission).toHaveBeenCalledTimes(2);
+    expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "read" });
+    expect(assistantText(inserts)).toEqual([
+      expect.objectContaining({ status: "unavailable", reason: "permission_denied" }),
+      expect.objectContaining({ status: "unavailable", reason: "permission_denied" }),
+    ]);
+    expect(fakeSources.calls).toHaveLength(0);
+  });
+
+  test("a chat-only org grant lets chat run but keeps health data out of tools", async () => {
+    fakeSources = createFakeSources({
+      [ORG_ID]: { latestWeight: { date: "2026-03-08", weightKg: 72 } },
+    });
+    streamChat.mockImplementationOnce(
+      streamChatCallingTools([{ name: "healthSnapshot", input: {} }]),
+    );
+    const { db, inserts } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+
+    await expect(callChat(createContext(db))).resolves.toMatchObject({ status: "ok" });
+
+    expect(assistantText(inserts)).toEqual([
+      expect.objectContaining({ status: "unavailable", reason: "consent_required" }),
+    ]);
+    expect(fakeSources.calls).toHaveLength(0);
+  });
+
+  test("never builds tools when the user has not consented", async () => {
+    const { db } = createMockDb(INSIGHTS_CONSENT, null);
+
+    await expect(callChat(createContext(db))).rejects.toMatchObject({ code: "AI_DISABLED" });
+
+    expect(createAiHealthTools).not.toHaveBeenCalled();
+    expect(fakeSources.calls).toHaveLength(0);
+  });
+
+  test("returns honest empty results when the org has no records", async () => {
+    streamChat.mockImplementationOnce(
+      streamChatCallingTools([
+        { name: "healthSnapshot", input: {} },
+        { name: "markerTrend", input: { markerKey: "ferritin" } },
+      ]),
+    );
+    const { db, inserts } = createMockDb(INSIGHTS_CONSENT);
+
+    await callChat(createContext(db));
+
+    expect(assistantText(inserts)).toEqual([
+      expect.objectContaining({ status: "no_data" }),
+      expect.objectContaining({ status: "not_found", availableMarkers: [] }),
+    ]);
+  });
+
+  test("tool execution logs carry no health values", async () => {
+    fakeSources = createFakeSources({
+      [ORG_ID]: {
+        labs: [marker("blood_marker_ferritin", "Ferritin", "ng/mL", [40, 52])],
+        latestWeight: { date: "2026-03-08", weightKg: 72.25 },
+      },
+    });
+    streamChat.mockImplementationOnce(
+      streamChatCallingTools([
+        { name: "healthSnapshot", input: {} },
+        { name: "markerTrend", input: { markerKey: "ferritin" } },
+      ]),
+    );
+    const { db } = createMockDb(INSIGHTS_CONSENT);
+
+    const lines = await captureLogs(() => callChat(createContext(db)));
+
+    const toolLines = lines.filter((line) => line.event === "ai.tool.executed");
+    expect(toolLines).toHaveLength(2);
+    const serialized = JSON.stringify(lines);
+    expect(serialized).not.toContain("72.25");
+    expect(serialized).not.toContain("Ferritin");
+    expect(serialized).not.toContain("ferritin");
   });
 });
