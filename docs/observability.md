@@ -108,10 +108,10 @@ requires a server restart.
 
 ## 5. Out of scope / follow-ups
 
-- **Global request body-size enforcement** — anchovy caps
-  `proxyClientMaxBodySize` at `5_000_000` bytes. Hono does not enforce this by
-  default. Issue #127 adds an inline 16 KiB cap to the CSP sink only; a global
-  limit remains a follow-up.
+- **Request body-size enforcement** — done in #126: `bodyLimitMiddleware`
+  (`apps/server/src/body-limit.ts`) rejects bodies over `API_MAX_BODY_BYTES`
+  (default 1 MiB) with `413`. The CSP sink keeps its tighter 16 KiB inline cap
+  from #127.
 - **Per-route header overrides** — headers are global for now.
 
 ## 6. Violation reporting
