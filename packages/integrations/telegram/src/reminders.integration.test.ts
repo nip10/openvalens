@@ -56,7 +56,7 @@ function capturingLogger() {
 
 describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/reminders_issue125" });
-  const migrationsRoot = new URL("../../../../db/src/migrations/", import.meta.url);
+  const migrationsRoot = new URL("../../../db/src/migrations/", import.meta.url);
   const date = "2026-10-14";
 
   beforeAll(async () => {
@@ -88,19 +88,19 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
         ('m-banned', 'org-a', 'user-banned', 'member'),
         ('m-b',      'org-b', 'user-b',      'owner');
       insert into "telegram_account"
-        (organization_id, user_id, telegram_chat_id, telegram_user_id)
+        (organization_id, user_id, telegram_chat_id, telegram_user_id, connected_at, created_at)
       values
-        ('org-a', 'user-a',      'chat-a', 'tg-user-a'),
-        ('org-a', 'user-c',      'chat-c', 'tg-user-c'),
-        ('org-a', 'user-banned', 'chat-banned', 'tg-user-banned'),
-        ('org-b', 'user-b',      'chat-b', 'tg-user-b');
+        ('org-a', 'user-a',      'chat-a',      'tg-user-a',      '${date}', '${date}'),
+        ('org-a', 'user-c',      'chat-c',      'tg-user-c',      '${date}', '${date}'),
+        ('org-a', 'user-banned', 'chat-banned', 'tg-user-banned', '${date}', '${date}'),
+        ('org-b', 'user-b',      'chat-b',      'tg-user-b',      '${date}', '${date}');
       insert into "daily_reminder"
-        (organization_id, user_id, date, source_type, source_id, label)
+        (organization_id, user_id, date, source_type, source_id, label, created_at)
       values
-        ('org-a', 'user-a',      '${date}', 'supplement', 1, 'Secret Vitamin D'),
-        ('org-a', 'user-c',      '${date}', 'supplement', 2, 'Top Secret Med C'),
-        ('org-a', 'user-banned', '${date}', 'supplement', 3, 'Banned Should Skip'),
-        ('org-b', 'user-b',      '${date}', 'supplement', 1, 'Hidden Rx B');
+        ('org-a', 'user-a',      '${date}', 'supplement', 1, 'Secret Vitamin D',   '${date}'),
+        ('org-a', 'user-c',      '${date}', 'supplement', 2, 'Top Secret Med C',   '${date}'),
+        ('org-a', 'user-banned', '${date}', 'supplement', 3, 'Banned Should Skip', '${date}'),
+        ('org-b', 'user-b',      '${date}', 'supplement', 1, 'Hidden Rx B',        '${date}');
     `),
     );
   }, 120000);
@@ -290,13 +290,13 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
   });
 
   test("per-org failure isolation: one tenant's provider failure does not roll back peers", async () => {
-    // Telegram client for org-a succeeds; for org-b every send throws.
-    let chatARuns = 0;
+    // Telegram sends for org-a chats succeed; org-b's chat always throws.
+    let orgASends = 0;
     let chatBRuns = 0;
     const sendMessage = async (chatId: string) => {
-      if (chatId === "chat-a") {
-        chatARuns += 1;
-        return { ok: true, result: { message_id: chatARuns } };
+      if (chatId !== "chat-b") {
+        orgASends += 1;
+        return { ok: true, result: { message_id: orgASends } };
       }
       chatBRuns += 1;
       throw new Error("telegram.unreachable");
@@ -339,7 +339,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
     expect(runB!.failed).toBeGreaterThan(0);
 
     // Org-a's deliveries are committed; org-b's are not double-counted.
-    expect(chatARuns).toBeGreaterThanOrEqual(2);
+    expect(orgASends).toBe(2);
     expect(chatBRuns).toBe(1);
 
     // The cron should never itself throw on a per-org failure — it surfaces

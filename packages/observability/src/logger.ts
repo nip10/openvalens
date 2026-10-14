@@ -50,7 +50,7 @@ export const BLOCKED_FIELDS = [
   "rawPayload",
   "aiPrompt",
   "aiResponse",
-// Admission credentials (Issue #63) — never log a bearer, proof code or hash.
+  // Admission credentials (Issue #63) — never log a bearer, proof code or hash.
   "credential",
   "setupToken",
   "verificationCode",

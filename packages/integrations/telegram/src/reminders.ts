@@ -3,7 +3,7 @@ import { member, user } from "@openvalens/db/schema/auth";
 import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
 import type { EmailService } from "@openvalens/email";
 import type { StructuredLogger } from "@openvalens/observability";
-import { and, eq, inArray, isNull, not } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import type { TelegramClient } from "./client";
 
@@ -191,18 +191,16 @@ export async function materializeDailyReminders(
     );
   const chatIdByUser = new Map(accounts.map((account) => [account.userId, account.chatId]));
 
-  // Email channel resolution: email + banned flag carried through so the
-  // delivery loop can distinguish "no email on file" from "banned".
+  // Recipient profile: the banned flag applies to every channel; the email
+  // is only a fallback channel when one is on file.
   const userRows = await db
     .select({ id: user.id, email: user.email, banned: user.banned })
     .from(user)
-    .where(and(inArray(user.id, userIds), not(eq(user.email, ""))));
-  type EmailProfile = { email: string; banned: boolean };
-  const profileByUser = new Map<string, EmailProfile>(
-    userRows.map((row) => [row.id, { email: row.email, banned: row.banned ?? false }]),
+    .where(inArray(user.id, userIds));
+  const bannedUserIds = new Set(userRows.filter((row) => row.banned).map((row) => row.id));
+  const emailByUser = new Map(
+    userRows.filter((row) => row.email !== "").map((row) => [row.id, row.email]),
   );
-
-  const senderEmail = email.sendEmail;
 
   let sent = 0;
   let skipped = 0;
@@ -211,44 +209,52 @@ export async function materializeDailyReminders(
   for (const reminder of pending) {
     // Per-recipient authorization — keep this strictly inside the per-org
     // scope. Skip without sending; do not mutate the reminder row.
-    if (!memberUserIds.has(reminder.userId)) {
+    const skipReason: MaterializeSkipReason | null = !memberUserIds.has(reminder.userId)
+      ? "recipient_not_member"
+      : bannedUserIds.has(reminder.userId)
+        ? "recipient_banned"
+        : null;
+    if (skipReason) {
       skipped += 1;
       logger.info("telegram.materialize.skipped", {
         correlationId,
         organizationId,
         date,
         reminderId: reminder.id,
-        reason: "recipient_not_member",
+        reason: skipReason,
       });
       continue;
     }
 
+    // Telegram in this org first, else the email fallback.
     const chatId = chatIdByUser.get(reminder.userId);
-
+    const recipientEmail = emailByUser.get(reminder.userId);
+    let channel: "telegram" | "email";
+    let send: () => Promise<number | null>;
     if (chatId) {
-      const result = await deliverViaTelegram({
-        db,
-        client,
-        reminderId: reminder.id,
-        organizationId,
-        chatId,
-        text: reminder.label,
-      });
-      if (result.outcome === "sent") {
-        sent += 1;
-      } else if (result.outcome === "failed") {
-        failed += 1;
-      } else {
-        // skipped — a sibling claimed this slot between our prefetch and our
-        // per-row claim. Do not fall through to email; the sibling owns it.
-        skipped += 1;
-      }
-      continue;
-    }
-
-    // No Telegram chat in this org — fall back to email.
-    const profile = profileByUser.get(reminder.userId);
-    if (!profile) {
+      channel = "telegram";
+      send = async () => {
+        const response = await client.sendMessage(chatId, reminder.label);
+        return response.ok && response.result && typeof response.result.message_id === "number"
+          ? response.result.message_id
+          : null;
+      };
+    } else if (recipientEmail) {
+      channel = "email";
+      send = async () => {
+        await email.sendEmail(
+          {
+            to: recipientEmail,
+            subject: REMINDER_EMAIL_SUBJECT,
+            html: `<p>${escapeHtml(reminder.label)}</p>`,
+            text: reminder.label,
+            templateName: REMINDER_EMAIL_TEMPLATE,
+          },
+          { correlationId },
+        );
+        return EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID;
+      };
+    } else {
       skipped += 1;
       logger.warn("telegram.materialize.skipped", {
         correlationId,
@@ -260,51 +266,21 @@ export async function materializeDailyReminders(
       continue;
     }
 
-    if (profile.banned) {
-      skipped += 1;
-      logger.info("telegram.materialize.skipped", {
-        correlationId,
-        organizationId,
-        date,
-        reminderId: reminder.id,
-        reason: "recipient_banned",
-      });
-      continue;
-    }
-
-    const claimed = await tryClaimEmailDelivery({
-      db,
-      reminderId: reminder.id,
-      organizationId,
-    });
-    if (!claimed) {
-      // A sibling claimed this slot between our prefetch and our per-row
-      // claim — the sibling owns delivery. Skip silently.
-      skipped += 1;
-      continue;
-    }
-
-    try {
-      await senderEmail(
-        {
-          to: profile.email,
-          subject: REMINDER_EMAIL_SUBJECT,
-          html: `<p>${escapeHtml(reminder.label)}</p>`,
-          text: reminder.label,
-          templateName: REMINDER_EMAIL_TEMPLATE,
-        },
-        { correlationId },
-      );
+    const result = await deliverOnce({ db, reminderId: reminder.id, organizationId, send });
+    if (result.outcome === "sent") {
       sent += 1;
-    } catch (error) {
+    } else if (result.outcome === "skipped") {
+      // A sibling run holds or already delivered this slot; it owns delivery.
+      skipped += 1;
+    } else {
       failed += 1;
       logger.warn("telegram.materialize.delivery_failed", {
         correlationId,
         organizationId,
         date,
         reminderId: reminder.id,
-        channel: "email",
-        errorCode: typedErrorCode(error),
+        channel,
+        errorCode: result.errorCode,
       });
     }
   }
@@ -321,77 +297,27 @@ export async function materializeDailyReminders(
   return { organizationId, date, sent, skipped, failed };
 }
 
-type DeliverOutcome = "sent" | "skipped" | "failed";
-
-/** Per-row Telegram delivery: send, then atomically claim. */
-async function deliverViaTelegram(input: {
-  db: Database;
-  client: TelegramClient;
-  reminderId: number;
-  organizationId: string;
-  chatId: string;
-  text: string;
-}): Promise<{ outcome: DeliverOutcome; channel: "telegram" }> {
-  const { db, client, reminderId, organizationId, chatId, text } = input;
-
-  let messageId: number | null = null;
-  try {
-    const response = await client.sendMessage(chatId, text);
-    if (response.ok && response.result && typeof response.result.message_id === "number") {
-      messageId = response.result.message_id;
-    }
-  } catch {
-    // `failed` is logged by the caller; do not double-log here.
-    // Caller observes the `failed` outcome by `outcome === "failed"`.
-  }
-
-  if (messageId === null) {
-    return { outcome: "failed", channel: "telegram" };
-  }
-
-  const claimed = await claimDailyReminderDeliverySlot({
-    db,
-    reminderId,
-    organizationId,
-    telegramMessageId: messageId,
-  });
-
-  if (!claimed) {
-    return { outcome: "skipped", channel: "telegram" };
-  }
-
-  return { outcome: "sent", channel: "telegram" };
-}
-
-/** Per-row email claim: write the email sentinel if the slot is still ours. */
-async function tryClaimEmailDelivery(input: {
-  db: Database;
-  reminderId: number;
-  organizationId: string;
-}): Promise<boolean> {
-  return claimDailyReminderDeliverySlot({
-    db: input.db,
-    reminderId: input.reminderId,
-    organizationId: input.organizationId,
-    telegramMessageId: EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID,
-  });
-}
+type DeliverResult =
+  | { outcome: "sent" }
+  | { outcome: "skipped" }
+  | { outcome: "failed"; errorCode: string };
 
 /**
- * Atomically claim a reminder row for delivery. Returns `true` if the row
- * was still `status='pending'` and `telegram_message_id IS NULL` when this
- * caller grabbed the row-level `FOR UPDATE SKIP LOCKED`; returns `false`
- * otherwise (a sibling already claimed it, or the row no longer qualifies).
+ * Deliver one reminder exactly once across concurrent runs: lock the row with
+ * `FOR UPDATE SKIP LOCKED` (re-checking the pending + undelivered predicate),
+ * send while holding the lock, then record the delivery id. A failed send
+ * records nothing, so the row stays pending for the next run.
  */
-async function claimDailyReminderDeliverySlot(input: {
+async function deliverOnce(input: {
   db: Database;
   reminderId: number;
   organizationId: string;
-  telegramMessageId: number;
-}): Promise<boolean> {
-  const { db, reminderId, organizationId, telegramMessageId } = input;
+  /** Returns the id to record in `telegram_message_id`, or `null` when not sent. */
+  send: () => Promise<number | null>;
+}): Promise<DeliverResult> {
+  const { db, reminderId, organizationId, send } = input;
 
-  return db.transaction(async (tx) => {
+  return db.transaction(async (tx): Promise<DeliverResult> => {
     const [row] = await tx
       .select({ id: dailyReminder.id })
       .from(dailyReminder)
@@ -406,7 +332,15 @@ async function claimDailyReminderDeliverySlot(input: {
       .for("update", { skipLocked: true })
       .limit(1);
 
-    if (!row) return false;
+    if (!row) return { outcome: "skipped" };
+
+    let telegramMessageId: number | null;
+    try {
+      telegramMessageId = await send();
+    } catch (error) {
+      return { outcome: "failed", errorCode: typedErrorCode(error) };
+    }
+    if (telegramMessageId === null) return { outcome: "failed", errorCode: "NOT_OK" };
 
     await tx
       .update(dailyReminder)
@@ -415,6 +349,6 @@ async function claimDailyReminderDeliverySlot(input: {
         and(eq(dailyReminder.organizationId, organizationId), eq(dailyReminder.id, reminderId)),
       );
 
-    return true;
+    return { outcome: "sent" };
   });
 }
