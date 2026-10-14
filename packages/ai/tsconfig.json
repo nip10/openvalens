@@ -11,6 +11,11 @@
   "references": [
     { "path": "../db" },
     { "path": "../observability" },
-    { "path": "../audit-security" }
+    { "path": "../audit-security" },
+    { "path": "../activity" },
+    { "path": "../body" },
+    { "path": "../labs" },
+    { "path": "../sleep" },
+    { "path": "../vitals" }
   ]
 }

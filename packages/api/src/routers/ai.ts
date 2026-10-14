@@ -2,17 +2,20 @@ import {
   AiConfigError,
   AiConsentError,
   CURRENT_CONSENT_VERSION,
+  createAiHealthTools,
   extractStructured,
   generateInsight,
-  healthSnapshotTool,
-  markerTrendTool,
   readUserAiConsent,
   requireAiConsent,
   streamChat,
   type AiChatMessage,
 } from "@openvalens/ai";
 import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
-import { AuthzHttpError, requireOrgMembership } from "@openvalens/auth/authz/guard";
+import {
+  AuthzHttpError,
+  requireOrgMembership,
+  requirePermission,
+} from "@openvalens/auth/authz/guard";
 import type { Database } from "@openvalens/db";
 import { userAiConsent } from "@openvalens/db/schema/auth";
 import { chatMessage } from "@openvalens/db/schema/coach";
@@ -69,11 +72,22 @@ const chatOutput = z.object({
   correlationId: z.string(),
 });
 
-/** The demo tool set wired into chat. The other 8 tools are deferred (#13c). */
-const chatTools = {
-  healthSnapshot: healthSnapshotTool,
-  markerTrend: markerTrendTool,
-};
+/**
+ * `records:read` check the chat health tools re-run on every execution
+ * (Issue #124). Resolves `false` instead of throwing so a denied tool call
+ * becomes an honest "unavailable" tool result rather than a failed chat turn.
+ * The remaining tools are tracked in #130.
+ */
+function createRecordsReadCheck(honoContext: Parameters<typeof requirePermission>[0]) {
+  return async (): Promise<boolean> => {
+    try {
+      await requirePermission(honoContext, { resource: "records", action: "read" });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+}
 
 type AiAuditEventType = "AI_CHAT_REQUESTED" | "AI_CHAT_COMPLETED" | "AI_CHAT_FAILED";
 
@@ -198,7 +212,15 @@ export const aiRouter = {
           config: context.aiConfig,
           messages,
           correlationId,
-          tools: chatTools,
+          // Built per request: bound to the session's org + user, never input.
+          tools: createAiHealthTools({
+            db: context.db,
+            organizationId,
+            userId,
+            canReadRecords: createRecordsReadCheck(context.honoContext),
+            correlationId,
+            logger,
+          }),
           logger,
         });
 
