@@ -75,22 +75,6 @@ app.use(
   }),
 );
 
-// Issue #127 — CSP violation sink. Mounted after the security headers so the
-// 204/4xx/5xx responses carry them, and after the correlation middleware so
-// every log line and the persisted row share one id.
-app.post(
-  CSP_REPORT_PATH,
-  createCspReportHandler({
-    logger,
-    expectedOrigin: expectedOriginFrom(ENV.CORS_ORIGIN),
-    cspMode: resolveCspMode(ENV.NODE_ENV, ENV.CSP_MODE),
-    rateLimiter: cspReportRateLimiter,
-    insert: async (rows) => {
-      await db.insert(cspViolationEvent).values(rows);
-    },
-  }),
-);
-
 // Issue #126 — request-body size limit. Mounted after the correlation-id
 // middleware (so rejections can carry an id), before CORS and every route
 // handler, so oversized bodies are rejected before oRPC's parser, the
@@ -126,6 +110,23 @@ app.use(
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "x-correlation-id", "x-request-id"],
     credentials: true,
+  }),
+);
+
+// Issue #127 — CSP violation sink. Mounted after the security headers so the
+// 204/4xx/5xx responses carry them, after the correlation middleware so every
+// log line and the persisted row share one id, and after CORS so cross-origin
+// Reporting API uploads (mode "cors") from the web document are accepted.
+app.post(
+  CSP_REPORT_PATH,
+  createCspReportHandler({
+    logger,
+    expectedOrigin: expectedOriginFrom(ENV.CORS_ORIGIN),
+    cspMode: resolveCspMode(ENV.NODE_ENV, ENV.CSP_MODE),
+    rateLimiter: cspReportRateLimiter,
+    insert: async (rows) => {
+      await db.insert(cspViolationEvent).values(rows);
+    },
   }),
 );
 

@@ -116,12 +116,18 @@ requires a server restart.
 
 ## 6. Violation reporting
 
-When CSP is enforced the server advertises `report-to /api/security/csp-report`
-and accepts reports at `POST /api/security/csp-report`.
+When CSP is enforced, both the server and the web document (nginx, see
+[docs/security-csp.md](security-csp.md#web-document)) advertise the
+`csp-endpoint` reporting group (`report-to csp-endpoint` with the
+`Reporting-Endpoints` and legacy `Report-To` headers) plus a `report-uri`
+fallback for browsers without `report-to` support. Reports are accepted at
+`POST /api/security/csp-report`.
 
 Accepted payloads: `application/csp-report` (legacy `report-uri` envelope) and
-`application/reports+csp` (Reporting API). Everything else is rejected with
-`415`. The route:
+`application/reports+json` (Reporting API batch; non-`csp-violation` entries are
+skipped and camelCase bodies are mapped onto the legacy field names). Everything
+else is rejected with `415`. The route is mounted after CORS, so cross-origin
+Reporting API uploads from the web origin pass the preflight. The route:
 
 - caps the body at **16 KiB** inline (`413` beyond that — there is no upstream
   body-size middleware);
@@ -132,8 +138,8 @@ Accepted payloads: `application/csp-report` (legacy `report-uri` envelope) and
   `violated-directive`, `effective-directive`, `original-policy`, `source-file`,
   `line-number`, `column-number`, `disposition`. Unknown fields are rejected
   with `400`; `referrer`, `sample`, `script-sample` and `style-sample` are
-  dropped silently;
-- rate-limits per `(correlationId, origin)` at **60/min** (denied requests are
+  dropped silently, as is `status-code`;
+- rate-limits per verified origin at **60/min** (denied requests are
   not counted and no row is inserted);
 - returns **204** on success so browsers stop retrying.
 

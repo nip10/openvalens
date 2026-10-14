@@ -93,15 +93,17 @@ describe("buildSecurityHeaders", () => {
     expect(headers["Report-To"]).toBeUndefined();
   });
 
-  test("reportToGroup + reportToUrl emit both with the URL only in the JSON", () => {
+  test("reportToGroup + reportToUrl emit the group token, a report-uri fallback and both endpoint headers", () => {
     const headers = buildSecurityHeaders({
       cspMode: "enforce",
       reportToGroup: "csp-endpoint",
       reportToUrl: "/api/security/csp-report",
     });
 
-    expect(headers[ENFORCE_HEADER]).toContain("report-to csp-endpoint");
-    expect(headers[ENFORCE_HEADER]).not.toContain("/api/security/csp-report");
+    expect(headers[ENFORCE_HEADER]).toContain(
+      "report-to csp-endpoint; report-uri /api/security/csp-report",
+    );
+    expect(headers["Reporting-Endpoints"]).toBe('csp-endpoint="/api/security/csp-report"');
 
     const parsed = JSON.parse(headers["Report-To"] ?? "{}") as {
       group?: string;
@@ -138,6 +140,19 @@ describe("buildSecurityHeaders", () => {
 
     expect(headers[REPORT_ONLY_HEADER]).toBeDefined();
     expect(headers[REPORT_ONLY_HEADER]).not.toContain("report-to");
+    expect(headers[REPORT_ONLY_HEADER]).not.toContain("report-uri");
     expect(headers["Report-To"]).toBeUndefined();
+    expect(headers["Reporting-Endpoints"]).toBeUndefined();
+  });
+
+  test("additionalConnectSrc is appended after the base connect-src allowlist", () => {
+    const csp = buildSecurityHeaders({
+      cspMode: "enforce",
+      additionalConnectSrc: ["https://api.example.com"],
+    })[ENFORCE_HEADER];
+
+    expect(csp).toContain(
+      "connect-src 'self' api.resend.com api.telegram.org https://api.example.com;",
+    );
   });
 });
