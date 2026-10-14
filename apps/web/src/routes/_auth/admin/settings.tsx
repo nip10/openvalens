@@ -21,6 +21,23 @@ export const Route = createFileRoute("/_auth/admin/settings")({
   component: AdminSettingsPage,
 });
 
+export type OwnerEpoch = {
+  advance: () => void;
+  capture: () => number;
+  isLive: (generation: number) => boolean;
+};
+
+export function createOwnerEpoch(): OwnerEpoch {
+  let generation = 0;
+  return {
+    advance: () => {
+      generation += 1;
+    },
+    capture: () => generation,
+    isLive: (value: number) => value === generation,
+  };
+}
+
 function AdminSettingsPage() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const userId = session?.user?.id;
@@ -54,16 +71,24 @@ function AuthenticatedAdminPage({ userId }: { userId: string }) {
 }
 
 function ProductSettingsSection({ userId }: { userId: string }) {
-  const currentUserIdRef = useRef(userId);
+  const epochRef = useRef<OwnerEpoch | null>(null);
+  if (!epochRef.current) {
+    epochRef.current = createOwnerEpoch();
+  }
   const mountedRef = useRef(true);
 
   useLayoutEffect(() => {
-    currentUserIdRef.current = userId;
+    epochRef.current!.advance();
     mountedRef.current = true;
     return () => {
+      epochRef.current!.advance();
       mountedRef.current = false;
     };
   }, [userId]);
+
+  const isLiveOwner = (generation: number) => {
+    return mountedRef.current && epochRef.current!.isLive(generation);
+  };
 
   const productSettings = useQuery({
     ...productSettingsQueryOptions(userId),
@@ -72,14 +97,11 @@ function ProductSettingsSection({ userId }: { userId: string }) {
 
   const update = useMutation(orpc.adminSettings.updateProductSettings.mutationOptions());
 
-  const isLiveOwner = () => {
-    return mountedRef.current && currentUserIdRef.current === userId;
-  };
-
   const handleSave = async (
     payload: ProductSettingsUpdateInput,
   ): Promise<ProductSettingsSnapshot> => {
-    if (!isLiveOwner()) {
+    const generation = epochRef.current!.capture();
+    if (!isLiveOwner(generation)) {
       throw { code: "UNKNOWN" };
     }
 
@@ -91,7 +113,7 @@ function ProductSettingsSection({ userId }: { userId: string }) {
 
     try {
       const snapshot = await update.mutateAsync(cleanPayload);
-      if (!isLiveOwner()) {
+      if (!isLiveOwner(generation)) {
         throw { code: "UNKNOWN" };
       }
       queryClient.setQueryData([...productSettingsQueryKey(userId)], snapshot);
@@ -106,13 +128,14 @@ function ProductSettingsSection({ userId }: { userId: string }) {
   };
 
   const handleReloadLatest = async (): Promise<ProductSettingsSnapshot> => {
-    if (!isLiveOwner()) {
+    const generation = epochRef.current!.capture();
+    if (!isLiveOwner(generation)) {
       throw { code: "UNKNOWN" };
     }
     const snapshot = await queryClient.fetchQuery({
       ...productSettingsQueryOptions(userId),
     });
-    if (!isLiveOwner()) {
+    if (!isLiveOwner(generation)) {
       throw { code: "UNKNOWN" };
     }
     return snapshot;

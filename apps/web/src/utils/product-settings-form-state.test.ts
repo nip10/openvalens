@@ -5,6 +5,7 @@ import type { ProductSettingsSnapshot } from "@openvalens/api/product-settings-c
 import {
   createProductSettingsFormState,
   deriveProductSettingsFormState,
+  isOwnershipCurrent,
   reduceProductSettingsForm,
   type ProductSettingsFormAction,
 } from "./product-settings-form-state";
@@ -430,5 +431,66 @@ describe("product-settings form state — ownership and rebase invariants", () =
     expect(state.status.tag).toBe("idle");
     expect(state.baseline.canEdit).toBe(false);
     expect(state.draft.locale).toBe("en-GB");
+  });
+});
+
+describe("ownership fence — stale callback across A→B→A", () => {
+  test("a callback captured during the first A tenure is not live after the owner returns to A, while the current tenure works", () => {
+    // First A tenure: captured owner and epoch match the live ones.
+    expect(
+      isOwnershipCurrent({
+        capturedOwnerId: "owner-a",
+        capturedEpoch: 0,
+        liveOwnerId: "owner-a",
+        liveEpoch: 0,
+        alive: true,
+      }),
+    ).toBe(true);
+
+    // A→B→A: the owner id matches again but the live epoch has advanced twice,
+    // so a callback retained from the first A tenure must not authorize
+    // transport (it would revive a stale captured state).
+    expect(
+      isOwnershipCurrent({
+        capturedOwnerId: "owner-a",
+        capturedEpoch: 0,
+        liveOwnerId: "owner-a",
+        liveEpoch: 2,
+        alive: true,
+      }),
+    ).toBe(false);
+
+    // The current (second) A tenure's callback captures the live epoch and works.
+    expect(
+      isOwnershipCurrent({
+        capturedOwnerId: "owner-a",
+        capturedEpoch: 2,
+        liveOwnerId: "owner-a",
+        liveEpoch: 2,
+        alive: true,
+      }),
+    ).toBe(true);
+
+    // An A→B callback is still fenced by the owner id.
+    expect(
+      isOwnershipCurrent({
+        capturedOwnerId: "owner-a",
+        capturedEpoch: 0,
+        liveOwnerId: "owner-b",
+        liveEpoch: 1,
+        alive: true,
+      }),
+    ).toBe(false);
+
+    // Unmount (or StrictMode replay cleanup) fences every retained callback.
+    expect(
+      isOwnershipCurrent({
+        capturedOwnerId: "owner-a",
+        capturedEpoch: 2,
+        liveOwnerId: "owner-a",
+        liveEpoch: 2,
+        alive: false,
+      }),
+    ).toBe(false);
   });
 });

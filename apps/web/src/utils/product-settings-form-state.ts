@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
+import { useCallback, useLayoutEffect, useReducer, useRef, useState } from "react";
 
 import type {
   ProductLocale,
@@ -294,6 +294,31 @@ export function deriveProductSettingsFormState(
   return reduceProductSettingsForm(state, { type: "rebase", snapshot, ownerId });
 }
 
+/**
+ * Ownership fence shared by every action callback.
+ *
+ * A callback is only live when the component is mounted (`alive`), the live
+ * committed owner still equals the owner captured when the callback was created,
+ * and the live ownership epoch still equals the epoch captured at that time. The
+ * epoch advances on every ownerId change and on unmount/StrictMode replay, so a
+ * callback retained across an A→B→A principal transition (whose captured epoch
+ * is stale even though the owner id matches again) no longer authorizes
+ * transport.
+ */
+export function isOwnershipCurrent(input: {
+  capturedOwnerId: string;
+  capturedEpoch: number;
+  liveOwnerId: string | null;
+  liveEpoch: number;
+  alive: boolean;
+}): boolean {
+  return (
+    input.alive &&
+    input.liveOwnerId === input.capturedOwnerId &&
+    input.liveEpoch === input.capturedEpoch
+  );
+}
+
 type ActiveRequest = {
   requestId: number;
   ownerId: string;
@@ -337,12 +362,18 @@ export function useProductSettingsForm({
   const committedOwnerRef = useRef<string | null>(null);
   const aliveRef = useRef(false);
   const epochRef = useRef(0);
+  // Render mirror of the live epoch. Advancing it (in the lifecycle cleanup,
+  // alongside `epochRef`) forces a re-render so action callbacks capture the
+  // current epoch — including after a StrictMode effect replay.
+  const [epochState, setEpochState] = useState(0);
   // Latest owned model, updated on commit; request starts read this rather than
   // a captured (possibly stale) closure draft/cap.
   const modelRef = useRef<ProductSettingsFormModel>(state);
 
   // Pure owner-filtered projection for this render.
   const renderState = deriveProductSettingsFormState(state, snapshot, ownerId);
+  // Ownership epoch captured for this render's action callbacks.
+  const epochAtRender = epochState;
 
   // Owner/mount lifecycle: dispose + fence on cleanup; StrictMode replay
   // re-arms liveness. Deps are ownerId only (no snapshot identity).
@@ -352,6 +383,7 @@ export function useProductSettingsForm({
     return () => {
       aliveRef.current = false;
       epochRef.current += 1;
+      setEpochState((value) => value + 1);
       const slot = activeRequestRef.current;
       if (slot && slot.ownerId === ownerId) {
         activeRequestRef.current = null;
@@ -380,8 +412,14 @@ export function useProductSettingsForm({
   }, []);
 
   const isLiveOwner = useCallback((): boolean => {
-    return aliveRef.current && committedOwnerRef.current === ownerId;
-  }, [ownerId]);
+    return isOwnershipCurrent({
+      capturedOwnerId: ownerId,
+      capturedEpoch: epochAtRender,
+      liveOwnerId: committedOwnerRef.current,
+      liveEpoch: epochRef.current,
+      alive: aliveRef.current,
+    });
+  }, [ownerId, epochAtRender]);
 
   const setUnits = useCallback(
     (units: ProductUnits) => {
