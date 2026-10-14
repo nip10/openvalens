@@ -36,7 +36,7 @@ import { member, orgId, user } from "./auth";
  * Core nutrient columns shared by custom foods and snapshots. Values are per
  * `nutrient_basis_amount` of `nutrient_basis_unit`. Units are in the names.
  */
-const nutrientColumns = () => ({
+export const nutrientColumns = () => ({
   energyKcal: real("energy_kcal"),
   energyKj: real("energy_kj"),
   proteinG: real("protein_g"),
@@ -51,18 +51,18 @@ const nutrientColumns = () => ({
   saltG: real("salt_g"),
 });
 
-type NutrientColumnKey = keyof ReturnType<typeof nutrientColumns>;
+export type NutrientColumnKey = keyof ReturnType<typeof nutrientColumns>;
 const NUTRIENT_COLUMN_KEYS = Object.keys(nutrientColumns()) as NutrientColumnKey[];
 
 /** Every nutrient value is either absent (null) or a non-negative number. */
-const nutrientsNonNegative = (table: Record<NutrientColumnKey, AnyPgColumn>): SQL =>
+export const nutrientsNonNegative = (table: Record<NutrientColumnKey, AnyPgColumn>): SQL =>
   sql.join(
     NUTRIENT_COLUMN_KEYS.map((key) => sql`(${table[key]} is null or ${table[key]} >= 0)`),
     sql` and `,
   );
 
 /** Columns describing the nutrient basis and an optional household serving. */
-const basisColumns = () => ({
+export const basisColumns = () => ({
   nutrientBasisAmount: real("nutrient_basis_amount").notNull(),
   /** `g` / `ml` (e.g. per 100 g) or `serving` (label values per serving). */
   nutrientBasisUnit: text("nutrient_basis_unit").$type<"g" | "ml" | "serving">().notNull(),
@@ -72,9 +72,9 @@ const basisColumns = () => ({
   servingLabel: text("serving_label"),
 });
 
-type BasisColumns = { [K in keyof ReturnType<typeof basisColumns>]: AnyPgColumn };
+export type BasisColumns = { [K in keyof ReturnType<typeof basisColumns>]: AnyPgColumn };
 
-const basisChecks = (name: string, table: BasisColumns) => ({
+export const basisChecks = (name: string, table: BasisColumns) => ({
   basisAmount: check(`${name}_nutrient_basis_amount_check`, sql`${table.nutrientBasisAmount} > 0`),
   basisUnit: check(
     `${name}_nutrient_basis_unit_check`,
