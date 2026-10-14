@@ -34,9 +34,9 @@ async function schemaSensitivity(): Promise<Map<string, boolean>> {
 }
 
 describe("buildAdminConfigInventory", () => {
-  test("returns all 20 allowlisted keys in schema order", () => {
+  test("returns all 21 allowlisted keys in schema order", () => {
     const entries = buildAdminConfigInventory({});
-    expect(entries).toHaveLength(20);
+    expect(entries).toHaveLength(21);
     expect(entries.map((entry) => entry.key)).toEqual([...ADMIN_CONFIG_KEYS]);
   });
 
