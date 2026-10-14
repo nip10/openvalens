@@ -1,5 +1,5 @@
 import { createStructuredLogger, type StructuredLogger } from "@openvalens/observability";
-import { streamText } from "ai";
+import { stepCountIs, streamText } from "ai";
 
 import type { AiConfig } from "./config";
 import { createAnthropicModel } from "./providers/anthropic";
@@ -14,7 +14,12 @@ export { createAnthropicModel };
  * - builds the Anthropic model from {@link AiConfig};
  * - emits PHI-safe lifecycle logs (`ai.chat.stream.*`) — **never** message
  *   content, prompts, or model responses;
- * - returns the aggregated text + usage so the caller can persist the turn.
+ * - returns the aggregated text + usage so the caller can persist the turn;
+ * - when tools are offered, runs a bounded multi-step tool loop (Issue #130):
+ *   after a tool call the SDK sends the tool result back to the model so the
+ *   final answer is written from it, for at most {@link AI_CHAT_MAX_STEPS}
+ *   model steps. Without `stopWhen` the SDK stops after the first step and the
+ *   answer can ignore the tool result.
  *
  * The wrapper accepts `streamTextFn` / `model` seams so tests can run without a
  * live provider.
@@ -43,6 +48,7 @@ export type StreamTextFn = (args: {
   messages: AiChatMessage[];
   system?: string;
   tools?: Record<string, unknown>;
+  stopWhen?: unknown;
 }) => {
   textStream: AsyncIterable<string>;
   usage?: PromiseLike<
@@ -65,6 +71,14 @@ export type StreamChatInput = {
   /** Test seam: override the model instance. */
   model?: unknown;
 };
+
+/**
+ * Upper bound on model steps per chat turn when tools are offered. One step is
+ * one model call; a step that calls tools is followed by another step that
+ * sees their results. Bounded so a model that keeps calling tools cannot loop
+ * (and spend) without limit.
+ */
+export const AI_CHAT_MAX_STEPS = 5;
 
 /** Emit a chunk log line every N chunks to avoid per-token log spam. */
 const CHUNK_LOG_INTERVAL = 25;
@@ -109,7 +123,7 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
       model,
       messages: input.messages,
       ...(input.system ? { system: input.system } : {}),
-      ...(input.tools ? { tools: input.tools } : {}),
+      ...(input.tools ? { tools: input.tools, stopWhen: stepCountIs(AI_CHAT_MAX_STEPS) } : {}),
     });
 
     let totalChunks = 0;

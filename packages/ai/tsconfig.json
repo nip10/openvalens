@@ -14,7 +14,10 @@
     { "path": "../audit-security" },
     { "path": "../activity" },
     { "path": "../body" },
+    { "path": "../clinical" },
+    { "path": "../health-record" },
     { "path": "../labs" },
+    { "path": "../plans" },
     { "path": "../sleep" },
     { "path": "../vitals" },
     { "path": "../config" }
