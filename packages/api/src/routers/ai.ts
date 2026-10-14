@@ -1,10 +1,12 @@
 import {
   AiConfigError,
   AiConsentError,
+  CURRENT_CONSENT_VERSION,
   extractStructured,
   generateInsight,
   healthSnapshotTool,
   markerTrendTool,
+  readUserAiConsent,
   requireAiConsent,
   streamChat,
   type AiChatMessage,
@@ -12,6 +14,7 @@ import {
 import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
 import { AuthzHttpError, requireOrgMembership } from "@openvalens/auth/authz/guard";
 import type { Database } from "@openvalens/db";
+import { userAiConsent } from "@openvalens/db/schema/auth";
 import { chatMessage } from "@openvalens/db/schema/coach";
 import { createStructuredLogger } from "@openvalens/observability";
 import { and, desc, eq } from "drizzle-orm";
@@ -107,6 +110,17 @@ const messageShape = z.object({
   createdAt: z.string(),
 });
 
+/** Per-user AI consent state (Issue #123). Timestamps are ISO-8601 strings. */
+const userAiConsentStateShape = z.object({
+  granted: z.boolean(),
+  grantedAt: z.string(),
+  revokedAt: z.string().nullable(),
+  consentVersion: z.string(),
+});
+
+/** Consent procedures take no input. */
+const emptyInput = z.strictObject({});
+
 export const aiRouter = {
   chat: protectedProcedure
     .use(validateInput(chatInput))
@@ -128,9 +142,9 @@ export const aiRouter = {
       const userId = authz.user.id;
       const organizationId = authz.activeOrganizationId;
 
-      // 2. Consent gate.
+      // 2. Consent gate (org + per-user, Issue #123).
       try {
-        await requireAiConsent(context.db, organizationId, "chat");
+        await requireAiConsent(context.db, organizationId, "chat", userId);
       } catch (error) {
         if (error instanceof AiConsentError) {
           logger.warn("ai.chat.consent_blocked", {
@@ -396,7 +410,7 @@ export const aiRouter = {
         if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
         throw raiseApiError("INTERNAL", "Authorization failed.");
       }
-      await requireAiConsent(context.db, authz.activeOrganizationId, "insights");
+      await requireAiConsent(context.db, authz.activeOrganizationId, "insights", authz.user.id);
       try {
         const result = await extractStructured({
           config: context.aiConfig,
@@ -444,7 +458,7 @@ export const aiRouter = {
         if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
         throw raiseApiError("INTERNAL", "Authorization failed.");
       }
-      await requireAiConsent(context.db, authz.activeOrganizationId, "insights");
+      await requireAiConsent(context.db, authz.activeOrganizationId, "insights", authz.user.id);
       try {
         const result = await generateInsight({
           config: context.aiConfig,
@@ -464,4 +478,140 @@ export const aiRouter = {
         throw raiseApiError("INTERNAL", "AI insight failed.");
       }
     }),
+
+  /**
+   * Per-user AI consent (Issue #123).
+   *
+   * `get` reads the caller's own consent row (or `null` when none exists);
+   * `grant`/`revoke` upsert it. This gate is deliberately independent of
+   * organization role — an org owner still needs their own grant — and is
+   * enforced *in addition to* the org-level `organization.metadata.aiConsent`
+   * gate for every AI call.
+   */
+  consent: {
+    get: protectedProcedure
+      .use(validateInput(emptyInput))
+      .input(emptyInput)
+      .output(userAiConsentStateShape.nullable())
+      .handler(async ({ context }) => {
+        let authz;
+        try {
+          authz = await requireOrgMembership(context.honoContext);
+        } catch (error) {
+          if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
+          throw raiseApiError("INTERNAL", "Authorization failed.");
+        }
+
+        return readUserAiConsent(context.db, authz.user.id);
+      }),
+
+    grant: protectedProcedure
+      .use(validateInput(emptyInput))
+      .input(emptyInput)
+      .output(userAiConsentStateShape)
+      .handler(async ({ context }) => {
+        let authz;
+        try {
+          authz = await requireOrgMembership(context.honoContext);
+        } catch (error) {
+          if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
+          throw raiseApiError("INTERNAL", "Authorization failed.");
+        }
+
+        const userId = authz.user.id;
+        const now = new Date();
+
+        try {
+          await context.db
+            .insert(userAiConsent)
+            .values({
+              userId,
+              granted: true,
+              grantedAt: now,
+              revokedAt: null,
+              source: "api",
+              consentVersion: CURRENT_CONSENT_VERSION,
+              updatedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: userAiConsent.userId,
+              set: {
+                granted: true,
+                grantedAt: now,
+                revokedAt: null,
+                source: "api",
+                consentVersion: CURRENT_CONSENT_VERSION,
+                updatedAt: now,
+              },
+            });
+        } catch {
+          throw raiseApiError("INTERNAL", "Consent update failed.");
+        }
+
+        logger.info("ai.consent.granted", {
+          correlationId: context.correlationId,
+          consentVersion: CURRENT_CONSENT_VERSION,
+        });
+
+        const state = await readUserAiConsent(context.db, userId);
+        if (state === null) {
+          throw raiseApiError("INTERNAL", "Consent update failed.");
+        }
+        return state;
+      }),
+
+    revoke: protectedProcedure
+      .use(validateInput(emptyInput))
+      .input(emptyInput)
+      .output(userAiConsentStateShape)
+      .handler(async ({ context }) => {
+        let authz;
+        try {
+          authz = await requireOrgMembership(context.honoContext);
+        } catch (error) {
+          if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
+          throw raiseApiError("INTERNAL", "Authorization failed.");
+        }
+
+        const userId = authz.user.id;
+        const now = new Date();
+
+        try {
+          await context.db
+            .insert(userAiConsent)
+            .values({
+              userId,
+              granted: false,
+              grantedAt: now,
+              revokedAt: now,
+              source: "api",
+              consentVersion: CURRENT_CONSENT_VERSION,
+              updatedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: userAiConsent.userId,
+              set: {
+                granted: false,
+                revokedAt: now,
+                source: "api",
+                consentVersion: CURRENT_CONSENT_VERSION,
+                updatedAt: now,
+              },
+            });
+        } catch {
+          throw raiseApiError("INTERNAL", "Consent update failed.");
+        }
+
+        logger.info("ai.consent.revoked", {
+          correlationId: context.correlationId,
+          consentVersion: CURRENT_CONSENT_VERSION,
+        });
+
+        const state = await readUserAiConsent(context.db, userId);
+        if (state === null) {
+          throw raiseApiError("INTERNAL", "Consent update failed.");
+        }
+        return state;
+      }),
+  },
 };

@@ -8,8 +8,9 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  check,
 } from "drizzle-orm/pg-core";
-import { defineRelationsPart } from "drizzle-orm";
+import { defineRelationsPart, sql } from "drizzle-orm";
 
 // ─── Better Auth ───────────────────────────────────────────────
 
@@ -348,6 +349,48 @@ export const onboardingState = pgTable(
   (table) => ({
     onboardingStateOrganizationIdUnique: uniqueIndex("onboarding_state_organization_id_key").on(
       table.organizationId,
+    ),
+  }),
+);
+
+// ─── Per-user AI consent (Issue #123) ─────────────────────────
+
+/**
+ * One row per user recording whether that individual has personally granted
+ * AI processing.
+ *
+ * Independent of the organization-level gate stored in
+ * `organization.metadata.aiConsent` (Issue #13): both must pass before any AI
+ * call runs, so a user's own decision is never overridden by an owner/admin
+ * role. Metadata-only — no health values. `consent_version` records which
+ * disclosure text was agreed to; `source` is an audit hint
+ * (`'settings' | 'api' | 'migration'`).
+ */
+export const userAiConsent = pgTable(
+  "user_ai_consent",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    granted: boolean("granted").notNull().default(false),
+    grantedAt: timestamp("granted_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    consentVersion: text("consent_version").notNull().default("v1"),
+    source: text("source"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userAiConsentUserIdUnique: uniqueIndex("user_ai_consent_user_id_key").on(table.userId),
+    userAiConsentRevokedAfterGrantedCheck: check(
+      "user_ai_consent_revoked_after_granted_check",
+      sql`${table.revokedAt} is null or ${table.revokedAt} >= ${table.grantedAt}`,
     ),
   }),
 );
