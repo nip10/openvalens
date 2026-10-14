@@ -10,6 +10,8 @@
  * variable names and the reason.
  */
 
+import type { IntegrationStatus } from "@openvalens/config/integrations";
+
 export type EmailConfig = {
   RESEND_API_KEY: string | null;
   EMAIL_FROM: string;
@@ -188,5 +190,21 @@ export function parseEmailConfig(env: EmailEnv): EmailConfig {
     EMAIL_AUDIT_BCC: rawAuditBcc,
     // A missing key can never reach the provider, so dry-run is mandatory.
     EMAIL_DRY_RUN: apiKey === null ? true : requestedDryRun,
+  };
+}
+
+/**
+ * Issue #57 — value-free readiness status of the email family.
+ *
+ * Resend is the only transport (Issue #61), so the provider is always
+ * `"resend"`. Email never reports `off`: with no key (the default) every send
+ * is a logged dry run, which is the safe default that needs no vendor account.
+ * `configured` means a key is present *and* `EMAIL_DRY_RUN` is off — the only
+ * case in which mail actually leaves the server.
+ */
+export function describeEmailIntegration(config: EmailConfig): IntegrationStatus<"resend"> {
+  return {
+    provider: "resend",
+    state: config.RESEND_API_KEY !== null && !config.EMAIL_DRY_RUN ? "configured" : "dry-run",
   };
 }

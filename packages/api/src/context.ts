@@ -2,6 +2,7 @@ import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
 import type { AdmissionService } from "@openvalens/auth/admission";
 import type { Session } from "@openvalens/auth";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
+import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
 import type { TelegramClient } from "@openvalens/telegram";
@@ -74,6 +75,13 @@ export type Context = {
   betterAuthSecretConfigured: boolean;
   /** Env-derived capability flags for the readiness probe. */
   capabilities: CapabilityFlags;
+  /**
+   * Issue #57 — value-free `{ provider, state }` per integration family
+   * (`email`, `ai`, `messaging`, …), built by the server from its parsed
+   * configs. Optional at the type level so unrelated context factories stay
+   * valid; readiness reports an empty object when it is absent.
+   */
+  integrations?: IntegrationStatuses;
   /** Telegram config for connect-token issuance + webhook binding. */
   telegram: TelegramContextConfig;
   /**

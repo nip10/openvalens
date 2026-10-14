@@ -35,6 +35,14 @@ const response = await app.request("/");
 const headers = response.headers;
 const csp = headers.get("content-security-policy");
 const cspReportOnly = headers.get("content-security-policy-report-only");
+// Issue #57 — the public readiness probe over HTTP. The database is unroutable,
+// so the status is "unready"; only the integration statuses are asserted.
+const readinessResponse = await app.request("/rpc/health/readiness", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ json: {} }),
+});
+const readiness = await readinessResponse.json();
 console.log(
   ${JSON.stringify(RESULT_MARKER)} +
     JSON.stringify({
@@ -44,6 +52,8 @@ console.log(
       csp: csp ?? cspReportOnly ?? "",
       reportTo: headers.get("report-to"),
       resend: services.capabilities.resend,
+      integrations: services.integrations,
+      readinessIntegrations: readiness?.json?.checks?.integrations ?? null,
     }),
 );
 `;
@@ -70,6 +80,8 @@ type SecurityResult = {
   csp: string;
   reportTo: string | null;
   resend: boolean;
+  integrations: Record<string, { provider: string | null; state: string }>;
+  readinessIntegrations: Record<string, { provider: string | null; state: string }> | null;
 };
 
 type ColdRun = { exitCode: number | null; output: string; result?: SecurityResult };
@@ -350,6 +362,52 @@ describe("schema-validated security configuration (cold boot)", () => {
       const run = await runColdChild({ NODE_ENV: "development", CSP_MODE: "report-only" });
       expect(run.exitCode).toBe(0);
       expect(run.result?.resend).toBe(false);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  // Issue #57 — zero vendor accounts by default.
+  test(
+    "boots with no vendor credentials and every integration family at its safe default",
+    async () => {
+      const run = await runColdChild({ NODE_ENV: "production", CSP_MODE: "report-only" });
+      const safeDefaults = {
+        email: { provider: "resend", state: "dry-run" },
+        ai: { provider: null, state: "off" },
+        messaging: { provider: null, state: "off" },
+      };
+      expect(run.exitCode).toBe(0);
+      expect(run.result?.integrations).toEqual(safeDefaults);
+      expect(run.result?.readinessIntegrations).toEqual(safeDefaults);
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "switching adapters on is an env change only, and readiness never exposes the secrets",
+    async () => {
+      const secrets = {
+        RESEND_API_KEY: "synthetic-resend-api-key-0123456789",
+        ANTHROPIC_API_KEY: "sk-ant-synthetic-0123456789",
+        TELEGRAM_BOT_TOKEN: "123456:synthetic-telegram-token",
+      };
+      const run = await runColdChild({
+        NODE_ENV: "development",
+        CSP_MODE: "report-only",
+        EMAIL_DRY_RUN: "false",
+        ...secrets,
+      });
+      const configured = {
+        email: { provider: "resend", state: "configured" },
+        ai: { provider: "anthropic", state: "configured" },
+        messaging: { provider: "telegram", state: "configured" },
+      };
+      expect(run.exitCode).toBe(0);
+      expect(run.result?.integrations).toEqual(configured);
+      expect(run.result?.readinessIntegrations).toEqual(configured);
+      for (const secret of Object.values(secrets)) {
+        expect(run.output).not.toContain(secret);
+      }
     },
     TEST_TIMEOUT_MS,
   );

@@ -16,6 +16,7 @@
     { "path": "../body" },
     { "path": "../labs" },
     { "path": "../sleep" },
-    { "path": "../vitals" }
+    { "path": "../vitals" },
+    { "path": "../config" }
   ]
 }

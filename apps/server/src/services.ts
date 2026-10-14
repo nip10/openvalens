@@ -1,10 +1,15 @@
-import { InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
+import { describeAiIntegration, InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
 import { createProductSettingsService } from "@openvalens/api/product-settings";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
 import { createAdmissionService } from "@openvalens/auth/admission";
 import { createDb } from "@openvalens/db";
-import { createEmailService, parseEmailConfig } from "@openvalens/email";
-import { parseTelegramConfig, TelegramClient } from "@openvalens/telegram";
+import type { IntegrationStatuses } from "@openvalens/config/integrations";
+import { createEmailService, describeEmailIntegration, parseEmailConfig } from "@openvalens/email";
+import {
+  describeTelegramIntegration,
+  parseTelegramConfig,
+  TelegramClient,
+} from "@openvalens/telegram";
 
 import { ENV } from "./env.server";
 
@@ -68,18 +73,34 @@ export const aiRateLimiter = new InMemoryRateLimiter({
 });
 
 /**
+ * Integration family statuses (Issue #57).
+ *
+ * Every optional external service is an adapter in the package that owns its
+ * domain, selected by env and bound here. Each family reports a value-free
+ * `{ provider, state }` on the readiness probe. With no vendor credentials the
+ * server boots with every family at its safe default: email `dry-run`, AI and
+ * messaging `off`. See `docs/integrations.md`.
+ */
+export const integrations = Object.freeze({
+  email: describeEmailIntegration(emailConfig),
+  ai: describeAiIntegration(aiConfig),
+  messaging: describeTelegramIntegration(telegramConfig),
+}) satisfies IntegrationStatuses;
+
+/**
  * Readiness capability flags (Issue #11).
  *
  * `mobilePairing` is always available in this platform layer; the integration
- * flags are `true` only when the optional provider env var is present.
- * `resend` (Issue #61) is `true` only when email is actually delivered: a key
- * is configured *and* `EMAIL_DRY_RUN` is off. A key alone with the default
- * dry-run would otherwise advertise delivery that never happens.
+ * flags are derived from {@link integrations} and are `true` only when the
+ * family is `configured`. `resend` (Issue #61) is therefore `true` only when
+ * email is actually delivered: a key is configured *and* `EMAIL_DRY_RUN` is
+ * off. A key alone with the default dry-run would otherwise advertise delivery
+ * that never happens.
  */
 export const capabilities = {
-  telegram: telegramConfig.TELEGRAM_BOT_TOKEN !== null,
-  anthropic: aiConfig.ANTHROPIC_API_KEY !== null,
-  resend: emailConfig.RESEND_API_KEY !== null && !emailConfig.EMAIL_DRY_RUN,
+  telegram: integrations.messaging.state === "configured",
+  anthropic: integrations.ai.state === "configured",
+  resend: integrations.email.state === "configured",
   mobilePairing: true,
 };
 

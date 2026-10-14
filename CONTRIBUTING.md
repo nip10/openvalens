@@ -109,6 +109,16 @@ The `auth:generate` script runs the Better Auth CLI against
 uses the same checked Varlock bootstrap (including `*_FILE`) and needs no
 separate `varlock run` wrapper.
 
+### Integration adapters
+
+Every external service (email, AI, messaging, and later storage, OIDC and
+wearables) is an optional adapter that is off or dry-run by default, so a
+default install needs no vendor account. Follow the adapter contract in
+[`docs/integrations.md`](docs/integrations.md): vendor SDK imports belong only
+in `packages/*/src/providers/*` (enforced by `oxlint`), configuration is parsed
+by the package and bound by the server, and each family reports a value-free
+status on the readiness probe.
+
 ### Email configuration (explicit, no ambient env)
 
 `@openvalens/email` no longer reads the environment at send time:

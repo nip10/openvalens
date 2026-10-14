@@ -4,7 +4,50 @@
   "categories": {
     "correctness": "error"
   },
-  "rules": {},
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": [
+              "@ai-sdk/*",
+              "!@ai-sdk/provider",
+              "!@ai-sdk/provider-utils",
+              "@anthropic-ai/*",
+              "openai",
+              "openai/*",
+              "ollama",
+              "@aws-sdk/*",
+              "@smithy/*",
+              "minio",
+              "@google-cloud/*",
+              "googleapis",
+              "resend",
+              "nodemailer",
+              "@sentry/*",
+              "posthog-js",
+              "posthog-node",
+              "posthog-react-native",
+              "openid-client",
+              "grammy",
+              "telegraf",
+              "node-telegram-bot-api"
+            ],
+            "message": "Vendor SDKs may only be imported inside an integration adapter module (packages/*/src/providers/*). See docs/integrations.md (Issue #57)."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["packages/*/src/providers/**", "packages/integrations/*/src/providers/**"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
   "env": {
     "builtin": true
   }

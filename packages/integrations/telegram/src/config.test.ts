@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_CONNECT_TOKEN_TTL_SECONDS,
   DEFAULT_TELEGRAM_API_BASE_URL,
+  describeTelegramIntegration,
   parseTelegramConfig,
   TelegramConfigError,
 } from "./config";
@@ -92,5 +93,24 @@ describe("parseTelegramConfig", () => {
     } catch (error) {
       expect((error as Error).message).not.toContain("short-secret-value");
     }
+  });
+});
+
+describe("describeTelegramIntegration (Issue #57)", () => {
+  test("is off by default with no bot token", () => {
+    const { TELEGRAM_BOT_TOKEN: _token, ...withoutToken } = VALID_ENV;
+
+    expect(describeTelegramIntegration(parseTelegramConfig(withoutToken))).toEqual({
+      provider: null,
+      state: "off",
+    });
+  });
+
+  test("is configured with a bot token and never carries the token or secret", () => {
+    const status = describeTelegramIntegration(parseTelegramConfig(VALID_ENV));
+
+    expect(status).toEqual({ provider: "telegram", state: "configured" });
+    expect(JSON.stringify(status)).not.toContain(VALID_ENV.TELEGRAM_BOT_TOKEN);
+    expect(JSON.stringify(status)).not.toContain(VALID_ENV.TELEGRAM_WEBHOOK_SECRET);
   });
 });

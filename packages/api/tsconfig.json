@@ -53,6 +53,7 @@
     },
     {
       "path": "../cockpit"
-    }
+    },
+    { "path": "../config" }
   ]
 }

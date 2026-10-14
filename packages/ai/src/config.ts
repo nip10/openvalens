@@ -6,6 +6,8 @@
  * package through the oRPC context.
  */
 
+import type { IntegrationStatus } from "@openvalens/config/integrations";
+
 /**
  * Default model. `claude-sonnet-4-20250514` was retired on 2026-06-15; see
  * https://platform.claude.com/docs/en/about-claude/model-deprecations.
@@ -79,4 +81,15 @@ export function parseAiConfig(env: AiEnv): AiConfig {
     AI_MODEL: readOptionalString(env.AI_MODEL) ?? AI_DEFAULT_MODEL,
     AI_RATE_LIMIT_PER_MINUTE: rateLimit,
   };
+}
+
+/**
+ * Issue #57 — value-free readiness status of the AI family. AI is `off` (and
+ * `ai.chat` fails closed) until a provider key is configured; there is no
+ * dry-run because a fake model answer would be misleading.
+ */
+export function describeAiIntegration(config: AiConfig): IntegrationStatus<"anthropic"> {
+  return config.ANTHROPIC_API_KEY === null
+    ? { provider: null, state: "off" }
+    : { provider: "anthropic", state: "configured" };
 }

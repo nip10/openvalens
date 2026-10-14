@@ -1,3 +1,4 @@
+import type { IntegrationState } from "@openvalens/config/integrations";
 import { sql, type Database } from "@openvalens/db";
 import { createStructuredLogger } from "@openvalens/observability";
 import { z } from "zod";
@@ -15,6 +16,16 @@ const MIN_CRON_SECRET_LENGTH = 16;
 // the correlation id and redaction posture are consistent.
 const logger = createStructuredLogger({ level: "info" });
 
+/**
+ * Issue #57 — one integration family's value-free status. Mirrors
+ * `IntegrationStatus` from `@openvalens/config/integrations`: the provider id
+ * (or `null` when off) and its state, never a credential or endpoint.
+ */
+const integrationStatusOutput = z.object({
+  provider: z.string().nullable(),
+  state: z.enum(["configured", "dry-run", "off"] satisfies IntegrationState[]),
+});
+
 export const readinessOutput = z.object({
   status: z.enum(["ok", "degraded", "unready"]),
   checks: z.object({
@@ -24,6 +35,7 @@ export const readinessOutput = z.object({
       cronSecret: z.enum(["ok", "missing"]),
     }),
     capabilities: z.record(z.string(), z.boolean()),
+    integrations: z.record(z.string(), integrationStatusOutput),
   }),
   timestamp: z.string(),
 });
@@ -92,6 +104,15 @@ export const healthRouter = {
         mobilePairing: context.capabilities.mobilePairing,
       };
 
+      // Project each family to exactly `{ provider, state }` so no extra field
+      // a future status might carry can reach the public probe.
+      const integrations = Object.fromEntries(
+        Object.entries(context.integrations ?? {}).map(([family, { provider, state }]) => [
+          family,
+          { provider, state },
+        ]),
+      );
+
       const status =
         database === "unreachable" ? "unready" : missingSecrets.length > 0 ? "degraded" : "ok";
 
@@ -111,6 +132,7 @@ export const healthRouter = {
             cronSecret,
           },
           capabilities,
+          integrations,
         },
         timestamp: new Date().toISOString(),
       };
