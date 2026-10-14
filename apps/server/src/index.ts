@@ -1,8 +1,15 @@
+// The capture module must be evaluated before `./env.server.ts`, which loads
+// Varlock and injects the `CSP_MODE` schema default. See `./csp-mode-capture`.
+import "./csp-mode-capture";
+import { CSP_REPORT_PATH, createCspReportHandler, resolveCspMode } from "./security-csp-report";
 import { appRouter } from "@openvalens/api/routers/index";
 import { ensureActiveOrganization, personalWorkspaceSlug } from "@openvalens/auth/authz/auth-org";
+import { InMemoryRateLimiter } from "@openvalens/ai/rate-limit";
+import { cspViolationEvent } from "@openvalens/db/schema/security";
 import {
   correlationMiddleware,
   createStructuredLogger,
+  expectedOriginFrom,
   securityHeadersMiddleware,
 } from "@openvalens/observability";
 import { handleWebhookUpdate, verifyWebhookSecret } from "@openvalens/telegram";
@@ -14,6 +21,7 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
+import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import { auth, db, telegramClient, telegramWebhookSecret } from "./services";
@@ -27,6 +35,12 @@ declare module "hono" {
 
 // Issue #9 — single PHI-safe structured logger for the server process.
 const logger = createStructuredLogger({ level: "info" });
+
+// Issue #127 — process-local violation-sink limiter keyed by
+// `(correlationId, origin)`. Browsers retry aggressively; the first 60/min per
+// key are still recorded. TODO(#127-rate-limit): swap for Redis when the sink
+// is multi-replica.
+const cspReportRateLimiter = new InMemoryRateLimiter({ limitPerMinute: 60 });
 
 /**
  * Reads the correlation id off an oRPC interceptor's request context without
@@ -48,14 +62,45 @@ app.use(correlationMiddleware());
 
 // Issue #12 — security headers + CSP on every response. Mounted before the
 // routes so the headers are applied to success, error, root and oRPC
-// responses. `CSP_MODE` is schema-validated (`report-only` default, or
-// `enforce`); an invalid value fails startup instead of silently falling back.
-// `'unsafe-eval'` is added only when `NODE_ENV=development` — never in
-// production or test.
+// responses. Issue #127 — `resolveCspMode` makes production default to
+// `enforce` while an explicit `CSP_MODE` still wins; an invalid value fails
+// startup in the schema instead of silently falling back. `'unsafe-eval'` is
+// added only when `NODE_ENV=development` — never in production or test.
 app.use(
   securityHeadersMiddleware({
-    cspMode: ENV.CSP_MODE,
+    cspMode: resolveCspMode(ENV.NODE_ENV, ENV.CSP_MODE),
     allowDevScriptEval: ENV.NODE_ENV === "development",
+    reportToGroup: "csp-endpoint",
+    reportToUrl: CSP_REPORT_PATH,
+  }),
+);
+
+// Issue #127 — CSP violation sink. Mounted after the security headers so the
+// 204/4xx/5xx responses carry them, and after the correlation middleware so
+// every log line and the persisted row share one id.
+app.post(
+  CSP_REPORT_PATH,
+  createCspReportHandler({
+    logger,
+    expectedOrigin: expectedOriginFrom(ENV.CORS_ORIGIN),
+    cspMode: resolveCspMode(ENV.NODE_ENV, ENV.CSP_MODE),
+    rateLimiter: cspReportRateLimiter,
+    insert: async (rows) => {
+      await db.insert(cspViolationEvent).values(rows);
+    },
+  }),
+);
+
+// Issue #126 — request-body size limit. Mounted after the correlation-id
+// middleware (so rejections can carry an id), before CORS and every route
+// handler, so oversized bodies are rejected before oRPC's parser, the
+// Better Auth catch-all, the Telegram webhook or any future handler sees
+// them. `API_MAX_BODY_BYTES` is schema-validated and falls back to
+// `DEFAULT_MAX_BODY_BYTES` (1 MiB) when the value is missing or invalid.
+app.use(
+  bodyLimitMiddleware({
+    maxBytes: resolveMaxBodyBytes(ENV.API_MAX_BODY_BYTES),
+    logger,
   }),
 );
 

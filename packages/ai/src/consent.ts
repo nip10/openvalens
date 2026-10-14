@@ -1,5 +1,5 @@
 import type { Database } from "@openvalens/db";
-import { organization } from "@openvalens/db/schema/auth";
+import { organization, userAiConsent } from "@openvalens/db/schema/auth";
 import { eq } from "drizzle-orm";
 
 /**
@@ -34,6 +34,21 @@ const SCOPE_RANK: Record<AiConsentScope, number> = {
   chat: 1,
   insights: 2,
   full: 3,
+};
+
+/**
+ * Current AI disclosure version a user must have agreed to. Bump this when the
+ * disclosure text changes; older per-user grants then fail closed until the
+ * user re-consents.
+ */
+export const CURRENT_CONSENT_VERSION = "v1";
+
+/** Per-user consent state (Issue #123). Timestamps are ISO-8601 strings. */
+export type UserAiConsentState = {
+  granted: boolean;
+  grantedAt: string;
+  revokedAt: string | null;
+  consentVersion: string;
 };
 
 /** Stable machine-readable consent error, mapped to `403 AI_DISABLED`. */
@@ -122,6 +137,10 @@ export async function readAiConsent(db: Database, organizationId: string): Promi
 /**
  * Asserts the org has granted at least `requiredScope`.
  *
+ * When `userId` is supplied the per-user gate (Issue #123) is enforced *after*
+ * the org check, so both must pass. When it is omitted (background jobs,
+ * server-initiated calls) the org gate alone is sufficient.
+ *
  * @throws {AiConsentError} `AI_DISABLED` when consent is off or the granted
  * scope is narrower than required.
  */
@@ -129,6 +148,7 @@ export async function requireAiConsent(
   db: Database,
   organizationId: string,
   requiredScope: AiConsentScope,
+  userId?: string,
 ): Promise<AiConsentState> {
   const consent = await readAiConsent(db, organizationId);
 
@@ -140,5 +160,84 @@ export async function requireAiConsent(
     throw new AiConsentError();
   }
 
+  if (userId !== undefined) {
+    await requireUserAiConsent(db, userId, requiredScope);
+  }
+
   return consent;
+}
+
+function toIsoString(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+/** Parses the numeric rank out of a `vN` consent version, or `-1` if unknown. */
+function consentVersionRank(version: string): number {
+  const match = /^v(\d+)$/.exec(version);
+  return match ? Number(match[1]) : -1;
+}
+
+/**
+ * Reads a user's personal AI consent row. Returns `null` when the user has no
+ * record (i.e. has never granted or revoked).
+ */
+export async function readUserAiConsent(
+  db: Database,
+  userId: string,
+): Promise<UserAiConsentState | null> {
+  const rows = await db
+    .select({
+      granted: userAiConsent.granted,
+      grantedAt: userAiConsent.grantedAt,
+      revokedAt: userAiConsent.revokedAt,
+      consentVersion: userAiConsent.consentVersion,
+    })
+    .from(userAiConsent)
+    .where(eq(userAiConsent.userId, userId))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return null;
+
+  return {
+    granted: row.granted,
+    grantedAt: toIsoString(row.grantedAt),
+    revokedAt: row.revokedAt === null ? null : toIsoString(row.revokedAt),
+    consentVersion: row.consentVersion,
+  };
+}
+
+/**
+ * Asserts the user has personally granted AI consent at the current disclosure
+ * version, independent of their organization role.
+ *
+ * The per-user grant is a single boolean covering every AI scope; the
+ * `requiredScope` argument is accepted for symmetry with the org gate (and a
+ * future per-scope user grant) and is validated so an unknown scope can never
+ * silently pass.
+ *
+ * @throws {AiConsentError} `AI_DISABLED` when the record is missing, revoked,
+ * or agreed to an outdated disclosure version.
+ */
+export async function requireUserAiConsent(
+  db: Database,
+  userId: string,
+  requiredScope: AiConsentScope,
+): Promise<UserAiConsentState> {
+  if (!(requiredScope in SCOPE_RANK)) {
+    throw new AiConsentError("Unknown AI consent scope.");
+  }
+
+  const state = await readUserAiConsent(db, userId);
+
+  if (
+    state === null ||
+    !state.granted ||
+    state.revokedAt !== null ||
+    consentVersionRank(state.consentVersion) < consentVersionRank(CURRENT_CONSENT_VERSION)
+  ) {
+    throw new AiConsentError("AI processing is disabled until you grant consent.");
+  }
+
+  return state;
 }

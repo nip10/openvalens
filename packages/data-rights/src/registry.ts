@@ -68,6 +68,7 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   },
 
   // Body
+  user_ai_consent: { kind: "user" },
   dexa_scan: organization,
   dexa_regional: organization,
   weight_event: organization,
@@ -144,6 +145,11 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     kind: "system",
     reason:
       "Minimal global security record (ids and event type only, no email); user references are nulled on delete.",
+  },
+  csp_violation_event: {
+    kind: "system",
+    reason:
+      "Append-only CSP violation log (host/path-prefix/hashed policy only); the correlation id links to a request log line, never to a user row.",
   },
 
   // Product display settings (#58)

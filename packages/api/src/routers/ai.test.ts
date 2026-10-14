@@ -45,29 +45,112 @@ mock.module("@openvalens/ai", () => ({ ...actualAi, streamChat }));
 
 const { appRouter } = await import("./index");
 const { chatMessage } = await import("@openvalens/db/schema/coach");
-const { accessAuditLog } = await import("@openvalens/db/schema/auth");
+const { accessAuditLog, userAiConsent } = await import("@openvalens/db/schema/auth");
 
 type CapturedInsert = { table: unknown; payload: unknown };
 
-function createMockDb(metadata: unknown): { db: Database; inserts: CapturedInsert[] } {
+type UserConsentRow = {
+  userId: string;
+  granted: boolean;
+  grantedAt: Date;
+  revokedAt: Date | null;
+  consentVersion: string;
+  source: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+const CONSENT_EPOCH = new Date("2026-01-01T00:00:00.000Z");
+
+function grantedConsentRow(userId = USER_ID): UserConsentRow {
+  return {
+    userId,
+    granted: true,
+    grantedAt: CONSENT_EPOCH,
+    revokedAt: null,
+    consentVersion: "v1",
+    source: "settings",
+    createdAt: CONSENT_EPOCH,
+    updatedAt: CONSENT_EPOCH,
+  };
+}
+
+function revokedConsentRow(userId = USER_ID): UserConsentRow {
+  return {
+    userId,
+    granted: false,
+    grantedAt: CONSENT_EPOCH,
+    revokedAt: new Date("2026-01-02T00:00:00.000Z"),
+    consentVersion: "v1",
+    source: "api",
+    createdAt: CONSENT_EPOCH,
+    updatedAt: CONSENT_EPOCH,
+  };
+}
+
+function buildConsentRow(payload: Record<string, unknown>): UserConsentRow {
+  const now = new Date();
+  return {
+    userId: payload.userId as string,
+    granted: Boolean(payload.granted),
+    grantedAt: (payload.grantedAt as Date) ?? now,
+    revokedAt: (payload.revokedAt as Date | null) ?? null,
+    consentVersion: (payload.consentVersion as string) ?? "v1",
+    source: (payload.source as string | null) ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+type WriteResult = Promise<unknown> & {
+  returning: () => Promise<Array<{ id: number }>>;
+  onConflictDoUpdate: (config: { target?: unknown; set?: Record<string, unknown> }) => WriteResult;
+};
+
+/**
+ * Stateful Drizzle-shaped fake. Organization reads yield `[{ metadata }]`;
+ * `user_ai_consent` reads yield the current in-memory row (or none). Inserts on
+ * `user_ai_consent` upsert into that row so grant/revoke round-trips are
+ * observable. `initialConsent` defaults to a granted row so the pre-#123 chat
+ * tests keep exercising the org gate; pass `null` for missing-consent cases.
+ */
+function createMockDb(
+  metadata: unknown,
+  initialConsent: UserConsentRow | null = grantedConsentRow(),
+): { db: Database; inserts: CapturedInsert[] } {
   const inserts: CapturedInsert[] = [];
+  let consent: UserConsentRow | null = initialConsent;
+
   const db = {
     select: () => ({
-      from: () => ({
+      from: (table: unknown) => ({
         where: () => ({
-          limit: async () => [{ metadata }],
+          limit: async () => {
+            if (table === userAiConsent) {
+              return consent === null ? [] : [consent];
+            }
+            return [{ metadata }];
+          },
         }),
       }),
     }),
     insert: (table: unknown) => ({
       values: (payload: unknown) => {
         inserts.push({ table, payload });
-        // A promise augmented with `.returning()` so both `await values(...)`
-        // (chatMessage) and `values(...).returning(...)` (audit) work.
-        const result = Promise.resolve(payload) as Promise<unknown> & {
-          returning: () => Promise<Array<{ id: number }>>;
-        };
+        // A promise augmented with `.returning()` (audit) and
+        // `.onConflictDoUpdate()` (consent upsert) so both chains work.
+        const result = Promise.resolve(payload) as WriteResult;
         result.returning = async () => [{ id: inserts.length }];
+        result.onConflictDoUpdate = (config) => {
+          if (table === userAiConsent) {
+            const set = config.set ?? {};
+            consent =
+              consent === null
+                ? buildConsentRow(payload as Record<string, unknown>)
+                : ({ ...consent, ...set } as UserConsentRow);
+          }
+          return result;
+        };
         return result;
       },
     }),
@@ -109,6 +192,18 @@ function callChat(context: Context, content = "hello") {
   return appRouter.ai.chat.callable({ context })({
     messages: [{ role: "user", content }],
   });
+}
+
+function callConsentGet(context: Context) {
+  return appRouter.ai.consent.get.callable({ context })({});
+}
+
+function callConsentGrant(context: Context) {
+  return appRouter.ai.consent.grant.callable({ context })({});
+}
+
+function callConsentRevoke(context: Context) {
+  return appRouter.ai.consent.revoke.callable({ context })({});
 }
 
 function parseLogLines(raw: string[]): Array<Record<string, unknown>> {
@@ -320,5 +415,122 @@ describe("ai.chat PHI safety", () => {
     const serialized = JSON.stringify(lines);
     expect(serialized).toContain("ai.chat.consent_blocked");
     expect(serialized).not.toContain("MY_SECRET_QUESTION");
+  });
+});
+
+describe("ai.chat per-user consent gate (Issue #123)", () => {
+  test("succeeds when the org and the user have both consented, without echoing consent state", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+
+    const result = await callChat(createContext(db), "MY_SECRET_QUESTION");
+
+    expect(result).toMatchObject({ status: "ok" });
+    expect(JSON.stringify(result)).not.toContain("granted");
+    expect(JSON.stringify(result)).not.toContain("consentVersion");
+  });
+
+  test("rejects with AI_DISABLED when the user has no consent row", async () => {
+    const { db, inserts } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } }, null);
+
+    await expect(callChat(createContext(db))).rejects.toMatchObject({
+      code: "AI_DISABLED",
+      status: 403,
+    });
+
+    expect(streamChat).not.toHaveBeenCalled();
+    expect(inserts.filter((insert) => insert.table === chatMessage)).toHaveLength(0);
+  });
+
+  test("rejects with AI_DISABLED when the user has revoked consent", async () => {
+    const { db } = createMockDb(
+      { aiConsent: { enabled: true, scope: "chat" } },
+      revokedConsentRow(),
+    );
+
+    await expect(callChat(createContext(db))).rejects.toMatchObject({
+      code: "AI_DISABLED",
+      status: 403,
+    });
+    expect(streamChat).not.toHaveBeenCalled();
+  });
+
+  test("blocks an org owner who has not granted consent (independent of role)", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } }, null);
+
+    await expect(callChat(createContext(db))).rejects.toMatchObject({
+      code: "AI_DISABLED",
+      status: 403,
+    });
+
+    const authz = await (requireOrgMembership.mock.results[0]?.value as Promise<{
+      role: string;
+    }>);
+    expect(authz.role).toBe("owner");
+  });
+});
+
+describe("ai.consent procedures", () => {
+  test("get returns null before any grant", async () => {
+    const { db } = createMockDb({}, null);
+    await expect(callConsentGet(createContext(db))).resolves.toBeNull();
+  });
+
+  test("grant then get round-trips a granted state", async () => {
+    const { db } = createMockDb({}, null);
+    const context = createContext(db);
+
+    const granted = await callConsentGrant(context);
+    expect(granted).toMatchObject({
+      granted: true,
+      revokedAt: null,
+      consentVersion: "v1",
+    });
+    expect(typeof granted.grantedAt).toBe("string");
+
+    await expect(callConsentGet(context)).resolves.toMatchObject({ granted: true });
+  });
+
+  test("revoke then get round-trips a revoked state", async () => {
+    const { db } = createMockDb({}, grantedConsentRow());
+    const context = createContext(db);
+
+    const revoked = await callConsentRevoke(context);
+    expect(revoked.granted).toBe(false);
+    expect(revoked.revokedAt).not.toBeNull();
+
+    await expect(callConsentGet(context)).resolves.toMatchObject({ granted: false });
+  });
+
+  test("revoke inserts a row when none exists", async () => {
+    const { db } = createMockDb({}, null);
+
+    const revoked = await callConsentRevoke(createContext(db));
+    expect(revoked).toMatchObject({ granted: false, consentVersion: "v1" });
+    expect(revoked.revokedAt).not.toBeNull();
+  });
+});
+
+describe("ai.consent PHI safety", () => {
+  test("consent procedure logs never contain message content or prompts", async () => {
+    const { db } = createMockDb({}, null);
+    const context = createContext(db);
+
+    const lines = await captureLogs(async () => {
+      await callConsentGrant(context);
+      await callConsentGet(context);
+      await callConsentRevoke(context);
+    });
+
+    const serialized = JSON.stringify(lines);
+    expect(serialized).not.toContain("MY_SECRET_QUESTION");
+    expect(serialized).not.toContain("ASSISTANT_SECRET_REPLY");
+    expect(serialized).not.toContain("prompt");
+
+    const events = lines.map((line) => line.event);
+    expect(events).toContain("ai.consent.granted");
+    expect(events).toContain("ai.consent.revoked");
+    for (const line of lines) {
+      expect(line.correlationId).toBe(CORRELATION_ID);
+    }
   });
 });

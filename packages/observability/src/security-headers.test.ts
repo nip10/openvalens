@@ -85,4 +85,59 @@ describe("buildSecurityHeaders", () => {
     expect(headers["Cross-Origin-Opener-Policy"]).toBe("same-origin");
     expect(headers["Cross-Origin-Resource-Policy"]).toBe("same-origin");
   });
+
+  test("reportToGroup alone emits the report-to directive but no Report-To header", () => {
+    const headers = buildSecurityHeaders({ cspMode: "enforce", reportToGroup: "csp-endpoint" });
+
+    expect(headers[ENFORCE_HEADER]).toContain("report-to csp-endpoint");
+    expect(headers["Report-To"]).toBeUndefined();
+  });
+
+  test("reportToGroup + reportToUrl emit both with the URL only in the JSON", () => {
+    const headers = buildSecurityHeaders({
+      cspMode: "enforce",
+      reportToGroup: "csp-endpoint",
+      reportToUrl: "/api/security/csp-report",
+    });
+
+    expect(headers[ENFORCE_HEADER]).toContain("report-to csp-endpoint");
+    expect(headers[ENFORCE_HEADER]).not.toContain("/api/security/csp-report");
+
+    const parsed = JSON.parse(headers["Report-To"] ?? "{}") as {
+      group?: string;
+      max_age?: number;
+      endpoints?: Array<{ url?: string }>;
+    };
+    expect(parsed.group).toBe("csp-endpoint");
+    expect(parsed.max_age).toBe(10886400);
+    expect(parsed.endpoints?.[0]?.url).toBe("/api/security/csp-report");
+  });
+
+  test("distinct group and URL are not conflated", () => {
+    const headers = buildSecurityHeaders({
+      cspMode: "enforce",
+      reportToGroup: "token-group",
+      reportToUrl: "https://collector.example/report",
+    });
+
+    expect(headers[ENFORCE_HEADER]).toContain("report-to token-group");
+    const parsed = JSON.parse(headers["Report-To"] ?? "{}") as {
+      group?: string;
+      endpoints?: Array<{ url?: string }>;
+    };
+    expect(parsed.group).toBe("token-group");
+    expect(parsed.endpoints?.[0]?.url).toBe("https://collector.example/report");
+  });
+
+  test("reportToGroup on report-only emits no report-to directive or Report-To header", () => {
+    const headers = buildSecurityHeaders({
+      cspMode: "report-only",
+      reportToGroup: "csp-endpoint",
+      reportToUrl: "/api/security/csp-report",
+    });
+
+    expect(headers[REPORT_ONLY_HEADER]).toBeDefined();
+    expect(headers[REPORT_ONLY_HEADER]).not.toContain("report-to");
+    expect(headers["Report-To"]).toBeUndefined();
+  });
 });
