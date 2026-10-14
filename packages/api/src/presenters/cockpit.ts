@@ -8,6 +8,15 @@ import { formatSleepDuration } from "./sleep";
 import { formatSteps, formatKcalories, formatDistanceMeters } from "./activity";
 import { formatBpm } from "./vitals";
 
+/**
+ * Sleep window the cockpit requests from `sleep.summary` (Issue #134). It is
+ * the smallest window the procedure accepts (`days` in `[7, 365]`). The
+ * cockpit shows only `lastNight` — the most recent night in this window —
+ * labelled with that night's own date, so the label never claims a wider or
+ * fresher window than the data covers.
+ */
+export const COCKPIT_SLEEP_WINDOW_DAYS = 7;
+
 export type CockpitWeight = { date: string; weightKg: number };
 export type CockpitSleep = {
   date: string;

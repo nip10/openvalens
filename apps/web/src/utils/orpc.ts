@@ -1,3 +1,4 @@
+import { shouldRetryQuery } from "@openvalens/api/query-retry";
 import type { AppRouterClient } from "@openvalens/api/routers/index";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -9,6 +10,7 @@ import { ENV } from "../env";
 
 export function createQueryClient() {
   return new QueryClient({
+    defaultOptions: { queries: { retry: shouldRetryQuery } },
     queryCache: new QueryCache({
       onError: (error, query) => {
         toast.error(`Error: ${error.message}`, {

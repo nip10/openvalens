@@ -4,7 +4,10 @@ import {
   formatSteps,
 } from "@openvalens/api/presenters/activity";
 import { formatKg } from "@openvalens/api/presenters/body";
-import { type CockpitSnapshot } from "@openvalens/api/presenters/cockpit";
+import {
+  COCKPIT_SLEEP_WINDOW_DAYS,
+  type CockpitSnapshot,
+} from "@openvalens/api/presenters/cockpit";
 import { formatClockTime, formatSleepDuration } from "@openvalens/api/presenters/sleep";
 import { formatBpm } from "@openvalens/api/presenters/vitals";
 import { Badge } from "@openvalens/ui/components/badge";
@@ -31,7 +34,9 @@ type CockpitBlock = {
 
 function DashboardPage() {
   const weight = useQuery(orpc.body.dailyWeights.queryOptions({ input: { limit: 1 } }));
-  const sleep = useQuery(orpc.sleep.summary.queryOptions({ input: { days: 1 } }));
+  const sleep = useQuery(
+    orpc.sleep.summary.queryOptions({ input: { days: COCKPIT_SLEEP_WINDOW_DAYS } }),
+  );
   const activity = useQuery(orpc.activity.dailyTotals.queryOptions({ input: { days: 1 } }));
   const vitals = useQuery(orpc.vitals.daily.queryOptions({ input: { days: 1 } }));
   const settingsQuery = useProductSettings();

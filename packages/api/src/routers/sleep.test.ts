@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, setSystemTime, test } from "bun:test";
 import type { Database } from "@openvalens/db";
 import { accessAuditLog } from "@openvalens/db/schema/auth";
 import { healthEvent } from "@openvalens/db/schema/health-record";
+import { RPCHandler } from "@orpc/server/fetch";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import type { Context } from "../context";
+import { COCKPIT_SLEEP_WINDOW_DAYS } from "../presenters/cockpit";
 
 let role = "owner";
 const requirePermission = mock(
@@ -35,7 +37,11 @@ const { appRouter } = await import("./index");
 type CapturedInsert = { table: unknown; payload: Record<string, unknown> };
 type CapturedSelect = { table: unknown; sql: string; params: unknown[] };
 
-function fakeDb(): { db: Database; inserts: CapturedInsert[]; selects: CapturedSelect[] } {
+function fakeDb(rows: unknown[] = []): {
+  db: Database;
+  inserts: CapturedInsert[];
+  selects: CapturedSelect[];
+} {
   const inserts: CapturedInsert[] = [];
   const selects: CapturedSelect[] = [];
   const dialect = new PgDialect();
@@ -97,7 +103,7 @@ function fakeDb(): { db: Database; inserts: CapturedInsert[]; selects: CapturedS
         resolve: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | undefined,
         reject: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | undefined,
       ): Promise<TResult1 | TResult2> {
-        return Promise.resolve([]).then(resolve, reject);
+        return Promise.resolve(rows).then(resolve, reject);
       },
     };
     return chain;
@@ -199,6 +205,79 @@ describe("sleep oRPC read boundary", () => {
       }),
     ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
     expect(state.inserts).toEqual([]);
+  });
+});
+
+describe("sleep.summary over the RPC handler (Issue #134)", () => {
+  const handler = new RPCHandler(appRouter);
+  const NOW = new Date("2026-10-14T12:00:00.000Z");
+
+  async function summary(db: Database, input: unknown) {
+    const request = new Request("http://test.local/rpc/sleep/summary", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ json: input }),
+    });
+    const { matched, response } = await handler.handle(request, {
+      prefix: "/rpc",
+      context: context(db),
+    });
+    if (!matched || !response) throw new Error("unmatched sleep/summary");
+    const parsed = (await response.json()) as { json: Record<string, unknown> };
+    return { status: response.status, json: parsed.json };
+  }
+
+  beforeEach(() => {
+    role = "viewer";
+    setSystemTime(NOW);
+  });
+  afterEach(() => {
+    setSystemTime();
+  });
+
+  test("the cockpit window is accepted and returns an empty summary with no data", async () => {
+    const state = fakeDb();
+    const result = await summary(state.db, { days: COCKPIT_SLEEP_WINDOW_DAYS });
+    expect(result.status).toBe(200);
+    expect(result.json).toMatchObject({ days: [], lastNight: null, confidence: "low" });
+    expect(state.selects[0]?.params).toContain("org-1");
+  });
+
+  test("the cockpit window returns the most recent night, labelled with its own date", async () => {
+    const state = fakeDb([
+      {
+        id: 1,
+        eventAt: new Date("2026-10-11T23:00:00.000Z"),
+        title: null,
+        payloadJson: { endAt: "2026-10-12T06:30:00.000Z" },
+      },
+      {
+        id: 2,
+        eventAt: new Date("2026-10-13T23:00:00.000Z"),
+        title: null,
+        payloadJson: { endAt: "2026-10-14T07:00:00.000Z" },
+      },
+    ]);
+    const result = await summary(state.db, { days: COCKPIT_SLEEP_WINDOW_DAYS });
+    expect(result.status).toBe(200);
+    const lastNight = result.json.lastNight as Record<string, unknown>;
+    expect(lastNight).toMatchObject({
+      date: "2026-10-14",
+      asleepMinutes: 480,
+      mainSleepStart: "2026-10-13T23:00:00.000Z",
+      mainSleepEnd: "2026-10-14T07:00:00.000Z",
+    });
+    expect((result.json.days as unknown[]).length).toBe(2);
+  });
+
+  test("windows below the minimum stay rejected with a value-free 400", async () => {
+    const state = fakeDb();
+    for (const days of [1, COCKPIT_SLEEP_WINDOW_DAYS - 1]) {
+      const result = await summary(state.db, { days });
+      expect(result.status).toBe(400);
+      expect(result.json).toMatchObject({ code: "INVALID_INPUT" });
+    }
+    expect(state.selects).toEqual([]);
   });
 });
 
