@@ -6,7 +6,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { orpc } from "@/utils/orpc";
+import { useProductSettings } from "@/utils/product-settings";
 
 export const Route = createFileRoute("/_auth/coach/$conversationId")({
   component: CoachThreadPage,
@@ -16,6 +18,8 @@ function CoachThreadPage() {
   const { conversationId } = Route.useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const settingsQuery = useProductSettings();
+  const settings = settingsQuery.data;
 
   const messages = useQuery(orpc.ai.listMessages.queryOptions({ input: { conversationId } }));
 
@@ -88,6 +92,8 @@ function CoachThreadPage() {
         </Button>
       </div>
 
+      <ProductSettingsStatus />
+
       <div
         ref={listRef}
         className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-card p-4"
@@ -104,7 +110,8 @@ function CoachThreadPage() {
             >
               <CardContent className="p-3">
                 <div className="mb-1 text-xs text-muted-foreground">
-                  {message.role === "user" ? "You" : "Coach"} · {relativeTime(message.createdAt)}
+                  {message.role === "user" ? "You" : "Coach"} ·{" "}
+                  {relativeTime(message.createdAt, new Date(), settings)}
                 </div>
                 <div className="whitespace-pre-wrap text-sm">{message.content}</div>
               </CardContent>

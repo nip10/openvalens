@@ -152,6 +152,18 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
       "Append-only CSP violation log (host/path-prefix/hashed policy only); the correlation id links to a request log line, never to a user row.",
   },
 
+  // Product display settings (#58)
+  product_settings: {
+    kind: "system",
+    reason:
+      "Instance-wide singleton display preferences (units/locale) with no personal data, like instance_admission.",
+  },
+  product_settings_audit: {
+    kind: "system",
+    reason:
+      "Value-free instance-wide settings audit (changed key names, revision, actor id); the actor reference is nulled on delete, so no lasting personal data remains.",
+  },
+
   // Plans
   supplement: { kind: "child", parent: "supplement_schedule" },
   supplement_schedule: organization,

@@ -1,8 +1,11 @@
 /**
- * Body presentation shared by web and mobile (pure, no imports). Formatting
- * follows docs/mobile/tone-of-voice.md: one decimal for kg, units always,
- * a real minus sign for decreases.
+ * Body presentation shared by web and mobile. Formatting follows
+ * docs/mobile/tone-of-voice.md: one decimal, units always, a real minus sign
+ * for decreases. Canonical values stay in kilograms; the optional display
+ * settings only change the rendered unit.
  */
+import { formatProductNumber, kgToLb, type ProductDisplaySettings } from "./product-formatting";
+
 export type DailyWeightLike = { date: string; weightKg: number; source: string };
 
 export type WeightSummary = {
@@ -37,14 +40,33 @@ export function summarizeDailyWeights(rows: readonly DailyWeightLike[]): WeightS
   };
 }
 
-export function formatKg(value: number): string {
+/**
+ * "72.4 kg" (metric, default) or "159.6 lb" (imperial). The stored value stays
+ * in kilograms; conversion happens here only.
+ */
+export function formatKg(value: number, settings?: ProductDisplaySettings | null): string {
+  if (settings?.units === "imperial") {
+    const lb = formatProductNumber(kgToLb(value), settings.locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    return `${lb} lb`;
+  }
   return `${value.toFixed(1)} kg`;
 }
 
-export function formatKgDelta(value: number): string {
-  const rounded = Math.round(value * 10) / 10;
+/**
+ * "−0.6 kg" / "+0.3 kg" / "No change" (metric, default), or the same shape in
+ * pounds. Sign and magnitude are taken in the displayed unit; a value that
+ * rounds to zero stays "No change" with no negative zero.
+ */
+export function formatKgDelta(value: number, settings?: ProductDisplaySettings | null): string {
+  const imperial = settings?.units === "imperial";
+  const display = imperial ? kgToLb(value) : value;
+  const rounded = Math.round(display * 10) / 10;
   if (rounded === 0) return "No change";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(1)} kg`;
+  const magnitude = Math.abs(rounded).toFixed(1);
+  return `${rounded > 0 ? "+" : "−"}${magnitude} ${imperial ? "lb" : "kg"}`;
 }
 
 const SOURCE_LABELS: Record<string, string> = {

@@ -6,6 +6,8 @@ import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
 import type { TelegramClient } from "@openvalens/telegram";
 
+import type { ProductSettingsService } from "./product-settings";
+
 /**
  * Structural view of the inbound request that the authz guards need.
  *
@@ -101,6 +103,13 @@ export type Context = {
    * closed (generic `INTERNAL`) when it is absent.
    */
   adminConfigInventory?: AdminConfigInventory;
+  /**
+   * Issue #58 — server-built product display-settings service. Optional at the
+   * type level so unrelated context factories stay valid; the settings
+   * procedures fail closed (generic `INTERNAL`) when it is absent. There is no
+   * in-memory fallback: the server always binds the database-backed service.
+   */
+  productSettingsService?: ProductSettingsService;
   /**
    * Issue #63 — normalized web origin (`new URL(CORS_ORIGIN).origin`) that an
    * admission mutation's `Origin` header must equal. The server derives it;

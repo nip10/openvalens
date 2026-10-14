@@ -28,6 +28,19 @@ describe("cochat presenter", () => {
     expect(relativeTime("not-a-date")).toBe("—");
   });
 
+  test("relativeTime month/day fallback honors locale and explicit timezone", () => {
+    const older = "2026-08-01T12:00:00.000Z";
+    expect(relativeTime(older, now, { units: "metric", locale: "en-US", timeZone: "UTC" })).toBe(
+      "Aug 1",
+    );
+    expect(relativeTime(older, now, { units: "metric", locale: "en-GB", timeZone: "UTC" })).toBe(
+      "1 Aug",
+    );
+    expect(relativeTime(older, now, { units: "metric", locale: "en-CA", timeZone: "UTC" })).toBe(
+      "Aug 1",
+    );
+  });
+
   test("truncate: leaves short strings alone, ellipsises long ones", () => {
     expect(truncate("short", 10)).toBe("short");
     expect(truncate("a long message that needs trimming", 12)).toBe("a long mess…");

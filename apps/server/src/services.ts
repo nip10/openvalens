@@ -1,4 +1,5 @@
 import { InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
+import { createProductSettingsService } from "@openvalens/api/product-settings";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
 import { createAdmissionService } from "@openvalens/auth/admission";
 import { createDb } from "@openvalens/db";
@@ -8,6 +9,12 @@ import { parseTelegramConfig, TelegramClient } from "@openvalens/telegram";
 import { ENV } from "./env.server";
 
 export const db = createDb(ENV);
+
+// Issue #58 — product display-settings service. Stateless and bound to the
+// shared database: every call reads the current row, so no value is cached
+// across requests. The API package never reads the environment or opens its own
+// connection.
+export const productSettingsService = createProductSettingsService({ db });
 
 // Issue #58 — server-side email instantiation. The `@openvalens/email` package
 // stays pure; the server binds the five validated email fields explicitly

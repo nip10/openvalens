@@ -1,20 +1,29 @@
 import { z } from "zod";
 
-import { instanceAdminProcedure, raiseApiError, resolveInstanceAdminProcedure } from "../index";
+import { requireAdmissionOrigin, safeAdmissionInput } from "../admission";
+import {
+  instanceAdminProcedure,
+  o,
+  protectedProcedure,
+  raiseApiError,
+  resolveInstanceAdminProcedure,
+} from "../index";
+import {
+  productSettingsSnapshotSchema,
+  productSettingsUpdateInput,
+} from "../product-settings-contract";
+import { mapProductSettingsError, requireProductSettingsService } from "../product-settings";
 
 /**
- * Issue #58 — global, instance-administrator read-only settings surface.
+ * Issue #58 — global, instance-administrator settings surface.
  *
- * Both procedures are session-only. `access` answers whether the *current*
- * session user is an instance administrator (always `200` with a boolean, so a
- * client can render without treating the common non-admin case as an error) and
- * therefore builds on the non-enforcing `resolveInstanceAdminProcedure`.
- * `configuration` is restricted to instance administrators via the
- * default-deny `instanceAdminProcedure`, so the handler never performs a manual
- * role check.
+ * `access` and `configuration` are the original session-only read surfaces.
+ * `productSettings` is an authenticated read (any workspace, no org scope) that
+ * returns the effective display settings plus a freshly resolved `canEdit`.
+ * `updateProductSettings` additionally requires a fresh instance administrator
+ * and an exact same-origin `Origin` header, enforced before the handler runs.
  *
- * Nothing here writes settings, tables or audit rows, and no configuration
- * value, user id, email or role string is ever returned.
+ * No configuration value, user id, email or role string is ever returned.
  */
 
 const accessOutput = z.object({
@@ -29,6 +38,17 @@ const configurationEntryOutput = z.object({
 
 const configurationOutput = z.object({
   entries: z.array(configurationEntryOutput),
+});
+
+/**
+ * Exact same-origin guard for mutations. Reuses the admission boundary guard:
+ * a missing configured origin or missing context binding fails closed
+ * (`INTERNAL`); a missing/null/foreign `Origin` header is a generic
+ * `403 PERMISSION_DENIED`. Runs before input validation and the handler.
+ */
+const originGuard = o.middleware(async ({ context, next }) => {
+  requireAdmissionOrigin(context);
+  return next({});
 });
 
 export const adminSettingsRouter = {
@@ -55,5 +75,46 @@ export const adminSettingsRouter = {
       }));
 
       return { entries };
+    }),
+
+  productSettings: protectedProcedure
+    .input(z.object({}))
+    .output(productSettingsSnapshotSchema)
+    .handler(async ({ context }) => {
+      try {
+        const snapshot = await requireProductSettingsService(context).read(context.session);
+        // Project exactly the four contract fields; any extra service field is
+        // dropped rather than forwarded.
+        return {
+          units: snapshot.units,
+          locale: snapshot.locale,
+          revision: snapshot.revision,
+          canEdit: snapshot.canEdit,
+        };
+      } catch (error) {
+        mapProductSettingsError(error);
+      }
+    }),
+
+  updateProductSettings: instanceAdminProcedure
+    .use(originGuard)
+    .use(safeAdmissionInput(productSettingsUpdateInput))
+    .input(productSettingsUpdateInput)
+    .output(productSettingsSnapshotSchema)
+    .handler(async ({ context, input }) => {
+      try {
+        const snapshot = await requireProductSettingsService(context).update(
+          input,
+          context.session,
+        );
+        return {
+          units: snapshot.units,
+          locale: snapshot.locale,
+          revision: snapshot.revision,
+          canEdit: snapshot.canEdit,
+        };
+      } catch (error) {
+        mapProductSettingsError(error);
+      }
     }),
 };

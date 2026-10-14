@@ -6,7 +6,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { orpc } from "@/utils/orpc";
+import { useProductSettings } from "@/utils/product-settings";
 
 export const Route = createFileRoute("/_auth/coach")({
   component: CoachListPage,
@@ -17,6 +19,8 @@ function CoachListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [starting, setStarting] = useState(false);
+  const settingsQuery = useProductSettings();
+  const settings = settingsQuery.data;
 
   const start = useMutation(
     orpc.ai.chat.mutationOptions({
@@ -80,6 +84,8 @@ function CoachListPage() {
         </Button>
       </div>
 
+      <ProductSettingsStatus />
+
       {start.isError ? (
         <p className="mb-4 text-sm text-destructive">
           Could not start a conversation. Check that AI is enabled in Settings.
@@ -107,7 +113,8 @@ function CoachListPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm text-muted-foreground">
-                      {relativeTime(thread.lastMessageAt)} · {thread.messageCount} message
+                      {relativeTime(thread.lastMessageAt, new Date(), settings)} ·{" "}
+                      {thread.messageCount} message
                       {thread.messageCount === 1 ? "" : "s"}
                     </div>
                     <div className="truncate font-medium">{truncate(previewLine(thread), 80)}</div>

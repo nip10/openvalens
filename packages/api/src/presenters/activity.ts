@@ -1,8 +1,14 @@
 /**
- * Activity presentation shared by web and mobile. Pure TypeScript, no
- * imports — safe for the app bundle. Copy follows
- * docs/mobile/tone-of-voice.md (sentence case, ISO dates, real units).
+ * Activity presentation shared by web and mobile. Pure TypeScript; only
+ * sibling presenter helpers are imported — safe for the app bundle. Copy
+ * follows docs/mobile/tone-of-voice.md (sentence case, ISO dates, real units).
  */
+import {
+  formatProductNumber,
+  metersToMiles,
+  type ProductDisplaySettings,
+} from "./product-formatting";
+
 export type DailyActivityTotalsLike = {
   date: string;
   steps: number | null;
@@ -79,10 +85,25 @@ export function formatKcalories(value: number | null | undefined): string {
   return `${Math.round(value).toLocaleString("en-US")} kcal`;
 }
 
-/** "5.4 km" / "—" for null/0. */
-export function formatDistanceMeters(value: number | null | undefined): string {
+/**
+ * "5.4 km" / "750 m" (metric, default) or "3.4 mi" (imperial), "—" for
+ * null/undefined. Zero (and non-positive) values keep the metric "0 m" label
+ * by default and for explicit metric settings, and read "0 mi" for imperial so
+ * the unit matches the chosen system. The metric sub-kilometre threshold is
+ * preserved; conversion happens here only.
+ */
+export function formatDistanceMeters(
+  value: number | null | undefined,
+  settings?: ProductDisplaySettings | null,
+): string {
   if (value === null || value === undefined) return "—";
-  if (value <= 0) return "0 m";
+  if (value <= 0) return settings?.units === "imperial" ? "0 mi" : "0 m";
+  if (settings?.units === "imperial") {
+    const miles = formatProductNumber(metersToMiles(value), settings.locale, {
+      maximumFractionDigits: 1,
+    });
+    return `${miles} mi`;
+  }
   if (value < 1000) return `${Math.round(value)} m`;
   return `${(value / 1000).toFixed(1)} km`;
 }

@@ -16,6 +16,7 @@
     "./authz/dashboard-nav": "./src/authz/dashboard-nav.ts",
     "./authz/guard": "./src/authz/guard.ts",
     "./authz/instance-admin": "./src/authz/instance-admin.ts",
+    "./authz/trusted-session": "./src/authz/trusted-session.ts",
     "./admission": "./src/admission/index.ts",
     "./*": "./src/*.ts"
   },

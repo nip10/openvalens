@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { Context } from "../context";
 import { instanceAdminProcedure } from "../index";
+import { ProductSettingsError, type ProductSettingsService } from "../product-settings";
 import { appRouter } from "./index";
 
 type Row = { role: string | null; banned: boolean | null };
@@ -317,5 +318,296 @@ describe("instanceAdminProcedure (default-deny)", () => {
       adminConfigInventory: [{ key: "NODE_ENV", configured: true, sensitive: false }],
     });
     expect(await inventoryProbe.callable({ context })({})).toEqual({ count: 1 });
+  });
+});
+
+// ─── Issue #58 product settings (partial service DI) ───────────
+
+const ORIGIN = "https://app.test";
+
+function headersWithOrigin(origin?: string): Headers {
+  const headers = new Headers();
+  if (origin !== undefined) headers.set("origin", origin);
+  return headers;
+}
+
+function fakeService(overrides: Partial<ProductSettingsService> = {}): ProductSettingsService {
+  return {
+    read: async () => ({ units: "metric", locale: "en-US", revision: 0, canEdit: false }),
+    update: async () => ({ units: "imperial", locale: "en-GB", revision: 1, canEdit: true }),
+    ...overrides,
+  };
+}
+
+type WriteOptions = {
+  origin?: string;
+  admissionOrigin?: string;
+  service?: ProductSettingsService;
+};
+
+/** Builds a context for the write path; an explicit `undefined` omits a binding. */
+function writeContext(session: unknown, db: Database, options: WriteOptions = {}): Context {
+  return baseContext({
+    session,
+    db,
+    admissionOrigin: "admissionOrigin" in options ? options.admissionOrigin : ORIGIN,
+    productSettingsService: "service" in options ? options.service : fakeService(),
+    honoContext: { req: { raw: { headers: headersWithOrigin(options.origin) } } },
+  });
+}
+
+async function capture(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+}
+
+describe("adminSettings.productSettings (read)", () => {
+  test("anonymous callers are rejected with 401 UNAUTHENTICATED", async () => {
+    await expect(
+      appRouter.adminSettings.productSettings.callable({
+        context: baseContext({ session: null, productSettingsService: fakeService() }),
+      })({}),
+    ).rejects.toMatchObject({ code: "UNAUTHENTICATED", status: 401 });
+  });
+
+  test("returns a projected four-field snapshot with canEdit false for a non-admin", async () => {
+    const { db } = fakeDb([{ role: "user", banned: false }]);
+    const result = await appRouter.adminSettings.productSettings.callable({
+      context: contextWith(ACTOR_SESSION, db, {
+        productSettingsService: fakeService({
+          read: async () => ({ units: "imperial", locale: "en-GB", revision: 2, canEdit: false }),
+        }),
+      }),
+    })({});
+
+    expect(result).toEqual({ units: "imperial", locale: "en-GB", revision: 2, canEdit: false });
+    expect(Object.keys(result).sort()).toEqual(["canEdit", "locale", "revision", "units"]);
+  });
+
+  test("resolves canEdit fresh on every request (no caching)", async () => {
+    const { db } = fakeDb([{ role: "user", banned: false }]);
+    let calls = 0;
+    const service = fakeService({
+      read: async () => {
+        calls += 1;
+        return { units: "metric", locale: "en-US", revision: 0, canEdit: calls > 1 };
+      },
+    });
+    const context = contextWith(ACTOR_SESSION, db, { productSettingsService: service });
+
+    expect((await appRouter.adminSettings.productSettings.callable({ context })({})).canEdit).toBe(
+      false,
+    );
+    expect((await appRouter.adminSettings.productSettings.callable({ context })({})).canEdit).toBe(
+      true,
+    );
+  });
+
+  test("drops any extra field a service returns (projection, not passthrough)", async () => {
+    const { db } = fakeDb([{ role: "admin", banned: false }]);
+    const dirty = fakeService({
+      read: async () =>
+        ({ units: "metric", locale: "en-US", revision: 0, canEdit: true, raw: "leak" }) as never,
+    });
+    const result = await appRouter.adminSettings.productSettings.callable({
+      context: contextWith(ACTOR_SESSION, db, { productSettingsService: dirty }),
+    })({});
+
+    expect(result).toEqual({ units: "metric", locale: "en-US", revision: 0, canEdit: true });
+    expect(result).not.toHaveProperty("raw");
+  });
+
+  test("fails closed with a generic INTERNAL when the service is not bound", async () => {
+    const { db } = fakeDb([{ role: "admin", banned: false }]);
+    const caught = await capture(
+      appRouter.adminSettings.productSettings.callable({
+        context: contextWith(ACTOR_SESSION, db),
+      })({}),
+    );
+
+    expect(caught).toMatchObject({
+      code: "INTERNAL",
+      status: 500,
+      message: "Something went wrong.",
+    });
+    expect((caught as { data?: unknown }).data).toBeUndefined();
+  });
+
+  test("maps an unexpected service failure to a generic INTERNAL with no raw cause", async () => {
+    const { db } = fakeDb([{ role: "user", banned: false }]);
+    const service = fakeService({
+      read: async () => {
+        throw new Error("canary-secret-dsn-value");
+      },
+    });
+    const caught = await capture(
+      appRouter.adminSettings.productSettings.callable({
+        context: contextWith(ACTOR_SESSION, db, { productSettingsService: service }),
+      })({}),
+    );
+
+    expect(caught).toMatchObject({
+      code: "INTERNAL",
+      status: 500,
+      message: "Something went wrong.",
+    });
+    expect(String(caught)).not.toContain("canary-secret-dsn-value");
+  });
+});
+
+describe("adminSettings.updateProductSettings (write)", () => {
+  const VALID = { units: "imperial", locale: "en-GB", expectedRevision: 0 } as const;
+
+  test("anonymous callers are rejected with 401 UNAUTHENTICATED", async () => {
+    await expect(
+      appRouter.adminSettings.updateProductSettings.callable({
+        context: writeContext(null, {} as Database, { origin: ORIGIN }),
+      })(VALID),
+    ).rejects.toMatchObject({ code: "UNAUTHENTICATED", status: 401 });
+  });
+
+  test("rejects an ordinary user with 403 before the service runs", async () => {
+    const { db } = fakeDb([{ role: "user", banned: false }]);
+    let calls = 0;
+    const service = fakeService({
+      update: async () => {
+        calls += 1;
+        return { units: "imperial", locale: "en-GB", revision: 1, canEdit: true };
+      },
+    });
+
+    await expect(
+      appRouter.adminSettings.updateProductSettings.callable({
+        context: writeContext(ACTOR_SESSION, db, { origin: ORIGIN, service }),
+      })(VALID),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+    expect(calls).toBe(0);
+  });
+
+  test("rejects a stale session admin claim when the database says user", async () => {
+    const { db } = fakeDb([{ role: "user", banned: false }]);
+    await expect(
+      appRouter.adminSettings.updateProductSettings.callable({
+        context: writeContext(STALE_ADMIN_SESSION, db, { origin: ORIGIN }),
+      })(VALID),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+  });
+
+  test("denies a missing, null or foreign Origin before the service runs", async () => {
+    for (const origin of [undefined, "null", "https://evil.test"]) {
+      const { db } = fakeDb([{ role: "admin", banned: false }]);
+      let calls = 0;
+      const service = fakeService({
+        update: async () => {
+          calls += 1;
+          return { units: "imperial", locale: "en-GB", revision: 1, canEdit: true };
+        },
+      });
+
+      await expect(
+        appRouter.adminSettings.updateProductSettings.callable({
+          context: writeContext(ACTOR_SESSION, db, { origin, service }),
+        })(VALID),
+      ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+      expect(calls).toBe(0);
+    }
+  });
+
+  test("fails closed with INTERNAL when the origin binding is missing", async () => {
+    const { db } = fakeDb([{ role: "admin", banned: false }]);
+    await expect(
+      appRouter.adminSettings.updateProductSettings.callable({
+        context: writeContext(ACTOR_SESSION, db, { origin: ORIGIN, admissionOrigin: undefined }),
+      })(VALID),
+    ).rejects.toMatchObject({ code: "INTERNAL", status: 500 });
+  });
+
+  test("rejects unsupported values, unknown/secret keys and revisions as value-free INVALID_INPUT", async () => {
+    const cases: unknown[] = [
+      { units: "us", locale: "en-US", expectedRevision: 0 },
+      { units: "metric", locale: "fr-FR", expectedRevision: 0 },
+      { units: "metric", locale: "en-US", expectedRevision: -1 },
+      { units: "metric", locale: "en-US", expectedRevision: 1.5 },
+      { units: "metric", locale: "en-US", expectedRevision: 0, secretCanary: "CANARY_LEAK_9f3a" },
+      JSON.parse(
+        '{"units":"metric","locale":"en-US","expectedRevision":0,"__proto__":{"polluted":true}}',
+      ),
+    ];
+
+    for (const input of cases) {
+      const { db } = fakeDb([{ role: "admin", banned: false }]);
+      const caught = await capture(
+        appRouter.adminSettings.updateProductSettings.callable({
+          context: writeContext(ACTOR_SESSION, db, { origin: ORIGIN }),
+        })(input as never),
+      );
+
+      expect(caught).toMatchObject({ code: "INVALID_INPUT", status: 400 });
+      expect((caught as { data?: unknown }).data).toBeUndefined();
+      expect(String(caught)).not.toContain("CANARY_LEAK");
+    }
+  });
+
+  test("maps a service CONFLICT to 409 and DENIED to 403", async () => {
+    const { db } = fakeDb([{ role: "admin", banned: false }]);
+
+    await expect(
+      appRouter.adminSettings.updateProductSettings.callable({
+        context: writeContext(ACTOR_SESSION, db, {
+          origin: ORIGIN,
+          service: fakeService({
+            update: async () => {
+              throw new ProductSettingsError("CONFLICT");
+            },
+          }),
+        }),
+      })(VALID),
+    ).rejects.toMatchObject({ code: "CONFLICT", status: 409 });
+
+    await expect(
+      appRouter.adminSettings.updateProductSettings.callable({
+        context: writeContext(ACTOR_SESSION, db, {
+          origin: ORIGIN,
+          service: fakeService({
+            update: async () => {
+              throw new ProductSettingsError("DENIED");
+            },
+          }),
+        }),
+      })(VALID),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+  });
+
+  test("fails closed with INTERNAL when the service is not bound", async () => {
+    const { db } = fakeDb([{ role: "admin", banned: false }]);
+    await expect(
+      appRouter.adminSettings.updateProductSettings.callable({
+        context: writeContext(ACTOR_SESSION, db, { origin: ORIGIN, service: undefined }),
+      })(VALID),
+    ).rejects.toMatchObject({ code: "INTERNAL", status: 500 });
+  });
+
+  test("returns a projected snapshot on success and drops extra service fields", async () => {
+    const { db } = fakeDb([{ role: "admin", banned: false }]);
+    const dirty = fakeService({
+      update: async () =>
+        ({
+          units: "imperial",
+          locale: "en-GB",
+          revision: 1,
+          canEdit: true,
+          raw: "leak",
+        }) as never,
+    });
+    const result = await appRouter.adminSettings.updateProductSettings.callable({
+      context: writeContext(ACTOR_SESSION, db, { origin: ORIGIN, service: dirty }),
+    })(VALID);
+
+    expect(result).toEqual({ units: "imperial", locale: "en-GB", revision: 1, canEdit: true });
+    expect(result).not.toHaveProperty("raw");
   });
 });

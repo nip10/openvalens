@@ -35,8 +35,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { client, orpc } from "@/utils/orpc";
+import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
 export const Route = createFileRoute("/_auth/records/activity")({
@@ -152,6 +154,8 @@ function ActivityPage() {
   const totals = useCacheFirst("activity.dailyTotals", () =>
     client.activity.dailyTotals({ days: 30 }),
   );
+  const settingsQuery = useProductSettings();
+  const settings = settingsQuery.data;
 
   if (totals.isPending) {
     return (
@@ -192,6 +196,8 @@ function ActivityPage() {
         <SyncStatusBadge />
       </div>
 
+      <ProductSettingsStatus />
+
       <AddReadingForm onSaved={() => void totals.refetch()} />
 
       {!summary.today ? (
@@ -212,7 +218,10 @@ function ActivityPage() {
             <CardContent className="grid grid-cols-3 gap-4">
               <Stat label="Steps" value={formatSteps(summary.today.steps)} />
               <Stat label="Calories" value={formatKcalories(summary.today.activeCaloriesKcal)} />
-              <Stat label="Distance" value={formatDistanceMeters(summary.today.distanceMeters)} />
+              <Stat
+                label="Distance"
+                value={formatDistanceMeters(summary.today.distanceMeters, settings)}
+              />
             </CardContent>
           </Card>
 
@@ -250,7 +259,7 @@ function ActivityPage() {
               />
               <Stat
                 label="Distance / day"
-                value={formatDistanceMeters(summary.sevenDayAverageDistance)}
+                value={formatDistanceMeters(summary.sevenDayAverageDistance, settings)}
               />
             </CardContent>
           </Card>
@@ -269,7 +278,7 @@ function ActivityPage() {
                         {formatKcalories(day.activeCaloriesKcal)}
                       </span>
                       <span className="font-mono text-muted-foreground">
-                        {formatDistanceMeters(day.distanceMeters)}
+                        {formatDistanceMeters(day.distanceMeters, settings)}
                       </span>
                     </span>
                   </li>

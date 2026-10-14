@@ -1,8 +1,11 @@
 /**
- * Sleep presentation shared by web and mobile. Pure TypeScript, no imports —
- * safe for the app bundle. Copy follows docs/mobile/tone-of-voice.md (sentence
- * case, ISO dates, no medical disclaimer).
+ * Sleep presentation shared by web and mobile. Pure TypeScript; only sibling
+ * presenter helpers are imported — safe for the app bundle. Copy follows
+ * docs/mobile/tone-of-voice.md (sentence case, ISO dates, no medical
+ * disclaimer).
  */
+import { formatProductTime, type ProductDisplaySettings } from "./product-formatting";
+
 export type SleepDailyLike = {
   date: string;
   mainSleepStart: string | null;
@@ -94,16 +97,19 @@ export function formatSleepEfficiency(value: number | null | undefined): string 
   return `${Math.round(value)}%`;
 }
 
-/** Convert an ISO timestamp to "HH:mm" in the device's local timezone. */
-export function formatClockTime(iso: string | null | undefined): string {
+/**
+ * Convert an ISO timestamp to "HH:mm". Locale comes from the optional display
+ * settings (default en-GB, 24-hour); the device-local timezone is preserved
+ * unless an explicit `timeZone` is supplied.
+ */
+export function formatClockTime(
+  iso: string | null | undefined,
+  settings?: ProductDisplaySettings | null,
+): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(date);
+  return formatProductTime(date, settings?.locale ?? "en-GB", undefined, settings?.timeZone);
 }
 
 /** Oldest-first series of `{ date, asleepMinutes }` for trend charts. */

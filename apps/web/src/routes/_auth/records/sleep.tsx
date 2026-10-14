@@ -22,7 +22,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bar, BarChart, Cell, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { orpc } from "@/utils/orpc";
+import { useProductSettings } from "@/utils/product-settings";
 
 export const Route = createFileRoute("/_auth/records/sleep")({
   component: SleepPage,
@@ -66,6 +68,8 @@ function StatusBadge({ status }: { status: string }) {
 
 function SleepPage() {
   const summary = useQuery(orpc.sleep.summary.queryOptions({ input: { days: 30 } }));
+  const settingsQuery = useProductSettings();
+  const settings = settingsQuery.data;
 
   if (summary.isPending) {
     return (
@@ -99,6 +103,8 @@ function SleepPage() {
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <h1 className="text-2xl font-semibold">Sleep</h1>
 
+      <ProductSettingsStatus />
+
       {!last ? (
         <Card>
           <CardContent className="py-8 text-center">
@@ -121,7 +127,7 @@ function SleepPage() {
               <Stat label="Efficiency" value={formatSleepEfficiency(last.sleepEfficiencyPct)} />
               <Stat
                 label="Bedtime → wake"
-                value={`${formatClockTime(last.mainSleepStart)} → ${formatClockTime(last.mainSleepEnd)}`}
+                value={`${formatClockTime(last.mainSleepStart, settings)} → ${formatClockTime(last.mainSleepEnd, settings)}`}
               />
             </CardContent>
           </Card>

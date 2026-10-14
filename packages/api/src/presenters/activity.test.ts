@@ -75,6 +75,34 @@ describe("activity presenter", () => {
     expect(formatDistanceMeters(5400)).toBe("5.4 km");
   });
 
+  test("imperial distance: real metres→miles conversion, zero/null semantics", () => {
+    const imperial = { units: "imperial" as const, locale: "en-US" as const };
+    expect(formatDistanceMeters(1609.344, imperial)).toBe("1 mi");
+    expect(formatDistanceMeters(5400, imperial)).toBe("3.4 mi");
+    expect(formatDistanceMeters(null, imperial)).toBe("—");
+    expect(formatDistanceMeters(undefined, imperial)).toBe("—");
+    // Metric sub-kilometre threshold is preserved, not forced to km.
+    expect(formatDistanceMeters(750, { units: "metric", locale: "en-US" })).toBe("750 m");
+    // Canonical record value is untouched by presentation.
+    const summary = summarizeDailyActivity([row("2026-10-01", 100, 10, 1609.344)]);
+    expect(summary.days[0]?.distanceMeters).toBe(1609.344);
+  });
+
+  test("zero distance keeps the label of the selected system", () => {
+    const imperial = { units: "imperial" as const, locale: "en-US" as const };
+    const metric = { units: "metric" as const, locale: "en-US" as const };
+    // Imperial zero reads in miles, including negative zero and negatives.
+    expect(formatDistanceMeters(0, imperial)).toBe("0 mi");
+    expect(formatDistanceMeters(-0, imperial)).toBe("0 mi");
+    expect(formatDistanceMeters(-5, imperial)).toBe("0 mi");
+    // Explicit metric and omitted settings keep the original "0 m".
+    expect(formatDistanceMeters(0, metric)).toBe("0 m");
+    expect(formatDistanceMeters(0)).toBe("0 m");
+    // Null/undefined stay the dash placeholder in both systems.
+    expect(formatDistanceMeters(null, imperial)).toBe("—");
+    expect(formatDistanceMeters(undefined)).toBe("—");
+  });
+
   test("stepsSeries is MM-DD for the axis", () => {
     const series = stepsSeries([
       { date: "2026-09-30", steps: 100, activeCaloriesKcal: 0, distanceMeters: 0 },

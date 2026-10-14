@@ -4,6 +4,7 @@ import {
   summarizeDailyWeights,
   weightSourceLabel,
 } from "@openvalens/api/presenters/body";
+import { kgToLb } from "@openvalens/api/presenters/product-formatting";
 import {
   defaultObservedAt,
   MANUAL_ENTRY_FIELDS,
@@ -26,17 +27,37 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
 
+import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { client, orpc } from "@/utils/orpc";
+import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
 export const Route = createFileRoute("/_auth/body")({
   component: BodyPage,
 });
 
-const chartConfig = {
-  weightKg: { label: "Weight (kg)", color: "var(--chart-1)" },
-} satisfies ChartConfig;
+function weightChartConfig(
+  settings:
+    | { units: "metric" | "imperial"; locale: "en-US" | "en-GB" | "en-CA" }
+    | null
+    | undefined,
+): ChartConfig {
+  const unit = settings?.units === "imperial" ? "lb" : "kg";
+  return {
+    weightKg: { label: `Weight (${unit})`, color: "var(--chart-1)" },
+  };
+}
+
+function weightAxisFormatter(
+  value: number,
+  settings: { units: "metric" | "imperial" } | null | undefined,
+): string {
+  if (settings?.units === "imperial") {
+    return Math.round(kgToLb(value)).toString();
+  }
+  return value.toFixed(0);
+}
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -119,6 +140,8 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
 function BodyPage() {
   const daily = useCacheFirst("body.dailyWeights", () => client.body.dailyWeights({ limit: 90 }));
   const summary = summarizeDailyWeights(daily.data ?? []);
+  const settingsQuery = useProductSettings();
+  const settings = settingsQuery.data;
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
@@ -126,6 +149,8 @@ function BodyPage() {
         <h1 className="text-2xl font-semibold">Body</h1>
         <SyncStatusBadge />
       </div>
+
+      <ProductSettingsStatus />
 
       <AddWeightForm onSaved={() => void daily.refetch()} />
 
@@ -154,14 +179,19 @@ function BodyPage() {
               <CardTitle>Weight</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
-              <Stat label={summary.latest.date} value={formatKg(summary.latest.weightKg)} />
+              <Stat
+                label={summary.latest.date}
+                value={formatKg(summary.latest.weightKg, settings)}
+              />
               <Stat
                 label="7 days"
-                value={summary.change7d === null ? "—" : formatKgDelta(summary.change7d)}
+                value={summary.change7d === null ? "—" : formatKgDelta(summary.change7d, settings)}
               />
               <Stat
                 label="30 days"
-                value={summary.change30d === null ? "—" : formatKgDelta(summary.change30d)}
+                value={
+                  summary.change30d === null ? "—" : formatKgDelta(summary.change30d, settings)
+                }
               />
             </CardContent>
           </Card>
@@ -171,7 +201,7 @@ function BodyPage() {
               <CardTitle>Last 90 days</CardTitle>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={chartConfig} className="h-56 w-full">
+              <ChartContainer config={weightChartConfig(settings)} className="h-56 w-full">
                 <LineChart data={summary.series}>
                   <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={32} />
                   <YAxis
@@ -179,9 +209,15 @@ function BodyPage() {
                     tickLine={false}
                     axisLine={false}
                     width={40}
-                    tickFormatter={(value: number) => value.toFixed(0)}
+                    tickFormatter={(value: number) => weightAxisFormatter(value, settings)}
                   />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value) => [formatKg(value as number, settings), "Weight"]}
+                      />
+                    }
+                  />
                   <Line
                     dataKey="weightKg"
                     stroke="var(--color-weightKg)"
@@ -208,7 +244,7 @@ function BodyPage() {
                         <span className="text-xs text-muted-foreground">
                           {weightSourceLabel(source)}
                         </span>
-                        <span className="font-mono">{formatKg(point.weightKg)}</span>
+                        <span className="font-mono">{formatKg(point.weightKg, settings)}</span>
                       </span>
                     </li>
                   );
