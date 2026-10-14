@@ -34,6 +34,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AiConsentSection } from "@/components/ai-consent-section";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
 import { orpc } from "@/utils/orpc";
@@ -49,6 +50,7 @@ function SettingsPage() {
       <div className="grid gap-6">
         <AccountSection />
         <CoachSection />
+        <AiConsentSection />
         <DeleteAccountSection />
       </div>
     </div>
