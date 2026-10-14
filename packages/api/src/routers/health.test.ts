@@ -118,4 +118,58 @@ describe("health.readiness", () => {
       mobilePairing: true,
     });
   });
+
+  test("reports each integration family's value-free status (Issue #57)", async () => {
+    const result = await callReadiness(
+      createTestContext({
+        integrations: {
+          email: { provider: "resend", state: "dry-run" },
+          ai: { provider: null, state: "off" },
+          messaging: { provider: "telegram", state: "configured" },
+        },
+      }),
+    );
+
+    expect(result.status).toBe("ok");
+    expect(result.checks.integrations).toEqual({
+      email: { provider: "resend", state: "dry-run" },
+      ai: { provider: null, state: "off" },
+      messaging: { provider: "telegram", state: "configured" },
+    });
+    expect(() => readinessOutput.parse(result)).not.toThrow();
+  });
+
+  test("safe defaults (dry-run / off) do not degrade readiness", async () => {
+    const result = await callReadiness(
+      createTestContext({
+        integrations: {
+          email: { provider: "resend", state: "dry-run" },
+          ai: { provider: null, state: "off" },
+          messaging: { provider: null, state: "off" },
+        },
+      }),
+    );
+
+    expect(result.status).toBe("ok");
+  });
+
+  test("projects only provider and state, dropping any extra field", async () => {
+    const leaky = {
+      provider: "resend",
+      state: "configured",
+      apiKey: "synthetic-leak-0123456789",
+    } as const;
+    const result = await callReadiness(createTestContext({ integrations: { email: leaky } }));
+
+    expect(result.checks.integrations).toEqual({
+      email: { provider: "resend", state: "configured" },
+    });
+    expect(JSON.stringify(result)).not.toContain(leaky.apiKey);
+  });
+
+  test("reports no integrations when the context carries none", async () => {
+    const result = await callReadiness(createTestContext());
+
+    expect(result.checks.integrations).toEqual({});
+  });
 });

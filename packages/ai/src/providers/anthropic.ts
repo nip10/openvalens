@@ -1,0 +1,22 @@
+/**
+ * Anthropic adapter module (Issue #57).
+ *
+ * The only file allowed to import the `@ai-sdk/anthropic` vendor SDK
+ * (`.oxlintrc.json` restricts vendor SDK imports to `src/providers/*`). The
+ * rest of the AI package works with the provider-neutral model value this
+ * returns.
+ */
+import { createAnthropic } from "@ai-sdk/anthropic";
+
+import { AiConfigError, type AiConfig } from "../config";
+
+/**
+ * Builds the Anthropic model. Throws `AI_CONFIG_INVALID` when no key is set so
+ * the caller fails closed instead of letting the provider 401.
+ */
+export function createAnthropicModel(config: AiConfig): unknown {
+  if (!config.ANTHROPIC_API_KEY) {
+    throw new AiConfigError("ANTHROPIC_API_KEY is not configured.");
+  }
+  return createAnthropic({ apiKey: config.ANTHROPIC_API_KEY })(config.AI_MODEL);
+}

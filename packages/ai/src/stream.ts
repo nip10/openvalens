@@ -1,8 +1,10 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { createStructuredLogger, type StructuredLogger } from "@openvalens/observability";
 import { streamText } from "ai";
 
-import { AiConfigError, type AiConfig } from "./config";
+import type { AiConfig } from "./config";
+import { createAnthropicModel } from "./providers/anthropic";
+
+export { createAnthropicModel };
 
 /**
  * Streaming chat primitive (Issue #13).
@@ -66,17 +68,6 @@ export type StreamChatInput = {
 
 /** Emit a chunk log line every N chunks to avoid per-token log spam. */
 const CHUNK_LOG_INTERVAL = 25;
-
-/**
- * Builds the Anthropic model. Throws `AI_CONFIG_INVALID` when no key is set so
- * the caller fails closed instead of letting the provider 401.
- */
-export function createAnthropicModel(config: AiConfig): unknown {
-  if (!config.ANTHROPIC_API_KEY) {
-    throw new AiConfigError("ANTHROPIC_API_KEY is not configured.");
-  }
-  return createAnthropic({ apiKey: config.ANTHROPIC_API_KEY })(config.AI_MODEL);
-}
 
 async function readUsage(result: {
   usage?: PromiseLike<

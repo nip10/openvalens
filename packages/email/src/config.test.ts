@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { EmailConfigError, parseEmailConfig } from "./config";
+import { describeEmailIntegration, EmailConfigError, parseEmailConfig } from "./config";
 
 const VALID_ENV = {
   RESEND_API_KEY: "re_test_1234567890",
@@ -106,5 +106,30 @@ describe("parseEmailConfig", () => {
     } catch (error) {
       expect((error as Error).message).not.toContain("super-secret-key");
     }
+  });
+});
+
+describe("describeEmailIntegration (Issue #57)", () => {
+  test("defaults to a Resend dry run with no vendor account", () => {
+    const status = describeEmailIntegration(
+      parseEmailConfig({ EMAIL_FROM: "Health <noreply@health.example>" }),
+    );
+
+    expect(status).toEqual({ provider: "resend", state: "dry-run" });
+  });
+
+  test("stays dry-run when a key is set but EMAIL_DRY_RUN is on", () => {
+    const status = describeEmailIntegration(
+      parseEmailConfig({ ...VALID_ENV, EMAIL_DRY_RUN: "true" }),
+    );
+
+    expect(status).toEqual({ provider: "resend", state: "dry-run" });
+  });
+
+  test("is configured only with a key and dry-run off, and never carries the key", () => {
+    const status = describeEmailIntegration(parseEmailConfig(VALID_ENV));
+
+    expect(status).toEqual({ provider: "resend", state: "configured" });
+    expect(JSON.stringify(status)).not.toContain(VALID_ENV.RESEND_API_KEY);
   });
 });

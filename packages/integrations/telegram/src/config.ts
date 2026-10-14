@@ -7,6 +7,8 @@
  * secret *value*; only the variable name and the reason.
  */
 
+import type { IntegrationStatus } from "@openvalens/config/integrations";
+
 export type TelegramConfig = {
   /** Bot token from `@BotFather`. `null` when Telegram delivery is disabled. */
   TELEGRAM_BOT_TOKEN: string | null;
@@ -121,4 +123,14 @@ export function parseTelegramConfig(env: TelegramEnv): TelegramConfig {
     TELEGRAM_CONNECT_TOKEN_TTL_SECONDS: rawTtl ?? DEFAULT_CONNECT_TOKEN_TTL_SECONDS,
     TELEGRAM_API_BASE_URL: apiBaseUrl.replace(/\/+$/, ""),
   };
+}
+
+/**
+ * Issue #57 — value-free readiness status of the messaging family. Telegram is
+ * the only messaging adapter and is `off` until a bot token is configured.
+ */
+export function describeTelegramIntegration(config: TelegramConfig): IntegrationStatus<"telegram"> {
+  return config.TELEGRAM_BOT_TOKEN === null
+    ? { provider: null, state: "off" }
+    : { provider: "telegram", state: "configured" };
 }

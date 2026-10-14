@@ -4,6 +4,7 @@ import {
   AI_DEFAULT_MODEL,
   AI_DEFAULT_RATE_LIMIT_PER_MINUTE,
   AiConfigError,
+  describeAiIntegration,
   parseAiConfig,
 } from "./config";
 
@@ -46,5 +47,26 @@ describe("parseAiConfig", () => {
     } catch (error) {
       expect((error as AiConfigError).code).toBe("AI_CONFIG_INVALID");
     }
+  });
+});
+
+describe("describeAiIntegration (Issue #57)", () => {
+  test("is off by default with no vendor account", () => {
+    expect(describeAiIntegration(parseAiConfig({}))).toEqual({ provider: null, state: "off" });
+  });
+
+  test("treats a blank key as off", () => {
+    expect(describeAiIntegration(parseAiConfig({ ANTHROPIC_API_KEY: "   " }))).toEqual({
+      provider: null,
+      state: "off",
+    });
+  });
+
+  test("is configured with a key and never carries the key", () => {
+    const key = "sk-ant-synthetic-0123456789";
+    const status = describeAiIntegration(parseAiConfig({ ANTHROPIC_API_KEY: key }));
+
+    expect(status).toEqual({ provider: "anthropic", state: "configured" });
+    expect(JSON.stringify(status)).not.toContain(key);
   });
 });

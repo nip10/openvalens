@@ -7,6 +7,7 @@
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./file-secrets": "./src/file-secrets.ts",
+    "./integrations": "./src/integrations.ts",
     "./file-secrets-preload.server": "./src/file-secrets-preload.server.ts",
     "./file-secrets-preload.database": "./src/file-secrets-preload.database.ts",
     "./varlock-safe-error": "./src/varlock-safe-error.ts"

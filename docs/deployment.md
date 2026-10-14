@@ -177,6 +177,11 @@ Response shape:
       "anthropic": false,
       "resend": false,
       "mobilePairing": true
+    },
+    "integrations": {
+      "email": { "provider": "resend", "state": "dry-run" },
+      "ai": { "provider": null, "state": "off" },
+      "messaging": { "provider": null, "state": "off" }
     }
   },
   "timestamp": "2026-09-29T00:00:00.000Z"
@@ -191,6 +196,13 @@ Status semantics:
 
 Each check emits a structured `health.readiness.checked` log line carrying the
 correlation id, status, database status and any missing secret names.
+
+`checks.integrations` reports every optional external service family as a
+value-free `{ provider, state }` pair (`configured`, `dry-run` or `off`). The
+example above is a default install with no vendor accounts; `dry-run` and `off`
+are safe defaults and never degrade the status. See
+[docs/integrations.md](integrations.md) for the adapter set and how to enable
+each one.
 
 `capabilities.resend` is `true` only when email is actually delivered: a
 `RESEND_API_KEY` is configured **and** `EMAIL_DRY_RUN=false`. With the default

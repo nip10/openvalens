@@ -12,6 +12,7 @@
     { "path": "../../db" },
     { "path": "../../observability" },
     { "path": "../../audit-security" },
-    { "path": "../../email" }
+    { "path": "../../email" },
+    { "path": "../../config" }
   ]
 }
