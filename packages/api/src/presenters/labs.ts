@@ -1,8 +1,10 @@
 /**
- * Labs presentation shared by web and mobile. Pure TypeScript, no imports —
- * safe for the app bundle. Copy follows docs/mobile/tone-of-voice.md
- * (sentence case, real units).
+ * Labs presentation shared by web and mobile. Pure TypeScript; only sibling
+ * presenter helpers are imported — safe for the app bundle. Copy follows
+ * docs/mobile/tone-of-voice.md (sentence case, real units).
  */
+import { formatProductDate, type ProductDisplaySettings } from "./product-formatting";
+
 export type LabMarkerLike = {
   code: string;
   displayName: string;
@@ -21,16 +23,19 @@ export function formatLabValue(value: number | null, unit: string | null): strin
   return `${rounded} ${unit}`;
 }
 
-/** "Jun 12, 2026" / "—" when missing. Uses the device's locale for the month. */
-export function formatLabDate(iso: string | null | undefined): string {
+/**
+ * "Jun 12, 2026" / "—" when missing. Locale comes from the optional display
+ * settings (default en-US); the device-local timezone is preserved unless an
+ * explicit `timeZone` is supplied.
+ */
+export function formatLabDate(
+  iso: string | null | undefined,
+  settings?: ProductDisplaySettings | null,
+): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
+  return formatProductDate(date, settings?.locale ?? "en-US", undefined, settings?.timeZone);
 }
 
 /** Sparkline series for the chart wrapper: just the numeric values, oldest first. */

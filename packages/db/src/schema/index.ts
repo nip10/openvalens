@@ -7,4 +7,5 @@ export * from "./health-record";
 export * from "./ingestion";
 export * from "./integrations";
 export * from "./plans";
+export * from "./product-settings";
 export * from "./data-rights";

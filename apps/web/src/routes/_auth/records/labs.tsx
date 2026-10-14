@@ -14,7 +14,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { client, orpc } from "@/utils/orpc";
+import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
 export const Route = createFileRoute("/_auth/records/labs")({
@@ -98,6 +100,8 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
 
 function LabsPage() {
   const markers = useCacheFirst("labs.latest", () => client.labs.latest({ recentLimit: 10 }));
+  const settingsQuery = useProductSettings();
+  const settings = settingsQuery.data;
 
   if (markers.isPending) {
     return (
@@ -137,6 +141,8 @@ function LabsPage() {
         <SyncStatusBadge />
       </div>
 
+      <ProductSettingsStatus />
+
       {list.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center">
@@ -156,7 +162,7 @@ function LabsPage() {
                     <div className="text-sm text-muted-foreground">
                       {marker.latestValue === null
                         ? "No readings yet"
-                        : `${formatLabDate(marker.latestSampledAt)} · ${marker.sampleCount} reading${marker.sampleCount === 1 ? "" : "s"}`}
+                        : `${formatLabDate(marker.latestSampledAt, settings)} · ${marker.sampleCount} reading${marker.sampleCount === 1 ? "" : "s"}`}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">

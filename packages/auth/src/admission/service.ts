@@ -1,6 +1,13 @@
 import { sql, type Database } from "@openvalens/db";
 
 import { isInstanceAdminRole } from "../authz/instance-admin";
+import {
+  isSessionLive,
+  requireTrustedIdentity as requireTrustedSessionIdentity,
+  resolveSessionIdentity,
+  toDate,
+  type TrustedIdentity,
+} from "../authz/trusted-session";
 import type { Session } from "../index";
 import {
   constantTimeHashEquals,
@@ -147,18 +154,6 @@ type UserRow = {
 const GRANT_COLUMNS = sql`"id", "kind", "generation", "canonical_email", "target_user_id", "inviter_user_id", "invitation_token_hash", "expires_at", "verification_code_hash", "verification_expires_at", "verification_attempts", "send_count", "send_window_started_at", "consumed_at"`;
 
 // ─── Value coercion ────────────────────────────────────────────
-
-/** Robust conversion of a driver-returned timestamp/date to a `Date`. */
-function toDate(value: unknown): Date | null {
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
-  }
-  if (typeof value === "string" || typeof value === "number") {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-  return null;
-}
 
 function toInt(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -315,32 +310,11 @@ function proofExpiry(now: Date, grantExpires: Date): Date {
 }
 
 // ─── Session narrowing ─────────────────────────────────────────
-
-type SessionIdentity = { userId: string; impersonated: boolean; expiresAt: Date | null };
-
-function resolveSessionIdentity(session: Session | null): SessionIdentity | null {
-  if (!session) {
-    return null;
-  }
-  const value = session as unknown as {
-    user?: { id?: unknown };
-    session?: { impersonatedBy?: unknown; expiresAt?: unknown };
-  };
-  const userId = value.user?.id;
-  if (typeof userId !== "string" || userId.length === 0) {
-    return null;
-  }
-  const impersonated =
-    typeof value.session?.impersonatedBy === "string" && value.session.impersonatedBy.length > 0;
-  // Every supported expiry shape — including a `Date` instance — is funnelled
-  // through the validated conversion, so an invalid `Date` (NaN time) normalises
-  // to `null` and can never satisfy a comparison as if it were live. No new
-  // input types are accepted.
-  const expiresAt = toDate(value.session?.expiresAt);
-  return { userId, impersonated, expiresAt };
-}
-
-type TrustedIdentity = { userId: string; expiresAt: Date };
+//
+// The pure helpers (`toDate`, `resolveSessionIdentity`, `isSessionLive`) are
+// shared with the product-settings service via `../authz/trusted-session`.
+// Admission keeps its own thin wrappers so a denied identity still surfaces the
+// typed `AdmissionError("DENIED")` the API layer maps.
 
 /**
  * A trusted, non-impersonated administrator session with a *resolvable* expiry.
@@ -351,11 +325,11 @@ type TrustedIdentity = { userId: string; expiresAt: Date };
  * listing.
  */
 function requireTrustedIdentity(session: Session | null): TrustedIdentity {
-  const identity = resolveSessionIdentity(session);
-  if (!identity || identity.impersonated || !identity.expiresAt) {
+  try {
+    return requireTrustedSessionIdentity(session);
+  } catch {
     throw new AdmissionError("DENIED");
   }
-  return { userId: identity.userId, expiresAt: identity.expiresAt };
 }
 
 /**
@@ -366,8 +340,7 @@ function requireTrustedIdentity(session: Session | null): TrustedIdentity {
  */
 async function assertSessionLive(tx: Tx, identity: TrustedIdentity): Promise<Date> {
   const now = await dbNow(tx);
-  const expiresAt = identity.expiresAt.getTime();
-  if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime()) {
+  if (!isSessionLive(identity, now)) {
     throw new AdmissionError("DENIED");
   }
   return now;

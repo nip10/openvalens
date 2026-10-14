@@ -44,4 +44,25 @@ describe("body presenter", () => {
     expect(weightSourceLabel("manual")).toBe("Manual");
     expect(weightSourceLabel("override")).toBe("Override");
   });
+
+  test("imperial weight: real kg→lb conversion, canonical record unchanged", () => {
+    const imperial = { units: "imperial" as const, locale: "en-US" as const };
+    expect(formatKg(100, imperial)).toBe("220.5 lb");
+    expect(formatKg(72.44, imperial)).toBe("159.7 lb");
+    expect(formatKg(100, { units: "metric", locale: "en-US" })).toBe("100.0 kg");
+    // Presentation never mutates the stored kilograms.
+    const summary = summarizeDailyWeights([row("2026-10-01", 100)]);
+    expect(summary.latest?.weightKg).toBe(100);
+    expect(summary.series[0]?.weightKg).toBe(100);
+  });
+
+  test("imperial deltas: sign, magnitude, and no negative zero", () => {
+    const imperial = { units: "imperial" as const, locale: "en-US" as const };
+    expect(formatKgDelta(-1, imperial)).toBe("−2.2 lb");
+    expect(formatKgDelta(1, imperial)).toBe("+2.2 lb");
+    expect(formatKgDelta(0, imperial)).toBe("No change");
+    expect(formatKgDelta(-0, imperial)).toBe("No change");
+    expect(formatKgDelta(0.01, imperial)).toBe("No change");
+    expect(formatKgDelta(0.25, { units: "metric", locale: "en-US" })).toBe("+0.3 kg");
+  });
 });

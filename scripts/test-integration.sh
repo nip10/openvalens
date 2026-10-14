@@ -39,6 +39,7 @@ SUITES=(
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_rpc_test|packages/api/src/admission-rpc.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_cli_test|scripts/admission.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_sharing_test|packages/api/src/routers/sharing.integration.test.ts"
+  "PRODUCT_SETTINGS_TEST_DATABASE_URL|product_settings_test|packages/api/src/product-settings.integration.test.ts"
 )
 
 reset_db() {

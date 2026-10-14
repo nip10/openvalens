@@ -49,6 +49,16 @@ describe("timeline presenter", () => {
     expect(domainLabel("something_new")).toBe("Other");
   });
 
+  test("technical day/time keys stay ISO and follow the explicit timezone only", () => {
+    const groups = groupTimelineByDay([item("a", "2026-10-01T22:30:00.000Z")], "UTC");
+    expect(groups[0]?.day).toBe("2026-10-01");
+    expect(groups[0]?.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(groups[0]?.items[0]?.time).toBe("22:30");
+    // Same instant, different explicit zone: the day key shifts, locale does not.
+    const lisbon = groupTimelineByDay([item("a", "2026-09-30T23:30:00.000Z")], "Europe/Lisbon");
+    expect(lisbon[0]?.day).toBe("2026-10-01");
+  });
+
   test("severity maps to a semantic tone; none and info stay neutral", () => {
     expect(severityTone("critical")).toBe("destructive");
     expect(severityTone("warning")).toBe("warning");

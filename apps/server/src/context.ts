@@ -13,6 +13,7 @@ import {
   capabilities,
   db,
   email,
+  productSettingsService,
   telegramClient,
   telegramConfig,
 } from "./services";
@@ -68,6 +69,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // Issue #58 — value-free global configuration inventory. Built here from
     // the validated `ENV` so the API package never reads server environment.
     adminConfigInventory: buildAdminConfigInventory(ENV),
+    // Issue #58 — database-backed product display-settings service.
+    productSettingsService,
     // Issue #63 — admission service, limiter and the normalized web origin an
     // admission mutation's `Origin` header must match.
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),

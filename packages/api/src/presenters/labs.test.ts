@@ -31,6 +31,19 @@ describe("labs presenter", () => {
     expect(out).toMatch(/Jun 12, 2026/);
   });
 
+  test("formatLabDate: locale from settings, explicit timezone is deterministic", () => {
+    const iso = "2026-06-12T12:00:00.000Z";
+    expect(formatLabDate(iso, { units: "metric", locale: "en-US", timeZone: "UTC" })).toBe(
+      "Jun 12, 2026",
+    );
+    expect(formatLabDate(iso, { units: "metric", locale: "en-GB", timeZone: "UTC" })).toBe(
+      "12 Jun 2026",
+    );
+    expect(formatLabDate(iso, { units: "metric", locale: "en-CA", timeZone: "UTC" })).toBe(
+      "Jun 12, 2026",
+    );
+  });
+
   test("labSparkline: oldest-first values, dates as labels", () => {
     const series = labSparkline(marker);
     expect(series.map((p) => p.value)).toEqual([105, 99, 92]);

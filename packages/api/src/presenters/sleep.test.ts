@@ -50,6 +50,19 @@ describe("sleep presenter", () => {
     expect(formatClockTime(null)).toBe("—");
   });
 
+  test("formatClockTime: locale honored, explicit timezone deterministic", () => {
+    const iso = "2026-10-01T13:05:00.000Z";
+    expect(formatClockTime(iso, { units: "metric", locale: "en-GB", timeZone: "UTC" })).toBe(
+      "13:05",
+    );
+    expect(formatClockTime(iso, { units: "metric", locale: "en-US", timeZone: "UTC" })).toBe(
+      "13:05",
+    );
+    expect(formatClockTime(iso, { units: "metric", locale: "en-CA", timeZone: "UTC" })).toBe(
+      "13:05",
+    );
+  });
+
   test("maps status to a label and a chip tone", () => {
     expect(sleepStatusLabel("high_sleep_debt")).toBe("High sleep debt");
     expect(sleepStatusTone("high_sleep_debt")).toBe("destructive");
