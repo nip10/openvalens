@@ -50,7 +50,7 @@ export const BLOCKED_FIELDS = [
   "rawPayload",
   "aiPrompt",
   "aiResponse",
-  // Admission credentials (Issue #63) — never log a bearer, proof code or hash.
+// Admission credentials (Issue #63) — never log a bearer, proof code or hash.
   "credential",
   "setupToken",
   "verificationCode",
@@ -60,6 +60,13 @@ export const BLOCKED_FIELDS = [
   "setup_token_hash",
   "invitation_token_hash",
   "verification_code_hash",
+  // Issue #125 — reminder-domain PHI carriers. The redactor is key-name-based,
+  // so these keys are stripped before serialization to keep raw reminder
+  // labels, telegram chat ids, and Telegram chat ids out of any log line,
+  // even if a future caller passes them under an unlisted parent.
+  "label",
+  "chatId",
+  "telegramChatId",
 ] as const;
 
 const BLOCKED_FIELD_SET = new Set<string>(BLOCKED_FIELDS);

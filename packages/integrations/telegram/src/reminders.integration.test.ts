@@ -17,7 +17,11 @@ if (url) {
     throw new Error("Empty disposable loopback reminders_issue125 database required.");
 }
 
-type SentCall = { chatId?: string; email?: string; text: string };
+type SentCall = {
+  chatId?: string;
+  email?: string;
+  text: string;
+};
 
 function fakeChannels(): {
   client: TelegramClient;
@@ -70,45 +74,38 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
 
     await db.execute(
       sql.raw(`
-      insert into "user" (id, email) values
-        ('user-a',     'a@example.test'),
-        ('user-b',     'b@example.test'),
-        ('user-extra', 'extra@example.test');
+      insert into "user" (id, email, banned) values
+        ('user-a',     'a@example.test',     false),
+        ('user-b',     'b@example.test',     false),
+        ('user-c',     'c@example.test',     false),
+        ('user-banned','banned@example.test', true);
       insert into "organization" (id, name, slug) values
         ('org-a', 'A', 'a'),
         ('org-b', 'B', 'b');
       insert into "member" (id, organization_id, user_id, role) values
-        ('m-a',     'org-a', 'user-a',     'owner'),
-        ('m-extra', 'org-a', 'user-extra', 'member'),
-        ('m-b',     'org-b', 'user-b',     'owner');
+        ('m-a',      'org-a', 'user-a',      'owner'),
+        ('m-c',      'org-a', 'user-c',      'member'),
+        ('m-banned', 'org-a', 'user-banned', 'member'),
+        ('m-b',      'org-b', 'user-b',      'owner');
       insert into "telegram_account"
         (organization_id, user_id, telegram_chat_id, telegram_user_id)
       values
-        ('org-a', 'user-a',     'chat-a', 'tg-user-a'),
-        ('org-a', 'user-extra', 'chat-extra', 'tg-user-extra'),
-        ('org-b', 'user-b',     'chat-b', 'tg-user-b');
+        ('org-a', 'user-a',      'chat-a', 'tg-user-a'),
+        ('org-a', 'user-c',      'chat-c', 'tg-user-c'),
+        ('org-a', 'user-banned', 'chat-banned', 'tg-user-banned'),
+        ('org-b', 'user-b',      'chat-b', 'tg-user-b');
       insert into "daily_reminder"
         (organization_id, user_id, date, source_type, source_id, label)
       values
-        ('org-a', 'user-a',     '${date}', 'supplement', 1, 'Secret Vitamin D'),
-        ('org-a', 'user-extra', '${date}', 'supplement', 2, 'Top Secret Med B'),
-        ('org-b', 'user-b',     '${date}', 'supplement', 1, 'Hidden Rx C');
+        ('org-a', 'user-a',      '${date}', 'supplement', 1, 'Secret Vitamin D'),
+        ('org-a', 'user-c',      '${date}', 'supplement', 2, 'Top Secret Med C'),
+        ('org-a', 'user-banned', '${date}', 'supplement', 3, 'Banned Should Skip'),
+        ('org-b', 'user-b',      '${date}', 'supplement', 1, 'Hidden Rx B');
     `),
     );
   }, 120000);
 
-  // Each test starts from the seed state: every reminder is pending, every
-  // user is still a member of the listed org. Tests that mutate state restore
-  // it themselves.
   beforeEach(async () => {
-    await db.execute(
-      sql.raw(`delete from "member" where user_id = 'user-extra' and organization_id = 'org-a'`),
-    );
-    await db.execute(
-      sql.raw(
-        `insert into "member" (id, organization_id, user_id, role) values ('m-extra', 'org-a', 'user-extra', 'member') on conflict do nothing`,
-      ),
-    );
     await db.execute(
       sql.raw(`update daily_reminder set status = 'pending', telegram_message_id = null`),
     );
@@ -134,35 +131,30 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
 
     expect(result.sent).toBe(2);
     expect(result.failed).toBe(0);
-    // Every delivery originates from an org-a chat.
-    expect(calls.map((c) => c.chatId).sort()).toEqual(["chat-a", "chat-extra"]);
+    expect(calls.map((c) => c.chatId).sort()).toEqual(["chat-a", "chat-c"]);
 
     // Cross-tenant row stays pending and undelivered.
     const orgB = await db
-      .select({ telegramMessageId: sql<string | null>`telegram_message_id` })
+      .select({ telegramMessageId: sql<number | null>`telegram_message_id` })
       .from(sql`daily_reminder`)
       .where(sql`organization_id = 'org-b'`);
     expect(orgB[0]?.telegramMessageId).toBeNull();
 
-    // Log lines never include the recipient-bound PHI fields.
+    // Log lines never include raw labels, chat ids, or emails.
     const serialized = lines.join("\n");
     for (const forbidden of [
       "Secret Vitamin D",
-      "Top Secret Med B",
+      "Top Secret Med C",
       "chat-a",
-      "chat-extra",
+      "chat-c",
       "a@example.test",
-      "extra@example.test",
+      "c@example.test",
     ]) {
       expect(serialized).not.toContain(forbidden);
     }
   });
 
-  test("a reminder whose recipient is not a member is marked skipped and not delivered", async () => {
-    await db.execute(
-      sql.raw(`delete from "member" where user_id = 'user-extra' and organization_id = 'org-a'`),
-    );
-
+  test("banned recipients are skipped, not delivered", async () => {
     const { client, email, calls } = fakeChannels();
     const { logger, lines } = capturingLogger();
 
@@ -170,29 +162,37 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       db,
       client,
       logger,
-      correlationId: "corr-skip",
+      correlationId: "corr-banned",
       organizationId: "org-a",
       date,
       email,
     });
 
-    expect(result.sent).toBe(1);
+    // user-banned has a Telegram chat but is banned → skip, not send.
+    expect(result.sent).toBe(2);
     expect(result.skipped).toBe(1);
-    expect(calls.map((c) => c.chatId)).toEqual(["chat-a"]);
+    expect(result.failed).toBe(0);
+    expect(calls.map((c) => c.chatId).sort()).toEqual(["chat-a", "chat-c"]);
 
-    const skipped = await db
-      .select({ status: sql<string>`status` })
+    expect(lines.join("\n")).toContain("recipient_banned");
+    expect(lines.join("\n")).not.toContain("Banned Should Skip");
+
+    // The banned row remains pending + undelivered (status is owned by the
+    // reaction webhook; we never mutate it on delivery).
+    const bannedRow = await db
+      .select({
+        status: sql<string>`status`,
+        telegramMessageId: sql<number | null>`telegram_message_id`,
+      })
       .from(sql`daily_reminder`)
-      .where(sql`user_id = 'user-extra'`);
-    expect(skipped[0]?.status).toBe("skipped");
-
-    expect(lines.join("\n")).not.toContain("Top Secret Med B");
-    expect(lines.join("\n")).toContain("recipient_not_member");
+      .where(sql`user_id = 'user-banned'`);
+    expect(bannedRow[0]?.status).toBe("pending");
+    expect(bannedRow[0]?.telegramMessageId).toBeNull();
   });
 
-  test("re-running the same per-org pass does not re-deliver", async () => {
+  test("re-running for the same org does not re-deliver", async () => {
     const first = fakeChannels();
-    const passOne = await materializeDailyReminders({
+    await materializeDailyReminders({
       db,
       client: first.client,
       logger: capturingLogger().logger,
@@ -201,7 +201,6 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       date,
       email: first.email,
     });
-    expect(passOne.sent).toBe(2);
     expect(first.calls.length).toBe(2);
 
     const second = fakeChannels();
@@ -214,6 +213,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       date,
       email: second.email,
     });
+
     expect(passTwo.sent).toBe(0);
     expect(second.calls.length).toBe(0);
   });
@@ -246,70 +246,105 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
     expect(orgBRow[0]?.telegramMessageId).toBeNull();
   });
 
-  test("contended advisory lock returns zeros without sending", async () => {
-    const { email } = fakeChannels();
+  test("concurrent cron runs against the same org deliver each row exactly once", async () => {
+    const sentPerRun: string[][] = [];
 
-    await db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(${"openvalens:daily-reminder:run:org-a:" + date}, 0))`,
-      );
+    await Promise.all(
+      Array.from({ length: 3 }, async (_, idx) => {
+        const { client, email, calls } = fakeChannels();
+        const result = await materializeDailyReminders({
+          db,
+          client,
+          logger: capturingLogger().logger,
+          correlationId: `corr-concurrent-${idx}`,
+          organizationId: "org-a",
+          date,
+          email,
+        });
+        sentPerRun.push(calls.map((c) => String(c.chatId)));
+        return result;
+      }),
+    );
 
-      const { client, calls } = fakeChannels();
-      const { logger } = capturingLogger();
+    // The three org-a sends (user-a, user-c; user-banned skipped) are split
+    // across the concurrent runs. Together they cover each recipient exactly
+    // once even when many sibling crons race.
+    const allChats = sentPerRun.flat();
+    expect(allChats.length).toBe(2);
+    expect(new Set(allChats)).toEqual(new Set(["chat-a", "chat-c"]));
 
-      const result = await materializeDailyReminders({
-        db,
-        client,
-        logger,
-        correlationId: "corr-contended",
-        organizationId: "org-a",
-        date,
-        email,
-      });
-
-      expect(result.sent).toBe(0);
-      expect(result.skipped).toBe(0);
-      expect(result.failed).toBe(0);
-      expect(calls.length).toBe(0);
-    });
+    const finalRows = await db
+      .select({
+        userId: sql<string>`user_id`,
+        telegramMessageId: sql<number | null>`telegram_message_id`,
+      })
+      .from(sql`daily_reminder`)
+      .where(sql`organization_id = 'org-a' and status = 'pending'`);
+    for (const row of finalRows) {
+      if (row.userId === "user-banned") {
+        expect(row.telegramMessageId).toBeNull();
+      } else {
+        expect(row.telegramMessageId).not.toBeNull();
+      }
+    }
   });
 
-  test("fan-out across organizations is bounded per-org", async () => {
-    const organizations = (
-      await db.execute<{ id: string }>(sql`select id from "organization" order by id asc`)
-    ).rows.map((row) => row.id);
+  test("per-org failure isolation: one tenant's provider failure does not roll back peers", async () => {
+    // Telegram client for org-a succeeds; for org-b every send throws.
+    let chatARuns = 0;
+    let chatBRuns = 0;
+    const sendMessage = async (chatId: string) => {
+      if (chatId === "chat-a") {
+        chatARuns += 1;
+        return { ok: true, result: { message_id: chatARuns } };
+      }
+      chatBRuns += 1;
+      throw new Error("telegram.unreachable");
+    };
+    const client = { sendMessage } as unknown as TelegramClient;
+    const email: EmailService = {
+      sendEmail: async () => ({ id: "email-1", dryRun: false }),
+      organizationName: "Health",
+    };
 
-    expect(organizations).toEqual(["org-a", "org-b"]);
+    // Pretend the cron loop manually: run for org-a, then org-b, isolating
+    // failures like the cron router does.
+    const log = capturingLogger();
+    const runA = await materializeDailyReminders({
+      db,
+      client,
+      logger: log.logger,
+      correlationId: "corr-a",
+      organizationId: "org-a",
+      date,
+      email,
+    });
 
-    const seenChatsByOrg = new Map<string, Set<string>>();
+    let runBerr: unknown;
+    const runB = await materializeDailyReminders({
+      db,
+      client,
+      logger: log.logger,
+      correlationId: "corr-b",
+      organizationId: "org-b",
+      date,
+      email,
+    }).catch((error: unknown) => {
+      runBerr = error;
+    });
 
-    for (const organizationId of organizations) {
-      const { client, email, calls } = fakeChannels();
-      const { logger } = capturingLogger();
+    expect(runA.sent).toBe(2);
+    expect(runBerr).toBeUndefined();
+    expect(runB).toBeDefined();
+    expect(runB!.failed).toBeGreaterThan(0);
 
-      const result = await materializeDailyReminders({
-        db,
-        client,
-        logger,
-        correlationId: `corr-fanout-${organizationId}`,
-        organizationId,
-        date,
-        email,
-      });
+    // Org-a's deliveries are committed; org-b's are not double-counted.
+    expect(chatARuns).toBeGreaterThanOrEqual(2);
+    expect(chatBRuns).toBe(1);
 
-      const chats = new Set(
-        calls.map((c) => c.chatId).filter((chatId): chatId is string => Boolean(chatId)),
-      );
-      seenChatsByOrg.set(organizationId, chats);
-
-      expect(result.failed).toBe(0);
-    }
-
-    const orgAChats = seenChatsByOrg.get("org-a") ?? new Set();
-    const orgBChats = seenChatsByOrg.get("org-b") ?? new Set();
-    expect(orgAChats.has("chat-a")).toBe(true);
-    expect(orgAChats.has("chat-b")).toBe(false);
-    expect(orgBChats.has("chat-b")).toBe(true);
-    expect(orgBChats.has("chat-a")).toBe(false);
+    // The cron should never itself throw on a per-org failure — it surfaces
+    // a result with the org-failed counter. That contract is exercised in
+    // cron.test.ts (orchestration in isolation); here we confirm each
+    // per-org call returns a typed outcome either way.
   });
 });

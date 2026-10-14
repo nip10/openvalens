@@ -139,11 +139,16 @@ export const dailyReminder = pgTable(
       .$defaultFn(() => new Date().toISOString()),
   },
   (table) => ({
-    // Issue #125 — slot uniqueness is per-organization so a user belonging to
-    // multiple orgs cannot have their slots collide across tenants.
+    // Slot uniqueness is per-(user, date, source_type, source_id). It is
+    // tenant-safe by transitivity: every source row (supplement_schedule,
+    // medication, scheduled_event) has a globally serial id and a NOT NULL
+    // `organization_id`, so (user_id, date, source_type, source_id) resolves
+    // to at most one org. Swapping in an org prefix here would *weaken* the
+    // duplicate-send guard for #125 — see `glossary` discussion. Keep the
+    // constraint as is.
     dailyReminderUserDateSourceUnique: uniqueIndex(
-      "daily_reminder_organization_id_user_id_date_source_type_source_id_key",
-    ).on(table.organizationId, table.userId, table.date, table.sourceType, table.sourceId),
+      "daily_reminder_user_id_date_source_type_source_id_key",
+    ).on(table.userId, table.date, table.sourceType, table.sourceId),
     dailyReminderUserDateStatusIdx: index("daily_reminder_user_id_date_status_idx").on(
       table.userId,
       table.date,
@@ -153,10 +158,6 @@ export const dailyReminder = pgTable(
       table.telegramMessageId,
     ),
     dailyReminderOrgIdx: index("daily_reminder_organization_id_idx").on(table.organizationId),
-    // Backs the daily cron's tenant-scoped pending-reminder selection.
-    dailyReminderOrgDatePendingIdx: index("daily_reminder_organization_id_date_pending_idx")
-      .on(table.organizationId, table.date)
-      .where(sql`${table.status} = 'pending' AND ${table.telegramMessageId} IS NULL`),
     dailyReminderMemberFk: foreignKey({
       columns: [table.organizationId, table.userId],
       foreignColumns: [member.organizationId, member.userId],

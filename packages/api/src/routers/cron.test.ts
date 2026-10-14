@@ -53,25 +53,23 @@ function createFakeEmailService() {
 }
 
 /** Stub DB whose `execute` returns the supplied row set — sufficient for the
- * cron unit tests, which never reach the materializer's transaction. */
-function createEmptyOrgDb(rows: { id: string }[] = []): Database {
+ * cron unit tests, which never reach the materializer's transactions. */
+function createCronDb(worklist: string[] = []): Database {
   return {
-    execute: async () => ({ rows }),
+    execute: async () => ({ rows: worklist.map((id) => ({ organization_id: id })) }),
     transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
-      // The cron doesn't drill into the transaction in tests; if it ever did,
-      // it would surface as a clear "tx is undefined" failure.
       return callback(undefined);
     },
   } as unknown as Database;
 }
 
 describe("cron.remindersDailyRun", () => {
-  test("returns the ok envelope with the context correlation id (no orgs)", async () => {
+  test("returns the ok envelope with zero counts when no organizations have pending work", async () => {
     const { service: email } = createFakeEmailService();
     const result = await appRouter.cron.remindersDailyRun.callable({
       context: {
         ...authorizedContext("corr-reminders"),
-        db: createEmptyOrgDb(),
+        db: createCronDb([]),
         email,
       },
     })({});
@@ -82,7 +80,8 @@ describe("cron.remindersDailyRun", () => {
       startedAt: expect.any(String),
       finishedAt: expect.any(String),
       organizations: 0,
-      organizationsContended: 0,
+      organizationsSucceeded: 0,
+      organizationsFailed: 0,
       sent: 0,
       skipped: 0,
       failed: 0,
@@ -90,11 +89,37 @@ describe("cron.remindersDailyRun", () => {
     });
   });
 
+  test("returns the ok envelope with zero counts when the Telegram client is unconfigured", async () => {
+    const { service: email } = createFakeEmailService();
+    const result = await appRouter.cron.remindersDailyRun.callable({
+      context: {
+        ...authorizedContext("corr-no-tg"),
+        db: createCronDb(["org-a"]),
+        telegramClient: null,
+        email,
+      },
+    })({});
+
+    expect(result).toEqual({
+      status: "ok",
+      job: "reminders.daily",
+      startedAt: expect.any(String),
+      finishedAt: expect.any(String),
+      organizations: 0,
+      organizationsSucceeded: 0,
+      organizationsFailed: 0,
+      sent: 0,
+      skipped: 0,
+      failed: 0,
+      correlationId: "corr-no-tg",
+    });
+  });
+
   test("fails closed with a generic INTERNAL error when the context has no email service", async () => {
     const context: Context = {
       ...authorizedContext("corr-no-email"),
       telegramClient: null,
-      db: createEmptyOrgDb(),
+      db: createCronDb(),
     };
 
     await expect(appRouter.cron.remindersDailyRun.callable({ context })({})).rejects.toMatchObject({
