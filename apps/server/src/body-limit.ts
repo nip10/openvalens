@@ -60,9 +60,7 @@ export type BodyLimitMiddlewareOptions = {
 export function bodyLimitMiddleware(opts: BodyLimitMiddlewareOptions) {
   const { maxBytes, logger } = opts;
   if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
-    throw new Error(
-      `bodyLimitMiddleware: maxBytes must be a positive integer (got ${maxBytes})`,
-    );
+    throw new Error(`bodyLimitMiddleware: maxBytes must be a positive integer (got ${maxBytes})`);
   }
 
   return honoBodyLimit({

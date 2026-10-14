@@ -2,13 +2,13 @@ import { Hono } from "hono";
 
 import { describe, expect, test } from "bun:test";
 
-import { createStructuredLogger, type LogLevel, type StructuredLogger } from "@openvalens/observability";
-
 import {
-  DEFAULT_MAX_BODY_BYTES,
-  bodyLimitMiddleware,
-  resolveMaxBodyBytes,
-} from "./body-limit";
+  createStructuredLogger,
+  type LogLevel,
+  type StructuredLogger,
+} from "@openvalens/observability";
+
+import { DEFAULT_MAX_BODY_BYTES, bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
 
 /**
  * Bounded HTTP coverage for the body-size limit (Issue #126).
