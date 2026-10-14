@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "catalog:",
+    "@ai-sdk/openai-compatible": "catalog:",
     "@openvalens/activity": "workspace:*",
     "@openvalens/audit-security": "workspace:*",
     "@openvalens/body": "workspace:*",

@@ -40,6 +40,7 @@ describe("resolveFileSecrets", () => {
       "RESEND_API_KEY",
       "EMAIL_AUDIT_BCC",
       "TELEGRAM_BOT_TOKEN",
+      "AI_API_KEY",
       "ANTHROPIC_API_KEY",
     ]);
     // The database profile resolves only DATABASE_URL; unrelated provider files

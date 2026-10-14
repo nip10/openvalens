@@ -420,6 +420,9 @@ export const aiRouter = {
     )
     .output(
       z.object({
+        // `unparseable` (Issue #59): no attempt produced valid JSON; `data` is
+        // then `null` — values are never invented.
+        status: z.enum(["ok", "unparseable"]),
         data: z.unknown(),
         model: z.string(),
       }),
@@ -440,7 +443,7 @@ export const aiRouter = {
           promptHint: input.promptHint,
           jsonShape: input.jsonShape,
         });
-        return { data: result.data, model: result.model };
+        return { status: result.status, data: result.data, model: result.model };
       } catch (error) {
         if (error instanceof AiConfigError) {
           throw raiseApiError("INTERNAL", "AI provider is not configured.");

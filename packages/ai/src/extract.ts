@@ -1,82 +1,171 @@
 /**
- * Structured extraction + insight-generation primitives (Issue #13).
+ * Structured extraction + insight-generation primitives (Issues #13, #59).
  *
  * Thin wrappers over the AI SDK `generateText`. Emits PHI-safe lifecycle
- * logs (`ai.extract.*`, `ai.insights.*`); never logs the prompt or output.
+ * logs (`ai.extract.*`, `ai.insights.*`) with provider and host only; never
+ * logs the prompt or output.
+ *
+ * Extraction never depends on tool calling or on provider-side structured
+ * outputs (Issue #59): the model is asked for JSON in plain text, the reply is
+ * validated with Zod, retried once, and otherwise reported as `unparseable`
+ * with `data: null` — values are never invented. JSON-schema structured
+ * outputs are only requested when `AI_SUPPORTS_STRUCTURED_OUTPUTS` is on and
+ * the caller supplies a schema, and the reply is validated the same way.
  */
-import { generateText, type LanguageModelUsage } from "ai";
+import { generateText, Output, type LanguageModelUsage } from "ai";
+import { z } from "zod";
 
 import { createStructuredLogger } from "@openvalens/observability";
 
+import { describeAiEndpoint, type AiConfig } from "./config";
+import { createAiModel } from "./model";
+
 const structuredLogger = createStructuredLogger({ level: "info" });
 
-export type ExtractInput = {
-  config: { AI_MODEL: string };
+/** Model attempts per extraction: the first call plus one retry. */
+export const AI_EXTRACT_MAX_ATTEMPTS = 2;
+
+/** Default extraction schema: any single JSON object. */
+const anyJsonObject = z.record(z.string(), z.unknown());
+
+export type ExtractInput<T = Record<string, unknown>> = {
+  config: AiConfig;
   /** Free-form text to extract from (capped to 8k chars in the prompt). */
   text: string;
   /** Plain-words instruction for the model. */
   promptHint: string;
   /** JSON shape the model must match, expressed as a free-form schema. */
   jsonShape: string;
+  /**
+   * Zod schema the parsed JSON must satisfy. Defaults to "any JSON object".
+   * Only a caller-supplied schema is sent as a provider structured output.
+   */
+  schema?: z.ZodType<T>;
   logger?: ReturnType<typeof createStructuredLogger>;
   generateTextFn?: typeof generateText;
+  /** Test seam: override the model instance. */
+  model?: unknown;
 };
 
-export type ExtractResult = {
-  /**: Parsed JSON object — typed as `unknown`, callers narrow. */
-  data: unknown;
-  usage?: LanguageModelUsage;
-  model: string;
-};
+/**
+ * Extraction outcome. `unparseable` means no attempt produced JSON matching
+ * the schema; `data` is then `null` and must not be persisted.
+ */
+export type ExtractResult<T = Record<string, unknown>> =
+  | { status: "ok"; data: T; attempts: number; usage?: LanguageModelUsage; model: string }
+  | {
+      status: "unparseable";
+      data: null;
+      attempts: number;
+      usage?: LanguageModelUsage;
+      model: string;
+    };
 
-export async function extractStructured(input: ExtractInput): Promise<ExtractResult> {
+/** Pulls the outermost `{...}` from a reply and parses it, or `undefined`. */
+function parseJsonObject(text: string): unknown {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return undefined;
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return undefined;
+  }
+}
+
+/** True for the AI SDK errors raised when a structured output fails to parse. */
+function isOutputParseError(error: unknown): boolean {
+  const name = error instanceof Error ? error.name : "";
+  return name === "AI_NoObjectGeneratedError" || name === "AI_NoOutputGeneratedError";
+}
+
+export async function extractStructured<T = Record<string, unknown>>(
+  input: ExtractInput<T>,
+): Promise<ExtractResult<T>> {
   const logger = input.logger ?? structuredLogger;
-  const prompt = `${input.promptHint}\n\nReturn a single JSON object matching this shape:\n${input.jsonShape}\n\n---\n${input.text.slice(0, 8000)}\n---`;
+  const schema = (input.schema ?? anyJsonObject) as z.ZodType<T>;
+  const useStructuredOutput =
+    input.schema !== undefined && input.config.AI_SUPPORTS_STRUCTURED_OUTPUTS;
+  const { provider, host } = describeAiEndpoint(input.config);
+  const basePrompt = `${input.promptHint}\n\nReturn a single JSON object matching this shape:\n${input.jsonShape}\n\n---\n${input.text.slice(0, 8000)}\n---`;
 
   logger.info("ai.extract.started", {
+    provider,
+    host,
     model: input.config.AI_MODEL,
     textLength: input.text.length,
+    structuredOutput: useStructuredOutput,
   });
 
+  const model = input.model ?? createAiModel(input.config);
   const generateFn = input.generateTextFn ?? generateText;
-  // Use a permissive tool call to force JSON: we ask for "object" via the
-  // experimental_output schema. For an MVP, we just parse the result text.
-  const result = await generateFn({
-    model: input.config.AI_MODEL,
-    prompt,
-  } as never);
+  let usage: LanguageModelUsage | undefined;
 
-  const text = (result as { text?: string }).text ?? "";
-  let data: unknown = null;
-  const match = text.match(/\{[\s\S]*\}/);
-  if (match) {
+  for (let attempt = 1; attempt <= AI_EXTRACT_MAX_ATTEMPTS; attempt += 1) {
+    const prompt =
+      attempt === 1
+        ? basePrompt
+        : `${basePrompt}\n\nYour previous reply did not match the shape. Reply with only the JSON object. If a value is not in the text, omit it; never guess.`;
+
+    let text = "";
     try {
-      data = JSON.parse(match[0]);
-    } catch {
-      data = null;
+      const result = await generateFn({
+        model,
+        prompt,
+        ...(useStructuredOutput ? { output: Output.object({ schema }) } : {}),
+      } as never);
+      text = (result as { text?: string }).text ?? "";
+      usage = result.usage as LanguageModelUsage | undefined;
+    } catch (error) {
+      // A structured output that failed to parse counts as a bad attempt;
+      // provider failures (network, auth, 5xx) propagate.
+      if (!isOutputParseError(error)) throw error;
+    }
+
+    const parsed = schema.safeParse(parseJsonObject(text));
+    if (parsed.success) {
+      logger.info("ai.extract.completed", {
+        provider,
+        host,
+        model: input.config.AI_MODEL,
+        status: "ok",
+        attempts: attempt,
+      });
+      return {
+        status: "ok",
+        data: parsed.data,
+        attempts: attempt,
+        model: input.config.AI_MODEL,
+        ...(usage ? { usage } : {}),
+      };
     }
   }
 
-  logger.info("ai.extract.completed", {
+  logger.warn("ai.extract.completed", {
+    provider,
+    host,
     model: input.config.AI_MODEL,
-    parsed: data !== null,
+    status: "unparseable",
+    attempts: AI_EXTRACT_MAX_ATTEMPTS,
   });
-
   return {
-    data,
-    usage: result.usage as LanguageModelUsage | undefined,
+    status: "unparseable",
+    data: null,
+    attempts: AI_EXTRACT_MAX_ATTEMPTS,
     model: input.config.AI_MODEL,
+    ...(usage ? { usage } : {}),
   };
 }
 
 export type InsightInput = {
-  config: { AI_MODEL: string };
+  config: AiConfig;
   /** Compact JSON snapshot of the user's data — never logged. */
   snapshot: unknown;
   /** A question or topic for the model to summarise, e.g. "sleep debt". */
   topic: string;
   logger?: ReturnType<typeof createStructuredLogger>;
   generateTextFn?: typeof generateText;
+  /** Test seam: override the model instance. */
+  model?: unknown;
 };
 
 export type InsightResult = {
@@ -91,14 +180,18 @@ export async function generateInsight(input: InsightInput): Promise<InsightResul
   const logger = input.logger ?? structuredLogger;
   const prompt = `You are a careful health-data summariser. Topic: ${input.topic}.\n\nUser context (do not reveal raw identifiers):\n${JSON.stringify(input.snapshot).slice(0, 6000)}\n\nRespond with exactly three lines:\nTITLE: <short>\nBODY: <one paragraph, <= 240 chars, plain English, no medical disclaimer unless the data shows a critical signal>\nSEVERITY: <info|warning|critical>`;
 
+  const { provider, host } = describeAiEndpoint(input.config);
+
   logger.info("ai.insights.started", {
+    provider,
+    host,
     model: input.config.AI_MODEL,
     topic: input.topic,
   });
 
   const generateFn = input.generateTextFn ?? generateText;
   const result = await generateFn({
-    model: input.config.AI_MODEL,
+    model: input.model ?? createAiModel(input.config),
     prompt,
   } as never);
 
@@ -108,6 +201,8 @@ export async function generateInsight(input: InsightInput): Promise<InsightResul
   const severityMatch = text.match(/SEVERITY:\s*(info|warning|critical)/i);
 
   logger.info("ai.insights.completed", {
+    provider,
+    host,
     model: input.config.AI_MODEL,
   });
 

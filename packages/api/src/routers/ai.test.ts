@@ -201,10 +201,19 @@ function createMockDb(
 
 function createContext(
   db: Database,
-  options: { limitPerMinute?: number; apiKey?: string | null } = {},
+  options: {
+    limitPerMinute?: number;
+    apiKey?: string | null;
+    /** Issue #59 — raw AI env overriding the default Anthropic selection. */
+    aiEnv?: Parameters<typeof actualAi.parseAiConfig>[0];
+  } = {},
 ): Context {
   const limitPerMinute = options.limitPerMinute ?? 20;
   const apiKey = options.apiKey === undefined ? "sk-ant-test" : options.apiKey;
+  const aiConfig = actualAi.parseAiConfig({
+    ...(options.aiEnv ?? { AI_PROVIDER: "anthropic", AI_API_KEY: apiKey }),
+    AI_RATE_LIMIT_PER_MINUTE: limitPerMinute,
+  });
   return {
     session: { user: { id: USER_ID } },
     db,
@@ -213,17 +222,13 @@ function createContext(
     betterAuthSecretConfigured: true,
     capabilities: {
       telegram: false,
-      anthropic: apiKey !== null,
+      anthropic: actualAi.describeAiIntegration(aiConfig).provider === "anthropic",
       resend: false,
       mobilePairing: true,
     },
     telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
     telegramClient: null,
-    aiConfig: {
-      ANTHROPIC_API_KEY: apiKey,
-      AI_MODEL: "claude-sonnet-5-5",
-      AI_RATE_LIMIT_PER_MINUTE: limitPerMinute,
-    },
+    aiConfig,
     aiRateLimiter: new actualAi.InMemoryRateLimiter({ limitPerMinute }),
     honoContext: { req: { raw: { headers: new Headers() } } },
   } as unknown as Context;
@@ -317,6 +322,37 @@ describe("ai.chat consent gate", () => {
   test("rejects with AI_DISABLED when consent is explicitly false", async () => {
     const { db } = createMockDb({ aiConsent: false });
     await expect(callChat(createContext(db))).rejects.toMatchObject({ code: "AI_DISABLED" });
+  });
+
+  // Issue #59 — the gate sits in front of provider selection, so an
+  // OpenAI-compatible endpoint (even a local, keyless one) is blocked too.
+  test("rejects with AI_DISABLED on an OpenAI-compatible provider", async () => {
+    const { db, inserts } = createMockDb({});
+    const context = createContext(db, {
+      aiEnv: {
+        AI_PROVIDER: "openai-compatible",
+        AI_BASE_URL: "http://127.0.0.1:11434/v1",
+        AI_MODEL: "synthetic-local-model",
+      },
+    });
+
+    await expect(callChat(context)).rejects.toMatchObject({ code: "AI_DISABLED", status: 403 });
+    expect(inserts).toHaveLength(0);
+    expect(streamChat).not.toHaveBeenCalled();
+  });
+
+  test("rejects with AI_DISABLED on an OpenAI-compatible provider without user consent", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } }, null);
+    const context = createContext(db, {
+      aiEnv: {
+        AI_PROVIDER: "openai-compatible",
+        AI_BASE_URL: "http://127.0.0.1:11434/v1",
+        AI_MODEL: "synthetic-local-model",
+      },
+    });
+
+    await expect(callChat(context)).rejects.toMatchObject({ code: "AI_DISABLED", status: 403 });
+    expect(streamChat).not.toHaveBeenCalled();
   });
 });
 
