@@ -293,6 +293,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         NODE_ENV: "development",
         CSP_MODE: "report-only",
         RESEND_API_KEY: key,
+        EMAIL_DRY_RUN: "false",
       });
       expect(run.exitCode).toBe(0);
       expect(run.result?.resend).toBe(true);
@@ -313,6 +314,7 @@ describe("schema-validated security configuration (cold boot)", () => {
           NODE_ENV: "development",
           CSP_MODE: "report-only",
           RESEND_API_KEY_FILE: secretPath,
+          EMAIL_DRY_RUN: "false",
         });
         expect(run.exitCode).toBe(0);
         expect(run.result?.resend).toBe(true);
@@ -321,6 +323,23 @@ describe("schema-validated security configuration (cold boot)", () => {
       } finally {
         await rm(fixtureDir, { recursive: true, force: true });
       }
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "capabilities.resend is false when a key is set but EMAIL_DRY_RUN is on",
+    async () => {
+      const key = "synthetic-resend-api-key-0123456789";
+      const run = await runColdChild({
+        NODE_ENV: "development",
+        CSP_MODE: "report-only",
+        RESEND_API_KEY: key,
+        EMAIL_DRY_RUN: "true",
+      });
+      expect(run.exitCode).toBe(0);
+      expect(run.result?.resend).toBe(false);
+      expect(run.output).not.toContain(key);
     },
     TEST_TIMEOUT_MS,
   );

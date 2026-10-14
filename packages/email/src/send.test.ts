@@ -3,13 +3,15 @@ import { createStructuredLogger } from "@openvalens/observability";
 
 import type { EmailConfig } from "./config";
 import {
+  describeEmailDeliveryError,
   EmailPermanentError,
   EmailTransientError,
   ResendProvider,
+  sanitizeProviderErrorName,
   type EmailProvider,
   type ResendSendInput,
 } from "./provider";
-import { sendEmail } from "./send";
+import { sendEmail, toResendTags } from "./send";
 
 const BASE_CONFIG: EmailConfig = {
   RESEND_API_KEY: "re_test_1234567890",
@@ -163,6 +165,127 @@ describe("sendEmail", () => {
     expect(record.errorCode).toBe("EMAIL_TRANSIENT");
     expect(record.recipients).toEqual(["p***@example.com"]);
   });
+
+  test("the failure log is categorized and never carries secrets or content", async () => {
+    const { logger, lines } = createCapturingLogger();
+    const provider = new FakeProvider({ id: "x" }, new EmailPermanentError(401, "missing_api_key"));
+
+    await expect(
+      sendEmail(BASE_INPUT, { config: BASE_CONFIG, logger, provider, correlationId: "corr-f" }),
+    ).rejects.toBeInstanceOf(EmailPermanentError);
+
+    const record = parseLine(lines.at(-1) ?? "");
+    expect(record).toMatchObject({
+      level: "error",
+      event: "email.send.failed",
+      correlationId: "corr-f",
+      templateName: "magic-link",
+      errorCode: "EMAIL_PERMANENT",
+      errorCategory: "auth",
+      retryable: false,
+      status: 401,
+      providerError: "missing_api_key",
+    });
+
+    const output = lines.join("\n");
+    expect(output).not.toContain(BASE_CONFIG.RESEND_API_KEY ?? "unset");
+    expect(output).not.toContain("patient@example.com");
+    expect(output).not.toContain("<p>hello</p>");
+    expect(output).not.toContain("audit@health.example");
+  });
+
+  test("an untyped failure is logged as EMAIL_UNKNOWN without its message", async () => {
+    const { logger, lines } = createCapturingLogger();
+    const provider = new FakeProvider({ id: "x" }, new Error("boom patient@example.com"));
+
+    await expect(
+      sendEmail(BASE_INPUT, { config: BASE_CONFIG, logger, provider }),
+    ).rejects.toThrow();
+
+    const record = parseLine(lines.at(-1) ?? "");
+    expect(record).toMatchObject({
+      errorCode: "EMAIL_UNKNOWN",
+      errorCategory: "unknown",
+      retryable: false,
+    });
+    expect(lines.join("\n")).not.toContain("patient@example.com");
+  });
+
+  test("sends tags as Resend name/value pairs, dropping invalid and duplicate values", async () => {
+    const provider = new FakeProvider();
+    const { logger } = createCapturingLogger();
+
+    await sendEmail(
+      { ...BASE_INPUT, tags: ["magic-link", "magic-link", "has space", "a@b.example"] },
+      { config: BASE_CONFIG, logger, provider },
+    );
+
+    expect(provider.calls[0]?.tags).toEqual([{ name: "tag", value: "magic-link" }]);
+  });
+});
+
+describe("toResendTags", () => {
+  test("keeps Resend-safe values in order and collapses duplicates", () => {
+    expect(toResendTags(["invitation", "access_request-2", "invitation"])).toEqual([
+      { name: "tag", value: "invitation" },
+      { name: "tag", value: "access_request-2" },
+    ]);
+  });
+
+  test("returns undefined when nothing survives", () => {
+    expect(toResendTags(undefined)).toBeUndefined();
+    expect(toResendTags([])).toBeUndefined();
+    expect(toResendTags(["", "x".repeat(257), "naïve"])).toBeUndefined();
+  });
+});
+
+describe("delivery error categorization", () => {
+  test.each([
+    [0, "TypeError", EmailTransientError, "network", true],
+    [0, "TimeoutError", EmailTransientError, "timeout", true],
+    [429, "rate_limit_exceeded", EmailTransientError, "rate_limited", true],
+    [500, "internal_server_error", EmailTransientError, "provider_unavailable", true],
+    [503, null, EmailTransientError, "provider_unavailable", true],
+    [401, "missing_api_key", EmailPermanentError, "auth", false],
+    [403, "invalid_api_key", EmailPermanentError, "auth", false],
+    [422, "validation_error", EmailPermanentError, "rejected", false],
+  ] as const)(
+    "status %p (%p) → %p / %p",
+    (status, providerError, ErrorClass, category, retryable) => {
+      const error = new ErrorClass(status, providerError);
+      expect(error.category).toBe(category);
+      expect(error.retryable).toBe(retryable);
+      expect(describeEmailDeliveryError(error)).toEqual({
+        errorCode: error.code,
+        errorCategory: category,
+        retryable,
+        status,
+        ...(providerError ? { providerError } : {}),
+      });
+    },
+  );
+
+  test("non-provider errors are unknown and not retryable", () => {
+    expect(describeEmailDeliveryError(new Error("x"))).toEqual({
+      errorCode: "EMAIL_UNKNOWN",
+      errorCategory: "unknown",
+      retryable: false,
+    });
+    expect(describeEmailDeliveryError("string")).toMatchObject({ errorCategory: "unknown" });
+  });
+
+  test("provider error names that are not identifier-shaped are dropped", () => {
+    expect(sanitizeProviderErrorName("validation_error")).toBe("validation_error");
+    expect(sanitizeProviderErrorName(" TimeoutError ")).toBe("TimeoutError");
+    expect(sanitizeProviderErrorName("patient@example.com")).toBeNull();
+    expect(sanitizeProviderErrorName("Invalid `to` field: patient")).toBeNull();
+    expect(sanitizeProviderErrorName("x".repeat(65))).toBeNull();
+    expect(sanitizeProviderErrorName(42)).toBeNull();
+
+    const error = new EmailPermanentError(422, "echo patient@example.com");
+    expect(error.providerError).toBeNull();
+    expect(error.message).not.toContain("patient@example.com");
+  });
 });
 
 describe("ResendProvider", () => {
@@ -210,6 +333,68 @@ describe("ResendProvider", () => {
     const provider = new ResendProvider("re_test_1234567890");
 
     await expect(provider.send(sendInput)).rejects.toBeInstanceOf(EmailPermanentError);
+  });
+
+  test("429 responses are retryable and categorized as rate_limited", async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ name: "rate_limit_exceeded" }), {
+        status: 429,
+      })) as unknown as typeof fetch;
+
+    const error = await new ResendProvider("re_test_1234567890").send(sendInput).catch((e) => e);
+
+    expect(error).toBeInstanceOf(EmailTransientError);
+    expect(error).toMatchObject({ category: "rate_limited", providerError: "rate_limit_exceeded" });
+  });
+
+  test("401 responses are permanent auth failures", async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ name: "missing_api_key" }), {
+        status: 401,
+      })) as unknown as typeof fetch;
+
+    const error = await new ResendProvider("re_test_1234567890").send(sendInput).catch((e) => e);
+
+    expect(error).toBeInstanceOf(EmailPermanentError);
+    expect(error).toMatchObject({ category: "auth", status: 401 });
+  });
+
+  test("a network failure is a transient network error", async () => {
+    globalThis.fetch = (async () => {
+      throw new TypeError("fetch failed: connect ECONNREFUSED re_secret");
+    }) as unknown as typeof fetch;
+
+    const error = await new ResendProvider("re_test_1234567890").send(sendInput).catch((e) => e);
+
+    expect(error).toBeInstanceOf(EmailTransientError);
+    expect(error).toMatchObject({ category: "network", status: 0, providerError: "TypeError" });
+    expect(error.message).not.toContain("ECONNREFUSED");
+  });
+
+  test("a hung request is aborted and categorized as timeout", async () => {
+    globalThis.fetch = ((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+      })) as unknown as typeof fetch;
+
+    const error = await new ResendProvider("re_test_1234567890", { timeoutMs: 5 })
+      .send(sendInput)
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(EmailTransientError);
+    expect(error).toMatchObject({ category: "timeout", providerError: "TimeoutError" });
+  });
+
+  test("an unsafe provider error name is not echoed", async () => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ name: "bad patient@example.com" }), {
+        status: 422,
+      })) as unknown as typeof fetch;
+
+    const error = await new ResendProvider("re_test_1234567890").send(sendInput).catch((e) => e);
+
+    expect(error).toMatchObject({ category: "rejected", providerError: null });
+    expect(error.message).not.toContain("patient@example.com");
   });
 
   test("exceptions never leak the api key, recipient, or body", async () => {

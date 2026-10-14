@@ -78,19 +78,19 @@ The full generated list, with types, defaults and `_FILE` support, is in
 
 Production checklist:
 
-| Variable                  |    Required | Notes                                                                                                       |
-| ------------------------- | ----------: | ----------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                |         yes | Set to `production`.                                                                                        |
-| `DATABASE_URL`            |         yes | Use an internal/private URL when possible.                                                                  |
-| `BETTER_AUTH_SECRET`      |         yes | Use a non-placeholder secret of at least 32 characters.                                                     |
-| `BETTER_AUTH_URL`         |         yes | Public API/auth base URL; align with the API origin compiled into the web bundle.                           |
-| `CORS_ORIGIN`             |         yes | Exact browser origin serving the deployed web app.                                                          |
-| `CRON_SECRET`             |         yes | Use a non-placeholder bearer token of at least 16 characters.                                               |
-| `TELEGRAM_WEBHOOK_SECRET` |         yes | Required by the schema even when Telegram is disabled; use a private synthetic value if not configured.     |
-| `EMAIL_FROM`              |         yes | Sender address; configure a verified sender for real outbound mail.                                         |
-| `RESEND_API_KEY`          | conditional | Required for real magic-link delivery. Without it, mail is dry-run only and sign-in email is not delivered. |
-| `TELEGRAM_BOT_TOKEN`      | conditional | Needed to enable Telegram delivery.                                                                         |
-| `ANTHROPIC_API_KEY`       | conditional | Needed to enable AI-provider calls.                                                                         |
+| Variable                  |    Required | Notes                                                                                                                                    |
+| ------------------------- | ----------: | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                |         yes | Set to `production`.                                                                                                                     |
+| `DATABASE_URL`            |         yes | Use an internal/private URL when possible.                                                                                               |
+| `BETTER_AUTH_SECRET`      |         yes | Use a non-placeholder secret of at least 32 characters.                                                                                  |
+| `BETTER_AUTH_URL`         |         yes | Public API/auth base URL; align with the API origin compiled into the web bundle.                                                        |
+| `CORS_ORIGIN`             |         yes | Exact browser origin serving the deployed web app.                                                                                       |
+| `CRON_SECRET`             |         yes | Use a non-placeholder bearer token of at least 16 characters.                                                                            |
+| `TELEGRAM_WEBHOOK_SECRET` |         yes | Required by the schema even when Telegram is disabled; use a private synthetic value if not configured.                                  |
+| `EMAIL_FROM`              |         yes | Sender address; configure a verified sender for real outbound mail.                                                                      |
+| `RESEND_API_KEY`          | conditional | Required for real magic-link delivery (with `EMAIL_DRY_RUN=false`). Without it, mail is dry-run only and sign-in email is not delivered. |
+| `TELEGRAM_BOT_TOKEN`      | conditional | Needed to enable Telegram delivery.                                                                                                      |
+| `ANTHROPIC_API_KEY`       | conditional | Needed to enable AI-provider calls.                                                                                                      |
 
 `EMAIL_DRY_RUN`, `TELEGRAM_CONNECT_TOKEN_TTL_SECONDS`, `TELEGRAM_API_BASE_URL`,
 `AI_MODEL`, and `AI_RATE_LIMIT_PER_MINUTE` have schema defaults. Do not set
@@ -191,6 +191,30 @@ Status semantics:
 
 Each check emits a structured `health.readiness.checked` log line carrying the
 correlation id, status, database status and any missing secret names.
+
+`capabilities.resend` is `true` only when email is actually delivered: a
+`RESEND_API_KEY` is configured **and** `EMAIL_DRY_RUN=false`. With the default
+`EMAIL_DRY_RUN=true`, sends are logged as `email.send.dry-run` and nothing is
+delivered. Resend is the only email transport; there is no SMTP option.
+
+A failed send emits an `email.send.failed` line (plus
+`auth.magic-link.send.failed` / `auth.invitation.send.failed` from the auth
+flows) with a masked recipient and these value-free fields:
+
+| `errorCategory`        | Retryable | Meaning / operator action                                     |
+| ---------------------- | --------- | ------------------------------------------------------------- |
+| `auth`                 | no        | HTTP 401/403: check `RESEND_API_KEY` and the verified sender. |
+| `rejected`             | no        | Other 4xx: Resend refused the message (see `providerError`).  |
+| `rate_limited`         | yes       | HTTP 429: rate or quota exceeded.                             |
+| `provider_unavailable` | yes       | HTTP 5xx from Resend.                                         |
+| `timeout`              | yes       | No response within 10 seconds.                                |
+| `network`              | yes       | DNS, TLS or connection failure before any response.           |
+| `unknown`              | no        | Not a typed provider failure.                                 |
+
+Each line also carries `errorCode` (`EMAIL_TRANSIENT`, `EMAIL_PERMANENT`,
+`EMAIL_UNKNOWN`), `retryable`, `status` and, when it is identifier-shaped,
+Resend's error name as `providerError`. The API key, recipient address, message
+body and provider error message are never logged.
 
 ## 7. Scheduled jobs
 

@@ -1,6 +1,6 @@
 import {
+  describeEmailDeliveryError,
   EmailPermanentError,
-  EmailTransientError,
   type EmailRenderOptions,
   type SendEmailFn,
 } from "@openvalens/email";
@@ -112,15 +112,7 @@ function errorCodeFor(error: unknown): string {
     return "DRY_RUN_UNAVAILABLE";
   }
 
-  if (error instanceof EmailTransientError) {
-    return "EMAIL_TRANSIENT";
-  }
-
-  if (error instanceof EmailPermanentError) {
-    return "EMAIL_PERMANENT";
-  }
-
-  return "EMAIL_UNKNOWN";
+  return describeEmailDeliveryError(error).errorCode;
 }
 
 class DryRunMagicLinkUnavailable extends Error {
@@ -215,9 +207,12 @@ export async function sendAuthMagicLink(
     }
   } catch (error) {
     // Issue #9 — PHI-safe: only the typed code is logged, never the message.
+    const { errorCategory, retryable } = describeEmailDeliveryError(error);
     logger.error("auth.magic-link.send.failed", {
       ...metadata,
       code: errorCodeFor(error),
+      errorCategory,
+      retryable,
     });
 
     if (error instanceof EmailPermanentError) {

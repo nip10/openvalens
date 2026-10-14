@@ -101,6 +101,8 @@ describe("sendAuthMagicLink", () => {
       .find((line) => line.event === "auth.magic-link.send.failed");
     expect(failure).toBeDefined();
     expect(failure?.code).toBe("EMAIL_TRANSIENT");
+    expect(failure?.errorCategory).toBe("provider_unavailable");
+    expect(failure?.retryable).toBe(true);
     expect(lines.join("\n")).not.toContain("user@example.com");
   });
 
@@ -120,6 +122,8 @@ describe("sendAuthMagicLink", () => {
       .find((line) => line.event === "auth.magic-link.send.failed");
     expect(failure).toBeDefined();
     expect(failure?.code).toBe("EMAIL_PERMANENT");
+    expect(failure?.errorCategory).toBe("rejected");
+    expect(failure?.retryable).toBe(false);
   });
 
   test("dev link sink receives the URL only when the email was a dry run", async () => {

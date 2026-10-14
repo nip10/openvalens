@@ -72,11 +72,14 @@ export const aiRateLimiter = new InMemoryRateLimiter({
  *
  * `mobilePairing` is always available in this platform layer; the integration
  * flags are `true` only when the optional provider env var is present.
+ * `resend` (Issue #61) is `true` only when email is actually delivered: a key
+ * is configured *and* `EMAIL_DRY_RUN` is off. A key alone with the default
+ * dry-run would otherwise advertise delivery that never happens.
  */
 export const capabilities = {
   telegram: telegramConfig.TELEGRAM_BOT_TOKEN !== null,
   anthropic: aiConfig.ANTHROPIC_API_KEY !== null,
-  resend: Boolean(ENV.RESEND_API_KEY),
+  resend: emailConfig.RESEND_API_KEY !== null && !emailConfig.EMAIL_DRY_RUN,
   mobilePairing: true,
 };
 
