@@ -69,14 +69,14 @@ before it is validated.
 The effective mode is resolved at boot by `resolveCspMode(NODE_ENV, CSP_MODE)`
 in `apps/server/src/security-csp-report.ts`:
 
-| `NODE_ENV`  | `CSP_MODE` (explicit) | Effective mode | Header                                |
-| ----------- | --------------------- | -------------- | ------------------------------------- |
-| `production`| unset                 | `enforce`      | `Content-Security-Policy`             |
-| `production`| `enforce`             | `enforce`      | `Content-Security-Policy`             |
-| `production`| `report-only`         | `report-only`  | `Content-Security-Policy-Report-Only` |
-| other       | unset                 | `report-only`  | `Content-Security-Policy-Report-Only` |
-| other       | `enforce`             | `enforce`      | `Content-Security-Policy`             |
-| other       | `report-only`         | `report-only`  | `Content-Security-Policy-Report-Only` |
+| `NODE_ENV`   | `CSP_MODE` (explicit) | Effective mode | Header                                |
+| ------------ | --------------------- | -------------- | ------------------------------------- |
+| `production` | unset                 | `enforce`      | `Content-Security-Policy`             |
+| `production` | `enforce`             | `enforce`      | `Content-Security-Policy`             |
+| `production` | `report-only`         | `report-only`  | `Content-Security-Policy-Report-Only` |
+| other        | unset                 | `report-only`  | `Content-Security-Policy-Report-Only` |
+| other        | `enforce`             | `enforce`      | `Content-Security-Policy`             |
+| other        | `report-only`         | `report-only`  | `Content-Security-Policy-Report-Only` |
 
 An explicit `CSP_MODE` always wins; production is only the tiebreaker when the
 value is unset. `CSP_MODE=report-only` is therefore the documented rollback
@@ -143,18 +143,18 @@ an 8-byte blake2b hash; log lines carry counts and lengths only. One row per
 accepted violation is appended to `csp_violation_event` (see
 `packages/db/src/migrations/20261014120000_csp_violation_event/`):
 
-| Column                                                     | Notes                                  |
-| ---------------------------------------------------------- | -------------------------------------- |
-| `id`                                                       | `bigserial` primary key                |
-| `occurred_at`                                              | `timestamptz`, defaults to `now()`     |
-| `csp_mode_at_emit`                                         | `report-only` / `enforce`              |
-| `document_uri_host` / `document_uri_path_prefix`           | host required, path-prefix optional    |
-| `violated_directive` / `effective_directive`               | directive names                        |
-| `blocked_uri_host` / `blocked_uri_path_prefix`             | may be null (`inline`, `eval`, …)      |
-| `source_file` / `source_line` / `source_column`            | capped scalars                         |
-| `original_policy_hash`                                     | 8-byte blake2b of the policy literal   |
-| `disposition`                                              | `enforce` / `report`                   |
-| `correlation_id`                                           | links the row to the request log line  |
+| Column                                           | Notes                                 |
+| ------------------------------------------------ | ------------------------------------- |
+| `id`                                             | `bigserial` primary key               |
+| `occurred_at`                                    | `timestamptz`, defaults to `now()`    |
+| `csp_mode_at_emit`                               | `report-only` / `enforce`             |
+| `document_uri_host` / `document_uri_path_prefix` | host required, path-prefix optional   |
+| `violated_directive` / `effective_directive`     | directive names                       |
+| `blocked_uri_host` / `blocked_uri_path_prefix`   | may be null (`inline`, `eval`, …)     |
+| `source_file` / `source_line` / `source_column`  | capped scalars                        |
+| `original_policy_hash`                           | 8-byte blake2b of the policy literal  |
+| `disposition`                                    | `enforce` / `report`                  |
+| `correlation_id`                                 | links the row to the request log line |
 
 The table is metadata-only with no foreign keys and no personal identifiers, so
 it survives erasure. Retention follows the platform log-retention policy; prune
