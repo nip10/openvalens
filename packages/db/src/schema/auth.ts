@@ -373,18 +373,12 @@ export const userAiConsent = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     granted: boolean("granted").notNull().default(false),
-    grantedAt: timestamp("granted_at", { withTimezone: true, mode: "date" })
-      .notNull()
-      .defaultNow(),
+    grantedAt: timestamp("granted_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     consentVersion: text("consent_version").notNull().default("v1"),
     source: text("source"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
     userAiConsentUserIdUnique: uniqueIndex("user_ai_consent_user_id_key").on(table.userId),

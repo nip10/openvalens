@@ -104,10 +104,7 @@ function buildConsentRow(payload: Record<string, unknown>): UserConsentRow {
 
 type WriteResult = Promise<unknown> & {
   returning: () => Promise<Array<{ id: number }>>;
-  onConflictDoUpdate: (config: {
-    target?: unknown;
-    set?: Record<string, unknown>;
-  }) => WriteResult;
+  onConflictDoUpdate: (config: { target?: unknown; set?: Record<string, unknown> }) => WriteResult;
 };
 
 /**
