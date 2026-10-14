@@ -71,7 +71,12 @@ export function securityHeadersMiddleware(
 
   return async (c, next) => {
     apply(c);
-    await next();
-    apply(c);
+    try {
+      await next();
+    } finally {
+      // Re-apply even when a downstream handler throws, so an error response
+      // created by Hono's default error handler still carries the headers.
+      apply(c);
+    }
   };
 }

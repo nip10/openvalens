@@ -8,3 +8,4 @@ export * from "./ingestion";
 export * from "./integrations";
 export * from "./plans";
 export * from "./data-rights";
+export * from "./security";
