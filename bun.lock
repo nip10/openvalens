@@ -308,6 +308,7 @@
       "devDependencies": {
         "@types/bun": "catalog:",
         "typescript": "^6.0.3",
+        "varlock": "catalog:",
       },
     },
     "packages/data-rights": {
@@ -389,6 +390,17 @@
     },
     "packages/labs": {
       "name": "@openvalens/labs",
+      "dependencies": {
+        "@openvalens/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/nutrition": {
+      "name": "@openvalens/nutrition",
       "dependencies": {
         "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
@@ -901,6 +913,8 @@
     "@openvalens/ingestion": ["@openvalens/ingestion@workspace:packages/ingestion"],
 
     "@openvalens/labs": ["@openvalens/labs@workspace:packages/labs"],
+
+    "@openvalens/nutrition": ["@openvalens/nutrition@workspace:packages/nutrition"],
 
     "@openvalens/observability": ["@openvalens/observability@workspace:packages/observability"],
 

@@ -116,6 +116,13 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   mobile_pairing_rate_limit: { kind: "retired", reason: RETIRED },
   mobile_device_session: { kind: "retired", reason: RETIRED },
 
+  // Nutrition (#74). Snapshots hold the subject's logged food/nutrient history.
+  nutrition_food: organization,
+  nutrition_food_snapshot: organization,
+  nutrition_meal: organization,
+  nutrition_meal_entry: organization,
+  nutrition_goal: organization,
+
   // Integrations
   telegram_account: organization,
   telegram_connect_token: { kind: "organization", redact: ["token_hash"] },
