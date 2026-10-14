@@ -1,3 +1,6 @@
+# Development stack only. The supported production self-host install is
+# deploy/compose.yml (Caddy/HTTPS, generated secrets, backup-gated migrations);
+# see docs/self-hosting.md.
 name: openvalens
 
 services:

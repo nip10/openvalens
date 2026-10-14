@@ -9,6 +9,12 @@ Last updated: 2026-10-06
 
 ## 1. Overview
 
+> **Self-hosting on your own server?** Use the supported Docker Compose install
+> in [docs/self-hosting.md](self-hosting.md) (`deploy/setup.sh`): Caddy/HTTPS,
+> generated secrets, setup token, and backup-gated automatic migrations. This
+> document covers platform (Coolify/Dokploy) deployments and operations
+> reference.
+
 This repo runs two deployable services:
 
 - `apps/server` — Hono + oRPC API on port `3000` (`/rpc`, `/api-reference`,
@@ -64,8 +70,10 @@ Notes:
 - Runtime environment variables must be set in the platform; secrets are never
   baked into the image (the Dockerfile mounts `.env` files as BuildKit secrets
   only for install/build).
-- Run database migrations as a one-off command, never automatically on boot.
-  See [docs/migration-safety.md](migration-safety.md) and section 5.
+- On a platform deployment, run database migrations as a one-off command,
+  never automatically on boot. See [docs/migration-safety.md](migration-safety.md)
+  and section 5. (The self-host Compose install instead migrates on start, gated
+  on a pre-migrate backup; see [self-hosting.md](self-hosting.md#upgrades).)
 
 ## 4. Required environment variables
 
@@ -146,7 +154,11 @@ See `CONTRIBUTING.md` ("File-based secrets") for examples.
 bun run db:migrate
 ```
 
-- Do **not** run migrations automatically on every container start.
+- Do **not** run migrations automatically on every container start of a
+  platform deployment. The self-host Compose install is the exception: its
+  one-shot `migrate` service runs only after the pre-migrate backup hook
+  succeeds, and a failure leaves the server stopped
+  ([self-hosting.md](self-hosting.md#upgrades)).
 - Destructive migrations must follow the quarantine-over-DELETE and
   `NOT VALID` → `VALIDATE CONSTRAINT` rules in
   [docs/migration-safety.md](migration-safety.md).
@@ -443,7 +455,10 @@ DATABASE_URL_FILE=/path/to/private/db-url \
   or terminal. Only admission invitation bearers and proof codes are delivered
   by email, and only in the message body.
 
-The README/self-host installer and the backup scope are unchanged by this flow.
+On the self-host Compose install, `deploy/setup.sh install` mints the token
+into `deploy/secrets/setup-token` for you (and `deploy/setup.sh mint-token`
+re-mints it) by running this same launcher inside the server image; see
+[self-hosting.md](self-hosting.md#first-administrator-and-invitations).
 
 ### 2. Create the first administrator (web)
 
@@ -543,8 +558,10 @@ accounts keep signing in as before (native handoff is assumed, not verified).
 CI/production provider credentials and live email delivery are outside this
 document's scope.
 
-Related: #63. The setup-token minting path described above is implemented; the
-remaining admission work is installer/headless tooling, operator/resource
-guidance and deferred backup handling. Editable product settings and settings-change
+Related: #63. The setup-token minting path and the self-host installer
+(`deploy/setup.sh`, [self-hosting.md](self-hosting.md)) are implemented. Full
+encrypted backup/restore remains deferred to #64 (the installer's pre-migrate
+backup is a plain `pg_dump`), and resource minimums still need measuring on a
+reference VPS. Editable product settings and settings-change
 auditing remain separate Issue #58 work. The admission web UI has passed its
 independent security gate; production activation requires separate authorization.

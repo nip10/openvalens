@@ -93,6 +93,10 @@ Run standalone Node/Bun tools that use Varlock from the owning app directory so 
 
 ### Docker Compose
 
+> This is the **development** stack. To self-host OpenValens on a server, use
+> the supported HTTPS install in [docs/self-hosting.md](docs/self-hosting.md)
+> (`deploy/setup.sh install`).
+
 - Target: web + server
 - Config: `docker-compose.yml` (app Dockerfiles live in `apps/*/Dockerfile`)
 - Build images: bun run docker:build
