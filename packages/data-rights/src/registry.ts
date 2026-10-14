@@ -54,7 +54,6 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     ],
   },
   session: { kind: "user", redact: ["token"] },
-  user_ai_consent: { kind: "user" },
   member: organization,
   invitation: organization,
   organization_role: organization,
