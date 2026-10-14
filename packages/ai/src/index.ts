@@ -3,5 +3,8 @@ export * from "./consent";
 export * from "./extract";
 export * from "./rate-limit";
 export * from "./stream";
+export * from "./tools";
+export * from "./tools/access";
 export * from "./tools/health-snapshot";
 export * from "./tools/marker-trend";
+export * from "./tools/sources";
