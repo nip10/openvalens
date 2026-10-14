@@ -3,8 +3,7 @@ import { expo } from "@better-auth/expo";
 import type { Database } from "@openvalens/db";
 import * as schema from "@openvalens/db/schema/auth";
 import {
-  EmailPermanentError,
-  EmailTransientError,
+  describeEmailDeliveryError,
   type EmailService,
   renderInvitationEmail,
 } from "@openvalens/email";
@@ -250,15 +249,14 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
               { correlationId: undefined },
             );
           } catch (error) {
+            // Issue #61 — categorized and value-free; `code` keeps its name.
+            const { errorCode, errorCategory, retryable } = describeEmailDeliveryError(error);
             logger.error("auth.invitation.send.failed", {
               recipient: maskEmailRecipient(recipient),
               invitationId: invitation.id,
-              code:
-                error instanceof EmailTransientError
-                  ? "EMAIL_TRANSIENT"
-                  : error instanceof EmailPermanentError
-                    ? "EMAIL_PERMANENT"
-                    : "EMAIL_UNKNOWN",
+              code: errorCode,
+              errorCategory,
+              retryable,
             });
 
             return;

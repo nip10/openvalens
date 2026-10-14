@@ -123,6 +123,15 @@ db, { email, desktopOrigins? })` now takes the bound service as a required
 third argument, and template render functions accept an optional
 `{ organizationName }` that is presentation-only.
 
+Resend is the only email transport (Issue #61); do not add SMTP or another
+provider (`packages/email/src/resend-only.test.ts` guards this). Provider
+failures are `EmailTransientError` (retryable: `network`, `timeout`,
+`rate_limited`, `provider_unavailable`) or `EmailPermanentError` (`auth`,
+`rejected`). Log them with `describeEmailDeliveryError(error)`, which returns
+only the typed code, category, retryability, HTTP status and a sanitized
+provider error name — never the message, recipient, body or key. Tests inject a
+fake `EmailProvider` or `EmailService`; never call the live provider.
+
 ## Schema changes
 
 1. Edit `packages/db/src/schema/*`.

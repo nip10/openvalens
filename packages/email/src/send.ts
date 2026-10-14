@@ -4,8 +4,7 @@ import { shouldAuditBcc } from "./audit-bcc";
 import { EmailConfigError, extractDisplayName, type EmailConfig } from "./config";
 import { createEmailLogger, maskEmailRecipient } from "./logging";
 import {
-  EmailPermanentError,
-  EmailTransientError,
+  describeEmailDeliveryError,
   ResendProvider,
   type EmailProvider,
   type ResendTag,
@@ -87,6 +86,23 @@ export function createEmailService(
   });
 }
 
+/** Resend accepts only ASCII letters, digits, `_` and `-` in tags (max 256 chars). */
+const RESEND_TAG_PATTERN = /^[A-Za-z0-9_-]{1,256}$/;
+
+/**
+ * Maps caller tags onto Resend `{ name: "tag", value }` pairs. Values Resend
+ * would reject are dropped (a malformed tag must never fail the whole send) and
+ * duplicates are collapsed, preserving first-seen order.
+ */
+export function toResendTags(values: readonly string[] | undefined): ResendTag[] | undefined {
+  if (!values) {
+    return undefined;
+  }
+
+  const unique = [...new Set(values.filter((value) => RESEND_TAG_PATTERN.test(value)))];
+  return unique.length > 0 ? unique.map((value) => ({ name: "tag", value })) : undefined;
+}
+
 function mergeBcc(
   base: string | string[] | undefined,
   extra: string | null,
@@ -115,7 +131,7 @@ function mergeBcc(
 }
 
 /**
- * Sends a rendered email through Resend, or logs a dry-run event when no API
+ * Sends a rendered email through Resend (the only transport), or logs a dry-run event when no API
  * key is configured / `EMAIL_DRY_RUN` is on.
  *
  * The unbound export requires an explicit `options.config` — there is no
@@ -124,7 +140,7 @@ function mergeBcc(
  * value-free {@link EmailConfigError} before any provider is constructed.
  *
  * All log lines are PHI-safe: masked recipients, subject, template name,
- * provider id and typed error codes only. The raw recipient, token and body are
+ * provider id and categorized error summaries only. The raw recipient, token and body are
  * never logged. Provider exceptions are re-thrown after logging so callers can
  * decide whether to retry.
  */
@@ -159,10 +175,7 @@ export async function sendEmail(
 
   const auditBcc = shouldAuditBcc(templateName) ? config.EMAIL_AUDIT_BCC : null;
   const bcc = mergeBcc(input.bcc, auditBcc);
-  const tags: ResendTag[] | undefined = input.tags?.map((value) => ({
-    name: "tag",
-    value,
-  }));
+  const tags = toResendTags(input.tags);
 
   const provider = options.provider ?? new ResendProvider(config.RESEND_API_KEY);
 
@@ -187,18 +200,13 @@ export async function sendEmail(
 
     return { id, dryRun: false };
   } catch (error) {
-    const errorCode =
-      error instanceof EmailTransientError
-        ? error.code
-        : error instanceof EmailPermanentError
-          ? error.code
-          : "EMAIL_UNKNOWN";
-
+    // Issue #61 — categorized, value-free failure record: typed code, category,
+    // retryability, HTTP status and the sanitized provider error name only.
     logger.error("email.send.failed", {
       correlationId: options.correlationId,
       templateName,
       recipients: maskedRecipients,
-      errorCode,
+      ...describeEmailDeliveryError(error),
     });
 
     throw error;
