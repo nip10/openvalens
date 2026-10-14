@@ -74,9 +74,9 @@ const chatOutput = z.object({
 
 /**
  * `records:read` check the chat health tools re-run on every execution
- * (Issue #124). Resolves `false` instead of throwing so a denied tool call
- * becomes an honest "unavailable" tool result rather than a failed chat turn.
- * The remaining tools are tracked in #130.
+ * (Issues #124, #130). Resolves `false` instead of throwing so a denied tool
+ * call becomes an honest "unavailable" tool result rather than a failed chat
+ * turn.
  */
 function createRecordsReadCheck(honoContext: Parameters<typeof requirePermission>[0]) {
   return async (): Promise<boolean> => {

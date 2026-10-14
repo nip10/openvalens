@@ -1,0 +1,203 @@
+# OpenValens production self-host stack (Issue #63).
+#
+# This is the ONE supported self-host install. It is separate from the root
+# `docker-compose.yml`, which is the development stack. Do not edit values in
+# this file: run `deploy/setup.sh`, which writes `deploy/.env` (non-secret
+# settings) and `deploy/secrets/` (generated secrets), then starts the stack.
+#
+#   deploy/setup.sh install     # first install
+#   deploy/setup.sh upgrade     # backup -> migrate -> start, after a git checkout
+#
+# Network model:
+#   - `caddy` is the ONLY service that publishes ports (80/443, automatic HTTPS).
+#     Docker-published ports bypass host firewalls such as ufw, so nothing else
+#     may publish one.
+#   - `postgres` lives only on the `db` network, which is `internal: true`: no
+#     published port and no route to the internet.
+#   - `server` joins `db` and `app` (it needs egress for email/AI providers);
+#     `web` joins `app` only.
+#
+# Startup / upgrade order (each step must succeed before the next starts):
+#   postgres (healthy) -> backup (pre-migrate hook) -> migrate -> server -> web -> caddy
+# A failed backup or migration leaves `server` stopped and never deletes a backup.
+
+name: openvalens-selfhost
+
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+# Server runtime configuration. Every secret is read from a private file via the
+# `<KEY>_FILE` convention; no secret value is interpolated into this file.
+x-server-env: &server-env
+  NODE_ENV: production
+  BETTER_AUTH_URL: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
+  CORS_ORIGIN: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
+  EMAIL_FROM: ${EMAIL_FROM:?run deploy/setup.sh first}
+  EMAIL_DRY_RUN: ${EMAIL_DRY_RUN:-false}
+  DATABASE_URL_FILE: /run/secrets/DATABASE_URL
+  BETTER_AUTH_SECRET_FILE: /run/secrets/BETTER_AUTH_SECRET
+  CRON_SECRET_FILE: /run/secrets/CRON_SECRET
+  TELEGRAM_WEBHOOK_SECRET_FILE: /run/secrets/TELEGRAM_WEBHOOK_SECRET
+  # Optional provider keys: an empty `<KEY>_FILE` is treated as unset.
+  RESEND_API_KEY_FILE: ${RESEND_API_KEY_FILE:-}
+  ANTHROPIC_API_KEY_FILE: ${ANTHROPIC_API_KEY_FILE:-}
+  TELEGRAM_BOT_TOKEN_FILE: ${TELEGRAM_BOT_TOKEN_FILE:-}
+
+services:
+  caddy:
+    <<: *hardening
+    # Pinned by version and index digest; bump deliberately.
+    image: caddy:2.11.7@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af
+    ports:
+      - "${OPENVALENS_HTTP_PORT:-80}:80"
+      - "${OPENVALENS_HTTPS_PORT:-443}:443"
+      - "${OPENVALENS_HTTPS_PORT:-443}:443/udp"
+    environment:
+      OPENVALENS_DOMAIN: ${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
+      ACME_EMAIL: ${ACME_EMAIL:?run deploy/setup.sh first}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - app
+    depends_on:
+      server:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    <<: *hardening
+    image: openvalens-web:${OPENVALENS_VERSION:?run deploy/setup.sh first}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Same origin: Caddy routes the API paths to `server`.
+        VITE_SERVER_URL: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
+    init: true
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  server:
+    <<: *hardening
+    image: openvalens-server:${OPENVALENS_VERSION:?run deploy/setup.sh first}
+    build:
+      context: ..
+      dockerfile: apps/server/Dockerfile
+    init: true
+    environment: *server-env
+    volumes:
+      - ./secrets/server:/run/secrets:ro
+    networks:
+      - app
+      - db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://localhost:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # One-shot: apply pending tracked Drizzle migrations. Runs only after the
+  # pre-migrate backup step succeeded; `server` starts only if this exits 0.
+  migrate:
+    <<: *hardening
+    image: openvalens-server:${OPENVALENS_VERSION:?run deploy/setup.sh first}
+    environment: *server-env
+    volumes:
+      - ./secrets/server:/run/secrets:ro
+    working_dir: /app/packages/db
+    command: ["bun", "run", "db:migrate:deploy"]
+    networks:
+      - db
+    depends_on:
+      backup:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # One-shot: the pluggable pre-migrate backup hook (see pre-migrate-backup.sh).
+  # Default: a plain, UNENCRYPTED pg_dump into the `backups` volume. Encrypted
+  # backup/restore is pending Issue #64.
+  backup:
+    <<: *hardening
+    image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+    entrypoint: ["/bin/sh", "/opt/openvalens/pre-migrate-backup.sh"]
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGDATABASE: openhealth
+      POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+      OPENVALENS_PRE_MIGRATE_BACKUP: ${OPENVALENS_PRE_MIGRATE_BACKUP:-pg_dump}
+      OPENVALENS_BACKUP_RETAIN: ${OPENVALENS_BACKUP_RETAIN:-10}
+      OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP: ${OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP:-}
+    volumes:
+      - ./pre-migrate-backup.sh:/opt/openvalens/pre-migrate-backup.sh:ro
+      - ./hooks:/opt/openvalens/hooks:ro
+      - ./secrets/postgres:/run/secrets:ro
+      - backups:/backups
+    networks:
+      - db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  postgres:
+    <<: *hardening
+    image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+    environment:
+      POSTGRES_DB: openhealth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+    volumes:
+      - ./secrets/postgres:/run/secrets:ro
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - db
+    # No `ports:` — never publish the health database.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d openhealth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  app: {}
+  db:
+    internal: true
+
+volumes:
+  postgres_data: {}
+  backups: {}
+  caddy_data: {}
+  caddy_config: {}

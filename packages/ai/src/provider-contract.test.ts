@@ -521,3 +521,86 @@ describe("provider failure logs (Issue #59)", () => {
     expect(JSON.stringify(lines)).not.toContain("synthetic-wrong-key");
   });
 });
+
+/** OpenAI Chat Completions stream that only calls `healthSnapshot`. */
+function toolCallStream(): Response {
+  return sse([
+    {
+      id: "chatcmpl-synthetic",
+      object: "chat.completion.chunk",
+      created: 1,
+      model: "synthetic-local-model",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_synthetic",
+                type: "function",
+                function: { name: "healthSnapshot", arguments: "{}" },
+              },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-synthetic",
+      object: "chat.completion.chunk",
+      created: 1,
+      model: "synthetic-local-model",
+      choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+      usage: { prompt_tokens: 9, completion_tokens: 2, total_tokens: 11 },
+    },
+  ]);
+}
+
+function hasToolResult(request: RecordedRequest): boolean {
+  const messages = (request.body.messages ?? []) as Array<{ role?: string }>;
+  return messages.some((message) => message.role === "tool");
+}
+
+describe("multi-step tool loop on OpenAI-compatible endpoints (Issues #59, #130)", () => {
+  test("a tool-capable endpoint runs the loop and answers from the tool result", async () => {
+    const server = startMockServer((request) =>
+      hasToolResult(request) ? chatCompletionStream(REPLY_TEXT) : toolCallStream(),
+    );
+
+    const result = await streamChat({
+      config: compatibleConfig(server),
+      messages: [{ role: "user", content: "hi" }],
+      tools: syntheticTools(),
+      correlationId: "corr-loop",
+      logger: captureLogger().logger,
+    });
+
+    expect(result.text).toBe(REPLY_TEXT);
+    expect(server.requests).toHaveLength(2);
+    expect(hasToolResult(server.requests[1]!)).toBe(true);
+  });
+
+  test("degrades to a no-tools answer when the endpoint rejects the tool-result step", async () => {
+    // Accepts `tools` but cannot handle `role: "tool"` messages.
+    const server = startMockServer((request) => {
+      if (hasToolResult(request)) return jsonError(400, "unsupported role: tool");
+      return request.body.tools ? toolCallStream() : chatCompletionStream(REPLY_TEXT);
+    });
+    const { logger, lines } = captureLogger();
+
+    const result = await streamChat({
+      config: compatibleConfig(server),
+      messages: [{ role: "user", content: "hi" }],
+      tools: syntheticTools(),
+      correlationId: "corr-loop-reject",
+      logger,
+    });
+
+    expect(result.text).toBe(REPLY_TEXT);
+    expect(server.requests).toHaveLength(3);
+    expect(server.requests[2]?.body).not.toHaveProperty("tools");
+    expect(lines.map((line) => line.event)).toContain("ai.chat.stream.tools_unsupported");
+  });
+});

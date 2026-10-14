@@ -31,3 +31,7 @@ docker-compose.yml
 local.db
 local.db-*
 .data
+
+# Issue #63 — never copy self-host secrets/state into an image layer
+deploy/secrets
+deploy/hooks

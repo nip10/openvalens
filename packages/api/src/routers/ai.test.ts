@@ -49,7 +49,15 @@ mock.module("@openvalens/auth/authz/guard", () => ({
 // health tools; keep the real consent/config/limiter/tool exports so the gate
 // behaviour under test is genuine.
 const actualAi = await import("@openvalens/ai");
-const { createFakeSources, marker } = await import("@openvalens/ai/tools/test-fixtures");
+const {
+  bloodPanel,
+  createFakeSources,
+  dexaScanRow,
+  goalEntry,
+  marker,
+  supplementEntry,
+  timelineEntry,
+} = await import("@openvalens/ai/tools/test-fixtures");
 const streamChat = mock(
   async (_input: { tools?: Record<string, unknown> }): Promise<StreamChatResultShape> => ({
     totalChunks: 2,
@@ -642,13 +650,26 @@ function assistantText(inserts: CapturedInsert[]): unknown[] {
 const INSIGHTS_CONSENT = { aiConsent: { enabled: true, scope: "insights" } };
 
 describe("ai.chat health tools (Issue #124)", () => {
-  test("offers healthSnapshot and markerTrend bound to the session org and user", async () => {
+  test("offers the planned health tools bound to the session org and user", async () => {
     const { db } = createMockDb(INSIGHTS_CONSENT);
 
     await callChat(createContext(db));
 
     const tools = streamChat.mock.calls[0]?.[0].tools ?? {};
-    expect(Object.keys(tools).sort()).toEqual(["healthSnapshot", "markerTrend"]);
+    expect(Object.keys(tools).sort()).toEqual(
+      [
+        "bodyComp",
+        "goals",
+        "healthSnapshot",
+        "labs",
+        "markerTrend",
+        "outOfRange",
+        "panelCompare",
+        "supplements",
+        "timelineSummary",
+        "weightTrend",
+      ].sort(),
+    );
     expect(createAiHealthTools).toHaveBeenCalledTimes(1);
     expect(createAiHealthTools.mock.calls[0]?.[0]).toMatchObject({
       organizationId: ORG_ID,
@@ -787,5 +808,140 @@ describe("ai.chat health tools (Issue #124)", () => {
     expect(serialized).not.toContain("72.25");
     expect(serialized).not.toContain("Ferritin");
     expect(serialized).not.toContain("ferritin");
+  });
+});
+
+const REMAINING_TOOL_CALLS = [
+  { name: "labs", input: {} },
+  { name: "panelCompare", input: {} },
+  { name: "outOfRange", input: {} },
+  { name: "bodyComp", input: {} },
+  { name: "weightTrend", input: { days: 365 } },
+  { name: "supplements", input: { includeInactive: false } },
+  { name: "goals", input: {} },
+  { name: "timelineSummary", input: { days: 90 } },
+];
+
+/** Sentinel values that only the other organization holds. */
+const OTHER_ORG_VALUE = 876.54;
+
+function remainingToolData(organizationId: string, value: number) {
+  return {
+    bloodPanels: [
+      bloodPanel(1, "2026-01-05", [{ testKey: "ferritin", value: value - 1 }], organizationId),
+      bloodPanel(2, "2026-03-01", [{ testKey: "ferritin", value, flag: "HIGH" }], organizationId),
+    ],
+    dexaScans: [dexaScanRow(3, "2026-02-15", { bodyFatPct: value })],
+    bodyComp: {
+      canonicalDailyPoints: [
+        {
+          date: new Date().toISOString().slice(0, 10),
+          weightKg: value,
+          source: "s",
+          confidence: 1,
+        },
+      ],
+      compositionMarkers: [],
+    },
+    supplements: [supplementEntry(4, `Supplement ${value}`, ["active"])],
+    goals: [goalEntry(5, `Goal ${value}`, "in_progress", { current: String(value), target: "1" })],
+    timeline: [timelineEntry("health_event:6", new Date(Date.now() - 60_000).toISOString())],
+  };
+}
+
+describe("ai.chat remaining health tools (Issue #130)", () => {
+  test("each tool reads real data for the active org only", async () => {
+    fakeSources = createFakeSources({
+      [ORG_ID]: remainingToolData(ORG_ID, 52.5),
+      [OTHER_ORG_ID]: remainingToolData(OTHER_ORG_ID, OTHER_ORG_VALUE),
+    });
+    streamChat.mockImplementationOnce(streamChatCallingTools(REMAINING_TOOL_CALLS));
+    const { db, inserts } = createMockDb(INSIGHTS_CONSENT);
+
+    await callChat(createContext(db));
+
+    const results = assistantText(inserts) as Array<Record<string, unknown>>;
+    expect(results.map((result) => result.status)).toEqual(Array(8).fill("ok"));
+    expect(results[0]).toMatchObject({ panelDate: "2026-03-01", markerCount: 1 });
+    expect(results[1]).toMatchObject({ rows: [expect.objectContaining({ toValue: 52.5 })] });
+    expect(results[2]).toMatchObject({ flaggedCount: 1 });
+    expect(results[4]).toMatchObject({ latest: expect.objectContaining({ weightKg: 52.5 }) });
+    expect(fakeSources.calls.every((call) => call.organizationId === ORG_ID)).toBe(true);
+    expect(JSON.stringify(results)).not.toContain(String(OTHER_ORG_VALUE));
+    expect(JSON.stringify(results)).not.toContain(ORG_ID);
+  });
+
+  test("re-checks records:read on every call and reads nothing when denied", async () => {
+    fakeSources = createFakeSources({ [ORG_ID]: remainingToolData(ORG_ID, 52.5) });
+    requirePermission.mockImplementation(async () => {
+      throw new FakeAuthzHttpError("PERMISSION_DENIED");
+    });
+    streamChat.mockImplementationOnce(streamChatCallingTools(REMAINING_TOOL_CALLS));
+    const { db, inserts } = createMockDb(INSIGHTS_CONSENT);
+
+    try {
+      await callChat(createContext(db));
+    } finally {
+      requirePermission.mockImplementation(async () => ({}));
+    }
+
+    expect(requirePermission).toHaveBeenCalledTimes(REMAINING_TOOL_CALLS.length);
+    expect(assistantText(inserts)).toEqual(
+      Array(REMAINING_TOOL_CALLS.length).fill(
+        expect.objectContaining({ status: "unavailable", reason: "permission_denied" }),
+      ),
+    );
+    expect(fakeSources.calls).toHaveLength(0);
+  });
+
+  test("a chat-only org grant keeps every tool's health data out", async () => {
+    fakeSources = createFakeSources({ [ORG_ID]: remainingToolData(ORG_ID, 52.5) });
+    streamChat.mockImplementationOnce(streamChatCallingTools(REMAINING_TOOL_CALLS));
+    const { db, inserts } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+
+    await callChat(createContext(db));
+
+    expect(assistantText(inserts)).toEqual(
+      Array(REMAINING_TOOL_CALLS.length).fill(
+        expect.objectContaining({ status: "unavailable", reason: "consent_required" }),
+      ),
+    );
+    expect(fakeSources.calls).toHaveLength(0);
+  });
+
+  test("returns honest empty results when the org has no records", async () => {
+    streamChat.mockImplementationOnce(streamChatCallingTools(REMAINING_TOOL_CALLS));
+    const { db, inserts } = createMockDb(INSIGHTS_CONSENT);
+
+    await callChat(createContext(db));
+
+    expect(
+      (assistantText(inserts) as Array<{ status: string }>).map((result) => result.status),
+    ).toEqual([
+      "no_data",
+      "insufficient_data",
+      "no_data",
+      "no_data",
+      "no_data",
+      "no_data",
+      "no_data",
+      "no_data",
+    ]);
+  });
+
+  test("tool execution logs carry no health values", async () => {
+    fakeSources = createFakeSources({ [ORG_ID]: remainingToolData(ORG_ID, 52.5) });
+    streamChat.mockImplementationOnce(streamChatCallingTools(REMAINING_TOOL_CALLS));
+    const { db } = createMockDb(INSIGHTS_CONSENT);
+
+    const lines = await captureLogs(() => callChat(createContext(db)));
+
+    expect(lines.filter((line) => line.event === "ai.tool.executed")).toHaveLength(
+      REMAINING_TOOL_CALLS.length,
+    );
+    const serialized = JSON.stringify(lines);
+    for (const forbidden of ["52.5", "ferritin", "Supplement", "Goal 52", "2026-03-01"]) {
+      expect(serialized).not.toContain(forbidden);
+    }
   });
 });
