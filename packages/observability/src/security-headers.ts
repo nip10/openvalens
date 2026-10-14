@@ -12,7 +12,8 @@
  * the app, then flip to `cspMode: "enforce"` once the report is clean. When a
  * reporting group is supplied, an enforced policy additionally advertises it via
  * the `report-to <group>` directive and — when a URL is also supplied — a
- * `Report-To` JSON-document header (Issue #127); the report-only header stays
+ * `report-uri` fallback directive plus the `Reporting-Endpoints` and legacy
+ * `Report-To` headers (Issue #127); the report-only header stays
  * destination-free.
  */
 
@@ -38,12 +39,19 @@ export type SecurityHeadersOptions = {
    */
   reportToGroup?: string;
   /**
-   * Endpoint URL for the reporting group (Issue #127). The URL belongs only in
-   * the `Report-To` JSON body, never in the `report-to` directive. Emitted only
-   * when both `reportToGroup` and `reportToUrl` are set and `cspMode` is
-   * `"enforce"`.
+   * Endpoint URL for the reporting group (Issue #127). The URL never appears in
+   * the `report-to` directive (which takes a group token); it is emitted in the
+   * `report-uri` fallback directive, `Reporting-Endpoints` and the `Report-To`
+   * JSON body. Emitted only when both `reportToGroup` and `reportToUrl` are set
+   * and `cspMode` is `"enforce"`.
    */
   reportToUrl?: string;
+  /**
+   * Extra `connect-src` sources appended after {@link CSP_CONNECT_SRC}. The web
+   * document needs the API origin here because the SPA and the server are
+   * served from different origins (`VITE_SERVER_URL`).
+   */
+  additionalConnectSrc?: readonly string[];
 };
 
 /** Allowlisted third-party origins the app connects to. */
@@ -64,6 +72,7 @@ export function buildSecurityHeaders({
   allowDevScriptEval = true,
   reportToGroup,
   reportToUrl,
+  additionalConnectSrc = [],
 }: SecurityHeadersOptions): Record<string, string> {
   const scriptSrc = ["'self'", "'unsafe-inline'", ...(allowDevScriptEval ? ["'unsafe-eval'"] : [])];
 
@@ -73,7 +82,7 @@ export function buildSecurityHeaders({
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    `connect-src ${CSP_CONNECT_SRC.join(" ")}`,
+    `connect-src ${[...CSP_CONNECT_SRC, ...additionalConnectSrc].join(" ")}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -84,6 +93,11 @@ export function buildSecurityHeaders({
 
   if (reportingGroup) {
     directives.push(`report-to ${reportingGroup}`);
+    // `report-uri` is the CSP2 fallback for browsers without `report-to`
+    // support (Firefox); browsers that support `report-to` ignore it.
+    if (reportToUrl) {
+      directives.push(`report-uri ${reportToUrl}`);
+    }
   }
 
   const cspHeader =
@@ -106,6 +120,9 @@ export function buildSecurityHeaders({
       max_age: 10886400,
       endpoints: [{ url: reportToUrl }],
     });
+    // Reporting API v1 endpoint declaration; `Report-To` above is the legacy
+    // (v0) form some browsers still read.
+    headers["Reporting-Endpoints"] = `${reportingGroup}="${reportToUrl}"`;
   }
 
   return headers;

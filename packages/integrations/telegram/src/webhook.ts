@@ -136,6 +136,11 @@ async function processReactionUpdate(
       and(
         eq(dailyReminder.telegramMessageId, target.messageId),
         eq(dailyReminder.userId, account.userId),
+        // Issue #125 — defensive tenant predicate. The unique
+        // `telegram_account_user_id_active_key` and the org-scoped chat
+        // uniqueness already prevent cross-tenant reaches today, but we
+        // assert the invariant locally rather than relying on transitivity.
+        eq(dailyReminder.organizationId, account.organizationId),
       ),
     )
     .limit(1);
@@ -156,7 +161,13 @@ async function processReactionUpdate(
   await db
     .update(dailyReminder)
     .set({ status, actedAt: nowIso, actedVia: "telegram_reaction" })
-    .where(and(eq(dailyReminder.id, reminder.id), eq(dailyReminder.userId, account.userId)));
+    .where(
+      and(
+        eq(dailyReminder.id, reminder.id),
+        eq(dailyReminder.userId, account.userId),
+        eq(dailyReminder.organizationId, account.organizationId),
+      ),
+    );
 
   await db
     .update(telegramAccount)

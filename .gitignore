@@ -56,3 +56,6 @@ coverage
 .cache
 tmp
 temp
+
+# Issue #127 — rendered by scripts/render-web-security-headers.ts at image build
+apps/web/security-headers/

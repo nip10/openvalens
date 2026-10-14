@@ -1,3 +1,6 @@
+// Must run before any module that parses with zod (see ./zod-config).
+import "./zod-config";
+
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";

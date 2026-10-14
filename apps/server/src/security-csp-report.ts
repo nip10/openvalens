@@ -2,7 +2,7 @@
  * CSP violation sink (Issue #127).
  *
  * `POST /api/security/csp-report` accepts an `application/csp-report`
- * (legacy `report-uri`) or `application/reports+csp` (Reporting API) payload,
+ * (legacy `report-uri`) or `application/reports+json` (Reporting API) payload,
  * sanitises it via {@link sanitiseCspReport} and appends one metadata-only row
  * per violation to `csp_violation_event`.
  *
@@ -37,7 +37,8 @@ export const CSP_REPORT_PATH = "/api/security/csp-report";
 /** Inline body cap (bytes); there is no upstream body-size middleware. */
 export const CSP_REPORT_MAX_BODY_BYTES = 16 * 1024;
 
-const ACCEPTED_CONTENT_TYPES = new Set(["application/csp-report", "application/reports+csp"]);
+// `application/reports+json` is what browsers send for `report-to`.
+const ACCEPTED_CONTENT_TYPES = new Set(["application/csp-report", "application/reports+json"]);
 
 /**
  * Resolves the effective CSP mode. An explicit `CSP_MODE` always wins;
@@ -99,7 +100,9 @@ export function createCspReportHandler(
       return c.json({ error: "ORIGIN_REJECTED" }, 400);
     }
 
-    const decision = deps.rateLimiter.check(`${correlationId}::${originHeader}`);
+    // Keyed on the (already verified) origin: browsers send no correlation id,
+    // so a per-request key would never accumulate and the budget never bind.
+    const decision = deps.rateLimiter.check(`csp-report::${originHeader}`);
     if (!decision.allowed) {
       deps.logger.warn("csp.report.rate-limited", {
         correlationId,
