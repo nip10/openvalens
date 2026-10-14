@@ -1,19 +1,27 @@
 import { createStructuredLogger, type StructuredLogger } from "@openvalens/observability";
-import { streamText } from "ai";
+import { APICallError, RetryError, streamText } from "ai";
 
-import type { AiConfig } from "./config";
-import { createAnthropicModel } from "./providers/anthropic";
+import { describeAiEndpoint, type AiConfig } from "./config";
+import { describeAiProviderError } from "./errors";
+import { createAiModel, createAnthropicModel, createOpenAiCompatibleModel } from "./model";
 
-export { createAnthropicModel };
+export { createAiModel, createAnthropicModel, createOpenAiCompatibleModel };
 
 /**
  * Streaming chat primitive (Issue #13).
  *
  * Thin wrapper over the AI SDK `streamText` that:
  *
- * - builds the Anthropic model from {@link AiConfig};
- * - emits PHI-safe lifecycle logs (`ai.chat.stream.*`) — **never** message
- *   content, prompts, or model responses;
+ * - builds the configured provider's model from {@link AiConfig} (Anthropic
+ *   or any OpenAI-compatible endpoint, Issue #59);
+ * - emits PHI-safe lifecycle logs (`ai.chat.stream.*`) — provider and host
+ *   only, **never** message content, prompts, or model responses;
+ * - treats tools as an enhancement, never a dependency (Issue #59): when the
+ *   endpoint rejects a request that offers tools before any text streamed, the
+ *   turn is retried once without tools so chat degrades instead of failing;
+ * - surfaces provider errors reported through the stream (the AI SDK reports
+ *   them via `onError` and ends `textStream` empty) as thrown errors, so a
+ *   failed call is never mistaken for an empty reply;
  * - returns the aggregated text + usage so the caller can persist the turn.
  *
  * The wrapper accepts `streamTextFn` / `model` seams so tests can run without a
@@ -43,6 +51,7 @@ export type StreamTextFn = (args: {
   messages: AiChatMessage[];
   system?: string;
   tools?: Record<string, unknown>;
+  onError?: (event: { error: unknown }) => void;
 }) => {
   textStream: AsyncIterable<string>;
   usage?: PromiseLike<
@@ -69,6 +78,27 @@ export type StreamChatInput = {
 /** Emit a chunk log line every N chunks to avoid per-token log spam. */
 const CHUNK_LOG_INTERVAL = 25;
 
+/**
+ * Statuses that dropping tools cannot fix (auth, timeout, rate limit), so they
+ * never trigger the no-tools retry.
+ */
+const NO_TOOLS_RETRY_EXCLUDED_STATUSES = new Set([401, 403, 408, 429]);
+
+/**
+ * The HTTP status of a provider error that may mean "this endpoint does not
+ * accept `tools`" — vLLM without `--enable-auto-tool-choice` answers 400,
+ * llama.cpp without `--jinja` answers 500 — or `null` for any other error.
+ */
+export function toolsRejectionStatus(error: unknown): number | null {
+  const candidate = RetryError.isInstance(error) ? error.lastError : error;
+  if (!APICallError.isInstance(candidate)) return null;
+  const status = candidate.statusCode;
+  if (status === undefined || status < 400 || NO_TOOLS_RETRY_EXCLUDED_STATUSES.has(status)) {
+    return null;
+  }
+  return status;
+}
+
 async function readUsage(result: {
   usage?: PromiseLike<
     { inputTokens?: number | undefined; outputTokens?: number | undefined } | undefined
@@ -91,41 +121,74 @@ async function readUsage(result: {
 export async function streamChat(input: StreamChatInput): Promise<StreamChatResult> {
   const logger = input.logger ?? createStructuredLogger({ level: "info" });
   const modelName = input.config.AI_MODEL;
+  const { provider, host } = describeAiEndpoint(input.config);
   const startedAt = Date.now();
   const promptLength = input.messages.reduce((total, message) => total + message.content.length, 0);
 
   logger.info("ai.chat.stream.started", {
     correlationId: input.correlationId,
+    provider,
+    host,
     model: modelName,
     messageCount: input.messages.length,
     promptLength,
   });
 
+  let totalChunks = 0;
+  let text = "";
+
   try {
-    const model = input.model ?? createAnthropicModel(input.config);
+    const model = input.model ?? createAiModel(input.config);
     const streamTextFn = input.streamTextFn ?? (streamText as unknown as StreamTextFn);
 
-    const result = streamTextFn({
-      model,
-      messages: input.messages,
-      ...(input.system ? { system: input.system } : {}),
-      ...(input.tools ? { tools: input.tools } : {}),
-    });
+    const runStream = async (tools: Record<string, unknown> | undefined) => {
+      let streamError: unknown;
+      let failed = false;
+      const result = streamTextFn({
+        model,
+        messages: input.messages,
+        ...(input.system ? { system: input.system } : {}),
+        ...(tools ? { tools } : {}),
+        onError: ({ error }) => {
+          if (!failed) {
+            failed = true;
+            streamError = error;
+          }
+        },
+      });
 
-    let totalChunks = 0;
-    let text = "";
-    for await (const chunk of result.textStream) {
-      totalChunks += 1;
-      text += chunk;
-      input.onChunk?.(chunk);
-      if (totalChunks % CHUNK_LOG_INTERVAL === 0) {
-        logger.debug("ai.chat.stream.chunk", {
-          correlationId: input.correlationId,
-          model: modelName,
-          chunks: totalChunks,
-          outputLength: text.length,
-        });
+      for await (const chunk of result.textStream) {
+        totalChunks += 1;
+        text += chunk;
+        input.onChunk?.(chunk);
+        if (totalChunks % CHUNK_LOG_INTERVAL === 0) {
+          logger.debug("ai.chat.stream.chunk", {
+            correlationId: input.correlationId,
+            model: modelName,
+            chunks: totalChunks,
+            outputLength: text.length,
+          });
+        }
       }
+      if (failed) throw streamError;
+      return result;
+    };
+
+    let result: Awaited<ReturnType<typeof runStream>>;
+    try {
+      result = await runStream(input.tools);
+    } catch (error) {
+      const status = input.tools && totalChunks === 0 ? toolsRejectionStatus(error) : null;
+      if (status === null) throw error;
+      // Tools are an enhancement: answer without them rather than fail.
+      logger.warn("ai.chat.stream.tools_unsupported", {
+        correlationId: input.correlationId,
+        provider,
+        host,
+        model: modelName,
+        status,
+      });
+      result = await runStream(undefined);
     }
 
     const usage = await readUsage(result);
@@ -138,6 +201,8 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
 
     logger.info("ai.chat.stream.completed", {
       correlationId: input.correlationId,
+      provider,
+      host,
       model: modelName,
       totalChunks,
       durationMs: Date.now() - startedAt,
@@ -152,8 +217,11 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
     // stack are never serialized.
     logger.error("ai.chat.stream.failed", {
       correlationId: input.correlationId,
+      provider,
+      host,
       model: modelName,
       durationMs: Date.now() - startedAt,
+      ...describeAiProviderError(error),
       error,
     });
     input.onError?.(error);

@@ -52,7 +52,10 @@ function context(overrides: Record<string, unknown> = {}, origin?: string): Cont
     telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
     telegramClient: null,
     aiConfig: {
-      ANTHROPIC_API_KEY: null,
+      AI_PROVIDER: null,
+      AI_API_KEY: null,
+      AI_BASE_URL: null,
+      AI_SUPPORTS_STRUCTURED_OUTPUTS: false,
       AI_MODEL: "claude-sonnet-5-5",
       AI_RATE_LIMIT_PER_MINUTE: 20,
     },

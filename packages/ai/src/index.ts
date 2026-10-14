@@ -1,5 +1,6 @@
 export * from "./config";
 export * from "./consent";
+export * from "./errors";
 export * from "./extract";
 export * from "./rate-limit";
 export * from "./stream";

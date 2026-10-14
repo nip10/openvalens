@@ -44,6 +44,7 @@ export const FILE_SECRET_KEYS = [
   "RESEND_API_KEY",
   "EMAIL_AUDIT_BCC",
   "TELEGRAM_BOT_TOKEN",
+  "AI_API_KEY",
   "ANTHROPIC_API_KEY",
 ] as const;
 

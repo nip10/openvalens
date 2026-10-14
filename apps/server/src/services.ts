@@ -61,9 +61,10 @@ export function telegramWebhookSecret(): string {
 }
 
 // Issue #13 — server-side AI instantiation. The `@openvalens/ai` package stays
-// pure; the server binds the validated `ENV` to it here. The Anthropic key is
-// optional — when absent, readiness reports `anthropic: false` and `ai.chat`
-// fails closed instead of calling the provider.
+// pure; the server binds the validated `ENV` to it here. `AI_PROVIDER` selects
+// Anthropic or an OpenAI-compatible endpoint (Issue #59); when AI is off,
+// readiness reports `ai: off` and `ai.chat` fails closed instead of calling a
+// provider.
 export const aiConfig = parseAiConfig(ENV);
 
 // Process-local sliding-window limiter keyed by `(userId, organizationId)`.
@@ -95,11 +96,13 @@ export const integrations = Object.freeze({
  * family is `configured`. `resend` (Issue #61) is therefore `true` only when
  * email is actually delivered: a key is configured *and* `EMAIL_DRY_RUN` is
  * off. A key alone with the default dry-run would otherwise advertise delivery
- * that never happens.
+ * that never happens. `anthropic` is `true` only when Anthropic is the
+ * configured AI provider; an OpenAI-compatible endpoint (Issue #59) shows up as
+ * `integrations.ai.provider` instead.
  */
 export const capabilities = {
   telegram: integrations.messaging.state === "configured",
-  anthropic: integrations.ai.state === "configured",
+  anthropic: integrations.ai.provider === "anthropic",
   resend: integrations.email.state === "configured",
   mobilePairing: true,
 };

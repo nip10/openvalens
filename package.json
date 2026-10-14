@@ -28,6 +28,7 @@
       "tailwindcss": "^4.3.3",
       "ai": "^6.0.191",
       "@ai-sdk/anthropic": "^3.0.79",
+      "@ai-sdk/openai-compatible": "2.0.80",
       "@better-auth/expo": "1.7.5",
       "drizzle-orm": "1.0.0-rc.4"
     }
