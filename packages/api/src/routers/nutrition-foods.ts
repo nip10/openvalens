@@ -1,14 +1,19 @@
 import { NutritionError } from "@openvalens/nutrition/errors";
 import {
   createFoodSearch,
-  FOOD_SOURCES,
   FoodSourceUnavailableError,
   type FoodSearch,
 } from "@openvalens/nutrition/food-search";
-import { AMOUNT_UNITS, NUTRIENT_KEYS, SERVING_SIZE_UNITS } from "@openvalens/nutrition/nutrients";
-import { z } from "zod";
 
 import type { Context } from "../context";
+import {
+  foodResult,
+  getFoodInput,
+  lookupBarcodeInput,
+  lookupBarcodeOutput,
+  searchFoodsInput,
+  searchFoodsOutput,
+} from "../contracts/nutrition-foods";
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
 
 /**
@@ -30,84 +35,6 @@ import { permissionedProcedure, raiseApiError, validateInput } from "../index";
  */
 
 const READ = { resource: "records", action: "read" } as const;
-
-const searchInput = z.strictObject({
-  query: z.string().trim().min(2).max(100),
-  sources: z.array(z.enum(FOOD_SOURCES)).min(1).max(FOOD_SOURCES.length).optional(),
-  limit: z.number().int().min(1).max(50).optional(),
-});
-
-const getInput = z.strictObject({ id: z.string().trim().min(1).max(64) });
-
-const lookupBarcodeInput = z.strictObject({ barcode: z.string().min(1).max(32) });
-
-const nutrientsShape = z.object(
-  Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, z.number().nullable()])) as Record<
-    (typeof NUTRIENT_KEYS)[number],
-    z.ZodNullable<z.ZodNumber>
-  >,
-);
-
-const foodResultShape = z.object({
-  id: z.string(),
-  source: z.enum(FOOD_SOURCES),
-  sourceFoodId: z.string(),
-  sourceVersion: z.string(),
-  origin: z.enum(["private", "catalog", "live"]),
-  dataType: z.string().nullable(),
-  name: z.string().nullable(),
-  brand: z.string().nullable(),
-  barcode: z.string().nullable(),
-  basis: z.object({
-    nutrientBasisAmount: z.number(),
-    nutrientBasisUnit: z.enum(AMOUNT_UNITS),
-    servingSizeAmount: z.number().nullable(),
-    servingSizeUnit: z.enum(SERVING_SIZE_UNITS).nullable(),
-    servingLabel: z.string().nullable(),
-  }),
-  nutrients: nutrientsShape,
-  attribution: z
-    .object({
-      source: z.enum(["fdc", "off"]),
-      sourceName: z.string(),
-      homepage: z.string(),
-      license: z.enum(["CC0-1.0", "ODbL-1.0"]),
-      licenseUrl: z.string(),
-      notice: z.string(),
-    })
-    .nullable(),
-  release: z
-    .object({
-      id: z.number(),
-      dataset: z.string(),
-      version: z.string(),
-      artifact: z.string(),
-      artifactSha256: z.string(),
-      sourceUrl: z.string(),
-      importedAt: z.date(),
-    })
-    .nullable(),
-  overlay: z.object({ ids: z.array(z.number()) }).nullable(),
-});
-
-const searchOutput = z.object({ results: z.array(foodResultShape) });
-
-const lookupBarcodeOutput = z.object({
-  barcode: z.string(),
-  status: z.enum(["found", "not_found"]),
-  matches: z.array(foodResultShape),
-  live: z.object({
-    status: z.enum(["off", "skipped", "found", "not_found", "unavailable"]),
-    reason: z.enum(["timeout", "rate_limited", "upstream_error", "invalid_response"]).nullable(),
-    retryAfterSeconds: z.number().nullable(),
-  }),
-  manualDraft: z
-    .object({
-      barcode: z.string().nullable(),
-      reason: z.enum(["no_match", "variable_measure"]),
-    })
-    .nullable(),
-});
 
 type Authz = { activeOrganizationId: string; user: { id: string } };
 
@@ -140,9 +67,9 @@ function toFoodError(error: unknown): Error {
 export const nutritionFoodsRouter = {
   /** Substring search over private foods and the catalog mirrors (no live search). */
   search: permissionedProcedure(READ)
-    .use(validateInput(searchInput))
-    .input(searchInput)
-    .output(searchOutput)
+    .use(validateInput(searchFoodsInput))
+    .input(searchFoodsInput)
+    .output(searchFoodsOutput)
     .handler(async ({ input, context }) => {
       try {
         return { results: await foodSearch(context).search(scopeOf(context.authz), input) };
@@ -156,9 +83,9 @@ export const nutritionFoodsRouter = {
    * archived custom food and an unknown catalog id all return `NOT_FOUND`.
    */
   get: permissionedProcedure(READ)
-    .use(validateInput(getInput))
-    .input(getInput)
-    .output(foodResultShape)
+    .use(validateInput(getFoodInput))
+    .input(getFoodInput)
+    .output(foodResult)
     .handler(async ({ input, context }) => {
       let food;
       try {

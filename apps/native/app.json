@@ -69,6 +69,14 @@
           "NSHealthUpdateUsageDescription": false,
           "background": true
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "OpenValens uses the camera only while you scan a food barcode.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {
