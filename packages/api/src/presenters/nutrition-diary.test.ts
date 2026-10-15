@@ -1,16 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { computeNutrientFactor } from "@openvalens/nutrition/nutrients";
+import { summarizeEntries } from "@openvalens/nutrition/totals";
 
 import { NUTRIENT_KEYS, type NutrientValues } from "../contracts/nutrition-diary";
 import {
+  ALL_NUTRIENTS,
   DIARY_COPY,
   NUTRIENT_LABELS,
   SLOT_LABELS,
   SYNC_STATE_LABELS,
   dayStatusText,
+  describeNutrientTotal,
   foodSourceLabel,
   formatAmount,
+  formatCoverage,
   formatNutrientTotal,
+  formatSources,
   groupBySlot,
   localDateIn,
   newClientMutationId,
@@ -36,15 +41,35 @@ describe("summarizeDay", () => {
       { nutrients: nutrients({}) },
     ]);
     expect(summary.entryCount).toBe(3);
-    expect(summary.totals.energyKcal).toEqual({ known: 350, reported: 2, missing: 1 });
+    expect(summary.totals.energyKcal).toEqual({
+      known: 350,
+      reported: 2,
+      missing: 1,
+      coverage: "partial",
+    });
     // A recorded zero is reported data; absent values stay unknown.
-    expect(summary.totals.proteinG).toEqual({ known: 0, reported: 1, missing: 2 });
-    expect(summary.totals.fiberG).toEqual({ known: null, reported: 0, missing: 3 });
+    expect(summary.totals.proteinG).toEqual({
+      known: 0,
+      reported: 1,
+      missing: 2,
+      coverage: "partial",
+    });
+    expect(summary.totals.fiberG).toEqual({
+      known: null,
+      reported: 0,
+      missing: 3,
+      coverage: "none",
+    });
   });
 
   test("an empty day has no totals, not zero totals", () => {
     const summary = summarizeDay([]);
-    expect(summary.totals.energyKcal).toEqual({ known: null, reported: 0, missing: 0 });
+    expect(summary.totals.energyKcal).toEqual({
+      known: null,
+      reported: 0,
+      missing: 0,
+      coverage: "no_entries",
+    });
     expect(formatNutrientTotal("energyKcal", summary.totals.energyKcal)).toBe("—");
   });
 
@@ -56,6 +81,59 @@ describe("summarizeDay", () => {
       "12.3 g",
     );
     expect(formatNutrientTotal("fiberG", { known: null, reported: 0, missing: 3 })).toBe("Unknown");
+  });
+
+  test("states coverage for every nutrient, including full and empty", () => {
+    expect(formatCoverage({ reported: 0, missing: 0 })).toBe("Nothing logged");
+    expect(formatCoverage({ reported: 1, missing: 0 })).toBe("From 1 entry");
+    expect(formatCoverage({ reported: 3, missing: 0 })).toBe("All 3 entries");
+    expect(formatCoverage({ reported: 2, missing: 1 })).toBe("2 of 3 entries");
+    expect(formatCoverage({ reported: 0, missing: 1 })).toBe("Not provided by 1 entry");
+    expect(
+      describeNutrientTotal("saltG", { known: null, reported: 0, missing: 2, coverage: "none" }),
+    ).toBe("Salt: unknown, not provided by 2 entries");
+    expect(
+      describeNutrientTotal("energyKcal", {
+        known: 412,
+        reported: 2,
+        missing: 1,
+        coverage: "partial",
+      }),
+    ).toBe("Energy: 412 kcal, 2 of 3 entries");
+    expect(
+      describeNutrientTotal("fiberG", {
+        known: null,
+        reported: 0,
+        missing: 0,
+        coverage: "no_entries",
+      }),
+    ).toBe("Fibre: nothing logged");
+  });
+
+  test("lists every nutrient once, keeping salt/sodium and sugar types separate", () => {
+    expect([...ALL_NUTRIENTS].sort()).toEqual([...NUTRIENT_KEYS].sort());
+    const labels = ALL_NUTRIENTS.map((key) => NUTRIENT_LABELS[key].label);
+    for (const label of ["Sodium", "Salt", "Total sugars", "Added sugars", "Free sugars"])
+      expect(labels).toContain(label);
+  });
+
+  test("names the sources behind the totals", () => {
+    expect(formatSources({ fdc: 2, off: 0, custom: 0, manual: 1 })).toBe(
+      "2 from USDA FoodData Central · 1 from Quick add",
+    );
+    expect(formatSources({ fdc: 0, off: 0, custom: 0, manual: 0 })).toBeNull();
+  });
+
+  test("matches the server's domain summary exactly", () => {
+    const entries = [
+      { nutrients: nutrients({ energyKcal: 120.5, sodiumMg: 300 }), source: "fdc" as const },
+      { nutrients: nutrients({ saltG: 0, totalSugarsG: 4 }), source: "off" as const },
+    ];
+    const server = summarizeEntries(entries);
+    expect(summarizeDay(entries)).toEqual({
+      entryCount: server.entryCount,
+      totals: server.totals,
+    });
   });
 });
 
@@ -107,6 +185,13 @@ describe("neutral copy", () => {
       ...Object.values(SLOT_LABELS),
       ...Object.values(SYNC_STATE_LABELS),
       ...Object.values(NUTRIENT_LABELS).map((entry) => entry.label),
+      ...[
+        [0, 0],
+        [1, 0],
+        [3, 0],
+        [2, 1],
+        [0, 2],
+      ].map(([reported, missing]) => formatCoverage({ reported: reported!, missing: missing! })),
       ...(["unmarked", "complete"] as const).flatMap((status) =>
         [0, 3].flatMap((count) => Object.values(dayStatusText(status, count))),
       ),

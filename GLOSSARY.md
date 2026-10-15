@@ -25,3 +25,10 @@ attribution. It holds no personal data and is never merged with another
 catalog or with a person's custom foods; logging copies a catalog food into a
 snapshot.
 _Avoid_: Food database (ambiguous), canonical foods table
+
+**Nutrient coverage**:
+For one nutrient on one local day, how many of the day's logged entries
+provided a value (`full`, `partial`, `none`, or `no_entries` when nothing was
+logged). A daily total sums only provided values and is always shown with its
+coverage; a value a food's source did not provide is unknown, never zero.
+_Avoid_: Completeness (that is the explicit "day complete" marker), data quality
