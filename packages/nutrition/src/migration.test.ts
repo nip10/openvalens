@@ -4,6 +4,10 @@ const MIGRATION = new URL(
   "../../db/src/migrations/20261014180000_nutrition_core/migration.sql",
   import.meta.url,
 );
+const DIARY_MIGRATION = new URL(
+  "../../db/src/migrations/20261014200000_nutrition_diary/migration.sql",
+  import.meta.url,
+);
 const CATALOG_MIGRATION = new URL(
   "../../db/src/migrations/20261014190000_nutrition_food_catalogs/migration.sql",
   import.meta.url,
@@ -64,5 +68,30 @@ describe("food catalog migration (Issue #72)", () => {
     const text = await Bun.file(CATALOG_MIGRATION).text();
     expect(text).not.toMatch(/"(organization_id|user_id)"/);
     expect(text).not.toMatch(/nutrition_food_snapshot"\s*\(/);
+  });
+});
+
+describe("meal diary migration (Issue #77)", () => {
+  test("is additive: only adds a defaulted column and new nutrition_* objects", async () => {
+    for (const statement of await statements(DIARY_MIGRATION)) {
+      expect(statement).not.toMatch(/\b(drop|delete\s+from|truncate|rename)\b/i);
+      expect(statement).not.toMatch(/^\s*update\b/im);
+      expect(statement).not.toMatch(/\balter\s+column\b/i);
+      const target =
+        /^create table "([^"]+)"/i.exec(statement)?.[1] ??
+        /^create (?:unique )?index "[^"]+" on "([^"]+)"/i.exec(statement)?.[1] ??
+        /^alter table "([^"]+)" add (?:constraint|column)/i.exec(statement)?.[1];
+      expect(target ?? statement).toStartWith("nutrition_");
+    }
+  });
+
+  test("the only change to an existing table is the defaulted entry revision", async () => {
+    const existing = (await statements(DIARY_MIGRATION)).filter((statement) =>
+      /^alter table "nutrition_meal_entry"/i.test(statement),
+    );
+    expect(existing).toEqual([
+      'ALTER TABLE "nutrition_meal_entry" ADD COLUMN "revision" integer DEFAULT 1 NOT NULL;',
+      'ALTER TABLE "nutrition_meal_entry" ADD CONSTRAINT "nutrition_meal_entry_revision_check" CHECK ("revision" >= 1);',
+    ]);
   });
 });
