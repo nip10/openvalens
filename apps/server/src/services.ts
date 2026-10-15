@@ -6,6 +6,13 @@ import { createDb } from "@openvalens/db";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import { createEmailService, describeEmailIntegration, parseEmailConfig } from "@openvalens/email";
 import {
+  createObjectStorage,
+  createStorageService,
+  deriveStorageSigningKey,
+  describeStorageIntegration,
+  parseStorageConfig,
+} from "@openvalens/storage";
+import {
   describeTelegramIntegration,
   parseTelegramConfig,
   TelegramClient,
@@ -73,6 +80,25 @@ export const aiRateLimiter = new InMemoryRateLimiter({
   limitPerMinute: aiConfig.AI_RATE_LIMIT_PER_MINUTE,
 });
 
+// Issue #62 — server-side object storage instantiation. `STORAGE_PROVIDER`
+// selects local disk (default) or an S3-compatible bucket. When S3 is selected
+// without a bucket or credentials, storage is off: `storageService` is `null`,
+// readiness reports `storage: off` and storage callers fail closed. Local
+// signed download URLs are keyed by a value derived from `BETTER_AUTH_SECRET`.
+export const storageConfig = parseStorageConfig(ENV);
+
+const objectStorage = createObjectStorage(storageConfig);
+
+export const storageService = objectStorage
+  ? createStorageService({
+      db,
+      storage: objectStorage,
+      maxObjectBytes: storageConfig.maxObjectBytes,
+      signedUrlTtlSeconds: storageConfig.signedUrlTtlSeconds,
+      signingKey: deriveStorageSigningKey(ENV.BETTER_AUTH_SECRET),
+    })
+  : null;
+
 /**
  * Integration family statuses (Issue #57).
  *
@@ -80,12 +106,13 @@ export const aiRateLimiter = new InMemoryRateLimiter({
  * domain, selected by env and bound here. Each family reports a value-free
  * `{ provider, state }` on the readiness probe. With no vendor credentials the
  * server boots with every family at its safe default: email `dry-run`, AI and
- * messaging `off`. See `docs/integrations.md`.
+ * messaging `off`, storage on private local disk. See `docs/integrations.md`.
  */
 export const integrations = Object.freeze({
   email: describeEmailIntegration(emailConfig),
   ai: describeAiIntegration(aiConfig),
   messaging: describeTelegramIntegration(telegramConfig),
+  storage: describeStorageIntegration(storageConfig),
 }) satisfies IntegrationStatuses;
 
 /**

@@ -95,6 +95,7 @@
         "@openvalens/db": "workspace:*",
         "@openvalens/email": "workspace:*",
         "@openvalens/observability": "workspace:*",
+        "@openvalens/storage": "workspace:*",
         "@openvalens/telegram": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -206,6 +207,7 @@
         "@openvalens/observability": "workspace:*",
         "@openvalens/plans": "workspace:*",
         "@openvalens/sleep": "workspace:*",
+        "@openvalens/storage": "workspace:*",
         "@openvalens/telegram": "workspace:*",
         "@openvalens/vitals": "workspace:*",
         "@orpc/client": "catalog:",
@@ -443,6 +445,17 @@
     },
     "packages/sleep": {
       "name": "@openvalens/sleep",
+      "dependencies": {
+        "@openvalens/db": "workspace:*",
+        "drizzle-orm": "catalog:",
+      },
+      "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/storage": {
+      "name": "@openvalens/storage",
       "dependencies": {
         "@openvalens/db": "workspace:*",
         "drizzle-orm": "catalog:",
@@ -933,6 +946,8 @@
     "@openvalens/plans": ["@openvalens/plans@workspace:packages/plans"],
 
     "@openvalens/sleep": ["@openvalens/sleep@workspace:packages/sleep"],
+
+    "@openvalens/storage": ["@openvalens/storage@workspace:packages/storage"],
 
     "@openvalens/telegram": ["@openvalens/telegram@workspace:packages/integrations/telegram"],
 

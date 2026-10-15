@@ -15,6 +15,7 @@ import {
   email,
   integrations,
   productSettingsService,
+  storageService,
   telegramClient,
   telegramConfig,
 } from "./services";
@@ -79,6 +80,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     admissionService,
     admissionRateLimiter,
+    // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
+    storage: storageService,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

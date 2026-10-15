@@ -150,6 +150,11 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   },
   daily_reminder: organization,
 
+  // Object storage (#62). Metadata only (opaque key, content type, size,
+  // checksum); the bytes are erased from the storage backend by the caller of
+  // `deleteSubjectData` using the keys collected before the transaction.
+  stored_object: organization,
+
   // Data rights
   erasure_ledger: {
     kind: "system",

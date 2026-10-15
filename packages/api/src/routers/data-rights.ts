@@ -6,6 +6,7 @@ import {
   resolveSubject,
 } from "@openvalens/data-rights";
 import { createStructuredLogger } from "@openvalens/observability";
+import { collectStoredObjectKeys } from "@openvalens/storage";
 import { z } from "zod";
 
 import { protectedProcedure, raiseApiError, validateInput } from "../index";
@@ -18,6 +19,12 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
  * Deleting requires a sign-in within the last 10 minutes, the typed phrase
  * "DELETE", and no owned record shared with another owner. Logs carry counts
  * only; the erasure ledger keeps the ids.
+ *
+ * Stored objects (#62): their keys are collected before the database
+ * transaction and the bytes are deleted from object storage after it commits,
+ * so a failed transaction never loses an object that is still indexed. If the
+ * subject has objects but storage is off, deletion is refused rather than
+ * orphaning their bytes.
  */
 
 const logger = createStructuredLogger({ level: "info" });
@@ -88,13 +95,26 @@ export const dataRightsRouter = {
           { blockers: resolution.blockers },
         );
 
+      const objectKeys = await collectStoredObjectKeys(
+        context.db,
+        resolution.subject.organizationIds,
+      );
+      if (objectKeys.length > 0 && !context.storage)
+        throw raiseApiError("INTERNAL", "Storage is not available.");
+
       const report = await deleteSubjectData(context.db, resolution.subject);
+      const objects =
+        objectKeys.length > 0 && context.storage
+          ? await context.storage.deleteKeys(objectKeys)
+          : { deleted: 0, failed: 0 };
       const totalRows = sum(report.rowCounts);
       logger.info("data_rights.subject_erased", {
         correlationId: context.correlationId,
         organizations: report.organizationIds.length,
         tables: Object.keys(report.rowCounts).length,
         rows: totalRows,
+        objectsDeleted: objects.deleted,
+        objectsFailed: objects.failed,
       });
       return { erasedAt: report.erasedAt, totalRows };
     }),

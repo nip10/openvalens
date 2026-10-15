@@ -37,7 +37,10 @@ it for a real installation.
   app.
 - `<version>` is the checked-out git tag/commit. Images are built from your
   checkout; published registry images are tracked separately (#129).
-- Named volumes: `postgres_data`, `backups`, `caddy_data`, `caddy_config`.
+- Named volumes: `postgres_data`, `backups`, `storage`, `caddy_data`,
+  `caddy_config`. `storage` holds uploaded objects (progress photos, lab PDFs,
+  export bundles) at `/var/lib/openvalens/storage` in the server container; see
+  [Object storage](storage.md).
 
 ## Requirements
 
@@ -192,6 +195,11 @@ dumps; `0` keeps all of them.
 volume's host permissions. Copy them off the host yourself and protect them
 accordingly. Encrypted backups, off-host storage and restore drills are Issue
 #64.
+
+The pre-migrate dump covers the database only. With the default local object
+storage, also back up the `storage` volume — the database indexes those files
+and a restore needs both from the same point in time. See
+[Object storage → Backups](storage.md#backups).
 
 List or copy dumps:
 

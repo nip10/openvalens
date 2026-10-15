@@ -5,6 +5,7 @@ import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
+import type { StorageService } from "@openvalens/storage";
 import type { TelegramClient } from "@openvalens/telegram";
 
 import type { ProductSettingsService } from "./product-settings";
@@ -135,6 +136,14 @@ export type Context = {
    * names. The server owns the instance.
    */
   admissionRateLimiter?: InMemoryRateLimiter;
+  /**
+   * Issue #62 — server-built, tenant-scoped object storage service, or `null`
+   * when storage is off (S3 selected without credentials). Optional at the
+   * type level so unrelated context factories stay valid; storage procedures
+   * fail closed (`STORAGE_UNAVAILABLE`) when it is absent, and readiness
+   * reports `storage: off`.
+   */
+  storage?: StorageService | null;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

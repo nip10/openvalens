@@ -54,6 +54,7 @@
     {
       "path": "../cockpit"
     },
+    { "path": "../storage" },
     { "path": "../config" }
   ]
 }

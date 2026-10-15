@@ -370,11 +370,23 @@ describe("schema-validated security configuration (cold boot)", () => {
   test(
     "boots with no vendor credentials and every integration family at its safe default",
     async () => {
-      const run = await runColdChild({ NODE_ENV: "production", CSP_MODE: "report-only" });
+      // The empty STORAGE_S3_* values mirror what deploy/compose.yml passes
+      // when the operator has not configured a bucket.
+      const run = await runColdChild({
+        NODE_ENV: "production",
+        CSP_MODE: "report-only",
+        STORAGE_PROVIDER: "local",
+        STORAGE_S3_ENDPOINT: "",
+        STORAGE_S3_REGION: "",
+        STORAGE_S3_BUCKET: "",
+        STORAGE_S3_ACCESS_KEY_ID_FILE: "",
+        STORAGE_S3_SECRET_ACCESS_KEY_FILE: "",
+      });
       const safeDefaults = {
         email: { provider: "resend", state: "dry-run" },
         ai: { provider: null, state: "off" },
         messaging: { provider: null, state: "off" },
+        storage: { provider: "local", state: "configured" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(safeDefaults);
@@ -401,6 +413,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         email: { provider: "resend", state: "configured" },
         ai: { provider: "anthropic", state: "configured" },
         messaging: { provider: "telegram", state: "configured" },
+        storage: { provider: "local", state: "configured" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(configured);
@@ -432,6 +445,45 @@ describe("schema-validated security configuration (cold boot)", () => {
       expect(run.result?.readinessIntegrations?.ai).toEqual(ai);
       expect(run.output).not.toContain(key);
       expect(run.output).not.toContain("127.0.0.1:11434");
+    },
+    TEST_TIMEOUT_MS,
+  );
+
+  // Issue #62 — S3-compatible storage is an env change; readiness names the
+  // provider but never the endpoint, bucket or keys. Incomplete S3 config is
+  // `off`, never a boot failure.
+  test(
+    "switches object storage to S3 by env, and S3 without credentials is off",
+    async () => {
+      const secrets = {
+        STORAGE_S3_ACCESS_KEY_ID: "synthetic-storage-access-key-0123",
+        STORAGE_S3_SECRET_ACCESS_KEY: "synthetic-storage-secret-key-0123456789",
+      };
+      const s3Env = {
+        NODE_ENV: "development",
+        CSP_MODE: "report-only",
+        STORAGE_PROVIDER: "s3",
+        STORAGE_S3_ENDPOINT: "http://127.0.0.1:1",
+        STORAGE_S3_BUCKET: "synthetic-private-bucket",
+        STORAGE_S3_FORCE_PATH_STYLE: "true",
+      };
+      const configured = await runColdChild({ ...s3Env, ...secrets });
+      expect(configured.exitCode).toBe(0);
+      expect(configured.result?.integrations.storage).toEqual({
+        provider: "s3",
+        state: "configured",
+      });
+      expect(configured.result?.readinessIntegrations?.storage).toEqual({
+        provider: "s3",
+        state: "configured",
+      });
+      for (const value of [...Object.values(secrets), "synthetic-private-bucket", "127.0.0.1:1"]) {
+        expect(configured.output).not.toContain(value);
+      }
+
+      const off = await runColdChild(s3Env);
+      expect(off.exitCode).toBe(0);
+      expect(off.result?.integrations.storage).toEqual({ provider: null, state: "off" });
     },
     TEST_TIMEOUT_MS,
   );

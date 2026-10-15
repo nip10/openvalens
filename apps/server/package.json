@@ -10,6 +10,7 @@
     "dev": "bun run --hot src/index.ts",
     "start": "bun run dist/index.mjs",
     "env:generate": "varlock codegen",
+    "storage:migrate": "bun run src/storage-migrate.ts",
     "auth:generate": "bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@openvalens/db": "workspace:*",
     "@openvalens/email": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",

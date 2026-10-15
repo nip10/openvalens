@@ -35,6 +35,12 @@ export const readinessOutput = z.object({
       cronSecret: z.enum(["ok", "missing"]),
     }),
     capabilities: z.record(z.string(), z.boolean()),
+    /**
+     * Issue #62 — whether the selected object storage accepted a write/read/
+     * delete round trip on a reserved key (`off` when storage is disabled).
+     * Which storage is in use is `integrations.storage.provider`.
+     */
+    storage: z.enum(["ok", "unwritable", "off"]),
     integrations: z.record(z.string(), integrationStatusOutput),
   }),
   timestamp: z.string(),
@@ -84,6 +90,8 @@ export const healthRouter = {
     .output(readinessOutput)
     .handler(async ({ context }) => {
       const database = await pingDatabase(context.db);
+      // The probe result is cached by the service, so polling stays cheap.
+      const storage = context.storage ? await context.storage.probe() : "off";
 
       const betterAuthSecret = context.betterAuthSecretConfigured ? "ok" : "missing";
       const cronSecret =
@@ -114,13 +122,18 @@ export const healthRouter = {
       );
 
       const status =
-        database === "unreachable" ? "unready" : missingSecrets.length > 0 ? "degraded" : "ok";
+        database === "unreachable"
+          ? "unready"
+          : missingSecrets.length > 0 || storage === "unwritable"
+            ? "degraded"
+            : "ok";
 
       logger.info("health.readiness.checked", {
         correlationId: context.correlationId,
         status,
         databaseStatus: database,
         missingSecrets,
+        storageStatus: storage,
       });
 
       return {
@@ -132,6 +145,7 @@ export const healthRouter = {
             cronSecret,
           },
           capabilities,
+          storage,
           integrations,
         },
         timestamp: new Date().toISOString(),

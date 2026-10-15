@@ -63,3 +63,6 @@ apps/web/security-headers/
 # Issue #63 — self-host install state written by deploy/setup.sh
 deploy/secrets/
 deploy/hooks/pre-migrate
+
+# Issue #62 — default local object storage directory (STORAGE_LOCAL_DIR)
+.data/

@@ -4,7 +4,7 @@ import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 /**
  * Explicit, ordered allowlist of the server's global configuration keys
  * (Issue #58). This is the *only* set of keys the configuration inventory can
- * ever surface; it mirrors `apps/server/.env.schema` exactly (25 keys) and is
+ * ever surface; it mirrors `apps/server/.env.schema` exactly (36 keys) and is
  * asserted against that schema by the parity test.
  *
  * The list is intentionally hand-written rather than derived from the
@@ -36,6 +36,17 @@ export const ADMIN_CONFIG_KEYS = [
   "AI_SUPPORTS_STRUCTURED_OUTPUTS",
   "AI_RATE_LIMIT_PER_MINUTE",
   "API_MAX_BODY_BYTES",
+  "STORAGE_PROVIDER",
+  "STORAGE_LOCAL_DIR",
+  "STORAGE_MAX_OBJECT_BYTES",
+  "STORAGE_SIGNED_URL_TTL_SECONDS",
+  "STORAGE_S3_ENDPOINT",
+  "STORAGE_S3_REGION",
+  "STORAGE_S3_BUCKET",
+  "STORAGE_S3_ACCESS_KEY_ID",
+  "STORAGE_S3_SECRET_ACCESS_KEY",
+  "STORAGE_S3_FORCE_PATH_STYLE",
+  "STORAGE_S3_SSE",
 ] as const;
 
 export type AdminConfigKey = (typeof ADMIN_CONFIG_KEYS)[number];

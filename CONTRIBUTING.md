@@ -51,8 +51,8 @@ Every sensitive key in `apps/server/.env.schema` accepts a `<KEY>_FILE` variant,
 so secrets can come from Docker/Kubernetes secret mounts instead of plain
 environment values. Supported keys: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
 `CORS_ORIGIN`, `DATABASE_URL`, `CRON_SECRET`, `TELEGRAM_WEBHOOK_SECRET`,
-`RESEND_API_KEY`, `EMAIL_AUDIT_BCC`, `TELEGRAM_BOT_TOKEN`,
-`ANTHROPIC_API_KEY`. Non-sensitive settings (for example `NODE_ENV`,
+`RESEND_API_KEY`, `EMAIL_AUDIT_BCC`, `TELEGRAM_BOT_TOKEN`, `AI_API_KEY`,
+`ANTHROPIC_API_KEY`, `STORAGE_S3_ACCESS_KEY_ID`, `STORAGE_S3_SECRET_ACCESS_KEY`. Non-sensitive settings (for example `NODE_ENV`,
 `EMAIL_FROM`, `AI_MODEL`) are not file-resolved; an unknown `*_FILE` such as
 `NODE_ENV_FILE` is ignored.
 
@@ -111,8 +111,8 @@ separate `varlock run` wrapper.
 
 ### Integration adapters
 
-Every external service (email, AI, messaging, and later storage, OIDC and
-wearables) is an optional adapter that is off or dry-run by default, so a
+Every external service (email, AI, messaging, object storage, and later OIDC
+and wearables) is an optional adapter that is off or dry-run by default, so a
 default install needs no vendor account. Follow the adapter contract in
 [`docs/integrations.md`](docs/integrations.md): vendor SDK imports belong only
 in `packages/*/src/providers/*` (enforced by `oxlint`), configuration is parsed
