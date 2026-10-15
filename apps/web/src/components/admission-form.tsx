@@ -97,14 +97,15 @@ export function AdmissionForm({
       <CardContent className="grid gap-6">
         {sessionEmail ? (
           <p className="text-sm text-muted-foreground">
-            Signed in as <span className="font-medium text-foreground">{sessionEmail}</span>.
+            Signed in as{" "}
+            <span className="font-medium text-foreground wrap-anywhere">{sessionEmail}</span>.
           </p>
         ) : null}
 
         {isSessionMatch && state.step === "token" ? (
           <p className="text-sm text-muted-foreground">
             Enter the token again to continue enrollment as{" "}
-            <span className="font-medium text-foreground">{state.email}</span>.
+            <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>.
           </p>
         ) : null}
 
@@ -185,8 +186,8 @@ export function AdmissionForm({
               />
               <p className="text-xs text-muted-foreground">
                 We emailed a one-time code to{" "}
-                <span className="font-medium text-foreground">{state.email}</span>. It expires in 10
-                minutes.
+                <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>. It
+                expires in 10 minutes.
               </p>
             </div>
 
@@ -269,8 +270,8 @@ function SessionMismatchHelp({
     <div className="rounded-lg border border-border p-4">
       <p className="text-sm text-muted-foreground">
         This email may already belong to an account. Send a sign-in link to{" "}
-        <span className="font-medium text-foreground">{email}</span>, then return to this tab and
-        enter the token again.
+        <span className="font-medium text-foreground wrap-anywhere">{email}</span>, then return to
+        this tab and enter the token again.
       </p>
       <Button
         type="button"
@@ -320,8 +321,8 @@ function SuccessCard({
         {hasMatchingSession ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Continue to OpenValens as <span className="font-medium text-foreground">{email}</span>
-              .
+              Continue to OpenValens as{" "}
+              <span className="font-medium text-foreground wrap-anywhere">{email}</span>.
             </p>
             <Button asChild>
               <a href="/dashboard">Go to dashboard</a>
@@ -330,7 +331,8 @@ function SuccessCard({
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              Sign in with <span className="font-medium text-foreground">{email}</span> to start
+              Sign in with{" "}
+              <span className="font-medium text-foreground wrap-anywhere">{email}</span> to start
               using OpenValens.
             </p>
             <Button onClick={() => void onSignIn()} disabled={linkDelivery === "sending"}>
