@@ -132,7 +132,8 @@ export type GoalInput = {
   maxAmount?: number | null;
 };
 
-function customFoodValues(input: CustomFoodInput) {
+/** Validated, normalized column values for a custom food; throws `INVALID_INPUT`. */
+export function customFoodValues(input: CustomFoodInput) {
   return {
     name: normalizeName(input.name),
     brand: input.brand?.trim() || null,

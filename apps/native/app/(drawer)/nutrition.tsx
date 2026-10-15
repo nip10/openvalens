@@ -9,6 +9,7 @@ import {
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
 import type { BarcodeLookup } from "@openvalens/api/contracts/nutrition-foods";
+import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
 import {
   BARCODE_COPY,
   candidateFromChoice,
@@ -41,6 +42,7 @@ import {
   type DiarySyncState,
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
+import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -232,6 +234,12 @@ export default function NutritionScreen() {
           </Text>
           <Chip label="Next" selected={false} onPress={() => go(shiftLocalDate(localDate, 1))} />
         </View>
+
+        <Link href="/foods" asChild>
+          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
+            <Text className="text-sm text-foreground underline">{CUSTOM_FOOD_COPY.manageLink}</Text>
+          </Pressable>
+        </Link>
 
         <OutboxBanner outbox={outbox} />
 

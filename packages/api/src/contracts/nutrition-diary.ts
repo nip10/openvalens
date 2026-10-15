@@ -147,8 +147,13 @@ export const getDayInput = z.strictObject({ localDate });
 
 export const setFavoriteInput = z.strictObject({ snapshotId: id, favorite: z.boolean() });
 
-/** Saves a reusable private food; with a `barcode`, later lookups of that code find it. */
-export const createFoodInput = manualFoodInput;
+/**
+ * Saves a reusable private food; with a `barcode`, later lookups of that code
+ * find it. A retry with the same `clientMutationId` returns the same food (#81).
+ */
+export const createFoodInput = manualFoodInput.extend({
+  clientMutationId: clientMutationId.optional(),
+});
 
 // ─── Outputs ──────────────────────────────────────────────────
 

@@ -25,3 +25,12 @@ attribution. It holds no personal data and is never merged with another
 catalog or with a person's custom foods; logging copies a catalog food into a
 snapshot.
 _Avoid_: Food database (ambiguous), canonical foods table
+
+**Custom food**:
+A food a member enters themselves ("My foods"), private to that member inside
+their workspace. It is never shared with other members, never published to a
+food catalog, and its provenance is always "entered by you". Editing creates a
+new revision; archiving hides it from search and logging. Meals already logged
+keep the snapshot taken at logging time, so neither changes them. Recipes are a
+later phase and are not custom foods.
+_Avoid_: Personal catalog, user food database
