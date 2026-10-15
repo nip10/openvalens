@@ -1,5 +1,6 @@
 import {
   createNutritionDiary,
+  FoodSourceUnavailableError,
   NutritionError,
   type DiaryEntry as DomainEntry,
   type DiaryFoodRef,
@@ -7,6 +8,8 @@ import {
   type NutritionScope,
 } from "@openvalens/nutrition";
 import { z } from "zod";
+
+import type { Context } from "../context";
 
 import {
   copyDayInput,
@@ -60,8 +63,17 @@ export async function run<T>(work: () => Promise<T>): Promise<T> {
       if (error.code === "NOT_FOUND") throw raiseApiError("NOT_FOUND", error.message);
       throw raiseApiError("INVALID_INPUT", error.message, { reason: error.code });
     }
+    if (error instanceof FoodSourceUnavailableError)
+      throw raiseApiError("SOURCE_UNAVAILABLE", "Food source is unavailable. Try again later.", {
+        retryAfterSeconds: error.retryAfterSeconds,
+      });
     throw error;
   }
+}
+
+/** Diary service for this request; live lookups use the server-bound provider (#69). */
+function diaryFor(context: Pick<Context, "db" | "foodLookup">) {
+  return createNutritionDiary(context.db, { liveLookup: context.foodLookup ?? null });
 }
 
 export function toWireEntry(entry: DomainEntry): DiaryEntry {
@@ -134,10 +146,7 @@ export const nutritionDiaryRouter = {
     .output(diaryDay)
     .handler(({ input, context }) =>
       run(async () => {
-        const day = await createNutritionDiary(context.db).getDay(
-          scopeOf(context),
-          input.localDate,
-        );
+        const day = await diaryFor(context).getDay(scopeOf(context), input.localDate);
         return {
           localDate: day.localDate,
           status: day.status,
@@ -153,7 +162,7 @@ export const nutritionDiaryRouter = {
     .output(diaryFoods)
     .handler(({ context }) =>
       run(async () => {
-        const foods = await createNutritionDiary(context.db).listFoods(scopeOf(context));
+        const foods = await diaryFor(context).listFoods(scopeOf(context));
         return {
           recents: foods.recents.map(toWireFood),
           favorites: foods.favorites.map(toWireFood),
@@ -169,7 +178,7 @@ export const nutritionDiaryRouter = {
     .output(logEntryOutput)
     .handler(({ input, context }) =>
       run(async () => {
-        const result = await createNutritionDiary(context.db).logEntry(scopeOf(context), {
+        const result = await diaryFor(context).logEntry(scopeOf(context), {
           ...input,
           food: toDomainFood(input.food),
         });
@@ -187,9 +196,7 @@ export const nutritionDiaryRouter = {
     .input(updateEntryInput)
     .output(entryOutcome)
     .handler(({ input, context }) =>
-      run(async () =>
-        toWireOutcome(await createNutritionDiary(context.db).updateEntry(scopeOf(context), input)),
-      ),
+      run(async () => toWireOutcome(await diaryFor(context).updateEntry(scopeOf(context), input))),
     ),
 
   /** Soft delete (undo with `restoreEntry`). */
@@ -198,9 +205,7 @@ export const nutritionDiaryRouter = {
     .input(entryChangeInput)
     .output(entryOutcome)
     .handler(({ input, context }) =>
-      run(async () =>
-        toWireOutcome(await createNutritionDiary(context.db).deleteEntry(scopeOf(context), input)),
-      ),
+      run(async () => toWireOutcome(await diaryFor(context).deleteEntry(scopeOf(context), input))),
     ),
 
   restoreEntry: write("nutrition_meal_entry", "RECORD_UPDATED")
@@ -208,9 +213,7 @@ export const nutritionDiaryRouter = {
     .input(entryChangeInput)
     .output(entryOutcome)
     .handler(({ input, context }) =>
-      run(async () =>
-        toWireOutcome(await createNutritionDiary(context.db).restoreEntry(scopeOf(context), input)),
-      ),
+      run(async () => toWireOutcome(await diaryFor(context).restoreEntry(scopeOf(context), input))),
     ),
 
   /** Sets or clears the explicit "day complete" marker (never implied by entries). */
@@ -220,7 +223,7 @@ export const nutritionDiaryRouter = {
     .output(setDayStatusOutput)
     .handler(({ input, context }) =>
       run(async () => {
-        const day = await createNutritionDiary(context.db).setDayStatus(scopeOf(context), input);
+        const day = await diaryFor(context).setDayStatus(scopeOf(context), input);
         return {
           localDate: day.localDate,
           status: day.status,
@@ -237,7 +240,7 @@ export const nutritionDiaryRouter = {
     .output(copyDayOutput)
     .handler(({ input, context }) =>
       run(async () => {
-        const result = await createNutritionDiary(context.db).copyDay(scopeOf(context), input);
+        const result = await diaryFor(context).copyDay(scopeOf(context), input);
         return {
           entries: result.entries.map(toWireEntry),
           created: result.created,
@@ -252,7 +255,7 @@ export const nutritionDiaryRouter = {
     .output(z.object({ snapshotId: z.number(), favorite: z.boolean(), targetId: z.string() }))
     .handler(({ input, context }) =>
       run(async () => {
-        await createNutritionDiary(context.db).setFavorite(scopeOf(context), input);
+        await diaryFor(context).setFavorite(scopeOf(context), input);
         return { ...input, targetId: String(input.snapshotId) };
       }),
     ),
@@ -264,10 +267,7 @@ export const nutritionDiaryRouter = {
     .output(foodChoice.extend({ targetId: z.string() }))
     .handler(({ input, context }) =>
       run(async () => {
-        const food = await createNutritionDiary(context.db).createCustomFood(
-          scopeOf(context),
-          input,
-        );
+        const food = await diaryFor(context).createCustomFood(scopeOf(context), input);
         return {
           ref: { kind: "custom" as const, foodId: food.id },
           source: "custom" as const,

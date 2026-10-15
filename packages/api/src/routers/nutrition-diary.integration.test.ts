@@ -393,6 +393,34 @@ describe.skipIf(!url)("nutritionDiary over HTTP against disposable PostgreSQL", 
     expect(again.body.entry.food.snapshotId).toBe(recent.ref.snapshotId);
   });
 
+  test("foods logged by search id are resolved on the server", async () => {
+    const created = await call<{ ref: { foodId: number } }>("createFood", {
+      name: "Synthetic bread",
+      nutrientBasisAmount: 100,
+      nutrientBasisUnit: "g",
+      nutrients: { energyKcal: 250 },
+    });
+    const logged = await log({
+      clientMutationId: "log-search-id",
+      food: { kind: "catalog", id: `custom:${created.body.ref.foodId}` },
+      method: "search",
+      localDate: "2026-10-15",
+    });
+    expect(logged.status).toBe(200);
+    expect(logged.body.entry.food).toMatchObject({ source: "custom", name: "Synthetic bread" });
+    expect(logged.body.entry.nutrients.energyKcal).toBeCloseTo(125);
+    // Another member cannot log A's private food by id.
+    const other = await log(
+      {
+        clientMutationId: "log-search-id",
+        food: { kind: "catalog", id: `custom:${created.body.ref.foodId}` },
+        method: "search",
+      },
+      "user-a2",
+    );
+    expect(other.status).toBe(404);
+  });
+
   test("diaries are private to the member and the workspace", async () => {
     const recent = (await call<{ recents: { ref: { snapshotId: number } }[] }>("listFoods", {}))
       .body.recents[0]!;

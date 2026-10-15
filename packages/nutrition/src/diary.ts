@@ -8,8 +8,9 @@ import {
 } from "@openvalens/db/schema/nutrition";
 import { and, asc, desc, eq, isNull, max, sql } from "drizzle-orm";
 
-import { catalogFoodToSnapshotInput, createFoodCatalog } from "./catalog/repository";
 import { NutritionError } from "./errors";
+import type { FoodLookupProvider } from "./food-lookup";
+import { createFoodSearch, foodResultToLogFood } from "./food-search";
 import { isLocalDate, MEAL_SLOTS, type MealSlot } from "./local-day";
 import {
   computeNutrientFactor,
@@ -64,7 +65,11 @@ export type DiaryDay = {
 export type DiaryFoodRef =
   | Exclude<LogEntryInput["food"], { kind: "external" }>
   | { kind: "external"; snapshot: Extract<LogEntryInput["food"], { kind: "external" }>["snapshot"] }
-  /** A public catalog food by source-qualified id (`fdc:123`, `off:301...`); see #72. */
+  /**
+   * A food by source-qualified id (`custom:42`, `fdc:123`, `off:301...`),
+   * resolved server-side through #69 food search; the client never supplies
+   * its nutrient values.
+   */
   | { kind: "catalog"; id: string };
 
 export type DiaryLogInput = Omit<LogEntryInput, "food" | "clientMutationId"> & {
@@ -170,9 +175,14 @@ const ownEntry = (scope: NutritionScope, entryId: number) =>
     eq(nutritionMealEntry.id, entryId),
   );
 
-export function createNutritionDiary(db: Database) {
+export type NutritionDiaryOptions = {
+  /** Optional live barcode lookup (#69), used when an `off:` id is not mirrored. */
+  liveLookup?: FoodLookupProvider | null;
+};
+
+export function createNutritionDiary(db: Database, options: NutritionDiaryOptions = {}) {
   const repo = createNutritionRepository(db);
-  const catalog = createFoodCatalog(db);
+  const foodSearch = createFoodSearch(db, { liveLookup: options.liveLookup ?? null });
 
   /** Current state of an entry (deleted or not) inside `scope`, locked for the transaction. */
   async function lockEntry(tx: Tx, scope: NutritionScope, entryId: number) {
@@ -294,9 +304,9 @@ export function createNutritionDiary(db: Database) {
       const clientMutationId = assertMutationId(input.clientMutationId);
       let food: LogEntryInput["food"];
       if (input.food.kind === "catalog") {
-        const found = await catalog.getFood(input.food.id);
-        if (!found) throw new NutritionError("NOT_FOUND", "Catalog food not found");
-        food = { kind: "external", snapshot: catalogFoodToSnapshotInput(found) };
+        const found = await foodSearch.getFood(scope, input.food.id);
+        if (!found) throw new NutritionError("NOT_FOUND", "Food not found");
+        food = foodResultToLogFood(found);
       } else {
         if (input.food.kind === "snapshot") await assertOwnSnapshot(scope, input.food.snapshotId);
         food = input.food;

@@ -7,19 +7,28 @@ readiness probe (Issue #57).
 
 ## v1 adapter set
 
-| Family             | Adapters                                        | Default with no vendor env     | Enable with                                | Status             |
-| ------------------ | ----------------------------------------------- | ------------------------------ | ------------------------------------------ | ------------------ |
-| `email`            | Resend (only transport, Issue #61)              | `dry-run` — sends are logged   | `RESEND_API_KEY` and `EMAIL_DRY_RUN=false` | Implemented        |
-| `ai`               | Anthropic                                       | `off` — `ai.chat` fails closed | `AI_PROVIDER=anthropic` + `AI_API_KEY`     | Implemented        |
-| `messaging`        | Telegram                                        | `off` — no delivery            | `TELEGRAM_BOT_TOKEN`                       | Implemented        |
-| `ai`               | Any OpenAI-compatible endpoint (Ollama, local)  | `off` — `ai.chat` fails closed | `AI_PROVIDER=openai-compatible` (#59)      | Implemented        |
-| `storage`          | Local disk, S3-compatible (S3, R2, MinIO, B2)   | Local disk, private            | `STORAGE_PROVIDER` (Issue #62)             | Planned — #62      |
-| `oidc`             | One generic OIDC provider (local accounts stay) | `off` — local accounts only    | OIDC env (Issue #65)                       | Planned — #65      |
-| `wearables`        | Phone-first ingestion; Oura, Whoop, Polar, …    | Phone-first, no vendor         | Per-vendor env (Issue #60)                 | Planned — #60      |
-| Errors / analytics | None by default                                 | `off`                          | Opt-in only (Issues #53, #54)              | Planned — #53, #54 |
+| Family             | Adapters                                        | Default with no vendor env     | Enable with                                                     | Status             |
+| ------------------ | ----------------------------------------------- | ------------------------------ | --------------------------------------------------------------- | ------------------ |
+| `email`            | Resend (only transport, Issue #61)              | `dry-run` — sends are logged   | `RESEND_API_KEY` and `EMAIL_DRY_RUN=false`                      | Implemented        |
+| `ai`               | Anthropic                                       | `off` — `ai.chat` fails closed | `AI_PROVIDER=anthropic` + `AI_API_KEY`                          | Implemented        |
+| `messaging`        | Telegram                                        | `off` — no delivery            | `TELEGRAM_BOT_TOKEN`                                            | Implemented        |
+| `ai`               | Any OpenAI-compatible endpoint (Ollama, local)  | `off` — `ai.chat` fails closed | `AI_PROVIDER=openai-compatible` (#59)                           | Implemented        |
+| `foodLookup`       | Open Food Facts live barcode lookup (#69)       | `off` — local catalogs only    | `FOOD_LOOKUP_PROVIDER=openfoodfacts` + `FOOD_LOOKUP_USER_AGENT` | Implemented        |
+| `storage`          | Local disk, S3-compatible (S3, R2, MinIO, B2)   | Local disk, private            | `STORAGE_PROVIDER` (Issue #62)                                  | Planned — #62      |
+| `oidc`             | One generic OIDC provider (local accounts stay) | `off` — local accounts only    | OIDC env (Issue #65)                                            | Planned — #65      |
+| `wearables`        | Phone-first ingestion; Oura, Whoop, Polar, …    | Phone-first, no vendor         | Per-vendor env (Issue #60)                                      | Planned — #60      |
+| Errors / analytics | None by default                                 | `off`                          | Opt-in only (Issues #53, #54)                                   | Planned — #53, #54 |
 
 See [AI providers](ai-providers.md) for AI provider selection and the
 no-tool-calling guarantees.
+
+`foodLookup` is only asked for a barcode that the member's private foods and
+the imported FDC/Open Food Facts catalogs all miss. It sends the product code
+and `FOOD_LOOKUP_USER_AGENT` (an app name and operator contact, as Open Food
+Facts requires) and nothing else; `FOOD_LOOKUP_BASE_URL` can point it at a
+privacy proxy. Store and variable-measure codes are never sent. A timeout or
+rate limit degrades to a manual-entry fallback, and manual food logging never
+depends on it.
 
 Not in v1: SMS, search engines (use Postgres), payments, extra email vendors,
 SMTP, direct APNs/FCM push.
@@ -34,7 +43,8 @@ implemented family:
 {
   "email": { "provider": "resend", "state": "dry-run" },
   "ai": { "provider": null, "state": "off" },
-  "messaging": { "provider": null, "state": "off" }
+  "messaging": { "provider": null, "state": "off" },
+  "foodLookup": { "provider": null, "state": "off" }
 }
 ```
 

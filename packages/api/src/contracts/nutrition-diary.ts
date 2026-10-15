@@ -83,7 +83,11 @@ export type ManualFoodInput = z.infer<typeof manualFoodInput>;
 export const foodRef = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("snapshot"), snapshotId: id }),
   z.strictObject({ kind: z.literal("custom"), foodId: id }),
-  /** Public catalog food (#72), e.g. `fdc:123` or `off:3017620422003`. */
+  /**
+   * A food by `nutritionFoods` result id (`custom:42`, `fdc:123`,
+   * `off:3017620422003`), resolved server-side (#69); nutrient values are
+   * never taken from the client for these.
+   */
   z.strictObject({ kind: z.literal("catalog"), id: z.string().min(5).max(40) }),
   z.strictObject({ kind: z.literal("manual"), food: manualFoodInput }),
 ]);

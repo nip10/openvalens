@@ -4,7 +4,7 @@ import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 /**
  * Explicit, ordered allowlist of the server's global configuration keys
  * (Issue #58). This is the *only* set of keys the configuration inventory can
- * ever surface; it mirrors `apps/server/.env.schema` exactly (25 keys) and is
+ * ever surface; it mirrors `apps/server/.env.schema` exactly (28 keys) and is
  * asserted against that schema by the parity test.
  *
  * The list is intentionally hand-written rather than derived from the
@@ -35,6 +35,9 @@ export const ADMIN_CONFIG_KEYS = [
   "AI_MODEL",
   "AI_SUPPORTS_STRUCTURED_OUTPUTS",
   "AI_RATE_LIMIT_PER_MINUTE",
+  "FOOD_LOOKUP_PROVIDER",
+  "FOOD_LOOKUP_USER_AGENT",
+  "FOOD_LOOKUP_BASE_URL",
   "API_MAX_BODY_BYTES",
 ] as const;
 
