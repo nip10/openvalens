@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { ProductSettingsStatus } from "@/components/product-settings-status";
+import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 
@@ -123,6 +124,8 @@ function DashboardPage() {
       </div>
 
       <ProductSettingsStatus />
+
+      <ProfileSetupPrompt />
 
       {isPending ? (
         <Skeleton className="h-64 w-full" />
