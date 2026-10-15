@@ -290,6 +290,12 @@ export const nutritionMealEntry = pgTable(
     consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
     clientMutationId: text("client_mutation_id"),
     deletedAt: timestamp("deleted_at", { withTimezone: true, mode: "date" }),
+    /**
+     * Bumped on every edit, delete and restore (Issue #77). Offline clients
+     * send the revision they last saw so a stale change becomes a conflict
+     * the member resolves, never a silent overwrite.
+     */
+    revision: integer("revision").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
@@ -326,6 +332,10 @@ export const nutritionMealEntry = pgTable(
     nutritionMealEntryMethodCheck: check(
       "nutrition_meal_entry_method_check",
       sql`${table.method} in ('manual', 'search', 'barcode', 'quick_add', 'copied')`,
+    ),
+    nutritionMealEntryRevisionCheck: check(
+      "nutrition_meal_entry_revision_check",
+      sql`${table.revision} >= 1`,
     ),
     nutritionMealEntryClientMutationCheck: check(
       "nutrition_meal_entry_client_mutation_id_check",
@@ -393,6 +403,133 @@ export const nutritionGoal = pgTable(
       columns: [table.organizationId, table.userId],
       foreignColumns: [member.organizationId, member.userId],
       name: "nutrition_goal_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+// ─── Meal diary (Issue #77) ───────────────────────────────────
+//
+// Additive diary state on top of the #74 core: an explicit "day complete"
+// marker, favourite foods and a ledger that makes offline edit/delete/restore
+// replays idempotent. An absent day row means "not marked": it is never read
+// as zero intake.
+
+/**
+ * A member's explicit marker for one local day. `completed_at` set means the
+ * member marked the day complete; `null` means they cleared the marker. No
+ * row and a cleared row both mean "not marked".
+ */
+export const nutritionDiaryDay = pgTable(
+  "nutrition_diary_day",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    localDate: text("local_date").notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nutritionDiaryDayOrgUserDateUnique: uniqueIndex("nutrition_diary_day_org_user_date_key").on(
+      table.organizationId,
+      table.userId,
+      table.localDate,
+    ),
+    nutritionDiaryDayUserIdx: index("nutrition_diary_day_user_id_idx").on(table.userId),
+    nutritionDiaryDayLocalDateCheck: check(
+      "nutrition_diary_day_local_date_check",
+      sql`${table.localDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'`,
+    ),
+    nutritionDiaryDayMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_diary_day_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+/** A member's favourite foods, pinned to the snapshot they chose. */
+export const nutritionFavoriteFood = pgTable(
+  "nutrition_favorite_food",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    snapshotId: integer("snapshot_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nutritionFavoriteFoodOrgUserSnapshotUnique: uniqueIndex(
+      "nutrition_favorite_food_org_user_snapshot_key",
+    ).on(table.organizationId, table.userId, table.snapshotId),
+    nutritionFavoriteFoodOrgSnapshotIdx: index("nutrition_favorite_food_org_snapshot_idx").on(
+      table.organizationId,
+      table.snapshotId,
+    ),
+    nutritionFavoriteFoodUserIdx: index("nutrition_favorite_food_user_id_idx").on(table.userId),
+    nutritionFavoriteFoodSnapshotFk: foreignKey({
+      columns: [table.organizationId, table.snapshotId],
+      foreignColumns: [nutritionFoodSnapshot.organizationId, nutritionFoodSnapshot.id],
+      name: "nutrition_favorite_food_org_snapshot_fk",
+    }).onDelete("restrict"),
+    nutritionFavoriteFoodMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_favorite_food_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+/**
+ * Applied edit/delete/restore mutations, keyed by the client's mutation id.
+ * A replayed id returns the entry's current state instead of applying the
+ * change twice or reporting a conflict against the client's own write.
+ * (Logged entries carry their id on `nutrition_meal_entry` itself.)
+ */
+export const nutritionDiaryMutation = pgTable(
+  "nutrition_diary_mutation",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    clientMutationId: text("client_mutation_id").notNull(),
+    kind: text("kind").$type<"update" | "delete" | "restore">().notNull(),
+    entryId: integer("entry_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nutritionDiaryMutationClientUnique: uniqueIndex(
+      "nutrition_diary_mutation_org_user_client_mutation_key",
+    ).on(table.organizationId, table.userId, table.clientMutationId),
+    nutritionDiaryMutationOrgEntryIdx: index("nutrition_diary_mutation_org_entry_idx").on(
+      table.organizationId,
+      table.entryId,
+    ),
+    nutritionDiaryMutationUserIdx: index("nutrition_diary_mutation_user_id_idx").on(table.userId),
+    nutritionDiaryMutationKindCheck: check(
+      "nutrition_diary_mutation_kind_check",
+      sql`${table.kind} in ('update', 'delete', 'restore')`,
+    ),
+    nutritionDiaryMutationClientMutationCheck: check(
+      "nutrition_diary_mutation_client_mutation_id_check",
+      sql`length(${table.clientMutationId}) between 1 and 128`,
+    ),
+    nutritionDiaryMutationEntryFk: foreignKey({
+      columns: [table.organizationId, table.entryId],
+      foreignColumns: [nutritionMealEntry.organizationId, nutritionMealEntry.id],
+      name: "nutrition_diary_mutation_org_entry_fk",
+    }).onDelete("restrict"),
+    nutritionDiaryMutationMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_diary_mutation_org_user_member_fk",
     }).onDelete("restrict"),
   }),
 );

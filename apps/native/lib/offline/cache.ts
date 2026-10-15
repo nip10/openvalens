@@ -10,6 +10,7 @@ import * as SQLite from "expo-sqlite";
  *   query_cache (key TEXT PRIMARY KEY, data TEXT, saved_at INTEGER)
  *   outbox      (id INTEGER PRIMARY KEY AUTOINCREMENT, dedupe_hash TEXT UNIQUE,
  *                payload TEXT, last_error TEXT, saved_at INTEGER, scope TEXT)
+ *   nutrition_outbox (seq, scope, id, item) — meal-diary changes, see lib/nutrition
  *
  * Every cache key and outbox row carries the account scope from
  * `offlineScope`, so one account never reads or sends another's health data.
@@ -22,7 +23,8 @@ const DB_NAME = "openhealth-offline.db";
 
 let database: SQLite.SQLiteDatabase | null = null;
 
-function getDb(): SQLite.SQLiteDatabase {
+/** The shared offline database (also holds the meal-diary outbox, Issue #77). */
+export function getDb(): SQLite.SQLiteDatabase {
   if (!database) {
     database = SQLite.openDatabaseSync(DB_NAME);
     database.execSync(`
@@ -38,6 +40,15 @@ function getDb(): SQLite.SQLiteDatabase {
         payload TEXT,
         last_error TEXT,
         saved_at INTEGER
+      );
+      -- Meal-diary outbox (Issue #77): never size-capped, rows leave only
+      -- after the server confirms them or the member discards them.
+      CREATE TABLE IF NOT EXISTS nutrition_outbox (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        scope TEXT NOT NULL,
+        id TEXT NOT NULL,
+        item TEXT NOT NULL,
+        UNIQUE (scope, id)
       );
     `);
     const columns = database.getAllSync<{ name: string }>("PRAGMA table_info(outbox)");
@@ -152,9 +163,16 @@ export function popOutbox(scope: string): OutboxEntry | null {
   return toEntry(row);
 }
 
+/** Removes this account's cached reads whose key starts with `prefix`. */
+export function clearCachePrefix(scope: string, prefix: string): void {
+  const pattern = `${scope}:${prefix}`.replace(/[\\%_]/g, (char) => `\\${char}`);
+  getDb().runSync("DELETE FROM query_cache WHERE key LIKE ? ESCAPE '\\'", `${pattern}%`);
+}
+
 /** Wipes every cached read and queued write, for all accounts (sign-out). */
 export function clearOfflineData(): void {
   const db = getDb();
   db.runSync("DELETE FROM query_cache");
   db.runSync("DELETE FROM outbox");
+  db.runSync("DELETE FROM nutrition_outbox");
 }

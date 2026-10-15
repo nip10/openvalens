@@ -199,7 +199,7 @@ export function stopSyncEngine(): void {
 }
 
 /** The signed-in account's offline scope; keeps the engine's scope in sync. */
-function useOfflineScope(): string | null {
+export function useOfflineScope(): string | null {
   const { data } = authClient.useSession();
   const scope = offlineScope(data as Parameters<typeof offlineScope>[0]);
   useEffect(() => {
