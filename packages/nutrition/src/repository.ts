@@ -45,7 +45,7 @@ import {
 
 export type NutritionScope = { organizationId: string; userId: string };
 
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export type CustomFoodInput = {
   name: string;
@@ -93,6 +93,10 @@ export type DiaryEntry = {
   method: MealEntryMethod;
   consumedAt: Date | null;
   clientMutationId: string | null;
+  /** Bumped on every edit, delete and restore; offline clients send it back to detect conflicts. */
+  revision: number;
+  /** Set while the entry is deleted (undo clears it); active-entry reads never return it set. */
+  deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   /** Logged food as it was at logging time. */
@@ -172,6 +176,8 @@ function toDiaryEntry(
     method: entry.method,
     consumedAt: entry.consumedAt,
     clientMutationId: entry.clientMutationId,
+    revision: entry.revision,
+    deletedAt: entry.deletedAt,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
     food: {
@@ -193,7 +199,8 @@ function toDiaryEntry(
   };
 }
 
-async function selectEntry(tx: Tx, scope: NutritionScope, where: ReturnType<typeof and>) {
+/** One entry with its meal and snapshot inside `scope`; `where` adds the row filter. */
+export async function selectEntry(tx: Tx, scope: NutritionScope, where: ReturnType<typeof and>) {
   const [row] = await tx
     .select({ entry: nutritionMealEntry, meal: nutritionMeal, snapshot: nutritionFoodSnapshot })
     .from(nutritionMealEntry)
@@ -285,7 +292,8 @@ async function resolveSnapshot(
   return ensureSnapshot(tx, scope.organizationId, customFoodSnapshotContent(row));
 }
 
-async function ensureMeal(
+/** The member's meal for one local day + slot, created on first use. */
+export async function ensureMeal(
   tx: Tx,
   scope: NutritionScope,
   day: { localDate: string; timeZone: string; slot: MealSlot },
@@ -464,7 +472,13 @@ export function createNutritionRepository(db: Database) {
         const nutrientFactor = computeNutrientFactor(current.food.basis, input.amount, input.unit);
         await tx
           .update(nutritionMealEntry)
-          .set({ amount: input.amount, unit: input.unit, nutrientFactor, updatedAt: new Date() })
+          .set({
+            amount: input.amount,
+            unit: input.unit,
+            nutrientFactor,
+            revision: sql`${nutritionMealEntry.revision} + 1`,
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(nutritionMealEntry.organizationId, scope.organizationId),
@@ -601,7 +615,7 @@ export function createNutritionRepository(db: Database) {
   async function setDeleted(scope: NutritionScope, entryId: number, deletedAt: Date | null) {
     const rows = await db
       .update(nutritionMealEntry)
-      .set({ deletedAt, updatedAt: new Date() })
+      .set({ deletedAt, revision: sql`${nutritionMealEntry.revision} + 1`, updatedAt: new Date() })
       .where(
         and(
           eq(nutritionMealEntry.organizationId, scope.organizationId),

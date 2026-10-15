@@ -129,9 +129,10 @@ describe.skipIf(!url)("food catalogs against disposable PostgreSQL", () => {
     `),
     );
     schemaBefore = await existingSchema();
-    for (const directory of directories)
-      if (directory >= CATALOG_MIGRATION) await applyMigration(directory);
+    await applyMigration(CATALOG_MIGRATION);
     schemaAfter = await existingSchema();
+    for (const directory of directories)
+      if (directory > CATALOG_MIGRATION) await applyMigration(directory);
   });
 
   afterAll(async () => {

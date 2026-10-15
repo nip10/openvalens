@@ -5,6 +5,7 @@ import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
+import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
 import type { TelegramClient } from "@openvalens/telegram";
 
 import type { ProductSettingsService } from "./product-settings";
@@ -147,6 +148,12 @@ export type Context = {
    * absent means magic-link only.
    */
   signInOptions?: SignInOptions;
+  /**
+   * Issue #69 — optional live barcode lookup (`foodLookup` integration),
+   * built by the server from its parsed config. `null`/absent keeps food
+   * lookups local (private foods + catalog mirrors), which is the default.
+   */
+  foodLookup?: FoodLookupProvider | null;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

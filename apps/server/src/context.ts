@@ -13,6 +13,7 @@ import {
   capabilities,
   db,
   email,
+  foodLookup,
   integrations,
   productSettingsService,
   signInOptions,
@@ -80,6 +81,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     admissionService,
     admissionRateLimiter,
+    // Issue #69 — optional live barcode lookup; `null` keeps lookups local.
+    foodLookup,
     // Issue #65 — public "Continue with <name>" option, or `{ oidc: null }`.
     signInOptions,
     // Hand the Hono context through so authz guards and cron auth can read

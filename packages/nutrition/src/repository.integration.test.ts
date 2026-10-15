@@ -87,6 +87,7 @@ describe.skipIf(!url)("nutrition core against disposable PostgreSQL", () => {
   let schemaAfter: unknown[];
   let rowsBefore: unknown;
   let rowsAfter: unknown;
+  let created: string[];
 
   beforeAll(async () => {
     const tables = await db.execute(
@@ -117,21 +118,22 @@ describe.skipIf(!url)("nutrition core against disposable PostgreSQL", () => {
     schemaBefore = await existingSchema();
     rowsBefore = await existingRows();
 
-    // Apply the nutrition migration (and anything after it).
-    for (const directory of directories)
-      if (directory >= NUTRITION_MIGRATION) await applyMigration(directory);
+    // Apply the nutrition migration and capture its effect, then anything after it.
+    await applyMigration(NUTRITION_MIGRATION);
     schemaAfter = await existingSchema();
     rowsAfter = await existingRows();
+    created = (
+      await db.execute(
+        sql`select tablename from pg_tables where schemaname = 'public' and tablename like 'nutrition\_%' and tablename not like 'nutrition\_catalog\_%' order by 1`,
+      )
+    ).rows.map((row) => (row as { tablename: string }).tablename);
+    for (const directory of directories)
+      if (directory > NUTRITION_MIGRATION) await applyMigration(directory);
   });
 
   test("migration is additive: existing schema and rows are unchanged", async () => {
     expect(schemaAfter).toEqual(schemaBefore);
     expect(rowsAfter).toEqual(rowsBefore);
-    const created = (
-      await db.execute(
-        sql`select tablename from pg_tables where schemaname = 'public' and tablename like 'nutrition\_%' and tablename not like 'nutrition\_catalog\_%' order by 1`,
-      )
-    ).rows.map((row) => (row as { tablename: string }).tablename);
     expect(created).toEqual([
       "nutrition_food",
       "nutrition_food_snapshot",

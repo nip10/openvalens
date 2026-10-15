@@ -24,6 +24,7 @@ const BASE_LINKS = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/coach", label: "Coach" },
   { to: "/body", label: "Body" },
+  { to: "/nutrition", label: "Meal diary" },
   { to: "/supplements", label: "Supplements" },
   { to: "/workouts", label: "Workouts" },
   { to: "/records/timeline", label: "Timeline" },

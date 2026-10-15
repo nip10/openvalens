@@ -17,6 +17,8 @@ import { healthRecordRouter } from "./health-record";
 import { ingestionRouter } from "./ingestion";
 import { labsRouter } from "./labs";
 import { mobileRouter } from "./mobile";
+import { nutritionDiaryRouter } from "./nutrition-diary";
+import { nutritionFoodsRouter } from "./nutrition-foods";
 import { plansRouter } from "./plans";
 import { sharingRouter } from "./sharing";
 import { signInRouter } from "./sign-in";
@@ -43,6 +45,8 @@ export const appRouter = {
   ingestion: ingestionRouter,
   labs: labsRouter,
   mobile: mobileRouter,
+  nutritionDiary: nutritionDiaryRouter,
+  nutritionFoods: nutritionFoodsRouter,
   plans: plansRouter,
   sharing: sharingRouter,
   signIn: signInRouter,

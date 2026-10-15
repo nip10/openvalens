@@ -122,6 +122,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_meal: organization,
   nutrition_meal_entry: organization,
   nutrition_goal: organization,
+  // Meal diary (#77): day-complete markers, favourites and the offline replay ledger.
+  nutrition_diary_day: organization,
+  nutrition_favorite_food: organization,
+  nutrition_diary_mutation: organization,
   // Public food catalogs (#72): instance-wide FDC / Open Food Facts mirrors and
   // their import ledger; no tenant or personal columns.
   nutrition_catalog_release: {

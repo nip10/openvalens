@@ -12,9 +12,11 @@
     { "path": "../activity" },
     { "path": "../vitals" },
     { "path": "../labs" },
+    { "path": "../nutrition" },
     { "path": "../clinical-export" },
     { "path": "../health-record" },
     { "path": "../ingestion" },
+    { "path": "../nutrition" },
     {
       "path": "../db"
     },
