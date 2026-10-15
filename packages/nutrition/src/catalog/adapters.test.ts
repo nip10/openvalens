@@ -1,0 +1,191 @@
+import { describe, expect, test } from "bun:test";
+
+import { parseFdcFood } from "./fdc";
+import { readJsonLines } from "./jsonl";
+import { parseOffProduct } from "./off";
+
+// Synthetic fixtures shaped like the upstream formats; no real records.
+
+const fdcNutrient = (number: string, unitName: string, amount: unknown) => ({
+  type: "FoodNutrient",
+  nutrient: { id: 1, number, name: "synthetic", unitName },
+  amount,
+});
+
+const fdcFoundation = {
+  fdcId: 900101,
+  description: "Synthetic lentils, cooked",
+  dataType: "Foundation",
+  publicationDate: "4/1/2026",
+  foodNutrients: [
+    fdcNutrient("208", "KCAL", 116),
+    fdcNutrient("268", "kJ", 485),
+    fdcNutrient("203", "G", 9),
+    fdcNutrient("204", "G", 0.4),
+    fdcNutrient("291", "G", 7.9),
+    fdcNutrient("269", "G", 0),
+    fdcNutrient("307", "MG", 2),
+    fdcNutrient("606", "MG", 50), // saturated fat reported in mg → 0.05 g
+  ],
+  foodPortions: [{ gramWeight: 198, portionDescription: "1 cup" }],
+};
+
+const fdcBranded = {
+  fdcId: "900202",
+  description: "Synthetic oat drink",
+  dataType: "Branded",
+  brandOwner: "Synthetic Owner Co",
+  gtinUpc: "0001234-567895",
+  servingSize: 250,
+  servingSizeUnit: "MLT",
+  householdServingFullText: "1 glass",
+  foodNutrients: [
+    { nutrientNumber: "208", unitName: "KCAL", value: 46 },
+    { nutrientNumber: "269", unitName: "G", value: 4 },
+    { nutrientNumber: "539", unitName: "G", value: 0 },
+    { nutrientNumber: "307", unitName: "MG", value: 40 },
+  ],
+};
+
+const offProduct = {
+  code: "4006381333931",
+  product_name: "Synthetic hazelnut spread",
+  brands: "Synthetic Brand",
+  last_modified_t: 1_780_000_000,
+  serving_size: "15 g",
+  serving_quantity: 15,
+  image_front_url: "https://example.test/image.jpg",
+  nutriments: {
+    "energy-kcal_100g": 540,
+    "energy-kj_100g": 2260,
+    fat_100g: 31,
+    "saturated-fat_100g": 10.5,
+    carbohydrates_100g: "57.5",
+    sugars_100g: 56,
+    proteins_100g: 6.3,
+    salt_100g: 0.1,
+    sodium_100g: 0.04,
+    fiber_100g: -1,
+  },
+};
+
+describe("FDC adapter", () => {
+  test("maps nutrients by number, keeps unknowns null and records the data type", () => {
+    const record = parseFdcFood(fdcFoundation);
+    expect(record).toMatchObject({
+      source: "fdc",
+      fdcId: "900101",
+      dataType: "Foundation",
+      name: "Synthetic lentils, cooked",
+      brand: null,
+      barcode: null,
+      nutrientBasisAmount: 100,
+      nutrientBasisUnit: "g",
+      servingSizeAmount: null,
+      energyKcal: 116,
+      energyKj: 485,
+      proteinG: 9,
+      fatG: 0.4,
+      fiberG: 7.9,
+      totalSugarsG: 0,
+      sodiumMg: 2,
+      saturatedFatG: 0.05,
+    });
+    // Not provided by FDC: unknown, never zero; salt is never derived from sodium.
+    expect(record?.carbohydrateG).toBeNull();
+    expect(record?.saltG).toBeNull();
+    expect(record?.freeSugarsG).toBeNull();
+    expect(record?.addedSugarsG).toBeNull();
+  });
+
+  test("branded liquids are per 100 ml with a labeled serving and normalized GTIN", () => {
+    expect(parseFdcFood(fdcBranded)).toMatchObject({
+      fdcId: "900202",
+      brand: "Synthetic Owner Co",
+      barcode: "0001234567895",
+      nutrientBasisUnit: "ml",
+      servingSizeAmount: 250,
+      servingSizeUnit: "ml",
+      servingLabel: "1 glass",
+      energyKcal: 46,
+      addedSugarsG: 0,
+      sodiumMg: 40,
+    });
+  });
+
+  test("energy with an unexpected unit is unknown, not converted", () => {
+    const record = parseFdcFood({
+      ...fdcFoundation,
+      foodNutrients: [fdcNutrient("208", "kJ", 485)],
+    });
+    expect(record?.energyKcal).toBeNull();
+  });
+
+  test("rejects items without a stable id, name or data type", () => {
+    expect(parseFdcFood(null)).toBeNull();
+    expect(parseFdcFood({ ...fdcFoundation, fdcId: "abc" })).toBeNull();
+    expect(parseFdcFood({ ...fdcFoundation, description: " " })).toBeNull();
+    expect(parseFdcFood({ ...fdcFoundation, dataType: undefined })).toBeNull();
+  });
+});
+
+describe("Open Food Facts adapter", () => {
+  test("maps core nutrients, converts sodium g → mg and ignores images", () => {
+    const record = parseOffProduct(offProduct);
+    expect(record).toMatchObject({
+      source: "off",
+      code: "4006381333931",
+      barcode: "4006381333931",
+      name: "Synthetic hazelnut spread",
+      brand: "Synthetic Brand",
+      nutrientBasisAmount: 100,
+      nutrientBasisUnit: "g",
+      servingSizeAmount: 15,
+      servingSizeUnit: "g",
+      servingLabel: "15 g",
+      energyKcal: 540,
+      energyKj: 2260,
+      carbohydrateG: 57.5,
+      sodiumMg: 40,
+      saltG: 0.1,
+    });
+    expect(record?.lastModifiedAt.toISOString()).toBe(new Date(1_780_000_000 * 1000).toISOString());
+    // Invalid upstream value → unknown; absent → unknown.
+    expect(record?.fiberG).toBeNull();
+    expect(record?.addedSugarsG).toBeNull();
+    expect(JSON.stringify(record)).not.toContain("image");
+  });
+
+  test("volume products are per 100 ml; nameless products keep a null name", () => {
+    const record = parseOffProduct({
+      code: "12345678",
+      last_modified_t: 1_780_000_000,
+      product_quantity_unit: "ml",
+      nutriments: {},
+    });
+    expect(record?.nutrientBasisUnit).toBe("ml");
+    expect(record?.name).toBeNull();
+    expect(record?.energyKcal).toBeNull();
+  });
+
+  test("non-GTIN codes are kept but carry no barcode", () => {
+    expect(parseOffProduct({ ...offProduct, code: "2001234" })?.barcode).toBeNull();
+  });
+
+  test("rejects products without a numeric code or modification time", () => {
+    expect(parseOffProduct({ ...offProduct, code: "abc" })).toBeNull();
+    expect(parseOffProduct({ ...offProduct, last_modified_t: undefined })).toBeNull();
+  });
+});
+
+describe("readJsonLines", () => {
+  test("splits across chunk boundaries and yields null for malformed lines", async () => {
+    async function* chunks() {
+      yield '{"a":1}\n{"b"';
+      yield new TextEncoder().encode(':2}\nnot json\n\n{"c":3}');
+    }
+    const items: unknown[] = [];
+    for await (const item of readJsonLines(chunks())) items.push(item);
+    expect(items).toEqual([{ a: 1 }, { b: 2 }, null, { c: 3 }]);
+  });
+});

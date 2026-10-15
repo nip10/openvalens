@@ -96,3 +96,23 @@ export async function resolveToolAccess(
     logger,
   };
 }
+
+/**
+ * Emits the value-free `ai.tool.executed` line. `counts` must hold statuses,
+ * counts and booleans only — never a measured value, date or model input.
+ */
+export function logToolExecuted(
+  context: AiHealthToolContext,
+  logger: StructuredLogger,
+  toolName: string,
+  status: string,
+  counts: Record<string, number | boolean | string> = {},
+): void {
+  logger.info("ai.tool.executed", {
+    correlationId: context.correlationId,
+    organizationId: context.organizationId,
+    tool: toolName,
+    status,
+    ...counts,
+  });
+}

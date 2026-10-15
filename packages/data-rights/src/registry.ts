@@ -122,6 +122,24 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_meal: organization,
   nutrition_meal_entry: organization,
   nutrition_goal: organization,
+  // Public food catalogs (#72): instance-wide FDC / Open Food Facts mirrors and
+  // their import ledger; no tenant or personal columns.
+  nutrition_catalog_release: {
+    kind: "reference",
+    reason: "Food catalog import ledger (artifact, license, attribution), not user data.",
+  },
+  nutrition_catalog_fdc_food: {
+    kind: "reference",
+    reason: "USDA FoodData Central mirror (CC0), not user data.",
+  },
+  nutrition_catalog_off_product: {
+    kind: "reference",
+    reason: "Open Food Facts mirror (ODbL), not user data.",
+  },
+  nutrition_catalog_off_overlay: {
+    kind: "reference",
+    reason: "Instance-level Open Food Facts corrections (ODbL), no author identity.",
+  },
 
   // Integrations
   telegram_account: organization,

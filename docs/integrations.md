@@ -10,13 +10,16 @@ readiness probe (Issue #57).
 | Family             | Adapters                                        | Default with no vendor env     | Enable with                                | Status             |
 | ------------------ | ----------------------------------------------- | ------------------------------ | ------------------------------------------ | ------------------ |
 | `email`            | Resend (only transport, Issue #61)              | `dry-run` — sends are logged   | `RESEND_API_KEY` and `EMAIL_DRY_RUN=false` | Implemented        |
-| `ai`               | Anthropic                                       | `off` — `ai.chat` fails closed | `ANTHROPIC_API_KEY`                        | Implemented        |
+| `ai`               | Anthropic                                       | `off` — `ai.chat` fails closed | `AI_PROVIDER=anthropic` + `AI_API_KEY`     | Implemented        |
 | `messaging`        | Telegram                                        | `off` — no delivery            | `TELEGRAM_BOT_TOKEN`                       | Implemented        |
-| `ai`               | Any OpenAI-compatible endpoint (Ollama, local)  | `off`                          | `AI_PROVIDER` (Issue #59)                  | Planned — #59      |
+| `ai`               | Any OpenAI-compatible endpoint (Ollama, local)  | `off` — `ai.chat` fails closed | `AI_PROVIDER=openai-compatible` (#59)      | Implemented        |
 | `storage`          | Local disk, S3-compatible (S3, R2, MinIO, B2)   | Local disk, private            | `STORAGE_PROVIDER` (Issue #62)             | Planned — #62      |
 | `oidc`             | One generic OIDC provider (local accounts stay) | `off` — local accounts only    | OIDC env (Issue #65)                       | Planned — #65      |
 | `wearables`        | Phone-first ingestion; Oura, Whoop, Polar, …    | Phone-first, no vendor         | Per-vendor env (Issue #60)                 | Planned — #60      |
 | Errors / analytics | None by default                                 | `off`                          | Opt-in only (Issues #53, #54)              | Planned — #53, #54 |
+
+See [AI providers](ai-providers.md) for AI provider selection and the
+no-tool-calling guarantees.
 
 Not in v1: SMS, search engines (use Postgres), payments, extra email vendors,
 SMTP, direct APNs/FCM push.

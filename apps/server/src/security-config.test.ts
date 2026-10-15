@@ -411,4 +411,28 @@ describe("schema-validated security configuration (cold boot)", () => {
     },
     TEST_TIMEOUT_MS,
   );
+
+  // Issue #59 — a local OpenAI-compatible endpoint boots AI with no cloud
+  // credential; readiness names the provider but never the URL or key.
+  test(
+    "boots an OpenAI-compatible AI provider with no cloud credentials",
+    async () => {
+      const key = "synthetic-local-ai-key-0123456789";
+      const run = await runColdChild({
+        NODE_ENV: "development",
+        CSP_MODE: "report-only",
+        AI_PROVIDER: "openai-compatible",
+        AI_BASE_URL: "http://127.0.0.1:11434/v1",
+        AI_MODEL: "synthetic-local-model",
+        AI_API_KEY: key,
+      });
+      const ai = { provider: "openai-compatible", state: "configured" };
+      expect(run.exitCode).toBe(0);
+      expect(run.result?.integrations.ai).toEqual(ai);
+      expect(run.result?.readinessIntegrations?.ai).toEqual(ai);
+      expect(run.output).not.toContain(key);
+      expect(run.output).not.toContain("127.0.0.1:11434");
+    },
+    TEST_TIMEOUT_MS,
+  );
 });

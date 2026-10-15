@@ -23,6 +23,7 @@ const SYNTHETIC_SECRETS: Record<string, string> = {
   RESEND_API_KEY: "synthetic-resend-key",
   EMAIL_AUDIT_BCC: "audit@example.com",
   TELEGRAM_BOT_TOKEN: "123456:synthetic-telegram-token",
+  AI_API_KEY: "synthetic-ai-provider-key",
   ANTHROPIC_API_KEY: "sk-ant-synthetic",
 };
 
@@ -54,6 +55,7 @@ async function runEnvServerChild(
     `  resend: e.RESEND_API_KEY === ${JSON.stringify(SYNTHETIC_SECRETS.RESEND_API_KEY)},`,
     `  auditBcc: e.EMAIL_AUDIT_BCC === ${JSON.stringify(SYNTHETIC_SECRETS.EMAIL_AUDIT_BCC)},`,
     `  telegram: e.TELEGRAM_BOT_TOKEN === ${JSON.stringify(SYNTHETIC_SECRETS.TELEGRAM_BOT_TOKEN)},`,
+    `  aiKey: e.AI_API_KEY === ${JSON.stringify(SYNTHETIC_SECRETS.AI_API_KEY)},`,
     `  anthropic: e.ANTHROPIC_API_KEY === ${JSON.stringify(SYNTHETIC_SECRETS.ANTHROPIC_API_KEY)},`,
     "  resendAbsent: e.RESEND_API_KEY == null,",
     "}));",
@@ -131,6 +133,7 @@ describe("file secrets boot ordering (real Varlock cold start)", () => {
         "resend",
         "auditBcc",
         "telegram",
+        "aiKey",
         "anthropic",
       ]) {
         expect(flags[key]).toBe(true);
@@ -219,11 +222,14 @@ describe("actual server schema sensitive coverage", () => {
       }
 
       expect([...sensitiveByDefault].sort()).toEqual([...FILE_SECRET_KEYS].sort());
-      // The eleven schema keys that must NOT be file-resolved.
+      // The fourteen schema keys that must NOT be file-resolved.
       expect([...explicitlyPublic].sort()).toEqual(
         [
+          "AI_BASE_URL",
           "AI_MODEL",
+          "AI_PROVIDER",
           "AI_RATE_LIMIT_PER_MINUTE",
+          "AI_SUPPORTS_STRUCTURED_OUTPUTS",
           "API_MAX_BODY_BYTES",
           "AUTH_DEV_MAGIC_LINK_CONSOLE",
           "CSP_MODE",

@@ -4,7 +4,7 @@ import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 /**
  * Explicit, ordered allowlist of the server's global configuration keys
  * (Issue #58). This is the *only* set of keys the configuration inventory can
- * ever surface; it mirrors `apps/server/.env.schema` exactly (21 keys) and is
+ * ever surface; it mirrors `apps/server/.env.schema` exactly (25 keys) and is
  * asserted against that schema by the parity test.
  *
  * The list is intentionally hand-written rather than derived from the
@@ -28,8 +28,12 @@ export const ADMIN_CONFIG_KEYS = [
   "TELEGRAM_WEBHOOK_SECRET",
   "TELEGRAM_CONNECT_TOKEN_TTL_SECONDS",
   "TELEGRAM_API_BASE_URL",
+  "AI_PROVIDER",
+  "AI_BASE_URL",
+  "AI_API_KEY",
   "ANTHROPIC_API_KEY",
   "AI_MODEL",
+  "AI_SUPPORTS_STRUCTURED_OUTPUTS",
   "AI_RATE_LIMIT_PER_MINUTE",
   "API_MAX_BODY_BYTES",
 ] as const;

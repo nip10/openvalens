@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { createStructuredLogger, type LogLevel } from "@openvalens/observability";
+import { APICallError, RetryError } from "ai";
 
 import { AI_DEFAULT_MODEL, AiConfigError, parseAiConfig } from "./config";
-import { streamChat, type StreamTextFn } from "./stream";
+import { streamChat, toolsRejectionStatus, type StreamTextFn } from "./stream";
 
 function captureLogger() {
   const lines: Array<Record<string, unknown>> = [];
@@ -141,5 +142,108 @@ describe("streamChat", () => {
       expect(error).toBeInstanceOf(AiConfigError);
       expect((error as AiConfigError).code).toBe("AI_CONFIG_INVALID");
     }
+  });
+});
+
+describe("toolsRejectionStatus (Issue #59)", () => {
+  function apiError(statusCode: number) {
+    return new APICallError({
+      message: "synthetic",
+      url: "http://127.0.0.1/v1/chat/completions",
+      requestBodyValues: {},
+      statusCode,
+    });
+  }
+
+  test("treats client and server errors as a possible tools rejection", () => {
+    expect(toolsRejectionStatus(apiError(400))).toBe(400);
+    expect(toolsRejectionStatus(apiError(422))).toBe(422);
+    expect(toolsRejectionStatus(apiError(501))).toBe(501);
+  });
+
+  test("unwraps the AI SDK retry wrapper (llama.cpp answers 500 without --jinja)", () => {
+    const retried = new RetryError({
+      message: "synthetic",
+      reason: "maxRetriesExceeded",
+      errors: [apiError(500), apiError(500), apiError(500)],
+    });
+    expect(toolsRejectionStatus(retried)).toBe(500);
+  });
+
+  test("never retries auth, timeout, rate-limit or non-HTTP errors without tools", () => {
+    for (const status of [401, 403, 408, 429]) {
+      expect(toolsRejectionStatus(apiError(status))).toBeNull();
+    }
+    expect(toolsRejectionStatus(new Error("network down"))).toBeNull();
+  });
+});
+
+describe("streamChat no-tools fallback (Issue #59)", () => {
+  test("retries once without tools when the provider rejects them before any text", async () => {
+    const { logger, lines } = captureLogger();
+    const calls: Array<{ tools?: Record<string, unknown> }> = [];
+    const streamTextFn: StreamTextFn = (args) => {
+      calls.push(args.tools ? { tools: args.tools } : {});
+      if (args.tools) {
+        args.onError?.({
+          error: new APICallError({
+            message: "tools unsupported",
+            url: "http://127.0.0.1/v1/chat/completions",
+            requestBodyValues: {},
+            statusCode: 400,
+          }),
+        });
+        return { textStream: asyncStream([]) };
+      }
+      return { textStream: asyncStream(["plain answer"]) };
+    };
+
+    const result = await streamChat({
+      config,
+      messages: [{ role: "user", content: "hi" }],
+      tools: { healthSnapshot: {} },
+      correlationId: "corr-fallback",
+      logger,
+      streamTextFn,
+    });
+
+    expect(result.text).toBe("plain answer");
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.tools).toBeDefined();
+    expect(calls[1]?.tools).toBeUndefined();
+    expect(lines.map((line) => line.event)).toContain("ai.chat.stream.tools_unsupported");
+  });
+
+  test("does not retry once text has streamed (no duplicated output)", async () => {
+    const { logger } = captureLogger();
+    let calls = 0;
+    const streamTextFn: StreamTextFn = (args) => {
+      calls += 1;
+      return {
+        textStream: (async function* generate() {
+          yield "partial";
+          args.onError?.({
+            error: new APICallError({
+              message: "late failure",
+              url: "http://127.0.0.1/v1/chat/completions",
+              requestBodyValues: {},
+              statusCode: 400,
+            }),
+          });
+        })(),
+      };
+    };
+
+    await expect(
+      streamChat({
+        config,
+        messages: [{ role: "user", content: "hi" }],
+        tools: { healthSnapshot: {} },
+        correlationId: "corr-late",
+        logger,
+        streamTextFn,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(calls).toBe(1);
   });
 });

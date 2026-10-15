@@ -98,10 +98,13 @@ Production checklist:
 | `EMAIL_FROM`              |         yes | Sender address; configure a verified sender for real outbound mail.                                                                      |
 | `RESEND_API_KEY`          | conditional | Required for real magic-link delivery (with `EMAIL_DRY_RUN=false`). Without it, mail is dry-run only and sign-in email is not delivered. |
 | `TELEGRAM_BOT_TOKEN`      | conditional | Needed to enable Telegram delivery.                                                                                                      |
-| `ANTHROPIC_API_KEY`       | conditional | Needed to enable AI-provider calls.                                                                                                      |
+| `AI_PROVIDER`             | conditional | `anthropic` or `openai-compatible`; unset leaves AI off. See [AI providers](ai-providers.md).                                            |
+| `AI_API_KEY`              | conditional | Provider key; required for Anthropic (legacy `ANTHROPIC_API_KEY` also works), optional for local OpenAI-compatible servers.              |
+| `AI_BASE_URL`, `AI_MODEL` | conditional | Both required for `openai-compatible`.                                                                                                   |
 
 `EMAIL_DRY_RUN`, `TELEGRAM_CONNECT_TOKEN_TTL_SECONDS`, `TELEGRAM_API_BASE_URL`,
-`AI_MODEL`, and `AI_RATE_LIMIT_PER_MINUTE` have schema defaults. Do not set
+and `AI_RATE_LIMIT_PER_MINUTE` have schema defaults; `AI_MODEL` defaults to
+`claude-sonnet-5-5` for Anthropic. Do not set
 `AUTH_DEV_MAGIC_LINK_CONSOLE=true` in production. Readiness reports provider
 capabilities; it does not verify that external provider credentials are usable.
 Set `BETTER_AUTH_URL` and build-time `VITE_SERVER_URL` to the public API origin;
@@ -113,7 +116,7 @@ Every sensitive key above also accepts a `<KEY>_FILE` variant, so platform
 secret mounts can replace plain environment values. This covers
 `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `CORS_ORIGIN`, `DATABASE_URL`,
 `CRON_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, `RESEND_API_KEY`, `EMAIL_AUDIT_BCC`,
-`TELEGRAM_BOT_TOKEN` and `ANTHROPIC_API_KEY`; the same-origin rules for
+`TELEGRAM_BOT_TOKEN`, `AI_API_KEY` and `ANTHROPIC_API_KEY`; the same-origin rules for
 `BETTER_AUTH_URL` and `CORS_ORIGIN` apply to their file contents.
 
 - Point `<KEY>_FILE` at a mounted secret path such as `/run/secrets/<key>`.
