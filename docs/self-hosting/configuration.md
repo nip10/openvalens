@@ -66,7 +66,7 @@ the keys marked "yes" above; any key you added by hand (for example
 
 The server reads several other variables from
 [the environment reference](../reference/env.md) — for example `CSP_MODE`,
-`AI_PROVIDER`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_RATE_LIMIT_PER_MINUTE`, `API_MAX_BODY_BYTES`, `EMAIL_REPLY_TO`
+`AI_PROVIDER`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_RATE_LIMIT_PER_MINUTE`, `API_MAX_BODY_BYTES`, `FOOD_LOOKUP_PROVIDER`, `FOOD_LOOKUP_USER_AGENT`, `FOOD_LOOKUP_BASE_URL`, `EMAIL_REPLY_TO`
 and `EMAIL_AUDIT_BCC`. `deploy/compose.yml` does not pass them through, so on
 this stack they always use their schema defaults, and the production rules
 that apply on top of them (for example, content security policy is enforced

@@ -17,6 +17,7 @@ describe("codeToStatus", () => {
       NOT_FOUND: 404,
       REAUTH_REQUIRED: 403,
       CONFLICT: 409,
+      SOURCE_UNAVAILABLE: 503,
     };
 
     for (const code of Object.keys(expected) as ORPCErrorCode[]) {

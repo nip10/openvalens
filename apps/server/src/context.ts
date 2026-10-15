@@ -13,6 +13,7 @@ import {
   capabilities,
   db,
   email,
+  foodLookup,
   integrations,
   productSettingsService,
   storageService,
@@ -82,6 +83,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionRateLimiter,
     // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
     storage: storageService,
+    // Issue #69 — optional live barcode lookup; `null` keeps lookups local.
+    foodLookup,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

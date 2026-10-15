@@ -20,6 +20,7 @@
     "@openvalens/config": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/email": "workspace:*",
+    "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",
