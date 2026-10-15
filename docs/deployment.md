@@ -10,7 +10,7 @@ Last updated: 2026-10-06
 ## 1. Overview
 
 > **Self-hosting on your own server?** Use the supported Docker Compose install
-> in [docs/self-hosting.md](self-hosting.md) (`deploy/setup.sh`): Caddy/HTTPS,
+> in [docs/self-hosting/](self-hosting/README.md) (`deploy/setup.sh`): Caddy/HTTPS,
 > generated secrets, setup token, and backup-gated automatic migrations. This
 > document covers platform (Coolify/Dokploy) deployments and operations
 > reference.
@@ -73,7 +73,7 @@ Notes:
 - On a platform deployment, run database migrations as a one-off command,
   never automatically on boot. See [docs/migration-safety.md](migration-safety.md)
   and section 5. (The self-host Compose install instead migrates on start, gated
-  on a pre-migrate backup; see [self-hosting.md](self-hosting.md#upgrades).)
+  on a pre-migrate backup; see [self-hosting/upgrading.md](self-hosting/upgrading.md).)
 
 ## 4. Required environment variables
 
@@ -161,7 +161,7 @@ bun run db:migrate
   platform deployment. The self-host Compose install is the exception: its
   one-shot `migrate` service runs only after the pre-migrate backup hook
   succeeds, and a failure leaves the server stopped
-  ([self-hosting.md](self-hosting.md#upgrades)).
+  ([self-hosting/upgrading.md](self-hosting/upgrading.md)).
 - Destructive migrations must follow the quarantine-over-DELETE and
   `NOT VALID` → `VALIDATE CONSTRAINT` rules in
   [docs/migration-safety.md](migration-safety.md).
@@ -331,6 +331,12 @@ the unreferenced owned network and volume; it does not use project-wide
 The test does not configure Resend, AI, Telegram, TLS, backups, or production
 provisioning, and does not prove external email delivery.
 
+For a deployed environment, `bun scripts/verify-readiness.ts --base-url
+https://<your-domain>` runs the read-only web, API, anonymous/protected RPC and
+integration-state checks in one go; see [release.md](release.md#5-readiness-verification).
+Authenticated and provider flows are verified with
+[production-verification.md](production-verification.md).
+
 Run these after deploy:
 
 - App opens in the browser.
@@ -369,6 +375,11 @@ Run these after deploy:
 
 When a deploy goes wrong (broken migrations, failing readiness, AI regression,
 etc.), roll back with the smallest possible change first.
+
+Releases are built, approved (deployment and migration approval separately)
+and rolled back per [release.md](release.md), which also has the self-host
+restore-rollback commands and a local rollback rehearsal
+(`scripts/rollback-rehearsal.sh`).
 
 For a CSP enforcement regression (a supported flow blocked after Issue #127
 made `CSP_MODE=enforce` the production default), set `CSP_MODE=report-only` and
@@ -470,7 +481,7 @@ DATABASE_URL_FILE=/path/to/private/db-url \
 On the self-host Compose install, `deploy/setup.sh install` mints the token
 into `deploy/secrets/setup-token` for you (and `deploy/setup.sh mint-token`
 re-mints it) by running this same launcher inside the server image; see
-[self-hosting.md](self-hosting.md#first-administrator-and-invitations).
+[self-hosting/install.md](self-hosting/install.md#first-administrator-and-invitations).
 
 ### 2. Create the first administrator (web)
 
@@ -571,7 +582,7 @@ CI/production provider credentials and live email delivery are outside this
 document's scope.
 
 Related: #63. The setup-token minting path and the self-host installer
-(`deploy/setup.sh`, [self-hosting.md](self-hosting.md)) are implemented. Full
+(`deploy/setup.sh`, [self-hosting/](self-hosting/README.md)) are implemented. Full
 encrypted backup/restore remains deferred to #64 (the installer's pre-migrate
 backup is a plain `pg_dump`), and resource minimums still need measuring on a
 reference VPS. Editable product settings and settings-change

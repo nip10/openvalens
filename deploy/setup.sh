@@ -176,7 +176,7 @@ EMAIL_FROM=$FROM
 # Image tag for the locally built server/web images (the checked-out version).
 OPENVALENS_VERSION=$(image_version)
 RESEND_API_KEY_FILE=$resend_file
-# Pre-migrate backup hook: pg_dump (default) | hook | none. See docs/self-hosting.md.
+# Pre-migrate backup hook: pg_dump (default) | hook | none. See docs/self-hosting/backup.md.
 OPENVALENS_PRE_MIGRATE_BACKUP=$(env_get OPENVALENS_PRE_MIGRATE_BACKUP | grep . || echo pg_dump)
 OPENVALENS_BACKUP_RETAIN=$(env_get OPENVALENS_BACKUP_RETAIN | grep . || echo 10)
 # Object storage: local (default, the "storage" volume) | s3. See docs/storage.md.
@@ -209,7 +209,7 @@ set_image_version() {
 random_hex() { od -An -tx1 -N32 /dev/urandom | tr -d ' \n'; }
 
 # write_secret <dir> <name> <value>; never overwrites an existing secret.
-# Layout (docs/self-hosting.md): secrets/ is 0700 (host-private); each service
+# Layout (docs/self-hosting/install.md): secrets/ is 0700 (host-private); each service
 # subdirectory is 0755 with 0444 files so the containers' non-root users can
 # read their read-only mount even when host and container UIDs differ.
 write_secret() {

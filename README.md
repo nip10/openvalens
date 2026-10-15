@@ -2,6 +2,23 @@
 
 This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Hono, ORPC, and more.
 
+## Self-hosting
+
+Run your own instance with the supported Docker Compose install. The guides
+apply to OpenValens 0.1.0 (pre-release; no release is tagged yet):
+
+- [Overview](docs/self-hosting/README.md) — start here; lists what is not covered yet
+- [Install](docs/self-hosting/install.md)
+- [Configuration](docs/self-hosting/configuration.md) and the generated [environment reference](docs/reference/env.md)
+- [Upgrading](docs/self-hosting/upgrading.md)
+- [Backups](docs/self-hosting/backup.md) — **incomplete:** plain, unencrypted pre-migrate dumps only; encrypted backup and restore are pending (#64)
+- [Email](docs/self-hosting/email.md) (Resend only)
+- [Security model and reporting](docs/self-hosting/security.md)
+- [Privacy and data rights](docs/self-hosting/privacy.md)
+- [Licensing and trademark](docs/self-hosting/licensing.md)
+- [Connecting the mobile app](docs/self-hosting/mobile-app.md)
+- [AI providers](docs/ai-providers.md) — Anthropic or an OpenAI-compatible endpoint
+
 ## Features
 
 - **TypeScript** - For type safety and improved developer experience
@@ -94,7 +111,7 @@ Run standalone Node/Bun tools that use Varlock from the owning app directory so 
 ### Docker Compose
 
 > This is the **development** stack. To self-host OpenValens on a server, use
-> the supported HTTPS install in [docs/self-hosting.md](docs/self-hosting.md)
+> the supported HTTPS install in [docs/self-hosting/](docs/self-hosting/README.md)
 > (`deploy/setup.sh install`).
 
 - Target: web + server

@@ -10,9 +10,11 @@
 # Never print database contents or credentials.
 set -eu
 
-# Example: dump, then copy to off-host storage with your own tool.
+# The `backup` service is attached only to the internal `db` network, so this
+# hook has NO internet access: it cannot upload anywhere. Write the dump to
+# /backups here and copy it off the host from the host itself
+# (docs/self-hosting/backup.md).
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 umask 077
 pg_dump --format=custom --no-password --file="/backups/hook-$stamp.dump"
 pg_restore --list "/backups/hook-$stamp.dump" >/dev/null
-# your-offsite-copy-command "/backups/hook-$stamp.dump"

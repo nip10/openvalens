@@ -30,5 +30,8 @@ their instance up to date.
 ## Scope notes for self-hosters
 
 You are responsible for your deployment: keep Postgres off the public network
-(the provided `docker-compose.yml` binds it to localhost), use strong
-generated secrets, enable HTTPS, and take backups.
+(the supported install in `deploy/` never publishes it; the development
+`docker-compose.yml` binds it to localhost), use strong generated secrets,
+enable HTTPS, and take backups. The
+[self-hosting security model](docs/self-hosting/security.md) lists what the
+supported install does for you and what remains your responsibility.

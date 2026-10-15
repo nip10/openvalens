@@ -94,7 +94,8 @@ The `stored_object` table is the index of every object; the bytes live in the
 storage backend. Back up both from the same point in time:
 
 - **Local disk:** back up the `storage` volume (or `STORAGE_LOCAL_DIR`) with
-  the database. The pre-migrate `pg_dump` hook covers the database only.
+  the database. The pre-migrate `pg_dump` hook covers the database only (see
+  [Backups](self-hosting/backup.md)).
   Encrypted, automated backups that include this volume are Issue #64.
 - **S3:** use bucket versioning or replication on the provider side.
 

@@ -10,6 +10,7 @@ import {
   EnvDocsError,
   generateDocument,
   loadSources,
+  loadVersion,
   OUTPUT_PATH,
   SCHEMA_SOURCES,
 } from "./generate-env-docs";
@@ -89,7 +90,14 @@ describe("real committed schemas", () => {
 
   test("committed reference matches generation (drift guard)", () => {
     const committed = readFileSync(resolve(ROOT, OUTPUT_PATH), "utf8");
-    expect(generateDocument(REAL)).toBe(committed);
+    expect(generateDocument(REAL, loadVersion(ROOT))).toBe(committed);
+  });
+
+  test("states the root package.json version it applies to", () => {
+    const version = loadVersion(ROOT);
+    expect(version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(generateDocument(REAL, version)).toContain(`**Applies to:** OpenValens ${version}\n`);
+    expect(generateDocument(REAL)).not.toContain("Applies to");
   });
 
   test("generation is deterministic and free of paths or timestamps", () => {
