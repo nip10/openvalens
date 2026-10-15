@@ -1,6 +1,6 @@
-# Self-hosting OpenValens
+# Install
 
-Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -8,11 +8,10 @@ Compose stack (`deploy/compose.yml`) driven by an interactive setup script
 supported. The root `docker-compose.yml` is the **development** stack; never use
 it for a real installation.
 
-> **Backup status.** The upgrade path takes a **plain, unencrypted `pg_dump`**
-> before every migration. Encrypted backups, off-host copies and a tested
-> restore procedure are **not** part of this release; they are tracked in
-> Issue #64. Do not treat this install as backup-ready: until #64 lands, you are
-> responsible for protecting and copying the `backups` volume yourself.
+> **Backup status.** The install takes a **plain, unencrypted `pg_dump`** before
+> every migration and nothing else. Encrypted backups, off-host copies and a
+> tested restore procedure are **not** part of this release; they are tracked
+> in Issue #64. Read [Backups](backup.md) before you store real health data.
 
 ## What you get
 
@@ -35,20 +34,22 @@ it for a real installation.
 - Web and API share **one origin** (`https://<domain>`): Caddy routes `/api/*`,
   `/rpc/*` and `/api-reference/*` to the server and everything else to the web
   app.
-- `<version>` is the checked-out git tag/commit. Images are built from your
-  checkout; published registry images are tracked separately (#129).
+- `<version>` is `git describe --tags --always --dirty` of your checkout (a
+  commit hash until a release is tagged). Images are built from your checkout;
+  published registry images are tracked separately (#129).
 - Named volumes: `postgres_data`, `backups`, `caddy_data`, `caddy_config`.
 
 ## Requirements
 
-- A Linux host (Ubuntu 24.04 LTS is the reference) with Docker Engine and the
-  Compose v2 plugin (`docker compose`).
+- A Linux host (Ubuntu 24.04 LTS is the reference) with Docker Engine, the
+  Compose v2 plugin (`docker compose`) and `git`.
 - A domain whose DNS A/AAAA record points at the host, and inbound TCP 80/443
   (plus UDP 443 for HTTP/3) open. Port 80 is needed for the certificate
   challenge.
 - A [Resend](https://resend.com) API key and a verified sender. Account setup
   and invitations deliver a one-time code **by email**; without a key, email is
-  dry-run only and the first administrator cannot complete setup.
+  dry-run only and the first administrator cannot complete setup. See
+  [Email](email.md).
 
 ### Resources
 
@@ -59,7 +60,7 @@ reference VPS; treat it as a floor, not a sizing guarantee.
 | Item                          | Observed                                                                |
 | ----------------------------- | ----------------------------------------------------------------------- |
 | Memory, idle                  | server ~89 MiB, postgres ~29 MiB, caddy ~14 MiB, web ~14 MiB (~150 MiB) |
-| First install (build + start) | ~95 s with a warm Docker cache                                          |
+| First install (build + start) | ~95–140 s, depending on the Docker build cache                          |
 | Images on disk                | server 2.2 GB, postgres 0.7 GB, web 0.1 GB, caddy 0.1 GB                |
 | Fresh database volume         | ~71 MB                                                                  |
 
@@ -70,10 +71,14 @@ outstanding.
 
 ## Install
 
+No release has been tagged yet. Until the first release exists, install from
+`main`, which tracks unreleased code; once releases exist, check out the
+release tag instead.
+
 ```bash
 git clone https://github.com/nip10/openvalens.git
 cd openvalens
-git checkout <release tag>
+git checkout main            # or a release tag, once one exists
 deploy/setup.sh install
 ```
 
@@ -86,14 +91,17 @@ The script:
    `CRON_SECRET`, `TELEGRAM_WEBHOOK_SECRET` — into `deploy/secrets/` and never
    prints one. No default or placeholder secret ships, and the server rejects
    known placeholders in production;
-4. writes the non-secret settings to `deploy/.env`;
+4. writes the non-secret settings to `deploy/.env` (mode `0600`);
 5. builds the images and starts the stack (`postgres → backup → migrate →
 server → web → caddy`);
 6. mints the **one-time setup token** into `deploy/secrets/setup-token`
    (mode `0600`).
 
-Re-running `install` is safe: existing settings and secrets are reused, never
-regenerated.
+Re-running `install` is safe for secrets and the core settings: existing
+secrets are never regenerated, and the domain and email settings are reused.
+It does, however, **rewrite `deploy/.env`** with only the keys it manages (see
+[Configuration](configuration.md#deployenv)), and it restarts the stack
+through the backup → migrate chain.
 
 **Never paste secrets into chat, tickets or logs** — not the setup token, not
 `deploy/.env`, not anything under `deploy/secrets/`. The installer never asks
@@ -118,13 +126,14 @@ key is never accepted as an argument or environment value.
 ```bash
 deploy/setup.sh install --dry-run --non-interactive   # with the variables above
 deploy/setup.sh upgrade --dry-run
+deploy/setup.sh mint-token --dry-run
 ```
 
 A dry run generates the configuration and throwaway secrets in a private
 temporary directory, validates `deploy/compose.yml` with `docker compose
 config`, checks that only Caddy publishes ports, prints the Docker commands it
 would run, and deletes the temporary directory. It changes nothing in `deploy/`
-and does not start containers.
+and does not start containers. `deploy/setup.sh --help` prints the full usage.
 
 ## First administrator and invitations
 
@@ -136,7 +145,7 @@ and does not start containers.
 3. Registration is then closed (`invite_only`): there is no public sign-up, and
    everyone else joins by an administrator invitation at `/join`. This is
    enforced server-side — see "Instance admission" in
-   [deployment.md](deployment.md#instance-admission-issue-63).
+   [deployment.md](../deployment.md#instance-admission-issue-63).
 
 If the token expires or is lost, mint a new one (this invalidates the old one;
 it is refused once an administrator exists):
@@ -145,60 +154,24 @@ it is refused once an administrator exists):
 deploy/setup.sh mint-token
 ```
 
-## Upgrades
+## Verify the install
 
 ```bash
-git fetch --tags
-git checkout <new release tag>
-deploy/setup.sh upgrade
+curl -fsS -X POST https://<domain>/api-reference/health/readiness \
+  -H 'Content-Type: application/json' -d '{}'          # "status":"ok"
+docker compose -f deploy/compose.yml ps                 # only caddy lists host ports
 ```
 
-`upgrade` rebuilds the images, **stops the running server** (so it never serves
-a half-migrated database), then starts the gated chain:
+The readiness body also reports each optional integration (`email`, `ai`,
+`messaging`) as `configured`, `dry-run` or `off`; see
+[Configuration](configuration.md#optional-providers).
 
-1. `backup` — runs the pre-migrate backup hook (below). If it fails, nothing
-   else runs.
-2. `migrate` — applies pending tracked Drizzle migrations
-   (`drizzle-kit migrate`).
-3. `server`, `web`, `caddy` — start only if `migrate` exited `0`.
+From **another machine**, confirm that only 80/443 answer, for example
+`nmap -Pn -p 80,443,3000,3001,5432 <host>` (3000, 3001 and 5432 must not be
+open).
 
-**A failed backup or migration leaves the server stopped** and never deletes a
-backup. Inspect with
-`docker compose -f deploy/compose.yml logs backup migrate`, fix the cause, and
-run `deploy/setup.sh upgrade` again (it takes a fresh backup first). There are
-no downgrades: rolling back means restoring the pre-upgrade dump into a fresh
-database and checking out the previous tag. A documented, tested restore
-procedure is part of Issue #64.
-
-A plain `docker compose -f deploy/compose.yml up -d` follows the same
-backup → migrate → server order, but prefer `deploy/setup.sh upgrade`, which
-stops the old server first.
-
-## Pre-migrate backup hook
-
-`deploy/pre-migrate-backup.sh` runs in the one-shot `backup` service on every
-start of the chain. Select its behavior in `deploy/.env`:
-
-| `OPENVALENS_PRE_MIGRATE_BACKUP` | Behavior                                                                                                                                                                                                       |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pg_dump` (default)             | Plain `pg_dump --format=custom` into the `backups` volume as `pre-migrate-<UTC timestamp>.dump` (mode `0600`), verified with `pg_restore --list` before it counts. Skipped only for an empty (fresh) database. |
-| `hook`                          | Runs your executable `deploy/hooks/pre-migrate` (see `deploy/hooks/pre-migrate.example`) with `PG*` connection variables set. It must exit `0` only after a backup you trust exists.                           |
-| `none`                          | Takes no backup and is **refused** unless `OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP=I_HAVE_A_BACKUP` is also set. Use only when you have just taken your own verified backup.                                   |
-
-`OPENVALENS_BACKUP_RETAIN` (default `10`) keeps the newest N `pre-migrate-*`
-dumps; `0` keeps all of them.
-
-**These dumps are unencrypted health data** protected only by the Docker
-volume's host permissions. Copy them off the host yourself and protect them
-accordingly. Encrypted backups, off-host storage and restore drills are Issue
-#64.
-
-List or copy dumps:
-
-```bash
-docker compose -f deploy/compose.yml run --rm --no-deps --entrypoint ls backup -l /backups
-docker compose -f deploy/compose.yml cp backup:/backups/<file>.dump ./  # while a backup container exists
-```
+Then follow [Configuration](configuration.md#scheduled-jobs) to schedule the
+daily jobs: the stack does not run them by itself.
 
 ## Secrets layout
 
@@ -216,30 +189,20 @@ deploy/secrets/            0700  host-private
 ```
 
 The server reads each secret through its `<KEY>_FILE` variable (see
-[reference/env.md](reference/env.md)). The `0444`-inside-`0700` layout is the
-documented fallback for host/container UID mismatches: other host users cannot
-traverse `deploy/secrets/`, while the containers' non-root users can read their
-own read-only mount. `deploy/secrets/` is git-ignored and excluded from the
-image build context.
+[the environment reference](../reference/env.md)). The `0444`-inside-`0700`
+layout is the documented fallback for host/container UID mismatches: other host
+users cannot traverse `deploy/secrets/`, while the containers' non-root users
+can read their own read-only mount. `deploy/secrets/` is git-ignored and
+excluded from the image build context.
 
-Optional providers: put the key in `deploy/secrets/server/<KEY>` (mode `0444`)
-and set `<KEY>_FILE=/run/secrets/<KEY>` in `deploy/.env` for
-`ANTHROPIC_API_KEY` or `TELEGRAM_BOT_TOKEN`, then run `deploy/setup.sh upgrade`.
+Keep a private copy of `deploy/.env` and `deploy/secrets/` alongside your
+database dumps: rebuilding an instance from a dump is simplest with the same
+settings and secrets. Treat that copy like the secrets themselves.
 
-## Verify an install
+## Next steps
 
-```bash
-curl -fsS -X POST https://<domain>/api-reference/health/readiness \
-  -H 'Content-Type: application/json' -d '{}'          # status "ok"
-docker compose -f deploy/compose.yml ps                 # only caddy lists host ports
-```
-
-From **another machine**, confirm that only 80/443 answer, for example
-`nmap -Pn -p 80,443,3000,3001,5432 <host>` (3000, 3001 and 5432 must not be
-open).
-
-## Not covered yet
-
-- Encrypted backup/restore and restore drills — Issue #64.
-- Published, signed registry images (installs build from source) — #129.
-- Resource minimums measured on a reference VPS.
+- [Configuration](configuration.md) — optional providers, scheduled jobs,
+  product settings.
+- [Backups](backup.md) — what is and is not protected today.
+- [Security model](security.md) — what the stack does for you and what remains
+  your responsibility.

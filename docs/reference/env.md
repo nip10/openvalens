@@ -1,5 +1,7 @@
 # Environment reference
 
+**Applies to:** OpenValens 0.1.0
+
 > **Generated file — do not edit by hand.** Regenerate with `bun run docs:generate`; CI fails if this file is stale (`bun run docs:check`).
 
 Each section below is generated from the committed `.env.schema` file linked in its heading. Defaults are the schema defaults only; at runtime the process environment supplies the actual values.

@@ -419,11 +419,17 @@ function renderTable(header: string[], rows: string[][]): string[] {
   return [renderRow(header), separator, ...rows.map(renderRow)];
 }
 
-export function renderMarkdown(sections: ResolvedSection[]): string {
+export function renderMarkdown(sections: ResolvedSection[], version?: string): string {
   const lines: string[] = [];
 
   lines.push("# Environment reference");
   lines.push("");
+  if (version !== undefined) {
+    // Every self-hosting/reference page states the version it applies to
+    // (Issue #68); `scripts/docs-links.test.ts` checks it.
+    lines.push(`**Applies to:** OpenValens ${version}`);
+    lines.push("");
+  }
   lines.push(
     "> **Generated file — do not edit by hand.** Regenerate with " +
       "`bun run docs:generate`; CI fails if this file is stale (`bun run docs:check`).",
@@ -516,8 +522,11 @@ export function renderMarkdown(sections: ResolvedSection[]): string {
 }
 
 /** Convenience wrapper: build the model and render it. */
-export function generateDocument(sources: Partial<Record<SchemaSourceId, string>>): string {
-  return renderMarkdown(buildModel(sources));
+export function generateDocument(
+  sources: Partial<Record<SchemaSourceId, string>>,
+  version?: string,
+): string {
+  return renderMarkdown(buildModel(sources), version);
 }
 
 // ---------------------------------------------------------------------------
@@ -538,12 +547,23 @@ export function loadSources(root: string): Record<SchemaSourceId, string> {
   return sources;
 }
 
+/** The product version: the `version` field of the root `package.json`. */
+export function loadVersion(root: string): string {
+  const manifest = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as {
+    version?: unknown;
+  };
+  if (typeof manifest.version !== "string" || manifest.version.length === 0) {
+    throw new EnvDocsError("The root package.json has no version.");
+  }
+  return manifest.version;
+}
+
 function main(): void {
   const root = repositoryRoot();
   const target = resolve(root, OUTPUT_PATH);
   const sources = loadSources(root);
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, generateDocument(sources), "utf8");
+  writeFileSync(target, generateDocument(sources, loadVersion(root)), "utf8");
   process.stdout.write(`Wrote ${relative(root, target)}\n`);
 }
 
