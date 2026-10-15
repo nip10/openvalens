@@ -117,11 +117,13 @@ describe.skipIf(!url)("nutrition core against disposable PostgreSQL", () => {
     schemaBefore = await existingSchema();
     rowsBefore = await existingRows();
 
-    // Apply the nutrition migration (and anything after it).
-    for (const directory of directories)
-      if (directory >= NUTRITION_MIGRATION) await applyMigration(directory);
+    // Apply the nutrition migration alone, fingerprint, then apply anything
+    // after it (later migrations add their own tables).
+    await applyMigration(NUTRITION_MIGRATION);
     schemaAfter = await existingSchema();
     rowsAfter = await existingRows();
+    for (const directory of directories)
+      if (directory > NUTRITION_MIGRATION) await applyMigration(directory);
   });
 
   test("migration is additive: existing schema and rows are unchanged", async () => {
