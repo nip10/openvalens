@@ -10,6 +10,7 @@ import {
   type MealSlot,
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
+import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
 import {
   BARCODE_COPY,
   candidateFromChoice,
@@ -31,7 +32,6 @@ import {
   deviceTimeZone,
   foodSourceLabel,
   formatAmount,
-  formatNutrientTotal,
   formatNutrientValue,
   groupBySlot,
   localDateIn,
@@ -39,7 +39,6 @@ import {
   parseQuickAdd,
   previewNutrients,
   shiftLocalDate,
-  summarizeDay,
   unitsFor,
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
@@ -50,10 +49,11 @@ import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -113,13 +113,13 @@ function NutritionPage() {
   };
 
   const day = dayQuery.data;
-  const summary = summarizeDay(day?.entries ?? []);
-  const status = dayStatusText(day?.status ?? "unmarked", summary.entryCount);
+  const entryCount = day?.summary.entryCount ?? 0;
+  const status = dayStatusText(day?.status ?? "unmarked", entryCount);
 
   const setStatus = useMutation(
     orpc.nutritionDiary.setDayStatus.mutationOptions({
       onSuccess: (result) => {
-        announce(`${result.localDate}: ${dayStatusText(result.status, summary.entryCount).label}`);
+        announce(`${result.localDate}: ${dayStatusText(result.status, entryCount).label}`);
         void refresh();
       },
     }),
@@ -135,7 +135,12 @@ function NutritionPage() {
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       {region}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{DIARY_COPY.title}</h1>
+        <div className="grid gap-1">
+          <h1 className="text-2xl font-semibold">{DIARY_COPY.title}</h1>
+          <Link to="/foods" className="text-sm underline">
+            {CUSTOM_FOOD_COPY.manageLink}
+          </Link>
+        </div>
         <nav className="flex items-center gap-2" aria-label="Choose day">
           <Button variant="outline" size="sm" onClick={() => go(shiftLocalDate(localDate, -1))}>
             Previous day
@@ -185,17 +190,9 @@ function NutritionPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                {SUMMARY_NUTRIENTS.map((key) => (
-                  <div key={key}>
-                    <dt className="text-xs text-muted-foreground">{NUTRIENT_LABELS[key].label}</dt>
-                    <dd className="font-mono text-sm">
-                      {formatNutrientTotal(key, summary.totals[key])}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-3 text-xs text-muted-foreground">{DIARY_COPY.unknownNote}</p>
+              {day ? (
+                <NutritionDayTotals totals={day.summary.totals} sources={day.summary.sources} />
+              ) : null}
             </CardContent>
           </Card>
 
@@ -565,6 +562,8 @@ function AddFood({
   const [barcodeReset, setBarcodeReset] = useState(0);
   const log = useMutation(orpc.nutritionDiary.logEntry.mutationOptions());
   const createFood = useMutation(orpc.nutritionDiary.createFood.mutationOptions());
+  // Kept across retries of one save so a lost response cannot save the food twice (#81).
+  const [saveFoodMutationId, setSaveFoodMutationId] = useState(newClientMutationId);
 
   const saved = useMemo(() => {
     const seen = new Set<string>();
@@ -628,6 +627,7 @@ function AddFood({
     setQuick(EMPTY_QUICK);
     setDraftNote(null);
     setSaveAsFood(false);
+    setSaveFoodMutationId(newClientMutationId());
     setBarcodeReset((value) => value + 1);
   };
 
@@ -674,7 +674,10 @@ function AddFood({
         name = parsedQuick.food.name;
         method = draftNote !== null ? "barcode" : "quick_add";
         if (saveAsFood) {
-          const created = await createFood.mutateAsync(parsedQuick.food);
+          const created = await createFood.mutateAsync({
+            ...parsedQuick.food,
+            clientMutationId: saveFoodMutationId,
+          });
           food = created.ref;
         } else {
           food = { kind: "manual", food: parsedQuick.food };

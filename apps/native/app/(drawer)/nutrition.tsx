@@ -9,6 +9,7 @@ import {
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
 import type { BarcodeLookup } from "@openvalens/api/contracts/nutrition-foods";
+import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
 import {
   BARCODE_COPY,
   candidateFromChoice,
@@ -29,7 +30,6 @@ import {
   deviceTimeZone,
   foodSourceLabel,
   formatAmount,
-  formatNutrientTotal,
   formatNutrientValue,
   localDateIn,
   newClientMutationId,
@@ -41,6 +41,7 @@ import {
   type DiarySyncState,
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
+import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -48,6 +49,7 @@ import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "reac
 
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Container } from "@/components/container";
+import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
 import { mergeDay, type DiaryRow, type QueuedChange } from "@/lib/nutrition/outbox";
 import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutrition/sync";
@@ -129,7 +131,12 @@ export default function NutritionScreen() {
   const totalsInput = visible.map((row) => ({
     nutrients: rowNutrients(row) ?? emptyNutrients(),
   }));
-  const summary = summarizeDay(totalsInput);
+  // Server totals (#79) unless queued changes touch this day; then a local
+  // preview with the same domain summary, labelled as pending.
+  const pendingRows = rows.some((row) => row.kind === "local" || row.pendingKind !== null);
+  const serverSummary = day.data?.summary;
+  const summary = serverSummary && !pendingRows ? serverSummary : summarizeDay(totalsInput);
+  const summarySources = serverSummary && !pendingRows ? serverSummary.sources : null;
   const pendingStatus = outbox.items.find(
     (item) => item.op.kind === "setDayStatus" && item.op.input.localDate === localDate,
   );
@@ -233,6 +240,12 @@ export default function NutritionScreen() {
           <Chip label="Next" selected={false} onPress={() => go(shiftLocalDate(localDate, 1))} />
         </View>
 
+        <Link href="/foods" asChild>
+          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
+            <Text className="text-sm text-foreground underline">{CUSTOM_FOOD_COPY.manageLink}</Text>
+          </Pressable>
+        </Link>
+
         <OutboxBanner outbox={outbox} />
 
         {attention.map((item) => (
@@ -273,17 +286,11 @@ export default function NutritionScreen() {
               {status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete}
             </Button>
           </View>
-          <View className="flex-row flex-wrap gap-4">
-            {SUMMARY_NUTRIENTS.map((key) => (
-              <View key={key} className="gap-0.5">
-                <Text className="text-xs text-muted-foreground">{NUTRIENT_LABELS[key].label}</Text>
-                <Text className="font-mono text-sm text-foreground">
-                  {formatNutrientTotal(key, summary.totals[key])}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Text className="text-xs text-muted-foreground">{DIARY_COPY.unknownNote}</Text>
+          <NutritionDayTotals
+            totals={summary.totals}
+            sources={summarySources}
+            pending={pendingRows}
+          />
         </Card>
 
         <AddFood localDate={localDate} timeZone={timeZone} foods={foods.data} outbox={outbox} />

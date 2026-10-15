@@ -95,15 +95,17 @@ function DrawerLayout() {
                 ? "Supplements"
                 : pathname === "/nutrition"
                   ? "Meal diary"
-                  : pathname === "/workouts"
-                    ? "Workouts"
-                    : pathname === "/exports"
-                      ? "Clinical export"
-                      : pathname === "/settings"
-                        ? "Settings"
-                        : pathname === "/scores"
-                          ? "Scores"
-                          : "Cockpit";
+                  : pathname === "/foods"
+                    ? "My foods"
+                    : pathname === "/workouts"
+                      ? "Workouts"
+                      : pathname === "/exports"
+                        ? "Clinical export"
+                        : pathname === "/settings"
+                          ? "Settings"
+                          : pathname === "/scores"
+                            ? "Scores"
+                            : "Cockpit";
 
   return (
     <Drawer
@@ -165,6 +167,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="nutrition"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="foods"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
