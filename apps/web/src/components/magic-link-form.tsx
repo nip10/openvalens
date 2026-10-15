@@ -6,13 +6,19 @@ import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
+import OidcSignInButton from "@/components/oidc-sign-in-button";
 import { authClient } from "@/lib/auth-client";
 import { validateReturnUrl } from "@/utils/return-url";
+import { oidcSignInErrorMessage } from "@/utils/sign-in-options";
 
 export type MagicLinkFormProps = {
   linkError?: boolean;
   setupAvailable?: boolean;
   returnUrl?: string | null;
+  /** Issue #65 — the configured OIDC provider, or `null` (no button). */
+  oidc?: { providerId: string; displayName: string } | null;
+  /** Issue #65 — error code from a failed OIDC redirect, or `null`. */
+  oidcError?: string | null;
 };
 
 /**
@@ -23,6 +29,8 @@ export default function MagicLinkForm({
   linkError,
   setupAvailable,
   returnUrl,
+  oidc = null,
+  oidcError = null,
 }: MagicLinkFormProps) {
   const [sentTo, setSentTo] = useState<string | null>(null);
 
@@ -76,6 +84,11 @@ export default function MagicLinkForm({
       <p className="mb-6 text-center text-sm text-muted-foreground">
         We'll email you a link to sign in. No password needed.
       </p>
+      {oidcError !== null && (
+        <p className="mb-4 text-center text-sm text-destructive">
+          {oidcSignInErrorMessage(oidcError || undefined, oidc?.displayName ?? "single sign-on")}
+        </p>
+      )}
       {linkError && (
         <p className="mb-4 text-center text-sm text-destructive">
           That sign-in link is invalid or has expired. Request a new one.
@@ -122,6 +135,21 @@ export default function MagicLinkForm({
           )}
         </form.Subscribe>
       </form>
+
+      {oidc ? (
+        <div className="mt-4 space-y-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            or
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <OidcSignInButton
+            providerId={oidc.providerId}
+            displayName={oidc.displayName}
+            callbackURL={callbackURL}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-6 space-y-2 border-t pt-6 text-center text-sm text-muted-foreground">
         <p>New accounts require an invitation.</p>

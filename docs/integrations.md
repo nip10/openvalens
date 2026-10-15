@@ -15,7 +15,7 @@ readiness probe (Issue #57).
 | `ai`               | Any OpenAI-compatible endpoint (Ollama, local)  | `off` — `ai.chat` fails closed | `AI_PROVIDER=openai-compatible` (#59)                           | Implemented        |
 | `foodLookup`       | Open Food Facts live barcode lookup (#69)       | `off` — local catalogs only    | `FOOD_LOOKUP_PROVIDER=openfoodfacts` + `FOOD_LOOKUP_USER_AGENT` | Implemented        |
 | `storage`          | Local disk, S3-compatible (S3, R2, MinIO, B2)   | Local disk, private            | `STORAGE_PROVIDER=s3` + `STORAGE_S3_*`                          | Implemented        |
-| `oidc`             | One generic OIDC provider (local accounts stay) | `off` — local accounts only    | OIDC env (Issue #65)                                            | Planned — #65      |
+| `oidc`             | One generic OIDC provider (local accounts stay) | `off` — local accounts only    | `OIDC_*` env (Issue #65)                                        | Implemented        |
 | `wearables`        | Phone-first ingestion; Oura, Whoop, Polar, …    | Phone-first, no vendor         | Per-vendor env (Issue #60)                                      | Planned — #60      |
 | Errors / analytics | None by default                                 | `off`                          | Opt-in only (Issues #53, #54)                                   | Planned — #53, #54 |
 
@@ -45,7 +45,8 @@ implemented family:
   "ai": { "provider": null, "state": "off" },
   "messaging": { "provider": null, "state": "off" },
   "storage": { "provider": "local", "state": "configured" },
-  "foodLookup": { "provider": null, "state": "off" }
+  "foodLookup": { "provider": null, "state": "off" },
+  "oidc": { "provider": null, "state": "off" }
 }
 ```
 

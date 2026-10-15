@@ -35,6 +35,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AiConsentSection } from "@/components/ai-consent-section";
+import { OidcConnectSection } from "@/components/oidc-connect-section";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
@@ -50,6 +51,7 @@ function SettingsPage() {
       <h1 className="mb-6 text-2xl font-semibold">Settings</h1>
       <div className="grid gap-6">
         <AccountSection />
+        <OidcConnectSection />
         <ProfileSummarySection />
         <CoachSection />
         <AiConsentSection />

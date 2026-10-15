@@ -17,6 +17,7 @@ import {
   integrations,
   productSettingsService,
   storageService,
+  signInOptions,
   telegramClient,
   telegramConfig,
 } from "./services";
@@ -85,6 +86,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     storage: storageService,
     // Issue #69 — optional live barcode lookup; `null` keeps lookups local.
     foodLookup,
+    // Issue #65 — public "Continue with <name>" option, or `{ oidc: null }`.
+    signInOptions,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

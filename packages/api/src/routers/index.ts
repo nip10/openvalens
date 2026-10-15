@@ -23,6 +23,7 @@ import { nutritionFoodsRouter } from "./nutrition-foods";
 import { plansRouter } from "./plans";
 import { profileRouter } from "./profile";
 import { sharingRouter } from "./sharing";
+import { signInRouter } from "./sign-in";
 import { sleepRouter } from "./sleep";
 import { storageRouter } from "./storage";
 import { telegramRouter } from "./telegram";
@@ -53,6 +54,7 @@ export const appRouter = {
   plans: plansRouter,
   profile: profileRouter,
   sharing: sharingRouter,
+  signIn: signInRouter,
   sleep: sleepRouter,
   storage: storageRouter,
   telegram: telegramRouter,

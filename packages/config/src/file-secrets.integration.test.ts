@@ -228,7 +228,7 @@ describe("actual server schema sensitive coverage", () => {
       }
 
       expect([...sensitiveByDefault].sort()).toEqual([...FILE_SECRET_KEYS].sort());
-      // The twenty-six schema keys that must NOT be file-resolved.
+      // The schema keys that must NOT be file-resolved.
       expect([...explicitlyPublic].sort()).toEqual(
         [
           "AI_BASE_URL",
@@ -246,6 +246,10 @@ describe("actual server schema sensitive coverage", () => {
           "FOOD_LOOKUP_PROVIDER",
           "FOOD_LOOKUP_USER_AGENT",
           "NODE_ENV",
+          "OIDC_CLIENT_ID",
+          "OIDC_DISCOVERY_URL",
+          "OIDC_DISPLAY_NAME",
+          "OIDC_PROVIDER_ID",
           "STORAGE_LOCAL_DIR",
           "STORAGE_MAX_OBJECT_BYTES",
           "STORAGE_PROVIDER",
