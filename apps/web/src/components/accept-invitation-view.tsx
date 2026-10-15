@@ -264,7 +264,7 @@ export function AcceptInvitationView({
         <CardTitle>Workspace invitation</CardTitle>
         <CardDescription>
           You have been invited to join{" "}
-          <span className="font-medium text-foreground">
+          <span className="font-medium text-foreground wrap-anywhere">
             {summary.organizationName ?? "a workspace"}
           </span>{" "}
           as <span className="font-medium text-foreground">{summary.role}</span>.
@@ -272,10 +272,11 @@ export function AcceptInvitationView({
       </CardHeader>
       <CardContent className="grid gap-4">
         <p className="text-sm text-muted-foreground">
-          Invited email: <span className="font-medium text-foreground">{summary.email}</span>
+          Invited email:{" "}
+          <span className="font-medium text-foreground wrap-anywhere">{summary.email}</span>
         </p>
         {mismatch ? (
-          <p className="text-sm text-destructive" role="alert" aria-live="polite">
+          <p className="text-sm text-destructive wrap-anywhere" role="alert" aria-live="polite">
             This invitation was sent to {summary.email}, but you are signed in as {sessionEmail}.{" "}
             Sign in with the matching email to accept.
           </p>

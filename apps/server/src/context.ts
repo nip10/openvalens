@@ -16,6 +16,7 @@ import {
   foodLookup,
   integrations,
   productSettingsService,
+  storageService,
   signInOptions,
   telegramClient,
   telegramConfig,
@@ -81,6 +82,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     admissionService,
     admissionRateLimiter,
+    // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
+    storage: storageService,
     // Issue #69 — optional live barcode lookup; `null` keeps lookups local.
     foodLookup,
     // Issue #65 — public "Continue with <name>" option, or `{ oidc: null }`.

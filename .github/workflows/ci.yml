@@ -56,7 +56,21 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      # Issue #62 — disposable S3-compatible store for the object storage
+      # suites. Synthetic credentials; loopback only; nothing leaves the runner.
+      - name: Start disposable MinIO
+        run: |
+          docker run -d --name ci-minio -p 127.0.0.1:9000:9000 \
+            -e MINIO_ROOT_USER=ci-synthetic -e MINIO_ROOT_PASSWORD=ci-synthetic-secret \
+            bitnamilegacy/minio:2025.5.24-debian-12-r5
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:9000/minio/health/live && exit 0; sleep 1; done
+          docker logs ci-minio; exit 1
       - name: Run integration suites (disposable service database)
         env:
           PG_ADMIN_URL: postgres://postgres:ci@127.0.0.1:5432
-        run: scripts/test-integration.sh
+          STORAGE_S3_TEST_ENDPOINT: http://127.0.0.1:9000
+          STORAGE_S3_TEST_ACCESS_KEY_ID: ci-synthetic
+          STORAGE_S3_TEST_SECRET_ACCESS_KEY: ci-synthetic-secret
+        run: |
+          scripts/test-integration.sh
+          bun test packages/storage/src/providers/s3.minio.test.ts

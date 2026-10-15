@@ -60,6 +60,8 @@ export async function seedAccount(db: Database, who: string, samples: number): P
     insert into telegram_connect_token (organization_id, user_id, token_hash, expires_at, created_at) values ('org-${who}', 'user-${who}', 'tg-hash-${who}', '2099-01-01', '2026-10-01');
     insert into supplement (name, dose) values ('Supplement ${who}', '1 cap');
     insert into access_request (organization_id, requester_user_id, target_domain, requested_actions, created_at) values ('org-${who}', 'user-${who}', 'labs', '["read"]', '2026-10-01');
+    insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256)
+      values (gen_random_uuid()::text, 'org-${who}', 'user-${who}', 'progress_photo', 'org/org-${who}/' || gen_random_uuid()::text, 'image/jpeg', 12, '${"0".repeat(64)}');
   `),
   );
   await db.execute(

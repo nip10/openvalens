@@ -42,6 +42,8 @@ describe("resolveFileSecrets", () => {
       "TELEGRAM_BOT_TOKEN",
       "AI_API_KEY",
       "ANTHROPIC_API_KEY",
+      "STORAGE_S3_ACCESS_KEY_ID",
+      "STORAGE_S3_SECRET_ACCESS_KEY",
       "OIDC_CLIENT_SECRET",
     ]);
     // The database profile resolves only DATABASE_URL; unrelated provider files

@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import * as dataRights from "@openvalens/data-rights";
+import * as storagePackage from "@openvalens/storage";
 
 import type { Context } from "../context";
 
@@ -26,13 +27,27 @@ mock.module("@openvalens/data-rights", () => ({
   deleteSubjectData,
 }));
 
+const actualStorage = { ...storagePackage };
+let storedKeys: string[] = [];
+const collectStoredObjectKeys = mock(async (_db: unknown, _orgIds: readonly string[]) => [
+  ...storedKeys,
+]);
+mock.module("@openvalens/storage", () => ({ ...actualStorage, collectStoredObjectKeys }));
+
 const { dataRightsRouter } = await import("./data-rights");
+afterAll(() => {
+  mock.module("@openvalens/storage", () => actualStorage);
+});
 
 const MINUTE = 60_000;
-function context(options: { signedIn?: boolean; sessionAgeMs?: number } = {}): Context {
-  const { signedIn = true, sessionAgeMs = MINUTE } = options;
+const deleteKeys = mock(async (keys: readonly string[]) => ({ deleted: keys.length, failed: 0 }));
+function context(
+  options: { signedIn?: boolean; sessionAgeMs?: number; storage?: boolean } = {},
+): Context {
+  const { signedIn = true, sessionAgeMs = MINUTE, storage = true } = options;
   return {
     db: {},
+    storage: storage ? { deleteKeys } : null,
     correlationId: "test",
     session: signedIn
       ? {
@@ -54,6 +69,9 @@ async function code(promise: Promise<unknown>): Promise<string | undefined> {
 
 beforeEach(() => {
   blockers = [];
+  storedKeys = [];
+  collectStoredObjectKeys.mockClear();
+  deleteKeys.mockClear();
   resolveSubject.mockClear();
   previewSubjectData.mockClear();
   deleteSubjectData.mockClear();
@@ -119,5 +137,29 @@ describe("dataRights.deleteEverything", () => {
       userId: "user-1",
       organizationIds: ["org-of-user-1"],
     });
+  });
+
+  test("stored objects are erased from storage after the database transaction", async () => {
+    storedKeys = ["org/org-of-user-1/0b6f3a52-9b5e-4c1e-8d7a-1f2e3d4c5b6a"];
+    await call(context(), { confirmation: "DELETE" });
+    expect(collectStoredObjectKeys.mock.calls[0]![1]).toEqual(["org-of-user-1"]);
+    expect(deleteKeys).toHaveBeenCalledWith(storedKeys);
+    expect(deleteSubjectData.mock.invocationCallOrder[0]!).toBeLessThan(
+      deleteKeys.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  test("objects with storage off refuse deletion instead of orphaning bytes", async () => {
+    storedKeys = ["org/org-of-user-1/0b6f3a52-9b5e-4c1e-8d7a-1f2e3d4c5b6a"];
+    expect(await code(call(context({ storage: false }), { confirmation: "DELETE" }))).toBe(
+      "INTERNAL",
+    );
+    expect(deleteSubjectData).not.toHaveBeenCalled();
+  });
+
+  test("no objects and storage off still deletes", async () => {
+    await call(context({ storage: false }), { confirmation: "DELETE" });
+    expect(deleteSubjectData).toHaveBeenCalledTimes(1);
+    expect(deleteKeys).not.toHaveBeenCalled();
   });
 });

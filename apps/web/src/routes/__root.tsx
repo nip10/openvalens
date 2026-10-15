@@ -46,7 +46,9 @@ function RootComponent() {
         disableTransitionOnChange
         storageKey="vite-ui-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
+        {/* minmax(0,1fr) keeps wide page content (tables, <pre>) scrolling inside
+            its own box instead of widening the document and the header. */}
+        <div className="grid h-svh grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr]">
           <Header />
           <Outlet />
         </div>
