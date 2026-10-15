@@ -30,6 +30,14 @@ that this table and the Compose file list the same variables):
 | `RESEND_API_KEY_FILE`                     | yes                  | empty     | `/run/secrets/RESEND_API_KEY` when that secret file exists; empty means email is dry-run.                   |
 | `OPENVALENS_PRE_MIGRATE_BACKUP`           | yes                  | `pg_dump` | Pre-migrate backup mode: `pg_dump`, `hook` or `none`. See [Backups](backup.md).                             |
 | `OPENVALENS_BACKUP_RETAIN`                | yes                  | `10`      | Number of `pre-migrate-*` dumps to keep; `0` keeps all.                                                     |
+| `STORAGE_PROVIDER`                        | yes                  | `local`   | Object storage: `local` (the `storage` volume) or `s3`. See [Object storage](../storage.md).                |
+| `STORAGE_S3_ENDPOINT`                     | yes                  | empty     | S3-compatible endpoint origin; empty means the AWS regional endpoint.                                       |
+| `STORAGE_S3_REGION`                       | yes                  | empty     | Signing region (`auto` for Cloudflare R2); empty means `us-east-1`.                                         |
+| `STORAGE_S3_BUCKET`                       | yes                  | empty     | Private bucket name. Without it (or the keys) `s3` storage is `off`.                                        |
+| `STORAGE_S3_FORCE_PATH_STYLE`             | yes                  | `false`   | `true` for MinIO.                                                                                           |
+| `STORAGE_S3_SSE`                          | yes                  | `AES256`  | Server-side encryption header: `AES256` or `none` (MinIO without KMS).                                      |
+| `STORAGE_S3_ACCESS_KEY_ID_FILE`           | yes                  | empty     | `/run/secrets/STORAGE_S3_ACCESS_KEY_ID` when that secret file exists.                                       |
+| `STORAGE_S3_SECRET_ACCESS_KEY_FILE`       | yes                  | empty     | `/run/secrets/STORAGE_S3_SECRET_ACCESS_KEY` when that secret file exists.                                   |
 | `OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP` | no                   | empty     | Must be exactly `I_HAVE_A_BACKUP` for `OPENVALENS_PRE_MIGRATE_BACKUP=none` to be accepted.                  |
 | `EMAIL_DRY_RUN`                           | no                   | `false`   | `true` logs email instead of sending it. Without a Resend key email is dry-run regardless.                  |
 | `ANTHROPIC_API_KEY_FILE`                  | no                   | empty     | `/run/secrets/ANTHROPIC_API_KEY` to enable AI features ([optional providers](#optional-providers)).         |
@@ -72,11 +80,12 @@ A default install needs no vendor account. Each optional integration is off or
 dry-run until you add its key, and the readiness probe reports its state
 without revealing any value:
 
-| Family      | Provider  | Enable                                                  | Default   |
-| ----------- | --------- | ------------------------------------------------------- | --------- |
-| `email`     | Resend    | `RESEND_API_KEY` secret (see [Email](email.md))         | `dry-run` |
-| `ai`        | Anthropic | `ANTHROPIC_API_KEY` secret + `ANTHROPIC_API_KEY_FILE`   | `off`     |
-| `messaging` | Telegram  | `TELEGRAM_BOT_TOKEN` secret + `TELEGRAM_BOT_TOKEN_FILE` | `off`     |
+| Family      | Provider                    | Enable                                                                                              | Default   |
+| ----------- | --------------------------- | --------------------------------------------------------------------------------------------------- | --------- |
+| `email`     | Resend                      | `RESEND_API_KEY` secret (see [Email](email.md))                                                     | `dry-run` |
+| `ai`        | Anthropic                   | `ANTHROPIC_API_KEY` secret + `ANTHROPIC_API_KEY_FILE`                                               | `off`     |
+| `messaging` | Telegram                    | `TELEGRAM_BOT_TOKEN` secret + `TELEGRAM_BOT_TOKEN_FILE`                                             | `off`     |
+| `storage`   | Local disk or S3-compatible | `STORAGE_PROVIDER=s3`, `STORAGE_S3_*` and the two key secrets (see [Object storage](../storage.md)) | `local`   |
 
 To add a key, write it to a file the containers can read, point the matching
 `_FILE` variable at the mount path, and apply:
