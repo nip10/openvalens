@@ -23,6 +23,10 @@ import { appRouter } from "./index";
  * source timeout/rate limit), that a catalog re-import's new version is
  * served, and that no search text or barcode reaches any log output. All data
  * is synthetic; the live provider is a fake `fetch`, never the network.
+ *
+ * Issue #75 adds the scan-to-diary handoff: a hit is logged by id with its
+ * source, a miss is logged as the member's own manual draft keeping the code,
+ * and no lookup outcome blocks manual logging.
  */
 
 const url = process.env.NUTRITION_FOODS_TEST_DATABASE_URL;
@@ -150,6 +154,41 @@ describe.skipIf(!url)("nutritionFoods.* over HTTP against disposable PostgreSQL"
     if (!matched || !response) throw new Error(`unmatched nutritionFoods/${path}`);
     const body = (await response.json()) as { json: Record<string, unknown> };
     return { status: response.status, json: body.json, text: JSON.stringify(body.json) };
+  }
+
+  /** `nutritionDiary.*` (#77), for the scan-to-diary handoff (#75). */
+  async function diary(path: string, input: unknown, as: Member = A1) {
+    current = as;
+    const request = new Request(`http://test.local/rpc/nutritionDiary/${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ json: input }),
+    });
+    const { matched, response } = await handler.handle(request, {
+      prefix: "/rpc",
+      context: context(),
+    });
+    if (!matched || !response) throw new Error(`unmatched nutritionDiary/${path}`);
+    const body = (await response.json()) as { json: Record<string, unknown> };
+    return { status: response.status, json: body.json };
+  }
+
+  const logInput = (clientMutationId: string, food: unknown) => ({
+    clientMutationId,
+    localDate: "2026-10-15",
+    timeZone: "Europe/Lisbon",
+    slot: "snack",
+    food,
+    amount: 30,
+    unit: "g",
+    method: "barcode",
+  });
+
+  async function snapshotRow(id: number) {
+    const result = await db.execute(
+      sql`select source, barcode, source_food_id, attribution from nutrition_food_snapshot where id = ${id}`,
+    );
+    return result.rows[0] as Record<string, unknown>;
   }
 
   function fakeOff(responses: (() => Response | Promise<Response>)[]) {
@@ -470,6 +509,101 @@ describe.skipIf(!url)("nutritionFoods.* over HTTP against disposable PostgreSQL"
     });
   });
 
+  test("#75 a barcode hit is logged by id with its source; nothing is taken from the client", async () => {
+    const lookup = await call("lookupBarcode", { barcode: SHARED_BARCODE }, B1);
+    const off = (lookup.json.matches as { id: string; source: string }[]).find(
+      (food) => food.source === "off",
+    )!;
+    const logged = await diary(
+      "logEntry",
+      logInput("scan-hit-1", { kind: "catalog", id: off.id }),
+      B1,
+    );
+    expect(logged.status).toBe(200);
+    const entry = logged.json.entry as {
+      method: string;
+      food: { snapshotId: number; source: string; name: string; attribution: string | null };
+      nutrients: { energyKcal: number | null; fatG: number | null };
+    };
+    expect(entry.method).toBe("barcode");
+    expect(entry.food).toMatchObject({ source: "off", name: "Zyqx granola bar" });
+    expect(entry.food.attribution).toContain("Open Food Facts");
+    expect(entry.nutrients.energyKcal).toBeCloseTo(120);
+    // Not provided by the source stays unknown.
+    expect(entry.nutrients.fatG).toBeNull();
+    expect(await snapshotRow(entry.food.snapshotId)).toMatchObject({
+      source: "off",
+      barcode: SHARED_BARCODE,
+      source_food_id: SHARED_BARCODE,
+    });
+  });
+
+  test("#75 a miss is logged as the member's manual draft, keeping the code; saving it makes the next lookup a hit", async () => {
+    const miss = await call("lookupBarcode", { barcode: UNKNOWN_BARCODE }, B1);
+    expect(miss.json.manualDraft).toEqual({ barcode: UNKNOWN_BARCODE, reason: "no_match" });
+    const draft = {
+      name: "Synthetic rice cakes",
+      nutrientBasisAmount: 100,
+      nutrientBasisUnit: "g",
+      nutrients: { energyKcal: 380 },
+      barcode: UNKNOWN_BARCODE,
+    };
+    const logged = await diary(
+      "logEntry",
+      logInput("scan-miss-1", { kind: "manual", food: draft }),
+      B1,
+    );
+    expect(logged.status).toBe(200);
+    const entry = logged.json.entry as {
+      food: { snapshotId: number; source: string };
+      nutrients: { energyKcal: number | null; proteinG: number | null };
+    };
+    expect(entry.food.source).toBe("manual");
+    expect(entry.nutrients.proteinG).toBeNull();
+    expect(await snapshotRow(entry.food.snapshotId)).toMatchObject({
+      source: "manual",
+      barcode: UNKNOWN_BARCODE,
+      source_food_id: null,
+    });
+
+    const created = await diary("createFood", draft, B1);
+    expect(created.status).toBe(200);
+    const again = await call("lookupBarcode", { barcode: UNKNOWN_BARCODE }, B1);
+    expect(again.json).toMatchObject({ status: "found", manualDraft: null });
+    expect((again.json.matches as { source: string }[])[0]).toMatchObject({ source: "custom" });
+    // Still private: another member's lookup misses.
+    expect((await call("lookupBarcode", { barcode: UNKNOWN_BARCODE }, A1)).json.status).toBe(
+      "not_found",
+    );
+  });
+
+  test("#75 store codes, unreachable sources and malformed draft codes never block manual logging", async () => {
+    fakeOff([() => new Response("", { status: 503 })]);
+    const unavailable = await call("lookupBarcode", { barcode: LIVE_BARCODE }, B1);
+    expect(unavailable.json).toMatchObject({
+      live: { status: "unavailable" },
+      manualDraft: { barcode: LIVE_BARCODE, reason: "no_match" },
+    });
+    const store = await call("lookupBarcode", { barcode: STORE_BARCODE }, B1);
+    expect(store.json.manualDraft).toEqual({ barcode: null, reason: "variable_measure" });
+
+    const food = {
+      name: "Synthetic deli cheese",
+      nutrientBasisAmount: 100,
+      nutrientBasisUnit: "g",
+    };
+    const logged = await diary("logEntry", logInput("scan-store-1", { kind: "manual", food }), B1);
+    expect(logged.status).toBe(200);
+
+    const malformed = await diary(
+      "logEntry",
+      logInput("scan-bad-1", { kind: "manual", food: { ...food, barcode: "12ab" } }),
+      B1,
+    );
+    expect(malformed.status).toBe(400);
+    expect(JSON.stringify(malformed.json)).not.toContain("12ab");
+  });
+
   test("a catalog re-import's new version is what search and lookup serve", async () => {
     await catalog.importRelease(
       {
@@ -531,7 +665,13 @@ describe.skipIf(!url)("nutritionFoods.* over HTTP against disposable PostgreSQL"
     for (const secret of [QUERY, SHARED_BARCODE, LIVE_BARCODE.replace("8", "7"), "40063813339x1"])
       expect(output).not.toContain(secret);
 
-    const audit = await db.execute(sql`select count(*)::int as n from access_audit_log`);
-    expect(audit.rows[0]).toEqual({ n: 0 });
+    // Lookups are never audited; the only rows are the #75 diary writes, and
+    // they carry ids, never a barcode or search text.
+    const audit = await db.execute(sql`select * from access_audit_log`);
+    const auditText = JSON.stringify(audit.rows);
+    for (const row of audit.rows as { target_type?: string }[])
+      expect(row.target_type).toMatch(/^nutrition_/);
+    for (const secret of [QUERY, SHARED_BARCODE, UNKNOWN_BARCODE, STORE_BARCODE, LIVE_BARCODE])
+      expect(auditText).not.toContain(secret);
   });
 });

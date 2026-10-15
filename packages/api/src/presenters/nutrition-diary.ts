@@ -346,6 +346,8 @@ export type QuickAddFields = {
   basisAmount: string;
   basisUnit: AmountUnit;
   nutrients: Partial<Record<NutrientKey, string>>;
+  /** Barcode kept with a manual draft (#75); blank or absent means none. */
+  barcode?: string;
 };
 
 /**
@@ -372,6 +374,9 @@ export function parseQuickAdd(
       };
     nutrients[key] = value;
   }
+  const rawBarcode = fields.barcode?.replace(/[\s-]/g, "") ?? "";
+  if (rawBarcode && !/^\d{8,14}$/.test(rawBarcode))
+    return { ok: false, error: "Barcode must be 8 to 14 digits, or left blank." };
   return {
     ok: true,
     food: {
@@ -379,6 +384,7 @@ export function parseQuickAdd(
       nutrientBasisAmount: basisAmount,
       nutrientBasisUnit: fields.basisUnit,
       nutrients,
+      ...(rawBarcode ? { barcode: rawBarcode } : {}),
     },
   };
 }

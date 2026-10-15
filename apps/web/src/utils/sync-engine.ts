@@ -21,7 +21,7 @@ import {
   readOutbox,
   writeCache,
 } from "./offline-cache";
-import { orpc } from "./orpc";
+import { orpc, queryClient } from "./orpc";
 
 /**
  * Web sync engine (Issue #43). Drains the manual-entry outbox through
@@ -150,6 +150,9 @@ export async function prepareOfflineSignOut(): Promise<void> {
     new Promise<void>((resolve) => setTimeout(resolve, SIGN_OUT_SYNC_TIMEOUT_MS)),
   ]);
   clearOfflineData();
+  // The wellness profile (#98) is never persisted offline; drop the in-memory
+  // copy too so the next account on this tab cannot see it.
+  queryClient.removeQueries({ queryKey: ["wellness-profile"] });
   currentScope = null;
   emit();
 }

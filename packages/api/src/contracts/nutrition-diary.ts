@@ -67,10 +67,15 @@ export type NutrientBasis = z.infer<typeof nutrientBasis>;
 
 const foodSource = z.enum(["custom", "fdc", "off", "manual"]);
 
-/** A one-off food typed in by the member (quick add). */
+/**
+ * A one-off food typed in by the member (quick add, or the manual draft
+ * after a barcode miss). `barcode` keeps the scanned/typed code as
+ * provenance only; every value is the member's own.
+ */
 export const manualFoodInput = z.strictObject({
   name: z.string().trim().min(1).max(200),
   brand: z.string().max(200).nullish(),
+  barcode: z.string().max(32).nullish(),
   nutrientBasisAmount: positive,
   nutrientBasisUnit: z.enum(AMOUNT_UNITS),
   servingSizeAmount: positive.nullish(),
@@ -146,9 +151,8 @@ export type GetTotalsInput = z.infer<typeof getTotalsInput>;
 
 export const setFavoriteInput = z.strictObject({ snapshotId: id, favorite: z.boolean() });
 
-export const createFoodInput = manualFoodInput.extend({
-  barcode: z.string().max(32).nullish(),
-});
+/** Saves a reusable private food; with a `barcode`, later lookups of that code find it. */
+export const createFoodInput = manualFoodInput;
 
 // ─── Outputs ──────────────────────────────────────────────────
 
