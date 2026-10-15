@@ -145,6 +145,10 @@ export type CopyDayInput = z.infer<typeof copyDayInput>;
 
 export const getDayInput = z.strictObject({ localDate });
 
+/** Inclusive local-date range; at most 92 days per call. */
+export const getTotalsInput = z.strictObject({ from: localDate, to: localDate });
+export type GetTotalsInput = z.infer<typeof getTotalsInput>;
+
 export const setFavoriteInput = z.strictObject({ snapshotId: id, favorite: z.boolean() });
 
 /**
@@ -189,13 +193,61 @@ export type DiaryEntry = z.infer<typeof diaryEntry>;
 export const dayStatus = z.enum(["unmarked", "complete"]);
 export type DayStatus = z.infer<typeof dayStatus>;
 
+/**
+ * How many of a day's entries provided a nutrient (#79): `full` all,
+ * `partial` some, `none` none, `no_entries` nothing logged that day.
+ */
+export const NUTRIENT_COVERAGE = ["full", "partial", "none", "no_entries"] as const;
+export type NutrientCoverage = (typeof NUTRIENT_COVERAGE)[number];
+
+export const nutrientTotal = z.object({
+  /** Sum of the values entries provided; `null` when none did (never 0 for unknown). */
+  known: z.number().nullable(),
+  reported: z.number().int().nonnegative(),
+  missing: z.number().int().nonnegative(),
+  coverage: z.enum(NUTRIENT_COVERAGE),
+});
+export type NutrientTotal = z.infer<typeof nutrientTotal>;
+
+const foodSourceCounts = z.object({
+  fdc: z.number().int().nonnegative(),
+  off: z.number().int().nonnegative(),
+  custom: z.number().int().nonnegative(),
+  manual: z.number().int().nonnegative(),
+});
+
+/** Server-computed totals for a set of entries: values, coverage and provenance. */
+export const nutrientSummary = z.object({
+  entryCount: z.number().int().nonnegative(),
+  totals: z.object(
+    Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, nutrientTotal])) as Record<
+      NutrientKey,
+      typeof nutrientTotal
+    >,
+  ),
+  /** Entries per food source; totals are estimates from these sources. */
+  sources: foodSourceCounts,
+});
+export type NutrientSummary = z.infer<typeof nutrientSummary>;
+
 export const diaryDay = z.object({
   localDate: z.string(),
   status: dayStatus,
   completedAt: z.string().nullable(),
   entries: z.array(diaryEntry),
+  summary: nutrientSummary,
 });
 export type DiaryDay = z.infer<typeof diaryDay>;
+
+/** One local day's totals; days with nothing logged are included with `entryCount: 0`. */
+export const dailyTotals = nutrientSummary.extend({
+  localDate: z.string(),
+  status: dayStatus,
+});
+export type DailyTotals = z.infer<typeof dailyTotals>;
+
+export const getTotalsOutput = z.object({ days: z.array(dailyTotals) });
+export type GetTotalsOutput = z.infer<typeof getTotalsOutput>;
 
 export const entryOutcome = z.discriminatedUnion("outcome", [
   z.object({ outcome: z.literal("applied"), entry: diaryEntry, targetId: z.string() }),

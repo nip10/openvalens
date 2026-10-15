@@ -32,7 +32,6 @@ import {
   deviceTimeZone,
   foodSourceLabel,
   formatAmount,
-  formatNutrientTotal,
   formatNutrientValue,
   groupBySlot,
   localDateIn,
@@ -40,7 +39,6 @@ import {
   parseQuickAdd,
   previewNutrients,
   shiftLocalDate,
-  summarizeDay,
   unitsFor,
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
@@ -55,6 +53,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -114,13 +113,13 @@ function NutritionPage() {
   };
 
   const day = dayQuery.data;
-  const summary = summarizeDay(day?.entries ?? []);
-  const status = dayStatusText(day?.status ?? "unmarked", summary.entryCount);
+  const entryCount = day?.summary.entryCount ?? 0;
+  const status = dayStatusText(day?.status ?? "unmarked", entryCount);
 
   const setStatus = useMutation(
     orpc.nutritionDiary.setDayStatus.mutationOptions({
       onSuccess: (result) => {
-        announce(`${result.localDate}: ${dayStatusText(result.status, summary.entryCount).label}`);
+        announce(`${result.localDate}: ${dayStatusText(result.status, entryCount).label}`);
         void refresh();
       },
     }),
@@ -191,17 +190,9 @@ function NutritionPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                {SUMMARY_NUTRIENTS.map((key) => (
-                  <div key={key}>
-                    <dt className="text-xs text-muted-foreground">{NUTRIENT_LABELS[key].label}</dt>
-                    <dd className="font-mono text-sm">
-                      {formatNutrientTotal(key, summary.totals[key])}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-3 text-xs text-muted-foreground">{DIARY_COPY.unknownNote}</p>
+              {day ? (
+                <NutritionDayTotals totals={day.summary.totals} sources={day.summary.sources} />
+              ) : null}
             </CardContent>
           </Card>
 

@@ -1,5 +1,6 @@
 import {
   createNutritionDiary,
+  createNutritionTotals,
   FoodSourceUnavailableError,
   NutritionError,
   type DiaryEntry as DomainEntry,
@@ -21,6 +22,8 @@ import {
   entryOutcome,
   foodChoice,
   getDayInput,
+  getTotalsInput,
+  getTotalsOutput,
   logEntryInput,
   logEntryOutput,
   setDayStatusInput,
@@ -152,8 +155,24 @@ export const nutritionDiaryRouter = {
           status: day.status,
           completedAt: day.completedAt?.toISOString() ?? null,
           entries: day.entries.map(toWireEntry),
+          summary: day.summary,
         };
       }),
+    ),
+
+  /**
+   * Server-computed totals with per-nutrient coverage for every local day in
+   * an inclusive range (at most 92 days). Days with nothing logged are
+   * returned with `entryCount: 0` and no totals, never as zero intake.
+   */
+  getTotals: read()
+    .use(validateInput(getTotalsInput))
+    .input(getTotalsInput)
+    .output(getTotalsOutput)
+    .handler(({ input, context }) =>
+      run(async () => ({
+        days: await createNutritionTotals(context.db).listDays(scopeOf(context), input),
+      })),
     ),
 
   /** Recents, favourites and custom foods for quick logging (and offline search on mobile). */
