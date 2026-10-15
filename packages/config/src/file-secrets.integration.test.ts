@@ -222,7 +222,7 @@ describe("actual server schema sensitive coverage", () => {
       }
 
       expect([...sensitiveByDefault].sort()).toEqual([...FILE_SECRET_KEYS].sort());
-      // The fourteen schema keys that must NOT be file-resolved.
+      // The schema keys that must NOT be file-resolved.
       expect([...explicitlyPublic].sort()).toEqual(
         [
           "AI_BASE_URL",
@@ -237,6 +237,10 @@ describe("actual server schema sensitive coverage", () => {
           "EMAIL_FROM",
           "EMAIL_REPLY_TO",
           "NODE_ENV",
+          "OIDC_CLIENT_ID",
+          "OIDC_DISCOVERY_URL",
+          "OIDC_DISPLAY_NAME",
+          "OIDC_PROVIDER_ID",
           "TELEGRAM_API_BASE_URL",
           "TELEGRAM_CONNECT_TOKEN_TTL_SECONDS",
         ].sort(),

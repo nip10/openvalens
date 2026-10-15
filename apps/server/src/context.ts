@@ -15,6 +15,7 @@ import {
   email,
   integrations,
   productSettingsService,
+  signInOptions,
   telegramClient,
   telegramConfig,
 } from "./services";
@@ -79,6 +80,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     admissionService,
     admissionRateLimiter,
+    // Issue #65 — public "Continue with <name>" option, or `{ oidc: null }`.
+    signInOptions,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

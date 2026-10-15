@@ -2,9 +2,11 @@ import { describeAiIntegration, InMemoryRateLimiter, parseAiConfig } from "@open
 import { createProductSettingsService } from "@openvalens/api/product-settings";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
 import { createAdmissionService } from "@openvalens/auth/admission";
+import { describeOidcIntegration, oidcSignInOption, parseOidcConfig } from "@openvalens/auth/oidc";
 import { createDb } from "@openvalens/db";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import { createEmailService, describeEmailIntegration, parseEmailConfig } from "@openvalens/email";
+import { createStructuredLogger } from "@openvalens/observability";
 import {
   describeTelegramIntegration,
   parseTelegramConfig,
@@ -41,8 +43,28 @@ export const email = createEmailService(emailConfig);
 // per-call overrides.
 export const sendEmail = email.sendEmail;
 
+// Issue #65 — one optional generic OIDC provider. Off unless every required
+// key is set; an incomplete set logs the missing key *names* (never a value)
+// and keeps sign-in magic-link only rather than failing the boot.
+export const oidcConfig = parseOidcConfig({
+  OIDC_PROVIDER_ID: ENV.OIDC_PROVIDER_ID,
+  OIDC_CLIENT_ID: ENV.OIDC_CLIENT_ID,
+  OIDC_CLIENT_SECRET: ENV.OIDC_CLIENT_SECRET,
+  OIDC_DISCOVERY_URL: ENV.OIDC_DISCOVERY_URL,
+  OIDC_DISPLAY_NAME: ENV.OIDC_DISPLAY_NAME,
+});
+
+if (oidcConfig.missingKeys.length > 0) {
+  createStructuredLogger({ level: "info" }).warn("auth.oidc.config.incomplete", {
+    missingKeys: [...oidcConfig.missingKeys],
+  });
+}
+
+/** Public "Continue with <name>" option for the sign-in screens, or `null`. */
+export const signInOptions = Object.freeze({ oidc: oidcSignInOption(oidcConfig) });
+
 // Issue #58 — auth must be constructed only after the email service exists.
-export const auth = createAuth(ENV, db, { email });
+export const auth = createAuth(ENV, db, { email, oidc: oidcConfig.provider });
 
 // Issue #14 — server-side Telegram instantiation. The `@openvalens/telegram`
 // package stays pure; the server binds the validated `ENV` here. The client is
@@ -79,13 +101,14 @@ export const aiRateLimiter = new InMemoryRateLimiter({
  * Every optional external service is an adapter in the package that owns its
  * domain, selected by env and bound here. Each family reports a value-free
  * `{ provider, state }` on the readiness probe. With no vendor credentials the
- * server boots with every family at its safe default: email `dry-run`, AI and
- * messaging `off`. See `docs/integrations.md`.
+ * server boots with every family at its safe default: email `dry-run`, AI,
+ * messaging and OIDC `off`. See `docs/integrations.md`.
  */
 export const integrations = Object.freeze({
   email: describeEmailIntegration(emailConfig),
   ai: describeAiIntegration(aiConfig),
   messaging: describeTelegramIntegration(telegramConfig),
+  oidc: describeOidcIntegration(oidcConfig),
 }) satisfies IntegrationStatuses;
 
 /**

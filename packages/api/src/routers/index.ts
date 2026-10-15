@@ -19,6 +19,7 @@ import { labsRouter } from "./labs";
 import { mobileRouter } from "./mobile";
 import { plansRouter } from "./plans";
 import { sharingRouter } from "./sharing";
+import { signInRouter } from "./sign-in";
 import { sleepRouter } from "./sleep";
 import { telegramRouter } from "./telegram";
 import { timelineRouter } from "./timeline";
@@ -44,6 +45,7 @@ export const appRouter = {
   mobile: mobileRouter,
   plans: plansRouter,
   sharing: sharingRouter,
+  signIn: signInRouter,
   sleep: sleepRouter,
   telegram: telegramRouter,
   timeline: timelineRouter,

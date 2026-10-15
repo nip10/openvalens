@@ -375,6 +375,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         email: { provider: "resend", state: "dry-run" },
         ai: { provider: null, state: "off" },
         messaging: { provider: null, state: "off" },
+        oidc: { provider: null, state: "off" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(safeDefaults);
@@ -390,17 +391,24 @@ describe("schema-validated security configuration (cold boot)", () => {
         RESEND_API_KEY: "synthetic-resend-api-key-0123456789",
         ANTHROPIC_API_KEY: "sk-ant-synthetic-0123456789",
         TELEGRAM_BOT_TOKEN: "123456:synthetic-telegram-token",
+        OIDC_CLIENT_SECRET: "synthetic-oidc-client-secret-0123456789",
       };
       const run = await runColdChild({
         NODE_ENV: "development",
         CSP_MODE: "report-only",
         EMAIL_DRY_RUN: "false",
+        // Issue #65 — an unreachable loopback IdP: the provider is skipped at
+        // discovery time, never a boot failure.
+        OIDC_PROVIDER_ID: "synthetic-idp",
+        OIDC_CLIENT_ID: "synthetic-client",
+        OIDC_DISCOVERY_URL: "http://127.0.0.1:9/.well-known/openid-configuration",
         ...secrets,
       });
       const configured = {
         email: { provider: "resend", state: "configured" },
         ai: { provider: "anthropic", state: "configured" },
         messaging: { provider: "telegram", state: "configured" },
+        oidc: { provider: "generic", state: "configured" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(configured);

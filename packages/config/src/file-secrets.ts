@@ -46,6 +46,7 @@ export const FILE_SECRET_KEYS = [
   "TELEGRAM_BOT_TOKEN",
   "AI_API_KEY",
   "ANTHROPIC_API_KEY",
+  "OIDC_CLIENT_SECRET",
 ] as const;
 
 export type FileSecretKey = (typeof FILE_SECRET_KEYS)[number];

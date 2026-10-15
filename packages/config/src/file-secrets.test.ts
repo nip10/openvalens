@@ -42,6 +42,7 @@ describe("resolveFileSecrets", () => {
       "TELEGRAM_BOT_TOKEN",
       "AI_API_KEY",
       "ANTHROPIC_API_KEY",
+      "OIDC_CLIENT_SECRET",
     ]);
     // The database profile resolves only DATABASE_URL; unrelated provider files
     // cannot fail database commands.

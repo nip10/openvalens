@@ -1,6 +1,6 @@
 # Configuration
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-15
 
 A self-hosted instance is configured in three places:
 
@@ -34,6 +34,11 @@ that this table and the Compose file list the same variables):
 | `EMAIL_DRY_RUN`                           | no                   | `false`   | `true` logs email instead of sending it. Without a Resend key email is dry-run regardless.                  |
 | `ANTHROPIC_API_KEY_FILE`                  | no                   | empty     | `/run/secrets/ANTHROPIC_API_KEY` to enable AI features ([optional providers](#optional-providers)).         |
 | `TELEGRAM_BOT_TOKEN_FILE`                 | no                   | empty     | `/run/secrets/TELEGRAM_BOT_TOKEN` to enable Telegram delivery ([optional providers](#optional-providers)).  |
+| `OIDC_PROVIDER_ID`                        | no                   | empty     | Id of the optional OIDC provider, used in its redirect URI. See [Single sign-on](oidc.md).                  |
+| `OIDC_CLIENT_ID`                          | no                   | empty     | OIDC client id. See [Single sign-on](oidc.md).                                                              |
+| `OIDC_CLIENT_SECRET_FILE`                 | no                   | empty     | `/run/secrets/OIDC_CLIENT_SECRET`, the OIDC client secret. See [Single sign-on](oidc.md).                   |
+| `OIDC_DISCOVERY_URL`                      | no                   | empty     | The IdP's `https` discovery document URL. See [Single sign-on](oidc.md).                                    |
+| `OIDC_DISPLAY_NAME`                       | no                   | empty     | Sign-in button label; empty means "Single sign-on".                                                         |
 | `OPENVALENS_HTTP_PORT`                    | no                   | `80`      | Host port Caddy publishes for HTTP. Let's Encrypt needs the public port 80; change only behind another NAT. |
 | `OPENVALENS_HTTPS_PORT`                   | no                   | `443`     | Host port Caddy publishes for HTTPS (TCP and UDP).                                                          |
 
@@ -77,6 +82,7 @@ without revealing any value:
 | `email`     | Resend    | `RESEND_API_KEY` secret (see [Email](email.md))         | `dry-run` |
 | `ai`        | Anthropic | `ANTHROPIC_API_KEY` secret + `ANTHROPIC_API_KEY_FILE`   | `off`     |
 | `messaging` | Telegram  | `TELEGRAM_BOT_TOKEN` secret + `TELEGRAM_BOT_TOKEN_FILE` | `off`     |
+| `oidc`      | Generic   | OIDC settings + client secret (see [OIDC](oidc.md))     | `off`     |
 
 To add a key, write it to a file the containers can read, point the matching
 `_FILE` variable at the mount path, and apply:
@@ -108,7 +114,7 @@ and `AI_MODEL`, which `deploy/compose.yml` does not pass through yet.
 Registering the Telegram webhook (`https://<domain>/api/integrations/telegram/webhook`,
 authenticated with `TELEGRAM_WEBHOOK_SECRET`) with Telegram is not automated and
 is not yet covered by these docs. The adapter rules and the planned families
-(storage #62, OIDC #65, wearables #60) are in
+(storage #62, wearables #60) are in
 [docs/integrations.md](../integrations.md).
 
 ## Product settings

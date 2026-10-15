@@ -13,6 +13,7 @@ apply to OpenValens 0.1.0 (pre-release; no release is tagged yet):
 - [Upgrading](docs/self-hosting/upgrading.md)
 - [Backups](docs/self-hosting/backup.md) — **incomplete:** plain, unencrypted pre-migrate dumps only; encrypted backup and restore are pending (#64)
 - [Email](docs/self-hosting/email.md) (Resend only)
+- [Single sign-on (OIDC)](docs/self-hosting/oidc.md) — one optional provider, invite-only
 - [Security model and reporting](docs/self-hosting/security.md)
 - [Privacy and data rights](docs/self-hosting/privacy.md)
 - [Licensing and trademark](docs/self-hosting/licensing.md)
