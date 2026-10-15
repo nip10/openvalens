@@ -322,6 +322,12 @@ the unreferenced owned network and volume; it does not use project-wide
 The test does not configure Resend, AI, Telegram, TLS, backups, or production
 provisioning, and does not prove external email delivery.
 
+For a deployed environment, `bun scripts/verify-readiness.ts --base-url
+https://<your-domain>` runs the read-only web, API, anonymous/protected RPC and
+integration-state checks in one go; see [release.md](release.md#5-readiness-verification).
+Authenticated and provider flows are verified with
+[production-verification.md](production-verification.md).
+
 Run these after deploy:
 
 - App opens in the browser.
@@ -360,6 +366,11 @@ Run these after deploy:
 
 When a deploy goes wrong (broken migrations, failing readiness, AI regression,
 etc.), roll back with the smallest possible change first.
+
+Releases are built, approved (deployment and migration approval separately)
+and rolled back per [release.md](release.md), which also has the self-host
+restore-rollback commands and a local rollback rehearsal
+(`scripts/rollback-rehearsal.sh`).
 
 For a CSP enforcement regression (a supported flow blocked after Issue #127
 made `CSP_MODE=enforce` the production default), set `CSP_MODE=report-only` and

@@ -235,3 +235,26 @@ describe("deploy/setup.sh", () => {
     60_000,
   );
 });
+
+describe("scripts/rollback-rehearsal.sh (Issue #129)", () => {
+  const script = join(repo, "scripts", "rollback-rehearsal.sh");
+
+  test("parses as bash", () => {
+    expect(Bun.spawnSync(["bash", "-n", script]).exitCode).toBe(0);
+  });
+
+  test("rejects unknown options without echoing them and requires both refs", () => {
+    const unknown = Bun.spawnSync(["bash", script, "--token=s3cr3t"]);
+    expect(unknown.exitCode).toBe(2);
+    expect(`${unknown.stdout}${unknown.stderr}`).not.toContain("s3cr3t");
+    expect(Bun.spawnSync(["bash", script, "--from", "HEAD"]).exitCode).toBe(2);
+  });
+
+  test("refuses a remote Docker daemon before touching anything", () => {
+    const result = Bun.spawnSync(["bash", script, "--from", "HEAD~1", "--to", "HEAD"], {
+      env: { PATH: process.env.PATH ?? "/usr/bin:/bin", DOCKER_HOST: "tcp://203.0.113.1:2376" },
+    });
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).toContain("non-local DOCKER_HOST");
+  });
+});
