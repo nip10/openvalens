@@ -65,6 +65,19 @@ export default function SettingsScreen() {
           </CardStack>
         )}
 
+        {session?.user && (
+          <CardStack title="Profile">
+            <Card variant="secondary" className="overflow-hidden p-0">
+              <ListRow
+                icon={<Ionicons name="person-outline" size={20} color={foreground} />}
+                title="Your profile"
+                subtitle="Optional answers only you can see"
+                onPress={() => router.push("/profile")}
+              />
+            </Card>
+          </CardStack>
+        )}
+
         {session?.user && <HealthSyncSettings />}
 
         {session?.user && <CoachSection />}

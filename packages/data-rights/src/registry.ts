@@ -193,6 +193,11 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
       "Value-free instance-wide settings audit (changed key names, revision, actor id); the actor reference is nulled on delete, so no lasting personal data remains.",
   },
 
+  // Wellness profile (#98): user-owned, never organization-scoped. Consent rows
+  // are the versioned per-purpose history and are exported with the profile.
+  wellness_profile: { kind: "user" },
+  wellness_profile_consent: { kind: "user" },
+
   // Plans
   supplement: { kind: "child", parent: "supplement_schedule" },
   supplement_schedule: organization,

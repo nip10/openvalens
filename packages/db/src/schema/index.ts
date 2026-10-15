@@ -10,5 +10,6 @@ export * from "./integrations";
 export * from "./nutrition";
 export * from "./plans";
 export * from "./product-settings";
+export * from "./profile";
 export * from "./data-rights";
 export * from "./security";

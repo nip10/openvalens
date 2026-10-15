@@ -11,6 +11,7 @@ import { RefreshControl, Text, View } from "react-native";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
 import { orpc } from "@/utils/orpc";
 import { useHealthReadiness } from "@/utils/queries";
 import { useThemeColor } from "@/utils/theme";
@@ -137,6 +138,8 @@ export default function CockpitScreen() {
           <Text className="text-sm text-muted-foreground">Today</Text>
           <Text className="font-mono text-3xl text-foreground">{today}</Text>
         </View>
+
+        <ProfileSetupPrompt />
 
         <CardStack title="Today">
           <Card variant="secondary" className="p-4">
