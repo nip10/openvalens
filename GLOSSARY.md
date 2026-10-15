@@ -32,3 +32,12 @@ provided a value (`full`, `partial`, `none`, or `no_entries` when nothing was
 logged). A daily total sums only provided values and is always shown with its
 coverage; a value a food's source did not provide is unknown, never zero.
 _Avoid_: Completeness (that is the explicit "day complete" marker), data quality
+
+**Custom food**:
+A food a member enters themselves ("My foods"), private to that member inside
+their workspace. It is never shared with other members, never published to a
+food catalog, and its provenance is always "entered by you". Editing creates a
+new revision; archiving hides it from search and logging. Meals already logged
+keep the snapshot taken at logging time, so neither changes them. Recipes are a
+later phase and are not custom foods.
+_Avoid_: Personal catalog, user food database

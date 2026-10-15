@@ -107,6 +107,11 @@ export const nutritionFood = pgTable(
     ...nutrientColumns(),
     revision: integer("revision").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
+    /**
+     * Client-generated id of the create request (Issue #81), so a retried or
+     * replayed "save food" returns the food it already created.
+     */
+    clientMutationId: text("client_mutation_id"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
@@ -130,6 +135,13 @@ export const nutritionFood = pgTable(
       sql`${table.barcode} is null or ${table.barcode} ~ '^[0-9]{8,14}$'`,
     ),
     nutritionFoodRevisionCheck: check("nutrition_food_revision_check", sql`${table.revision} >= 1`),
+    nutritionFoodClientMutationUnique: uniqueIndex("nutrition_food_org_user_client_mutation_key")
+      .on(table.organizationId, table.userId, table.clientMutationId)
+      .where(sql`${table.clientMutationId} is not null`),
+    nutritionFoodClientMutationCheck: check(
+      "nutrition_food_client_mutation_id_check",
+      sql`${table.clientMutationId} is null or length(${table.clientMutationId}) between 1 and 128`,
+    ),
     nutritionFoodNutrientsCheck: check(
       "nutrition_food_nutrients_non_negative_check",
       nutrientsNonNegative(table),

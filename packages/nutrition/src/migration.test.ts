@@ -95,3 +95,18 @@ describe("meal diary migration (Issue #77)", () => {
     ]);
   });
 });
+
+const CUSTOM_FOOD_MIGRATION = new URL(
+  "../../db/src/migrations/20261015190000_nutrition_custom_food_mutation/migration.sql",
+  import.meta.url,
+);
+
+describe("custom food mutation migration (Issue #81)", () => {
+  test("only adds a nullable column, its check and a partial unique index", async () => {
+    expect(await statements(CUSTOM_FOOD_MIGRATION)).toEqual([
+      'ALTER TABLE "nutrition_food" ADD COLUMN "client_mutation_id" text;',
+      'ALTER TABLE "nutrition_food" ADD CONSTRAINT "nutrition_food_client_mutation_id_check" CHECK ("client_mutation_id" is null or length("client_mutation_id") between 1 and 128);',
+      'CREATE UNIQUE INDEX "nutrition_food_org_user_client_mutation_key" ON "nutrition_food" ("organization_id","user_id","client_mutation_id") WHERE "client_mutation_id" is not null;',
+    ]);
+  });
+});
