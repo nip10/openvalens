@@ -37,7 +37,10 @@ it for a real installation.
 - `<version>` is `git describe --tags --always --dirty` of your checkout (a
   commit hash until a release is tagged). Images are built from your checkout;
   published registry images are tracked separately (#129).
-- Named volumes: `postgres_data`, `backups`, `caddy_data`, `caddy_config`.
+- Named volumes: `postgres_data`, `backups`, `storage`, `caddy_data`,
+  `caddy_config`. `storage` holds uploaded objects (progress photos, lab PDFs,
+  export bundles) at `/var/lib/openvalens/storage` in the server container; see
+  [Object storage](../storage.md).
 
 ## Requirements
 

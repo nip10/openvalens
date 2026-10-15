@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@openvalens/ui/components/button";
 import {
@@ -42,6 +42,7 @@ export default function Header() {
   const userId = session?.user?.id;
   const hasUserId = !!userId;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileNavRef = useRef<HTMLElement>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -66,30 +67,47 @@ export default function Header() {
     : BASE_LINKS;
 
   const linkClasses =
-    "text-foreground hover:text-foreground/80 whitespace-nowrap rounded-sm px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "text-foreground hover:text-foreground/80 whitespace-nowrap rounded-sm px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:font-semibold";
 
   return (
     <header className="min-w-0 px-2 py-1">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="xl:hidden"
+                className="2xl:hidden"
                 aria-label="Open navigation menu"
               >
                 <Menu className="h-4 w-4" aria-hidden="true" />
                 <span className="ml-2 hidden sm:inline">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[min(20rem,85vw)]">
+            <SheetContent
+              side="left"
+              className="w-[min(20rem,85vw)]"
+              onOpenAutoFocus={(event) => {
+                // Land on the current page's link (or the first one) rather than
+                // whichever control Radix finds first mid-animation.
+                event.preventDefault();
+                const nav = mobileNavRef.current;
+                const target =
+                  nav?.querySelector<HTMLElement>('a[aria-current="page"]') ??
+                  nav?.querySelector<HTMLElement>("a");
+                target?.focus();
+              }}
+            >
               <SheetHeader>
                 <SheetTitle>Menu</SheetTitle>
                 <SheetDescription className="sr-only">Navigate the app</SheetDescription>
               </SheetHeader>
-              <nav className="flex flex-col gap-1 px-4" aria-label="Mobile navigation">
+              <nav
+                ref={mobileNavRef}
+                className="flex min-h-0 flex-col gap-1 overflow-y-auto px-4 pb-4"
+                aria-label="Mobile navigation"
+              >
                 {links.map(({ to, label }) => (
                   <Link
                     key={to}
@@ -109,7 +127,7 @@ export default function Header() {
           </Sheet>
 
           <nav
-            className="hidden xl:flex flex-wrap items-center gap-x-4 gap-y-1 text-lg"
+            className="hidden min-w-0 items-center gap-x-3 text-sm 2xl:flex"
             aria-label="Main navigation"
           >
             {links.map(({ to, label }) => (
@@ -121,7 +139,7 @@ export default function Header() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden xl:block">
+          <div className="hidden 2xl:block">
             <ModeToggle />
           </div>
           <UserMenu />

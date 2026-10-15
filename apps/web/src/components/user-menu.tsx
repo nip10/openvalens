@@ -24,22 +24,26 @@ export default function UserMenu() {
 
   if (!session) {
     return (
-      <Link to="/login">
-        <Button variant="outline">Sign In</Button>
-      </Link>
+      <Button variant="outline" asChild>
+        <Link to="/login">Sign In</Link>
+      </Button>
     );
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline">{session.user.name}</Button>
+        <Button variant="outline" className="max-w-[10rem] sm:max-w-[14rem]">
+          <span className="truncate">{session.user.name}</span>
+        </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card">
+      <DropdownMenuContent align="end" className="bg-card">
         <DropdownMenuGroup>
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+          <DropdownMenuItem className="max-w-[min(20rem,85vw)]">
+            <span className="truncate">{session.user.email}</span>
+          </DropdownMenuItem>
           <DropdownMenuItem
             variant="destructive"
             onClick={async () => {

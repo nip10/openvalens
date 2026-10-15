@@ -193,10 +193,12 @@ Response shape:
       "resend": false,
       "mobilePairing": true
     },
+    "storage": "ok",
     "integrations": {
       "email": { "provider": "resend", "state": "dry-run" },
       "ai": { "provider": null, "state": "off" },
       "messaging": { "provider": null, "state": "off" },
+      "storage": { "provider": "local", "state": "configured" },
       "foodLookup": { "provider": null, "state": "off" }
     }
   },
@@ -207,7 +209,8 @@ Response shape:
 Status semantics:
 
 - `ok` — database reachable and all required secrets present.
-- `degraded` — database reachable but a required secret is missing or too short.
+- `degraded` — database reachable but a required secret is missing or too
+  short, or object storage is not writable.
 - `unready` — database unreachable.
 
 Each check emits a structured `health.readiness.checked` log line carrying the
@@ -219,6 +222,12 @@ example above is a default install with no vendor accounts; `dry-run` and `off`
 are safe defaults and never degrade the status. See
 [docs/integrations.md](integrations.md) for the adapter set and how to enable
 each one.
+
+`checks.storage` is `ok` when the selected object storage accepted a
+write/read/delete round trip on a reserved key (cached for 30 seconds),
+`unwritable` when it did not, and `off` when S3 is selected without a bucket or
+credentials. Which storage is in use is `checks.integrations.storage.provider`.
+See [docs/storage.md](storage.md).
 
 `capabilities.resend` is `true` only when email is actually delivered: a
 `RESEND_API_KEY` is configured **and** `EMAIL_DRY_RUN=false`. With the default

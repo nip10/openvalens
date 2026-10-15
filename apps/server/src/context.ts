@@ -16,6 +16,7 @@ import {
   foodLookup,
   integrations,
   productSettingsService,
+  storageService,
   telegramClient,
   telegramConfig,
 } from "./services";
@@ -80,6 +81,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     admissionService,
     admissionRateLimiter,
+    // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
+    storage: storageService,
     // Issue #69 — optional live barcode lookup; `null` keeps lookups local.
     foodLookup,
     // Hand the Hono context through so authz guards and cron auth can read

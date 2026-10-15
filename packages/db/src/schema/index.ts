@@ -13,3 +13,4 @@ export * from "./product-settings";
 export * from "./profile";
 export * from "./data-rights";
 export * from "./security";
+export * from "./storage";

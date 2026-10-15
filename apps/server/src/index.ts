@@ -12,6 +12,7 @@ import {
   expectedOriginFrom,
   securityHeadersMiddleware,
 } from "@openvalens/observability";
+import { describeStorageError, LOCAL_DOWNLOAD_PATH_PREFIX } from "@openvalens/storage";
 import { handleWebhookUpdate, verifyWebhookSecret } from "@openvalens/telegram";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -24,7 +25,7 @@ import { cors } from "hono/cors";
 import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
-import { auth, db, telegramClient, telegramWebhookSecret } from "./services";
+import { auth, db, storageService, telegramClient, telegramWebhookSecret } from "./services";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -206,6 +207,27 @@ app.post("/api/integrations/telegram/webhook", async (c) => {
   });
 
   return c.json(result, 200);
+});
+
+// Issue #62 — signed object download route for local-disk storage. Plain Hono
+// (NOT oRPC): the HMAC signature + expiry minted by `storage.downloadUrl` (after
+// the session, tenant and RBAC checks) is the authorization, so the URL works
+// in an <img> or download link for its few minutes of life. Forged, altered or
+// expired URLs get 403 without a database lookup. Responses are `no-store`,
+// `attachment`, `nosniff` and sandboxed. Only value-free outcomes are logged.
+app.get(`${LOCAL_DOWNLOAD_PATH_PREFIX}:objectId`, async (c) => {
+  const correlationId = c.get("correlationId");
+  if (!storageService) return c.json({ error: "STORAGE_UNAVAILABLE" }, 503);
+  try {
+    const response = await storageService.serveSignedDownload(new URL(c.req.url));
+    if (!response.ok) {
+      logger.warn("storage.download.rejected", { correlationId, status: response.status });
+    }
+    return response;
+  } catch (error) {
+    logger.error("storage.download.failed", { correlationId, ...describeStorageError(error) });
+    return c.json({ error: "INTERNAL" }, 500);
+  }
 });
 
 export const apiHandler = new OpenAPIHandler(appRouter, {

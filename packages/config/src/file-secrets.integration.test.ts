@@ -25,6 +25,8 @@ const SYNTHETIC_SECRETS: Record<string, string> = {
   TELEGRAM_BOT_TOKEN: "123456:synthetic-telegram-token",
   AI_API_KEY: "synthetic-ai-provider-key",
   ANTHROPIC_API_KEY: "sk-ant-synthetic",
+  STORAGE_S3_ACCESS_KEY_ID: "synthetic-storage-access-key",
+  STORAGE_S3_SECRET_ACCESS_KEY: "synthetic-storage-secret-key",
 };
 
 const REQUIRED_SECRET_KEYS = [
@@ -57,6 +59,8 @@ async function runEnvServerChild(
     `  telegram: e.TELEGRAM_BOT_TOKEN === ${JSON.stringify(SYNTHETIC_SECRETS.TELEGRAM_BOT_TOKEN)},`,
     `  aiKey: e.AI_API_KEY === ${JSON.stringify(SYNTHETIC_SECRETS.AI_API_KEY)},`,
     `  anthropic: e.ANTHROPIC_API_KEY === ${JSON.stringify(SYNTHETIC_SECRETS.ANTHROPIC_API_KEY)},`,
+    `  storageKeyId: e.STORAGE_S3_ACCESS_KEY_ID === ${JSON.stringify(SYNTHETIC_SECRETS.STORAGE_S3_ACCESS_KEY_ID)},`,
+    `  storageSecret: e.STORAGE_S3_SECRET_ACCESS_KEY === ${JSON.stringify(SYNTHETIC_SECRETS.STORAGE_S3_SECRET_ACCESS_KEY)},`,
     "  resendAbsent: e.RESEND_API_KEY == null,",
     "}));",
   ].join("\n");
@@ -135,6 +139,8 @@ describe("file secrets boot ordering (real Varlock cold start)", () => {
         "telegram",
         "aiKey",
         "anthropic",
+        "storageKeyId",
+        "storageSecret",
       ]) {
         expect(flags[key]).toBe(true);
       }
@@ -222,7 +228,7 @@ describe("actual server schema sensitive coverage", () => {
       }
 
       expect([...sensitiveByDefault].sort()).toEqual([...FILE_SECRET_KEYS].sort());
-      // The seventeen schema keys that must NOT be file-resolved.
+      // The twenty-six schema keys that must NOT be file-resolved.
       expect([...explicitlyPublic].sort()).toEqual(
         [
           "AI_BASE_URL",
@@ -240,6 +246,15 @@ describe("actual server schema sensitive coverage", () => {
           "FOOD_LOOKUP_PROVIDER",
           "FOOD_LOOKUP_USER_AGENT",
           "NODE_ENV",
+          "STORAGE_LOCAL_DIR",
+          "STORAGE_MAX_OBJECT_BYTES",
+          "STORAGE_PROVIDER",
+          "STORAGE_S3_BUCKET",
+          "STORAGE_S3_ENDPOINT",
+          "STORAGE_S3_FORCE_PATH_STYLE",
+          "STORAGE_S3_REGION",
+          "STORAGE_S3_SSE",
+          "STORAGE_SIGNED_URL_TTL_SECONDS",
           "TELEGRAM_API_BASE_URL",
           "TELEGRAM_CONNECT_TOKEN_TTL_SECONDS",
         ].sort(),

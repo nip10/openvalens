@@ -175,6 +175,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_diary_day",
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
+      "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);
     expect(report.rowCounts.user).toBe(1);
