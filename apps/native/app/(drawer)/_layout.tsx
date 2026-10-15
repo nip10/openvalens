@@ -11,6 +11,7 @@ import { useThemeColor } from "@/utils/theme";
 const DRAWER_ITEMS = [
   { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
   { label: "Supplements", href: "/supplements" as const, icon: "medkit-outline" as const },
+  { label: "Meal diary", href: "/nutrition" as const, icon: "restaurant-outline" as const },
   { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
   { label: "Sleep", href: "/records/sleep" as const, icon: "moon-outline" as const },
   { label: "Activity", href: "/records/activity" as const, icon: "walk-outline" as const },
@@ -90,13 +91,15 @@ function DrawerLayout() {
               ? "Labs"
               : pathname === "/supplements"
                 ? "Supplements"
-                : pathname === "/workouts"
-                  ? "Workouts"
-                  : pathname === "/exports"
-                    ? "Clinical export"
-                    : pathname === "/settings"
-                      ? "Settings"
-                      : "Cockpit";
+                : pathname === "/nutrition"
+                  ? "Meal diary"
+                  : pathname === "/workouts"
+                    ? "Workouts"
+                    : pathname === "/exports"
+                      ? "Clinical export"
+                      : pathname === "/settings"
+                        ? "Settings"
+                        : "Cockpit";
 
   return (
     <Drawer
@@ -151,6 +154,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="supplements"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="nutrition"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },

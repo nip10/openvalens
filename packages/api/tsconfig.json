@@ -15,6 +15,7 @@
     { "path": "../clinical-export" },
     { "path": "../health-record" },
     { "path": "../ingestion" },
+    { "path": "../nutrition" },
     {
       "path": "../db"
     },

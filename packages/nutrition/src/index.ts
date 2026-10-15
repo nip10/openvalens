@@ -4,3 +4,4 @@ export * from "./local-day";
 export * from "./snapshot";
 export * from "./repository";
 export * from "./catalog";
+export * from "./diary";
