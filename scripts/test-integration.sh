@@ -32,6 +32,7 @@ SUITES=(
   "VITALS_TEST_DATABASE_URL|vitals_test|packages/vitals/src/queries.integration.test.ts"
   "NUTRITION_TEST_DATABASE_URL|nutrition_test|packages/nutrition/src/repository.integration.test.ts"
   "FOOD_CATALOG_TEST_DATABASE_URL|food_catalog_test|packages/nutrition/src/catalog/catalog.integration.test.ts"
+  "NUTRITION_FOODS_TEST_DATABASE_URL|nutrition_foods_test|packages/api/src/routers/nutrition-foods.integration.test.ts"
   "LABS_TEST_DATABASE_URL|labs_test|packages/labs/src/queries.integration.test.ts"
   "AI_TOOLS_TEST_DATABASE_URL|ai_tools_test|packages/ai/src/tools/health-tools.integration.test.ts"
   "AI_REMAINING_TOOLS_TEST_DATABASE_URL|ai_remaining_tools_test|packages/ai/src/tools/remaining-tools.integration.test.ts"

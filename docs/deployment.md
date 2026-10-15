@@ -196,7 +196,8 @@ Response shape:
     "integrations": {
       "email": { "provider": "resend", "state": "dry-run" },
       "ai": { "provider": null, "state": "off" },
-      "messaging": { "provider": null, "state": "off" }
+      "messaging": { "provider": null, "state": "off" },
+      "foodLookup": { "provider": null, "state": "off" }
     }
   },
   "timestamp": "2026-09-29T00:00:00.000Z"
