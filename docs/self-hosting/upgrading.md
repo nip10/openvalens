@@ -69,6 +69,11 @@ drill-tested restore procedure yet (Issue #64); the
 that were checked once on a development machine. Roll back only when you must,
 and practise on a copy first.
 
+For an approved release, the [release runbook](../release.md#6-rollback) has
+the rollback commands that keep the upgraded database for forensics and start
+the retained previous images, and `scripts/rollback-rehearsal.sh` rehearses the
+whole upgrade-and-restore path on a disposable local stack.
+
 ## Notes
 
 - A plain `docker compose -f deploy/compose.yml up -d` follows the same
