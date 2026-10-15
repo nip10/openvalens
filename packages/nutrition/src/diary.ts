@@ -32,6 +32,7 @@ import {
   type Tx,
 } from "./repository";
 import { sourceQualifiedId } from "./snapshot";
+import { summarizeEntries, type NutrientSummary } from "./totals";
 
 /**
  * Meal diary service (Issue #77) on top of the #74 repository. Adds the
@@ -59,6 +60,8 @@ export type DiaryDay = {
   status: DiaryDayStatus;
   completedAt: Date | null;
   entries: DiaryEntry[];
+  /** Server-computed totals and per-nutrient coverage over `entries` (#79). */
+  summary: NutrientSummary;
 };
 
 /** How a client picks a food to log. */
@@ -293,6 +296,9 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
         status: completedAt ? "complete" : "unmarked",
         completedAt,
         entries,
+        summary: summarizeEntries(
+          entries.map((entry) => ({ nutrients: entry.nutrients, source: entry.food.source })),
+        ),
       };
     },
 
