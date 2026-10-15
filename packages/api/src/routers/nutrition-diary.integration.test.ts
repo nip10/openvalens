@@ -3,17 +3,24 @@ import { readdir } from "node:fs/promises";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
+import { createNutritionRepository } from "@openvalens/nutrition";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "../context";
-import type { DiaryEntry, LogEntryInput } from "../contracts/nutrition-diary";
+import type {
+  DailyTotals,
+  DiaryEntry,
+  LogEntryInput,
+  NutrientSummary,
+} from "../contracts/nutrition-diary";
 import { appRouter } from "./index";
 
 /**
  * `nutritionDiary.*` over HTTP (oRPC `RPCHandler`) against a disposable
  * PostgreSQL (Issue #77): idempotent replay, deterministic conflicts, undo,
- * day markers, copy-day, recents/favourites and member/tenant isolation.
- * All data is synthetic.
+ * day markers, copy-day, recents/favourites and member/tenant isolation,
+ * plus server-computed daily totals with coverage (Issue #79). All data is
+ * synthetic.
  */
 
 const url = process.env.NUTRITION_DIARY_TEST_DATABASE_URL;
@@ -471,5 +478,189 @@ describe.skipIf(!url)("nutritionDiary over HTTP against disposable PostgreSQL", 
     ).rows as { target_type: string; target_id: string }[];
     expect(rows.length).toBeGreaterThan(0);
     expect(JSON.stringify(rows)).not.toContain("Synthetic");
+  });
+  describe("daily totals (#79)", () => {
+    const T0 = "2026-11-01";
+    const T1 = "2026-11-02";
+    const T2 = "2026-11-03";
+
+    const totals = async (from: string, to: string, user = "user-a") =>
+      call<{ days: DailyTotals[] }>("getTotals", { from, to }, user);
+
+    const manual = (name: string, nutrients: Record<string, number>, extra = {}) => ({
+      kind: "manual" as const,
+      food: {
+        name,
+        nutrientBasisAmount: 100,
+        nutrientBasisUnit: "g" as const,
+        nutrients,
+        ...extra,
+      },
+    });
+
+    test("sums snapshot × factor over active entries with explicit per-nutrient coverage", async () => {
+      // 50 g oats: 190 kcal, 6.5 g protein.
+      await log({ clientMutationId: "t-oats", localDate: T1 });
+      // 1 serving soup: protein only; energy unknown.
+      await log({
+        clientMutationId: "t-soup",
+        localDate: T1,
+        slot: "lunch",
+        food: mystery,
+        amount: 1,
+        unit: "serving",
+      });
+      // 2 slices of 30 g at 250 kcal/100 g = 150 kcal; sodium given, salt not; added sugars a recorded 0.
+      await log({
+        clientMutationId: "t-bread",
+        localDate: T1,
+        slot: "dinner",
+        food: manual(
+          "Synthetic bread",
+          { energyKcal: 250, sodiumMg: 500, totalSugarsG: 5, addedSugarsG: 0 },
+          { servingSizeAmount: 30, servingSizeUnit: "g", servingLabel: "1 slice" },
+        ),
+        amount: 2,
+        unit: "serving",
+      });
+      // A deleted entry never counts.
+      const gone = await log({
+        clientMutationId: "t-gone",
+        localDate: T1,
+        slot: "snack",
+        food: manual("Synthetic bar", { energyKcal: 1000, saltG: 2 }),
+        amount: 100,
+      });
+      await call("deleteEntry", { clientMutationId: "t-gone-del", entryId: gone.body.entry.id });
+
+      const result = await totals(T0, T2);
+      expect(result.status).toBe(200);
+      expect(result.body.days.map((d) => d.localDate)).toEqual([T0, T1, T2]);
+      const [empty, logged, after] = result.body.days;
+
+      // Nothing logged: no totals, not zero totals.
+      for (const d of [empty!, after!]) {
+        expect(d.entryCount).toBe(0);
+        expect(d.status).toBe("unmarked");
+        expect(Object.values(d.totals).every((t) => t.known === null)).toBe(true);
+        expect(Object.values(d.totals).every((t) => t.coverage === "no_entries")).toBe(true);
+      }
+
+      expect(logged!.entryCount).toBe(3);
+      expect(logged!.totals.energyKcal).toMatchObject({
+        reported: 2,
+        missing: 1,
+        coverage: "partial",
+      });
+      expect(logged!.totals.energyKcal.known).toBeCloseTo(340);
+      expect(logged!.totals.proteinG.known).toBeCloseTo(10.5);
+      expect(logged!.totals.proteinG.coverage).toBe("partial");
+      // Sodium is never converted into salt; salt from the deleted bar is gone.
+      expect(logged!.totals.sodiumMg.known).toBeCloseTo(300);
+      expect(logged!.totals.saltG).toEqual({
+        known: null,
+        reported: 0,
+        missing: 3,
+        coverage: "none",
+      });
+      // Total sugars and added sugars stay separate; a recorded 0 is reported, unknown is not.
+      expect(logged!.totals.totalSugarsG.known).toBeCloseTo(3);
+      expect(logged!.totals.addedSugarsG).toEqual({
+        known: 0,
+        reported: 1,
+        missing: 2,
+        coverage: "partial",
+      });
+      expect(logged!.totals.freeSugarsG.coverage).toBe("none");
+      expect(logged!.totals.fiberG.known).toBeNull();
+      expect(logged!.sources).toEqual({ fdc: 0, off: 0, custom: 0, manual: 3 });
+
+      // getDay carries the same server-computed summary.
+      const viaDay = (await call<{ summary: NutrientSummary }>("getDay", { localDate: T1 })).body
+        .summary;
+      expect(viaDay).toEqual({
+        entryCount: logged!.entryCount,
+        totals: logged!.totals,
+        sources: logged!.sources,
+      });
+    });
+
+    test("an edited portion and the day marker are reflected; history keeps the snapshot", async () => {
+      const oats = (await day(T1)).entries.find((e) => e.clientMutationId === "t-oats")!;
+      await call("updateEntry", {
+        clientMutationId: "t-oats-edit",
+        entryId: oats.id,
+        expectedRevision: oats.revision,
+        amount: 100,
+        unit: "g",
+      });
+      await call("setDayStatus", { localDate: T1, complete: true });
+
+      // A custom food edited after logging does not change past totals.
+      const created = await call<{ ref: { foodId: number } }>("createFood", {
+        name: "Synthetic yoghurt",
+        nutrientBasisAmount: 100,
+        nutrientBasisUnit: "g",
+        nutrients: { energyKcal: 60 },
+      });
+      await log({
+        clientMutationId: "t-yog",
+        localDate: T2,
+        food: { kind: "custom", foodId: created.body.ref.foodId },
+        amount: 200,
+        method: "manual",
+      });
+      await createNutritionRepository(db).updateCustomFood(
+        { organizationId: "org-a", userId: "user-a" },
+        created.body.ref.foodId,
+        {
+          name: "Synthetic yoghurt",
+          nutrientBasisAmount: 100,
+          nutrientBasisUnit: "g",
+          nutrients: { energyKcal: 999 },
+        },
+      );
+
+      const [logged, after] = (await totals(T1, T2)).body.days;
+      expect(logged!.status).toBe("complete");
+      // 380 (100 g oats) + 150 (bread).
+      expect(logged!.totals.energyKcal.known).toBeCloseTo(530);
+      expect(after!.totals.energyKcal).toMatchObject({ known: 120, coverage: "full" });
+      expect(after!.sources.custom).toBe(1);
+    });
+
+    test("days are the member's logged local dates, not UTC days", async () => {
+      // Both logged at the same instant: Auckland is already on the next day.
+      await log({
+        clientMutationId: "t-akl",
+        localDate: "2026-11-11",
+        timeZone: "Pacific/Auckland",
+        amount: 10,
+      });
+      await log({
+        clientMutationId: "t-la",
+        localDate: "2026-11-10",
+        timeZone: "America/Los_Angeles",
+        amount: 20,
+      });
+      const [la, akl] = (await totals("2026-11-10", "2026-11-11")).body.days;
+      expect(la!.totals.energyKcal.known).toBeCloseTo(76);
+      expect(akl!.totals.energyKcal.known).toBeCloseTo(38);
+    });
+
+    test("totals are private to the member and validated", async () => {
+      for (const user of ["user-a2", "user-b", "user-v"]) {
+        const other = await totals(T1, T1, user);
+        expect(other.status).toBe(200);
+        expect(other.body.days[0]!.entryCount).toBe(0);
+      }
+      const override = await call("getTotals", { from: T1, to: T1, organizationId: "org-b" });
+      expect(override.status).toBe(400);
+      const reversed = await totals(T2, T1);
+      expect(reversed.status).toBe(400);
+      expect(reversed.body).toMatchObject({ code: "INVALID_INPUT" });
+      const tooLong = await totals("2026-01-01", "2026-12-31");
+      expect(tooLong.status).toBe(400);
+    });
   });
 });

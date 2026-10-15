@@ -7,6 +7,8 @@
  * "over"/"under", no streaks, no missed-day language. Missing nutrient data
  * is shown as unknown, never as zero, and an unmarked day is never a zero day.
  */
+import { summarizeNutrients } from "@openvalens/nutrition/totals";
+
 import {
   NUTRIENT_KEYS,
   type AmountUnit,
@@ -16,8 +18,12 @@ import {
   type MealSlot,
   type NutrientBasis,
   type NutrientKey,
+  type NutrientSummary,
+  type NutrientTotal,
   type NutrientValues,
 } from "../contracts/nutrition-diary";
+
+export type { NutrientTotal } from "../contracts/nutrition-diary";
 
 export const SLOT_LABELS: Readonly<Record<MealSlot, string>> = Object.freeze({
   breakfast: "Breakfast",
@@ -58,41 +64,19 @@ export const NUTRIENT_LABELS: Readonly<Record<NutrientKey, { label: string; unit
     saltG: { label: "Salt", unit: "g" },
   });
 
-/** A nutrient total over the entries that report it, plus how many do not. */
-export type NutrientTotal = {
-  /** Sum over entries with a value; `null` when no entry reports this nutrient. */
-  known: number | null;
-  /** Entries that report the nutrient (a recorded 0 counts as reported). */
-  reported: number;
-  /** Entries whose food did not provide the nutrient. */
-  missing: number;
-};
-
 export type DaySummary = {
   entryCount: number;
   totals: Record<NutrientKey, NutrientTotal>;
 };
 
-/** Sums known values per nutrient; unknown values are counted, never added as 0. */
+/**
+ * Sums known values per nutrient with per-nutrient coverage; unknown values
+ * are counted, never added as 0. The same function the server uses for
+ * `getDay.summary` and `getTotals` (#79), so a local preview of queued
+ * offline entries matches what the server will compute.
+ */
 export function summarizeDay(entries: readonly Pick<DiaryEntry, "nutrients">[]): DaySummary {
-  const totals = Object.fromEntries(
-    NUTRIENT_KEYS.map((key) => {
-      let known: number | null = null;
-      let reported = 0;
-      let missing = 0;
-      for (const entry of entries) {
-        const value = entry.nutrients[key];
-        if (value === null) {
-          missing += 1;
-        } else {
-          known = (known ?? 0) + value;
-          reported += 1;
-        }
-      }
-      return [key, { known, reported, missing }];
-    }),
-  ) as Record<NutrientKey, NutrientTotal>;
-  return { entryCount: entries.length, totals };
+  return summarizeNutrients(entries);
 }
 
 function round(value: number, unit: string): string {
@@ -111,11 +95,76 @@ export function formatNutrientValue(key: NutrientKey, value: number | null): str
  * One summary line, e.g. `"412 kcal"`, `"412 kcal from 3 of 4 entries"` or
  * `"Unknown"`. Partial coverage is stated, not hidden.
  */
-export function formatNutrientTotal(key: NutrientKey, total: NutrientTotal): string {
+export function formatNutrientTotal(
+  key: NutrientKey,
+  total: Pick<NutrientTotal, "known" | "reported" | "missing">,
+): string {
   if (total.known === null) return total.missing > 0 ? "Unknown" : "—";
   const value = formatNutrientValue(key, total.known);
   if (total.missing === 0) return value;
   return `${value} from ${total.reported} of ${total.reported + total.missing} entries`;
+}
+
+/** The value part of a total: a number, `"Unknown"` (no entry provided it) or `"—"` (nothing logged). */
+export function formatTotalValue(
+  key: NutrientKey,
+  total: Pick<NutrientTotal, "known" | "reported" | "missing">,
+): string {
+  if (total.known !== null) return formatNutrientValue(key, total.known);
+  return total.missing > 0 ? "Unknown" : "—";
+}
+
+function entries(count: number): string {
+  return `${count} ${count === 1 ? "entry" : "entries"}`;
+}
+
+/**
+ * Coverage line for one nutrient, e.g. `"All 3 entries"`, `"2 of 3 entries"`,
+ * `"Not provided by 3 entries"` or `"Nothing logged"`. Always shown, so a
+ * total never looks more complete than the data behind it.
+ */
+export function formatCoverage(total: Pick<NutrientTotal, "reported" | "missing">): string {
+  const count = total.reported + total.missing;
+  if (count === 0) return "Nothing logged";
+  if (total.missing === 0) return count === 1 ? "From 1 entry" : `All ${entries(count)}`;
+  if (total.reported === 0) return `Not provided by ${entries(count)}`;
+  return `${total.reported} of ${entries(count)}`;
+}
+
+/** Accessible one-line reading of a nutrient total and its coverage. */
+export function describeNutrientTotal(key: NutrientKey, total: NutrientTotal): string {
+  const { label } = NUTRIENT_LABELS[key];
+  if (total.coverage === "no_entries") return `${label}: nothing logged`;
+  if (total.known === null) return `${label}: unknown, ${formatCoverage(total).toLowerCase()}`;
+  return `${label}: ${formatNutrientValue(key, total.known)}, ${formatCoverage(total).toLowerCase()}`;
+}
+
+/**
+ * Every nutrient in display order, grouped so related values sit together
+ * but stay separate: sodium is not salt, total sugars are not added or free
+ * sugars, and kcal is not converted to kJ.
+ */
+export const ALL_NUTRIENTS: readonly NutrientKey[] = [
+  "energyKcal",
+  "energyKj",
+  "proteinG",
+  "carbohydrateG",
+  "totalSugarsG",
+  "addedSugarsG",
+  "freeSugarsG",
+  "fiberG",
+  "fatG",
+  "saturatedFatG",
+  "sodiumMg",
+  "saltG",
+];
+
+/** Where the day's logged foods came from, e.g. `"2 from USDA FoodData Central · 1 from Quick add"`. */
+export function formatSources(sources: NutrientSummary["sources"]): string | null {
+  const parts = (["fdc", "off", "custom", "manual"] as const)
+    .filter((source) => sources[source] > 0)
+    .map((source) => `${sources[source]} from ${foodSourceLabel(source)}`);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 /** Amount with unit, e.g. `"150 g"`, `"2 servings"`. */
@@ -175,6 +224,12 @@ export const DIARY_COPY = Object.freeze({
   networkError: "Could not reach the server. Your saved entries are unchanged.",
   retry: "Retry",
   unknownNote: "Unknown means the food's source did not provide that value.",
+  totalsTitle: "Day totals",
+  totalsNote:
+    "Totals are estimates from the foods you logged. They add up only the values each food's source provided.",
+  allNutrients: "All nutrients",
+  sourcesLabel: "Sources",
+  pendingTotals: "Includes changes waiting to sync. Totals are confirmed after sync.",
   conflictTitle: "This entry changed on another device",
   keepMine: "Keep my change",
   keepServer: "Keep the other version",
@@ -291,6 +346,8 @@ export type QuickAddFields = {
   basisAmount: string;
   basisUnit: AmountUnit;
   nutrients: Partial<Record<NutrientKey, string>>;
+  /** Barcode kept with a manual draft (#75); blank or absent means none. */
+  barcode?: string;
 };
 
 /**
@@ -317,6 +374,9 @@ export function parseQuickAdd(
       };
     nutrients[key] = value;
   }
+  const rawBarcode = fields.barcode?.replace(/[\s-]/g, "") ?? "";
+  if (rawBarcode && !/^\d{8,14}$/.test(rawBarcode))
+    return { ok: false, error: "Barcode must be 8 to 14 digits, or left blank." };
   return {
     ok: true,
     food: {
@@ -324,6 +384,7 @@ export function parseQuickAdd(
       nutrientBasisAmount: basisAmount,
       nutrientBasisUnit: fields.basisUnit,
       nutrients,
+      ...(rawBarcode ? { barcode: rawBarcode } : {}),
     },
   };
 }

@@ -36,6 +36,7 @@ import { toast } from "sonner";
 
 import { AiConsentSection } from "@/components/ai-consent-section";
 import { OidcConnectSection } from "@/components/oidc-connect-section";
+import { ProfileSummarySection } from "@/components/profile-summary-card";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
 import { orpc } from "@/utils/orpc";
@@ -51,6 +52,7 @@ function SettingsPage() {
       <div className="grid gap-6">
         <AccountSection />
         <OidcConnectSection />
+        <ProfileSummarySection />
         <CoachSection />
         <AiConsentSection />
         <DeleteAccountSection />

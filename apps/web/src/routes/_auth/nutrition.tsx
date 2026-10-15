@@ -6,9 +6,22 @@ import {
   type EntryOutcome,
   type FoodChoice,
   type FoodRef,
+  type LogEntryInput,
   type MealSlot,
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
+import {
+  BARCODE_COPY,
+  candidateFromChoice,
+  describeBarcodeLookup,
+  isSearchable,
+  manualDraftFields,
+  missingDataNote,
+  parseBarcode,
+  searchCandidates,
+  type BarcodeOutcome,
+  type FoodCandidate,
+} from "@openvalens/api/presenters/food-lookup";
 import {
   DIARY_COPY,
   NUTRIENT_LABELS,
@@ -18,7 +31,6 @@ import {
   deviceTimeZone,
   foodSourceLabel,
   formatAmount,
-  formatNutrientTotal,
   formatNutrientValue,
   groupBySlot,
   localDateIn,
@@ -26,7 +38,6 @@ import {
   parseQuickAdd,
   previewNutrients,
   shiftLocalDate,
-  summarizeDay,
   unitsFor,
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
@@ -38,13 +49,14 @@ import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { orpc } from "@/utils/orpc";
 
 /**
- * Meal diary (Issue #77). Online-only on web: every change goes straight to
+ * Meal diary (Issue #77) with food search and typed barcode lookup (#75). Online-only on web: every change goes straight to
  * `nutritionDiary.*`, and a network failure leaves saved data untouched and
  * offers a retry (the durable offline outbox is mobile-only). Copy is neutral:
  * it records, it never judges.
@@ -100,13 +112,13 @@ function NutritionPage() {
   };
 
   const day = dayQuery.data;
-  const summary = summarizeDay(day?.entries ?? []);
-  const status = dayStatusText(day?.status ?? "unmarked", summary.entryCount);
+  const entryCount = day?.summary.entryCount ?? 0;
+  const status = dayStatusText(day?.status ?? "unmarked", entryCount);
 
   const setStatus = useMutation(
     orpc.nutritionDiary.setDayStatus.mutationOptions({
       onSuccess: (result) => {
-        announce(`${result.localDate}: ${dayStatusText(result.status, summary.entryCount).label}`);
+        announce(`${result.localDate}: ${dayStatusText(result.status, entryCount).label}`);
         void refresh();
       },
     }),
@@ -172,17 +184,9 @@ function NutritionPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-                {SUMMARY_NUTRIENTS.map((key) => (
-                  <div key={key}>
-                    <dt className="text-xs text-muted-foreground">{NUTRIENT_LABELS[key].label}</dt>
-                    <dd className="font-mono text-sm">
-                      {formatNutrientTotal(key, summary.totals[key])}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-3 text-xs text-muted-foreground">{DIARY_COPY.unknownNote}</p>
+              {day ? (
+                <NutritionDayTotals totals={day.summary.totals} sources={day.summary.sources} />
+              ) : null}
             </CardContent>
           </Card>
 
@@ -472,6 +476,60 @@ const QUICK_ADD_NUTRIENTS: NutrientKey[] = [
   "fiberG",
 ];
 
+const EMPTY_QUICK: QuickAddFields = { name: "", basisAmount: "100", basisUnit: "g", nutrients: {} };
+
+/** `value`, settled for `ms` (keeps search requests to one per pause in typing). */
+function useDebounced<T>(value: T, ms = 300): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
+}
+
+function CandidateButton({
+  candidate,
+  selected,
+  onSelect,
+}: {
+  candidate: FoodCandidate;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        aria-pressed={selected}
+        className={`flex w-full justify-between gap-3 px-3 py-2 text-left text-sm ${selected ? "bg-accent" : ""}`}
+        onClick={onSelect}
+      >
+        <span>
+          {candidate.name}
+          {candidate.brand ? ` · ${candidate.brand}` : ""}
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">{candidate.sourceLabel}</span>
+      </button>
+    </li>
+  );
+}
+
+/** Source notice for a list that includes catalog results (shown with every OFF result list). */
+function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[] }) {
+  const notices = [...new Set(candidates.flatMap((c) => (c.attribution ? [c.attribution] : [])))];
+  if (notices.length === 0) return null;
+  return (
+    <div className="grid gap-1">
+      {notices.map((notice) => (
+        <p key={notice} className="text-xs text-muted-foreground">
+          {notice}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function AddFood({
   localDate,
   timeZone,
@@ -486,22 +544,20 @@ function AddFood({
   announce: (text: string) => void;
 }) {
   const [slot, setSlot] = useState<MealSlot>("breakfast");
-  const [mode, setMode] = useState<"choose" | "quick">("choose");
+  const [mode, setMode] = useState<"choose" | "barcode" | "quick">("choose");
   const [query, setQuery] = useState("");
-  const [chosen, setChosen] = useState<FoodChoice | null>(null);
+  const [chosen, setChosen] = useState<FoodCandidate | null>(null);
   const [amount, setAmount] = useState("100");
   const [unit, setUnit] = useState<AmountUnit>("g");
-  const [quick, setQuick] = useState<QuickAddFields>({
-    name: "",
-    basisAmount: "100",
-    basisUnit: "g",
-    nutrients: {},
-  });
+  const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
+  /** Set while the quick-add form is a manual draft started from a barcode. */
+  const [draftNote, setDraftNote] = useState<string | null>(null);
   const [saveAsFood, setSaveAsFood] = useState(false);
+  const [barcodeReset, setBarcodeReset] = useState(0);
   const log = useMutation(orpc.nutritionDiary.logEntry.mutationOptions());
   const createFood = useMutation(orpc.nutritionDiary.createFood.mutationOptions());
 
-  const options = useMemo(() => {
+  const saved = useMemo(() => {
     const seen = new Set<string>();
     const all = [
       ...(foods?.favorites ?? []),
@@ -509,17 +565,66 @@ function AddFood({
       ...(foods?.customFoods ?? []),
     ];
     const needle = query.trim().toLowerCase();
-    return all.filter((food) => {
-      const key = JSON.stringify(food.ref);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return !needle || `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle);
-    });
+    return all
+      .filter((food) => {
+        const key = JSON.stringify(food.ref);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return !needle || `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle);
+      })
+      .map(candidateFromChoice);
   }, [foods, query]);
+  const savedIds = useMemo(
+    () => new Set((foods?.customFoods ?? []).flatMap((food) => food.sourceQualifiedId ?? [])),
+    [foods],
+  );
+
+  // Food databases (#69). The query goes in the POST body only; it is never logged.
+  const debounced = useDebounced(query.trim());
+  const search = useQuery({
+    ...orpc.nutritionFoods.search.queryOptions({ input: { query: debounced } }),
+    enabled: mode === "choose" && isSearchable(debounced),
+    staleTime: 60_000,
+  });
+  const found = useMemo(
+    () => searchCandidates(search.data?.results ?? [], savedIds),
+    [search.data, savedIds],
+  );
+
+  const select = (candidate: FoodCandidate) => {
+    setChosen(candidate);
+    const first = unitsFor(candidate.basis)[0] ?? "g";
+    setUnit(first);
+    setAmount(first === "serving" ? "1" : String(candidate.basis.nutrientBasisAmount));
+  };
+
+  const switchMode = (next: typeof mode) => {
+    setMode(next);
+    setChosen(null);
+    if (next !== "quick") setDraftNote(null);
+  };
+
+  const startManualDraft = (barcode: string | null, note: string) => {
+    setQuick(manualDraftFields(barcode));
+    setDraftNote(note);
+    setChosen(null);
+    setMode("quick");
+    setUnit("g");
+    setAmount("100");
+    announce(BARCODE_COPY.enterManually);
+  };
+
+  const reset = () => {
+    setChosen(null);
+    setQuick(EMPTY_QUICK);
+    setDraftNote(null);
+    setSaveAsFood(false);
+    setBarcodeReset((value) => value + 1);
+  };
 
   const parsedQuick = parseQuickAdd(quick);
   const basis =
-    mode === "choose"
+    mode !== "quick"
       ? chosen?.basis
       : parsedQuick.ok
         ? {
@@ -531,7 +636,7 @@ function AddFood({
           }
         : undefined;
   const perBasis =
-    mode === "choose"
+    mode !== "quick"
       ? chosen?.nutrientsPerBasis
       : parsedQuick.ok
         ? (Object.fromEntries(
@@ -544,17 +649,21 @@ function AddFood({
   const preview =
     basis && perBasis ? previewNutrients(basis, perBasis, Number(amount), unit) : null;
   const allowedUnits = basis ? unitsFor(basis) : [...AMOUNT_UNITS];
+  const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen) : null;
 
   const submit = async () => {
     if (!preview) return;
     let food: FoodRef;
     let name: string;
+    let method: LogEntryInput["method"];
     try {
-      if (mode === "choose" && chosen) {
+      if (mode !== "quick" && chosen) {
         food = chosen.ref;
         name = chosen.name;
-      } else if (parsedQuick.ok) {
+        method = chosen.method;
+      } else if (mode === "quick" && parsedQuick.ok) {
         name = parsedQuick.food.name;
+        method = draftNote !== null ? "barcode" : "quick_add";
         if (saveAsFood) {
           const created = await createFood.mutateAsync(parsedQuick.food);
           food = created.ref;
@@ -574,20 +683,25 @@ function AddFood({
       food,
       amount: Number(amount),
       unit,
-      method: mode === "quick" ? ("quick_add" as const) : ("manual" as const),
+      method,
     };
     // The same client mutation id is reused on retry, so a lost response cannot duplicate the meal.
     const send = () =>
       log.mutate(input, {
         onSuccess: () => {
           onSaved(name, slot);
-          setChosen(null);
-          setQuick({ name: "", basisAmount: "100", basisUnit: "g", nutrients: {} });
+          reset();
         },
         onError: () => networkFailure(send, announce),
       });
     send();
   };
+
+  const modes = [
+    ["choose", "Search and recents"],
+    ["barcode", BARCODE_COPY.mode],
+    ["quick", "Quick add"],
+  ] as const;
 
   return (
     <Card>
@@ -596,71 +710,114 @@ function AddFood({
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="flex flex-wrap gap-2" role="group" aria-label="How to add">
-          <Button
-            size="sm"
-            variant={mode === "choose" ? "default" : "outline"}
-            aria-pressed={mode === "choose"}
-            onClick={() => setMode("choose")}
-          >
-            My foods and recents
-          </Button>
-          <Button
-            size="sm"
-            variant={mode === "quick" ? "default" : "outline"}
-            aria-pressed={mode === "quick"}
-            onClick={() => setMode("quick")}
-          >
-            Quick add
-          </Button>
+          {modes.map(([value, label]) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={mode === value ? "default" : "outline"}
+              aria-pressed={mode === value}
+              onClick={() => switchMode(value)}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
 
         {mode === "choose" ? (
-          <div className="grid gap-2">
-            <Field label="Search my foods">
+          <div className="grid gap-3">
+            <Field label={BARCODE_COPY.searchLabel}>
               {(id) => (
-                <Input id={id} value={query} onChange={(event) => setQuery(event.target.value)} />
+                <Input
+                  id={id}
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  aria-describedby="food-search-hint"
+                />
               )}
             </Field>
-            {options.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No saved or recent foods yet. Use quick add to record one.
-              </p>
-            ) : (
-              <ul className="max-h-56 overflow-y-auto rounded-md border" aria-label="Foods">
-                {options.map((food) => {
-                  const selected =
-                    chosen !== null && JSON.stringify(chosen.ref) === JSON.stringify(food.ref);
-                  return (
-                    <li key={JSON.stringify(food.ref)}>
-                      <button
-                        type="button"
-                        aria-pressed={selected}
-                        className={`flex w-full justify-between px-3 py-2 text-left text-sm ${selected ? "bg-accent" : ""}`}
-                        onClick={() => {
-                          setChosen(food);
-                          const first = unitsFor(food.basis)[0] ?? "g";
-                          setUnit(first);
-                          setAmount(
-                            first === "serving" ? "1" : String(food.basis.nutrientBasisAmount),
-                          );
-                        }}
-                      >
-                        <span>
-                          {food.name}
-                          {food.brand ? ` · ${food.brand}` : ""}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {foodSourceLabel(food.source)}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            <p id="food-search-hint" className="sr-only">
+              {BARCODE_COPY.searchHint}
+            </p>
+            <section className="grid gap-1" aria-label={BARCODE_COPY.savedFoods}>
+              <h3 className="text-sm font-medium">{BARCODE_COPY.savedFoods}</h3>
+              {saved.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {query.trim()
+                    ? BARCODE_COPY.searchEmpty
+                    : "No saved or recent foods yet. Search, scan a barcode or use quick add."}
+                </p>
+              ) : (
+                <ul className="max-h-56 overflow-y-auto rounded-md border" aria-label="Saved foods">
+                  {saved.map((candidate) => (
+                    <CandidateButton
+                      key={candidate.key}
+                      candidate={candidate}
+                      selected={chosen?.key === candidate.key}
+                      onSelect={() => select(candidate)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className="grid gap-1" aria-label={BARCODE_COPY.searchResults}>
+              <h3 className="text-sm font-medium">{BARCODE_COPY.searchResults}</h3>
+              {!isSearchable(debounced) ? (
+                <p className="text-sm text-muted-foreground">{BARCODE_COPY.searchHint}</p>
+              ) : search.isPending ? (
+                <p className="text-sm text-muted-foreground" role="status">
+                  Searching…
+                </p>
+              ) : search.isError ? (
+                <p className="text-sm text-muted-foreground" role="alert">
+                  {BARCODE_COPY.searchFailed}{" "}
+                  <button className="underline" onClick={() => void search.refetch()}>
+                    {DIARY_COPY.retry}
+                  </button>
+                </p>
+              ) : found.length === 0 ? (
+                <p className="text-sm text-muted-foreground" role="status">
+                  {BARCODE_COPY.searchEmpty}
+                </p>
+              ) : (
+                <>
+                  <p className="sr-only" role="status">
+                    {found.length} {found.length === 1 ? "food" : "foods"} found
+                  </p>
+                  <ul
+                    className="max-h-72 overflow-y-auto rounded-md border"
+                    aria-label="Food database results"
+                  >
+                    {found.map((candidate) => (
+                      <CandidateButton
+                        key={candidate.key}
+                        candidate={candidate}
+                        selected={chosen?.key === candidate.key}
+                        onSelect={() => select(candidate)}
+                      />
+                    ))}
+                  </ul>
+                  <AttributionNotes candidates={found} />
+                </>
+              )}
+            </section>
           </div>
+        ) : mode === "barcode" ? (
+          <BarcodeLookupPanel
+            key={barcodeReset}
+            chosen={chosen}
+            onSelect={select}
+            onManualDraft={startManualDraft}
+            announce={announce}
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
+            {draftNote ? (
+              <div className="grid gap-1 rounded-md border p-3 text-sm sm:col-span-3">
+                <p>{draftNote}</p>
+                <p className="text-muted-foreground">{BARCODE_COPY.manualNote}</p>
+              </div>
+            ) : null}
             <Field label="Food name">
               {(id) => (
                 <Input
@@ -720,6 +877,19 @@ function AddFood({
                 )}
               </Field>
             ))}
+            {draftNote !== null ? (
+              <Field label={`${BARCODE_COPY.barcodeOnDraft}, optional`}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={quick.barcode ?? ""}
+                    onChange={(event) => setQuick({ ...quick, barcode: event.target.value })}
+                  />
+                )}
+              </Field>
+            ) : null}
             <label className="flex items-center gap-2 text-sm sm:col-span-3">
               <input
                 type="checkbox"
@@ -779,34 +949,205 @@ function AddFood({
               </select>
             )}
           </Field>
-          <Button
-            onClick={() => void submit()}
-            disabled={!preview || log.isPending || createFood.isPending}
-          >
-            {log.isPending ? "Saving…" : `Save to ${SLOT_LABELS[slot]}`}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => void submit()}
+              disabled={!preview || log.isPending || createFood.isPending}
+            >
+              {log.isPending ? "Saving…" : `Save to ${SLOT_LABELS[slot]}`}
+            </Button>
+            {chosen || draftNote !== null ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  reset();
+                  announce("Nothing saved");
+                }}
+              >
+                Cancel
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         {preview ? (
           <div className="rounded-md border p-3 text-sm" aria-label="Review before saving">
             <p className="mb-1 font-medium">
-              Review: {formatAmount(Number(amount), unit)} on {localDate}
-              {mode === "choose" && chosen
-                ? ` · ${foodSourceLabel(chosen.source)}`
-                : " · Quick add"}
+              Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
+              {formatAmount(Number(amount), unit)} on {localDate}
+              {mode !== "quick" && chosen
+                ? ` · ${chosen.sourceLabel}`
+                : draftNote !== null
+                  ? " · Entered by you"
+                  : " · Quick add"}
             </p>
             <p className="text-muted-foreground">
               {SUMMARY_NUTRIENTS.map(
                 (key) => `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
               ).join(" · ")}
             </p>
-            {mode === "choose" && chosen?.attribution ? (
+            {missingNote ? <p className="mt-1 text-muted-foreground">{missingNote}</p> : null}
+            {mode !== "quick" && chosen?.attribution ? (
               <p className="mt-1 text-xs text-muted-foreground">{chosen.attribution}</p>
+            ) : null}
+            {mode === "barcode" ? (
+              <p className="mt-1 text-xs text-muted-foreground">{BARCODE_COPY.verify}</p>
             ) : null}
           </div>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Typed barcode lookup (Issue #75). The web app has no camera scanning: the
+ * web document's `Permissions-Policy` disables the camera, and the
+ * `BarcodeDetector` API is not broadly available. A hit lists the matches for
+ * the member to review; a miss, store code, nameless product or unreachable
+ * source opens a manual draft. Nothing is saved from here.
+ */
+function BarcodeLookupPanel({
+  chosen,
+  onSelect,
+  onManualDraft,
+  announce,
+}: {
+  chosen: FoodCandidate | null;
+  onSelect: (candidate: FoodCandidate) => void;
+  onManualDraft: (barcode: string | null, note: string) => void;
+  announce: (text: string) => void;
+}) {
+  const [digits, setDigits] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<BarcodeOutcome | null>(null);
+  const [lastBarcode, setLastBarcode] = useState<string | null>(null);
+  const lookup = useMutation(orpc.nutritionFoods.lookupBarcode.mutationOptions());
+
+  const run = (barcode: string) => {
+    setLastBarcode(barcode);
+    setOutcome(null);
+    lookup.mutate(
+      { barcode },
+      {
+        onSuccess: (result) => {
+          const next = describeBarcodeLookup(result);
+          setOutcome(next);
+          announce(next.message);
+        },
+        onError: (failure) => {
+          if ((failure as { code?: string }).code === "INVALID_INPUT") {
+            setError(BARCODE_COPY.invalid);
+            announce(BARCODE_COPY.invalid);
+            return;
+          }
+          setError(DIARY_COPY.networkError);
+          announce(DIARY_COPY.networkError);
+        },
+      },
+    );
+  };
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const parsed = parseBarcode(digits);
+    if (!parsed.ok) {
+      setError(parsed.error);
+      setOutcome(null);
+      announce(parsed.error);
+      return;
+    }
+    setError(null);
+    run(parsed.barcode);
+  };
+
+  return (
+    <div className="grid gap-3">
+      <form className="flex flex-wrap items-end gap-2" onSubmit={submit} noValidate>
+        <Field label={BARCODE_COPY.digitsLabel}>
+          {(id) => (
+            <Input
+              id={id}
+              inputMode="numeric"
+              autoComplete="off"
+              className="w-56"
+              value={digits}
+              aria-invalid={error === BARCODE_COPY.invalid}
+              aria-describedby="barcode-help"
+              onChange={(event) => setDigits(event.target.value)}
+            />
+          )}
+        </Field>
+        <Button type="submit" disabled={lookup.isPending}>
+          {lookup.isPending ? BARCODE_COPY.lookingUp : BARCODE_COPY.lookUp}
+        </Button>
+      </form>
+      <p id="barcode-help" className="text-xs text-muted-foreground">
+        {BARCODE_COPY.webNoCamera}
+      </p>
+
+      {error ? (
+        <div className="grid gap-2 text-sm" role="alert">
+          <p>{error}</p>
+          {error === DIARY_COPY.networkError ? (
+            <div className="flex flex-wrap gap-2">
+              {lastBarcode ? (
+                <Button size="sm" variant="outline" onClick={() => run(lastBarcode)}>
+                  {DIARY_COPY.retry}
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onManualDraft(lastBarcode, DIARY_COPY.networkError)}
+              >
+                {BARCODE_COPY.enterManually}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {outcome?.kind === "matches" ? (
+        <div className="grid gap-2">
+          <p className="text-sm">{outcome.message}</p>
+          <ul className="rounded-md border" aria-label="Barcode matches">
+            {outcome.candidates.map((candidate) => (
+              <CandidateButton
+                key={candidate.key}
+                candidate={candidate}
+                selected={chosen?.key === candidate.key}
+                onSelect={() => onSelect(candidate)}
+              />
+            ))}
+          </ul>
+          <AttributionNotes candidates={outcome.candidates} />
+          <div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct)}
+            >
+              Not this product? {BARCODE_COPY.enterManually}
+            </Button>
+          </div>
+        </div>
+      ) : outcome?.kind === "manual" ? (
+        <div className="grid gap-2 text-sm">
+          <p>{outcome.message}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => onManualDraft(outcome.barcode, outcome.message)}>
+              {BARCODE_COPY.enterManually}
+            </Button>
+            {outcome.canRetry && lastBarcode ? (
+              <Button size="sm" variant="outline" onClick={() => run(lastBarcode)}>
+                {BARCODE_COPY.retry}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

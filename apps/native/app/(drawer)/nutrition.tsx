@@ -4,9 +4,21 @@ import {
   type DiaryEntry,
   type FoodChoice,
   type FoodRef,
+  type LogEntryInput,
   type MealSlot,
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
+import type { BarcodeLookup } from "@openvalens/api/contracts/nutrition-foods";
+import {
+  BARCODE_COPY,
+  candidateFromChoice,
+  isSearchable,
+  manualDraftFields,
+  missingDataNote,
+  searchCandidates,
+  type BarcodeOutcome,
+  type FoodCandidate,
+} from "@openvalens/api/presenters/food-lookup";
 import {
   DIARY_COPY,
   NUTRIENT_LABELS,
@@ -17,7 +29,6 @@ import {
   deviceTimeZone,
   foodSourceLabel,
   formatAmount,
-  formatNutrientTotal,
   formatNutrientValue,
   localDateIn,
   newClientMutationId,
@@ -30,17 +41,23 @@ import {
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
 import { Button, Card, Spinner } from "heroui-native";
-import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "react-native";
 
+import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Container } from "@/components/container";
+import { NutritionDayTotals } from "@/components/nutrition-day-totals";
+import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
 import { mergeDay, type DiaryRow, type QueuedChange } from "@/lib/nutrition/outbox";
 import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutrition/sync";
+import { readCache, writeCache } from "@/lib/offline/cache";
 import { useCacheFirst } from "@/lib/offline/sync";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 /**
- * Meal diary (Issue #77). Every write goes through the durable outbox
+ * Meal diary (Issue #77) with food search and barcode scan/lookup (#75).
+ * Every write goes through the durable outbox
  * (lib/nutrition), so logging works the same online and offline: changes are
  * saved on the device first, shown with their sync state, and replayed
  * idempotently. Copy is neutral and never judges food or completeness.
@@ -112,7 +129,12 @@ export default function NutritionScreen() {
   const totalsInput = visible.map((row) => ({
     nutrients: rowNutrients(row) ?? emptyNutrients(),
   }));
-  const summary = summarizeDay(totalsInput);
+  // Server totals (#79) unless queued changes touch this day; then a local
+  // preview with the same domain summary, labelled as pending.
+  const pendingRows = rows.some((row) => row.kind === "local" || row.pendingKind !== null);
+  const serverSummary = day.data?.summary;
+  const summary = serverSummary && !pendingRows ? serverSummary : summarizeDay(totalsInput);
+  const summarySources = serverSummary && !pendingRows ? serverSummary.sources : null;
   const pendingStatus = outbox.items.find(
     (item) => item.op.kind === "setDayStatus" && item.op.input.localDate === localDate,
   );
@@ -256,17 +278,11 @@ export default function NutritionScreen() {
               {status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete}
             </Button>
           </View>
-          <View className="flex-row flex-wrap gap-4">
-            {SUMMARY_NUTRIENTS.map((key) => (
-              <View key={key} className="gap-0.5">
-                <Text className="text-xs text-muted-foreground">{NUTRIENT_LABELS[key].label}</Text>
-                <Text className="font-mono text-sm text-foreground">
-                  {formatNutrientTotal(key, summary.totals[key])}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Text className="text-xs text-muted-foreground">{DIARY_COPY.unknownNote}</Text>
+          <NutritionDayTotals
+            totals={summary.totals}
+            sources={summarySources}
+            pending={pendingRows}
+          />
         </Card>
 
         <AddFood localDate={localDate} timeZone={timeZone} foods={foods.data} outbox={outbox} />
@@ -533,6 +549,55 @@ function scale(values: DiaryEntry["nutrients"] | null, factor: number) {
 
 const QUICK_NUTRIENTS: NutrientKey[] = ["energyKcal", "proteinG", "carbohydrateG", "fatG"];
 
+const EMPTY_QUICK: QuickAddFields = { name: "", basisAmount: "100", basisUnit: "g", nutrients: {} };
+
+/** `value`, settled for `ms` (one search request per pause in typing). */
+function useDebounced<T>(value: T, ms = 300): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return settled;
+}
+
+function CandidateRow({
+  candidate,
+  selected,
+  onPress,
+}: {
+  candidate: FoodCandidate;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={`min-h-11 justify-center rounded-lg px-3 ${selected ? "bg-accent" : ""}`}
+    >
+      <Text className="text-sm text-foreground">
+        {candidate.name}
+        {candidate.brand ? ` · ${candidate.brand}` : ""} · {candidate.sourceLabel}
+      </Text>
+    </Pressable>
+  );
+}
+
+function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[] }) {
+  const notices = [...new Set(candidates.flatMap((c) => (c.attribution ? [c.attribution] : [])))];
+  return (
+    <>
+      {notices.map((notice) => (
+        <Text key={notice} className="text-xs text-muted-foreground">
+          {notice}
+        </Text>
+      ))}
+    </>
+  );
+}
+
 function AddFood({
   localDate,
   timeZone,
@@ -545,40 +610,83 @@ function AddFood({
   outbox: DiaryOutbox;
 }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"choose" | "quick">("choose");
+  const [mode, setMode] = useState<"choose" | "barcode" | "quick">("choose");
   const [slot, setSlot] = useState<MealSlot>("breakfast");
   const [query, setQuery] = useState("");
-  const [chosen, setChosen] = useState<FoodChoice | null>(null);
+  const [chosen, setChosen] = useState<FoodCandidate | null>(null);
   const [amount, setAmount] = useState("100");
   const [unit, setUnit] = useState<AmountUnit>("g");
-  const [quick, setQuick] = useState<QuickAddFields>({
-    name: "",
-    basisAmount: "100",
-    basisUnit: "g",
-    nutrients: {},
-  });
+  const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
+  /** Set while the quick-add form is a manual draft started from a barcode. */
+  const [draftNote, setDraftNote] = useState<string | null>(null);
 
   // Cached foods stay searchable offline: filtering is local.
-  const options = useMemo(() => {
+  const saved = useMemo(() => {
     const seen = new Set<string>();
     const needle = query.trim().toLowerCase();
-    return [
-      ...(foods?.favorites ?? []),
-      ...(foods?.recents ?? []),
-      ...(foods?.customFoods ?? []),
-    ].filter((food) => {
-      const key = JSON.stringify(food.ref);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return !needle || `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle);
-    });
+    return [...(foods?.favorites ?? []), ...(foods?.recents ?? []), ...(foods?.customFoods ?? [])]
+      .filter((food) => {
+        const key = JSON.stringify(food.ref);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return !needle || `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle);
+      })
+      .map(candidateFromChoice);
   }, [foods, query]);
+  const savedIds = useMemo(
+    () => new Set((foods?.customFoods ?? []).flatMap((food) => food.sourceQualifiedId ?? [])),
+    [foods],
+  );
+
+  // Food databases need the network; results are not cached on the device.
+  const debounced = useDebounced(query.trim());
+  const searchable = isSearchable(debounced);
+  const search = useQuery({
+    ...orpc.nutritionFoods.search.queryOptions({ input: { query: debounced } }),
+    enabled: open && mode === "choose" && searchable && outbox.online,
+    staleTime: 60_000,
+  });
+  const found = useMemo(
+    () => searchCandidates(search.data?.results ?? [], savedIds),
+    [search.data, savedIds],
+  );
 
   if (!open) return <Button onPress={() => setOpen(true)}>{DIARY_COPY.addFood}</Button>;
 
+  const select = (candidate: FoodCandidate) => {
+    setChosen(candidate);
+    const first = unitsFor(candidate.basis)[0] ?? "g";
+    setUnit(first);
+    setAmount(first === "serving" ? "1" : String(candidate.basis.nutrientBasisAmount));
+  };
+
+  const switchMode = (next: typeof mode) => {
+    setMode(next);
+    setChosen(null);
+    if (next !== "quick") setDraftNote(null);
+  };
+
+  const startManualDraft = (barcode: string | null, note: string) => {
+    setQuick(manualDraftFields(barcode));
+    setDraftNote(note);
+    setChosen(null);
+    setMode("quick");
+    setUnit("g");
+    setAmount("100");
+    announce(BARCODE_COPY.enterManually);
+  };
+
+  const close = () => {
+    setChosen(null);
+    setQuick(EMPTY_QUICK);
+    setDraftNote(null);
+    setMode("choose");
+    setOpen(false);
+  };
+
   const parsed = parseQuickAdd(quick);
   const basis =
-    mode === "choose"
+    mode !== "quick"
       ? chosen?.basis
       : parsed.ok
         ? {
@@ -590,7 +698,7 @@ function AddFood({
           }
         : undefined;
   const perBasis =
-    mode === "choose"
+    mode !== "quick"
       ? chosen?.nutrientsPerBasis
       : parsed.ok
         ? ({ ...emptyNutrients(), ...parsed.food.nutrients } as DiaryEntry["nutrients"])
@@ -598,20 +706,24 @@ function AddFood({
   const preview =
     basis && perBasis ? previewNutrients(basis, perBasis, Number(amount), unit) : null;
   const units = basis ? unitsFor(basis) : (["g", "ml", "serving"] as AmountUnit[]);
+  const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen) : null;
 
   const save = () => {
     if (!preview) return;
     let food: FoodRef;
     let name: string;
     let source: DiaryEntry["food"]["source"];
-    if (mode === "choose" && chosen) {
+    let method: LogEntryInput["method"];
+    if (mode !== "quick" && chosen) {
       food = chosen.ref;
       name = chosen.name;
       source = chosen.source;
-    } else if (parsed.ok) {
+      method = chosen.method;
+    } else if (mode === "quick" && parsed.ok) {
       food = { kind: "manual", food: parsed.food };
       name = parsed.food.name;
       source = "manual";
+      method = draftNote !== null ? "barcode" : "quick_add";
     } else return;
     outbox.enqueue({
       op: {
@@ -624,14 +736,13 @@ function AddFood({
           food,
           amount: Number(amount),
           unit,
-          method: mode === "quick" ? "quick_add" : "manual",
+          method,
         },
       },
       preview: { name, source, nutrients: preview },
     });
     announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
-    setChosen(null);
-    setOpen(false);
+    close();
   };
 
   return (
@@ -641,54 +752,97 @@ function AddFood({
       </Text>
       <View className="flex-row flex-wrap gap-2">
         <Chip
-          label="My foods and recents"
+          label="Search and recents"
           selected={mode === "choose"}
-          onPress={() => setMode("choose")}
+          onPress={() => switchMode("choose")}
         />
-        <Chip label="Quick add" selected={mode === "quick"} onPress={() => setMode("quick")} />
+        <Chip
+          label={BARCODE_COPY.mode}
+          selected={mode === "barcode"}
+          onPress={() => switchMode("barcode")}
+        />
+        <Chip label="Quick add" selected={mode === "quick"} onPress={() => switchMode("quick")} />
       </View>
       {mode === "choose" ? (
         <View className="gap-2">
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search my foods"
-            accessibilityLabel="Search my foods"
+            placeholder={BARCODE_COPY.searchLabel}
+            accessibilityLabel={BARCODE_COPY.searchLabel}
+            accessibilityHint={BARCODE_COPY.searchHint}
             className={inputClass}
             placeholderTextColor="#9ca3af"
           />
-          {options.length === 0 ? (
+          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+            {BARCODE_COPY.savedFoods}
+          </Text>
+          {saved.length === 0 ? (
             <Text className="text-sm text-muted-foreground">
-              No saved or recent foods yet. Use quick add to record one.
+              {query.trim()
+                ? BARCODE_COPY.searchEmpty
+                : "No saved or recent foods yet. Search, scan a barcode or use quick add."}
             </Text>
           ) : (
-            options.slice(0, 15).map((food) => {
-              const selected =
-                chosen !== null && JSON.stringify(chosen.ref) === JSON.stringify(food.ref);
-              return (
-                <Pressable
-                  key={JSON.stringify(food.ref)}
-                  onPress={() => {
-                    setChosen(food);
-                    const first = unitsFor(food.basis)[0] ?? "g";
-                    setUnit(first);
-                    setAmount(first === "serving" ? "1" : String(food.basis.nutrientBasisAmount));
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  className={`min-h-11 justify-center rounded-lg px-3 ${selected ? "bg-accent" : ""}`}
-                >
-                  <Text className="text-sm text-foreground">
-                    {food.name}
-                    {food.brand ? ` · ${food.brand}` : ""} · {foodSourceLabel(food.source)}
-                  </Text>
-                </Pressable>
-              );
-            })
+            saved
+              .slice(0, 15)
+              .map((candidate) => (
+                <CandidateRow
+                  key={candidate.key}
+                  candidate={candidate}
+                  selected={chosen?.key === candidate.key}
+                  onPress={() => select(candidate)}
+                />
+              ))
+          )}
+          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+            {BARCODE_COPY.searchResults}
+          </Text>
+          {!outbox.online ? (
+            <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchOffline}</Text>
+          ) : !searchable ? (
+            <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchHint}</Text>
+          ) : search.isPending ? (
+            <Spinner />
+          ) : search.isError ? (
+            <Pressable onPress={() => void search.refetch()} accessibilityRole="button">
+              <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+                {BARCODE_COPY.searchFailed} {DIARY_COPY.retry}
+              </Text>
+            </Pressable>
+          ) : found.length === 0 ? (
+            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              {BARCODE_COPY.searchEmpty}
+            </Text>
+          ) : (
+            <>
+              {found.slice(0, 20).map((candidate) => (
+                <CandidateRow
+                  key={candidate.key}
+                  candidate={candidate}
+                  selected={chosen?.key === candidate.key}
+                  onPress={() => select(candidate)}
+                />
+              ))}
+              <AttributionNotes candidates={found.slice(0, 20)} />
+            </>
           )}
         </View>
+      ) : mode === "barcode" ? (
+        <BarcodePanel
+          outbox={outbox}
+          chosen={chosen}
+          onSelect={select}
+          onManualDraft={startManualDraft}
+        />
       ) : (
         <View className="gap-2">
+          {draftNote ? (
+            <View className="gap-1 rounded-lg border border-border p-3">
+              <Text className="text-sm text-foreground">{draftNote}</Text>
+              <Text className="text-sm text-muted-foreground">{BARCODE_COPY.manualNote}</Text>
+            </View>
+          ) : null}
           <TextInput
             value={quick.name}
             onChangeText={(name) => setQuick({ ...quick, name })}
@@ -732,6 +886,17 @@ function AddFood({
               placeholderTextColor="#9ca3af"
             />
           ))}
+          {draftNote !== null ? (
+            <TextInput
+              value={quick.barcode ?? ""}
+              onChangeText={(barcode) => setQuick({ ...quick, barcode })}
+              keyboardType="number-pad"
+              placeholder={`${BARCODE_COPY.barcodeOnDraft}, optional`}
+              accessibilityLabel={`${BARCODE_COPY.barcodeOnDraft}, optional`}
+              className={inputClass}
+              placeholderTextColor="#9ca3af"
+            />
+          ) : null}
           {!parsed.ok && quick.name ? (
             <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
               {parsed.error}
@@ -771,15 +936,27 @@ function AddFood({
       {preview ? (
         <View className="gap-1" accessibilityLabel="Review before saving">
           <Text className="text-sm font-medium text-foreground">
-            Review: {formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]}, {localDate}
+            Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
+            {formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]}, {localDate}
+            {mode !== "quick" && chosen
+              ? ` · ${chosen.sourceLabel}`
+              : draftNote !== null
+                ? " · Entered by you"
+                : ""}
           </Text>
           <Text className="text-sm text-muted-foreground">
             {SUMMARY_NUTRIENTS.map(
               (key) => `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
             ).join(" · ")}
           </Text>
-          {mode === "choose" && chosen?.attribution ? (
+          {missingNote ? (
+            <Text className="text-sm text-muted-foreground">{missingNote}</Text>
+          ) : null}
+          {mode !== "quick" && chosen?.attribution ? (
             <Text className="text-xs text-muted-foreground">{chosen.attribution}</Text>
+          ) : null}
+          {mode === "barcode" ? (
+            <Text className="text-xs text-muted-foreground">{BARCODE_COPY.verify}</Text>
           ) : null}
         </View>
       ) : null}
@@ -788,11 +965,148 @@ function AddFood({
         <Button onPress={save} isDisabled={!preview}>
           {`Save to ${SLOT_LABELS[slot]}`}
         </Button>
-        <Button variant="secondary" onPress={() => setOpen(false)}>
+        <Button
+          variant="secondary"
+          onPress={() => {
+            close();
+            announce("Nothing saved");
+          }}
+        >
           Cancel
         </Button>
       </View>
     </Card>
+  );
+}
+
+/**
+ * Scan or type a barcode (Issue #75). A hit lists the matches for review; a
+ * miss, store code, nameless product, unreachable source or offline cache
+ * miss opens a manual draft. Nothing is saved from here.
+ */
+function BarcodePanel({
+  outbox,
+  chosen,
+  onSelect,
+  onManualDraft,
+}: {
+  outbox: DiaryOutbox;
+  chosen: FoodCandidate | null;
+  onSelect: (candidate: FoodCandidate) => void;
+  onManualDraft: (barcode: string | null, note: string) => void;
+}) {
+  const [digits, setDigits] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<BarcodeOutcome | null>(null);
+  const [last, setLast] = useState<string | null>(null);
+
+  const run = async (raw: string) => {
+    setBusy(true);
+    setOutcome(null);
+    setMessage(null);
+    const scope = outbox.scope;
+    const resolution = await resolveBarcode(raw, {
+      online: outbox.online,
+      lookup: (barcode) => client.nutritionFoods.lookupBarcode({ barcode }),
+      readCached: (barcode) =>
+        scope ? readCache<BarcodeLookup>(scope, barcodeCacheKey(barcode)) : null,
+      writeCached: (barcode, result) => {
+        if (scope) writeCache(scope, barcodeCacheKey(barcode), result);
+      },
+    });
+    setBusy(false);
+    if (resolution.kind === "invalid") {
+      setMessage(resolution.message);
+      announce(resolution.message);
+      return;
+    }
+    setLast(raw);
+    setOutcome(resolution.outcome);
+    announce(resolution.outcome.message);
+  };
+
+  return (
+    <View className="gap-2">
+      {scanning ? (
+        <BarcodeScanner
+          onScanned={(barcode) => {
+            setScanning(false);
+            setDigits(barcode);
+            announce(BARCODE_COPY.scanned(barcode));
+            void run(barcode);
+          }}
+          onClose={(note) => {
+            setScanning(false);
+            setMessage(note);
+          }}
+        />
+      ) : (
+        <Button variant="secondary" onPress={() => setScanning(true)}>
+          {BARCODE_COPY.scan}
+        </Button>
+      )}
+      <View className="flex-row items-center gap-2">
+        <TextInput
+          value={digits}
+          onChangeText={setDigits}
+          keyboardType="number-pad"
+          placeholder={BARCODE_COPY.digitsLabel}
+          accessibilityLabel={BARCODE_COPY.digitsLabel}
+          className={`${inputClass} flex-1`}
+          placeholderTextColor="#9ca3af"
+          onSubmitEditing={() => void run(digits)}
+        />
+        <Button size="sm" onPress={() => void run(digits)} isDisabled={busy}>
+          {busy ? BARCODE_COPY.lookingUp : BARCODE_COPY.lookUp}
+        </Button>
+      </View>
+      {message ? (
+        <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+          {message}
+        </Text>
+      ) : null}
+      {outcome?.kind === "matches" ? (
+        <View className="gap-2">
+          <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+            {outcome.message}
+          </Text>
+          {outcome.candidates.map((candidate) => (
+            <CandidateRow
+              key={candidate.key}
+              candidate={candidate}
+              selected={chosen?.key === candidate.key}
+              onPress={() => onSelect(candidate)}
+            />
+          ))}
+          <AttributionNotes candidates={outcome.candidates} />
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() => onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct)}
+          >
+            {`Not this product? ${BARCODE_COPY.enterManually}`}
+          </Button>
+        </View>
+      ) : outcome?.kind === "manual" ? (
+        <View className="gap-2">
+          <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+            {outcome.message}
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            <Button size="sm" onPress={() => onManualDraft(outcome.barcode, outcome.message)}>
+              {BARCODE_COPY.enterManually}
+            </Button>
+            {outcome.canRetry && last ? (
+              <Button size="sm" variant="secondary" onPress={() => void run(last)}>
+                {BARCODE_COPY.retry}
+              </Button>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
