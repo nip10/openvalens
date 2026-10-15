@@ -12,3 +12,4 @@ export * from "./plans";
 export * from "./product-settings";
 export * from "./data-rights";
 export * from "./security";
+export * from "./storage";

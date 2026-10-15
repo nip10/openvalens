@@ -30,6 +30,7 @@
     "@openvalens/observability": "workspace:*",
     "@openvalens/plans": "workspace:*",
     "@openvalens/sleep": "workspace:*",
+    "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",
     "@openvalens/vitals": "workspace:*",
     "@orpc/client": "catalog:",

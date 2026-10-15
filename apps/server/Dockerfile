@@ -12,6 +12,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder --chown=bun:bun /app /app
 RUN mkdir -p /app/.turbo/cache && chown -R bun:bun /app/.turbo
+# Issue #62 — local object storage root. A fresh named volume mounted here
+# inherits this owner and mode, so only the server user can read objects.
+RUN mkdir -p /var/lib/openvalens/storage && chown bun:bun /var/lib/openvalens/storage && chmod 0700 /var/lib/openvalens/storage
 
 EXPOSE 3000
 

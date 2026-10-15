@@ -158,8 +158,12 @@ gather_config() {
 }
 
 write_env() {
-  local resend_file="" tmp
+  local resend_file="" s3_key_file="" s3_secret_file="" tmp
   [ -s "$SECRETS_DIR/server/RESEND_API_KEY" ] && resend_file=/run/secrets/RESEND_API_KEY
+  [ -s "$SECRETS_DIR/server/STORAGE_S3_ACCESS_KEY_ID" ] &&
+    s3_key_file=/run/secrets/STORAGE_S3_ACCESS_KEY_ID
+  [ -s "$SECRETS_DIR/server/STORAGE_S3_SECRET_ACCESS_KEY" ] &&
+    s3_secret_file=/run/secrets/STORAGE_S3_SECRET_ACCESS_KEY
   tmp="$ENV_FILE.tmp.$$"
   (
     umask 077
@@ -175,6 +179,15 @@ RESEND_API_KEY_FILE=$resend_file
 # Pre-migrate backup hook: pg_dump (default) | hook | none. See docs/self-hosting/backup.md.
 OPENVALENS_PRE_MIGRATE_BACKUP=$(env_get OPENVALENS_PRE_MIGRATE_BACKUP | grep . || echo pg_dump)
 OPENVALENS_BACKUP_RETAIN=$(env_get OPENVALENS_BACKUP_RETAIN | grep . || echo 10)
+# Object storage: local (default, the "storage" volume) | s3. See docs/storage.md.
+STORAGE_PROVIDER=$(env_get STORAGE_PROVIDER | grep . || echo local)
+STORAGE_S3_ENDPOINT=$(env_get STORAGE_S3_ENDPOINT)
+STORAGE_S3_REGION=$(env_get STORAGE_S3_REGION)
+STORAGE_S3_BUCKET=$(env_get STORAGE_S3_BUCKET)
+STORAGE_S3_FORCE_PATH_STYLE=$(env_get STORAGE_S3_FORCE_PATH_STYLE | grep . || echo false)
+STORAGE_S3_SSE=$(env_get STORAGE_S3_SSE | grep . || echo AES256)
+STORAGE_S3_ACCESS_KEY_ID_FILE=$s3_key_file
+STORAGE_S3_SECRET_ACCESS_KEY_FILE=$s3_secret_file
 EOF
   )
   mv "$tmp" "$ENV_FILE"

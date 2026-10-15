@@ -5,6 +5,7 @@ import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
+import type { StorageService } from "@openvalens/storage";
 import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
 import type { TelegramClient } from "@openvalens/telegram";
 
@@ -136,6 +137,14 @@ export type Context = {
    * names. The server owns the instance.
    */
   admissionRateLimiter?: InMemoryRateLimiter;
+  /**
+   * Issue #62 — server-built, tenant-scoped object storage service, or `null`
+   * when storage is off (S3 selected without credentials). Optional at the
+   * type level so unrelated context factories stay valid; storage procedures
+   * fail closed (generic `INTERNAL`) when it is absent, and readiness
+   * reports `storage: off`.
+   */
+  storage?: StorageService | null;
   /**
    * Issue #69 — optional live barcode lookup (`foodLookup` integration),
    * built by the server from its parsed config. `null`/absent keeps food

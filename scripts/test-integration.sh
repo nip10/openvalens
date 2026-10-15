@@ -47,6 +47,7 @@ SUITES=(
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_sharing_test|packages/api/src/routers/sharing.integration.test.ts"
   "PRODUCT_SETTINGS_TEST_DATABASE_URL|product_settings_test|packages/api/src/product-settings.integration.test.ts"
   "REMINDERS_TEST_DATABASE_URL|reminders_issue125|packages/integrations/telegram/src/reminders.integration.test.ts"
+  "STORAGE_TEST_DATABASE_URL|storage_test|packages/storage/src/service.integration.test.ts"
 )
 
 reset_db() {

@@ -175,4 +175,21 @@ describe("health.readiness", () => {
 
     expect(result.checks.integrations).toEqual({});
   });
+
+  test("reports storage writability (Issue #62)", async () => {
+    const storage = (result: "ok" | "unwritable") =>
+      ({ probe: async () => result }) as unknown as NonNullable<Context["storage"]>;
+
+    const ok = await callReadiness(createTestContext({ storage: storage("ok") }));
+    expect(ok.checks.storage).toBe("ok");
+    expect(ok.status).toBe("ok");
+
+    const unwritable = await callReadiness(createTestContext({ storage: storage("unwritable") }));
+    expect(unwritable.checks.storage).toBe("unwritable");
+    expect(unwritable.status).toBe("degraded");
+
+    const off = await callReadiness(createTestContext({ storage: null }));
+    expect(off.checks.storage).toBe("off");
+    expect(off.status).toBe("ok");
+  });
 });
