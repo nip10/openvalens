@@ -222,7 +222,7 @@ describe("actual server schema sensitive coverage", () => {
       }
 
       expect([...sensitiveByDefault].sort()).toEqual([...FILE_SECRET_KEYS].sort());
-      // The fourteen schema keys that must NOT be file-resolved.
+      // The seventeen schema keys that must NOT be file-resolved.
       expect([...explicitlyPublic].sort()).toEqual(
         [
           "AI_BASE_URL",
@@ -236,6 +236,9 @@ describe("actual server schema sensitive coverage", () => {
           "EMAIL_DRY_RUN",
           "EMAIL_FROM",
           "EMAIL_REPLY_TO",
+          "FOOD_LOOKUP_BASE_URL",
+          "FOOD_LOOKUP_PROVIDER",
+          "FOOD_LOOKUP_USER_AGENT",
           "NODE_ENV",
           "TELEGRAM_API_BASE_URL",
           "TELEGRAM_CONNECT_TOKEN_TTL_SECONDS",

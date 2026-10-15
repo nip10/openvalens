@@ -18,10 +18,12 @@ export type ORPCErrorCode =
   | "RATE_LIMITED"
   | "NOT_FOUND"
   | "REAUTH_REQUIRED"
-  | "CONFLICT";
+  | "CONFLICT"
+  /** An optional upstream data source (e.g. live food lookup) timed out or is rate-limited. Retryable. */
+  | "SOURCE_UNAVAILABLE";
 
 /** HTTP statuses reachable through the error envelope. */
-export type ORPCErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500;
+export type ORPCErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500 | 503;
 
 const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
   UNAUTHENTICATED: 401,
@@ -35,6 +37,7 @@ const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
   NOT_FOUND: 404,
   REAUTH_REQUIRED: 403,
   CONFLICT: 409,
+  SOURCE_UNAVAILABLE: 503,
 };
 
 /**

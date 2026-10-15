@@ -6,6 +6,11 @@ import { createDb } from "@openvalens/db";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import { createEmailService, describeEmailIntegration, parseEmailConfig } from "@openvalens/email";
 import {
+  createFoodLookup,
+  describeFoodLookupIntegration,
+  parseFoodLookupConfig,
+} from "@openvalens/nutrition/food-lookup";
+import {
   describeTelegramIntegration,
   parseTelegramConfig,
   TelegramClient,
@@ -73,6 +78,19 @@ export const aiRateLimiter = new InMemoryRateLimiter({
   limitPerMinute: aiConfig.AI_RATE_LIMIT_PER_MINUTE,
 });
 
+// Issue #69 — optional live barcode lookup (Open Food Facts). Off by default:
+// barcode lookups then use only private custom foods and the imported catalog
+// mirrors, and manual logging never depends on it. When enabled, only the
+// product code and the operator's User-Agent are sent (optionally via a privacy
+// proxy); one process-wide instance enforces the minimum request interval.
+export const foodLookupConfig = parseFoodLookupConfig({
+  FOOD_LOOKUP_PROVIDER: ENV.FOOD_LOOKUP_PROVIDER,
+  FOOD_LOOKUP_USER_AGENT: ENV.FOOD_LOOKUP_USER_AGENT,
+  FOOD_LOOKUP_BASE_URL: ENV.FOOD_LOOKUP_BASE_URL,
+});
+
+export const foodLookup = createFoodLookup(foodLookupConfig, { fetch: globalThis.fetch });
+
 /**
  * Integration family statuses (Issue #57).
  *
@@ -80,12 +98,13 @@ export const aiRateLimiter = new InMemoryRateLimiter({
  * domain, selected by env and bound here. Each family reports a value-free
  * `{ provider, state }` on the readiness probe. With no vendor credentials the
  * server boots with every family at its safe default: email `dry-run`, AI and
- * messaging `off`. See `docs/integrations.md`.
+ * messaging and food lookup `off`. See `docs/integrations.md`.
  */
 export const integrations = Object.freeze({
   email: describeEmailIntegration(emailConfig),
   ai: describeAiIntegration(aiConfig),
   messaging: describeTelegramIntegration(telegramConfig),
+  foodLookup: describeFoodLookupIntegration(foodLookupConfig),
 }) satisfies IntegrationStatuses;
 
 /**

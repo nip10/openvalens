@@ -13,6 +13,7 @@ import {
   capabilities,
   db,
   email,
+  foodLookup,
   integrations,
   productSettingsService,
   telegramClient,
@@ -79,6 +80,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     admissionService,
     admissionRateLimiter,
+    // Issue #69 — optional live barcode lookup; `null` keeps lookups local.
+    foodLookup,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,
