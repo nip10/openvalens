@@ -58,7 +58,7 @@ the keys marked "yes" above; any key you added by hand (for example
 
 The server reads several other variables from
 [the environment reference](../reference/env.md) — for example `CSP_MODE`,
-`AI_MODEL`, `AI_RATE_LIMIT_PER_MINUTE`, `API_MAX_BODY_BYTES`, `EMAIL_REPLY_TO`
+`AI_PROVIDER`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_RATE_LIMIT_PER_MINUTE`, `API_MAX_BODY_BYTES`, `EMAIL_REPLY_TO`
 and `EMAIL_AUDIT_BCC`. `deploy/compose.yml` does not pass them through, so on
 this stack they always use their schema defaults, and the production rules
 that apply on top of them (for example, content security policy is enforced
@@ -101,10 +101,14 @@ curl -fsS -X POST https://<domain>/api-reference/health/readiness \
 shows that a key is configured, not that the provider accepts it.
 
 AI features send data to the provider only behind the in-app consent gate.
+On this stack AI means Anthropic through `ANTHROPIC_API_KEY`: the
+OpenAI-compatible provider (Ollama, vLLM and others) described in
+[docs/ai-providers.md](../ai-providers.md) needs `AI_PROVIDER`, `AI_BASE_URL`
+and `AI_MODEL`, which `deploy/compose.yml` does not pass through yet.
 Registering the Telegram webhook (`https://<domain>/api/integrations/telegram/webhook`,
 authenticated with `TELEGRAM_WEBHOOK_SECRET`) with Telegram is not automated and
 is not yet covered by these docs. The adapter rules and the planned families
-(storage #62, OpenAI-compatible AI #59, OIDC #65, wearables #60) are in
+(storage #62, OIDC #65, wearables #60) are in
 [docs/integrations.md](../integrations.md).
 
 ## Product settings

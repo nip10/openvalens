@@ -17,6 +17,7 @@ apply to OpenValens 0.1.0 (pre-release; no release is tagged yet):
 - [Privacy and data rights](docs/self-hosting/privacy.md)
 - [Licensing and trademark](docs/self-hosting/licensing.md)
 - [Connecting the mobile app](docs/self-hosting/mobile-app.md)
+- [AI providers](docs/ai-providers.md) — Anthropic or an OpenAI-compatible endpoint
 
 ## Features
 

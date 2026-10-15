@@ -40,6 +40,8 @@ so.
 - [docs/deployment.md](../deployment.md) — platform (Coolify/Dokploy)
   deployments, readiness, cron and logging details, instance admission.
 - [docs/integrations.md](../integrations.md) — the optional provider adapters.
+- [docs/ai-providers.md](../ai-providers.md) — AI provider selection (Anthropic or
+  OpenAI-compatible) and its settings.
 - [docs/security-csp.md](../security-csp.md) — the content security policy.
 
 ## Not covered yet
