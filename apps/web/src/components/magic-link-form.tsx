@@ -59,8 +59,9 @@ export default function MagicLinkForm({
       <div className="mx-auto mt-10 w-full max-w-md space-y-4 p-6 text-center">
         <h1 className="text-3xl font-bold">Check your email</h1>
         <p className="text-muted-foreground">
-          We sent a sign-in link to <span className="font-medium text-foreground">{sentTo}</span>.
-          It expires in 10 minutes.
+          We sent a sign-in link to{" "}
+          <span className="font-medium text-foreground wrap-anywhere">{sentTo}</span>. It expires in
+          10 minutes.
         </p>
         <Button variant="link" onClick={() => setSentTo(null)}>
           Use a different email
