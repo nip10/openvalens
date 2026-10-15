@@ -21,6 +21,7 @@ import { nutritionDiaryRouter } from "./nutrition-diary";
 import { nutritionFoodsRouter } from "./nutrition-foods";
 import { plansRouter } from "./plans";
 import { profileRouter } from "./profile";
+import { scoreRouter } from "./score";
 import { sharingRouter } from "./sharing";
 import { sleepRouter } from "./sleep";
 import { storageRouter } from "./storage";
@@ -50,6 +51,7 @@ export const appRouter = {
   nutritionFoods: nutritionFoodsRouter,
   plans: plansRouter,
   profile: profileRouter,
+  score: scoreRouter,
   sharing: sharingRouter,
   sleep: sleepRouter,
   storage: storageRouter,

@@ -1,0 +1,139 @@
+import { SCORE_COPY } from "@openvalens/api/presenters/score";
+import { useQuery } from "@tanstack/react-query";
+import { Card, Spinner } from "heroui-native";
+import { useState } from "react";
+import { Pressable, RefreshControl, Text, View } from "react-native";
+
+import { CardStack } from "@/components/list-row";
+import { Container } from "@/components/container";
+import { orpc } from "@/utils/orpc";
+import { goalProgressCard, readinessCard, type ScoreCard } from "@/utils/score-screen";
+
+/**
+ * Issue #95 — "How am I doing?" on mobile: the experimental readiness index
+ * and goal progress, never combined. Same view models as web
+ * (`utils/score-screen.ts` → `@openvalens/api/presenters/score`). Every state
+ * is in text; scores and rows carry screen-reader labels.
+ */
+function ScoreCardView({ card }: { card: ScoreCard }) {
+  const [showMethod, setShowMethod] = useState(false);
+  return (
+    <CardStack>
+      <Card variant="secondary" className="gap-3 p-4">
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Text className="text-lg font-semibold text-foreground" accessibilityRole="header">
+            {card.title}
+          </Text>
+          {card.badge ? (
+            <View className="rounded-full border border-border px-2 py-0.5">
+              <Text className="text-xs font-medium text-foreground">{card.badge}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text className="text-sm text-muted-foreground">{card.intro}</Text>
+        <View
+          className="flex-row items-baseline gap-2"
+          accessible
+          accessibilityLabel={card.scoreAccessibilityLabel}
+        >
+          <Text className="font-mono text-4xl text-foreground">{card.scoreText}</Text>
+          {card.scoreSuffix ? (
+            <Text className="text-sm text-muted-foreground">{card.scoreSuffix}</Text>
+          ) : null}
+        </View>
+        {card.notes.map((note) => (
+          <Text key={note} className="text-sm text-foreground">
+            {note}
+          </Text>
+        ))}
+        {card.rows.map((row) => (
+          <View
+            key={row.key}
+            className="flex-row items-start justify-between gap-3 border-t border-border pt-2"
+            accessible
+            accessibilityLabel={row.accessibilityLabel}
+          >
+            <View className="min-w-0 flex-1">
+              <Text className="text-base text-foreground">{row.label}</Text>
+              {row.lines.map((line) => (
+                <Text key={line} className="text-xs text-muted-foreground">
+                  {line}
+                </Text>
+              ))}
+            </View>
+            <Text className="font-mono text-sm text-foreground">{row.value}</Text>
+          </View>
+        ))}
+        <Pressable
+          onPress={() => setShowMethod((open) => !open)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showMethod }}
+          className="min-h-11 justify-center"
+        >
+          <Text className="font-medium text-foreground underline">How this is calculated</Text>
+        </Pressable>
+        {showMethod ? <Text className="text-sm text-muted-foreground">{card.method}</Text> : null}
+        <Text className="text-sm text-muted-foreground">{card.limits}</Text>
+        <Text className="text-xs text-muted-foreground">{card.versionText}</Text>
+      </Card>
+    </CardStack>
+  );
+}
+
+export default function ScoresScreen() {
+  const readiness = useQuery(orpc.score.readiness.queryOptions({ input: {} }));
+  const goals = useQuery(orpc.score.goalProgress.queryOptions({ input: {} }));
+
+  if (readiness.isPending || goals.isPending)
+    return (
+      <Container className="items-center justify-center" isScrollable={false}>
+        <Spinner />
+      </Container>
+    );
+
+  if (readiness.isError || !readiness.data || goals.isError || !goals.data)
+    return (
+      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
+        <Text className="text-base text-foreground">Could not load your scores.</Text>
+        <Pressable
+          onPress={() => {
+            void readiness.refetch();
+            void goals.refetch();
+          }}
+          className="min-h-11 justify-center px-4"
+          accessibilityRole="button"
+        >
+          <Text className="font-medium text-foreground underline">Retry</Text>
+        </Pressable>
+      </Container>
+    );
+
+  return (
+    <Container
+      scrollViewProps={{
+        refreshControl: (
+          <RefreshControl
+            refreshing={readiness.isRefetching || goals.isRefetching}
+            onRefresh={() => {
+              void readiness.refetch();
+              void goals.refetch();
+            }}
+          />
+        ),
+      }}
+    >
+      <View className="gap-6 p-4">
+        <View className="gap-1">
+          <Text className="font-mono text-3xl text-foreground">{SCORE_COPY.pageTitle}</Text>
+          <Text className="text-sm text-muted-foreground">{SCORE_COPY.pageIntro}</Text>
+          <Text className="text-xs text-muted-foreground">{SCORE_COPY.noStorage}</Text>
+        </View>
+        <ScoreCardView card={readinessCard(readiness.data)} />
+        <ScoreCardView card={goalProgressCard(goals.data)} />
+        <Text className="text-sm text-muted-foreground">
+          Set targets, directions and priorities for your goals under Workouts.
+        </Text>
+      </View>
+    </Container>
+  );
+}

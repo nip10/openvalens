@@ -1,6 +1,13 @@
 import {
+  GOAL_DIRECTION_OPTIONS,
+  GOAL_PRIORITY_OPTIONS,
+  goalDirectionLabel,
+  goalMeasurementFields,
+  goalPriorityLabel,
   goalStatusLabel,
   summarizeGoals,
+  type GoalDirectionOption,
+  type GoalPriorityOption,
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
@@ -147,6 +154,11 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   const [title, setTitle] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [status, setStatus] = useState<GoalStatus>("not_started");
+  // Issue #95 — optional measurement so goal progress can be calculated.
+  const [startValue, setStartValue] = useState("");
+  const [targetValue, setTargetValue] = useState("");
+  const [direction, setDirection] = useState<GoalDirectionOption | null>(null);
+  const [priority, setPriority] = useState<GoalPriorityOption>("normal");
 
   const save = useMutation(
     orpc.plans.goals.upsertGoal.mutationOptions({
@@ -154,15 +166,20 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
         setTitle("");
         setTargetDate("");
         setStatus("not_started");
+        setStartValue("");
+        setTargetValue("");
+        setDirection(null);
+        setPriority("normal");
         onSaved();
       },
     }),
   );
 
   const titleMissing = title.trim().length === 0;
+  const measurement = goalMeasurementFields({ startValue, targetValue, direction, priority });
 
   const submit = () => {
-    if (titleMissing) return;
+    if (titleMissing || !measurement.ok) return;
     save.mutate({
       title: title.trim(),
       // `upsertGoal` requires a category; goals created here default to
@@ -170,6 +187,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
       category: "health",
       targetDate: targetDate.trim().length > 0 ? targetDate : null,
       status,
+      ...measurement.fields,
     });
   };
 
@@ -211,17 +229,122 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
           </SelectContent>
         </Select>
       </div>
-      <div className="flex items-center gap-3 sm:col-span-2">
-        <Button onClick={submit} disabled={titleMissing || save.isPending}>
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium" htmlFor="goal-start-value">
+          Starting value (optional)
+        </Label>
+        <Input
+          id="goal-start-value"
+          value={startValue}
+          onChange={(event) => setStartValue(event.target.value)}
+          placeholder="80 kg"
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium" htmlFor="goal-target-value">
+          Target (optional)
+        </Label>
+        <Input
+          id="goal-target-value"
+          value={targetValue}
+          onChange={(event) => setTargetValue(event.target.value)}
+          placeholder="75 kg"
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium">Progress means the value should</Label>
+        <Select
+          value={direction ?? ""}
+          onValueChange={(next) => {
+            if (GOAL_DIRECTION_OPTIONS.includes(next as GoalDirectionOption))
+              setDirection(next as GoalDirectionOption);
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue>{direction ? goalDirectionLabel(direction) : "Choose"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {GOAL_DIRECTION_OPTIONS.map((value) => (
+              <SelectItem key={value} value={value}>
+                {goalDirectionLabel(value)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium">Priority</Label>
+        <Select
+          value={priority}
+          onValueChange={(next) => {
+            if (GOAL_PRIORITY_OPTIONS.includes(next as GoalPriorityOption))
+              setPriority(next as GoalPriorityOption);
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue>{goalPriorityLabel(priority)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {GOAL_PRIORITY_OPTIONS.map((value) => (
+              <SelectItem key={value} value={value}>
+                {goalPriorityLabel(value)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+        <Button onClick={submit} disabled={titleMissing || !measurement.ok || save.isPending}>
           {save.isPending ? "Saving…" : "Save"}
         </Button>
-        {save.isSuccess ? (
+        {!measurement.ok ? (
+          <span className="text-sm text-destructive" role="alert">
+            {measurement.error}
+          </span>
+        ) : save.isSuccess ? (
           <span className="text-sm text-success">Saved</span>
         ) : save.isError ? (
           <span className="text-sm text-destructive">Could not save.</span>
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Issue #95 — record today's value for a goal; the latest value becomes its current value. */
+function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void }) {
+  const [value, setValue] = useState("");
+  const log = useMutation(
+    orpc.plans.goals.upsertCheckin.mutationOptions({
+      onSuccess: () => {
+        setValue("");
+        onSaved();
+      },
+    }),
+  );
+  const trimmed = value.trim();
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (trimmed.length === 0) return;
+        log.mutate({ goalId, date: todayIso(), value: trimmed });
+      }}
+    >
+      <Input
+        aria-label="Today's value"
+        className="h-8 w-28"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="Today"
+        maxLength={80}
+      />
+      <Button type="submit" size="sm" variant="outline" disabled={!trimmed || log.isPending}>
+        Log
+      </Button>
+      {log.isError ? <span className="text-xs text-destructive">Could not save.</span> : null}
+    </form>
   );
 }
 
@@ -234,8 +357,10 @@ function WorkoutsPage() {
 
   const reloadWorkouts = () =>
     void queryClient.invalidateQueries({ queryKey: [["plans", "workouts", "listWorkouts"]] });
-  const reloadGoals = () =>
+  const reloadGoals = () => {
     void queryClient.invalidateQueries({ queryKey: [["plans", "goals", "listGoals"]] });
+    void queryClient.invalidateQueries({ queryKey: orpc.score.key() });
+  };
 
   const workoutSummary = summarizeWorkouts(workouts.data ?? []);
   const goalSummary = summarizeGoals(goals.data ?? []);
@@ -321,16 +446,22 @@ function WorkoutsPage() {
           ) : (
             <ul className="divide-y divide-border">
               {goals.data.map((goal) => (
-                <li key={goal.id} className="flex items-center justify-between gap-4 py-3">
+                <li
+                  key={goal.id}
+                  className="flex flex-wrap items-center justify-between gap-4 py-3"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="font-medium">{goal.title}</div>
                     <div className="text-sm text-muted-foreground">
                       {goal.targetDate ? `Due ${goal.targetDate}` : "No due date"}
+                      {goal.targetValue ? ` · Target ${goal.targetValue}` : ""}
+                      {goal.currentValue ? ` · Now ${goal.currentValue}` : ""}
                     </div>
                   </div>
                   <div className="shrink-0 text-sm text-muted-foreground">
                     {goalStatusLabel(goal.status)}
                   </div>
+                  <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
                 </li>
               ))}
             </ul>
