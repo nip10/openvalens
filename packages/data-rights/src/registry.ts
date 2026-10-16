@@ -204,6 +204,8 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // are the versioned per-purpose history and are exported with the profile.
   wellness_profile: { kind: "user" },
   wellness_profile_consent: { kind: "user" },
+  // Reference comparisons (#96): the person's per-metric opt-ins; no values.
+  reference_comparison_opt_in: { kind: "user" },
 
   // Insights (#92): the person's own feedback, delivery preferences, phones and
   // delivery history. Insights themselves are recomputed, never stored. Keyed

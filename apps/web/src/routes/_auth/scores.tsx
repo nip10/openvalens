@@ -3,6 +3,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { ReferenceComparisonsSection } from "@/components/reference-comparisons-card";
 import { GoalProgressCard, ReadinessCard } from "@/components/score-panels";
 import { orpc } from "@/utils/orpc";
 
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/_auth/scores")({
  * Issue #95 — "How am I doing?": the experimental readiness index and goal
  * progress, side by side and never combined. Both are computed on the server
  * from the workspace's records on every request; nothing is cached offline.
+ * Issue #96 adds opt-in reference comparisons below them (own trend first).
  */
 function ScoresPage() {
   const readiness = useQuery({
@@ -58,6 +60,8 @@ function ScoresPage() {
       ) : (
         <GoalProgressCard result={goals.data} />
       )}
+
+      <ReferenceComparisonsSection />
 
       <p className="text-sm text-muted-foreground">
         Set targets, directions and priorities for your goals under{" "}

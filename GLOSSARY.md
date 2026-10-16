@@ -63,3 +63,11 @@ recording streak), produced by a versioned rule and rendered from a reviewed
 template. Never stored, never AI-written, never advice. Push and email are
 optional, opt-in channels for the same insights.
 _Avoid_: Alert, recommendation, AI insight
+
+**Reference comparison**:
+A person's own usual value (28-day median) shown next to a published,
+cited reference: a guideline range (WHO activity, NSF sleep) or a coarse band
+for their age group and sex (below, within or above the middle half of a
+published reference group). Opt-in per metric, adults only, never a rank,
+percentile or community aggregate (`docs/reference-comparisons.md`).
+_Avoid_: Benchmark, percentile, ranking, "people like you" score

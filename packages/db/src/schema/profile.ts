@@ -4,6 +4,7 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -140,6 +141,34 @@ export const wellnessProfileConsent = pgTable(
     wellnessProfileConsentWithdrawnCheck: check(
       "wellness_profile_consent_withdrawn_after_granted_check",
       sql`${table.withdrawnAt} is null or ${table.withdrawnAt} >= ${table.grantedAt}`,
+    ),
+  }),
+);
+
+// ─── Reference comparisons (Issue #96) ────────────────────────
+//
+// Per-metric opt-in for comparing the person's own values with published
+// reference ranges. User-owned like the wellness profile it depends on (age
+// band and sex): a workspace role never reaches it. A row exists exactly while
+// the comparison is on; turning it off deletes the row. `reference_version` is
+// the reference-data version whose sources and limits were shown when the
+// person turned it on. Holds no health value.
+
+export const referenceComparisonOptIn = pgTable(
+  "reference_comparison_opt_in",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    metric: text("metric").notNull(),
+    referenceVersion: text("reference_version").notNull(),
+    enabledAt: timestamp("enabled_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    referenceComparisonOptInPk: primaryKey({ columns: [table.userId, table.metric] }),
+    referenceComparisonOptInMetricCheck: check(
+      "reference_comparison_opt_in_metric_check",
+      sql`${table.metric} in ('resting_heart_rate', 'sleep_duration', 'active_minutes')`,
     ),
   }),
 );

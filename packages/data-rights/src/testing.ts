@@ -81,6 +81,7 @@ export async function seedAccount(db: Database, who: string, samples: number): P
     insert into insight_delivery (organization_id, user_id, channel, period_key, insight_ids, rule_versions, status)
       values ('org-${who}', 'user-${who}', 'push', '2026-10-01', '{change.steps:2026-W41}', '{change.steps@1}', 'sent');
     insert into push_device (user_id, expo_push_token, platform) values ('user-${who}', 'ExponentPushToken[seed-${who}-0000]', 'ios');
+    insert into reference_comparison_opt_in (user_id, metric, reference_version) values ('user-${who}', 'resting_heart_rate', 'reference-data-2026-10-16');
   `),
   );
 }
