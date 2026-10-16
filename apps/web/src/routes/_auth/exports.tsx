@@ -1,12 +1,10 @@
 import {
-  decodeBase64,
   exportBundleArtifact,
   exportCsvArtifacts,
+  exportPdfArtifact,
   formatBytes,
-  pickClinicalPdfDomains,
   pickExportDomains,
   utf8ByteLength,
-  type ClinicalPdfDomain,
   type ExportArtifact,
   type ExportDomain,
 } from "@openvalens/api/presenters/clinical-export";
@@ -101,6 +99,7 @@ function DomainCard() {
     () =>
       new Set(options.filter((option) => option.defaultSelected).map((option) => option.domain)),
   );
+  const [format, setFormat] = useState<"csv" | "pdf">("csv");
   const [artifacts, setArtifacts] = useState<ExportArtifact[]>([]);
 
   const csv = useMutation(
@@ -112,6 +111,17 @@ function DomainCard() {
       },
     }),
   );
+  const pdf = useMutation(
+    orpc.exports.legacyPdfDownload.mutationOptions({
+      onSuccess: (data) => {
+        const artifact = exportPdfArtifact(data);
+        triggerDownload(artifact);
+        setArtifacts([artifact]);
+      },
+    }),
+  );
+
+  const active = format === "csv" ? csv : pdf;
 
   const toggle = (domain: ExportDomain) => {
     setSelected((previous) => {
@@ -125,18 +135,18 @@ function DomainCard() {
   const submit = () => {
     if (selected.size === 0) return;
     setArtifacts([]);
-    csv.mutate({ domains: [...selected], format: "csv" });
+    const domains = [...selected];
+    if (format === "csv") csv.mutate({ domains, format: "csv" });
+    else pdf.mutate({ domains, format: "pdf" });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Download CSV by domain</CardTitle>
+        <CardTitle>Download by domain</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">
-          Choose domains, then download one CSV file per domain.
-        </p>
+        <p className="text-sm text-muted-foreground">Choose domains and a format, then download.</p>
 
         <div className="grid gap-2">
           <span className="text-sm font-medium">Domains</span>
@@ -171,125 +181,36 @@ function DomainCard() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button onClick={submit} disabled={selected.size === 0 || csv.isPending}>
-            {csv.isPending ? "Downloading…" : "Download"}
-          </Button>
-          <Badge variant="secondary">CSV</Badge>
+        <div className="grid gap-2">
+          <span className="text-sm font-medium">Format</span>
+          <div className="flex flex-wrap gap-2">
+            {(["csv", "pdf"] as const).map((value) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={format === value ? "default" : "outline"}
+                aria-pressed={format === value}
+                onClick={() => setFormat(value)}
+              >
+                {value.toUpperCase()}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        {csv.isPending ? <Skeleton className="h-4 w-48" /> : null}
-        {csv.isError ? (
+        <div className="flex items-center gap-3">
+          <Button onClick={submit} disabled={selected.size === 0 || active.isPending}>
+            {active.isPending ? "Downloading…" : "Download"}
+          </Button>
+          <Badge variant="secondary">{format.toUpperCase()}</Badge>
+        </div>
+
+        {active.isPending ? <Skeleton className="h-4 w-48" /> : null}
+        {active.isError ? (
           <p className="text-sm text-destructive">Could not export. Try again.</p>
         ) : null}
         <ArtifactList artifacts={artifacts} />
-      </CardContent>
-    </Card>
-  );
-}
-
-function downloadPdf(fileName: string, bytes: Uint8Array) {
-  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-/**
- * Issue #132 — clinical PDF. Generated on request and handed straight to the
- * browser; the server keeps no copy and the object URL is revoked at once.
- */
-function ClinicalPdfCard() {
-  const options = useMemo(() => pickClinicalPdfDomains(), []);
-  const [selected, setSelected] = useState<Set<ClinicalPdfDomain>>(
-    () =>
-      new Set(options.filter((option) => option.defaultSelected).map((option) => option.domain)),
-  );
-  const [file, setFile] = useState<{ fileName: string; byteLength: number } | null>(null);
-  const [decodeFailed, setDecodeFailed] = useState(false);
-
-  const pdf = useMutation(
-    orpc.exports.clinicalPdf.mutationOptions({
-      onSuccess: (data) => {
-        const bytes = decodeBase64(data.contentBase64);
-        if (!bytes) {
-          setDecodeFailed(true);
-          return;
-        }
-        downloadPdf(data.fileName, bytes);
-        setFile({ fileName: data.fileName, byteLength: bytes.byteLength });
-      },
-    }),
-  );
-
-  const toggle = (domain: ClinicalPdfDomain) => {
-    setSelected((previous) => {
-      const next = new Set(previous);
-      if (next.has(domain)) next.delete(domain);
-      else next.add(domain);
-      return next;
-    });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Download a PDF summary</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">
-          A printable copy of the selected records, with the source and date of each entry. Values
-          are shown as stored, without interpretation. It is not medical advice. The file is created
-          when you download it and is not kept on the server.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {options.map((option) => {
-            const isSelected = selected.has(option.domain);
-            return (
-              <Button
-                key={option.domain}
-                type="button"
-                size="sm"
-                variant={isSelected ? "default" : "outline"}
-                aria-pressed={isSelected}
-                onClick={() => toggle(option.domain)}
-              >
-                {option.label}
-              </Button>
-            );
-          })}
-        </div>
-        {selected.size === 0 ? (
-          <span className="text-sm text-destructive">Select at least one section.</span>
-        ) : null}
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={() => {
-              setFile(null);
-              setDecodeFailed(false);
-              pdf.mutate({ domains: [...selected] });
-            }}
-            disabled={selected.size === 0 || pdf.isPending}
-          >
-            {pdf.isPending ? "Preparing…" : "Download PDF"}
-          </Button>
-          <Badge variant="secondary">PDF</Badge>
-        </div>
-        {pdf.isPending ? <Skeleton className="h-4 w-48" /> : null}
-        {pdf.isError || decodeFailed ? (
-          <p className="text-sm text-destructive">Could not export. Try again.</p>
-        ) : null}
-        {file ? (
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="min-w-0 truncate font-mono">{file.fileName}</span>
-            <Badge variant="outline">{formatBytes(file.byteLength)}</Badge>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );
@@ -299,7 +220,6 @@ function ExportsPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <h1 className="text-2xl font-semibold">Clinical export</h1>
-      <ClinicalPdfCard />
       <BundleCard />
       <DomainCard />
     </div>

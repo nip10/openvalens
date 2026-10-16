@@ -13,6 +13,7 @@ import { materializeDailyReminders } from "@openvalens/telegram";
 import { z } from "zod";
 
 import { cronProcedure, raiseApiError } from "../index";
+import { runInsightDelivery } from "../insight-delivery";
 
 // Issue #11 — PHI-safe structured logger for cron lifecycle events.
 const logger = createStructuredLogger({ level: "info" });
@@ -33,6 +34,15 @@ const remindersRunOutput = cronRunOutput.extend({
   organizationsSucceeded: z.number(),
   organizationsFailed: z.number(),
   sent: z.number(),
+  skipped: z.number(),
+  failed: z.number(),
+});
+
+// Issue #92 — insight delivery counts (push / weekly email), value-free.
+const insightsRunOutput = cronRunOutput.extend({
+  candidates: z.number(),
+  pushSent: z.number(),
+  emailSent: z.number(),
   skipped: z.number(),
   failed: z.number(),
 });
@@ -207,6 +217,50 @@ export const cronRouter = {
         skipped,
         failed,
         correlationId: context.correlationId,
+      };
+    }),
+
+  /**
+   * Issue #92 — hourly insight delivery. Idempotent: each (workspace, person,
+   * channel, period) is claimed once in `insight_delivery`, so replays and
+   * overlapping runs never double-send. Nothing goes out before a person's
+   * local delivery hour; push is at most one a day, email one a week.
+   */
+  insightsRun: cronProcedure
+    .input(z.object({}))
+    .output(insightsRunOutput)
+    .handler(async ({ context }) => {
+      const startedAt = new Date().toISOString();
+      logger.info("cron.job.started", {
+        job: "insights.delivery",
+        correlationId: context.correlationId,
+      });
+      let displaySettings = null;
+      try {
+        const snapshot = await context.productSettingsService?.read(null);
+        displaySettings = snapshot ? { units: snapshot.units, locale: snapshot.locale } : null;
+      } catch {
+        displaySettings = null;
+      }
+      const result = await runInsightDelivery({
+        db: context.db,
+        logger,
+        correlationId: context.correlationId,
+        now: new Date(),
+        push: context.push ?? null,
+        email: context.email ?? null,
+        emailConfigured: context.integrations?.email?.state === "configured",
+        webOrigin: context.webOrigin,
+        unsubscribeKey: context.insightUnsubscribeKey ?? null,
+        displaySettings,
+      });
+      return {
+        status: "ok" as const,
+        job: "insights.delivery",
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        correlationId: context.correlationId,
+        ...result,
       };
     }),
 

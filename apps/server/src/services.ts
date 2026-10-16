@@ -1,4 +1,5 @@
 import { describeAiIntegration, InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
+import { deriveInsightUnsubscribeKey } from "@openvalens/api/insights";
 import { createProductSettingsService } from "@openvalens/api/product-settings";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
 import { createAdmissionService } from "@openvalens/auth/admission";
@@ -12,6 +13,7 @@ import {
   describeFoodLookupIntegration,
   parseFoodLookupConfig,
 } from "@openvalens/nutrition/food-lookup";
+import { createPushProvider, describePushIntegration, parsePushConfig } from "@openvalens/push";
 import {
   createObjectStorage,
   createStorageService,
@@ -138,6 +140,20 @@ export const foodLookupConfig = parseFoodLookupConfig({
 
 export const foodLookup = createFoodLookup(foodLookupConfig, { fetch: globalThis.fetch });
 
+// Issue #92 — optional push transport for insight notifications. Off by
+// default; `PUSH_PROVIDER=expo` uses the Expo push service (no credential).
+// Pushes carry only generic text, never a health value.
+export const pushConfig = parsePushConfig({ PUSH_PROVIDER: ENV.PUSH_PROVIDER });
+
+export const pushProvider = createPushProvider(pushConfig, { fetch: globalThis.fetch });
+
+// Issue #92 — key for one-step email unsubscribe tokens, derived from (never
+// equal to) the auth secret. `null` keeps the insights email off.
+export const insightUnsubscribeKey =
+  typeof ENV.BETTER_AUTH_SECRET === "string" && ENV.BETTER_AUTH_SECRET.length >= 32
+    ? deriveInsightUnsubscribeKey(ENV.BETTER_AUTH_SECRET)
+    : null;
+
 /**
  * Integration family statuses (Issue #57).
  *
@@ -145,7 +161,7 @@ export const foodLookup = createFoodLookup(foodLookupConfig, { fetch: globalThis
  * domain, selected by env and bound here. Each family reports a value-free
  * `{ provider, state }` on the readiness probe. With no vendor credentials the
  * server boots with every family at its safe default: email `dry-run`; AI,
- * messaging, food lookup and OIDC `off`; storage on private local disk. See
+ * messaging, food lookup, OIDC and push `off`; storage on private local disk. See
  * `docs/integrations.md`.
  */
 export const integrations = Object.freeze({
@@ -155,6 +171,7 @@ export const integrations = Object.freeze({
   storage: describeStorageIntegration(storageConfig),
   foodLookup: describeFoodLookupIntegration(foodLookupConfig),
   oidc: describeOidcIntegration(oidcConfig),
+  push: describePushIntegration(pushConfig),
 }) satisfies IntegrationStatuses;
 
 /**

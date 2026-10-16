@@ -57,6 +57,7 @@
       "path": "../cockpit"
     },
     { "path": "../storage" },
+    { "path": "../push" },
     { "path": "../config" }
   ]
 }

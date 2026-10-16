@@ -60,6 +60,7 @@ the value already in `deploy/.env`; add any other key by hand
 | `FOOD_LOOKUP_PROVIDER`                    | no                   | empty (off)   | `openfoodfacts` enables live barcode lookup for codes missing from the local catalogs. See [Integration adapters](../integrations.md).                   |
 | `FOOD_LOOKUP_USER_AGENT`                  | no                   | empty         | `AppName/Version (contact)` sent to the provider; required for live lookup.                                                                              |
 | `FOOD_LOOKUP_BASE_URL`                    | no                   | empty         | Provider or privacy-proxy origin; empty means the public Open Food Facts API.                                                                            |
+| `PUSH_PROVIDER`                           | no                   | empty (off)   | `expo` enables insight push notifications through the Expo push service. Pushes carry only generic text, never a health value.                           |
 | `STORAGE_MAX_OBJECT_BYTES`                | no                   | `26214400`    | Largest stored object (photo, lab PDF, export), in bytes; at most 100 MiB.                                                                               |
 | `STORAGE_SIGNED_URL_TTL_SECONDS`          | no                   | `300`         | Lifetime of a signed download URL, in seconds; at most 3600.                                                                                             |
 | `OIDC_PROVIDER_ID`                        | no                   | empty         | Id of the optional OIDC provider, used in its redirect URI. See [Single sign-on](oidc.md).                                                               |
@@ -244,6 +245,7 @@ triggered from the host, authenticated with the generated `CRON_SECRET`:
 | ----------------------------- | ------------------ | ----------------------------------------- |
 | `/rpc/cron/remindersDailyRun` | `5 8 * * *`        | Daily reminders                           |
 | `/rpc/cron/ingestionRun`      | `15 9 * * *`       | Retry and replay of queued ingestion work |
+| `/rpc/cron/insightsRun`       | `20 * * * *`       | Opt-in insight push and weekly email      |
 
 Add them to the crontab of the user who ran `deploy/setup.sh` (that user can
 read `deploy/secrets/`); replace both placeholders:
@@ -251,6 +253,7 @@ read `deploy/secrets/`); replace both placeholders:
 ```bash
 5 8 * * *  curl -fsS -X POST https://<domain>/rpc/cron/remindersDailyRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 15 9 * * * curl -fsS -X POST https://<domain>/rpc/cron/ingestionRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+20 * * * * curl -fsS -X POST https://<domain>/rpc/cron/insightsRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 ```
 
 A call without the bearer token is rejected with HTTP `401`. A successful call

@@ -5,6 +5,7 @@ export * from "./clinical";
 export * from "./coach";
 export * from "./food-catalog";
 export * from "./health-record";
+export * from "./insights";
 export * from "./ingestion";
 export * from "./integrations";
 export * from "./nutrition";

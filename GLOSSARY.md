@@ -55,3 +55,11 @@ day and over the last 7 days. Compared only with the person's own earlier
 weeks, never with other people and never framed as a recovery or injury
 signal.
 _Avoid_: Strain, training load score, readiness
+
+**Insight**:
+A short, deterministic description of something in a person's own records
+(a change against their own usual, a goal milestone, a data-quality note or a
+recording streak), produced by a versioned rule and rendered from a reviewed
+template. Never stored, never AI-written, never advice. Push and email are
+optional, opt-in channels for the same insights.
+_Avoid_: Alert, recommendation, AI insight

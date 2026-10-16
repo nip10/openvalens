@@ -7,7 +7,7 @@ import {
   weightCheckin,
   weightEvent,
 } from "@openvalens/db/schema/body";
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, between, desc, eq } from "drizzle-orm";
 
 /** Historical check-ins, intentionally independent of the materialized daily canonical view. */
 export async function listLegacyCheckins(db: Database, organizationId: string, limit: number) {
@@ -48,6 +48,29 @@ export async function listCanonicalDailyWeights(
     .where(and(eq(dailyWeight.organizationId, organizationId), eq(dailyWeight.userId, userId)))
     .orderBy(desc(dailyWeight.date), desc(dailyWeight.id))
     .limit(limit);
+}
+
+/**
+ * One member's canonical daily rows for an inclusive range of local dates,
+ * oldest first (Issue #87 trend input). Scoped by organization AND user.
+ */
+export async function listCanonicalDailyWeightsBetween(
+  db: Database,
+  scope: { organizationId: string; userId: string },
+  from: string,
+  to: string,
+) {
+  return db
+    .select({ date: dailyWeight.date, weightKg: dailyWeight.weightKg, source: dailyWeight.source })
+    .from(dailyWeight)
+    .where(
+      and(
+        eq(dailyWeight.organizationId, scope.organizationId),
+        eq(dailyWeight.userId, scope.userId),
+        between(dailyWeight.date, from, to),
+      ),
+    )
+    .orderBy(asc(dailyWeight.date), asc(dailyWeight.id));
 }
 
 // ─── DEXA scans (Issue #21, second half) ────────────────────────

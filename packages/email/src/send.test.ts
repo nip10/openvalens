@@ -131,6 +131,19 @@ describe("sendEmail", () => {
     expect(lines.join("\n")).not.toContain("hello");
   });
 
+  test("passes service headers (List-Unsubscribe) to the provider without logging them", async () => {
+    const { logger, lines } = createCapturingLogger();
+    const provider = new FakeProvider();
+    const headers = { "List-Unsubscribe": "<https://app.example/unsubscribe?token=secret-token>" };
+    await sendEmail(
+      { ...BASE_INPUT, templateName: "insights-digest", headers },
+      { config: BASE_CONFIG, logger, provider },
+    );
+    expect(provider.calls[0]?.headers).toEqual(headers);
+    expect(provider.calls[0]?.bcc).toBeUndefined();
+    expect(lines.join("\n")).not.toContain("secret-token");
+  });
+
   test("auto-applies the audit BCC to sensitive templates", async () => {
     const { logger } = createCapturingLogger();
     const provider = new FakeProvider();
