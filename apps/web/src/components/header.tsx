@@ -22,6 +22,7 @@ import UserMenu from "./user-menu";
 const BASE_LINKS = [
   { to: "/", label: "Home" },
   { to: "/dashboard", label: "Dashboard" },
+  { to: "/scores", label: "Scores" },
   { to: "/coach", label: "Coach" },
   { to: "/body", label: "Body" },
   { to: "/nutrition", label: "Meal diary" },

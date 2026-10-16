@@ -56,6 +56,11 @@ export type AdminConfigInventoryEntry = {
 /** Issue #58 — the server-owned, read-only global configuration inventory. */
 export type AdminConfigInventory = readonly AdminConfigInventoryEntry[];
 
+/** Issue #65 — sign-in methods shown next to magic-link sign-in. */
+export type SignInOptions = {
+  readonly oidc: { readonly providerId: string; readonly displayName: string } | null;
+};
+
 export type Context = {
   session: Session | null;
   db: Database;
@@ -137,6 +142,13 @@ export type Context = {
    * names. The server owns the instance.
    */
   admissionRateLimiter?: InMemoryRateLimiter;
+  /**
+   * Issue #65 — public, value-free sign-in options the server derives from its
+   * OIDC config: the provider id and button label, or `null` when OIDC is off.
+   * Optional at the type level so unrelated context factories stay valid;
+   * absent means magic-link only.
+   */
+  signInOptions?: SignInOptions;
   /**
    * Issue #62 — server-built, tenant-scoped object storage service, or `null`
    * when storage is off (S3 selected without credentials). Optional at the

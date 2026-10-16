@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   pgTable,
   text,
   integer,
@@ -113,10 +115,25 @@ export const goal = pgTable(
     targetValue: text("target_value"),
     targetDate: text("target_date"),
     notes: text("notes"),
+    // Issue #95 — goal measurement contract (additive, all nullable so
+    // existing goals keep working). `direction` says which way counts as
+    // progress, `baselineValue` is the starting point progress is measured
+    // from, and `priority` is the person's own weighting for goal progress.
+    direction: text("direction"), // "increase", "decrease"
+    baselineValue: text("baseline_value"),
+    priority: text("priority"), // "low", "normal", "high"
   },
   (table) => ({
     goalOrgIdx: index("goal_organization_id_idx").on(table.organizationId),
     goalOrgIdUnique: uniqueIndex("goal_org_id_key").on(table.organizationId, table.id),
+    goalDirectionCheck: check(
+      "goal_direction_check",
+      sql`${table.direction} is null or ${table.direction} in ('increase', 'decrease')`,
+    ),
+    goalPriorityCheck: check(
+      "goal_priority_check",
+      sql`${table.priority} is null or ${table.priority} in ('low', 'normal', 'high')`,
+    ),
   }),
 );
 

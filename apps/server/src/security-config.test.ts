@@ -388,6 +388,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         messaging: { provider: null, state: "off" },
         storage: { provider: "local", state: "configured" },
         foodLookup: { provider: null, state: "off" },
+        oidc: { provider: null, state: "off" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(safeDefaults);
@@ -403,6 +404,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         RESEND_API_KEY: "synthetic-resend-api-key-0123456789",
         ANTHROPIC_API_KEY: "sk-ant-synthetic-0123456789",
         TELEGRAM_BOT_TOKEN: "123456:synthetic-telegram-token",
+        OIDC_CLIENT_SECRET: "synthetic-oidc-client-secret-0123456789",
       };
       const run = await runColdChild({
         NODE_ENV: "development",
@@ -410,6 +412,11 @@ describe("schema-validated security configuration (cold boot)", () => {
         EMAIL_DRY_RUN: "false",
         FOOD_LOOKUP_PROVIDER: "openfoodfacts",
         FOOD_LOOKUP_USER_AGENT: "OpenValens-Test/0.0 (ops@example.test)",
+        // Issue #65 — an unreachable loopback IdP: the provider is skipped at
+        // discovery time, never a boot failure.
+        OIDC_PROVIDER_ID: "synthetic-idp",
+        OIDC_CLIENT_ID: "synthetic-client",
+        OIDC_DISCOVERY_URL: "http://127.0.0.1:9/.well-known/openid-configuration",
         ...secrets,
       });
       const configured = {
@@ -418,6 +425,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         messaging: { provider: "telegram", state: "configured" },
         storage: { provider: "local", state: "configured" },
         foodLookup: { provider: "openfoodfacts", state: "configured" },
+        oidc: { provider: "generic", state: "configured" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(configured);

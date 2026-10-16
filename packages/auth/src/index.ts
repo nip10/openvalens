@@ -19,6 +19,8 @@ import { maskEmailRecipient } from "./auth-logging";
 import { hasExistingAccount } from "./authz/existing-account";
 import { isInstanceAdmin } from "./authz/instance-admin";
 import { sendAuthMagicLink } from "./magic-link";
+import type { OidcProviderConfig } from "./oidc/config";
+import { createGenericOidcPlugin } from "./providers/generic-oidc";
 
 const logger = createStructuredLogger({ level: "info" });
 
@@ -29,6 +31,9 @@ const INVITATION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 2;
 const IMPERSONATION_EXIT_PATH = "/admin/stop-impersonating";
 /** Organization invite endpoint shared by creation and resend. */
 const ORGANIZATION_INVITE_PATH = "/organization/invite-member";
+/** Social/OIDC sign-in start and explicit account binding (Issue #65). */
+const SOCIAL_SIGN_IN_PATH = "/sign-in/social";
+const LINK_SOCIAL_PATH = "/link-social";
 
 export type AuthConfig = {
   BETTER_AUTH_URL: string;
@@ -60,7 +65,40 @@ export function devMagicLinkSink(env: AuthConfig): ((url: string) => void) | und
 export type CreateAuthOptions = {
   email: EmailService;
   desktopOrigins?: readonly string[];
+  /**
+   * Issue #65 — the one generic OIDC provider, from `parseOidcConfig(...)
+   * .provider`. Omitted or `null` keeps sign-in magic-link only.
+   */
+  oidc?: OidcProviderConfig | null;
 };
+
+/**
+ * Issue #63 / #65 — Better Auth's `validateUserInfo` gate.
+ *
+ * Account creation is closed on every SDK path: new accounts come only from
+ * the admission core. The single exception is the configured OIDC provider,
+ * which may *sign in* an identity already bound to an account, or be
+ * *explicitly linked* by a signed-in user. Implicit email-based linking never
+ * reaches this gate (`disableImplicitLinking`).
+ */
+export function createValidateUserInfo(oidcProviderId: string | null) {
+  return (data?: {
+    source?: { action?: string; method?: string; oauth?: { providerId?: string } | undefined };
+  }): { error: string } | undefined => {
+    // Fail closed on a missing or malformed source.
+    const source = data?.source;
+    if (
+      source !== undefined &&
+      oidcProviderId !== null &&
+      source.method === "oauth" &&
+      source.oauth?.providerId === oidcProviderId &&
+      (source.action === "sign-in" || source.action === "link-account")
+    ) {
+      return undefined;
+    }
+    return { error: "registration_not_allowed" };
+  };
+}
 
 export function createAuth(env: AuthConfig, database: Database, options: CreateAuthOptions) {
   // Fail closed before constructing Better Auth. Value-free: never echoes the
@@ -72,6 +110,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
   const desktopOrigins = options.desktopOrigins ?? [];
   const email = options.email;
   const devLinkSink = devMagicLinkSink(env);
+  const oidc = options.oidc ?? null;
 
   return betterAuth({
     database: drizzleAdapter(database, {
@@ -93,10 +132,29 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
     socialProviders: {},
     // Issue #63 — new accounts are created only by the admission core
     // (application-owned `db.insert`), never by a Better Auth SDK endpoint.
-    // This gate is unconditional: sign-up, magic-link provisioning, admin
-    // create-user and any future create path are all rejected.
+    // Creation is rejected unconditionally: sign-up, magic-link provisioning,
+    // admin create-user, OIDC and any future create path. Issue #65 only lets
+    // the configured OIDC provider sign in or explicitly link.
     user: {
-      validateUserInfo: () => ({ error: "registration_not_allowed" }),
+      validateUserInfo: createValidateUserInfo(oidc?.providerId ?? null),
+    },
+    // Issue #65 — an IdP identity is bound to a user only by an explicit,
+    // signed-in `/link-social`, keyed by `iss` + `sub`. A matching email never
+    // links implicitly, whatever the IdP claims about `email_verified`. The
+    // provider is trusted only for that explicit path (both identities are
+    // proven), and the IdP email must still equal the account email. Tokens the
+    // IdP returns are encrypted at rest; the last linked identity may be
+    // removed because magic-link sign-in always remains.
+    account: {
+      encryptOAuthTokens: true,
+      accountLinking: {
+        enabled: true,
+        disableImplicitLinking: true,
+        trustedProviders: oidc ? [oidc.providerId] : [],
+        allowDifferentEmails: false,
+        allowUnlinkingAll: true,
+        updateUserInfoOnLink: false,
+      },
     },
     databaseHooks: {
       user: {
@@ -113,6 +171,45 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
         // restoration checks so an ordinary impersonated user can always exit.
         // Only this exact path is skipped (no prefix escape).
         if (ctx.path === IMPERSONATION_EXIT_PATH) {
+          return;
+        }
+
+        // Issue #65 — OIDC runs only through the redirect flow, which binds
+        // the ID token to a server-generated nonce and PKCE verifier. A
+        // client-submitted ID token (no nonce binding) is never accepted.
+        if (ctx.path === SOCIAL_SIGN_IN_PATH || ctx.path === LINK_SOCIAL_PATH) {
+          const idToken = (ctx.body as { idToken?: unknown } | undefined)?.idToken;
+          if (idToken !== undefined && idToken !== null) {
+            throw new APIError("BAD_REQUEST", { message: "Unsupported sign-in method." });
+          }
+        }
+
+        // Issue #65 — explicit OIDC binding needs the user's own live
+        // session; an impersonating administrator must never bind their IdP
+        // identity to another user.
+        if (ctx.path === LINK_SOCIAL_PATH) {
+          let session: {
+            user?: { id?: unknown };
+            session?: { impersonatedBy?: string | null };
+          } | null;
+          try {
+            session = await getAuthoritativeSessionFromCtx<
+              Record<string, unknown>,
+              { impersonatedBy?: string | null }
+            >(ctx);
+          } catch {
+            throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
+          }
+          const userId = session?.user?.id;
+          if (typeof userId !== "string" || userId.length === 0) {
+            throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
+          }
+          const impersonatedBy = session?.session?.impersonatedBy;
+          if (typeof impersonatedBy === "string" && impersonatedBy.length > 0) {
+            throw new APIError("FORBIDDEN", {
+              message: "You do not have permission to perform this action.",
+            });
+          }
           return;
         }
 
@@ -273,6 +370,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
         roles,
       }),
       expo(),
+      ...(oidc ? [createGenericOidcPlugin(oidc)] : []),
       magicLink({
         // Issue #63 — a magic link may sign in an existing account but must
         // never provision a new one; admission owns account creation.

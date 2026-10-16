@@ -1,6 +1,6 @@
 # Configuration
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-15
 
 A self-hosted instance is configured in three places:
 
@@ -42,6 +42,11 @@ that this table and the Compose file list the same variables):
 | `EMAIL_DRY_RUN`                           | no                   | `false`   | `true` logs email instead of sending it. Without a Resend key email is dry-run regardless.                  |
 | `ANTHROPIC_API_KEY_FILE`                  | no                   | empty     | `/run/secrets/ANTHROPIC_API_KEY` to enable AI features ([optional providers](#optional-providers)).         |
 | `TELEGRAM_BOT_TOKEN_FILE`                 | no                   | empty     | `/run/secrets/TELEGRAM_BOT_TOKEN` to enable Telegram delivery ([optional providers](#optional-providers)).  |
+| `OIDC_PROVIDER_ID`                        | no                   | empty     | Id of the optional OIDC provider, used in its redirect URI. See [Single sign-on](oidc.md).                  |
+| `OIDC_CLIENT_ID`                          | no                   | empty     | OIDC client id. See [Single sign-on](oidc.md).                                                              |
+| `OIDC_CLIENT_SECRET_FILE`                 | no                   | empty     | `/run/secrets/OIDC_CLIENT_SECRET`, the OIDC client secret. See [Single sign-on](oidc.md).                   |
+| `OIDC_DISCOVERY_URL`                      | no                   | empty     | The IdP's `https` discovery document URL. See [Single sign-on](oidc.md).                                    |
+| `OIDC_DISPLAY_NAME`                       | no                   | empty     | Sign-in button label; empty means "Single sign-on".                                                         |
 | `OPENVALENS_HTTP_PORT`                    | no                   | `80`      | Host port Caddy publishes for HTTP. Let's Encrypt needs the public port 80; change only behind another NAT. |
 | `OPENVALENS_HTTPS_PORT`                   | no                   | `443`     | Host port Caddy publishes for HTTPS (TCP and UDP).                                                          |
 
@@ -86,6 +91,7 @@ without revealing any value:
 | `ai`        | Anthropic                   | `ANTHROPIC_API_KEY` secret + `ANTHROPIC_API_KEY_FILE`                                               | `off`     |
 | `messaging` | Telegram                    | `TELEGRAM_BOT_TOKEN` secret + `TELEGRAM_BOT_TOKEN_FILE`                                             | `off`     |
 | `storage`   | Local disk or S3-compatible | `STORAGE_PROVIDER=s3`, `STORAGE_S3_*` and the two key secrets (see [Object storage](../storage.md)) | `local`   |
+| `oidc`      | Generic                     | OIDC settings + client secret (see [Single sign-on](oidc.md))                                       | `off`     |
 
 To add a key, write it to a file the containers can read, point the matching
 `_FILE` variable at the mount path, and apply:
@@ -120,7 +126,7 @@ is not yet covered by these docs. Object storage defaults to private local
 disk on the `storage` volume; to use an S3-compatible bucket (S3, R2, MinIO) set
 `STORAGE_PROVIDER=s3` and the `STORAGE_S3_*` settings described in
 [Object storage](../storage.md). The adapter rules and the planned families
-(OIDC #65, wearables #60) are in [docs/integrations.md](../integrations.md).
+(wearables #60) are in [docs/integrations.md](../integrations.md).
 
 ## Product settings
 
