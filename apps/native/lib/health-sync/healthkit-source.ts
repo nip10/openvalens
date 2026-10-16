@@ -26,12 +26,45 @@ export const HEALTHKIT_QUANTITY_TYPES = {
   distance: { identifier: "HKQuantityTypeIdentifierDistanceWalkingRunning", unit: "m" },
 } as const;
 export const HEALTHKIT_WORKOUT_TYPE = "HKWorkoutTypeIdentifier" as const;
+export const HEALTHKIT_SLEEP_TYPE = "HKCategoryTypeIdentifierSleepAnalysis" as const;
 
-/** Sleep is Android-only for now: HealthKit stores stage segments, not sessions. */
-export const HEALTHKIT_SYNCED_TYPES: HealthKitRecordType[] = [
+/** The types every install was first asked for (#26). */
+const HEALTHKIT_BASE_TYPES: HealthKitRecordType[] = [
   ...(Object.keys(HEALTHKIT_QUANTITY_TYPES) as (keyof typeof HEALTHKIT_QUANTITY_TYPES)[]),
   "workout",
 ];
+const HEALTHKIT_BASE_READ_TYPES = [
+  ...Object.values(HEALTHKIT_QUANTITY_TYPES).map((entry) => entry.identifier),
+  HEALTHKIT_WORKOUT_TYPE,
+];
+
+/**
+ * Sleep (#131) is read as raw stage segments (`sleep_segment`); the server
+ * groups them into sessions, so a deleted segment (a bare UUID) is always
+ * resolvable and the device keeps no sleep data.
+ */
+export const HEALTHKIT_SYNCED_TYPES: HealthKitRecordType[] = [
+  ...HEALTHKIT_BASE_TYPES,
+  "sleep_segment",
+];
+export const HEALTHKIT_READ_TYPES = [...HEALTHKIT_BASE_READ_TYPES, HEALTHKIT_SLEEP_TYPE];
+
+/**
+ * Types the user has been asked for. Sleep is checked on its own: installs
+ * that connected before sleep was added keep syncing everything else until
+ * they reconnect from Settings, instead of stopping until they re-consent.
+ */
+export async function healthKitAskedTypes(): Promise<HealthKitRecordType[]> {
+  const { getRequestStatusForAuthorization, AuthorizationRequestStatus } =
+    await import("@kingstinct/react-native-healthkit");
+  const asked = async (toRead: typeof HEALTHKIT_READ_TYPES) =>
+    (await getRequestStatusForAuthorization({ toRead })) === AuthorizationRequestStatus.unnecessary;
+  const [base, sleep] = await Promise.all([
+    asked(HEALTHKIT_BASE_READ_TYPES),
+    asked([HEALTHKIT_SLEEP_TYPE]),
+  ]);
+  return [...(base ? HEALTHKIT_BASE_TYPES : []), ...(sleep ? (["sleep_segment"] as const) : [])];
+}
 
 const PAGE_SIZE = 500;
 
@@ -78,10 +111,7 @@ export const healthKitSource: HealthSource = {
     // HealthKit never reveals whether read access was granted (privacy).
     // Once the user has been asked, query everything; denied types return
     // no samples.
-    const { getRequestStatusForAuthorization, AuthorizationRequestStatus } =
-      await import("@kingstinct/react-native-healthkit");
-    const status = await getRequestStatusForAuthorization({ toRead: HEALTHKIT_READ_TYPES });
-    return status === AuthorizationRequestStatus.unnecessary ? HEALTHKIT_SYNCED_TYPES : [];
+    return healthKitAskedTypes();
   },
 
   async captureToken() {
@@ -93,6 +123,9 @@ export const healthKitSource: HealthSource = {
   },
 
   async getChanges(type, token): Promise<ChangesPage> {
+    // Whole sessions are Health Connect's shape; iOS sends `sleep_segment`.
+    if (type === "sleep_session")
+      return { upserts: [], deletions: [], nextToken: token, hasMore: false, expired: false };
     const hk = await import("@kingstinct/react-native-healthkit");
     const options = await getMapOptions();
     const { anchor } = parseToken(token);
@@ -110,8 +143,11 @@ export const healthKitSource: HealthSource = {
       });
       deleted = result.deletedSamples;
       newAnchor = result.newAnchor;
-    } else if (type === "sleep_session") {
-      return { upserts: [], deletions: [], nextToken: token, hasMore: false, expired: false };
+    } else if (type === "sleep_segment") {
+      const result = await hk.queryCategorySamplesWithAnchor(HEALTHKIT_SLEEP_TYPE, query);
+      samples = result.samples as unknown as HealthKitSampleLike[];
+      deleted = result.deletedSamples;
+      newAnchor = result.newAnchor;
     } else {
       const { identifier, unit } = HEALTHKIT_QUANTITY_TYPES[type];
       const result = await hk.queryQuantitySamplesWithAnchor(identifier, { ...query, unit });
@@ -129,8 +165,3 @@ export const healthKitSource: HealthSource = {
     };
   },
 };
-
-export const HEALTHKIT_READ_TYPES = [
-  ...Object.values(HEALTHKIT_QUANTITY_TYPES).map((entry) => entry.identifier),
-  HEALTHKIT_WORKOUT_TYPE,
-];

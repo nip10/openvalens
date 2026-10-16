@@ -1,7 +1,11 @@
 import { Platform } from "react-native";
 import type { Permission } from "react-native-health-connect";
 
-import { HEALTHKIT_READ_TYPES, HEALTHKIT_SYNCED_TYPES } from "./healthkit-source";
+import {
+  HEALTHKIT_READ_TYPES,
+  HEALTHKIT_SYNCED_TYPES,
+  healthKitAskedTypes,
+} from "./healthkit-source";
 import { HEALTH_CONNECT_RECORD_TYPES, SYNCED_TYPES } from "./record-types";
 
 /**
@@ -23,7 +27,7 @@ export type HealthAccess = {
   history: boolean;
 };
 
-/** Types that can sync on this platform (sleep is Android-only for now). */
+/** Types that can sync on this platform. */
 export function syncableTypes(): string[] {
   return Platform.OS === "ios" ? HEALTHKIT_SYNCED_TYPES : SYNCED_TYPES;
 }
@@ -38,12 +42,12 @@ async function getHealthKitAccess(): Promise<HealthAccess> {
       background: false,
       history: false,
     };
-  const status = await hk.getRequestStatusForAuthorization({ toRead: HEALTHKIT_READ_TYPES });
-  const asked = status === hk.AuthorizationRequestStatus.unnecessary;
+  const grantedTypes = await healthKitAskedTypes();
+  const asked = grantedTypes.length > 0;
   return {
     platform: "apple_health",
     available: true,
-    grantedTypes: asked ? HEALTHKIT_SYNCED_TYPES : [],
+    grantedTypes,
     background: asked,
     history: asked,
   };

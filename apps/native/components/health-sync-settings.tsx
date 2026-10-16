@@ -78,7 +78,10 @@ export function HealthSyncSettings() {
         ? "Not connected"
         : appleHealth
           ? // HealthKit never says which read permissions were granted.
-            `Access requested for ${total} data types`
+            // Installs from before sleep sync (#131) can tap to add it.
+            granted < total
+            ? `Access requested for ${granted} of ${total} data types`
+            : `Access requested for ${total} data types`
           : `${granted} of ${total} data types${access.data.background ? "" : " · background access off"}`;
 
   const last = status.data;

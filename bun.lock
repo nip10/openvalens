@@ -384,6 +384,7 @@
       },
       "devDependencies": {
         "@openvalens/config": "workspace:*",
+        "@openvalens/sleep": "workspace:*",
         "typescript": "^6.0.3",
       },
     },

@@ -1,5 +1,6 @@
 import {
   mobileHealthRecord,
+  type HEALTHKIT_SLEEP_VALUES,
   type MobileHealthRecordInput,
 } from "@openvalens/api/contracts/mobile-ingest";
 
@@ -18,6 +19,9 @@ export type HealthKitSampleLike = {
   startDate: Date | string;
   endDate: Date | string;
   quantity?: number;
+  /** Category samples: `HKCategoryValueSleepAnalysis` for sleep. */
+  value?: number;
+  metadata?: { HKTimeZone?: unknown };
   workoutActivityType?: number;
   sourceRevision?: { source?: { bundleIdentifier?: string } };
   device?: { model?: string };
@@ -41,6 +45,21 @@ function deviceType(model: string | undefined): string | undefined {
   if (/iphone/i.test(model)) return "phone";
   return undefined;
 }
+
+/**
+ * `HKCategoryValueSleepAnalysis` raw value → contract value: inBed 0,
+ * asleepUnspecified 1, awake 2, asleepCore 3, asleepDeep 4, asleepREM 5.
+ * Values a newer iOS adds are skipped rather than guessed.
+ */
+export const HEALTHKIT_SLEEP_VALUE_BY_RAW: Record<number, (typeof HEALTHKIT_SLEEP_VALUES)[number]> =
+  {
+    0: "in_bed",
+    1: "asleep_unspecified",
+    2: "awake",
+    3: "asleep_core",
+    4: "asleep_deep",
+    5: "asleep_rem",
+  };
 
 const snakeCase = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
 
@@ -93,6 +112,18 @@ export function mapHealthKitSample(
         samples: [{ time: startTime, bpm: q }],
       };
       break;
+    case "sleep_segment": {
+      // Sessions are grouped on the server, which also resolves deletions (#131).
+      const timeZone = sample.metadata?.HKTimeZone;
+      candidate = {
+        ...base,
+        ...interval,
+        type: "sleep_segment",
+        value: sample.value === undefined ? undefined : HEALTHKIT_SLEEP_VALUE_BY_RAW[sample.value],
+        ...(typeof timeZone === "string" && timeZone ? { timeZone } : {}),
+      };
+      break;
+    }
     case "workout": {
       const value = sample.workoutActivityType;
       const name = value === undefined ? undefined : options.workoutActivityNames[value];

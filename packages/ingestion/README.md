@@ -74,6 +74,21 @@ cursor once the server answers `applied`, `queued` or `duplicate`.
   older version is stored already superseded. The timeline, sleep and
   clinical export reads skip superseded rows.
 - Heart-rate records fan out to one sample per reading.
+- **HealthKit sleep (#131):** iOS sends raw `sleep_segment` records (one per
+  `HKCategoryTypeIdentifierSleepAnalysis` sample, from an anchored query) and
+  segment UUID deletions. `applyHealthKitSleepSegments` loads the connection's
+  active sessions that contain a touched UUID or lie within 90 minutes of an
+  upload, pools their stored segments with the batch, regroups per data
+  source (`groupSleepSegments`, pure, in `healthkit-sleep.ts`) and writes the
+  difference: unchanged sessions stay, stale ones are superseded, new ones
+  are inserted, and a superseded session that becomes current again is
+  restored. Session ids hash the member UUIDs, so replays and re-reads are
+  no-ops. Segments live in `payload_json.rawRecord.segments` of their session
+  row and `payload_json.segmentIds` (so the device keeps no sleep data), with
+  the recorded `timeZone` and local `localDate`. A per-connection advisory
+  lock serializes regrouping. Known limit, shared with every other type: a
+  batch that was `queued` and is applied after a later deletion batch can
+  bring a deleted segment back until the next re-read.
 - **Body bridge:** each newly stored phone weight also goes through the body
   domain's auto-weight reconciliation (`weight_event` + `daily_weight`) for
   the device owner (`provider_connection.user_id`, set by `registerDevice`),
@@ -111,6 +126,8 @@ disposable database: `INGESTION_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port
 
 `mobile-batch.integration.test.ts` needs its own empty database:
 `MOBILE_INGEST_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port>/mobile_ingest_issue7`.
-`scripts/test-integration.sh` creates both.
+`healthkit-sleep.integration.test.ts` uses
+`HEALTHKIT_SLEEP_TEST_DATABASE_URL=postgres://…@127.0.0.1:<port>/healthkit_sleep_issue131`.
+`scripts/test-integration.sh` creates all of them.
 
 Deferred: provenance links for the legacy replay path.
