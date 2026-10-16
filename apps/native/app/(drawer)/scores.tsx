@@ -6,6 +6,7 @@ import { Pressable, RefreshControl, Text, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { ReferenceComparisonsSection } from "@/components/reference-comparisons-section";
 import { orpc } from "@/utils/orpc";
 import { goalProgressCard, readinessCard, type ScoreCard } from "@/utils/score-screen";
 
@@ -13,7 +14,8 @@ import { goalProgressCard, readinessCard, type ScoreCard } from "@/utils/score-s
  * Issue #95 — "How am I doing?" on mobile: the experimental readiness index
  * and goal progress, never combined. Same view models as web
  * (`utils/score-screen.ts` → `@openvalens/api/presenters/score`). Every state
- * is in text; scores and rows carry screen-reader labels.
+ * is in text; scores and rows carry screen-reader labels. Issue #96 adds the
+ * opt-in reference comparisons below them, matching the web Scores page.
  */
 function ScoreCardView({ card }: { card: ScoreCard }) {
   const [showMethod, setShowMethod] = useState(false);
@@ -130,6 +132,7 @@ export default function ScoresScreen() {
         </View>
         <ScoreCardView card={readinessCard(readiness.data)} />
         <ScoreCardView card={goalProgressCard(goals.data)} />
+        <ReferenceComparisonsSection />
         <Text className="text-sm text-muted-foreground">
           Set targets, directions and priorities for your goals under Workouts.
         </Text>
