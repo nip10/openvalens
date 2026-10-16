@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-16
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -100,11 +100,12 @@ server → web → caddy`);
 6. mints the **one-time setup token** into `deploy/secrets/setup-token`
    (mode `0600`).
 
-Re-running `install` is safe for secrets and the core settings: existing
-secrets are never regenerated, and the domain and email settings are reused.
-It does, however, **rewrite `deploy/.env`** with only the keys it manages (see
-[Configuration](configuration.md#deployenv)), and it restarts the stack
-through the backup → migrate chain.
+Re-running `install` is safe: existing secrets are never regenerated, the
+domain and email settings are reused, and every other key in `deploy/.env` —
+including keys you added by hand — is kept
+([Applying a change](configuration.md#applying-a-change)). To answer the domain
+and email questions again, run `deploy/setup.sh install --reconfigure`. A
+re-run restarts the stack through the backup → migrate chain.
 
 **Never paste secrets into chat, tickets or logs** — not the setup token, not
 `deploy/.env`, not anything under `deploy/secrets/`. The installer never asks
@@ -135,8 +136,9 @@ deploy/setup.sh mint-token --dry-run
 A dry run generates the configuration and throwaway secrets in a private
 temporary directory, validates `deploy/compose.yml` with `docker compose
 config`, checks that only Caddy publishes ports, prints the Docker commands it
-would run, and deletes the temporary directory. It changes nothing in `deploy/`
-and does not start containers. `deploy/setup.sh --help` prints the full usage.
+would run, and deletes the temporary directory. On an existing install it
+starts from a private copy of `deploy/.env`, so the validation covers your
+settings. It changes nothing in `deploy/` and does not start containers. `deploy/setup.sh --help` prints the full usage.
 
 ## First administrator and invitations
 

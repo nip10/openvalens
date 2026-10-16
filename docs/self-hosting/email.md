@@ -1,6 +1,6 @@
 # Email
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-16
 
 OpenValens sends email through **[Resend](https://resend.com) only**. There is
 no SMTP option and no other email provider (Issue #61); a test in
@@ -44,20 +44,22 @@ If you skipped the key, write it to `deploy/secrets/server/RESEND_API_KEY`
 (mode `0444`, the same way as the
 [optional provider keys](configuration.md#optional-providers)) and re-run
 `deploy/setup.sh install`. The re-run reuses your settings and secrets, sets
-`RESEND_API_KEY_FILE` and restarts the stack. It also rewrites `deploy/.env`
-([what that means](configuration.md#applying-a-change)).
+`RESEND_API_KEY_FILE` and restarts the stack; every other key in `deploy/.env`
+is kept ([Applying a change](configuration.md#applying-a-change)).
 
 ## Settings
 
-| Setting               | Where                     | Notes                                                                       |
-| --------------------- | ------------------------- | --------------------------------------------------------------------------- |
-| `EMAIL_FROM`          | `deploy/.env`             | `Name <address>` or a bare address on your verified domain.                 |
-| `RESEND_API_KEY_FILE` | `deploy/.env` (automatic) | Set by `install` when the key file exists.                                  |
-| `EMAIL_DRY_RUN`       | `deploy/.env` (optional)  | `true` logs messages instead of sending them. The stack default is `false`. |
+| Setting                | Where                     | Notes                                                                                                                                              |
+| ---------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EMAIL_FROM`           | `deploy/.env`             | `Name <address>` or a bare address on your verified domain.                                                                                        |
+| `RESEND_API_KEY_FILE`  | `deploy/.env` (automatic) | Set by `install` when the key file exists.                                                                                                         |
+| `EMAIL_DRY_RUN`        | `deploy/.env` (optional)  | `true` logs messages instead of sending them. The stack default is `false`.                                                                        |
+| `EMAIL_REPLY_TO`       | `deploy/.env` (optional)  | Reply-to address. Defaults to the `EMAIL_FROM` address.                                                                                            |
+| `EMAIL_AUDIT_BCC_FILE` | `deploy/.env` (automatic) | Set by `install` when `deploy/secrets/server/EMAIL_AUDIT_BCC` exists: a compliance mailbox that receives a BCC of sensitive access-control emails. |
 
-`EMAIL_REPLY_TO` and `EMAIL_AUDIT_BCC` exist in the
-[environment reference](../reference/env.md) but are not passed through by the
-Compose stack ([why](configuration.md#what-the-stack-does-not-expose)).
+The audit mailbox is treated as a secret, so it lives in a file like the API
+key: write the address to `deploy/secrets/server/EMAIL_AUDIT_BCC` (mode
+`0444`) and re-run `deploy/setup.sh install`.
 
 ## Check it
 
