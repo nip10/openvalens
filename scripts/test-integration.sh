@@ -50,6 +50,7 @@ SUITES=(
   "PRODUCT_SETTINGS_TEST_DATABASE_URL|product_settings_test|packages/api/src/product-settings.integration.test.ts"
   "WELLNESS_PROFILE_TEST_DATABASE_URL|wellness_profile_test|packages/api/src/wellness-profile.integration.test.ts"
   "SCORE_TEST_DATABASE_URL|score_test|packages/api/src/score.integration.test.ts"
+  "ACTIVITY_LOAD_TEST_DATABASE_URL|activity_load_test|packages/api/src/activity-load.integration.test.ts"
   "REMINDERS_TEST_DATABASE_URL|reminders_issue125|packages/integrations/telegram/src/reminders.integration.test.ts"
   "STORAGE_TEST_DATABASE_URL|storage_test|packages/storage/src/service.integration.test.ts"
   "CLINICAL_PDF_AUDIT_TEST_DATABASE_URL|clinical_pdf_audit_test|packages/api/src/routers/clinical-pdf-audit.integration.test.ts"
