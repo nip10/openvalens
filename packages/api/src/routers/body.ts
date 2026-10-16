@@ -7,12 +7,16 @@ import {
   getLatestCanonicalWeight,
   getLatestDexaScan,
   getLatestWeight,
+  getWeightTrend,
   listAllDexaScans,
   listCanonicalDailyWeights,
   listDexaRegionals,
   listLegacyCheckins,
+  WeightTrendInputError,
 } from "@openvalens/body";
 import { z } from "zod";
+
+import { weightTrendInput, weightTrendOutput } from "../contracts/weight-trend";
 
 import {
   permissionedProcedure,
@@ -140,6 +144,30 @@ export const bodyRouter = {
         input.limit ?? 90,
       ),
     ),
+
+  /**
+   * Provisional weight trend (Issue #87) over the signed-in member's own
+   * canonical daily weights for an inclusive range of local dates (at most
+   * 366 days). Read-only: reuses `daily_weight`, writes nothing, and never
+   * fills missing days. Consumed by the TDEE estimate (#76) and charts (#91).
+   */
+  weightTrend: permissionedProcedure({ resource: "weight", action: "read" })
+    .use(validateInput(weightTrendInput))
+    .input(weightTrendInput)
+    .output(weightTrendOutput)
+    .handler(async ({ input, context }) => {
+      try {
+        return await getWeightTrend(
+          context.db,
+          { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id },
+          input,
+        );
+      } catch (error) {
+        if (error instanceof WeightTrendInputError)
+          throw raiseApiError("INVALID_INPUT", error.message);
+        throw error;
+      }
+    }),
 
   writeManualWeight: tenantScopedProcedure({
     resource: "weight",
