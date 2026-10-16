@@ -175,10 +175,27 @@ export const workout = pgTable(
     createdAt: text("created_at")
       .notNull()
       .$defaultFn(() => new Date().toISOString()),
+    // Issue #99 — activity load. Self-reported intensity (talk test) and
+    // session effort (CR-10, 0–10). Null means "not recorded", never a default.
+    intensity: text("intensity"), // "light" | "moderate" | "vigorous"
+    effortRating: integer("effort_rating"),
+    effortRatedAt: text("effort_rated_at"), // ISO timestamp of the latest rating
   },
   (table) => ({
     workoutOrgIdx: index("workout_organization_id_idx").on(table.organizationId),
     workoutOrgIdUnique: uniqueIndex("workout_org_id_key").on(table.organizationId, table.id),
+    workoutIntensityCheck: check(
+      "workout_intensity_check",
+      sql`${table.intensity} is null or ${table.intensity} in ('light', 'moderate', 'vigorous')`,
+    ),
+    workoutEffortRatingCheck: check(
+      "workout_effort_rating_check",
+      sql`${table.effortRating} is null or (${table.effortRating} >= 0 and ${table.effortRating} <= 10)`,
+    ),
+    workoutOrgDateIdx: index("workout_organization_id_date_idx").on(
+      table.organizationId,
+      table.date,
+    ),
   }),
 );
 

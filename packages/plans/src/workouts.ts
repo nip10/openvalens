@@ -2,12 +2,15 @@ import type { Database } from "@openvalens/db";
 import { workout, workoutExercise, workoutSet } from "@openvalens/db/schema/plans";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 
+import { todayIsoDate } from "./validation";
+
 /**
  * Workouts — public type surface + repository (Issue #23).
  *
  * Mirrors the OpenValens tables in `packages/db/src/schema/plans.ts`:
  *
- * - `workout`        — org-scoped session header (date, type, duration, notes).
+ * - `workout`        — org-scoped session header (date, type, duration, notes,
+ *                      and since #99 intensity + session effort rating).
  * - `workoutExercise` — org-scoped exercise row (workout_id, sortOrder, name, notes).
  * - `workoutSet`     — org-scoped set row (exercise_id, sortOrder, reps, weightKg, rpe, notes).
  *
@@ -26,6 +29,22 @@ export const WORKOUT_TYPES: ReadonlyArray<WorkoutType> = [
   "other",
 ];
 
+/**
+ * Issue #99 — self-reported session intensity (talk test). Light sessions are
+ * recorded but do not count toward WHO active minutes.
+ */
+export type WorkoutIntensity = "light" | "moderate" | "vigorous";
+
+export const WORKOUT_INTENSITIES: ReadonlyArray<WorkoutIntensity> = [
+  "light",
+  "moderate",
+  "vigorous",
+];
+
+/** Session effort rating bounds (CR-10 session-RPE: 0 = rest, 10 = maximal). */
+export const MIN_EFFORT_RATING = 0;
+export const MAX_EFFORT_RATING = 10;
+
 export const MAX_EXERCISES_PER_WORKOUT = 24;
 export const MAX_SETS_PER_EXERCISE = 20;
 
@@ -37,6 +56,9 @@ export type Workout = {
   duration: number | null;
   notes: string | null;
   createdAt: string;
+  intensity: WorkoutIntensity | null;
+  effortRating: number | null;
+  effortRatedAt: string | null;
 };
 
 export type WorkoutExercise = {
@@ -79,6 +101,8 @@ export type UpsertWorkoutInput = {
   type: WorkoutType;
   duration?: number | null;
   notes?: string | null;
+  intensity?: WorkoutIntensity | null;
+  effortRating?: number | null;
   exercises: ReadonlyArray<UpsertWorkoutExerciseInput>;
 };
 
@@ -122,6 +146,20 @@ export function topSet(sets: ReadonlyArray<WorkoutSet>): WorkoutSet | null {
     if (best === null || set.weightKg > best.weightKg!) best = set;
   }
   return best;
+}
+
+/**
+ * Issue #99 — a session's effort rating can be given on save or added later
+ * the same day. The server does not know the person's time zone, so "the same
+ * day" is the session's calendar date within one day of the UTC date (UTC−12
+ * to UTC+14 all fit). Later than that the rating is closed: a rating recalled
+ * days afterwards is not a session-RPE.
+ */
+export function canRateWorkoutEffort(workoutDate: string, now: Date = new Date()): boolean {
+  const session = Date.parse(`${workoutDate}T00:00:00.000Z`);
+  const today = Date.parse(`${todayIsoDate(now)}T00:00:00.000Z`);
+  if (!Number.isFinite(session)) return false;
+  return Math.abs(session - today) <= 86_400_000;
 }
 
 /** Validate a workout type literal against the closed union. */
@@ -271,6 +309,12 @@ export function createWorkoutRepository(db: Database) {
           type: input.type,
           duration: input.duration ?? null,
           notes: input.notes ?? null,
+          intensity: input.intensity ?? null,
+          effortRating: input.effortRating ?? null,
+          effortRatedAt:
+            input.effortRating === null || input.effortRating === undefined
+              ? null
+              : new Date().toISOString(),
         })
         .returning()) as Workout[];
       if (!session) throw new Error("Workout insert did not return a row");
@@ -324,6 +368,32 @@ export function createWorkoutRepository(db: Database) {
       }
 
       return { id: session.id, exerciseCount: input.exercises.length, setCount };
+    },
+
+    /**
+     * Issue #99 — add or change the session effort rating later the same
+     * day. Returns `not_found` for a missing or foreign-workspace workout and
+     * `closed` once the same-day window has passed (see
+     * `canRateWorkoutEffort`). Never touches any other column.
+     */
+    async rateWorkoutEffort(
+      organizationId: string,
+      workoutId: number,
+      effortRating: number,
+      now: Date = new Date(),
+    ): Promise<{ status: "rated"; id: number } | { status: "not_found" } | { status: "closed" }> {
+      const [existing] = (await db
+        .select({ id: workout.id, date: workout.date })
+        .from(workout)
+        .where(and(eq(workout.organizationId, organizationId), eq(workout.id, workoutId)))
+        .limit(1)) as Array<{ id: number; date: string }>;
+      if (!existing) return { status: "not_found" };
+      if (!canRateWorkoutEffort(existing.date, now)) return { status: "closed" };
+      await db
+        .update(workout)
+        .set({ effortRating, effortRatedAt: now.toISOString() })
+        .where(and(eq(workout.organizationId, organizationId), eq(workout.id, workoutId)));
+      return { status: "rated", id: workoutId };
     },
 
     async deleteWorkout(organizationId: string, workoutId: number): Promise<{ id: number } | null> {

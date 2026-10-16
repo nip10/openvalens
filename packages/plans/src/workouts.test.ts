@@ -5,6 +5,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 
 import {
   aggregateWorkoutVolumeByExercise,
+  canRateWorkoutEffort,
   createWorkoutRepository,
   isWorkoutType,
   topSet,
@@ -541,5 +542,21 @@ describe("workouts — repository", () => {
     const state = fakeDb({ workouts: [], exercises: [], sets: [] });
     const result = await createWorkoutRepository(state.db).deleteWorkout("org-1", 999);
     expect(result).toBeNull();
+  });
+});
+
+describe("canRateWorkoutEffort (#99)", () => {
+  const now = new Date("2026-10-16T22:30:00.000Z");
+
+  test("open on the session's day, allowing for any time zone", () => {
+    expect(canRateWorkoutEffort("2026-10-16", now)).toBe(true);
+    expect(canRateWorkoutEffort("2026-10-15", now)).toBe(true);
+    expect(canRateWorkoutEffort("2026-10-17", now)).toBe(true);
+  });
+
+  test("closed for older or future sessions and invalid dates", () => {
+    expect(canRateWorkoutEffort("2026-10-14", now)).toBe(false);
+    expect(canRateWorkoutEffort("2026-10-18", now)).toBe(false);
+    expect(canRateWorkoutEffort("not-a-date", now)).toBe(false);
   });
 });
