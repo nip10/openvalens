@@ -43,6 +43,26 @@ export {
 } from "./build-payload";
 export { renderCsvExport, type CsvExportFile } from "./render-csv";
 export { renderPdfExport, type PdfExportRenderResult } from "./render-pdf";
+// Issue #132 — clinical PDF export (real PDF, transient bytes).
+export {
+  CLINICAL_PDF_DOMAINS,
+  DEFAULT_CLINICAL_PDF_DOMAINS,
+  isClinicalPdfDomain,
+  normalizeClinicalPdfDomains,
+  type ClinicalPdfDomain,
+} from "./clinical-pdf-domains";
+export {
+  buildClinicalPdfDocument,
+  CLINICAL_PDF_DISCLAIMER,
+  CLINICAL_PDF_MAX_CELL_CHARS,
+  CLINICAL_PDF_MAX_ROWS_PER_SECTION,
+  CLINICAL_PDF_TITLE,
+  CLINICAL_PDF_VERSION,
+  toPdfText,
+  type ClinicalPdfDocument,
+  type ClinicalPdfSection,
+} from "./clinical-pdf-document";
+export { renderClinicalPdf, type ClinicalPdfRenderResult } from "./render-clinical-pdf";
 export {
   selectLatestBodyWeight,
   maxIsoDate,

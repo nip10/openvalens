@@ -20,10 +20,18 @@ Bounded `clinical.export` backend slice mirroring anchovy's `apps/web/src/lib/v2
 - `packages/api/src/routers/exports.ts` — oRPC `appRouter.exports.legacyDownload` gated on `records:read` only. Zod-strict input (`domains` filtered through `isExportDomain`, `format` literal `"csv"`); `x-organization-id` is rejected; org identity is authz-derived exclusively; default domains are the canonical `["blood", "body", "medications", "supplements"]`. Success path emits a sanitized `EXPORT_GENERATED` audit entry (`metadata.schemaVersion`, `metadata.format`, `metadata.selectedDomains`, `metadata.fileCount`); no payload values, file contents, row IDs or raw invalid values ever reach the audit row.
 - `packages/api/src/routers/exports.test.ts` — adds eight tests on top of the part-1 six: mount + canonical defaults, canonical reordering, audit metadata sanitization, unknown-domain rejection, header rejection (including active-org and empty), auth denial, strict input rejection (extra keys, format overrides, malformed arrays, payload bodies), and PHI-bearing CSV render without console output.
 
+### Issue #132 — clinical PDF and audit timeline
+
+- `src/clinical-pdf-domains.ts` — PDF-eligible domains (`blood`, `body`, `medications`, `supplements`, `familyHistory`, `imaging`, `cardiac`, `dexa`, `weight`). `insights`, `audit` and the planning domains stay CSV-only. Dependency-free, so presenters can import it.
+- `src/clinical-pdf-document.ts` — all PDF copy as plain data: title, "About this document" disclaimer, per-section provenance (source, dates, units), fixed columns, WinAnsi text mapping, 500-row and 1000-character caps with visible markers. The stored HIGH/LOW flag and free-text notes are never rendered.
+- `src/render-clinical-pdf.ts` — PDFKit (`pdfkit@0.20.2`, pure JS, built-in Helvetica) layout with repeated table headers and "Page X of Y" footers. Returns bytes in memory; nothing is persisted. The server bundle keeps `pdfkit` external (see `apps/server/tsdown.config.ts`).
+- `packages/api/src/routers/exports.ts` — `exports.clinicalPdf` (`records:read`, base64 response, value-free `EXPORT_GENERATED` audit row). `legacyPdfDownload` remains the HTML view used by the mobile app.
+- `@openvalens/audit-security` `buildAuditTimeline` — tenant-scoped, filtered, paginated, redacted read seam over `access_audit_log`; `extractAudit` now reads through it. `packages/api/src/routers/audit.ts` exposes it as `audit.timeline` (`records:admin_access`).
+- Tests: `render-clinical-pdf.test.ts` parses the generated PDF with `unpdf`; `packages/api/src/routers/clinical-pdf-audit.integration.test.ts` covers both procedures over HTTP against PostgreSQL.
+
 ## Deferred scope
 
-- **PDF rendering**: `renderPdfExport` from anchovy is not ported; the legacy route surface returns only `format: "csv"`.
-- **`buildAuditTimeline`**: anchovy merges a `clinical-record` audit timeline facade into the `audit` extractor. Target has not yet wired that single helper; `extractAudit` reads `accessAuditLog` directly and exposes a `readClinicalTimeline` injection seam for follow-up.
+- The mobile app still uses the HTML `legacyPdfDownload` view.
 - No migrations, schema changes, mobile/UI changes, observability changes, real auth or audit mutators ship here. No production calls. No third-party sends.
 
 ## Verification

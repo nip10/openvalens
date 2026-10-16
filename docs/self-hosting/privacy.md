@@ -44,6 +44,25 @@ person's clinical record as a JSON bundle, or selected sections as CSV or
 PDF. The JSON bundle is capped (200 records by default), so it is **not** a
 complete export.
 
+The web PDF (**Download a PDF summary**) is a real PDF of the selected
+clinical sections (lab results, body measurements, medications, supplements,
+family history, imaging, cardiac, DEXA and weight). Each section names its
+source, dates and units and shows values as stored, without flags or
+interpretation; the document says it is not medical advice. It is generated
+on request for anyone with read access to the active workspace and returned
+once in the response: the server does not write it to disk or object storage
+and keeps no download link. Each export writes a value-free `EXPORT_GENERATED`
+audit entry. Sections list at most 500 rows each; the CSV export has the full
+list. The mobile app still offers the older printable HTML view.
+
+### Audit log
+
+The **Audit log** page (`/audit`) lists who added, changed, deleted, shared or
+exported records in the active workspace, newest first, filterable by event
+and date range. It is available to workspace owners only. Entries show event
+types, record identifiers and member ids. They never show record values,
+previous values, IP addresses or user agents.
+
 A complete, machine-readable export of everything a person owns (JSON and CSV
 per table, with a manifest and checksums) is implemented in the server code
 (`packages/data-rights`) but is **not offered in the app or API at 0.1.0**

@@ -38,6 +38,10 @@ export async function extractBlood(
       valueText: bloodMarker.valueText,
       unit: bloodMarker.unit,
       flag: bloodMarker.flag,
+      refRangeText: bloodMarker.refRangeText,
+      refRangeLow: bloodMarker.refRangeLow,
+      refRangeHigh: bloodMarker.refRangeHigh,
+      facility: bloodPanel.facility,
     })
     .from(bloodMarker)
     .innerJoin(
@@ -54,7 +58,23 @@ export async function extractBlood(
     value: row.valueNumeric ?? row.valueText,
     unit: row.unit,
     flag: row.flag,
+    referenceRange: storedReferenceRange(row.refRangeText, row.refRangeLow, row.refRangeHigh),
+    source: row.facility,
   }));
+}
+
+// The lab's own printed range, verbatim when stored as text; otherwise the
+// stored numeric bounds. Never derived or interpreted.
+function storedReferenceRange(
+  text: string | null,
+  low: number | null,
+  high: number | null,
+): string | null {
+  if (text && text.trim()) return text;
+  if (low !== null && high !== null) return `${low}-${high}`;
+  if (low !== null) return `>= ${low}`;
+  if (high !== null) return `<= ${high}`;
+  return null;
 }
 
 export async function extractBody(

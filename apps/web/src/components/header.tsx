@@ -35,6 +35,7 @@ const BASE_LINKS = [
   { to: "/records/labs", label: "Labs" },
   { to: "/exports", label: "Clinical export" },
   { to: "/sharing", label: "Sharing" },
+  { to: "/audit", label: "Audit log" },
   { to: "/settings", label: "Settings" },
 ] as const;
 

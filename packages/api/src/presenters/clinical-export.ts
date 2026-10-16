@@ -5,12 +5,18 @@
  * marketing language).
  */
 import {
+  CLINICAL_PDF_DOMAINS,
+  DEFAULT_CLINICAL_PDF_DOMAINS,
+  type ClinicalPdfDomain,
+} from "@openvalens/clinical-export/clinical-pdf-domains";
+import {
   DEFAULT_EXPORT_DOMAINS,
   EXPORT_DOMAINS,
   type ExportDomain,
 } from "@openvalens/clinical-export/domains";
 
 export type { ExportDomain } from "@openvalens/clinical-export/domains";
+export type { ClinicalPdfDomain } from "@openvalens/clinical-export/clinical-pdf-domains";
 
 /** Sentence-case label for every domain in the closed export enum. */
 const EXPORT_DOMAIN_LABELS: Record<ExportDomain, string> = {
@@ -121,4 +127,50 @@ export function pickExportDomains(): ExportDomainOption[] {
     label: formatExportDomainLabel(domain),
     defaultSelected: defaults.has(domain),
   }));
+}
+
+/** Domain options for the clinical PDF picker (Issue #132). */
+export function pickClinicalPdfDomains(): {
+  domain: ClinicalPdfDomain;
+  label: string;
+  defaultSelected: boolean;
+}[] {
+  const defaults = new Set<ClinicalPdfDomain>(DEFAULT_CLINICAL_PDF_DOMAINS);
+  return CLINICAL_PDF_DOMAINS.map((domain) => ({
+    domain,
+    label: formatExportDomainLabel(domain),
+    defaultSelected: defaults.has(domain),
+  }));
+}
+
+const BASE64_VALUES = new Map(
+  [..."ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"].map(
+    (character, index) => [character, index] as const,
+  ),
+);
+
+/**
+ * Decodes the clinical PDF's base64 payload to bytes without `atob`, so web
+ * and Hermes share one implementation. Returns `null` for malformed input
+ * rather than handing a corrupt file to the download surface.
+ */
+export function decodeBase64(input: string): Uint8Array | null {
+  const clean = input.replace(/=+$/, "");
+  if (clean.length % 4 === 1) return null;
+  const bytes = new Uint8Array(Math.floor((clean.length * 3) / 4));
+  let buffer = 0;
+  let bits = 0;
+  let index = 0;
+  for (const character of clean) {
+    const value = BASE64_VALUES.get(character);
+    if (value === undefined) return null;
+    buffer = (buffer << 6) | value;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes[index] = (buffer >> bits) & 0xff;
+      index += 1;
+    }
+  }
+  return bytes;
 }

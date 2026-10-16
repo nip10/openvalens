@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  decodeBase64,
   exportBundleArtifact,
   exportCsvArtifacts,
   exportPdfArtifact,
   formatBytes,
   formatExportDomainLabel,
+  pickClinicalPdfDomains,
   pickExportDomains,
   utf8ByteLength,
 } from "./clinical-export";
@@ -80,5 +82,25 @@ describe("clinical export presenter", () => {
       content: "<html></html>",
       mime: "text/html",
     });
+  });
+
+  test("pickClinicalPdfDomains: PDF-eligible domains only, canonical defaults", () => {
+    const options = pickClinicalPdfDomains();
+    const domains = options.map((option) => option.domain);
+    expect(domains).not.toContain("audit");
+    expect(domains).not.toContain("insights");
+    expect(domains).toContain("blood");
+    expect(
+      options.filter((option) => option.defaultSelected).map((option) => option.domain),
+    ).toEqual(["blood", "body", "medications", "supplements"]);
+  });
+
+  test("decodeBase64: matches Buffer for every padding length; rejects malformed input", () => {
+    for (const text of ["", "%", "%P", "%PD", "%PDF-1.3\n\u00e9\u00ff"]) {
+      const encoded = Buffer.from(text, "latin1").toString("base64");
+      expect(decodeBase64(encoded)).toEqual(new Uint8Array(Buffer.from(text, "latin1")));
+    }
+    expect(decodeBase64("not base64!")).toBeNull();
+    expect(decodeBase64("A")).toBeNull();
   });
 });

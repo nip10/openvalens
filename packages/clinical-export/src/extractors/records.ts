@@ -1,11 +1,10 @@
 // Source: anchovy/apps/web/src/lib/export/extractors/records.ts
-// Audit-log extractor. The source merged `buildAuditTimeline` rows with the
-// `accessAuditLog` table; in target the clinical-record audit timeline is
-// composed by the `health-record` repository. We read both sources here with
-// strict org filters and merge them with deterministic ordering.
+// Audit-log extractor. The source merged a clinical-record timeline with the
+// `accessAuditLog` table. Access-log rows now come from the shared
+// `buildAuditTimeline` seam (Issue #132), which is tenant-scoped and returns
+// identifiers and event types only — never `before_json` or record values.
+import { buildAuditTimeline } from "@openvalens/audit-security/audit-timeline";
 import type { Database } from "@openvalens/db";
-import { accessAuditLog } from "@openvalens/db/schema/auth";
-import { desc, eq } from "drizzle-orm";
 import type { ExportPayloadDataByDomain } from "../types";
 import type { ExportPayloadScope } from "../build-payload";
 
@@ -28,12 +27,7 @@ export async function extractAudit(
 ): Promise<ExportPayloadDataByDomain["audit"]> {
   const [clinicalTimeline, sharingTimeline] = await Promise.all([
     readClinicalTimeline(scope.organizationId),
-    db
-      .select()
-      .from(accessAuditLog)
-      .where(eq(accessAuditLog.organizationId, scope.organizationId))
-      .orderBy(desc(accessAuditLog.createdAt), desc(accessAuditLog.id))
-      .limit(200),
+    buildAuditTimeline({ db, organizationId: scope.organizationId, limit: 200 }),
   ]);
 
   const clinicalRows = clinicalTimeline.map((event, index) => ({
@@ -47,11 +41,11 @@ export async function extractAudit(
     summary: event.newValue,
   }));
 
-  const sharingRows = sharingTimeline.map((event) => ({
+  const sharingRows = sharingTimeline.entries.map((event) => ({
     id: `sharing-${event.id}`,
     sourceId: event.id,
     source: "sharing" as const,
-    timestamp: event.createdAt,
+    timestamp: event.occurredAt,
     eventType: event.eventType,
     targetType: event.targetType,
     targetId: event.targetId,
