@@ -8,6 +8,7 @@ import {
 } from "@openvalens/db/schema/nutrition";
 import { and, asc, desc, eq, isNull, max, sql } from "drizzle-orm";
 
+import { createCustomFoods, type CreateCustomFoodInput } from "./custom-foods";
 import { NutritionError } from "./errors";
 import type { FoodLookupProvider } from "./food-lookup";
 import { createFoodSearch, foodResultToLogFood } from "./food-search";
@@ -23,7 +24,6 @@ import {
   createNutritionRepository,
   ensureMeal,
   selectEntry,
-  type CustomFoodInput,
   type DiaryEntry,
   type FoodSnapshot,
   type LogEntryInput,
@@ -186,6 +186,7 @@ export type NutritionDiaryOptions = {
 export function createNutritionDiary(db: Database, options: NutritionDiaryOptions = {}) {
   const repo = createNutritionRepository(db);
   const foodSearch = createFoodSearch(db, { liveLookup: options.liveLookup ?? null });
+  const customFoods = createCustomFoods(db);
 
   /** Current state of an entry (deleted or not) inside `scope`, locked for the transaction. */
   async function lockEntry(tx: Tx, scope: NutritionScope, entryId: number) {
@@ -534,9 +535,12 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
         });
     },
 
-    /** Saves a reusable private food (#81 owns editing/archiving). */
-    async createCustomFood(scope: NutritionScope, input: CustomFoodInput) {
-      return repo.createCustomFood(scope, input);
+    /**
+     * Saves a reusable private food; a retry with the same client mutation id
+     * returns the food it already created. Editing/archiving: `createCustomFoods` (#81).
+     */
+    async createCustomFood(scope: NutritionScope, input: CreateCustomFoodInput) {
+      return (await customFoods.create(scope, input)).food;
     },
   };
 }

@@ -17,11 +17,14 @@ import { healthRecordRouter } from "./health-record";
 import { ingestionRouter } from "./ingestion";
 import { labsRouter } from "./labs";
 import { mobileRouter } from "./mobile";
+import { nutritionCustomFoodsRouter } from "./nutrition-custom-foods";
 import { nutritionDiaryRouter } from "./nutrition-diary";
 import { nutritionFoodsRouter } from "./nutrition-foods";
 import { plansRouter } from "./plans";
 import { profileRouter } from "./profile";
+import { scoreRouter } from "./score";
 import { sharingRouter } from "./sharing";
+import { signInRouter } from "./sign-in";
 import { sleepRouter } from "./sleep";
 import { storageRouter } from "./storage";
 import { telegramRouter } from "./telegram";
@@ -46,11 +49,14 @@ export const appRouter = {
   ingestion: ingestionRouter,
   labs: labsRouter,
   mobile: mobileRouter,
+  nutritionCustomFoods: nutritionCustomFoodsRouter,
   nutritionDiary: nutritionDiaryRouter,
   nutritionFoods: nutritionFoodsRouter,
   plans: plansRouter,
   profile: profileRouter,
+  score: scoreRouter,
   sharing: sharingRouter,
+  signIn: signInRouter,
   sleep: sleepRouter,
   storage: storageRouter,
   telegram: telegramRouter,

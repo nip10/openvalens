@@ -2,7 +2,7 @@
 #
 # OpenValens self-host installer and upgrader (Issue #63).
 #
-#   deploy/setup.sh install    [--dry-run] [--non-interactive]
+#   deploy/setup.sh install    [--dry-run] [--non-interactive] [--reconfigure]
 #   deploy/setup.sh upgrade    [--dry-run]
 #   deploy/setup.sh mint-token [--dry-run]
 #
@@ -10,6 +10,8 @@
 #             into deploy/secrets/ (never prints one), writes deploy/.env, builds
 #             the pinned images, starts the stack behind Caddy (HTTPS) and mints
 #             the one-time setup token into deploy/secrets/setup-token.
+#             Re-running it keeps existing secrets, the settings already in
+#             deploy/.env and every key you added there by hand.
 # upgrade     Run after `git checkout <new tag>`: rebuilds the images, stops the
 #             server, then starts the chain postgres -> pre-migrate backup ->
 #             migrate -> server. A failed backup or migration leaves the server
@@ -21,10 +23,15 @@
 # --dry-run          Change nothing: generate config and throwaway secrets in a
 #                    private temp directory, validate the compose file, print the
 #                    commands that would run, then delete the temp directory.
+#                    An existing deploy/.env is copied in, so the preview
+#                    reflects your settings; the original is never modified.
 # --non-interactive  Read settings from the environment instead of prompting:
 #                    OPENVALENS_DOMAIN, ACME_EMAIL, EMAIL_FROM and, optionally,
 #                    RESEND_API_KEY_SOURCE (path to a private file holding the
 #                    Resend key). Secrets are never accepted as arguments.
+# --reconfigure      install only: ask for (or, with --non-interactive, read) the
+#                    domain and email settings again instead of reusing the ones
+#                    in deploy/.env. Secrets and every other key are kept.
 #
 # Secrets are written only to files on this host. Never paste a secret, the
 # setup token or deploy/.env into chat, tickets or logs.
@@ -37,10 +44,12 @@ command="${1:-}"
 [ $# -gt 0 ] && shift
 DRY_RUN=0
 INTERACTIVE=1
+RECONFIGURE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
     --non-interactive) INTERACTIVE=0 ;;
+    --reconfigure) RECONFIGURE=1 ;;
     -h | --help) command=help ;;
     *)
       # Never echo the rejected value: it may be a pasted secret.
@@ -58,13 +67,20 @@ die() {
   exit 1
 }
 
-usage() { sed -n '3,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,37p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 # In dry-run mode everything is staged in a private temp directory.
 if [ "$DRY_RUN" -eq 1 ]; then
   STATE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/openvalens-setup-dry-run.XXXXXX")"
   chmod 0700 "$STATE_DIR"
   trap 'rm -rf "$STATE_DIR"' EXIT
+  # Preview against the real settings; the copy is private and deleted on exit.
+  if [ -f "$DEPLOY_DIR/.env" ]; then
+    (
+      umask 077
+      cat "$DEPLOY_DIR/.env" >"$STATE_DIR/.env"
+    )
+  fi
 else
   STATE_DIR="$DEPLOY_DIR"
 fi
@@ -137,8 +153,8 @@ gather_config() {
   DOMAIN="$(env_get OPENVALENS_DOMAIN)"
   ACME="$(env_get ACME_EMAIL)"
   FROM="$(env_get EMAIL_FROM)"
-  if [ -n "$DOMAIN" ] && [ "$DRY_RUN" -eq 0 ]; then
-    log "reusing settings from deploy/.env"
+  if [ -n "$DOMAIN" ] && [ "$RECONFIGURE" -eq 0 ]; then
+    log "reusing settings from deploy/.env (--reconfigure to change them)"
     return
   fi
   if [ "$INTERACTIVE" -eq 1 ]; then
@@ -157,13 +173,64 @@ gather_config() {
   fi
 }
 
+# Keys `install` writes on every run, keeping the values already in
+# deploy/.env (only the domain and email settings are re-asked, and only with
+# --reconfigure). Every other line is the operator's and is copied through.
+MANAGED_KEYS="OPENVALENS_DOMAIN ACME_EMAIL EMAIL_FROM OPENVALENS_VERSION
+  OPENVALENS_PRE_MIGRATE_BACKUP OPENVALENS_BACKUP_RETAIN STORAGE_PROVIDER
+  STORAGE_S3_ENDPOINT STORAGE_S3_REGION STORAGE_S3_BUCKET
+  STORAGE_S3_FORCE_PATH_STYLE STORAGE_S3_SSE"
+# Optional secrets: `<KEY>_FILE` is set exactly when deploy/secrets/server/<KEY>
+# exists, so the stack never points at a missing file.
+SECRET_FILE_KEYS="RESEND_API_KEY EMAIL_AUDIT_BCC AI_API_KEY ANTHROPIC_API_KEY
+  TELEGRAM_BOT_TOKEN STORAGE_S3_ACCESS_KEY_ID STORAGE_S3_SECRET_ACCESS_KEY
+  OIDC_CLIENT_SECRET"
+OPERATOR_MARKER="# --- Your settings: deploy/setup.sh install keeps everything below ---"
+
+# has_secret <KEY>: the optional secret file exists and is non-empty. A dry run
+# also checks the real deploy/secrets (existence only, never the contents).
+has_secret() {
+  [ -s "$SECRETS_DIR/server/$1" ] && return 0
+  [ "$DRY_RUN" -eq 1 ] && [ -s "$DEPLOY_DIR/secrets/server/$1" ]
+}
+
+# The operator's lines from the current deploy/.env: everything below the
+# marker, plus any unmanaged `KEY=value` line above it (files written before
+# the marker existed). Managed keys are dropped here; write_env rewrites them
+# with the value env_get finds (the last occurrence wins, as in Compose).
+operator_lines() {
+  [ -f "$ENV_FILE" ] || return 0
+  local managed="" key
+  for key in $MANAGED_KEYS; do managed="$managed $key"; done
+  for key in $SECRET_FILE_KEYS; do managed="$managed ${key}_FILE"; done
+  awk -v managed="$managed" -v marker="$OPERATOR_MARKER" '
+    BEGIN { n = split(managed, keys, " "); for (i = 1; i <= n; i++) skip[keys[i]] = 1 }
+    $0 == marker { below = 1; next }
+    {
+      assignment = $0 ~ /^[A-Za-z_][A-Za-z0-9_]*=/
+      key = $0; sub(/=.*/, "", key)
+      if (assignment && (key in skip)) next
+      if (below || assignment) print
+    }
+  ' "$ENV_FILE"
+}
+
 write_env() {
-  local resend_file="" s3_key_file="" s3_secret_file="" tmp
-  [ -s "$SECRETS_DIR/server/RESEND_API_KEY" ] && resend_file=/run/secrets/RESEND_API_KEY
-  [ -s "$SECRETS_DIR/server/STORAGE_S3_ACCESS_KEY_ID" ] &&
-    s3_key_file=/run/secrets/STORAGE_S3_ACCESS_KEY_ID
-  [ -s "$SECRETS_DIR/server/STORAGE_S3_SECRET_ACCESS_KEY" ] &&
-    s3_secret_file=/run/secrets/STORAGE_S3_SECRET_ACCESS_KEY
+  local key value file_lines="" operator tmp
+  for key in $SECRET_FILE_KEYS; do
+    value=""
+    if has_secret "$key"; then
+      value="/run/secrets/$key"
+    elif [ -n "$(env_get "${key}_FILE")" ]; then
+      warn "clearing ${key}_FILE: deploy/secrets/server/$key is missing or empty"
+    fi
+    # Key names only: a value in deploy/.env is never echoed.
+    if [ -n "$(env_get "$key")" ]; then
+      warn "deploy/.env sets $key directly, which the stack ignores; move it to deploy/secrets/server/$key"
+    fi
+    file_lines="$file_lines${key}_FILE=$value"$'\n'
+  done
+  operator="$(operator_lines)"
   tmp="$ENV_FILE.tmp.$$"
   (
     umask 077
@@ -175,7 +242,6 @@ ACME_EMAIL=$ACME
 EMAIL_FROM=$FROM
 # Image tag for the locally built server/web images (the checked-out version).
 OPENVALENS_VERSION=$(image_version)
-RESEND_API_KEY_FILE=$resend_file
 # Pre-migrate backup hook: pg_dump (default) | hook | none. See docs/self-hosting/backup.md.
 OPENVALENS_PRE_MIGRATE_BACKUP=$(env_get OPENVALENS_PRE_MIGRATE_BACKUP | grep . || echo pg_dump)
 OPENVALENS_BACKUP_RETAIN=$(env_get OPENVALENS_BACKUP_RETAIN | grep . || echo 10)
@@ -186,9 +252,12 @@ STORAGE_S3_REGION=$(env_get STORAGE_S3_REGION)
 STORAGE_S3_BUCKET=$(env_get STORAGE_S3_BUCKET)
 STORAGE_S3_FORCE_PATH_STYLE=$(env_get STORAGE_S3_FORCE_PATH_STYLE | grep . || echo false)
 STORAGE_S3_SSE=$(env_get STORAGE_S3_SSE | grep . || echo AES256)
-STORAGE_S3_ACCESS_KEY_ID_FILE=$s3_key_file
-STORAGE_S3_SECRET_ACCESS_KEY_FILE=$s3_secret_file
+# Optional secrets: set when deploy/secrets/server/<KEY> exists, empty otherwise.
+${file_lines}# Add other settings (AI_PROVIDER, CSP_MODE, EMAIL_DRY_RUN, ...; see
+# docs/self-hosting/configuration.md) below this line.
+$OPERATOR_MARKER
 EOF
+    [ -z "$operator" ] || printf '%s\n' "$operator" >>"$tmp"
   )
   mv "$tmp" "$ENV_FILE"
   chmod 0600 "$ENV_FILE"
@@ -237,7 +306,7 @@ generate_secrets() {
   write_secret "$SECRETS_DIR/server" TELEGRAM_WEBHOOK_SECRET "$(random_hex)"
   unset pw
 
-  [ -s "$SECRETS_DIR/server/RESEND_API_KEY" ] && return 0
+  has_secret RESEND_API_KEY && return 0
   local key=""
   if [ "$INTERACTIVE" -eq 1 ]; then
     echo "Account setup and invitations send a one-time code by email (Resend)." >&2

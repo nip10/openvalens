@@ -1,6 +1,13 @@
 import {
+  GOAL_DIRECTION_OPTIONS,
+  GOAL_PRIORITY_OPTIONS,
+  goalDirectionLabel,
+  goalMeasurementFields,
+  goalPriorityLabel,
   goalStatusLabel,
   summarizeGoals,
+  type GoalDirectionOption,
+  type GoalPriorityOption,
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
@@ -13,6 +20,7 @@ import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
+import { goalLogValue } from "@/utils/score-screen";
 import { useThemeColor } from "@/utils/theme";
 
 const WORKOUT_TYPES = ["weights", "running", "cycling", "swimming", "tennis", "other"] as const;
@@ -165,10 +173,18 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
   );
 }
 
+const INPUT_CLASS =
+  "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
+
 function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   const [title, setTitle] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [status, setStatus] = useState<GoalStatus>("not_started");
+  // Issue #95 — optional measurement so goal progress can be calculated (same as web).
+  const [startValue, setStartValue] = useState("");
+  const [targetValue, setTargetValue] = useState("");
+  const [direction, setDirection] = useState<GoalDirectionOption | null>(null);
+  const [priority, setPriority] = useState<GoalPriorityOption>("normal");
 
   const save = useMutation(
     orpc.plans.goals.upsertGoal.mutationOptions({
@@ -176,15 +192,20 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
         setTitle("");
         setTargetDate("");
         setStatus("not_started");
+        setStartValue("");
+        setTargetValue("");
+        setDirection(null);
+        setPriority("normal");
         onSaved();
       },
     }),
   );
 
   const titleMissing = title.trim().length === 0;
+  const measurement = goalMeasurementFields({ startValue, targetValue, direction, priority });
 
   const submit = () => {
-    if (titleMissing) return;
+    if (titleMissing || !measurement.ok) return;
     save.mutate({
       title: title.trim(),
       // `upsertGoal` requires a category; goals created here default to
@@ -192,6 +213,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
       category: "health",
       targetDate: targetDate.trim().length > 0 ? targetDate : null,
       status,
+      ...measurement.fields,
     });
   };
 
@@ -204,7 +226,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
             value={title}
             onChangeText={setTitle}
             placeholder="Run a 5k"
-            className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+            className={INPUT_CLASS}
             placeholderTextColor="#9ca3af"
           />
         </View>
@@ -214,7 +236,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
             value={targetDate}
             onChangeText={setTargetDate}
             placeholder="YYYY-MM-DD"
-            className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
+            className={INPUT_CLASS}
             placeholderTextColor="#9ca3af"
           />
         </View>
@@ -231,11 +253,65 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
             ))}
           </View>
         </View>
-        <View className="flex-row items-center gap-3">
-          <Button onPress={submit} isDisabled={titleMissing || save.isPending}>
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-foreground">Starting value (optional)</Text>
+          <TextInput
+            value={startValue}
+            onChangeText={setStartValue}
+            placeholder="80 kg"
+            accessibilityLabel="Starting value (optional)"
+            className={INPUT_CLASS}
+            placeholderTextColor="#9ca3af"
+          />
+        </View>
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-foreground">Target (optional)</Text>
+          <TextInput
+            value={targetValue}
+            onChangeText={setTargetValue}
+            placeholder="75 kg"
+            accessibilityLabel="Target (optional)"
+            className={INPUT_CLASS}
+            placeholderTextColor="#9ca3af"
+          />
+        </View>
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-foreground">
+            Progress means the value should
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {GOAL_DIRECTION_OPTIONS.map((value) => (
+              <Pill
+                key={value}
+                label={goalDirectionLabel(value)}
+                selected={value === direction}
+                onPress={() => setDirection(value === direction ? null : value)}
+              />
+            ))}
+          </View>
+        </View>
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-foreground">Priority</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {GOAL_PRIORITY_OPTIONS.map((value) => (
+              <Pill
+                key={value}
+                label={goalPriorityLabel(value)}
+                selected={value === priority}
+                onPress={() => setPriority(value)}
+              />
+            ))}
+          </View>
+        </View>
+        <View className="flex-row flex-wrap items-center gap-3">
+          <Button onPress={submit} isDisabled={titleMissing || !measurement.ok || save.isPending}>
             {save.isPending ? "Saving…" : "Save"}
           </Button>
-          {save.isSuccess ? (
+          {!measurement.ok ? (
+            <Text className="text-sm text-destructive" accessibilityRole="alert">
+              {measurement.error}
+            </Text>
+          ) : save.isSuccess ? (
             <Text className="text-sm text-success">Saved</Text>
           ) : save.isError ? (
             <Text className="text-sm text-destructive">Could not save.</Text>
@@ -243,6 +319,43 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
         </View>
       </Card>
     </CardStack>
+  );
+}
+
+/** Issue #95 — record today's value for a goal (same as web "Log"). */
+function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void }) {
+  const [text, setText] = useState("");
+  const log = useMutation(
+    orpc.plans.goals.upsertCheckin.mutationOptions({
+      onSuccess: () => {
+        setText("");
+        onSaved();
+      },
+    }),
+  );
+  const value = goalLogValue(text);
+  return (
+    <View className="flex-row items-center gap-2">
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        placeholder="Today"
+        accessibilityLabel="Today's value"
+        maxLength={80}
+        className="min-h-11 w-24 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
+        placeholderTextColor="#9ca3af"
+      />
+      <Button
+        size="sm"
+        variant="secondary"
+        isDisabled={value === null || log.isPending}
+        onPress={() => {
+          if (value !== null) log.mutate({ goalId, date: todayIso(), value });
+        }}
+      >
+        Log
+      </Button>
+    </View>
   );
 }
 
@@ -291,6 +404,7 @@ export default function WorkoutsScreen() {
   const reloadGoals = () => {
     void goals.refetch();
     void queryClient.invalidateQueries({ queryKey: [["plans", "goals", "listGoals"]] });
+    void queryClient.invalidateQueries({ queryKey: orpc.score.key() });
   };
 
   return (
@@ -378,11 +492,14 @@ export default function WorkoutsScreen() {
                     <Text className="text-base text-foreground">{goal.title}</Text>
                     <Text className="text-xs text-muted-foreground">
                       {goal.targetDate ? `Due ${goal.targetDate}` : "No due date"}
+                      {goal.targetValue ? ` · Target ${goal.targetValue}` : ""}
+                      {goal.currentValue ? ` · Now ${goal.currentValue}` : ""}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground">
+                      {goalStatusLabel(goal.status)}
                     </Text>
                   </View>
-                  <Text className="text-sm text-muted-foreground">
-                    {goalStatusLabel(goal.status)}
-                  </Text>
+                  <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
                 </View>
               ))}
             </Card>

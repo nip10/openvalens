@@ -20,6 +20,26 @@ export type GoalHorizon = "short" | "medium" | "long";
 
 export type GoalStatus = "not_started" | "in_progress" | "achieved" | "paused" | "cancelled";
 
+/**
+ * Issue #95 — which way counts as progress. A weight goal of 70 kg from 80 kg
+ * is a `decrease`; a 5 km run goal from 2 km is an `increase`. Stored
+ * nullable: goals created before #95 have none.
+ */
+export const GOAL_DIRECTIONS = ["increase", "decrease"] as const;
+export type GoalDirection = (typeof GOAL_DIRECTIONS)[number];
+
+/** Issue #95 — the person's own weighting for goal progress. Unset = normal. */
+export const GOAL_PRIORITIES = ["low", "normal", "high"] as const;
+export type GoalPriority = (typeof GOAL_PRIORITIES)[number];
+
+export function isGoalDirection(value: unknown): value is GoalDirection {
+  return typeof value === "string" && (GOAL_DIRECTIONS as readonly string[]).includes(value);
+}
+
+export function isGoalPriority(value: unknown): value is GoalPriority {
+  return typeof value === "string" && (GOAL_PRIORITIES as readonly string[]).includes(value);
+}
+
 export type Goal = {
   id: number;
   organizationId: string;
@@ -31,6 +51,9 @@ export type Goal = {
   targetValue: string | null;
   targetDate: string | null;
   notes: string | null;
+  direction: string | null;
+  baselineValue: string | null;
+  priority: string | null;
 };
 
 export type GoalCheckin = {
@@ -57,6 +80,9 @@ export type UpsertGoalInput =
       targetValue?: string | null;
       targetDate?: string | null;
       notes?: string | null;
+      direction?: GoalDirection | null;
+      baselineValue?: string | null;
+      priority?: GoalPriority | null;
     }
   | {
       id: number;
@@ -68,6 +94,9 @@ export type UpsertGoalInput =
       targetValue?: string | null;
       targetDate?: string | null;
       notes?: string | null;
+      direction?: GoalDirection | null;
+      baselineValue?: string | null;
+      priority?: GoalPriority | null;
     };
 
 export type UpsertGoalResult = {
@@ -110,52 +139,139 @@ export function parseGoalNumeric(value: string | null): number | null {
 }
 
 export type GoalProgress = {
-  /** 0..1; null when either side is missing or not numeric. */
+  /** 0..1; null when it cannot be computed honestly (see `deriveGoalProgress`). */
   percent: number | null;
   /** Numeric current value, or null. */
   currentNumeric: number | null;
   /** Numeric target value, or null. */
   targetNumeric: number | null;
+  /** Numeric baseline used for the calculation, or null when none was usable. */
+  baselineNumeric: number | null;
+  /** Resolved direction, or null when neither set nor inferable. */
+  direction: GoalDirection | null;
+  /** `set` = stored on the goal; `inferred` = from baseline vs target. */
+  directionSource: "set" | "inferred" | null;
+  /**
+   * True when an `increase` goal has no usable baseline and progress is
+   * measured from zero (`current / target`). Callers should say so.
+   */
+  baselineAssumedZero: boolean;
   /** Status-derived hint: "achieved" / "behind" / "tracking" / null. */
   hint: "achieved" | "behind" | "tracking" | null;
 };
 
 /**
- * Compute progress for a goal. Pure — no DB calls. `hint` is derived from
- * the relative position of `current` vs `target` and is null when the
- * numeric pair is missing.
+ * The direction a goal counts as progress: the stored `direction` when set,
+ * otherwise inferred from a baseline on one side of the target (baseline 80,
+ * target 70 → `decrease`). Null when neither is available — the caller must
+ * not guess, because "current ≥ target" means opposite things for a weight
+ * loss and a strength goal.
+ */
+export function resolveGoalDirection(
+  direction: string | null | undefined,
+  baselineNumeric: number | null,
+  targetNumeric: number | null,
+): { direction: GoalDirection | null; source: "set" | "inferred" | null } {
+  if (isGoalDirection(direction)) return { direction, source: "set" };
+  if (baselineNumeric === null || targetNumeric === null || baselineNumeric === targetNumeric) {
+    return { direction: null, source: null };
+  }
+  return {
+    direction: targetNumeric > baselineNumeric ? "increase" : "decrease",
+    source: "inferred",
+  };
+}
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+/**
+ * Compute progress for a goal. Pure — no DB calls.
  *
- * The percent calculation assumes `target > current` for accumulating
- * goals and `target < current` for reduction goals; for ambiguous targets
- * we fall back to `current / target` clamped to `[0, 1]`.
+ * Issue #95 fixed a direction bug: the old rule treated every goal with
+ * `current >= target` as achieved, so a weight goal of 70 kg at 80 kg showed
+ * as achieved. Progress now needs a direction (stored, or inferred from a
+ * baseline). Without one, `percent` and `hint` are null.
+ *
+ * - With a baseline on the far side of the target, progress is
+ *   `(current − baseline) / (target − baseline)`, clamped to [0, 1] (going
+ *   past the target counts as 100%, never more).
+ * - An `increase` goal without a usable baseline is measured from zero
+ *   (`current / target`) and flagged `baselineAssumedZero`.
+ * - A `decrease` goal without a usable baseline has no defined starting
+ *   point: it is either achieved (current ≤ target) or unscored.
+ *
+ * `hint` is `achieved` once the target is reached in the goal's direction,
+ * `behind` under 50% and `tracking` otherwise.
  */
 export function deriveGoalProgress(
-  goal: Pick<Goal, "currentValue" | "targetValue" | "status">,
+  goal: Pick<Goal, "currentValue" | "targetValue" | "status"> &
+    Partial<Pick<Goal, "direction" | "baselineValue">>,
 ): GoalProgress {
   const currentNumeric = parseGoalNumeric(goal.currentValue);
   const targetNumeric = parseGoalNumeric(goal.targetValue);
-  if (currentNumeric === null || targetNumeric === null || targetNumeric === 0) {
-    return { percent: null, currentNumeric, targetNumeric, hint: null };
+  const rawBaseline = parseGoalNumeric(goal.baselineValue ?? null);
+  const resolved = resolveGoalDirection(goal.direction, rawBaseline, targetNumeric);
+  const empty: GoalProgress = {
+    percent: null,
+    currentNumeric,
+    targetNumeric,
+    baselineNumeric: null,
+    direction: resolved.direction,
+    directionSource: resolved.source,
+    baselineAssumedZero: false,
+    hint: null,
+  };
+  if (currentNumeric === null || targetNumeric === null || resolved.direction === null) {
+    return empty;
   }
 
-  let percent: number;
-  let hint: "achieved" | "behind" | "tracking";
-  if (targetNumeric > 0) {
-    // Most goals: progress = current / target.
-    percent = Math.max(0, Math.min(1, currentNumeric / targetNumeric));
-    if (currentNumeric >= targetNumeric) hint = "achieved";
-    else if (currentNumeric < targetNumeric * 0.5) hint = "behind";
-    else hint = "tracking";
+  const increase = resolved.direction === "increase";
+  // A baseline only defines a starting point when it sits on the far side of
+  // the target for this direction.
+  const baselineNumeric =
+    rawBaseline !== null && (increase ? rawBaseline < targetNumeric : rawBaseline > targetNumeric)
+      ? rawBaseline
+      : null;
+  const achieved = increase ? currentNumeric >= targetNumeric : currentNumeric <= targetNumeric;
+
+  let percent: number | null;
+  let baselineAssumedZero = false;
+  if (baselineNumeric !== null) {
+    percent = clamp01((currentNumeric - baselineNumeric) / (targetNumeric - baselineNumeric));
+  } else if (increase && targetNumeric > 0 && currentNumeric >= 0) {
+    percent = clamp01(currentNumeric / targetNumeric);
+    baselineAssumedZero = true;
   } else {
-    // Reduction goals (target < 0): progress = (start - current) / (start - target).
-    // With no start value, use (target - current) / target.
-    percent = Math.max(0, Math.min(1, (targetNumeric - currentNumeric) / targetNumeric));
-    if (currentNumeric <= targetNumeric) hint = "achieved";
-    else if (currentNumeric > targetNumeric * 1.5) hint = "behind";
-    else hint = "tracking";
+    percent = achieved ? 1 : null;
   }
 
-  return { percent, currentNumeric, targetNumeric, hint };
+  let hint: GoalProgress["hint"] = null;
+  if (achieved) hint = "achieved";
+  else if (percent !== null) hint = percent < 0.5 ? "behind" : "tracking";
+
+  return { ...empty, percent, baselineNumeric, baselineAssumedZero, hint };
+}
+
+export type GoalTrend = "toward_target" | "away_from_target" | "unchanged";
+
+/**
+ * Direction of the most recent change between the last two numeric
+ * check-ins (date-ascending input). Null with fewer than two numeric values
+ * or no direction. `away_from_target` is what goal progress flags as a
+ * setback so it cannot hide behind another goal's success.
+ */
+export function deriveGoalTrend(
+  checkins: ReadonlyArray<Pick<GoalCheckin, "value">>,
+  direction: GoalDirection | null,
+): GoalTrend | null {
+  if (direction === null) return null;
+  const values = checkins
+    .map((checkin) => parseGoalNumeric(checkin.value))
+    .filter((value): value is number => value !== null);
+  if (values.length < 2) return null;
+  const delta = values[values.length - 1]! - values[values.length - 2]!;
+  if (delta === 0) return "unchanged";
+  return (direction === "increase" ? delta > 0 : delta < 0) ? "toward_target" : "away_from_target";
 }
 
 /**
@@ -218,6 +334,9 @@ export function createGoalRepository(db: Database) {
         if (input.targetValue !== undefined) update.targetValue = input.targetValue ?? null;
         if (input.targetDate !== undefined) update.targetDate = input.targetDate ?? null;
         if (input.notes !== undefined) update.notes = input.notes ?? null;
+        if (input.direction !== undefined) update.direction = input.direction ?? null;
+        if (input.baselineValue !== undefined) update.baselineValue = input.baselineValue ?? null;
+        if (input.priority !== undefined) update.priority = input.priority ?? null;
 
         await db
           .update(goal)
@@ -238,6 +357,9 @@ export function createGoalRepository(db: Database) {
           targetValue: input.targetValue ?? null,
           targetDate: input.targetDate ?? null,
           notes: input.notes ?? null,
+          direction: input.direction ?? null,
+          baselineValue: input.baselineValue ?? null,
+          priority: input.priority ?? null,
         })
         .returning()) as Goal[];
       if (!row) throw new Error("Goal insert did not return a row");

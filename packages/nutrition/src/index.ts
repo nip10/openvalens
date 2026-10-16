@@ -9,3 +9,4 @@ export * from "./food-lookup";
 export * from "./food-search";
 export * from "./totals";
 export * from "./daily-totals";
+export * from "./custom-foods";

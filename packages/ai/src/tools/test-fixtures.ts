@@ -408,6 +408,9 @@ export function goalEntry(
       targetValue: values.target ?? null,
       targetDate: "2026-06-30",
       notes: "SYNTHETIC_GOAL_NOTE",
+      direction: null,
+      baselineValue: null,
+      priority: null,
     },
     checkins: (values.checkins ?? []).map((value, index) => ({
       id: id * 100 + index,

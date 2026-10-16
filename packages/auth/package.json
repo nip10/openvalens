@@ -18,6 +18,7 @@
     "./authz/instance-admin": "./src/authz/instance-admin.ts",
     "./authz/trusted-session": "./src/authz/trusted-session.ts",
     "./admission": "./src/admission/index.ts",
+    "./oidc": "./src/oidc/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {

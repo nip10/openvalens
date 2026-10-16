@@ -27,6 +27,7 @@ so.
 | [Upgrading](upgrading.md)                   | `deploy/setup.sh upgrade`, failures, rolling back.                       |
 | [Backups](backup.md)                        | The pre-migrate dump, its limits, an interim manual restore.             |
 | [Email](email.md)                           | Resend setup (the only email transport).                                 |
+| [Single sign-on (OIDC)](oidc.md)            | One optional OIDC provider: invite-only, explicit account connection.    |
 | [Security model and reporting](security.md) | What the stack protects, what you must, how to report a vulnerability.   |
 | [Privacy and data rights](privacy.md)       | Where data lives, export and "delete everything".                        |
 | [Licensing and trademark](licensing.md)     | AGPL obligations, app-store permission, use of the name.                 |

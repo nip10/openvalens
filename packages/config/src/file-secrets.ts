@@ -48,6 +48,7 @@ export const FILE_SECRET_KEYS = [
   "ANTHROPIC_API_KEY",
   "STORAGE_S3_ACCESS_KEY_ID",
   "STORAGE_S3_SECRET_ACCESS_KEY",
+  "OIDC_CLIENT_SECRET",
 ] as const;
 
 export type FileSecretKey = (typeof FILE_SECRET_KEYS)[number];

@@ -115,3 +115,88 @@ export function summarizeGoals(goals: readonly GoalLike[]): GoalSummary {
   }
   return { total: goals.length, open, achieved };
 }
+
+// ─── Issue #95: goal measurement fields ────────────────────────
+
+export const GOAL_DIRECTION_OPTIONS = ["increase", "decrease"] as const;
+export type GoalDirectionOption = (typeof GOAL_DIRECTION_OPTIONS)[number];
+
+export const GOAL_PRIORITY_OPTIONS = ["low", "normal", "high"] as const;
+export type GoalPriorityOption = (typeof GOAL_PRIORITY_OPTIONS)[number];
+
+const GOAL_DIRECTION_LABELS: Record<GoalDirectionOption, string> = {
+  increase: "Go up",
+  decrease: "Go down",
+};
+
+const GOAL_PRIORITY_LABELS: Record<GoalPriorityOption, string> = {
+  low: "Low",
+  normal: "Normal",
+  high: "High",
+};
+
+/** "Go up" / "Go down" — which way counts as progress. */
+export function goalDirectionLabel(value: GoalDirectionOption): string {
+  return GOAL_DIRECTION_LABELS[value];
+}
+
+export function goalPriorityLabel(value: GoalPriorityOption): string {
+  return GOAL_PRIORITY_LABELS[value];
+}
+
+export type GoalMeasurementDraft = {
+  startValue: string;
+  targetValue: string;
+  direction: GoalDirectionOption | null;
+  priority: GoalPriorityOption;
+};
+
+export type GoalMeasurementFields = {
+  currentValue: string | null;
+  baselineValue: string | null;
+  targetValue: string | null;
+  direction: GoalDirectionOption | null;
+  priority: GoalPriorityOption;
+};
+
+const MAX_GOAL_VALUE_LENGTH = 80;
+/** Same leading-number rule the server uses ("82", "82 kg", "24.1%"). */
+const LEADING_NUMBER = /^[-+]?\d/;
+
+/**
+ * Validates the optional measurement part of the add-goal form. All fields
+ * may be left blank (the goal is then tracked without a number). A target
+ * needs a direction, because "80 → 70" is progress for one goal and a
+ * setback for another; the starting value becomes both the baseline and the
+ * first current value.
+ */
+export function goalMeasurementFields(
+  draft: GoalMeasurementDraft,
+): { ok: true; fields: GoalMeasurementFields } | { ok: false; error: string } {
+  const start = draft.startValue.trim();
+  const target = draft.targetValue.trim();
+  for (const [label, value] of [
+    ["Starting value", start],
+    ["Target", target],
+  ] as const) {
+    if (value.length > MAX_GOAL_VALUE_LENGTH) {
+      return { ok: false, error: `${label} must be ${MAX_GOAL_VALUE_LENGTH} characters or fewer.` };
+    }
+    if (value.length > 0 && !LEADING_NUMBER.test(value)) {
+      return { ok: false, error: `${label} must start with a number, like "70" or "70 kg".` };
+    }
+  }
+  if (target.length > 0 && draft.direction === null) {
+    return { ok: false, error: "Choose whether the value should go up or down." };
+  }
+  return {
+    ok: true,
+    fields: {
+      currentValue: start.length > 0 ? start : null,
+      baselineValue: start.length > 0 ? start : null,
+      targetValue: target.length > 0 ? target : null,
+      direction: draft.direction,
+      priority: draft.priority,
+    },
+  };
+}

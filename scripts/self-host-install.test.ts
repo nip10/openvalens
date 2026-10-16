@@ -5,9 +5,21 @@
  * database; the live install/upgrade/failed-migration evidence is in the PR.
  */
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, writeFileSync, chmodSync } from "node:fs";
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 
 import { CSP_REPORT_PATH } from "../apps/server/src/security-csp-report";
 
@@ -42,7 +54,53 @@ const SECRET_KEYS = [
   "ANTHROPIC_API_KEY",
   "TELEGRAM_BOT_TOKEN",
   "POSTGRES_PASSWORD",
+  "AI_API_KEY",
+  "EMAIL_AUDIT_BCC",
+  "STORAGE_S3_ACCESS_KEY_ID",
+  "STORAGE_S3_SECRET_ACCESS_KEY",
+  "OIDC_CLIENT_SECRET",
 ];
+
+/** `KEY=default` assignments of `apps/server/.env.schema`, in schema order. */
+const serverSchema = new Map(
+  [
+    ...readFileSync(join(repo, "apps", "server", ".env.schema"), "utf8").matchAll(
+      /^([A-Z][A-Z0-9_]*)=(.*)$/gm,
+    ),
+  ].map((match) => [match[1]!, match[2]!] as const),
+);
+
+/**
+ * Server keys `deploy/compose.yml` deliberately does not pass through, and why.
+ * Every other schema key must reach the server, so a new key cannot be added
+ * without deciding whether self-hosters may set it.
+ */
+const NOT_PASSED_THROUGH: Record<string, string> = {
+  AUTH_DEV_MAGIC_LINK_CONSOLE: "development only; ignored unless NODE_ENV=development",
+  TELEGRAM_API_BASE_URL: "local-testing override of the Telegram Bot API",
+};
+
+/** Server keys the stack sets itself instead of reading them from deploy/.env. */
+const SET_BY_STACK = new Set([
+  "NODE_ENV",
+  "BETTER_AUTH_URL",
+  "CORS_ORIGIN",
+  "STORAGE_LOCAL_DIR",
+  "DATABASE_URL",
+  "BETTER_AUTH_SECRET",
+  "CRON_SECRET",
+  "TELEGRAM_WEBHOOK_SECRET",
+]);
+
+/**
+ * Compose fallbacks (`${KEY:-fallback}`) that intentionally differ from the
+ * schema default: the stack is production-only.
+ */
+const COMPOSE_DEFAULT_OVERRIDES: Record<string, string> = {
+  // Same as the server's own production default; set explicitly so `web` agrees.
+  CSP_MODE: "enforce",
+  EMAIL_DRY_RUN: "false",
+};
 
 describe("deploy/compose.yml", () => {
   test("only caddy publishes ports", () => {
@@ -95,6 +153,47 @@ describe("deploy/compose.yml", () => {
     expect(services.backup!.restart).toBe("no");
     expect(services.migrate!.restart).toBe("no");
     expect(services.migrate!.image).toBe(services.server!.image);
+  });
+
+  test("every server schema key is passed through or explicitly excluded", () => {
+    const env = services.server!.environment!;
+    expect(services.migrate!.environment).toEqual(env);
+    const problems: string[] = [];
+    for (const key of serverSchema.keys()) {
+      const name = SECRET_KEYS.includes(key) ? `${key}_FILE` : key;
+      const value = env[name];
+      if (key in NOT_PASSED_THROUGH) {
+        if (env[key] !== undefined || env[`${key}_FILE`] !== undefined) {
+          problems.push(`${key} is listed as not passed through but is set`);
+        }
+      } else if (value === undefined) {
+        problems.push(`${name} is not passed through to the server`);
+      } else if (!SET_BY_STACK.has(key) && !value.startsWith(`\${${name}`)) {
+        problems.push(`${name} is not read from deploy/.env`);
+      }
+    }
+    for (const key of Object.keys(NOT_PASSED_THROUGH)) expect(serverSchema.has(key)).toBe(true);
+    // Sensitive keys only travel as files, and only keys that support `_FILE`.
+    for (const key of SECRET_KEYS.filter((k) => k !== "POSTGRES_PASSWORD")) {
+      expect(FILE_SECRET_KEYS).toContain(key as (typeof FILE_SECRET_KEYS)[number]);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  test("compose fallbacks match the server schema defaults", () => {
+    const env = services.server!.environment!;
+    const mismatches: string[] = [];
+    for (const [name, value] of Object.entries(env)) {
+      const match = /^\$\{([A-Z][A-Z0-9_]*):-(.*)\}$/.exec(value);
+      if (!match || !serverSchema.has(match[1]!)) continue;
+      const expected = COMPOSE_DEFAULT_OVERRIDES[match[1]!] ?? serverSchema.get(match[1]!);
+      if (match[2] !== expected) mismatches.push(`${name}: ${match[2]} != ${expected}`);
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  test("web and server get the same CSP mode", () => {
+    expect(services.web!.environment?.CSP_MODE).toBe(services.server!.environment!.CSP_MODE!);
   });
 
   test("the server runs in production mode on one HTTPS origin", () => {
@@ -234,6 +333,194 @@ describe("deploy/setup.sh", () => {
     },
     60_000,
   );
+});
+
+/**
+ * A copy of `deploy/` in a temp directory with a fake `docker` on PATH, so
+ * `setup.sh install` runs end to end (secrets, deploy/.env, compose calls)
+ * without Docker. The fake answers the few queries setup.sh makes and records
+ * every call; it never sees a secret value.
+ */
+function installSandbox() {
+  const root = mkdtempSync(join(tmpdir(), "ov-setup-"));
+  const dir = join(root, "deploy");
+  const bin = join(root, "bin");
+  mkdirSync(dir);
+  mkdirSync(bin);
+  for (const file of ["setup.sh", "compose.yml"]) cpSync(join(deploy, file), join(dir, file));
+  writeFileSync(
+    join(bin, "docker"),
+    `#!/bin/sh
+printf '%s\\n' "$*" >>"${root}/docker.log"
+case " $* " in
+  *" config --quiet "*) exit 0 ;;
+  *" config "*) printf 'services:\\n  caddy:\\n    ports:\\n      - 443\\n' ;;
+  *" ps -q "*) echo fake-container ;;
+  " inspect "*) echo healthy ;;
+  *" admission.sh mint "*) echo fake-setup-token ;;
+esac
+exit 0
+`,
+  );
+  chmodSync(join(bin, "docker"), 0o755);
+
+  const settings = {
+    OPENVALENS_DOMAIN: "health.example.org",
+    ACME_EMAIL: "ops@example.org",
+    EMAIL_FROM: "OpenValens <noreply@example.org>",
+  };
+  return {
+    dir,
+    envFile: join(dir, ".env"),
+    secret: (name: string) => join(dir, "secrets", "server", name),
+    readEnv: () => readFileSync(join(dir, ".env"), "utf8"),
+    run(args: string[], overrides: Record<string, string> = {}) {
+      const result = Bun.spawnSync(["bash", join(dir, "setup.sh"), ...args], {
+        env: {
+          PATH: `${bin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
+          HOME: process.env.HOME ?? root,
+          TMPDIR: root,
+          ...settings,
+          ...overrides,
+        },
+      });
+      return { exitCode: result.exitCode, output: `${result.stdout}${result.stderr}` };
+    },
+    cleanup: () => rmSync(root, { recursive: true, force: true }),
+  };
+}
+
+const MARKER = "# --- Your settings: deploy/setup.sh install keeps everything below ---";
+
+/** Values of `key` in a dotenv text, in order. */
+const valuesOf = (text: string, key: string) =>
+  text
+    .split("\n")
+    .filter((line) => line.startsWith(`${key}=`))
+    .map((line) => line.slice(key.length + 1));
+
+describe("deploy/setup.sh install re-runs (Issue #63)", () => {
+  const install = ["install", "--non-interactive"];
+
+  test("keeps hand-added keys and existing values, and is idempotent", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      const first = box.readEnv();
+      expect(first.trimEnd().endsWith(MARKER)).toBe(true);
+
+      const generated = readFileSync(box.secret("BETTER_AUTH_SECRET"), "utf8").trim();
+      writeFileSync(box.secret("AI_API_KEY"), "sk-synthetic-ai-key\n");
+      const added = [
+        "# local model",
+        "AI_PROVIDER=openai-compatible",
+        "AI_BASE_URL=http://ollama.internal:11434/v1",
+        "AI_MODEL=synthetic-model",
+        "CSP_MODE=report-only",
+        "OPENVALENS_BACKUP_RETAIN=3",
+      ];
+      writeFileSync(box.envFile, `${first}${added.join("\n")}\n`);
+
+      // A re-run reuses the domain from deploy/.env, not the environment.
+      const second = box.run(install, { OPENVALENS_DOMAIN: "other.example.org" });
+      expect({ exitCode: second.exitCode, output: second.output }).toMatchObject({ exitCode: 0 });
+      const env = box.readEnv();
+      expect(env.split(`${MARKER}\n`)[1]).toBe(
+        `${added.filter((line) => !line.startsWith("OPENVALENS_BACKUP_RETAIN")).join("\n")}\n`,
+      );
+      expect(valuesOf(env, "OPENVALENS_DOMAIN")).toEqual(["health.example.org"]);
+      expect(valuesOf(env, "OPENVALENS_BACKUP_RETAIN")).toEqual(["3"]);
+      expect(valuesOf(env, "AI_API_KEY_FILE")).toEqual(["/run/secrets/AI_API_KEY"]);
+      expect(readFileSync(box.secret("BETTER_AUTH_SECRET"), "utf8").trim()).toBe(generated);
+
+      // No secret value reaches the output or deploy/.env.
+      for (const text of [second.output, env]) {
+        expect(text).not.toContain("sk-synthetic-ai-key");
+        expect(text).not.toContain(generated);
+      }
+
+      expect(box.run(install).exitCode).toBe(0);
+      expect(box.readEnv()).toBe(env);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("migrates a deploy/.env written before the marker existed", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      writeFileSync(
+        box.envFile,
+        [
+          "# Written by deploy/setup.sh.",
+          "OPENVALENS_DOMAIN=health.example.org",
+          "ACME_EMAIL=ops@example.org",
+          "EMAIL_FROM=OpenValens <noreply@example.org>",
+          "OPENVALENS_VERSION=old",
+          "RESEND_API_KEY_FILE=",
+          "EMAIL_DRY_RUN=true",
+          "ANTHROPIC_API_KEY_FILE=/run/secrets/ANTHROPIC_API_KEY",
+          "AI_API_KEY=sk-inline-synthetic",
+          "",
+        ].join("\n"),
+      );
+
+      const result = box.run(install);
+      expect(result.exitCode).toBe(0);
+      const env = box.readEnv();
+      expect(env.split(`${MARKER}\n`)[1]).toBe(
+        "EMAIL_DRY_RUN=true\nAI_API_KEY=sk-inline-synthetic\n",
+      );
+      // A `_FILE` path without its secret file is cleared, not left dangling.
+      expect(valuesOf(env, "ANTHROPIC_API_KEY_FILE")).toEqual([""]);
+      expect(result.output).toContain("clearing ANTHROPIC_API_KEY_FILE");
+      expect(result.output).toContain("deploy/.env sets AI_API_KEY directly");
+      expect(result.output).not.toContain("sk-inline-synthetic");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("--reconfigure replaces the domain and email settings only", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      writeFileSync(box.envFile, `${box.readEnv()}EMAIL_REPLY_TO=support@example.org\n`);
+      const result = box.run([...install, "--reconfigure"], {
+        OPENVALENS_DOMAIN: "other.example.org",
+      });
+      expect(result.exitCode).toBe(0);
+      const env = box.readEnv();
+      expect(valuesOf(env, "OPENVALENS_DOMAIN")).toEqual(["other.example.org"]);
+      expect(valuesOf(env, "EMAIL_REPLY_TO")).toEqual(["support@example.org"]);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("--dry-run previews an existing install without changing it", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      writeFileSync(box.envFile, `${box.readEnv()}CSP_MODE=report-only\n`);
+      const before = box.readEnv();
+      const secretsBefore = readdirSync(join(box.dir, "secrets"), { recursive: true }).sort();
+      const generated = readFileSync(box.secret("CRON_SECRET"), "utf8").trim();
+
+      const result = box.run([...install, "--dry-run"]);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("reusing settings from deploy/.env");
+      expect(result.output).toContain("[dry-run] nothing was changed");
+      expect(result.output).not.toContain(generated);
+      expect(box.readEnv()).toBe(before);
+      expect(readdirSync(join(box.dir, "secrets"), { recursive: true }).sort()).toEqual(
+        secretsBefore,
+      );
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
 });
 
 describe("scripts/rollback-rehearsal.sh (Issue #129)", () => {

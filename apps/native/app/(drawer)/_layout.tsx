@@ -10,6 +10,7 @@ import { useThemeColor } from "@/utils/theme";
 
 const DRAWER_ITEMS = [
   { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
+  { label: "Scores", href: "/scores" as const, icon: "speedometer-outline" as const },
   { label: "Supplements", href: "/supplements" as const, icon: "medkit-outline" as const },
   { label: "Meal diary", href: "/nutrition" as const, icon: "restaurant-outline" as const },
   { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
@@ -94,13 +95,17 @@ function DrawerLayout() {
                 ? "Supplements"
                 : pathname === "/nutrition"
                   ? "Meal diary"
-                  : pathname === "/workouts"
-                    ? "Workouts"
-                    : pathname === "/exports"
-                      ? "Clinical export"
-                      : pathname === "/settings"
-                        ? "Settings"
-                        : "Cockpit";
+                  : pathname === "/foods"
+                    ? "My foods"
+                    : pathname === "/workouts"
+                      ? "Workouts"
+                      : pathname === "/exports"
+                        ? "Clinical export"
+                        : pathname === "/settings"
+                          ? "Settings"
+                          : pathname === "/scores"
+                            ? "Scores"
+                            : "Cockpit";
 
   return (
     <Drawer
@@ -168,6 +173,13 @@ function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="foods"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
         name="exports"
         options={{
           headerTitle,
@@ -190,6 +202,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="sharing"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="scores"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
