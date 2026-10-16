@@ -1,0 +1,291 @@
+import { describe, expect, test } from "bun:test";
+
+import {
+  INSIGHT_RULE_IDS,
+  INSIGHT_TOPICS,
+  type Insight,
+  type InsightDetail,
+  type InsightRuleId,
+  type InsightRuleReadiness,
+} from "../insight-contract";
+import { INSIGHT_RULE_KINDS, INSIGHT_RULE_VERSIONS } from "../insight-contract";
+import {
+  GENERIC_PUSH_BODY,
+  INSIGHT_COPY,
+  INSIGHT_EMAIL_COPY,
+  insightPushContent,
+  insightReadinessViews,
+  insightView,
+  type InsightView,
+} from "./insights";
+
+/**
+ * Issue #92 — copy lint. Every rule's template is rendered for every
+ * direction/state and checked against the wording rules: no advice, no
+ * diagnosis, no risk or prediction, no judgement, no causal language.
+ */
+const BANNED = [
+  /\bshould\b/i,
+  /\bmust\b/i,
+  /\bconsider\b/i,
+  /\btry\b/i,
+  /\brecommend/i,
+  /\badvis/i,
+  /\bdiagnos/i,
+  /\brisk/i,
+  /\bdanger/i,
+  /\bwarning\b/i,
+  /\balarm/i,
+  /\b(ab)?normal\b/i,
+  /\b(un)?healthy\b/i,
+  /\bdisease/i,
+  /\billness/i,
+  /\bsick/i,
+  /\binfection/i,
+  /\bovertrain/i,
+  /\binjur/i,
+  /\bcaus(e|ed|es|ing)\b/i,
+  /\bbecause\b/i,
+  /\bdue to\b/i,
+  /\bleads? to\b/i,
+  /\bresult(s|ed)? in\b/i,
+  /\bpredict/i,
+  /\btreat/i,
+  /\bimprov/i,
+  /\bworse/i,
+  /\bbetter\b/i,
+  /\bgood\b/i,
+  /\bbad\b/i,
+  /\bpoor\b/i,
+  /\burgent/i,
+  /!/,
+];
+
+function lint(text: string): string[] {
+  return BANNED.filter((pattern) => pattern.test(text)).map((pattern) => pattern.source);
+}
+
+function make(ruleId: InsightRuleId, detail: InsightDetail, withFactors = false): Insight {
+  return {
+    id: `${ruleId}:w`,
+    ruleId,
+    ruleVersion: INSIGHT_RULE_VERSIONS[ruleId],
+    kind: INSIGHT_RULE_KINDS[ruleId],
+    topic: "sleep",
+    windowKey: "w",
+    windowEnd: "2026-10-15",
+    detail,
+    factors: withFactors
+      ? [
+          { metric: "steps", direction: "lower" },
+          { metric: "resting_heart_rate", direction: "higher" },
+        ]
+      : [],
+  };
+}
+
+const change = (
+  metric: "sleep_duration" | "resting_heart_rate" | "steps",
+  direction: "higher" | "lower",
+  certainty: "clear" | "modest",
+) =>
+  ({
+    type: "change",
+    metric,
+    direction,
+    unit: metric === "sleep_duration" ? "minutes" : metric === "steps" ? "steps" : "bpm",
+    recentValue: metric === "sleep_duration" ? 380 : metric === "steps" ? 5200 : 64,
+    recentDays: 7,
+    recentWindowDays: 7,
+    baselineValue: metric === "sleep_duration" ? 430 : metric === "steps" ? 8100 : 59,
+    baselineDays: 26,
+    baselineWindowDays: 28,
+    difference: direction === "higher" ? 5 : -50,
+    threshold: 3,
+    certainty,
+  }) as const;
+
+function everyInsight(): Insight[] {
+  const out: Insight[] = [];
+  for (const metric of ["sleep_duration", "resting_heart_rate", "steps"] as const)
+    for (const direction of ["higher", "lower"] as const)
+      for (const certainty of ["clear", "modest"] as const)
+        out.push(make(`change.${metric}`, change(metric, direction, certainty), true));
+  for (const direction of ["higher", "lower"] as const)
+    for (const certainty of ["clear", "modest"] as const)
+      out.push(
+        make(
+          "change.weight_trend",
+          {
+            type: "trend",
+            metric: "weight",
+            direction,
+            unit: "kg",
+            startValue: 81.2,
+            endValue: direction === "higher" ? 82.6 : 79.8,
+            windowDays: 28,
+            days: 20,
+            certainty,
+          },
+          true,
+        ),
+      );
+  for (const state of ["reached", "toward_target", "away_from_target"] as const)
+    out.push(
+      make(`goal.${state}` as InsightRuleId, {
+        type: "goal",
+        goalId: 3,
+        goalTitle: "Walk 10k steps",
+        state,
+        progress: 0.6,
+        currentValue: 8000,
+        targetValue: 10000,
+      }),
+    );
+  for (const metric of ["sleep_duration", "resting_heart_rate", "steps", "weight"] as const) {
+    out.push(
+      make("data_quality.recording_gap", {
+        type: "recording_gap",
+        metric,
+        lastRecordedDate: "2026-10-11",
+        daysWithout: 4,
+      }),
+      make("data_quality.source_change", {
+        type: "source_change",
+        metric,
+        sinceDate: "2026-10-09",
+        baselineDays: 6,
+        baselineMinDays: 14,
+      }),
+      make("streak.recording", { type: "streak", metric, days: 14, startDate: "2026-10-02" }),
+    );
+  }
+  return out;
+}
+
+function allText(view: InsightView): string {
+  return [view.title, view.body, view.certaintyText, view.coverageText, view.factorsText]
+    .filter(Boolean)
+    .join(" ");
+}
+
+describe("insight templates (copy lint)", () => {
+  test("every rule has at least one rendered fixture", () => {
+    const covered = new Set(everyInsight().map((insight) => insight.ruleId));
+    expect([...INSIGHT_RULE_IDS].filter((id) => !covered.has(id))).toEqual([]);
+  });
+
+  test("no template uses advice, diagnostic, risk, judging or causal wording", () => {
+    const failures = everyInsight()
+      .map((insight) => ({ id: insight.id, text: allText(insightView(insight)) }))
+      .map(({ id, text }) => ({ id, text, hits: lint(text) }))
+      .filter((entry) => entry.hits.length > 0);
+    expect(failures).toEqual([]);
+  });
+
+  test("fixed copy passes the same lint", () => {
+    const fixed = [
+      ...(Object.values(INSIGHT_COPY) as unknown[]).filter(
+        (value): value is string => typeof value === "string",
+      ),
+      INSIGHT_COPY.hiddenSome(2),
+      INSIGHT_COPY.suppressed(1),
+      INSIGHT_EMAIL_COPY.intro,
+      INSIGHT_EMAIL_COPY.none,
+    ];
+    expect(fixed.flatMap((text) => lint(text).map((hit) => `${hit}: ${text}`))).toEqual([]);
+  });
+
+  test("a change states what changed, against which usual, how sure, and coverage", () => {
+    const view = insightView(
+      make("change.resting_heart_rate", change("resting_heart_rate", "higher", "clear")),
+    );
+    expect(view.title).toBe("Resting heart rate higher than your usual");
+    expect(view.body).toBe(
+      "Your 7-day average resting heart rate was 64 bpm, 5 bpm higher than your usual of 59 bpm.",
+    );
+    expect(view.certaintyText).toContain("usual day-to-day variation");
+    expect(view.coverageText).toBe(
+      "Based on 7 of the last 7 days, compared with 26 days in the 28 days before.",
+    );
+    expect(view.ruleText).toBe("Rule change.resting_heart_rate v1");
+  });
+
+  test("co-occurring factors are worded as co-occurrence only", () => {
+    const view = insightView(
+      make("change.sleep_duration", change("sleep_duration", "lower", "modest"), true),
+    );
+    expect(view.factorsText).toBe(
+      "In the same period, your step count was lower than usual and your resting heart rate was higher than usual. These changed at the same time; that does not mean one explains the other.",
+    );
+  });
+
+  test("weight respects imperial display settings", () => {
+    const view = insightView(
+      make("change.weight_trend", {
+        type: "trend",
+        metric: "weight",
+        direction: "lower",
+        unit: "kg",
+        startValue: 80,
+        endValue: 78,
+        windowDays: 28,
+        days: 20,
+        certainty: "clear",
+      }),
+      { units: "imperial", locale: "en-US" } as never,
+    );
+    expect(view.body).toContain("lb");
+    expect(view.body).not.toContain("kg");
+  });
+});
+
+describe("not enough data", () => {
+  test("readiness rows explain what is missing and never say zero or normal", () => {
+    const readiness: InsightRuleReadiness[] = [
+      {
+        ruleId: "change.sleep_duration",
+        metric: "sleep_duration",
+        state: "building_baseline",
+        baselineDays: 5,
+        baselineMinDays: 14,
+        recentDays: 5,
+        recentMinDays: 5,
+      },
+      {
+        ruleId: "change.steps",
+        metric: "steps",
+        state: "ready",
+        baselineDays: 20,
+        baselineMinDays: 14,
+        recentDays: 6,
+        recentMinDays: 5,
+      },
+    ];
+    const views = insightReadinessViews(readiness);
+    expect(views).toEqual([
+      {
+        key: "change.sleep_duration",
+        label: "Sleep",
+        stateLabel: "Building your usual",
+        detail: "5 of 14 days with data so far.",
+      },
+    ]);
+    expect(JSON.stringify(views)).not.toMatch(/normal|no change/i);
+  });
+});
+
+describe("push content", () => {
+  test("generic by default; never a value, title, date or digit", () => {
+    for (const topic of [...INSIGHT_TOPICS, null]) {
+      const generic = insightPushContent(topic, false);
+      expect(generic.body).toBe(GENERIC_PUSH_BODY);
+      const withTopic = insightPushContent(topic, true);
+      for (const content of [generic, withTopic]) {
+        expect(`${content.title} ${content.body}`).not.toMatch(/\d/);
+        expect(lint(`${content.title} ${content.body}`)).toEqual([]);
+      }
+    }
+    expect(insightPushContent("sleep", true).body).toBe("You have a new sleep insight");
+  });
+});

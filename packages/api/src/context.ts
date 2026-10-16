@@ -7,6 +7,7 @@ import type { Database } from "@openvalens/db";
 import type { EmailService } from "@openvalens/email";
 import type { StorageService } from "@openvalens/storage";
 import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
+import type { PushProvider } from "@openvalens/push";
 import type { TelegramClient } from "@openvalens/telegram";
 
 import type { ProductSettingsService } from "./product-settings";
@@ -163,6 +164,21 @@ export type Context = {
    * lookups local (private foods + catalog mirrors), which is the default.
    */
   foodLookup?: FoodLookupProvider | null;
+  /**
+   * Issue #92 — `push` integration adapter, or `null`/absent when push is off
+   * (the default). Push opt-ins are then reported as unavailable.
+   */
+  push?: PushProvider | null;
+  /**
+   * Issue #92 — normalized web app origin used for links in the insights email
+   * (dashboard, one-step unsubscribe). Absent → the email digest is skipped.
+   */
+  webOrigin?: string;
+  /**
+   * Issue #92 — key for the one-step email unsubscribe tokens, derived by the
+   * server from `BETTER_AUTH_SECRET`. Absent → the email digest is skipped.
+   */
+  insightUnsubscribeKey?: Buffer;
   /** The raw Hono context, used by authz guards and cron auth. */
   honoContext: ApiRequestContext;
 };

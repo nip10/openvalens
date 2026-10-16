@@ -15,6 +15,7 @@ readiness probe (Issue #57).
 | `ai`               | Any OpenAI-compatible endpoint (Ollama, local)  | `off` — `ai.chat` fails closed | `AI_PROVIDER=openai-compatible` (#59)                           | Implemented        |
 | `foodLookup`       | Open Food Facts live barcode lookup (#69)       | `off` — local catalogs only    | `FOOD_LOOKUP_PROVIDER=openfoodfacts` + `FOOD_LOOKUP_USER_AGENT` | Implemented        |
 | `storage`          | Local disk, S3-compatible (S3, R2, MinIO, B2)   | Local disk, private            | `STORAGE_PROVIDER=s3` + `STORAGE_S3_*`                          | Implemented        |
+| `push`             | Expo push service (forwards to APNs/FCM, #92)   | `off` — push shown unavailable | `PUSH_PROVIDER=expo`                                            | Implemented        |
 | `oidc`             | One generic OIDC provider (local accounts stay) | `off` — local accounts only    | `OIDC_*` env (Issue #65)                                        | Implemented        |
 | `wearables`        | Phone-first ingestion; Oura, Whoop, Polar, …    | Phone-first, no vendor         | Per-vendor env (Issue #60)                                      | Planned — #60      |
 | Errors / analytics | None by default                                 | `off`                          | Opt-in only (Issues #53, #54)                                   | Planned — #53, #54 |
@@ -31,7 +32,7 @@ rate limit degrades to a manual-entry fallback, and manual food logging never
 depends on it.
 
 Not in v1: SMS, search engines (use Postgres), payments, extra email vendors,
-SMTP, direct APNs/FCM push.
+SMTP, direct APNs/FCM push (push goes through the Expo push service only).
 
 ## Readiness
 
@@ -46,7 +47,8 @@ implemented family:
   "messaging": { "provider": null, "state": "off" },
   "storage": { "provider": "local", "state": "configured" },
   "foodLookup": { "provider": null, "state": "off" },
-  "oidc": { "provider": null, "state": "off" }
+  "oidc": { "provider": null, "state": "off" },
+  "push": { "provider": null, "state": "off" }
 }
 ```
 

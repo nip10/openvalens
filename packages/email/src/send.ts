@@ -23,6 +23,11 @@ export type SendEmailInput = {
   templateName?: string;
   /** Resend tags; the first entry is used as the template name fallback. */
   tags?: string[];
+  /**
+   * Extra message headers, e.g. `List-Unsubscribe`. Never logged. Only
+   * service headers belong here — no personal data.
+   */
+  headers?: Record<string, string>;
 };
 
 export type SendEmailOptions = {
@@ -189,6 +194,7 @@ export async function sendEmail(
       html: input.html,
       text: input.text,
       tags,
+      ...(input.headers ? { headers: input.headers } : {}),
     });
 
     logger.info("email.send.queued", {

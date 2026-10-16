@@ -22,6 +22,7 @@
     "@openvalens/email": "workspace:*",
     "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "@openvalens/push": "workspace:*",
     "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",
     "@orpc/openapi": "catalog:",

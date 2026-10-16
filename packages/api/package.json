@@ -29,6 +29,7 @@
     "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/plans": "workspace:*",
+    "@openvalens/push": "workspace:*",
     "@openvalens/sleep": "workspace:*",
     "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",

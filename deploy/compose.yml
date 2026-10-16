@@ -68,6 +68,8 @@ x-server-env: &server-env
   FOOD_LOOKUP_PROVIDER: ${FOOD_LOOKUP_PROVIDER:-}
   FOOD_LOOKUP_USER_AGENT: ${FOOD_LOOKUP_USER_AGENT:-}
   FOOD_LOOKUP_BASE_URL: ${FOOD_LOOKUP_BASE_URL:-}
+  # Optional insight push notifications (Issue #92): off unless PUSH_PROVIDER is set.
+  PUSH_PROVIDER: ${PUSH_PROVIDER:-}
   # Object storage (Issue #62). Default: private local disk on the `storage`
   # volume. For an S3-compatible bucket set STORAGE_PROVIDER=s3 and the
   # STORAGE_S3_* settings in deploy/.env, with the keys as secret files.
