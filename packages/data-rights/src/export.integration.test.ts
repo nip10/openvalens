@@ -88,6 +88,14 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(all).not.toContain("ExponentPushToken[seed-a");
     expect(parse("insight_feedback").map((r) => r.insight_id)).toEqual(["change.steps:2026-W41"]);
     expect(parse("insight_delivery")).toHaveLength(1);
+    // Preventive care (#97): declarations, dates, reminders and decisions are exported.
+    expect(parse("preventive_care_declaration").map((r) => r.criterion_id)).toEqual([
+      "ever_smoked",
+    ]);
+    expect(parse("preventive_care_item_state").map((r) => r.item_id)).toEqual([
+      "uk.bowel_screening",
+    ]);
+    expect(parse("preventive_care_setting")).toHaveLength(1);
   });
 
   test("admission grants export only the recipient scope, never the inviter's other recipients", () => {

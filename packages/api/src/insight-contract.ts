@@ -19,8 +19,17 @@ import { z } from "zod";
 
 export const INSIGHT_ENGINE_VERSION = "insights-0.1.0";
 
-/** The four v1 kinds; each can be toggled per channel. */
-export const INSIGHT_KINDS = ["change", "goal_milestone", "data_quality", "streak"] as const;
+/** The v1 kinds; each can be toggled per channel. */
+export const INSIGHT_KINDS = [
+  "change",
+  "goal_milestone",
+  "data_quality",
+  "streak",
+  // #97 preventive-care reminders: dates the person set themselves. Not an
+  // insight rule; the kind exists so reminders share the opt-in channels,
+  // per-kind toggles and the one-push-a-day claim.
+  "reminder",
+] as const;
 export type InsightKind = (typeof INSIGHT_KINDS)[number];
 
 /** Where an insight can appear. Push and email are off until the person opts in. */
@@ -285,6 +294,7 @@ export const kindChannelsSchema = z.object({
   goal_milestone: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
   data_quality: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
   streak: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
+  reminder: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
 });
 export type KindChannels = z.infer<typeof kindChannelsSchema>;
 
@@ -344,6 +354,7 @@ export const insightPreferencesUpdateInput = z.strictObject({
       goal_milestone: channelPatch.optional(),
       data_quality: channelPatch.optional(),
       streak: channelPatch.optional(),
+      reminder: channelPatch.optional(),
     })
     .optional(),
 });

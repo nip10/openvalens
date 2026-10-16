@@ -23,6 +23,7 @@ const BASE_LINKS = [
   { to: "/", label: "Home" },
   { to: "/dashboard", label: "Dashboard" },
   { to: "/scores", label: "Scores" },
+  { to: "/preventive-care", label: "Preventive care" },
   { to: "/coach", label: "Coach" },
   { to: "/body", label: "Body" },
   { to: "/nutrition", label: "Meal diary" },

@@ -11,6 +11,11 @@ import { useThemeColor } from "@/utils/theme";
 const DRAWER_ITEMS = [
   { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
   { label: "Scores", href: "/scores" as const, icon: "speedometer-outline" as const },
+  {
+    label: "Preventive care",
+    href: "/preventive-care" as const,
+    icon: "shield-checkmark-outline" as const,
+  },
   { label: "Supplements", href: "/supplements" as const, icon: "medkit-outline" as const },
   { label: "Meal diary", href: "/nutrition" as const, icon: "restaurant-outline" as const },
   { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
@@ -105,7 +110,9 @@ function DrawerLayout() {
                           ? "Settings"
                           : pathname === "/scores"
                             ? "Scores"
-                            : "Cockpit";
+                            : pathname === "/preventive-care"
+                              ? "Preventive care"
+                              : "Cockpit";
 
   return (
     <Drawer
@@ -209,6 +216,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="scores"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="preventive-care"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },

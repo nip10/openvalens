@@ -241,11 +241,11 @@ change one.
 The Compose stack does **not** schedule anything. Two daily jobs must be
 triggered from the host, authenticated with the generated `CRON_SECRET`:
 
-| Endpoint                      | Suggested schedule | Job                                       |
-| ----------------------------- | ------------------ | ----------------------------------------- |
-| `/rpc/cron/remindersDailyRun` | `5 8 * * *`        | Daily reminders                           |
-| `/rpc/cron/ingestionRun`      | `15 9 * * *`       | Retry and replay of queued ingestion work |
-| `/rpc/cron/insightsRun`       | `20 * * * *`       | Opt-in insight push and weekly email      |
+| Endpoint                      | Suggested schedule | Job                                                        |
+| ----------------------------- | ------------------ | ---------------------------------------------------------- |
+| `/rpc/cron/remindersDailyRun` | `5 8 * * *`        | Daily reminders                                            |
+| `/rpc/cron/ingestionRun`      | `15 9 * * *`       | Retry and replay of queued ingestion work                  |
+| `/rpc/cron/insightsRun`       | `20 * * * *`       | Opt-in insight and preventive-care reminder push and email |
 
 Add them to the crontab of the user who ran `deploy/setup.sh` (that user can
 read `deploy/secrets/`); replace both placeholders:

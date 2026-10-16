@@ -793,7 +793,13 @@ export function runInsightRules(input: InsightEngineInput): InsightEngineOutput 
     );
   }
 
-  const kindOrder = { change: 0, goal_milestone: 1, data_quality: 2, streak: 3 } as const;
+  const kindOrder = {
+    change: 0,
+    goal_milestone: 1,
+    data_quality: 2,
+    streak: 3,
+    reminder: 4,
+  } as const;
   const insights = [
     ...changes.sort((a, b) => b.strength - a.strength).map((entry) => entry.insight),
     ...others.sort((a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.id.localeCompare(b.id)),
@@ -879,5 +885,6 @@ export function defaultKindChannels(): KindChannels {
     goal_milestone: { ...all },
     data_quality: { ...all },
     streak: { ...all },
+    reminder: { ...all },
   };
 }

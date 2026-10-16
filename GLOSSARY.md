@@ -49,3 +49,29 @@ recording streak), produced by a versioned rule and rendered from a reviewed
 template. Never stored, never AI-written, never advice. Push and email are
 optional, opt-in channels for the same insights.
 _Avoid_: Alert, recommendation, AI insight
+
+**Guideline item**:
+One fact set published by a public-health authority for a region (population,
+interval, the authority's own grade), stored as versioned repo data with its
+source link, statement date, retrieval date, reviewer and expiry. Shown, never
+computed; filtered only by region, the profile's age range and sex, and the
+person's own declarations.
+_Avoid_: Recommendation (the app does not recommend), screening rule, alert
+
+**Self-declaration**:
+An optional answer the person gives to a criterion a guideline item names
+(for example "ever smoked"). Never inferred and never pre-selected; "prefer not
+to say" is always allowed and clearing deletes it.
+_Avoid_: Risk factor, eligibility check
+
+**Reminder**:
+A date the person set on a guideline item, delivered only through the push or
+email channels they turned on for insights, with generic text. Not an insight
+and never used for individual-decision or informational items.
+_Avoid_: Due date, overdue notice
+
+**Evidence check**:
+The opt-in, read-only library rating popular longevity practices and tests
+against primary evidence with a certainty label. No doses and never a
+reminder.
+_Avoid_: Longevity protocol, supplement plan
