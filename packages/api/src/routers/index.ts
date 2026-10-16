@@ -20,6 +20,7 @@ import { labsRouter } from "./labs";
 import { mobileRouter } from "./mobile";
 import { nutritionCustomFoodsRouter } from "./nutrition-custom-foods";
 import { nutritionDiaryRouter } from "./nutrition-diary";
+import { nutritionEnergyRouter } from "./nutrition-energy";
 import { nutritionFoodsRouter } from "./nutrition-foods";
 import { plansRouter } from "./plans";
 import { profileRouter } from "./profile";
@@ -53,6 +54,7 @@ export const appRouter = {
   mobile: mobileRouter,
   nutritionCustomFoods: nutritionCustomFoodsRouter,
   nutritionDiary: nutritionDiaryRouter,
+  nutritionEnergy: nutritionEnergyRouter,
   nutritionFoods: nutritionFoodsRouter,
   plans: plansRouter,
   profile: profileRouter,

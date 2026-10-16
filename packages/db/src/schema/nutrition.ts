@@ -2,9 +2,11 @@ import { sql, type SQL } from "drizzle-orm";
 import {
   check,
   doublePrecision,
+  boolean,
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   real,
   serial,
@@ -542,6 +544,96 @@ export const nutritionDiaryMutation = pgTable(
       columns: [table.organizationId, table.userId],
       foreignColumns: [member.organizationId, member.userId],
       name: "nutrition_diary_mutation_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+// ─── Energy estimate proposals (Issue #76) ────────────────────
+//
+// The experimental energy estimate itself is never stored: it is recomputed
+// from daily totals (#79) and the weight trend (#87) on every read. Only a
+// suggested change to the member's energy target is kept, so it can be shown,
+// accepted or dismissed. A proposal never changes a goal by itself: only an
+// explicit accept writes `nutrition_goal`, and records which goal it wrote.
+
+export const ENERGY_PROPOSAL_STATUSES = ["pending", "accepted", "dismissed", "superseded"] as const;
+export type EnergyProposalStatus = (typeof ENERGY_PROPOSAL_STATUSES)[number];
+
+/** A suggested energy target the member can accept or dismiss. */
+export const nutritionEnergyProposal = pgTable(
+  "nutrition_energy_proposal",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Only `maintenance` in v1; deficit/gain proposals need #80's safety policy. */
+    kind: text("kind").$type<"maintenance">().notNull(),
+    status: text("status").$type<EnergyProposalStatus>().notNull().default("pending"),
+    /** The estimate the proposal came from (kcal/day, logging units). */
+    estimateKcal: integer("estimate_kcal").notNull(),
+    /** The suggested energy target (kcal/day). */
+    targetKcal: integer("target_kcal").notNull(),
+    /** The member's active energy target when proposed; `null` when none was set. */
+    currentTargetKcal: integer("current_target_kcal"),
+    /** True when the weekly step limit moved the target less than the estimate. */
+    stepLimited: boolean("step_limited").notNull().default(false),
+    methodVersion: integer("method_version").notNull(),
+    policyVersion: text("policy_version").notNull(),
+    windowFrom: text("window_from").notNull(),
+    windowTo: text("window_to").notNull(),
+    /** The full transparent estimate (inputs, window, method, uncertainty) at proposal time. */
+    estimate: jsonb("estimate").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true, mode: "date" }),
+    /** The goal an accept wrote. */
+    acceptedGoalId: integer("accepted_goal_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nutritionEnergyProposalPendingUnique: uniqueIndex(
+      "nutrition_energy_proposal_org_user_pending_key",
+    )
+      .on(table.organizationId, table.userId)
+      .where(sql`${table.status} = 'pending'`),
+    nutritionEnergyProposalOrgUserCreatedIdx: index(
+      "nutrition_energy_proposal_org_user_created_idx",
+    ).on(table.organizationId, table.userId, table.createdAt),
+    nutritionEnergyProposalUserIdx: index("nutrition_energy_proposal_user_id_idx").on(table.userId),
+    nutritionEnergyProposalKindCheck: check(
+      "nutrition_energy_proposal_kind_check",
+      sql`${table.kind} in ('maintenance')`,
+    ),
+    nutritionEnergyProposalStatusCheck: check(
+      "nutrition_energy_proposal_status_check",
+      sql`${table.status} in ('pending', 'accepted', 'dismissed', 'superseded')`,
+    ),
+    nutritionEnergyProposalKcalCheck: check(
+      "nutrition_energy_proposal_kcal_check",
+      sql`${table.estimateKcal} > 0 and ${table.targetKcal} > 0
+        and (${table.currentTargetKcal} is null or ${table.currentTargetKcal} >= 0)`,
+    ),
+    nutritionEnergyProposalWindowCheck: check(
+      "nutrition_energy_proposal_window_check",
+      sql`${table.windowFrom} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        and ${table.windowTo} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+        and ${table.windowFrom} <= ${table.windowTo}`,
+    ),
+    nutritionEnergyProposalDecisionCheck: check(
+      "nutrition_energy_proposal_decision_check",
+      sql`(${table.status} = 'pending') = (${table.decidedAt} is null)`,
+    ),
+    nutritionEnergyProposalAcceptedGoalFk: foreignKey({
+      columns: [table.acceptedGoalId],
+      foreignColumns: [nutritionGoal.id],
+      name: "nutrition_energy_proposal_accepted_goal_fk",
+    }).onDelete("set null"),
+    nutritionEnergyProposalMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_energy_proposal_org_user_member_fk",
     }).onDelete("restrict"),
   }),
 );
