@@ -126,6 +126,8 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_diary_day: organization,
   nutrition_favorite_food: organization,
   nutrition_diary_mutation: organization,
+  // Energy estimate (#76): target proposals with the estimate they came from.
+  nutrition_energy_proposal: organization,
   // Public food catalogs (#72): instance-wide FDC / Open Food Facts mirrors and
   // their import ledger; no tenant or personal columns.
   nutrition_catalog_release: {

@@ -10,3 +10,6 @@ export * from "./food-search";
 export * from "./totals";
 export * from "./daily-totals";
 export * from "./custom-foods";
+export * from "./energy-estimate";
+export * from "./energy-proposal-policy";
+export * from "./energy-proposals";

@@ -74,6 +74,9 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
           where m.organization_id = 'org-${who}' and s.organization_id = 'org-${who}';
         insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
           values ('org-${who}', 'user-${who}', 'protein_g', 80);
+        insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at, decided_at, accepted_goal_id)
+          select 'org-${who}', 'user-${who}', 'maintenance', 'accepted', 2300, 2300, 1, 'energy-proposal/v1', '2026-09-04', '2026-10-01', '{"status": "estimated"}', now(), now(), id
+          from nutrition_goal where organization_id = 'org-${who}';
         insert into nutrition_diary_day (organization_id, user_id, local_date, completed_at)
           values ('org-${who}', 'user-${who}', '2026-10-01', now());
         insert into nutrition_favorite_food (organization_id, user_id, snapshot_id)
@@ -175,6 +178,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_diary_day",
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
+      "nutrition_energy_proposal",
       "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);
