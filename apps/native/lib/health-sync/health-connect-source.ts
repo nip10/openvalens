@@ -9,7 +9,11 @@ import {
   type MapOptions,
   type MobileRecordType,
 } from "./map-health-connect";
-import { HEALTH_CONNECT_RECORD_TYPES, SYNCED_TYPES } from "./record-types";
+import {
+  HEALTH_CONNECT_RECORD_TYPES,
+  isHealthConnectRecordType,
+  SYNCED_TYPES,
+} from "./record-types";
 
 /**
  * Android `HealthSource` on `react-native-health-connect`. Imported
@@ -35,6 +39,12 @@ async function getMapOptions(): Promise<MapOptions> {
   return mapOptions;
 }
 
+/** HealthKit-only types (`sleep_segment`) are never granted here. */
+function recordTypeFor(type: MobileRecordType): RecordType {
+  if (!isHealthConnectRecordType(type)) throw new Error("Not a Health Connect record type.");
+  return HEALTH_CONNECT_RECORD_TYPES[type];
+}
+
 function mapAll(type: MobileRecordType, records: unknown[], options: MapOptions) {
   const mapped: MobileHealthRecordInput[] = [];
   for (const record of records) {
@@ -58,7 +68,7 @@ export const healthConnectSource: HealthSource = {
   async captureToken(type) {
     const hc = await healthConnect();
     const result = await hc.getChanges({
-      recordTypes: [HEALTH_CONNECT_RECORD_TYPES[type] as RecordType],
+      recordTypes: [recordTypeFor(type)],
     });
     return result.nextChangesToken;
   },
@@ -69,7 +79,7 @@ export const healthConnectSource: HealthSource = {
     const records: unknown[] = [];
     let pageToken: string | undefined;
     do {
-      const page = await hc.readRecords(HEALTH_CONNECT_RECORD_TYPES[type] as RecordType, {
+      const page = await hc.readRecords(recordTypeFor(type), {
         timeRangeFilter: {
           operator: "between",
           startTime: from.toISOString(),

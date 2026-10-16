@@ -27,6 +27,22 @@ export const MOBILE_RECORD_TYPES = [
   "distance",
   "sleep_session",
   "workout",
+  "sleep_segment",
+] as const;
+
+/**
+ * `HKCategoryValueSleepAnalysis` values, one per HealthKit sleep sample
+ * (#131). HealthKit stores sleep as stage segments, not sessions, so iOS
+ * sends `sleep_segment` records and the server groups them into
+ * `sleep_session` events. Health Connect sends whole sessions instead.
+ */
+export const HEALTHKIT_SLEEP_VALUES = [
+  "in_bed",
+  "asleep_unspecified",
+  "awake",
+  "asleep_core",
+  "asleep_deep",
+  "asleep_rem",
 ] as const;
 
 export const MOBILE_PROVIDERS = ["health_connect", "apple_health"] as const;
@@ -108,6 +124,14 @@ export const mobileHealthRecord = z.discriminatedUnion("type", [
     activity: z.string().min(1).max(64),
     title: z.string().max(200).nullable(),
   }),
+  z.strictObject({
+    ...base,
+    ...interval,
+    type: z.literal("sleep_segment"),
+    value: z.enum(HEALTHKIT_SLEEP_VALUES),
+    /** IANA zone from the sample's `HKTimeZone` metadata, when the writer set it. */
+    timeZone: z.string().min(1).max(64).optional(),
+  }),
 ]);
 
 export type MobileHealthRecordInput = z.infer<typeof mobileHealthRecord>;
@@ -136,6 +160,12 @@ export const ingestBatchInput = z
           message: "Every upsert must match the batch recordType.",
         });
     });
+    if (batch.recordType === "sleep_segment" && batch.provider !== "apple_health")
+      ctx.addIssue({
+        code: "custom",
+        path: ["recordType"],
+        message: "sleep_segment is only sent by Apple Health.",
+      });
     if (batch.window && batch.mode !== "backfill")
       ctx.addIssue({ code: "custom", path: ["window"], message: "window is only for backfill." });
   });

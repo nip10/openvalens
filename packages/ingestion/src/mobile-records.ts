@@ -3,6 +3,7 @@ import {
   type CanonicalMetricWriteIntent,
   type CanonicalWriteIntent,
 } from "./health-connect";
+import type { HealthKitSleepValue } from "./healthkit-sleep";
 
 /**
  * Typed records sent by the mobile app through `mobile.ingestBatch`
@@ -36,6 +37,8 @@ export type MobileHealthRecord = MobileRecordBase &
         stages?: { stage: string; startTime: string; endTime: string }[];
       } & Interval)
     | ({ type: "workout"; activity: string; title: string | null } & Interval)
+    /** One HealthKit sleep sample; grouped into sessions by `healthkit-sleep.ts`. */
+    | ({ type: "sleep_segment"; value: HealthKitSleepValue; timeZone?: string } & Interval)
   );
 
 export type MobileHealthRecordType = MobileHealthRecord["type"];
@@ -119,6 +122,10 @@ export function adaptMobileHealthRecords(records: MobileHealthRecord[]): Canonic
         });
         break;
       }
+      case "sleep_segment":
+        // Segments are not canonical rows on their own: the batch runner
+        // regroups them into `sleep_session` events (`applyHealthKitSleepSegments`).
+        break;
       case "workout":
         intents.push({
           kind: "health_event",

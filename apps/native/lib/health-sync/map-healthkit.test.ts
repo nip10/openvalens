@@ -83,4 +83,42 @@ describe("mapHealthKitSample", () => {
       sourceDevice: { model: "Ring" },
     });
   });
+
+  test("sleep samples become segments with the stage value and recorded zone", () => {
+    expect(
+      map("sleep_segment", { ...base, value: 4, metadata: { HKTimeZone: "Europe/Lisbon" } }),
+    ).toEqual({
+      type: "sleep_segment",
+      externalRecordId: base.uuid,
+      sourceApp: "com.withings.wiscale2",
+      sourceDevice: { type: "watch", model: "Watch" },
+      startTime: "2026-10-01T07:00:00.000Z",
+      endTime: "2026-10-01T08:00:00.000Z",
+      value: "asleep_deep",
+      timeZone: "Europe/Lisbon",
+    });
+  });
+
+  test("maps every HKCategoryValueSleepAnalysis value and skips unknown ones", () => {
+    const values = [0, 1, 2, 3, 4, 5].map((value) => {
+      const record = map("sleep_segment", { ...base, value });
+      return record?.type === "sleep_segment" ? record.value : null;
+    });
+    expect(values).toEqual([
+      "in_bed",
+      "asleep_unspecified",
+      "awake",
+      "asleep_core",
+      "asleep_deep",
+      "asleep_rem",
+    ]);
+    expect(map("sleep_segment", { ...base, value: 9 })).toBeNull();
+    expect(map("sleep_segment", { ...base })).toBeNull();
+  });
+
+  test("a sleep segment without a usable zone omits it", () => {
+    expect(
+      map("sleep_segment", { ...base, value: 3, metadata: { HKTimeZone: 7 } }),
+    ).not.toHaveProperty("timeZone");
+  });
 });
