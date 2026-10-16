@@ -1,3 +1,14 @@
+import type { ActivityIntensityOption } from "@openvalens/api/activity-load-contract";
+import { ACTIVITY_INTENSITIES } from "@openvalens/api/activity-load-contract";
+import {
+  canRateEffortToday,
+  EFFORT_QUESTION,
+  EFFORT_RATING_OPTIONS,
+  effortRatingLabel,
+  INTENSITY_DESCRIPTIONS,
+  INTENSITY_LABELS,
+  sessionEffortText,
+} from "@openvalens/api/presenters/activity-load";
 import {
   GOAL_DIRECTION_OPTIONS,
   GOAL_PRIORITY_OPTIONS,
@@ -29,6 +40,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { ActivityLoadCard } from "@/components/activity-load-panel";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/workouts")({
@@ -56,11 +68,81 @@ function parseDurationMinutes(value: string): number | null {
   return parsed;
 }
 
+/** "" = not set; the select's value round-trips as a string. */
+const NOT_SET = "none";
+
+function parseEffort(value: string): number | null {
+  const parsed = Number(value);
+  return value !== NOT_SET && Number.isInteger(parsed) && parsed >= 0 && parsed <= 10
+    ? parsed
+    : null;
+}
+
+function EffortSelect({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  id?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={(next) => onChange(String(next))}>
+      <SelectTrigger id={id} aria-label={EFFORT_QUESTION}>
+        <SelectValue>
+          {value === NOT_SET ? "Not rated" : effortRatingLabel(Number(value))}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NOT_SET}>Not rated</SelectItem>
+        {EFFORT_RATING_OPTIONS.map((rating) => (
+          <SelectItem key={rating} value={String(rating)}>
+            {effortRatingLabel(rating)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** Issue #99 — add a missing effort rating later the same day. */
+function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => void }) {
+  const [value, setValue] = useState(NOT_SET);
+  const rate = useMutation(
+    orpc.plans.workouts.rateEffort.mutationOptions({ onSuccess: () => onSaved() }),
+  );
+  const rating = parseEffort(value);
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (rating !== null) rate.mutate({ id: workoutId, effortRating: rating });
+      }}
+    >
+      <EffortSelect value={value} onChange={setValue} />
+      <Button
+        type="submit"
+        size="sm"
+        variant="outline"
+        disabled={rating === null || rate.isPending}
+      >
+        Rate
+      </Button>
+      {rate.isError ? <span className="text-xs text-destructive">Could not save.</span> : null}
+    </form>
+  );
+}
+
 function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
   const [type, setType] = useState<WorkoutType>("weights");
   const [date, setDate] = useState(todayIso);
   const [duration, setDuration] = useState("");
   const [notes, setNotes] = useState("");
+  // Issue #99 — both optional; left unset they are shown as missing, never guessed.
+  const [intensity, setIntensity] = useState<ActivityIntensityOption | null>(null);
+  const [effort, setEffort] = useState(NOT_SET);
 
   const save = useMutation(
     orpc.plans.workouts.upsertWorkout.mutationOptions({
@@ -68,6 +150,8 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
         setDuration("");
         setNotes("");
         setDate(todayIso());
+        setIntensity(null);
+        setEffort(NOT_SET);
         onSaved();
       },
     }),
@@ -84,6 +168,8 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
       type,
       duration: parsedDuration,
       notes: notes.trim().length > 0 ? notes.trim() : null,
+      intensity,
+      effortRating: parseEffort(effort),
       // `upsertWorkout` requires at least one exercise with one set; the
       // session header is what this form captures, so we seed a single
       // placeholder set the user can refine later.
@@ -125,6 +211,43 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
           onChange={(event) => setDuration(event.target.value)}
           placeholder="45"
         />
+      </div>
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium" htmlFor="workout-intensity">
+          Intensity (optional)
+        </Label>
+        <Select
+          value={intensity ?? NOT_SET}
+          onValueChange={(next) => {
+            const value = String(next);
+            setIntensity(
+              ACTIVITY_INTENSITIES.includes(value as ActivityIntensityOption)
+                ? (value as ActivityIntensityOption)
+                : null,
+            );
+          }}
+        >
+          <SelectTrigger id="workout-intensity">
+            <SelectValue>{intensity ? INTENSITY_LABELS[intensity] : "Not set"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NOT_SET}>Not set</SelectItem>
+            {ACTIVITY_INTENSITIES.map((value) => (
+              <SelectItem key={value} value={value}>
+                {INTENSITY_LABELS[value]} — {INTENSITY_DESCRIPTIONS[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-2">
+        <Label className="text-sm font-medium" htmlFor="workout-effort">
+          Effort, 0–10 (optional)
+        </Label>
+        <EffortSelect id="workout-effort" value={effort} onChange={setEffort} />
+        <span className="text-xs text-muted-foreground">
+          {EFFORT_QUESTION} You can also add it later today.
+        </span>
       </div>
       <div className="grid gap-2 sm:col-span-2">
         <Label className="text-sm font-medium">Notes</Label>
@@ -354,9 +477,15 @@ function WorkoutsPage() {
     orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),
   );
   const goals = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
+  const load = useQuery({
+    ...orpc.activity.weeklyLoad.queryOptions({ input: {} }),
+    staleTime: 60_000,
+  });
 
-  const reloadWorkouts = () =>
+  const reloadWorkouts = () => {
     void queryClient.invalidateQueries({ queryKey: [["plans", "workouts", "listWorkouts"]] });
+    void queryClient.invalidateQueries({ queryKey: orpc.activity.weeklyLoad.key() });
+  };
   const reloadGoals = () => {
     void queryClient.invalidateQueries({ queryKey: [["plans", "goals", "listGoals"]] });
     void queryClient.invalidateQueries({ queryKey: orpc.score.key() });
@@ -368,6 +497,19 @@ function WorkoutsPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <h1 className="text-2xl font-semibold">Workouts</h1>
+
+      {load.isPending ? (
+        <Skeleton className="h-64 w-full" />
+      ) : load.isError || !load.data ? (
+        <p className="text-sm text-muted-foreground">
+          Could not load weekly activity.{" "}
+          <button className="underline" onClick={() => void load.refetch()}>
+            Retry
+          </button>
+        </p>
+      ) : (
+        <ActivityLoadCard result={load.data} />
+      )}
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -399,17 +541,26 @@ function WorkoutsPage() {
           ) : (
             <ul className="divide-y divide-border">
               {workouts.data.map((workout) => (
-                <li key={workout.id} className="flex items-center justify-between gap-4 py-3">
+                <li
+                  key={workout.id}
+                  className="flex flex-wrap items-center justify-between gap-4 py-3"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="font-medium">{workoutTypeLabel(workout.type)}</div>
                     <div className="text-sm text-muted-foreground">
                       {workout.date}
                       {workout.notes ? ` · ${workout.notes}` : ""}
                     </div>
+                    <div className="text-sm text-muted-foreground">
+                      {sessionEffortText(workout)}
+                    </div>
                   </div>
                   <div className="shrink-0 font-mono text-sm">
                     {workoutDurationLabel(workout.duration)}
                   </div>
+                  {workout.effortRating === null && canRateEffortToday(workout.date, todayIso()) ? (
+                    <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                  ) : null}
                 </li>
               ))}
             </ul>

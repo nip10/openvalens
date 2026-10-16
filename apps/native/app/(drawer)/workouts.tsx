@@ -1,4 +1,18 @@
 import {
+  ACTIVITY_INTENSITIES,
+  type ActivityIntensityOption,
+  type ActivityLoadResult,
+} from "@openvalens/api/activity-load-contract";
+import {
+  canRateEffortToday,
+  EFFORT_QUESTION,
+  EFFORT_RATING_OPTIONS,
+  effortRatingLabel,
+  INTENSITY_DESCRIPTIONS,
+  INTENSITY_LABELS,
+  sessionEffortText,
+} from "@openvalens/api/presenters/activity-load";
+import {
   GOAL_DIRECTION_OPTIONS,
   GOAL_PRIORITY_OPTIONS,
   goalDirectionLabel,
@@ -19,6 +33,7 @@ import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { activityLoadScreen, toggleEffort, toggleIntensity } from "@/utils/activity-load-screen";
 import { orpc } from "@/utils/orpc";
 import { goalLogValue } from "@/utils/score-screen";
 import { useThemeColor } from "@/utils/theme";
@@ -71,11 +86,172 @@ function Pill({
   );
 }
 
+/** Issue #99 — 0–10 effort choices (CR-10); tapping the selected one clears it. */
+function EffortPills({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (next: number | null) => void;
+}) {
+  return (
+    <View className="flex-row flex-wrap gap-2" accessibilityLabel={EFFORT_QUESTION}>
+      {EFFORT_RATING_OPTIONS.map((rating) => (
+        <Pill
+          key={rating}
+          label={effortRatingLabel(rating)}
+          selected={value === rating}
+          onPress={() => onChange(toggleEffort(value, rating))}
+        />
+      ))}
+    </View>
+  );
+}
+
+/** Issue #99 — add a missing effort rating later the same day (same as web "Rate"). */
+function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [rating, setRating] = useState<number | null>(null);
+  const rate = useMutation(
+    orpc.plans.workouts.rateEffort.mutationOptions({ onSuccess: () => onSaved() }),
+  );
+  if (!open)
+    return (
+      <Pressable
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        className="min-h-11 justify-center"
+      >
+        <Text className="text-sm font-medium text-foreground underline">Rate effort</Text>
+      </Pressable>
+    );
+  return (
+    <View className="gap-2">
+      <Text className="text-xs text-muted-foreground">{EFFORT_QUESTION}</Text>
+      <EffortPills value={rating} onChange={setRating} />
+      <View className="flex-row items-center gap-3">
+        <Button
+          size="sm"
+          isDisabled={rating === null || rate.isPending}
+          onPress={() => {
+            if (rating !== null) rate.mutate({ id: workoutId, effortRating: rating });
+          }}
+        >
+          Save rating
+        </Button>
+        {rate.isError ? <Text className="text-xs text-destructive">Could not save.</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+/** Issue #99 — weekly activity (same content as the web card). */
+function ActivityLoadView({ result }: { result: ActivityLoadResult }) {
+  const screen = activityLoadScreen(result);
+  const [showMethod, setShowMethod] = useState(false);
+  return (
+    <CardStack>
+      <Card variant="secondary" className="gap-3 p-4">
+        <Text className="text-lg font-semibold text-foreground" accessibilityRole="header">
+          {screen.title}
+        </Text>
+        <Text className="text-sm text-muted-foreground">{screen.intro}</Text>
+        {screen.windowText ? (
+          <Text className="text-xs text-muted-foreground">{screen.windowText}</Text>
+        ) : null}
+        {screen.withheldExplanation ? (
+          <Text className="text-sm text-foreground">{screen.withheldExplanation}</Text>
+        ) : null}
+        {screen.numbers.map((number) => (
+          <View key={number.key} className="gap-1 border-t border-border pt-2">
+            <Text className="text-base font-medium text-foreground">{number.title}</Text>
+            <View
+              className="flex-row items-baseline gap-2"
+              accessible
+              accessibilityLabel={number.accessibilityLabel}
+            >
+              <Text className="font-mono text-3xl text-foreground">{number.valueText}</Text>
+              {number.unitText ? (
+                <Text className="text-sm text-muted-foreground">{number.unitText}</Text>
+              ) : null}
+            </View>
+            {number.lines.map((line) => (
+              <Text key={line} className="text-xs text-muted-foreground">
+                {line}
+              </Text>
+            ))}
+            {showMethod
+              ? number.method.map((line) => (
+                  <Text key={line} className="text-xs text-foreground">
+                    {line}
+                  </Text>
+                ))
+              : null}
+          </View>
+        ))}
+        {screen.numbers.length > 0 ? (
+          <Pressable
+            onPress={() => setShowMethod((open) => !open)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showMethod }}
+            className="min-h-11 justify-center"
+          >
+            <Text className="font-medium text-foreground underline">How this is calculated</Text>
+          </Pressable>
+        ) : null}
+        {screen.dayRows.length > 0 ? (
+          <View className="gap-1 border-t border-border pt-2">
+            <Text className="text-sm font-medium text-foreground">Effort points by day</Text>
+            {screen.dayRows.map((row) => (
+              <View
+                key={row.key}
+                className="flex-row justify-between"
+                accessible
+                accessibilityLabel={row.accessibilityLabel}
+              >
+                <Text className="text-xs text-foreground">{row.label}</Text>
+                <Text className="font-mono text-xs text-foreground">{row.value}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {screen.comparison ? (
+          <View
+            className="gap-1 border-t border-border pt-2"
+            accessible
+            accessibilityLabel={screen.comparison.accessibilityLabel}
+          >
+            <Text className="text-sm font-medium text-foreground">{screen.comparison.title}</Text>
+            {screen.comparison.lines.map((line) => (
+              <Text key={line} className="text-xs text-muted-foreground">
+                {line}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {screen.context.map((line) => (
+          <Text key={line} className="text-xs text-muted-foreground">
+            {line}
+          </Text>
+        ))}
+        {screen.footer.map((line) => (
+          <Text key={line} className="text-xs text-muted-foreground">
+            {line}
+          </Text>
+        ))}
+      </Card>
+    </CardStack>
+  );
+}
+
 function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
   const [type, setType] = useState<WorkoutType>("weights");
   const [date, setDate] = useState(todayIso);
   const [duration, setDuration] = useState("");
   const [notes, setNotes] = useState("");
+  // Issue #99 — both optional; left unset they are shown as missing, never guessed.
+  const [intensity, setIntensity] = useState<ActivityIntensityOption | null>(null);
+  const [effort, setEffort] = useState<number | null>(null);
 
   const save = useMutation(
     orpc.plans.workouts.upsertWorkout.mutationOptions({
@@ -83,6 +259,8 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
         setDuration("");
         setNotes("");
         setDate(todayIso());
+        setIntensity(null);
+        setEffort(null);
         onSaved();
       },
     }),
@@ -99,6 +277,8 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
       type,
       duration: parsedDuration,
       notes: notes.trim().length > 0 ? notes.trim() : null,
+      intensity,
+      effortRating: effort,
       // `upsertWorkout` requires at least one exercise with one set; the
       // session header is what this form captures, so we seed a single
       // placeholder set the user can refine later.
@@ -144,6 +324,40 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
               placeholderTextColor="#9ca3af"
             />
           </View>
+        </View>
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-foreground">Intensity (optional)</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {ACTIVITY_INTENSITIES.map((value) => (
+              <Pill
+                key={value}
+                label={INTENSITY_LABELS[value]}
+                selected={value === intensity}
+                onPress={() => setIntensity(toggleIntensity(intensity, value))}
+              />
+            ))}
+          </View>
+          {intensity ? (
+            <Text className="text-xs text-muted-foreground">
+              {INTENSITY_DESCRIPTIONS[intensity]}
+            </Text>
+          ) : (
+            <Text className="text-xs text-muted-foreground">
+              Talk test:{" "}
+              {ACTIVITY_INTENSITIES.map(
+                (value) =>
+                  `${INTENSITY_LABELS[value].toLowerCase()} — ${INTENSITY_DESCRIPTIONS[value].toLowerCase()}`,
+              ).join("; ")}
+              .
+            </Text>
+          )}
+        </View>
+        <View className="gap-2">
+          <Text className="text-sm font-medium text-foreground">Effort, 0–10 (optional)</Text>
+          <Text className="text-xs text-muted-foreground">
+            {EFFORT_QUESTION} You can also add it later today.
+          </Text>
+          <EffortPills value={effort} onChange={setEffort} />
         </View>
         <View className="gap-2">
           <Text className="text-sm font-medium text-foreground">Notes</Text>
@@ -367,6 +581,7 @@ export default function WorkoutsScreen() {
     orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),
   );
   const goals = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
+  const load = useQuery(orpc.activity.weeklyLoad.queryOptions({ input: {} }));
 
   if (workouts.isPending || goals.isPending)
     return (
@@ -400,6 +615,7 @@ export default function WorkoutsScreen() {
     void queryClient.invalidateQueries({
       queryKey: [["plans", "workouts", "listWorkouts"]],
     });
+    void queryClient.invalidateQueries({ queryKey: orpc.activity.weeklyLoad.key() });
   };
   const reloadGoals = () => {
     void goals.refetch();
@@ -412,10 +628,11 @@ export default function WorkoutsScreen() {
       scrollViewProps={{
         refreshControl: (
           <RefreshControl
-            refreshing={workouts.isRefetching || goals.isRefetching}
+            refreshing={workouts.isRefetching || goals.isRefetching || load.isRefetching}
             onRefresh={() => {
               void workouts.refetch();
               void goals.refetch();
+              void load.refetch();
             }}
             tintColor={foreground}
           />
@@ -427,6 +644,22 @@ export default function WorkoutsScreen() {
           <Text className="text-sm text-muted-foreground">Workouts</Text>
           <Text className="font-mono text-3xl text-foreground">Sessions &amp; goals</Text>
         </View>
+
+        {load.isPending ? (
+          <Spinner />
+        ) : load.isError || !load.data ? (
+          <Pressable
+            onPress={() => void load.refetch()}
+            className="min-h-11 justify-center"
+            accessibilityRole="button"
+          >
+            <Text className="text-sm text-foreground">
+              Could not load weekly activity. <Text className="underline">Retry</Text>
+            </Text>
+          </Pressable>
+        ) : (
+          <ActivityLoadView result={load.data} />
+        )}
 
         <AddWorkoutForm onSaved={reloadWorkouts} />
         <CardStack title="Workouts">
@@ -454,6 +687,13 @@ export default function WorkoutsScreen() {
                       {workout.date}
                       {workout.notes ? ` · ${workout.notes}` : ""}
                     </Text>
+                    <Text className="text-xs text-muted-foreground">
+                      {sessionEffortText(workout)}
+                    </Text>
+                    {workout.effortRating === null &&
+                    canRateEffortToday(workout.date, todayIso()) ? (
+                      <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                    ) : null}
                   </View>
                   <Text className="font-mono text-sm text-foreground">
                     {workoutDurationLabel(workout.duration)}
