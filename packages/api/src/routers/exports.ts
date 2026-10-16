@@ -2,12 +2,7 @@ import { type Database } from "@openvalens/db";
 import { writeAuditLog } from "@openvalens/audit-security";
 import {
   buildExportPayload,
-  CLINICAL_PDF_VERSION,
   createClinicalExportRepository,
-  DEFAULT_CLINICAL_PDF_DOMAINS,
-  isClinicalPdfDomain,
-  normalizeClinicalPdfDomains,
-  renderClinicalPdf,
   EXPORT_SCHEMA_VERSION,
   isExportDomain,
   normalizeClinicalExportLimit,
@@ -27,8 +22,6 @@ const bundleInput = z
     limit: z.union([z.number(), z.string()]).optional().transform(normalizeClinicalExportLimit),
   })
   .default({ limit: 200 });
-
-const CLINICAL_PDF_DOMAIN_LIMIT = 32;
 
 const legacyDownloadInput = z.strictObject({
   domains: z
@@ -61,21 +54,6 @@ const legacyPdfDownloadInput = z.strictObject({
     }),
   format: z.literal("pdf").optional().default("pdf"),
 });
-
-// Issue #132 — the clinical PDF accepts only PDF-eligible domains. Unknown or
-// non-PDF domains are rejected (not silently dropped) with a static message.
-const clinicalPdfInput = z
-  .strictObject({
-    domains: z
-      .array(z.string())
-      .min(1)
-      .max(CLINICAL_PDF_DOMAIN_LIMIT)
-      .refine((domains) => domains.every(isClinicalPdfDomain), {
-        message: "Request body failed validation.",
-      })
-      .optional(),
-  })
-  .default({});
 
 export const exportsRouter = {
   clinicalBundle: permissionedProcedure({ resource: "records", action: "read" })
@@ -152,8 +130,6 @@ export const exportsRouter = {
         contentDisposition: `attachment; filename="health-export-${payload.generatedAt.slice(0, 10)}.zip"`,
       };
     }),
-  // Printable HTML view of the legacy export (still used by the mobile app).
-  // The real PDF is `clinicalPdf` below.
   legacyPdfDownload: permissionedProcedure({ resource: "records", action: "read" })
     .use(validateInput(legacyPdfDownloadInput))
     .input(legacyPdfDownloadInput)
@@ -213,61 +189,6 @@ export const exportsRouter = {
         content: rendered.html,
         contentType: rendered.contentTypeHint,
         contentDisposition: `attachment; filename="${rendered.fileName}"`,
-      };
-    }),
-  /**
-   * Issue #132 — real clinical PDF (`application/pdf`), organization-authorized
-   * by `records:read` and scoped to the session's active organization.
-   *
-   * Stateless and transient by design: the PDF is rendered in memory and
-   * returned once in this authenticated response (base64). It is never
-   * written to disk or object storage, never logged, and no download URL is
-   * minted, so there is no stored file to protect, expire or delete. The
-   * audit row records only the format, domains and file count.
-   */
-  clinicalPdf: permissionedProcedure({ resource: "records", action: "read" })
-    .use(validateInput(clinicalPdfInput))
-    .input(clinicalPdfInput)
-    .handler(async ({ context, input }) => {
-      if (context.honoContext.req.raw.headers.has("x-organization-id"))
-        throw raiseApiError("INVALID_INPUT", "Organization overrides are not supported.");
-
-      const domains = normalizeClinicalPdfDomains(input.domains ?? DEFAULT_CLINICAL_PDF_DOMAINS);
-      if (domains.length === 0) {
-        throw raiseApiError("INVALID_INPUT", "Request body failed validation.");
-      }
-
-      const organizationId = context.authz.activeOrganizationId;
-      const payload = await buildExportPayload(context.db as unknown as Database, domains, {
-        organizationId,
-      });
-      const rendered = await renderClinicalPdf(payload);
-
-      await writeAuditLog({
-        db: context.db as unknown as Database,
-        organizationId,
-        actorUserId: context.authz.user.id,
-        eventType: "EXPORT_GENERATED",
-        targetType: "records",
-        targetId: payload.generatedAt,
-        correlationId: context.correlationId,
-        metadata: {
-          schemaVersion: CLINICAL_PDF_VERSION,
-          format: "pdf",
-          selectedDomains: payload.selectedDomains,
-          fileCount: 1,
-        },
-      });
-
-      return {
-        generatedAt: payload.generatedAt,
-        schemaVersion: CLINICAL_PDF_VERSION,
-        selectedDomains: payload.selectedDomains,
-        fileName: rendered.fileName,
-        contentType: rendered.contentType,
-        byteLength: rendered.bytes.byteLength,
-        pageCount: rendered.pageCount,
-        contentBase64: Buffer.from(rendered.bytes).toString("base64"),
       };
     }),
 };

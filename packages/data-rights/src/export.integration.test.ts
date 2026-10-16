@@ -78,9 +78,16 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(exported.manifest.redacted.map((r) => r.table).sort()).toEqual([
       "account",
       "admission_grant",
+      "insight_preference",
+      "push_device",
       "session",
       "telegram_connect_token",
     ]);
+    // Insights (#92): the unsubscribe token hash and push token never leave.
+    expect(all).not.toContain("unsub-hash-a");
+    expect(all).not.toContain("ExponentPushToken[seed-a");
+    expect(parse("insight_feedback").map((r) => r.insight_id)).toEqual(["change.steps:2026-W41"]);
+    expect(parse("insight_delivery")).toHaveLength(1);
   });
 
   test("admission grants export only the recipient scope, never the inviter's other recipients", () => {

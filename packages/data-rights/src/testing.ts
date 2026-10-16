@@ -74,6 +74,13 @@ export async function seedAccount(db: Database, who: string, samples: number): P
       select 'org-${who}', 'user-${who}', id, 'morning' from supplement where name = 'Supplement ${who}';
     insert into access_request_decision (request_id, decision, created_at)
       select id, 'approved', '2026-10-01' from access_request where organization_id = 'org-${who}';
+    insert into insight_preference (organization_id, user_id, push_enabled, email_enabled, email_acknowledged_version, email_unsubscribe_token_hash)
+      values ('org-${who}', 'user-${who}', true, true, '2026-10-16', 'unsub-hash-${who}');
+    insert into insight_feedback (organization_id, user_id, insight_id, rule_id, rule_version, action)
+      values ('org-${who}', 'user-${who}', 'change.steps:2026-W41', 'change.steps', '1', 'dismiss');
+    insert into insight_delivery (organization_id, user_id, channel, period_key, insight_ids, rule_versions, status)
+      values ('org-${who}', 'user-${who}', 'push', '2026-10-01', '{change.steps:2026-W41}', '{change.steps@1}', 'sent');
+    insert into push_device (user_id, expo_push_token, platform) values ('user-${who}', 'ExponentPushToken[seed-${who}-0000]', 'ios');
   `),
   );
 }

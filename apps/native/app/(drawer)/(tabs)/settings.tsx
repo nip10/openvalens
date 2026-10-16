@@ -29,6 +29,7 @@ import { HealthSyncSettings } from "@/components/health-sync-settings";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/lib/offline/sync";
+import { disablePushOnThisPhone } from "@/lib/push-notifications";
 import { resetHealthSync } from "@/lib/health-sync";
 import { orpc, queryClient } from "@/utils/orpc";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
@@ -41,6 +42,8 @@ export default function SettingsScreen() {
   const foreground = useThemeColor("foreground");
 
   const handleSignOut = async () => {
+    // Issue #92 — stop insight pushes to this phone for the signed-out account.
+    await disablePushOnThisPhone().catch(() => undefined);
     await resetHealthSync();
     await prepareOfflineSignOut();
     await authClient.signOut();
@@ -73,6 +76,12 @@ export default function SettingsScreen() {
                 title="Your profile"
                 subtitle="Optional answers only you can see"
                 onPress={() => router.push("/profile")}
+              />
+              <ListRow
+                icon={<Ionicons name="notifications-outline" size={20} color={foreground} />}
+                title="Insight notifications"
+                subtitle="Push and weekly email, off until you turn them on"
+                onPress={() => router.push("/insight-settings")}
               />
             </Card>
           </CardStack>

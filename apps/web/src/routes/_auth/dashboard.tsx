@@ -4,18 +4,15 @@ import {
   formatSteps,
 } from "@openvalens/api/presenters/activity";
 import { formatKg } from "@openvalens/api/presenters/body";
-import {
-  COCKPIT_SLEEP_WINDOW_DAYS,
-  type CockpitSnapshot,
-} from "@openvalens/api/presenters/cockpit";
+import { COCKPIT_SLEEP_WINDOW_DAYS } from "@openvalens/api/presenters/cockpit";
 import { formatClockTime, formatSleepDuration } from "@openvalens/api/presenters/sleep";
 import { formatBpm } from "@openvalens/api/presenters/vitals";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { InsightsSection } from "@/components/insights-section";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
 import { orpc } from "@/utils/orpc";
@@ -90,30 +87,6 @@ function DashboardPage() {
     },
   ];
 
-  const snapshot = {
-    weight: weightRow ? { date: weightRow.date, weightKg: weightRow.weightKg } : null,
-    sleep: sleepRow
-      ? {
-          date: sleepRow.date,
-          asleepMinutes: sleepRow.asleepMinutes,
-          status: sleepRow.status,
-          bedtime: formatClockTime(sleepRow.mainSleepStart, settings),
-          wakeAt: formatClockTime(sleepRow.mainSleepEnd, settings),
-        }
-      : null,
-    activity: activityRow
-      ? {
-          date: activityRow.date,
-          steps: activityRow.steps ?? 0,
-          activeCaloriesKcal: activityRow.activeCaloriesKcal ?? 0,
-          distanceMeters: activityRow.distanceMeters ?? 0,
-        }
-      : null,
-    vitals: vitalsRow
-      ? { date: vitalsRow.date, heartRateAvgBpm: vitalsRow.heartRate.avgBpm }
-      : null,
-  };
-
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
       <div className="mb-6 flex items-baseline justify-between">
@@ -126,6 +99,10 @@ function DashboardPage() {
       <ProductSettingsStatus />
 
       <ProfileSetupPrompt />
+
+      <div className="mb-6">
+        <InsightsSection />
+      </div>
 
       {isPending ? (
         <Skeleton className="h-64 w-full" />
@@ -151,49 +128,8 @@ function DashboardPage() {
               </Card>
             ))}
           </div>
-
-          <div className="mt-6">
-            <InsightCard snapshot={snapshot} />
-          </div>
         </>
       )}
     </div>
-  );
-}
-
-function InsightCard({ snapshot }: { snapshot: CockpitSnapshot }) {
-  const insight = useQuery({
-    ...orpc.ai.generateInsight.queryOptions({
-      input: { topic: "today's health snapshot", snapshot },
-    }),
-    retry: false,
-  });
-
-  if (insight.isPending) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">AI insight</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-16 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (insight.isError || !insight.data) return null;
-
-  return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-sm font-medium text-muted-foreground">AI insight</CardTitle>
-        <Badge variant="outline">{insight.data.severity}</Badge>
-      </CardHeader>
-      <CardContent>
-        <div className="font-medium">{insight.data.title}</div>
-        <p className="mt-1 text-sm text-muted-foreground">{insight.data.body}</p>
-      </CardContent>
-    </Card>
   );
 }

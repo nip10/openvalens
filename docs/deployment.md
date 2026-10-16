@@ -255,14 +255,15 @@ body and provider error message are never logged.
 
 ## 7. Scheduled jobs
 
-Two authenticated cron endpoints are exposed as oRPC procedures:
+Three authenticated cron endpoints are exposed as oRPC procedures:
 
-| Endpoint                      | Schedule     | Job               |
-| ----------------------------- | ------------ | ----------------- |
-| `/rpc/cron/remindersDailyRun` | `5 8 * * *`  | `reminders.daily` |
-| `/rpc/cron/ingestionRun`      | `15 9 * * *` | `ingestion.daily` |
+| Endpoint                      | Schedule     | Job                 |
+| ----------------------------- | ------------ | ------------------- |
+| `/rpc/cron/remindersDailyRun` | `5 8 * * *`  | `reminders.daily`   |
+| `/rpc/cron/ingestionRun`      | `15 9 * * *` | `ingestion.daily`   |
+| `/rpc/cron/insightsRun`       | `20 * * * *` | `insights.delivery` |
 
-Both require a bearer token equal to `CRON_SECRET`:
+All require a bearer token equal to `CRON_SECRET`:
 
 ```bash
 curl -fsS -X POST "https://<your-domain>/rpc/cron/remindersDailyRun" \

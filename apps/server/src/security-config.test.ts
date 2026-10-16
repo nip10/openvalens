@@ -389,6 +389,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         storage: { provider: "local", state: "configured" },
         foodLookup: { provider: null, state: "off" },
         oidc: { provider: null, state: "off" },
+        push: { provider: null, state: "off" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(safeDefaults);
@@ -412,6 +413,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         EMAIL_DRY_RUN: "false",
         FOOD_LOOKUP_PROVIDER: "openfoodfacts",
         FOOD_LOOKUP_USER_AGENT: "OpenValens-Test/0.0 (ops@example.test)",
+        PUSH_PROVIDER: "expo",
         // Issue #65 — an unreachable loopback IdP: the provider is skipped at
         // discovery time, never a boot failure.
         OIDC_PROVIDER_ID: "synthetic-idp",
@@ -426,6 +428,7 @@ describe("schema-validated security configuration (cold boot)", () => {
         storage: { provider: "local", state: "configured" },
         foodLookup: { provider: "openfoodfacts", state: "configured" },
         oidc: { provider: "generic", state: "configured" },
+        push: { provider: "expo", state: "configured" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(configured);

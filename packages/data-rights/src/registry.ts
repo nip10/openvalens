@@ -203,6 +203,14 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   wellness_profile: { kind: "user" },
   wellness_profile_consent: { kind: "user" },
 
+  // Insights (#92): the person's own feedback, delivery preferences, phones and
+  // delivery history. Insights themselves are recomputed, never stored. Keyed
+  // by `user_id` so a member's rows in someone else's workspace go with them.
+  insight_preference: { kind: "user", redact: ["email_unsubscribe_token_hash"] },
+  insight_feedback: { kind: "user" },
+  insight_delivery: { kind: "user" },
+  push_device: { kind: "user", redact: ["expo_push_token"] },
+
   // Plans
   supplement: { kind: "child", parent: "supplement_schedule" },
   supplement_schedule: organization,

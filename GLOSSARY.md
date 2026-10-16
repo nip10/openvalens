@@ -41,3 +41,11 @@ new revision; archiving hides it from search and logging. Meals already logged
 keep the snapshot taken at logging time, so neither changes them. Recipes are a
 later phase and are not custom foods.
 _Avoid_: Personal catalog, user food database
+
+**Insight**:
+A short, deterministic description of something in a person's own records
+(a change against their own usual, a goal milestone, a data-quality note or a
+recording streak), produced by a versioned rule and rendered from a reviewed
+template. Never stored, never AI-written, never advice. Push and email are
+optional, opt-in channels for the same insights.
+_Avoid_: Alert, recommendation, AI insight

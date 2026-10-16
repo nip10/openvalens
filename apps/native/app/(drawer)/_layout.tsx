@@ -215,6 +215,13 @@ function DrawerLayout() {
         }}
       />
       <Drawer.Screen
+        name="insight-settings"
+        options={{
+          headerTitle: "Insight notifications",
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
         name="profile"
         options={{
           headerTitle,
