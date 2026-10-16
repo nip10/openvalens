@@ -38,7 +38,13 @@ x-server-env: &server-env
   NODE_ENV: production
   BETTER_AUTH_URL: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
   CORS_ORIGIN: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
+  # Content Security Policy (docs/security-csp.md). `enforce` is the production
+  # default; `report-only` is the operator rollback. Also passed to `web`.
+  CSP_MODE: ${CSP_MODE:-enforce}
+  API_MAX_BODY_BYTES: ${API_MAX_BODY_BYTES:-1048576}
   EMAIL_FROM: ${EMAIL_FROM:?run deploy/setup.sh first}
+  EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
+  EMAIL_AUDIT_BCC_FILE: ${EMAIL_AUDIT_BCC_FILE:-}
   EMAIL_DRY_RUN: ${EMAIL_DRY_RUN:-false}
   DATABASE_URL_FILE: /run/secrets/DATABASE_URL
   BETTER_AUTH_SECRET_FILE: /run/secrets/BETTER_AUTH_SECRET
@@ -48,11 +54,27 @@ x-server-env: &server-env
   RESEND_API_KEY_FILE: ${RESEND_API_KEY_FILE:-}
   ANTHROPIC_API_KEY_FILE: ${ANTHROPIC_API_KEY_FILE:-}
   TELEGRAM_BOT_TOKEN_FILE: ${TELEGRAM_BOT_TOKEN_FILE:-}
+  TELEGRAM_CONNECT_TOKEN_TTL_SECONDS: ${TELEGRAM_CONNECT_TOKEN_TTL_SECONDS:-600}
+  # AI provider (docs/ai-providers.md): off unless AI_PROVIDER (or the legacy
+  # ANTHROPIC_API_KEY_FILE) is set. `openai-compatible` needs AI_BASE_URL and
+  # AI_MODEL; the key, when the endpoint needs one, is the AI_API_KEY secret file.
+  AI_PROVIDER: ${AI_PROVIDER:-}
+  AI_BASE_URL: ${AI_BASE_URL:-}
+  AI_API_KEY_FILE: ${AI_API_KEY_FILE:-}
+  AI_MODEL: ${AI_MODEL:-}
+  AI_SUPPORTS_STRUCTURED_OUTPUTS: ${AI_SUPPORTS_STRUCTURED_OUTPUTS:-}
+  AI_RATE_LIMIT_PER_MINUTE: ${AI_RATE_LIMIT_PER_MINUTE:-20}
+  # Optional live barcode lookup (Issue #69): off unless FOOD_LOOKUP_PROVIDER is set.
+  FOOD_LOOKUP_PROVIDER: ${FOOD_LOOKUP_PROVIDER:-}
+  FOOD_LOOKUP_USER_AGENT: ${FOOD_LOOKUP_USER_AGENT:-}
+  FOOD_LOOKUP_BASE_URL: ${FOOD_LOOKUP_BASE_URL:-}
   # Object storage (Issue #62). Default: private local disk on the `storage`
   # volume. For an S3-compatible bucket set STORAGE_PROVIDER=s3 and the
   # STORAGE_S3_* settings in deploy/.env, with the keys as secret files.
   STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
   STORAGE_LOCAL_DIR: /var/lib/openvalens/storage
+  STORAGE_MAX_OBJECT_BYTES: ${STORAGE_MAX_OBJECT_BYTES:-26214400}
+  STORAGE_SIGNED_URL_TTL_SECONDS: ${STORAGE_SIGNED_URL_TTL_SECONDS:-300}
   STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
   STORAGE_S3_REGION: ${STORAGE_S3_REGION:-}
   STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-}
@@ -102,6 +124,10 @@ services:
         # Same origin: Caddy routes the API paths to `server`.
         VITE_SERVER_URL: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
     init: true
+    environment:
+      # The web document carries its own copy of the policy; keep it in step
+      # with the server (docs/security-csp.md).
+      CSP_MODE: ${CSP_MODE:-enforce}
     networks:
       - app
     healthcheck:
