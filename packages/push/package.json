@@ -1,0 +1,17 @@
+{
+  "name": "@openvalens/push",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "devDependencies": {
+    "@openvalens/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

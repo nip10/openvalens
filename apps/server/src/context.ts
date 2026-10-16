@@ -14,8 +14,10 @@ import {
   db,
   email,
   foodLookup,
+  insightUnsubscribeKey,
   integrations,
   productSettingsService,
+  pushProvider,
   storageService,
   signInOptions,
   telegramClient,
@@ -88,6 +90,11 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     foodLookup,
     // Issue #65 — public "Continue with <name>" option, or `{ oidc: null }`.
     signInOptions,
+    // Issue #92 — insight push transport (or `null`), the web origin for
+    // email links and the unsubscribe-token key (or `null`).
+    push: pushProvider,
+    webOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
+    insightUnsubscribeKey: insightUnsubscribeKey ?? undefined,
     // Hand the Hono context through so authz guards and cron auth can read
     // the raw request headers without re-fetching the session.
     honoContext: context,

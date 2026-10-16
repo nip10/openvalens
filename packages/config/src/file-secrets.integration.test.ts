@@ -250,6 +250,7 @@ describe("actual server schema sensitive coverage", () => {
           "OIDC_DISCOVERY_URL",
           "OIDC_DISPLAY_NAME",
           "OIDC_PROVIDER_ID",
+          "PUSH_PROVIDER",
           "STORAGE_LOCAL_DIR",
           "STORAGE_MAX_OBJECT_BYTES",
           "STORAGE_PROVIDER",

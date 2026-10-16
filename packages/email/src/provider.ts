@@ -20,6 +20,7 @@ export type ResendSendInput = {
   html: string;
   text: string;
   tags?: ResendTag[];
+  headers?: Record<string, string>;
 };
 
 export type ResendSendResult = { id: string };
@@ -224,6 +225,9 @@ export class ResendProvider implements EmailProvider {
           ...(input.replyTo ? { reply_to: input.replyTo } : {}),
           ...(input.bcc ? { bcc: input.bcc } : {}),
           ...(input.tags && input.tags.length > 0 ? { tags: input.tags } : {}),
+          ...(input.headers && Object.keys(input.headers).length > 0
+            ? { headers: input.headers }
+            : {}),
         }),
       });
     } catch (error) {

@@ -77,6 +77,12 @@
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "insights"
+        }
       ]
     ],
     "experiments": {

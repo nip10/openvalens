@@ -11,6 +11,7 @@ import { RefreshControl, Text, View } from "react-native";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { InsightsSection } from "@/components/insights-section";
 import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
 import { orpc } from "@/utils/orpc";
 import { useHealthReadiness } from "@/utils/queries";
@@ -140,6 +141,8 @@ export default function CockpitScreen() {
         </View>
 
         <ProfileSetupPrompt />
+
+        <InsightsSection />
 
         <CardStack title="Today">
           <Card variant="secondary" className="p-4">

@@ -22,6 +22,7 @@
     "@openvalens/email": "workspace:*",
     "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
+    "@openvalens/push": "workspace:*",
     "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",
     "@orpc/openapi": "catalog:",
@@ -29,7 +30,6 @@
     "@orpc/zod": "catalog:",
     "better-auth": "catalog:",
     "hono": "^4.13.7",
-    "pdfkit": "0.20.2",
     "varlock": "catalog:",
     "zod": "catalog:"
   },
