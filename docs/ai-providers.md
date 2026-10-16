@@ -24,6 +24,11 @@ AI_BASE_URL=http://localhost:11434/v1
 AI_MODEL=<a model you have pulled>
 ```
 
+On the self-host Compose stack these keys go in `deploy/.env` and the key in
+`deploy/secrets/server/AI_API_KEY`; `AI_BASE_URL` must be reachable from inside
+the `server` container, where `localhost` is the container itself. See
+[Configuration › AI provider](self-hosting/configuration.md#ai-provider).
+
 Existing deployments that only set `ANTHROPIC_API_KEY` keep using Anthropic.
 A misconfigured selection (unknown `AI_PROVIDER`, `openai-compatible` without
 `AI_BASE_URL` or `AI_MODEL`, a malformed URL) fails startup with

@@ -1,6 +1,6 @@
 # Configuration
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-15
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-16
 
 A self-hosted instance is configured in three places:
 
@@ -19,40 +19,71 @@ code accepts; the Compose stack exposes only the subset below.
 ## `deploy/.env`
 
 Every variable that `deploy/compose.yml` reads from `deploy/.env` (CI checks
-that this table and the Compose file list the same variables):
+that this table and the Compose file list the same variables). "Written by
+`install`" means `deploy/setup.sh install` writes the key on every run, keeping
+the value already in `deploy/.env`; add any other key by hand
+([Applying a change](#applying-a-change)).
 
-| Variable                                  | Written by `install` | Default   | Purpose                                                                                                     |
-| ----------------------------------------- | -------------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
-| `OPENVALENS_DOMAIN`                       | yes                  | —         | Bare domain served over HTTPS; also sets `BETTER_AUTH_URL`, `CORS_ORIGIN` and the web build's API origin.   |
-| `ACME_EMAIL`                              | yes                  | —         | Contact address for Let's Encrypt certificate notices.                                                      |
-| `EMAIL_FROM`                              | yes                  | —         | Sender of app email, e.g. `OpenValens <noreply@example.org>`. See [Email](email.md).                        |
-| `OPENVALENS_VERSION`                      | yes (every run)      | —         | Tag of the locally built images; `upgrade` refreshes it from `git describe`.                                |
-| `RESEND_API_KEY_FILE`                     | yes                  | empty     | `/run/secrets/RESEND_API_KEY` when that secret file exists; empty means email is dry-run.                   |
-| `OPENVALENS_PRE_MIGRATE_BACKUP`           | yes                  | `pg_dump` | Pre-migrate backup mode: `pg_dump`, `hook` or `none`. See [Backups](backup.md).                             |
-| `OPENVALENS_BACKUP_RETAIN`                | yes                  | `10`      | Number of `pre-migrate-*` dumps to keep; `0` keeps all.                                                     |
-| `STORAGE_PROVIDER`                        | yes                  | `local`   | Object storage: `local` (the `storage` volume) or `s3`. See [Object storage](../storage.md).                |
-| `STORAGE_S3_ENDPOINT`                     | yes                  | empty     | S3-compatible endpoint origin; empty means the AWS regional endpoint.                                       |
-| `STORAGE_S3_REGION`                       | yes                  | empty     | Signing region (`auto` for Cloudflare R2); empty means `us-east-1`.                                         |
-| `STORAGE_S3_BUCKET`                       | yes                  | empty     | Private bucket name. Without it (or the keys) `s3` storage is `off`.                                        |
-| `STORAGE_S3_FORCE_PATH_STYLE`             | yes                  | `false`   | `true` for MinIO.                                                                                           |
-| `STORAGE_S3_SSE`                          | yes                  | `AES256`  | Server-side encryption header: `AES256` or `none` (MinIO without KMS).                                      |
-| `STORAGE_S3_ACCESS_KEY_ID_FILE`           | yes                  | empty     | `/run/secrets/STORAGE_S3_ACCESS_KEY_ID` when that secret file exists.                                       |
-| `STORAGE_S3_SECRET_ACCESS_KEY_FILE`       | yes                  | empty     | `/run/secrets/STORAGE_S3_SECRET_ACCESS_KEY` when that secret file exists.                                   |
-| `OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP` | no                   | empty     | Must be exactly `I_HAVE_A_BACKUP` for `OPENVALENS_PRE_MIGRATE_BACKUP=none` to be accepted.                  |
-| `EMAIL_DRY_RUN`                           | no                   | `false`   | `true` logs email instead of sending it. Without a Resend key email is dry-run regardless.                  |
-| `ANTHROPIC_API_KEY_FILE`                  | no                   | empty     | `/run/secrets/ANTHROPIC_API_KEY` to enable AI features ([optional providers](#optional-providers)).         |
-| `TELEGRAM_BOT_TOKEN_FILE`                 | no                   | empty     | `/run/secrets/TELEGRAM_BOT_TOKEN` to enable Telegram delivery ([optional providers](#optional-providers)).  |
-| `OIDC_PROVIDER_ID`                        | no                   | empty     | Id of the optional OIDC provider, used in its redirect URI. See [Single sign-on](oidc.md).                  |
-| `OIDC_CLIENT_ID`                          | no                   | empty     | OIDC client id. See [Single sign-on](oidc.md).                                                              |
-| `OIDC_CLIENT_SECRET_FILE`                 | no                   | empty     | `/run/secrets/OIDC_CLIENT_SECRET`, the OIDC client secret. See [Single sign-on](oidc.md).                   |
-| `OIDC_DISCOVERY_URL`                      | no                   | empty     | The IdP's `https` discovery document URL. See [Single sign-on](oidc.md).                                    |
-| `OIDC_DISPLAY_NAME`                       | no                   | empty     | Sign-in button label; empty means "Single sign-on".                                                         |
-| `OPENVALENS_HTTP_PORT`                    | no                   | `80`      | Host port Caddy publishes for HTTP. Let's Encrypt needs the public port 80; change only behind another NAT. |
-| `OPENVALENS_HTTPS_PORT`                   | no                   | `443`     | Host port Caddy publishes for HTTPS (TCP and UDP).                                                          |
+| Variable                                  | Written by `install` | Default       | Purpose                                                                                                                                                  |
+| ----------------------------------------- | -------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENVALENS_DOMAIN`                       | yes                  | —             | Bare domain served over HTTPS; also sets `BETTER_AUTH_URL`, `CORS_ORIGIN` and the web build's API origin.                                                |
+| `ACME_EMAIL`                              | yes                  | —             | Contact address for Let's Encrypt certificate notices.                                                                                                   |
+| `EMAIL_FROM`                              | yes                  | —             | Sender of app email, e.g. `OpenValens <noreply@example.org>`. See [Email](email.md).                                                                     |
+| `OPENVALENS_VERSION`                      | yes (every run)      | —             | Tag of the locally built images; `upgrade` refreshes it from `git describe`.                                                                             |
+| `OPENVALENS_PRE_MIGRATE_BACKUP`           | yes                  | `pg_dump`     | Pre-migrate backup mode: `pg_dump`, `hook` or `none`. See [Backups](backup.md).                                                                          |
+| `OPENVALENS_BACKUP_RETAIN`                | yes                  | `10`          | Number of `pre-migrate-*` dumps to keep; `0` keeps all.                                                                                                  |
+| `STORAGE_PROVIDER`                        | yes                  | `local`       | Object storage: `local` (the `storage` volume) or `s3`. See [Object storage](../storage.md).                                                             |
+| `STORAGE_S3_ENDPOINT`                     | yes                  | empty         | S3-compatible endpoint origin; empty means the AWS regional endpoint.                                                                                    |
+| `STORAGE_S3_REGION`                       | yes                  | empty         | Signing region (`auto` for Cloudflare R2); empty means `us-east-1`.                                                                                      |
+| `STORAGE_S3_BUCKET`                       | yes                  | empty         | Private bucket name. Without it (or the keys) `s3` storage is `off`.                                                                                     |
+| `STORAGE_S3_FORCE_PATH_STYLE`             | yes                  | `false`       | `true` for MinIO.                                                                                                                                        |
+| `STORAGE_S3_SSE`                          | yes                  | `AES256`      | Server-side encryption header: `AES256` or `none` (MinIO without KMS).                                                                                   |
+| `RESEND_API_KEY_FILE`                     | yes (secret file)    | empty         | `/run/secrets/RESEND_API_KEY` when that secret file exists; empty means email is dry-run.                                                                |
+| `EMAIL_AUDIT_BCC_FILE`                    | yes (secret file)    | empty         | `/run/secrets/EMAIL_AUDIT_BCC`: a compliance mailbox that gets a BCC of sensitive access-control emails. See [Email](email.md).                          |
+| `AI_API_KEY_FILE`                         | yes (secret file)    | empty         | `/run/secrets/AI_API_KEY`, the key for `AI_PROVIDER`. Optional for local OpenAI-compatible servers. See [AI provider](#ai-provider).                     |
+| `ANTHROPIC_API_KEY_FILE`                  | yes (secret file)    | empty         | `/run/secrets/ANTHROPIC_API_KEY`, the legacy Anthropic key; on its own it selects Anthropic ([optional providers](#optional-providers)).                 |
+| `TELEGRAM_BOT_TOKEN_FILE`                 | yes (secret file)    | empty         | `/run/secrets/TELEGRAM_BOT_TOKEN` to enable Telegram delivery ([optional providers](#optional-providers)).                                               |
+| `STORAGE_S3_ACCESS_KEY_ID_FILE`           | yes (secret file)    | empty         | `/run/secrets/STORAGE_S3_ACCESS_KEY_ID` when that secret file exists.                                                                                    |
+| `STORAGE_S3_SECRET_ACCESS_KEY_FILE`       | yes (secret file)    | empty         | `/run/secrets/STORAGE_S3_SECRET_ACCESS_KEY` when that secret file exists.                                                                                |
+| `OIDC_CLIENT_SECRET_FILE`                 | yes (secret file)    | empty         | `/run/secrets/OIDC_CLIENT_SECRET`, the OIDC client secret. See [Single sign-on](oidc.md).                                                                |
+| `OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP` | no                   | empty         | Must be exactly `I_HAVE_A_BACKUP` for `OPENVALENS_PRE_MIGRATE_BACKUP=none` to be accepted.                                                               |
+| `CSP_MODE`                                | no                   | `enforce`     | Content Security Policy for the web app and the API: `enforce` or `report-only` (the rollback). See [Content Security Policy](#content-security-policy). |
+| `API_MAX_BODY_BYTES`                      | no                   | `1048576`     | Largest accepted API request body, in bytes; bigger bodies get `413` before parsing.                                                                     |
+| `EMAIL_REPLY_TO`                          | no                   | empty         | Reply-to address of app email; empty means the `EMAIL_FROM` address.                                                                                     |
+| `EMAIL_DRY_RUN`                           | no                   | `false`       | `true` logs email instead of sending it. Without a Resend key email is dry-run regardless.                                                               |
+| `TELEGRAM_CONNECT_TOKEN_TTL_SECONDS`      | no                   | `600`         | Lifetime of a Telegram connect link, in seconds.                                                                                                         |
+| `AI_PROVIDER`                             | no                   | empty (off)   | `anthropic` or `openai-compatible`. Empty means AI is off unless `ANTHROPIC_API_KEY_FILE` is set. See [AI provider](#ai-provider).                       |
+| `AI_BASE_URL`                             | no                   | empty         | Provider API base URL, reachable from the `server` container. Required for `openai-compatible`; must not embed credentials.                              |
+| `AI_MODEL`                                | no                   | empty         | Model id. Required for `openai-compatible`; empty means `claude-sonnet-5-5` for `anthropic`.                                                             |
+| `AI_SUPPORTS_STRUCTURED_OUTPUTS`          | no                   | empty (false) | `true` only if the endpoint honours JSON-schema `response_format`.                                                                                       |
+| `AI_RATE_LIMIT_PER_MINUTE`                | no                   | `20`          | Coach chat requests per user and workspace per minute.                                                                                                   |
+| `FOOD_LOOKUP_PROVIDER`                    | no                   | empty (off)   | `openfoodfacts` enables live barcode lookup for codes missing from the local catalogs. See [Integration adapters](../integrations.md).                   |
+| `FOOD_LOOKUP_USER_AGENT`                  | no                   | empty         | `AppName/Version (contact)` sent to the provider; required for live lookup.                                                                              |
+| `FOOD_LOOKUP_BASE_URL`                    | no                   | empty         | Provider or privacy-proxy origin; empty means the public Open Food Facts API.                                                                            |
+| `STORAGE_MAX_OBJECT_BYTES`                | no                   | `26214400`    | Largest stored object (photo, lab PDF, export), in bytes; at most 100 MiB.                                                                               |
+| `STORAGE_SIGNED_URL_TTL_SECONDS`          | no                   | `300`         | Lifetime of a signed download URL, in seconds; at most 3600.                                                                                             |
+| `OIDC_PROVIDER_ID`                        | no                   | empty         | Id of the optional OIDC provider, used in its redirect URI. See [Single sign-on](oidc.md).                                                               |
+| `OIDC_CLIENT_ID`                          | no                   | empty         | OIDC client id. See [Single sign-on](oidc.md).                                                                                                           |
+| `OIDC_DISCOVERY_URL`                      | no                   | empty         | The IdP's `https` discovery document URL. See [Single sign-on](oidc.md).                                                                                 |
+| `OIDC_DISPLAY_NAME`                       | no                   | empty         | Sign-in button label; empty means "Single sign-on".                                                                                                      |
+| `OPENVALENS_HTTP_PORT`                    | no                   | `80`          | Host port Caddy publishes for HTTP. Let's Encrypt needs the public port 80; change only behind another NAT.                                              |
+| `OPENVALENS_HTTPS_PORT`                   | no                   | `443`         | Host port Caddy publishes for HTTPS (TCP and UDP).                                                                                                       |
+
+A "secret file" key is set to `/run/secrets/<KEY>` exactly when
+`deploy/secrets/server/<KEY>` exists and is not empty, and emptied otherwise, so
+the stack never points at a missing file. Secret values themselves never go in
+`deploy/.env`: a key such as `AI_API_KEY=...` written there is ignored by the
+stack, and `install` warns about it (by name only).
 
 ### Applying a change
 
-Edit `deploy/.env`, then run:
+Add or edit keys at the end of `deploy/.env`, below the line
+
+```text
+# --- Your settings: deploy/setup.sh install keeps everything below ---
+```
+
+then run:
 
 ```bash
 deploy/setup.sh upgrade
@@ -62,22 +93,32 @@ deploy/setup.sh upgrade
 `OPENVALENS_VERSION`. Like every start of the stack, it takes a pre-migrate
 backup first ([Upgrading](upgrading.md)).
 
-**Re-running `deploy/setup.sh install` rewrites `deploy/.env`** and keeps only
-the keys marked "yes" above; any key you added by hand (for example
-`EMAIL_DRY_RUN` or `ANTHROPIC_API_KEY_FILE`) is dropped. Re-add it and run
-`upgrade` afterwards.
+Re-running `deploy/setup.sh install` is also safe. It rewrites the keys marked
+"yes" above, keeping their current values (the secret-file keys follow
+`deploy/secrets/server/`), and copies every other line — your keys and
+comments below the marker, and any key you added elsewhere in the file —
+unchanged. It never regenerates a secret. To change the domain or the email
+settings through the installer's questions, run
+`deploy/setup.sh install --reconfigure`; to preview the result first, add
+`--dry-run`, which works on a private copy of `deploy/.env`.
 
 ### What the stack does not expose
 
-The server reads several other variables from
-[the environment reference](../reference/env.md) — for example `CSP_MODE`,
-`AI_PROVIDER`, `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`, `AI_RATE_LIMIT_PER_MINUTE`, `API_MAX_BODY_BYTES`, `FOOD_LOOKUP_PROVIDER`, `FOOD_LOOKUP_USER_AGENT`, `FOOD_LOOKUP_BASE_URL`, `EMAIL_REPLY_TO`
-and `EMAIL_AUDIT_BCC`. `deploy/compose.yml` does not pass them through, so on
-this stack they always use their schema defaults, and the production rules
-that apply on top of them (for example, content security policy is enforced
-because `NODE_ENV=production`; see [Security model](security.md)). Changing
-them means editing `deploy/compose.yml`, which is not supported and is
-overwritten when you check out a new version.
+`deploy/compose.yml` passes every server variable from the
+[environment reference](../reference/env.md) through, except:
+
+- the values the stack sets itself: `NODE_ENV` (`production`),
+  `BETTER_AUTH_URL` and `CORS_ORIGIN` (from `OPENVALENS_DOMAIN`),
+  `STORAGE_LOCAL_DIR` (the `storage` volume) and the generated secrets
+  `DATABASE_URL`, `BETTER_AUTH_SECRET`, `CRON_SECRET` and
+  `TELEGRAM_WEBHOOK_SECRET`;
+- `AUTH_DEV_MAGIC_LINK_CONSOLE`, which works only in development;
+- `TELEGRAM_API_BASE_URL`, an override for local testing.
+
+CI checks this list against the server schema, so a new server variable cannot
+be added without deciding whether the stack passes it through. Changing
+`deploy/compose.yml` itself is not supported: it is overwritten when you check
+out a new version.
 
 ## Optional providers
 
@@ -85,13 +126,13 @@ A default install needs no vendor account. Each optional integration is off or
 dry-run until you add its key, and the readiness probe reports its state
 without revealing any value:
 
-| Family      | Provider                    | Enable                                                                                              | Default   |
-| ----------- | --------------------------- | --------------------------------------------------------------------------------------------------- | --------- |
-| `email`     | Resend                      | `RESEND_API_KEY` secret (see [Email](email.md))                                                     | `dry-run` |
-| `ai`        | Anthropic                   | `ANTHROPIC_API_KEY` secret + `ANTHROPIC_API_KEY_FILE`                                               | `off`     |
-| `messaging` | Telegram                    | `TELEGRAM_BOT_TOKEN` secret + `TELEGRAM_BOT_TOKEN_FILE`                                             | `off`     |
-| `storage`   | Local disk or S3-compatible | `STORAGE_PROVIDER=s3`, `STORAGE_S3_*` and the two key secrets (see [Object storage](../storage.md)) | `local`   |
-| `oidc`      | Generic                     | OIDC settings + client secret (see [Single sign-on](oidc.md))                                       | `off`     |
+| Family      | Provider                       | Enable                                                                                                   | Default   |
+| ----------- | ------------------------------ | -------------------------------------------------------------------------------------------------------- | --------- |
+| `email`     | Resend                         | `RESEND_API_KEY` secret (see [Email](email.md))                                                          | `dry-run` |
+| `ai`        | Anthropic or OpenAI-compatible | `AI_PROVIDER` and its settings (see [AI provider](#ai-provider)), or only the `ANTHROPIC_API_KEY` secret | `off`     |
+| `messaging` | Telegram                       | `TELEGRAM_BOT_TOKEN` secret + `TELEGRAM_BOT_TOKEN_FILE`                                                  | `off`     |
+| `storage`   | Local disk or S3-compatible    | `STORAGE_PROVIDER=s3`, `STORAGE_S3_*` and the two key secrets (see [Object storage](../storage.md))      | `local`   |
+| `oidc`      | Generic                        | OIDC settings + client secret (see [Single sign-on](oidc.md))                                            | `off`     |
 
 To add a key, write it to a file the containers can read, point the matching
 `_FILE` variable at the mount path, and apply:
@@ -115,11 +156,11 @@ curl -fsS -X POST https://<domain>/api-reference/health/readiness \
 `checks.integrations.ai.state` reads `configured` once a key is present. It
 shows that a key is configured, not that the provider accepts it.
 
+Instead of appending the `_FILE` line yourself, you can re-run
+`deploy/setup.sh install`: it sets the `_FILE` variable of every secret file
+present in `deploy/secrets/server/`.
+
 AI features send data to the provider only behind the in-app consent gate.
-On this stack AI means Anthropic through `ANTHROPIC_API_KEY`: the
-OpenAI-compatible provider (Ollama, vLLM and others) described in
-[docs/ai-providers.md](../ai-providers.md) needs `AI_PROVIDER`, `AI_BASE_URL`
-and `AI_MODEL`, which `deploy/compose.yml` does not pass through yet.
 Registering the Telegram webhook (`https://<domain>/api/integrations/telegram/webhook`,
 authenticated with `TELEGRAM_WEBHOOK_SECRET`) with Telegram is not automated and
 is not yet covered by these docs. Object storage defaults to private local
@@ -127,6 +168,54 @@ disk on the `storage` volume; to use an S3-compatible bucket (S3, R2, MinIO) set
 `STORAGE_PROVIDER=s3` and the `STORAGE_S3_*` settings described in
 [Object storage](../storage.md). The adapter rules and the planned families
 (wearables #60) are in [docs/integrations.md](../integrations.md).
+
+### AI provider
+
+AI is off by default. To use Anthropic, add the key as the `AI_API_KEY` secret
+(or the legacy `ANTHROPIC_API_KEY`, as above) and set:
+
+```bash
+AI_PROVIDER=anthropic
+```
+
+To use an OpenAI-compatible Chat Completions endpoint (Ollama, vLLM,
+llama.cpp, LM Studio or a hosted compatible API), add to `deploy/.env`:
+
+```bash
+AI_PROVIDER=openai-compatible
+AI_BASE_URL=http://ollama.internal:11434/v1
+AI_MODEL=<a model the endpoint serves>
+# AI_SUPPORTS_STRUCTURED_OUTPUTS=true   # only if it honours JSON-schema response_format
+```
+
+and, if the endpoint needs a key, write it to
+`deploy/secrets/server/AI_API_KEY` (mode `0444`, as above) with
+`AI_API_KEY_FILE=/run/secrets/AI_API_KEY`. Then run `deploy/setup.sh upgrade`.
+
+`AI_BASE_URL` is resolved from inside the `server` container: `localhost`
+there is the container itself, not the host. Use a host name the container can
+reach, such as another service on a network `server` joins, or the host's
+address. A misconfigured selection (for example `openai-compatible` without
+`AI_BASE_URL` or `AI_MODEL`) stops the server at startup with
+`AI_CONFIG_INVALID`; check `docker compose -f deploy/compose.yml logs server`.
+Model choice, tool-calling and structured-output behaviour are in
+[AI providers](../ai-providers.md).
+
+### Content Security Policy
+
+The web app and the API send an enforced Content Security Policy by default
+(`CSP_MODE=enforce`). If enforcement breaks sign-in or the app shell, roll back
+to report-only while you investigate:
+
+```bash
+echo 'CSP_MODE=report-only' >>deploy/.env
+deploy/setup.sh upgrade
+```
+
+The setting reaches both the `server` and the `web` containers. Remove the line
+(or set `CSP_MODE=enforce`) and run `upgrade` again to re-enforce. The rollout
+and the violation reports are described in
+[docs/security-csp.md](../security-csp.md).
 
 ## Product settings
 

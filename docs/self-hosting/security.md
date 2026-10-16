@@ -1,6 +1,6 @@
 # Security model and reporting
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-16
 
 OpenValens stores personal health data. This page describes what the supported
 install ([Install](install.md)) does to protect it, what it leaves to you, and
@@ -53,10 +53,12 @@ instance [up to date](upgrading.md).
 
 **Application**
 
-- A Content Security Policy is enforced on the web app and the API because the
-  stack runs with `NODE_ENV=production`
-  ([docs/security-csp.md](../security-csp.md)).
-- Request bodies over 1 MiB are rejected before parsing.
+- A Content Security Policy is enforced on the web app and the API
+  (`CSP_MODE=enforce`, the stack default). `CSP_MODE=report-only` in
+  `deploy/.env` is the operator rollback
+  ([Configuration](configuration.md#content-security-policy),
+  [docs/security-csp.md](../security-csp.md)).
+- Request bodies over 1 MiB (`API_MAX_BODY_BYTES`) are rejected before parsing.
 - Logs are structured JSON without health values, email bodies, tokens or
   provider keys; each line carries a correlation id. No error-reporting or
   analytics service is configured, so nothing is sent off the host by default.

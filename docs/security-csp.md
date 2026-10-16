@@ -47,6 +47,9 @@ automatic fallback.
    it re-selects the production `enforce` default). Both values are validated,
    so `report-only` is the only accepted rollback value. A break in the browser
    (login, invitation, app shell) is almost always the web document's policy.
+   On the self-host Compose stack one `CSP_MODE=report-only` line in
+   `deploy/.env` sets both, followed by `deploy/setup.sh upgrade`
+   ([Configuration](self-hosting/configuration.md#content-security-policy)).
 2. **Redeploy / restart both services** so the new value is picked up. Confirm
    each response now carries `Content-Security-Policy-Report-Only` instead of
    `Content-Security-Policy`:
