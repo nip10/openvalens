@@ -12,10 +12,13 @@ import {
   GOAL_DIRECTIONS,
   GOAL_PRIORITIES,
   KNOWN_CALENDAR_EVENT_TYPES,
+  MAX_EFFORT_RATING,
   MAX_EXERCISES_PER_WORKOUT,
   MAX_SETS_PER_EXERCISE,
+  MIN_EFFORT_RATING,
   todayIsoDate,
   validateDateRange,
+  WORKOUT_INTENSITIES,
   WORKOUT_TYPES,
   type CalendarEvent,
   type Goal,
@@ -236,6 +239,10 @@ const workoutWithContextShape: z.ZodType<
   duration: z.number().nullable(),
   notes: z.string().nullable(),
   createdAt: z.string(),
+  // Issue #99 — null means "not recorded" (rows saved before #99 included).
+  intensity: z.enum(WORKOUT_INTENSITIES).nullable(),
+  effortRating: z.number().nullable(),
+  effortRatedAt: z.string().nullable(),
   exercises: z.array(
     z.object({
       id: z.number(),
@@ -309,12 +316,22 @@ const workoutExerciseInputSchema = z.strictObject({
   sets: z.array(workoutSetInputSchema).min(1).max(MAX_SETS_PER_EXERCISE),
 });
 
+const effortRatingSchema = z.number().int().min(MIN_EFFORT_RATING).max(MAX_EFFORT_RATING);
+
 const workoutUpsertInputSchema = z.strictObject({
   date: isoDate,
   type: z.enum(WORKOUT_TYPES),
   duration: z.number().int().positive().max(1440).nullish(),
   notes: z.string().trim().max(2000).nullish(),
+  // Issue #99 — optional, for older clients; the rating can also be added later the same day.
+  intensity: z.enum(WORKOUT_INTENSITIES).nullish(),
+  effortRating: effortRatingSchema.nullish(),
   exercises: z.array(workoutExerciseInputSchema).min(1).max(MAX_EXERCISES_PER_WORKOUT),
+});
+
+const workoutRateEffortInputSchema = z.strictObject({
+  id: z.number().int().positive(),
+  effortRating: effortRatingSchema,
 });
 
 const workoutUpsertResultSchema = z.object({
@@ -753,6 +770,8 @@ export const plansRouter = {
               type: input.type,
               duration: input.duration ?? null,
               notes: input.notes ?? null,
+              intensity: input.intensity ?? null,
+              effortRating: input.effortRating ?? null,
               exercises: input.exercises.map((exercise) => ({
                 name: exercise.name,
                 notes: exercise.notes ?? null,
@@ -789,6 +808,39 @@ export const plansRouter = {
           setCount: result.setCount,
           targetId: String(result.id),
         };
+      }),
+
+    /**
+     * Issue #99 — add or change a session's effort rating (0–10) later the
+     * same day. `NOT_FOUND` for a missing or other-workspace workout;
+     * `CONFLICT` once the same-day window has closed. The audit row records
+     * that a rating changed, never the rating.
+     */
+    rateEffort: protectedProcedure
+      .use(validateInput(workoutRateEffortInputSchema))
+      .input(workoutRateEffortInputSchema)
+      .output(deleteResultWithTarget)
+      .handler(async ({ input, context }) => {
+        const authz = await requirePlansAuthz(context, "workout", "write");
+        const result = await createWorkoutRepository(context.db).rateWorkoutEffort(
+          authz.activeOrganizationId,
+          input.id,
+          input.effortRating,
+        );
+        if (result.status === "not_found") throw raiseApiError("NOT_FOUND", "Workout not found.");
+        if (result.status === "closed")
+          throw raiseApiError("CONFLICT", "Effort can only be rated on the day of the session.");
+        await writeAuditLog({
+          db: context.db,
+          organizationId: authz.activeOrganizationId,
+          actorUserId: authz.user.id,
+          eventType: "RECORD_UPDATED",
+          targetType: "workout",
+          targetId: String(result.id),
+          correlationId: context.correlationId,
+          metadata: { resource: "workout", action: "write", field: "effort_rating" },
+        });
+        return { id: result.id, targetId: String(result.id) };
       }),
 
     deleteWorkout: protectedProcedure

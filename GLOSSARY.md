@@ -42,6 +42,20 @@ keep the snapshot taken at logging time, so neither changes them. Recipes are a
 later phase and are not custom foods.
 _Avoid_: Personal catalog, user food database
 
+**Active minutes**:
+Moderate minutes plus twice the vigorous minutes from a person's sessions over
+the last 7 days, shown against the WHO adult range of 150–300 minutes a week.
+Only sessions with a recorded intensity count; the rest are reported as
+missing, never as zero (`docs/activity-load.md`).
+_Avoid_: Activity score, PAI, cardio points
+
+**Effort points**:
+Session-RPE: a session's effort rating (0–10) times its minutes, summed per
+day and over the last 7 days. Compared only with the person's own earlier
+weeks, never with other people and never framed as a recovery or injury
+signal.
+_Avoid_: Strain, training load score, readiness
+
 **Insight**:
 A short, deterministic description of something in a person's own records
 (a change against their own usual, a goal milestone, a data-quality note or a

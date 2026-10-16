@@ -106,4 +106,51 @@ describe("ingestBatchInput", () => {
     }));
     expect(ingestBatchInput.safeParse({ ...valid, upserts }).success).toBe(false);
   });
+
+  describe("sleep_segment (HealthKit, #131)", () => {
+    const segment = {
+      type: "sleep_segment",
+      externalRecordId: "6A1E3C1F-0000-4000-8000-000000000001",
+      sourceApp: "com.apple.health.81C2D3E4",
+      sourceDevice: { type: "watch", model: "Watch" },
+      startTime: "2026-10-01T23:00:00.000Z",
+      endTime: "2026-10-02T00:00:00.000Z",
+      value: "asleep_core",
+      timeZone: "Europe/Lisbon",
+    };
+    const sleepBatch = {
+      ...valid,
+      provider: "apple_health",
+      recordType: "sleep_segment",
+      upserts: [segment],
+    };
+
+    test("accepts HealthKit segments and segment deletions", () => {
+      expect(ingestBatchInput.safeParse(sleepBatch).success).toBe(true);
+      expect(
+        ingestBatchInput.safeParse({
+          ...sleepBatch,
+          upserts: [],
+          deletions: [{ externalRecordId: segment.externalRecordId }],
+        }).success,
+      ).toBe(true);
+    });
+
+    test("only Apple Health sends segments", () => {
+      expect(
+        ingestBatchInput.safeParse({ ...sleepBatch, provider: "health_connect" }).success,
+      ).toBe(false);
+    });
+
+    test("the stage value is a closed enum and the zone is optional", () => {
+      expect(
+        ingestBatchInput.safeParse({ ...sleepBatch, upserts: [{ ...segment, value: "dozing" }] })
+          .success,
+      ).toBe(false);
+      const { timeZone: _timeZone, ...withoutZone } = segment;
+      expect(ingestBatchInput.safeParse({ ...sleepBatch, upserts: [withoutZone] }).success).toBe(
+        true,
+      );
+    });
+  });
 });

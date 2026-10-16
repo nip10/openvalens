@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Database } from "@openvalens/db";
 import {
-  dataSource,
   ingestionBatch,
   ingestionError,
   ingestionJob,
@@ -10,16 +9,19 @@ import {
 } from "@openvalens/db/schema/health-record";
 import { providerConnection } from "@openvalens/db/schema/ingestion";
 import { createAutoReconciliationService } from "@openvalens/body";
-import { buildDataSourceIdentity, stableSerialize } from "@openvalens/health-record";
+import { stableSerialize } from "@openvalens/health-record";
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 
 import type { MOBILE_INGESTION_PROVIDERS } from "./health-connect";
+import { applyHealthKitSleepSegments } from "./healthkit-sleep-ingest";
+import { localDateIn } from "./healthkit-sleep";
 import { IngestionStateError } from "./job-runner-state";
 import {
   adaptMobileHealthRecords,
   type MobileHealthRecord,
   type MobileHealthRecordType,
 } from "./mobile-records";
+import { resolveDataSource, sourceIdentity, type SourceIdentity } from "./mobile-data-source";
 import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
 import type { RunClaimedJobResult } from "./run-job";
 
@@ -377,16 +379,6 @@ export async function runMobileIngestBatchJob(
     if (job.providerConnectionId === null)
       throw new IngestionStateError("mobile ingest job has no provider connection");
 
-    // One data_source per (source app, device) so source priority can tell a
-    // scale from a watch.
-    const groups = new Map<string, { identity: SourceIdentity; records: MobileHealthRecord[] }>();
-    for (const record of batch.upserts) {
-      const identity = sourceIdentity(batch.provider, record);
-      const group = groups.get(identity.sourceKey);
-      if (group) group.records.push(record);
-      else groups.set(identity.sourceKey, { identity, records: [record] });
-    }
-
     const totals = {
       metricSampleCount: 0,
       healthEventCount: 0,
@@ -395,6 +387,36 @@ export async function runMobileIngestBatchJob(
     };
     const inserted: CanonicalRowRef[] = [];
     let intentCount = 0;
+    // HealthKit sleep segments are regrouped into sessions, which also
+    // resolves their deletions (#131).
+    const sleep =
+      batch.recordType === "sleep_segment"
+        ? await applyHealthKitSleepSegments(tx, {
+            organizationId,
+            providerConnectionId: job.providerConnectionId,
+            ingestionBatchId: batchId,
+            provider: batch.provider,
+            batch,
+            now: now(),
+          })
+        : null;
+    if (sleep) {
+      intentCount = sleep.recordCount;
+      totals.healthEventCount = sleep.inserted.length;
+      totals.duplicateCount = sleep.duplicateCount;
+      totals.rejectedCount = sleep.rejectedCount;
+      inserted.push(...sleep.inserted);
+    }
+
+    // One data_source per (source app, device) so source priority can tell a
+    // scale from a watch.
+    const groups = new Map<string, { identity: SourceIdentity; records: MobileHealthRecord[] }>();
+    for (const record of sleep ? [] : batch.upserts) {
+      const identity = sourceIdentity(batch.provider, record);
+      const group = groups.get(identity.sourceKey);
+      if (group) group.records.push(record);
+      else groups.set(identity.sourceKey, { identity, records: [record] });
+    }
     for (const { identity, records } of groups.values()) {
       const dataSourceId = await resolveDataSource(
         tx,
@@ -453,7 +475,7 @@ export async function runMobileIngestBatchJob(
         await body.ingestAutoWeightEvent({
           organizationId,
           userId: owner.userId,
-          date: localDate(row.metric.sampledAt, batch.clientTimezone),
+          date: localDateIn(row.metric.sampledAt, batch.clientTimezone),
           measuredAt: row.metric.sampledAt,
           weightKg: row.metric.value,
           sourceDetail: row.metric.sourceApp ?? batch.provider,
@@ -471,18 +493,20 @@ export async function runMobileIngestBatchJob(
       providerConnectionId: job.providerConnectionId,
       now: now(),
     };
-    const superseded = [
-      ...(await supersede(tx, target, {
-        ...scope,
-        externalIds: [...new Set(batch.deletions.map((d) => d.externalRecordId))],
-        mode: "deleted",
-      })),
-      ...(await supersede(tx, target, {
-        ...scope,
-        externalIds: [...new Set(batch.upserts.map((r) => r.externalRecordId))],
-        mode: "older_versions",
-      })),
-    ];
+    const superseded = sleep
+      ? sleep.superseded
+      : [
+          ...(await supersede(tx, target, {
+            ...scope,
+            externalIds: [...new Set(batch.deletions.map((d) => d.externalRecordId))],
+            mode: "deleted",
+          })),
+          ...(await supersede(tx, target, {
+            ...scope,
+            externalIds: [...new Set(batch.upserts.map((r) => r.externalRecordId))],
+            mode: "older_versions",
+          })),
+        ];
     if (target.table === "metric_sample")
       await body.supersedeForMetricSamples({
         organizationId,
@@ -536,60 +560,7 @@ export async function runMobileIngestBatchJob(
   });
 }
 
-type SourceIdentity = ReturnType<typeof sourceIdentity>;
-
-function sourceIdentity(provider: MobileProvider, record: MobileHealthRecord) {
-  const identity = buildDataSourceIdentity({
-    provider,
-    importChannel: "mobile_ingest",
-    deviceType: record.sourceDevice?.type ?? null,
-    deviceModel: record.sourceDevice?.model ?? null,
-    sourceAppId: record.sourceApp,
-  });
-  return {
-    ...identity,
-    sourceType: record.sourceDevice?.type?.toLowerCase() || "unknown",
-    deviceType: record.sourceDevice?.type ?? null,
-    deviceModel: record.sourceDevice?.model ?? null,
-    sourceAppId: record.sourceApp,
-  };
-}
-
-async function resolveDataSource(
-  tx: Pick<Database, "select" | "insert">,
-  organizationId: string,
-  providerConnectionId: number,
-  identity: SourceIdentity,
-) {
-  await tx
-    .insert(dataSource)
-    .values({
-      organizationId,
-      providerConnectionId,
-      sourceType: identity.sourceType,
-      sourceKey: identity.sourceKey,
-      importChannel: "mobile_ingest",
-      deviceType: identity.deviceType,
-      deviceModel: identity.deviceModel,
-      sourceAppId: identity.sourceAppId,
-      displayName: identity.sourceAppId,
-    })
-    .onConflictDoNothing({ target: [dataSource.organizationId, dataSource.sourceKey] });
-  const [row] = await tx
-    .select({ id: dataSource.id })
-    .from(dataSource)
-    .where(
-      and(
-        eq(dataSource.organizationId, organizationId),
-        eq(dataSource.sourceKey, identity.sourceKey),
-      ),
-    )
-    .limit(1);
-  if (!row) throw new Error("Data source was not resolvable.");
-  return row.id;
-}
-
-const EVENT_TYPES = new Set<MobileHealthRecordType>(["sleep_session", "workout"]);
+const EVENT_TYPES = new Set<MobileHealthRecordType>(["sleep_session", "workout", "sleep_segment"]);
 
 type SupersedeTarget = {
   table: "metric_sample" | "health_event";
@@ -664,20 +635,6 @@ async function supersede(
       ${olderThanNewest}
     returning r.id`);
   return (result.rows as { id: number }[]).map((row) => Number(row.id));
-}
-
-/** `YYYY-MM-DD` of an instant in the device's time zone (falls back to UTC). */
-function localDate(iso: string, timeZone: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso.slice(0, 10);
-  }
 }
 
 export type IngestMobileBatchResult = {

@@ -110,3 +110,25 @@ describe("custom food mutation migration (Issue #81)", () => {
     ]);
   });
 });
+
+const ENERGY_PROPOSAL_MIGRATION = new URL(
+  "../../db/src/migrations/20261016120000_nutrition_energy_proposal/migration.sql",
+  import.meta.url,
+);
+
+describe("energy proposal migration (Issue #76)", () => {
+  test("is additive and only touches nutrition_energy_proposal", async () => {
+    const all = await statements(ENERGY_PROPOSAL_MIGRATION);
+    expect(all.length).toBeGreaterThan(0);
+    for (const statement of all) {
+      expect(statement).not.toMatch(/\b(drop|delete\s+from|truncate|rename)\b/i);
+      expect(statement).not.toMatch(/^\s*update\b/im);
+      expect(statement).toMatch(
+        /^(CREATE (UNIQUE )?(TABLE|INDEX)|ALTER TABLE) .*"nutrition_energy_proposal"/s,
+      );
+    }
+    // At most one pending proposal per member; goals are never written here.
+    expect(all.join("\n")).toContain("WHERE \"status\" = 'pending'");
+    expect(all.join("\n")).not.toMatch(/insert into|"nutrition_goal" (add|alter)/i);
+  });
+});

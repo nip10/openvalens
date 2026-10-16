@@ -36,7 +36,17 @@ export type CanonicalHealthEventWriteIntent = {
   sourceEventId: string | null;
   sourceApp: string | null;
   rawRecord: Record<string, unknown>;
-  payloadJson?: { sleepStageIntervals?: SleepStageInterval[]; activity?: string };
+  payloadJson?: {
+    sleepStageIntervals?: SleepStageInterval[];
+    activity?: string;
+    /** HealthKit sleep sessions (#131): member sample UUIDs, for deletions and regrouping. */
+    segmentIds?: string[];
+    /** Device model or type, read by the sleep summary's source preference. */
+    sourceDevice?: string;
+    /** IANA zone the session was recorded in, and its local sleep day (end date). */
+    timeZone?: string;
+    localDate?: string;
+  };
   /** Source revision; part of the dedupe key on the mobile path only. */
   lastModifiedAt?: string;
 };
