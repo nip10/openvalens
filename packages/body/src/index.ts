@@ -3,3 +3,5 @@ export * from "./body-composition-source";
 export * from "./daily-weight-service";
 export * from "./auto-reconciliation";
 export * from "./queries";
+export * from "./weight-trend";
+export * from "./weight-trend-service";
