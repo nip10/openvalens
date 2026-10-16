@@ -414,6 +414,23 @@ correlation id and the status. The raw payload lives only in
 `ingestion_raw_artifact` under the existing retention purge. The purge's
 mobile-chunk branch stays for migrated anchovy rows.
 
+**HealthKit sleep (#131).** HealthKit stores sleep as one sample per stage
+segment, and an anchored query reports a deleted segment only by UUID. iOS
+therefore sends `sleep_segment` records (`value` is the
+`HKCategoryValueSleepAnalysis` stage, plus the `HKTimeZone` metadata when
+present) and segment deletions, and the server groups segments into
+`sleep_session` events. Each session row stores its member segments, so the
+server can always resolve a deletion and regroup the affected night; the
+device keeps only the anchor. Grouping is per source, uses UTC instants (a
+night across midnight or a DST change stays one session), splits on gaps over
+90 minutes (naps), flattens overlapping stages with awake > REM > deep > core
+
+> unspecified > in bed, and records in-bed time without sleep as `awake`
+> (Health Connect's "awake in bed"). Session ids hash the member UUIDs, so a
+> replay or re-read regroups to the same rows. Sleep is gated on its own
+> authorization status, so installs that connected before #131 keep syncing the
+> other types until they reconnect from Settings.
+
 ### (b) Read cache and manual entry
 
 - **Reads:** keep the existing `orpc.*.queryOptions` hooks. Add

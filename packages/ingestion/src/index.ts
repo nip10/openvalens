@@ -8,4 +8,5 @@ export * from "./health-connect";
 export * from "./persist-canonical-records";
 export * from "./replay";
 export * from "./mobile-records";
+export * from "./healthkit-sleep";
 export * from "./mobile-batch";
