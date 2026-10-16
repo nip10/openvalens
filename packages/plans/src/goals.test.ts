@@ -6,8 +6,10 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import {
   createGoalRepository,
   deriveGoalProgress,
+  deriveGoalTrend,
   orderCheckinsByDate,
   parseGoalNumeric,
+  resolveGoalDirection,
 } from "./goals";
 
 /**
@@ -210,41 +212,163 @@ describe("goals — derived helpers", () => {
 
   test("deriveGoalProgress returns null when either side is missing", () => {
     expect(
-      deriveGoalProgress({ currentValue: "82", targetValue: null, status: "in_progress" }),
-    ).toEqual({ percent: null, currentNumeric: 82, targetNumeric: null, hint: null });
+      deriveGoalProgress({
+        currentValue: "82",
+        targetValue: null,
+        status: "in_progress",
+        direction: "decrease",
+      }),
+    ).toMatchObject({ percent: null, currentNumeric: 82, targetNumeric: null, hint: null });
     expect(
-      deriveGoalProgress({ currentValue: null, targetValue: "80", status: "in_progress" }),
-    ).toEqual({ percent: null, currentNumeric: null, targetNumeric: 80, hint: null });
+      deriveGoalProgress({
+        currentValue: null,
+        targetValue: "80",
+        status: "in_progress",
+        direction: "increase",
+      }),
+    ).toMatchObject({ percent: null, currentNumeric: null, targetNumeric: 80, hint: null });
   });
 
-  test("deriveGoalProgress marks achievement when current >= target", () => {
+  test("regression (#95): a weight-loss goal above its target is not achieved", () => {
+    // 80 kg now, 70 kg target. The old rule read current >= target as achieved.
+    const noDirection = deriveGoalProgress({
+      currentValue: "80 kg",
+      targetValue: "70 kg",
+      status: "in_progress",
+    });
+    expect(noDirection.hint).toBeNull();
+    expect(noDirection.percent).toBeNull();
+    expect(noDirection.direction).toBeNull();
+
+    const decrease = deriveGoalProgress({
+      currentValue: "80 kg",
+      targetValue: "70 kg",
+      status: "in_progress",
+      direction: "decrease",
+      baselineValue: "85 kg",
+    });
+    expect(decrease.hint).toBe("behind");
+    expect(decrease.percent).toBeCloseTo(1 / 3);
+  });
+
+  test("deriveGoalProgress infers direction from a baseline when none is stored", () => {
+    const result = deriveGoalProgress({
+      currentValue: "75",
+      targetValue: "70",
+      status: "in_progress",
+      baselineValue: "80",
+    });
+    expect(result.direction).toBe("decrease");
+    expect(result.directionSource).toBe("inferred");
+    expect(result.percent).toBe(0.5);
+    expect(result.hint).toBe("tracking");
+  });
+
+  test("deriveGoalProgress marks a decrease goal achieved at or below target", () => {
+    const result = deriveGoalProgress({
+      currentValue: "69.5 kg",
+      targetValue: "70 kg",
+      status: "in_progress",
+      direction: "decrease",
+    });
+    expect(result.hint).toBe("achieved");
+    expect(result.percent).toBe(1);
+  });
+
+  test("deriveGoalProgress leaves a decrease goal without baseline unscored until reached", () => {
+    const result = deriveGoalProgress({
+      currentValue: "82 kg",
+      targetValue: "80 kg",
+      status: "in_progress",
+      direction: "decrease",
+    });
+    expect(result.percent).toBeNull();
+    expect(result.hint).toBeNull();
+  });
+
+  test("deriveGoalProgress marks an increase goal achieved when current >= target", () => {
     const result = deriveGoalProgress({
       currentValue: "82 kg",
       targetValue: "80 kg",
       status: "achieved",
+      direction: "increase",
     });
     expect(result.percent).toBe(1);
     expect(result.hint).toBe("achieved");
   });
 
-  test("deriveGoalProgress flags 'behind' below 50%", () => {
+  test("deriveGoalProgress measures an increase goal without baseline from zero", () => {
     const result = deriveGoalProgress({
       currentValue: "30",
       targetValue: "80",
       status: "in_progress",
+      direction: "increase",
     });
     expect(result.percent).toBeCloseTo(0.375);
+    expect(result.baselineAssumedZero).toBe(true);
     expect(result.hint).toBe("behind");
   });
 
-  test("deriveGoalProgress flags 'tracking' between 50% and 100%", () => {
-    const result = deriveGoalProgress({
+  test("deriveGoalProgress uses the baseline and caps over-achievement at 100%", () => {
+    const tracking = deriveGoalProgress({
       currentValue: "60",
       targetValue: "80",
       status: "in_progress",
+      direction: "increase",
+      baselineValue: "40",
     });
-    expect(result.percent).toBe(0.75);
-    expect(result.hint).toBe("tracking");
+    expect(tracking.percent).toBe(0.5);
+    expect(tracking.baselineAssumedZero).toBe(false);
+    expect(tracking.hint).toBe("tracking");
+
+    const beyond = deriveGoalProgress({
+      currentValue: "100",
+      targetValue: "80",
+      status: "in_progress",
+      direction: "increase",
+      baselineValue: "40",
+    });
+    expect(beyond.percent).toBe(1);
+    expect(beyond.hint).toBe("achieved");
+
+    const worse = deriveGoalProgress({
+      currentValue: "35",
+      targetValue: "80",
+      status: "in_progress",
+      direction: "increase",
+      baselineValue: "40",
+    });
+    expect(worse.percent).toBe(0);
+  });
+
+  test("deriveGoalProgress ignores a baseline on the wrong side of the target", () => {
+    const result = deriveGoalProgress({
+      currentValue: "75",
+      targetValue: "70",
+      status: "in_progress",
+      direction: "decrease",
+      baselineValue: "60",
+    });
+    expect(result.baselineNumeric).toBeNull();
+    expect(result.percent).toBeNull();
+  });
+
+  test("deriveGoalTrend flags a move away from the target", () => {
+    const checkins = [{ value: "80" }, { value: "78" }, { value: "79" }];
+    expect(deriveGoalTrend(checkins, "decrease")).toBe("away_from_target");
+    expect(deriveGoalTrend(checkins, "increase")).toBe("toward_target");
+    expect(deriveGoalTrend([{ value: "80" }, { value: "80 kg" }], "decrease")).toBe("unchanged");
+    expect(deriveGoalTrend([{ value: "80" }], "decrease")).toBeNull();
+    expect(deriveGoalTrend(checkins, null)).toBeNull();
+  });
+
+  test("resolveGoalDirection prefers the stored direction", () => {
+    expect(resolveGoalDirection("increase", 80, 70)).toEqual({
+      direction: "increase",
+      source: "set",
+    });
+    expect(resolveGoalDirection("sideways", null, 70)).toEqual({ direction: null, source: null });
+    expect(resolveGoalDirection(null, 70, 70)).toEqual({ direction: null, source: null });
   });
 
   test("orderCheckinsByDate sorts date asc, id desc for ties", () => {
@@ -310,6 +434,26 @@ describe("goals — repository", () => {
       horizon: "medium",
       targetValue: "15%",
       status: "not_started",
+    });
+  });
+
+  test("upsertGoal stores the measurement contract (#95)", async () => {
+    const state = fakeDb({ goals: [], checkins: [] });
+    await createGoalRepository(state.db).upsertGoal("org-1", {
+      title: "Weigh 70 kg",
+      category: "body_composition",
+      currentValue: "80 kg",
+      targetValue: "70 kg",
+      direction: "decrease",
+      baselineValue: "82 kg",
+      priority: "high",
+    });
+    const insert = state.calls.find((c) => c.kind === "insert" && c.table === goal);
+    if (insert?.kind !== "insert") throw new Error("expected insert call");
+    expect(insert.payload).toMatchObject({
+      direction: "decrease",
+      baselineValue: "82 kg",
+      priority: "high",
     });
   });
 

@@ -9,6 +9,8 @@ import {
   createGoalRepository,
   createPlansRepository,
   createWorkoutRepository,
+  GOAL_DIRECTIONS,
+  GOAL_PRIORITIES,
   KNOWN_CALENDAR_EVENT_TYPES,
   MAX_EXERCISES_PER_WORKOUT,
   MAX_SETS_PER_EXERCISE,
@@ -258,6 +260,9 @@ const goalShape: z.ZodType<Goal> = z.object({
   targetValue: z.string().nullable(),
   targetDate: z.string().nullable(),
   notes: z.string().nullable(),
+  direction: z.string().nullable(),
+  baselineValue: z.string().nullable(),
+  priority: z.string().nullable(),
 });
 
 const goalCheckinShape: z.ZodType<GoalCheckin> = z.object({
@@ -338,6 +343,10 @@ const goalUpsertCreateSchema = z.strictObject({
   targetValue: z.string().trim().max(80).nullish(),
   targetDate: isoDate.nullish(),
   notes: z.string().trim().max(2000).nullish(),
+  // Issue #95 — goal measurement contract; all optional for older clients.
+  direction: z.enum(GOAL_DIRECTIONS).nullish(),
+  baselineValue: z.string().trim().max(80).nullish(),
+  priority: z.enum(GOAL_PRIORITIES).nullish(),
 });
 
 const goalUpsertUpdateSchema = z.strictObject({
@@ -350,6 +359,10 @@ const goalUpsertUpdateSchema = z.strictObject({
   targetValue: z.string().trim().max(80).nullish(),
   targetDate: isoDate.nullish(),
   notes: z.string().trim().max(2000).nullish(),
+  // Issue #95 — goal measurement contract; all optional for older clients.
+  direction: z.enum(GOAL_DIRECTIONS).nullish(),
+  baselineValue: z.string().trim().max(80).nullish(),
+  priority: z.enum(GOAL_PRIORITIES).nullish(),
 });
 
 const goalUpsertSchema = z.union([goalUpsertCreateSchema, goalUpsertUpdateSchema]);
@@ -834,6 +847,9 @@ export const plansRouter = {
                 targetValue: input.targetValue,
                 targetDate: input.targetDate,
                 notes: input.notes,
+                direction: input.direction,
+                baselineValue: input.baselineValue,
+                priority: input.priority,
               }
             : {
                 title: input.title,
@@ -844,6 +860,9 @@ export const plansRouter = {
                 targetValue: input.targetValue,
                 targetDate: input.targetDate,
                 notes: input.notes,
+                direction: input.direction,
+                baselineValue: input.baselineValue,
+                priority: input.priority,
               },
         );
 

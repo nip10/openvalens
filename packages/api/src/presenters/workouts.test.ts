@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  goalDirectionLabel,
+  goalMeasurementFields,
+  goalPriorityLabel,
   goalStatusLabel,
   summarizeGoals,
   summarizeWorkouts,
@@ -69,5 +72,70 @@ describe("workouts presenter", () => {
     expect(summary.total).toBe(4);
     expect(summary.open).toBe(2);
     expect(summary.achieved).toBe(1);
+  });
+
+  test("goalMeasurementFields: blank fields keep the goal unmeasured", () => {
+    expect(
+      goalMeasurementFields({
+        startValue: " ",
+        targetValue: "",
+        direction: null,
+        priority: "normal",
+      }),
+    ).toEqual({
+      ok: true,
+      fields: {
+        currentValue: null,
+        baselineValue: null,
+        targetValue: null,
+        direction: null,
+        priority: "normal",
+      },
+    });
+  });
+
+  test("goalMeasurementFields: a target needs a direction (#95)", () => {
+    const result = goalMeasurementFields({
+      startValue: "80 kg",
+      targetValue: "70 kg",
+      direction: null,
+      priority: "high",
+    });
+    expect(result).toEqual({ ok: false, error: "Choose whether the value should go up or down." });
+  });
+
+  test("goalMeasurementFields: the starting value is baseline and first current value", () => {
+    const result = goalMeasurementFields({
+      startValue: "80 kg",
+      targetValue: "70 kg",
+      direction: "decrease",
+      priority: "high",
+    });
+    expect(result).toEqual({
+      ok: true,
+      fields: {
+        currentValue: "80 kg",
+        baselineValue: "80 kg",
+        targetValue: "70 kg",
+        direction: "decrease",
+        priority: "high",
+      },
+    });
+  });
+
+  test("goalMeasurementFields: values must start with a number", () => {
+    const result = goalMeasurementFields({
+      startValue: "about eighty",
+      targetValue: "",
+      direction: null,
+      priority: "normal",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  test("goal direction and priority labels", () => {
+    expect(goalDirectionLabel("increase")).toBe("Go up");
+    expect(goalDirectionLabel("decrease")).toBe("Go down");
+    expect(goalPriorityLabel("high")).toBe("High");
   });
 });
