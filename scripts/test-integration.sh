@@ -50,6 +50,7 @@ SUITES=(
   "WELLNESS_PROFILE_TEST_DATABASE_URL|wellness_profile_test|packages/api/src/wellness-profile.integration.test.ts"
   "REMINDERS_TEST_DATABASE_URL|reminders_issue125|packages/integrations/telegram/src/reminders.integration.test.ts"
   "STORAGE_TEST_DATABASE_URL|storage_test|packages/storage/src/service.integration.test.ts"
+  "CLINICAL_PDF_AUDIT_TEST_DATABASE_URL|clinical_pdf_audit_test|packages/api/src/routers/clinical-pdf-audit.integration.test.ts"
 )
 
 reset_db() {

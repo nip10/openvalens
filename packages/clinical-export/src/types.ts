@@ -22,6 +22,14 @@ export type ExportBloodRecord = {
   value: number | string | null;
   unit: string | null;
   flag: string | null;
+  /**
+   * The lab's printed reference range exactly as stored (text form first,
+   * otherwise the stored low/high bounds). Optional so CSV fixtures and the
+   * fixed CSV header set stay unchanged; only the clinical PDF reads it.
+   */
+  referenceRange?: string | null;
+  /** Facility recorded on the panel, used as row provenance in the PDF. */
+  source?: string | null;
 };
 
 export type ExportBodySnapshot = {
