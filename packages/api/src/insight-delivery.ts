@@ -9,7 +9,7 @@ import type { StructuredLogger } from "@openvalens/observability";
 import { describePushDeliveryError, type PushProvider } from "@openvalens/push";
 import { and, eq, inArray, lt, or } from "drizzle-orm";
 
-import type { Insight, InsightTopic } from "./insight-contract";
+import type { InsightTopic } from "./insight-contract";
 import { isoWeek, selectInsights } from "./insight-rules";
 import {
   channelsFromDisabled,
@@ -20,7 +20,12 @@ import {
   type InsightScope,
 } from "./insights";
 import type { ProductDisplaySettings } from "./presenters/product-formatting";
-import { INSIGHT_EMAIL_COPY, insightPushContent, insightView } from "./presenters/insights";
+import {
+  INSIGHT_EMAIL_COPY,
+  insightPushContent,
+  insightView,
+  type InsightPushContent,
+} from "./presenters/insights";
 
 /**
  * Issue #92 — deterministic delivery of insights by push and weekly email.
@@ -84,7 +89,8 @@ export async function claimDelivery(
   input: InsightScope & {
     channel: DeliveryChannel;
     periodKey: string;
-    insights: readonly Pick<Insight, "id" | "ruleId" | "ruleVersion">[];
+    /** Insights, or #97 reminders (`reminder:<item>:<date>`, rule `preventive.<item>`). */
+    insights: readonly { id: string; ruleId: string; ruleVersion: string }[];
     now: Date;
   },
 ): Promise<number | null> {
@@ -174,14 +180,21 @@ export async function deliveredInsightIds(
 export async function sendGenericPush(
   db: Database,
   push: PushProvider,
-  input: { userId: string; topic: InsightTopic | null; showTopic: boolean; path: string },
+  input: {
+    userId: string;
+    topic: InsightTopic | null;
+    showTopic: boolean;
+    path: string;
+    /** Fixed generic text from a reviewed template (#97 reminders); overrides the insight text. */
+    content?: InsightPushContent;
+  },
 ): Promise<{ status: "sent" } | { status: "failed"; errorCode: string } | { status: "no_device" }> {
   const devices = await db
     .select({ token: pushDevice.expoPushToken })
     .from(pushDevice)
     .where(eq(pushDevice.userId, input.userId));
   if (devices.length === 0) return { status: "no_device" };
-  const content = insightPushContent(input.topic, input.showTopic);
+  const content = input.content ?? insightPushContent(input.topic, input.showTopic);
   const tickets = await push.send({
     to: devices.map((device) => device.token),
     title: content.title,

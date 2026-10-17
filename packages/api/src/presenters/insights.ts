@@ -67,6 +67,7 @@ export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
   goal_milestone: "Goal milestones",
   data_quality: "Data quality (gaps, new devices)",
   streak: "Recording streaks",
+  reminder: "Preventive-care reminders (dates you set)",
 };
 
 export const INSIGHT_CHANNEL_LABELS: Record<InsightChannel, string> = {

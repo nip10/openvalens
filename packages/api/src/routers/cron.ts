@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import { cronProcedure, raiseApiError } from "../index";
 import { runInsightDelivery } from "../insight-delivery";
+import { runPreventiveReminderDelivery } from "../preventive-care-delivery";
 
 // Issue #11 — PHI-safe structured logger for cron lifecycle events.
 const logger = createStructuredLogger({ level: "info" });
@@ -45,6 +46,10 @@ const insightsRunOutput = cronRunOutput.extend({
   emailSent: z.number(),
   skipped: z.number(),
   failed: z.number(),
+  // Issue #97 — preventive-care reminders through the same channels and claim.
+  remindersPushSent: z.number(),
+  remindersEmailSent: z.number(),
+  remindersFailed: z.number(),
 });
 
 const ingestionRunOutput = cronRunOutput.extend({
@@ -225,6 +230,8 @@ export const cronRouter = {
    * channel, period) is claimed once in `insight_delivery`, so replays and
    * overlapping runs never double-send. Nothing goes out before a person's
    * local delivery hour; push is at most one a day, email one a week.
+   * Issue #97 preventive-care reminders run first in the same job and share
+   * the same claim and limits.
    */
   insightsRun: cronProcedure
     .input(z.object({}))
@@ -242,7 +249,7 @@ export const cronRouter = {
       } catch {
         displaySettings = null;
       }
-      const result = await runInsightDelivery({
+      const deliveryDeps = {
         db: context.db,
         logger,
         correlationId: context.correlationId,
@@ -253,7 +260,10 @@ export const cronRouter = {
         webOrigin: context.webOrigin,
         unsubscribeKey: context.insightUnsubscribeKey ?? null,
         displaySettings,
-      });
+      };
+      // Reminders first: a date the person set wins today's one push over an insight.
+      const reminders = await runPreventiveReminderDelivery(deliveryDeps);
+      const result = await runInsightDelivery(deliveryDeps);
       return {
         status: "ok" as const,
         job: "insights.delivery",
@@ -261,6 +271,9 @@ export const cronRouter = {
         finishedAt: new Date().toISOString(),
         correlationId: context.correlationId,
         ...result,
+        remindersPushSent: reminders.pushSent,
+        remindersEmailSent: reminders.emailSent,
+        remindersFailed: reminders.failed,
       };
     }),
 

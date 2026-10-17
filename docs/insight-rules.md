@@ -100,3 +100,6 @@ Push and email are optional extra channels for the same insights
   link to the app and a one-step unsubscribe link (also as `List-Unsubscribe`).
 - Delivery rows hold channel, period, insight ids and `<rule>@<version>`; logs
   hold ids, counts and typed error categories only.
+- #97 preventive-care reminders use the same channels, claim and limits
+  (kind `reminder`, ids `reminder:<item>:<date>`, generic text). See
+  [`preventive-care.md`](preventive-care.md#reminders).

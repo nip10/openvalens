@@ -81,6 +81,10 @@ export async function seedAccount(db: Database, who: string, samples: number): P
     insert into insight_delivery (organization_id, user_id, channel, period_key, insight_ids, rule_versions, status)
       values ('org-${who}', 'user-${who}', 'push', '2026-10-01', '{change.steps:2026-W41}', '{change.steps@1}', 'sent');
     insert into push_device (user_id, expo_push_token, platform) values ('user-${who}', 'ExponentPushToken[seed-${who}-0000]', 'ios');
+    insert into preventive_care_setting (organization_id, user_id, library_enabled) values ('org-${who}', 'user-${who}', true);
+    insert into preventive_care_declaration (organization_id, user_id, criterion_id, answer) values ('org-${who}', 'user-${who}', 'ever_smoked', 'prefer_not_to_say');
+    insert into preventive_care_item_state (organization_id, user_id, item_id, item_version, plan, last_done_on, next_on, remind)
+      values ('org-${who}', 'user-${who}', 'uk.bowel_screening', 1, 'expect_invitation', '2025-01-10', '2027-01-10', true);
     insert into reference_comparison_opt_in (user_id, metric, reference_version) values ('user-${who}', 'resting_heart_rate', 'reference-data-2026-10-16');
   `),
   );

@@ -215,6 +215,13 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   insight_delivery: { kind: "user" },
   push_device: { kind: "user", redact: ["expo_push_token"] },
 
+  // Preventive care (#97): the person's self-declared criteria, their own dates,
+  // reminders and decisions per guideline item, and the library opt-in. The
+  // guideline items are repo data, never stored.
+  preventive_care_setting: { kind: "user" },
+  preventive_care_declaration: { kind: "user" },
+  preventive_care_item_state: { kind: "user" },
+
   // Plans
   supplement: { kind: "child", parent: "supplement_schedule" },
   supplement_schedule: organization,
