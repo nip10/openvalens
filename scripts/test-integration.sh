@@ -46,6 +46,7 @@ SUITES=(
   "INSTANCE_ADMIN_TEST_DATABASE_URL|instance_admin_test|packages/auth/src/authz/instance-admin.integration.test.ts"
   "ADMISSION_TEST_DATABASE_URL|admission_test|packages/auth/src/admission/admission.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_auth_test|packages/auth/src/admission-auth.integration.test.ts"
+  "ORG_INVITATION_TEST_DATABASE_URL|org_invitation_test|packages/auth/src/organization-invitation.integration.test.ts"
   "OIDC_AUTH_TEST_DATABASE_URL|oidc_auth_test|packages/auth/src/oidc-auth.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_rpc_test|packages/api/src/admission-rpc.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_cli_test|scripts/admission.integration.test.ts"

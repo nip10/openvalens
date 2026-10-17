@@ -1,5 +1,5 @@
 import { expoClient } from "@better-auth/expo/client";
-import { magicLinkClient } from "better-auth/client/plugins";
+import { magicLinkClient, organizationClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import Constants from "expo-constants";
 
@@ -17,5 +17,8 @@ const expoPlugin = authSessionStorage.wrapExpoPlugin(expoClient(expoOptions), ex
 
 export const authClient = createAuthClient({
   baseURL: ENV.EXPO_PUBLIC_SERVER_URL,
-  plugins: [expoPlugin, magicLinkClient()],
+  // Issue #133 — the organization client exposes the protected workspace
+  // invitation endpoints (`list-user-invitations`, `get-invitation`,
+  // `accept-invitation`, `reject-invitation`) to the signed-in recipient.
+  plugins: [expoPlugin, magicLinkClient(), organizationClient()],
 });
