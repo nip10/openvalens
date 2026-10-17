@@ -2,7 +2,7 @@ import {
   AiConfigError,
   AiConsentError,
   CURRENT_CONSENT_VERSION,
-  createAiHealthTools,
+  createAiCoachTools,
   extractStructured,
   generateInsight,
   readUserAiConsent,
@@ -213,7 +213,7 @@ export const aiRouter = {
           messages,
           correlationId,
           // Built per request: bound to the session's org + user, never input.
-          tools: createAiHealthTools({
+          tools: createAiCoachTools({
             db: context.db,
             organizationId,
             userId,

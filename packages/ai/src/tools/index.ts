@@ -4,6 +4,7 @@ import { createGoalsTool } from "./goals";
 import { createHealthSnapshotTool } from "./health-snapshot";
 import { createLabsTool } from "./labs";
 import { createMarkerTrendTool } from "./marker-trend";
+import { createNutritionContextTool } from "./nutrition-context";
 import { createOutOfRangeTool } from "./out-of-range";
 import { createPanelCompareTool } from "./panel-compare";
 import { createSupplementsTool } from "./supplements";
@@ -33,3 +34,18 @@ export function createAiHealthTools(context: AiHealthToolContext) {
 }
 
 export type AiHealthTools = ReturnType<typeof createAiHealthTools>;
+
+/**
+ * The Coach's full tool set: the ten health tools plus the consent-gated
+ * `nutritionContext` tool (Issue #86). Offered to the chat model as a whole;
+ * each tool re-checks its own permission and consent at execution, so no data
+ * leaves the server without them.
+ */
+export function createAiCoachTools(context: AiHealthToolContext) {
+  return {
+    ...createAiHealthTools(context),
+    nutritionContext: createNutritionContextTool(context),
+  };
+}
+
+export type AiCoachTools = ReturnType<typeof createAiCoachTools>;
