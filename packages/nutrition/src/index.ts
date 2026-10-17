@@ -9,6 +9,8 @@ export * from "./food-lookup";
 export * from "./food-search";
 export * from "./totals";
 export * from "./daily-totals";
+export * from "./coach-consent";
+export * from "./coach-context";
 export * from "./custom-foods";
 export * from "./energy-estimate";
 export * from "./energy-proposal-policy";

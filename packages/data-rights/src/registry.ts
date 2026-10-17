@@ -128,6 +128,8 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_diary_mutation: organization,
   // Energy estimate (#76): target proposals with the estimate they came from.
   nutrition_energy_proposal: organization,
+  // Coach nutrition context consent (#86): the member's own opt-in; matched by user_id.
+  nutrition_coach_consent: { kind: "user" },
   // Public food catalogs (#72): instance-wide FDC / Open Food Facts mirrors and
   // their import ledger; no tenant or personal columns.
   nutrition_catalog_release: {

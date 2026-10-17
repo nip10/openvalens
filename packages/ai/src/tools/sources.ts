@@ -18,6 +18,11 @@ import {
 } from "@openvalens/health-record";
 import { listLabMarkerLatest, type LabMarkerLatest } from "@openvalens/labs";
 import {
+  createNutritionTotals,
+  type DailyTotals,
+  type NutritionScope,
+} from "@openvalens/nutrition";
+import {
   createGoalRepository,
   createPlansRepository,
   type Goal,
@@ -74,6 +79,15 @@ export type AiHealthToolSources = {
   listGoalCheckins: (organizationId: string, goalId: number) => Promise<GoalCheckin[]>;
   /** Merged health-record timeline page (`@openvalens/health-record`). */
   listTimeline: (organizationId: string, filters: TimelineFilters) => Promise<TimelinePage>;
+  /**
+   * Per-day nutrition totals for one member (Issue #86). Nutrition is
+   * member-private, so this port takes the full {@link NutritionScope} the
+   * tool derives from the session — never just the organization.
+   */
+  listNutritionDailyTotals: (
+    scope: NutritionScope,
+    range: { from: string; to: string },
+  ) => Promise<DailyTotals[]>;
 };
 
 /** Binds the ports to the real domain packages for one database handle. */
@@ -82,6 +96,7 @@ export function createDomainHealthToolSources(db: Database): AiHealthToolSources
   const plans = createPlansRepository(db);
   const goals = createGoalRepository(db);
   const healthRecord = createHealthRecordRepository(db);
+  const nutritionTotals = createNutritionTotals(db);
   return {
     listLabMarkers: (organizationId, recentLimit) =>
       listLabMarkerLatest(db, organizationId, recentLimit),
@@ -102,5 +117,6 @@ export function createDomainHealthToolSources(db: Database): AiHealthToolSources
     listGoals: (organizationId) => goals.listGoals(organizationId),
     listGoalCheckins: (organizationId, goalId) => goals.listCheckins(organizationId, goalId),
     listTimeline: (organizationId, filters) => healthRecord.listTimeline(organizationId, filters),
+    listNutritionDailyTotals: (scope, range) => nutritionTotals.listDays(scope, range),
   };
 }
