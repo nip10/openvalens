@@ -228,7 +228,7 @@ export default function NutritionScreen() {
   return (
     <Container>
       <View className="gap-5 p-4">
-        <View className="flex-row items-center justify-between gap-2">
+        <View className="flex-row flex-wrap items-center justify-between gap-2">
           <Chip
             label="Previous"
             selected={false}
@@ -513,7 +513,7 @@ function EntryCard({
         <SyncBadge state={row.sync} />
       </View>
       {editing ? (
-        <View className="flex-row items-center gap-2">
+        <View className="flex-row flex-wrap items-center gap-2">
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -859,7 +859,7 @@ function AddFood({
             className={inputClass}
             placeholderTextColor="#9ca3af"
           />
-          <View className="flex-row items-center gap-2">
+          <View className="flex-row flex-wrap items-center gap-2">
             <Text className="text-sm text-foreground">Values per</Text>
             <TextInput
               value={quick.basisAmount}
@@ -969,7 +969,7 @@ function AddFood({
         </View>
       ) : null}
 
-      <View className="flex-row gap-2">
+      <View className="flex-row flex-wrap gap-2">
         <Button onPress={save} isDisabled={!preview}>
           {`Save to ${SLOT_LABELS[slot]}`}
         </Button>
@@ -1055,7 +1055,7 @@ function BarcodePanel({
           {BARCODE_COPY.scan}
         </Button>
       )}
-      <View className="flex-row items-center gap-2">
+      <View className="flex-row flex-wrap items-center gap-2">
         <TextInput
           value={digits}
           onChangeText={setDigits}
@@ -1188,7 +1188,7 @@ function CopyDay({
           );
         })
       )}
-      <View className="flex-row gap-2">
+      <View className="flex-row flex-wrap gap-2">
         <Button onPress={confirm} isDisabled={selected.size === 0}>
           {`Copy ${selected.size} to ${localDate}`}
         </Button>
