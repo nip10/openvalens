@@ -1,0 +1,17 @@
+{
+  "name": "site",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build": "bun scripts/build.ts dist",
+    "check-types": "tsc --noEmit",
+    "screenshots": "bun scripts/capture-screenshots.ts"
+  },
+  "devDependencies": {
+    "@openvalens/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "typescript": "^6.0.3"
+  }
+}
