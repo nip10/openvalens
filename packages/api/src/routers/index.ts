@@ -19,6 +19,7 @@ import { ingestionRouter } from "./ingestion";
 import { insightsRouter } from "./insights";
 import { labsRouter } from "./labs";
 import { mobileRouter } from "./mobile";
+import { nutritionCoachRouter } from "./nutrition-coach";
 import { nutritionCustomFoodsRouter } from "./nutrition-custom-foods";
 import { nutritionDiaryRouter } from "./nutrition-diary";
 import { nutritionEnergyRouter } from "./nutrition-energy";
@@ -35,6 +36,7 @@ import { storageRouter } from "./storage";
 import { telegramRouter } from "./telegram";
 import { timelineRouter } from "./timeline";
 import { vitalsRouter } from "./vitals";
+import { wearablesRouter } from "./wearables";
 
 export const appRouter = {
   activity: activityRouter,
@@ -57,6 +59,7 @@ export const appRouter = {
   labs: labsRouter,
   mobile: mobileRouter,
   nutritionCustomFoods: nutritionCustomFoodsRouter,
+  nutritionCoach: nutritionCoachRouter,
   nutritionDiary: nutritionDiaryRouter,
   nutritionEnergy: nutritionEnergyRouter,
   nutritionFoods: nutritionFoodsRouter,
@@ -72,6 +75,7 @@ export const appRouter = {
   telegram: telegramRouter,
   timeline: timelineRouter,
   vitals: vitalsRouter,
+  wearables: wearablesRouter,
 };
 
 export type AppRouter = typeof appRouter;

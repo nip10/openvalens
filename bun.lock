@@ -101,6 +101,7 @@
         "@openvalens/push": "workspace:*",
         "@openvalens/storage": "workspace:*",
         "@openvalens/telegram": "workspace:*",
+        "@openvalens/wearables": "workspace:*",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
         "@orpc/zod": "catalog:",
@@ -186,6 +187,7 @@
         "@openvalens/db": "workspace:*",
         "@openvalens/health-record": "workspace:*",
         "@openvalens/labs": "workspace:*",
+        "@openvalens/nutrition": "workspace:*",
         "@openvalens/observability": "workspace:*",
         "@openvalens/plans": "workspace:*",
         "@openvalens/sleep": "workspace:*",
@@ -225,6 +227,7 @@
         "@openvalens/storage": "workspace:*",
         "@openvalens/telegram": "workspace:*",
         "@openvalens/vitals": "workspace:*",
+        "@openvalens/wearables": "workspace:*",
         "@orpc/client": "catalog:",
         "@orpc/openapi": "catalog:",
         "@orpc/server": "catalog:",
@@ -409,6 +412,20 @@
         "@openvalens/observability": "workspace:*",
         "drizzle-orm": "catalog:",
         "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/integrations/wearables": {
+      "name": "@openvalens/wearables",
+      "dependencies": {
+        "@openvalens/db": "workspace:*",
+        "@openvalens/health-record": "workspace:*",
+        "@openvalens/ingestion": "workspace:*",
+        "@openvalens/observability": "workspace:*",
+        "drizzle-orm": "catalog:",
       },
       "devDependencies": {
         "@openvalens/config": "workspace:*",
@@ -979,6 +996,8 @@
     "@openvalens/ui": ["@openvalens/ui@workspace:packages/ui"],
 
     "@openvalens/vitals": ["@openvalens/vitals@workspace:packages/vitals"],
+
+    "@openvalens/wearables": ["@openvalens/wearables@workspace:packages/integrations/wearables"],
 
     "@orpc/client": ["@orpc/client@1.15.4", "", { "dependencies": { "@orpc/shared": "1.15.4", "@orpc/standard-server": "1.15.4", "@orpc/standard-server-fetch": "1.15.4", "@orpc/standard-server-peer": "1.15.4" } }, "sha512-8Iv2K8Rj8hf6xHCTxmQ+gxgiY6EATDossQk4gdt3oSbGVV0x2RSeLtRK9Zry+KVsmOqPJfnLahfRp7H2rQ/Vgg=="],
 

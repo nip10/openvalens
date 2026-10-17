@@ -25,6 +25,8 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
       "body_fat",
       "active_calories",
       "distance",
+      "hrv_rmssd",
+      "provider_score",
     ]);
   });
 
@@ -49,6 +51,20 @@ describe("metric taxonomy (Issue #17 bounded read-side)", () => {
     expect(getDefaultSourcePriorityOrder("distance")).toEqual(["watch", "phone"]);
     expect(canonicalizeMetricCode("bodyFat")).toBe("body_fat");
     expect(canonicalizeMetricCode("activeCalories")).toBe("active_calories");
+  });
+
+  test("cloud wearable codes (Issue #60) carry HRV in ms and provider scores without a default", () => {
+    expect(getMetricDefinition("hrv_rmssd")).toMatchObject({
+      unit: "ms",
+      category: "cardiac",
+      aggregationDefault: "avg",
+    });
+    expect(getDefaultSourcePriorityOrder("hrv_rmssd")).toEqual(["ring", "watch", "phone"]);
+    expect(getMetricDefinition("provider_score")).toMatchObject({
+      unit: "score",
+      aggregationDefault: "latest",
+    });
+    expect(getDefaultSourcePriorityOrder("provider_score")).toBeNull();
   });
 
   test("source codes match anchovy units, categories and default priority", () => {

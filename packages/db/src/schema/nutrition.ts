@@ -655,6 +655,52 @@ export const nutritionEnergyProposal = pgTable(
   }),
 );
 
+// ─── Coach nutrition context consent (Issue #86) ──────────────
+//
+// Per-member, explicit and revocable consent to include a sanitized nutrition
+// summary in the AI Coach conversation (on top of the org + per-user AI
+// consent from #13/#123). It is deliberately separate from the
+// administrator-configured provider credentials (#57/#59) and records the
+// disclosure version the member agreed to, so a new version fails closed until
+// the member re-consents. `include_numbers` is the member's own choice to
+// share numeric averages; when false only coverage/completeness is shared.
+// One row per (organization, member); revoking sets `granted = false`.
+
+export const nutritionCoachConsent = pgTable(
+  "nutrition_coach_consent",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    granted: boolean("granted").notNull().default(false),
+    /** Whether numeric averages may be shared (hide-numbers when false). */
+    includeNumbers: boolean("include_numbers").notNull().default(false),
+    grantedAt: timestamp("granted_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    consentVersion: text("consent_version").notNull().default("v1"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nutritionCoachConsentOrgUserUnique: uniqueIndex("nutrition_coach_consent_org_user_key").on(
+      table.organizationId,
+      table.userId,
+    ),
+    nutritionCoachConsentUserIdx: index("nutrition_coach_consent_user_id_idx").on(table.userId),
+    nutritionCoachConsentRevokedCheck: check(
+      "nutrition_coach_consent_revoked_after_granted_check",
+      sql`${table.revokedAt} is null or ${table.revokedAt} >= ${table.grantedAt}`,
+    ),
+    nutritionCoachConsentMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_coach_consent_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
 // ─── Nutrition target settings (Issue #80) ────────────────────
 //
 // One row per (workspace, member): hide-numbers mode, the direction energy

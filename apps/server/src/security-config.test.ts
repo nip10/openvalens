@@ -390,6 +390,12 @@ describe("schema-validated security configuration (cold boot)", () => {
         foodLookup: { provider: null, state: "off" },
         oidc: { provider: null, state: "off" },
         push: { provider: null, state: "off" },
+        // Issue #60 — cloud wearables stay off with no vendor env.
+        wearablesOura: { provider: null, state: "off" },
+        wearablesWhoop: { provider: null, state: "off" },
+        wearablesPolar: { provider: null, state: "off" },
+        wearablesWithings: { provider: null, state: "off" },
+        wearablesGoogleHealth: { provider: null, state: "off" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(safeDefaults);
@@ -429,6 +435,11 @@ describe("schema-validated security configuration (cold boot)", () => {
         foodLookup: { provider: "openfoodfacts", state: "configured" },
         oidc: { provider: "generic", state: "configured" },
         push: { provider: "expo", state: "configured" },
+        wearablesOura: { provider: null, state: "off" },
+        wearablesWhoop: { provider: null, state: "off" },
+        wearablesPolar: { provider: null, state: "off" },
+        wearablesWithings: { provider: null, state: "off" },
+        wearablesGoogleHealth: { provider: null, state: "off" },
       };
       expect(run.exitCode).toBe(0);
       expect(run.result?.integrations).toEqual(configured);

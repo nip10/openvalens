@@ -14,7 +14,16 @@ export type SleepStageInterval = { stage: string; start: string; end: string };
 
 export type CanonicalMetricWriteIntent = {
   kind: "metric_sample";
-  canonicalType: "weight" | "steps" | "heart_rate" | "body_fat" | "active_calories" | "distance";
+  canonicalType:
+    | "weight"
+    | "steps"
+    | "heart_rate"
+    | "body_fat"
+    | "active_calories"
+    | "distance"
+    | "resting_heart_rate"
+    | "hrv_rmssd"
+    | "provider_score";
   sampledAt: string;
   /** Interval end for interval metrics (steps, calories, distance); stored in metadata. */
   endAt?: string;
@@ -25,6 +34,11 @@ export type CanonicalMetricWriteIntent = {
   externalId: string | null;
   sourceApp: string | null;
   rawRecord: Record<string, unknown>;
+  /**
+   * Value-free labels stored in the sample metadata, e.g. a cloud wearable's
+   * `scoreKind` (`oura_readiness`). Never part of the dedupe key.
+   */
+  detail?: Record<string, string>;
 };
 
 export type CanonicalHealthEventWriteIntent = {
