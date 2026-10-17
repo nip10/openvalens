@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The build replaces this placeholder with SITE_CSP (scripts/build.ts). -->
+    <meta http-equiv="Content-Security-Policy" content="__SITE_CSP__" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      name="description"
+      content="OpenValens is an open-source, private health record that you host yourself. Your data stays on your server."
+    />
+    <title>OpenValens — open-source, private health record</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-row">
+        <a class="brand" href="#top"
+          ><img src="favicon.svg" alt="" width="28" height="28" />OpenValens</a
+        >
+        <nav aria-label="Sections">
+          <a href="#features">What it does</a>
+          <a href="#privacy">Your data</a>
+          <a href="#install">Install</a>
+          <a href="https://github.com/nip10/openvalens">Source</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero wrap">
+        <p class="status">Pre-release 0.1.0 · no release is tagged yet</p>
+        <h1>Open-source, private health record.<br />Your data stays on your server.</h1>
+        <p class="lede">
+          OpenValens keeps your labs, body measurements, vitals, workouts, nutrition and sleep in
+          one record that you host yourself. Record, organize, visualize and export it — on a server
+          you control, with no account at anyone else's service.
+        </p>
+        <p class="lede small">
+          “Open” means open source (AGPL-3.0). It never means your records are public: an instance
+          has no public sign-up, and every workspace is invite-only.
+        </p>
+        <div class="cta">
+          <a class="button primary" href="#install">Install with Docker Compose</a>
+          <a class="button" href="https://github.com/nip10/openvalens">Read the source</a>
+        </div>
+        <figure class="shot hero-shot">
+          <img
+            src="screenshots/dashboard.svg"
+            width="1280"
+            height="800"
+            alt="Placeholder for the OpenValens dashboard screenshot"
+          />
+          <figcaption>
+            Placeholder. Screenshots are only ever captured from a synthetic demo account, never
+            from a real person's records.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="features" class="wrap">
+        <h2>What it does in 0.1.0</h2>
+        <ul class="grid">
+          <li>
+            <h3>Labs</h3>
+            <p>Enter lab results and keep each marker's readings together in one place.</p>
+          </li>
+          <li>
+            <h3>Body and vitals</h3>
+            <p>Weight, body measurements and vitals, with your own history over time.</p>
+          </li>
+          <li>
+            <h3>Workouts and activity</h3>
+            <p>
+              Log sessions with an effort rating and see your weekly active minutes next to the WHO
+              adult range.
+            </p>
+          </li>
+          <li>
+            <h3>Meal diary</h3>
+            <p>
+              Log meals from imported public food catalogs (USDA FoodData Central, Open Food Facts)
+              or your own foods. Daily totals show which entries had a value.
+            </p>
+          </li>
+          <li>
+            <h3>Sleep, supplements, timeline</h3>
+            <p>Record sleep and supplements and see everything on one timeline.</p>
+          </li>
+          <li>
+            <h3>Export and delete</h3>
+            <p>
+              Download your record (JSON, CSV or PDF) to take to a professional, or delete your
+              account and everything you own.
+            </p>
+          </li>
+          <li>
+            <h3>Workspaces and sharing</h3>
+            <p>
+              Share a workspace with people you invite, as owner, admin, collaborator or viewer.
+            </p>
+          </li>
+          <li>
+            <h3>Optional AI assistant</h3>
+            <p>
+              Off by default. When an operator turns it on (Anthropic or any OpenAI-compatible
+              endpoint, including a local model) and you consent, it can summarise your own records.
+              It is not medical advice and can be wrong.
+            </p>
+          </li>
+        </ul>
+        <div class="two-col">
+          <figure class="shot">
+            <img
+              src="screenshots/labs.svg"
+              width="1280"
+              height="800"
+              alt="Placeholder for the lab results screenshot"
+            />
+            <figcaption>Placeholder: lab results (synthetic demo data).</figcaption>
+          </figure>
+          <figure class="shot">
+            <img
+              src="screenshots/sleep.svg"
+              width="1280"
+              height="800"
+              alt="Placeholder for the sleep screenshot"
+            />
+            <figcaption>Placeholder: sleep (synthetic demo data).</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="limits" class="wrap">
+        <h2>What it does not do (yet)</h2>
+        <ul class="plain">
+          <li>
+            <strong>Backups are not finished.</strong> 0.1.0 takes a plain, unencrypted
+            <code>pg_dump</code> before each migration and nothing else. Encrypted, scheduled,
+            off-host backups and a tested restore are still to come. Read the
+            <a href="https://github.com/nip10/openvalens/blob/main/docs/self-hosting/backup.md"
+              >backup guide</a
+            >
+            before you store real records.
+          </li>
+          <li>
+            <strong>No hosted service.</strong> You run your own instance; there is no sign-up here.
+          </li>
+          <li>
+            <strong>No published images.</strong> The install builds the containers from the source
+            you check out.
+          </li>
+          <li>
+            <strong>No store build of the mobile app.</strong> To use it with your instance you
+            build it yourself.
+          </li>
+          <li><strong>No direct wearable-vendor connections</strong> such as Oura or Whoop yet.</li>
+        </ul>
+      </section>
+
+      <section id="privacy" class="wrap">
+        <h2>Where your data goes</h2>
+        <p>
+          Your records live in the Postgres database of your instance, which has no published port
+          and no route to the internet. The app has no analytics and no telemetry.
+        </p>
+        <p>An instance only talks to outside services that you configure:</p>
+        <ul class="plain">
+          <li>
+            <strong>Email (Resend)</strong> delivers sign-in codes, invitations and, only if you opt
+            in, insight notifications. It receives the recipient address and those messages.
+          </li>
+          <li><strong>Let's Encrypt</strong> issues the HTTPS certificate for your domain.</li>
+          <li>
+            <strong>Off unless you turn them on:</strong> an AI provider, Open Food Facts barcode
+            lookup (sends only the product code), S3-compatible file storage, Expo push
+            notifications and one single sign-on provider.
+          </li>
+        </ul>
+        <p>
+          This page follows the same rule: it is plain HTML and CSS served from one origin. No
+          scripts, no web fonts, no trackers, no requests to anyone else.
+        </p>
+      </section>
+
+      <section id="install" class="wrap">
+        <h2>Install with Docker Compose</h2>
+        <p>
+          One supported install: a pinned Docker Compose stack with Caddy for HTTPS, driven by an
+          interactive setup script that generates every secret on your host. You need a Linux host
+          with Docker Engine, the Compose v2 plugin and <code>git</code>, a domain pointing at it,
+          and a Resend API key for sign-in email.
+        </p>
+        <pre><code>git clone https://github.com/nip10/openvalens.git
+cd openvalens
+git checkout main            # or a release tag, once one exists
+deploy/setup.sh install</code></pre>
+        <p>
+          Read the script before you run it, and read the
+          <a href="https://github.com/nip10/openvalens/blob/main/docs/self-hosting/install.md"
+            >install guide</a
+          >
+          first: it covers requirements, the one-time setup token for the first administrator,
+          verifying the install and scheduling the daily jobs. All self-hosting guides are in
+          <a href="https://github.com/nip10/openvalens/tree/main/docs/self-hosting"
+            >docs/self-hosting</a
+          >.
+        </p>
+      </section>
+
+      <section id="purpose" class="wrap">
+        <h2>Intended purpose</h2>
+        <p class="purpose">
+          OpenValens is a personal record-keeping and general-wellness app. It helps you store,
+          organise and view your own health-related records (such as lab results you enter or
+          import, body measurements, workouts, nutrition, sleep and wearable data) and track healthy
+          habits. It shows publicly available guidance published by recognised public-health
+          authorities, attributed and unaltered, for your information. OpenValens is not a medical
+          device. It is not intended to diagnose, screen for, prevent, monitor, predict, treat or
+          alleviate any disease or condition, and it does not provide medical advice. Talk to a
+          qualified healthcare professional about your health.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>
+          OpenValens is free software under the
+          <a href="https://github.com/nip10/openvalens/blob/main/LICENSE">GNU AGPL v3.0 or later</a
+          >, with an
+          <a href="https://github.com/nip10/openvalens/blob/main/LICENSE-APP-STORE"
+            >app-store permission</a
+          >. The name and logo are covered by the
+          <a href="https://github.com/nip10/openvalens/blob/main/TRADEMARK.md">trademark policy</a>.
+        </p>
+        <p>
+          <a href="https://github.com/nip10/openvalens/blob/main/CONTRIBUTING.md">Contributing</a> ·
+          <a href="https://github.com/nip10/openvalens/blob/main/SECURITY.md"
+            >Report a vulnerability</a
+          >
+          · © 2026 The OpenValens contributors
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

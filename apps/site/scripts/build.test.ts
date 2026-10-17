@@ -1,0 +1,195 @@
+/**
+ * Landing site guards (Issue #66): the built output makes no third-party
+ * request, carries a strict CSP, keeps its copy within the wording rules and
+ * states the honest limits of the current release.
+ *
+ * Pure file work in a temporary directory; no network, no browser.
+ */
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import {
+  auditCss,
+  auditMarkup,
+  auditSite,
+  buildSite,
+  SITE_CSP,
+  SITE_CSP_HEADER,
+  type Finding,
+} from "./build";
+
+let outDir: string;
+
+beforeAll(async () => {
+  outDir = await mkdtemp(join(tmpdir(), "openvalens-site-"));
+  await buildSite(outDir);
+});
+
+afterAll(async () => {
+  await rm(outDir, { recursive: true, force: true });
+});
+
+/** Visible text of the built page: tags, comments and entities flattened. */
+async function pageText(): Promise<string> {
+  const html = await readFile(join(outDir, "index.html"), "utf8");
+  return html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z]+;/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+describe("built site", () => {
+  test("has no audit findings (no third-party resources, all local references resolve)", async () => {
+    expect(await auditSite(outDir)).toEqual([]);
+  });
+
+  test("the page carries the CSP and _headers sends it with frame-ancestors", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="${SITE_CSP}" />`);
+    expect(html).not.toContain("__SITE_CSP__");
+    const headers = await readFile(join(outDir, "_headers"), "utf8");
+    expect(headers).toContain(`Content-Security-Policy: ${SITE_CSP_HEADER}`);
+    expect(headers).toContain("Referrer-Policy: no-referrer");
+  });
+
+  test("the CSP allows nothing but same-origin styles and images", () => {
+    expect(SITE_CSP).toContain("default-src 'none'");
+    expect(SITE_CSP).not.toMatch(/https?:|\*|'unsafe-|script-src|font-src|connect-src/);
+    expect(SITE_CSP_HEADER).toContain("frame-ancestors 'none'");
+  });
+});
+
+describe("auditMarkup / auditCss catch third-party resources", () => {
+  const audit = (markup: string) => {
+    const findings: Finding[] = [];
+    auditMarkup("x.html", markup, findings);
+    return findings.map((f) => f.problem);
+  };
+
+  test.each([
+    ['<script src="https://cdn.example.com/a.js"></script>', "<script"],
+    [
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">',
+      "<link href>",
+    ],
+    ['<link rel="preconnect" href="//fonts.gstatic.com">', "<link href>"],
+    ['<img src="http://tracker.example/pixel.gif">', "<img src>"],
+    ['<img srcset="a.png 1x, https://cdn.example/b.png 2x">', "<img srcset>"],
+    ['<video poster="https://cdn.example/p.jpg"></video>', "<video poster>"],
+    ['<iframe src="https://www.youtube.com/embed/x"></iframe>', "<iframe>"],
+    ['<svg><image href="https://cdn.example/x.png"/></svg>', "<image href>"],
+    ['<meta http-equiv="refresh" content="0; url=https://example.com">', "refresh"],
+    ["<style>body{}</style>", "inline <style>"],
+    ['<div style="color:red"></div>', "inline style"],
+    ['<button onclick="x()"></button>', "onclick"],
+  ])("%s", (markup, expected) => {
+    expect(audit(markup).join("\n")).toContain(expected);
+  });
+
+  test("allows plain anchors to other sites and SVG namespaces", () => {
+    expect(
+      audit(
+        '<a href="https://github.com/nip10/openvalens">x</a><svg xmlns="http://www.w3.org/2000/svg"></svg>',
+      ),
+    ).toEqual([]);
+  });
+
+  test("flags remote url() and @import in CSS", () => {
+    const findings: Finding[] = [];
+    auditCss(
+      "x.css",
+      '@import "https://fonts.googleapis.com/css";\n@font-face{src:url(https://fonts.gstatic.com/a.woff2)}\n.a{background:url("img/ok.png")}',
+      findings,
+    );
+    expect(findings.map((f) => f.problem)).toEqual([
+      "third-party resource in CSS: https://fonts.gstatic.com/a.woff2",
+      "third-party resource in CSS: https://fonts.googleapis.com/css",
+    ]);
+  });
+});
+
+/**
+ * Banned marketing terms from "Legal and clinical gate decisions" (decision
+ * 10). The intended-purpose statement is the one place some of them appear —
+ * as negations — so it is removed before scanning.
+ */
+const BANNED_TERMS = [
+  /\bdiagnos/i,
+  /\bdetect/i,
+  /\bscreen for\b/i,
+  /\bpredict/i,
+  /\binterpret/i,
+  /\btreat/i,
+  /\bcure/i,
+  /early warning/i,
+  /\bcatch .* early\b/i,
+  /(clinical|medical)[- ]grade/i,
+  /clinically (validated|proven)/i,
+  /doctor[- ]approved/i,
+  /\bFDA\b/,
+  /CE[- ]marked/i,
+  /\babnormal/i,
+  /\bat risk\b/i,
+  /risk score/i,
+  /biological age/i,
+  /AI (doctor|clinician)/i,
+  /medical advice/i,
+  /personali[sz]ed medical/i,
+  /improves? your health/i,
+  /longevity/i,
+  /optimi[sz]e your/i,
+  /\breverse\b/i,
+  /HIPAA/i,
+  /GDPR[- ]certified/i,
+  /we never share/i,
+];
+
+/** Allowed exact phrases that contain a banned term (gate decisions, "Allowed"). */
+const ALLOWED_PHRASES = [/It is not medical advice and can be wrong\./g];
+
+describe("site copy", () => {
+  test("uses none of the banned terms outside the intended-purpose statement", async () => {
+    const text = await pageText();
+    const purposeStart = text.indexOf("OpenValens is a personal record-keeping");
+    const purposeEnd = text.indexOf("about your health.", purposeStart);
+    expect(purposeStart).toBeGreaterThan(-1);
+    expect(purposeEnd).toBeGreaterThan(purposeStart);
+    let scanned = text.slice(0, purposeStart) + text.slice(purposeEnd);
+    for (const phrase of ALLOWED_PHRASES) scanned = scanned.replace(phrase, " ");
+    const hits = BANNED_TERMS.filter((term) => term.test(scanned)).map(String);
+    expect(hits).toEqual([]);
+  });
+
+  test("states the name, the privacy tagline and the intended purpose", async () => {
+    const text = await pageText();
+    expect(text).toContain("Open-source, private health record.");
+    expect(text).toContain("Your data stays on your server.");
+    expect(text).toContain("It never means your records are public");
+    expect(text).toContain("OpenValens is not a medical device.");
+  });
+
+  test("states the honest limits of the release", async () => {
+    const text = await pageText();
+    expect(text).toContain("Backups are not finished.");
+    expect(text).toContain("plain, unencrypted pg_dump");
+    expect(text).toContain("no release is tagged yet");
+    expect(text).toContain("no analytics and no telemetry");
+  });
+
+  test("the install command matches the supported Compose install guide", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const install = await readFile(
+      join(import.meta.dir, "..", "..", "..", "docs", "self-hosting", "install.md"),
+      "utf8",
+    );
+    const command = /<pre><code>([\s\S]*?)<\/code><\/pre>/.exec(html)?.[1];
+    expect(command).toBeDefined();
+    expect(command).toContain("deploy/setup.sh install");
+    expect(install).toContain(command!);
+    const readme = await readFile(join(import.meta.dir, "..", "..", "..", "README.md"), "utf8");
+    expect(readme).toContain(command!);
+  });
+});
