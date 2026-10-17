@@ -439,7 +439,10 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
   });
 
   test("logs and delivery records carry no answers, dates or addresses", async () => {
-    const all = logged.join("");
+    const all = logged
+      .join("")
+      // The pack version is itself a date label (not a person's date), so drop it first.
+      .replace(/"packVersion":"[^"]*"/g, "");
     expect(all).not.toContain("prefer_not_to_say");
     expect(all).not.toContain("2025-02-28");
     expect(all).not.toContain(daysFromToday(-1));
