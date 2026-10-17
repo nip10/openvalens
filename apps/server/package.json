@@ -25,6 +25,7 @@
     "@openvalens/push": "workspace:*",
     "@openvalens/storage": "workspace:*",
     "@openvalens/telegram": "workspace:*",
+    "@openvalens/wearables": "workspace:*",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
     "@orpc/zod": "catalog:",

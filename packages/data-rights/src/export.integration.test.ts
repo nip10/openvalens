@@ -82,6 +82,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "push_device",
       "session",
       "telegram_connect_token",
+      "wearable_connection",
+      "wearable_oauth_state",
     ]);
     // Insights (#92): the unsubscribe token hash and push token never leave.
     expect(all).not.toContain("unsub-hash-a");

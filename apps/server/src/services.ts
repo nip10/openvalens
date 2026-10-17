@@ -22,6 +22,13 @@ import {
   parseStorageConfig,
 } from "@openvalens/storage";
 import {
+  createWearableAdapters,
+  createWearablesService,
+  deriveWearableTokenKey,
+  describeWearablesIntegrations,
+  parseWearablesConfig,
+} from "@openvalens/wearables";
+import {
   describeTelegramIntegration,
   parseTelegramConfig,
   TelegramClient,
@@ -154,6 +161,50 @@ export const insightUnsubscribeKey =
     ? deriveInsightUnsubscribeKey(ENV.BETTER_AUTH_SECRET)
     : null;
 
+// Issue #60 — optional cloud wearables. Phone-first ingestion (HealthKit /
+// Health Connect) needs none of this. Each vendor (Oura, WHOOP, Polar,
+// Withings, Google Health) is off until the operator sets their own developer
+// app's client id and secret; an incomplete pair logs the missing key *names*
+// only. Tokens are encrypted with a key derived from `BETTER_AUTH_SECRET`.
+export const wearablesConfig = parseWearablesConfig({
+  WEARABLES_WEBHOOKS: ENV.WEARABLES_WEBHOOKS,
+  WEARABLES_OURA_CLIENT_ID: ENV.WEARABLES_OURA_CLIENT_ID,
+  WEARABLES_OURA_CLIENT_SECRET: ENV.WEARABLES_OURA_CLIENT_SECRET,
+  WEARABLES_WHOOP_CLIENT_ID: ENV.WEARABLES_WHOOP_CLIENT_ID,
+  WEARABLES_WHOOP_CLIENT_SECRET: ENV.WEARABLES_WHOOP_CLIENT_SECRET,
+  WEARABLES_POLAR_CLIENT_ID: ENV.WEARABLES_POLAR_CLIENT_ID,
+  WEARABLES_POLAR_CLIENT_SECRET: ENV.WEARABLES_POLAR_CLIENT_SECRET,
+  WEARABLES_POLAR_WEBHOOK_SECRET: ENV.WEARABLES_POLAR_WEBHOOK_SECRET,
+  WEARABLES_WITHINGS_CLIENT_ID: ENV.WEARABLES_WITHINGS_CLIENT_ID,
+  WEARABLES_WITHINGS_CLIENT_SECRET: ENV.WEARABLES_WITHINGS_CLIENT_SECRET,
+  WEARABLES_GOOGLE_HEALTH_ENABLED: ENV.WEARABLES_GOOGLE_HEALTH_ENABLED,
+  WEARABLES_GOOGLE_HEALTH_CLIENT_ID: ENV.WEARABLES_GOOGLE_HEALTH_CLIENT_ID,
+  WEARABLES_GOOGLE_HEALTH_CLIENT_SECRET: ENV.WEARABLES_GOOGLE_HEALTH_CLIENT_SECRET,
+});
+
+if (wearablesConfig.missingKeys.length > 0) {
+  createStructuredLogger({ level: "info" }).warn("wearables.config.incomplete", {
+    missingKeys: [...wearablesConfig.missingKeys],
+  });
+}
+
+const wearableAdapters = createWearableAdapters(wearablesConfig, { fetch: globalThis.fetch });
+
+/** `null` when no cloud vendor is configured (the default). */
+export const wearablesService =
+  Object.keys(wearableAdapters).length > 0 &&
+  typeof ENV.BETTER_AUTH_SECRET === "string" &&
+  ENV.BETTER_AUTH_SECRET.length >= 32
+    ? createWearablesService({
+        db,
+        adapters: wearableAdapters,
+        tokenKey: deriveWearableTokenKey(ENV.BETTER_AUTH_SECRET),
+        serverOrigin: ENV.BETTER_AUTH_URL,
+        webhooks: wearablesConfig.webhooks,
+        logger: createStructuredLogger({ level: "info" }),
+      })
+    : null;
+
 /**
  * Integration family statuses (Issue #57).
  *
@@ -161,7 +212,8 @@ export const insightUnsubscribeKey =
  * domain, selected by env and bound here. Each family reports a value-free
  * `{ provider, state }` on the readiness probe. With no vendor credentials the
  * server boots with every family at its safe default: email `dry-run`; AI,
- * messaging, food lookup, OIDC and push `off`; storage on private local disk. See
+ * messaging, food lookup, OIDC, push and every cloud wearable `off`; storage
+ * on private local disk. See
  * `docs/integrations.md`.
  */
 export const integrations = Object.freeze({
@@ -172,6 +224,8 @@ export const integrations = Object.freeze({
   foodLookup: describeFoodLookupIntegration(foodLookupConfig),
   oidc: describeOidcIntegration(oidcConfig),
   push: describePushIntegration(pushConfig),
+  // Issue #60 — one entry per cloud wearable vendor (`wearablesOura`, …).
+  ...describeWearablesIntegrations(wearablesConfig),
 }) satisfies IntegrationStatuses;
 
 /**

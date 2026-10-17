@@ -11,6 +11,8 @@ import { and, eq } from "drizzle-orm";
 
 import {
   adaptHealthConnectCanonicalRecords,
+  type CanonicalHealthEventWriteIntent,
+  type CanonicalMetricWriteIntent,
   type CanonicalWriteIntent,
   type MOBILE_INGESTION_PROVIDERS,
 } from "./health-connect";
@@ -63,12 +65,68 @@ export type PersistCanonicalIntentsResult = PersistCanonicalRecordsResult & {
   inserted: CanonicalRowRef[];
 };
 
-type Provider = (typeof MOBILE_INGESTION_PROVIDERS)[number];
+/**
+ * Phone providers, or a cloud wearable adapter id (`oura`, `whoop`, …, #60).
+ * Cloud adapters use the `mobile` dedupe key too: it is keyed on provider,
+ * type, external record id, revision and time/value.
+ */
+type Provider = (typeof MOBILE_INGESTION_PROVIDERS)[number] | (string & {});
 
 function dedupeHash(kind: "metric_sample" | "health_event", payload: Record<string, unknown>) {
   return createHash("sha256")
     .update(`${kind}:${stableSerialize(payload)}`)
     .digest("hex");
+}
+
+function mobileMetricKey(
+  provider: Provider,
+  intent: CanonicalMetricWriteIntent,
+  value: number,
+  unit: string,
+) {
+  return {
+    provider,
+    canonicalType: intent.canonicalType,
+    externalId: intent.externalId,
+    lastModifiedAt: intent.lastModifiedAt ?? null,
+    sampledAt: intent.sampledAt,
+    value,
+    unit,
+  };
+}
+
+function mobileEventKey(provider: Provider, intent: CanonicalHealthEventWriteIntent) {
+  return {
+    provider,
+    canonicalType: intent.canonicalType,
+    externalId: intent.sourceEventId,
+    lastModifiedAt: intent.lastModifiedAt ?? null,
+    eventAt: intent.eventAt,
+    endAt: intent.endAt,
+  };
+}
+
+/**
+ * The `mobile` dedupe hash a write intent is stored under, or `null` when the
+ * intent would be rejected. Cloud wearable sync (#60) uses it to tell which
+ * stored row is the current version of a re-fetched record.
+ */
+export function mobileIntentDedupeHash(
+  provider: Provider,
+  intent: CanonicalWriteIntent,
+): string | null {
+  if (intent.kind === "health_event")
+    return dedupeHash("health_event", mobileEventKey(provider, intent));
+  const normalized = normalizeMetricSample({
+    metricCode: intent.canonicalType,
+    value: intent.value,
+    unit: intent.unit,
+  });
+  if (normalized.qualityFlags.some((flag) => flag !== "unit_mismatch")) return null;
+  return dedupeHash(
+    "metric_sample",
+    mobileMetricKey(provider, intent, normalized.value, normalized.unit),
+  );
 }
 
 async function metricDefinitionId(
@@ -174,15 +232,7 @@ export async function persistCanonicalIntents(
           dedupeHash: dedupeHash(
             "metric_sample",
             input.dedupe === "mobile"
-              ? {
-                  provider: input.provider,
-                  canonicalType: intent.canonicalType,
-                  externalId: intent.externalId,
-                  lastModifiedAt: intent.lastModifiedAt ?? null,
-                  sampledAt: intent.sampledAt,
-                  value: normalized.value,
-                  unit: normalized.unit,
-                }
+              ? mobileMetricKey(input.provider, intent, normalized.value, normalized.unit)
               : {
                   canonicalType: intent.canonicalType,
                   sampledAt: intent.sampledAt,
@@ -193,6 +243,7 @@ export async function persistCanonicalIntents(
                 },
           ),
           metadataJson: {
+            ...intent.detail,
             provider: input.provider,
             canonicalType: intent.canonicalType,
             sourceApp: intent.sourceApp,
@@ -243,14 +294,7 @@ export async function persistCanonicalIntents(
         dedupeHash: dedupeHash(
           "health_event",
           input.dedupe === "mobile"
-            ? {
-                provider: input.provider,
-                canonicalType: intent.canonicalType,
-                externalId: intent.sourceEventId,
-                lastModifiedAt: intent.lastModifiedAt ?? null,
-                eventAt: intent.eventAt,
-                endAt: intent.endAt,
-              }
+            ? mobileEventKey(input.provider, intent)
             : {
                 canonicalType: intent.canonicalType,
                 eventAt: intent.eventAt,

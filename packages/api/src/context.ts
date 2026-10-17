@@ -9,6 +9,7 @@ import type { StorageService } from "@openvalens/storage";
 import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
 import type { PushProvider } from "@openvalens/push";
 import type { TelegramClient } from "@openvalens/telegram";
+import type { WearablesService } from "@openvalens/wearables";
 
 import type { ProductSettingsService } from "./product-settings";
 
@@ -169,6 +170,12 @@ export type Context = {
    * (the default). Push opt-ins are then reported as unavailable.
    */
   push?: PushProvider | null;
+  /**
+   * Issue #60 — cloud wearable connections (Oura, WHOOP, Polar, Withings,
+   * Google Health), or `null`/absent when no vendor is configured (the
+   * default). Phone-first ingestion never needs it.
+   */
+  wearables?: WearablesService | null;
   /**
    * Issue #92 — normalized web app origin used for links in the insights email
    * (dashboard, one-step unsubscribe). Absent → the email digest is skipped.
