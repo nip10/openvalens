@@ -27,6 +27,7 @@ const DRAWER_ITEMS = [
   { label: "Clinical export", href: "/exports" as const, icon: "download-outline" as const },
   { label: "Coach", href: "/coach" as const, icon: "chatbubbles-outline" as const },
   { label: "Sharing", href: "/sharing" as const, icon: "people-outline" as const },
+  { label: "Invitations", href: "/invitations" as const, icon: "mail-outline" as const },
   { label: "Profile", href: "/profile" as const, icon: "person-outline" as const },
   { label: "Settings", href: "/settings" as const, icon: "settings-outline" as const },
 ];
@@ -110,9 +111,11 @@ function DrawerLayout() {
                           ? "Settings"
                           : pathname === "/scores"
                             ? "Scores"
-                            : pathname === "/preventive-care"
-                              ? "Preventive care"
-                              : "Cockpit";
+                            : pathname === "/invitations"
+                              ? "Invitations"
+                              : pathname === "/preventive-care"
+                                ? "Preventive care"
+                                : "Cockpit";
 
   return (
     <Drawer
@@ -209,6 +212,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="sharing"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="invitations"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
