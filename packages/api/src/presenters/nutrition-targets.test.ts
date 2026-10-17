@@ -28,6 +28,7 @@ import {
   formatHelpline,
   formatProteinReference,
   formatTarget,
+  resolveHideNumbers,
   parseHeight,
   parseTargetForm,
 } from "./nutrition-targets";
@@ -78,6 +79,14 @@ describe("contract (Issue #80)", () => {
 });
 
 describe("targets", () => {
+  test("display preference fails closed and honors scoped offline state", () => {
+    expect(resolveHideNumbers()).toBe(true);
+    expect(resolveHideNumbers(undefined, true)).toBe(true);
+    expect(resolveHideNumbers(undefined, false)).toBe(false);
+    expect(resolveHideNumbers(false)).toBe(false);
+    expect(resolveHideNumbers(true)).toBe(true);
+    expect(resolveHideNumbers(false, true)).toBe(false);
+  });
   test("formats single values, ranges and one-sided bounds", () => {
     expect(formatTarget(target(), false)).toBe("2,000 kcal");
     expect(formatTarget(target({ minAmount: 1800, maxAmount: 2200 }), false)).toBe(

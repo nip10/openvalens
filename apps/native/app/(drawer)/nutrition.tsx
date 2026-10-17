@@ -47,6 +47,7 @@ import {
   TARGET_COPY,
   describeTargetSource,
   formatTarget,
+  resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
@@ -129,8 +130,29 @@ export default function NutritionScreen() {
     `${DIARY_CACHE_PREFIX}foods`,
     orpc.nutritionDiary.listFoods.queryOptions({ input: {} }),
   );
-  const targets = useQuery(orpc.nutritionTargets.get.queryOptions({ input: { localDate } }));
-  const hideNumbers = targets.data?.settings.hideNumbers ?? false;
+  const targetOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const targets = useQuery({
+    ...targetOptions,
+    queryKey: [...targetOptions.queryKey, { offlineScope: outbox.scope }],
+    enabled: Boolean(outbox.scope),
+  });
+  const cachedDisplayPreference = outbox.scope
+    ? readCache<{ hideNumbers: boolean }>(outbox.scope, "nutrition-display-preference")?.data
+        .hideNumbers
+    : undefined;
+  useEffect(() => {
+    if (outbox.scope && targets.data?.settings) {
+      writeCache(outbox.scope, "nutrition-display-preference", {
+        hideNumbers: targets.data.settings.hideNumbers,
+      });
+    }
+  }, [outbox.scope, targets.data?.settings]);
+  // Until this member's preference is known (including offline and date changes),
+  // don't render numeric diary data.
+  const hideNumbers = resolveHideNumbers(
+    targets.isSuccess ? targets.data.settings.hideNumbers : undefined,
+    cachedDisplayPreference,
+  );
   const [undo, setUndo] = useState<{ entryId: number; revision: number; name: string } | null>(
     null,
   );

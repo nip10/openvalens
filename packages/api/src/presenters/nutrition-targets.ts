@@ -36,6 +36,11 @@ export const TARGET_NUTRIENTS: readonly NutrientKey[] = [
 /** Shown in place of any number while hide-numbers mode is on. */
 export const HIDDEN_VALUE = "Hidden";
 
+/** Unknown display preference must never default to exposing health numbers. */
+export function resolveHideNumbers(serverPreference?: boolean, scopedOfflinePreference?: boolean) {
+  return serverPreference ?? scopedOfflinePreference ?? true;
+}
+
 export const TARGET_COPY = Object.freeze({
   title: "Nutrition targets",
   settingsLink: "Targets and display",

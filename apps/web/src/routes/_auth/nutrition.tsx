@@ -12,6 +12,7 @@ import {
 } from "@openvalens/api/contracts/nutrition-diary";
 import type { NutritionTargetWire } from "@openvalens/api/contracts/nutrition-targets";
 import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
+import { offlineScope } from "@openvalens/api/presenters/offline";
 import {
   BARCODE_COPY,
   candidateFromChoice,
@@ -48,6 +49,7 @@ import {
   TARGET_COPY,
   formatTarget,
   describeTargetSource,
+  resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
@@ -60,6 +62,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { authClient } from "@/lib/auth-client";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { orpc } from "@/utils/orpc";
 
@@ -106,14 +109,23 @@ function networkFailure(retry: () => void, announce: (text: string) => void) {
 
 function NutritionPage() {
   const timeZone = useMemo(() => deviceTimeZone(), []);
+  const { data: session } = authClient.useSession();
+  const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const [localDate, setLocalDate] = useState(() => localDateIn(timeZone));
   const { announce, region } = useAnnouncer();
   const queryClient = useQueryClient();
 
   const dayQuery = useQuery(orpc.nutritionDiary.getDay.queryOptions({ input: { localDate } }));
   const foodsQuery = useQuery(orpc.nutritionDiary.listFoods.queryOptions({ input: {} }));
-  const targetsQuery = useQuery(orpc.nutritionTargets.get.queryOptions({ input: { localDate } }));
-  const hideNumbers = targetsQuery.data?.settings.hideNumbers ?? false;
+  const targetOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const targetsQuery = useQuery({
+    ...targetOptions,
+    queryKey: [...targetOptions.queryKey, { offlineScope: scope }],
+    enabled: Boolean(scope),
+  });
+  // Unknown preferences fail closed, including first render, date changes and
+  // query errors. A successful response is the only authority to show values.
+  const hideNumbers = resolveHideNumbers(targetsQuery.data?.settings.hideNumbers);
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.key() });
 
   const go = (date: string) => {

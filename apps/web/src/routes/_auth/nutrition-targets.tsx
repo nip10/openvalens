@@ -4,6 +4,7 @@ import type {
   NutritionTargetWire,
   TargetSettingsWire,
 } from "@openvalens/api/contracts/nutrition-targets";
+import { offlineScope } from "@openvalens/api/presenters/offline";
 import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
 import {
   DIARY_COPY,
@@ -24,6 +25,7 @@ import {
   formatTarget,
   parseHeight,
   parseTargetForm,
+  resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -35,6 +37,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -69,11 +72,20 @@ function networkFailure(retry: () => void) {
 
 function NutritionTargetsPage() {
   const localDate = useMemo(() => localDateIn(deviceTimeZone()), []);
+  const { data: session } = authClient.useSession();
+  const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const queryClient = useQueryClient();
-  const overview = useQuery(orpc.nutritionTargets.get.queryOptions({ input: { localDate } }));
+  const overviewOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const overview = useQuery({
+    ...overviewOptions,
+    queryKey: [...overviewOptions.queryKey, { offlineScope: scope }],
+    enabled: Boolean(scope),
+  });
+  const [hideOverride, setHideOverride] = useState<boolean | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() });
 
   const data = overview.data;
+  const hideNumbers = hideOverride ?? resolveHideNumbers(data?.settings.hideNumbers);
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
@@ -130,12 +142,16 @@ function NutritionTargetsPage() {
 
           <TargetsCard
             targets={data.targets}
-            hideNumbers={data.settings.hideNumbers}
+            hideNumbers={hideNumbers}
             energyOff={data.safety.energyTargets === "off"}
             onChanged={() => void refresh()}
           />
 
-          <SettingsCard settings={data.settings} onChanged={() => void refresh()} />
+          <SettingsCard
+            settings={data.settings}
+            onHideNumbersChange={setHideOverride}
+            onChanged={() => void refresh()}
+          />
 
           <Card>
             <CardHeader>
@@ -144,7 +160,7 @@ function NutritionTargetsPage() {
             <CardContent className="grid gap-2 text-sm">
               <p className="font-mono">
                 {data.proteinReference
-                  ? formatProteinReference(data.proteinReference, data.settings.hideNumbers)
+                  ? formatProteinReference(data.proteinReference, hideNumbers)
                   : TARGET_COPY.proteinReferenceUnavailable}
               </p>
               <p className="text-xs text-muted-foreground">{TARGET_COPY.proteinReferenceNote}</p>
@@ -275,11 +291,14 @@ function TargetsCard({
               <Input
                 id={id}
                 inputMode="decimal"
-                value={min}
+                value={hideNumbers ? "" : min}
+                aria-label={`${TARGET_COPY.minimum}${hideNumbers ? " (hidden)" : ""}`}
                 placeholder={
-                  activeForSelected && activeForSelected.minAmount !== null
-                    ? String(activeForSelected.minAmount)
-                    : ""
+                  hideNumbers
+                    ? ""
+                    : activeForSelected && activeForSelected.minAmount !== null
+                      ? String(activeForSelected.minAmount)
+                      : ""
                 }
                 onChange={(event) => setMin(event.target.value)}
               />
@@ -290,11 +309,14 @@ function TargetsCard({
               <Input
                 id={id}
                 inputMode="decimal"
-                value={max}
+                value={hideNumbers ? "" : max}
+                aria-label={`${TARGET_COPY.maximum}${hideNumbers ? " (hidden)" : ""}`}
                 placeholder={
-                  activeForSelected && activeForSelected.maxAmount !== null
-                    ? String(activeForSelected.maxAmount)
-                    : ""
+                  hideNumbers
+                    ? ""
+                    : activeForSelected && activeForSelected.maxAmount !== null
+                      ? String(activeForSelected.maxAmount)
+                      : ""
                 }
                 onChange={(event) => setMax(event.target.value)}
               />
@@ -328,9 +350,11 @@ function TargetsCard({
 
 function SettingsCard({
   settings,
+  onHideNumbersChange,
   onChanged,
 }: {
   settings: TargetSettingsWire;
+  onHideNumbersChange: (value: boolean) => void;
   onChanged: () => void;
 }) {
   const [hideNumbers, setHideNumbers] = useState(settings.hideNumbers);
@@ -407,7 +431,10 @@ function SettingsCard({
           <input
             type="checkbox"
             checked={hideNumbers}
-            onChange={(event) => setHideNumbers(event.target.checked)}
+            onChange={(event) => {
+              setHideNumbers(event.target.checked);
+              onHideNumbersChange(event.target.checked);
+            }}
           />
           <span>
             <span className="font-medium">{TARGET_COPY.hideNumbers}</span>

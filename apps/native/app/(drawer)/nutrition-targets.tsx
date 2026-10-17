@@ -23,6 +23,7 @@ import {
   formatTarget,
   parseHeight,
   parseTargetForm,
+  resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
@@ -31,6 +32,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Pressable, Switch, Text, TextInput, View } from "react-native";
 
 import { Container } from "@/components/container";
+import { readCache, writeCache } from "@/lib/offline/cache";
+import { useOfflineScope } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -70,10 +73,33 @@ function Chip({
 
 export default function NutritionTargetsScreen() {
   const localDate = useMemo(() => localDateIn(deviceTimeZone()), []);
+  const scope = useOfflineScope();
   const queryClient = useQueryClient();
-  const overview = useQuery(orpc.nutritionTargets.get.queryOptions({ input: { localDate } }));
+  const overviewOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const overview = useQuery({
+    ...overviewOptions,
+    queryKey: [...overviewOptions.queryKey, { offlineScope: scope }],
+    enabled: Boolean(scope),
+  });
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() });
   const data = overview.data;
+  const [hideOverride, setHideOverride] = useState<boolean | null>(null);
+  const cachedPreference = scope
+    ? readCache<{ hideNumbers: boolean }>(scope, "nutrition-display-preference")?.data.hideNumbers
+    : undefined;
+  useEffect(() => {
+    if (scope && data?.settings) {
+      writeCache(scope, "nutrition-display-preference", {
+        hideNumbers: data.settings.hideNumbers,
+      });
+    }
+  }, [scope, data?.settings]);
+  const hideNumbers =
+    hideOverride ??
+    resolveHideNumbers(
+      overview.isSuccess ? data?.settings.hideNumbers : undefined,
+      cachedPreference,
+    );
 
   return (
     <Container>
@@ -122,12 +148,20 @@ export default function NutritionTargetsScreen() {
 
             <TargetsCard
               targets={data.targets}
-              hideNumbers={data.settings.hideNumbers}
+              hideNumbers={hideNumbers}
               energyOff={data.safety.energyTargets === "off"}
               onChanged={() => void refresh()}
             />
 
-            <SettingsCard settings={data.settings} onChanged={() => void refresh()} />
+            <SettingsCard
+              settings={data.settings}
+              onHideNumbersChange={(value) => {
+                setHideOverride(value);
+                if (scope)
+                  writeCache(scope, "nutrition-display-preference", { hideNumbers: value });
+              }}
+              onChanged={() => void refresh()}
+            />
 
             <Card variant="secondary" className="gap-2 p-4">
               <Text className="font-medium text-foreground" accessibilityRole="header">
@@ -135,7 +169,7 @@ export default function NutritionTargetsScreen() {
               </Text>
               <Text className="font-mono text-sm text-foreground">
                 {data.proteinReference
-                  ? formatProteinReference(data.proteinReference, data.settings.hideNumbers)
+                  ? formatProteinReference(data.proteinReference, hideNumbers)
                   : TARGET_COPY.proteinReferenceUnavailable}
               </Text>
               <Text className="text-xs text-muted-foreground">
@@ -247,28 +281,32 @@ function TargetsCard({
         ))}
       </View>
       <TextInput
-        value={min}
+        value={hideNumbers ? "" : min}
         onChangeText={setMin}
         keyboardType="decimal-pad"
         placeholder={
-          activeForSelected && activeForSelected.minAmount !== null
-            ? `${TARGET_COPY.minimum} (${activeForSelected.minAmount})`
-            : TARGET_COPY.minimum
+          hideNumbers
+            ? TARGET_COPY.minimum
+            : activeForSelected && activeForSelected.minAmount !== null
+              ? `${TARGET_COPY.minimum} (${activeForSelected.minAmount})`
+              : TARGET_COPY.minimum
         }
-        accessibilityLabel={TARGET_COPY.minimum}
+        accessibilityLabel={`${TARGET_COPY.minimum}${hideNumbers ? ", hidden" : ""}`}
         className={inputClass}
         placeholderTextColor="#9ca3af"
       />
       <TextInput
-        value={max}
+        value={hideNumbers ? "" : max}
         onChangeText={setMax}
         keyboardType="decimal-pad"
         placeholder={
-          activeForSelected && activeForSelected.maxAmount !== null
-            ? `${TARGET_COPY.maximum} (${activeForSelected.maxAmount})`
-            : TARGET_COPY.maximum
+          hideNumbers
+            ? TARGET_COPY.maximum
+            : activeForSelected && activeForSelected.maxAmount !== null
+              ? `${TARGET_COPY.maximum} (${activeForSelected.maxAmount})`
+              : TARGET_COPY.maximum
         }
-        accessibilityLabel={TARGET_COPY.maximum}
+        accessibilityLabel={`${TARGET_COPY.maximum}${hideNumbers ? ", hidden" : ""}`}
         className={inputClass}
         placeholderTextColor="#9ca3af"
       />
@@ -295,9 +333,11 @@ function TargetsCard({
 
 function SettingsCard({
   settings,
+  onHideNumbersChange,
   onChanged,
 }: {
   settings: TargetSettingsWire;
+  onHideNumbersChange: (value: boolean) => void;
   onChanged: () => void;
 }) {
   const [hideNumbers, setHideNumbers] = useState(settings.hideNumbers);
@@ -382,7 +422,10 @@ function SettingsCard({
         </View>
         <Switch
           value={hideNumbers}
-          onValueChange={setHideNumbers}
+          onValueChange={(value) => {
+            setHideNumbers(value);
+            onHideNumbersChange(value);
+          }}
           accessibilityLabel={TARGET_COPY.hideNumbers}
         />
       </View>
