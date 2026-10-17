@@ -355,7 +355,7 @@ function FoodForm({
       </View>
       {textField("Serving name (optional, e.g. 1 slice)", "servingLabel")}
       {textField("Serving size (optional)", "servingSizeAmount", "decimal-pad")}
-      <View className="flex-row gap-2" accessibilityLabel="Serving unit">
+      <View className="flex-row flex-wrap gap-2" accessibilityLabel="Serving unit">
         {(["g", "ml"] as const).map((unit) => (
           <Chip
             key={unit}
@@ -387,7 +387,7 @@ function FoodForm({
         </Text>
       ) : null}
       {failed ? (
-        <View className="flex-row items-center gap-2">
+        <View className="flex-row flex-wrap items-center gap-2">
           <Text className="flex-1 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
             {CUSTOM_FOOD_COPY.networkError}
           </Text>

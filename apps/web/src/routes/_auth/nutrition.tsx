@@ -141,14 +141,14 @@ function NutritionPage() {
             {CUSTOM_FOOD_COPY.manageLink}
           </Link>
         </div>
-        <nav className="flex items-center gap-2" aria-label="Choose day">
+        <nav className="flex w-full flex-wrap items-center gap-2 sm:w-auto" aria-label="Choose day">
           <Button variant="outline" size="sm" onClick={() => go(shiftLocalDate(localDate, -1))}>
             Previous day
           </Button>
           <Input
             type="date"
             aria-label="Diary date"
-            className="w-40"
+            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
             value={localDate}
             onChange={(event) => event.target.value && go(event.target.value)}
           />
@@ -354,7 +354,7 @@ function EntryRow({
             <span className="text-xs text-muted-foreground">{entry.food.attribution}</span>
           ) : null}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <span className="font-mono text-sm">
             {formatNutrientValue("energyKcal", entry.nutrients.energyKcal)}
           </span>
@@ -401,7 +401,7 @@ function EntryRow({
               : `${formatAmount(conflict.amount, conflict.unit)}, ${SLOT_LABELS[conflict.slot]}`}
             . Your change: {formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]}.
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {conflict.deleted ? null : (
               <Button size="sm" onClick={() => save(conflict.revision)}>
                 {DIARY_COPY.keepMine}
