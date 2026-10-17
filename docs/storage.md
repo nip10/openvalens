@@ -19,13 +19,21 @@ Switching backends is an env change and a restart.
 - **Access is authorized, then signed.** A client asks the API for a download
   URL (`storage.downloadUrl`). The server checks the session, that the object
   belongs to the caller's _active_ organization, and that the caller's role
-  grants `read` on the object's resource. Only then does it return a
-  short-lived URL (`STORAGE_SIGNED_URL_TTL_SECONDS`, default 5 minutes, at
-  most 1 hour):
+  grants `read` on the object's resource. For `progress_photo`, the caller must
+  additionally be the authenticated `createdByUserId`; workspace owners and
+  admins do not bypass this private-per-member restriction, and a missing
+  creator fails closed. The same restriction applies to the client-facing
+  delete operation. Other purposes retain organization-role authorization.
+  Only then does it return a short-lived URL
+  (`STORAGE_SIGNED_URL_TTL_SECONDS`, default 5 minutes, at most 1 hour):
   - S3: a SigV4 presigned `GET` that forces `attachment` and `no-store`.
   - Local: `/api/storage/objects/<id>?e=<expiry>&s=<HMAC>`, signed with a key
     derived from `BETTER_AUTH_SECRET`. Forged, altered and expired URLs are
     refused with `403`.
+- Signed URLs are bounded bearer capabilities, not session-bound URLs. Anyone
+  holding a still-valid URL can use it until expiry; only the photo owner may
+  mint one through the client-facing API. Do not describe signed downloads as
+  re-checking the user's session or as immediately revocable.
 - **Keys carry no PHI.** Every key is `org/<organization id>/<random UUID>` —
   never a filename, metric name, purpose or date — so bucket listings, access
   logs and backup manifests reveal nothing about a person.
