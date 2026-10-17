@@ -85,6 +85,7 @@ export async function seedAccount(db: Database, who: string, samples: number): P
     insert into preventive_care_declaration (organization_id, user_id, criterion_id, answer) values ('org-${who}', 'user-${who}', 'ever_smoked', 'prefer_not_to_say');
     insert into preventive_care_item_state (organization_id, user_id, item_id, item_version, plan, last_done_on, next_on, remind)
       values ('org-${who}', 'user-${who}', 'uk.bowel_screening', 1, 'expect_invitation', '2025-01-10', '2027-01-10', true);
+    insert into reference_comparison_opt_in (user_id, metric, reference_version) values ('user-${who}', 'resting_heart_rate', 'reference-data-2026-10-16');
   `),
   );
 }

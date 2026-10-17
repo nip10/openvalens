@@ -8,6 +8,7 @@ import { bodyRouter } from "./body";
 import { clinicalRouter } from "./clinical";
 import { coachRouter } from "./coach";
 import { cockpitRouter } from "./cockpit";
+import { comparisonRouter } from "./comparison";
 import { cronRouter } from "./cron";
 import { dataRightsRouter } from "./data-rights";
 import { exampleRouter } from "./example";
@@ -43,6 +44,7 @@ export const appRouter = {
   clinical: clinicalRouter,
   coach: coachRouter,
   cockpit: cockpitRouter,
+  comparison: comparisonRouter,
   cron: cronRouter,
   dataRights: dataRightsRouter,
   example: exampleRouter,

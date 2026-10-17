@@ -89,3 +89,11 @@ The opt-in, read-only library rating popular longevity practices and tests
 against primary evidence with a certainty label. No doses and never a
 reminder.
 _Avoid_: Longevity protocol, supplement plan
+
+**Reference comparison**:
+A person's own usual value (28-day median) shown next to a published,
+cited reference: a guideline range (WHO activity, NSF sleep) or a coarse band
+for their age group and sex (below, within or above the middle half of a
+published reference group). Opt-in per metric, adults only, never a rank,
+percentile or community aggregate (`docs/reference-comparisons.md`).
+_Avoid_: Benchmark, percentile, ranking, "people like you" score

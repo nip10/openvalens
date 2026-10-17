@@ -96,6 +96,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "uk.bowel_screening",
     ]);
     expect(parse("preventive_care_setting")).toHaveLength(1);
+    // Reference comparisons (#96): the subject's own opt-ins only.
+    expect(parse("reference_comparison_opt_in").map((r) => r.user_id)).toEqual(["user-a"]);
   });
 
   test("admission grants export only the recipient scope, never the inviter's other recipients", () => {
