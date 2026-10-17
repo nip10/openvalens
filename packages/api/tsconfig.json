@@ -58,6 +58,7 @@
     },
     { "path": "../storage" },
     { "path": "../push" },
+    { "path": "../integrations/wearables" },
     { "path": "../config" }
   ]
 }

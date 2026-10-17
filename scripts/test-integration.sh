@@ -59,6 +59,7 @@ SUITES=(
   "REFERENCE_COMPARISON_TEST_DATABASE_URL|reference_comparison_test|packages/api/src/reference-comparison.integration.test.ts"
   "REMINDERS_TEST_DATABASE_URL|reminders_issue125|packages/integrations/telegram/src/reminders.integration.test.ts"
   "STORAGE_TEST_DATABASE_URL|storage_test|packages/storage/src/service.integration.test.ts"
+  "WEARABLES_TEST_DATABASE_URL|wearables_issue60|packages/integrations/wearables/src/service.integration.test.ts"
 )
 
 reset_db() {

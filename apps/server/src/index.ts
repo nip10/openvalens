@@ -14,6 +14,11 @@ import {
 } from "@openvalens/observability";
 import { describeStorageError, LOCAL_DOWNLOAD_PATH_PREFIX } from "@openvalens/storage";
 import { handleWebhookUpdate, verifyWebhookSecret } from "@openvalens/telegram";
+import {
+  describeWearableError,
+  isWearableProviderId,
+  WearableConnectError,
+} from "@openvalens/wearables";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
@@ -25,7 +30,14 @@ import { cors } from "hono/cors";
 import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
-import { auth, db, storageService, telegramClient, telegramWebhookSecret } from "./services";
+import {
+  auth,
+  db,
+  storageService,
+  telegramClient,
+  telegramWebhookSecret,
+  wearablesService,
+} from "./services";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -228,6 +240,73 @@ app.get(`${LOCAL_DOWNLOAD_PATH_PREFIX}:objectId`, async (c) => {
     logger.error("storage.download.failed", { correlationId, ...describeStorageError(error) });
     return c.json({ error: "INTERNAL" }, 500);
   }
+});
+
+// Issue #60 — cloud wearable OAuth callback. Plain Hono (NOT oRPC): the
+// browser arrives here from the vendor with the one-time `code` and the
+// `state` this server stored for the signed-in person. The callback is the
+// only place a grant is bound to a session, so it checks the session and
+// hands the code to the service, then returns the browser to the web app.
+// Registered before the oRPC catch-all below so it is matched first.
+app.get("/api/integrations/wearables/:provider/callback", async (c) => {
+  const provider = c.req.param("provider");
+  if (!wearablesService || !isWearableProviderId(provider))
+    return c.json({ error: "NOT_FOUND" }, 404);
+
+  let origin: string | undefined;
+  try {
+    origin = new URL(ENV.CORS_ORIGIN).origin;
+  } catch {
+    origin = undefined;
+  }
+  const back = (status: string) =>
+    origin
+      ? c.redirect(`${origin}/settings/devices?provider=${provider}&status=${status}`, 302)
+      : c.json({ provider, status }, 200);
+
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const userId = session?.user?.id;
+  const code = c.req.query("code");
+  const state = c.req.query("state");
+  if (!userId) return back("unauthenticated");
+  if (c.req.query("error") || !code || !state) return back("denied");
+  try {
+    await wearablesService.completeConnect({ provider, state, code, sessionUserId: userId });
+  } catch (error) {
+    logger.warn("wearables.callback.failed", {
+      correlationId: c.get("correlationId"),
+      provider,
+      reason: error instanceof WearableConnectError ? error.code : "provider_failed",
+    });
+    return back("failed");
+  }
+  logger.info("wearables.callback.completed", { correlationId: c.get("correlationId"), provider });
+  return back("connected");
+});
+
+// Issue #60 — cloud wearable vendor webhooks. The vendor is the caller, so
+// its request signature is the auth (no session). The service verifies it and
+// does only fast database work before this answers; the queued syncs run
+// afterwards so the vendor gets its 2xx promptly (WHOOP expects ~1 s).
+app.post("/api/integrations/wearables/:provider/webhook", async (c) => {
+  const provider = c.req.param("provider");
+  if (!wearablesService || !isWearableProviderId(provider))
+    return c.json({ error: "NOT_FOUND" }, 404);
+  const rawBody = await c.req.text();
+  const result = await wearablesService.handleWebhook(provider, {
+    headers: c.req.raw.headers,
+    rawBody,
+  });
+  if (result.status !== 200) return c.json({ status: "rejected" }, result.status);
+  if (result.events > 0)
+    void wearablesService.runDueSyncs().catch((error) => {
+      logger.error("wearables.webhook.sync.failed", {
+        correlationId: c.get("correlationId"),
+        provider,
+        ...describeWearableError(error),
+      });
+    });
+  return c.json({ status: "ok" }, 200);
 });
 
 export const apiHandler = new OpenAPIHandler(appRouter, {

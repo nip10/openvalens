@@ -16,3 +16,4 @@ export * from "./data-rights";
 export * from "./security";
 export * from "./storage";
 export * from "./preventive-care";
+export * from "./wearables";

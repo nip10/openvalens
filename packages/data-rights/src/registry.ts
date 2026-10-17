@@ -155,6 +155,14 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     reason: "Telegram update ids kept only to de-duplicate webhooks; no message content.",
   },
   daily_reminder: organization,
+  // Cloud wearables (#60): OAuth link per person and vendor. Token ciphertext
+  // and the OAuth state hash are never exported; deleting the subject removes
+  // them with the workspace (the vendor grant is revoked on disconnect).
+  wearable_connection: {
+    kind: "organization",
+    redact: ["access_token_ciphertext", "refresh_token_ciphertext"],
+  },
+  wearable_oauth_state: { kind: "organization", redact: ["state_hash"] },
 
   // Object storage (#62). Metadata only (opaque key, content type, size,
   // checksum); the bytes are erased from the storage backend by the caller of
