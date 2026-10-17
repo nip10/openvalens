@@ -12,6 +12,7 @@ import {
 import { NutritionError } from "./errors";
 import {
   createNutritionRepository,
+  goalEffectiveFrom,
   type NutritionGoal,
   type NutritionScope,
   type Tx,
@@ -161,6 +162,7 @@ export function createEnergyProposals(db: Database) {
       scope: NutritionScope,
       id: number,
       now: Date,
+      effectiveFrom: string,
       check: (
         proposal: EnergyProposal,
         currentTargetKcal: number | null,
@@ -172,10 +174,17 @@ export function createEnergyProposals(db: Database) {
         const verdict = check(proposal, energyTargetOf(await activeEnergyGoal(tx, scope)));
         if (!verdict.ok) return { outcome: "declined", reason: verdict.reason, proposal };
 
+        const active = await activeEnergyGoal(tx, scope);
         const goal = await createNutritionRepository(tx as unknown as Database).setGoal(scope, {
           nutrient: "energyKcal",
           minAmount: proposal.targetKcal,
           maxAmount: proposal.targetKcal,
+          source: "proposal",
+          // Never before the target it replaces.
+          effectiveFrom:
+            active && goalEffectiveFrom(active) > effectiveFrom
+              ? goalEffectiveFrom(active)
+              : effectiveFrom,
         });
         const [accepted] = await tx
           .update(nutritionEnergyProposal)

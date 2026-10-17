@@ -79,6 +79,8 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
           from nutrition_goal where organization_id = 'org-${who}';
         insert into nutrition_diary_day (organization_id, user_id, local_date, completed_at)
           values ('org-${who}', 'user-${who}', '2026-10-01', now());
+        insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+          values ('org-${who}', 'user-${who}', 1, true, array['chronic_kidney_disease']);
         insert into nutrition_favorite_food (organization_id, user_id, snapshot_id)
           select 'org-${who}', 'user-${who}', id from nutrition_food_snapshot where organization_id = 'org-${who}';
         insert into nutrition_diary_mutation (organization_id, user_id, client_mutation_id, kind, entry_id)
@@ -179,6 +181,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
       "nutrition_energy_proposal",
+      "nutrition_target_settings",
       "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);

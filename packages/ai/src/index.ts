@@ -11,7 +11,6 @@ export * from "./tools/goals";
 export * from "./tools/health-snapshot";
 export * from "./tools/labs";
 export * from "./tools/marker-trend";
-export * from "./tools/nutrition-context";
 export * from "./tools/out-of-range";
 export * from "./tools/panel-compare";
 export * from "./tools/sources";

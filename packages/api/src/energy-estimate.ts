@@ -7,6 +7,7 @@ import {
   createNutritionTotals,
   energyEstimateWindow,
   NO_ESTIMATE_COPY,
+  NUTRITION_SAFETY_COPY,
   planEnergyProposal,
   PROPOSAL_COPY,
   PROPOSAL_DECLINE_COPY,
@@ -24,8 +25,7 @@ import type {
   EnergyProposalWire,
   ProposeOutput,
 } from "./contracts/energy-estimate";
-import { createWellnessProfileService } from "./wellness-profile";
-import { deriveWellnessProfileInputs } from "./wellness-profile-contract";
+import { loadSafetyContext } from "./nutrition-targets";
 
 /**
  * Issue #76 — experimental energy estimate and user-reviewed target proposals.
@@ -38,6 +38,10 @@ import { deriveWellnessProfileInputs } from "./wellness-profile-contract";
  *
  * Adults only: the member must have confirmed they are 18 or older in their
  * wellness profile (#98). Otherwise no record is read and no proposal is made.
+ * Every proposal goes through `nutrition-safety/v1` (#80): the member's
+ * chosen direction (maintain by default), self-declared exclusions, floors,
+ * caps and the BMI gate. After an eating-disorder declaration the estimate
+ * and all proposals are off.
  * Scoping: every read and write is keyed by the session's organization and
  * user. No value is logged.
  */
@@ -59,8 +63,14 @@ export function presentEstimate(estimate: EnergyEstimate): EnergyEstimateWire {
   return { ...estimate, reasonNotes: estimate.reasons.map((reason) => NO_ESTIMATE_COPY[reason]) };
 }
 
-export function presentProposal(row: EnergyProposal, now: Date): EnergyProposalWire {
-  const notes: string[] = [PROPOSAL_COPY.maintenance];
+export function presentProposal(
+  row: EnergyProposal,
+  now: Date,
+  softGates: readonly string[] = [],
+): EnergyProposalWire {
+  const needsConfirmation = row.kind === "deficit" && softGates.length > 0;
+  const notes: string[] = [PROPOSAL_COPY[row.kind]];
+  if (needsConfirmation) notes.push(NUTRITION_SAFETY_COPY.softGateConfirm);
   if (row.stepLimited) notes.push(PROPOSAL_COPY.stepLimited);
   notes.push(PROPOSAL_COPY.experimental);
   return {
@@ -80,6 +90,7 @@ export function presentProposal(row: EnergyProposal, now: Date): EnergyProposalW
     expiresAt: row.expiresAt.toISOString(),
     decidedAt: row.decidedAt?.toISOString() ?? null,
     acceptedGoalId: row.acceptedGoalId,
+    needsConfirmation: row.status === "pending" && needsConfirmation,
     notes,
   };
 }
@@ -93,10 +104,9 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
   const now = deps.now ?? (() => new Date());
   const proposals = createEnergyProposals(db);
 
-  async function adultConfirmed(userId: string): Promise<boolean> {
-    const snapshot = await createWellnessProfileService({ db }).read(userId);
-    return deriveWellnessProfileInputs(snapshot, now()).adultConfirmed;
-  }
+  /** Profile, nutrition settings and declarations, evaluated under `nutrition-safety/v1`. */
+  const safetyOf = (scope: NutritionScope, readWeight: boolean) =>
+    loadSafetyContext(db, scope, { now: now(), readWeight });
 
   function windowFor(to: string) {
     let window: ReturnType<typeof energyEstimateWindow>;
@@ -127,8 +137,11 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
     /** The transparent estimate for the window ending on `to`, or adults-only. */
     async estimate(scope: NutritionScope, input: { to: string }): Promise<EnergyEstimateOutput> {
       windowFor(input.to);
-      if (!(await adultConfirmed(scope.userId)))
+      const context = await safetyOf(scope, false);
+      if (!context.adultConfirmed)
         return { status: "adults_only", experimental: true, note: ADULTS_ONLY_NOTE };
+      if (context.safety.energySuggestions === "off")
+        return { status: "off", experimental: true, note: NUTRITION_SAFETY_COPY.energyTargetsOff };
       const estimate = presentEstimate(await compute(scope, input.to));
       return estimate.status === "estimated"
         ? { ...estimate, status: "estimated" }
@@ -137,7 +150,8 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
 
     async listProposals(scope: NutritionScope): Promise<EnergyProposalWire[]> {
       const at = now();
-      return (await proposals.list(scope)).map((row) => presentProposal(row, at));
+      const { safety } = await safetyOf(scope, false);
+      return (await proposals.list(scope)).map((row) => presentProposal(row, at, safety.softGates));
     },
 
     /**
@@ -147,9 +161,16 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
      */
     async propose(scope: NutritionScope, input: { to: string }): Promise<ProposeOutput> {
       windowFor(input.to);
-      const adult = await adultConfirmed(scope.userId);
+      const context = await safetyOf(scope, true);
+      const adult = context.adultConfirmed;
       if (!adult)
         return { outcome: "declined", reason: "adults_only", note: declineNote("adults_only") };
+      if (context.safety.energySuggestions === "off")
+        return {
+          outcome: "declined",
+          reason: "suggestions_off",
+          note: declineNote("suggestions_off"),
+        };
       const estimate = await compute(scope, input.to);
       const [currentTargetKcal, lastAcceptedAt] = await Promise.all([
         proposals.currentTargetKcal(scope),
@@ -162,29 +183,47 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
         currentTargetKcal,
         lastAcceptedAt,
         now: at,
+        direction: context.settings.energyDirection,
+        safety: context.safety,
+        body: context.body,
       });
       if (plan.outcome === "declined")
         return { outcome: "declined", reason: plan.reason, note: declineNote(plan.reason) };
       const row = await proposals.create(scope, plan, estimate, at);
-      return { outcome: "proposed", proposal: presentProposal(row, at), targetId: String(row.id) };
+      return {
+        outcome: "proposed",
+        proposal: presentProposal(row, at, context.safety.softGates),
+        targetId: String(row.id),
+      };
     },
 
     /** The member's explicit accept: re-checked, then the energy goal is written. */
     async accept(
       scope: NutritionScope,
-      input: { proposalId: number },
+      input: { proposalId: number; effectiveFrom?: string; confirmed?: boolean },
     ): Promise<AcceptProposalOutput> {
-      const adult = await adultConfirmed(scope.userId);
+      const context = await safetyOf(scope, false);
       const at = now();
-      const result = await proposals.accept(scope, input.proposalId, at, (proposal, current) =>
-        checkProposalAcceptable({
-          proposal,
-          adultConfirmed: adult,
-          currentTargetKcal: current,
-          now: at,
-        }),
+      const today = at.toISOString().slice(0, 10);
+      const effectiveFrom = input.effectiveFrom ?? today;
+      // Validates the calendar date and that it is not in the future.
+      windowFor(effectiveFrom);
+      const result = await proposals.accept(
+        scope,
+        input.proposalId,
+        at,
+        effectiveFrom,
+        (proposal, current) =>
+          checkProposalAcceptable({
+            proposal,
+            adultConfirmed: context.adultConfirmed,
+            currentTargetKcal: current,
+            now: at,
+            safety: context.safety,
+            confirmed: input.confirmed,
+          }),
       );
-      const proposal = presentProposal(result.proposal, at);
+      const proposal = presentProposal(result.proposal, at, context.safety.softGates);
       const targetId = String(result.proposal.id);
       if (result.outcome === "declined")
         return {

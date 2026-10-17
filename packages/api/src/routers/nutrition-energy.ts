@@ -5,6 +5,7 @@ import { createStructuredLogger } from "@openvalens/observability";
 import type { Context } from "../context";
 
 import {
+  acceptProposalInput,
   acceptProposalOutput,
   decideProposalInput,
   dismissProposalOutput,
@@ -101,7 +102,7 @@ export const nutritionEnergyRouter = {
       logger.info("nutrition.energy_estimate.computed", {
         correlationId: context.correlationId,
         status: result.status,
-        reasons: result.status === "adults_only" ? [] : result.reasons,
+        reasons: result.status === "adults_only" || result.status === "off" ? [] : result.reasons,
       });
       return result;
     }),
@@ -132,8 +133,8 @@ export const nutritionEnergyRouter = {
     }),
 
   acceptProposal: write("RECORD_UPDATED")
-    .use(validateInput(decideProposalInput))
-    .input(decideProposalInput)
+    .use(validateInput(acceptProposalInput))
+    .input(acceptProposalInput)
     .output(acceptProposalOutput)
     .handler(async ({ input, context }) => {
       const scope = scopeOf(context);

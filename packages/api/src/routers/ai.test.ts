@@ -77,12 +77,12 @@ type StreamChatResultShape = {
 const OTHER_ORG_ID = "org-2";
 let fakeSources = createFakeSources({});
 // Capture the real factory first: `mock.module` rebinds the live namespace, so
-// calling `actualAi.createAiCoachTools` later would recurse into the mock.
-const realCreateAiCoachTools = actualAi.createAiCoachTools;
-const createAiCoachTools = mock((context: Parameters<typeof realCreateAiCoachTools>[0]) =>
-  realCreateAiCoachTools({ ...context, sources: fakeSources.sources }),
+// calling `actualAi.createAiHealthTools` later would recurse into the mock.
+const realCreateAiHealthTools = actualAi.createAiHealthTools;
+const createAiHealthTools = mock((context: Parameters<typeof realCreateAiHealthTools>[0]) =>
+  realCreateAiHealthTools({ ...context, sources: fakeSources.sources }),
 );
-mock.module("@openvalens/ai", () => ({ ...actualAi, streamChat, createAiCoachTools }));
+mock.module("@openvalens/ai", () => ({ ...actualAi, streamChat, createAiHealthTools }));
 
 const { appRouter } = await import("./index");
 const { chatMessage } = await import("@openvalens/db/schema/coach");
@@ -302,7 +302,7 @@ beforeEach(() => {
   streamChat.mockClear();
   requireOrgMembership.mockClear();
   requirePermission.mockClear();
-  createAiCoachTools.mockClear();
+  createAiHealthTools.mockClear();
   fakeSources = createFakeSources({});
 });
 
@@ -663,7 +663,6 @@ describe("ai.chat health tools (Issue #124)", () => {
         "healthSnapshot",
         "labs",
         "markerTrend",
-        "nutritionContext",
         "outOfRange",
         "panelCompare",
         "supplements",
@@ -671,8 +670,8 @@ describe("ai.chat health tools (Issue #124)", () => {
         "weightTrend",
       ].sort(),
     );
-    expect(createAiCoachTools).toHaveBeenCalledTimes(1);
-    expect(createAiCoachTools.mock.calls[0]?.[0]).toMatchObject({
+    expect(createAiHealthTools).toHaveBeenCalledTimes(1);
+    expect(createAiHealthTools.mock.calls[0]?.[0]).toMatchObject({
       organizationId: ORG_ID,
       userId: USER_ID,
       correlationId: CORRELATION_ID,
@@ -765,7 +764,7 @@ describe("ai.chat health tools (Issue #124)", () => {
 
     await expect(callChat(createContext(db))).rejects.toMatchObject({ code: "AI_DISABLED" });
 
-    expect(createAiCoachTools).not.toHaveBeenCalled();
+    expect(createAiHealthTools).not.toHaveBeenCalled();
     expect(fakeSources.calls).toHaveLength(0);
   });
 

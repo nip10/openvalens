@@ -45,12 +45,6 @@ describe("resolveFileSecrets", () => {
       "STORAGE_S3_ACCESS_KEY_ID",
       "STORAGE_S3_SECRET_ACCESS_KEY",
       "OIDC_CLIENT_SECRET",
-      "WEARABLES_OURA_CLIENT_SECRET",
-      "WEARABLES_WHOOP_CLIENT_SECRET",
-      "WEARABLES_POLAR_CLIENT_SECRET",
-      "WEARABLES_POLAR_WEBHOOK_SECRET",
-      "WEARABLES_WITHINGS_CLIENT_SECRET",
-      "WEARABLES_GOOGLE_HEALTH_CLIENT_SECRET",
     ]);
     // The database profile resolves only DATABASE_URL; unrelated provider files
     // cannot fail database commands.

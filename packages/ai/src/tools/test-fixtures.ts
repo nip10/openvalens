@@ -5,10 +5,8 @@ import type {
 } from "@openvalens/clinical";
 import type { Database } from "@openvalens/db";
 import { userAiConsent } from "@openvalens/db/schema/auth";
-import { nutritionCoachConsent } from "@openvalens/db/schema/nutrition";
 import type { TimelineEvent } from "@openvalens/health-record";
 import type { LabMarkerLatest } from "@openvalens/labs";
-import type { DailyTotals } from "@openvalens/nutrition";
 import type { Goal, GoalCheckin, SupplementListItem, SupplementSchedule } from "@openvalens/plans";
 import type { SleepDailySummary, SleepWindowSummary } from "@openvalens/sleep";
 import type { StructuredLogger } from "@openvalens/observability";
@@ -42,18 +40,8 @@ export const FULL_CONSENT: ConsentFixture = {
   userGranted: true,
 };
 
-/** Per-member Coach nutrition-context consent fixture (Issue #86). */
-export type NutritionConsentFixture = {
-  granted: boolean;
-  includeNumbers: boolean;
-  consentVersion?: string;
-} | null;
-
-/** Drizzle-shaped fake answering only the consent reads (#123, #86). */
-export function createConsentDb(
-  consent: ConsentFixture,
-  nutrition: NutritionConsentFixture = null,
-): Database {
+/** Drizzle-shaped fake answering only the two consent reads. */
+export function createConsentDb(consent: ConsentFixture): Database {
   return {
     select: () => ({
       from: (table: unknown) => ({
@@ -67,18 +55,6 @@ export function createConsentDb(
                   grantedAt: new Date("2026-01-01T00:00:00.000Z"),
                   revokedAt: consent.userGranted ? null : new Date("2026-01-02T00:00:00.000Z"),
                   consentVersion: "v1",
-                },
-              ];
-            }
-            if (table === nutritionCoachConsent) {
-              if (nutrition === null) return [];
-              return [
-                {
-                  granted: nutrition.granted,
-                  includeNumbers: nutrition.includeNumbers,
-                  grantedAt: new Date("2026-01-01T00:00:00.000Z"),
-                  revokedAt: nutrition.granted ? null : new Date("2026-01-02T00:00:00.000Z"),
-                  consentVersion: nutrition.consentVersion ?? "v1",
                 },
               ];
             }
@@ -174,7 +150,6 @@ export function createFakeSources(data: Partial<Record<string, Partial<FakeOrgDa
     supplements: [],
     goals: [],
     timeline: [],
-    nutritionTotals: [],
     ...data[organizationId],
   });
 
@@ -263,12 +238,6 @@ export function createFakeSources(data: Partial<Record<string, Partial<FakeOrgDa
           nextCursor: matching.length > limit ? "cursor" : null,
         };
       },
-      listNutritionDailyTotals: async (scope, range) => {
-        calls.push({ port: "listNutritionDailyTotals", organizationId: scope.organizationId });
-        return forOrg(scope.organizationId).nutritionTotals.filter(
-          (day) => day.localDate >= range.from && day.localDate <= range.to,
-        );
-      },
     },
   };
 }
@@ -286,7 +255,6 @@ export type FakeOrgData = {
   supplements: Array<{ supplement: SupplementListItem; schedules: SupplementSchedule[] }>;
   goals: Array<{ goal: Goal; checkins: GoalCheckin[] }>;
   timeline: TimelineEvent[];
-  nutritionTotals: DailyTotals[];
 };
 
 function newestPanelsFirst(panels: readonly BloodPanelWithContext[]): BloodPanelWithContext[] {
@@ -496,14 +464,11 @@ export function createCapturingLogger(): {
 }
 
 export function toolContext(
-  overrides: Partial<AiHealthToolContext> & {
-    consent?: ConsentFixture;
-    nutritionConsent?: NutritionConsentFixture;
-  } = {},
+  overrides: Partial<AiHealthToolContext> & { consent?: ConsentFixture } = {},
 ): AiHealthToolContext {
-  const { consent, nutritionConsent, ...rest } = overrides;
+  const { consent, ...rest } = overrides;
   return {
-    db: createConsentDb(consent ?? FULL_CONSENT, nutritionConsent ?? null),
+    db: createConsentDb(consent ?? FULL_CONSENT),
     organizationId: ORG_A,
     userId: USER_A,
     canReadRecords: async () => true,

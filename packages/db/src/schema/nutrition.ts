@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   real,
   serial,
   text,
@@ -389,6 +390,12 @@ export const nutritionGoal = pgTable(
     nutrient: text("nutrient").notNull(),
     minAmount: real("min_amount"),
     maxAmount: real("max_amount"),
+    /** #80: `entered` by the member, or accepted from a `proposal` (#76). Never set by the system alone. */
+    source: text("source").$type<"entered" | "proposal">().notNull().default("entered"),
+    /** #80: member's local date (YYYY-MM-DD) the target applies from; `null` on rows from before #80. */
+    effectiveFrom: text("effective_from"),
+    /** #80: local date the target stopped applying (exclusive), stamped when replaced or cleared. */
+    effectiveTo: text("effective_to"),
     archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
@@ -412,6 +419,16 @@ export const nutritionGoal = pgTable(
         and (${table.minAmount} is null or ${table.minAmount} >= 0)
         and (${table.maxAmount} is null or ${table.maxAmount} >= 0)
         and (${table.minAmount} is null or ${table.maxAmount} is null or ${table.minAmount} <= ${table.maxAmount})`,
+    ),
+    nutritionGoalSourceCheck: check(
+      "nutrition_goal_source_check",
+      sql`${table.source} in ('entered', 'proposal')`,
+    ),
+    nutritionGoalEffectiveCheck: check(
+      "nutrition_goal_effective_check",
+      sql`(${table.effectiveFrom} is null or ${table.effectiveFrom} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        and (${table.effectiveTo} is null or ${table.effectiveTo} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        and (${table.effectiveFrom} is null or ${table.effectiveTo} is null or ${table.effectiveFrom} <= ${table.effectiveTo})`,
     ),
     nutritionGoalMemberFk: foreignKey({
       columns: [table.organizationId, table.userId],
@@ -568,8 +585,8 @@ export const nutritionEnergyProposal = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    /** Only `maintenance` in v1; deficit/gain proposals need #80's safety policy. */
-    kind: text("kind").$type<"maintenance">().notNull(),
+    /** `maintenance`; `deficit` / `gain` only through the #80 safety policy (`nutrition-safety/v1`). */
+    kind: text("kind").$type<"maintenance" | "deficit" | "gain">().notNull(),
     status: text("status").$type<EnergyProposalStatus>().notNull().default("pending"),
     /** The estimate the proposal came from (kcal/day, logging units). */
     estimateKcal: integer("estimate_kcal").notNull(),
@@ -604,7 +621,7 @@ export const nutritionEnergyProposal = pgTable(
     nutritionEnergyProposalUserIdx: index("nutrition_energy_proposal_user_id_idx").on(table.userId),
     nutritionEnergyProposalKindCheck: check(
       "nutrition_energy_proposal_kind_check",
-      sql`${table.kind} in ('maintenance')`,
+      sql`${table.kind} in ('maintenance', 'deficit', 'gain')`,
     ),
     nutritionEnergyProposalStatusCheck: check(
       "nutrition_energy_proposal_status_check",
@@ -638,48 +655,77 @@ export const nutritionEnergyProposal = pgTable(
   }),
 );
 
-// ─── Coach nutrition context consent (Issue #86) ──────────────
+// ─── Nutrition target settings (Issue #80) ────────────────────
 //
-// Per-member, explicit and revocable consent to include a sanitized nutrition
-// summary in the AI Coach conversation (on top of the org + per-user AI
-// consent from #13/#123). It is deliberately separate from the
-// administrator-configured provider credentials (#57/#59) and records the
-// disclosure version the member agreed to, so a new version fails closed until
-// the member re-consents. `include_numbers` is the member's own choice to
-// share numeric averages; when false only coverage/completeness is shared.
-// One row per (organization, member); revoking sets `granted = false`.
+// One row per (workspace, member): hide-numbers mode, the direction energy
+// suggestions may take (maintain by default), the active opt-in for the
+// protein reference, a self-declared height for the BMI gate, and the
+// member's self-declared yes/no answers that switch off reductions. Nothing
+// here is inferred. A missing row means the defaults: numbers shown,
+// maintain, no opt-in, no height, nothing declared.
 
-export const nutritionCoachConsent = pgTable(
-  "nutrition_coach_consent",
+export const NUTRITION_DECLARATION_KEYS = [
+  "pregnant_or_breastfeeding",
+  "eating_disorder",
+  "glucose_lowering_medication",
+  "chronic_kidney_disease",
+  "cancer_treatment",
+  "bariatric_surgery",
+  "refeeding_syndrome",
+  "glp1_medication",
+] as const;
+
+export const nutritionTargetSettings = pgTable(
+  "nutrition_target_settings",
   {
-    id: serial("id").primaryKey(),
     organizationId: orgId(),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    granted: boolean("granted").notNull().default(false),
-    /** Whether numeric averages may be shared (hide-numbers when false). */
-    includeNumbers: boolean("include_numbers").notNull().default(false),
-    grantedAt: timestamp("granted_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
-    consentVersion: text("consent_version").notNull().default("v1"),
+    /** Optimistic-concurrency counter; increases on every change. */
+    revision: integer("revision").notNull().default(0),
+    hideNumbers: boolean("hide_numbers").notNull().default(false),
+    energyDirection: text("energy_direction")
+      .$type<"maintain" | "lose" | "gain">()
+      .notNull()
+      .default("maintain"),
+    activeProtein: boolean("active_protein").notNull().default(false),
+    /** Self-declared height (cm), used only for the BMI gate and resting estimate. */
+    heightCm: real("height_cm"),
+    /** Self-declared yes answers (see NUTRITION_DECLARATION_KEYS). */
+    declarations: text("declarations")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    nutritionCoachConsentOrgUserUnique: uniqueIndex("nutrition_coach_consent_org_user_key").on(
-      table.organizationId,
-      table.userId,
+    nutritionTargetSettingsPk: primaryKey({
+      name: "nutrition_target_settings_pkey",
+      columns: [table.organizationId, table.userId],
+    }),
+    nutritionTargetSettingsUserIdx: index("nutrition_target_settings_user_id_idx").on(table.userId),
+    nutritionTargetSettingsRevisionCheck: check(
+      "nutrition_target_settings_revision_check",
+      sql`${table.revision} >= 0`,
     ),
-    nutritionCoachConsentUserIdx: index("nutrition_coach_consent_user_id_idx").on(table.userId),
-    nutritionCoachConsentRevokedCheck: check(
-      "nutrition_coach_consent_revoked_after_granted_check",
-      sql`${table.revokedAt} is null or ${table.revokedAt} >= ${table.grantedAt}`,
+    nutritionTargetSettingsDirectionCheck: check(
+      "nutrition_target_settings_direction_check",
+      sql`${table.energyDirection} in ('maintain', 'lose', 'gain')`,
     ),
-    nutritionCoachConsentMemberFk: foreignKey({
+    nutritionTargetSettingsHeightCheck: check(
+      "nutrition_target_settings_height_check",
+      sql`${table.heightCm} is null or (${table.heightCm} >= 100 and ${table.heightCm} <= 250)`,
+    ),
+    nutritionTargetSettingsDeclarationsCheck: check(
+      "nutrition_target_settings_declarations_check",
+      sql`${table.declarations} <@ array['pregnant_or_breastfeeding', 'eating_disorder', 'glucose_lowering_medication', 'chronic_kidney_disease', 'cancer_treatment', 'bariatric_surgery', 'refeeding_syndrome', 'glp1_medication']::text[]`,
+    ),
+    nutritionTargetSettingsMemberFk: foreignKey({
       columns: [table.organizationId, table.userId],
       foreignColumns: [member.organizationId, member.userId],
-      name: "nutrition_coach_consent_org_user_member_fk",
+      name: "nutrition_target_settings_org_user_member_fk",
     }).onDelete("restrict"),
   }),
 );

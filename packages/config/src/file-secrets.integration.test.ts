@@ -262,13 +262,6 @@ describe("actual server schema sensitive coverage", () => {
           "STORAGE_SIGNED_URL_TTL_SECONDS",
           "TELEGRAM_API_BASE_URL",
           "TELEGRAM_CONNECT_TOKEN_TTL_SECONDS",
-          "WEARABLES_WEBHOOKS",
-          "WEARABLES_OURA_CLIENT_ID",
-          "WEARABLES_WHOOP_CLIENT_ID",
-          "WEARABLES_POLAR_CLIENT_ID",
-          "WEARABLES_WITHINGS_CLIENT_ID",
-          "WEARABLES_GOOGLE_HEALTH_ENABLED",
-          "WEARABLES_GOOGLE_HEALTH_CLIENT_ID",
         ].sort(),
       );
     } finally {

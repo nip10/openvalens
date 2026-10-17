@@ -132,3 +132,31 @@ describe("energy proposal migration (Issue #76)", () => {
     expect(all.join("\n")).not.toMatch(/insert into|"nutrition_goal" (add|alter)/i);
   });
 });
+
+const TARGETS_MIGRATION = new URL(
+  "../../db/src/migrations/20261017120000_nutrition_targets/migration.sql",
+  import.meta.url,
+);
+
+describe("nutrition targets migration (Issue #80)", () => {
+  test("is additive: defaulted/nullable goal columns, a widened check and a new table", async () => {
+    const all = await statements(TARGETS_MIGRATION);
+    expect(all.length).toBeGreaterThan(0);
+    for (const statement of all) {
+      expect(statement).not.toMatch(/\b(delete\s+from|truncate|rename|drop\s+(table|column))\b/i);
+      expect(statement).not.toMatch(/^\s*update\b/im);
+      expect(statement).not.toMatch(/insert into/i);
+      expect(statement).toMatch(
+        /^(CREATE (UNIQUE )?(TABLE|INDEX)|ALTER TABLE) .*"nutrition_(goal|energy_proposal|target_settings)"/s,
+      );
+    }
+    // The only drop re-creates the proposal kind check with more values.
+    const drops = all.filter((statement) => /\bdrop\b/i.test(statement));
+    expect(drops).toEqual([
+      'ALTER TABLE "nutrition_energy_proposal" DROP CONSTRAINT "nutrition_energy_proposal_kind_check";',
+    ]);
+    // New goal columns never need a backfill.
+    for (const statement of all.filter((s) => /"nutrition_goal" ADD COLUMN/.test(s)))
+      expect(statement).toMatch(/DEFAULT|text;$/);
+  });
+});

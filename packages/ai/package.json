@@ -20,7 +20,6 @@
     "@openvalens/db": "workspace:*",
     "@openvalens/health-record": "workspace:*",
     "@openvalens/labs": "workspace:*",
-    "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/plans": "workspace:*",
     "@openvalens/sleep": "workspace:*",

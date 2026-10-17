@@ -31,9 +31,7 @@ export type CanonicalMetricCode =
   | "blood_marker"
   | "body_fat"
   | "active_calories"
-  | "distance"
-  | "hrv_rmssd"
-  | "provider_score";
+  | "distance";
 
 export type CanonicalMetricCategory = "body" | "activity" | "vitals" | "cardiac" | "sleep" | "labs";
 
@@ -175,31 +173,6 @@ const METRIC_TAXONOMY: Record<CanonicalMetricCode, CanonicalMetricDefinition> = 
     supportedSources: Object.freeze(["watch", "phone"]),
     hasDefaultPriority: true,
   },
-  // Issue #60 — what cloud wearable adapters add beyond the phone: overnight
-  // HRV (RMSSD, milliseconds) and a vendor's own 0–100 style score (Oura
-  // readiness, Whoop recovery, Polar Nightly Recharge). A provider score is
-  // the vendor's number as reported, tagged with its kind in the sample
-  // metadata; it is never computed or reinterpreted here.
-  hrv_rmssd: {
-    code: "hrv_rmssd",
-    displayName: "Heart Rate Variability (RMSSD)",
-    category: "cardiac",
-    unit: "ms",
-    valueType: "number",
-    aggregationDefault: "avg",
-    supportedSources: Object.freeze(["watch", "ring", "phone"]),
-    hasDefaultPriority: true,
-  },
-  provider_score: {
-    code: "provider_score",
-    displayName: "Provider Score",
-    category: "vitals",
-    unit: "score",
-    valueType: "number",
-    aggregationDefault: "latest",
-    supportedSources: Object.freeze(["watch", "ring"]),
-    hasDefaultPriority: false,
-  },
 };
 
 const METRIC_CODE_ALIASES = Object.freeze({
@@ -277,9 +250,5 @@ export function getDefaultSourcePriorityOrder(code: string): readonly string[] |
     case "active_calories":
     case "distance":
       return Object.freeze(["watch", "phone"]);
-    case "hrv_rmssd":
-      return Object.freeze(["ring", "watch", "phone"]);
-    case "provider_score":
-      return null;
   }
 }

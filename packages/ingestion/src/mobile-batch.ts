@@ -22,7 +22,6 @@ import {
   type MobileHealthRecordType,
 } from "./mobile-records";
 import { resolveDataSource, sourceIdentity, type SourceIdentity } from "./mobile-data-source";
-import { hasCloudWearableSources, reconcilePhoneFirst } from "./phone-first";
 import { persistCanonicalIntents, type CanonicalRowRef } from "./persist-canonical-records";
 import type { RunClaimedJobResult } from "./run-job";
 
@@ -529,13 +528,6 @@ export async function runMobileIngestBatchJob(
         )
         .onConflictDoNothing();
 
-    // Phone-first (#60): this batch may hide (or, after a deletion, restore)
-    // cloud wearable rows for the same days. Skipped when no cloud source exists.
-    if (await hasCloudWearableSources(tx, organizationId)) {
-      const window = await touchedWindow(tx, organizationId, target.table, batch, superseded);
-      if (window) await reconcilePhoneFirst(tx, { organizationId, ...window, now: scope.now });
-    }
-
     const accepted = totals.metricSampleCount + totals.healthEventCount;
     const completedAt = await finish(
       { job: "succeeded", batch: "completed" },
@@ -566,39 +558,6 @@ export async function runMobileIngestBatchJob(
       errorCode: null,
     };
   });
-}
-
-/** Time span a batch touched: its upserts plus any rows it superseded. */
-async function touchedWindow(
-  tx: Pick<Database, "execute">,
-  organizationId: string,
-  table: "metric_sample" | "health_event",
-  batch: MobileIngestBatch,
-  supersededIds: number[],
-): Promise<{ from: Date; to: Date } | null> {
-  const times: number[] = [];
-  for (const record of batch.upserts) {
-    times.push(new Date(record.startTime).getTime());
-    if ("endTime" in record) times.push(new Date(record.endTime).getTime());
-  }
-  if (supersededIds.length) {
-    const column = sql.identifier(table === "metric_sample" ? "sampled_at" : "event_at");
-    const result = await tx.execute(sql`
-      select min(${column}) as min, max(${column}) as max from ${sql.identifier(table)}
-      where organization_id = ${organizationId}
-        and id in (${sql.join(
-          supersededIds.map((id) => sql`${id}`),
-          sql`, `,
-        )})`);
-    const row = result.rows[0] as
-      | { min: string | Date | null; max: string | Date | null }
-      | undefined;
-    if (row?.min) times.push(new Date(row.min).getTime());
-    if (row?.max) times.push(new Date(row.max).getTime());
-  }
-  const valid = times.filter((time) => Number.isFinite(time));
-  if (!valid.length) return null;
-  return { from: new Date(Math.min(...valid)), to: new Date(Math.max(...valid)) };
 }
 
 const EVENT_TYPES = new Set<MobileHealthRecordType>(["sleep_session", "workout", "sleep_segment"]);

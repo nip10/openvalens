@@ -334,7 +334,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       estimateKcal: 2680,
       targetKcal: 2700,
       currentTargetKcal: null,
-      policyVersion: "energy-proposal/v1",
+      policyVersion: "nutrition-safety/v1",
       expired: false,
       window: { from: "2026-03-01", to: "2026-03-28" },
     });

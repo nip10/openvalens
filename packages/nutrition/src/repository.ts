@@ -47,6 +47,13 @@ export type NutritionScope = { organizationId: string; userId: string };
 
 export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
+/** Serialises goal writes per member so "one active goal per nutrient" holds under races. */
+async function lockGoals(tx: Tx, scope: NutritionScope): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`nutrition-goal:${scope.organizationId}:${scope.userId}`}, 0))`,
+  );
+}
+
 export type CustomFoodInput = {
   name: string;
   brand?: string | null;
@@ -130,7 +137,51 @@ export type GoalInput = {
   nutrient: NutrientKey;
   minAmount?: number | null;
   maxAmount?: number | null;
+  /** #80: `entered` by the member (default) or accepted from a `proposal`. */
+  source?: "entered" | "proposal";
+  /** #80: member's local date (YYYY-MM-DD) the target applies from. */
+  effectiveFrom?: string | null;
 };
+
+/** The local date a goal row applies from (rows from before #80 use their creation date, UTC). */
+export function goalEffectiveFrom(
+  goal: Pick<NutritionGoal, "effectiveFrom" | "createdAt">,
+): string {
+  return goal.effectiveFrom ?? goal.createdAt.toISOString().slice(0, 10);
+}
+
+/** The local date a goal row stopped applying (exclusive), or `null` while it applies. */
+export function goalEffectiveTo(
+  goal: Pick<NutritionGoal, "effectiveTo" | "archivedAt">,
+): string | null {
+  return goal.effectiveTo ?? goal.archivedAt?.toISOString().slice(0, 10) ?? null;
+}
+
+/**
+ * The goal per nutrient that applied on `localDate`: the latest-starting row
+ * whose [effective from, effective to) span contains the date.
+ */
+export function goalsInEffectOn<
+  T extends Pick<
+    NutritionGoal,
+    "id" | "nutrient" | "effectiveFrom" | "effectiveTo" | "createdAt" | "archivedAt"
+  >,
+>(goals: readonly T[], localDate: string): T[] {
+  const byNutrient = new Map<string, T>();
+  for (const goal of goals) {
+    const from = goalEffectiveFrom(goal);
+    const to = goalEffectiveTo(goal);
+    if (from > localDate || (to !== null && to <= localDate)) continue;
+    const held = byNutrient.get(goal.nutrient);
+    if (
+      !held ||
+      goalEffectiveFrom(held) < from ||
+      (goalEffectiveFrom(held) === from && held.id < goal.id)
+    )
+      byNutrient.set(goal.nutrient, goal);
+  }
+  return [...byNutrient.values()].sort((a, b) => a.nutrient.localeCompare(b.nutrient));
+}
 
 /** Validated, normalized column values for a custom food; throws `INVALID_INPUT`. */
 export function customFoodValues(input: CustomFoodInput) {
@@ -560,11 +611,16 @@ export function createNutritionRepository(db: Database) {
         (minAmount !== null && maxAmount !== null && minAmount > maxAmount)
       )
         throw new NutritionError("INVALID_INPUT", "Goal needs a non-negative minimum or maximum");
+      const effectiveFrom = input.effectiveFrom ?? null;
+      if (effectiveFrom !== null && !isLocalDate(effectiveFrom))
+        throw new NutritionError("INVALID_INPUT", "Effective date must be a YYYY-MM-DD date");
       const nutrient = NUTRIENT_COLUMNS[input.nutrient];
       return db.transaction(async (tx) => {
-        await tx
-          .update(nutritionGoal)
-          .set({ archivedAt: new Date(), updatedAt: new Date() })
+        await lockGoals(tx, scope);
+        const now = new Date();
+        const [previous] = await tx
+          .select()
+          .from(nutritionGoal)
           .where(
             and(
               eq(nutritionGoal.organizationId, scope.organizationId),
@@ -573,9 +629,26 @@ export function createNutritionRepository(db: Database) {
               isNull(nutritionGoal.archivedAt),
             ),
           );
+        if (previous && effectiveFrom !== null && effectiveFrom < goalEffectiveFrom(previous))
+          throw new NutritionError(
+            "INVALID_INPUT",
+            "A new target cannot start before the current one",
+          );
+        if (previous)
+          await tx
+            .update(nutritionGoal)
+            .set({ archivedAt: now, updatedAt: now, effectiveTo: effectiveFrom })
+            .where(eq(nutritionGoal.id, previous.id));
         const [row] = await tx
           .insert(nutritionGoal)
-          .values({ ...scope, nutrient, minAmount, maxAmount })
+          .values({
+            ...scope,
+            nutrient,
+            minAmount,
+            maxAmount,
+            source: input.source ?? "entered",
+            effectiveFrom,
+          })
           .returning();
         if (!row) throw new Error("Goal insert did not return a row");
         return row;
@@ -594,6 +667,61 @@ export function createNutritionRepository(db: Database) {
           ),
         )
         .orderBy(asc(nutritionGoal.nutrient));
+    },
+
+    /** Every goal row of the member, active and ended, oldest first (target history). */
+    async listGoalHistory(scope: NutritionScope): Promise<NutritionGoal[]> {
+      return db
+        .select()
+        .from(nutritionGoal)
+        .where(
+          and(
+            eq(nutritionGoal.organizationId, scope.organizationId),
+            eq(nutritionGoal.userId, scope.userId),
+          ),
+        )
+        .orderBy(asc(nutritionGoal.createdAt), asc(nutritionGoal.id));
+    },
+
+    /**
+     * Ends the member's active goal for one nutrient from `effectiveTo`
+     * (exclusive local date). Returns `false` when no goal was active.
+     */
+    async clearGoal(
+      scope: NutritionScope,
+      nutrientKey: NutrientKey,
+      effectiveTo: string,
+    ): Promise<boolean> {
+      if (!NUTRIENT_KEYS.includes(nutrientKey))
+        throw new NutritionError("INVALID_INPUT", "Unsupported nutrient");
+      if (!isLocalDate(effectiveTo))
+        throw new NutritionError("INVALID_INPUT", "Effective date must be a YYYY-MM-DD date");
+      return db.transaction(async (tx) => {
+        await lockGoals(tx, scope);
+        const [active] = await tx
+          .select()
+          .from(nutritionGoal)
+          .where(
+            and(
+              eq(nutritionGoal.organizationId, scope.organizationId),
+              eq(nutritionGoal.userId, scope.userId),
+              eq(nutritionGoal.nutrient, NUTRIENT_COLUMNS[nutrientKey]),
+              isNull(nutritionGoal.archivedAt),
+            ),
+          );
+        if (!active) return false;
+        const from = goalEffectiveFrom(active);
+        const now = new Date();
+        await tx
+          .update(nutritionGoal)
+          .set({
+            archivedAt: now,
+            updatedAt: now,
+            effectiveTo: effectiveTo < from ? from : effectiveTo,
+          })
+          .where(eq(nutritionGoal.id, active.id));
+        return true;
+      });
     },
 
     async archiveGoal(scope: NutritionScope, goalId: number): Promise<void> {

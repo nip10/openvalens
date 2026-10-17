@@ -22,7 +22,6 @@ import {
   signInOptions,
   telegramClient,
   telegramConfig,
-  wearablesService,
 } from "./services";
 
 export type CreateContextOptions = {
@@ -94,8 +93,6 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // Issue #92 — insight push transport (or `null`), the web origin for
     // email links and the unsubscribe-token key (or `null`).
     push: pushProvider,
-    // Issue #60 — cloud wearable connections, or `null` when no vendor is set.
-    wearables: wearablesService,
     webOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     insightUnsubscribeKey: insightUnsubscribeKey ?? undefined,
     // Hand the Hono context through so authz guards and cron auth can read

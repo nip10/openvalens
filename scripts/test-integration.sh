@@ -38,8 +38,7 @@ SUITES=(
   "WEIGHT_TREND_TEST_DATABASE_URL|weight_trend_test|packages/api/src/routers/weight-trend.integration.test.ts"
   "NUTRITION_CUSTOM_FOODS_TEST_DATABASE_URL|nutrition_custom_foods_test|packages/api/src/routers/nutrition-custom-foods.integration.test.ts"
   "NUTRITION_ENERGY_TEST_DATABASE_URL|nutrition_energy_test|packages/api/src/routers/nutrition-energy.integration.test.ts"
-  "NUTRITION_COACH_CONSENT_TEST_DATABASE_URL|nutrition_coach_consent_test|packages/nutrition/src/coach-consent.integration.test.ts"
-  "NUTRITION_COACH_TEST_DATABASE_URL|nutrition_coach_test|packages/api/src/routers/nutrition-coach.integration.test.ts"
+  "NUTRITION_TARGETS_TEST_DATABASE_URL|nutrition_targets_test|packages/api/src/routers/nutrition-targets.integration.test.ts"
   "LABS_TEST_DATABASE_URL|labs_test|packages/labs/src/queries.integration.test.ts"
   "AI_TOOLS_TEST_DATABASE_URL|ai_tools_test|packages/ai/src/tools/health-tools.integration.test.ts"
   "AI_REMAINING_TOOLS_TEST_DATABASE_URL|ai_remaining_tools_test|packages/ai/src/tools/remaining-tools.integration.test.ts"
@@ -62,7 +61,6 @@ SUITES=(
   "REFERENCE_COMPARISON_TEST_DATABASE_URL|reference_comparison_test|packages/api/src/reference-comparison.integration.test.ts"
   "REMINDERS_TEST_DATABASE_URL|reminders_issue125|packages/integrations/telegram/src/reminders.integration.test.ts"
   "STORAGE_TEST_DATABASE_URL|storage_test|packages/storage/src/service.integration.test.ts"
-  "WEARABLES_TEST_DATABASE_URL|wearables_issue60|packages/integrations/wearables/src/service.integration.test.ts"
 )
 
 reset_db() {

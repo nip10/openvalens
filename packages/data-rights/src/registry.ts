@@ -128,8 +128,9 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_diary_mutation: organization,
   // Energy estimate (#76): target proposals with the estimate they came from.
   nutrition_energy_proposal: organization,
-  // Coach nutrition context consent (#86): the member's own opt-in; matched by user_id.
-  nutrition_coach_consent: { kind: "user" },
+  // Nutrition targets (#80): hide-numbers mode, direction, height and the
+  // member's self-declared yes/no declarations.
+  nutrition_target_settings: organization,
   // Public food catalogs (#72): instance-wide FDC / Open Food Facts mirrors and
   // their import ledger; no tenant or personal columns.
   nutrition_catalog_release: {
@@ -157,14 +158,6 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     reason: "Telegram update ids kept only to de-duplicate webhooks; no message content.",
   },
   daily_reminder: organization,
-  // Cloud wearables (#60): OAuth link per person and vendor. Token ciphertext
-  // and the OAuth state hash are never exported; deleting the subject removes
-  // them with the workspace (the vendor grant is revoked on disconnect).
-  wearable_connection: {
-    kind: "organization",
-    redact: ["access_token_ciphertext", "refresh_token_ciphertext"],
-  },
-  wearable_oauth_state: { kind: "organization", redact: ["state_hash"] },
 
   // Object storage (#62). Metadata only (opaque key, content type, size,
   // checksum); the bytes are erased from the storage backend by the caller of

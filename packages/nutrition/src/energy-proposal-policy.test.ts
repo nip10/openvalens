@@ -8,8 +8,9 @@ import {
   PROPOSAL_COPY,
   PROPOSAL_DECLINE_COPY,
 } from "./energy-proposal-policy";
+import { findBannedCopy } from "./nutrition-safety";
 
-/** Synthetic policy tests (Issue #76): proposals never bypass the v1 limits. */
+/** Synthetic policy tests (Issues #76, #80): maintenance proposals never bypass the limits. */
 
 const NOW = new Date("2026-03-28T12:00:00.000Z");
 const estimated = (kcalPerDay: number) =>
@@ -47,7 +48,8 @@ describe("planEnergyProposal", () => {
       targetKcal: 2500,
       currentTargetKcal: null,
       stepLimited: false,
-      policyVersion: "energy-proposal/v1",
+      needsConfirmation: false,
+      policyVersion: "nutrition-safety/v1",
     });
   });
 
@@ -98,10 +100,12 @@ describe("planEnergyProposal", () => {
       expect(result.targetKcal).toBeGreaterThanOrEqual(ENERGY_PROPOSAL_POLICY.neverBelowKcal);
       if (currentTargetKcal !== null) {
         const step = Math.max(
-          ENERGY_PROPOSAL_POLICY.maxStepKcal,
-          ENERGY_PROPOSAL_POLICY.maxStepFraction * currentTargetKcal,
+          ENERGY_PROPOSAL_POLICY.step.maxKcal,
+          ENERGY_PROPOSAL_POLICY.step.maxFraction * currentTargetKcal,
         );
-        expect(Math.abs(result.targetKcal - currentTargetKcal)).toBeLessThanOrEqual(step);
+        // Larger moves only when the stepped target would itself be below 1,200 kcal.
+        if (Math.abs(result.targetKcal - currentTargetKcal) > step)
+          expect(currentTargetKcal + step).toBeLessThan(ENERGY_PROPOSAL_POLICY.neverBelowKcal);
         // Moves toward the estimate, never past it by more than rounding.
         expect(Math.sign(result.targetKcal - currentTargetKcal)).toBe(
           Math.sign(estimateKcal - currentTargetKcal) ||
@@ -160,6 +164,7 @@ describe("copy", () => {
   test("refusals say what the app won't do; no numbers, no judgement", () => {
     for (const text of [...Object.values(PROPOSAL_DECLINE_COPY), ...Object.values(PROPOSAL_COPY)]) {
       expect(text).not.toMatch(/\b(1,?200|BMI|good|bad|cheat|earn\w*|fail\w*|over|under)\b/i);
+      expect(findBannedCopy(text)).toEqual([]);
     }
   });
 });

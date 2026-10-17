@@ -52,13 +52,6 @@ const insightsRunOutput = cronRunOutput.extend({
   remindersFailed: z.number(),
 });
 
-// Issue #60 — cloud wearable sync counts, value-free.
-const wearablesRunOutput = cronRunOutput.extend({
-  claimed: z.number(),
-  succeeded: z.number(),
-  failed: z.number(),
-});
-
 const ingestionRunOutput = cronRunOutput.extend({
   processed: z.number(),
   succeeded: z.number(),
@@ -126,36 +119,6 @@ function safeErrorCategory(error: unknown): string {
  * OpenAPI mount accepts raw JSON for manual runs.
  */
 export const cronRouter = {
-  /**
-   * Issue #60 — cloud wearable sync (the polling fallback, and the catch-up
-   * for webhook hints). Claims due connections with `SKIP LOCKED`, so
-   * overlapping runs never sync the same connection twice. A no-op when no
-   * vendor is configured. Suggested schedule: every 15 minutes.
-   */
-  wearablesSync: cronProcedure
-    .input(z.object({}))
-    .output(wearablesRunOutput)
-    .handler(async ({ context }) => {
-      const startedAt = new Date().toISOString();
-      const totals = context.wearables
-        ? await context.wearables.runDueSyncs({ limit: 25 })
-        : { claimed: 0, succeeded: 0, failed: 0 };
-      const finishedAt = new Date().toISOString();
-      logger.info("cron.wearables.sync.completed", {
-        job: "wearables.sync",
-        correlationId: context.correlationId,
-        ...totals,
-      });
-      return {
-        status: totals.failed === 0 ? ("ok" as const) : ("failed" as const),
-        job: "wearables.sync",
-        startedAt,
-        finishedAt,
-        correlationId: context.correlationId,
-        ...totals,
-      };
-    }),
-
   remindersDailyRun: cronProcedure
     .input(z.object({}))
     .output(remindersRunOutput)
