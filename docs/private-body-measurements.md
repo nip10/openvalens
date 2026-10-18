@@ -33,5 +33,8 @@ applied.
 
 Both measurement and preference tables are classified as user-owned by the
 data-rights registry, so subject exports contain only that user's rows and
-subject erasure removes them. Photo processing, sharing, hide-numbers behavior,
-and all UI remain outside this backend milestone.
+subject erasure removes them. Photo processing, sharing and hide-numbers
+preference integration remain outside this web UI milestone. The web history
+deliberately omits stored numeric values until a client-safe hide-numbers
+preference is available; users can still enter new values and edit records by
+entering the replacement value themselves. Native UI remains pending.
