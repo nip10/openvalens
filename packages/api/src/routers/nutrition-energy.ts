@@ -44,6 +44,18 @@ import { requireProfileOwner } from "../wellness-profile";
 
 const logger = createStructuredLogger({ level: "info" });
 
+/** Nutrition eligibility and refusal details are never useful log dimensions. */
+export function energyEstimateLogMetadata(result: unknown, correlationId: string) {
+  void result;
+  return { correlationId, outcome: "processed" as const };
+}
+
+/** Proposal refusal reasons may encode sensitive declarations; log a generic outcome only. */
+export function energyProposalLogMetadata(result: unknown, correlationId: string) {
+  void result;
+  return { correlationId, outcome: "processed" as const };
+}
+
 function scopeOf(context: {
   authz: { activeOrganizationId: string; user: { id: string } };
 }): NutritionScope {
@@ -100,9 +112,7 @@ export const nutritionEnergyRouter = {
       await requireWeightRead(context);
       const result = await run(() => service(context).estimate(scopeOf(context), input));
       logger.info("nutrition.energy_estimate.computed", {
-        correlationId: context.correlationId,
-        status: result.status,
-        reasons: result.status === "adults_only" || result.status === "off" ? [] : result.reasons,
+        ...energyEstimateLogMetadata(result, context.correlationId),
       });
       return result;
     }),
@@ -125,9 +135,7 @@ export const nutritionEnergyRouter = {
       await requireWeightRead(context);
       const result = await run(() => service(context).propose(scope, input));
       logger.info("nutrition.energy_proposal.requested", {
-        correlationId: context.correlationId,
-        outcome: result.outcome,
-        reason: result.outcome === "declined" ? result.reason : undefined,
+        ...energyProposalLogMetadata(result, context.correlationId),
       });
       return result;
     }),
@@ -141,9 +149,7 @@ export const nutritionEnergyRouter = {
       requireSelf(context, scope);
       const result = await run(() => service(context).accept(scope, input));
       logger.info("nutrition.energy_proposal.accept", {
-        correlationId: context.correlationId,
-        outcome: result.outcome,
-        reason: result.outcome === "declined" ? result.reason : undefined,
+        ...energyProposalLogMetadata(result, context.correlationId),
       });
       return result;
     }),

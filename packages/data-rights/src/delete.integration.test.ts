@@ -98,6 +98,8 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
         from (values ('org-a', 'user-a'), ('org-b', 'user-b')) v(org, usr);
       -- A is also a viewer of B's record and appears in B's audit log.
       insert into member (id, organization_id, user_id, role) values ('m-a-in-b', 'org-b', 'user-a', 'viewer');
+      insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+        values ('org-b', 'user-a', 1, false, array['pregnant_or_breastfeeding']);
       insert into access_audit_log (organization_id, actor_user_id, event_type, created_at)
         values ('org-b', 'user-a', 'RECORD_VIEWED', '2026-10-01');
     `),
@@ -162,6 +164,18 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     ).toBe(1);
   });
 
+  test("deleting the owner removes only that subject's nutrition settings", async () => {
+    const remaining = (
+      await db.execute(
+        sql`select organization_id, user_id, declarations from nutrition_target_settings order by organization_id`,
+      )
+    ).rows as { user_id: string; declarations: string[] }[];
+    expect(remaining.map(({ user_id, declarations }) => ({ user_id, declarations }))).toEqual([
+      { user_id: "user-b", declarations: ["chronic_kidney_disease"] },
+    ]);
+    expect(report.rowCounts.nutrition_target_settings).toBe(2);
+  });
+
   test("supplements: own removed, shared and other-account kept", async () => {
     expect(await count("supplement", sql`name = 'Supplement a'`)).toBe(0);
     expect(await count("supplement", sql`name = 'Shared'`)).toBe(1);
@@ -181,10 +195,10 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
       "nutrition_energy_proposal",
-      "nutrition_target_settings",
       "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);
+    expect(report.rowCounts.nutrition_target_settings).toBe(2);
     expect(report.rowCounts.user).toBe(1);
     expect(report.rowCounts.organization).toBe(1);
     const ledger = (await db.execute(sql`select * from erasure_ledger`)).rows as {

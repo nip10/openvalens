@@ -93,8 +93,10 @@ export const nutritionTargetsRouter = {
     .input(targetsOverviewInput)
     .output(targetsOverviewOutput)
     .handler(async ({ input, context }) => {
+      const scope = scopeOf(context);
+      requireSelf(context, scope);
       const readWeight = await canReadWeight(context);
-      return run(() => service(context).overview(scopeOf(context), input, { readWeight }));
+      return run(() => service(context).overview(scope, input, { readWeight }));
     }),
 
   setTarget: write("RECORD_UPDATED")

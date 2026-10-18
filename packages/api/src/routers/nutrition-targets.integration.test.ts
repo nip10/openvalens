@@ -339,6 +339,17 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
     expect(denied.status).toBe(403);
   });
 
+  test("sensitive settings reads need the member's own, non-impersonated session", async () => {
+    const denied = await call("get", { localDate: "2026-03-28" }, "user-a", {
+      "x-test-impersonated": "user-a",
+    });
+    expect(denied.status).toBe(403);
+    expect((await overview("2026-03-28", "user-a")).status).toBe(200);
+    // Same-organization and other-organization reads remain scoped to caller.
+    expect((await overview("2026-03-28", "user-a2")).body.targets).toEqual([]);
+    expect((await overview("2026-03-28", "user-b")).body.targets).toHaveLength(1);
+  });
+
   test("hide-numbers mode is a per-member setting that never touches targets", async () => {
     await resetSettings("user-a");
     await resetGoals("user-a");

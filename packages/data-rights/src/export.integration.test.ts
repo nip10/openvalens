@@ -11,6 +11,7 @@ assertDisposable(url, "data_rights_test");
 describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/data_rights_test" });
   let exported: DataExport;
+  let exportedA2: DataExport;
 
   const parse = (table: string) => {
     const file = exported.files.find((f) => f.path === `entities/${table}.json`);
@@ -22,6 +23,15 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     await migrateEmptyDatabase(db);
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('user-a2', 'a2@example.test');
+      insert into member (id, organization_id, user_id, role) values ('m-a2', 'org-a', 'user-a2', 'collaborator');
+      insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+        values ('org-a', 'user-a', 1, true, array['eating_disorder']),
+               ('org-a', 'user-a2', 1, false, array['chronic_kidney_disease']);
+    `),
+    );
 
     // Admission grants (#63): A is a recipient (by target user and by pending
     // email), B has its own, and A invited a third party (must never surface in
@@ -40,6 +50,11 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     exported = await exportSubjectData(
       db,
       { userId: "user-a", organizationIds: ["org-a"] },
+      new Date("2026-10-03T00:00:00.000Z"),
+    );
+    exportedA2 = await exportSubjectData(
+      db,
+      { userId: "user-a2", organizationIds: ["org-a"] },
       new Date("2026-10-03T00:00:00.000Z"),
     );
   });
@@ -68,6 +83,23 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     }
   });
 
+  test("nutrition settings export only for their subject, not every workspace member", () => {
+    const ownerSettings = JSON.parse(
+      exported.files.find((file) => file.path === "entities/nutrition_target_settings.json")!
+        .content,
+    ) as { user_id: string; declarations: string[] }[];
+    const collaboratorSettings = JSON.parse(
+      exportedA2.files.find((file) => file.path === "entities/nutrition_target_settings.json")!
+        .content,
+    ) as { user_id: string; declarations: string[] }[];
+    expect(ownerSettings.map(({ user_id, declarations }) => ({ user_id, declarations }))).toEqual([
+      { user_id: "user-a", declarations: ["eating_disorder"] },
+    ]);
+    expect(
+      collaboratorSettings.map(({ user_id, declarations }) => ({ user_id, declarations })),
+    ).toEqual([{ user_id: "user-a2", declarations: ["chronic_kidney_disease"] }]);
+  });
+
   test("credentials are redacted and listed in the manifest", () => {
     const all = exported.files.map((f) => f.content).join("\n");
     expect(all).not.toContain("session-secret-a");
@@ -82,6 +114,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "push_device",
       "session",
       "telegram_connect_token",
+      "wearable_connection",
+      "wearable_oauth_state",
     ]);
     // Insights (#92): the unsubscribe token hash and push token never leave.
     expect(all).not.toContain("unsub-hash-a");

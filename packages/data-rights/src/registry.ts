@@ -129,7 +129,7 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // Energy estimate (#76): target proposals with the estimate they came from.
   nutrition_energy_proposal: organization,
   // Nutrition targets (#80): member settings and self-declarations.
-  nutrition_target_settings: organization,
+  nutrition_target_settings: { kind: "user" },
   // Coach nutrition context consent (#86): the member's own opt-in; matched by user_id.
   nutrition_coach_consent: { kind: "user" },
   // Public food catalogs (#72): instance-wide FDC / Open Food Facts mirrors and
