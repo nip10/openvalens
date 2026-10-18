@@ -5,3 +5,4 @@ export * from "./auto-reconciliation";
 export * from "./queries";
 export * from "./weight-trend";
 export * from "./weight-trend-service";
+export * from "./private-measurements";

@@ -55,6 +55,7 @@ SUITES=(
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_sharing_test|packages/api/src/routers/sharing.integration.test.ts"
   "PRODUCT_SETTINGS_TEST_DATABASE_URL|product_settings_test|packages/api/src/product-settings.integration.test.ts"
   "WELLNESS_PROFILE_TEST_DATABASE_URL|wellness_profile_test|packages/api/src/wellness-profile.integration.test.ts"
+  "PRIVATE_BODY_TEST_DATABASE_URL|private_body_test|packages/api/src/private-body.integration.test.ts"
   "SCORE_TEST_DATABASE_URL|score_test|packages/api/src/score.integration.test.ts"
   "ACTIVITY_LOAD_TEST_DATABASE_URL|activity_load_test|packages/api/src/activity-load.integration.test.ts"
   "INSIGHTS_TEST_DATABASE_URL|insights_test|packages/api/src/insights.integration.test.ts"

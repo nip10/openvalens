@@ -1,5 +1,6 @@
 import {
   pgTable,
+  boolean,
   text,
   integer,
   real,
@@ -9,6 +10,8 @@ import {
   uniqueIndex,
   check,
   foreignKey,
+  uuid,
+  timestamp,
 } from "drizzle-orm/pg-core";
 import { sql, desc } from "drizzle-orm";
 
@@ -337,3 +340,63 @@ export const weightCheckin = pgTable(
     ),
   }),
 );
+
+// ─── Member-private manual body measurements (Issue #85) ──────
+// Unlike legacy organization-owned body records, these rows are scoped to the
+// authenticated member as well as the active organization. Workspace roles do
+// not grant access to another member's values.
+
+export const privateBodyMeasurement = pgTable(
+  "private_body_measurement",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    value: real("value").notNull(),
+    unit: text("unit").notNull(),
+    measuredAt: timestamp("measured_at", { withTimezone: true, mode: "date" }).notNull(),
+    source: text("source").notNull().default("manual"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    privateBodyMeasurementMemberIdx: index("private_body_measurement_org_user_measured_idx").on(
+      table.organizationId,
+      table.userId,
+      desc(table.measuredAt),
+    ),
+    privateBodyMeasurementOrgUserFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "private_body_measurement_org_user_member_fk",
+    }).onDelete("cascade"),
+    privateBodyMeasurementValueCheck: check(
+      "private_body_measurement_value_technical_range_check",
+      sql`${table.value} > 0 and ${table.value} <= 1000`,
+    ),
+    privateBodyMeasurementKindCheck: check(
+      "private_body_measurement_kind_check",
+      sql`${table.kind} in ('weight', 'waist', 'hip', 'neck', 'chest', 'upper_arm', 'thigh')`,
+    ),
+    privateBodyMeasurementUnitCheck: check(
+      "private_body_measurement_unit_check",
+      sql`(${table.kind} = 'weight' and ${table.unit} in ('kg', 'lb')) or (${table.kind} <> 'weight' and ${table.unit} in ('cm', 'in'))`,
+    ),
+    privateBodyMeasurementSourceCheck: check(
+      "private_body_measurement_source_check",
+      sql`${table.source} = 'manual'`,
+    ),
+  }),
+);
+
+/** User-level, opt-in gate. Missing row and false both mean disabled. */
+export const privateBodyMeasurementPreference = pgTable("private_body_measurement_preference", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+});
