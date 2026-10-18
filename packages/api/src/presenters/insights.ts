@@ -68,6 +68,7 @@ export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
   data_quality: "Data quality (gaps, new devices)",
   streak: "Recording streaks",
   reminder: "Preventive-care reminders (dates you set)",
+  observation: "Nutrition observations",
 };
 
 export const INSIGHT_CHANNEL_LABELS: Record<InsightChannel, string> = {
@@ -225,6 +226,23 @@ export function insightView(
     case "streak": {
       title = `${detail.days} days of ${METRIC_PHRASE[detail.metric]} recorded in a row`;
       body = `${INSIGHT_METRIC_LABELS[detail.metric]} has been recorded every day since ${formatInsightDate(detail.startDate)}.`;
+      break;
+    }
+    case "meals_and_workouts": {
+      title = "Meals and recorded workouts";
+      body = `Logged meals and workouts occurred on ${detail.daysWithBoth} days in this ${detail.window.days}-day window. This describes co-occurrence in your records only and does not establish a relationship between them.`;
+      coverageText = `Diary marked complete on ${detail.diaryCompleteDays} days; workouts were recorded on ${detail.workoutDays} days.`;
+      break;
+    }
+    case "meals_near_sleep": {
+      title = "Meals and recorded sleep timing";
+      body = `Some logged meals were recorded within four hours before sleep starts in this ${detail.window.days}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep.`;
+      coverageText = `${detail.nearSleepEvenings} of ${detail.evenings} recorded evenings were within the timing window.`;
+      break;
+    }
+    case "activity_energy_context": {
+      title = "Recorded activity energy";
+      body = `Estimated activity energy was recorded on ${detail.activityDays} days in this ${detail.window.days}-day window. It is shown separately from food intake.`;
       break;
     }
   }

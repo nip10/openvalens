@@ -91,7 +91,7 @@ describe("buildNutritionObservations", () => {
       expect(observation.window).toEqual({ from: "2026-10-01", to: "2026-10-07", days: 7 });
       expect(observation.completeness).toContain("3 complete matching events");
       expect(observation.body.toLowerCase()).toMatch(/records only/);
-      expect(observation.body.toLowerCase()).toMatch(/does not show/);
+      expect(observation.body.toLowerCase()).toMatch(/does not establish a relationship/);
       expect(observation.body.toLowerCase()).not.toMatch(
         /meals (cause|caused|change|changed) (sleep|workouts)|diagnos|recommend|should|avoid|eat back|supplement|hrv/,
       );

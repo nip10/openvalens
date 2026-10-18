@@ -187,6 +187,12 @@ type PreferenceRow = typeof insightPreference.$inferSelect;
 
 export function channelsFromDisabled(disabled: readonly string[]): KindChannels {
   const channels = defaultKindChannels();
+  // Observation toggles were added after the original preference row. The
+  // presence of any observation channel in the disabled list means that this
+  // kind has an explicit stored choice; unlisted channels are therefore on.
+  // No marker means the historical/default state remains off everywhere.
+  if (disabled.some((entry) => entry.startsWith("observation:")))
+    channels.observation = { in_app: true, push: true, email: true };
   for (const entry of disabled) {
     const [kind, channel] = entry.split(":") as [keyof KindChannels, InsightChannel];
     if (INSIGHT_KINDS.includes(kind) && INSIGHT_CHANNELS.includes(channel))
@@ -384,6 +390,7 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
           status: "withheld",
           withheldReason: "adults_only",
           insights: [],
+          observations: [],
           readiness: [],
           hiddenCount: 0,
           budget: { changeCap: CHANGE_INSIGHT_CAP, suppressedChanges: 0 },
@@ -404,6 +411,7 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
         status: "available",
         withheldReason: null,
         insights: selection.insights,
+        observations: [],
         readiness: output.readiness,
         hiddenCount: selection.hiddenCount,
         budget: { changeCap: CHANGE_INSIGHT_CAP, suppressedChanges: selection.suppressedChanges },

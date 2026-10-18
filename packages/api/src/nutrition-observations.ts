@@ -32,7 +32,7 @@ export type NutritionObservation = {
   ruleId: "observation.meals_near_sleep" | "observation.meals_and_workouts";
   window: ObservationWindow & { days: number };
   matchingEvents: number | null;
-  minimumMatchingEvents: number;
+  minimumMatchingEvents: number | null;
   completeness: string;
   title: string;
   body: string;
@@ -117,7 +117,9 @@ export function buildNutritionObservations(
       ruleId: options.ruleId,
       window,
       matchingEvents: input.hideNumbers ? null : count,
-      minimumMatchingEvents: NUTRITION_OBSERVATION_POLICY.minimumMatchingEvents,
+      minimumMatchingEvents: input.hideNumbers
+        ? null
+        : NUTRITION_OBSERVATION_POLICY.minimumMatchingEvents,
       completeness: input.hideNumbers
         ? "Sufficient complete matching records were available."
         : `${count} complete matching events in the ${days}-day window.`,
@@ -131,7 +133,7 @@ export function buildNutritionObservations(
     records: input.sleep,
     ruleId: "observation.meals_near_sleep",
     title: "Meals and recorded sleep timing",
-    body: "Some logged meals occurred within four hours before recorded sleep starts in this window. This describes timing in your records only; it does not show that meals caused or changed sleep.",
+    body: "Some logged meals occurred within four hours before recorded sleep starts in this window. This describes timing in your records only and does not establish a relationship between meal timing and sleep.",
     mealBeforeOnly: true,
   });
   tryAdd({
@@ -139,7 +141,7 @@ export function buildNutritionObservations(
     records: input.workouts,
     ruleId: "observation.meals_and_workouts",
     title: "Meals and recorded workouts",
-    body: "Some logged meals occurred within four hours of recorded workouts in this window. This describes timing in your records only; it does not show that meals caused or changed a workout.",
+    body: "Some logged meals occurred within four hours of recorded workouts in this window. This describes timing in your records only and does not establish a relationship between meal timing and workouts.",
     mealBeforeOnly: false,
   });
   return output;

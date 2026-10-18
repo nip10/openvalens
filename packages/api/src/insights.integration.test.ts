@@ -94,6 +94,8 @@ const fakeAuth = {
     }) => {
       const member = MEMBERS[actorOf(headers)]!;
       if (member.denied) return { success: false };
+      if (headers.get("x-test-deny-workout") === "true" && "workout" in body.permissions)
+        return { success: false };
       const actions = Object.values(body.permissions).flat();
       return { success: member.role !== "viewer" || actions.every((action) => action === "read") };
     },
@@ -240,6 +242,53 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       }
       await db.insert(metricSample).values(samples);
     }
+
+    // Synthetic member-scoped nutrition, sleep and workout records for #84.
+    const connection = await db.execute<{ id: number }>(sql`
+      insert into provider_connection (organization_id, provider, external_user_id, user_id)
+      values ('org-a', 'synthetic', 'insights-observations-user-a', 'user-a') returning id
+    `);
+    const dataSourceId = await db.execute<{ id: number }>(sql`
+      insert into data_source (organization_id, provider_connection_id, source_type, source_key)
+      values ('org-a', ${connection.rows[0]!.id}, 'synthetic', 'insights-observations') returning id
+    `);
+    await db.execute(sql`
+      insert into nutrition_food_snapshot
+        (organization_id, source, name, nutrient_basis_amount, nutrient_basis_unit, content_hash)
+      values ('org-a', 'manual', 'Synthetic meal', 100, 'g', 'insights-observation-meal')
+    `);
+    await db.execute(sql`
+      insert into nutrition_meal (organization_id, user_id, local_date, time_zone, slot)
+      select 'org-a', 'user-a', to_char(d, 'YYYY-MM-DD'), 'UTC', 'dinner'
+      from generate_series(current_date - 3, current_date - 1, interval '1 day') d;
+    `);
+    await db.execute(sql`
+      insert into nutrition_diary_day (organization_id, user_id, local_date, completed_at)
+      select 'org-a', 'user-a', to_char(d, 'YYYY-MM-DD'), now()
+      from generate_series(current_date - 3, current_date - 1, interval '1 day') d;
+    `);
+    await db.execute(sql`
+      insert into nutrition_meal_entry
+        (organization_id, user_id, meal_id, snapshot_id, amount, unit, nutrient_factor, method, consumed_at)
+      select m.organization_id, m.user_id, m.id, s.id, 100, 'g', 1, 'manual',
+             (m.local_date || 'T18:00:00Z')::timestamptz
+      from nutrition_meal m join nutrition_food_snapshot s
+        on s.organization_id = m.organization_id and s.content_hash = 'insights-observation-meal'
+      where m.organization_id = 'org-a' and m.user_id = 'user-a';
+    `);
+    for (const [daysAgo, suffix] of [
+      [1, "one"],
+      [2, "two"],
+      [3, "three"],
+    ] as const) {
+      await db.execute(sql`
+        insert into health_event
+          (organization_id, data_source_id, event_type, event_at, dedupe_hash)
+        values
+          ('org-a', ${dataSourceId.rows[0]!.id}, 'sleep_session', ${at(daysAgo, 21)}, ${`insight-sleep-${suffix}`}),
+          ('org-a', ${dataSourceId.rows[0]!.id}, 'workout', ${at(daysAgo, 19)}, ${`insight-workout-${suffix}`})
+      `);
+    }
   });
 
   afterAll(() => {
@@ -283,6 +332,46 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     });
     const spoof = await call("insights/list", { organizationId: "org-b" });
     expect(spoof.status).toBe(400);
+  });
+
+  test("nutrition observations are member opt-in, member-scoped, and revocable", async () => {
+    const initial = await call<InsightsResult>("insights/list", {});
+    expect(initial.body.observations).toEqual([]);
+
+    const spoof = await call("insights/list", { userId: "user-v", organizationId: "org-b" });
+    expect(spoof.status).toBe(400);
+
+    const otherMember = await call<InsightsResult>("insights/list", {}, "user-v");
+    expect(otherMember.body.observations).toEqual([]);
+
+    const granted = await call<InsightPreferences>("insights/preferences/update", {
+      channels: { observation: { in_app: true } },
+    });
+    expect(granted.status).toBe(200);
+    expect(granted.body.channels.observation.in_app).toBe(true);
+    const enabled = await call<InsightsResult>("insights/list", {});
+    expect(enabled.body.observations.map((entry) => entry.ruleId)).toEqual([
+      "observation.meals_near_sleep",
+      "observation.meals_and_workouts",
+    ]);
+    expect(
+      enabled.body.observations.every(
+        (entry) => entry.matchingEvents === null && entry.minimumMatchingEvents === null,
+      ),
+    ).toBe(true);
+    expect(enabled.body.observations.every((entry) => entry.body.includes("records only"))).toBe(
+      true,
+    );
+
+    const deniedWorkout = await call<InsightsResult>("insights/list", {}, "user-a", {
+      "x-test-deny-workout": "true",
+    });
+    expect(deniedWorkout.body.observations.map((entry) => entry.ruleId)).toEqual([
+      "observation.meals_near_sleep",
+    ]);
+
+    await call("insights/preferences/update", { channels: { observation: { in_app: false } } });
+    expect((await call<InsightsResult>("insights/list", {})).body.observations).toEqual([]);
   });
 
   test("feedback: dismiss hides one insight for this person only; unknown rules are rejected", async () => {

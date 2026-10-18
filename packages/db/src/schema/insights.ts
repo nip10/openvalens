@@ -96,7 +96,8 @@ export const insightPreference = pgTable(
         'goal_milestone:in_app', 'goal_milestone:push', 'goal_milestone:email',
         'data_quality:in_app', 'data_quality:push', 'data_quality:email',
         'streak:in_app', 'streak:push', 'streak:email',
-        'reminder:in_app', 'reminder:push', 'reminder:email'
+        'reminder:in_app', 'reminder:push', 'reminder:email',
+        'observation:in_app', 'observation:push', 'observation:email'
       ]::text[]`,
     ),
   }),
