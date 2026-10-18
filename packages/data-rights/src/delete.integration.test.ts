@@ -43,6 +43,16 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     await migrateEmptyDatabase(db);
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('user-a2', 'a2@example.test'), ('user-a3', 'a3@example.test');
+      insert into member (id, organization_id, user_id, role)
+        values ('m-a2', 'org-a', 'user-a2', 'collaborator'), ('m-a3', 'org-a', 'user-a3', 'collaborator');
+      insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+        values ('org-a', 'user-a2', 1, false, array['chronic_kidney_disease']),
+               ('org-a', 'user-a3', 1, false, array['glp1_medication']);
+    `),
+    );
 
     for (const who of ["a", "b"]) {
       await db.execute(
@@ -130,6 +140,16 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     `),
     );
 
+    // A collaborator can erase their user-owned settings without affecting
+    // the owner or another collaborator in the same workspace.
+    await deleteSubjectData(db, { userId: "user-a2", organizationIds: [] });
+    const retainedSettings = (
+      await db.execute(
+        sql`select user_id from nutrition_target_settings where organization_id = 'org-a' order by user_id`,
+      )
+    ).rows as { user_id: string }[];
+    expect(retainedSettings.map(({ user_id }) => user_id)).toEqual(["user-a", "user-a3"]);
+
     resolvedA = await resolveSubject(db, "user-a");
     resolvedB = await resolveSubject(db, "user-b");
     preview = await previewSubjectData(db, A);
@@ -173,7 +193,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(remaining.map(({ user_id, declarations }) => ({ user_id, declarations }))).toEqual([
       { user_id: "user-b", declarations: ["chronic_kidney_disease"] },
     ]);
-    expect(report.rowCounts.nutrition_target_settings).toBe(2);
+    expect(report.rowCounts.nutrition_target_settings).toBe(3);
   });
 
   test("supplements: own removed, shared and other-account kept", async () => {
@@ -198,7 +218,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);
-    expect(report.rowCounts.nutrition_target_settings).toBe(2);
+    expect(report.rowCounts.nutrition_target_settings).toBe(3);
     expect(report.rowCounts.user).toBe(1);
     expect(report.rowCounts.organization).toBe(1);
     const ledger = (await db.execute(sql`select * from erasure_ledger`)).rows as {
@@ -206,10 +226,10 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       organization_ids: string[];
       row_counts: Record<string, number>;
     }[];
-    expect(ledger).toHaveLength(1);
-    expect(ledger[0]!.subject_user_id).toBe("user-a");
-    expect(ledger[0]!.organization_ids).toEqual(["org-a"]);
-    expect(ledger[0]!.row_counts).toEqual(report.rowCounts);
+    expect(ledger).toHaveLength(2);
+    const ownerErasure = ledger.find((entry) => entry.subject_user_id === "user-a");
+    expect(ownerErasure?.organization_ids).toEqual(["org-a"]);
+    expect(ownerErasure?.row_counts).toEqual(report.rowCounts);
   });
 
   test("subject resolution: owned records only, co-owned records block", () => {

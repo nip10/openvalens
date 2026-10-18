@@ -135,7 +135,8 @@ Changing any value is a reviewed config change: bump the version in
 
 `nutrition_target_settings` (hide-numbers, direction, active opt-in, height,
 declarations) is user-owned. Reads and writes require the member's own
-non-impersonated session; workspace owners do not receive another member's
-settings through export or deletion. Logs and audit entries carry generic
+non-impersonated session; exports include only that member's settings. When an
+owned workspace is erased, all member settings in that disappearing workspace
+are removed before membership rows. Logs and audit entries carry generic
 processing outcomes and nutrient keys only, never a value, reason or
 declaration.

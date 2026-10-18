@@ -135,7 +135,6 @@ export const nutritionTargetsRouter = {
       const result = await run(() => service(context).updateSettings(scope, input));
       logger.info("nutrition.target_settings.update", {
         correlationId: context.correlationId,
-        outcome: result.outcome,
       });
       return { ...result, targetId: "settings" };
     }),

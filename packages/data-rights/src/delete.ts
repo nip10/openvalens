@@ -121,6 +121,14 @@ export async function deleteSubjectData(
     ).rows.map((row) => String((row as { id: number }).id));
 
     for (const table of order) {
+      if (table === "member") {
+        // The organization is being erased, so remove every member's settings
+        // before memberships disappear. Exports remain filtered by user_id.
+        record(
+          "nutrition_target_settings",
+          await deleteCount(tx, "nutrition_target_settings", inList("organization_id", orgIds)),
+        );
+      }
       if (table === "supplement") {
         record(
           table,
