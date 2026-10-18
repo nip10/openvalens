@@ -431,13 +431,12 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       { min_amount: 2000, max_amount: 2000, active: true },
     ]);
 
-    // From an existing target the proposal moves one step only.
+    // The member has not chosen "lose"; a target still below the estimate
+    // cannot be proposed as a maintenance step, even while moving upward.
     const stepped = await propose("2026-03-28", "user-b");
-    if (stepped.body.outcome !== "proposed") throw new Error("expected a proposal");
-    expect(stepped.body.proposal).toMatchObject({
-      currentTargetKcal: 2000,
-      targetKcal: 2200,
-      stepLimited: true,
+    expect(stepped.body).toMatchObject({
+      outcome: "declined",
+      reason: "not_suggested_for_profile",
     });
   });
 
