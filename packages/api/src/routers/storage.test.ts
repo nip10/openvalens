@@ -18,12 +18,14 @@ class AuthzHttpError extends Error {
 }
 
 let activeOrg: string | null = "org-a";
+let activeUserId = "user-a";
+let activeRole = "viewer";
 let denied = false;
 const membership = () => ({
-  user: { id: "actor" },
+  user: { id: activeUserId },
   activeOrganizationId: activeOrg,
-  role: "viewer",
-  member: { role: "viewer" },
+  role: activeRole,
+  member: { role: activeRole },
 });
 const requireOrgMembership = mock(async () => {
   if (!activeOrg) throw new AuthzHttpError("NO_MEMBERSHIP");
@@ -93,7 +95,11 @@ async function code(promise: Promise<unknown>): Promise<string | undefined> {
 
 beforeEach(() => {
   activeOrg = "org-a";
+  activeUserId = "user-a";
+  activeRole = "viewer";
   denied = false;
+  object.createdByUserId = "user-a";
+  object.purpose = "progress_photo";
   for (const fn of [
     requireOrgMembership,
     requirePermission,
@@ -126,6 +132,37 @@ describe("storage.downloadUrl", () => {
     expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
     expect(requirePermission).not.toHaveBeenCalled();
     expect(createDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  test("progress photos are private to the uploader, including from workspace owners", async () => {
+    activeUserId = "another-member";
+    expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
+    expect(requirePermission.mock.calls[0]![1]).toEqual({ resource: "weight", action: "read" });
+    expect(createDownloadUrl).not.toHaveBeenCalled();
+
+    requirePermission.mockClear();
+    activeRole = "owner";
+    expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
+    expect(requirePermission.mock.calls[0]![1]).toEqual({ resource: "weight", action: "read" });
+    expect(createDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  test("an unattributed progress photo fails closed; its uploader may mint a link", async () => {
+    object.createdByUserId = null;
+    expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
+    expect(createDownloadUrl).not.toHaveBeenCalled();
+
+    object.createdByUserId = "user-a";
+    expect((await call(context(), { objectId: OBJECT_ID })).url).toContain(OBJECT_ID);
+    expect(createDownloadUrl).toHaveBeenCalledTimes(1);
+  });
+
+  test("same-organization members retain access to non-photo purposes under RBAC", async () => {
+    object.purpose = "lab_document";
+    activeUserId = "another-member";
+    activeRole = "owner";
+    expect((await call(context(), { objectId: OBJECT_ID })).url).toContain(OBJECT_ID);
+    expect(requirePermission.mock.calls[0]![1]).toEqual({ resource: "blood", action: "read" });
   });
 
   test("a role without read permission is denied", async () => {
@@ -182,5 +219,27 @@ describe("storage.delete", () => {
     expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
     expect(deleteObject).not.toHaveBeenCalled();
     expect(audit).not.toHaveBeenCalled();
+  });
+
+  test("another member and workspace owner cannot delete a private photo", async () => {
+    activeUserId = "another-member";
+    expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
+    activeRole = "owner";
+    expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
+    expect(deleteObject).not.toHaveBeenCalled();
+    expect(audit).not.toHaveBeenCalled();
+  });
+
+  test("unattributed photos cannot be deleted by an organization owner", async () => {
+    activeRole = "owner";
+    object.createdByUserId = null;
+    expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
+    expect(deleteObject).not.toHaveBeenCalled();
+    expect(audit).not.toHaveBeenCalled();
+  });
+
+  test("the matching uploader can delete their photo", async () => {
+    expect(await call(context(), { objectId: OBJECT_ID })).toEqual({ deleted: true });
+    expect(deleteObject).toHaveBeenCalledTimes(1);
   });
 });

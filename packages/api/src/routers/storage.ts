@@ -25,8 +25,10 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
  * URL: it asks for a short-lived signed download URL here, after the server
  * has checked that the object belongs to the caller's *active* organization
  * (from the session, never from input) and that the caller's role grants
- * `read` on the object's purpose resource (`PURPOSE_POLICIES`). An object in
- * another organization is indistinguishable from a missing one.
+ * `read` on the object's purpose resource (`PURPOSE_POLICIES`). Progress
+ * photos additionally require the authenticated uploader; organization roles
+ * do not grant access to another member's photos. An object in another
+ * organization or a non-owned photo is indistinguishable from a missing one.
  *
  * Uploads are not a generic endpoint: each feature (#85 progress photos, #132
  * clinical PDF export) calls `StorageService.putObject` from its own procedure
@@ -86,6 +88,12 @@ async function loadAuthorizedObject(
     }),
   );
   if (authz.activeOrganizationId !== object.organizationId)
+    throw raiseApiError("NOT_FOUND", "Object not found.");
+  // Progress photos are intrinsically member-private. This check deliberately
+  // does not special-case owners or admins. A missing creator is not
+  // attributable and therefore fails closed. Other purposes retain their
+  // existing organization-RBAC semantics.
+  if (object.purpose === "progress_photo" && object.createdByUserId !== authz.user.id)
     throw raiseApiError("NOT_FOUND", "Object not found.");
   return { object, authz };
 }
