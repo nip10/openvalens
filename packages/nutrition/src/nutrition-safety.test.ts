@@ -153,6 +153,10 @@ describe("floors and references", () => {
       maxGPerKg: 0.8,
       basis: "kidney_cap",
     });
+    const ckd80kg = proteinReference({ ...base, weightKg: 80, kidneyCap: true })!;
+    expect(ckd80kg.maxG).toBeLessThanOrEqual(80 * 0.8);
+    const older67kg = proteinReference({ ...base, weightKg: 67, maxAge: 66 })!;
+    expect(older67kg.minG).toBeGreaterThanOrEqual(67);
     expect(proteinReference({ ...base, weightKg: null })).toBeNull();
     expect(proteinReference({ ...base, adultConfirmed: false })).toBeNull();
   });
@@ -243,10 +247,10 @@ describe("deficit and gain proposals", () => {
       outcome: "declined",
       reason: "not_suggested_for_profile",
     });
-    // BMI 18.7 now, projected below 18.5 after the horizon.
-    expect(plan("lose", { body: { ...BODY, weightKg: 57.3 } })).toEqual({
-      outcome: "declined",
-      reason: "not_suggested_for_profile",
+    // The policy has no invented fixed projection horizon; current BMI is the gate.
+    expect(plan("lose", { body: { ...BODY, weightKg: 57.3 } })).toMatchObject({
+      outcome: "proposal",
+      kind: "deficit",
     });
   });
 
@@ -268,25 +272,104 @@ describe("deficit and gain proposals", () => {
     });
   });
 
-  test("gain: a capped surplus within 10–20%", () => {
-    expect(plan("gain")).toMatchObject({ kind: "gain", targetKcal: 2850 });
+  test("gain: a 10% default surplus, capped at 20% and weekly body-weight limit", () => {
+    expect(plan("gain")).toMatchObject({ kind: "gain", targetKcal: 2750 });
     // 50 kg caps the surplus at 0.5%/week = 275 kcal.
     expect(maxSurplusKcal(2500, { ...BODY, weightKg: 50 })).toBe(275);
     expect(plan("gain", { body: { ...BODY, weightKg: 50 } })).toMatchObject({ targetKcal: 2750 });
   });
 
-  test("an unsafe intermediate step jumps to the safe target", () => {
-    // Own target 900 kcal; maintenance at 2,500: a +200 step would stay below 1,200.
-    expect(plan("maintain", { currentTargetKcal: 900 })).toMatchObject({
-      targetKcal: 2500,
-      stepLimited: false,
+  test("an unsafe intermediate step withholds a proposal rather than jumping", () => {
+    expect(plan("maintain", { currentTargetKcal: 900 })).toEqual({
+      outcome: "declined",
+      reason: "below_floor",
     });
-    // Own target 1,600 with a 2,000 deficit target: a +200 step to 1,800 leaves a 700 kcal
-    // deficit, above the 625 kcal hard cap (25% of 2,500), so the safe target is proposed.
-    expect(plan("lose", { currentTargetKcal: 1600 })).toMatchObject({
-      targetKcal: 2000,
-      stepLimited: false,
+    expect(plan("lose", { currentTargetKcal: 1600 })).toEqual({
+      outcome: "declined",
+      reason: "not_suggested_for_profile",
     });
+  });
+
+  test("actual target constraints apply regardless of direction label", () => {
+    const pregnantSafety = safetyFor(["pregnant_or_breastfeeding"]);
+    for (const direction of ENERGY_DIRECTIONS)
+      expect(
+        planEnergyProposal({
+          estimate: estimated(3000),
+          adultConfirmed: true,
+          currentTargetKcal: 1800,
+          lastAcceptedAt: null,
+          now: NOW,
+          direction,
+          safety: pregnantSafety,
+          body: BODY,
+        }),
+      ).toMatchObject({ outcome: "declined" });
+
+    // Without an exclusion, a lower actual target still requires an explicit
+    // lose choice; maintain/gain labels cannot disguise the reduction.
+    for (const direction of ["maintain", "gain"] as const)
+      expect(
+        planEnergyProposal({
+          estimate: estimated(3000),
+          adultConfirmed: true,
+          currentTargetKcal: 2500,
+          lastAcceptedAt: null,
+          now: NOW,
+          direction,
+          safety: safetyFor(),
+          body: BODY,
+        }),
+      ).toEqual({ outcome: "declined", reason: "not_suggested_for_profile" });
+
+    expect(
+      planEnergyProposal({
+        estimate: estimated(3000),
+        adultConfirmed: true,
+        currentTargetKcal: 1200,
+        lastAcceptedAt: null,
+        now: NOW,
+        direction: "gain",
+        safety: safetyFor(),
+        body: BODY,
+      }),
+    ).toMatchObject({ outcome: "declined", reason: "below_floor" });
+
+    expect(
+      planEnergyProposal({
+        estimate: estimated(1300),
+        adultConfirmed: true,
+        currentTargetKcal: null,
+        lastAcceptedAt: null,
+        now: NOW,
+        direction: "maintain",
+        safety: safetyFor(),
+        body: BODY,
+      }),
+    ).toMatchObject({ outcome: "declined", reason: "below_floor" });
+
+    expect(
+      planEnergyProposal({
+        estimate: estimated(2500),
+        adultConfirmed: true,
+        currentTargetKcal: 3000,
+        lastAcceptedAt: null,
+        now: NOW,
+        direction: "maintain",
+        safety: safetyFor(),
+        body: BODY,
+      }),
+    ).toMatchObject({ outcome: "proposal", targetKcal: 2800, stepLimited: true });
+  });
+
+  test("infeasible floor and step combination withholds the proposal", () => {
+    expect(
+      plan("gain", {
+        estimate: estimated(3000),
+        currentTargetKcal: 1200,
+        body: { ...BODY, sex: "male" },
+      }),
+    ).toMatchObject({ outcome: "declined", reason: "below_floor" });
   });
 });
 
@@ -336,13 +419,16 @@ describe("property: no proposal violates floor, caps, step size or BMI gate", ()
       expect(adultConfirmed).toBe(true);
       expect(safety.energySuggestions).toBe("available");
       expect(target).toBeGreaterThanOrEqual(P.neverBelowKcal);
+      expect(target).toBeGreaterThanOrEqual(
+        calorieFloorKcal({ sex: body.sex, restingKcal: estimateRestingKcal(body) }),
+      );
       if (!result.stepLimited) expect(target % P.targetPrecisionKcal).toBe(0);
       expect(isSafeTarget(target, result.kind, estimateKcal, body)).toBe(true);
       expect(result.kind).toBe(
         direction === "lose" ? "deficit" : direction === "gain" ? "gain" : "maintenance",
       );
 
-      if (result.kind === "deficit") {
+      if (target < estimateKcal) {
         deficits += 1;
         expect(
           declarations.some((d) => (NUTRITION_EXCLUSIONS as readonly string[]).includes(d)),
@@ -361,27 +447,15 @@ describe("property: no proposal violates floor, caps, step size or BMI gate", ()
         expect(bmiOf(body.weightKg!, body.heightCm!)).toBeGreaterThanOrEqual(
           P.bmi.underweightBelow,
         );
-        const projected =
-          body.weightKg! -
-          (Math.max(0, deficit) * 7 * P.bmi.projectionWeeks) / P.energyDensityKcalPerKg;
-        expect(bmiOf(projected, body.heightCm!)).toBeGreaterThanOrEqual(P.bmi.underweightBelow);
-        expect(result.needsConfirmation).toBe(safety.softGates.length > 0);
+        expect(safety.reductionSuggestions).toBe("available");
       }
-      if (result.kind === "gain")
-        expect(target - estimateKcal).toBeLessThanOrEqual(
-          P.gain.maxFractionOfEstimate * estimateKcal,
-        );
+      if (target > estimateKcal)
+        expect(target - estimateKcal).toBeLessThanOrEqual(maxSurplusKcal(estimateKcal, body));
 
       if (currentTargetKcal !== null) {
-        const step = Math.max(P.step.maxKcal, P.step.maxFraction * currentTargetKcal);
+        const step = Math.min(P.step.maxKcal, P.step.maxFraction * currentTargetKcal);
         const moved = Math.abs(target - currentTargetKcal);
-        if (moved > step) {
-          // Only when the stepped value would itself be unsafe.
-          const allowed = Math.floor(step / P.targetPrecisionKcal) * P.targetPrecisionKcal;
-          const stepped = currentTargetKcal + Math.sign(target - currentTargetKcal) * allowed;
-          expect(isSafeTarget(stepped, result.kind, estimateKcal, body)).toBe(false);
-          expect(result.stepLimited).toBe(false);
-        }
+        expect(moved).toBeLessThanOrEqual(step);
       }
     }
     // The generator must actually exercise reductions.

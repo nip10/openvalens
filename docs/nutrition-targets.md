@@ -53,9 +53,9 @@ hidden too. Turning it on or off never changes stored data.
 | Never propose     | < 1,200 kcal/d under any setting                                                          | NICE NG246                                             |
 | Default deficit   | min(500 kcal/d, 20% of estimate, 0.7% body weight/week)                                   | AHA; Garthe 2011                                       |
 | Hard deficit cap  | min(750 kcal/d, 25% of estimate); loss ≤ 1.0% body weight/week (0.5% at 65+)              | AHA; Helms 2014                                        |
-| Gain              | +15% of the estimate (within 10–20%), ≤ 0.5% body weight/week                             | Iraki 2019                                             |
-| Weekly step       | each change ≤ max(200 kcal, 10% of current); one accepted change per 7 days               | Product choice                                         |
-| BMI gate          | no reduction if current BMI < 18.5 or projected BMI after 12 weeks < 18.5                 | WHO; 12-week horizon is a product choice               |
+| Gain              | +10% default, at most +20% of estimate; ≤ 0.5% body weight/week                           | Decision 15; Iraki 2019                                |
+| Weekly step       | each change ≤ min(200 kcal, 10% of current); one accepted change per 7 days               | Decision 15 [PRODUCT CHOICE]                           |
+| BMI gate          | no reduction if current BMI < 18.5; no undefined projected-horizon test                   | Decision 16; WHO                                       |
 | Protein reference | 0.8 g/kg; 1.2–1.6 g/kg only if opted in as active; ≥ 1.0 g/kg at 65+; ≤ 0.8 g/kg with CKD | NASEM/EFSA; PROT-AGE 2013; KDIGO 2024 3.3.1.1          |
 
 Rules the planner adds:
@@ -66,9 +66,17 @@ Rules the planner adds:
   app won't do, never a floor, BMI or weight.
 - Rounding always moves towards the estimate, so it never enlarges a deficit
   or surplus.
-- **Safety beats the weekly step:** if a step-limited target would itself
-  break a limit (for example a step that stays below 1,200 kcal), the safe
-  target is proposed instead.
+- Protein minimums are rounded up and maximums down to preserve their bounds;
+  the CKD cap is rounded down. A single unconstrained reference value is
+  rounded to the nearest configured precision.
+- A returned target must satisfy the floors, expenditure-relative deficit or
+  surplus limits, exclusions and weekly step regardless of its direction
+  label. If the step-limited target is unsafe, the proposal is withheld rather
+  than jumping to a larger target. This includes cases where the floor and step
+  limit cannot both be satisfied.
+- BMI eligibility uses current BMI only. The earlier fixed 12-week projection
+  was not supported by the recorded decision and is not applied; no projection
+  horizon is defined for an accepted target.
 - Accepting re-checks everything: a newly declared exclusion blocks a pending
   reduction, and a reduction under a soft gate needs an explicit confirmation.
 

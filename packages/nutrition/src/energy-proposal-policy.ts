@@ -24,13 +24,13 @@ import {
  * - `deficit` only when the member chose "lose", is an adult, declared no
  *   exclusion, and has a recent weight and a height for the BMI gate. The
  *   deficit is the default size and never exceeds the hard caps, the target
- *   never goes below the member's floor, and current and projected BMI stay
- *   at or above the gate.
+ *   never goes below the member's floor, and current BMI stays at or above
+ *   the gate.
  * - `gain` only when the member chose "gain": a capped surplus.
  * - Never below 1,200 kcal/day under any setting.
- * - Each change moves the target by at most max(200 kcal, 10% of the current
- *   target) and at most one accepted change per 7 days — except that a step
- *   which would itself break a safety limit is replaced by the safe target.
+ * - Each change moves the target by at most min(200 kcal, 10% of the current
+ *   target) and at most one accepted change per 7 days. If no safe step fits,
+ *   no proposal is made.
  * - A proposal expires after 7 days and is re-checked on accept.
  *
  * Every proposal row stores the policy version it was made under.
@@ -145,7 +145,7 @@ export type SafetyLimits = {
   minTargetKcal: number;
   /** Highest allowed target for a gain (kcal/day), else `null`. */
   maxTargetKcal: number | null;
-  /** For a deficit: lowest target whose projected BMI stays at or above the gate, else `null`. */
+  /** For a deficit: lowest target that stays at or above the BMI gate, else `null`. */
   minTargetForBmiKcal: number | null;
 };
 
@@ -203,29 +203,32 @@ export function maxSurplusKcal(
   return Math.min(...caps);
 }
 
-/** True when `targetKcal` meets every safety limit for `kind` (step size is separate). */
+/** True when `targetKcal` meets every safety limit, regardless of requested direction. */
 export function isSafeTarget(
   targetKcal: number,
-  kind: EnergyProposalKind,
+  _kind: EnergyProposalKind,
   estimateKcal: number,
   body: ProposalBody,
   policy: EnergyProposalPolicy = ENERGY_PROPOSAL_POLICY,
 ): boolean {
   if (targetKcal < policy.neverBelowKcal) return false;
-  if (kind === "gain")
-    return targetKcal - estimateKcal <= maxSurplusKcal(estimateKcal, body, policy);
-  if (kind === "maintenance") return true;
-  // Deficit: floor, cap and BMI (current and projected) must all hold.
-  if (body.weightKg === null || body.heightCm === null) return false;
-  const floor = calorieFloorKcal({ sex: body.sex, restingKcal: estimateRestingKcal(body) }, policy);
+  const floor = Math.max(
+    policy.neverBelowKcal,
+    calorieFloorKcal({ sex: body.sex, restingKcal: estimateRestingKcal(body) }, policy),
+  );
   if (targetKcal < floor) return false;
-  const deficit = estimateKcal - targetKcal;
-  if (deficit > maxDeficitKcal(estimateKcal, body, policy)) return false;
-  if (bmiOf(body.weightKg, body.heightCm) < policy.bmi.underweightBelow) return false;
-  const projectedKg =
-    body.weightKg -
-    (Math.max(0, deficit) * 7 * policy.bmi.projectionWeeks) / policy.energyDensityKcalPerKg;
-  return bmiOf(projectedKg, body.heightCm) >= policy.bmi.underweightBelow;
+  if (targetKcal < estimateKcal) {
+    if (body.weightKg === null || body.heightCm === null) return false;
+    const deficit = estimateKcal - targetKcal;
+    if (deficit > maxDeficitKcal(estimateKcal, body, policy)) return false;
+    if (bmiOf(body.weightKg, body.heightCm) < policy.bmi.underweightBelow) return false;
+  }
+  if (
+    targetKcal > estimateKcal &&
+    targetKcal - estimateKcal > maxSurplusKcal(estimateKcal, body, policy)
+  )
+    return false;
+  return true;
 }
 
 /**
@@ -302,23 +305,50 @@ export function planEnergyProposal(input: {
   let target = desired;
   let stepLimited = false;
   if (current !== null) {
-    const step = Math.max(policy.step.maxKcal, policy.step.maxFraction * current);
+    const step = Math.min(policy.step.maxKcal, policy.step.maxFraction * current);
     if (Math.abs(desired - current) > step) {
       // Whole precision steps only, so rounding never exceeds the step limit.
       const allowed = Math.floor(step / precision) * precision;
       const stepped = current + Math.sign(desired - current) * allowed;
-      // Safety beats the weekly step: an unsafe intermediate step jumps to the safe target.
-      if (isSafeTarget(stepped, kind, estimateKcal, body, policy)) {
-        target = stepped;
-        stepLimited = true;
-      }
+      if (!isSafeTarget(stepped, kind, estimateKcal, body, policy))
+        return {
+          outcome: "declined",
+          reason:
+            stepped <
+            Math.max(
+              policy.neverBelowKcal,
+              calorieFloorKcal({ sex: body.sex, restingKcal: estimateRestingKcal(body) }, policy),
+            )
+              ? "below_floor"
+              : "not_suggested_for_profile",
+        };
+      target = stepped;
+      stepLimited = true;
     }
   }
 
-  if (target < policy.neverBelowKcal) return { outcome: "declined", reason: "below_floor" };
+  // Judge the actual target, not its requested label: only an explicit lose
+  // choice may produce a reduction, and exclusions apply to every label.
+  if (target < estimateKcal) {
+    if (direction !== "lose" || safety.reductionSuggestions === "off")
+      return { outcome: "declined", reason: "not_suggested_for_profile" };
+  }
+
   if (current !== null && Math.abs(target - current) < policy.minChangeKcal)
     return { outcome: "declined", reason: "no_change" };
 
+  if (!isSafeTarget(target, kind, estimateKcal, body, policy))
+    return {
+      outcome: "declined",
+      reason:
+        target <
+        Math.max(
+          policy.neverBelowKcal,
+          calorieFloorKcal({ sex: body.sex, restingKcal: estimateRestingKcal(body) }, policy),
+        )
+          ? "below_floor"
+          : "not_suggested_for_profile",
+    };
   return {
     outcome: "proposal",
     kind,

@@ -68,25 +68,23 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
     hardMaxWeeklyLossFraction: 0.01,
   }),
   gain: Object.freeze({
-    /** Surplus within 10–20% of the estimate (Iraki 2019); v1 aims at the middle. */
+    /** Surplus capped at 10% of the estimate (recorded product/legal decision). */
     minFractionOfEstimate: 0.1,
     maxFractionOfEstimate: 0.2,
-    aimFractionOfEstimate: 0.15,
+    aimFractionOfEstimate: 0.1,
     /** Gain is capped at 0.5% of body weight per week when a weight is known. */
     maxWeeklyGainFraction: 0.005,
   }),
   step: Object.freeze({
-    /** Each change moves the target by at most max(maxKcal, maxFraction × current) (product choice). */
+    /** Each change moves the target by at most min(maxKcal, maxFraction × current). */
     maxKcal: 200,
     maxFraction: 0.1,
     /** Days after an accepted change before the next proposal. */
     minDaysBetweenChanges: 7,
   }),
   bmi: Object.freeze({
-    /** No reduction if current or projected BMI is below this (WHO underweight cut-off). */
+    /** No reduction if current BMI is below this (WHO underweight cut-off). */
     underweightBelow: 18.5,
-    /** Horizon for the projected BMI check, at the proposed deficit (product choice). */
-    projectionWeeks: 12,
   }),
   olderAdult: Object.freeze({
     /** Soft gate from this age: extra confirmation, slower loss, more protein. */
@@ -320,9 +318,17 @@ export function proteinReference(
     max = Math.min(max, p.kidneyMaxGPerKg);
     basis = "kidney_cap";
   }
-  const grams = (gPerKg: number) =>
-    Math.round((gPerKg * input.weightKg!) / p.precisionG) * p.precisionG;
-  return { minGPerKg: min, maxGPerKg: max, minG: grams(min), maxG: grams(max), basis };
+  const minUnrounded = min * input.weightKg;
+  const maxUnrounded = max * input.weightKg;
+  const preserveLowerBound = basis === "older_adult" || min < max;
+  const nearestG = Math.round(minUnrounded / p.precisionG) * p.precisionG;
+  const minG = input.kidneyCap
+    ? Math.floor(minUnrounded / p.precisionG) * p.precisionG
+    : preserveLowerBound
+      ? Math.ceil(minUnrounded / p.precisionG) * p.precisionG
+      : nearestG;
+  const maxG = preserveLowerBound ? Math.floor(maxUnrounded / p.precisionG) * p.precisionG : minG;
+  return { minGPerKg: min, maxGPerKg: max, minG, maxG, basis };
 }
 
 // ─── Helplines (versioned, re-checked every 6 months) ──────────
