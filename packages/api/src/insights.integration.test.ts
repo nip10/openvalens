@@ -53,6 +53,7 @@ async function migrate(db: Database): Promise<void> {
 const MEMBERS: Record<string, { org: string; role: string; denied?: boolean }> = {
   "user-a": { org: "org-a", role: "owner" },
   "user-v": { org: "org-a", role: "viewer" },
+  "user-c": { org: "org-a", role: "owner" },
   "user-n": { org: "org-a", role: "viewer", denied: true },
   "user-b": { org: "org-b", role: "owner" },
   "user-u": { org: "org-u", role: "owner" },
@@ -343,6 +344,19 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
 
     const otherMember = await call<InsightsResult>("insights/list", {}, "user-v");
     expect(otherMember.body.observations).toEqual([]);
+
+    // An owner-role member in the same organization must not inherit this
+    // member's observation opt-in or receive their meal/workout inputs.
+    await call("insights/preferences/update", { channels: { observation: { in_app: true } } });
+    const optedInOtherMember = await call(
+      "insights/preferences/update",
+      { channels: { observation: { in_app: true } } },
+      "user-c",
+    );
+    expect(optedInOtherMember.status).toBe(200);
+    expect((await call<InsightsResult>("insights/list", {}, "user-c")).body.observations).toEqual(
+      [],
+    );
 
     const granted = await call<InsightPreferences>("insights/preferences/update", {
       channels: { observation: { in_app: true } },

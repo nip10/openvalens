@@ -6,5 +6,5 @@ ALTER TABLE "insight_preference" ADD CONSTRAINT "insight_preference_disabled_cha
   'data_quality:in_app', 'data_quality:push', 'data_quality:email',
   'streak:in_app', 'streak:push', 'streak:email',
   'reminder:in_app', 'reminder:push', 'reminder:email',
-  'observation:in_app', 'observation:push', 'observation:email'
+  'observation:enabled', 'observation:in_app', 'observation:push', 'observation:email'
 ]::text[]);

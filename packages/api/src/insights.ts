@@ -187,11 +187,10 @@ type PreferenceRow = typeof insightPreference.$inferSelect;
 
 export function channelsFromDisabled(disabled: readonly string[]): KindChannels {
   const channels = defaultKindChannels();
-  // Observation toggles were added after the original preference row. The
-  // presence of any observation channel in the disabled list means that this
-  // kind has an explicit stored choice; unlisted channels are therefore on.
-  // No marker means the historical/default state remains off everywhere.
-  if (disabled.some((entry) => entry.startsWith("observation:")))
+  // Observation toggles were added after the original preference row. A
+  // dedicated marker distinguishes an explicit opt-in from legacy rows, whose
+  // default remains off even when they have no disabled observation channels.
+  if (disabled.includes("observation:enabled"))
     channels.observation = { in_app: true, push: true, email: true };
   for (const entry of disabled) {
     const [kind, channel] = entry.split(":") as [keyof KindChannels, InsightChannel];
@@ -203,6 +202,8 @@ export function channelsFromDisabled(disabled: readonly string[]): KindChannels 
 
 export function disabledFromChannels(channels: KindChannels): string[] {
   const disabled: string[] = [];
+  if (INSIGHT_CHANNELS.some((channel) => channels.observation[channel]))
+    disabled.push("observation:enabled");
   for (const kind of INSIGHT_KINDS)
     for (const channel of INSIGHT_CHANNELS)
       if (!channels[kind][channel]) disabled.push(`${kind}:${channel}`);
