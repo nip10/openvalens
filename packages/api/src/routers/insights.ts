@@ -36,6 +36,7 @@ import {
   type InsightAccess,
   type InsightDeliveryContext,
 } from "../insights";
+import { loadNutritionObservations } from "../nutrition-observation-data";
 
 /**
  * Issue #92 — insights.
@@ -122,11 +123,36 @@ export const insightsRouter = {
           organizationId: context.authz.activeOrganizationId,
           userId: context.authz.user.id,
         };
-        const result = await createInsightService({ db: context.db }).list(
-          scope,
-          await accessFor(context),
-          deliveryFor(context, context.authz),
-        );
+        const service = createInsightService({ db: context.db });
+        const delivery = deliveryFor(context, context.authz);
+        const result = await service.list(scope, await accessFor(context), delivery);
+        // This preference is persisted with the existing per-member insights
+        // settings. The route itself has no identity inputs; scope comes from
+        // the trusted authz context. Withheld adults-only profiles load nothing.
+        if (result.status === "available") {
+          const preferences = await service.getPreferences(scope, delivery);
+          if (preferences.channels.observation.in_app) {
+            const to = new Date(`${result.asOf}T00:00:00.000Z`);
+            const from = new Date(to);
+            from.setUTCDate(from.getUTCDate() - 27);
+            const workoutPermission = await can(context, "workout");
+            result.observations = await loadNutritionObservations(
+              context.db,
+              scope,
+              { from: from.toISOString().slice(0, 10), to: result.asOf },
+              {
+                optedIn: true,
+                nutrition: true,
+                // The procedure's records:read guard is the sleep/diary read gate.
+                sleep: true,
+                activity: workoutPermission,
+                // #80 has no merged hide-numbers preference yet; fail closed
+                // until its member preference can be wired independently.
+                hideNumbers: true,
+              },
+            );
+          }
+        }
         logger.info("insights.list.computed", {
           correlationId: context.correlationId,
           status: result.status,

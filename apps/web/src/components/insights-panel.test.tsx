@@ -34,6 +34,7 @@ function result(): InsightsResult {
     status: "available",
     withheldReason: null,
     insights: output.insights,
+    observations: [],
     readiness: output.readiness,
     hiddenCount: 0,
     budget: { changeCap: 2, suppressedChanges: 0 },
