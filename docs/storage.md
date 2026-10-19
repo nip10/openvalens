@@ -149,6 +149,18 @@ refuses managed photos before source or target I/O.
 
 ## For feature code (#85, #132)
 
+Before persisting an uploaded photo, server code must pass its bytes through
+`sanitizeImage` from `@openvalens/body/sanitize-image` and store only the
+returned bytes and encoder-selected `contentType`; ignore client MIME types and
+filenames. This helper accepts JPEG/PNG only, applies EXIF orientation, strips
+metadata by re-encoding, and rejects malformed input. Its documented resource
+limits are 10 MiB input, 16 megapixels, a 2048-pixel output edge and 8 MiB
+output. They are implementation/resource limits, not clinical or product
+behavior. Do not log input bytes, filenames, decoder diagnostics or metadata.
+The helper is server-only: do not import it from browser/mobile code. Sharp is
+Apache-2.0 licensed and distributes native libvips under LGPL-3.0-or-later;
+this records upstream licence facts, not legal review.
+
 Use the tenant-scoped `StorageService` (`@openvalens/storage`), bound on the
 oRPC context as `context.storage` (`null` when storage is off — fail closed):
 
