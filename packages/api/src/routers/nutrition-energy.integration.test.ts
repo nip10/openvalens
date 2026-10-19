@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
 import { RPCHandler } from "@orpc/server/fetch";
+import { createAutoReconciliationTxService } from "@openvalens/body";
 
 import type { Context } from "../context";
 import type {
@@ -465,6 +466,83 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     await db.execute(
       sql`update wellness_profile set eligibility_state = 'recorded', eligibility = 'adult' where user_id = 'user-y'`,
     );
+  });
+
+  test("auto weight writer holds the shared user lock through a new canonical-day insert", async () => {
+    await db.execute(sql`
+      insert into nutrition_target_settings
+        (organization_id, user_id, revision, hide_numbers, energy_direction, active_protein, height_cm, declarations)
+      values ('org-y', 'user-y', 1, false, 'lose', false, 170, '{}')
+      on conflict (organization_id, user_id) do update
+        set revision = 1, energy_direction = 'lose', height_cm = 170, declarations = '{}'
+    `);
+    await db.execute(sql`
+      insert into daily_weight (organization_id, user_id, date, weight_kg, source, created_at, updated_at)
+      values ('org-y', 'user-y', '2026-10-18', 80, 'manual', now(), now())
+    `);
+    const proposed = await propose("2026-03-28", "user-y");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    expect(proposed.body.proposal.kind).toBe("deficit");
+
+    const scope = { organizationId: "org-y", userId: "user-y" };
+    let writerReady!: () => void;
+    let releaseWriter!: () => void;
+    const ready = new Promise<void>((resolve) => (writerReady = resolve));
+    const blocked = new Promise<void>((resolve) => (releaseWriter = resolve));
+    const writer = db.transaction(async (tx) => {
+      await createAutoReconciliationTxService(tx, tx).ingestAutoWeightEvent({
+        ...scope,
+        date: "2026-10-19",
+        measuredAt: "2026-10-19T12:00:00.000Z",
+        weightKg: 50,
+        sourceDetail: "test-scale",
+        metadataJson: { metricSampleId: 88001 },
+      });
+      const [{ pid }] = (await tx.execute(sql`select pg_backend_pid() as pid`)).rows as [
+        { pid: number },
+      ];
+      writerReady();
+      await blocked;
+      return pid;
+    });
+
+    try {
+      await ready;
+      const accepting = accept(proposed.body.proposal.id, "user-y");
+      let observed = false;
+      for (let attempt = 0; attempt < 500; attempt++) {
+        const waiters = await db.execute(
+          sql`select count(*)::int as count from pg_stat_activity where wait_event_type = 'Lock' and wait_event = 'advisory'`,
+        );
+        if ((waiters.rows[0] as { count: number }).count > 0) {
+          observed = true;
+          break;
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+      expect(observed).toBe(true);
+      releaseWriter();
+      await writer;
+      const result = await accepting;
+      expect(result.body).toMatchObject({
+        outcome: "declined",
+        reason: "not_suggested_for_profile",
+      });
+      expect(await energyGoals("user-y")).toEqual([]);
+      const canonical = await db.execute(
+        sql`select source from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date = '2026-10-19'`,
+      );
+      expect(canonical.rows).toEqual([{ source: "auto" }]);
+    } finally {
+      releaseWriter();
+      await writer.catch(() => undefined);
+      await db.execute(
+        sql`delete from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date in ('2026-10-18', '2026-10-19')`,
+      );
+      await db.execute(
+        sql`update nutrition_target_settings set energy_direction = 'maintain', height_cm = null where organization_id = 'org-y' and user_id = 'user-y'`,
+      );
+    }
   });
 
   test("manual same-value energy replacement supersedes pending; non-energy edits do not", async () => {
