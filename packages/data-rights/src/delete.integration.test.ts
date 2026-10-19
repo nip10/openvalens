@@ -83,6 +83,14 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
           select 'org-${who}', 'user-${who}', id from nutrition_food_snapshot where organization_id = 'org-${who}';
         insert into nutrition_diary_mutation (organization_id, user_id, client_mutation_id, kind, entry_id)
           select 'org-${who}', 'user-${who}', 'cm-${who}', 'update', id from nutrition_meal_entry where organization_id = 'org-${who}';
+        insert into plain_water_preference (organization_id, user_id, enabled, personal_goal_ml)
+          values ('org-${who}', 'user-${who}', true, 1500);
+        with water as (
+          insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+            values ('org-${who}', 'user-${who}', 250, '2026-10-01T08:00:00Z', 'UTC', 'water-${who}') returning id
+        )
+        insert into plain_water_mutation (organization_id, user_id, client_mutation_id, kind, fingerprint, entry_id, outcome)
+          select 'org-${who}', 'user-${who}', 'receipt-${who}', 'add', repeat('a', 64), id, '{"outcome":"applied"}'::jsonb from water;
       `),
       );
     }
@@ -179,6 +187,9 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
       "nutrition_energy_proposal",
+      "plain_water_entry",
+      "plain_water_preference",
+      "plain_water_mutation",
       "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);

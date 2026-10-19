@@ -133,6 +133,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_energy_proposal: organization,
   // Coach nutrition context consent (#86): the member's own opt-in; matched by user_id.
   nutrition_coach_consent: { kind: "user" },
+  // Plain-water diary (#83): member-private entries and preferences.
+  plain_water_entry: { kind: "user" },
+  plain_water_preference: { kind: "user" },
+  plain_water_mutation: { kind: "user" },
   // Public food catalogs (#72): instance-wide FDC / Open Food Facts mirrors and
   // their import ledger; no tenant or personal columns.
   nutrition_catalog_release: {
