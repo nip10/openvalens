@@ -116,6 +116,17 @@ deletes the database rows in its transaction, then deletes the bytes; if the
 subject has objects while storage is off, deletion is refused rather than
 leaving orphaned files.
 
+The internal `photo_cleanup_intent` table is system data and is never included
+in exports. Lifecycle-managed photo rows bind to a versioned SHA-256 identity
+of the configured store (local resolved root, or S3 endpoint/bucket/region and
+addressing style). Credentials are excluded, so credential rotation preserves
+the binding. A changed root, bucket, or endpoint changes it. This configuration
+binding is not proof of physical volume identity or continuity. Legacy objects
+retain NULL lifecycle identity; their provenance is unknown and is never
+inferred from the active provider. Until reservation-based writes land, the
+existing generic progress-photo PUT remains a legacy/unmanaged compatibility
+path and does not enable the new photo lifecycle.
+
 ## For feature code (#85, #132)
 
 Use the tenant-scoped `StorageService` (`@openvalens/storage`), bound on the

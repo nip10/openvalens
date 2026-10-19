@@ -12,7 +12,7 @@
  * `docs/storage.md`).
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir, open, rename, rm, stat, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
@@ -25,6 +25,7 @@ import {
   type PutBlobOptions,
   type StoredBlob,
   type StoredBlobHead,
+  type StorageStoreIdentity,
 } from "../object-storage";
 
 type Sidecar = { contentType: string; sha256: string };
@@ -38,10 +39,17 @@ function isNotFound(error: unknown): boolean {
 
 export class LocalObjectStorage implements ObjectStorage {
   readonly provider = "local";
+  readonly storeIdentity: StorageStoreIdentity;
   readonly #root: string;
 
   constructor(rootDir: string) {
     this.#root = resolve(rootDir);
+    this.storeIdentity = {
+      provider: "local",
+      storeId: `v1:${createHash("sha256")
+        .update(JSON.stringify({ version: 1, root: this.#root }))
+        .digest("hex")}`,
+    };
   }
 
   #path(key: string): string {
@@ -60,8 +68,13 @@ export class LocalObjectStorage implements ObjectStorage {
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
       await mkdir(tempDir, { recursive: true, mode: 0o700 });
       // The sidecar is written first: an object file never exists without it.
-      const sidecar: Sidecar = { contentType: options.contentType, sha256: options.sha256 };
-      await writeFile(`${temp}${SIDECAR_SUFFIX}`, JSON.stringify(sidecar), { mode: 0o600 });
+      const sidecar: Sidecar = {
+        contentType: options.contentType,
+        sha256: options.sha256,
+      };
+      await writeFile(`${temp}${SIDECAR_SUFFIX}`, JSON.stringify(sidecar), {
+        mode: 0o600,
+      });
       await rename(`${temp}${SIDECAR_SUFFIX}`, `${target}${SIDECAR_SUFFIX}`);
       const handle = await open(temp, "wx", 0o600);
       try {

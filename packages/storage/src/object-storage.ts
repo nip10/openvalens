@@ -35,9 +35,16 @@ export type SignedGetUrlOptions = {
   contentType: string;
 };
 
+export type StorageStoreIdentity = {
+  provider: "local" | "s3";
+  storeId: string;
+};
+
 export interface ObjectStorage {
   /** Stable lowercase provider id (`"local"`, `"s3"`). */
   readonly provider: string;
+  /** Present on built-in adapters; custom legacy adapters may omit it. */
+  readonly storeIdentity?: StorageStoreIdentity;
   /** Writes (or atomically replaces) the object. */
   put(key: string, body: Uint8Array, options: PutBlobOptions): Promise<void>;
   /** Streams the object, or `null` when it does not exist. */
@@ -147,5 +154,9 @@ export function describeStorageError(error: unknown): StorageErrorSummary {
       ...(error.status ? { status: error.status } : {}),
     };
   }
-  return { errorCode: "STORAGE_UNKNOWN", errorCategory: "unknown", retryable: false };
+  return {
+    errorCode: "STORAGE_UNKNOWN",
+    errorCategory: "unknown",
+    retryable: false,
+  };
 }

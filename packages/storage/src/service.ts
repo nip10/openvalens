@@ -27,7 +27,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { storedObject } from "@openvalens/db/schema/storage";
 
 import { buildObjectKey, newObjectId, READINESS_PROBE_KEY } from "./keys";
-import { StorageError, type ObjectStorage } from "./object-storage";
+import { StorageError, type ObjectStorage, type StorageStoreIdentity } from "./object-storage";
 import {
   isStoredObjectPurpose,
   normalizeContentType,
@@ -71,12 +71,14 @@ export type StorageProbeResult = "ok" | "unwritable";
 export interface StorageService {
   /** Stable provider id of the bound adapter (`"local"` or `"s3"`). */
   readonly provider: string;
+  readonly storeIdentity: StorageStoreIdentity | null;
   readonly maxObjectBytes: number;
   putObject(input: PutObjectInput): Promise<StoredObjectRecord>;
   findObject(ref: ObjectRef): Promise<StoredObjectRecord | null>;
-  getObject(
-    ref: ObjectRef,
-  ): Promise<{ object: StoredObjectRecord; body: ReadableStream<Uint8Array> } | null>;
+  getObject(ref: ObjectRef): Promise<{
+    object: StoredObjectRecord;
+    body: ReadableStream<Uint8Array>;
+  } | null>;
   listObjects(input: {
     organizationId: string;
     purpose?: StoredObjectPurpose;
@@ -172,7 +174,10 @@ function toRecord(row: typeof storedObject.$inferSelect): StoredObjectRecord {
 function jsonError(status: number, error: string): Response {
   return new Response(JSON.stringify({ error }), {
     status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
   });
 }
 
@@ -212,11 +217,23 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
 
   async function findObject(ref: ObjectRef): Promise<StoredObjectRecord | null> {
     const row = await findRow(ref);
-    return row ? toRecord(row) : null;
+    return row && isReadable(row) ? toRecord(row) : null;
+  }
+
+  function isReadable(row: typeof storedObject.$inferSelect): boolean {
+    if (row.photoState === null) return true;
+    if (
+      row.storageProvider !== storage.storeIdentity?.provider ||
+      row.storageStoreId !== storage.storeIdentity?.storeId
+    ) {
+      throw new StorageError("unavailable", 0);
+    }
+    return row.photoState === "ready";
   }
 
   const service: StorageService = {
     provider: storage.provider,
+    storeIdentity: storage.storeIdentity ?? null,
     maxObjectBytes,
 
     async putObject(input: PutObjectInput): Promise<StoredObjectRecord> {
@@ -258,7 +275,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
 
     async getObject(ref: ObjectRef) {
       const row = await findRow(ref);
-      if (!row) return null;
+      if (!row || !isReadable(row)) return null;
       const blob = await storage.get(row.storageKey);
       if (!blob) return null;
       return { object: toRecord(row), body: blob.body };
@@ -278,7 +295,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         )
         .orderBy(desc(storedObject.createdAt))
         .limit(Math.min(Math.max(1, limit), 500));
-      return rows.map(toRecord);
+      return rows.filter(isReadable).map(toRecord);
     },
 
     async deleteObject(ref: ObjectRef): Promise<boolean> {
@@ -298,7 +315,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
     async createDownloadUrl(ref: ObjectRef, expiresInSeconds = signedUrlTtlSeconds) {
       const ttl = Math.min(Math.max(1, Math.floor(expiresInSeconds)), signedUrlTtlSeconds);
       const row = await findRow(ref);
-      if (!row) return null;
+      if (!row || !isReadable(row)) return null;
       const issuedAt = now();
       const expiresAt = new Date(issuedAt.getTime() + ttl * 1000);
       const native = await storage.signedGetUrl(row.storageKey, {
@@ -320,6 +337,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         .where(eq(storedObject.id, verdict.objectId))
         .limit(1);
       if (!row) return jsonError(404, "NOT_FOUND");
+      if (!isReadable(row)) return jsonError(404, "NOT_FOUND");
       const blob = await storage.get(row.storageKey);
       if (!blob) return jsonError(404, "NOT_FOUND");
       return new Response(blob.body, {
