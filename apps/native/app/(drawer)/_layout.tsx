@@ -22,6 +22,11 @@ const DRAWER_ITEMS = [
   { label: "Sleep", href: "/records/sleep" as const, icon: "moon-outline" as const },
   { label: "Activity", href: "/records/activity" as const, icon: "walk-outline" as const },
   { label: "Vitals", href: "/records/vitals" as const, icon: "pulse-outline" as const },
+  {
+    label: "Private measurements",
+    href: "/private-measurements" as const,
+    icon: "lock-closed-outline" as const,
+  },
   { label: "Labs", href: "/records/labs" as const, icon: "flask-outline" as const },
   { label: "Workouts", href: "/workouts" as const, icon: "barbell-outline" as const },
   { label: "Clinical export", href: "/exports" as const, icon: "download-outline" as const },
@@ -95,27 +100,29 @@ function DrawerLayout() {
           ? "Activity"
           : pathname === "/records/vitals"
             ? "Vitals"
-            : pathname === "/records/labs"
-              ? "Labs"
-              : pathname === "/supplements"
-                ? "Supplements"
-                : pathname === "/nutrition"
-                  ? "Meal diary"
-                  : pathname === "/foods"
-                    ? "My foods"
-                    : pathname === "/workouts"
-                      ? "Workouts"
-                      : pathname === "/exports"
-                        ? "Clinical export"
-                        : pathname === "/settings"
-                          ? "Settings"
-                          : pathname === "/scores"
-                            ? "Scores"
-                            : pathname === "/invitations"
-                              ? "Invitations"
-                              : pathname === "/preventive-care"
-                                ? "Preventive care"
-                                : "Cockpit";
+            : pathname === "/private-measurements"
+              ? "Private measurements"
+              : pathname === "/records/labs"
+                ? "Labs"
+                : pathname === "/supplements"
+                  ? "Supplements"
+                  : pathname === "/nutrition"
+                    ? "Meal diary"
+                    : pathname === "/foods"
+                      ? "My foods"
+                      : pathname === "/workouts"
+                        ? "Workouts"
+                        : pathname === "/exports"
+                          ? "Clinical export"
+                          : pathname === "/settings"
+                            ? "Settings"
+                            : pathname === "/scores"
+                              ? "Scores"
+                              : pathname === "/invitations"
+                                ? "Invitations"
+                                : pathname === "/preventive-care"
+                                  ? "Preventive care"
+                                  : "Cockpit";
 
   return (
     <Drawer
@@ -163,6 +170,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="records/labs"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="private-measurements"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
