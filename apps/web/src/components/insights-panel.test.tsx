@@ -9,6 +9,8 @@ import {
   nutritionObservationView,
   observationPreferencePatch,
   shouldShowObservations,
+  privateInsightsQueryKey,
+  privateInsightsSubject,
 } from "@openvalens/api/presenters/insights";
 
 import { InsightNotificationsForm } from "./insight-notifications-section";
@@ -92,6 +94,27 @@ describe("insights panel (web)", () => {
     expect(shouldShowObservations(savedPreference, hideWhileRevoking)).toBe(false);
     expect(savedPreference).toBe(true);
     expect(shouldShowObservations(savedPreference, hideWhileRevoking)).toBe(false);
+    expect(shouldShowObservations(true, false, false)).toBe(false); // stale true while loading/error
+    expect(shouldShowObservations(true, false, true, true)).toBe(false); // failed revoke
+    expect(shouldShowObservations(true, false, true, false)).toBe(true); // confirmed enabled / retry success
+  });
+  test("private query keys isolate member and workspace without sending identity as input", () => {
+    const baseKey = ["insights", "list"];
+    const memberAWorkspace1 = privateInsightsQueryKey(baseKey, "member-a", "workspace-1");
+    expect(privateInsightsQueryKey(baseKey, "member-b", "workspace-1")).not.toEqual(
+      memberAWorkspace1,
+    );
+    expect(privateInsightsQueryKey(baseKey, "member-a", "workspace-2")).not.toEqual(
+      memberAWorkspace1,
+    );
+    expect(privateInsightsQueryKey(baseKey, "member-a", null)).not.toEqual(memberAWorkspace1);
+    expect(baseKey).toEqual(["insights", "list"]);
+    expect(privateInsightsSubject(true, "member-a", "workspace-1")).toBeNull();
+    expect(privateInsightsSubject(false, undefined, "workspace-1")).toBeNull();
+    expect(privateInsightsSubject(false, "member-a", "workspace-1")).toEqual({
+      userId: "member-a",
+      organizationId: "workspace-1",
+    });
   });
   test("renders each insight with explanation, coverage and real buttons; not-ready rows say why", () => {
     const html = renderToStaticMarkup(

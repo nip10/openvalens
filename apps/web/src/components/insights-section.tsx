@@ -4,6 +4,8 @@ import {
   INSIGHT_COPY,
   nutritionObservationView,
   observationPreferencePatch,
+  privateInsightsQueryKey,
+  privateInsightsSubject,
   shouldShowObservations,
 } from "@openvalens/api/presenters/insights";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +15,7 @@ import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
+import { authClient } from "@/lib/auth-client";
 
 import { InsightsCard, PushOfferCard, SummaryCards } from "./insights-panel";
 import {
@@ -30,33 +33,85 @@ import { Button } from "@openvalens/ui/components/button";
  * messaging. The coach hand-off shows only when the person has AI consent.
  */
 export function InsightsSection() {
+  const { data: session, isPending } = authClient.useSession();
+  const scope = privateInsightsSubject(
+    isPending,
+    session?.user?.id,
+    session?.session?.activeOrganizationId ?? null,
+  );
+  if (!scope) return <p className="text-sm text-muted-foreground">Loading insights…</p>;
+  return (
+    <SubjectInsightsSection
+      key={`${scope.userId}:${scope.organizationId ?? "personal"}`}
+      userId={scope.userId}
+      organizationId={scope.organizationId}
+    />
+  );
+}
+
+function SubjectInsightsSection({
+  userId,
+  organizationId,
+}: {
+  userId: string;
+  organizationId: string | null;
+}) {
   const queryClient = useQueryClient();
   const readiness = useQuery({
     ...orpc.score.readiness.queryOptions({ input: {} }),
+    queryKey: privateInsightsQueryKey(
+      orpc.score.readiness.queryOptions({ input: {} }).queryKey,
+      userId,
+      organizationId,
+    ),
     staleTime: 60_000,
   });
   const goals = useQuery({
     ...orpc.score.goalProgress.queryOptions({ input: {} }),
+    queryKey: privateInsightsQueryKey(
+      orpc.score.goalProgress.queryOptions({ input: {} }).queryKey,
+      userId,
+      organizationId,
+    ),
     staleTime: 60_000,
   });
   const insights = useQuery({
     ...orpc.insights.list.queryOptions({ input: {} }),
+    queryKey: privateInsightsQueryKey(
+      orpc.insights.list.queryOptions({ input: {} }).queryKey,
+      userId,
+      organizationId,
+    ),
     staleTime: 60_000,
   });
-  const observationPrefs = useQuery(orpc.insights.preferences.get.queryOptions({ input: {} }));
-  const consent = useQuery({ ...orpc.ai.consent.get.queryOptions({ input: {} }), retry: false });
+  const observationPrefsOptions = orpc.insights.preferences.get.queryOptions({ input: {} });
+  const observationPrefs = useQuery({
+    ...observationPrefsOptions,
+    queryKey: privateInsightsQueryKey(observationPrefsOptions.queryKey, userId, organizationId),
+  });
+  const consentOptions = orpc.ai.consent.get.queryOptions({ input: {} });
+  const consent = useQuery({
+    ...consentOptions,
+    queryKey: privateInsightsQueryKey(consentOptions.queryKey, userId, organizationId),
+    retry: false,
+  });
   const settings = useProductSettings().data;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [hideObservations, setHideObservations] = useState(false);
   useEffect(() => {
     if (observationPrefs.data?.channels.observation.in_app === false) setHideObservations(false);
   }, [observationPrefs.data?.channels.observation.in_app]);
-  const showObservations = shouldShowObservations(
-    observationPrefs.data?.channels.observation.in_app,
-    hideObservations,
+  const insightsKey = privateInsightsQueryKey(
+    orpc.insights.list.queryOptions({ input: {} }).queryKey,
+    userId,
+    organizationId,
   );
-
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
+  const preferencesKey = privateInsightsQueryKey(
+    observationPrefsOptions.queryKey,
+    userId,
+    organizationId,
+  );
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: insightsKey });
 
   const feedback = useMutation(
     orpc.insights.feedback.mutationOptions({
@@ -79,14 +134,20 @@ export function InsightsSection() {
   const observation = useMutation(
     orpc.insights.preferences.update.mutationOptions({
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
-        void queryClient.invalidateQueries({ queryKey: orpc.insights.preferences.get.key() });
+        void queryClient.invalidateQueries({ queryKey: insightsKey });
+        void queryClient.invalidateQueries({ queryKey: preferencesKey });
       },
       onError: () =>
         toast.error(
           "Could not update observation settings. Your saved choice is unchanged; retry when connected.",
         ),
     }),
+  );
+  const showObservations = shouldShowObservations(
+    observationPrefs.data?.channels.observation.in_app,
+    hideObservations,
+    observationPrefs.isSuccess && !observationPrefs.isFetching,
+    observation.isError,
   );
 
   const onFeedback = (insightId: string, action: InsightFeedbackAction) => {

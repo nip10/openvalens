@@ -64,8 +64,30 @@ export function observationPreferencePatch(inApp: boolean) {
 }
 
 /** Fail closed while a revocation is pending or after it fails. */
-export function shouldShowObservations(savedInApp: boolean | undefined, hideObservations: boolean) {
-  return savedInApp === true && !hideObservations;
+export function shouldShowObservations(
+  savedInApp: boolean | undefined,
+  hideObservations: boolean,
+  preferenceConfirmed = true,
+  mutationFailed = false,
+) {
+  return savedInApp === true && !hideObservations && preferenceConfirmed && !mutationFailed;
+}
+
+/** Keep private query results isolated by authenticated member and workspace. */
+export function privateInsightsQueryKey(
+  queryKey: readonly unknown[],
+  userId: string,
+  organizationId: string | null,
+) {
+  return [...queryKey, { privateSubject: [userId, organizationId ?? "personal"] }] as const;
+}
+
+export function privateInsightsSubject(
+  sessionPending: boolean,
+  userId: string | null | undefined,
+  organizationId: string | null,
+) {
+  return !sessionPending && userId ? { userId, organizationId } : null;
 }
 
 export const INSIGHT_METRIC_LABELS: Record<InsightMetric, string> = {

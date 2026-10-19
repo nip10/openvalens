@@ -4,6 +4,8 @@ import {
   INSIGHT_DELIVERY_COPY,
   nutritionObservationView,
   observationPreferencePatch,
+  privateInsightsQueryKey,
+  privateInsightsSubject,
   shouldShowObservations,
 } from "@openvalens/api/presenters/insights";
 import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
@@ -17,6 +19,7 @@ import { CardStack } from "@/components/list-row";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { insightsSectionModel } from "@/utils/insight-screen";
 import { client, orpc } from "@/utils/orpc";
+import { authClient } from "@/lib/auth-client";
 
 /**
  * Issue #92 — cockpit parity with the web dashboard: the two #95 summaries,
@@ -26,12 +29,61 @@ import { client, orpc } from "@/utils/orpc";
  * accessible labels.
  */
 export function InsightsSection() {
+  const { data: session, isPending } = authClient.useSession();
+  const scope = privateInsightsSubject(
+    isPending,
+    session?.user?.id,
+    session?.session?.activeOrganizationId ?? null,
+  );
+  if (!scope)
+    return (
+      <View>
+        <Text>Loading insights…</Text>
+      </View>
+    );
+  return (
+    <SubjectInsightsSection
+      key={`${scope.userId}:${scope.organizationId ?? "personal"}`}
+      userId={scope.userId}
+      organizationId={scope.organizationId}
+    />
+  );
+}
+
+function SubjectInsightsSection({
+  userId,
+  organizationId,
+}: {
+  userId: string;
+  organizationId: string | null;
+}) {
   const queryClient = useQueryClient();
-  const readiness = useQuery(orpc.score.readiness.queryOptions({ input: {} }));
-  const goals = useQuery(orpc.score.goalProgress.queryOptions({ input: {} }));
-  const insights = useQuery(orpc.insights.list.queryOptions({ input: {} }));
-  const observationPrefs = useQuery(orpc.insights.preferences.get.queryOptions({ input: {} }));
-  const consent = useQuery({ ...orpc.ai.consent.get.queryOptions({ input: {} }), retry: false });
+  const readinessOptions = orpc.score.readiness.queryOptions({ input: {} });
+  const goalsOptions = orpc.score.goalProgress.queryOptions({ input: {} });
+  const insightsOptions = orpc.insights.list.queryOptions({ input: {} });
+  const observationPrefsOptions = orpc.insights.preferences.get.queryOptions({ input: {} });
+  const consentOptions = orpc.ai.consent.get.queryOptions({ input: {} });
+  const readiness = useQuery({
+    ...readinessOptions,
+    queryKey: privateInsightsQueryKey(readinessOptions.queryKey, userId, organizationId),
+  });
+  const goals = useQuery({
+    ...goalsOptions,
+    queryKey: privateInsightsQueryKey(goalsOptions.queryKey, userId, organizationId),
+  });
+  const insights = useQuery({
+    ...insightsOptions,
+    queryKey: privateInsightsQueryKey(insightsOptions.queryKey, userId, organizationId),
+  });
+  const observationPrefs = useQuery({
+    ...observationPrefsOptions,
+    queryKey: privateInsightsQueryKey(observationPrefsOptions.queryKey, userId, organizationId),
+  });
+  const consent = useQuery({
+    ...consentOptions,
+    queryKey: privateInsightsQueryKey(consentOptions.queryKey, userId, organizationId),
+    retry: false,
+  });
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [showMethod, setShowMethod] = useState(false);
@@ -39,11 +91,13 @@ export function InsightsSection() {
   useEffect(() => {
     if (observationPrefs.data?.channels.observation.in_app === false) setHideObservations(false);
   }, [observationPrefs.data?.channels.observation.in_app]);
-  const showObservations = shouldShowObservations(
-    observationPrefs.data?.channels.observation.in_app,
-    hideObservations,
+  const insightsKey = privateInsightsQueryKey(insightsOptions.queryKey, userId, organizationId);
+  const preferencesKey = privateInsightsQueryKey(
+    observationPrefsOptions.queryKey,
+    userId,
+    organizationId,
   );
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: insightsKey });
 
   const feedback = useMutation({
     mutationFn: (input: { insightId: string; action: InsightFeedbackAction }) =>
@@ -74,11 +128,17 @@ export function InsightsSection() {
     mutationFn: (enabled: boolean) =>
       client.insights.preferences.update(observationPreferencePatch(enabled)),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
-      void queryClient.invalidateQueries({ queryKey: orpc.insights.preferences.get.key() });
+      void queryClient.invalidateQueries({ queryKey: insightsKey });
+      void queryClient.invalidateQueries({ queryKey: preferencesKey });
     },
     onError: () => setMessage("Could not update observation settings."),
   });
+  const showObservations = shouldShowObservations(
+    observationPrefs.data?.channels.observation.in_app,
+    hideObservations,
+    observationPrefs.isSuccess && !observationPrefs.isFetching,
+    observation.isError,
+  );
 
   const ready = readiness.data ? readinessView(readiness.data) : null;
   const progress = goals.data ? goalProgressView(goals.data) : null;
