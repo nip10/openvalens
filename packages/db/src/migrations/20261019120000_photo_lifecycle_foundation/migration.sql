@@ -10,8 +10,8 @@ ALTER TABLE "stored_object"
   ADD CONSTRAINT "stored_object_photo_state_check" CHECK (
     ("photo_state" IS NULL AND "photo_write_state" IS NULL AND "storage_provider" IS NULL AND "storage_store_id" IS NULL)
     OR
-    ("purpose" = 'progress_photo' AND "photo_state" IN ('pending', 'ready', 'deleting')
-      AND "photo_write_state" IN ('not_started', 'uncertain', 'settled')
+    ("purpose" = 'progress_photo' AND "photo_state" IS NOT NULL AND "photo_state" IN ('pending', 'ready', 'deleting')
+      AND "photo_write_state" IS NOT NULL AND "photo_write_state" IN ('not_started', 'uncertain', 'settled')
       AND "storage_provider" IS NOT NULL AND "storage_store_id" IS NOT NULL
       AND "created_by_user_id" IS NOT NULL)
   ),

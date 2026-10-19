@@ -61,7 +61,7 @@ export const storedObject = pgTable(
     ),
     storedObjectPhotoStateCheck: check(
       "stored_object_photo_state_check",
-      sql`(${table.photoState} is null and ${table.photoWriteState} is null and ${table.storageProvider} is null and ${table.storageStoreId} is null) or (${table.purpose} = 'progress_photo' and ${table.photoState} in ('pending', 'ready', 'deleting') and ${table.photoWriteState} in ('not_started', 'uncertain', 'settled') and ${table.storageProvider} is not null and ${table.storageStoreId} is not null and ${table.createdByUserId} is not null)`,
+      sql`(${table.photoState} is null and ${table.photoWriteState} is null and ${table.storageProvider} is null and ${table.storageStoreId} is null) or (${table.purpose} = 'progress_photo' and ${table.photoState} is not null and ${table.photoState} in ('pending', 'ready', 'deleting') and ${table.photoWriteState} is not null and ${table.photoWriteState} in ('not_started', 'uncertain', 'settled') and ${table.storageProvider} is not null and ${table.storageStoreId} is not null and ${table.createdByUserId} is not null)`,
     ),
     storedObjectReadySettledCheck: check(
       "stored_object_ready_settled_check",
