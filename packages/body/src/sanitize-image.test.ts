@@ -15,15 +15,18 @@ async function jpegWithExif(): Promise<Buffer> {
   const base = await sharp(pixels, { raw: { width, height, channels: 3 } })
     .jpeg({ quality: 100, chromaSubsampling: "4:4:4" })
     .toBuffer();
-  const tiff = Buffer.alloc(8 + 2 + 4 * 12 + 4 + 2 + 4 * 12 + 4 + 28 + 14 + 13);
+  const make = Buffer.from("DEVICE-CANARY\0", "ascii");
+  const model = Buffer.from("MODEL-CANARY\0", "ascii");
+  const tiff = Buffer.alloc(8 + 2 + 4 * 12 + 4 + 2 + 4 * 12 + 4 + 48 + make.length + model.length);
   tiff.write("II", 0, "ascii");
   tiff.writeUInt16LE(42, 2);
   tiff.writeUInt32LE(8, 4);
   const ifd0 = 8;
   tiff.writeUInt16LE(4, ifd0);
-  const makeOffset = 8 + 2 + 4 * 12 + 4 + 2 + 4 * 12 + 4 + 28;
-  const modelOffset = makeOffset + 14;
   const gpsOffset = 8 + 2 + 4 * 12 + 4;
+  const rationals = gpsOffset + 2 + 4 * 12 + 4;
+  const makeOffset = rationals + 48;
+  const modelOffset = makeOffset + make.length;
   const entry = (index: number, tag: number, type: number, count: number, value: number) => {
     const offset = ifd0 + 2 + index * 12;
     tiff.writeUInt16LE(tag, offset);
@@ -31,8 +34,8 @@ async function jpegWithExif(): Promise<Buffer> {
     tiff.writeUInt32LE(count, offset + 4);
     tiff.writeUInt32LE(value, offset + 8);
   };
-  entry(0, 0x010f, 2, 14, makeOffset);
-  entry(1, 0x0110, 2, 13, modelOffset);
+  entry(0, 0x010f, 2, make.length, makeOffset);
+  entry(1, 0x0110, 2, model.length, modelOffset);
   entry(2, 0x0112, 3, 1, 6);
   entry(3, 0x8825, 4, 1, gpsOffset);
   tiff.writeUInt32LE(0, ifd0 + 2 + 4 * 12);
@@ -49,25 +52,30 @@ async function jpegWithExif(): Promise<Buffer> {
   gpsEntry(2, 3, 2, 2, 0x0057);
   gpsEntry(3, 4, 5, 3, gpsOffset + 2 + 4 * 12 + 4 + 24);
   tiff.writeUInt32LE(0, gpsOffset + 2 + 4 * 12);
-  const rationals = gpsOffset + 2 + 4 * 12 + 4;
-  for (const [index, value] of [40, 1, 0, 8, 0, 0].entries()) {
+  for (const [index, value] of [40, 1, 0, 1, 0, 1, 74, 1, 0, 1, 0, 1].entries()) {
     tiff.writeUInt32LE(value, rationals + index * 4);
   }
-  tiff.write("DEVICE-CANARY\0MODEL-CANARY\0", makeOffset, "ascii");
+  make.copy(tiff, makeOffset);
+  model.copy(tiff, modelOffset);
   const exifPayload = Buffer.concat([Buffer.from("Exif\0\0", "binary"), tiff]);
   const exifSegment = Buffer.alloc(4 + exifPayload.length);
   exifSegment.writeUInt16BE(0xffe1, 0);
   exifSegment.writeUInt16BE(exifPayload.length + 2, 2);
   exifPayload.copy(exifSegment, 4);
   const xmp = Buffer.from(
-    'http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x="adobe:ns:meta/">XMP-CANARY</x:xmpmeta>',
+    'http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:RDF><rdf:Description><dc:description>XMP-CANARY</dc:description></rdf:Description></rdf:RDF></x:xmpmeta>',
     "binary",
   );
   const xmpSegment = Buffer.alloc(4 + xmp.length);
   xmpSegment.writeUInt16BE(0xffe1, 0);
   xmpSegment.writeUInt16BE(xmp.length + 2, 2);
   xmp.copy(xmpSegment, 4);
-  const iptcData = Buffer.concat([Buffer.from([0x1c, 2, 120, 0, 12]), Buffer.from("IPTC-CANARY")]);
+  const iptcCanary = Buffer.from("IPTC-CANARY");
+  const iptcData = Buffer.concat([
+    Buffer.from([0x1c, 2, 120, 0]),
+    Buffer.from([iptcCanary.byteLength]),
+    iptcCanary,
+  ]);
   const iptcResource = Buffer.concat([
     Buffer.from("8BIM", "ascii"),
     Buffer.from([0x04, 0x04, 0, 0]),
@@ -92,7 +100,9 @@ async function jpegWithExif(): Promise<Buffer> {
 async function pngWithMetadata(): Promise<Buffer> {
   return sharp({ create: { width: 2, height: 2, channels: 4, background: "#dc141e" } })
     .png()
-    .withXmp('<x:xmpmeta xmlns:x="adobe:ns:meta/">PNG-XMP-CANARY</x:xmpmeta>')
+    .withXmp(
+      '<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:RDF><rdf:Description><dc:description>PNG-XMP-CANARY</dc:description></rdf:Description></rdf:RDF></x:xmpmeta>',
+    )
     .toBuffer();
 }
 
@@ -110,26 +120,83 @@ describe("sanitizeImage", () => {
     const sourceMetadata = await sharp(source).metadata();
     expect(sourceMetadata.orientation).toBe(6);
     expect(sourceMetadata.exif).toBeDefined();
-    expect(sourceMetadata.exif?.toString("latin1")).toContain("DEVICE-CANARY");
-    expect(sourceMetadata.exif?.toString("latin1")).toContain("MODEL-CANARY");
     const exif = sourceMetadata.exif!;
+    const boundedRead = (offset: number, size: number) => {
+      expect(offset).toBeGreaterThanOrEqual(0);
+      expect(offset + size).toBeLessThanOrEqual(exif.length);
+      return exif.subarray(offset, offset + size);
+    };
     const ifd0 = 6 + exif.readUInt32LE(10);
+    boundedRead(ifd0, 2);
     const gpsPointerEntry = ifd0 + 2 + 3 * 12;
+    boundedRead(gpsPointerEntry, 12);
     expect(exif.readUInt16LE(gpsPointerEntry)).toBe(0x8825);
     const gpsIfd = 6 + exif.readUInt32LE(gpsPointerEntry + 8);
-    const gpsTags = Array.from({ length: exif.readUInt16LE(gpsIfd) }, (_, index) =>
+    const gpsCount = exif.readUInt16LE(gpsIfd);
+    boundedRead(gpsIfd + 2, gpsCount * 12 + 4);
+    const gpsTags = Array.from({ length: gpsCount }, (_, index) =>
       exif.readUInt16LE(gpsIfd + 2 + index * 12),
     );
     expect(gpsTags).toContain(1);
     expect(gpsTags).toContain(2);
     expect(gpsTags).toContain(3);
     expect(gpsTags).toContain(4);
-    const latitudeEntry = gpsIfd + 2 + gpsTags.indexOf(2) * 12;
-    const latitude = 6 + exif.readUInt32LE(latitudeEntry + 8);
-    expect(exif.readUInt32LE(latitude)).toBe(40);
-    expect(exif.readUInt32LE(latitude + 4)).toBe(1);
+    const readAsciiTag = (tag: number, expected: string) => {
+      const entry = gpsIfd + 2 + gpsTags.indexOf(tag) * 12;
+      expect(exif.readUInt16LE(entry + 2)).toBe(2);
+      const count = exif.readUInt32LE(entry + 4);
+      const value = exif.readUInt32LE(entry + 8);
+      const text =
+        count <= 4 ? exif.subarray(entry + 8, entry + 8 + count) : boundedRead(6 + value, count);
+      expect(text.toString("ascii").replace(/\0+$/, "")).toBe(expected);
+    };
+    readAsciiTag(1, "N");
+    readAsciiTag(3, "W");
+    const readCoordinate = (tag: number) => {
+      const entry = gpsIfd + 2 + gpsTags.indexOf(tag) * 12;
+      expect(exif.readUInt16LE(entry + 2)).toBe(5);
+      expect(exif.readUInt32LE(entry + 4)).toBe(3);
+      const offset = 6 + exif.readUInt32LE(entry + 8);
+      const values = Array.from({ length: 3 }, (_, index) => {
+        const pair = boundedRead(offset + index * 8, 8);
+        const numerator = pair.readUInt32LE(0);
+        const denominator = pair.readUInt32LE(4);
+        expect(denominator).toBeGreaterThan(0);
+        return [numerator, denominator] as const;
+      });
+      return values;
+    };
+    expect(readCoordinate(2)).toEqual([
+      [40, 1],
+      [0, 1],
+      [0, 1],
+    ]);
+    expect(readCoordinate(4)).toEqual([
+      [74, 1],
+      [0, 1],
+      [0, 1],
+    ]);
+    const readIfdAscii = (tag: number, expected: string) => {
+      const count = exif.readUInt32LE(tag + 4);
+      const value = exif.readUInt32LE(tag + 8);
+      expect(exif.readUInt16LE(tag + 2)).toBe(2);
+      expect(
+        boundedRead(6 + value, count)
+          .toString("ascii")
+          .replace(/\0+$/, ""),
+      ).toBe(expected);
+    };
+    readIfdAscii(ifd0 + 2, "DEVICE-CANARY");
+    readIfdAscii(ifd0 + 14, "MODEL-CANARY");
     expect(sourceMetadata.xmp?.toString()).toContain("XMP-CANARY");
-    expect(sourceMetadata.iptc?.toString("latin1")).toContain("IPTC-CANARY");
+    expect(sourceMetadata.iptc).toBeDefined();
+    const iptc = sourceMetadata.iptc!;
+    const iptcText = iptc.toString("latin1");
+    const iptcOffset = iptcText.indexOf("IPTC-CANARY");
+    expect(iptcOffset).toBeGreaterThanOrEqual(5);
+    expect(iptcOffset).toBeLessThan(iptc.length);
+    expect(iptc.readUInt16BE(iptcOffset - 2)).toBe(11);
+    expect(iptc.subarray(iptcOffset, iptcOffset + 11).toString("ascii")).toBe("IPTC-CANARY");
     const metadata = await sharp(result.bytes).metadata();
 
     expect(result.contentType).toBe("image/jpeg");
