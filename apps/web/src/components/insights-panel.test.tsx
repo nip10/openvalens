@@ -5,6 +5,13 @@ import { defaultKindChannels, runInsightRules } from "@openvalens/api/insight-ru
 import { computeGoalProgress } from "@openvalens/api/score-goal-progress";
 import { computeReadiness } from "@openvalens/api/score-readiness";
 import { renderToStaticMarkup } from "react-dom/server";
+import {
+  nutritionObservationView,
+  observationPreferencePatch,
+  shouldShowObservations,
+  privateInsightsQueryKey,
+  privateInsightsSubject,
+} from "@openvalens/api/presenters/insights";
 
 import { InsightNotificationsForm } from "./insight-notifications-section";
 import { InsightsCard, PushOfferCard, SummaryCards } from "./insights-panel";
@@ -34,6 +41,7 @@ function result(): InsightsResult {
     status: "available",
     withheldReason: null,
     insights: output.insights,
+    observations: [],
     readiness: output.readiness,
     hiddenCount: 0,
     budget: { changeCap: 2, suppressedChanges: 0 },
@@ -42,6 +50,72 @@ function result(): InsightsResult {
 }
 
 describe("insights panel (web)", () => {
+  test("observation presentation preserves null/hidden counts and descriptive period/completeness", () => {
+    const hidden = {
+      ruleId: "observation.meals_near_sleep" as const,
+      window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
+      matchingEvents: null,
+      minimumMatchingEvents: null,
+      completeness: "Completeness information is not available.",
+      title: "Meals and recorded sleep timing",
+      body: "Recorded meals and sleep timing overlapped in this period.",
+    };
+    const view = nutritionObservationView(hidden);
+    const markup = renderToStaticMarkup(
+      <article aria-label={view.accessibilityLabel}>
+        <h3>{view.title}</h3>
+        <p>{view.body}</p>
+        <p>{view.completeness}</p>
+        <p>{view.period}</p>
+      </article>,
+    );
+    expect(markup).toContain("2026-10-01 to 2026-10-07 (7 days)");
+    expect(markup).toContain("Completeness information is not available.");
+    expect(markup).not.toMatch(/\b(?:matching events|events matched|0 events)\b/i);
+    expect(view.accessibilityLabel).toContain(view.body);
+  });
+  test("observation opt-in patch changes only in-app observation preference", () => {
+    expect(observationPreferencePatch(true)).toEqual({
+      channels: { observation: { in_app: true } },
+    });
+    expect(observationPreferencePatch(false)).toEqual({
+      channels: { observation: { in_app: false } },
+    });
+    expect(JSON.stringify(observationPreferencePatch(true))).not.toMatch(/push|email/);
+  });
+  test("observation visibility is off by default and revocation hides immediately and stays hidden on failure", () => {
+    expect(shouldShowObservations(undefined, false)).toBe(false);
+    expect(shouldShowObservations(false, false)).toBe(false);
+    expect(shouldShowObservations(true, false)).toBe(true);
+    // This is the state set synchronously by the revoke click; an error does not
+    // change it or the saved preference, so observations remain private.
+    const savedPreference = true;
+    const hideWhileRevoking = true;
+    expect(shouldShowObservations(savedPreference, hideWhileRevoking)).toBe(false);
+    expect(savedPreference).toBe(true);
+    expect(shouldShowObservations(savedPreference, hideWhileRevoking)).toBe(false);
+    expect(shouldShowObservations(true, false, false)).toBe(false); // stale true while loading/error
+    expect(shouldShowObservations(true, false, true, true)).toBe(false); // failed revoke
+    expect(shouldShowObservations(true, false, true, false)).toBe(true); // confirmed enabled / retry success
+  });
+  test("private query keys isolate member and workspace without sending identity as input", () => {
+    const baseKey = ["insights", "list"];
+    const memberAWorkspace1 = privateInsightsQueryKey(baseKey, "member-a", "workspace-1");
+    expect(privateInsightsQueryKey(baseKey, "member-b", "workspace-1")).not.toEqual(
+      memberAWorkspace1,
+    );
+    expect(privateInsightsQueryKey(baseKey, "member-a", "workspace-2")).not.toEqual(
+      memberAWorkspace1,
+    );
+    expect(privateInsightsQueryKey(baseKey, "member-a", null)).not.toEqual(memberAWorkspace1);
+    expect(baseKey).toEqual(["insights", "list"]);
+    expect(privateInsightsSubject(true, "member-a", "workspace-1")).toBeNull();
+    expect(privateInsightsSubject(false, undefined, "workspace-1")).toBeNull();
+    expect(privateInsightsSubject(false, "member-a", "workspace-1")).toEqual({
+      userId: "member-a",
+      organizationId: "workspace-1",
+    });
+  });
   test("renders each insight with explanation, coverage and real buttons; not-ready rows say why", () => {
     const html = renderToStaticMarkup(
       <InsightsCard result={result()} pendingId={null} onFeedback={() => {}} />,

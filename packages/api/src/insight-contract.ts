@@ -29,6 +29,9 @@ export const INSIGHT_KINDS = [
   // insight rule; the kind exists so reminders share the opt-in channels,
   // per-kind toggles and the one-push-a-day claim.
   "reminder",
+  // #84 optional descriptive cross-module nutrition observations: shown only
+  // when the person opts the kind on. Off on every channel by default.
+  "observation",
 ] as const;
 export type InsightKind = (typeof INSIGHT_KINDS)[number];
 
@@ -62,6 +65,10 @@ export const INSIGHT_RULE_IDS = [
   "data_quality.recording_gap",
   "data_quality.source_change",
   "streak.recording",
+  // #84 descriptive cross-module nutrition observations (kind `observation`).
+  "observation.meals_and_workouts",
+  "observation.meals_near_sleep",
+  "observation.activity_energy_context",
 ] as const;
 export type InsightRuleId = (typeof INSIGHT_RULE_IDS)[number];
 
@@ -76,6 +83,9 @@ export const INSIGHT_RULE_KINDS: Record<InsightRuleId, InsightKind> = {
   "data_quality.recording_gap": "data_quality",
   "data_quality.source_change": "data_quality",
   "streak.recording": "streak",
+  "observation.meals_and_workouts": "observation",
+  "observation.meals_near_sleep": "observation",
+  "observation.activity_energy_context": "observation",
 };
 
 /** Rule versions; any parameter or template change bumps the rule's version. */
@@ -90,6 +100,9 @@ export const INSIGHT_RULE_VERSIONS: Record<InsightRuleId, string> = {
   "data_quality.recording_gap": "1",
   "data_quality.source_change": "1",
   "streak.recording": "1",
+  "observation.meals_and_workouts": "1",
+  "observation.meals_near_sleep": "1",
+  "observation.activity_energy_context": "1",
 };
 
 export const INSIGHT_UNITS = ["minutes", "bpm", "steps", "kg"] as const;
@@ -167,6 +180,50 @@ export const streakDetailSchema = z.object({
   startDate: z.string(),
 });
 
+/**
+ * #84 — descriptive cross-module nutrition observations. Each names the window
+ * it covers and the completeness of every input it used. They describe a
+ * coincidence in the person's own records only; there is no value crossed
+ * between modules and no cause. Values are `null` when numbers are hidden.
+ */
+export const observationWindowSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  days: z.number().int(),
+});
+
+export const mealsAndWorkoutsDetailSchema = z.object({
+  type: z.literal("meals_and_workouts"),
+  window: observationWindowSchema,
+  /** Days in the window the person marked their diary complete with entries. */
+  diaryCompleteDays: z.number().int(),
+  /** Days in the window with a recorded workout session. */
+  workoutDays: z.number().int(),
+  /** Days that were both a complete diary day and a workout day. */
+  daysWithBoth: z.number().int(),
+});
+
+export const mealsNearSleepDetailSchema = z.object({
+  type: z.literal("meals_near_sleep"),
+  window: observationWindowSchema,
+  /** Nights with a recorded sleep start and a logged meal before it. */
+  evenings: z.number().int(),
+  /** Evenings where that last meal was within `nearSleepWindowMinutes`. */
+  nearSleepEvenings: z.number().int(),
+  nearSleepWindowMinutes: z.number().int(),
+  /** Median minutes between the last logged meal and recorded sleep start. */
+  medianGapMinutes: z.number().nullable(),
+});
+
+export const activityEnergyContextDetailSchema = z.object({
+  type: z.literal("activity_energy_context"),
+  window: observationWindowSchema,
+  /** Days in the window with estimated activity energy recorded. */
+  activityDays: z.number().int(),
+  /** Sum of estimated activity energy; separate from intake and never added to it. */
+  activityEnergyKcal: z.number().nullable(),
+});
+
 export const insightDetailSchema = z.discriminatedUnion("type", [
   changeDetailSchema,
   trendDetailSchema,
@@ -174,6 +231,9 @@ export const insightDetailSchema = z.discriminatedUnion("type", [
   recordingGapDetailSchema,
   sourceChangeDetailSchema,
   streakDetailSchema,
+  mealsAndWorkoutsDetailSchema,
+  mealsNearSleepDetailSchema,
+  activityEnergyContextDetailSchema,
 ]);
 export type InsightDetail = z.infer<typeof insightDetailSchema>;
 
@@ -233,12 +293,24 @@ export type InsightRuleReadiness = z.infer<typeof insightRuleReadinessSchema>;
 
 export const INSIGHTS_WITHHELD_REASONS = ["adults_only"] as const;
 
+export const nutritionObservationSchema = z.object({
+  ruleId: z.enum(["observation.meals_near_sleep", "observation.meals_and_workouts"]),
+  window: observationWindowSchema,
+  matchingEvents: z.number().int().nullable(),
+  minimumMatchingEvents: z.number().int().nullable(),
+  completeness: z.string(),
+  title: z.string(),
+  body: z.string(),
+});
+
 export const insightsResultSchema = z.object({
   engineVersion: z.string(),
   asOf: z.string(),
   status: z.enum(["available", "withheld"]),
   withheldReason: z.enum(INSIGHTS_WITHHELD_REASONS).nullable(),
   insights: z.array(insightSchema),
+  /** Optional, per-member descriptive nutrition observations (#84). */
+  observations: z.array(nutritionObservationSchema),
   readiness: z.array(insightRuleReadinessSchema),
   /** Insights hidden by your dismissals, "not useful" mutes or in-app settings. */
   hiddenCount: z.number().int(),
@@ -295,6 +367,8 @@ export const kindChannelsSchema = z.object({
   data_quality: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
   streak: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
   reminder: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
+  /** #84: observational, so off on every channel until the person opts in. */
+  observation: z.object({ in_app: z.boolean(), push: z.boolean(), email: z.boolean() }),
 });
 export type KindChannels = z.infer<typeof kindChannelsSchema>;
 
@@ -355,6 +429,7 @@ export const insightPreferencesUpdateInput = z.strictObject({
       data_quality: channelPatch.optional(),
       streak: channelPatch.optional(),
       reminder: channelPatch.optional(),
+      observation: channelPatch.optional(),
     })
     .optional(),
 });

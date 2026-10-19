@@ -76,6 +76,9 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   daily_weight_override: organization,
   body_comp_event: organization,
   weight_checkin: organization,
+  // Issue #85 private manual measurements and their off-by-default member opt-in.
+  private_body_measurement: { kind: "user" },
+  private_body_measurement_preference: { kind: "user" },
 
   // Clinical
   blood_panel: organization,

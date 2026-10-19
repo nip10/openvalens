@@ -48,6 +48,48 @@ export const INSIGHT_COPY = {
   summariesLink: "See the full breakdown",
 } as const;
 
+export function nutritionObservationView(observation: InsightsResult["observations"][number]) {
+  return {
+    title: observation.title,
+    body: observation.body,
+    completeness: observation.completeness,
+    period: `Period: ${observation.window.from} to ${observation.window.to} (${observation.window.days} days)`,
+    accessibilityLabel: `${observation.title}. ${observation.body}. ${observation.completeness}`,
+  };
+}
+
+/** Keep the explicit observation opt-in isolated from every delivery channel. */
+export function observationPreferencePatch(inApp: boolean) {
+  return { channels: { observation: { in_app: inApp } } } as const;
+}
+
+/** Fail closed while a revocation is pending or after it fails. */
+export function shouldShowObservations(
+  savedInApp: boolean | undefined,
+  hideObservations: boolean,
+  preferenceConfirmed = true,
+  mutationFailed = false,
+) {
+  return savedInApp === true && !hideObservations && preferenceConfirmed && !mutationFailed;
+}
+
+/** Keep private query results isolated by authenticated member and workspace. */
+export function privateInsightsQueryKey(
+  queryKey: readonly unknown[],
+  userId: string,
+  organizationId: string | null,
+) {
+  return [...queryKey, { privateSubject: [userId, organizationId ?? "personal"] }] as const;
+}
+
+export function privateInsightsSubject(
+  sessionPending: boolean,
+  userId: string | null | undefined,
+  organizationId: string | null,
+) {
+  return !sessionPending && userId ? { userId, organizationId } : null;
+}
+
 export const INSIGHT_METRIC_LABELS: Record<InsightMetric, string> = {
   sleep_duration: "Sleep",
   resting_heart_rate: "Resting heart rate",
@@ -68,6 +110,7 @@ export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
   data_quality: "Data quality (gaps, new devices)",
   streak: "Recording streaks",
   reminder: "Preventive-care reminders (dates you set)",
+  observation: "Nutrition observations",
 };
 
 export const INSIGHT_CHANNEL_LABELS: Record<InsightChannel, string> = {
@@ -225,6 +268,23 @@ export function insightView(
     case "streak": {
       title = `${detail.days} days of ${METRIC_PHRASE[detail.metric]} recorded in a row`;
       body = `${INSIGHT_METRIC_LABELS[detail.metric]} has been recorded every day since ${formatInsightDate(detail.startDate)}.`;
+      break;
+    }
+    case "meals_and_workouts": {
+      title = "Meals and recorded workouts";
+      body = `Logged meals and workouts occurred on ${detail.daysWithBoth} days in this ${detail.window.days}-day window. This describes co-occurrence in your records only and does not establish a relationship between them.`;
+      coverageText = `Diary marked complete on ${detail.diaryCompleteDays} days; workouts were recorded on ${detail.workoutDays} days.`;
+      break;
+    }
+    case "meals_near_sleep": {
+      title = "Meals and recorded sleep timing";
+      body = `Some logged meals were recorded within four hours before sleep starts in this ${detail.window.days}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep.`;
+      coverageText = `${detail.nearSleepEvenings} of ${detail.evenings} recorded evenings were within the timing window.`;
+      break;
+    }
+    case "activity_energy_context": {
+      title = "Recorded activity energy";
+      body = `Estimated activity energy was recorded on ${detail.activityDays} days in this ${detail.window.days}-day window. It is shown separately from food intake.`;
       break;
     }
   }

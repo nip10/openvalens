@@ -585,7 +585,14 @@ function makeInsight(
   detail: InsightDetail,
   factors: InsightFactor[] = [],
 ): Insight {
-  const topic = detail.type === "goal" ? "goals" : METRIC_TOPICS[detail.metric];
+  const topic =
+    detail.type === "goal"
+      ? "goals"
+      : "metric" in detail
+        ? METRIC_TOPICS[detail.metric]
+        : detail.type === "meals_near_sleep"
+          ? "sleep"
+          : "activity";
   return {
     id: `${ruleId}:${windowKey}`,
     ruleId,
@@ -799,6 +806,7 @@ export function runInsightRules(input: InsightEngineInput): InsightEngineOutput 
     data_quality: 2,
     streak: 3,
     reminder: 4,
+    observation: 5,
   } as const;
   const insights = [
     ...changes.sort((a, b) => b.strength - a.strength).map((entry) => entry.insight),
@@ -886,5 +894,7 @@ export function defaultKindChannels(): KindChannels {
     data_quality: { ...all },
     streak: { ...all },
     reminder: { ...all },
+    // #84 cross-module observations are opt-in: off everywhere by default.
+    observation: { in_app: false, push: false, email: false },
   };
 }

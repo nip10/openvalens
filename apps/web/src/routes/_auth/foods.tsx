@@ -175,7 +175,7 @@ function FoodsPage() {
                       ).join(" · ")}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {food.archived ? (
                       <Button
                         variant="ghost"
@@ -295,7 +295,7 @@ function FoodForm({
                 {describeCoverage(conflict)}
               </p>
             )}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {conflict.archived ? null : (
                 <Button
                   size="sm"
@@ -424,7 +424,7 @@ function FoodForm({
             {parsed.error}
           </p>
         ) : null}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={() => save()} disabled={!parsed.ok || pending}>
             {pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save}
           </Button>

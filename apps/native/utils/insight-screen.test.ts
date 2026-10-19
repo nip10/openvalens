@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { InsightsResult } from "@openvalens/api/insight-contract";
 import { runInsightRules } from "@openvalens/api/insight-rules";
-import { insightsListView } from "@openvalens/api/presenters/insights";
+import { insightsListView, nutritionObservationView } from "@openvalens/api/presenters/insights";
 
 import { insightsSectionModel } from "./insight-screen";
 
@@ -28,6 +28,7 @@ function result(): InsightsResult {
     status: "available",
     withheldReason: null,
     insights: output.insights,
+    observations: [],
     readiness: output.readiness,
     hiddenCount: 1,
     budget: { changeCap: 2, suppressedChanges: 0 },
@@ -36,6 +37,22 @@ function result(): InsightsResult {
 }
 
 describe("insights section model (native)", () => {
+  test("observation view exposes neutral copy, completeness, window, and no hidden counts", () => {
+    const view = nutritionObservationView({
+      ruleId: "observation.meals_and_workouts",
+      window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
+      matchingEvents: null,
+      minimumMatchingEvents: null,
+      completeness: "Completeness information is not available.",
+      title: "Meals and recorded workouts",
+      body: "Logged meals and recorded workouts were noted during this period. This describes records only.",
+    });
+    expect(view.period).toBe("Period: 2026-10-01 to 2026-10-07 (7 days)");
+    expect(view.completeness).toContain("not available");
+    expect(view.accessibilityLabel).toContain(view.body);
+    expect(JSON.stringify(view)).not.toContain("matchingEvents");
+    expect(view.body).not.toContain("caused");
+  });
   test("shows the same text as the web view model (parity)", () => {
     const data = result();
     const model = insightsSectionModel(data);

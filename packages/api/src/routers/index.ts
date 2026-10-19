@@ -28,6 +28,7 @@ import { nutritionTargetsRouter } from "./nutrition-targets";
 import { plansRouter } from "./plans";
 import { preventiveCareRouter } from "./preventive-care";
 import { profileRouter } from "./profile";
+import { privateBodyRouter } from "./private-body";
 import { scoreRouter } from "./score";
 import { sharingRouter } from "./sharing";
 import { signInRouter } from "./sign-in";
@@ -67,6 +68,7 @@ export const appRouter = {
   plans: plansRouter,
   preventiveCare: preventiveCareRouter,
   profile: profileRouter,
+  privateBody: privateBodyRouter,
   score: scoreRouter,
   sharing: sharingRouter,
   signIn: signInRouter,

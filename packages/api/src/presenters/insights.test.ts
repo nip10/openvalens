@@ -160,6 +160,29 @@ function everyInsight(): Insight[] {
       make("streak.recording", { type: "streak", metric, days: 14, startDate: "2026-10-02" }),
     );
   }
+  out.push(
+    make("observation.meals_and_workouts", {
+      type: "meals_and_workouts",
+      window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
+      diaryCompleteDays: 5,
+      workoutDays: 4,
+      daysWithBoth: 3,
+    }),
+    make("observation.meals_near_sleep", {
+      type: "meals_near_sleep",
+      window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
+      evenings: 4,
+      nearSleepEvenings: 3,
+      nearSleepWindowMinutes: 240,
+      medianGapMinutes: 90,
+    }),
+    make("observation.activity_energy_context", {
+      type: "activity_energy_context",
+      window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
+      activityDays: 4,
+      activityEnergyKcal: 180,
+    }),
+  );
   return out;
 }
 
