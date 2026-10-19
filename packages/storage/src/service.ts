@@ -23,8 +23,8 @@
 import { createHash } from "node:crypto";
 
 import type { Database } from "@openvalens/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { storedObject } from "@openvalens/db/schema/storage";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { photoCleanupIntent, storedObject } from "@openvalens/db/schema/storage";
 
 import { buildObjectKey, newObjectId, READINESS_PROBE_KEY } from "./keys";
 import { StorageError, type ObjectStorage, type StorageStoreIdentity } from "./object-storage";
@@ -59,6 +59,11 @@ export type PutObjectInput = {
 };
 
 export type ObjectRef = { organizationId: string; objectId: string };
+export type PhotoRef = ObjectRef;
+export type PhotoLinkCallback = (
+  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  object: StoredObjectRecord,
+) => Promise<void>;
 
 export type DownloadUrl = {
   /** Absolute (S3 presigned) or server-relative (local signed route) URL. */
@@ -74,6 +79,17 @@ export interface StorageService {
   readonly storeIdentity: StorageStoreIdentity | null;
   readonly maxObjectBytes: number;
   putObject(input: PutObjectInput): Promise<StoredObjectRecord>;
+  reservePhoto(input: {
+    organizationId: string;
+    createdByUserId: string;
+    contentType: string;
+    canonicalBytes: Uint8Array;
+  }): Promise<PhotoRef>;
+  writePhoto(input: {
+    ref: PhotoRef;
+    bytes: Uint8Array;
+    linkPhoto: PhotoLinkCallback;
+  }): Promise<StoredObjectRecord>;
   findObject(ref: ObjectRef): Promise<StoredObjectRecord | null>;
   getObject(ref: ObjectRef): Promise<{
     object: StoredObjectRecord;
@@ -231,12 +247,191 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
     return row.photoState === "ready";
   }
 
+  async function recordCleanup(
+    tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+    row: typeof storedObject.$inferSelect,
+    writeState: "not_started" | "uncertain" | "settled",
+  ): Promise<void> {
+    await tx
+      .insert(photoCleanupIntent)
+      .values({
+        id: newObjectId(),
+        storageKey: row.storageKey,
+        storageProvider: row.storageProvider,
+        storageStoreId: row.storageStoreId,
+        subjectUserId: row.createdByUserId,
+        organizationId: row.organizationId,
+        writeState,
+        createdAt: now(),
+        nextAttemptAt: now(),
+      })
+      .onConflictDoNothing();
+  }
+
+  async function setPhotoFailure(
+    id: string,
+    expected: "not_started" | "uncertain",
+    state: "not_started" | "uncertain" | "settled",
+  ): Promise<void> {
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(storedObject)
+        .where(eq(storedObject.id, id))
+        .for("update");
+      if (!row) return;
+      await tx
+        .update(storedObject)
+        .set({ photoState: "deleting", photoWriteState: state })
+        .where(and(eq(storedObject.id, id), eq(storedObject.photoWriteState, expected)));
+      await recordCleanup(tx, { ...row, photoState: "deleting", photoWriteState: state }, state);
+    });
+  }
+
   const service: StorageService = {
     provider: storage.provider,
     storeIdentity: storage.storeIdentity ?? null,
     maxObjectBytes,
 
+    async reservePhoto(input) {
+      if (!storage.storeIdentity || !["image/jpeg", "image/png"].includes(input.contentType))
+        throw new StorageError("unsupported_type", 0);
+      if (input.canonicalBytes.byteLength > maxObjectBytes) throw new StorageError("too_large", 0);
+      const id = newObjectId();
+      const key = buildObjectKey(input.organizationId, id);
+      const digest = sha256Hex(input.canonicalBytes);
+      await db.insert(storedObject).values({
+        id,
+        organizationId: input.organizationId,
+        createdByUserId: input.createdByUserId,
+        purpose: "progress_photo",
+        storageKey: key,
+        contentType: input.contentType,
+        sizeBytes: input.canonicalBytes.byteLength,
+        sha256: digest,
+        storageProvider: storage.storeIdentity.provider,
+        storageStoreId: storage.storeIdentity.storeId,
+        photoState: "pending",
+        photoWriteState: "not_started",
+        createdAt: now(),
+      });
+      return { organizationId: input.organizationId, objectId: id };
+    },
+
+    async writePhoto({ ref, bytes, linkPhoto }) {
+      let actual: Uint8Array;
+      try {
+        actual = await readBounded(bytes, maxObjectBytes);
+      } catch (error) {
+        await setPhotoFailure(ref.objectId, "not_started", "not_started");
+        throw error;
+      }
+      const digest = sha256Hex(actual);
+      const reserved = await findRow(ref);
+      if (
+        !reserved ||
+        reserved.purpose !== "progress_photo" ||
+        reserved.photoState !== "pending" ||
+        reserved.photoWriteState !== "not_started" ||
+        reserved.sizeBytes !== actual.byteLength ||
+        reserved.sha256 !== digest ||
+        reserved.storageProvider !== storage.storeIdentity?.provider ||
+        reserved.storageStoreId !== storage.storeIdentity?.storeId
+      ) {
+        if (reserved?.photoState === "pending" && reserved.photoWriteState === "not_started")
+          await setPhotoFailure(ref.objectId, "not_started", "not_started");
+        throw new StorageError("unavailable", 0);
+      }
+      // Lock parent then object and transition to uncertain before touching storage.
+      const armed = await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select id from "user" where id = (select created_by_user_id from stored_object where id = ${ref.objectId}) for update`,
+        );
+        await tx.execute(
+          sql`select id from organization where id = ${ref.organizationId} for update`,
+        );
+        const [row] = await tx
+          .select()
+          .from(storedObject)
+          .where(
+            and(
+              eq(storedObject.id, ref.objectId),
+              eq(storedObject.organizationId, ref.organizationId),
+            ),
+          )
+          .for("update");
+        if (
+          !row ||
+          row.purpose !== "progress_photo" ||
+          row.createdByUserId === null ||
+          row.photoState !== "pending" ||
+          row.photoWriteState !== "not_started" ||
+          row.storageProvider !== storage.storeIdentity?.provider ||
+          row.storageStoreId !== storage.storeIdentity?.storeId ||
+          row.sizeBytes !== actual.byteLength ||
+          row.sha256 !== digest
+        )
+          throw new StorageError("unavailable", 0);
+        const [updated] = await tx
+          .update(storedObject)
+          .set({ photoWriteState: "uncertain" })
+          .where(and(eq(storedObject.id, row.id), eq(storedObject.photoWriteState, "not_started")))
+          .returning();
+        return updated ?? null;
+      });
+      if (!armed) throw new StorageError("unavailable", 0);
+      let acknowledged = false;
+      try {
+        return await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`select id from "user" where id = ${armed.createdByUserId} for update`,
+          );
+          await tx.execute(
+            sql`select id from organization where id = ${armed.organizationId} for update`,
+          );
+          const [row] = await tx
+            .select()
+            .from(storedObject)
+            .where(eq(storedObject.id, armed.id))
+            .for("update");
+          if (
+            !row ||
+            row.photoState !== "pending" ||
+            row.photoWriteState !== "uncertain" ||
+            row.storageProvider !== storage.storeIdentity?.provider ||
+            row.storageStoreId !== storage.storeIdentity?.storeId
+          )
+            throw new StorageError("unavailable", 0);
+          // Hold parent and object locks through bounded PUT and transactional link.
+          await storage.put(row.storageKey, actual, {
+            contentType: row.contentType,
+            sha256: row.sha256,
+          });
+          acknowledged = true;
+          const record = toRecord(row);
+          await linkPhoto(tx, record);
+          const [ready] = await tx
+            .update(storedObject)
+            .set({ photoState: "ready", photoWriteState: "settled" })
+            .where(
+              and(
+                eq(storedObject.id, row.id),
+                eq(storedObject.photoState, "pending"),
+                eq(storedObject.photoWriteState, "uncertain"),
+              ),
+            )
+            .returning();
+          if (!ready) throw new StorageError("unavailable", 0);
+          return toRecord(ready);
+        });
+      } catch (error) {
+        await setPhotoFailure(armed.id, "uncertain", acknowledged ? "settled" : "uncertain");
+        throw error;
+      }
+    },
+
     async putObject(input: PutObjectInput): Promise<StoredObjectRecord> {
+      if (input.purpose === "progress_photo") throw new StorageError("unavailable", 0);
       const policy = PURPOSE_POLICIES[input.purpose];
       if (!policy) throw new StorageError("unsupported_type", 0);
       const contentType = normalizeContentType(input.contentType);

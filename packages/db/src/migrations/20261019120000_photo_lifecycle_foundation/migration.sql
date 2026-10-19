@@ -40,3 +40,45 @@ CREATE TABLE "photo_cleanup_intent" (
   CONSTRAINT "photo_cleanup_provider_check" CHECK ("storage_provider" IS NULL OR "storage_provider" IN ('local', 's3'))
 );
 CREATE INDEX "photo_cleanup_intent_due_idx" ON "photo_cleanup_intent" ("next_attempt_at");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "photo_cleanup_intent_storage_key_key" ON "photo_cleanup_intent" ("storage_key");
+--> statement-breakpoint
+
+CREATE FUNCTION capture_photo_cleanup_intent() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.purpose = 'progress_photo' THEN
+    INSERT INTO photo_cleanup_intent
+      (id, storage_key, storage_provider, storage_store_id, subject_id, org_id, write_state)
+    VALUES
+      (md5(random()::text || clock_timestamp()::text), OLD.storage_key,
+       OLD.storage_provider, OLD.storage_store_id, OLD.created_by_user_id,
+       OLD.organization_id, coalesce(OLD.photo_write_state, 'uncertain'));
+  END IF;
+  RETURN OLD;
+END $$;
+--> statement-breakpoint
+CREATE TRIGGER stored_object_photo_cleanup_after_delete
+  AFTER DELETE ON stored_object FOR EACH ROW EXECUTE FUNCTION capture_photo_cleanup_intent();
+--> statement-breakpoint
+
+CREATE FUNCTION erase_user_progress_photos_before_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM stored_object WHERE purpose = 'progress_photo' AND created_by_user_id = OLD.id;
+  RETURN OLD;
+END $$;
+--> statement-breakpoint
+CREATE TRIGGER user_progress_photo_cleanup_before_delete
+  BEFORE DELETE ON "user" FOR EACH ROW EXECUTE FUNCTION erase_user_progress_photos_before_delete();
+--> statement-breakpoint
+
+CREATE FUNCTION prevent_managed_photo_reassignment() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.purpose = 'progress_photo' AND OLD.photo_state IS NOT NULL
+     AND NEW.created_by_user_id IS DISTINCT FROM OLD.created_by_user_id THEN
+    RAISE EXCEPTION 'managed photo owner cannot be reassigned';
+  END IF;
+  RETURN NEW;
+END $$;
+--> statement-breakpoint
+CREATE TRIGGER stored_object_photo_owner_immutable
+  BEFORE UPDATE OF created_by_user_id ON stored_object FOR EACH ROW EXECUTE FUNCTION prevent_managed_photo_reassignment();

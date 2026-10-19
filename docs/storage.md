@@ -127,6 +127,15 @@ inferred from the active provider. Until reservation-based writes land, the
 existing generic progress-photo PUT remains a legacy/unmanaged compatibility
 path and does not enable the new photo lifecycle.
 
+Lifecycle photo writes use `reservePhoto` followed by `writePhoto`: reservation
+stores the canonical byte count/hash and opaque key before publication; only one
+writer can arm that key. Pending/deleting rows are not readable. An ambiguous
+PUT or publication-link failure stays tracked by the cleanup-intent table; the
+physical cleanup runner is a separate follow-up and deletion is not reported as
+physically complete here. The transaction-bound link callback must use its
+provided transaction (no nested/root transaction) for photo metadata and
+consent revalidation.
+
 ## For feature code (#85, #132)
 
 Use the tenant-scoped `StorageService` (`@openvalens/storage`), bound on the
@@ -136,13 +145,17 @@ oRPC context as `context.storage` (`null` when storage is off — fail closed):
 const object = await context.storage.putObject({
   organizationId: authz.activeOrganizationId, // from the session, never input
   createdByUserId: authz.user.id,
-  purpose: "progress_photo", // decides allowed types and the RBAC resource
-  contentType: "image/jpeg",
+  purpose: "lab_document", // generic puts cannot create new progress photos
+  contentType: "application/pdf",
   body, // Uint8Array | ArrayBuffer | Blob | ReadableStream, ≤ STORAGE_MAX_OBJECT_BYTES
 });
 // Store object.id on your own row. Read with getObject / createDownloadUrl,
 // remove with deleteObject — always passing the active organization id.
 ```
+
+For a sanitized progress photo, use `reservePhoto`/`writePhoto` instead of the
+generic `putObject` path; do not upload original bytes. This API is a storage
+primitive only and does not itself authorize a caller or define photo metadata.
 
 | Method                                      | Notes                                                         |
 | ------------------------------------------- | ------------------------------------------------------------- |

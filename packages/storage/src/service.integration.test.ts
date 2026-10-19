@@ -53,6 +53,7 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
 
   beforeAll(async () => {
     await migrate(db);
+    await db.execute(sql`create table photo_link_test (object_id text primary key)`);
     for (const who of ["a", "b"]) {
       await db.execute(
         sql.raw(`
@@ -80,15 +81,15 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
   test("putObject stores bytes under an opaque key with checksum metadata", async () => {
     const object = await service.putObject({
       ...A,
-      purpose: "progress_photo",
-      contentType: "IMAGE/JPEG; charset=binary",
+      purpose: "lab_document",
+      contentType: "APPLICATION/PDF; charset=binary",
       body: photo,
     });
     expect(object).toMatchObject({
       organizationId: "org-a",
       createdByUserId: "user-a",
-      purpose: "progress_photo",
-      contentType: "image/jpeg",
+      purpose: "lab_document",
+      contentType: "application/pdf",
       sizeBytes: photo.byteLength,
       sha256: sha(photo),
     });
@@ -125,8 +126,8 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
   test("refuses disallowed types and oversized bodies before writing anything", async () => {
     const before = await service.listObjects({ organizationId: "org-a" });
     for (const [purpose, contentType] of [
-      ["progress_photo", "image/svg+xml"],
-      ["progress_photo", "text/html"],
+      ["lab_document", "image/svg+xml"],
+      ["lab_document", "text/html"],
       ["clinical_export", "image/jpeg"],
     ] as const) {
       const error = await service
@@ -136,7 +137,7 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     }
     for (const body of [new Uint8Array(65), new Blob([new Uint8Array(65)]).stream()]) {
       const error = await service
-        .putObject({ ...A, purpose: "progress_photo", contentType: "image/png", body })
+        .putObject({ ...A, purpose: "lab_document", contentType: "application/pdf", body })
         .catch((e: unknown) => e);
       expect((error as StorageError).category).toBe("too_large");
     }
@@ -146,8 +147,8 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
   test("another organization cannot find, read, sign or delete the object", async () => {
     const object = await service.putObject({
       ...A,
-      purpose: "progress_photo",
-      contentType: "image/png",
+      purpose: "lab_document",
+      contentType: "application/pdf",
       body: photo,
     });
     const asB = { organizationId: "org-b", objectId: object.id };
@@ -166,8 +167,8 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
   test("signed local downloads work once, then expire; forged ones are refused", async () => {
     const object = await service.putObject({
       ...A,
-      purpose: "progress_photo",
-      contentType: "image/png",
+      purpose: "lab_document",
+      contentType: "application/pdf",
       body: photo,
     });
     const link = await service.createDownloadUrl(
@@ -179,7 +180,7 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
 
     const ok = await service.serveSignedDownload(new URL(link!.url, BASE));
     expect(ok.status).toBe(200);
-    expect(ok.headers.get("content-type")).toBe("image/png");
+    expect(ok.headers.get("content-type")).toBe("application/pdf");
     expect(ok.headers.get("cache-control")).toBe("private, no-store");
     expect(ok.headers.get("content-disposition")).toBe("attachment");
     expect(ok.headers.get("x-content-type-options")).toBe("nosniff");
@@ -201,8 +202,8 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
   test("download TTL is capped at the configured maximum", async () => {
     const object = await service.putObject({
       ...A,
-      purpose: "progress_photo",
-      contentType: "image/png",
+      purpose: "lab_document",
+      contentType: "application/pdf",
       body: photo,
     });
     const link = await service.createDownloadUrl(
@@ -215,8 +216,8 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
   test("subject erasure: collect keys before, delete bytes after", async () => {
     const object = await service.putObject({
       ...B,
-      purpose: "progress_photo",
-      contentType: "image/png",
+      purpose: "lab_document",
+      contentType: "application/pdf",
       body: photo,
     });
     const keys = await service.collectOrganizationKeys(["org-b"]);
@@ -238,8 +239,8 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     const object = await service.putObject({
       organizationId: "org-a",
       createdByUserId: "user-c",
-      purpose: "progress_photo",
-      contentType: "image/png",
+      purpose: "lab_document",
+      contentType: "application/pdf",
       body: photo,
     });
     await db.execute(sql`delete from member where id = 'm-c'`);
@@ -261,6 +262,223 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
       signingKey: SIGNING_KEY,
     });
     expect(await broken.probe()).toBe("unwritable");
+  });
+
+  test("photo reservation stays hidden until publication and links atomically", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    expect(await service.findObject(ref)).toBeNull();
+    expect(await service.getObject(ref)).toBeNull();
+    expect(await service.createDownloadUrl(ref)).toBeNull();
+    const [pending] = (
+      await db.execute(
+        sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+      )
+    ).rows as { photo_state: string; photo_write_state: string }[];
+    expect(pending).toEqual({ photo_state: "pending", photo_write_state: "not_started" });
+    await service.writePhoto({
+      ref,
+      bytes: photo,
+      linkPhoto: async (tx, object) => {
+        await tx.execute(sql`insert into photo_link_test (object_id) values (${object.id})`);
+      },
+    });
+    expect(
+      (
+        await db.execute(
+          sql`select object_id from photo_link_test where object_id = ${ref.objectId}`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+    expect(await service.findObject(ref)).toMatchObject({
+      purpose: "progress_photo",
+      sha256: sha(photo),
+    });
+    expect(
+      new Uint8Array(await new Response((await service.getObject(ref))!.body).arrayBuffer()),
+    ).toEqual(photo);
+  });
+
+  test("wrong reserved bytes fail before PUT and retain cleanup tracking", async () => {
+    let writes = 0;
+    const adapter = new LocalObjectStorage(root);
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.put = async (...args: Parameters<LocalObjectStorage["put"]>) => {
+      writes += 1;
+      return adapter.put(...args);
+    };
+    const isolated = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+    });
+    const ref = await isolated.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/png",
+      canonicalBytes: photo,
+    });
+    await expect(
+      isolated.writePhoto({
+        ref,
+        bytes: new TextEncoder().encode("different"),
+        linkPhoto: async () => undefined,
+      }),
+    ).rejects.toBeInstanceOf(StorageError);
+    const [row] = (
+      await db.execute(
+        sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+      )
+    ).rows as { photo_state: string; photo_write_state: string }[];
+    expect(writes).toBe(0);
+    expect(row).toEqual({ photo_state: "deleting", photo_write_state: "not_started" });
+    const intents = await db.execute(
+      sql`select storage_key from photo_cleanup_intent where storage_key = (select storage_key from stored_object where id = ${ref.objectId})`,
+    );
+    expect(intents.rows).toHaveLength(1);
+  });
+
+  test("ambiguous PUT is never retried and remains durably tracked", async () => {
+    let writes = 0;
+    const adapter = new LocalObjectStorage(root);
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.put = async (key, bytes, options) => {
+      writes += 1;
+      await adapter.put(key, bytes, options);
+      throw new Error("ambiguous");
+    };
+    const isolated = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+    });
+    const ref = await isolated.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await expect(
+      isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
+    ).rejects.toThrow("ambiguous");
+    expect(writes).toBe(1);
+    const [row] = (
+      await db.execute(
+        sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+      )
+    ).rows as { photo_state: string; photo_write_state: string }[];
+    expect(row).toEqual({ photo_state: "deleting", photo_write_state: "uncertain" });
+    await expect(
+      isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
+    ).rejects.toBeInstanceOf(StorageError);
+    expect(writes).toBe(1);
+  });
+
+  test("concurrent publication arms a reservation for only one PUT", async () => {
+    let writes = 0;
+    const adapter = new LocalObjectStorage(root);
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.put = async (key, bytes, options) => {
+      writes += 1;
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      return adapter.put(key, bytes, options);
+    };
+    const isolated = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+    });
+    const ref = await isolated.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    const results = await Promise.allSettled([
+      isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
+      isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
+    ]);
+    expect(writes).toBe(1);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+  });
+
+  test("publication callback rollback leaves acknowledged bytes in cleanup tracking", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await expect(
+      service.writePhoto({
+        ref,
+        bytes: photo,
+        linkPhoto: async (tx, object) => {
+          await tx.execute(sql`insert into photo_link_test (object_id) values (${object.id})`);
+          throw new Error("link rejected");
+        },
+      }),
+    ).rejects.toThrow("link rejected");
+    expect(
+      (
+        await db.execute(
+          sql`select object_id from photo_link_test where object_id = ${ref.objectId}`,
+        )
+      ).rows,
+    ).toHaveLength(0);
+    const [row] = (
+      await db.execute(
+        sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+      )
+    ).rows as { photo_state: string; photo_write_state: string }[];
+    expect(row).toEqual({ photo_state: "deleting", photo_write_state: "settled" });
+    const intent = await db.execute(
+      sql`select write_state from photo_cleanup_intent where storage_key = (select storage_key from stored_object where id = ${ref.objectId})`,
+    );
+    expect(intent.rows).toEqual([{ write_state: "settled" }]);
+  });
+
+  test("user cascade captures managed photo cleanup before creator erasure", async () => {
+    await db.execute(
+      sql`insert into "user" (id, email) values ('user-photo-delete', 'photo-delete@example.test')`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-photo-delete', 'org-a', 'user-photo-delete', 'member')`,
+    );
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-photo-delete",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await expect(
+      (async () =>
+        await db.execute(
+          sql`update stored_object set created_by_user_id = 'user-a' where id = ${ref.objectId}`,
+        ))(),
+    ).rejects.toThrow();
+    await db.execute(sql`delete from "user" where id = 'user-photo-delete'`);
+    const row = await db.execute(sql`select id from stored_object where id = ${ref.objectId}`);
+    expect(row.rows).toHaveLength(0);
+    const intent = await db.execute(
+      sql`select subject_id, storage_provider, storage_store_id, write_state from photo_cleanup_intent where subject_id = 'user-photo-delete'`,
+    );
+    expect(intent.rows).toHaveLength(1);
+    expect(intent.rows[0]).toMatchObject({
+      subject_id: "user-photo-delete",
+      storage_provider: "local",
+      write_state: "not_started",
+    });
   });
 
   const s3Endpoint = process.env.STORAGE_S3_TEST_ENDPOINT;

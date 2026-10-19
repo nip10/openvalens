@@ -109,6 +109,7 @@ export const photoCleanupIntent = pgTable(
     }),
   },
   (table) => ({
+    photoCleanupKeyUnique: uniqueIndex("photo_cleanup_intent_storage_key_key").on(table.storageKey),
     photoCleanupDueIdx: index("photo_cleanup_intent_due_idx").on(table.nextAttemptAt),
     photoCleanupStateCheck: check(
       "photo_cleanup_intent_write_state_check",
