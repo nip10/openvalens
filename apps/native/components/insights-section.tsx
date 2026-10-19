@@ -1,16 +1,25 @@
 import type { InsightFeedbackAction } from "@openvalens/api/insight-contract";
-import { INSIGHT_COPY, INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
+import {
+  INSIGHT_COPY,
+  INSIGHT_DELIVERY_COPY,
+  nutritionObservationView,
+  observationPreferencePatch,
+  privateInsightsQueryKey,
+  privateInsightsSubject,
+  shouldShowObservations,
+} from "@openvalens/api/presenters/insights";
 import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "heroui-native";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { insightsSectionModel } from "@/utils/insight-screen";
 import { client, orpc } from "@/utils/orpc";
+import { authClient } from "@/lib/auth-client";
 
 /**
  * Issue #92 — cockpit parity with the web dashboard: the two #95 summaries,
@@ -20,15 +29,75 @@ import { client, orpc } from "@/utils/orpc";
  * accessible labels.
  */
 export function InsightsSection() {
+  const { data: session, isPending } = authClient.useSession();
+  const scope = privateInsightsSubject(
+    isPending,
+    session?.user?.id,
+    session?.session?.activeOrganizationId ?? null,
+  );
+  if (!scope)
+    return (
+      <View>
+        <Text>Loading insights…</Text>
+      </View>
+    );
+  return (
+    <SubjectInsightsSection
+      key={`${scope.userId}:${scope.organizationId ?? "personal"}`}
+      userId={scope.userId}
+      organizationId={scope.organizationId}
+    />
+  );
+}
+
+function SubjectInsightsSection({
+  userId,
+  organizationId,
+}: {
+  userId: string;
+  organizationId: string | null;
+}) {
   const queryClient = useQueryClient();
-  const readiness = useQuery(orpc.score.readiness.queryOptions({ input: {} }));
-  const goals = useQuery(orpc.score.goalProgress.queryOptions({ input: {} }));
-  const insights = useQuery(orpc.insights.list.queryOptions({ input: {} }));
-  const consent = useQuery({ ...orpc.ai.consent.get.queryOptions({ input: {} }), retry: false });
+  const readinessOptions = orpc.score.readiness.queryOptions({ input: {} });
+  const goalsOptions = orpc.score.goalProgress.queryOptions({ input: {} });
+  const insightsOptions = orpc.insights.list.queryOptions({ input: {} });
+  const observationPrefsOptions = orpc.insights.preferences.get.queryOptions({ input: {} });
+  const consentOptions = orpc.ai.consent.get.queryOptions({ input: {} });
+  const readiness = useQuery({
+    ...readinessOptions,
+    queryKey: privateInsightsQueryKey(readinessOptions.queryKey, userId, organizationId),
+  });
+  const goals = useQuery({
+    ...goalsOptions,
+    queryKey: privateInsightsQueryKey(goalsOptions.queryKey, userId, organizationId),
+  });
+  const insights = useQuery({
+    ...insightsOptions,
+    queryKey: privateInsightsQueryKey(insightsOptions.queryKey, userId, organizationId),
+  });
+  const observationPrefs = useQuery({
+    ...observationPrefsOptions,
+    queryKey: privateInsightsQueryKey(observationPrefsOptions.queryKey, userId, organizationId),
+  });
+  const consent = useQuery({
+    ...consentOptions,
+    queryKey: privateInsightsQueryKey(consentOptions.queryKey, userId, organizationId),
+    retry: false,
+  });
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [showMethod, setShowMethod] = useState(false);
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
+  const [hideObservations, setHideObservations] = useState(false);
+  useEffect(() => {
+    if (observationPrefs.data?.channels.observation.in_app === false) setHideObservations(false);
+  }, [observationPrefs.data?.channels.observation.in_app]);
+  const insightsKey = privateInsightsQueryKey(insightsOptions.queryKey, userId, organizationId);
+  const preferencesKey = privateInsightsQueryKey(
+    observationPrefsOptions.queryKey,
+    userId,
+    organizationId,
+  );
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: insightsKey });
 
   const feedback = useMutation({
     mutationFn: (input: { insightId: string; action: InsightFeedbackAction }) =>
@@ -55,6 +124,21 @@ export function InsightsSection() {
     },
     onError: () => setMessage("Could not save your choice."),
   });
+  const observation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      client.insights.preferences.update(observationPreferencePatch(enabled)),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: insightsKey });
+      void queryClient.invalidateQueries({ queryKey: preferencesKey });
+    },
+    onError: () => setMessage("Could not update observation settings."),
+  });
+  const showObservations = shouldShowObservations(
+    observationPrefs.data?.channels.observation.in_app,
+    hideObservations,
+    observationPrefs.isSuccess && !observationPrefs.isFetching,
+    observation.isError,
+  );
 
   const ready = readiness.data ? readinessView(readiness.data) : null;
   const progress = goals.data ? goalProgressView(goals.data) : null;
@@ -201,6 +285,93 @@ export function InsightsSection() {
               <Text className="text-sm text-muted-foreground">{model.limits}</Text>
               <Text className="text-xs text-muted-foreground">{model.versionText}</Text>
             </>
+          )}
+        </Card>
+      </CardStack>
+
+      <CardStack title="Nutrition observations">
+        <Card variant="secondary" className="gap-3 p-4">
+          <Text className="text-sm text-muted-foreground">
+            Optional descriptions of how your recorded meals line up in time with recorded sleep and
+            workouts. This reads across those logs only when you turn it on. It does not establish a
+            cause or provide health advice. You can turn it off here without changing either log.
+          </Text>
+          {observationPrefs.isPending ? (
+            <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
+              Loading observation setting…
+            </Text>
+          ) : observationPrefs.isError || !observationPrefs.data ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading observation setting"
+              onPress={() => void observationPrefs.refetch()}
+            >
+              <Text className="underline">Could not load setting. Retry</Text>
+            </Pressable>
+          ) : (
+            <Button
+              isDisabled={observation.isPending}
+              accessibilityLabel={
+                observationPrefs.data.channels.observation.in_app
+                  ? "Turn off nutrition observations"
+                  : "Turn on nutrition observations"
+              }
+              onPress={() => {
+                const enabled = !observationPrefs.data!.channels.observation.in_app;
+                if (!enabled) setHideObservations(true);
+                observation.mutate(enabled);
+              }}
+            >
+              <Button.Label>
+                {observationPrefs.data.channels.observation.in_app
+                  ? "Turn observations off"
+                  : "Turn observations on"}
+              </Button.Label>
+            </Button>
+          )}
+          {observation.isError ? (
+            <Text accessibilityRole="alert" className="text-sm text-foreground">
+              Could not save this choice. Your saved setting is unchanged.
+            </Text>
+          ) : null}
+          {observation.isError && typeof observation.variables === "boolean" ? (
+            <Button variant="secondary" onPress={() => observation.mutate(observation.variables!)}>
+              <Button.Label>Retry saving choice</Button.Label>
+            </Button>
+          ) : null}
+          {showObservations && insights.data?.observations.length === 0 ? (
+            <Text className="text-sm text-muted-foreground">
+              No observations to show for this period. Some records may be missing or incomplete.
+            </Text>
+          ) : null}
+          {showObservations
+            ? insights.data?.observations.map((item) => {
+                const view = nutritionObservationView(item);
+                return (
+                  <View
+                    key={`${item.ruleId}:${item.window.from}`}
+                    accessible
+                    accessibilityLabel={view.accessibilityLabel}
+                    className="gap-1 border-t border-border pt-3"
+                  >
+                    <Text accessibilityRole="header" className="font-medium text-foreground">
+                      {view.title}
+                    </Text>
+                    <Text className="text-sm text-foreground">{view.body}</Text>
+                    <Text className="text-sm text-muted-foreground">{view.completeness}</Text>
+                    <Text className="text-xs text-muted-foreground">{view.period}</Text>
+                  </View>
+                );
+              })
+            : null}
+          {showObservations ? (
+            <Text className="text-xs text-muted-foreground">
+              Observations describe recorded timing only. They are not medical advice.
+            </Text>
+          ) : (
+            <Text className="text-sm text-muted-foreground">
+              Off by default. No nutrition observations are shown.
+            </Text>
           )}
         </Card>
       </CardStack>
