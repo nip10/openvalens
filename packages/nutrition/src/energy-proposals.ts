@@ -1,6 +1,6 @@
 import type { Database } from "@openvalens/db";
 import { nutritionEnergyProposal, nutritionGoal } from "@openvalens/db/schema/nutrition";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type { EnergyEstimate } from "./energy-estimate";
 import {
@@ -10,13 +10,8 @@ import {
   type ProposalDeclineReason,
 } from "./energy-proposal-policy";
 import { NutritionError } from "./errors";
-import {
-  createNutritionRepository,
-  goalEffectiveFrom,
-  type NutritionGoal,
-  type NutritionScope,
-  type Tx,
-} from "./repository";
+import { lockNutritionSafetyScope, setGoalInTransaction } from "./repository";
+import { goalEffectiveFrom, type NutritionGoal, type NutritionScope, type Tx } from "./repository";
 
 /**
  * Stored energy-target proposals (Issue #76).
@@ -45,13 +40,6 @@ function scoped(scope: NutritionScope) {
   return and(
     eq(nutritionEnergyProposal.organizationId, scope.organizationId),
     eq(nutritionEnergyProposal.userId, scope.userId),
-  );
-}
-
-/** Serialises proposal writes per member so at most one stays pending. */
-async function lockMember(tx: Tx, scope: NutritionScope): Promise<void> {
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`energy-proposal:${scope.organizationId}:${scope.userId}`}, 0))`,
   );
 }
 
@@ -123,7 +111,7 @@ export function createEnergyProposals(db: Database) {
       now: Date,
     ): Promise<EnergyProposal> {
       return db.transaction(async (tx) => {
-        await lockMember(tx, scope);
+        await lockNutritionSafetyScope(tx, scope);
         await tx
           .update(nutritionEnergyProposal)
           .set({ status: "superseded", decidedAt: now, updatedAt: now })
@@ -169,23 +157,30 @@ export function createEnergyProposals(db: Database) {
       ) => { ok: true } | { ok: false; reason: ProposalDeclineReason },
     ): Promise<AcceptOutcome> {
       return db.transaction(async (tx) => {
-        await lockMember(tx, scope);
+        await lockNutritionSafetyScope(tx, scope);
         const proposal = await lockedProposal(tx, scope, id);
+        if (proposal.status !== "pending")
+          return { outcome: "declined", reason: "not_pending", proposal };
         const verdict = check(proposal, energyTargetOf(await activeEnergyGoal(tx, scope)));
         if (!verdict.ok) return { outcome: "declined", reason: verdict.reason, proposal };
 
         const active = await activeEnergyGoal(tx, scope);
-        const goal = await createNutritionRepository(tx as unknown as Database).setGoal(scope, {
-          nutrient: "energyKcal",
-          minAmount: proposal.targetKcal,
-          maxAmount: proposal.targetKcal,
-          source: "proposal",
-          // Never before the target it replaces.
-          effectiveFrom:
-            active && goalEffectiveFrom(active) > effectiveFrom
-              ? goalEffectiveFrom(active)
-              : effectiveFrom,
-        });
+        const goal = await setGoalInTransaction(
+          tx,
+          scope,
+          {
+            nutrient: "energyKcal",
+            minAmount: proposal.targetKcal,
+            maxAmount: proposal.targetKcal,
+            source: "proposal",
+            // Never before the target it replaces.
+            effectiveFrom:
+              active && goalEffectiveFrom(active) > effectiveFrom
+                ? goalEffectiveFrom(active)
+                : effectiveFrom,
+          },
+          { invalidatePendingProposals: false },
+        );
         const [accepted] = await tx
           .update(nutritionEnergyProposal)
           .set({ status: "accepted", decidedAt: now, updatedAt: now, acceptedGoalId: goal.id })
@@ -198,6 +193,7 @@ export function createEnergyProposals(db: Database) {
     /** The member's explicit dismiss; the target is left unchanged. */
     async dismiss(scope: NutritionScope, id: number, now: Date): Promise<DismissOutcome> {
       return db.transaction(async (tx) => {
+        await lockNutritionSafetyScope(tx, scope);
         const proposal = await lockedProposal(tx, scope, id);
         if (proposal.status !== "pending")
           return { outcome: "declined", reason: "not_pending", proposal };

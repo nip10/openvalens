@@ -1,10 +1,11 @@
-import type { Database } from "@openvalens/db";
+import { lockNutritionSafetyUser, type Database, type DbTransaction } from "@openvalens/db";
 import {
   nutritionFood,
   nutritionFoodSnapshot,
   nutritionGoal,
   nutritionMeal,
   nutritionMealEntry,
+  nutritionEnergyProposal,
 } from "@openvalens/db/schema/nutrition";
 import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
@@ -45,13 +46,23 @@ import {
 
 export type NutritionScope = { organizationId: string; userId: string };
 
-export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type Tx = DbTransaction;
 
-/** Serialises goal writes per member so "one active goal per nutrient" holds under races. */
-async function lockGoals(tx: Tx, scope: NutritionScope): Promise<void> {
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`nutrition-goal:${scope.organizationId}:${scope.userId}`}, 0))`,
-  );
+async function supersedePendingEnergyProposals(tx: Tx, scope: NutritionScope, now: Date) {
+  await tx
+    .update(nutritionEnergyProposal)
+    .set({ status: "superseded", decidedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(nutritionEnergyProposal.organizationId, scope.organizationId),
+        eq(nutritionEnergyProposal.userId, scope.userId),
+        eq(nutritionEnergyProposal.status, "pending"),
+      ),
+    );
+}
+
+export async function lockNutritionSafetyScope(tx: Tx, scope: NutritionScope): Promise<void> {
+  await lockNutritionSafetyUser(tx, scope.userId);
 }
 
 export type CustomFoodInput = {
@@ -142,6 +153,69 @@ export type GoalInput = {
   /** #80: member's local date (YYYY-MM-DD) the target applies from. */
   effectiveFrom?: string | null;
 };
+
+/** Mutates one goal using the caller's transaction; never opens or commits a transaction. */
+export async function setGoalInTransaction(
+  tx: Tx,
+  scope: NutritionScope,
+  input: GoalInput,
+  options: { invalidatePendingProposals?: boolean } = {},
+): Promise<NutritionGoal> {
+  if (!NUTRIENT_KEYS.includes(input.nutrient))
+    throw new NutritionError("INVALID_INPUT", "Unsupported nutrient");
+  const minAmount = input.minAmount ?? null;
+  const maxAmount = input.maxAmount ?? null;
+  const valid = (value: number | null) => value === null || (Number.isFinite(value) && value >= 0);
+  if (
+    (minAmount === null && maxAmount === null) ||
+    !valid(minAmount) ||
+    !valid(maxAmount) ||
+    (minAmount !== null && maxAmount !== null && minAmount > maxAmount)
+  )
+    throw new NutritionError("INVALID_INPUT", "Goal needs a non-negative minimum or maximum");
+  const effectiveFrom = input.effectiveFrom ?? null;
+  if (effectiveFrom !== null && !isLocalDate(effectiveFrom))
+    throw new NutritionError("INVALID_INPUT", "Effective date must be a YYYY-MM-DD date");
+  const nutrient = NUTRIENT_COLUMNS[input.nutrient];
+  const now = new Date();
+  if (
+    options.invalidatePendingProposals !== false &&
+    input.source !== "proposal" &&
+    (input.nutrient === "energyKcal" || input.nutrient === "energyKj")
+  )
+    await supersedePendingEnergyProposals(tx, scope, now);
+  const [previous] = await tx
+    .select()
+    .from(nutritionGoal)
+    .where(
+      and(
+        eq(nutritionGoal.organizationId, scope.organizationId),
+        eq(nutritionGoal.userId, scope.userId),
+        eq(nutritionGoal.nutrient, nutrient),
+        isNull(nutritionGoal.archivedAt),
+      ),
+    );
+  if (previous && effectiveFrom !== null && effectiveFrom < goalEffectiveFrom(previous))
+    throw new NutritionError("INVALID_INPUT", "A new target cannot start before the current one");
+  if (previous)
+    await tx
+      .update(nutritionGoal)
+      .set({ archivedAt: now, updatedAt: now, effectiveTo: effectiveFrom })
+      .where(eq(nutritionGoal.id, previous.id));
+  const [row] = await tx
+    .insert(nutritionGoal)
+    .values({
+      ...scope,
+      nutrient,
+      minAmount,
+      maxAmount,
+      source: input.source ?? "entered",
+      effectiveFrom,
+    })
+    .returning();
+  if (!row) throw new Error("Goal insert did not return a row");
+  return row;
+}
 
 /** The local date a goal row applies from (rows from before #80 use their creation date, UTC). */
 export function goalEffectiveFrom(
@@ -598,60 +672,9 @@ export function createNutritionRepository(db: Database) {
 
     /** Sets the member's goal for one nutrient, archiving any previous active goal. */
     async setGoal(scope: NutritionScope, input: GoalInput): Promise<NutritionGoal> {
-      if (!NUTRIENT_KEYS.includes(input.nutrient))
-        throw new NutritionError("INVALID_INPUT", "Unsupported nutrient");
-      const minAmount = input.minAmount ?? null;
-      const maxAmount = input.maxAmount ?? null;
-      const valid = (value: number | null) =>
-        value === null || (Number.isFinite(value) && value >= 0);
-      if (
-        (minAmount === null && maxAmount === null) ||
-        !valid(minAmount) ||
-        !valid(maxAmount) ||
-        (minAmount !== null && maxAmount !== null && minAmount > maxAmount)
-      )
-        throw new NutritionError("INVALID_INPUT", "Goal needs a non-negative minimum or maximum");
-      const effectiveFrom = input.effectiveFrom ?? null;
-      if (effectiveFrom !== null && !isLocalDate(effectiveFrom))
-        throw new NutritionError("INVALID_INPUT", "Effective date must be a YYYY-MM-DD date");
-      const nutrient = NUTRIENT_COLUMNS[input.nutrient];
       return db.transaction(async (tx) => {
-        await lockGoals(tx, scope);
-        const now = new Date();
-        const [previous] = await tx
-          .select()
-          .from(nutritionGoal)
-          .where(
-            and(
-              eq(nutritionGoal.organizationId, scope.organizationId),
-              eq(nutritionGoal.userId, scope.userId),
-              eq(nutritionGoal.nutrient, nutrient),
-              isNull(nutritionGoal.archivedAt),
-            ),
-          );
-        if (previous && effectiveFrom !== null && effectiveFrom < goalEffectiveFrom(previous))
-          throw new NutritionError(
-            "INVALID_INPUT",
-            "A new target cannot start before the current one",
-          );
-        if (previous)
-          await tx
-            .update(nutritionGoal)
-            .set({ archivedAt: now, updatedAt: now, effectiveTo: effectiveFrom })
-            .where(eq(nutritionGoal.id, previous.id));
-        const [row] = await tx
-          .insert(nutritionGoal)
-          .values({
-            ...scope,
-            nutrient,
-            minAmount,
-            maxAmount,
-            source: input.source ?? "entered",
-            effectiveFrom,
-          })
-          .returning();
-        if (!row) throw new Error("Goal insert did not return a row");
-        return row;
+        await lockNutritionSafetyScope(tx, scope);
+        return setGoalInTransaction(tx, scope, input);
       });
     },
 
@@ -697,7 +720,7 @@ export function createNutritionRepository(db: Database) {
       if (!isLocalDate(effectiveTo))
         throw new NutritionError("INVALID_INPUT", "Effective date must be a YYYY-MM-DD date");
       return db.transaction(async (tx) => {
-        await lockGoals(tx, scope);
+        await lockNutritionSafetyScope(tx, scope);
         const [active] = await tx
           .select()
           .from(nutritionGoal)
@@ -712,6 +735,8 @@ export function createNutritionRepository(db: Database) {
         if (!active) return false;
         const from = goalEffectiveFrom(active);
         const now = new Date();
+        if (nutrientKey === "energyKcal" || nutrientKey === "energyKj")
+          await supersedePendingEnergyProposals(tx, scope, now);
         await tx
           .update(nutritionGoal)
           .set({
@@ -725,18 +750,35 @@ export function createNutritionRepository(db: Database) {
     },
 
     async archiveGoal(scope: NutritionScope, goalId: number): Promise<void> {
-      const rows = await db
-        .update(nutritionGoal)
-        .set({ archivedAt: new Date(), updatedAt: new Date() })
-        .where(
-          and(
-            eq(nutritionGoal.organizationId, scope.organizationId),
-            eq(nutritionGoal.userId, scope.userId),
-            eq(nutritionGoal.id, goalId),
-            isNull(nutritionGoal.archivedAt),
-          ),
-        )
-        .returning({ id: nutritionGoal.id });
+      const rows = await db.transaction(async (tx) => {
+        await lockNutritionSafetyScope(tx, scope);
+        const [goal] = await tx
+          .select()
+          .from(nutritionGoal)
+          .where(
+            and(
+              eq(nutritionGoal.organizationId, scope.organizationId),
+              eq(nutritionGoal.userId, scope.userId),
+              eq(nutritionGoal.id, goalId),
+              isNull(nutritionGoal.archivedAt),
+            ),
+          );
+        const now = new Date();
+        if (goal?.nutrient === "energy_kcal" || goal?.nutrient === "energy_kj")
+          await supersedePendingEnergyProposals(tx, scope, now);
+        return tx
+          .update(nutritionGoal)
+          .set({ archivedAt: now, updatedAt: now })
+          .where(
+            and(
+              eq(nutritionGoal.organizationId, scope.organizationId),
+              eq(nutritionGoal.userId, scope.userId),
+              eq(nutritionGoal.id, goalId),
+              isNull(nutritionGoal.archivedAt),
+            ),
+          )
+          .returning({ id: nutritionGoal.id });
+      });
       if (rows.length === 0) throw new NutritionError("NOT_FOUND", "Goal not found");
     },
   };

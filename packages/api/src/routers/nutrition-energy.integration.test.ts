@@ -14,6 +14,11 @@ import type {
   ProposeOutput,
 } from "../contracts/energy-estimate";
 import { appRouter } from "./index";
+import {
+  createNutritionRepository,
+  lockNutritionSafetyScope,
+  setGoalInTransaction,
+} from "@openvalens/nutrition";
 
 /**
  * `nutritionEnergy.*` over HTTP (oRPC `RPCHandler`) against a disposable
@@ -55,6 +60,8 @@ const MEMBERS: Record<string, { org: string; role: string }> = {
   "user-u": { org: "org-u", role: "owner" },
   "user-r": { org: "org-a", role: "collaborator" },
   "user-n": { org: "org-n", role: "owner" },
+  "user-x": { org: "org-x", role: "owner" },
+  "user-y": { org: "org-y", role: "owner" },
 };
 const NO_WEIGHT_READ = new Set(["user-r"]);
 
@@ -223,17 +230,21 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       insert into "user" (id, email) values ${users.map((id) => `('${id}', '${id}@example.test')`).join(", ")};
       insert into organization (id, name, slug) values
         ('org-a', 'Record A', 'record-a'), ('org-b', 'Record B', 'record-b'),
-        ('org-u', 'Record U', 'record-u'), ('org-n', 'Record N', 'record-n');
+        ('org-u', 'Record U', 'record-u'), ('org-n', 'Record N', 'record-n'),
+        ('org-x', 'Record X', 'record-x'), ('org-y', 'Record Y', 'record-y');
       insert into member (id, organization_id, user_id, role) values
         ${users.map((id) => `('m-${id}', '${MEMBERS[id]!.org}', '${id}', '${MEMBERS[id]!.role}')`).join(", ")};
       insert into wellness_profile (user_id, revision, eligibility_state, eligibility) values
         ('user-a', 1, 'recorded', 'adult'), ('user-a2', 1, 'recorded', 'adult'),
         ('user-b', 1, 'recorded', 'adult'), ('user-r', 1, 'recorded', 'adult'),
+        ('user-x', 1, 'recorded', 'adult'), ('user-y', 1, 'recorded', 'adult'),
         ('user-u', 1, 'recorded', 'under_18');
       ${seedMember("org-a", "user-a")}
       ${seedMember("org-b", "user-b")}
       ${seedMember("org-u", "user-u")}
       ${seedMember("org-n", "user-n")}
+      ${seedMember("org-x", "user-x")}
+      ${seedMember("org-y", "user-y")}
     `),
     );
     setRegisteredAuth(fakeAuth);
@@ -438,6 +449,174 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       outcome: "declined",
       reason: "not_suggested_for_profile",
     });
+  });
+
+  test("manual same-value energy replacement supersedes pending; non-energy edits do not", async () => {
+    const repository = createNutritionRepository(db);
+    const scope = { organizationId: "org-x", userId: "user-x" };
+    const proposal = await propose("2026-03-28", "user-x");
+    if (proposal.body.outcome !== "proposed") throw new Error("expected a proposal");
+    await repository.setGoal(scope, {
+      nutrient: "energyKcal",
+      minAmount: 2000,
+      maxAmount: 2000,
+      effectiveFrom: "2026-03-28",
+    });
+    expect((await list("user-x")).body.proposals[0]?.status).toBe("superseded");
+
+    // Recreate a pending historical proposal row so the exact same-value
+    // replacement path is exercised without planner state influencing it.
+    const duplicate = await db.execute(sql`
+      insert into nutrition_energy_proposal
+        (organization_id, user_id, kind, status, estimate_kcal, target_kcal, current_target_kcal,
+         step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at)
+      select organization_id, user_id, kind, 'pending', estimate_kcal, target_kcal, current_target_kcal,
+             step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at
+        from nutrition_energy_proposal where id = ${proposal.body.proposal.id}
+      returning id`);
+    await repository.setGoal(scope, {
+      nutrient: "energyKcal",
+      minAmount: 2000,
+      maxAmount: 2000,
+      effectiveFrom: "2026-03-28",
+    });
+    expect(
+      (
+        await db.execute(
+          sql`select status from nutrition_energy_proposal where id = ${(duplicate.rows[0] as { id: number }).id}`,
+        )
+      ).rows,
+    ).toEqual([{ status: "superseded" }]);
+
+    // A successful clear and archive are invalidations too.
+    const clearProposal = await db.execute(sql`
+      insert into nutrition_energy_proposal
+        (organization_id, user_id, kind, status, estimate_kcal, target_kcal, current_target_kcal,
+         step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at)
+      select organization_id, user_id, kind, 'pending', estimate_kcal, target_kcal, current_target_kcal,
+             step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at
+        from nutrition_energy_proposal where id = ${proposal.body.proposal.id} returning id`);
+    expect(await repository.clearGoal(scope, "energyKcal", "2026-03-28")).toBe(true);
+    expect(
+      (
+        await db.execute(
+          sql`select status from nutrition_energy_proposal where id = ${(clearProposal.rows[0] as { id: number }).id}`,
+        )
+      ).rows,
+    ).toEqual([{ status: "superseded" }]);
+    await repository.setGoal(scope, {
+      nutrient: "energyKcal",
+      minAmount: 2000,
+      maxAmount: 2000,
+      effectiveFrom: "2026-03-28",
+    });
+    const archiveProposal = await db.execute(sql`
+      insert into nutrition_energy_proposal
+        (organization_id, user_id, kind, status, estimate_kcal, target_kcal, current_target_kcal,
+         step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at)
+      select organization_id, user_id, kind, 'pending', estimate_kcal, target_kcal, current_target_kcal,
+             step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at
+        from nutrition_energy_proposal where id = ${proposal.body.proposal.id} returning id`);
+    const activeGoal = (await repository.listActiveGoals(scope)).find(
+      (goal) => goal.nutrient === "energy_kcal",
+    )!;
+    await repository.archiveGoal(scope, activeGoal.id);
+    expect(
+      (
+        await db.execute(
+          sql`select status from nutrition_energy_proposal where id = ${(archiveProposal.rows[0] as { id: number }).id}`,
+        )
+      ).rows,
+    ).toEqual([{ status: "superseded" }]);
+
+    // A non-energy goal mutation does not invalidate pending energy proposals.
+    const another = await propose("2026-03-28", "user-x");
+    if (another.body.outcome === "proposed") {
+      await repository.setGoal(scope, {
+        nutrient: "proteinG",
+        minAmount: 80,
+        maxAmount: null,
+        effectiveFrom: "2026-03-28",
+      });
+      expect((await list("user-x")).body.proposals[0]?.status).toBe("pending");
+      await dismiss(another.body.proposal.id, "user-x");
+    }
+  });
+
+  test("accept/dismiss racing has one terminal result and at most one goal", async () => {
+    const proposed = await propose("2026-03-28", "user-y");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    const outcomes = await Promise.all([
+      accept(proposed.body.proposal.id, "user-y"),
+      dismiss(proposed.body.proposal.id, "user-y"),
+    ]);
+    const accepted = outcomes.filter((result) => result.body.outcome === "accepted");
+    const dismissed = outcomes.filter((result) => result.body.outcome === "dismissed");
+    const declined = outcomes.filter((result) => result.body.outcome === "declined");
+    expect(accepted.length + dismissed.length).toBe(1);
+    expect(declined).toHaveLength(1);
+    const terminal = await db.execute(sql`
+      select status, accepted_goal_id from nutrition_energy_proposal where id = ${proposed.body.proposal.id}`);
+    expect((terminal.rows[0] as { status: string }).status).toMatch(/^(accepted|dismissed)$/);
+    expect(await energyGoals("user-y")).toHaveLength(accepted.length);
+  });
+
+  test("a manual writer holding the user lock commits before accept re-checks", async () => {
+    const proposed = await propose("2026-03-28", "user-x");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    let releaseWriter!: () => void;
+    let writerHasLock!: () => void;
+    const release = new Promise<void>((resolve) => {
+      releaseWriter = resolve;
+    });
+    const locked = new Promise<void>((resolve) => {
+      writerHasLock = resolve;
+    });
+    let blockerPid = 0;
+    const writer = db.transaction(async (tx) => {
+      await lockNutritionSafetyScope(tx, { userId: "user-x", organizationId: "org-x" });
+      await setGoalInTransaction(
+        tx,
+        { userId: "user-x", organizationId: "org-x" },
+        {
+          nutrient: "energyKcal",
+          minAmount: 2100,
+          maxAmount: 2100,
+          effectiveFrom: "2026-03-28",
+        },
+      );
+      const pid = await tx.execute(sql`select pg_backend_pid() as pid`);
+      blockerPid = Number((pid.rows[0] as { pid: number }).pid);
+      writerHasLock();
+      await release;
+    });
+    await locked;
+    try {
+      const accepting = accept(proposed.body.proposal.id, "user-x");
+      let observed = false;
+      // Observe the actual PostgreSQL lock wait, bounded by iterations and no sleeps.
+      for (let attempt = 0; attempt < 2_000; attempt += 1) {
+        const waiters = await db.execute(sql`
+          select count(*)::int as n from pg_stat_activity
+           where ${blockerPid} = any(pg_blocking_pids(pid)) and wait_event_type = 'Lock'`);
+        if ((waiters.rows[0] as { n: number }).n > 0) {
+          observed = true;
+          break;
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+      expect(observed).toBe(true);
+      releaseWriter();
+      const result = await accepting;
+      expect(result.body).toMatchObject({ outcome: "declined", reason: "not_pending" });
+      const goals = await energyGoals("user-x");
+      expect(goals.filter((goal) => goal.active)).toEqual([
+        { min_amount: 2100, max_amount: 2100, active: true },
+      ]);
+    } finally {
+      releaseWriter();
+      await writer;
+    }
   });
 
   test("permissions, strict inputs and invalid windows", async () => {

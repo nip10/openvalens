@@ -1,6 +1,6 @@
 import type { Database } from "@openvalens/db";
 import { nutritionTargetSettings } from "@openvalens/db/schema/nutrition";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { NutritionError } from "./errors";
 import {
@@ -11,6 +11,7 @@ import {
   type NutritionDeclaration,
 } from "./nutrition-safety";
 import type { NutritionScope } from "./repository";
+import { lockNutritionSafetyScope } from "./repository";
 
 /**
  * Per-member nutrition target settings (Issue #80): hide-numbers mode, the
@@ -113,9 +114,7 @@ export function createNutritionTargetSettings(db: Database) {
     ): Promise<UpdateSettingsOutcome> {
       validate(patch);
       return db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtextextended(${`nutrition-target-settings:${scope.organizationId}:${scope.userId}`}, 0))`,
-        );
+        await lockNutritionSafetyScope(tx, scope);
         const previous = await read(tx, scope);
         if (previous.revision !== expectedRevision)
           return { outcome: "conflict", settings: previous };
