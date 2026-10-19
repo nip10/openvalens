@@ -3,8 +3,17 @@ import sharp from "sharp";
 import { IMAGE_SANITIZATION_LIMITS, ImageSanitizationError, sanitizeImage } from "./sanitize-image";
 
 async function jpegWithExif(): Promise<Buffer> {
-  const base = await sharp({ create: { width: 3, height: 2, channels: 3, background: "#dc141e" } })
-    .jpeg()
+  const width = 30;
+  const height = 20;
+  const pixels = Buffer.alloc(width * height * 3);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const color = y < height / 2 ? (x < width / 2 ? [255, 0, 0] : [0, 255, 0]) : [0, 0, 255];
+      pixels.set(color, (y * width + x) * 3);
+    }
+  }
+  const base = await sharp(pixels, { raw: { width, height, channels: 3 } })
+    .jpeg({ quality: 100, chromaSubsampling: "4:4:4" })
     .toBuffer();
   const tiff = Buffer.alloc(8 + 2 + 4 * 12 + 4 + 2 + 4 * 12 + 4 + 28 + 14 + 13);
   tiff.write("II", 0, "ascii");
@@ -115,12 +124,23 @@ describe("sanitizeImage", () => {
     expect(gpsTags).toContain(2);
     expect(gpsTags).toContain(3);
     expect(gpsTags).toContain(4);
+    const latitudeEntry = gpsIfd + 2 + gpsTags.indexOf(2) * 12;
+    const latitude = 6 + exif.readUInt32LE(latitudeEntry + 8);
+    expect(exif.readUInt32LE(latitude)).toBe(40);
+    expect(exif.readUInt32LE(latitude + 4)).toBe(1);
     expect(sourceMetadata.xmp?.toString()).toContain("XMP-CANARY");
     expect(sourceMetadata.iptc?.toString("latin1")).toContain("IPTC-CANARY");
     const metadata = await sharp(result.bytes).metadata();
 
     expect(result.contentType).toBe("image/jpeg");
-    expect([result.width, result.height]).toEqual([2, 3]);
+    expect([result.width, result.height]).toEqual([20, 30]);
+    const oriented = await sharp(result.bytes).removeAlpha().raw().toBuffer();
+    // EXIF orientation 6 rotates clockwise: input top-left red moves to output top-right.
+    const outputPixel = (x: number, y: number) =>
+      oriented.subarray((y * 20 + x) * 3, (y * 20 + x) * 3 + 3);
+    expect(outputPixel(19, 0)[0]).toBeGreaterThan(170);
+    expect(outputPixel(19, 0)[1]).toBeLessThan(90);
+    expect(outputPixel(0, 0)[2]).toBeGreaterThan(170);
     expect(metadata.orientation).toBeUndefined();
     expect(metadata.exif).toBeUndefined();
     expect(metadata.iptc).toBeUndefined();
