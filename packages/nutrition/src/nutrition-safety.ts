@@ -327,7 +327,11 @@ export function proteinReference(
     : preserveLowerBound
       ? Math.ceil(minUnrounded / p.precisionG) * p.precisionG
       : nearestG;
-  const maxG = preserveLowerBound ? Math.floor(maxUnrounded / p.precisionG) * p.precisionG : minG;
+  const maxG = preserveLowerBound
+    ? minUnrounded === maxUnrounded
+      ? minG
+      : Math.floor(maxUnrounded / p.precisionG) * p.precisionG
+    : minG;
   return { minGPerKg: min, maxGPerKg: max, minG, maxG, basis };
 }
 

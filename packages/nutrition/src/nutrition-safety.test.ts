@@ -157,8 +157,34 @@ describe("floors and references", () => {
     expect(ckd80kg.maxG).toBeLessThanOrEqual(80 * 0.8);
     const older67kg = proteinReference({ ...base, weightKg: 67, maxAge: 66 })!;
     expect(older67kg.minG).toBeGreaterThanOrEqual(67);
+    expect(older67kg).toMatchObject({ minG: 70, maxG: 70 });
+    expect(older67kg.minG).toBeLessThanOrEqual(older67kg.maxG);
     expect(proteinReference({ ...base, weightKg: null })).toBeNull();
     expect(proteinReference({ ...base, adultConfirmed: false })).toBeNull();
+  });
+
+  test("rounded protein reference stays ordered for non-five-kilogram weights", () => {
+    for (const weightKg of [51, 52, 53, 57, 62, 67, 68, 73, 77]) {
+      for (const input of [
+        { maxAge: 40, active: false, kidneyCap: false },
+        { maxAge: 40, active: true, kidneyCap: false },
+        { maxAge: 66, active: false, kidneyCap: false },
+        { maxAge: 66, active: true, kidneyCap: false },
+        { maxAge: 66, active: false, kidneyCap: true },
+        { maxAge: 66, active: true, kidneyCap: true },
+      ]) {
+        const reference = proteinReference({
+          weightKg,
+          adultConfirmed: true,
+          ...input,
+        })!;
+        expect(reference.minG).toBeLessThanOrEqual(reference.maxG);
+        if (input.kidneyCap)
+          expect(reference.maxG).toBeLessThanOrEqual(
+            weightKg * NUTRITION_SAFETY_POLICY.protein.kidneyMaxGPerKg,
+          );
+      }
+    }
   });
 });
 

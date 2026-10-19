@@ -150,7 +150,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/nutrition_energy_test" });
   const rpc = new RPCHandler(appRouter);
 
-  function contextFor(headers: Headers): Context {
+  function contextFor(headers: Headers, database: Database = db): Context {
     const id = actorOf(headers);
     return {
       session: MEMBERS[id]
@@ -164,7 +164,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
             },
           }
         : null,
-      db,
+      db: database,
       correlationId: "corr-76",
       cronSecret: "cron-secret-long-enough-value",
       betterAuthSecretConfigured: true,
@@ -182,6 +182,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     input: unknown,
     user = "user-a",
     extraHeaders: Record<string, string> = {},
+    database: Database = db,
   ): Promise<{ status: number; body: T }> {
     const headers = new Headers({
       "content-type": "application/json",
@@ -195,7 +196,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     });
     const { matched, response } = await rpc.handle(request, {
       prefix: "/rpc",
-      context: contextFor(headers),
+      context: contextFor(headers, database),
     });
     if (!matched || !response) throw new Error("unmatched RPC path");
     const parsed = (await response.json()) as { json: T };
@@ -737,6 +738,35 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       expect(result.body).toMatchObject({ code: "INVALID_INPUT" });
     }
     expect((await accept(999_999)).status).toBe(404);
+  });
+
+  test("estimate and proposal listing reject impersonation before any database access", async () => {
+    let databaseCalls = 0;
+    const watchedDb = new Proxy(db, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target) as unknown;
+        if (
+          typeof value === "function" &&
+          ["execute", "select", "insert", "update", "delete", "transaction"].includes(
+            String(property),
+          )
+        )
+          return (...args: unknown[]) => {
+            databaseCalls += 1;
+            return Reflect.apply(value, target, args);
+          };
+        return value;
+      },
+    });
+    const headers = { "x-test-impersonated": "admin-1" };
+    expect(
+      (await call("estimate", { to: "2026-03-28" }, "user-a", headers, watchedDb)).status,
+    ).toBe(403);
+    expect(databaseCalls).toBe(0);
+    expect((await call("listProposals", {}, "user-a", headers, watchedDb)).status).toBe(403);
+    expect(databaseCalls).toBe(0);
+    expect((await estimate("2026-03-28", "user-a")).status).toBe(200);
+    expect((await list("user-a")).status).toBe(200);
   });
 
   test("proposal creation plans against settings committed before its shared-lock turn", async () => {

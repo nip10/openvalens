@@ -109,8 +109,10 @@ export const nutritionEnergyRouter = {
     .input(energyEstimateInput)
     .output(energyEstimateOutput)
     .handler(async ({ input, context }) => {
+      const scope = scopeOf(context);
+      requireSelf(context, scope);
       await requireWeightRead(context);
-      const result = await run(() => service(context).estimate(scopeOf(context), input));
+      const result = await run(() => service(context).estimate(scope, input));
       logger.info("nutrition.energy_estimate.computed", {
         ...energyEstimateLogMetadata(result, context.correlationId),
       });
@@ -121,9 +123,11 @@ export const nutritionEnergyRouter = {
     .use(validateInput(listProposalsInput))
     .input(listProposalsInput)
     .output(listProposalsOutput)
-    .handler(({ context }) =>
-      run(async () => ({ proposals: await service(context).listProposals(scopeOf(context)) })),
-    ),
+    .handler(({ context }) => {
+      const scope = scopeOf(context);
+      requireSelf(context, scope);
+      return run(async () => ({ proposals: await service(context).listProposals(scope) }));
+    }),
 
   propose: write("RECORD_CREATED")
     .use(validateInput(proposeInput))
