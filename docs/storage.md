@@ -111,10 +111,15 @@ storage backend. Back up both from the same point in time:
 
 `stored_object` is registered with the data-rights registry (Issue #89), so a
 subject's export includes their object metadata (id, purpose, content type,
-size, checksum). "Delete everything" collects the subject's storage keys,
+size, checksum). "Delete everything" collects eligible non-photo storage keys,
 deletes the database rows in its transaction, then deletes the bytes; if the
 subject has objects while storage is off, deletion is refused rather than
-leaving orphaned files.
+leaving orphaned files. Account erasure is conservatively blocked while any
+progress photo uploaded by the subject (across memberships) or any progress
+photo in an owned organization remains indexed or has a cleanup intent. This
+also applies when storage is off and to logically hidden legacy photos: finish
+individual lifecycle cleanup first. Managed photo keys are never passed to the
+legacy unbound raw-key eraser.
 
 The internal `photo_cleanup_intent` table is system data and is never included
 in exports. Lifecycle-managed photo rows bind to a versioned SHA-256 identity
@@ -126,6 +131,13 @@ retain NULL lifecycle identity; their provenance is unknown and is never
 inferred from the active provider. Until reservation-based writes land, the
 existing generic progress-photo PUT remains a legacy/unmanaged compatibility
 path and does not enable the new photo lifecycle.
+
+Deleting an unknown-provenance legacy photo records a durable cleanup intent
+and a logical-deletion timestamp without binding it to the active store. It is
+hidden from new reads, listings, local downloads and signed-link issuance, and
+the API reports cleanup as pending until a bound store can complete it. Existing
+S3 presigned bearer URLs may remain usable until their short TTL expires; this
+deletion path does not claim immediate revocation.
 
 Lifecycle photo writes use `reservePhoto` followed by `writePhoto`: reservation
 stores the canonical byte count/hash and opaque key before publication; only one
@@ -180,14 +192,14 @@ For a sanitized progress photo, use `reservePhoto`/`writePhoto` instead of the
 generic `putObject` path; do not upload original bytes. This API is a storage
 primitive only and does not itself authorize a caller or define photo metadata.
 
-| Method                                      | Notes                                                         |
-| ------------------------------------------- | ------------------------------------------------------------- |
-| `putObject(input)`                          | Validates type and size, hashes, stores, inserts metadata.    |
-| `findObject({ organizationId, objectId })`  | Metadata or `null` (another tenant's id is `null` too).       |
-| `getObject(ref)`                            | Metadata plus a byte stream, e.g. to embed in a PDF export.   |
-| `listObjects({ organizationId, purpose? })` | Newest first, at most 500.                                    |
-| `createDownloadUrl(ref, ttl?)`              | Short-lived signed URL; TTL capped by the configured maximum. |
-| `deleteObject(ref)`                         | Bytes first, then metadata.                                   |
+| Method                                      | Notes                                                                                        |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `putObject(input)`                          | Validates type and size, hashes, stores, inserts metadata.                                   |
+| `findObject({ organizationId, objectId })`  | Readable metadata or `null` (another tenant's id and hidden/deleting photos are `null` too). |
+| `getObject(ref)`                            | Metadata plus a byte stream, e.g. to embed in a PDF export.                                  |
+| `listObjects({ organizationId, purpose? })` | Newest first, at most 500.                                                                   |
+| `createDownloadUrl(ref, ttl?)`              | Short-lived signed URL; TTL capped by the configured maximum.                                |
+| `deleteObject(ref)`                         | `deleted`, `pending`, or `not_found`; photo cleanup truth is explicit.                       |
 
 Check the purpose's resource with `requirePermission` before calling (see
 `PURPOSE_POLICIES`). The `storage.downloadUrl` and `storage.delete` procedures

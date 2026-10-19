@@ -1,6 +1,7 @@
 import { sql, type Database } from "@openvalens/db";
 
 import { rowFilter, type DataRightsSubject } from "./export";
+import { countPhotoErasureBlockers } from "./delete";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
 
 /**
@@ -66,5 +67,7 @@ export async function previewSubjectData(
     const n = Number((result.rows[0] as { n: number }).n);
     if (n > 0) counts[table] = n;
   }
+  const blockedPhotos = await countPhotoErasureBlockers(db, subject);
+  if (blockedPhotos > 0) counts.progress_photo_cleanup_blocked = blockedPhotos;
   return counts;
 }

@@ -50,6 +50,11 @@ export const storedObject = pgTable(
     storageStoreId: text("storage_store_id"),
     photoState: text("photo_state"),
     photoWriteState: text("photo_write_state"),
+    /** Logical hide marker for legacy photos whose physical store is unknown. */
+    photoDeletionRequestedAt: timestamp("photo_deletion_requested_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({

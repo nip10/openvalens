@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createDb, sql } from "@openvalens/db";
 
-import { deleteSubjectData, type DeletionReport } from "./delete";
+import { deleteSubjectData, PhotoErasureBlockedError, type DeletionReport } from "./delete";
 import { rowFilter } from "./export";
 import { previewSubjectData, resolveSubject, type SubjectResolution } from "./policy";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
@@ -43,6 +43,10 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     await migrateEmptyDatabase(db);
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
+    // Photo erasure is now deliberately gated until per-photo physical cleanup.
+    // Keep this suite's legacy broad-erasure fixture focused on its existing tables.
+    await db.execute(sql`delete from stored_object where organization_id in ('org-a', 'org-b')`);
+    await db.execute(sql`delete from photo_cleanup_intent where org_id in ('org-a', 'org-b')`);
 
     for (const who of ["a", "b"]) {
       await db.execute(
@@ -179,7 +183,6 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
       "nutrition_energy_proposal",
-      "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);
     expect(report.rowCounts.user).toBe(1);
@@ -217,6 +220,71 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     // Preview lists every supplement the record uses; deletion keeps the shared one.
     expect(preview.supplement).toBe(2);
     expect(report.rowCounts.supplement).toBe(1);
+  });
+
+  test("photo uploader across memberships is blocked before account erasure", async () => {
+    await db.execute(
+      sql`insert into "user" (id, email) values ('photo-subject', 'photo@example.test')`,
+    );
+    await db.execute(
+      sql`insert into organization (id, name, slug) values ('photo-collab', 'Photo collab', 'photo-collab')`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-photo', 'photo-collab', 'photo-subject', 'collaborator')`,
+    );
+    await db.execute(sql`insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256)
+      values ('photo-unmanaged', 'photo-collab', 'photo-subject', 'progress_photo', 'org/photo-collab/photo-unmanaged', 'image/jpeg', 1, ${"a".repeat(64)})`);
+    try {
+      expect(
+        await previewSubjectData(db, { userId: "photo-subject", organizationIds: [] }),
+      ).toMatchObject({ progress_photo_cleanup_blocked: 1 });
+      await expect(
+        deleteSubjectData(db, { userId: "photo-subject", organizationIds: [] }),
+      ).rejects.toBeInstanceOf(PhotoErasureBlockedError);
+      expect(
+        (await db.execute(sql`select id from "user" where id = 'photo-subject'`)).rows,
+      ).toHaveLength(1);
+      expect(
+        (await db.execute(sql`select id from stored_object where id = 'photo-unmanaged'`)).rows,
+      ).toHaveLength(1);
+    } finally {
+      await db.execute(sql`delete from stored_object where id = 'photo-unmanaged'`);
+      await db.execute(sql`delete from photo_cleanup_intent where id = 'photo-unmanaged'`);
+      await db.execute(sql`delete from member where id = 'm-photo'`);
+      await db.execute(sql`delete from organization where id = 'photo-collab'`);
+      await db.execute(sql`delete from "user" where id = 'photo-subject'`);
+    }
+  });
+
+  test("an owned organization with another uploader's photo is blocked before erasure", async () => {
+    await db.execute(
+      sql`insert into "user" (id, email) values ('photo-owner', 'owner-photo@example.test'), ('photo-uploader', 'uploader-photo@example.test')`,
+    );
+    await db.execute(
+      sql`insert into organization (id, name, slug) values ('photo-owned-org', 'Owned photo org', 'photo-owned-org')`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-photo-owner', 'photo-owned-org', 'photo-owner', 'owner')`,
+    );
+    await db.execute(sql`insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256)
+      values ('org-photo-unmanaged', 'photo-owned-org', 'photo-uploader', 'progress_photo', 'org/photo-owned-org/org-photo-unmanaged', 'image/jpeg', 1, ${"b".repeat(64)})`);
+    try {
+      await expect(
+        deleteSubjectData(db, { userId: "photo-owner", organizationIds: ["photo-owned-org"] }),
+      ).rejects.toBeInstanceOf(PhotoErasureBlockedError);
+      expect(
+        (await db.execute(sql`select id from "user" where id = 'photo-owner'`)).rows,
+      ).toHaveLength(1);
+      expect(
+        (await db.execute(sql`select id from stored_object where id = 'org-photo-unmanaged'`)).rows,
+      ).toHaveLength(1);
+    } finally {
+      await db.execute(sql`delete from stored_object where id = 'org-photo-unmanaged'`);
+      await db.execute(sql`delete from photo_cleanup_intent where id = 'org-photo-unmanaged'`);
+      await db.execute(sql`delete from member where id = 'm-photo-owner'`);
+      await db.execute(sql`delete from organization where id = 'photo-owned-org'`);
+      await db.execute(sql`delete from "user" where id in ('photo-owner', 'photo-uploader')`);
+    }
   });
 
   test("admission grants: recipient and issued grants erased, third-party grants survive", async () => {

@@ -4,7 +4,8 @@ ALTER TABLE "stored_object"
   ADD COLUMN "storage_provider" text,
   ADD COLUMN "storage_store_id" text,
   ADD COLUMN "photo_state" text,
-  ADD COLUMN "photo_write_state" text;
+  ADD COLUMN "photo_write_state" text,
+  ADD COLUMN "photo_deletion_requested_at" timestamptz;
 
 ALTER TABLE "stored_object"
   ADD CONSTRAINT "stored_object_photo_state_check" CHECK (

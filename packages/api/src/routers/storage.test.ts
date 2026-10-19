@@ -66,18 +66,36 @@ const object: StoredObjectRecord = {
 const findObject = mock(async (ref: { organizationId: string; objectId: string }) =>
   ref.organizationId === object.organizationId && ref.objectId === object.id ? object : null,
 );
+const findObjectForDeletion = mock(async (ref: { organizationId: string; objectId: string }) =>
+  ref.organizationId === object.organizationId && ref.objectId === object.id ? object : null,
+);
 const createDownloadUrl = mock(async () => ({
   url: `/api/storage/objects/${OBJECT_ID}?e=1&s=sig`,
   expiresAt: new Date("2026-10-15T12:05:00Z"),
 }));
-const deleteObject = mock(async (_ref: { organizationId: string; objectId: string }) => true);
-const storage = { findObject, createDownloadUrl, deleteObject } as unknown as StorageService;
+const deleteObject = mock(
+  async (_ref: {
+    organizationId: string;
+    objectId: string;
+  }): Promise<"deleted" | "pending" | "not_found"> => "deleted",
+);
+const storage = {
+  findObject,
+  findObjectForDeletion,
+  createDownloadUrl,
+  deleteObject,
+} as unknown as StorageService;
 
 function context(options: { authenticated?: boolean; withStorage?: boolean } = {}): Context {
   const { authenticated = true, withStorage = true } = options;
   return {
     db: {},
-    session: authenticated ? { user: { id: "actor" } } : null,
+    session: authenticated
+      ? {
+          user: { id: activeUserId },
+          session: { expiresAt: new Date("2099-01-01"), impersonatedBy: null },
+        }
+      : null,
     correlationId: "test",
     storage: withStorage ? storage : null,
     honoContext: { req: { raw: { headers: new Headers() } } },
@@ -105,6 +123,7 @@ beforeEach(() => {
     requirePermission,
     audit,
     findObject,
+    findObjectForDeletion,
     createDownloadUrl,
     deleteObject,
   ])
@@ -168,6 +187,14 @@ describe("storage.downloadUrl", () => {
   test("a role without read permission is denied", async () => {
     denied = true;
     expect(await code(call(context(), { objectId: OBJECT_ID }))).toBe("PERMISSION_DENIED");
+    expect(createDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  test("impersonated uploader cannot sign a private photo", async () => {
+    const ctx = context();
+    (ctx.session as { session: { impersonatedBy: string | null } }).session.impersonatedBy =
+      "admin";
+    expect(await code(call(ctx, { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
     expect(createDownloadUrl).not.toHaveBeenCalled();
   });
 
@@ -241,5 +268,18 @@ describe("storage.delete", () => {
   test("the matching uploader can delete their photo", async () => {
     expect(await call(context(), { objectId: OBJECT_ID })).toEqual({ deleted: true });
     expect(deleteObject).toHaveBeenCalledTimes(1);
+  });
+
+  test("impersonated uploader cannot delete; pending cleanup is reported explicitly", async () => {
+    const ctx = context();
+    (ctx.session as { session: { impersonatedBy: string | null } }).session.impersonatedBy =
+      "admin";
+    expect(await code(call(ctx, { objectId: OBJECT_ID }))).toBe("NOT_FOUND");
+    expect(deleteObject).not.toHaveBeenCalled();
+
+    const normal = context();
+    deleteObject.mockImplementationOnce(async () => "pending");
+    expect(await call(normal, { objectId: OBJECT_ID })).toEqual({ deleted: false, pending: true });
+    expect(audit).toHaveBeenCalledTimes(1);
   });
 });

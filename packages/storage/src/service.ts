@@ -111,7 +111,9 @@ export interface StorageService {
     limit?: number;
   }): Promise<StoredObjectRecord[]>;
   /** Removes the bytes, then the metadata row. Returns `false` when not found. */
-  deleteObject(ref: ObjectRef): Promise<boolean>;
+  deleteObject(ref: ObjectRef): Promise<"deleted" | "pending" | "not_found">;
+  /** Internal delete-path metadata lookup, including logically hidden photos. */
+  findObjectForDeletion(ref: ObjectRef): Promise<StoredObjectRecord | null>;
   createDownloadUrl(ref: ObjectRef, expiresInSeconds?: number): Promise<DownloadUrl | null>;
   /** Serves a local signed download path (`GET /api/storage/objects/:id?e=&s=`). */
   serveSignedDownload(url: URL): Promise<Response>;
@@ -261,10 +263,16 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
 
   async function findObject(ref: ObjectRef): Promise<StoredObjectRecord | null> {
     const row = await findRow(ref);
-    return row && isReadable(row) ? toRecord(row) : null;
+    return row && row.photoDeletionRequestedAt === null && isReadable(row) ? toRecord(row) : null;
+  }
+
+  async function findObjectForDeletion(ref: ObjectRef): Promise<StoredObjectRecord | null> {
+    const row = await findRow(ref);
+    return row ? toRecord(row) : null;
   }
 
   function isReadable(row: typeof storedObject.$inferSelect): boolean {
+    if (row.photoDeletionRequestedAt !== null) return false;
     if (row.photoState === null) return true;
     if (
       row.storageProvider !== storage.storeIdentity?.provider ||
@@ -555,6 +563,16 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         return intent ? ("pending" as const) : null;
       }
       if (locked.photoState === null) {
+        await tx
+          .update(storedObject)
+          .set({ photoDeletionRequestedAt: locked.photoDeletionRequestedAt ?? now() })
+          .where(
+            and(
+              eq(storedObject.id, locked.id),
+              eq(storedObject.organizationId, ref.organizationId),
+              eq(storedObject.createdByUserId, ref.createdByUserId),
+            ),
+          );
         await recordCleanup(
           tx,
           { ...locked, storageProvider: null, storageStoreId: null },
@@ -822,6 +840,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
     },
 
     findObject,
+    findObjectForDeletion,
 
     async getObject(ref: ObjectRef) {
       const row = await findRow(ref);
@@ -852,15 +871,13 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
       return rows.filter(isReadable).map(toRecord);
     },
 
-    async deleteObject(ref: ObjectRef): Promise<boolean> {
+    async deleteObject(ref: ObjectRef): Promise<"deleted" | "pending" | "not_found"> {
       const row = await findRow(ref);
-      if (!row) return false;
+      if (!row) return "not_found";
       if (row.purpose === "progress_photo") {
-        if (!row.createdByUserId) throw new StorageError("unavailable", 0);
+        if (!row.createdByUserId) return "pending";
         const result = await deletePhoto({ ...ref, createdByUserId: row.createdByUserId });
-        if (result === "deleted") return true;
-        if (result === "not_found") return false;
-        throw new StorageError("provider_unavailable", 503);
+        return result;
       }
       // Bytes first: if the row delete then fails, the row points at nothing,
       // which is safer than an unindexed object that erasure can never find.
@@ -870,7 +887,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         .where(
           and(eq(storedObject.id, row.id), eq(storedObject.organizationId, ref.organizationId)),
         );
-      return true;
+      return "deleted";
     },
 
     async createDownloadUrl(ref: ObjectRef, expiresInSeconds = signedUrlTtlSeconds) {

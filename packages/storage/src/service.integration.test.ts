@@ -155,7 +155,7 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     expect(await service.findObject(asB)).toBeNull();
     expect(await service.getObject(asB)).toBeNull();
     expect(await service.createDownloadUrl(asB)).toBeNull();
-    expect(await service.deleteObject(asB)).toBe(false);
+    expect(await service.deleteObject(asB)).toBe("not_found");
     expect((await service.listObjects({ organizationId: "org-b" })).map((o) => o.id)).not.toContain(
       object.id,
     );
@@ -195,7 +195,9 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     expect((await service.serveSignedDownload(new URL(link!.url, BASE))).status).toBe(403);
     clock = saved;
 
-    expect(await service.deleteObject({ organizationId: "org-a", objectId: object.id })).toBe(true);
+    expect(await service.deleteObject({ organizationId: "org-a", objectId: object.id })).toBe(
+      "deleted",
+    );
     expect((await service.serveSignedDownload(new URL(link!.url, BASE))).status).toBe(404);
   });
 
@@ -444,7 +446,26 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
       now: () => clock,
     });
     const ref = { organizationId: "org-a", objectId: id, createdByUserId: "user-a" };
+    const oldLocalLink = await isolated.createDownloadUrl(ref);
     expect(await isolated.deletePhoto(ref)).toBe("pending");
+    expect(
+      await isolated.deleteObject({ organizationId: ref.organizationId, objectId: ref.objectId }),
+    ).toBe("pending");
+    expect(await isolated.findObject(ref)).toBeNull();
+    expect(await isolated.getObject(ref)).toBeNull();
+    expect(await isolated.createDownloadUrl(ref)).toBeNull();
+    expect(
+      (await isolated.listObjects({ organizationId: "org-a", purpose: "progress_photo" })).some(
+        (row) => row.id === id,
+      ),
+    ).toBe(false);
+    expect(
+      (
+        await isolated.serveSignedDownload(
+          new URL(oldLocalLink!.url, "https://health.example.test"),
+        )
+      ).status,
+    ).toBe(404);
     const originalClock = clock;
     clock = new Date(clock.getTime() + 5000);
     try {
@@ -893,7 +914,7 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
       expect(response.headers.get("content-type")).toBe("application/pdf");
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(photo);
       expect(await s3Service.deleteObject({ organizationId: "org-a", objectId: object.id })).toBe(
-        true,
+        "deleted",
       );
       const gone = await fetch(link!.url);
       await gone.body?.cancel();
