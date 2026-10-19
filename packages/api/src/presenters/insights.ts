@@ -48,6 +48,48 @@ export const INSIGHT_COPY = {
   summariesLink: "See the full breakdown",
 } as const;
 
+export function nutritionObservationView(observation: InsightsResult["observations"][number]) {
+  return {
+    title: observation.title,
+    body: observation.body,
+    completeness: observation.completeness,
+    period: `Period: ${observation.window.from} to ${observation.window.to} (${observation.window.days} days)`,
+    accessibilityLabel: `${observation.title}. ${observation.body}. ${observation.completeness}`,
+  };
+}
+
+/** Keep the explicit observation opt-in isolated from every delivery channel. */
+export function observationPreferencePatch(inApp: boolean) {
+  return { channels: { observation: { in_app: inApp } } } as const;
+}
+
+/** Fail closed while a revocation is pending or after it fails. */
+export function shouldShowObservations(
+  savedInApp: boolean | undefined,
+  hideObservations: boolean,
+  preferenceConfirmed = true,
+  mutationFailed = false,
+) {
+  return savedInApp === true && !hideObservations && preferenceConfirmed && !mutationFailed;
+}
+
+/** Keep private query results isolated by authenticated member and workspace. */
+export function privateInsightsQueryKey(
+  queryKey: readonly unknown[],
+  userId: string,
+  organizationId: string | null,
+) {
+  return [...queryKey, { privateSubject: [userId, organizationId ?? "personal"] }] as const;
+}
+
+export function privateInsightsSubject(
+  sessionPending: boolean,
+  userId: string | null | undefined,
+  organizationId: string | null,
+) {
+  return !sessionPending && userId ? { userId, organizationId } : null;
+}
+
 export const INSIGHT_METRIC_LABELS: Record<InsightMetric, string> = {
   sleep_duration: "Sleep",
   resting_heart_rate: "Resting heart rate",
