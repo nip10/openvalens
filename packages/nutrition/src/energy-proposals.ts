@@ -33,6 +33,10 @@ export type DismissOutcome =
   | { outcome: "dismissed"; proposal: EnergyProposal }
   | { outcome: "declined"; reason: ProposalDeclineReason; proposal: EnergyProposal };
 
+export type CreateOutcome =
+  | { outcome: "created"; proposal: EnergyProposal }
+  | { outcome: "declined"; reason: ProposalDeclineReason };
+
 const ENERGY_NUTRIENT = "energy_kcal";
 const MAX_LISTED = 20;
 
@@ -73,6 +77,16 @@ export function createEnergyProposals(db: Database) {
     return row;
   }
 
+  async function latestAcceptedAt(executor: Pick<Database, "select">, scope: NutritionScope) {
+    const [row] = await executor
+      .select({ decidedAt: nutritionEnergyProposal.decidedAt })
+      .from(nutritionEnergyProposal)
+      .where(and(scoped(scope), eq(nutritionEnergyProposal.status, "accepted")))
+      .orderBy(desc(nutritionEnergyProposal.decidedAt))
+      .limit(1);
+    return row?.decidedAt ?? null;
+  }
+
   return {
     /** The member's active energy target (kcal/day), or `null` when none is set. */
     async currentTargetKcal(scope: NutritionScope): Promise<number | null> {
@@ -81,13 +95,7 @@ export function createEnergyProposals(db: Database) {
 
     /** When the member last accepted a proposal, or `null`. */
     async lastAcceptedAt(scope: NutritionScope): Promise<Date | null> {
-      const [row] = await db
-        .select({ decidedAt: nutritionEnergyProposal.decidedAt })
-        .from(nutritionEnergyProposal)
-        .where(and(scoped(scope), eq(nutritionEnergyProposal.status, "accepted")))
-        .orderBy(desc(nutritionEnergyProposal.decidedAt))
-        .limit(1);
-      return row?.decidedAt ?? null;
+      return latestAcceptedAt(db, scope);
     },
 
     /** The member's most recent proposals, newest first. */
@@ -106,12 +114,22 @@ export function createEnergyProposals(db: Database) {
      */
     async create(
       scope: NutritionScope,
-      plan: Extract<EnergyProposalPlan, { outcome: "proposal" }>,
       estimate: EnergyEstimate,
-      now: Date,
-    ): Promise<EnergyProposal> {
+      clock: () => Date,
+      prepare: (
+        tx: Tx,
+        now: Date,
+        currentTargetKcal: number | null,
+        lastAcceptedAt: Date | null,
+      ) => Promise<EnergyProposalPlan>,
+    ): Promise<CreateOutcome> {
       return db.transaction(async (tx) => {
         await lockNutritionSafetyScope(tx, scope);
+        const now = clock();
+        const currentTargetKcal = energyTargetOf(await activeEnergyGoal(tx, scope));
+        const lastAcceptedAt = await latestAcceptedAt(tx, scope);
+        const plan = await prepare(tx, now, currentTargetKcal, lastAcceptedAt);
+        if (plan.outcome === "declined") return plan;
         await tx
           .update(nutritionEnergyProposal)
           .set({ status: "superseded", decidedAt: now, updatedAt: now })
@@ -137,7 +155,7 @@ export function createEnergyProposals(db: Database) {
           })
           .returning();
         if (!row) throw new Error("Proposal insert did not return a row");
-        return row;
+        return { outcome: "created", proposal: row };
       });
     },
 

@@ -8,7 +8,7 @@ they accept or dismiss. Nothing changes on its own.
 | Piece           | Version                     | Code                                                        |
 | --------------- | --------------------------- | ----------------------------------------------------------- |
 | Estimate method | `energy_balance` v1         | `packages/nutrition/src/energy-estimate.ts` (pure)          |
-| Proposal policy | `energy-proposal/v1`        | `packages/nutrition/src/energy-proposal-policy.ts` (pure)   |
+| Proposal policy | `nutrition-safety/v1`       | `packages/nutrition/src/energy-proposal-policy.ts` (pure)   |
 | Proposal store  | `nutrition_energy_proposal` | `packages/nutrition/src/energy-proposals.ts`                |
 | Service         | —                           | `packages/api/src/energy-estimate.ts`                       |
 | Wire contract   | —                           | `packages/api/src/contracts/energy-estimate.ts`             |
@@ -92,26 +92,41 @@ The estimate is information; a proposal is a separate, stored suggestion.
 - Created only when the member asks (`nutritionEnergy.propose`); the server
   recomputes the estimate — clients never send numbers. A new proposal
   replaces (supersedes) any pending one; at most one is pending per member.
-- **Maintenance only.** The target follows the estimate, rounded to 50 kcal.
-  No deficit or gain is proposed in v1: those need the nutrition safety policy
-  (#80, `nutrition-safety/v1`) and must go through it.
-- Never below **1,200 kcal/day** (#80's "never propose" floor). Refusal copy
-  never states the floor or any body value.
-- **Weekly step:** from an existing target, the proposal moves at most
-  max(200 kcal, 10 % of the current target), and no new proposal is made
-  within 7 days of an accepted change.
+- The proposal kind and target follow the current nutrition safety policy
+  (`nutrition-safety/v1`), including direction, exclusions, floors, caps, BMI
+  gates and the bounded target step (at most the smaller of 200 kcal and 10%
+  of the current target). A new proposal is withheld within 7 days of the last
+  accepted change. Refusal copy never states a floor or body value.
+- The historical estimate is computed from the requested window and retained
+  as an immutable proposal snapshot. Under the shared per-user database lock,
+  the server loads current profile, consent, nutrition settings, current target
+  and latest accepted change, then plans and inserts/supersedes the proposal in
+  that same transaction. A stale context cannot create a pending proposal.
+  Safety-input writers participate in this same lock.
 - A proposal is valid for 7 days. **Accept** (`acceptProposal`) re-checks it
-  under a lock: still pending, not expired, member still an adult, and the
-  member's energy target unchanged since it was made. Only then is the
+  under a lock: still pending, not expired, member still qualifies under the
+  current safety policy, and the stored target still matches the reviewed
+  proposal. Only then is the
   `energy_kcal` goal written (`min = max = target`, archiving the previous
   one) and the proposal marked accepted with the goal id, atomically.
   **Dismiss** leaves the target unchanged.
 - Decisions need the member's own, non-impersonated session.
 
+### Visibility
+
+When hide-numbers mode is on (or the member is not known to be eligible to see
+the estimate), proposal metadata remains actionable, but kcal fields and the
+entire nested estimate snapshot are withheld as `null`; values are never
+replaced with zero. The estimate endpoint returns a neutral hidden status.
+When energy suggestions are off, proposal lists are empty and refusals do not
+echo a stored proposal. Dismissed and replayed decisions also use the same
+visibility-aware mapper. This API redaction does not change the member's own
+raw data-rights export.
+
 ## Data and privacy
 
 `nutrition_energy_proposal` is organization- and member-scoped (composite
 member FK), registered in the data-rights registry for export and deletion,
-and stores the full estimate it came from for transparency. The estimate
-itself is never stored. Logs carry statuses and reason codes only, never a
-value; writes are audited with the proposal id.
+and stores the full historical estimate snapshot for transparency. Logs carry
+statuses and reason codes only, never a value; writes are audited with the
+proposal id.

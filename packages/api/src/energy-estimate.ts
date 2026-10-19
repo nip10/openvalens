@@ -66,11 +66,34 @@ export function presentEstimate(estimate: EnergyEstimate): EnergyEstimateWire {
   return { ...estimate, reasonNotes: estimate.reasons.map((reason) => NO_ESTIMATE_COPY[reason]) };
 }
 
+const HIDDEN_NUMBERS_NOTE = "Energy estimate details are hidden by your nutrition settings.";
+
+function canShowNumbers(context: Awaited<ReturnType<typeof loadSafetyContext>>): boolean {
+  return (
+    context.adultConfirmed &&
+    context.safety.energySuggestions === "available" &&
+    !context.settings.hideNumbers
+  );
+}
+
+function presentVisibleEstimate(
+  estimate: EnergyEstimate,
+  context: Awaited<ReturnType<typeof loadSafetyContext>>,
+): EnergyEstimateOutput {
+  if (!canShowNumbers(context))
+    return { status: "hidden", experimental: true, note: HIDDEN_NUMBERS_NOTE };
+  const wire = presentEstimate(estimate);
+  return wire.status === "estimated"
+    ? { ...wire, status: "estimated" }
+    : { ...wire, status: "no_estimate" };
+}
+
 export function presentProposal(
   row: EnergyProposal,
   now: Date,
-  softGates: readonly string[] = [],
+  visibility: { showNumbers: boolean; softGates?: readonly string[] } = { showNumbers: true },
 ): EnergyProposalWire {
+  const softGates = visibility.softGates ?? [];
   const needsConfirmation = row.kind === "deficit" && softGates.length > 0;
   const notes: string[] = [PROPOSAL_COPY[row.kind]];
   if (needsConfirmation) notes.push(NUTRITION_SAFETY_COPY.softGateConfirm);
@@ -81,14 +104,14 @@ export function presentProposal(
     kind: row.kind,
     status: row.status,
     expired: row.status === "pending" && now.getTime() >= row.expiresAt.getTime(),
-    estimateKcal: row.estimateKcal,
-    targetKcal: row.targetKcal,
-    currentTargetKcal: row.currentTargetKcal,
+    estimateKcal: visibility.showNumbers ? row.estimateKcal : null,
+    targetKcal: visibility.showNumbers ? row.targetKcal : null,
+    currentTargetKcal: visibility.showNumbers ? row.currentTargetKcal : null,
     stepLimited: row.stepLimited,
     methodVersion: row.methodVersion,
     policyVersion: row.policyVersion,
     window: { from: row.windowFrom, to: row.windowTo },
-    estimate: presentEstimate(row.estimate as EnergyEstimate),
+    estimate: visibility.showNumbers ? presentEstimate(row.estimate as EnergyEstimate) : null,
     createdAt: row.createdAt.toISOString(),
     expiresAt: row.expiresAt.toISOString(),
     decidedAt: row.decidedAt?.toISOString() ?? null,
@@ -145,16 +168,21 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
         return { status: "adults_only", experimental: true, note: ADULTS_ONLY_NOTE };
       if (context.safety.energySuggestions === "off")
         return { status: "off", experimental: true, note: NUTRITION_SAFETY_COPY.energyTargetsOff };
-      const estimate = presentEstimate(await compute(scope, input.to));
-      return estimate.status === "estimated"
-        ? { ...estimate, status: "estimated" }
-        : { ...estimate, status: "no_estimate" };
+      if (!canShowNumbers(context))
+        return { status: "hidden", experimental: true, note: HIDDEN_NUMBERS_NOTE };
+      return presentVisibleEstimate(await compute(scope, input.to), context);
     },
 
     async listProposals(scope: NutritionScope): Promise<EnergyProposalWire[]> {
       const at = now();
-      const { safety } = await safetyOf(scope, false);
-      return (await proposals.list(scope)).map((row) => presentProposal(row, at, safety.softGates));
+      const context = await safetyOf(scope, false);
+      if (context.safety.energySuggestions === "off") return [];
+      return (await proposals.list(scope)).map((row) =>
+        presentProposal(row, at, {
+          showNumbers: canShowNumbers(context),
+          softGates: context.safety.softGates,
+        }),
+      );
     },
 
     /**
@@ -164,39 +192,50 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
      */
     async propose(scope: NutritionScope, input: { to: string }): Promise<ProposeOutput> {
       windowFor(input.to);
-      const context = await safetyOf(scope, true);
-      const adult = context.adultConfirmed;
-      if (!adult)
+      const initialContext = await safetyOf(scope, false);
+      if (!initialContext.adultConfirmed)
         return { outcome: "declined", reason: "adults_only", note: declineNote("adults_only") };
-      if (context.safety.energySuggestions === "off")
+      if (initialContext.safety.energySuggestions === "off")
         return {
           outcome: "declined",
           reason: "suggestions_off",
           note: declineNote("suggestions_off"),
         };
       const estimate = await compute(scope, input.to);
-      const [currentTargetKcal, lastAcceptedAt] = await Promise.all([
-        proposals.currentTargetKcal(scope),
-        proposals.lastAcceptedAt(scope),
-      ]);
-      const at = now();
-      const plan = planEnergyProposal({
+      let creationContext: Awaited<ReturnType<typeof safetyOf>> | undefined;
+      const created = await proposals.create(
+        scope,
         estimate,
-        adultConfirmed: adult,
-        currentTargetKcal,
-        lastAcceptedAt,
-        now: at,
-        direction: context.settings.energyDirection,
-        safety: context.safety,
-        body: context.body,
-      });
-      if (plan.outcome === "declined")
-        return { outcome: "declined", reason: plan.reason, note: declineNote(plan.reason) };
-      const row = await proposals.create(scope, plan, estimate, at);
+        now,
+        async (tx, at, currentTargetKcal, lastAcceptedAt) => {
+          const context = await loadSafetyContext(tx, scope, { now: at, readWeight: true });
+          creationContext = context;
+          if (!context.adultConfirmed) return { outcome: "declined", reason: "adults_only" };
+          if (context.safety.energySuggestions === "off")
+            return { outcome: "declined", reason: "suggestions_off" };
+          return planEnergyProposal({
+            estimate,
+            adultConfirmed: context.adultConfirmed,
+            currentTargetKcal,
+            lastAcceptedAt,
+            now: at,
+            direction: context.settings.energyDirection,
+            safety: context.safety,
+            body: context.body,
+          });
+        },
+      );
+      const at = now();
+      if (created.outcome === "declined")
+        return { outcome: "declined", reason: created.reason, note: declineNote(created.reason) };
+      const context = creationContext!;
       return {
         outcome: "proposed",
-        proposal: presentProposal(row, at, context.safety.softGates),
-        targetId: String(row.id),
+        proposal: presentProposal(created.proposal, at, {
+          showNumbers: canShowNumbers(context),
+          softGates: context.safety.softGates,
+        }),
+        targetId: String(created.proposal.id),
       };
     },
 
@@ -262,28 +301,28 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
         },
       );
       const at = now();
-      const proposal = presentProposal(
-        result.proposal,
-        at,
-        acceptedContext?.safety.softGates ?? [],
-      );
+      const context = acceptedContext ?? (await safetyOf(scope, false));
       const targetId = String(result.proposal.id);
       if (result.outcome === "declined")
         return {
           outcome: "declined",
           reason: result.reason,
           note: declineNote(result.reason),
-          proposal,
+          proposal: null,
           targetId,
         };
+      const proposal = presentProposal(result.proposal, at, {
+        showNumbers: canShowNumbers(context),
+        softGates: context.safety.softGates,
+      });
       return {
         outcome: "accepted",
         proposal,
         goal: {
           id: result.goal.id,
           nutrient: "energy_kcal",
-          minAmount: result.goal.minAmount,
-          maxAmount: result.goal.maxAmount,
+          minAmount: canShowNumbers(context) ? result.goal.minAmount : null,
+          maxAmount: canShowNumbers(context) ? result.goal.maxAmount : null,
         },
         targetId,
       };
@@ -296,16 +335,20 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
     ): Promise<DismissProposalOutput> {
       const at = now();
       const result = await proposals.dismiss(scope, input.proposalId, at);
-      const proposal = presentProposal(result.proposal, at);
+      const context = await safetyOf(scope, false);
       const targetId = String(result.proposal.id);
       if (result.outcome === "declined")
         return {
           outcome: "declined",
           reason: result.reason,
           note: declineNote(result.reason),
-          proposal,
+          proposal: null,
           targetId,
         };
+      const proposal = presentProposal(result.proposal, at, {
+        showNumbers: canShowNumbers(context),
+        softGates: context.safety.softGates,
+      });
       return { outcome: "dismissed", proposal, targetId };
     },
   };

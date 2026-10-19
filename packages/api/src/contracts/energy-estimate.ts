@@ -135,6 +135,12 @@ export const energyEstimateAdultsOnly = z.object({
   note: z.string(),
 });
 
+export const energyEstimateHidden = z.object({
+  status: z.literal("hidden"),
+  experimental: z.literal(true),
+  note: z.string(),
+});
+
 /** Turned off after an eating-disorder declaration (#80): nothing was read or computed. */
 export const energyEstimateOff = z.object({
   status: z.literal("off"),
@@ -147,6 +153,7 @@ export const energyEstimateOutput = z.discriminatedUnion("status", [
   energyEstimate.extend({ status: z.literal("no_estimate") }),
   energyEstimateAdultsOnly,
   energyEstimateOff,
+  energyEstimateHidden,
 ]);
 export type EnergyEstimateOutput = z.infer<typeof energyEstimateOutput>;
 
@@ -177,15 +184,15 @@ export const energyProposal = z.object({
   status: z.enum(PROPOSAL_STATUSES),
   /** A pending proposal past its expiry can no longer be accepted. */
   expired: z.boolean(),
-  estimateKcal: z.number().int(),
-  targetKcal: z.number().int(),
+  estimateKcal: z.number().int().nullable(),
+  targetKcal: z.number().int().nullable(),
   currentTargetKcal: z.number().int().nullable(),
   stepLimited: z.boolean(),
   methodVersion: z.number().int(),
   policyVersion: z.string(),
   window: z.object({ from: z.string(), to: z.string() }),
   /** The full estimate the proposal was made from. */
-  estimate: energyEstimate,
+  estimate: energyEstimate.nullable(),
   createdAt: z.string(),
   expiresAt: z.string(),
   decidedAt: z.string().nullable(),
@@ -227,7 +234,7 @@ const declined = z.object({
   outcome: z.literal("declined"),
   reason: z.enum(PROPOSAL_DECLINE_REASONS),
   note: z.string(),
-  proposal: energyProposal,
+  proposal: energyProposal.nullable(),
   targetId: z.string(),
 });
 
