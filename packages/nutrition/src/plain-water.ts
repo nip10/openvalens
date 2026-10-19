@@ -158,6 +158,19 @@ export function createPlainWaterDiary(db: Database) {
   }
 
   return {
+    async getPreference(scope: NutritionScope) {
+      const [preference] = await db
+        .select({
+          enabled: plainWaterPreference.enabled,
+          personalGoalMl: plainWaterPreference.personalGoalMl,
+        })
+        .from(plainWaterPreference)
+        .where(preferenceWhere(scope));
+      return {
+        enabled: preference?.enabled ?? false,
+        personalGoalMl: preference?.personalGoalMl ?? null,
+      };
+    },
     async add(scope: NutritionScope, input: WaterInput): Promise<WaterMutationOutcome> {
       const value = normalize(input);
       const id = assertMutationId(input.clientMutationId);

@@ -25,6 +25,7 @@ import { nutritionDiaryRouter } from "./nutrition-diary";
 import { nutritionEnergyRouter } from "./nutrition-energy";
 import { nutritionFoodsRouter } from "./nutrition-foods";
 import { plansRouter } from "./plans";
+import { plainWaterRouter } from "./plain-water";
 import { preventiveCareRouter } from "./preventive-care";
 import { profileRouter } from "./profile";
 import { privateBodyRouter } from "./private-body";
@@ -64,6 +65,7 @@ export const appRouter = {
   nutritionEnergy: nutritionEnergyRouter,
   nutritionFoods: nutritionFoodsRouter,
   plans: plansRouter,
+  plainWater: plainWaterRouter,
   preventiveCare: preventiveCareRouter,
   profile: profileRouter,
   privateBody: privateBodyRouter,

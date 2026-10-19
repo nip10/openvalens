@@ -1,8 +1,8 @@
 # Plain-water backend checkpoint (#83)
 
-This checkpoint provides a private domain-service and additive persistence
-foundation for manually recorded **plain water**. It is not wired into an HTTP
-contract or a client yet. It has no reminders, streaks, hydration advice, or
+This checkpoint provides a private domain-service, additive persistence
+foundation, and authenticated HTTP contract for manually recorded **plain water**.
+It is not wired into a client yet. It has no reminders, streaks, hydration advice, or
 universal goal; it does not combine logged water with other beverages or water
 in foods. A displayed amount must be called a **Plain water subtotal**, never
 total hydration or total dietary water.
@@ -29,5 +29,10 @@ original result; reuse for a different operation or payload is rejected.
 Transactions take a member/mutation advisory lock before receipt lookup and
 write, so parallel retries cannot create duplicate entries. Edit/delete use
 expected revisions and return a recorded conflict instead of overwriting stale
-state. A client API contract, authentication/impersonation gates and client
-outbox integration remain pending; this service alone is not a shipped feature.
+state. The `plainWater` router scopes requests to the trusted, non-impersonated
+session member and server-resolved active organization; client identity and
+tenant fields are rejected. Until #80's preference is wired, API display
+responses fail closed and suppress quantities/goals (including replay and
+conflict entries). Canonical data remains available to explicit user-initiated
+data-rights exports. Client outbox and UI remain pending; this API alone is not
+a shipped feature.
