@@ -137,7 +137,7 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
     await db.$client.end();
   });
 
-  test("default opt-out, own goal set/clear, create and all display responses hide quantities", async () => {
+  test("HTTP CRUD, exact replay, stale-conflict privacy, and DST reads", async () => {
     expect(await call("getPreferences", {})).toMatchObject({
       status: 200,
       body: { enabled: false, personalGoalMl: null },
@@ -236,14 +236,19 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
       outcome: "replayed",
       entry: { quantityMl: null },
     });
-    const conflict = await call("change", {
+    const staleEdit = {
       ...editInput,
       clientMutationId: "stale-1",
       expectedRevision: 1,
       quantity: 400,
-    });
+    };
+    const conflict = await call("change", staleEdit);
     expect(conflict.body).toMatchObject({ outcome: "conflict", entry: { quantityMl: null } });
     expect(JSON.stringify(conflict.body)).not.toContain("500");
+    expect(await call("change", staleEdit)).toMatchObject({
+      status: 200,
+      body: { outcome: "conflict", entry: { revision: 2, quantityMl: null } },
+    });
     const deleted = { id, expectedRevision: 2, clientMutationId: "delete-1" };
     expect((await call("delete", deleted)).body).toMatchObject({
       outcome: "applied",
@@ -253,6 +258,36 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
       outcome: "replayed",
       entry: { quantityMl: null },
     });
+    const staleDeleteCreated = await call("add", {
+      quantity: 321,
+      unit: "ml",
+      observedAt: "2026-03-29T01:00:00Z",
+      timeZone: "Europe/Lisbon",
+      clientMutationId: "stale-delete-create",
+    });
+    const staleDeleteId = (staleDeleteCreated.body as { entry: { id: number } }).entry.id;
+    await call("change", {
+      id: staleDeleteId,
+      expectedRevision: 1,
+      clientMutationId: "stale-delete-edit",
+      quantity: 222,
+      unit: "ml",
+    });
+    const staleDelete = {
+      id: staleDeleteId,
+      expectedRevision: 1,
+      clientMutationId: "stale-delete",
+    };
+    expect(await call("delete", staleDelete)).toMatchObject({
+      status: 200,
+      body: { outcome: "conflict", entry: { revision: 2, quantityMl: null } },
+    });
+    const staleDeleteRetry = await call("delete", staleDelete);
+    expect(staleDeleteRetry.body).toMatchObject({
+      outcome: "conflict",
+      entry: { revision: 2, quantityMl: null },
+    });
+    expect(JSON.stringify(staleDeleteRetry.body)).not.toContain("222");
     expect(
       (
         await call("delete", {

@@ -178,7 +178,8 @@ export function createPlainWaterDiary(db: Database) {
       return db.transaction(async (tx) => {
         await lockMutation(tx, scope, id);
         const previous = await replay<WaterMutationOutcome>(tx, scope, id, "add", fingerprint);
-        if (previous) return { ...previous, outcome: "replayed" };
+        if (previous)
+          return previous.outcome === "conflict" ? previous : { ...previous, outcome: "replayed" };
         requireEnabled(await isEnabled(tx, scope));
         const [entry] = await tx
           .insert(plainWaterEntry)
@@ -235,7 +236,8 @@ export function createPlainWaterDiary(db: Database) {
           timeZone: input.timeZone,
         });
         const previous = await replay<WaterMutationOutcome>(tx, scope, id, kind, fingerprint);
-        if (previous) return { ...previous, outcome: "replayed" };
+        if (previous)
+          return previous.outcome === "conflict" ? previous : { ...previous, outcome: "replayed" };
 
         // Owners may delete their own records even after opting out. Listing
         // and editing remain hidden/disabled; this is a data-control operation.

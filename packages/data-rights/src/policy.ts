@@ -1,6 +1,6 @@
 import { sql, type Database } from "@openvalens/db";
 
-import { rowFilter, type DataRightsSubject } from "./export";
+import { deletionRowFilter, type DataRightsSubject } from "./export";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
 
 /**
@@ -61,7 +61,7 @@ export async function previewSubjectData(
   for (const [table, entry] of Object.entries(DATA_RIGHTS_REGISTRY)) {
     if (!isExported(entry)) continue;
     const result = await db.execute(
-      sql`select count(*)::int as n from ${sql.identifier(table)} where ${rowFilter(table, subject)}`,
+      sql`select count(*)::int as n from ${sql.identifier(table)} where ${deletionRowFilter(table, subject)}`,
     );
     const n = Number((result.rows[0] as { n: number }).n);
     if (n > 0) counts[table] = n;

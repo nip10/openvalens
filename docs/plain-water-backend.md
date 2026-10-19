@@ -36,3 +36,11 @@ responses fail closed and suppress quantities/goals (including replay and
 conflict entries). Canonical data remains available to explicit user-initiated
 data-rights exports. Client outbox and UI remain pending; this API alone is not
 a shipped feature.
+
+Export remains member-private and includes only the subject's own water rows.
+Erasure preview/deletion also includes water rows in containers the subject
+owns and is deleting (including other members' water records in that removed
+container), plus the subject's own water rows in memberships that remain. The
+organization foreign keys cascade for container deletion; the composite member
+integrity constraints remain restrictive. Subject erasure explicitly deletes
+water entries, preferences, and replay receipts before membership rows.

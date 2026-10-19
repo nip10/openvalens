@@ -90,6 +90,21 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
   }
 }
 
+/**
+ * Erasure includes the subject's member-private plain-water rows and all
+ * water rows inside containers being erased. Export intentionally continues
+ * to use {@link rowFilter}, so another member's rows are never exported.
+ */
+export function deletionRowFilter(table: string, subject: DataRightsSubject): SQL {
+  if (
+    table === "plain_water_entry" ||
+    table === "plain_water_preference" ||
+    table === "plain_water_mutation"
+  )
+    return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
+  return rowFilter(table, subject);
+}
+
 function sha256(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }

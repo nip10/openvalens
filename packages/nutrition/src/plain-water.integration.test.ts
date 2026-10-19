@@ -114,7 +114,7 @@ describe.skipIf(!url)("optional plain-water domain against disposable PostgreSQL
     );
   });
 
-  test("edit and delete retries return their receipts; stale edit never overwrites", async () => {
+  test("applied retries replay; stale edit and delete retries preserve conflicts", async () => {
     await water.setPreference(A, { enabled: true });
     const baseTotal = (await water.getDay(A, "2026-10-01", "UTC")).quantityMl ?? 0;
     const created = await water.add(A, input("crud-create"));
@@ -131,16 +131,21 @@ describe.skipIf(!url)("optional plain-water domain against disposable PostgreSQL
     expect(await errorCode(() => water.change(A, { ...edit, quantity: 0.6 }))).toBe(
       "INVALID_INPUT",
     );
-    expect(
-      (
-        await water.change(A, {
-          ...edit,
-          clientMutationId: "stale-edit",
-          expectedRevision: 1,
-          quantity: 0.7,
-        })
-      ).outcome,
-    ).toBe("conflict");
+    const staleEdit = {
+      ...edit,
+      clientMutationId: "stale-edit",
+      expectedRevision: 1,
+      quantity: 0.7,
+    };
+    const staleEditConflict = await water.change(A, staleEdit);
+    expect(staleEditConflict.outcome).toBe("conflict");
+    const staleEditRetry = await water.change(A, staleEdit);
+    expect(staleEditRetry.outcome).toBe("conflict");
+    expect(staleEditRetry.entry).toMatchObject({
+      id: created.entry.id,
+      revision: 2,
+      quantityMl: 500,
+    });
     expect((await water.getDay(A, "2026-10-01", "UTC")).quantityMl).toBe(baseTotal + 500);
     const del = {
       id: created.entry.id,
@@ -150,7 +155,30 @@ describe.skipIf(!url)("optional plain-water domain against disposable PostgreSQL
     };
     expect((await water.change(A, del)).entry.deletedAt).toBeInstanceOf(Date);
     expect((await water.change(A, del)).outcome).toBe("replayed");
-    expect((await water.getDay(A, "2026-10-01", "UTC")).quantityMl).toBe(baseTotal);
+    const staleDeleteEntry = await water.add(A, input("stale-delete-create"));
+    const interveningEdit = await water.change(A, {
+      id: staleDeleteEntry.entry.id,
+      clientMutationId: "stale-delete-intervening-edit",
+      expectedRevision: 1,
+      quantity: 300,
+      unit: "ml",
+    });
+    expect(interveningEdit.entry.revision).toBe(2);
+    const staleDelete = {
+      id: staleDeleteEntry.entry.id,
+      clientMutationId: "stale-delete",
+      expectedRevision: 1,
+      deleted: true,
+    };
+    expect((await water.change(A, staleDelete)).outcome).toBe("conflict");
+    const staleDeleteRetry = await water.change(A, staleDelete);
+    expect(staleDeleteRetry.outcome).toBe("conflict");
+    expect(staleDeleteRetry.entry).toMatchObject({
+      id: staleDeleteEntry.entry.id,
+      revision: 2,
+      deletedAt: null,
+    });
+    expect((await water.getDay(A, "2026-10-01", "UTC")).quantityMl).toBe(baseTotal + 300);
     expect(
       await errorCode(() =>
         water.change(A, { ...edit, clientMutationId: "reuse-edit", quantity: 200 }),
