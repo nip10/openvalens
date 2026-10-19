@@ -55,7 +55,7 @@ export async function listCanonicalDailyWeights(
  * oldest first (Issue #87 trend input). Scoped by organization AND user.
  */
 export async function listCanonicalDailyWeightsBetween(
-  db: Database,
+  db: Pick<Database, "select">,
   scope: { organizationId: string; userId: string },
   from: string,
   to: string,

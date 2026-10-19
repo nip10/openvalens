@@ -86,6 +86,10 @@ function fakeDb(): FakeDb {
   const db = {
     select,
     insert,
+    async transaction<T>(callback: (tx: unknown) => Promise<T>): Promise<T> {
+      const tx = Object.assign(db, { execute: async () => [] });
+      return callback(tx);
+    },
   } as unknown as Database;
 
   return {

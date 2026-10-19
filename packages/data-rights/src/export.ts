@@ -69,6 +69,15 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
   const orgIds = [...subject.organizationIds];
   switch (entry.kind) {
     case "organization":
+      // These rows describe one member's targets, not the workspace owner's
+      // record. Keep the organization classification for container erasure,
+      // but export only this subject's values across their memberships.
+      if (
+        table === "nutrition_goal" ||
+        table === "nutrition_energy_proposal" ||
+        table === "nutrition_target_settings"
+      )
+        return sql`user_id = ${subject.userId}`;
       return inList("organization_id", orgIds);
     case "user":
       return sql`user_id = ${subject.userId}`;
@@ -100,6 +109,12 @@ export function deletionRowFilter(table: string, subject: DataRightsSubject): SQ
     table === "plain_water_entry" ||
     table === "plain_water_preference" ||
     table === "plain_water_mutation"
+  )
+    return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
+  if (
+    table === "nutrition_goal" ||
+    table === "nutrition_energy_proposal" ||
+    table === "nutrition_target_settings"
   )
     return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
   return rowFilter(table, subject);

@@ -4,27 +4,35 @@ import {
   DIARY_COPY,
   NUTRIENT_LABELS,
   SUMMARY_NUTRIENTS,
-  describeNutrientTotal,
   formatCoverage,
   formatSources,
-  formatTotalValue,
 } from "@openvalens/api/presenters/nutrition-diary";
+import {
+  TARGET_COPY,
+  describeDisplayedTotal,
+  displayTotalValue,
+} from "@openvalens/api/presenters/nutrition-targets";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 /**
- * Day totals with per-nutrient coverage (Issue #79), matching the web view.
- * `pending` marks a local preview that includes queued offline changes; the
- * server's totals replace it after sync. Unknown is never shown as 0.
+ * Day totals with per-nutrient coverage (Issue #79) and hide-numbers mode
+ * (#80), matching the web view. `pending` marks a local preview that includes
+ * queued offline changes; the server's totals replace it after sync. With
+ * hide-numbers on every numeric value is replaced but coverage stays, so a
+ * total is never read as a verdict and a day with nothing logged is never
+ * shown as zero.
  */
 export function NutritionDayTotals({
   totals,
   sources,
   pending,
+  hideNumbers = false,
 }: {
   totals: Record<NutrientKey, NutrientTotal>;
   sources: { fdc: number; off: number; custom: number; manual: number } | null;
   pending: boolean;
+  hideNumbers?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sourceLine = sources ? formatSources(sources) : null;
@@ -36,11 +44,11 @@ export function NutritionDayTotals({
             key={key}
             className="gap-0.5"
             accessible
-            accessibilityLabel={describeNutrientTotal(key, totals[key])}
+            accessibilityLabel={describeDisplayedTotal(key, totals[key], hideNumbers)}
           >
             <Text className="text-xs text-muted-foreground">{NUTRIENT_LABELS[key].label}</Text>
             <Text className="font-mono text-sm text-foreground">
-              {formatTotalValue(key, totals[key])}
+              {displayTotalValue(key, totals[key], hideNumbers)}
             </Text>
             <Text className="text-xs text-muted-foreground">{formatCoverage(totals[key])}</Text>
           </View>
@@ -61,13 +69,13 @@ export function NutritionDayTotals({
               key={key}
               className="flex-row justify-between gap-3 border-t border-border py-1"
               accessible
-              accessibilityLabel={describeNutrientTotal(key, totals[key])}
+              accessibilityLabel={describeDisplayedTotal(key, totals[key], hideNumbers)}
             >
               <Text className="flex-1 text-sm text-foreground">
                 {NUTRIENT_LABELS[key].label} ({NUTRIENT_LABELS[key].unit})
               </Text>
               <Text className="font-mono text-sm text-foreground">
-                {formatTotalValue(key, totals[key])}
+                {displayTotalValue(key, totals[key], hideNumbers)}
               </Text>
               <Text className="w-36 text-right text-xs text-muted-foreground">
                 {formatCoverage(totals[key])}
@@ -78,6 +86,9 @@ export function NutritionDayTotals({
       ) : null}
       {pending ? (
         <Text className="text-xs text-muted-foreground">{DIARY_COPY.pendingTotals}</Text>
+      ) : null}
+      {hideNumbers ? (
+        <Text className="text-xs text-muted-foreground">{TARGET_COPY.numbersHidden}</Text>
       ) : null}
       {sourceLine ? (
         <Text className="text-xs text-muted-foreground">

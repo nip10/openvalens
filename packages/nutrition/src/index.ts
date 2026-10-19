@@ -13,6 +13,8 @@ export * from "./coach-consent";
 export * from "./coach-context";
 export * from "./custom-foods";
 export * from "./energy-estimate";
+export * from "./nutrition-safety";
 export * from "./energy-proposal-policy";
 export * from "./energy-proposals";
+export * from "./targets";
 export * from "./plain-water";

@@ -11,6 +11,7 @@ assertDisposable(url, "data_rights_test");
 describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/data_rights_test" });
   let exported: DataExport;
+  let exportedA2: DataExport;
 
   const parse = (table: string) => {
     const file = exported.files.find((f) => f.path === `entities/${table}.json`);
@@ -23,10 +24,18 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
     await db.execute(
-      sql`insert into "user" (id, email) values ('user-a2', 'water-collaborator@example.test')`,
-    );
-    await db.execute(
-      sql`insert into member (id, organization_id, user_id, role) values ('water-member-a2', 'org-a', 'user-a2', 'collaborator')`,
+      sql.raw(`
+      insert into "user" (id, email) values ('user-a2', 'water-collaborator@example.test');
+      insert into member (id, organization_id, user_id, role) values ('m-a2', 'org-a', 'user-a2', 'collaborator');
+      insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+        values ('org-a', 'user-a', 1, true, array['eating_disorder']),
+               ('org-a', 'user-a2', 1, false, array['chronic_kidney_disease']);
+      insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
+        values ('org-a', 'user-a', 'protein_g', 91), ('org-a', 'user-a2', 'protein_g', 47);
+      insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
+        values ('org-a', 'user-a', 'maintenance', 'pending', 2401, 2400, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"owner_canary": 2401}', now() + interval '1 day'),
+               ('org-a', 'user-a2', 'maintenance', 'pending', 2101, 2100, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"collaborator_canary": 2101}', now() + interval '1 day');
+      `),
     );
 
     // Admission grants (#63): A is a recipient (by target user and by pending
@@ -62,6 +71,11 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       { userId: "user-a", organizationIds: ["org-a"] },
       new Date("2026-10-03T00:00:00.000Z"),
     );
+    exportedA2 = await exportSubjectData(
+      db,
+      { userId: "user-a2", organizationIds: ["org-a"] },
+      new Date("2026-10-03T00:00:00.000Z"),
+    );
   });
 
   test("exports every exported table and excludes the rest with reasons", () => {
@@ -89,6 +103,42 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       expect(file.content).not.toContain("org-b");
       expect(file.content).not.toContain("Supplement b");
     }
+  });
+
+  test("nutrition settings export only for their subject, not every workspace member", () => {
+    const ownerSettings = JSON.parse(
+      exported.files.find((file) => file.path === "entities/nutrition_target_settings.json")!
+        .content,
+    ) as { user_id: string; declarations: string[] }[];
+    const collaboratorSettings = JSON.parse(
+      exportedA2.files.find((file) => file.path === "entities/nutrition_target_settings.json")!
+        .content,
+    ) as { user_id: string; declarations: string[] }[];
+    expect(ownerSettings.map(({ user_id, declarations }) => ({ user_id, declarations }))).toEqual([
+      { user_id: "user-a", declarations: ["eating_disorder"] },
+    ]);
+    expect(
+      collaboratorSettings.map(({ user_id, declarations }) => ({ user_id, declarations })),
+    ).toEqual([{ user_id: "user-a2", declarations: ["chronic_kidney_disease"] }]);
+  });
+
+  test("goal and proposal exports contain the subject's actual values only", () => {
+    const rows = (data: DataExport, table: string) =>
+      JSON.parse(data.files.find((f) => f.path === `entities/${table}.json`)!.content) as Record<
+        string,
+        unknown
+      >[];
+    expect(rows(exported, "nutrition_goal").map((r) => [r.user_id, r.min_amount])).toEqual([
+      ["user-a", 91],
+    ]);
+    expect(rows(exportedA2, "nutrition_goal").map((r) => [r.user_id, r.min_amount])).toEqual([
+      ["user-a2", 47],
+    ]);
+    expect(rows(exported, "nutrition_energy_proposal").map((r) => r.user_id)).toEqual(["user-a"]);
+    expect(rows(exportedA2, "nutrition_energy_proposal").map((r) => r.user_id)).toEqual([
+      "user-a2",
+    ]);
+    expect(exported.files.map((f) => f.content).join("\n")).not.toContain("collaborator_canary");
   });
 
   test("credentials are redacted and listed in the manifest", () => {

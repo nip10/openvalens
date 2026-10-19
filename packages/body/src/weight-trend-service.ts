@@ -12,7 +12,7 @@ export type WeightTrendScope = { organizationId: string; userId: string };
  * written and no values are logged.
  */
 export async function getWeightTrend(
-  db: Database,
+  db: Pick<Database, "select">,
   scope: WeightTrendScope,
   range: { from: string; to: string },
 ): Promise<WeightTrend> {

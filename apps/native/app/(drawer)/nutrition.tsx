@@ -9,6 +9,7 @@ import {
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
 import type { BarcodeLookup } from "@openvalens/api/contracts/nutrition-foods";
+import type { NutritionTargetWire } from "@openvalens/api/contracts/nutrition-targets";
 import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
 import {
   BARCODE_COPY,
@@ -41,6 +42,13 @@ import {
   type DiarySyncState,
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
+import {
+  HIDDEN_VALUE,
+  TARGET_COPY,
+  describeTargetSource,
+  formatTarget,
+  resolveHideNumbers,
+} from "@openvalens/api/presenters/nutrition-targets";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQuery } from "@tanstack/react-query";
@@ -121,6 +129,29 @@ export default function NutritionScreen() {
   const foods = useCacheFirst(
     `${DIARY_CACHE_PREFIX}foods`,
     orpc.nutritionDiary.listFoods.queryOptions({ input: {} }),
+  );
+  const targetOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const targets = useQuery({
+    ...targetOptions,
+    queryKey: [...targetOptions.queryKey, { offlineScope: outbox.scope }],
+    enabled: Boolean(outbox.scope),
+  });
+  const cachedDisplayPreference = outbox.scope
+    ? readCache<{ hideNumbers: boolean }>(outbox.scope, "nutrition-display-preference")?.data
+        .hideNumbers
+    : undefined;
+  useEffect(() => {
+    if (outbox.scope && targets.data?.settings) {
+      writeCache(outbox.scope, "nutrition-display-preference", {
+        hideNumbers: targets.data.settings.hideNumbers,
+      });
+    }
+  }, [outbox.scope, targets.data?.settings]);
+  // Until this member's preference is known (including offline and date changes),
+  // don't render numeric diary data.
+  const hideNumbers = resolveHideNumbers(
+    targets.isSuccess ? targets.data.settings.hideNumbers : undefined,
+    cachedDisplayPreference,
   );
   const [undo, setUndo] = useState<{ entryId: number; revision: number; name: string } | null>(
     null,
@@ -245,6 +276,11 @@ export default function NutritionScreen() {
             <Text className="text-sm text-foreground underline">{CUSTOM_FOOD_COPY.manageLink}</Text>
           </Pressable>
         </Link>
+        <Link href="/nutrition-targets" asChild>
+          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
+            <Text className="text-sm text-foreground underline">{TARGET_COPY.settingsLink}</Text>
+          </Pressable>
+        </Link>
 
         <OutboxBanner outbox={outbox} />
 
@@ -290,10 +326,19 @@ export default function NutritionScreen() {
             totals={summary.totals}
             sources={summarySources}
             pending={pendingRows}
+            hideNumbers={hideNumbers}
           />
         </Card>
 
-        <AddFood localDate={localDate} timeZone={timeZone} foods={foods.data} outbox={outbox} />
+        <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+
+        <AddFood
+          localDate={localDate}
+          timeZone={timeZone}
+          foods={foods.data}
+          outbox={outbox}
+          hideNumbers={hideNumbers}
+        />
 
         {MEAL_SLOTS.map((slot) => {
           const slotRows = visible.filter(
@@ -313,7 +358,13 @@ export default function NutritionScreen() {
                 <Text className="text-sm text-muted-foreground">{DIARY_COPY.emptySlot}</Text>
               ) : (
                 slotRows.map((row) => (
-                  <EntryCard key={row.key} row={row} outbox={outbox} onDelete={() => remove(row)} />
+                  <EntryCard
+                    key={row.key}
+                    row={row}
+                    outbox={outbox}
+                    onDelete={() => remove(row)}
+                    hideNumbers={hideNumbers}
+                  />
                 ))
               )}
             </View>
@@ -338,6 +389,43 @@ function emptyNutrients() {
   return Object.fromEntries(
     Object.keys(NUTRIENT_LABELS).map((key) => [key, null]),
   ) as DiaryEntry["nutrients"];
+}
+
+/**
+ * The member's targets that applied on the selected day (Issue #80), shown
+ * separately from the totals and never as a verdict. Hidden entirely when no
+ * target applies; in hide-numbers mode the amounts are replaced but the card
+ * stays.
+ */
+function TargetsOnDay({
+  targets,
+  hideNumbers,
+}: {
+  targets: NutritionTargetWire[];
+  hideNumbers: boolean;
+}) {
+  if (targets.length === 0) return null;
+  return (
+    <Card variant="secondary" className="gap-2 p-4">
+      <Text className="font-medium text-foreground" accessibilityRole="header">
+        {TARGET_COPY.yourTargets}
+      </Text>
+      {targets.map((target) => (
+        <View key={target.id} className="gap-0.5">
+          <Text className="text-sm text-foreground">
+            {NUTRIENT_LABELS[target.nutrient].label}: {formatTarget(target, hideNumbers)}
+          </Text>
+          <Text className="text-xs text-muted-foreground">{describeTargetSource(target)}</Text>
+        </View>
+      ))}
+      <Text className="text-xs text-muted-foreground">{TARGET_COPY.targetsNote}</Text>
+      <Link href="/nutrition-targets" asChild>
+        <Pressable accessibilityRole="link" className="min-h-11 justify-center">
+          <Text className="text-sm text-foreground underline">{TARGET_COPY.settingsLink}</Text>
+        </Pressable>
+      </Link>
+    </Card>
+  );
 }
 
 function OutboxBanner({ outbox }: { outbox: DiaryOutbox }) {
@@ -430,10 +518,12 @@ function EntryCard({
   row,
   outbox,
   onDelete,
+  hideNumbers,
 }: {
   row: DiaryRow;
   outbox: DiaryOutbox;
   onDelete: () => void;
+  hideNumbers: boolean;
 }) {
   const name = row.kind === "server" ? row.entry.food.name : (row.change.preview?.name ?? "Food");
   const amount =
@@ -507,7 +597,9 @@ function EntryCard({
             <Text className="text-xs text-muted-foreground">{row.entry.food.attribution}</Text>
           ) : null}
           <Text className="font-mono text-sm text-foreground">
-            {formatNutrientValue("energyKcal", nutrients?.energyKcal ?? null)}
+            {hideNumbers
+              ? HIDDEN_VALUE
+              : formatNutrientValue("energyKcal", nutrients?.energyKcal ?? null)}
           </Text>
         </View>
         <SyncBadge state={row.sync} />
@@ -611,11 +703,13 @@ function AddFood({
   timeZone,
   foods,
   outbox,
+  hideNumbers,
 }: {
   localDate: string;
   timeZone: string;
   foods: { recents: FoodChoice[]; favorites: FoodChoice[]; customFoods: FoodChoice[] } | undefined;
   outbox: DiaryOutbox;
+  hideNumbers: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"choose" | "barcode" | "quick">("choose");
@@ -953,9 +1047,12 @@ function AddFood({
                 : ""}
           </Text>
           <Text className="text-sm text-muted-foreground">
-            {SUMMARY_NUTRIENTS.map(
-              (key) => `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
-            ).join(" · ")}
+            {hideNumbers
+              ? HIDDEN_VALUE
+              : SUMMARY_NUTRIENTS.map(
+                  (key) =>
+                    `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
+                ).join(" · ")}
           </Text>
           {missingNote ? (
             <Text className="text-sm text-muted-foreground">{missingNote}</Text>

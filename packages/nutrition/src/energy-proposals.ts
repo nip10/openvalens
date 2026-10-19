@@ -1,6 +1,6 @@
 import type { Database } from "@openvalens/db";
 import { nutritionEnergyProposal, nutritionGoal } from "@openvalens/db/schema/nutrition";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type { EnergyEstimate } from "./energy-estimate";
 import {
@@ -10,12 +10,8 @@ import {
   type ProposalDeclineReason,
 } from "./energy-proposal-policy";
 import { NutritionError } from "./errors";
-import {
-  createNutritionRepository,
-  type NutritionGoal,
-  type NutritionScope,
-  type Tx,
-} from "./repository";
+import { lockNutritionSafetyScope, setGoalInTransaction } from "./repository";
+import { goalEffectiveFrom, type NutritionGoal, type NutritionScope, type Tx } from "./repository";
 
 /**
  * Stored energy-target proposals (Issue #76).
@@ -37,6 +33,10 @@ export type DismissOutcome =
   | { outcome: "dismissed"; proposal: EnergyProposal }
   | { outcome: "declined"; reason: ProposalDeclineReason; proposal: EnergyProposal };
 
+export type CreateOutcome =
+  | { outcome: "created"; proposal: EnergyProposal }
+  | { outcome: "declined"; reason: ProposalDeclineReason };
+
 const ENERGY_NUTRIENT = "energy_kcal";
 const MAX_LISTED = 20;
 
@@ -44,13 +44,6 @@ function scoped(scope: NutritionScope) {
   return and(
     eq(nutritionEnergyProposal.organizationId, scope.organizationId),
     eq(nutritionEnergyProposal.userId, scope.userId),
-  );
-}
-
-/** Serialises proposal writes per member so at most one stays pending. */
-async function lockMember(tx: Tx, scope: NutritionScope): Promise<void> {
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtextextended(${`energy-proposal:${scope.organizationId}:${scope.userId}`}, 0))`,
   );
 }
 
@@ -84,6 +77,16 @@ export function createEnergyProposals(db: Database) {
     return row;
   }
 
+  async function latestAcceptedAt(executor: Pick<Database, "select">, scope: NutritionScope) {
+    const [row] = await executor
+      .select({ decidedAt: nutritionEnergyProposal.decidedAt })
+      .from(nutritionEnergyProposal)
+      .where(and(scoped(scope), eq(nutritionEnergyProposal.status, "accepted")))
+      .orderBy(desc(nutritionEnergyProposal.decidedAt))
+      .limit(1);
+    return row?.decidedAt ?? null;
+  }
+
   return {
     /** The member's active energy target (kcal/day), or `null` when none is set. */
     async currentTargetKcal(scope: NutritionScope): Promise<number | null> {
@@ -92,13 +95,7 @@ export function createEnergyProposals(db: Database) {
 
     /** When the member last accepted a proposal, or `null`. */
     async lastAcceptedAt(scope: NutritionScope): Promise<Date | null> {
-      const [row] = await db
-        .select({ decidedAt: nutritionEnergyProposal.decidedAt })
-        .from(nutritionEnergyProposal)
-        .where(and(scoped(scope), eq(nutritionEnergyProposal.status, "accepted")))
-        .orderBy(desc(nutritionEnergyProposal.decidedAt))
-        .limit(1);
-      return row?.decidedAt ?? null;
+      return latestAcceptedAt(db, scope);
     },
 
     /** The member's most recent proposals, newest first. */
@@ -117,12 +114,22 @@ export function createEnergyProposals(db: Database) {
      */
     async create(
       scope: NutritionScope,
-      plan: Extract<EnergyProposalPlan, { outcome: "proposal" }>,
       estimate: EnergyEstimate,
-      now: Date,
-    ): Promise<EnergyProposal> {
+      clock: () => Date,
+      prepare: (
+        tx: Tx,
+        now: Date,
+        currentTargetKcal: number | null,
+        lastAcceptedAt: Date | null,
+      ) => Promise<EnergyProposalPlan>,
+    ): Promise<CreateOutcome> {
       return db.transaction(async (tx) => {
-        await lockMember(tx, scope);
+        await lockNutritionSafetyScope(tx, scope);
+        const now = clock();
+        const currentTargetKcal = energyTargetOf(await activeEnergyGoal(tx, scope));
+        const lastAcceptedAt = await latestAcceptedAt(tx, scope);
+        const plan = await prepare(tx, now, currentTargetKcal, lastAcceptedAt);
+        if (plan.outcome === "declined") return plan;
         await tx
           .update(nutritionEnergyProposal)
           .set({ status: "superseded", decidedAt: now, updatedAt: now })
@@ -148,7 +155,7 @@ export function createEnergyProposals(db: Database) {
           })
           .returning();
         if (!row) throw new Error("Proposal insert did not return a row");
-        return row;
+        return { outcome: "created", proposal: row };
       });
     },
 
@@ -160,23 +167,43 @@ export function createEnergyProposals(db: Database) {
     async accept(
       scope: NutritionScope,
       id: number,
-      now: Date,
+      clock: () => Date,
+      effectiveFrom: string,
       check: (
+        tx: Tx,
         proposal: EnergyProposal,
         currentTargetKcal: number | null,
-      ) => { ok: true } | { ok: false; reason: ProposalDeclineReason },
+      ) =>
+        | { ok: true }
+        | { ok: false; reason: ProposalDeclineReason }
+        | Promise<{ ok: true } | { ok: false; reason: ProposalDeclineReason }>,
     ): Promise<AcceptOutcome> {
       return db.transaction(async (tx) => {
-        await lockMember(tx, scope);
+        await lockNutritionSafetyScope(tx, scope);
         const proposal = await lockedProposal(tx, scope, id);
-        const verdict = check(proposal, energyTargetOf(await activeEnergyGoal(tx, scope)));
+        const now = clock();
+        if (proposal.status !== "pending")
+          return { outcome: "declined", reason: "not_pending", proposal };
+        const active = await activeEnergyGoal(tx, scope);
+        const verdict = await check(tx, proposal, energyTargetOf(active));
         if (!verdict.ok) return { outcome: "declined", reason: verdict.reason, proposal };
 
-        const goal = await createNutritionRepository(tx as unknown as Database).setGoal(scope, {
-          nutrient: "energyKcal",
-          minAmount: proposal.targetKcal,
-          maxAmount: proposal.targetKcal,
-        });
+        const goal = await setGoalInTransaction(
+          tx,
+          scope,
+          {
+            nutrient: "energyKcal",
+            minAmount: proposal.targetKcal,
+            maxAmount: proposal.targetKcal,
+            source: "proposal",
+            // Never before the target it replaces.
+            effectiveFrom:
+              active && goalEffectiveFrom(active) > effectiveFrom
+                ? goalEffectiveFrom(active)
+                : effectiveFrom,
+          },
+          { invalidatePendingProposals: false },
+        );
         const [accepted] = await tx
           .update(nutritionEnergyProposal)
           .set({ status: "accepted", decidedAt: now, updatedAt: now, acceptedGoalId: goal.id })
@@ -189,6 +216,7 @@ export function createEnergyProposals(db: Database) {
     /** The member's explicit dismiss; the target is left unchanged. */
     async dismiss(scope: NutritionScope, id: number, now: Date): Promise<DismissOutcome> {
       return db.transaction(async (tx) => {
+        await lockNutritionSafetyScope(tx, scope);
         const proposal = await lockedProposal(tx, scope, id);
         if (proposal.status !== "pending")
           return { outcome: "declined", reason: "not_pending", proposal };

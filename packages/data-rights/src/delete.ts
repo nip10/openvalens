@@ -121,6 +121,10 @@ export async function deleteSubjectData(
     ).rows.map((row) => String((row as { id: number }).id));
 
     for (const table of order) {
+      if (table === "member") {
+        // Member-private nutrition/water rows have already been removed using
+        // deletionRowFilter, before restrictive membership FKs are deleted.
+      }
       if (table === "supplement") {
         record(
           table,

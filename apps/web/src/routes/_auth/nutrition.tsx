@@ -10,7 +10,9 @@ import {
   type MealSlot,
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
+import type { NutritionTargetWire } from "@openvalens/api/contracts/nutrition-targets";
 import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
+import { offlineScope } from "@openvalens/api/presenters/offline";
 import {
   BARCODE_COPY,
   candidateFromChoice,
@@ -42,6 +44,13 @@ import {
   unitsFor,
   type QuickAddFields,
 } from "@openvalens/api/presenters/nutrition-diary";
+import {
+  HIDDEN_VALUE,
+  TARGET_COPY,
+  formatTarget,
+  describeTargetSource,
+  resolveHideNumbers,
+} from "@openvalens/api/presenters/nutrition-targets";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -53,6 +62,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { authClient } from "@/lib/auth-client";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { orpc } from "@/utils/orpc";
 
@@ -99,12 +109,23 @@ function networkFailure(retry: () => void, announce: (text: string) => void) {
 
 function NutritionPage() {
   const timeZone = useMemo(() => deviceTimeZone(), []);
+  const { data: session } = authClient.useSession();
+  const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const [localDate, setLocalDate] = useState(() => localDateIn(timeZone));
   const { announce, region } = useAnnouncer();
   const queryClient = useQueryClient();
 
   const dayQuery = useQuery(orpc.nutritionDiary.getDay.queryOptions({ input: { localDate } }));
   const foodsQuery = useQuery(orpc.nutritionDiary.listFoods.queryOptions({ input: {} }));
+  const targetOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const targetsQuery = useQuery({
+    ...targetOptions,
+    queryKey: [...targetOptions.queryKey, { offlineScope: scope }],
+    enabled: Boolean(scope),
+  });
+  // Unknown preferences fail closed, including first render, date changes and
+  // query errors. A successful response is the only authority to show values.
+  const hideNumbers = resolveHideNumbers(targetsQuery.data?.settings.hideNumbers);
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.key() });
 
   const go = (date: string) => {
@@ -137,9 +158,14 @@ function NutritionPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold">{DIARY_COPY.title}</h1>
-          <Link to="/foods" className="text-sm underline">
-            {CUSTOM_FOOD_COPY.manageLink}
-          </Link>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <Link to="/foods" className="underline">
+              {CUSTOM_FOOD_COPY.manageLink}
+            </Link>
+            <Link to="/nutrition-targets" className="underline">
+              {TARGET_COPY.settingsLink}
+            </Link>
+          </div>
         </div>
         <nav className="flex w-full flex-wrap items-center gap-2 sm:w-auto" aria-label="Choose day">
           <Button variant="outline" size="sm" onClick={() => go(shiftLocalDate(localDate, -1))}>
@@ -191,15 +217,25 @@ function NutritionPage() {
             </CardHeader>
             <CardContent>
               {day ? (
-                <NutritionDayTotals totals={day.summary.totals} sources={day.summary.sources} />
+                <NutritionDayTotals
+                  totals={day.summary.totals}
+                  sources={day.summary.sources}
+                  hideNumbers={hideNumbers}
+                />
               ) : null}
             </CardContent>
           </Card>
+
+          <TargetsOnDay
+            targets={targetsQuery.data?.targetsOn.targets ?? []}
+            hideNumbers={hideNumbers}
+          />
 
           <AddFood
             localDate={localDate}
             timeZone={timeZone}
             foods={foodsQuery.data}
+            hideNumbers={hideNumbers}
             onSaved={(name, slot) => {
               announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
               void refresh();
@@ -230,6 +266,7 @@ function NutritionPage() {
                         }
                         onChanged={() => void refresh()}
                         announce={announce}
+                        hideNumbers={hideNumbers}
                       />
                     ))}
                   </ul>
@@ -255,11 +292,13 @@ function EntryRow({
   favorite,
   onChanged,
   announce,
+  hideNumbers,
 }: {
   entry: DiaryEntry;
   favorite: boolean;
   onChanged: () => void;
   announce: (text: string) => void;
+  hideNumbers: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(entry.amount));
@@ -356,7 +395,9 @@ function EntryRow({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <span className="font-mono text-sm">
-            {formatNutrientValue("energyKcal", entry.nutrients.energyKcal)}
+            {hideNumbers
+              ? HIDDEN_VALUE
+              : formatNutrientValue("energyKcal", entry.nutrients.energyKcal)}
           </span>
           <Button
             variant="ghost"
@@ -474,6 +515,45 @@ function EntryRow({
   );
 }
 
+/**
+ * The member's targets that applied on the selected day (Issue #80), shown
+ * separately from the totals and never as a verdict. Hidden entirely when no
+ * target applies; in hide-numbers mode the amounts are replaced but the card
+ * stays so a member can still see a target exists.
+ */
+function TargetsOnDay({
+  targets,
+  hideNumbers,
+}: {
+  targets: NutritionTargetWire[];
+  hideNumbers: boolean;
+}) {
+  if (targets.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{TARGET_COPY.yourTargets}</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        <ul className="grid gap-1 text-sm" aria-label={TARGET_COPY.yourTargets}>
+          {targets.map((target) => (
+            <li key={target.id} className="flex flex-wrap items-baseline justify-between gap-2">
+              <span>
+                {NUTRIENT_LABELS[target.nutrient].label}: {formatTarget(target, hideNumbers)}
+              </span>
+              <span className="text-xs text-muted-foreground">{describeTargetSource(target)}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs text-muted-foreground">{TARGET_COPY.targetsNote}</p>
+        <Link to="/nutrition-targets" className="text-sm underline">
+          {TARGET_COPY.settingsLink}
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
 const QUICK_ADD_NUTRIENTS: NutrientKey[] = [
   "energyKcal",
   "proteinG",
@@ -481,7 +561,6 @@ const QUICK_ADD_NUTRIENTS: NutrientKey[] = [
   "fatG",
   "fiberG",
 ];
-
 const EMPTY_QUICK: QuickAddFields = { name: "", basisAmount: "100", basisUnit: "g", nutrients: {} };
 
 /** `value`, settled for `ms` (keeps search requests to one per pause in typing). */
@@ -540,12 +619,14 @@ function AddFood({
   localDate,
   timeZone,
   foods,
+  hideNumbers,
   onSaved,
   announce,
 }: {
   localDate: string;
   timeZone: string;
   foods: { recents: FoodChoice[]; favorites: FoodChoice[]; customFoods: FoodChoice[] } | undefined;
+  hideNumbers: boolean;
   onSaved: (name: string, slot: MealSlot) => void;
   announce: (text: string) => void;
 }) {
@@ -994,9 +1075,12 @@ function AddFood({
                   : " · Quick add"}
             </p>
             <p className="text-muted-foreground">
-              {SUMMARY_NUTRIENTS.map(
-                (key) => `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
-              ).join(" · ")}
+              {hideNumbers
+                ? HIDDEN_VALUE
+                : SUMMARY_NUTRIENTS.map(
+                    (key) =>
+                      `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
+                  ).join(" · ")}
             </p>
             {missingNote ? <p className="mt-1 text-muted-foreground">{missingNote}</p> : null}
             {mode !== "quick" && chosen?.attribution ? (

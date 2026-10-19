@@ -31,6 +31,7 @@ function fakeDb(failTable?: unknown) {
       calls++;
       const staged: Write[] = [];
       const tx = {
+        async execute() {},
         insert(table: unknown) {
           return {
             values(values: Record<string, unknown>) {
