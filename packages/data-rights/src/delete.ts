@@ -3,7 +3,7 @@ import * as schema from "@openvalens/db/schema/index";
 import type { SQL } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 
-import { inList, rowFilter, type DataRightsSubject } from "./export";
+import { deletionRowFilter, inList, rowFilter, type DataRightsSubject } from "./export";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
 
 /**
@@ -160,7 +160,7 @@ export async function deleteSubjectData(
         );
         continue;
       }
-      record(table, await deleteCount(tx, table, rowFilter(table, subject)));
+      record(table, await deleteCount(tx, table, deletionRowFilter(table, subject)));
     }
 
     record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));
