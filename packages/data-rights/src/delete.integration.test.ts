@@ -83,6 +83,14 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
           select 'org-${who}', 'user-${who}', id from nutrition_food_snapshot where organization_id = 'org-${who}';
         insert into nutrition_diary_mutation (organization_id, user_id, client_mutation_id, kind, entry_id)
           select 'org-${who}', 'user-${who}', 'cm-${who}', 'update', id from nutrition_meal_entry where organization_id = 'org-${who}';
+        insert into plain_water_preference (organization_id, user_id, enabled, personal_goal_ml)
+          values ('org-${who}', 'user-${who}', true, 1500);
+        with water as (
+          insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+            values ('org-${who}', 'user-${who}', 250, '2026-10-01T08:00:00Z', 'UTC', 'water-${who}') returning id
+        )
+        insert into plain_water_mutation (organization_id, user_id, client_mutation_id, kind, fingerprint, entry_id, outcome)
+          select 'org-${who}', 'user-${who}', 'receipt-${who}', 'add', repeat('a', 64), id, '{"outcome":"applied"}'::jsonb from water;
       `),
       );
     }
@@ -94,8 +102,8 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       insert into supplement_schedule (organization_id, user_id, supplement_id, time_of_day)
         select org, usr, (select id from supplement where name = 'Shared'), 'evening'
         from (values ('org-a', 'user-a'), ('org-b', 'user-b')) v(org, usr);
-      -- A is also a viewer of B's record and appears in B's audit log.
-      insert into member (id, organization_id, user_id, role) values ('m-a-in-b', 'org-b', 'user-a', 'viewer');
+      -- A is a collaborator in B's record and appears in B's audit log.
+      insert into member (id, organization_id, user_id, role) values ('m-a-in-b', 'org-b', 'user-a', 'collaborator');
       insert into access_audit_log (organization_id, actor_user_id, event_type, created_at)
         values ('org-b', 'user-a', 'RECORD_VIEWED', '2026-10-01');
     `),
@@ -107,7 +115,31 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       insert into "user" (id, email) values ('user-z', 'z@example.test');
       insert into organization (id, name, slug) values ('org-c', 'Shared record', 'record-c');
       insert into member (id, organization_id, user_id, role)
-        values ('m-b-in-c', 'org-c', 'user-b', 'owner'), ('m-z-in-c', 'org-c', 'user-z', 'owner');
+        values ('m-b-in-c', 'org-c', 'user-b', 'owner'), ('m-z-in-c', 'org-c', 'user-z', 'owner'),
+          ('m-a-in-c', 'org-c', 'user-a', 'collaborator'), ('m-b-in-a', 'org-a', 'user-b', 'collaborator');
+      insert into plain_water_preference (organization_id, user_id, enabled, personal_goal_ml)
+        values ('org-a', 'user-b', true, 1800), ('org-c', 'user-a', true, 1700),
+          ('org-c', 'user-b', true, 1900);
+      with entry as (
+        insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+          values ('org-a', 'user-b', 350, '2026-10-01T08:00:00Z', 'UTC', 'water-b-in-a') returning id
+      )
+      insert into plain_water_mutation (organization_id, user_id, client_mutation_id, kind, fingerprint, entry_id, outcome)
+        select 'org-a', 'user-b', 'receipt-b-in-a', 'add', repeat('b', 64), id, '{"outcome":"applied"}'::jsonb from entry;
+      insert into plain_water_preference (organization_id, user_id, enabled, personal_goal_ml)
+        values ('org-b', 'user-a', true, 1600);
+      with entry as (
+        insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+          values ('org-b', 'user-a', 275, '2026-10-01T09:00:00Z', 'UTC', 'water-a-in-b') returning id
+      )
+      insert into plain_water_mutation (organization_id, user_id, client_mutation_id, kind, fingerprint, entry_id, outcome)
+        select 'org-b', 'user-a', 'receipt-a-in-b', 'add', repeat('c', 64), id, '{"outcome":"applied"}'::jsonb from entry;
+      with entry as (
+        insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+          values ('org-c', 'user-b', 450, '2026-10-01T11:00:00Z', 'UTC', 'water-b-in-c') returning id
+      )
+      insert into plain_water_mutation (organization_id, user_id, client_mutation_id, kind, fingerprint, entry_id, outcome)
+        select 'org-c', 'user-b', 'receipt-b-in-c', 'add', repeat('e', 64), id, '{"outcome":"applied"}'::jsonb from entry;
     `),
     );
 
@@ -138,6 +170,12 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(left).toEqual([]);
     expect(await count("user", sql`id = 'user-a'`)).toBe(0);
     expect(await count("organization", sql`id = 'org-a'`)).toBe(0);
+    expect(await count("plain_water_entry", sql`organization_id = 'org-a'`)).toBe(0);
+    expect(await count("plain_water_preference", sql`organization_id = 'org-a'`)).toBe(0);
+    expect(await count("plain_water_mutation", sql`organization_id = 'org-a'`)).toBe(0);
+    expect(
+      await count("plain_water_preference", sql`organization_id = 'org-c' and user_id = 'user-a'`),
+    ).toBe(0);
   });
 
   test("quarantined legacy rows are erased for the subject only", async () => {
@@ -152,9 +190,33 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
 
   test("the other account is untouched apart from the subject's membership", async () => {
     const after = await subjectCounts(B);
-    expect(after).toEqual({ ...bBefore, member: bBefore.member! - 1 });
+    expect(after).toEqual({
+      ...bBefore,
+      member: bBefore.member! - 1, // subject leaves B's surviving org-b membership
+      plain_water_entry: bBefore.plain_water_entry! - 1,
+      plain_water_preference: bBefore.plain_water_preference! - 1,
+      plain_water_mutation: bBefore.plain_water_mutation! - 1,
+    });
     expect(await count("user", sql`id = 'user-b'`)).toBe(1);
     expect(await count("metric_sample", sql`organization_id = 'org-b'`)).toBe(5);
+    expect(
+      await count("plain_water_entry", sql`organization_id = 'org-b' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count("plain_water_preference", sql`organization_id = 'org-b' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count("plain_water_mutation", sql`organization_id = 'org-b' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count("plain_water_preference", sql`organization_id = 'org-c' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count("plain_water_entry", sql`organization_id = 'org-c' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count("plain_water_mutation", sql`organization_id = 'org-c' and user_id = 'user-b'`),
+    ).toBe(1);
     expect(
       await count("access_audit_log", sql`organization_id = 'org-b' and actor_user_id is null`),
     ).toBe(1);
@@ -179,9 +241,18 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
       "nutrition_energy_proposal",
+      "plain_water_entry",
+      "plain_water_preference",
+      "plain_water_mutation",
       "stored_object",
     ])
-      expect(report.rowCounts[table]).toBe(1);
+      expect(report.rowCounts[table]).toBe(
+        table === "plain_water_entry" || table === "plain_water_mutation"
+          ? 3
+          : table === "plain_water_preference"
+            ? 4
+            : 1,
+      );
     expect(report.rowCounts.user).toBe(1);
     expect(report.rowCounts.organization).toBe(1);
     const ledger = (await db.execute(sql`select * from erasure_ledger`)).rows as {
@@ -217,6 +288,34 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     // Preview lists every supplement the record uses; deletion keeps the shared one.
     expect(preview.supplement).toBe(2);
     expect(report.rowCounts.supplement).toBe(1);
+    expect(preview.plain_water_entry).toBe(3);
+    expect(preview.plain_water_preference).toBe(4);
+    expect(preview.plain_water_mutation).toBe(3);
+  });
+
+  test("direct organization deletion cascades plain-water entries, preferences and receipts", async () => {
+    await db.execute(sql`insert into "user" (id, email) values ('user-d', 'd@example.test')`);
+    await db.execute(
+      sql`insert into organization (id, name, slug) values ('direct-water-org', 'Direct water', 'direct-water')`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-direct-water', 'direct-water-org', 'user-d', 'owner')`,
+    );
+    const inserted =
+      await db.execute(sql`insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+      values ('direct-water-org', 'user-d', 100, '2026-10-01T10:00:00Z', 'UTC', 'direct-delete') returning id`);
+    await db.execute(
+      sql`insert into plain_water_preference (organization_id, user_id, enabled) values ('direct-water-org', 'user-d', true)`,
+    );
+    await db.execute(sql`insert into plain_water_mutation (organization_id, user_id, client_mutation_id, kind, fingerprint, entry_id, outcome)
+      values ('direct-water-org', 'user-d', 'direct-receipt', 'add', repeat('d', 64), ${(inserted.rows[0] as { id: number }).id}, '{"outcome":"applied"}'::jsonb)`);
+    await db.execute(sql`delete from organization where id = 'direct-water-org'`);
+    expect(await count("plain_water_entry", sql`organization_id = 'direct-water-org'`)).toBe(0);
+    expect(await count("plain_water_preference", sql`organization_id = 'direct-water-org'`)).toBe(
+      0,
+    );
+    expect(await count("plain_water_mutation", sql`organization_id = 'direct-water-org'`)).toBe(0);
+    expect(await count("member", sql`organization_id = 'direct-water-org'`)).toBe(0);
   });
 
   test("admission grants: recipient and issued grants erased, third-party grants survive", async () => {
