@@ -128,6 +128,17 @@ export async function deleteSubjectData(
           "nutrition_target_settings",
           await deleteCount(tx, "nutrition_target_settings", inList("organization_id", orgIds)),
         );
+        // Goals and proposals also have restrictive member FKs. Erase every
+        // member's values in organizations being removed before deleting any
+        // memberships; proposal -> accepted-goal uses ON DELETE SET NULL.
+        record(
+          "nutrition_energy_proposal",
+          await deleteCount(tx, "nutrition_energy_proposal", inList("organization_id", orgIds)),
+        );
+        record(
+          "nutrition_goal",
+          await deleteCount(tx, "nutrition_goal", inList("organization_id", orgIds)),
+        );
       }
       if (table === "supplement") {
         record(
@@ -142,7 +153,11 @@ export async function deleteSubjectData(
         );
         continue;
       }
-      record(table, await deleteCount(tx, table, rowFilter(table, subject)));
+      const filter =
+        table === "nutrition_goal" || table === "nutrition_energy_proposal"
+          ? sql`user_id = ${subject.userId}`
+          : rowFilter(table, subject);
+      record(table, await deleteCount(tx, table, filter));
     }
 
     record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));

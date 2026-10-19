@@ -69,6 +69,11 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
   const orgIds = [...subject.organizationIds];
   switch (entry.kind) {
     case "organization":
+      // These rows describe one member's targets, not the workspace owner's
+      // record. Keep the organization classification for container erasure,
+      // but export only this subject's values across their memberships.
+      if (table === "nutrition_goal" || table === "nutrition_energy_proposal")
+        return sql`user_id = ${subject.userId}`;
       return inList("organization_id", orgIds);
     case "user":
       return sql`user_id = ${subject.userId}`;

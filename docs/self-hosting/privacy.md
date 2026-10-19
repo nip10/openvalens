@@ -50,6 +50,12 @@ per table, with a manifest and checksums) is implemented in the server code
 (Issue #89). If someone asks for a complete copy of their data today, you
 cannot produce it from the app.
 
+Nutrition goals and energy-target proposals are exported only for the member
+who recorded them, including when that member collaborates in another person's
+workspace. Deleting an owned workspace removes every member's goals and
+proposals contained in that workspace; deleting a member also removes their
+own rows from workspaces that remain.
+
 ### Delete everything
 
 **Settings → Delete account and all data** (web and mobile) permanently

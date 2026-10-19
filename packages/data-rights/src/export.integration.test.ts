@@ -30,6 +30,11 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
         values ('org-a', 'user-a', 1, true, array['eating_disorder']),
                ('org-a', 'user-a2', 1, false, array['chronic_kidney_disease']);
+      insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
+        values ('org-a', 'user-a', 'protein_g', 91), ('org-a', 'user-a2', 'protein_g', 47);
+      insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
+        values ('org-a', 'user-a', 'maintenance', 'pending', 2401, 2400, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"owner_canary": 2401}', now() + interval '1 day'),
+               ('org-a', 'user-a2', 'maintenance', 'pending', 2101, 2100, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"collaborator_canary": 2101}', now() + interval '1 day');
     `),
     );
 
@@ -98,6 +103,25 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(
       collaboratorSettings.map(({ user_id, declarations }) => ({ user_id, declarations })),
     ).toEqual([{ user_id: "user-a2", declarations: ["chronic_kidney_disease"] }]);
+  });
+
+  test("goal and proposal exports contain the subject's actual values only", () => {
+    const rows = (data: DataExport, table: string) =>
+      JSON.parse(data.files.find((f) => f.path === `entities/${table}.json`)!.content) as Record<
+        string,
+        unknown
+      >[];
+    expect(rows(exported, "nutrition_goal").map((r) => [r.user_id, r.min_amount])).toEqual([
+      ["user-a", 91],
+    ]);
+    expect(rows(exportedA2, "nutrition_goal").map((r) => [r.user_id, r.min_amount])).toEqual([
+      ["user-a2", 47],
+    ]);
+    expect(rows(exported, "nutrition_energy_proposal").map((r) => r.user_id)).toEqual(["user-a"]);
+    expect(rows(exportedA2, "nutrition_energy_proposal").map((r) => r.user_id)).toEqual([
+      "user-a2",
+    ]);
+    expect(exported.files.map((f) => f.content).join("\n")).not.toContain("collaborator_canary");
   });
 
   test("credentials are redacted and listed in the manifest", () => {

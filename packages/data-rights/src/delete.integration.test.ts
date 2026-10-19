@@ -51,6 +51,11 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
         values ('org-a', 'user-a2', 1, false, array['chronic_kidney_disease']),
                ('org-a', 'user-a3', 1, false, array['glp1_medication']);
+      insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
+        values ('org-a', 'user-a2', 'protein_g', 45), ('org-a', 'user-a3', 'protein_g', 55);
+      insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
+        values ('org-a', 'user-a2', 'maintenance', 'pending', 2001, 2000, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"other_member": 2001}', now() + interval '1 day'),
+               ('org-a', 'user-a3', 'maintenance', 'pending', 2201, 2200, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"other_member": 2201}', now() + interval '1 day');
     `),
     );
 
@@ -110,6 +115,10 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       insert into member (id, organization_id, user_id, role) values ('m-a-in-b', 'org-b', 'user-a', 'viewer');
       insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
         values ('org-b', 'user-a', 1, false, array['pregnant_or_breastfeeding']);
+      insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
+        values ('org-b', 'user-a', 'protein_g', 66);
+      insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
+        values ('org-b', 'user-a', 'maintenance', 'pending', 2301, 2300, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"subject_other_org": 2301}', now() + interval '1 day');
       insert into access_audit_log (organization_id, actor_user_id, event_type, created_at)
         values ('org-b', 'user-a', 'RECORD_VIEWED', '2026-10-01');
     `),
@@ -210,14 +219,14 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_food_snapshot",
       "nutrition_meal",
       "nutrition_meal_entry",
-      "nutrition_goal",
       "nutrition_diary_day",
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
-      "nutrition_energy_proposal",
       "stored_object",
     ])
       expect(report.rowCounts[table]).toBe(1);
+    expect(report.rowCounts.nutrition_goal).toBe(3);
+    expect(report.rowCounts.nutrition_energy_proposal).toBe(5);
     expect(report.rowCounts.nutrition_target_settings).toBe(3);
     expect(report.rowCounts.user).toBe(1);
     expect(report.rowCounts.organization).toBe(1);
@@ -254,6 +263,31 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     // Preview lists every supplement the record uses; deletion keeps the shared one.
     expect(preview.supplement).toBe(2);
     expect(report.rowCounts.supplement).toBe(1);
+    expect(preview.nutrition_goal).toBe(3); // own rows plus every goal in erased org-a
+    expect(preview.nutrition_energy_proposal).toBe(5);
+    expect(report.rowCounts.nutrition_goal).toBe(3); // org-a rows plus own surviving-org row
+    expect(report.rowCounts.nutrition_energy_proposal).toBe(5);
+  });
+
+  test("erase removes own rows across memberships but preserves other members in surviving orgs", async () => {
+    expect(
+      await count("nutrition_goal", sql`organization_id = 'org-b' and user_id = 'user-a'`),
+    ).toBe(0);
+    expect(
+      await count(
+        "nutrition_energy_proposal",
+        sql`organization_id = 'org-b' and user_id = 'user-a'`,
+      ),
+    ).toBe(0);
+    expect(
+      await count("nutrition_goal", sql`organization_id = 'org-b' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count(
+        "nutrition_energy_proposal",
+        sql`organization_id = 'org-b' and user_id = 'user-b'`,
+      ),
+    ).toBe(1);
   });
 
   test("admission grants: recipient and issued grants erased, third-party grants survive", async () => {
