@@ -152,19 +152,23 @@ export function createEnergyProposals(db: Database) {
       now: Date,
       effectiveFrom: string,
       check: (
+        tx: Tx,
         proposal: EnergyProposal,
         currentTargetKcal: number | null,
-      ) => { ok: true } | { ok: false; reason: ProposalDeclineReason },
+      ) =>
+        | { ok: true }
+        | { ok: false; reason: ProposalDeclineReason }
+        | Promise<{ ok: true } | { ok: false; reason: ProposalDeclineReason }>,
     ): Promise<AcceptOutcome> {
       return db.transaction(async (tx) => {
         await lockNutritionSafetyScope(tx, scope);
         const proposal = await lockedProposal(tx, scope, id);
         if (proposal.status !== "pending")
           return { outcome: "declined", reason: "not_pending", proposal };
-        const verdict = check(proposal, energyTargetOf(await activeEnergyGoal(tx, scope)));
+        const active = await activeEnergyGoal(tx, scope);
+        const verdict = await check(tx, proposal, energyTargetOf(active));
         if (!verdict.ok) return { outcome: "declined", reason: verdict.reason, proposal };
 
-        const active = await activeEnergyGoal(tx, scope);
         const goal = await setGoalInTransaction(
           tx,
           scope,

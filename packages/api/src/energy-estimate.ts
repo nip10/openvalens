@@ -1,7 +1,10 @@
 import { getWeightTrend } from "@openvalens/body";
 import type { Database } from "@openvalens/db";
+import { nutritionEnergyProposal } from "@openvalens/db/schema/nutrition";
+import { and, desc, eq } from "drizzle-orm";
 import {
   checkProposalAcceptable,
+  ENERGY_PROPOSAL_POLICY,
   computeEnergyEstimate,
   createEnergyProposals,
   createNutritionTotals,
@@ -202,28 +205,68 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
       scope: NutritionScope,
       input: { proposalId: number; effectiveFrom?: string; confirmed?: boolean },
     ): Promise<AcceptProposalOutput> {
-      const context = await safetyOf(scope, false);
-      const at = now();
-      const today = at.toISOString().slice(0, 10);
-      const effectiveFrom = input.effectiveFrom ?? today;
+      const effectiveFrom = input.effectiveFrom ?? now().toISOString().slice(0, 10);
       // Validates the calendar date and that it is not in the future.
       windowFor(effectiveFrom);
+      let acceptedContext: Awaited<ReturnType<typeof safetyOf>> | undefined;
       const result = await proposals.accept(
         scope,
         input.proposalId,
-        at,
+        now(),
         effectiveFrom,
-        (proposal, current) =>
-          checkProposalAcceptable({
+        async (tx, proposal, current) => {
+          const at = now();
+          const context = await loadSafetyContext(tx, scope, { now: at, readWeight: true });
+          acceptedContext = context;
+          const [lastAccepted] = await tx
+            .select({ decidedAt: nutritionEnergyProposal.decidedAt })
+            .from(nutritionEnergyProposal)
+            .where(
+              and(
+                eq(nutritionEnergyProposal.organizationId, scope.organizationId),
+                eq(nutritionEnergyProposal.userId, scope.userId),
+                eq(nutritionEnergyProposal.status, "accepted"),
+              ),
+            )
+            .orderBy(desc(nutritionEnergyProposal.decidedAt))
+            .limit(1);
+          if (proposal.policyVersion !== ENERGY_PROPOSAL_POLICY.version)
+            return { ok: false, reason: "not_suggested_for_profile" };
+          const verdict = checkProposalAcceptable({
             proposal,
             adultConfirmed: context.adultConfirmed,
             currentTargetKcal: current,
             now: at,
             safety: context.safety,
             confirmed: input.confirmed,
-          }),
+          });
+          if (!verdict.ok) return verdict;
+          const recomputed = planEnergyProposal({
+            estimate: proposal.estimate as EnergyEstimate,
+            adultConfirmed: context.adultConfirmed,
+            currentTargetKcal: current,
+            lastAcceptedAt: lastAccepted?.decidedAt ?? null,
+            now: at,
+            direction: context.settings.energyDirection,
+            safety: context.safety,
+            body: context.body,
+          });
+          if (
+            recomputed.outcome !== "proposal" ||
+            recomputed.kind !== proposal.kind ||
+            recomputed.targetKcal !== proposal.targetKcal ||
+            recomputed.estimateKcal !== proposal.estimateKcal
+          )
+            return { ok: false, reason: "not_suggested_for_profile" };
+          return { ok: true };
+        },
       );
-      const proposal = presentProposal(result.proposal, at, context.safety.softGates);
+      const at = now();
+      const proposal = presentProposal(
+        result.proposal,
+        at,
+        acceptedContext?.safety.softGates ?? [],
+      );
       const targetId = String(result.proposal.id);
       if (result.outcome === "declined")
         return {

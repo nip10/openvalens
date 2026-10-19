@@ -11,6 +11,7 @@ import {
   NUTRIENT_COLUMNS,
   NUTRITION_SAFETY_COPY,
   proteinReference,
+  readNutritionTargetSettings,
   type NutrientKey,
   type NutritionGoal,
   type NutritionSafety,
@@ -25,7 +26,7 @@ import type {
   UpdateSettingsInput,
   UpdateSettingsOutput,
 } from "./contracts/nutrition-targets";
-import { createWellnessProfileService } from "./wellness-profile";
+import { readWellnessProfile } from "./wellness-profile";
 import { deriveWellnessProfileInputs } from "./wellness-profile-contract";
 
 /**
@@ -91,16 +92,16 @@ export type SafetyContext = {
  * `readWeight`) their latest weight-trend value, and evaluates the policy.
  */
 export async function loadSafetyContext(
-  db: Database,
+  executor: Pick<Database, "select">,
   scope: NutritionScope,
   options: { now: Date; readWeight: boolean },
 ): Promise<SafetyContext> {
   const today = options.now.toISOString().slice(0, 10);
   const [snapshot, settings, trend] = await Promise.all([
-    createWellnessProfileService({ db }).read(scope.userId),
-    createNutritionTargetSettings(db).get(scope),
+    readWellnessProfile(executor, scope.userId),
+    readNutritionTargetSettings(executor, scope),
     options.readWeight
-      ? getWeightTrend(db, scope, {
+      ? getWeightTrend(executor, scope, {
           from: shiftDate(today, -(WEIGHT_LOOKBACK_DAYS - 1)),
           to: today,
         })

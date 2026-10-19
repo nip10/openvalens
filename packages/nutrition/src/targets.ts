@@ -66,6 +66,14 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
   };
 }
 
+export async function readNutritionTargetSettings(
+  executor: Pick<Database, "select">,
+  scope: NutritionScope,
+): Promise<NutritionTargetSettings> {
+  const [row] = await executor.select().from(nutritionTargetSettings).where(scoped(scope));
+  return row ? toSettings(row) : { ...DEFAULT_TARGET_SETTINGS, declarations: [] };
+}
+
 /** Validates a patch; throws `INVALID_INPUT`. */
 function validate(patch: TargetSettingsPatch): void {
   if (patch.energyDirection !== undefined && !ENERGY_DIRECTIONS.includes(patch.energyDirection))
@@ -92,8 +100,7 @@ export function createNutritionTargetSettings(db: Database) {
     executor: Pick<Database, "select">,
     scope: NutritionScope,
   ): Promise<NutritionTargetSettings> {
-    const [row] = await executor.select().from(nutritionTargetSettings).where(scoped(scope));
-    return row ? toSettings(row) : { ...DEFAULT_TARGET_SETTINGS, declarations: [] };
+    return readNutritionTargetSettings(executor, scope);
   }
 
   return {
