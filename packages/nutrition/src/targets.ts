@@ -10,7 +10,7 @@ import {
   type EnergyDirection,
   type NutritionDeclaration,
 } from "./nutrition-safety";
-import type { NutritionScope } from "./repository";
+import type { NutritionScope, Tx } from "./repository";
 import { lockNutritionSafetyScope } from "./repository";
 
 /**
@@ -74,6 +74,45 @@ export async function readNutritionTargetSettings(
   return row ? toSettings(row) : { ...DEFAULT_TARGET_SETTINGS, declarations: [] };
 }
 
+export async function updateNutritionTargetSettingsInTransaction(
+  tx: Tx,
+  scope: NutritionScope,
+  patch: TargetSettingsPatch,
+  expectedRevision: number,
+  now = new Date(),
+): Promise<UpdateSettingsOutcome> {
+  validate(patch);
+  const previous = await readNutritionTargetSettings(tx, scope);
+  if (previous.revision !== expectedRevision) return { outcome: "conflict", settings: previous };
+  const next: NutritionTargetSettings = {
+    ...previous,
+    ...patch,
+    declarations: patch.declarations
+      ? NUTRITION_DECLARATIONS.filter((key) => patch.declarations!.includes(key))
+      : previous.declarations,
+    revision: previous.revision + 1,
+  };
+  const values = {
+    revision: next.revision,
+    hideNumbers: next.hideNumbers,
+    energyDirection: next.energyDirection,
+    activeProtein: next.activeProtein,
+    heightCm: next.heightCm,
+    declarations: next.declarations,
+    updatedAt: now,
+  };
+  const [row] = await tx
+    .insert(nutritionTargetSettings)
+    .values({ ...scope, ...values, createdAt: now })
+    .onConflictDoUpdate({
+      target: [nutritionTargetSettings.organizationId, nutritionTargetSettings.userId],
+      set: values,
+    })
+    .returning();
+  if (!row) throw new Error("Settings upsert did not return a row");
+  return { outcome: "updated", settings: toSettings(row), previous };
+}
+
 /** Validates a patch; throws `INVALID_INPUT`. */
 function validate(patch: TargetSettingsPatch): void {
   if (patch.energyDirection !== undefined && !ENERGY_DIRECTIONS.includes(patch.energyDirection))
@@ -122,37 +161,7 @@ export function createNutritionTargetSettings(db: Database) {
       validate(patch);
       return db.transaction(async (tx) => {
         await lockNutritionSafetyScope(tx, scope);
-        const previous = await read(tx, scope);
-        if (previous.revision !== expectedRevision)
-          return { outcome: "conflict", settings: previous };
-        const next: NutritionTargetSettings = {
-          ...previous,
-          ...patch,
-          declarations: patch.declarations
-            ? NUTRITION_DECLARATIONS.filter((key) => patch.declarations!.includes(key))
-            : previous.declarations,
-          revision: previous.revision + 1,
-        };
-        const now = new Date();
-        const values = {
-          revision: next.revision,
-          hideNumbers: next.hideNumbers,
-          energyDirection: next.energyDirection,
-          activeProtein: next.activeProtein,
-          heightCm: next.heightCm,
-          declarations: next.declarations,
-          updatedAt: now,
-        };
-        const [row] = await tx
-          .insert(nutritionTargetSettings)
-          .values({ ...scope, ...values, createdAt: now })
-          .onConflictDoUpdate({
-            target: [nutritionTargetSettings.organizationId, nutritionTargetSettings.userId],
-            set: values,
-          })
-          .returning();
-        if (!row) throw new Error("Settings upsert did not return a row");
-        return { outcome: "updated", settings: toSettings(row), previous };
+        return updateNutritionTargetSettingsInTransaction(tx, scope, patch, expectedRevision);
       });
     },
   };

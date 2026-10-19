@@ -1,6 +1,6 @@
 import type { Session } from "@openvalens/auth";
 import { requireTrustedIdentity } from "@openvalens/auth/authz/trusted-session";
-import type { Database } from "@openvalens/db";
+import { lockNutritionSafetyUser, type Database } from "@openvalens/db";
 import { wellnessProfile, wellnessProfileConsent } from "@openvalens/db/schema/profile";
 import { and, eq, isNull } from "drizzle-orm";
 
@@ -175,6 +175,7 @@ export function createWellnessProfileService(deps: {
 
     try {
       return await db.transaction(async (tx) => {
+        await lockNutritionSafetyUser(tx, userId);
         await tx.insert(wellnessProfile).values({ userId }).onConflictDoNothing();
         const [row] = await tx
           .select()

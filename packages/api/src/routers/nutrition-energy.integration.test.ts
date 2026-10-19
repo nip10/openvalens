@@ -451,6 +451,22 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     });
   });
 
+  test("accept rechecks adult confirmation after the proposal was made", async () => {
+    const proposed = await propose("2026-03-28", "user-y");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    await db.execute(
+      sql`update wellness_profile set eligibility_state = null, eligibility = null where user_id = 'user-y'`,
+    );
+    expect((await accept(proposed.body.proposal.id, "user-y")).body).toMatchObject({
+      outcome: "declined",
+      reason: "adults_only",
+    });
+    expect(await energyGoals("user-y")).toEqual([]);
+    await db.execute(
+      sql`update wellness_profile set eligibility_state = 'recorded', eligibility = 'adult' where user_id = 'user-y'`,
+    );
+  });
+
   test("manual same-value energy replacement supersedes pending; non-energy edits do not", async () => {
     const repository = createNutritionRepository(db);
     const scope = { organizationId: "org-x", userId: "user-x" };

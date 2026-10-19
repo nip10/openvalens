@@ -149,7 +149,7 @@ export function createEnergyProposals(db: Database) {
     async accept(
       scope: NutritionScope,
       id: number,
-      now: Date,
+      clock: () => Date,
       effectiveFrom: string,
       check: (
         tx: Tx,
@@ -163,6 +163,7 @@ export function createEnergyProposals(db: Database) {
       return db.transaction(async (tx) => {
         await lockNutritionSafetyScope(tx, scope);
         const proposal = await lockedProposal(tx, scope, id);
+        const now = clock();
         if (proposal.status !== "pending")
           return { outcome: "declined", reason: "not_pending", proposal };
         const active = await activeEnergyGoal(tx, scope);

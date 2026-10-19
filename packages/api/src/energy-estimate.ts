@@ -212,7 +212,7 @@ export function createEnergyEstimateService(deps: { db: Database; now?: () => Da
       const result = await proposals.accept(
         scope,
         input.proposalId,
-        now(),
+        now,
         effectiveFrom,
         async (tx, proposal, current) => {
           const at = now();

@@ -2,7 +2,6 @@ import { getWeightTrend } from "@openvalens/body";
 import type { Database } from "@openvalens/db";
 import {
   createNutritionRepository,
-  createNutritionTargetSettings,
   evaluateNutritionSafety,
   goalEffectiveFrom,
   goalEffectiveTo,
@@ -12,6 +11,9 @@ import {
   NUTRITION_SAFETY_COPY,
   proteinReference,
   readNutritionTargetSettings,
+  updateNutritionTargetSettingsInTransaction,
+  lockNutritionSafetyScope,
+  setGoalInTransaction,
   type NutrientKey,
   type NutritionGoal,
   type NutritionSafety,
@@ -141,7 +143,6 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
   const { db } = deps;
   const now = deps.now ?? (() => new Date());
   const repository = createNutritionRepository(db);
-  const settingsStore = createNutritionTargetSettings(db);
 
   function checkDate(localDate: string): void {
     const latest = shiftDate(now().toISOString().slice(0, 10), MAX_FUTURE_DAYS);
@@ -201,17 +202,20 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
       },
     ): Promise<NutritionTargetWire> {
       checkDate(input.effectiveFrom);
-      if (input.nutrient === "energyKcal" || input.nutrient === "energyKj") {
-        const settings = await settingsStore.get(scope);
-        if (settings.declarations.includes("eating_disorder"))
-          throw new NutritionTargetsRequestError(NUTRITION_SAFETY_COPY.energyTargetsOff);
-      }
-      const goal = await repository.setGoal(scope, {
-        nutrient: input.nutrient,
-        minAmount: input.minAmount ?? null,
-        maxAmount: input.maxAmount ?? null,
-        source: "entered",
-        effectiveFrom: input.effectiveFrom,
+      const goal = await db.transaction(async (tx) => {
+        await lockNutritionSafetyScope(tx, scope);
+        if (input.nutrient === "energyKcal" || input.nutrient === "energyKj") {
+          const fresh = await loadSafetyContext(tx, scope, { now: now(), readWeight: false });
+          if (fresh.settings.declarations.includes("eating_disorder"))
+            throw new NutritionTargetsRequestError(NUTRITION_SAFETY_COPY.energyTargetsOff);
+        }
+        return setGoalInTransaction(tx, scope, {
+          nutrient: input.nutrient,
+          minAmount: input.minAmount ?? null,
+          maxAmount: input.maxAmount ?? null,
+          source: "entered",
+          effectiveFrom: input.effectiveFrom,
+        });
       });
       return presentTarget(goal);
     },
@@ -235,20 +239,24 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
       input: UpdateSettingsInput,
     ): Promise<DistributiveOmit<UpdateSettingsOutput, "targetId">> {
       const { expectedRevision, confirmClearEatingDisorder, ...patch } = input;
-      if (patch.declarations) {
-        const current = await settingsStore.get(scope);
+      const result = await db.transaction(async (tx) => {
+        await lockNutritionSafetyScope(tx, scope);
+        const current = await readNutritionTargetSettings(tx, scope);
         if (
+          patch.declarations &&
           current.declarations.includes("eating_disorder") &&
           !patch.declarations.includes("eating_disorder") &&
           confirmClearEatingDisorder !== true
         )
-          return {
-            outcome: "confirmation_required",
-            settings: current,
-            note: NUTRITION_SAFETY_COPY.clearEatingDisorderConfirm,
-          };
-      }
-      const result = await settingsStore.update(scope, patch, expectedRevision);
+          return { outcome: "confirmation_required" as const, settings: current };
+        return updateNutritionTargetSettingsInTransaction(tx, scope, patch, expectedRevision);
+      });
+      if (result.outcome === "confirmation_required")
+        return {
+          outcome: "confirmation_required",
+          settings: result.settings,
+          note: NUTRITION_SAFETY_COPY.clearEatingDisorderConfirm,
+        };
       if (result.outcome === "conflict") return { outcome: "conflict", settings: result.settings };
       const context = await loadSafetyContext(db, scope, { now: now(), readWeight: false });
       const newlyDeclared =
