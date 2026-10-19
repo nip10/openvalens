@@ -37,7 +37,7 @@ const nowLocal = () => {
   return d.toISOString().slice(0, 16);
 };
 
-function PrivateMeasurements() {
+export function PrivateMeasurements() {
   const { data: auth, isPending } = authClient.useSession();
   const subject =
     auth?.user?.id && auth.session.activeOrganizationId
@@ -79,6 +79,15 @@ function PrivateMeasurementsForSubject({
     queryKey: keys.list,
     queryFn: () => client.privateBody.list({}),
     enabled: Boolean(subject.userId && subject.organizationId) && preference.data?.enabled === true,
+  });
+  const accessState = privateMeasurementAccessState({
+    identityKnown: Boolean(subject.userId && subject.organizationId),
+    preferenceStatus: preference.isPending ? "pending" : preference.isError ? "error" : "success",
+    enabled: preference.data?.enabled,
+  });
+  const historyState = privateMeasurementHistoryState({
+    status: history.isPending ? "pending" : history.isError ? "error" : "success",
+    count: history.data?.length,
   });
   const [kind, setKind] = useState<Kind>("weight");
   const [unit, setUnit] = useState<Unit>("kg");
@@ -156,22 +165,13 @@ function PrivateMeasurementsForSubject({
           cannot view them. They are separate from shared workspace body records.
         </p>
       </header>
-      {privateMeasurementAccessState({
-        identityKnown: Boolean(subject.userId && subject.organizationId),
-        preferenceStatus: preference.isPending
-          ? "pending"
-          : preference.isError
-            ? "error"
-            : "success",
-        enabled: preference.data?.enabled,
-      }) === "identity-pending" ? (
+      {accessState === "identity-pending" ? (
         <Card>
           <CardContent className="py-6" role="status">
             Checking your private measurement setting…
           </CardContent>
         </Card>
-      ) : privateMeasurementAccessState({ identityKnown: true, preferenceStatus: "error" }) ===
-        "preference-error" ? (
+      ) : accessState === "preference-error" ? (
         <Card>
           <CardContent className="py-6">
             <p role="alert">
@@ -182,11 +182,7 @@ function PrivateMeasurementsForSubject({
             </Button>
           </CardContent>
         </Card>
-      ) : privateMeasurementAccessState({
-          identityKnown: true,
-          preferenceStatus: "success",
-          enabled: preference.data?.enabled,
-        }) === "disabled" ? (
+      ) : accessState === "disabled" ? (
         <Card>
           <CardHeader>
             <CardTitle>Private measurements are off</CardTitle>
@@ -330,14 +326,11 @@ function PrivateMeasurementsForSubject({
               </p>
             </CardHeader>
             <CardContent>
-              {privateMeasurementHistoryState({
-                status: history.isPending ? "pending" : history.isError ? "error" : "success",
-                count: history.data?.length,
-              }) === "loading" ? (
+              {historyState === "loading" ? (
                 <p role="status" className="text-sm text-muted-foreground">
                   Loading your entries…
                 </p>
-              ) : privateMeasurementHistoryState({ status: "error" }) === "error" ? (
+              ) : historyState === "error" ? (
                 <div>
                   <p role="alert" className="text-sm">
                     Could not load entries.
@@ -346,10 +339,7 @@ function PrivateMeasurementsForSubject({
                     Try again
                   </Button>
                 </div>
-              ) : privateMeasurementHistoryState({
-                  status: "success",
-                  count: history.data?.length,
-                }) === "empty" ? (
+              ) : historyState === "empty" ? (
                 <p className="text-sm text-muted-foreground">No private entries yet.</p>
               ) : (
                 <ul className="divide-y">
