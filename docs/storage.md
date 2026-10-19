@@ -130,7 +130,10 @@ path and does not enable the new photo lifecycle.
 Lifecycle photo writes use `reservePhoto` followed by `writePhoto`: reservation
 stores the canonical byte count/hash and opaque key before publication; only one
 writer can arm that key. Pending/deleting rows are not readable. An ambiguous
-PUT or publication-link failure stays tracked by the cleanup-intent table; the
+PUT or publication-link failure stays tracked by the cleanup-intent table. The
+link callback runs before PUT while the subject, organization, and object rows
+are locked; its transaction-bound metadata writes commit atomically with the
+ready transition. A callback rejection therefore makes no PUT. The
 physical cleanup runner is a separate follow-up and deletion is not reported as
 physically complete here. The transaction-bound link callback must use its
 provided transaction (no nested/root transaction) for photo metadata and

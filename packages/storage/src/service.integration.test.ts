@@ -303,6 +303,83 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     ).toEqual(photo);
   });
 
+  test("stale oversized writer cannot enqueue cleanup while publisher holds the row lock", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    let insideLink!: () => void;
+    let release!: () => void;
+    const inLink = new Promise<void>((resolve) => {
+      insideLink = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const publisher = service.writePhoto({
+      ref,
+      bytes: photo,
+      linkPhoto: async () => {
+        insideLink();
+        await held;
+      },
+    });
+    await inLink;
+    await expect(
+      service.writePhoto({ ref, bytes: new Uint8Array(65), linkPhoto: async () => undefined }),
+    ).rejects.toBeInstanceOf(StorageError);
+    release();
+    await publisher;
+    const state = await db.execute(
+      sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+    );
+    const intents = await db.execute(
+      sql`select id from photo_cleanup_intent where storage_key = (select storage_key from stored_object where id = ${ref.objectId})`,
+    );
+    expect(state.rows).toEqual([{ photo_state: "ready", photo_write_state: "settled" }]);
+    expect(intents.rows).toHaveLength(0);
+    expect(
+      new Uint8Array(await new Response((await service.getObject(ref))!.body).arrayBuffer()),
+    ).toEqual(photo);
+  });
+
+  test("wrong creator and organization refs cannot mutate a reservation", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/png",
+      canonicalBytes: photo,
+    });
+    for (const wrong of [
+      { ...ref, createdByUserId: "user-b" },
+      { ...ref, organizationId: "org-b" },
+    ]) {
+      await expect(
+        service.writePhoto({
+          ref: wrong,
+          bytes: new Uint8Array(65),
+          linkPhoto: async () => undefined,
+        }),
+      ).rejects.toBeInstanceOf(StorageError);
+    }
+    expect(
+      (
+        await db.execute(
+          sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+        )
+      ).rows,
+    ).toEqual([{ photo_state: "pending", photo_write_state: "not_started" }]);
+    expect(
+      (
+        await db.execute(
+          sql`select id from photo_cleanup_intent where storage_key = (select storage_key from stored_object where id = ${ref.objectId})`,
+        )
+      ).rows,
+    ).toHaveLength(0);
+  });
+
   test("wrong reserved bytes fail before PUT and retain cleanup tracking", async () => {
     let writes = 0;
     const adapter = new LocalObjectStorage(root);
@@ -380,6 +457,17 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
       isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
     ).rejects.toBeInstanceOf(StorageError);
     expect(writes).toBe(1);
+    const [cleanupKey] = (
+      await db.execute(sql`select storage_key from stored_object where id = ${ref.objectId}`)
+    ).rows as { storage_key: string }[];
+    await db.execute(sql`delete from stored_object where id = ${ref.objectId}`);
+    expect(
+      (
+        await db.execute(
+          sql`select write_state from photo_cleanup_intent where storage_key = ${cleanupKey!.storage_key}`,
+        )
+      ).rows,
+    ).toEqual([{ write_state: "uncertain" }]);
   });
 
   test("concurrent publication arms a reservation for only one PUT", async () => {
@@ -412,15 +500,29 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
   });
 
-  test("publication callback rollback leaves acknowledged bytes in cleanup tracking", async () => {
-    const ref = await service.reservePhoto({
+  test("denied publication callback fails before PUT and retains not-started cleanup", async () => {
+    let writes = 0;
+    const adapter = new LocalObjectStorage(root);
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.put = async (...args: Parameters<LocalObjectStorage["put"]>) => {
+      writes += 1;
+      return adapter.put(...args);
+    };
+    const isolated = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+    });
+    const ref = await isolated.reservePhoto({
       organizationId: "org-a",
       createdByUserId: "user-a",
       contentType: "image/jpeg",
       canonicalBytes: photo,
     });
     await expect(
-      service.writePhoto({
+      isolated.writePhoto({
         ref,
         bytes: photo,
         linkPhoto: async (tx, object) => {
@@ -441,11 +543,70 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
         sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
       )
     ).rows as { photo_state: string; photo_write_state: string }[];
-    expect(row).toEqual({ photo_state: "deleting", photo_write_state: "settled" });
+    expect(row).toEqual({ photo_state: "deleting", photo_write_state: "not_started" });
     const intent = await db.execute(
       sql`select write_state from photo_cleanup_intent where storage_key = (select storage_key from stored_object where id = ${ref.objectId})`,
     );
-    expect(intent.rows).toEqual([{ write_state: "settled" }]);
+    expect(intent.rows).toEqual([{ write_state: "not_started" }]);
+    expect(writes).toBe(0);
+    const [key] = (
+      await db.execute(sql`select storage_key from stored_object where id = ${ref.objectId}`)
+    ).rows as { storage_key: string }[];
+    expect(await new LocalObjectStorage(root).head(key!.storage_key)).toBeNull();
+  });
+
+  test("acknowledged PUT with ready-activation database failure is settled and tracked", async () => {
+    await db.execute(
+      sql`create function reject_photo_ready() returns trigger language plpgsql as $$ begin if NEW.photo_state = 'ready' then raise exception 'activation blocked'; end if; return NEW; end $$`,
+    );
+    await db.execute(
+      sql`create trigger reject_photo_ready_before_update before update on stored_object for each row execute function reject_photo_ready()`,
+    );
+    try {
+      const ref = await service.reservePhoto({
+        organizationId: "org-a",
+        createdByUserId: "user-a",
+        contentType: "image/jpeg",
+        canonicalBytes: photo,
+      });
+      await expect(
+        service.writePhoto({
+          ref,
+          bytes: photo,
+          linkPhoto: async (tx, object) => {
+            await tx.execute(sql`insert into photo_link_test (object_id) values (${object.id})`);
+          },
+        }),
+      ).rejects.toBeDefined();
+      expect(
+        (
+          await db.execute(
+            sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+          )
+        ).rows,
+      ).toEqual([{ photo_state: "deleting", photo_write_state: "settled" }]);
+      expect(
+        (
+          await db.execute(
+            sql`select write_state from photo_cleanup_intent where storage_key = (select storage_key from stored_object where id = ${ref.objectId})`,
+          )
+        ).rows,
+      ).toEqual([{ write_state: "settled" }]);
+      expect(
+        (
+          await db.execute(
+            sql`select object_id from photo_link_test where object_id = ${ref.objectId}`,
+          )
+        ).rows,
+      ).toHaveLength(0);
+      const [key] = (
+        await db.execute(sql`select storage_key from stored_object where id = ${ref.objectId}`)
+      ).rows as { storage_key: string }[];
+      expect(await new LocalObjectStorage(root).head(key!.storage_key)).not.toBeNull();
+    } finally {
+      await db.execute(sql`drop trigger reject_photo_ready_before_update on stored_object`);
+      await db.execute(sql`drop function reject_photo_ready()`);
+    }
   });
 
   test("user cascade captures managed photo cleanup before creator erasure", async () => {

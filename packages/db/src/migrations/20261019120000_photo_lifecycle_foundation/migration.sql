@@ -52,7 +52,11 @@ BEGIN
     VALUES
       (md5(random()::text || clock_timestamp()::text), OLD.storage_key,
        OLD.storage_provider, OLD.storage_store_id, OLD.created_by_user_id,
-       OLD.organization_id, coalesce(OLD.photo_write_state, 'uncertain'));
+       OLD.organization_id, coalesce(OLD.photo_write_state, 'uncertain'))
+    ON CONFLICT (storage_key) DO UPDATE SET write_state =
+      CASE WHEN photo_cleanup_intent.write_state = 'uncertain' OR EXCLUDED.write_state = 'uncertain' THEN 'uncertain'
+           WHEN photo_cleanup_intent.write_state = 'settled' OR EXCLUDED.write_state = 'settled' THEN 'settled'
+           ELSE 'not_started' END;
   END IF;
   RETURN OLD;
 END $$;

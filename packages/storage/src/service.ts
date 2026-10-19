@@ -59,7 +59,7 @@ export type PutObjectInput = {
 };
 
 export type ObjectRef = { organizationId: string; objectId: string };
-export type PhotoRef = ObjectRef;
+export type PhotoRef = ObjectRef & { createdByUserId: string };
 export type PhotoLinkCallback = (
   tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
   object: StoredObjectRecord,
@@ -231,6 +231,24 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
     return row ?? null;
   }
 
+  async function findPhotoRow(ref: PhotoRef) {
+    const [row] = await db
+      .select()
+      .from(storedObject)
+      .where(
+        and(
+          eq(storedObject.id, ref.objectId),
+          eq(storedObject.organizationId, ref.organizationId),
+          eq(storedObject.createdByUserId, ref.createdByUserId),
+          eq(storedObject.purpose, "progress_photo"),
+          eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+          eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
   async function findObject(ref: ObjectRef): Promise<StoredObjectRecord | null> {
     const row = await findRow(ref);
     return row && isReadable(row) ? toRecord(row) : null;
@@ -265,26 +283,37 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         createdAt: now(),
         nextAttemptAt: now(),
       })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: photoCleanupIntent.storageKey,
+        set: {
+          writeState: sql`case when ${photoCleanupIntent.writeState} = 'uncertain' or excluded.write_state = 'uncertain' then 'uncertain' when ${photoCleanupIntent.writeState} = 'settled' or excluded.write_state = 'settled' then 'settled' else 'not_started' end`,
+        },
+      });
   }
 
   async function setPhotoFailure(
-    id: string,
+    ref: PhotoRef,
     expected: "not_started" | "uncertain",
     state: "not_started" | "uncertain" | "settled",
   ): Promise<void> {
     await db.transaction(async (tx) => {
       const [row] = await tx
-        .select()
-        .from(storedObject)
-        .where(eq(storedObject.id, id))
-        .for("update");
-      if (!row) return;
-      await tx
         .update(storedObject)
         .set({ photoState: "deleting", photoWriteState: state })
-        .where(and(eq(storedObject.id, id), eq(storedObject.photoWriteState, expected)));
-      await recordCleanup(tx, { ...row, photoState: "deleting", photoWriteState: state }, state);
+        .where(
+          and(
+            eq(storedObject.id, ref.objectId),
+            eq(storedObject.organizationId, ref.organizationId),
+            eq(storedObject.createdByUserId, ref.createdByUserId),
+            eq(storedObject.purpose, "progress_photo"),
+            eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+            eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
+            eq(storedObject.photoState, "pending"),
+            eq(storedObject.photoWriteState, expected),
+          ),
+        )
+        .returning();
+      if (row) await recordCleanup(tx, row, state);
     });
   }
 
@@ -294,8 +323,10 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
     maxObjectBytes,
 
     async reservePhoto(input) {
-      if (!storage.storeIdentity || !["image/jpeg", "image/png"].includes(input.contentType))
+      const contentType = normalizeContentType(input.contentType);
+      if (!storage.storeIdentity || !["image/jpeg", "image/png"].includes(contentType))
         throw new StorageError("unsupported_type", 0);
+      if (input.canonicalBytes.byteLength === 0) throw new StorageError("integrity", 0);
       if (input.canonicalBytes.byteLength > maxObjectBytes) throw new StorageError("too_large", 0);
       const id = newObjectId();
       const key = buildObjectKey(input.organizationId, id);
@@ -306,7 +337,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         createdByUserId: input.createdByUserId,
         purpose: "progress_photo",
         storageKey: key,
-        contentType: input.contentType,
+        contentType,
         sizeBytes: input.canonicalBytes.byteLength,
         sha256: digest,
         storageProvider: storage.storeIdentity.provider,
@@ -315,38 +346,41 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         photoWriteState: "not_started",
         createdAt: now(),
       });
-      return { organizationId: input.organizationId, objectId: id };
+      return {
+        organizationId: input.organizationId,
+        objectId: id,
+        createdByUserId: input.createdByUserId,
+      };
     },
 
     async writePhoto({ ref, bytes, linkPhoto }) {
+      const reserved = await findPhotoRow(ref);
+      if (!reserved) throw new StorageError("unavailable", 0);
       let actual: Uint8Array;
       try {
         actual = await readBounded(bytes, maxObjectBytes);
       } catch (error) {
-        await setPhotoFailure(ref.objectId, "not_started", "not_started");
+        await setPhotoFailure(ref, "not_started", "not_started");
         throw error;
       }
       const digest = sha256Hex(actual);
-      const reserved = await findRow(ref);
       if (
-        !reserved ||
         reserved.purpose !== "progress_photo" ||
         reserved.photoState !== "pending" ||
         reserved.photoWriteState !== "not_started" ||
+        reserved.createdByUserId !== ref.createdByUserId ||
         reserved.sizeBytes !== actual.byteLength ||
         reserved.sha256 !== digest ||
         reserved.storageProvider !== storage.storeIdentity?.provider ||
         reserved.storageStoreId !== storage.storeIdentity?.storeId
       ) {
         if (reserved?.photoState === "pending" && reserved.photoWriteState === "not_started")
-          await setPhotoFailure(ref.objectId, "not_started", "not_started");
+          await setPhotoFailure(ref, "not_started", "not_started");
         throw new StorageError("unavailable", 0);
       }
       // Lock parent then object and transition to uncertain before touching storage.
       const armed = await db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select id from "user" where id = (select created_by_user_id from stored_object where id = ${ref.objectId}) for update`,
-        );
+        await tx.execute(sql`select id from "user" where id = ${ref.createdByUserId} for update`);
         await tx.execute(
           sql`select id from organization where id = ${ref.organizationId} for update`,
         );
@@ -357,11 +391,16 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
             and(
               eq(storedObject.id, ref.objectId),
               eq(storedObject.organizationId, ref.organizationId),
+              eq(storedObject.createdByUserId, ref.createdByUserId),
+              eq(storedObject.purpose, "progress_photo"),
+              eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+              eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
             ),
           )
           .for("update");
         if (
           !row ||
+          row.createdByUserId !== ref.createdByUserId ||
           row.purpose !== "progress_photo" ||
           row.createdByUserId === null ||
           row.photoState !== "pending" ||
@@ -375,11 +414,23 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         const [updated] = await tx
           .update(storedObject)
           .set({ photoWriteState: "uncertain" })
-          .where(and(eq(storedObject.id, row.id), eq(storedObject.photoWriteState, "not_started")))
+          .where(
+            and(
+              eq(storedObject.id, ref.objectId),
+              eq(storedObject.organizationId, ref.organizationId),
+              eq(storedObject.createdByUserId, ref.createdByUserId),
+              eq(storedObject.purpose, "progress_photo"),
+              eq(storedObject.storageProvider, storage.storeIdentity.provider),
+              eq(storedObject.storageStoreId, storage.storeIdentity.storeId),
+              eq(storedObject.photoState, "pending"),
+              eq(storedObject.photoWriteState, "not_started"),
+            ),
+          )
           .returning();
         return updated ?? null;
       });
       if (!armed) throw new StorageError("unavailable", 0);
+      let putStarted = false;
       let acknowledged = false;
       try {
         return await db.transaction(async (tx) => {
@@ -392,24 +443,39 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
           const [row] = await tx
             .select()
             .from(storedObject)
-            .where(eq(storedObject.id, armed.id))
+            .where(
+              and(
+                eq(storedObject.id, ref.objectId),
+                eq(storedObject.organizationId, ref.organizationId),
+                eq(storedObject.createdByUserId, ref.createdByUserId),
+                eq(storedObject.purpose, "progress_photo"),
+                eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+                eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
+              ),
+            )
             .for("update");
           if (
             !row ||
+            row.createdByUserId !== ref.createdByUserId ||
+            row.organizationId !== ref.organizationId ||
             row.photoState !== "pending" ||
             row.photoWriteState !== "uncertain" ||
+            row.sizeBytes !== actual.byteLength ||
+            row.sha256 !== digest ||
             row.storageProvider !== storage.storeIdentity?.provider ||
             row.storageStoreId !== storage.storeIdentity?.storeId
           )
             throw new StorageError("unavailable", 0);
-          // Hold parent and object locks through bounded PUT and transactional link.
+          // Consent/member validation and metadata linking run before any PUT.
+          const record = toRecord(row);
+          await linkPhoto(tx, record);
+          // Hold parent and object locks through bounded PUT and ready activation.
+          putStarted = true;
           await storage.put(row.storageKey, actual, {
             contentType: row.contentType,
             sha256: row.sha256,
           });
           acknowledged = true;
-          const record = toRecord(row);
-          await linkPhoto(tx, record);
           const [ready] = await tx
             .update(storedObject)
             .set({ photoState: "ready", photoWriteState: "settled" })
@@ -425,7 +491,11 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
           return toRecord(ready);
         });
       } catch (error) {
-        await setPhotoFailure(armed.id, "uncertain", acknowledged ? "settled" : "uncertain");
+        await setPhotoFailure(
+          ref,
+          "uncertain",
+          acknowledged ? "settled" : putStarted ? "uncertain" : "not_started",
+        );
         throw error;
       }
     },
