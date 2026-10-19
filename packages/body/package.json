@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@openvalens/db": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@openvalens/config": "workspace:*",
