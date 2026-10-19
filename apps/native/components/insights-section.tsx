@@ -1,10 +1,16 @@
 import type { InsightFeedbackAction } from "@openvalens/api/insight-contract";
-import { INSIGHT_COPY, INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
+import {
+  INSIGHT_COPY,
+  INSIGHT_DELIVERY_COPY,
+  nutritionObservationView,
+  observationPreferencePatch,
+  shouldShowObservations,
+} from "@openvalens/api/presenters/insights";
 import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "heroui-native";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
@@ -24,10 +30,19 @@ export function InsightsSection() {
   const readiness = useQuery(orpc.score.readiness.queryOptions({ input: {} }));
   const goals = useQuery(orpc.score.goalProgress.queryOptions({ input: {} }));
   const insights = useQuery(orpc.insights.list.queryOptions({ input: {} }));
+  const observationPrefs = useQuery(orpc.insights.preferences.get.queryOptions({ input: {} }));
   const consent = useQuery({ ...orpc.ai.consent.get.queryOptions({ input: {} }), retry: false });
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [showMethod, setShowMethod] = useState(false);
+  const [hideObservations, setHideObservations] = useState(false);
+  useEffect(() => {
+    if (observationPrefs.data?.channels.observation.in_app === false) setHideObservations(false);
+  }, [observationPrefs.data?.channels.observation.in_app]);
+  const showObservations = shouldShowObservations(
+    observationPrefs.data?.channels.observation.in_app,
+    hideObservations,
+  );
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
 
   const feedback = useMutation({
@@ -54,6 +69,15 @@ export function InsightsSection() {
       invalidate();
     },
     onError: () => setMessage("Could not save your choice."),
+  });
+  const observation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      client.insights.preferences.update(observationPreferencePatch(enabled)),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
+      void queryClient.invalidateQueries({ queryKey: orpc.insights.preferences.get.key() });
+    },
+    onError: () => setMessage("Could not update observation settings."),
   });
 
   const ready = readiness.data ? readinessView(readiness.data) : null;
@@ -201,6 +225,93 @@ export function InsightsSection() {
               <Text className="text-sm text-muted-foreground">{model.limits}</Text>
               <Text className="text-xs text-muted-foreground">{model.versionText}</Text>
             </>
+          )}
+        </Card>
+      </CardStack>
+
+      <CardStack title="Nutrition observations">
+        <Card variant="secondary" className="gap-3 p-4">
+          <Text className="text-sm text-muted-foreground">
+            Optional descriptions of how your recorded meals line up in time with recorded sleep and
+            workouts. This reads across those logs only when you turn it on. It does not establish a
+            cause or provide health advice. You can turn it off here without changing either log.
+          </Text>
+          {observationPrefs.isPending ? (
+            <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
+              Loading observation setting…
+            </Text>
+          ) : observationPrefs.isError || !observationPrefs.data ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading observation setting"
+              onPress={() => void observationPrefs.refetch()}
+            >
+              <Text className="underline">Could not load setting. Retry</Text>
+            </Pressable>
+          ) : (
+            <Button
+              isDisabled={observation.isPending}
+              accessibilityLabel={
+                observationPrefs.data.channels.observation.in_app
+                  ? "Turn off nutrition observations"
+                  : "Turn on nutrition observations"
+              }
+              onPress={() => {
+                const enabled = !observationPrefs.data!.channels.observation.in_app;
+                if (!enabled) setHideObservations(true);
+                observation.mutate(enabled);
+              }}
+            >
+              <Button.Label>
+                {observationPrefs.data.channels.observation.in_app
+                  ? "Turn observations off"
+                  : "Turn observations on"}
+              </Button.Label>
+            </Button>
+          )}
+          {observation.isError ? (
+            <Text accessibilityRole="alert" className="text-sm text-foreground">
+              Could not save this choice. Your saved setting is unchanged.
+            </Text>
+          ) : null}
+          {observation.isError && typeof observation.variables === "boolean" ? (
+            <Button variant="secondary" onPress={() => observation.mutate(observation.variables!)}>
+              <Button.Label>Retry saving choice</Button.Label>
+            </Button>
+          ) : null}
+          {showObservations && insights.data?.observations.length === 0 ? (
+            <Text className="text-sm text-muted-foreground">
+              No observations to show for this period. Some records may be missing or incomplete.
+            </Text>
+          ) : null}
+          {showObservations
+            ? insights.data?.observations.map((item) => {
+                const view = nutritionObservationView(item);
+                return (
+                  <View
+                    key={`${item.ruleId}:${item.window.from}`}
+                    accessible
+                    accessibilityLabel={view.accessibilityLabel}
+                    className="gap-1 border-t border-border pt-3"
+                  >
+                    <Text accessibilityRole="header" className="font-medium text-foreground">
+                      {view.title}
+                    </Text>
+                    <Text className="text-sm text-foreground">{view.body}</Text>
+                    <Text className="text-sm text-muted-foreground">{view.completeness}</Text>
+                    <Text className="text-xs text-muted-foreground">{view.period}</Text>
+                  </View>
+                );
+              })
+            : null}
+          {showObservations ? (
+            <Text className="text-xs text-muted-foreground">
+              Observations describe recorded timing only. They are not medical advice.
+            </Text>
+          ) : (
+            <Text className="text-sm text-muted-foreground">
+              Off by default. No nutrition observations are shown.
+            </Text>
           )}
         </Card>
       </CardStack>

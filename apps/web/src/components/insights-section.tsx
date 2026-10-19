@@ -1,15 +1,28 @@
 import type { InsightFeedbackAction } from "@openvalens/api/insight-contract";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { INSIGHT_COPY } from "@openvalens/api/presenters/insights";
+import {
+  INSIGHT_COPY,
+  nutritionObservationView,
+  observationPreferencePatch,
+  shouldShowObservations,
+} from "@openvalens/api/presenters/insights";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 
 import { InsightsCard, PushOfferCard, SummaryCards } from "./insights-panel";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@openvalens/ui/components/card";
+import { Button } from "@openvalens/ui/components/button";
 
 /**
  * Issue #92 — connected dashboard section: the two summaries first, then the
@@ -30,9 +43,18 @@ export function InsightsSection() {
     ...orpc.insights.list.queryOptions({ input: {} }),
     staleTime: 60_000,
   });
+  const observationPrefs = useQuery(orpc.insights.preferences.get.queryOptions({ input: {} }));
   const consent = useQuery({ ...orpc.ai.consent.get.queryOptions({ input: {} }), retry: false });
   const settings = useProductSettings().data;
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [hideObservations, setHideObservations] = useState(false);
+  useEffect(() => {
+    if (observationPrefs.data?.channels.observation.in_app === false) setHideObservations(false);
+  }, [observationPrefs.data?.channels.observation.in_app]);
+  const showObservations = shouldShowObservations(
+    observationPrefs.data?.channels.observation.in_app,
+    hideObservations,
+  );
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
 
@@ -52,6 +74,18 @@ export function InsightsSection() {
         if (variables.pushOffer === "accepted") toast.success("Insight notifications turned on");
       },
       onError: () => toast.error("Could not save your choice."),
+    }),
+  );
+  const observation = useMutation(
+    orpc.insights.preferences.update.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
+        void queryClient.invalidateQueries({ queryKey: orpc.insights.preferences.get.key() });
+      },
+      onError: () =>
+        toast.error(
+          "Could not update observation settings. Your saved choice is unchanged; retry when connected.",
+        ),
     }),
   );
 
@@ -99,6 +133,94 @@ export function InsightsSection() {
             }
             onFeedback={onFeedback}
           />
+          <Card aria-labelledby="observation-title">
+            <CardHeader>
+              <CardTitle id="observation-title">Nutrition observations</CardTitle>
+              <CardDescription>
+                Optional descriptions of how your recorded meals line up in time with recorded sleep
+                and workouts. This reads across those logs only when you turn it on. It does not
+                establish a cause or provide health advice. You can turn it off here without
+                changing either log.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {observationPrefs.isPending ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  Loading observation setting…
+                </p>
+              ) : observationPrefs.isError || !observationPrefs.data ? (
+                <button className="w-fit underline" onClick={() => void observationPrefs.refetch()}>
+                  Could not load observation setting. Retry
+                </button>
+              ) : (
+                <Button
+                  disabled={observation.isPending}
+                  aria-label={
+                    observationPrefs.data.channels.observation.in_app
+                      ? "Turn off nutrition observations"
+                      : "Turn on nutrition observations"
+                  }
+                  onClick={() => {
+                    const enabled = !observationPrefs.data!.channels.observation.in_app;
+                    if (!enabled) setHideObservations(true);
+                    observation.mutate(observationPreferencePatch(enabled));
+                  }}
+                >
+                  {observationPrefs.data.channels.observation.in_app
+                    ? "Turn observations off"
+                    : "Turn observations on"}
+                </Button>
+              )}
+              {observation.isError ? (
+                <p role="alert" className="text-sm text-destructive">
+                  Could not save this choice. Your saved setting is unchanged.
+                </p>
+              ) : null}
+              {observation.isError && observation.variables ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => observation.mutate(observation.variables)}
+                >
+                  Retry saving choice
+                </Button>
+              ) : null}
+              {showObservations && insights.data.observations.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No observations to show for this period. Some records may be missing or
+                  incomplete.
+                </p>
+              ) : null}
+              {showObservations
+                ? insights.data.observations.map((item) =>
+                    (() => {
+                      const view = nutritionObservationView(item);
+                      return (
+                        <article
+                          key={`${item.ruleId}:${item.window.from}`}
+                          className="grid gap-1 border-t border-border pt-3"
+                          aria-label={view.accessibilityLabel}
+                        >
+                          <h3 className="font-medium">{view.title}</h3>
+                          <p className="text-sm">{view.body}</p>
+                          <p className="text-sm text-muted-foreground">{view.completeness}</p>
+                          <p className="text-xs text-muted-foreground">{view.period}</p>
+                        </article>
+                      );
+                    })(),
+                  )
+                : null}
+              {showObservations ? (
+                <p className="text-xs text-muted-foreground">
+                  Observations describe recorded timing only. They are not medical advice.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Off by default. No nutrition observations are shown.
+                </p>
+              )}
+            </CardContent>
+          </Card>
           {insights.data.offerPush ? (
             <PushOfferCard
               pending={offer.isPending}
