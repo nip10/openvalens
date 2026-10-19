@@ -27,6 +27,8 @@ export type PutBlobOptions = {
   contentType: string;
   /** Lowercase hex SHA-256 of `body`; stored alongside so copies can be verified. */
   sha256: string;
+  /** Reservation UUID used to identify lifecycle-only local staging files. */
+  stagingId?: string;
 };
 
 export type SignedGetUrlOptions = {
@@ -53,6 +55,8 @@ export interface ObjectStorage {
   head(key: string): Promise<StoredBlobHead | null>;
   /** Deletes the object. Deleting a missing object succeeds. */
   delete(key: string): Promise<void>;
+  /** Deletes bytes and, for local lifecycle writes, the reservation staging file. */
+  deleteWithStaging?(key: string, stagingId: string): Promise<void>;
   /**
    * A short-lived URL that downloads the object without a session, or `null`
    * when the adapter has no native signing (local disk: the server mints an

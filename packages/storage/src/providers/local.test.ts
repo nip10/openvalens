@@ -47,6 +47,19 @@ describe("LocalObjectStorage", () => {
     expect(await readdir(join(root, ".tmp"))).toEqual([]);
   });
 
+  test("lifecycle staging is reservation-addressable and removed with final bytes", async () => {
+    const root = await freshRoot();
+    const storage = new LocalObjectStorage(root);
+    const id = newObjectId();
+    const key = buildObjectKey("org-a", id);
+    await storage.put(key, bytes, { ...opts, stagingId: id });
+    await Bun.write(join(root, ".tmp", id), "stale staged data");
+    await Bun.write(join(root, ".tmp", `${id}.meta.json`), "stale sidecar");
+    await storage.deleteWithStaging!(key, id);
+    expect(await storage.head(key)).toBeNull();
+    expect(await readdir(join(root, ".tmp"))).toEqual([]);
+  });
+
   test("overwrites atomically replace the object", async () => {
     const storage = new LocalObjectStorage(await freshRoot());
     const key = buildObjectKey("org-a", newObjectId());

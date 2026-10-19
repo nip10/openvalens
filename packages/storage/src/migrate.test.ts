@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import { buildObjectKey, newObjectId } from "./keys";
 import { migrateObjects, type MigrationItem } from "./migrate";
+import type { ObjectStorage } from "./object-storage";
 import { LocalObjectStorage } from "./providers/local";
 
 const roots: string[] = [];
@@ -89,5 +90,54 @@ describe("migrateObjects", () => {
       { id: missing.id, reason: "source_missing" },
     ]);
     expect(await target.head(corrupt!.storageKey)).toBeNull();
+  });
+
+  test("managed photos are refused before source or target I/O", async () => {
+    const source = await storage();
+    const target = await storage();
+    let sourceCalls = 0;
+    let targetCalls = 0;
+    const count = (adapter: LocalObjectStorage, hit: () => void): ObjectStorage => ({
+      provider: adapter.provider,
+      storeIdentity: adapter.storeIdentity,
+      put: async (...args) => {
+        hit();
+        return adapter.put(...args);
+      },
+      get: async (...args) => {
+        hit();
+        return adapter.get(...args);
+      },
+      head: async (...args) => {
+        hit();
+        return adapter.head(...args);
+      },
+      delete: async (...args) => {
+        hit();
+        return adapter.delete(...args);
+      },
+      signedGetUrl: async () => adapter.signedGetUrl(),
+    });
+    const report = await migrateObjects({
+      source: count(source, () => {
+        sourceCalls += 1;
+      }),
+      target: count(target, () => {
+        targetCalls += 1;
+      }),
+      items: [
+        {
+          id: "photo-id",
+          storageKey: "org/org-a/photo-id",
+          sha256: "0".repeat(64),
+          contentType: "image/jpeg",
+          photoState: "ready",
+        },
+      ],
+      dryRun: false,
+    });
+    expect(report.failed).toEqual([{ id: "photo-id", reason: "managed_photo" }]);
+    expect(sourceCalls).toBe(0);
+    expect(targetCalls).toBe(0);
   });
 });

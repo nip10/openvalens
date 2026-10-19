@@ -17,7 +17,13 @@ import { createHash } from "node:crypto";
 
 import type { ObjectStorage } from "./object-storage";
 
-export type MigrationItem = { id: string; storageKey: string; sha256: string; contentType: string };
+export type MigrationItem = {
+  id: string;
+  storageKey: string;
+  sha256: string;
+  contentType: string;
+  photoState?: string | null;
+};
 
 export type MigrationReport = {
   dryRun: boolean;
@@ -29,7 +35,7 @@ export type MigrationReport = {
   /** Object ids that failed: missing or corrupt source, or a target mismatch. */
   failed: {
     id: string;
-    reason: "source_missing" | "source_checksum" | "target_checksum" | "error";
+    reason: "source_missing" | "source_checksum" | "target_checksum" | "managed_photo" | "error";
   }[];
 };
 
@@ -61,6 +67,10 @@ export async function migrateObjects(input: {
   };
 
   for (const item of input.items) {
+    if (item.photoState !== undefined && item.photoState !== null) {
+      report.failed.push({ id: item.id, reason: "managed_photo" });
+      continue;
+    }
     try {
       if ((await checksumOf(input.target, item.storageKey)) === item.sha256) {
         report.skipped += 1;

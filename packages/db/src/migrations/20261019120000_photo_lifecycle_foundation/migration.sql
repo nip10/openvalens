@@ -50,7 +50,7 @@ BEGIN
     INSERT INTO photo_cleanup_intent
       (id, storage_key, storage_provider, storage_store_id, subject_id, org_id, write_state)
     VALUES
-      (md5(random()::text || clock_timestamp()::text), OLD.storage_key,
+      (OLD.id, OLD.storage_key,
        OLD.storage_provider, OLD.storage_store_id, OLD.created_by_user_id,
        OLD.organization_id, coalesce(OLD.photo_write_state, 'uncertain'))
     ON CONFLICT (storage_key) DO UPDATE SET write_state =

@@ -134,10 +134,18 @@ PUT or publication-link failure stays tracked by the cleanup-intent table. The
 link callback runs before PUT while the subject, organization, and object rows
 are locked; its transaction-bound metadata writes commit atomically with the
 ready transition. A callback rejection therefore makes no PUT. The
-physical cleanup runner is a separate follow-up and deletion is not reported as
-physically complete here. The transaction-bound link callback must use its
+transaction-bound link callback must use its
 provided transaction (no nested/root transaction) for photo metadata and
 consent revalidation.
+
+`deletePhoto` and `cleanupPhotos` are storage lifecycle primitives. Cleanup is
+bounded, takes object locks before intent locks, skips a locked live publisher,
+and checks the recorded store identity before I/O. Unknown legacy provenance and
+store mismatches remain blocked. Uncertain writes remain tracked and are
+re-deleted with capped backoff; a successful DELETE does not prove a delayed PUT
+cannot still arrive. Local lifecycle writes use the reservation ID for staging,
+which cleanup removes alongside the final key. The storage migration-copy tool
+refuses managed photos before source or target I/O.
 
 ## For feature code (#85, #132)
 

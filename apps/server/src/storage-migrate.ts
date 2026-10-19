@@ -47,6 +47,7 @@ const items = await db
     storageKey: storedObject.storageKey,
     sha256: storedObject.sha256,
     contentType: storedObject.contentType,
+    photoState: storedObject.photoState,
   })
   .from(storedObject)
   .orderBy(storedObject.createdAt);

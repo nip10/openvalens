@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { createDb, sql, type Database } from "@openvalens/db";
 
-import { parseObjectKey } from "./keys";
+import { buildObjectKey, newObjectId, parseObjectKey } from "./keys";
 import { StorageError } from "./object-storage";
 import { LocalObjectStorage } from "./providers/local";
 import { S3ObjectStorage } from "./providers/s3";
@@ -301,6 +301,166 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     expect(
       new Uint8Array(await new Response((await service.getObject(ref))!.body).arrayBuffer()),
     ).toEqual(photo);
+  });
+
+  test("deletePhoto removes a ready photo and is harmless when repeated", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined });
+    const [key] = (
+      await db.execute(sql`select storage_key from stored_object where id = ${ref.objectId}`)
+    ).rows as { storage_key: string }[];
+    expect(await service.deletePhoto(ref)).toBe("deleted");
+    expect(await new LocalObjectStorage(root).head(key!.storage_key)).toBeNull();
+    expect(
+      (await db.execute(sql`select id from stored_object where id = ${ref.objectId}`)).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.execute(sql`select id from photo_cleanup_intent where id = ${ref.objectId}`)).rows,
+    ).toHaveLength(0);
+    expect(await service.deletePhoto(ref)).toBe("not_found");
+  });
+
+  test("delete failure persists for retry and cleanup succeeds after restart-equivalent retry", async () => {
+    let failDelete = true;
+    const adapter = new LocalObjectStorage(root);
+    const wrapped = Object.create(adapter) as LocalObjectStorage;
+    wrapped.put = (...args) => adapter.put(...args);
+    wrapped.get = (...args) => adapter.get(...args);
+    wrapped.head = (...args) => adapter.head(...args);
+    wrapped.delete = (...args) => adapter.delete(...args);
+    wrapped.deleteWithStaging = async (key, stagingId) => {
+      if (failDelete) throw new Error("synthetic delete failure");
+      return adapter.deleteWithStaging(key, stagingId);
+    };
+    const isolated = createStorageService({
+      db,
+      storage: wrapped,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const ref = await isolated.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/png",
+      canonicalBytes: photo,
+    });
+    await isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined });
+    expect(await isolated.deletePhoto(ref)).toBe("pending");
+    expect(
+      (await db.execute(sql`select id from photo_cleanup_intent where id = ${ref.objectId}`)).rows,
+    ).toHaveLength(1);
+    const originalClock = clock;
+    clock = new Date(clock.getTime() + 5000);
+    failDelete = false;
+    try {
+      expect(await isolated.cleanupPhotos({ limit: 5 })).toMatchObject({
+        deleted: 1,
+        pending: 0,
+        blocked: 0,
+      });
+    } finally {
+      clock = originalClock;
+    }
+    expect(await isolated.deletePhoto(ref)).toBe("not_found");
+  });
+
+  test("database row-removal failure after DELETE retains intent for idempotent retry", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined });
+    const [key] = (
+      await db.execute(sql`select storage_key from stored_object where id = ${ref.objectId}`)
+    ).rows as { storage_key: string }[];
+    await db.execute(
+      sql`create function reject_photo_row_delete() returns trigger language plpgsql as $$ begin raise exception 'row removal blocked'; end $$`,
+    );
+    await db.execute(
+      sql`create trigger reject_photo_row_delete_before before delete on stored_object for each row execute function reject_photo_row_delete()`,
+    );
+    try {
+      expect(await service.deletePhoto(ref)).toBe("pending");
+      expect(await new LocalObjectStorage(root).head(key!.storage_key)).toBeNull();
+      expect(
+        (await db.execute(sql`select id from stored_object where id = ${ref.objectId}`)).rows,
+      ).toHaveLength(1);
+      expect(
+        (await db.execute(sql`select id from photo_cleanup_intent where id = ${ref.objectId}`))
+          .rows,
+      ).toHaveLength(1);
+    } finally {
+      await db.execute(sql`drop trigger reject_photo_row_delete_before on stored_object`);
+      await db.execute(sql`drop function reject_photo_row_delete()`);
+    }
+    const originalClock = clock;
+    clock = new Date(clock.getTime() + 5000);
+    try {
+      expect(await service.cleanupPhotos({ limit: 5 })).toMatchObject({ deleted: 1, pending: 0 });
+    } finally {
+      clock = originalClock;
+    }
+    expect(
+      (await db.execute(sql`select id from stored_object where id = ${ref.objectId}`)).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.execute(sql`select id from photo_cleanup_intent where id = ${ref.objectId}`)).rows,
+    ).toHaveLength(0);
+  });
+
+  test("legacy unknown-provenance photo remains blocked without adapter I/O", async () => {
+    const id = newObjectId();
+    const key = buildObjectKey("org-a", id);
+    const adapter = new LocalObjectStorage(root);
+    await adapter.put(key, photo, { contentType: "image/jpeg", sha256: sha(photo) });
+    await db.execute(
+      sql`insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256) values (${id}, 'org-a', 'user-a', 'progress_photo', ${key}, 'image/jpeg', ${photo.byteLength}, ${sha(photo)})`,
+    );
+    let ioCalls = 0;
+    const wrapped = Object.create(adapter) as LocalObjectStorage;
+    wrapped.delete = async (...args) => {
+      ioCalls += 1;
+      return adapter.delete(...args);
+    };
+    wrapped.deleteWithStaging = async (objectKey, stagingId) => {
+      ioCalls += 1;
+      return adapter.deleteWithStaging(objectKey, stagingId);
+    };
+    const isolated = createStorageService({
+      db,
+      storage: wrapped,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const ref = { organizationId: "org-a", objectId: id, createdByUserId: "user-a" };
+    expect(await isolated.deletePhoto(ref)).toBe("pending");
+    const originalClock = clock;
+    clock = new Date(clock.getTime() + 5000);
+    try {
+      expect(await isolated.cleanupPhotos({ limit: 5 })).toMatchObject({ blocked: 1, deleted: 0 });
+    } finally {
+      clock = originalClock;
+    }
+    expect(ioCalls).toBe(0);
+    expect(await adapter.head(key)).not.toBeNull();
+    expect(
+      (
+        await db.execute(
+          sql`select storage_provider, storage_store_id from photo_cleanup_intent where id = ${id}`,
+        )
+      ).rows,
+    ).toEqual([{ storage_provider: null, storage_store_id: null }]);
   });
 
   test("stale oversized writer cannot enqueue cleanup while publisher holds the row lock", async () => {
@@ -639,6 +799,49 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
       subject_id: "user-photo-delete",
       storage_provider: "local",
       write_state: "not_started",
+    });
+  });
+
+  test("organization cascade retains managed and unknown-photo cleanup intents", async () => {
+    await db.execute(
+      sql`insert into organization (id, name, slug) values ('org-photo-cascade', 'Cascade', 'photo-cascade')`,
+    );
+    const managed = await service.reservePhoto({
+      organizationId: "org-photo-cascade",
+      createdByUserId: "user-a",
+      contentType: "image/png",
+      canonicalBytes: photo,
+    });
+    const legacyId = newObjectId();
+    const legacyKey = buildObjectKey("org-photo-cascade", legacyId);
+    await db.execute(
+      sql`insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256) values (${legacyId}, 'org-photo-cascade', 'user-a', 'progress_photo', ${legacyKey}, 'image/png', ${photo.byteLength}, ${sha(photo)})`,
+    );
+    await db.execute(sql`delete from organization where id = 'org-photo-cascade'`);
+    expect(
+      (
+        await db.execute(
+          sql`select id from stored_object where organization_id = 'org-photo-cascade'`,
+        )
+      ).rows,
+    ).toHaveLength(0);
+    const intents = await db.execute(
+      sql`select id, storage_provider, storage_store_id, subject_id, org_id from photo_cleanup_intent where org_id = 'org-photo-cascade' order by id`,
+    );
+    expect(intents.rows).toHaveLength(2);
+    expect(intents.rows).toContainEqual({
+      id: managed.objectId,
+      storage_provider: "local",
+      storage_store_id: service.storeIdentity!.storeId,
+      subject_id: "user-a",
+      org_id: "org-photo-cascade",
+    });
+    expect(intents.rows).toContainEqual({
+      id: legacyId,
+      storage_provider: null,
+      storage_store_id: null,
+      subject_id: "user-a",
+      org_id: "org-photo-cascade",
     });
   });
 

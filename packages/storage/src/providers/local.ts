@@ -63,7 +63,10 @@ export class LocalObjectStorage implements ObjectStorage {
   async put(key: string, body: Uint8Array, options: PutBlobOptions): Promise<void> {
     const target = this.#path(key);
     const tempDir = join(this.#root, TEMP_DIR);
-    const temp = join(tempDir, randomUUID());
+    const stagingId = options.stagingId;
+    if (stagingId && !/^[A-Za-z0-9_-]{1,128}$/.test(stagingId))
+      throw new StorageError("invalid_key", 0);
+    const temp = join(tempDir, stagingId ?? randomUUID());
     try {
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
       await mkdir(tempDir, { recursive: true, mode: 0o700 });
@@ -126,6 +129,19 @@ export class LocalObjectStorage implements ObjectStorage {
     try {
       await rm(path, { force: true });
       await rm(`${path}${SIDECAR_SUFFIX}`, { force: true });
+    } catch {
+      throw new StorageError("provider_unavailable", 0);
+    }
+  }
+
+  async deleteWithStaging(key: string, stagingId: string): Promise<void> {
+    this.#path(key);
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(stagingId)) throw new StorageError("invalid_key", 0);
+    await this.delete(key);
+    const temp = join(this.#root, TEMP_DIR, stagingId);
+    try {
+      await rm(temp, { force: true });
+      await rm(`${temp}${SIDECAR_SUFFIX}`, { force: true });
     } catch {
       throw new StorageError("provider_unavailable", 0);
     }
