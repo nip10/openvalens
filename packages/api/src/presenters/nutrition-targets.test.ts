@@ -29,9 +29,29 @@ import {
   formatProteinReference,
   formatTarget,
   resolveHideNumbers,
+  resolveScopedHideNumbers,
   parseHeight,
   parseTargetForm,
 } from "./nutrition-targets";
+
+describe("scoped hide-numbers overrides", () => {
+  test("does not carry an override across workspaces, members, or unknown identity", () => {
+    const memberAWorkspace1 = { scope: "member-a:workspace-1", value: false };
+    expect(resolveScopedHideNumbers("member-b:workspace-1", memberAWorkspace1, true)).toBe(true);
+    expect(resolveScopedHideNumbers("member-a:workspace-2", memberAWorkspace1, true)).toBe(true);
+    expect(resolveScopedHideNumbers("member-b:workspace-1", memberAWorkspace1)).toBe(true);
+    expect(resolveScopedHideNumbers(null, memberAWorkspace1, false)).toBe(true);
+  });
+
+  test("honors an explicit choice only in its exact scope", () => {
+    const override = { scope: "member-a:workspace-1", value: false };
+    expect(resolveScopedHideNumbers("member-a:workspace-1", override, true)).toBe(false);
+    expect(resolveScopedHideNumbers("member-a:workspace-1", null, false)).toBe(false);
+    expect(resolveScopedHideNumbers("member-a:workspace-1", { scope: "other", value: false })).toBe(
+      true,
+    );
+  });
+});
 
 const target = (overrides: Partial<NutritionTargetWire> = {}): NutritionTargetWire => ({
   id: 1,

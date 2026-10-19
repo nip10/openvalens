@@ -25,7 +25,7 @@ import {
   formatTarget,
   parseHeight,
   parseTargetForm,
-  resolveHideNumbers,
+  resolveScopedHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -81,11 +81,15 @@ function NutritionTargetsPage() {
     queryKey: [...overviewOptions.queryKey, { offlineScope: scope }],
     enabled: Boolean(scope),
   });
-  const [hideOverride, setHideOverride] = useState<boolean | null>(null);
+  const [hideOverride, setHideOverride] = useState<{ scope: string; value: boolean } | null>(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() });
 
   const data = overview.data;
-  const hideNumbers = hideOverride ?? resolveHideNumbers(data?.settings.hideNumbers);
+  const hideNumbers = resolveScopedHideNumbers(
+    scope,
+    hideOverride,
+    overview.isSuccess ? data?.settings.hideNumbers : undefined,
+  );
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
@@ -149,7 +153,9 @@ function NutritionTargetsPage() {
 
           <SettingsCard
             settings={data.settings}
-            onHideNumbersChange={setHideOverride}
+            onHideNumbersChange={(value) => {
+              if (scope) setHideOverride({ scope, value });
+            }}
             onChanged={() => void refresh()}
           />
 

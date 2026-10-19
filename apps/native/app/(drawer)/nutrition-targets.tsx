@@ -23,7 +23,7 @@ import {
   formatTarget,
   parseHeight,
   parseTargetForm,
-  resolveHideNumbers,
+  resolveScopedHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
@@ -83,7 +83,7 @@ export default function NutritionTargetsScreen() {
   });
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.key() });
   const data = overview.data;
-  const [hideOverride, setHideOverride] = useState<boolean | null>(null);
+  const [hideOverride, setHideOverride] = useState<{ scope: string; value: boolean } | null>(null);
   const cachedPreference = scope
     ? readCache<{ hideNumbers: boolean }>(scope, "nutrition-display-preference")?.data.hideNumbers
     : undefined;
@@ -94,12 +94,12 @@ export default function NutritionTargetsScreen() {
       });
     }
   }, [scope, data?.settings]);
-  const hideNumbers =
-    hideOverride ??
-    resolveHideNumbers(
-      overview.isSuccess ? data?.settings.hideNumbers : undefined,
-      cachedPreference,
-    );
+  const hideNumbers = resolveScopedHideNumbers(
+    scope,
+    hideOverride,
+    overview.isSuccess ? data?.settings.hideNumbers : undefined,
+    cachedPreference,
+  );
 
   return (
     <Container>
@@ -156,7 +156,7 @@ export default function NutritionTargetsScreen() {
             <SettingsCard
               settings={data.settings}
               onHideNumbersChange={(value) => {
-                setHideOverride(value);
+                if (scope) setHideOverride({ scope, value });
                 if (scope)
                   writeCache(scope, "nutrition-display-preference", { hideNumbers: value });
               }}

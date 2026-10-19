@@ -41,6 +41,18 @@ export function resolveHideNumbers(serverPreference?: boolean, scopedOfflinePref
   return serverPreference ?? scopedOfflinePreference ?? true;
 }
 
+/** A temporary display choice is valid only for the identity scope that made it. */
+export function resolveScopedHideNumbers(
+  scope: string | null | undefined,
+  override: { scope: string; value: boolean } | null,
+  serverPreference?: boolean,
+  scopedOfflinePreference?: boolean,
+) {
+  if (!scope) return true;
+  if (override?.scope === scope) return override.value;
+  return resolveHideNumbers(serverPreference, scopedOfflinePreference);
+}
+
 export const TARGET_COPY = Object.freeze({
   title: "Nutrition targets",
   settingsLink: "Targets and display",
