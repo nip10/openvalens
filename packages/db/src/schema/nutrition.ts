@@ -775,3 +775,136 @@ export const nutritionTargetSettings = pgTable(
     }).onDelete("restrict"),
   }),
 );
+
+// ─── Plain-water diary (Issue #83) ──────────────────────────────
+// Water is intentionally separate from food/beverage nutrients: this is a
+// personal log of plain water only, not a measure of total dietary water.
+export const plainWaterEntry = pgTable(
+  "plain_water_entry",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    quantityMl: real("quantity_ml").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true, mode: "date" }).notNull(),
+    timeZone: text("time_zone").notNull(),
+    clientMutationId: text("client_mutation_id").notNull(),
+    revision: integer("revision").notNull().default(1),
+    deletedAt: timestamp("deleted_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    waterEntryOrgIdUnique: uniqueIndex("plain_water_entry_org_id_key").on(
+      table.organizationId,
+      table.id,
+    ),
+    waterEntryMutationUnique: uniqueIndex("plain_water_entry_org_user_mutation_key").on(
+      table.organizationId,
+      table.userId,
+      table.clientMutationId,
+    ),
+    waterEntryDayIdx: index("plain_water_entry_org_user_observed_idx").on(
+      table.organizationId,
+      table.userId,
+      table.observedAt,
+    ),
+    waterEntryQuantityCheck: check(
+      "plain_water_entry_quantity_check",
+      sql`${table.quantityMl} > 0 and ${table.quantityMl} < 'Infinity'::float8`,
+    ),
+    waterEntryMutationCheck: check(
+      "plain_water_entry_mutation_check",
+      sql`length(${table.clientMutationId}) between 1 and 64`,
+    ),
+    waterEntryRevisionCheck: check("plain_water_entry_revision_check", sql`${table.revision} >= 1`),
+    waterEntryMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "plain_water_entry_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+export const plainWaterPreference = pgTable(
+  "plain_water_preference",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    enabled: boolean("enabled").notNull().default(false),
+    personalGoalMl: real("personal_goal_ml"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    waterPreferenceOwnerUnique: uniqueIndex("plain_water_preference_org_user_key").on(
+      table.organizationId,
+      table.userId,
+    ),
+    waterPreferenceGoalCheck: check(
+      "plain_water_preference_goal_check",
+      sql`${table.personalGoalMl} is null or (${table.personalGoalMl} > 0 and ${table.personalGoalMl} < 'Infinity'::float8)`,
+    ),
+    waterPreferenceMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "plain_water_preference_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+/** Immutable idempotency receipt for a member's plain-water queued mutation. */
+export const plainWaterMutation = pgTable(
+  "plain_water_mutation",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    clientMutationId: text("client_mutation_id").notNull(),
+    kind: text("kind").$type<"add" | "edit" | "delete">().notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    entryId: integer("entry_id").notNull(),
+    outcome: jsonb("outcome").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    waterMutationKey: uniqueIndex("plain_water_mutation_org_user_client_key").on(
+      table.organizationId,
+      table.userId,
+      table.clientMutationId,
+    ),
+    waterMutationEntryIdx: index("plain_water_mutation_org_entry_idx").on(
+      table.organizationId,
+      table.entryId,
+    ),
+    waterMutationKindCheck: check(
+      "plain_water_mutation_kind_check",
+      sql`${table.kind} in ('add', 'edit', 'delete')`,
+    ),
+    waterMutationFingerprintCheck: check(
+      "plain_water_mutation_fingerprint_check",
+      sql`length(${table.fingerprint}) = 64`,
+    ),
+    waterMutationClientIdCheck: check(
+      "plain_water_mutation_client_id_check",
+      sql`length(${table.clientMutationId}) between 1 and 64`,
+    ),
+    waterMutationEntryFk: foreignKey({
+      columns: [table.organizationId, table.entryId],
+      foreignColumns: [plainWaterEntry.organizationId, plainWaterEntry.id],
+      name: "plain_water_mutation_org_entry_fk",
+    }).onDelete("restrict"),
+    waterMutationMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "plain_water_mutation_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);

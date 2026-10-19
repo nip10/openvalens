@@ -25,7 +25,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     await seedAccount(db, "b", 5);
     await db.execute(
       sql.raw(`
-      insert into "user" (id, email) values ('user-a2', 'a2@example.test');
+      insert into "user" (id, email) values ('user-a2', 'water-collaborator@example.test');
       insert into member (id, organization_id, user_id, role) values ('m-a2', 'org-a', 'user-a2', 'collaborator');
       insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
         values ('org-a', 'user-a', 1, true, array['eating_disorder']),
@@ -35,7 +35,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
         values ('org-a', 'user-a', 'maintenance', 'pending', 2401, 2400, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"owner_canary": 2401}', now() + interval '1 day'),
                ('org-a', 'user-a2', 'maintenance', 'pending', 2101, 2100, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"collaborator_canary": 2101}', now() + interval '1 day');
-    `),
+      `),
     );
 
     // Admission grants (#63): A is a recipient (by target user and by pending
@@ -49,6 +49,20 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
         ('grant-a-email', 'invitation', 'a@example.test', null, 'user-inviter', 'token-hash-a-email', now() + interval '1 day', null, null, now(), now()),
         ('grant-b', 'invitation', 'b@example.test', 'user-b', 'user-inviter', 'token-hash-b', now() + interval '1 day', 'code-hash-b', now() + interval '1 hour', now(), now()),
         ('grant-a-inviter', 'invitation', 'z@example.test', 'user-z', 'user-a', 'token-hash-a-inviter', now() + interval '1 day', null, null, now(), now());
+      `),
+    );
+
+    await db.execute(
+      sql.raw(`
+      insert into plain_water_preference (organization_id, user_id, enabled, personal_goal_ml)
+        values ('org-a', 'user-a', true, 1250), ('org-a', 'user-a2', true, 900);
+      with water as (
+        insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+          values ('org-a', 'user-a', 300, '2026-10-01T08:00:00Z', 'UTC', 'export-water-a') returning id
+      ) insert into plain_water_mutation (organization_id, user_id, client_mutation_id, kind, fingerprint, entry_id, outcome)
+          select 'org-a', 'user-a', 'export-water-receipt', 'add', repeat('b', 64), id, '{"outcome":"applied"}'::jsonb from water;
+      insert into plain_water_entry (organization_id, user_id, quantity_ml, observed_at, time_zone, client_mutation_id)
+        values ('org-a', 'user-a2', 600, '2026-10-01T09:00:00Z', 'UTC', 'export-water-a2');
     `),
     );
 
@@ -81,6 +95,9 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(parse("organization").map((r) => r.id)).toEqual(["org-a"]);
     expect(parse("supplement").map((r) => r.name)).toEqual(["Supplement a"]);
     expect(parse("access_request_decision")).toHaveLength(1);
+    expect(parse("plain_water_entry").map((row) => row.user_id)).toEqual(["user-a"]);
+    expect(parse("plain_water_preference").map((row) => row.user_id)).toEqual(["user-a"]);
+    expect(parse("plain_water_mutation").map((row) => row.user_id)).toEqual(["user-a"]);
     for (const file of exported.files) {
       expect(file.content).not.toContain("user-b");
       expect(file.content).not.toContain("org-b");

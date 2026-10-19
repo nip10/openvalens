@@ -17,3 +17,4 @@ export * from "./nutrition-safety";
 export * from "./energy-proposal-policy";
 export * from "./energy-proposals";
 export * from "./targets";
+export * from "./plain-water";

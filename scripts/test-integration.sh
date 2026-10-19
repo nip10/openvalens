@@ -40,6 +40,8 @@ SUITES=(
   "NUTRITION_ENERGY_TEST_DATABASE_URL|nutrition_energy_test|packages/api/src/routers/nutrition-energy.integration.test.ts"
   "NUTRITION_TARGETS_TEST_DATABASE_URL|nutrition_targets_test|packages/api/src/routers/nutrition-targets.integration.test.ts"
   "NUTRITION_COACH_CONSENT_TEST_DATABASE_URL|nutrition_coach_consent_test|packages/nutrition/src/coach-consent.integration.test.ts"
+  "WATER_TEST_DATABASE_URL|water_test|packages/nutrition/src/plain-water.integration.test.ts"
+  "WATER_ROUTER_TEST_DATABASE_URL|water_router_test|packages/api/src/routers/plain-water.integration.test.ts"
   "NUTRITION_COACH_TEST_DATABASE_URL|nutrition_coach_test|packages/api/src/routers/nutrition-coach.integration.test.ts"
   "LABS_TEST_DATABASE_URL|labs_test|packages/labs/src/queries.integration.test.ts"
   "AI_TOOLS_TEST_DATABASE_URL|ai_tools_test|packages/ai/src/tools/health-tools.integration.test.ts"

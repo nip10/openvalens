@@ -1,6 +1,6 @@
 import { sql, type Database } from "@openvalens/db";
 
-import { inList, rowFilter, type DataRightsSubject } from "./export";
+import { deletionRowFilter, type DataRightsSubject } from "./export";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
 
 /**
@@ -60,14 +60,8 @@ export async function previewSubjectData(
   const counts: Record<string, number> = {};
   for (const [table, entry] of Object.entries(DATA_RIGHTS_REGISTRY)) {
     if (!isExported(entry)) continue;
-    const filter =
-      table === "nutrition_goal" ||
-      table === "nutrition_energy_proposal" ||
-      table === "nutrition_target_settings"
-        ? sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`
-        : rowFilter(table, subject);
     const result = await db.execute(
-      sql`select count(*)::int as n from ${sql.identifier(table)} where ${filter}`,
+      sql`select count(*)::int as n from ${sql.identifier(table)} where ${deletionRowFilter(table, subject)}`,
     );
     const n = Number((result.rows[0] as { n: number }).n);
     if (n > 0) counts[table] = n;

@@ -3,7 +3,7 @@ import * as schema from "@openvalens/db/schema/index";
 import type { SQL } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 
-import { inList, rowFilter, type DataRightsSubject } from "./export";
+import { deletionRowFilter, inList, rowFilter, type DataRightsSubject } from "./export";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
 
 /**
@@ -122,23 +122,8 @@ export async function deleteSubjectData(
 
     for (const table of order) {
       if (table === "member") {
-        // The organization is being erased, so remove every member's settings
-        // before memberships disappear. Exports remain filtered by user_id.
-        record(
-          "nutrition_target_settings",
-          await deleteCount(tx, "nutrition_target_settings", inList("organization_id", orgIds)),
-        );
-        // Goals and proposals also have restrictive member FKs. Erase every
-        // member's values in organizations being removed before deleting any
-        // memberships; proposal -> accepted-goal uses ON DELETE SET NULL.
-        record(
-          "nutrition_energy_proposal",
-          await deleteCount(tx, "nutrition_energy_proposal", inList("organization_id", orgIds)),
-        );
-        record(
-          "nutrition_goal",
-          await deleteCount(tx, "nutrition_goal", inList("organization_id", orgIds)),
-        );
+        // Member-private nutrition/water rows have already been removed using
+        // deletionRowFilter, before restrictive membership FKs are deleted.
       }
       if (table === "supplement") {
         record(
@@ -153,11 +138,7 @@ export async function deleteSubjectData(
         );
         continue;
       }
-      const filter =
-        table === "nutrition_goal" || table === "nutrition_energy_proposal"
-          ? sql`user_id = ${subject.userId}`
-          : rowFilter(table, subject);
-      record(table, await deleteCount(tx, table, filter));
+      record(table, await deleteCount(tx, table, deletionRowFilter(table, subject)));
     }
 
     record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));
