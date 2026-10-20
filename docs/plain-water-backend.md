@@ -44,3 +44,9 @@ container), plus the subject's own water rows in memberships that remain. The
 organization foreign keys cascade for container deletion; the composite member
 integrity constraints remain restrictive. Subject erasure explicitly deletes
 water entries, preferences, and replay receipts before membership rows.
+
+## Native outbox integration
+
+`usePlainWaterOutbox()` is exported from `apps/native/lib/plain-water/sync.ts`. It returns `{ scope, items, busy, error, enqueue, retry, discard, syncNow }`. Enqueue takes `{ kind: "add" | "change" | "delete", input }` with the corresponding `plainWater` strict API input; callers must retain a mutation ID for a logical operation. It returns a persisted item or `null`; `null` plus `error: "STORAGE"` means persistence failed and no queued success should be shown. Items expose a stable ID, status, original payload, attempts, error code, and server conflict entry. Conflicts stay held; retry only restarts non-conflict failures, while discard is explicit. Current session scope is revalidated before each transport; confirmed application/replay invalidates `orpc.plainWater`. Day reads should be queried by date and timezone and invalidated after edits. For offline display privacy, use the existing scoped `nutrition-display-preference` cache (`readCache` with the outbox scope), not a water-owned setting; if neither a successful current read nor that cache establishes visibility, render quantities hidden. Server projection remains authoritative.
+
+Water rows are stored in the scoped SQLite `plain_water_outbox` table, separate from the meal-diary `nutrition_outbox`. The two outboxes never list, drain or clear each other's rows; meal "clear diary data" therefore preserves pending water changes. Existing offline storage protections and retention behavior apply; this adds no separate encryption claim.

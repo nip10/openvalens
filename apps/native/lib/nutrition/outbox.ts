@@ -231,6 +231,10 @@ async function send(sender: DiarySender, op: DiaryOp): Promise<EntryOutcome | nu
     case "copyDay":
       await sender.copyDay(op.input);
       return null;
+    default:
+      // A row from another lane or a corrupt queue must never be acknowledged
+      // as if a meal operation had succeeded.
+      throw Object.assign(new Error("Unknown diary operation"), { code: "INVALID_INPUT" });
   }
 }
 

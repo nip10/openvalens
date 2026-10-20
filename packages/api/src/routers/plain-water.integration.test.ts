@@ -66,23 +66,32 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
         if (statement.trim()) await db.execute(sql.raw(statement));
     }
   }
-  async function call(path: string, input: unknown, user = "user-a", impersonated?: string) {
+  async function call(
+    path: string,
+    input: unknown,
+    user = "user-a",
+    impersonated?: string,
+    requestDb: Database = db,
+  ) {
     const headers = new Headers({ "content-type": "application/json", "x-test-user": user });
     if (impersonated) headers.set("x-test-impersonated", impersonated);
-    const request = new Request(`http://test.local/rpc/plainWater/${path}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ json: input }),
-    });
+    const request = new Request(
+      `http://test.local/rpc/${path.includes("/") ? path : `plainWater/${path}`}`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ json: input }),
+      },
+    );
     const { matched, response } = await rpc.handle(request, {
       prefix: "/rpc",
-      context: contextFor(headers),
+      context: contextFor(headers, requestDb),
     });
     if (!matched || !response) throw new Error("unmatched plainWater RPC path");
     const body = (await response.json()) as { json?: unknown; message?: string };
     return { status: response.status, body: body.json ?? body };
   }
-  function contextFor(headers: Headers): Context {
+  function contextFor(headers: Headers, requestDb: Database = db): Context {
     const id = actor(headers);
     const m = members[id];
     return {
@@ -98,7 +107,7 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
             },
           }
         : null,
-      db,
+      db: requestDb,
       correlationId: "corr-water",
       cronSecret: "synthetic-cron-secret-long-enough",
       betterAuthSecretConfigured: true,
@@ -143,6 +152,9 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
       body: { enabled: false, personalGoalMl: null },
     });
     expect(
+      await call("nutritionTargets/updateSettings", { expectedRevision: 0, hideNumbers: false }),
+    ).toMatchObject({ status: 200 });
+    expect(
       await call("updatePreferences", {
         personalGoal: 1500,
         personalGoalUnit: "ml",
@@ -150,6 +162,16 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
       }),
     ).toMatchObject({ status: 200 });
     expect(await call("updatePreferences", { personalGoal: null })).toMatchObject({ status: 200 });
+    expect(
+      await call("updatePreferences", { personalGoal: 1200, personalGoalUnit: "ml" }),
+    ).toMatchObject({
+      status: 200,
+      body: { personalGoalMl: 1200 },
+    });
+    expect(await call("getPreferences", {})).toMatchObject({
+      status: 200,
+      body: { personalGoalMl: 1200 },
+    });
     const add = await call("add", {
       quantity: 999,
       unit: "ml",
@@ -158,17 +180,16 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
       clientMutationId: "add-1",
     });
     expect(add.status).toBe(200);
-    expect(JSON.stringify(add.body)).not.toContain("999");
-    expect(JSON.stringify(add.body)).not.toContain('quantityMl":999');
+    expect(add.body).toMatchObject({ entry: { quantityMl: 999 } });
     const id = (add.body as { entry: { id: number } }).entry.id;
     const day = await call("getDay", { date: "2026-03-29", timeZone: "Europe/Lisbon" });
     expect(day.body).toMatchObject({
       label: "Plain water subtotal",
       enabled: true,
-      quantityMl: null,
-      personalGoalMl: null,
+      quantityMl: 999,
+      personalGoalMl: 1200,
     });
-    expect(JSON.stringify(day.body)).not.toContain("999");
+    expect(JSON.stringify(day.body)).toContain("999");
     expect(
       (
         await call("add", {
@@ -192,7 +213,7 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
           })
         ).body,
       ),
-    ).not.toContain("999");
+    ).toContain("999");
     expect(
       (
         await call("add", {
@@ -230,11 +251,11 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
     };
     expect((await call("change", editInput)).body).toMatchObject({
       outcome: "applied",
-      entry: { quantityMl: null },
+      entry: { quantityMl: 500 },
     });
     expect((await call("change", editInput)).body).toMatchObject({
       outcome: "replayed",
-      entry: { quantityMl: null },
+      entry: { quantityMl: 500 },
     });
     const staleEdit = {
       ...editInput,
@@ -243,20 +264,19 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
       quantity: 400,
     };
     const conflict = await call("change", staleEdit);
-    expect(conflict.body).toMatchObject({ outcome: "conflict", entry: { quantityMl: null } });
-    expect(JSON.stringify(conflict.body)).not.toContain("500");
+    expect(conflict.body).toMatchObject({ outcome: "conflict", entry: { quantityMl: 500 } });
     expect(await call("change", staleEdit)).toMatchObject({
       status: 200,
-      body: { outcome: "conflict", entry: { revision: 2, quantityMl: null } },
+      body: { outcome: "conflict", entry: { revision: 2, quantityMl: 500 } },
     });
     const deleted = { id, expectedRevision: 2, clientMutationId: "delete-1" };
     expect((await call("delete", deleted)).body).toMatchObject({
       outcome: "applied",
-      entry: { deleted: true, quantityMl: null },
+      entry: { deleted: true, quantityMl: 500 },
     });
     expect((await call("delete", deleted)).body).toMatchObject({
       outcome: "replayed",
-      entry: { quantityMl: null },
+      entry: { quantityMl: 500 },
     });
     const staleDeleteCreated = await call("add", {
       quantity: 321,
@@ -280,14 +300,176 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
     };
     expect(await call("delete", staleDelete)).toMatchObject({
       status: 200,
-      body: { outcome: "conflict", entry: { revision: 2, quantityMl: null } },
+      body: { outcome: "conflict", entry: { revision: 2, quantityMl: 222 } },
     });
     const staleDeleteRetry = await call("delete", staleDelete);
     expect(staleDeleteRetry.body).toMatchObject({
       outcome: "conflict",
-      entry: { revision: 2, quantityMl: null },
+      entry: { revision: 2, quantityMl: 222 },
     });
-    expect(JSON.stringify(staleDeleteRetry.body)).not.toContain("222");
+    expect(JSON.stringify(staleDeleteRetry.body)).toContain("222");
+    expect(
+      await call("nutritionTargets/updateSettings", { expectedRevision: 1, hideNumbers: true }),
+    ).toMatchObject({ status: 200 });
+    const hiddenPreferences = await call("getPreferences", {});
+    expect(hiddenPreferences).toMatchObject({ body: { personalGoalMl: null } });
+    expect(JSON.stringify(hiddenPreferences.body)).not.toContain("1200");
+    const hiddenGoalUpdate = await call("updatePreferences", {
+      personalGoal: 1400,
+      personalGoalUnit: "ml",
+    });
+    expect(hiddenGoalUpdate).toMatchObject({ status: 200, body: { personalGoalMl: null } });
+    expect(JSON.stringify(hiddenGoalUpdate.body)).not.toContain("1400");
+    const hiddenDay = await call("getDay", { date: "2026-03-29", timeZone: "Europe/Lisbon" });
+    expect(hiddenDay.body).toMatchObject({ quantityMl: null, personalGoalMl: null });
+    expect(
+      (hiddenDay.body as { entries: { quantityMl: number | null }[] }).entries.length,
+    ).toBeGreaterThan(0);
+    expect(
+      (hiddenDay.body as { entries: { quantityMl: number | null }[] }).entries.every(
+        (entry) => entry.quantityMl === null,
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(hiddenDay.body)).not.toContain("999");
+    expect(JSON.stringify(hiddenDay.body)).not.toContain("1400");
+    expect(
+      await call("add", {
+        quantity: 999,
+        unit: "ml",
+        observedAt: "2026-03-29T01:00:00Z",
+        timeZone: "Europe/Lisbon",
+        clientMutationId: "add-1",
+      }),
+    ).toMatchObject({ body: { outcome: "replayed", entry: { quantityMl: null } } });
+    expect(await call("change", editInput)).toMatchObject({
+      body: { outcome: "replayed", entry: { quantityMl: null } },
+    });
+    expect(await call("change", staleEdit)).toMatchObject({
+      body: { outcome: "conflict", entry: { quantityMl: null } },
+    });
+    expect(await call("delete", deleted)).toMatchObject({
+      body: { outcome: "replayed", entry: { quantityMl: null } },
+    });
+    const hiddenAdd = await call("add", {
+      quantity: 7319,
+      unit: "ml",
+      observedAt: "2026-11-01T05:30:00Z",
+      timeZone: "America/New_York",
+      clientMutationId: "hidden-applied-add",
+    });
+    expect(hiddenAdd.body).toMatchObject({ outcome: "applied", entry: { quantityMl: null } });
+    expect(JSON.stringify(hiddenAdd.body)).not.toContain("7319");
+    const hiddenId = (hiddenAdd.body as { entry: { id: number } }).entry.id;
+    const hiddenChange = {
+      id: hiddenId,
+      expectedRevision: 1,
+      clientMutationId: "hidden-applied-change",
+      quantity: 6721,
+      unit: "ml",
+    };
+    const hiddenChangeApplied = await call("change", hiddenChange);
+    expect(hiddenChangeApplied).toMatchObject({
+      body: { outcome: "applied", entry: { quantityMl: null } },
+    });
+    expect(JSON.stringify(hiddenChangeApplied.body)).not.toContain("6721");
+    const hiddenChangeReplay = await call("change", hiddenChange);
+    expect(hiddenChangeReplay).toMatchObject({
+      body: { outcome: "replayed", entry: { quantityMl: null } },
+    });
+    expect(JSON.stringify(hiddenChangeReplay.body)).not.toContain("6721");
+    const hiddenConflict = {
+      ...hiddenChange,
+      expectedRevision: 1,
+      clientMutationId: "hidden-conflict",
+      quantity: 5137,
+    };
+    const hiddenConflictApplied = await call("change", hiddenConflict);
+    expect(hiddenConflictApplied).toMatchObject({
+      body: { outcome: "conflict", entry: { quantityMl: null } },
+    });
+    expect(JSON.stringify(hiddenConflictApplied.body)).not.toContain("6721");
+    const hiddenConflictReplay = await call("change", hiddenConflict);
+    expect(hiddenConflictReplay).toMatchObject({
+      body: { outcome: "conflict", entry: { quantityMl: null } },
+    });
+    expect(JSON.stringify(hiddenConflictReplay.body)).not.toContain("6721");
+    const hiddenDelete = {
+      id: hiddenId,
+      expectedRevision: 2,
+      clientMutationId: "hidden-applied-delete",
+    };
+    const hiddenDeleteApplied = await call("delete", hiddenDelete);
+    expect(hiddenDeleteApplied).toMatchObject({
+      body: { outcome: "applied", entry: { deleted: true, quantityMl: null } },
+    });
+    expect(JSON.stringify(hiddenDeleteApplied.body)).not.toContain("6721");
+    const hiddenDeleteReplay = await call("delete", hiddenDelete);
+    expect(hiddenDeleteReplay).toMatchObject({
+      body: { outcome: "replayed", entry: { deleted: true, quantityMl: null } },
+    });
+    expect(JSON.stringify(hiddenDeleteReplay.body)).not.toContain("6721");
+    const hiddenThenVisibleAdd = {
+      quantity: 2468,
+      unit: "ml",
+      observedAt: "2026-11-02T12:00:00Z",
+      timeZone: "UTC",
+      clientMutationId: "hidden-then-visible-add",
+    };
+    expect(await call("add", hiddenThenVisibleAdd)).toMatchObject({
+      body: { outcome: "applied", entry: { quantityMl: null } },
+    });
+    expect(
+      await call("nutritionTargets/updateSettings", { expectedRevision: 2, hideNumbers: false }),
+    ).toMatchObject({ status: 200 });
+    expect(await call("getPreferences", {})).toMatchObject({ body: { personalGoalMl: 1400 } });
+    // A replay is projected with the setting in effect now, not the one at apply time.
+    expect(await call("add", hiddenThenVisibleAdd)).toMatchObject({
+      body: { outcome: "replayed", entry: { quantityMl: 2468 } },
+    });
+    const disabledSetup = await call("add", {
+      quantity: 91,
+      unit: "ml",
+      observedAt: "2026-11-01T05:30:00Z",
+      timeZone: "America/New_York",
+      clientMutationId: "disabled-delete-setup",
+    });
+    expect(disabledSetup).toMatchObject({ status: 200, body: { entry: { quantityMl: 91 } } });
+    const visibleDay = await call("getDay", {
+      date: "2026-11-01",
+      timeZone: "America/New_York",
+    });
+    expect(visibleDay.body).toMatchObject({ quantityMl: 91, personalGoalMl: 1400 });
+    expect(JSON.stringify(visibleDay.body)).toContain("91");
+    const disabledEntryId = (disabledSetup.body as { entry: { id: number } }).entry.id;
+    const visibleChange = {
+      id: disabledEntryId,
+      expectedRevision: 1,
+      clientMutationId: "visible-change",
+      quantity: 92,
+      unit: "ml",
+    };
+    expect(await call("change", visibleChange)).toMatchObject({
+      status: 200,
+      body: { outcome: "applied", entry: { quantityMl: 92 } },
+    });
+    expect(await call("change", visibleChange)).toMatchObject({
+      status: 200,
+      body: { outcome: "replayed", entry: { quantityMl: 92 } },
+    });
+    expect(await call("updatePreferences", { enabled: false })).toMatchObject({ status: 200 });
+    expect(await call("updatePreferences", { personalGoal: null })).toMatchObject({
+      body: { personalGoalMl: null },
+    });
+    expect(
+      await call("delete", {
+        id: disabledEntryId,
+        expectedRevision: 2,
+        clientMutationId: "delete-while-disabled",
+      }),
+    ).toMatchObject({
+      status: 200,
+      body: { outcome: "applied", entry: { deleted: true, quantityMl: 92 } },
+    });
     expect(
       (
         await call("delete", {
@@ -312,10 +494,41 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
   });
 
   test("self, membership, role, tenant and impersonation boundaries apply to reads and writes", async () => {
+    await call("updatePreferences", { enabled: true });
+    const privateAdd = await call("add", {
+      quantity: 4567,
+      unit: "ml",
+      observedAt: "2026-03-29T01:00:00Z",
+      timeZone: "UTC",
+      clientMutationId: "private-seed",
+    });
+    const privateId = (privateAdd.body as { entry: { id: number } }).entry.id;
     expect(
       (await call("getDay", { date: "2026-03-29", timeZone: "UTC", userId: "user-a" })).status,
     ).not.toBe(200);
+    expect(
+      (await call("getDay", { date: "2026-03-29", timeZone: "UTC" }, "ghost")).status,
+    ).not.toBe(200);
+    expect((await call("getPreferences", {}, "ghost")).status).not.toBe(200);
     expect((await call("getPreferences", {}, "user-b", "user-a")).status).not.toBe(200);
+    expect(
+      (await call("getDay", { date: "2026-03-29", timeZone: "UTC" }, "user-b", "user-a")).status,
+    ).not.toBe(200);
+    let handlerDbCalls = 0;
+    const countedDb = new Proxy(db, {
+      get(target, property, receiver) {
+        if (["select", "insert", "update", "delete"].includes(String(property))) {
+          return (...args: unknown[]) => {
+            handlerDbCalls++;
+            const method = Reflect.get(target, property, target) as (
+              ...values: unknown[]
+            ) => unknown;
+            return method.apply(target, args);
+          };
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    }) as Database;
     expect(
       (
         await call(
@@ -329,9 +542,11 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
           },
           "user-a",
           "user-c",
+          countedDb,
         )
       ).status,
     ).not.toBe(200);
+    expect(handlerDbCalls).toBe(0);
     deniedRecords.add("user-b");
     expect(
       (await call("getDay", { date: "2026-03-29", timeZone: "UTC" }, "user-b")).status,
@@ -346,6 +561,40 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
     expect(
       (await call("getDay", { date: "2026-03-29", timeZone: "UTC" }, "user-d")).body,
     ).toMatchObject({ entries: [] });
+    const crossTenantEdit = await call(
+      "change",
+      {
+        id: privateId,
+        expectedRevision: 1,
+        clientMutationId: "wrong-org",
+        quantity: 9999,
+        unit: "ml",
+      },
+      "user-d",
+    );
+    expect(crossTenantEdit.status).not.toBe(200);
+    expect(JSON.stringify(crossTenantEdit.body)).not.toContain("4567");
+    const crossTenantAdd = await call(
+      "add",
+      {
+        quantity: 8888,
+        unit: "ml",
+        observedAt: "2026-03-29T01:00:00Z",
+        timeZone: "UTC",
+        clientMutationId: "wrong-org-add",
+      },
+      "user-d",
+    );
+    expect(crossTenantAdd.status).not.toBe(200);
+    expect(JSON.stringify(crossTenantAdd.body)).not.toContain("8888");
+    const afterDeniedCalls = await db.execute(
+      sql`select quantity_ml from plain_water_entry where organization_id = 'org-a' and user_id = 'user-a' and id = ${privateId}`,
+    );
+    expect(afterDeniedCalls.rows).toEqual([{ quantity_ml: 4567 }]);
+    const deniedReceipts = await db.execute(
+      sql`select client_mutation_id from plain_water_mutation where (user_id = 'user-a' and client_mutation_id = 'imp') or (user_id = 'user-d' and client_mutation_id in ('wrong-org', 'wrong-org-add'))`,
+    );
+    expect(deniedReceipts.rows).toEqual([]);
   });
 
   test("strict bounded inputs reject malformed units, dates, goals and no-op changes", async () => {
