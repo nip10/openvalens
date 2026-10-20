@@ -35,6 +35,42 @@ const op: WaterOperation = {
   },
 };
 describe("plain-water outbox", () => {
+  test("refuses malformed attempt history without retry arithmetic or transport", async () => {
+    const store = memory();
+    const queued = enqueue(store, "user-a:org-a", op, 1);
+    const malformed = {
+      ...queued,
+      status: "needs_attention" as const,
+      attempts: -1,
+      lastErrorCode: "FORBIDDEN",
+    };
+    store.put(malformed);
+    retry(store, "user-a:org-a", queued.id);
+    expect(store.list("user-a:org-a")[0]).toEqual(malformed);
+    let sends = 0;
+    await expect(
+      drain(
+        store,
+        {
+          async add() {
+            sends++;
+            throw Object.assign(new Error("denied"), { code: "FORBIDDEN" });
+          },
+          async change() {
+            throw new Error("unexpected");
+          },
+          async delete() {
+            throw new Error("unexpected");
+          },
+        },
+        "user-a:org-a",
+      ),
+    ).rejects.toThrow("Invalid plain-water attempt history");
+    expect(sends).toBe(0);
+    expect(store.list("user-a:org-a")[0]).toEqual(malformed);
+    expect(discard(store, "user-a:org-a", queued.id)).toBe(false);
+  });
+
   test("keeps IDs and payload stable across a lost acknowledgement; scopes independently", async () => {
     const store = memory();
     const a = enqueue(store, "user-a:org-a", op, 1);

@@ -7,6 +7,10 @@ const DEFINITELY_REJECTED_CODES = new Set([
   "PRECONDITION_FAILED",
 ]);
 
+export function isValidWaterAttemptHistory(attempts: unknown): attempts is number {
+  return Number.isSafeInteger(attempts) && (attempts as number) >= 0;
+}
+
 export function hasValidWaterConflictReceipt(
   conflict: unknown,
   marker: unknown,
@@ -26,6 +30,21 @@ export function hasValidWaterConflictReceipt(
         receipt.quantityMl < 10_000_000)) &&
     typeof receipt.deleted === "boolean" &&
     (operationTargetId === undefined || receipt.id === operationTargetId)
+  );
+}
+
+/** Shared proof that an operation has never crossed the transport boundary. */
+export function isProvenUnsentWaterOperation(item: {
+  status?: unknown;
+  attempts?: unknown;
+  lastErrorCode?: unknown;
+  conflict?: unknown;
+}): boolean {
+  return (
+    item.status === "queued" &&
+    item.attempts === 0 &&
+    item.lastErrorCode === null &&
+    item.conflict === null
   );
 }
 

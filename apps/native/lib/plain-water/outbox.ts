@@ -4,7 +4,11 @@ import type {
   plainWaterDeleteInput,
 } from "@openvalens/api/contracts/plain-water";
 import type { z } from "zod";
-import { hasAuthoritativeWaterNonApplication } from "@openvalens/api/presenters/water-proof";
+import {
+  hasAuthoritativeWaterNonApplication,
+  isValidWaterAttemptHistory,
+  isProvenUnsentWaterOperation,
+} from "@openvalens/api/presenters/water-proof";
 
 export type WaterAdd = z.input<typeof plainWaterAddInput>;
 export type WaterChange = z.input<typeof plainWaterChangeInput>;
@@ -43,13 +47,7 @@ export type WaterSender = {
 export const mutationIdOf = (op: WaterOperation) => op.input.clientMutationId;
 /** Fail closed: only locally proven-unsent writes or authoritative non-application can be discarded. */
 export function canDiscardWaterItem(item: WaterItem): boolean {
-  if (
-    item.status === "queued" &&
-    item.attempts === 0 &&
-    item.lastErrorCode === null &&
-    item.conflict === null
-  )
-    return true;
+  if (isProvenUnsentWaterOperation(item)) return true;
   if (item.status !== "needs_attention") return false;
   return hasAuthoritativeWaterNonApplication({
     conflict: item.conflict,
@@ -129,7 +127,15 @@ async function drainScope(
   isCurrentScope: () => boolean | Promise<boolean>,
 ) {
   let sent = 0;
-  for (const item of store.list(scope))
+  const initialItems = store.list(scope);
+  if (
+    initialItems.some(
+      (item) =>
+        !isValidWaterAttemptHistory(item.attempts) || item.attempts === Number.MAX_SAFE_INTEGER,
+    )
+  )
+    throw new Error("Invalid plain-water attempt history");
+  for (const item of initialItems)
     if (item.status === "syncing")
       // A crash can occur after transport began but before attempt metadata was persisted.
       store.put({ ...item, status: "queued", attempts: Math.max(1, item.attempts) });
@@ -178,7 +184,8 @@ async function drainScope(
 }
 export function retry(store: WaterStore, scope: string, id: string): void {
   const item = store.list(scope).find((x) => x.id === id);
-  if (item && !item.conflict) store.put({ ...item, status: "queued", lastErrorCode: null });
+  if (item && isValidWaterAttemptHistory(item.attempts) && !item.conflict)
+    store.put({ ...item, status: "queued", lastErrorCode: null });
 }
 export function discard(store: WaterStore, scope: string, id: string): boolean {
   const item = store.list(scope).find((x) => x.id === id && x.scope === scope);

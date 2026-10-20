@@ -54,6 +54,7 @@ function item(overrides: Partial<WaterQueueItem>): WaterQueueItem {
   return {
     id: "op-1",
     seq: 1,
+    attempts: 0,
     status: "queued",
     lastErrorCode: null,
     conflict: null,
@@ -389,7 +390,11 @@ describe("hide numbers", () => {
     expect(unsent.rows[0]?.local).toBe(true);
     expect(unsent.subtotalMl).toBe(300);
 
-    const unknown = buildWaterDayView(day({ entries: [], quantityMl: 0 }), [item({})], false);
+    const unknown = buildWaterDayView(
+      day({ entries: [], quantityMl: 0 }),
+      [item({ attempts: undefined })],
+      false,
+    );
     expect(unknown.rows).toHaveLength(0);
     expect(unknown.pendingCount).toBe(1);
     expect(unknown.subtotalMl).toBeNull();

@@ -16,7 +16,11 @@
  * this module fails closed when told `hideNumbers: true`.
  */
 import { HIDDEN_VALUE } from "./nutrition-targets";
-import { hasAuthoritativeWaterNonApplication, hasValidWaterConflictReceipt } from "./water-proof";
+import {
+  hasAuthoritativeWaterNonApplication,
+  hasValidWaterConflictReceipt,
+  isProvenUnsentWaterOperation,
+} from "./water-proof";
 
 export type WaterUnit = "ml" | "l" | "fl_oz";
 
@@ -532,7 +536,10 @@ function hasAuthoritativeNonApplication(item: WaterQueueItem): boolean {
 }
 
 function needsReconciliation(item: WaterQueueItem): boolean {
-  return item.status === "needs_attention" && !hasAuthoritativeNonApplication(item);
+  return (
+    (item.status === "needs_attention" && !hasAuthoritativeNonApplication(item)) ||
+    (item.status === "queued" && !isProvenUnsentWaterOperation(item))
+  );
 }
 
 /**
@@ -557,8 +564,7 @@ export function buildWaterDayView(
       if (item.status === "needs_attention") {
         if (needsReconciliation(item)) reconciliationUnknown = true;
       } else if (item.status === "queued" || item.status === "syncing") {
-        if (item.status === "queued" && item.attempts === 0 && item.lastErrorCode === null)
-          localAdds.push(item);
+        if (isProvenUnsentWaterOperation(item)) localAdds.push(item);
         else reconciliationUnknown = true;
       }
     }

@@ -126,9 +126,11 @@ receipt identity/payload and the expected conflict marker/target must agree, or
 the record must be an authoritative first-attempt known rejection. Missing,
 malformed, or contradictory proof remains uncertain and cannot authorize
 discard. A corrupt/unreadable queue is represented as a storage error rather
-than an empty queue; the existing screen withholds queue/day/settings actions
-until storage can be read again, and can recover after the persisted row is
-repaired.
+than an empty queue. A parseable but structurally invalid persisted row is
+quarantined from projection while its raw stored row is preserved; the adapter
+does not silently drop it, rewrite it, or send it over the network. The existing
+screen withholds queue/day/settings actions until storage can be read again,
+and can recover after the raw row is repaired.
 Delete is an inline two-step confirmation with no undo, because there is no
 restore endpoint.
 
