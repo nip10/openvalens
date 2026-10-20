@@ -368,14 +368,64 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       "observation.meals_near_sleep",
       "observation.meals_and_workouts",
     ]);
+    // With no nutrition_target_settings row the #80 default is hide_numbers
+    // false, so the numeric evidence is present.
     expect(
-      enabled.body.observations.every(
-        (entry) => entry.matchingEvents === null && entry.minimumMatchingEvents === null,
+      enabled.body.observations.map((entry) => ({
+        matchingEvents: entry.matchingEvents,
+        minimumMatchingEvents: entry.minimumMatchingEvents,
+      })),
+    ).toEqual([
+      { matchingEvents: 3, minimumMatchingEvents: 3 },
+      { matchingEvents: 3, minimumMatchingEvents: 3 },
+    ]);
+    expect(
+      enabled.body.observations.every((entry) =>
+        entry.completeness.includes("3 complete matching events in the 28-day window"),
       ),
     ).toBe(true);
     expect(enabled.body.observations.every((entry) => entry.body.includes("records only"))).toBe(
       true,
     );
+
+    // This member's persisted hide-numbers setting withholds the numbers only.
+    await db.execute(
+      sql`insert into nutrition_target_settings (organization_id, user_id, hide_numbers) values ('org-a', 'user-a', true)`,
+    );
+    // Another tenant's setting is stored but must not affect this member.
+    await db.execute(
+      sql`insert into nutrition_target_settings (organization_id, user_id, hide_numbers) values ('org-b', 'user-b', true)`,
+    );
+    const withheld = await call<InsightsResult>("insights/list", {});
+    expect(withheld.body.observations.map((entry) => entry.ruleId)).toEqual([
+      "observation.meals_near_sleep",
+      "observation.meals_and_workouts",
+    ]);
+    expect(
+      withheld.body.observations.every(
+        (entry) => entry.matchingEvents === null && entry.minimumMatchingEvents === null,
+      ),
+    ).toBe(true);
+    expect(
+      withheld.body.observations.every(
+        (entry) => entry.completeness === "Sufficient complete matching records were available.",
+      ),
+    ).toBe(true);
+
+    // Turning hide-numbers off again restores the numeric evidence.
+    await db.execute(
+      sql`update nutrition_target_settings set hide_numbers = false where organization_id = 'org-a' and user_id = 'user-a'`,
+    );
+    const revealed = await call<InsightsResult>("insights/list", {});
+    expect(
+      revealed.body.observations.map((entry) => ({
+        matchingEvents: entry.matchingEvents,
+        minimumMatchingEvents: entry.minimumMatchingEvents,
+      })),
+    ).toEqual([
+      { matchingEvents: 3, minimumMatchingEvents: 3 },
+      { matchingEvents: 3, minimumMatchingEvents: 3 },
+    ]);
 
     const deniedWorkout = await call<InsightsResult>("insights/list", {}, "user-a", {
       "x-test-deny-workout": "true",
