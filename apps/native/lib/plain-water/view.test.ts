@@ -116,7 +116,10 @@ describe("conflict resolution", () => {
           calls.push(`enqueue:${op.kind}:${op.input.clientMutationId}`);
           return { id: "fresh" };
         },
-        discard: (id) => calls.push(`discard:${id}`),
+        discard: (id) => {
+          calls.push(`discard:${id}`);
+          return true;
+        },
       },
       conflicted,
       "fresh",
@@ -142,7 +145,10 @@ describe("conflict resolution", () => {
           calls.push("enqueue");
           return null;
         },
-        discard: (id) => calls.push(`discard:${id}`),
+        discard: (id) => {
+          calls.push(`discard:${id}`);
+          return true;
+        },
       },
       conflicted,
       "fresh",
@@ -151,9 +157,39 @@ describe("conflict resolution", () => {
     expect(calls).toEqual(["enqueue"]);
   });
 
+  test("does not report conflict resolution when the old item cannot be removed", () => {
+    const calls: string[] = [];
+    const conflicted = item({
+      id: "old",
+      status: "needs_attention",
+      conflict: { id: 12, revision: 9, quantityMl: 250, deleted: false },
+      op: {
+        kind: "change",
+        input: { id: 12, clientMutationId: "old", expectedRevision: 3, quantity: 500, unit: "ml" },
+      },
+    });
+    expect(
+      retryWaterConflict(
+        {
+          enqueue: () => {
+            calls.push("enqueue");
+            return {};
+          },
+          discard: () => {
+            calls.push("discard");
+            return false;
+          },
+        },
+        conflicted,
+        "fresh",
+      ),
+    ).toBe(false);
+    expect(calls).toEqual(["enqueue", "discard"]);
+  });
+
   test("an entry already removed by another device is not re-applied", () => {
     const ok = retryWaterConflict(
-      { enqueue: () => ({}), discard: () => {} },
+      { enqueue: () => ({}), discard: () => true },
       item({
         status: "needs_attention",
         conflict: { id: 12, revision: 9, quantityMl: null, deleted: true },

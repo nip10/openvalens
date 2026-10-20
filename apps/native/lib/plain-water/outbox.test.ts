@@ -121,8 +121,113 @@ describe("plain-water outbox", () => {
       () => false,
     );
     expect(stopped.stopped).toBe("scope_changed");
-    discard(store, "a:o", item.id);
+    expect(discard(store, "a:o", item.id)).toBe(true);
     expect(store.list("a:o")).toHaveLength(0);
+  });
+
+  test("discards only proven non-applied operations and confirms local removal", async () => {
+    const store = memory();
+    const item = enqueue(store, "a:o", op);
+    expect(discard(store, "wrong:o", item.id)).toBe(false);
+    expect(discard(store, "a:o", item.id)).toBe(true);
+    const attempted = { ...item, attempts: 1 };
+    store.put(attempted);
+    expect(discard(store, "a:o", item.id)).toBe(false);
+    store.put({ ...item, status: "syncing" });
+    expect(discard(store, "a:o", item.id)).toBe(false);
+    store.put({ ...item, status: "queued", attempts: 1, lastErrorCode: "NETWORK" });
+    expect(discard(store, "a:o", item.id)).toBe(false);
+    store.put({
+      ...item,
+      status: "needs_attention",
+      attempts: 1,
+      lastErrorCode: "CONFLICT",
+      conflict: { id: 1, revision: 2, quantityMl: 300, deleted: false },
+    });
+    expect(discard(store, "a:o", item.id)).toBe(true);
+    store.put({
+      ...item,
+      status: "needs_attention",
+      attempts: 1,
+      lastErrorCode: "INTERNAL_SERVER_ERROR",
+    });
+    expect(discard(store, "a:o", item.id)).toBe(false);
+
+    store.put(item);
+    const noOpRemoval: WaterStore = { ...store, remove: () => {} };
+    expect(discard(noOpRemoval, "a:o", item.id)).toBe(false);
+    const failingRemoval: WaterStore = {
+      ...store,
+      remove: () => {
+        throw new Error("storage");
+      },
+    };
+    expect(() => discard(failingRemoval, "a:o", item.id)).toThrow("storage");
+  });
+
+  test("a rejection after a lost acknowledgement cannot discard possible prior application", async () => {
+    const store = memory();
+    const item = enqueue(store, "a:o", op);
+    let calls = 0;
+    const sender = {
+      add: async () => {
+        calls++;
+        if (calls === 1) {
+          // Server committed, but the response was lost.
+          const error = new Error("ack lost") as Error & { code: string };
+          error.code = "NETWORK";
+          throw error;
+        }
+        const error = new Error("permission denied") as Error & { code: string };
+        error.code = "FORBIDDEN";
+        throw error;
+      },
+      change: async () => {
+        throw new Error();
+      },
+      delete: async () => {
+        throw new Error();
+      },
+    };
+    await drain(store, sender, "a:o");
+    expect(store.list("a:o")[0]).toMatchObject({ attempts: 1, status: "queued" });
+    await drain(store, sender, "a:o");
+    expect(store.list("a:o")[0]).toMatchObject({
+      attempts: 2,
+      status: "needs_attention",
+      lastErrorCode: "FORBIDDEN",
+    });
+    expect(discard(store, "a:o", item.id)).toBe(false);
+  });
+
+  test("first authoritative rejection is discardable, but crash recovery then rejection is not", async () => {
+    const store = memory();
+    const first = enqueue(store, "a:o", op);
+    const reject = {
+      add: async () => {
+        const error = new Error() as Error & { code: string };
+        error.code = "FORBIDDEN";
+        throw error;
+      },
+      change: async () => {
+        throw new Error();
+      },
+      delete: async () => {
+        throw new Error();
+      },
+    };
+    await drain(store, reject, "a:o");
+    expect(store.list("a:o")[0]).toMatchObject({ attempts: 1, lastErrorCode: "FORBIDDEN" });
+    expect(discard(store, "a:o", first.id)).toBe(true);
+
+    const recovered = enqueue(store, "a:o", {
+      ...op,
+      input: { ...op.input, clientMutationId: "crashed" },
+    });
+    store.put({ ...recovered, status: "syncing", attempts: 0 });
+    await drain(store, reject, "a:o");
+    expect(store.list("a:o")[0]).toMatchObject({ attempts: 2, lastErrorCode: "FORBIDDEN" });
+    expect(discard(store, "a:o", recovered.id)).toBe(false);
   });
 
   test("checks scope again immediately before transport and serializes drains for a scope", async () => {
@@ -187,5 +292,46 @@ describe("plain-water outbox", () => {
     await first;
     expect(calls).toBe(1);
     expect(store.list("a:o")).toHaveLength(0);
+  });
+
+  test("does not resurrect or send a row discarded during the asynchronous scope check", async () => {
+    const base = memory();
+    const item = enqueue(base, "a:o", op);
+    let release!: () => void;
+    let checks = 0;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const store: WaterStore = {
+      ...base,
+      list: base.list,
+      put: base.put,
+      remove: base.remove,
+      nextSeq: base.nextSeq,
+    };
+    const pending = drain(
+      store,
+      {
+        add: async () => {
+          throw new Error("must not send");
+        },
+        change: async () => {
+          throw new Error();
+        },
+        delete: async () => {
+          throw new Error();
+        },
+      },
+      "a:o",
+      async () => {
+        checks++;
+        if (checks === 2) await gate;
+        return true;
+      },
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    base.remove("a:o", item.id);
+    release();
+    await pending;
+    expect(base.list("a:o")).toHaveLength(0);
   });
 });

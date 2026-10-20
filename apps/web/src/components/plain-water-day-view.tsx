@@ -25,6 +25,7 @@ import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
 import { useId, useState } from "react";
+import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "./plain-water-form";
 
 /**
  * Plain water (Issue #83), shown as its own subtotal between the day's
@@ -108,7 +109,16 @@ function nowClock(timeZone: string): string {
   return formatObservedClock(new Date().toISOString(), timeZone) ?? "12:00";
 }
 
-export function PlainWaterDayView({
+export function PlainWaterDayView(props: PlainWaterDayViewProps) {
+  return (
+    <PlainWaterDayViewState
+      key={props.hideNumbers ? "numbers-hidden" : "numbers-visible"}
+      {...props}
+    />
+  );
+}
+
+function PlainWaterDayViewState({
   view,
   load,
   enabled,
@@ -139,6 +149,7 @@ export function PlainWaterDayView({
     entryId: number;
     revision: number;
     amount: string;
+    amountDirty: boolean;
     unit: WaterUnit;
     clock: string;
     originalClock: string;
@@ -173,14 +184,11 @@ export function PlainWaterDayView({
 
   const submitEdit = async () => {
     if (!editing) return;
-    const quantityText = editing.amount.trim();
     const timeChanged = editing.clock !== editing.originalClock;
-    let patch: { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string } = {};
-    if (quantityText) {
-      const parsed = parseWaterAmount(editing.amount, editing.unit);
-      if (!parsed.ok) return setEditError(parsed.error);
-      patch = { quantity: parsed.quantity, unit: parsed.unit };
-    }
+    const amountPatch = waterEditAmountPatch(editing);
+    if (!amountPatch.ok) return setEditError(amountPatch.error);
+    let patch: { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string } =
+      amountPatch.patch;
     if (timeChanged) {
       const instant = waterDateInstant(localDate, editing.clock, timeZone);
       if (!instant.ok)
@@ -226,7 +234,7 @@ export function PlainWaterDayView({
 
         {load === "error" ? (
           <p className="text-sm text-muted-foreground" role="alert">
-            {WATER_COPY.networkError}{" "}
+            {WATER_COPY.readError}{" "}
             <button type="button" className="underline" onClick={onRetry}>
               {WATER_COPY.retry}
             </button>
@@ -235,7 +243,7 @@ export function PlainWaterDayView({
 
         {load === "ready" && enabled === null ? (
           <p className="text-sm text-muted-foreground" role="alert">
-            {WATER_COPY.networkError}{" "}
+            {WATER_COPY.readError}{" "}
             <button type="button" className="underline" onClick={onRetry}>
               {WATER_COPY.retry}
             </button>
@@ -301,7 +309,9 @@ export function PlainWaterDayView({
             ) : null}
 
             {view.rows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{WATER_COPY.empty}</p>
+              <p className="text-sm text-muted-foreground">
+                {view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty}
+              </p>
             ) : (
               <ul
                 className="divide-y divide-border rounded-md border"
@@ -330,16 +340,19 @@ export function PlainWaterDayView({
                         revision: row.revision,
                         // Redacted rows carry no amount, so a hidden edit starts blank.
                         amount: String(waterAmountValue(row.quantityMl, unit) ?? ""),
+                        amountDirty: false,
                         unit,
                         clock: formatObservedClock(row.observedAt, timeZone) ?? "",
                         originalClock: formatObservedClock(row.observedAt, timeZone) ?? "",
                       });
                     }}
                     onEditAmount={(value) =>
-                      setEditing((current) => (current ? { ...current, amount: value } : current))
+                      setEditing((current) =>
+                        current ? editAmountChanged(current, value) : current,
+                      )
                     }
                     onEditUnit={(next) =>
-                      setEditing((current) => (current ? { ...current, unit: next } : current))
+                      setEditing((current) => (current ? editUnitChanged(current, next) : current))
                     }
                     onEditClock={(next) =>
                       setEditing((current) => (current ? { ...current, clock: next } : current))

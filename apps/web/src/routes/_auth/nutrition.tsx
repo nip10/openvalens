@@ -126,7 +126,9 @@ function NutritionPage() {
   });
   // Unknown preferences fail closed, including first render, date changes and
   // query errors. A successful response is the only authority to show values.
-  const hideNumbers = resolveHideNumbers(targetsQuery.data?.settings.hideNumbers);
+  const hideNumbers = targetsQuery.isSuccess
+    ? resolveHideNumbers(targetsQuery.data?.settings.hideNumbers)
+    : true;
   const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.key() });
 
   const go = (date: string) => {
@@ -233,11 +235,12 @@ function NutritionPage() {
           />
 
           <PlainWaterSection
-            key={scope ?? "signed-out"}
+            key={`${scope ?? "signed-out"}:${localDate}:${timeZone}`}
             localDate={localDate}
             timeZone={timeZone}
             hideNumbers={hideNumbers}
             announce={announce}
+            trustedScope={scope}
           />
 
           <AddFood

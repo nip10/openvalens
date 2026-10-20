@@ -39,6 +39,25 @@ export type WaterSender = {
   delete(input: WaterDelete): Promise<WaterOutcome>;
 };
 export const mutationIdOf = (op: WaterOperation) => op.input.clientMutationId;
+const definitelyRejectedCodes = new Set([
+  "BAD_REQUEST",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "PRECONDITION_FAILED",
+]);
+/** Fail closed: only locally proven-unsent writes or authoritative non-application can be discarded. */
+export function canDiscardWaterItem(item: WaterItem): boolean {
+  if (item.status === "queued" && item.attempts === 0 && item.lastErrorCode === null) return true;
+  if (item.status !== "needs_attention") return false;
+  return (
+    (item.lastErrorCode === "CONFLICT" && item.conflict !== null) ||
+    (item.attempts === 1 &&
+      item.conflict === null &&
+      !!item.lastErrorCode &&
+      definitelyRejectedCodes.has(item.lastErrorCode))
+  );
+}
 /** JSON with sorted object keys, so a re-created identical payload still dedupes. */
 function canonical(value: unknown): string {
   if (Array.isArray(value))
@@ -111,36 +130,45 @@ async function drainScope(
 ) {
   let sent = 0;
   for (const item of store.list(scope))
-    if (item.status === "syncing") store.put({ ...item, status: "queued" });
+    if (item.status === "syncing")
+      // A crash can occur after transport began but before attempt metadata was persisted.
+      store.put({ ...item, status: "queued", attempts: Math.max(1, item.attempts) });
   for (const stale of store.list(scope)) {
     if (!(await isCurrentScope())) return { sent, stopped: "scope_changed" as const };
     const item = store.list(scope).find((x) => x.id === stale.id);
     if (!item || item.status === "needs_attention") continue;
     store.put({ ...item, status: "syncing" });
     if (!(await isCurrentScope())) {
-      store.put({ ...item, status: "queued" });
+      const current = store.list(scope).find((x) => x.id === item.id);
+      if (current?.status === "syncing") store.put({ ...current, status: "queued" });
       return { sent, stopped: "scope_changed" as const };
     }
+    // The scope check yields. A discard or another local mutation may have happened meanwhile.
+    const current = store.list(scope).find((x) => x.id === item.id);
+    if (!current || current.status !== "syncing") continue;
+    const sending = current;
     try {
-      const result = await sender[item.op.kind](item.op.input as never);
+      const result = await sender[sending.op.kind](sending.op.input as never);
+      if (!store.list(scope).some((x) => x.id === sending.id)) continue;
       if (result.outcome === "conflict")
         store.put({
-          ...item,
+          ...sending,
           status: "needs_attention",
-          attempts: item.attempts + 1,
+          attempts: sending.attempts + 1,
           lastErrorCode: "CONFLICT",
           conflict: result.entry,
         });
       else {
-        store.remove(scope, item.id);
+        store.remove(scope, sending.id);
         sent++;
       }
     } catch (error) {
       const code = (error as { code?: string })?.code;
+      if (!store.list(scope).some((x) => x.id === sending.id)) continue;
       store.put({
-        ...item,
+        ...sending,
         status: code && code !== "NETWORK" ? "needs_attention" : "queued",
-        attempts: item.attempts + 1,
+        attempts: sending.attempts + 1,
         lastErrorCode: code ?? "NETWORK",
       });
       if (!code || code === "NETWORK") return { sent, stopped: "network" as const };
@@ -152,6 +180,9 @@ export function retry(store: WaterStore, scope: string, id: string): void {
   const item = store.list(scope).find((x) => x.id === id);
   if (item && !item.conflict) store.put({ ...item, status: "queued", lastErrorCode: null });
 }
-export function discard(store: WaterStore, scope: string, id: string): void {
+export function discard(store: WaterStore, scope: string, id: string): boolean {
+  const item = store.list(scope).find((x) => x.id === id && x.scope === scope);
+  if (!item || !canDiscardWaterItem(item)) return false;
   store.remove(scope, id);
+  return !store.list(scope).some((x) => x.id === id);
 }

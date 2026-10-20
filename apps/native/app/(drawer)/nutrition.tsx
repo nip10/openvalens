@@ -334,7 +334,7 @@ export default function NutritionScreen() {
         <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
 
         <PlainWaterSection
-          key={outbox.scope ?? "signed-out"}
+          key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
           localDate={localDate}
           timeZone={timeZone}
           hideNumbers={hideNumbers}

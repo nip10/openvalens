@@ -5,7 +5,15 @@ import { AppState } from "react-native";
 import { authClient } from "@/lib/auth-client";
 import { useOfflineScope } from "@/lib/offline/sync";
 import { client, orpc, queryClient } from "@/utils/orpc";
-import { discard, drain, enqueue, retry, type WaterItem, type WaterOperation } from "./outbox";
+import {
+  canDiscardWaterItem,
+  discard,
+  drain,
+  enqueue,
+  retry,
+  type WaterItem,
+  type WaterOperation,
+} from "./outbox";
 import { sqliteWaterStore } from "./store";
 
 let activeScope: string | null = null;
@@ -91,7 +99,7 @@ export type PlainWaterOutbox = {
   error: string | null;
   enqueue: (op: WaterOperation) => WaterItem | null;
   retry: (id: string) => void;
-  discard: (id: string) => void;
+  discard: (id: string) => boolean;
   syncNow: () => Promise<void>;
 };
 /** Scope-bound durable queue. IDs remain stable across retries and account changes. */
@@ -147,7 +155,23 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
       }
     },
     retry: (id) => act((s) => retry(sqliteWaterStore, s, id)),
-    discard: (id) => act((s) => discard(sqliteWaterStore, s, id)),
+    discard: (id) => {
+      if (!scope || activeScope !== scope) return false;
+      try {
+        const item = sqliteWaterStore.list(scope).find((candidate) => candidate.id === id);
+        if (!item || !canDiscardWaterItem(item)) return false;
+        const removed = discard(sqliteWaterStore, scope, id);
+        if (!removed) return false;
+        operationError = null;
+        emit();
+        void sync(scope);
+        return true;
+      } catch {
+        operationError = "STORAGE";
+        emit();
+        return false;
+      }
+    },
     syncNow: async () => {
       if (scope && activeScope === scope) await sync(scope);
     },

@@ -79,17 +79,32 @@ failure, never queued writes, so the switch never reports success it did not
 get. An unknown preference or a failed read shows a retry and no numbers.
 
 Display unit (ml, L, fl oz) is session-local; no persisted display preference
-and no new wire field. Web is online-only, like the rest of the web diary: a
-network failure leaves saved data untouched and offers a retry. Native uses
-`usePlainWaterOutbox()` unchanged and shows queued, syncing, needs-attention
-and conflict states. A conflict is never treated as a save. "Keep my change"
-enqueues a fresh operation with a new `clientMutationId` and
+and no new wire field. Web remains online-only. Its pending operation and exact
+mutation ID/payload are immutable in-memory state for retrying an uncertain
+acknowledgement; navigation, unmount, or reload loses that retry state, so it
+is not durable. Retrying the mutation reuses its ID and payload. Refreshing
+reads current server state but is not a mutation retry. Settings failures use
+uncertainty-aware copy and do not claim the setting remained unchanged. While
+an add may have committed but is unresolved, the UI does not show a duplicate
+optimistic row or a definitive subtotal; the aggregate is described as
+unconfirmed instead.
+
+Native uses `usePlainWaterOutbox()` and shows queued, syncing, needs-attention
+and conflict states. A conflict is never treated as a save. `discard(id)` is
+true only after confirmed local removal. It is allowed for a demonstrably
+unsent queued item (zero attempts), a server conflict receipt, or a first
+authoritative known rejection; attempted/uncertain writes, later rejections
+after prior attempts, and syncing writes cannot be discarded. A conflict's
+"Keep my change" enqueues a fresh operation with a new `clientMutationId` and
 `expectedRevision` from the conflict entry, then discards the old item; if the
-new item cannot be stored, the old one stays. `retry` is only for non-conflict
-failures. Native time entry is a validated 24-hour `HH:MM` field plus a Now
-shortcut; a wall time skipped by DST is refused, and an ambiguous time resolves
-to the earlier instant. Delete is an inline two-step confirmation with no undo,
-because there is no restore endpoint.
+new item cannot be stored or old removal is unconfirmed, resolution is not
+reported as successful. `retry` preserves the original ID and payload for
+non-conflict failures. Native time entry is a validated 24-hour `HH:MM` field
+plus a Now shortcut; skipped DST wall times are refused and ambiguous times
+resolve to the earlier instant. Time-only edits preserve the exact stored
+quantity and unit; an amount or unit edit submits an intentional quantity.
+Privacy changes synchronously reset displayed form/editor state. Delete is an
+inline two-step confirmation with no undo, because there is no restore endpoint.
 
 Drafts, open editors and conflict revisions are scoped to one diary day and
 reset on a day or account change. The client adds no new dependency, motion,

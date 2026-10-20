@@ -93,6 +93,16 @@ describe("WATER_COPY", () => {
     expect(WATER_COPY.scopeNote).toBe("Plain water only, separate from meals and other drinks.");
   });
 
+  test("network failures do not claim a mutation or setting was rolled back", () => {
+    expect(WATER_COPY.networkError).toBe("Could not confirm whether your change was saved.");
+    expect(WATER_COPY.readError).toBe(
+      "Could not load plain-water entries or settings. Refresh to try again.",
+    );
+    expect(WATER_COPY.settingsError).toBe(
+      "Could not confirm whether your water setting was saved.",
+    );
+  });
+
   test("formatted lines keep the same neutral language", () => {
     const hidden = describeWaterRow(
       {
@@ -166,6 +176,7 @@ describe("subtotal", () => {
         item({
           id: "add-1",
           status: "queued",
+          attempts: 0,
           op: {
             kind: "add",
             input: {
@@ -330,7 +341,7 @@ describe("hide numbers", () => {
   test("a queued add is redacted too, including its accessible name", () => {
     const view = buildWaterDayView(
       day({ entries: [], quantityMl: null }),
-      [item({ id: "hidden-add" })],
+      [item({ id: "hidden-add", attempts: 0 })],
       true,
     );
     const row = view.rows[0]!;
@@ -339,6 +350,73 @@ describe("hide numbers", () => {
     expect(text).not.toInclude("300");
     expect(text).toInclude(HIDDEN_VALUE);
     expect(text).toInclude("waiting to sync");
+  });
+
+  test("an attempted add is not duplicated beside its persisted server entry", () => {
+    const saved = { ...day().entries[0]!, quantityMl: 250 };
+    const view = buildWaterDayView(
+      day({ entries: [saved], quantityMl: 250 }),
+      [
+        item({
+          attempts: 1,
+          status: "syncing",
+          op: {
+            kind: "add",
+            input: {
+              quantity: 250,
+              unit: "ml",
+              observedAt: saved.observedAt,
+              timeZone: saved.timeZone,
+              clientMutationId: "op-1",
+            },
+          },
+        }),
+      ],
+      false,
+    );
+    expect(view.rows).toHaveLength(1);
+    expect(view.rows[0]?.entryId).toBe(saved.id);
+    expect(view.pendingCount).toBe(1);
+    expect(view.subtotalMl).toBeNull();
+    expect(view.incomplete).toBe(true);
+    expect(formatWaterSubtotal(view, "ml", false)).toBe(WATER_COPY.reconciliationUnknown);
+  });
+
+  test("missing attempts are uncertain, while explicit zero-attempt queued adds remain visible", () => {
+    const local = item({ attempts: 0 });
+    const unsent = buildWaterDayView(day({ entries: [], quantityMl: 0 }), [local], false);
+    expect(unsent.rows).toHaveLength(1);
+    expect(unsent.rows[0]?.local).toBe(true);
+    expect(unsent.subtotalMl).toBe(300);
+
+    const unknown = buildWaterDayView(day({ entries: [], quantityMl: 0 }), [item({})], false);
+    expect(unknown.rows).toHaveLength(0);
+    expect(unknown.pendingCount).toBe(1);
+    expect(unknown.subtotalMl).toBeNull();
+    expect(unknown.incomplete).toBe(true);
+    expect(formatWaterSubtotal(unknown, "ml", false)).toBe(WATER_COPY.reconciliationUnknown);
+  });
+
+  test("a refused or conflicted delete leaves the saved server row visible", () => {
+    for (const conflict of [null, { id: 12, revision: 4, quantityMl: 250, deleted: false }]) {
+      const view = buildWaterDayView(
+        day({ entries: [{ ...day().entries[0]!, quantityMl: 250 }] }),
+        [
+          item({
+            status: "needs_attention",
+            conflict,
+            op: {
+              kind: "delete",
+              input: { id: 12, clientMutationId: "del", expectedRevision: 3 },
+            },
+          }),
+        ],
+        false,
+      );
+      expect(view.rows).toHaveLength(1);
+      expect(view.rows[0]?.entryId).toBe(12);
+      expect(view.pendingRemovalCount).toBe(0);
+    }
   });
 
   test("a disabled day exposes no entries and no goal, even from a stale read", () => {
@@ -393,6 +471,32 @@ describe("time", () => {
     expect(waterDateInstant("2026-10-25", "01:30", "Europe/Lisbon")).toEqual({
       ok: true,
       observedAt: "2026-10-25T00:30:00.000Z",
+    });
+  });
+
+  test("resolves valid western wall times after transitions and rejects skipped time", () => {
+    expect(waterDateInstant("2026-03-08", "03:30", "America/Los_Angeles")).toEqual({
+      ok: true,
+      observedAt: "2026-03-08T10:30:00.000Z",
+    });
+    expect(waterDateInstant("2026-11-01", "02:30", "America/Los_Angeles")).toEqual({
+      ok: true,
+      observedAt: "2026-11-01T10:30:00.000Z",
+    });
+    expect(waterDateInstant("2026-03-08", "02:30", "America/Los_Angeles")).toEqual({
+      ok: false,
+      reason: "nonexistent",
+    });
+  });
+
+  test("handles a non-hour DST transition and chooses the earlier repeated instant", () => {
+    expect(waterDateInstant("2026-10-04", "02:15", "Australia/Lord_Howe")).toEqual({
+      ok: false,
+      reason: "nonexistent",
+    });
+    expect(waterDateInstant("2026-04-05", "01:45", "Australia/Lord_Howe")).toEqual({
+      ok: true,
+      observedAt: "2026-04-04T14:45:00.000Z",
     });
   });
 

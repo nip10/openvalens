@@ -44,6 +44,8 @@ export type WaterDayWire = {
 export type WaterQueueItem = {
   id: string;
   seq?: number;
+  /** Number of transport attempts; absent metadata cannot prove the op was unsent. */
+  attempts?: number;
   status: "queued" | "syncing" | "needs_attention";
   lastErrorCode?: string | null;
   conflict: {
@@ -105,6 +107,7 @@ export const WATER_COPY = Object.freeze({
   subtotalLabel: "Plain water subtotal",
   empty: "Nothing logged for this day.",
   unavailable: "Not available on this device. It updates after sync.",
+  reconciliationUnknown: "Could not confirm whether this change was saved.",
   offTitle: "Plain water is off.",
   offBody: "Saved entries are kept but not shown while it's off. Turn it on to see or remove them.",
   turnOn: "Turn on",
@@ -146,8 +149,9 @@ export const WATER_COPY = Object.freeze({
   nothingChanged: "Change the amount or the time, then save.",
   entriesLabel: "Plain water entries",
   hiddenNote: "Numbers are hidden. You can still log water.",
-  networkError: "Could not reach the server. Your saved water entries are unchanged.",
-  settingsError: "Could not reach the server. Your water setting is unchanged.",
+  networkError: "Could not confirm whether your change was saved.",
+  settingsError: "Could not confirm whether your water setting was saved.",
+  readError: "Could not load plain-water entries or settings. Refresh to try again.",
   retry: "Retry",
   storageError:
     "Could not read changes saved on this device. Entries on the server are unaffected.",
@@ -226,6 +230,8 @@ export type WaterDayView = {
   subtotalMl: number | null;
   /** True when entries exist but their amounts cannot be totalled here. */
   incomplete: boolean;
+  /** A write may already have committed, but the server result is not known yet. */
+  reconciliationUnknown?: boolean;
   personalGoalMl: number | null;
   /** Queued/syncing/needs-attention items for this account, across days. */
   pendingCount: number;
@@ -268,13 +274,17 @@ export function waterAmountValue(quantityMl: number | null, unit: WaterUnit): nu
 
 /** `"Nothing logged"`, `"Hidden"`, `"Not available on this device…"` or the subtotal. */
 export function formatWaterSubtotal(
-  view: Pick<WaterDayView, "entryCount" | "subtotalMl" | "incomplete">,
+  view: Pick<WaterDayView, "entryCount" | "subtotalMl" | "incomplete"> & {
+    reconciliationUnknown?: boolean;
+  },
   unit: WaterUnit,
   hideNumbers: boolean,
 ): string {
+  if (view.reconciliationUnknown) return WATER_COPY.reconciliationUnknown;
+  if (view.incomplete) return WATER_COPY.unavailable;
   if (view.entryCount === 0) return WATER_COPY.empty;
   if (hideNumbers) return HIDDEN_VALUE;
-  if (view.incomplete || view.subtotalMl === null) return WATER_COPY.unavailable;
+  if (view.subtotalMl === null) return WATER_COPY.unavailable;
   return formatWaterAmount(view.subtotalMl, unit, false);
 }
 
@@ -291,7 +301,9 @@ export function formatWaterGoal(
 
 /** `"Plain water subtotal: 1.5 L"` for a screen reader. */
 export function describeWaterSubtotal(
-  view: Pick<WaterDayView, "entryCount" | "subtotalMl" | "incomplete">,
+  view: Pick<WaterDayView, "entryCount" | "subtotalMl" | "incomplete"> & {
+    reconciliationUnknown?: boolean;
+  },
   unit: WaterUnit,
   hideNumbers: boolean,
 ): string {
@@ -447,9 +459,9 @@ export function waterDateInstant(
   const wall = `${date} ${String(clock.hour).padStart(2, "0")}:${String(clock.minute).padStart(2, "0")}`;
   const utcGuess = Date.UTC(year!, month! - 1, day!, clock.hour, clock.minute);
   const offsets = new Set([
-    zoneOffsetMs(utcGuess - 4 * 3_600_000, timeZone),
+    zoneOffsetMs(utcGuess - 48 * 3_600_000, timeZone),
     zoneOffsetMs(utcGuess, timeZone),
-    zoneOffsetMs(utcGuess + 4 * 3_600_000, timeZone),
+    zoneOffsetMs(utcGuess + 48 * 3_600_000, timeZone),
   ]);
   const candidates = [...offsets]
     .map((offset) => utcGuess - offset)
@@ -519,15 +531,19 @@ export function buildWaterDayView(
   const queuedChanges = new Map<number, WaterQueueItem>();
   const queuedDeletes = new Map<number, WaterQueueItem>();
   const localAdds: WaterQueueItem[] = [];
+  let reconciliationUnknown = false;
   for (const item of items) {
     if (item.op.kind === "change") queuedChanges.set(item.op.input.id, item);
-    else if (item.op.kind === "delete") queuedDeletes.set(item.op.input.id, item);
-    else if (
+    else if (item.op.kind === "delete") {
+      if (item.status !== "needs_attention") queuedDeletes.set(item.op.input.id, item);
+    } else if (
       item.op.kind === "add" &&
       (item.status === "queued" || item.status === "syncing") &&
       opLocalDate(item) === day.date
-    )
-      localAdds.push(item);
+    ) {
+      if (item.attempts === 0 && item.status === "queued") localAdds.push(item);
+      else reconciliationUnknown = true;
+    }
   }
 
   const attention: WaterAttention[] = items
@@ -565,6 +581,7 @@ export function buildWaterDayView(
       personalGoalMl: null,
       pendingCount: items.length,
       pendingRemovalCount: 0,
+      reconciliationUnknown: false,
       attention,
     };
 
@@ -641,11 +658,13 @@ export function buildWaterDayView(
 
   const pendingAffectsDay = raw.some((row) => row.state !== "synced") || pendingRemovalCount > 0;
   const known = raw.every((row) => row.quantityMl !== null);
-  const subtotalMl = !pendingAffectsDay
-    ? day.quantityMl
-    : known
-      ? raw.reduce((sum, row) => sum + (row.quantityMl ?? 0), 0)
-      : null;
+  const subtotalMl = reconciliationUnknown
+    ? null
+    : !pendingAffectsDay
+      ? day.quantityMl
+      : known
+        ? raw.reduce((sum, row) => sum + (row.quantityMl ?? 0), 0)
+        : null;
 
   const rows: WaterDayRow[] = raw.map((row) => ({
     key: row.key,
@@ -667,7 +686,8 @@ export function buildWaterDayView(
     rows,
     entryCount: rows.length,
     subtotalMl: hideNumbers ? null : subtotalMl,
-    incomplete: !hideNumbers && rows.length > 0 && subtotalMl === null,
+    incomplete: !hideNumbers && (reconciliationUnknown || (rows.length > 0 && subtotalMl === null)),
+    reconciliationUnknown,
     personalGoalMl: hideNumbers ? null : day.personalGoalMl,
     pendingCount: items.length,
     pendingRemovalCount,

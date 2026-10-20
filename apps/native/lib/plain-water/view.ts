@@ -40,7 +40,7 @@ export function waterDayEnabled(
 
 type QueueActions = {
   enqueue: (op: NonNullable<ReturnType<typeof conflictRetryOperation>>) => unknown | null;
-  discard: (id: string) => void;
+  discard: (id: string) => boolean;
 };
 
 /**
@@ -58,6 +58,5 @@ export function retryWaterConflict(
   if (!op) return false;
   const enqueued = queue.enqueue(op);
   if (!enqueued) return false;
-  queue.discard(item.id);
-  return true;
+  return queue.discard(item.id);
 }

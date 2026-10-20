@@ -21,7 +21,7 @@ import {
 } from "@openvalens/api/presenters/plain-water";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, Switch, Text, TextInput, View } from "react-native";
 
 import {
@@ -32,6 +32,8 @@ import {
   waterPendingCounts,
 } from "@/lib/plain-water/view";
 import { usePlainWaterOutbox, type PlainWaterOutbox } from "@/lib/plain-water/sync";
+import { canDiscardWaterItem } from "@/lib/plain-water/outbox";
+import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "@/lib/plain-water/form";
 import { useCacheFirst } from "@/lib/offline/sync";
 import { client, orpc } from "@/utils/orpc";
 
@@ -114,6 +116,13 @@ export function PlainWaterSection({
   const [unit, setUnit] = useState<WaterUnit>("ml");
   const [notice, setNotice] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
+  const active = useRef(true);
+  useLayoutEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
 
   // Fail closed: a preference that has not arrived is not shown as any state.
   const enabled = waterDayEnabled(preferences.data, day.data);
@@ -140,6 +149,7 @@ export function PlainWaterSection({
             : { personalGoal: input.personalGoal, personalGoalUnit: "ml" }
           : input,
       );
+      if (!active.current) return false;
       announce(
         "enabled" in input
           ? input.enabled
@@ -152,12 +162,13 @@ export function PlainWaterSection({
       void refresh();
       return true;
     } catch {
+      if (!active.current) return false;
       setNotice(WATER_COPY.settingsError);
       announce(WATER_COPY.settingsError);
       void refresh();
       return false;
     } finally {
-      setSavingSettings(false);
+      if (active.current) setSavingSettings(false);
     }
   };
 
@@ -183,8 +194,10 @@ export function PlainWaterSection({
       newClientMutationId(),
     );
     if (!applied) {
-      setNotice(WATER_COPY.storageSaveError);
-      announce(WATER_COPY.storageSaveError);
+      const message =
+        "Could not complete conflict resolution on this device. The original conflict remains available for review.";
+      setNotice(message);
+      announce(message);
       return;
     }
     announce(WATER_COPY.changed);
@@ -233,6 +246,8 @@ export function PlainWaterSection({
 
       {attention.map((item) => {
         const copy = describeWaterAttention(item, unit);
+        const queued = outbox.items.find((entry) => entry.id === item.id);
+        const discardable = queued ? canDiscardWaterItem(queued) : false;
         return (
           <View key={item.id} className="gap-2 rounded-lg border border-border p-3">
             <Text className="font-medium text-foreground" accessibilityRole="alert">
@@ -251,18 +266,34 @@ export function PlainWaterSection({
                   <Button size="sm" onPress={() => keepMine(item)}>
                     {WATER_COPY.keepMine}
                   </Button>
-                  <Button size="sm" variant="secondary" onPress={() => outbox.discard(item.id)}>
-                    {WATER_COPY.keepOther}
-                  </Button>
+                  {discardable ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => {
+                        if (outbox.discard(item.id)) announce(WATER_COPY.keepOther);
+                      }}
+                    >
+                      {WATER_COPY.keepOther}
+                    </Button>
+                  ) : null}
                 </>
               ) : (
                 <>
                   <Button size="sm" onPress={() => outbox.retry(item.id)}>
                     {WATER_COPY.retry}
                   </Button>
-                  <Button size="sm" variant="secondary" onPress={() => outbox.discard(item.id)}>
-                    {WATER_COPY.discard}
-                  </Button>
+                  {discardable ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => {
+                        if (outbox.discard(item.id)) announce("Change discarded on this device.");
+                      }}
+                    >
+                      {WATER_COPY.discard}
+                    </Button>
+                  ) : null}
                 </>
               )}
             </View>
@@ -282,7 +313,7 @@ export function PlainWaterSection({
             accessibilityRole="button"
           >
             <Text className="text-sm text-muted-foreground">
-              {WATER_COPY.networkError} {WATER_COPY.retry}
+              {WATER_COPY.readError} {WATER_COPY.retry}
             </Text>
           </Pressable>
         )
@@ -298,7 +329,7 @@ export function PlainWaterSection({
         </View>
       ) : (
         <PlainWaterDayPanel
-          key={localDate}
+          key={`${localDate}:${timeZone}:${hideNumbers ? "hidden" : "visible"}`}
           view={view}
           localDate={localDate}
           timeZone={timeZone}
@@ -366,6 +397,7 @@ function PlainWaterDayPanel({
     entryId: number;
     revision: number;
     amount: string;
+    amountDirty: boolean;
     unit: WaterUnit;
     clock: string;
     originalClock: string;
@@ -410,15 +442,13 @@ function PlainWaterDayPanel({
   const submitEdit = () => {
     if (!editing) return;
     let patch: { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string } = {};
-    if (editing.amount.trim()) {
-      const parsed = parseWaterAmount(editing.amount, editing.unit);
-      if (!parsed.ok) {
-        setFormError(parsed.error);
-        announce(parsed.error);
-        return;
-      }
-      patch = { quantity: parsed.quantity, unit: parsed.unit };
+    const amountPatch = waterEditAmountPatch(editing);
+    if (!amountPatch.ok) {
+      setFormError(amountPatch.error);
+      announce(amountPatch.error);
+      return;
     }
+    patch = amountPatch.patch;
     if (editing.clock !== editing.originalClock) {
       const instant = waterDateInstant(localDate, editing.clock, timeZone);
       if (!instant.ok) {
@@ -449,12 +479,13 @@ function PlainWaterDayPanel({
   };
 
   const removeRow = (row: WaterDayRow) => {
-    // A queued change or local add is discarded, never deleted: the server
-    // never saw it (or keeps the value it already has).
+    // Discard is permitted only when the queue can prove the operation is
+    // cancellable; uncertain or in-flight writes stay available for resolution.
     if (row.state !== "synced" && row.pendingOpId) {
-      outbox.discard(row.pendingOpId);
+      const item = outbox.items.find((entry) => entry.id === row.pendingOpId);
+      if (!item || !canDiscardWaterItem(item) || !outbox.discard(row.pendingOpId)) return;
       setConfirming(null);
-      announce(row.local ? WATER_COPY.deleted : WATER_COPY.discardConfirm);
+      announce("Change discarded on this device.");
       return;
     }
     if (row.entryId === null || row.revision === null) return;
@@ -523,7 +554,9 @@ function PlainWaterDayPanel({
       ) : null}
 
       {view.rows.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{WATER_COPY.empty}</Text>
+        <Text className="text-sm text-muted-foreground">
+          {view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty}
+        </Text>
       ) : (
         view.rows.map((row) => (
           <View
@@ -564,6 +597,7 @@ function PlainWaterDayPanel({
                         revision: row.revision as number,
                         // A hidden row carries no amount, so the field starts blank.
                         amount: String(waterAmountValue(row.quantityMl, unit) ?? ""),
+                        amountDirty: false,
                         unit,
                         clock: formatObservedClock(row.observedAt, timeZone) ?? "",
                         originalClock: formatObservedClock(row.observedAt, timeZone) ?? "",
@@ -577,7 +611,12 @@ function PlainWaterDayPanel({
                   </Button>
                 </>
               ) : null}
-              {row.state !== "synced" && row.pendingOpId ? (
+              {row.state !== "synced" &&
+              row.pendingOpId &&
+              (() => {
+                const item = outbox.items.find((entry) => entry.id === row.pendingOpId);
+                return item ? canDiscardWaterItem(item) : false;
+              })() ? (
                 <Button size="sm" variant="secondary" onPress={() => setConfirming(row.key)}>
                   {WATER_COPY.discard}
                 </Button>
@@ -613,7 +652,7 @@ function PlainWaterDayPanel({
                   className={inputClass}
                   value={editing.amount}
                   onChangeText={(value) =>
-                    setEditing((current) => (current ? { ...current, amount: value } : current))
+                    setEditing((current) => (current ? editAmountChanged(current, value) : current))
                   }
                   placeholder={WATER_COPY.amountPlaceholder}
                   placeholderTextColor="#8b8b8b"
@@ -623,7 +662,7 @@ function PlainWaterDayPanel({
                 <UnitChoice
                   value={editing.unit}
                   onChange={(next) =>
-                    setEditing((current) => (current ? { ...current, unit: next } : current))
+                    setEditing((current) => (current ? editUnitChanged(current, next) : current))
                   }
                 />
                 <TextInput

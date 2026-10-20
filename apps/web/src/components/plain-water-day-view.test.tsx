@@ -78,6 +78,16 @@ describe("PlainWaterDayView", () => {
     expect(html).not.toMatch(/>0( |<)/);
   });
 
+  test("an unresolved add with no visible rows never claims the day is empty", () => {
+    const view = {
+      ...buildWaterDayView(rawDay({ entries: [], quantityMl: null }), [], false),
+      reconciliationUnknown: true,
+    };
+    const html = render({ view });
+    expect(html).toContain(WATER_COPY.reconciliationUnknown);
+    expect(html).not.toContain(WATER_COPY.empty);
+  });
+
   test("an unset goal is stated and offers a goal, with no default amount", () => {
     const html = render({
       view: buildWaterDayView(rawDay({ personalGoalMl: null }), [], false),
@@ -112,7 +122,7 @@ describe("PlainWaterDayView", () => {
 
   test("an unknown or failed preference never shows a number", () => {
     const html = render({ enabled: null, view: buildWaterDayView(rawDay(), [], true) });
-    expect(html).toContain("Could not reach the server");
+    expect(html).toContain(WATER_COPY.readError);
     expect(html).not.toInclude("123,456");
     expect(html).not.toInclude("Hidden");
   });
@@ -125,7 +135,7 @@ describe("PlainWaterDayView", () => {
 
   test("a failed day read offers a retry and no amounts", () => {
     const html = render({ load: "error", view: null, enabled: null });
-    expect(html).toContain("Could not reach the server");
+    expect(html).toContain(WATER_COPY.readError);
     expect(html).toContain("Retry");
     expect(html).not.toInclude("123,456");
   });

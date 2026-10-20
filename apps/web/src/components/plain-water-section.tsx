@@ -9,269 +9,304 @@ import {
 } from "@openvalens/api/presenters/plain-water";
 import { Button } from "@openvalens/ui/components/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PlainWaterDayView } from "@/components/plain-water-day-view";
+import {
+  createPlainWaterController,
+  plainWaterDayKey,
+  plainWaterPreferencesKey,
+  type PlainWaterControllerState,
+  type PlainWaterOperation,
+  type PlainWaterOwner,
+  type PlainWaterTransport,
+} from "@/components/plain-water-controller";
 import { orpc } from "@/utils/orpc";
 
-type ChangePatch = {
-  quantity?: number;
-  unit?: WaterUnit;
-  observedAt?: string;
-  timeZone?: string;
+type ChangePatch = { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string };
+type Conflict = {
+  kind: "add" | "change" | "delete";
+  entryId: number | null;
+  patch?: ChangePatch;
+  server: { revision: number; quantityMl: number | null; deleted: boolean };
 };
+type Controller = ReturnType<typeof createPlainWaterController>;
 
-type ServerVersion = { revision: number; quantityMl: number | null; deleted: boolean };
-
-type Conflict =
-  | { kind: "change"; entryId: number; patch: ChangePatch; server: ServerVersion }
-  | { kind: "delete"; entryId: number; server: ServerVersion };
-
-/**
- * Plain-water section (Issue #83) for the web diary. Web is online-only, like
- * the rest of the web diary: every change goes straight to `plainWater.*`, a
- * network failure leaves saved data untouched and offers a retry, and there is
- * no durable outbox. Enable and goal changes are settings, not queued writes.
- */
+/** Online-only web writes are held in memory for acknowledgement-loss retries; navigation/reload loses that retry state. */
 export function PlainWaterSection({
   localDate,
   timeZone,
   hideNumbers,
   announce,
+  trustedScope,
 }: {
   localDate: string;
   timeZone: string;
   hideNumbers: boolean;
   announce: (text: string) => void;
+  trustedScope: string | null;
 }) {
   const queryClient = useQueryClient();
   const [unit, setUnit] = useState<WaterUnit>("ml");
   const [formError, setFormError] = useState<string | null>(null);
-  const [conflict, setConflict] = useState<Conflict | null>(null);
+  const [settingsBusyOwner, setSettingsBusyOwner] = useState<string | null>(null);
+  const [controllerView, setControllerView] = useState<{
+    ownerKey: string;
+    state: PlainWaterControllerState;
+  }>({ ownerKey: "", state: { status: "idle" } });
+  const controllerRef = useRef<Controller | null>(null);
+  const ownerKeyRef = useRef("");
+  const generationRef = useRef(0);
+  const owner: PlainWaterOwner = { scope: trustedScope, date: localDate, timeZone };
+  const ownerKey = JSON.stringify([trustedScope, localDate, timeZone]);
+  ownerKeyRef.current = ownerKey;
+  const dayKey = plainWaterDayKey(owner);
+  const preferencesKey = plainWaterPreferencesKey(owner);
 
-  const dayQuery = useQuery(
-    orpc.plainWater.getDay.queryOptions({ input: { date: localDate, timeZone } }),
-  );
-  const preferencesQuery = useQuery(orpc.plainWater.getPreferences.queryOptions({ input: {} }));
-  const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.plainWater.key() });
-
-  const view = useMemo(
-    () => (dayQuery.data ? buildWaterDayView(dayQuery.data, [], hideNumbers) : null),
-    [dayQuery.data, hideNumbers],
-  );
-  const enabled = preferencesQuery.data?.enabled ?? dayQuery.data?.enabled ?? null;
-
-  // Drafts, editors and conflict revisions belong to one diary day; a new day
-  // (or account, via the route key) must never reuse them.
-  useEffect(() => {
-    setConflict(null);
-    setFormError(null);
-  }, [localDate]);
-
+  const dayOptions = orpc.plainWater.getDay.queryOptions({ input: { date: localDate, timeZone } });
+  const preferenceOptions = orpc.plainWater.getPreferences.queryOptions({ input: {} });
+  const dayQuery = useQuery({ ...dayOptions, queryKey: dayKey, enabled: trustedScope !== null });
+  const preferencesQuery = useQuery({
+    ...preferenceOptions,
+    queryKey: preferencesKey,
+    enabled: trustedScope !== null,
+  });
   const add = useMutation(orpc.plainWater.add.mutationOptions());
   const change = useMutation(orpc.plainWater.change.mutationOptions());
   const remove = useMutation(orpc.plainWater.delete.mutationOptions());
   const preferences = useMutation(orpc.plainWater.updatePreferences.mutationOptions());
 
-  const busy: "add" | "edit" | "delete" | "settings" | null = add.isPending
-    ? "add"
-    : change.isPending
-      ? "edit"
-      : remove.isPending
-        ? "delete"
-        : preferences.isPending
-          ? "settings"
-          : null;
-
-  const failure = (error: unknown) => {
-    const code = (error as { code?: string })?.code;
-    const message = code === "INVALID_INPUT" ? WATER_COPY.rejectedTitle : WATER_COPY.networkError;
-    setFormError(message);
-    announce(message);
-    toast.error(message, {
-      action: { label: WATER_COPY.retry, onClick: () => void refresh() },
-    });
-  };
-
-  const applyChange = async (
-    entryId: number,
-    expectedRevision: number,
-    patch: ChangePatch,
-  ): Promise<"saved" | "conflict" | "failed"> => {
-    setFormError(null);
-    try {
-      const result = await change.mutateAsync({
-        clientMutationId: newClientMutationId(),
-        id: entryId,
-        expectedRevision,
-        ...patch,
-      });
-      if (result.outcome === "conflict") {
-        // A conflict is not a save: show both versions and let the member pick.
-        setConflict({
-          kind: "change",
-          entryId,
-          patch,
+  const transportRef = useRef<PlainWaterTransport>(async () => {
+    throw new Error("Plain-water transport is not ready.");
+  });
+  transportRef.current = async (operation: PlainWaterOperation) => {
+    if (operation.kind === "add") {
+      const result = await add.mutateAsync(operation.payload);
+      return result.outcome === "conflict"
+        ? {
+            outcome: "conflict",
+            server: {
+              revision: result.entry.revision,
+              quantityMl: result.entry.quantityMl,
+              deleted: result.entry.deleted,
+            },
+          }
+        : { outcome: result.outcome };
+    }
+    if (operation.kind === "change") {
+      const result = await change.mutateAsync(operation.payload);
+      return result.outcome === "conflict"
+        ? {
+            outcome: "conflict",
+            server: {
+              revision: result.entry.revision,
+              quantityMl: result.entry.quantityMl,
+              deleted: result.entry.deleted,
+            },
+          }
+        : { outcome: result.outcome };
+    }
+    const result = await remove.mutateAsync(operation.payload);
+    return result.outcome === "conflict"
+      ? {
+          outcome: "conflict",
           server: {
             revision: result.entry.revision,
             quantityMl: result.entry.quantityMl,
             deleted: result.entry.deleted,
           },
-        });
-        announce(WATER_COPY.conflictTitle);
-        void refresh();
-        return "conflict";
+        }
+      : { outcome: result.outcome };
+  };
+
+  const refresh = useCallback(() => {
+    if (trustedScope === null || ownerKeyRef.current !== ownerKey) return;
+    void queryClient.invalidateQueries({ queryKey: dayKey, exact: true });
+    void queryClient.invalidateQueries({ queryKey: preferencesKey, exact: true });
+  }, [dayKey, ownerKey, preferencesKey, queryClient, trustedScope]);
+
+  const onControllerState = useCallback(
+    (instance: Controller, generation: number, next: PlainWaterControllerState) => {
+      if (
+        controllerRef.current !== instance ||
+        generationRef.current !== generation ||
+        ownerKeyRef.current !== ownerKey
+      )
+        return;
+      setControllerView({ ownerKey, state: next });
+      if (next.status === "busy") {
+        setFormError(null);
+        return;
       }
-      setConflict(null);
-      announce(WATER_COPY.changed);
-      void refresh();
-      return "saved";
-    } catch (error) {
-      failure(error);
-      return "failed";
+      if (next.status === "complete") {
+        announce(
+          next.operation.kind === "add"
+            ? WATER_COPY.saved
+            : next.operation.kind === "change"
+              ? WATER_COPY.changed
+              : WATER_COPY.deleted,
+        );
+        refresh();
+        return;
+      }
+      if (next.status === "conflict") {
+        announce(WATER_COPY.conflictTitle);
+        refresh();
+        return;
+      }
+      if (next.status === "uncertain") {
+        setFormError(WATER_COPY.networkError);
+        announce(WATER_COPY.networkError);
+        toast.error(WATER_COPY.networkError, {
+          action: { label: "Refresh diary", onClick: refresh },
+        });
+      }
+    },
+    [announce, ownerKey, refresh],
+  );
+
+  // Each setup gets a new controller. Cleanup is irreversible; StrictMode's
+  // setup/cleanup/setup sequence can never reactivate the disposed instance.
+  useEffect(() => {
+    const generation = ++generationRef.current;
+    const controller = createPlainWaterController({
+      owner,
+      createId: newClientMutationId,
+      send: (operation) => transportRef.current(operation),
+      onState: (next) => onControllerState(controller, generation, next),
+    });
+    controllerRef.current = controller;
+    setControllerView({ ownerKey, state: controller.state });
+    return () => {
+      if (controllerRef.current === controller) controllerRef.current = null;
+      generationRef.current += 1;
+      controller.dispose();
+    };
+    // ownerKey is the full trusted scope/day/zone identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerKey]);
+
+  const controllerState =
+    controllerView.ownerKey === ownerKey ? controllerView.state : { status: "idle" as const };
+  const activeController =
+    controllerRef.current?.owner.scope === trustedScope &&
+    controllerRef.current?.owner.date === localDate &&
+    controllerRef.current?.owner.timeZone === timeZone
+      ? controllerRef.current
+      : null;
+  const busy: "add" | "edit" | "delete" | "settings" | null =
+    trustedScope === null
+      ? "settings"
+      : controllerState.status === "busy"
+        ? controllerState.operation.kind === "add"
+          ? "add"
+          : controllerState.operation.kind === "change"
+            ? "edit"
+            : "delete"
+        : settingsBusyOwner === ownerKey
+          ? "settings"
+          : null;
+
+  const view = useMemo(
+    () => (dayQuery.data ? buildWaterDayView(dayQuery.data, [], hideNumbers) : null),
+    [dayQuery.data, hideNumbers],
+  );
+  const enabled =
+    trustedScope !== null
+      ? preferencesQuery.isError
+        ? null
+        : (preferencesQuery.data?.enabled ?? dayQuery.data?.enabled ?? null)
+      : null;
+
+  const ownerIsLive = (generation: number) =>
+    trustedScope !== null &&
+    ownerKeyRef.current === ownerKey &&
+    generationRef.current === generation;
+  const settingsWrite = async (write: () => Promise<unknown>, success: string) => {
+    if (!activeController || trustedScope === null) return false;
+    const generation = generationRef.current;
+    setFormError(null);
+    setSettingsBusyOwner(ownerKey);
+    try {
+      await write();
+      if (!ownerIsLive(generation)) return false;
+      announce(success);
+      refresh();
+      return true;
+    } catch {
+      if (!ownerIsLive(generation)) return false;
+      setFormError(WATER_COPY.settingsError);
+      announce(WATER_COPY.settingsError);
+      toast.error(WATER_COPY.settingsError, {
+        action: { label: "Refresh diary", onClick: refresh },
+      });
+      refresh();
+      return false;
+    } finally {
+      if (ownerIsLive(generation)) setSettingsBusyOwner(null);
     }
   };
 
   const onAdd = async (input: { quantity: number; unit: WaterUnit; observedAt: string }) => {
-    setFormError(null);
-    try {
-      await add.mutateAsync({
-        clientMutationId: newClientMutationId(),
-        quantity: input.quantity,
-        unit: input.unit,
-        observedAt: input.observedAt,
-        timeZone,
-      });
-      announce(WATER_COPY.saved);
-      void refresh();
-      return true;
-    } catch (error) {
-      failure(error);
-      return false;
-    }
+    if (!activeController || trustedScope === null) return false;
+    const result = await activeController.submit({ kind: "add", payload: { ...input, timeZone } });
+    return result.status === "complete";
   };
-
-  const onChange = async (entryId: number, revision: number, patch: ChangePatch) =>
-    (await applyChange(entryId, revision, patch)) === "saved";
-
+  const onChange = async (entryId: number, revision: number, patch: ChangePatch) => {
+    if (!activeController || trustedScope === null) return false;
+    const result = await activeController.submit({
+      kind: "change",
+      payload: { id: entryId, expectedRevision: revision, ...patch },
+    });
+    return result.status === "complete";
+  };
   const onDelete = (entryId: number, revision: number) => {
-    setFormError(null);
-    setConflict(null);
-    remove.mutate(
-      { clientMutationId: newClientMutationId(), id: entryId, expectedRevision: revision },
-      {
-        onSuccess: (result) => {
-          if (result.outcome === "conflict") {
-            setConflict({
-              kind: "delete",
-              entryId,
-              server: {
-                revision: result.entry.revision,
-                quantityMl: result.entry.quantityMl,
-                deleted: result.entry.deleted,
-              },
-            });
-            announce(WATER_COPY.conflictTitle);
-            void refresh();
-            return;
-          }
-          announce(WATER_COPY.deleted);
-          void refresh();
-        },
-        onError: failure,
-      },
-    );
+    if (!activeController || trustedScope === null) return;
+    void activeController.submit({
+      kind: "delete",
+      payload: { id: entryId, expectedRevision: revision },
+    });
   };
 
-  const keepMine = async () => {
-    if (!conflict) return;
-    if (conflict.kind === "change") {
-      await applyChange(conflict.entryId, conflict.server.revision, conflict.patch);
-      return;
-    }
-    setFormError(null);
-    remove.mutate(
-      {
-        clientMutationId: newClientMutationId(),
-        id: conflict.entryId,
-        expectedRevision: conflict.server.revision,
-      },
-      {
-        onSuccess: (result) => {
-          if (result.outcome === "conflict") {
-            setConflict({
-              kind: "delete",
-              entryId: conflict.entryId,
-              server: {
-                revision: result.entry.revision,
-                quantityMl: result.entry.quantityMl,
-                deleted: result.entry.deleted,
-              },
-            });
-            announce(WATER_COPY.conflictTitle);
-            void refresh();
-            return;
-          }
-          setConflict(null);
-          announce(WATER_COPY.deleted);
-          void refresh();
-        },
-        onError: (error) => {
-          failure(error);
-        },
-      },
-    );
-  };
+  const conflict: Conflict | null =
+    controllerState.status === "conflict"
+      ? {
+          kind: controllerState.operation.kind,
+          entryId:
+            controllerState.operation.kind === "add" ? null : controllerState.operation.payload.id,
+          ...(controllerState.operation.kind === "change"
+            ? {
+                patch: {
+                  quantity: controllerState.operation.payload.quantity,
+                  unit: controllerState.operation.payload.unit,
+                  observedAt: controllerState.operation.payload.observedAt,
+                  timeZone: controllerState.operation.payload.timeZone,
+                },
+              }
+            : {}),
+          server: controllerState.server,
+        }
+      : null;
 
-  const onSaveGoal = async (personalGoalMl: number | null) => {
-    setFormError(null);
-    try {
-      await preferences.mutateAsync(
-        personalGoalMl === null
-          ? { personalGoal: null }
-          : { personalGoal: personalGoalMl, personalGoalUnit: "ml" },
-      );
-      announce(personalGoalMl === null ? WATER_COPY.goalCleared : WATER_COPY.goalSaved);
-      void refresh();
-      return true;
-    } catch {
-      setFormError(WATER_COPY.settingsError);
-      announce(WATER_COPY.settingsError);
-      toast.error(WATER_COPY.settingsError);
-      void refresh();
-      return false;
-    }
+  const keepMine = () => {
+    if (!activeController || controllerState.status !== "conflict") return;
+    void activeController.rebase();
   };
-
-  const onToggleEnabled = (next: boolean) => {
-    setFormError(null);
-    preferences.mutate(
-      { enabled: next },
-      {
-        onSuccess: () => {
-          announce(next ? WATER_COPY.turnedOn : WATER_COPY.turnedOff);
-          void refresh();
-        },
-        onError: () => {
-          setFormError(WATER_COPY.settingsError);
-          announce(WATER_COPY.settingsError);
-          toast.error(WATER_COPY.settingsError);
-          void refresh();
-        },
-      },
-    );
+  const keepOther = () => {
+    if (!activeController || !activeController.keepOther()) return;
+    refresh();
+  };
+  const retryMutation = () => {
+    if (!activeController || controllerState.status !== "uncertain") return;
+    void activeController.retry();
   };
 
   const mineText = (active: Conflict) => {
     if (active.kind === "delete") return "remove the entry.";
-    if (active.patch.quantity !== undefined && active.patch.unit !== undefined)
-      return `${formatWaterAmount(
-        waterQuantityMl(active.patch.quantity, active.patch.unit),
-        unit,
-        hideNumbers,
-      )}.`;
-    if (active.patch.observedAt)
+    if (active.patch?.quantity !== undefined && active.patch.unit !== undefined)
+      return `${formatWaterAmount(waterQuantityMl(active.patch.quantity, active.patch.unit), unit, hideNumbers)}.`;
+    if (active.patch?.observedAt)
       return `${formatObservedClock(active.patch.observedAt, active.patch.timeZone ?? timeZone) ?? "a different time"}.`;
     return "the entry values.";
   };
@@ -283,40 +318,46 @@ export function PlainWaterSection({
         <p className="text-muted-foreground">
           {conflict.server.deleted
             ? WATER_COPY.conflictGone
-            : `${WATER_COPY.conflictOther}: ${formatWaterAmount(
-                conflict.server.quantityMl,
-                unit,
-                hideNumbers,
-              )}.`}
+            : `${WATER_COPY.conflictOther}: ${formatWaterAmount(conflict.server.quantityMl, unit, hideNumbers)}.`}
         </p>
         <p className="text-muted-foreground">
           {WATER_COPY.conflictMine}: {mineText(conflict)}
         </p>
         <div className="flex flex-wrap gap-2">
-          {conflict.server.deleted ? null : (
-            <Button size="sm" onClick={() => void keepMine()} disabled={busy !== null}>
+          {conflict.kind !== "add" && !conflict.server.deleted ? (
+            <Button size="sm" onClick={keepMine} disabled={busy !== null}>
               {WATER_COPY.keepMine}
             </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setConflict(null);
-              void refresh();
-            }}
-          >
+          ) : null}
+          <Button size="sm" variant="outline" onClick={keepOther}>
             {WATER_COPY.keepOther}
           </Button>
         </div>
       </div>
     );
+  const uncertainRetry =
+    controllerState.status === "uncertain" ? (
+      <div className="flex items-center gap-2" role="alert">
+        <span>{WATER_COPY.networkError}</span>
+        <Button size="sm" variant="outline" onClick={retryMutation} disabled={busy !== null}>
+          {WATER_COPY.retry}
+        </Button>
+      </div>
+    ) : null;
 
   return (
     <PlainWaterDayView
-      key={localDate}
+      key={`${trustedScope ?? "none"}:${localDate}:${timeZone}`}
       view={view}
-      load={dayQuery.isPending ? "loading" : dayQuery.isError ? "error" : "ready"}
+      load={
+        trustedScope === null
+          ? "error"
+          : dayQuery.isPending
+            ? "loading"
+            : dayQuery.isError
+              ? "error"
+              : "ready"
+      }
       enabled={enabled}
       hideNumbers={hideNumbers}
       unit={unit}
@@ -325,16 +366,33 @@ export function PlainWaterSection({
       timeZone={timeZone}
       busy={busy}
       formError={formError}
-      onRetry={() => {
-        void dayQuery.refetch();
-        void preferencesQuery.refetch();
+      onRetry={refresh}
+      onToggleEnabled={(next) => {
+        void settingsWrite(
+          () => preferences.mutateAsync({ enabled: next }),
+          next ? WATER_COPY.turnedOn : WATER_COPY.turnedOff,
+        );
       }}
-      onToggleEnabled={onToggleEnabled}
-      onSaveGoal={onSaveGoal}
+      onSaveGoal={(personalGoalMl) =>
+        settingsWrite(
+          () =>
+            preferences.mutateAsync(
+              personalGoalMl === null
+                ? { personalGoal: null }
+                : { personalGoal: personalGoalMl, personalGoalUnit: "ml" },
+            ),
+          personalGoalMl === null ? WATER_COPY.goalCleared : WATER_COPY.goalSaved,
+        )
+      }
       onAdd={onAdd}
       onChange={onChange}
       onDelete={onDelete}
-      aboveList={conflictCard}
+      aboveList={
+        <>
+          {uncertainRetry}
+          {conflictCard}
+        </>
+      }
     />
   );
 }
