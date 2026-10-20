@@ -64,6 +64,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
+import { PlainWaterSection } from "@/components/plain-water-section";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -229,6 +230,14 @@ function NutritionPage() {
           <TargetsOnDay
             targets={targetsQuery.data?.targetsOn.targets ?? []}
             hideNumbers={hideNumbers}
+          />
+
+          <PlainWaterSection
+            key={scope ?? "signed-out"}
+            localDate={localDate}
+            timeZone={timeZone}
+            hideNumbers={hideNumbers}
+            announce={announce}
           />
 
           <AddFood

@@ -58,6 +58,7 @@ import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "reac
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Container } from "@/components/container";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
+import { PlainWaterSection } from "@/components/plain-water-section";
 import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
 import { mergeDay, type DiaryRow, type QueuedChange } from "@/lib/nutrition/outbox";
 import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutrition/sync";
@@ -331,6 +332,13 @@ export default function NutritionScreen() {
         </Card>
 
         <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+
+        <PlainWaterSection
+          key={outbox.scope ?? "signed-out"}
+          localDate={localDate}
+          timeZone={timeZone}
+          hideNumbers={hideNumbers}
+        />
 
         <AddFood
           localDate={localDate}
