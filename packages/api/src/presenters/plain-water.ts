@@ -164,7 +164,7 @@ export const WATER_COPY = Object.freeze({
   keepMine: "Keep my change",
   keepOther: "Keep the other version",
   rejectedTitle: "The server did not accept this change.",
-  rejectedBody: "It stays on this device until you retry or discard it.",
+  rejectedBody: "This change remains on this device until you resolve it.",
   conflictGone: "This entry was already removed.",
   discard: "Discard change",
   discardConfirm: "Discard this change? Your saved entry is unchanged.",
@@ -216,6 +216,8 @@ export type WaterAttention = {
   opDeleted: boolean;
   expectedRevision: number | null;
   entryId: number | null;
+  /** True when attention does not prove whether a prior transport attempt applied. */
+  reconciliationUnknown: boolean;
 };
 
 /** Everything the plain-water card renders; serialisable and already redacted. */
@@ -512,10 +514,34 @@ export function opQuantityMl(item: WaterQueueItem): number | null {
   return Number.isFinite(ml) ? ml : null;
 }
 
-/** The day an add belongs to, in its own recorded zone. */
-function opLocalDate(item: WaterQueueItem): string | null {
+/** The day an add belongs to in the day view's requested zone. */
+function opLocalDate(item: WaterQueueItem, timeZone: string): string | null {
   if (item.op.kind !== "add") return null;
-  return localDateInZone(item.op.input.observedAt, item.op.input.timeZone);
+  return localDateInZone(item.op.input.observedAt, timeZone);
+}
+
+const DEFINITELY_REJECTED_CODES = new Set([
+  "BAD_REQUEST",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "PRECONDITION_FAILED",
+]);
+
+/** Mirrors outbox discard proof: conflict receipt or first-attempt rejection resolves uncertainty. */
+function hasAuthoritativeNonApplication(item: WaterQueueItem): boolean {
+  if (item.conflict !== null) return true;
+  return (
+    item.conflict === null &&
+    item.attempts === 1 &&
+    item.lastErrorCode !== null &&
+    item.lastErrorCode !== undefined &&
+    DEFINITELY_REJECTED_CODES.has(item.lastErrorCode)
+  );
+}
+
+function needsReconciliation(item: WaterQueueItem): boolean {
+  return item.status === "needs_attention" && !hasAuthoritativeNonApplication(item);
 }
 
 /**
@@ -536,14 +562,29 @@ export function buildWaterDayView(
     if (item.op.kind === "change") queuedChanges.set(item.op.input.id, item);
     else if (item.op.kind === "delete") {
       if (item.status !== "needs_attention") queuedDeletes.set(item.op.input.id, item);
-    } else if (
-      item.op.kind === "add" &&
-      (item.status === "queued" || item.status === "syncing") &&
-      opLocalDate(item) === day.date
-    ) {
-      if (item.attempts === 0 && item.status === "queued") localAdds.push(item);
-      else reconciliationUnknown = true;
+    } else if (item.op.kind === "add" && opLocalDate(item, day.timeZone) === day.date) {
+      if (item.status === "needs_attention") {
+        if (needsReconciliation(item)) reconciliationUnknown = true;
+      } else if (item.status === "queued" || item.status === "syncing") {
+        if (item.status === "queued" && item.attempts === 0 && item.lastErrorCode === null)
+          localAdds.push(item);
+        else reconciliationUnknown = true;
+      }
     }
+  }
+
+  const liveEntryIds = new Set(
+    day.entries.filter((entry) => !entry.deleted).map((entry) => entry.id),
+  );
+  for (const item of items) {
+    if (!needsReconciliation(item) || item.op.kind === "add") continue;
+    const affectsExistingEntry = liveEntryIds.has(item.op.input.id);
+    const movesIntoDay =
+      item.op.kind === "change" &&
+      item.op.input.observedAt !== undefined &&
+      item.op.input.timeZone !== undefined &&
+      localDateInZone(item.op.input.observedAt, day.timeZone) === day.date;
+    if (affectsExistingEntry || movesIntoDay) reconciliationUnknown = true;
   }
 
   const attention: WaterAttention[] = items
@@ -564,6 +605,7 @@ export function buildWaterDayView(
       opDeleted: item.op.kind === "delete",
       expectedRevision: item.op.kind !== "add" ? (item.op.input.expectedRevision ?? null) : null,
       entryId: item.op.kind === "add" ? null : item.op.input.id,
+      reconciliationUnknown: needsReconciliation(item),
     }));
 
   // While the feature is off the API returns no entries and no goal; the model
@@ -707,6 +749,12 @@ export function describeWaterAttention(
       : attention.opClock
         ? `Your change: ${attention.opClock}.`
         : "Your change: the entry values.";
+  if (attention.reconciliationUnknown)
+    return {
+      title: WATER_COPY.reconciliationUnknown,
+      other: null,
+      mine: attention.opDeleted ? "Remove the entry." : mine.replace("Your change: ", ""),
+    };
   if (!attention.isConflict)
     return {
       title: WATER_COPY.rejectedTitle,

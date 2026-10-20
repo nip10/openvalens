@@ -1,7 +1,4 @@
-import {
-  conflictRetryOperation,
-  type WaterQueueItem,
-} from "@openvalens/api/presenters/plain-water";
+import type { WaterQueueItem } from "@openvalens/api/presenters/plain-water";
 
 /**
  * Native-only glue for the plain-water outbox (Issue #83). The queue itself
@@ -39,24 +36,23 @@ export function waterDayEnabled(
 }
 
 type QueueActions = {
-  enqueue: (op: NonNullable<ReturnType<typeof conflictRetryOperation>>) => unknown | null;
-  discard: (id: string) => boolean;
+  resolveConflict: (id: string) => boolean;
 };
 
 /**
- * Re-applies a conflicted change against the server's revision, then drops the
- * old queue item. Enqueue comes first: if storage refuses the new operation,
- * the old one stays so nothing is lost. The old item is never removed as if it
- * had succeeded.
+ * Replaces one authoritative conflict atomically with a fresh queued attempt.
+ * Unsupported or stale queues fail closed; enqueue/discard compensation is not
+ * attempted because that can leave duplicate live operations.
  */
-export function retryWaterConflict(
-  queue: QueueActions,
-  item: WaterQueueItem,
-  newClientMutationId: string,
-): boolean {
-  const op = conflictRetryOperation(item, newClientMutationId);
-  if (!op) return false;
-  const enqueued = queue.enqueue(op);
-  if (!enqueued) return false;
-  return queue.discard(item.id);
+export function retryWaterConflict(queue: QueueActions, item: WaterQueueItem): boolean {
+  if (
+    item.status !== "needs_attention" ||
+    item.lastErrorCode !== "CONFLICT" ||
+    !item.conflict ||
+    item.conflict.deleted ||
+    item.op.kind === "add" ||
+    item.op.input.id !== item.conflict.id
+  )
+    return false;
+  return queue.resolveConflict(item.id);
 }

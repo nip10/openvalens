@@ -188,19 +188,15 @@ export function PlainWaterSection({
     const queued = outbox.items.find((entry) => entry.id === item.id);
     if (!queued) return;
     setNotice(null);
-    const applied = retryWaterConflict(
-      { enqueue: outbox.enqueue, discard: outbox.discard },
-      queued,
-      newClientMutationId(),
-    );
+    const applied = retryWaterConflict({ resolveConflict: outbox.resolveConflict }, queued);
     if (!applied) {
       const message =
-        "Could not complete conflict resolution on this device. The original conflict remains available for review.";
+        "Could not confirm conflict resolution on this device. Review the queued water changes before trying again.";
       setNotice(message);
       announce(message);
       return;
     }
-    announce(WATER_COPY.changed);
+    announce(WATER_COPY.savedOnDevice);
   };
 
   return (

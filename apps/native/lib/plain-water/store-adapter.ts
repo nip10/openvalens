@@ -1,8 +1,23 @@
-import type { WaterItem, WaterStore } from "./outbox";
+import { canDiscardWaterItem, mutationIdOf, type WaterItem, type WaterStore } from "./outbox";
 
 // The prefix keeps water ids visually distinct from meal mutation ids. Rows
 // themselves live in `plain_water_outbox`, never the meal outbox.
 const prefix = "plain-water:";
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+function sameSnapshot(left: WaterItem, right: WaterItem): boolean {
+  return canonical(left) === canonical(right);
+}
+
 export type WaterSqlite = {
   getAllSync<T>(query: string, ...params: unknown[]): T[];
   getFirstSync<T>(query: string, ...params: unknown[]): T | null;
@@ -51,6 +66,59 @@ export function createSqliteWaterStore(db: WaterSqlite): WaterStore {
     },
     remove(scope, id) {
       db.runSync("DELETE FROM plain_water_outbox WHERE scope=? AND id=?", scope, `${prefix}${id}`);
+    },
+    replaceConflict(expected, replacement) {
+      if (
+        !canDiscardWaterItem(expected) ||
+        expected.status !== "needs_attention" ||
+        expected.lastErrorCode !== "CONFLICT" ||
+        expected.conflict === null ||
+        expected.conflict.deleted ||
+        expected.op.kind === "add" ||
+        expected.op.input.id !== expected.conflict.id ||
+        replacement.scope !== expected.scope ||
+        replacement.seq !== expected.seq ||
+        replacement.id === expected.id ||
+        mutationIdOf(replacement.op) !== replacement.id ||
+        replacement.status !== "queued" ||
+        replacement.attempts !== 0 ||
+        replacement.lastErrorCode !== null ||
+        replacement.conflict !== null
+      )
+        return false;
+
+      const row = db.getAllSync<{ seq: number; scope: string; id: string; item: string }>(
+        "SELECT seq,scope,id,item FROM plain_water_outbox WHERE scope=? AND id=?",
+        expected.scope,
+        `${prefix}${expected.id}`,
+      )[0];
+      if (
+        !row ||
+        row.seq !== expected.seq ||
+        row.scope !== expected.scope ||
+        row.id !== `${prefix}${expected.id}`
+      )
+        return false;
+      let stored: WaterItem;
+      let normalized: WaterItem;
+      try {
+        stored = JSON.parse(row.item) as WaterItem;
+        normalized = { ...stored, id: expected.id, scope: row.scope, seq: row.seq };
+      } catch {
+        return false;
+      }
+      if (!sameSnapshot(normalized, expected)) return false;
+
+      const changes = db.runSync(
+        "UPDATE plain_water_outbox SET id=?,item=? WHERE scope=? AND id=? AND seq=? AND item=?",
+        `${prefix}${replacement.id}`,
+        JSON.stringify(replacement),
+        expected.scope,
+        `${prefix}${expected.id}`,
+        expected.seq,
+        row.item,
+      ).changes;
+      return changes === 1;
     },
     nextSeq() {
       return (

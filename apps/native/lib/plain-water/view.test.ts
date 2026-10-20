@@ -92,7 +92,7 @@ describe("pending counts", () => {
 });
 
 describe("conflict resolution", () => {
-  test("enqueues a fresh operation before discarding the old one", () => {
+  test("delegates conflict replacement to one atomic queue operation", () => {
     const calls: string[] = [];
     const conflicted = item({
       id: "old",
@@ -112,27 +112,23 @@ describe("conflict resolution", () => {
     });
     const ok = retryWaterConflict(
       {
-        enqueue: (op) => {
-          calls.push(`enqueue:${op.kind}:${op.input.clientMutationId}`);
-          return { id: "fresh" };
-        },
-        discard: (id) => {
-          calls.push(`discard:${id}`);
+        resolveConflict: (id) => {
+          calls.push(`replace:${id}`);
           return true;
         },
       },
       conflicted,
-      "fresh",
     );
     expect(ok).toBe(true);
-    expect(calls).toEqual(["enqueue:change:fresh", "discard:old"]);
+    expect(calls).toEqual(["replace:old"]);
   });
 
-  test("keeps the old item when the new one cannot be stored", () => {
+  test("does not fall back to enqueue/discard when atomic replacement is unsupported", () => {
     const calls: string[] = [];
     const conflicted = item({
       id: "old",
       status: "needs_attention",
+      lastErrorCode: "CONFLICT",
       conflict: { id: 12, revision: 9, quantityMl: 250, deleted: false },
       op: {
         kind: "change",
@@ -141,27 +137,23 @@ describe("conflict resolution", () => {
     });
     const ok = retryWaterConflict(
       {
-        enqueue: () => {
-          calls.push("enqueue");
-          return null;
-        },
-        discard: (id) => {
-          calls.push(`discard:${id}`);
-          return true;
+        resolveConflict: (id) => {
+          calls.push(`replace:${id}`);
+          return false;
         },
       },
       conflicted,
-      "fresh",
     );
     expect(ok).toBe(false);
-    expect(calls).toEqual(["enqueue"]);
+    expect(calls).toEqual(["replace:old"]);
   });
 
-  test("does not report conflict resolution when the old item cannot be removed", () => {
+  test("rejects stale, deleted, added, and non-conflict candidates before replacement", () => {
     const calls: string[] = [];
     const conflicted = item({
       id: "old",
       status: "needs_attention",
+      lastErrorCode: "CONFLICT",
       conflict: { id: 12, revision: 9, quantityMl: 250, deleted: false },
       op: {
         kind: "change",
@@ -171,31 +163,59 @@ describe("conflict resolution", () => {
     expect(
       retryWaterConflict(
         {
-          enqueue: () => {
-            calls.push("enqueue");
-            return {};
-          },
-          discard: () => {
-            calls.push("discard");
-            return false;
+          resolveConflict: (id) => {
+            calls.push(id);
+            return true;
           },
         },
         conflicted,
-        "fresh",
+      ),
+    ).toBe(true);
+    expect(
+      retryWaterConflict(
+        {
+          resolveConflict: (id) => {
+            calls.push(id);
+            return true;
+          },
+        },
+        item({ ...conflicted, lastErrorCode: "NETWORK" }),
       ),
     ).toBe(false);
-    expect(calls).toEqual(["enqueue", "discard"]);
+    expect(
+      retryWaterConflict(
+        {
+          resolveConflict: (id) => {
+            calls.push(id);
+            return true;
+          },
+        },
+        item({
+          ...conflicted,
+          op: {
+            kind: "add",
+            input: {
+              quantity: 300,
+              unit: "ml",
+              observedAt: "2026-07-01T15:00:00.000Z",
+              timeZone: "Europe/Lisbon",
+              clientMutationId: "old",
+            },
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(calls).toEqual(["old"]);
   });
 
   test("an entry already removed by another device is not re-applied", () => {
     const ok = retryWaterConflict(
-      { enqueue: () => ({}), discard: () => true },
+      { resolveConflict: () => true },
       item({
         status: "needs_attention",
         conflict: { id: 12, revision: 9, quantityMl: null, deleted: true },
         op: { kind: "delete", input: { id: 12, clientMutationId: "old", expectedRevision: 3 } },
       }),
-      "fresh",
     );
     expect(ok).toBe(false);
   });

@@ -26,6 +26,10 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
 import { useId, useState } from "react";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "./plain-water-form";
+import {
+  isResolvedFormGeneration,
+  newPlainWaterFormGeneration,
+} from "./plain-water-form-lifecycle";
 
 /**
  * Plain water (Issue #83), shown as its own subtotal between the day's
@@ -50,7 +54,10 @@ export type PlainWaterDayViewProps = {
   onToggleEnabled: (enabled: boolean) => void;
   /** Resolves true once the server accepted the change. */
   onSaveGoal: (personalGoalMl: number | null) => Promise<boolean>;
-  onAdd: (input: { quantity: number; unit: WaterUnit; observedAt: string }) => Promise<boolean>;
+  onAdd: (
+    input: { quantity: number; unit: WaterUnit; observedAt: string },
+    generation?: number,
+  ) => Promise<boolean>;
   onChange: (
     entryId: number,
     revision: number,
@@ -60,10 +67,12 @@ export type PlainWaterDayViewProps = {
       observedAt?: string;
       timeZone?: string;
     },
+    generation?: number,
   ) => Promise<boolean>;
   onDelete: (entryId: number, revision: number) => void;
   /** Queue banners and conflict cards, owned by the platform. */
   aboveList?: ReactNode;
+  resolvedIntentGeneration?: number | null;
 };
 
 function WaterField({ label, children }: { label: string; children: (id: string) => ReactNode }) {
@@ -136,6 +145,7 @@ function PlainWaterDayViewState({
   onChange,
   onDelete,
   aboveList,
+  resolvedIntentGeneration = null,
 }: PlainWaterDayViewProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [goalText, setGoalText] = useState("");
@@ -156,9 +166,26 @@ function PlainWaterDayViewState({
   } | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [addGeneration, setAddGeneration] = useState<number | null>(null);
+  const [editGeneration, setEditGeneration] = useState<number | null>(null);
+
+  // Resolve the exact submitted draft before committing another render. The
+  // controller keeps retry identity outside this privacy-keyed form boundary.
+  if (isResolvedFormGeneration(addGeneration, resolvedIntentGeneration)) {
+    setAddGeneration(null);
+    setAddOpen(false);
+    setAmount("");
+    setAddError(null);
+  }
+  if (isResolvedFormGeneration(editGeneration, resolvedIntentGeneration)) {
+    setEditGeneration(null);
+    setEditing(null);
+    setEditError(null);
+  }
 
   const openAdd = () => {
     setAddOpen(true);
+    setAddGeneration(newPlainWaterFormGeneration());
     setAmount("");
     setAddUnit(unit);
     setClock(nowClock(timeZone));
@@ -166,6 +193,7 @@ function PlainWaterDayViewState({
   };
 
   const submitAdd = async () => {
+    if (addGeneration === null) return;
     const parsed = parseWaterAmount(amount, addUnit);
     if (!parsed.ok) return setAddError(parsed.error);
     const instant = waterDateInstant(localDate, clock, timeZone);
@@ -174,16 +202,23 @@ function PlainWaterDayViewState({
         instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid,
       );
     setAddError(null);
-    const saved = await onAdd({
-      quantity: parsed.quantity,
-      unit: parsed.unit,
-      observedAt: instant.observedAt,
-    });
-    if (saved) setAddOpen(false);
+    const saved = await onAdd(
+      {
+        quantity: parsed.quantity,
+        unit: parsed.unit,
+        observedAt: instant.observedAt,
+      },
+      addGeneration,
+    );
+    if (saved) {
+      setAddOpen(false);
+      setAddGeneration(null);
+      setAmount("");
+    }
   };
 
   const submitEdit = async () => {
-    if (!editing) return;
+    if (!editing || editGeneration === null) return;
     const timeChanged = editing.clock !== editing.originalClock;
     const amountPatch = waterEditAmountPatch(editing);
     if (!amountPatch.ok) return setEditError(amountPatch.error);
@@ -200,8 +235,11 @@ function PlainWaterDayViewState({
     if (patch.quantity === undefined && patch.observedAt === undefined)
       return setEditError(WATER_COPY.nothingChanged);
     setEditError(null);
-    const saved = await onChange(editing.entryId, editing.revision, patch);
-    if (saved) setEditing(null);
+    const saved = await onChange(editing.entryId, editing.revision, patch, editGeneration);
+    if (saved) {
+      setEditing(null);
+      setEditGeneration(null);
+    }
   };
 
   const submitGoal = async (clear: boolean) => {
@@ -335,6 +373,7 @@ function PlainWaterDayViewState({
                       if (row.entryId === null || row.revision === null) return;
                       setConfirming(null);
                       setEditError(null);
+                      setEditGeneration(newPlainWaterFormGeneration());
                       setEditing({
                         entryId: row.entryId,
                         revision: row.revision,
@@ -360,6 +399,7 @@ function PlainWaterDayViewState({
                     onSaveEdit={submitEdit}
                     onCancelEdit={() => {
                       setEditing(null);
+                      setEditGeneration(null);
                       setEditError(null);
                     }}
                     onAskDelete={() => setConfirming(row.key)}

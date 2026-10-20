@@ -47,7 +47,7 @@ water entries, preferences, and replay receipts before membership rows.
 
 ## Native outbox integration
 
-`usePlainWaterOutbox()` is exported from `apps/native/lib/plain-water/sync.ts`. It returns `{ scope, items, busy, error, enqueue, retry, discard, syncNow }`. Enqueue takes `{ kind: "add" | "change" | "delete", input }` with the corresponding `plainWater` strict API input; callers must retain a mutation ID for a logical operation. It returns a persisted item or `null`; `null` plus `error: "STORAGE"` means persistence failed and no queued success should be shown. Items expose a stable ID, status, original payload, attempts, error code, and server conflict entry. Conflicts stay held; retry only restarts non-conflict failures, while discard is explicit. Current session scope is revalidated before each transport; confirmed application/replay invalidates `orpc.plainWater`. Day reads should be queried by date and timezone and invalidated after edits. For offline display privacy, use the existing scoped `nutrition-display-preference` cache (`readCache` with the outbox scope), not a water-owned setting; if neither a successful current read nor that cache establishes visibility, render quantities hidden. Server projection remains authoritative.
+`usePlainWaterOutbox()` is exported from `apps/native/lib/plain-water/sync.ts`. It returns `{ scope, items, busy, error, enqueue, retry, discard, resolveConflict, syncNow }`. Enqueue takes `{ kind: "add" | "change" | "delete", input }` with the corresponding `plainWater` strict API input; callers must retain a mutation ID for a logical operation. It returns a persisted item or `null`; `null` plus `error: "STORAGE"` means persistence failed and no queued success should be shown. Items expose a stable ID, status, original payload, attempts, error code, and server conflict entry. `discard(id)` returns true only after confirmed local removal and is fail-closed for uncertain/in-flight writes. `resolveConflict(oldId)` atomically replaces a current authoritative conflict row with a fresh queued operation using the server conflict revision and preserved intent. It returns true only after SQLite confirms the conditional row update; unsupported stores, stale conflicts, collisions, and failed/no-op updates return false. There is no enqueue-then-discard fallback. After confirmed replacement, notification or sync-refresh errors do not turn the committed replacement into a reported rollback. A restart sees either the original conflict or the replacement; retries keep the replacement's new ID and exact payload. Current session scope is revalidated before each transport; confirmed application/replay invalidates `orpc.plainWater`. Day reads should be queried by date and timezone and invalidated after edits. For offline display privacy, use the existing scoped `nutrition-display-preference` cache (`readCache` with the outbox scope), not a water-owned setting; if neither a successful current read nor that cache establishes visibility, render quantities hidden. Server projection remains authoritative.
 
 Water rows are stored in the scoped SQLite `plain_water_outbox` table, separate from the meal-diary `nutrition_outbox`. The two outboxes never list, drain or clear each other's rows; meal "clear diary data" therefore preserves pending water changes. Existing offline storage protections and retention behavior apply; this adds no separate encryption claim.
 
@@ -87,27 +87,42 @@ reads current server state but is not a mutation retry. Settings failures use
 uncertainty-aware copy and do not claim the setting remained unchanged. While
 an add may have committed but is unresolved, the UI does not show a duplicate
 optimistic row or a definitive subtotal; the aggregate is described as
-unconfirmed instead.
+unconfirmed instead. Adds are grouped by the requested diary day's timezone,
+while retaining the operation's recorded timezone for its original timestamp.
+
+The web form lifecycle retires only the exact draft generation that submitted
+an operation after confirmed completion, successful rebase, or Keep other.
+An uncertain retry remains attached to its original generation; a newly opened
+form cannot claim or resubmit that operation. Privacy resets may clear rendered
+fields without discarding the pending immutable retry.
 
 Native uses `usePlainWaterOutbox()` and shows queued, syncing, needs-attention
 and conflict states. A conflict is never treated as a save. `discard(id)` is
 true only after confirmed local removal. It is allowed for a demonstrably
-unsent queued item (zero attempts), a server conflict receipt, or a first
-authoritative known rejection; attempted/uncertain writes, later rejections
-after prior attempts, and syncing writes cannot be discarded. A conflict's
-"Keep my change" enqueues a fresh operation with a new `clientMutationId` and
-`expectedRevision` from the conflict entry, then discards the old item; if the
-new item cannot be stored or old removal is unconfirmed, resolution is not
-reported as successful. `retry` preserves the original ID and payload for
-non-conflict failures. Native time entry is a validated 24-hour `HH:MM` field
-plus a Now shortcut; skipped DST wall times are refused and ambiguous times
-resolve to the earlier instant. Time-only edits preserve the exact stored
-quantity and unit; an amount or unit edit submits an intentional quantity.
-Privacy changes synchronously reset displayed form/editor state. Delete is an
-inline two-step confirmation with no undo, because there is no restore endpoint.
+unsent queued item (zero attempts), an authoritative conflict receipt, or a
+first authoritative known rejection. Attempted/recovered uncertainty persists
+through later attention errors; later rejections after a prior attempt and
+syncing writes cannot be discarded or treated as proof of non-application.
+Conflict "Keep my change" uses `resolveConflict(oldId)` to atomically replace
+the conflict row with a fresh mutation ID and the current server revision,
+preserving the original intent. There is no compensating enqueue/discard path;
+the UI reports success only after confirmed local replacement and says it is
+saved on this device, not that the server accepted it. A retry reuses the
+replacement's same ID and payload. Native time entry is a validated 24-hour
+`HH:MM` field plus a Now shortcut; skipped DST wall times are refused and
+ambiguous times resolve to the earlier instant. Time-only edits preserve the
+exact stored quantity and unit; an amount or unit edit submits an intentional
+quantity. Privacy changes synchronously reset displayed form/editor state.
+Delete is an inline two-step confirmation with no undo, because there is no
+restore endpoint.
 
 Drafts, open editors and conflict revisions are scoped to one diary day and
-reset on a day or account change. The client adds no new dependency, motion,
-colour, font or icon, and does not change routers, contracts, schema, the
-nutrition domain or the meal diary. Water is not included in insights, coach,
-nutrition targets or meal totals.
+reset on a day or account change. Unresolved attempted adds/changes do not
+produce duplicate optimistic records, definitive subtotals, or a false empty
+state. An attempted write that later enters needs-attention remains uncertain
+unless an authoritative server conflict receipt or first-attempt known rejection
+establishes non-application. This prevents cached totals from being presented
+as definitive while reconciliation is unresolved. The client adds no new
+dependency, motion, colour, font or icon, and does not change routers,
+contracts, schema, the nutrition domain or the meal diary. Water is not
+included in insights, coach, nutrition targets or meal totals.

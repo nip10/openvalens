@@ -22,6 +22,7 @@ import {
   type PlainWaterOwner,
   type PlainWaterTransport,
 } from "@/components/plain-water-controller";
+import { createPlainWaterFormLifecycle } from "@/components/plain-water-form-lifecycle";
 import { orpc } from "@/utils/orpc";
 
 type ChangePatch = { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string };
@@ -56,6 +57,11 @@ export function PlainWaterSection({
     state: PlainWaterControllerState;
   }>({ ownerKey: "", state: { status: "idle" } });
   const controllerRef = useRef<Controller | null>(null);
+  const formLifecycleRef = useRef<{
+    controller: Controller;
+    lifecycle: ReturnType<typeof createPlainWaterFormLifecycle>;
+  } | null>(null);
+  const [resolvedIntentGeneration, setResolvedIntentGeneration] = useState<number | null>(null);
   const ownerKeyRef = useRef("");
   const generationRef = useRef(0);
   const owner: PlainWaterOwner = { scope: trustedScope, date: localDate, timeZone };
@@ -135,6 +141,14 @@ export function PlainWaterSection({
       )
         return;
       setControllerView({ ownerKey, state: next });
+      const formLifecycle = formLifecycleRef.current;
+      if (
+        next.status === "complete" &&
+        formLifecycle?.controller === instance &&
+        formLifecycle.lifecycle.observeControllerState(next)
+      ) {
+        setResolvedIntentGeneration(formLifecycle.lifecycle.resolvedGeneration);
+      }
       if (next.status === "busy") {
         setFormError(null);
         return;
@@ -170,6 +184,7 @@ export function PlainWaterSection({
   // setup/cleanup/setup sequence can never reactivate the disposed instance.
   useEffect(() => {
     const generation = ++generationRef.current;
+    const formLifecycle = createPlainWaterFormLifecycle();
     const controller = createPlainWaterController({
       owner,
       createId: newClientMutationId,
@@ -177,9 +192,11 @@ export function PlainWaterSection({
       onState: (next) => onControllerState(controller, generation, next),
     });
     controllerRef.current = controller;
+    formLifecycleRef.current = { controller, lifecycle: formLifecycle };
     setControllerView({ ownerKey, state: controller.state });
     return () => {
       if (controllerRef.current === controller) controllerRef.current = null;
+      if (formLifecycleRef.current?.controller === controller) formLifecycleRef.current = null;
       generationRef.current += 1;
       controller.dispose();
     };
@@ -248,17 +265,45 @@ export function PlainWaterSection({
     }
   };
 
-  const onAdd = async (input: { quantity: number; unit: WaterUnit; observedAt: string }) => {
-    if (!activeController || trustedScope === null) return false;
-    const result = await activeController.submit({ kind: "add", payload: { ...input, timeZone } });
+  const publishResolvedForm = (
+    lifecycle: ReturnType<typeof createPlainWaterFormLifecycle>,
+    generation: number,
+  ) => {
+    if (lifecycle.resolvedGeneration === generation) setResolvedIntentGeneration(generation);
+  };
+
+  const onAdd = async (
+    input: { quantity: number; unit: WaterUnit; observedAt: string },
+    generation?: number,
+  ) => {
+    const lifecycleOwner = formLifecycleRef.current;
+    if (!activeController || !lifecycleOwner || trustedScope === null || generation === undefined)
+      return false;
+    const ownerGeneration = generationRef.current;
+    const result = await lifecycleOwner.lifecycle.submit(activeController, generation, {
+      kind: "add",
+      payload: { ...input, timeZone },
+    });
+    if (ownerIsLive(ownerGeneration) && lifecycleOwner.controller === activeController)
+      publishResolvedForm(lifecycleOwner.lifecycle, generation);
     return result.status === "complete";
   };
-  const onChange = async (entryId: number, revision: number, patch: ChangePatch) => {
-    if (!activeController || trustedScope === null) return false;
-    const result = await activeController.submit({
+  const onChange = async (
+    entryId: number,
+    revision: number,
+    patch: ChangePatch,
+    generation?: number,
+  ) => {
+    const lifecycleOwner = formLifecycleRef.current;
+    if (!activeController || !lifecycleOwner || trustedScope === null || generation === undefined)
+      return false;
+    const ownerGeneration = generationRef.current;
+    const result = await lifecycleOwner.lifecycle.submit(activeController, generation, {
       kind: "change",
       payload: { id: entryId, expectedRevision: revision, ...patch },
     });
+    if (ownerIsLive(ownerGeneration) && lifecycleOwner.controller === activeController)
+      publishResolvedForm(lifecycleOwner.lifecycle, generation);
     return result.status === "complete";
   };
   const onDelete = (entryId: number, revision: number) => {
@@ -291,15 +336,40 @@ export function PlainWaterSection({
 
   const keepMine = () => {
     if (!activeController || controllerState.status !== "conflict") return;
-    void activeController.rebase();
+    const formLifecycle = formLifecycleRef.current;
+    if (!formLifecycle || formLifecycle.controller !== activeController) return;
+    const ownerGeneration = generationRef.current;
+    void formLifecycle.lifecycle.rebase(activeController).then((result) => {
+      if (!ownerIsLive(ownerGeneration) || result.status !== "complete") return;
+      const resolved = formLifecycle.lifecycle.resolvedGeneration;
+      if (resolved !== null) setResolvedIntentGeneration(resolved);
+    });
   };
   const keepOther = () => {
-    if (!activeController || !activeController.keepOther()) return;
+    const ownerGeneration = generationRef.current;
+    const formLifecycle = formLifecycleRef.current;
+    if (
+      !ownerIsLive(ownerGeneration) ||
+      !activeController ||
+      !formLifecycle ||
+      formLifecycle.controller !== activeController
+    )
+      return;
+    if (!formLifecycle.lifecycle.keepOther(activeController)) return;
+    const resolved = formLifecycle.lifecycle.resolvedGeneration;
+    if (resolved !== null) setResolvedIntentGeneration(resolved);
     refresh();
   };
   const retryMutation = () => {
     if (!activeController || controllerState.status !== "uncertain") return;
-    void activeController.retry();
+    const formLifecycle = formLifecycleRef.current;
+    if (!formLifecycle || formLifecycle.controller !== activeController) return;
+    const ownerGeneration = generationRef.current;
+    void formLifecycle.lifecycle.retry(activeController).then((result) => {
+      if (!ownerIsLive(ownerGeneration) || result.status !== "complete") return;
+      const resolved = formLifecycle.lifecycle.resolvedGeneration;
+      if (resolved !== null) setResolvedIntentGeneration(resolved);
+    });
   };
 
   const mineText = (active: Conflict) => {
@@ -387,6 +457,7 @@ export function PlainWaterSection({
       onAdd={onAdd}
       onChange={onChange}
       onDelete={onDelete}
+      resolvedIntentGeneration={resolvedIntentGeneration}
       aboveList={
         <>
           {uncertainRetry}

@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useSyncExternalStore } from "react";
 import { offlineScope } from "@openvalens/api/presenters/offline";
+import { newClientMutationId } from "@openvalens/api/presenters/nutrition-diary";
 import * as Network from "expo-network";
 import { AppState } from "react-native";
 import { authClient } from "@/lib/auth-client";
@@ -10,6 +11,7 @@ import {
   discard,
   drain,
   enqueue,
+  resolveConflict as replaceConflict,
   retry,
   type WaterItem,
   type WaterOperation,
@@ -25,7 +27,13 @@ let version = 0;
 const listeners = new Set<() => void>();
 const emit = () => {
   version++;
-  listeners.forEach((listener) => listener());
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // A subscriber failure cannot undo a durable queue transition.
+    }
+  });
 };
 const sender = {
   add: (input: Parameters<typeof client.plainWater.add>[0]) => client.plainWater.add(input),
@@ -100,6 +108,7 @@ export type PlainWaterOutbox = {
   enqueue: (op: WaterOperation) => WaterItem | null;
   retry: (id: string) => void;
   discard: (id: string) => boolean;
+  resolveConflict: (id: string) => boolean;
   syncNow: () => Promise<void>;
 };
 /** Scope-bound durable queue. IDs remain stable across retries and account changes. */
@@ -171,6 +180,24 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
         emit();
         return false;
       }
+    },
+    resolveConflict: (id) => {
+      if (!scope || activeScope !== scope) return false;
+      let replaced: boolean;
+      try {
+        replaced = replaceConflict(sqliteWaterStore, scope, id, newClientMutationId);
+      } catch {
+        operationError = "STORAGE";
+        emit();
+        return false;
+      }
+      if (!replaced) return false;
+      operationError = null;
+      emit();
+      // The atomic swap is already confirmed. Refresh/sync notification failure
+      // cannot turn it into a reported rollback or trigger a second replacement.
+      void sync(scope);
+      return true;
     },
     syncNow: async () => {
       if (scope && activeScope === scope) await sync(scope);

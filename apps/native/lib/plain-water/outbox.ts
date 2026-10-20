@@ -32,6 +32,7 @@ export type WaterStore = {
   put(item: WaterItem): void;
   remove(scope: string, id: string): void;
   nextSeq(): number;
+  replaceConflict?: (expected: WaterItem, replacement: WaterItem) => boolean;
 };
 export type WaterSender = {
   add(input: WaterAdd): Promise<WaterOutcome>;
@@ -185,4 +186,60 @@ export function discard(store: WaterStore, scope: string, id: string): boolean {
   if (!item || !canDiscardWaterItem(item)) return false;
   store.remove(scope, id);
   return !store.list(scope).some((x) => x.id === id);
+}
+
+/** Atomically replaces an authoritative conflict row; unsupported stores fail closed. */
+export function resolveConflict(
+  store: WaterStore,
+  scope: string,
+  oldId: string,
+  createId: () => string,
+): boolean {
+  if (!store.replaceConflict) return false;
+  const current = store.list(scope).find((item) => item.scope === scope && item.id === oldId);
+  if (
+    !current ||
+    current.status !== "needs_attention" ||
+    current.lastErrorCode !== "CONFLICT" ||
+    current.conflict === null ||
+    current.conflict.deleted ||
+    current.op.kind === "add" ||
+    current.op.input.id !== current.conflict.id
+  )
+    return false;
+
+  const id = createId();
+  if (!id || id === oldId) return false;
+  const op: WaterOperation =
+    current.op.kind === "change"
+      ? {
+          ...current.op,
+          input: {
+            ...current.op.input,
+            clientMutationId: id,
+            expectedRevision: current.conflict.revision,
+          },
+        }
+      : {
+          ...current.op,
+          input: {
+            ...current.op.input,
+            clientMutationId: id,
+            expectedRevision: current.conflict.revision,
+          },
+        };
+  const replacement: WaterItem = {
+    ...current,
+    id,
+    op,
+    status: "queued",
+    attempts: 0,
+    lastErrorCode: null,
+    conflict: null,
+  };
+  try {
+    return store.replaceConflict(current, replacement) === true;
+  } catch {
+    return false;
+  }
 }
