@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  INSIGHT_KINDS,
   INSIGHT_RULE_IDS,
   INSIGHT_TOPICS,
   type Insight,
@@ -10,9 +11,11 @@ import {
 } from "../insight-contract";
 import { INSIGHT_RULE_KINDS, INSIGHT_RULE_VERSIONS } from "../insight-contract";
 import {
+  GENERIC_DELIVERY_KINDS,
   GENERIC_PUSH_BODY,
   INSIGHT_COPY,
   INSIGHT_EMAIL_COPY,
+  INSIGHT_KIND_LABELS,
   insightPushContent,
   insightReadinessViews,
   insightView,
@@ -295,6 +298,27 @@ describe("not enough data", () => {
       },
     ]);
     expect(JSON.stringify(views)).not.toMatch(/normal|no change/i);
+  });
+});
+
+describe("generic delivery kinds", () => {
+  test("omit observation, keep every other kind listed in the same order", () => {
+    // Observation is opted in only through its dedicated card and is never
+    // delivered, so the generic settings matrix must not list it. Removing it
+    // here is the honest-surface fix for #84; every other kind stays.
+    expect(GENERIC_DELIVERY_KINDS).not.toContain("observation");
+    expect(GENERIC_DELIVERY_KINDS).toEqual(INSIGHT_KINDS.filter((kind) => kind !== "observation"));
+    expect(GENERIC_DELIVERY_KINDS).toEqual([
+      "change",
+      "goal_milestone",
+      "data_quality",
+      "streak",
+      "reminder",
+    ]);
+    for (const kind of GENERIC_DELIVERY_KINDS) {
+      expect(INSIGHT_KIND_LABELS[kind]).toBeTruthy();
+      expect(INSIGHT_KIND_LABELS[kind]).not.toMatch(/observation/i);
+    }
   });
 });
 

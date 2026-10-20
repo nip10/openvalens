@@ -1,3 +1,4 @@
+import { INSIGHT_KINDS } from "../insight-contract";
 import type {
   Insight,
   InsightChannel,
@@ -62,6 +63,17 @@ export function nutritionObservationView(observation: InsightsResult["observatio
 export function observationPreferencePatch(inApp: boolean) {
   return { channels: { observation: { in_app: inApp } } } as const;
 }
+
+/**
+ * Kinds the generic delivery settings may offer per channel. Nutrition
+ * observations are excluded on purpose: they are opted in only through the
+ * dedicated observation card, and insight delivery never sends them, so a
+ * push/email switch here would do nothing and could bypass that disclosure.
+ * Every other kind (and any future one) is still listed.
+ */
+export const GENERIC_DELIVERY_KINDS: readonly InsightKind[] = INSIGHT_KINDS.filter(
+  (kind) => kind !== "observation",
+);
 
 /** Fail closed while a revocation is pending or after it fails. */
 export function shouldShowObservations(

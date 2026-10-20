@@ -6,6 +6,8 @@ import { computeGoalProgress } from "@openvalens/api/score-goal-progress";
 import { computeReadiness } from "@openvalens/api/score-readiness";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
+  INSIGHT_CHANNEL_LABELS,
+  INSIGHT_KIND_LABELS,
   nutritionObservationView,
   observationPreferencePatch,
   shouldShowObservations,
@@ -188,6 +190,20 @@ describe("insights panel (web)", () => {
     expect(html).toContain("not end-to-end private");
     expect(html).toContain("Turn on the weekly email");
     expect(html).toContain("Goal milestones — Push notification");
+    // Nutrition observations are opted in only through their dedicated card:
+    // insight delivery never sends them, so no delivery/email/push switch may
+    // be offered here. This removes a misleading no-op surface (#84).
+    expect(html).not.toContain(INSIGHT_KIND_LABELS.observation);
+    expect(html).not.toMatch(
+      /(?:observation|Nutrition observations)\s*—\s*(?:In the app|Push|Weekly)/,
+    );
+    for (const [kind, label] of Object.entries(INSIGHT_KIND_LABELS)) {
+      if (kind === "observation") continue;
+      expect(html).toContain(label);
+      for (const channelLabel of Object.values(INSIGHT_CHANNEL_LABELS)) {
+        expect(html).toContain(`${label} — ${channelLabel}`);
+      }
+    }
     const viewer = renderToStaticMarkup(
       <InsightNotificationsForm
         preferences={{ ...preferences, canConfigureDelivery: false }}

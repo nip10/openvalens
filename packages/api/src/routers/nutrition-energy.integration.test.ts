@@ -52,7 +52,8 @@ async function migrate(db: Database): Promise<void> {
 
 /**
  * A and A2 share org-a; B owns org-b; U (declared under 18) owns org-u;
- * R is in org-a without weight access; N (no profile answer) owns org-n.
+ * R is in org-a without weight access; N (no profile answer) owns org-n;
+ * V and W own their own orgs and start with no goals.
  */
 const MEMBERS: Record<string, { org: string; role: string }> = {
   "user-a": { org: "org-a", role: "owner" },
@@ -61,6 +62,8 @@ const MEMBERS: Record<string, { org: string; role: string }> = {
   "user-u": { org: "org-u", role: "owner" },
   "user-r": { org: "org-a", role: "collaborator" },
   "user-n": { org: "org-n", role: "owner" },
+  "user-v": { org: "org-v", role: "owner" },
+  "user-w": { org: "org-w", role: "owner" },
   "user-x": { org: "org-x", role: "owner" },
   "user-y": { org: "org-y", role: "owner" },
   "user-z": { org: "org-z", role: "owner" },
@@ -234,6 +237,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       insert into organization (id, name, slug) values
         ('org-a', 'Record A', 'record-a'), ('org-b', 'Record B', 'record-b'),
         ('org-u', 'Record U', 'record-u'), ('org-n', 'Record N', 'record-n'),
+        ('org-v', 'Record V', 'record-v'), ('org-w', 'Record W', 'record-w'),
         ('org-x', 'Record X', 'record-x'), ('org-y', 'Record Y', 'record-y'),
         ('org-z', 'Record Z', 'record-z');
       insert into member (id, organization_id, user_id, role) values
@@ -241,6 +245,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       insert into wellness_profile (user_id, revision, eligibility_state, eligibility) values
         ('user-a', 1, 'recorded', 'adult'), ('user-a2', 1, 'recorded', 'adult'),
         ('user-b', 1, 'recorded', 'adult'), ('user-r', 1, 'recorded', 'adult'),
+        ('user-v', 1, 'recorded', 'adult'), ('user-w', 1, 'recorded', 'adult'),
         ('user-x', 1, 'recorded', 'adult'), ('user-y', 1, 'recorded', 'adult'),
         ('user-z', 1, 'recorded', 'adult'),
         ('user-u', 1, 'recorded', 'under_18');
@@ -248,6 +253,8 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       ${seedMember("org-b", "user-b")}
       ${seedMember("org-u", "user-u")}
       ${seedMember("org-n", "user-n")}
+      ${seedMember("org-v", "user-v")}
+      ${seedMember("org-w", "user-w")}
       ${seedMember("org-x", "user-x")}
       ${seedMember("org-y", "user-y")}
       ${seedMember("org-z", "user-z")}
@@ -738,6 +745,66 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       expect(result.body).toMatchObject({ code: "INVALID_INPUT" });
     }
     expect((await accept(999_999)).status).toBe(404);
+  });
+
+  test("accept requires weight:read and denies without side effects", async () => {
+    // An authorized member still accepts and the target is written.
+    const offer = await propose("2026-03-28", "user-w");
+    if (offer.body.outcome !== "proposed") throw new Error("expected a proposal");
+    const accepted = await accept(offer.body.proposal.id, "user-w");
+    expect(accepted.status).toBe(200);
+    expect(accepted.body).toMatchObject({
+      outcome: "accepted",
+      goal: { nutrient: "energy_kcal", minAmount: 2700, maxAmount: 2700 },
+    });
+    expect(await energyGoals("user-w")).toEqual([
+      { min_amount: 2700, max_amount: 2700, active: true },
+    ]);
+
+    // A pending proposal exists, then the member loses weight access.
+    const pending = await propose("2026-03-28", "user-v");
+    if (pending.body.outcome !== "proposed") throw new Error("expected a proposal");
+    NO_WEIGHT_READ.add("user-v");
+    try {
+      const denied = await accept(pending.body.proposal.id, "user-v");
+      expect(denied.status).toBe(403);
+      expect(denied.body).toMatchObject({ code: "PERMISSION_DENIED" });
+      // No side effects: no goal is written and the proposal stays pending.
+      expect(await energyGoals("user-v")).toEqual([]);
+      expect(
+        (
+          await db.execute(
+            sql`select status from nutrition_energy_proposal where id = ${pending.body.proposal.id}`,
+          )
+        ).rows,
+      ).toEqual([{ status: "pending" }]);
+
+      // Impersonation is refused and a foreign org sees no such proposal;
+      // neither decision changes the goal or the proposal.
+      expect(
+        (await accept(pending.body.proposal.id, "user-v", { "x-test-impersonated": "admin-1" }))
+          .status,
+      ).toBe(403);
+      expect((await accept(pending.body.proposal.id, "user-b")).status).toBe(404);
+      expect(await energyGoals("user-v")).toEqual([]);
+      expect(
+        (
+          await db.execute(
+            sql`select status from nutrition_energy_proposal where id = ${pending.body.proposal.id}`,
+          )
+        ).rows,
+      ).toEqual([{ status: "pending" }]);
+    } finally {
+      NO_WEIGHT_READ.delete("user-v");
+    }
+
+    // Restoring the grant lets the preserved pending proposal be accepted.
+    const restored = await accept(pending.body.proposal.id, "user-v");
+    expect(restored.status).toBe(200);
+    expect(restored.body).toMatchObject({ outcome: "accepted" });
+    expect(await energyGoals("user-v")).toEqual([
+      { min_amount: 2700, max_amount: 2700, active: true },
+    ]);
   });
 
   test("estimate and proposal listing reject impersonation before any database access", async () => {

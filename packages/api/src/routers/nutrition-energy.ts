@@ -32,7 +32,7 @@ import { requireProfileOwner } from "../wellness-profile";
  * - `estimate`        — transparent estimate for a 28-day window (`records:read` + `weight:read`).
  * - `listProposals`   — the member's recent proposals (`records:read`).
  * - `propose`         — on request, stores a pending maintenance proposal (`records:write` + `weight:read`).
- * - `acceptProposal`  — the member's explicit accept; writes the energy goal (`records:write`).
+ * - `acceptProposal`  — the member's explicit accept; writes the energy goal (`records:write` + `weight:read`).
  * - `dismissProposal` — the member's explicit dismiss; no goal change (`records:write`).
  *
  * Every call is keyed by the session's organization and user; inputs are
@@ -151,6 +151,7 @@ export const nutritionEnergyRouter = {
     .handler(async ({ input, context }) => {
       const scope = scopeOf(context);
       requireSelf(context, scope);
+      await requireWeightRead(context);
       const result = await run(() => service(context).accept(scope, input));
       logger.info("nutrition.energy_proposal.accept", {
         ...energyProposalLogMetadata(result, context.correlationId),
