@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  discard,
   drain,
   enqueue,
   retry,
@@ -37,6 +38,10 @@ describe("plain-water outbox", () => {
   test("keeps IDs and payload stable across a lost acknowledgement; scopes independently", async () => {
     const store = memory();
     const a = enqueue(store, "user-a:org-a", op, 1);
+    expect(enqueue(store, "user-a:org-a", op, 20).createdAt).toBe(1);
+    expect(() =>
+      enqueue(store, "user-a:org-a", { ...op, input: { ...op.input, quantity: 301 } }),
+    ).toThrow("Mutation ID already queued");
     enqueue(store, "user-b:org-a", { ...op, input: { ...op.input, clientMutationId: "other" } });
     let sends = 0;
     const sender = {
@@ -105,5 +110,71 @@ describe("plain-water outbox", () => {
       () => false,
     );
     expect(stopped.stopped).toBe("scope_changed");
+    discard(store, "a:o", item.id);
+    expect(store.list("a:o")).toHaveLength(0);
+  });
+
+  test("checks scope again immediately before transport and serializes drains for a scope", async () => {
+    let current = true;
+    const base = memory();
+    const store: WaterStore = {
+      ...base,
+      put(item) {
+        base.put(item);
+        if (item.status === "syncing") current = false;
+      },
+    };
+    enqueue(store, "a:o", op);
+    let calls = 0;
+    const sender = {
+      add: async () => {
+        calls++;
+        return {
+          outcome: "applied" as const,
+          entry: { id: 1, revision: 1, quantityMl: 300, deleted: false },
+        };
+      },
+      change: async () => {
+        throw new Error();
+      },
+      delete: async () => {
+        throw new Error();
+      },
+    };
+    const stopped = await drain(store, sender, "a:o", () => current);
+    expect(stopped.stopped).toBe("scope_changed");
+    expect(calls).toBe(0);
+    expect(store.list("a:o")[0]?.status).toBe("queued");
+    expect(store.list("b:o")).toHaveLength(0);
+  });
+
+  test("concurrent drains of the same scope cannot send a queued item twice", async () => {
+    const store = memory();
+    enqueue(store, "a:o", op);
+    let calls = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const sender = {
+      add: async () => {
+        calls++;
+        await gate;
+        return {
+          outcome: "applied" as const,
+          entry: { id: 1, revision: 1, quantityMl: 300, deleted: false },
+        };
+      },
+      change: async () => {
+        throw new Error();
+      },
+      delete: async () => {
+        throw new Error();
+      },
+    };
+    const first = drain(store, sender, "a:o");
+    expect((await drain(store, sender, "a:o")).stopped).toBe("already_draining");
+    release();
+    await first;
+    expect(calls).toBe(1);
+    expect(store.list("a:o")).toHaveLength(0);
   });
 });

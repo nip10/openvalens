@@ -47,7 +47,11 @@ export function enqueue(
 ): WaterItem {
   const id = mutationIdOf(op);
   const prior = store.list(scope).find((item) => item.id === id);
-  if (prior) return prior;
+  if (prior) {
+    if (JSON.stringify(prior.op) !== JSON.stringify(op))
+      throw new Error("Mutation ID already queued with a different water operation");
+    return prior;
+  }
   const item: WaterItem = {
     id,
     scope,
@@ -66,14 +70,42 @@ export async function drain(
   store: WaterStore,
   sender: WaterSender,
   scope: string,
-  isCurrentScope: () => boolean = () => true,
+  isCurrentScope: () => boolean | Promise<boolean> = () => true,
+) {
+  let scopes = activeDrains.get(store);
+  if (!scopes) {
+    scopes = new Set<string>();
+    activeDrains.set(store, scopes);
+  }
+  if (scopes.has(scope)) return { sent: 0, stopped: "already_draining" as const };
+  scopes.add(scope);
+  try {
+    return await drainScope(store, sender, scope, isCurrentScope);
+  } finally {
+    scopes.delete(scope);
+  }
+}
+
+const activeDrains = new WeakMap<WaterStore, Set<string>>();
+
+async function drainScope(
+  store: WaterStore,
+  sender: WaterSender,
+  scope: string,
+  isCurrentScope: () => boolean | Promise<boolean>,
 ) {
   let sent = 0;
+  for (const item of store.list(scope))
+    if (item.status === "syncing") store.put({ ...item, status: "queued" });
   for (const stale of store.list(scope)) {
-    if (!isCurrentScope()) return { sent, stopped: "scope_changed" as const };
+    if (!(await isCurrentScope())) return { sent, stopped: "scope_changed" as const };
     const item = store.list(scope).find((x) => x.id === stale.id);
     if (!item || item.status === "needs_attention") continue;
     store.put({ ...item, status: "syncing" });
+    if (!(await isCurrentScope())) {
+      store.put({ ...item, status: "queued" });
+      return { sent, stopped: "scope_changed" as const };
+    }
     try {
       const result = await sender[item.op.kind](item.op.input as never);
       if (result.outcome === "conflict")
