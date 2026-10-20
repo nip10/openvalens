@@ -188,9 +188,12 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   },
   wearable_oauth_state: { kind: "organization", redact: ["state_hash"] },
 
-  // Object storage (#62). Metadata only (opaque key, content type, size,
-  // checksum); the bytes are erased from the storage backend by the caller of
-  // `deleteSubjectData` using the keys collected before the transaction.
+  // Object storage (#62). Metadata only (content type, size, checksum). Photos
+  // export for their uploader across memberships (safe-field allowlist in
+  // export.ts); other objects keep the owned-organization scope. The bytes are
+  // erased from the storage backend by the caller of `deleteSubjectData` using
+  // the keys collected before the transaction; deletion/preview scope stays
+  // organization-only (see `deletionRowFilter`).
   stored_object: organization,
 
   // Data rights
