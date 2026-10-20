@@ -1,6 +1,8 @@
 import { OUTBOX_MAX_ENTRIES, type OutboxEntry } from "@openvalens/api/presenters/offline";
 import * as SQLite from "expo-sqlite";
 
+import { OFFLINE_SCHEMA_SQL } from "./schema";
+
 /**
  * Native offline store (Issue #43). Backed by `expo-sqlite` — the same package
  * the HealthKit source already ships with. Mirrors the web cache/outbox shapes
@@ -11,6 +13,10 @@ import * as SQLite from "expo-sqlite";
  *   outbox      (id INTEGER PRIMARY KEY AUTOINCREMENT, dedupe_hash TEXT UNIQUE,
  *                payload TEXT, last_error TEXT, saved_at INTEGER, scope TEXT)
  *   nutrition_outbox (seq, scope, id, item) — meal-diary changes, see lib/nutrition
+ *   plain_water_outbox (seq, scope, id, item) — plain-water changes, see lib/plain-water
+ *
+ * Meal and water operations never share a table, so one lane cannot list,
+ * drain or clear the other's pending writes.
  *
  * Every cache key and outbox row carries the account scope from
  * `offlineScope`, so one account never reads or sends another's health data.
@@ -27,30 +33,10 @@ let database: SQLite.SQLiteDatabase | null = null;
 export function getDb(): SQLite.SQLiteDatabase {
   if (!database) {
     database = SQLite.openDatabaseSync(DB_NAME);
-    database.execSync(`
-      PRAGMA journal_mode = WAL;
-      CREATE TABLE IF NOT EXISTS query_cache (
-        key TEXT PRIMARY KEY,
-        data TEXT,
-        saved_at INTEGER
-      );
-      CREATE TABLE IF NOT EXISTS outbox (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        dedupe_hash TEXT UNIQUE,
-        payload TEXT,
-        last_error TEXT,
-        saved_at INTEGER
-      );
-      -- Meal-diary outbox (Issue #77): never size-capped, rows leave only
-      -- after the server confirms them or the member discards them.
-      CREATE TABLE IF NOT EXISTS nutrition_outbox (
-        seq INTEGER PRIMARY KEY AUTOINCREMENT,
-        scope TEXT NOT NULL,
-        id TEXT NOT NULL,
-        item TEXT NOT NULL,
-        UNIQUE (scope, id)
-      );
-    `);
+    // Meal-diary (Issue #77) and plain-water outboxes are never size-capped;
+    // rows leave only after the server confirms them or the member discards
+    // them. They are separate tables so each lane owns only its own rows.
+    database.execSync(OFFLINE_SCHEMA_SQL);
     const columns = database.getAllSync<{ name: string }>("PRAGMA table_info(outbox)");
     if (!columns.some((column) => column.name === "scope")) {
       database.execSync("ALTER TABLE outbox ADD COLUMN scope TEXT");
@@ -175,4 +161,5 @@ export function clearOfflineData(): void {
   db.runSync("DELETE FROM query_cache");
   db.runSync("DELETE FROM outbox");
   db.runSync("DELETE FROM nutrition_outbox");
+  db.runSync("DELETE FROM plain_water_outbox");
 }

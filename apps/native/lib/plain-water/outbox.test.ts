@@ -39,6 +39,17 @@ describe("plain-water outbox", () => {
     const store = memory();
     const a = enqueue(store, "user-a:org-a", op, 1);
     expect(enqueue(store, "user-a:org-a", op, 20).createdAt).toBe(1);
+    const reordered: WaterOperation = {
+      input: {
+        timeZone: op.input.timeZone,
+        unit: op.input.unit,
+        quantity: op.input.quantity,
+        observedAt: op.input.observedAt,
+        clientMutationId: op.input.clientMutationId,
+      },
+      kind: "add",
+    };
+    expect(enqueue(store, "user-a:org-a", reordered, 30).createdAt).toBe(1);
     expect(() =>
       enqueue(store, "user-a:org-a", { ...op, input: { ...op.input, quantity: 301 } }),
     ).toThrow("Mutation ID already queued");

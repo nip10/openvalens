@@ -39,6 +39,21 @@ export type WaterSender = {
   delete(input: WaterDelete): Promise<WaterOutcome>;
 };
 export const mutationIdOf = (op: WaterOperation) => op.input.clientMutationId;
+/** JSON with sorted object keys, so a re-created identical payload still dedupes. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value))
+    return `[${value.map((item) => (item === undefined ? "null" : canonical(item))).join(",")}]`;
+  if (value && typeof value === "object") {
+    const fields = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .flatMap((key) => {
+        const field = (value as Record<string, unknown>)[key];
+        return field === undefined ? [] : [`${JSON.stringify(key)}:${canonical(field)}`];
+      });
+    return `{${fields.join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
 export function enqueue(
   store: WaterStore,
   scope: string,
@@ -48,7 +63,7 @@ export function enqueue(
   const id = mutationIdOf(op);
   const prior = store.list(scope).find((item) => item.id === id);
   if (prior) {
-    if (JSON.stringify(prior.op) !== JSON.stringify(op))
+    if (canonical(prior.op) !== canonical(op))
       throw new Error("Mutation ID already queued with a different water operation");
     return prior;
   }

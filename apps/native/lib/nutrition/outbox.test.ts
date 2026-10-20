@@ -348,6 +348,30 @@ describe("diary outbox", () => {
     });
   });
 
+  test("an unknown queued operation is never acknowledged as sent", async () => {
+    const store = memoryStore();
+    const server = fakeServer();
+    store.put({
+      id: "foreign",
+      scope: SCOPE,
+      seq: store.nextSeq(),
+      op: { kind: "water-add", input: { clientMutationId: "foreign" } } as never,
+      status: "queued",
+      attempts: 0,
+      lastErrorCode: null,
+      conflict: null,
+      preview: null,
+      createdAt: 1,
+    });
+    expect((await drain(store, server.sender, SCOPE)).sent).toBe(0);
+    expect(server.sent).toEqual([]);
+    expect(store.list(SCOPE)[0]).toMatchObject({
+      id: "foreign",
+      status: "needs_attention",
+      lastErrorCode: "INVALID_INPUT",
+    });
+  });
+
   test("items are scoped to the account; another account never sends or sees them", async () => {
     const store = memoryStore();
     const server = fakeServer();
