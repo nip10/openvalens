@@ -147,7 +147,8 @@ export function PlainWaterSection({
         formLifecycle?.controller === instance &&
         formLifecycle.lifecycle.observeControllerState(next)
       ) {
-        setResolvedIntentGeneration(formLifecycle.lifecycle.resolvedGeneration);
+        const resolved = formLifecycle.lifecycle.resolvedGeneration;
+        if (resolved !== null) setResolvedIntentGeneration(resolved);
       }
       if (next.status === "busy") {
         setFormError(null);
@@ -308,7 +309,9 @@ export function PlainWaterSection({
   };
   const onDelete = (entryId: number, revision: number) => {
     if (!activeController || trustedScope === null) return;
-    void activeController.submit({
+    const formLifecycle = formLifecycleRef.current;
+    if (!formLifecycle || formLifecycle.controller !== activeController) return;
+    void formLifecycle.lifecycle.submit(activeController, null, {
       kind: "delete",
       payload: { id: entryId, expectedRevision: revision },
     });

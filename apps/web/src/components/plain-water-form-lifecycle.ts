@@ -25,16 +25,14 @@ type Controller = {
   keepOther(): boolean;
 };
 
-/** Bridges actual controller terminal actions to the exact form generation that submitted them. */
+/** Coordinates controller operations while resolving only the form generation that submitted them. */
 export function createPlainWaterFormLifecycle() {
-  let active: { generation: number; operation: PlainWaterOperation } | null = null;
+  let active: { generation: number | null; operation: PlainWaterOperation } | null = null;
   let resolvedGeneration: number | null = null;
-  const observe = (generation: number, state: PlainWaterControllerState) => {
-    if (state.status === "complete") {
+  const observe = (state: PlainWaterControllerState) => {
+    if (state.status === "complete" && active?.operation === state.operation) {
+      if (active.generation !== null) resolvedGeneration = active.generation;
       active = null;
-      resolvedGeneration = generation;
-    } else if (state.status === "uncertain" || state.status === "conflict") {
-      active = { generation, operation: state.operation };
     }
     return state;
   };
@@ -42,30 +40,48 @@ export function createPlainWaterFormLifecycle() {
     get resolvedGeneration() {
       return resolvedGeneration;
     },
-    async submit(controller: Controller, generation: number, intent: PlainWaterIntent) {
+    async submit(controller: Controller, generation: number | null, intent: PlainWaterIntent) {
       // A fresh display draft cannot take ownership of an earlier uncertain or
       // conflicted operation. Its generation remains attached to the original.
-      if (active || resolvedGeneration === generation) return controller.state;
+      if (
+        active ||
+        controller.state.status === "busy" ||
+        controller.state.status === "uncertain" ||
+        controller.state.status === "conflict" ||
+        (generation !== null && resolvedGeneration === generation)
+      )
+        return { status: "idle" };
       const state = await controller.submit(intent);
-      return observe(generation, state);
+      if (state.status === "complete") {
+        if (generation !== null) resolvedGeneration = generation;
+      } else if (state.status === "uncertain" || state.status === "conflict") {
+        active = { generation, operation: state.operation };
+      }
+      return state;
     },
     async retry(controller: Controller) {
       if (!active) return controller.state;
-      const generation = active.generation;
       const state = await controller.retry();
       if (state.status === "complete" && state.operation === active?.operation)
-        return observe(generation, state);
+        return observe(state);
       return state;
     },
     async rebase(controller: Controller) {
       if (!active) return controller.state;
       const generation = active.generation;
       const state = await controller.rebase();
-      return observe(generation, state);
+      if (state.status === "complete") {
+        if (generation !== null) resolvedGeneration = generation;
+        active = null;
+        return state;
+      }
+      if (state.status === "uncertain" || state.status === "conflict")
+        active = { generation, operation: state.operation };
+      return state;
     },
     keepOther(controller: Controller) {
       if (!active || !controller.keepOther()) return false;
-      resolvedGeneration = active.generation;
+      if (active.generation !== null) resolvedGeneration = active.generation;
       active = null;
       return true;
     },
@@ -73,7 +89,7 @@ export function createPlainWaterFormLifecycle() {
     observeControllerState(state: PlainWaterControllerState) {
       if (!active || state.status !== "complete" || state.operation !== active.operation)
         return false;
-      observe(active.generation, state);
+      observe(state);
       return true;
     },
   };

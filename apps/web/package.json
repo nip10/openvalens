@@ -10,7 +10,8 @@
     "serve": "vite preview",
     "start": "vite",
     "check-types": "tsc -b ../../packages/api && vite build && tsc --noEmit",
-    "env:generate": "varlock codegen"
+    "env:generate": "varlock codegen",
+    "test:mounted-water": "MOUNTED_WATER_TEST=1 VITE_SERVER_URL=http://127.0.0.1:4179 bun test --preload ./mounted-tests/setup.tsx ./mounted-tests/plain-water-delete.test.tsx"
   },
   "dependencies": {
     "@openvalens/api": "workspace:*",
@@ -34,10 +35,14 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^21.0.4",
     "@openvalens/config": "workspace:*",
     "@tanstack/react-query-devtools": "^5.102.8",
     "@tanstack/react-router-devtools": "^1.167.1",
     "@tanstack/router-plugin": "^1.168.35",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/node": "catalog:",
     "@types/react": "^19.2.18",
     "@types/react-dom": "catalog:",

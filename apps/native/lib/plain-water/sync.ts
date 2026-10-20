@@ -17,6 +17,7 @@ import {
   type WaterOperation,
 } from "./outbox";
 import { sqliteWaterStore } from "./store";
+import { readWaterQueueSnapshot } from "./queue-snapshot";
 
 let activeScope: string | null = null;
 let operationError: string | null = null;
@@ -129,6 +130,7 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
     },
     () => version,
   );
+  const snapshot = readWaterQueueSnapshot(sqliteWaterStore, scope);
   const act = useCallback(
     (fn: (s: string) => void) => {
       if (!scope || activeScope !== scope) return;
@@ -146,11 +148,11 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
   );
   return {
     scope,
-    items: scope ? sqliteWaterStore.list(scope) : [],
+    items: snapshot.items,
     busy: scope ? syncingScopes.has(scope) : false,
-    error: operationError,
+    error: snapshot.error ?? operationError,
     enqueue: (op) => {
-      if (!scope || activeScope !== scope) return null;
+      if (!scope || activeScope !== scope || snapshot.error) return null;
       try {
         const item = enqueue(sqliteWaterStore, scope, op);
         operationError = null;
@@ -165,7 +167,7 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
     },
     retry: (id) => act((s) => retry(sqliteWaterStore, s, id)),
     discard: (id) => {
-      if (!scope || activeScope !== scope) return false;
+      if (!scope || activeScope !== scope || snapshot.error) return false;
       try {
         const item = sqliteWaterStore.list(scope).find((candidate) => candidate.id === id);
         if (!item || !canDiscardWaterItem(item)) return false;
@@ -182,7 +184,7 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
       }
     },
     resolveConflict: (id) => {
-      if (!scope || activeScope !== scope) return false;
+      if (!scope || activeScope !== scope || snapshot.error) return false;
       let replaced: boolean;
       try {
         replaced = replaceConflict(sqliteWaterStore, scope, id, newClientMutationId);

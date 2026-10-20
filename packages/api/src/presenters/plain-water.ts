@@ -16,6 +16,7 @@
  * this module fails closed when told `hideNumbers: true`.
  */
 import { HIDDEN_VALUE } from "./nutrition-targets";
+import { hasAuthoritativeWaterNonApplication, hasValidWaterConflictReceipt } from "./water-proof";
 
 export type WaterUnit = "ml" | "l" | "fl_oz";
 
@@ -520,24 +521,14 @@ function opLocalDate(item: WaterQueueItem, timeZone: string): string | null {
   return localDateInZone(item.op.input.observedAt, timeZone);
 }
 
-const DEFINITELY_REJECTED_CODES = new Set([
-  "BAD_REQUEST",
-  "UNAUTHORIZED",
-  "FORBIDDEN",
-  "NOT_FOUND",
-  "PRECONDITION_FAILED",
-]);
-
 /** Mirrors outbox discard proof: conflict receipt or first-attempt rejection resolves uncertainty. */
 function hasAuthoritativeNonApplication(item: WaterQueueItem): boolean {
-  if (item.conflict !== null) return true;
-  return (
-    item.conflict === null &&
-    item.attempts === 1 &&
-    item.lastErrorCode !== null &&
-    item.lastErrorCode !== undefined &&
-    DEFINITELY_REJECTED_CODES.has(item.lastErrorCode)
-  );
+  return hasAuthoritativeWaterNonApplication({
+    conflict: item.conflict,
+    attempts: item.attempts,
+    lastErrorCode: item.lastErrorCode,
+    operationTargetId: item.op.kind === "add" ? undefined : item.op.input.id,
+  });
 }
 
 function needsReconciliation(item: WaterQueueItem): boolean {
@@ -592,7 +583,11 @@ export function buildWaterDayView(
     .map((item) => ({
       id: item.id,
       kind: item.op.kind,
-      isConflict: item.conflict !== null,
+      isConflict: hasValidWaterConflictReceipt(
+        item.conflict,
+        item.lastErrorCode,
+        item.op.kind === "add" ? undefined : item.op.input.id,
+      ),
       lastErrorCode: item.lastErrorCode ?? null,
       conflictQuantityMl: hideNumbers ? null : (item.conflict?.quantityMl ?? null),
       conflictDeleted: item.conflict?.deleted ?? false,

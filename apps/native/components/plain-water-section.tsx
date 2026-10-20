@@ -139,6 +139,7 @@ export function PlainWaterSection({
    * the switch never pretends to have saved.
    */
   const saveSettings = async (input: { enabled: boolean } | { personalGoal: number | null }) => {
+    if (outbox.error) return false;
     setNotice(null);
     setSavingSettings(true);
     try {
@@ -216,139 +217,144 @@ export function PlainWaterSection({
         </Pressable>
       ) : null}
 
-      {notice ? (
-        <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-          {notice}
-        </Text>
-      ) : null}
-
-      {counts.queued + counts.syncing + counts.attention > 0 ? (
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground" accessibilityLiveRegion="polite">
-            {`${WATER_COPY.pendingTitle}: `}
-            {[
-              counts.queued ? `${counts.queued} queued` : null,
-              counts.syncing ? `${counts.syncing} syncing` : null,
-              counts.attention ? `${counts.attention} needs attention` : null,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-          </Text>
-          <Button size="sm" variant="secondary" onPress={() => void outbox.syncNow()}>
-            {WATER_COPY.syncNow}
-          </Button>
-        </View>
-      ) : null}
-
-      {attention.map((item) => {
-        const copy = describeWaterAttention(item, unit);
-        const queued = outbox.items.find((entry) => entry.id === item.id);
-        const discardable = queued ? canDiscardWaterItem(queued) : false;
-        return (
-          <View key={item.id} className="gap-2 rounded-lg border border-border p-3">
-            <Text className="font-medium text-foreground" accessibilityRole="alert">
-              {copy.title}
+      {!outbox.error ? (
+        <>
+          {notice ? (
+            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              {notice}
             </Text>
-            {copy.other ? (
-              <Text className="text-sm text-muted-foreground">{copy.other}</Text>
-            ) : null}
-            <Text className="text-sm text-muted-foreground">{copy.mine}</Text>
-            {!item.isConflict ? (
-              <Text className="text-sm text-muted-foreground">{WATER_COPY.rejectedBody}</Text>
-            ) : null}
-            <View className="flex-row flex-wrap gap-2">
-              {item.isConflict ? (
-                <>
-                  <Button size="sm" onPress={() => keepMine(item)}>
-                    {WATER_COPY.keepMine}
-                  </Button>
-                  {discardable ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => {
-                        if (outbox.discard(item.id)) announce(WATER_COPY.keepOther);
-                      }}
-                    >
-                      {WATER_COPY.keepOther}
-                    </Button>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <Button size="sm" onPress={() => outbox.retry(item.id)}>
-                    {WATER_COPY.retry}
-                  </Button>
-                  {discardable ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => {
-                        if (outbox.discard(item.id)) announce("Change discarded on this device.");
-                      }}
-                    >
-                      {WATER_COPY.discard}
-                    </Button>
-                  ) : null}
-                </>
-              )}
+          ) : null}
+
+          {counts.queued + counts.syncing + counts.attention > 0 ? (
+            <View className="flex-row items-center justify-between gap-3">
+              <Text className="flex-1 text-sm text-foreground" accessibilityLiveRegion="polite">
+                {`${WATER_COPY.pendingTitle}: `}
+                {[
+                  counts.queued ? `${counts.queued} queued` : null,
+                  counts.syncing ? `${counts.syncing} syncing` : null,
+                  counts.attention ? `${counts.attention} needs attention` : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </Text>
+              <Button size="sm" variant="secondary" onPress={() => void outbox.syncNow()}>
+                {WATER_COPY.syncNow}
+              </Button>
             </View>
-          </View>
-        );
-      })}
+          ) : null}
 
-      {enabled === null ? (
-        day.isPending || preferences.isPending ? (
-          <Spinner />
-        ) : (
-          <Pressable
-            onPress={() => {
-              void day.refetch();
-              void preferences.refetch();
-            }}
-            accessibilityRole="button"
-          >
-            <Text className="text-sm text-muted-foreground">
-              {WATER_COPY.readError} {WATER_COPY.retry}
-            </Text>
-          </Pressable>
-        )
-      ) : enabled === false ? (
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">{WATER_COPY.offTitle}</Text>
-          <Text className="text-sm text-muted-foreground">{WATER_COPY.offBody}</Text>
-          <View>
-            <Button size="sm" onPress={() => void saveSettings({ enabled: true })}>
-              {WATER_COPY.turnOn}
-            </Button>
-          </View>
-        </View>
-      ) : (
-        <PlainWaterDayPanel
-          key={`${localDate}:${timeZone}:${hideNumbers ? "hidden" : "visible"}`}
-          view={view}
-          localDate={localDate}
-          timeZone={timeZone}
-          hideNumbers={hideNumbers}
-          unit={unit}
-          onUnitChange={setUnit}
-          outbox={outbox}
-          onEnqueue={onEnqueue}
-          settingsBusy={savingSettings}
-          onSaveGoal={(personalGoalMl) => saveSettings({ personalGoal: personalGoalMl })}
-        />
-      )}
+          {attention.map((item) => {
+            const copy = describeWaterAttention(item, unit);
+            const queued = outbox.items.find((entry) => entry.id === item.id);
+            const discardable = queued ? canDiscardWaterItem(queued) : false;
+            return (
+              <View key={item.id} className="gap-2 rounded-lg border border-border p-3">
+                <Text className="font-medium text-foreground" accessibilityRole="alert">
+                  {copy.title}
+                </Text>
+                {copy.other ? (
+                  <Text className="text-sm text-muted-foreground">{copy.other}</Text>
+                ) : null}
+                <Text className="text-sm text-muted-foreground">{copy.mine}</Text>
+                {!item.isConflict ? (
+                  <Text className="text-sm text-muted-foreground">{WATER_COPY.rejectedBody}</Text>
+                ) : null}
+                <View className="flex-row flex-wrap gap-2">
+                  {item.isConflict ? (
+                    <>
+                      <Button size="sm" onPress={() => keepMine(item)}>
+                        {WATER_COPY.keepMine}
+                      </Button>
+                      {discardable ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onPress={() => {
+                            if (outbox.discard(item.id)) announce(WATER_COPY.keepOther);
+                          }}
+                        >
+                          {WATER_COPY.keepOther}
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <Button size="sm" onPress={() => outbox.retry(item.id)}>
+                        {WATER_COPY.retry}
+                      </Button>
+                      {discardable ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onPress={() => {
+                            if (outbox.discard(item.id))
+                              announce("Change discarded on this device.");
+                          }}
+                        >
+                          {WATER_COPY.discard}
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                </View>
+              </View>
+            );
+          })}
 
-      {enabled ? (
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">{WATER_COPY.settingsTitle}</Text>
-          <Switch
-            value={true}
-            onValueChange={(value) => void saveSettings({ enabled: value })}
-            disabled={savingSettings}
-            accessibilityLabel={WATER_COPY.settingsTitle}
-          />
-        </View>
+          {enabled === null ? (
+            day.isPending || preferences.isPending ? (
+              <Spinner />
+            ) : (
+              <Pressable
+                onPress={() => {
+                  void day.refetch();
+                  void preferences.refetch();
+                }}
+                accessibilityRole="button"
+              >
+                <Text className="text-sm text-muted-foreground">
+                  {WATER_COPY.readError} {WATER_COPY.retry}
+                </Text>
+              </Pressable>
+            )
+          ) : enabled === false ? (
+            <View className="gap-2">
+              <Text className="text-sm font-medium text-foreground">{WATER_COPY.offTitle}</Text>
+              <Text className="text-sm text-muted-foreground">{WATER_COPY.offBody}</Text>
+              <View>
+                <Button size="sm" onPress={() => void saveSettings({ enabled: true })}>
+                  {WATER_COPY.turnOn}
+                </Button>
+              </View>
+            </View>
+          ) : (
+            <PlainWaterDayPanel
+              key={`${localDate}:${timeZone}:${hideNumbers ? "hidden" : "visible"}`}
+              view={view}
+              localDate={localDate}
+              timeZone={timeZone}
+              hideNumbers={hideNumbers}
+              unit={unit}
+              onUnitChange={setUnit}
+              outbox={outbox}
+              onEnqueue={onEnqueue}
+              settingsBusy={savingSettings}
+              onSaveGoal={(personalGoalMl) => saveSettings({ personalGoal: personalGoalMl })}
+            />
+          )}
+
+          {enabled ? (
+            <View className="flex-row items-center justify-between gap-3">
+              <Text className="flex-1 text-sm text-foreground">{WATER_COPY.settingsTitle}</Text>
+              <Switch
+                value={true}
+                onValueChange={(value) => void saveSettings({ enabled: value })}
+                disabled={savingSettings}
+                accessibilityLabel={WATER_COPY.settingsTitle}
+              />
+            </View>
+          ) : null}
+        </>
       ) : null}
     </Card>
   );

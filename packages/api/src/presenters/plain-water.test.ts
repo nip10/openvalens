@@ -629,6 +629,7 @@ describe("queue helpers", () => {
         item({
           id: "c",
           status: "needs_attention",
+          lastErrorCode: "CONFLICT",
           conflict: { id: 12, revision: 4, quantityMl: OTHER_CANARY, deleted: false },
           op: {
             kind: "change",

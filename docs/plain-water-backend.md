@@ -2,7 +2,7 @@
 
 This checkpoint provides a private domain-service, additive persistence
 foundation, and authenticated HTTP contract for manually recorded **plain water**.
-It is not wired into a client yet. It has no reminders, streaks, hydration advice, or
+Its web and native client surfaces are described below. It has no reminders, streaks, hydration advice, or
 universal goal; it does not combine logged water with other beverages or water
 in foods. A displayed amount must be called a **Plain water subtotal**, never
 total hydration or total dietary water.
@@ -96,6 +96,14 @@ An uncertain retry remains attached to its original generation; a newly opened
 form cannot claim or resubmit that operation. Privacy resets may clear rendered
 fields without discarding the pending immutable retry.
 
+Delete coordination is independent of an originating add/edit form generation:
+retry resends the same immutable mutation ID and payload, conflict rebase uses a
+fresh ID and the current server revision, and Keep other releases only an
+authoritative conflict. A refused add/edit while a delete is active does not
+adopt or resolve the delete. Successful add/edit continuations retire a form
+only while its submitted generation is still the live editor, preserving a
+newer reopened draft.
+
 Native uses `usePlainWaterOutbox()` and shows queued, syncing, needs-attention
 and conflict states. A conflict is never treated as a save. `discard(id)` is
 true only after confirmed local removal. It is allowed for a demonstrably
@@ -113,6 +121,14 @@ replacement's same ID and payload. Native time entry is a validated 24-hour
 ambiguous times resolve to the earlier instant. Time-only edits preserve the
 exact stored quantity and unit; an amount or unit edit submits an intentional
 quantity. Privacy changes synchronously reset displayed form/editor state.
+Persisted proof is runtime-validated before it is treated as authoritative:
+receipt identity/payload and the expected conflict marker/target must agree, or
+the record must be an authoritative first-attempt known rejection. Missing,
+malformed, or contradictory proof remains uncertain and cannot authorize
+discard. A corrupt/unreadable queue is represented as a storage error rather
+than an empty queue; the existing screen withholds queue/day/settings actions
+until storage can be read again, and can recover after the persisted row is
+repaired.
 Delete is an inline two-step confirmation with no undo, because there is no
 restore endpoint.
 
@@ -126,3 +142,25 @@ as definitive while reconciliation is unresolved. The client adds no new
 dependency, motion, colour, font or icon, and does not change routers,
 contracts, schema, the nutrition domain or the meal diary. Water is not
 included in insights, coach, nutrition targets or meal totals.
+
+## Mounted regression evidence
+
+The actual web `PlainWaterSection` is exercised with Happy DOM, Testing Library,
+a fresh real `QueryClientProvider`, and a controlled global-fetch boundary that
+uses the real oRPC `RPCHandler` wire codec. Run the isolated DOM process from
+`apps/web` with `bun run test:mounted-water`; it currently executes five mounted
+regressions. Default `bun test` discovery leaves this entry environment-gated
+and skips it without importing the DOM setup, so it does not contaminate the
+ordinary non-DOM suite. CI runs the dedicated command after root tests.
+
+These mounted tests cover delete acknowledgement-loss Retry with stable ID and
+payload, delete conflict rebase/Keep other, add/edit refusal while delete is
+uncertain, and held add/edit success while a newer draft/editor is open. The
+delete regression failed before the fix with expected two transport attempts,
+received one. The mounted add race reproduced disappearance of the newer Amount
+input before the generation guard; held add and edit cases pass afterward.
+Native SQLite tests also reproduce false certainty from invalid proof and silent
+empty results from corrupt persisted JSON. An earlier missing-helper-import
+failure was a harness failure, not behavioral RED evidence. Mounted DOM
+assertions are not evidence of actual browser layout/rendering or native-device
+behavior.

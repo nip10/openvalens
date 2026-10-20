@@ -53,7 +53,7 @@ describe("controller-to-form lifecycle", () => {
           payload: { ...add.payload, quantity: 900 },
         })
       ).status,
-    ).toBe("uncertain");
+    ).toBe("idle");
     expect(calls).toEqual(["id-1"]);
     expect((await lifecycle.retry(controller)).status).toBe("complete");
     expect(calls).toEqual(["id-1", "id-1"]);

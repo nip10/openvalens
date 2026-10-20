@@ -42,8 +42,9 @@ export function createSqliteWaterStore(db: WaterSqlite): WaterStore {
               seq: row.seq,
             },
           ];
-        } catch {
-          return [];
+        } catch (error) {
+          // Do not make a corrupt unresolved row look like an empty outbox.
+          throw new Error("Could not read persisted plain-water changes", { cause: error });
         }
       });
     },

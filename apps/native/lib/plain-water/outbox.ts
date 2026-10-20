@@ -4,6 +4,7 @@ import type {
   plainWaterDeleteInput,
 } from "@openvalens/api/contracts/plain-water";
 import type { z } from "zod";
+import { hasAuthoritativeWaterNonApplication } from "@openvalens/api/presenters/water-proof";
 
 export type WaterAdd = z.input<typeof plainWaterAddInput>;
 export type WaterChange = z.input<typeof plainWaterChangeInput>;
@@ -40,24 +41,22 @@ export type WaterSender = {
   delete(input: WaterDelete): Promise<WaterOutcome>;
 };
 export const mutationIdOf = (op: WaterOperation) => op.input.clientMutationId;
-const definitelyRejectedCodes = new Set([
-  "BAD_REQUEST",
-  "UNAUTHORIZED",
-  "FORBIDDEN",
-  "NOT_FOUND",
-  "PRECONDITION_FAILED",
-]);
 /** Fail closed: only locally proven-unsent writes or authoritative non-application can be discarded. */
 export function canDiscardWaterItem(item: WaterItem): boolean {
-  if (item.status === "queued" && item.attempts === 0 && item.lastErrorCode === null) return true;
+  if (
+    item.status === "queued" &&
+    item.attempts === 0 &&
+    item.lastErrorCode === null &&
+    item.conflict === null
+  )
+    return true;
   if (item.status !== "needs_attention") return false;
-  return (
-    (item.lastErrorCode === "CONFLICT" && item.conflict !== null) ||
-    (item.attempts === 1 &&
-      item.conflict === null &&
-      !!item.lastErrorCode &&
-      definitelyRejectedCodes.has(item.lastErrorCode))
-  );
+  return hasAuthoritativeWaterNonApplication({
+    conflict: item.conflict,
+    lastErrorCode: item.lastErrorCode,
+    attempts: item.attempts,
+    operationTargetId: item.op.kind === "add" ? undefined : item.op.input.id,
+  });
 }
 /** JSON with sorted object keys, so a re-created identical payload still dedupes. */
 function canonical(value: unknown): string {

@@ -24,7 +24,7 @@ import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "./plain-water-form";
 import {
   isResolvedFormGeneration,
@@ -168,6 +168,10 @@ function PlainWaterDayViewState({
   const [confirming, setConfirming] = useState<string | null>(null);
   const [addGeneration, setAddGeneration] = useState<number | null>(null);
   const [editGeneration, setEditGeneration] = useState<number | null>(null);
+  const addGenerationRef = useRef(addGeneration);
+  const editGenerationRef = useRef(editGeneration);
+  addGenerationRef.current = addGeneration;
+  editGenerationRef.current = editGeneration;
 
   // Resolve the exact submitted draft before committing another render. The
   // controller keeps retry identity outside this privacy-keyed form boundary.
@@ -210,7 +214,7 @@ function PlainWaterDayViewState({
       },
       addGeneration,
     );
-    if (saved) {
+    if (saved && addGenerationRef.current === addGeneration) {
       setAddOpen(false);
       setAddGeneration(null);
       setAmount("");
@@ -236,7 +240,7 @@ function PlainWaterDayViewState({
       return setEditError(WATER_COPY.nothingChanged);
     setEditError(null);
     const saved = await onChange(editing.entryId, editing.revision, patch, editGeneration);
-    if (saved) {
+    if (saved && editGenerationRef.current === editGeneration) {
       setEditing(null);
       setEditGeneration(null);
     }
