@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { InMemoryRateLimiter } from "@openvalens/ai";
 import type { Database } from "@openvalens/db";
 import type { EmailService, SendEmailInput, SendEmailOptions } from "@openvalens/email";
@@ -143,6 +143,32 @@ describe("cron.remindersDailyRun", () => {
       code: "UNAUTHENTICATED",
       status: 401,
     });
+  });
+});
+
+describe("cron.wearablesSync", () => {
+  test("registers and invokes the configured fake wearables adapter", async () => {
+    const runDueSyncs = mock(async (_input: { limit: number }) => ({
+      claimed: 2,
+      succeeded: 2,
+      failed: 0,
+    }));
+    const result = await appRouter.cron.wearablesSync.callable({
+      context: {
+        ...authorizedContext("corr-wearables"),
+        wearables: { runDueSyncs } as never,
+      },
+    })({});
+
+    expect(result).toMatchObject({
+      status: "ok",
+      job: "wearables.sync",
+      claimed: 2,
+      succeeded: 2,
+      failed: 0,
+      correlationId: "corr-wearables",
+    });
+    expect(runDueSyncs).toHaveBeenCalledWith({ limit: 25 });
   });
 });
 

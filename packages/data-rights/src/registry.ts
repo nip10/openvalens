@@ -144,6 +144,8 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_diary_mutation: organization,
   // Energy estimate (#76): target proposals with the estimate they came from.
   nutrition_energy_proposal: organization,
+  // Nutrition targets (#80): member settings and self-declarations.
+  nutrition_target_settings: { kind: "user" },
   // Coach nutrition context consent (#86): the member's own opt-in; matched by user_id.
   nutrition_coach_consent: { kind: "user" },
   // Plain-water diary (#83): member-private entries and preferences.

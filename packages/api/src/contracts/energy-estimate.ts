@@ -135,10 +135,25 @@ export const energyEstimateAdultsOnly = z.object({
   note: z.string(),
 });
 
+export const energyEstimateHidden = z.object({
+  status: z.literal("hidden"),
+  experimental: z.literal(true),
+  note: z.string(),
+});
+
+/** Turned off after an eating-disorder declaration (#80): nothing was read or computed. */
+export const energyEstimateOff = z.object({
+  status: z.literal("off"),
+  experimental: z.literal(true),
+  note: z.string(),
+});
+
 export const energyEstimateOutput = z.discriminatedUnion("status", [
   energyEstimate.extend({ status: z.literal("estimated") }),
   energyEstimate.extend({ status: z.literal("no_estimate") }),
   energyEstimateAdultsOnly,
+  energyEstimateOff,
+  energyEstimateHidden,
 ]);
 export type EnergyEstimateOutput = z.infer<typeof energyEstimateOutput>;
 
@@ -154,27 +169,36 @@ export const PROPOSAL_DECLINE_REASONS = [
   "expired",
   "target_changed",
   "not_pending",
+  "suggestions_off",
+  "not_suggested_for_profile",
+  "needs_body_details",
+  "needs_confirmation",
 ] as const;
+
+/** `deficit` and `gain` only through the nutrition safety policy (#80, `nutrition-safety/v1`). */
+export const PROPOSAL_KINDS = ["maintenance", "deficit", "gain"] as const;
 
 export const energyProposal = z.object({
   id: z.number().int(),
-  kind: z.literal("maintenance"),
+  kind: z.enum(PROPOSAL_KINDS),
   status: z.enum(PROPOSAL_STATUSES),
   /** A pending proposal past its expiry can no longer be accepted. */
   expired: z.boolean(),
-  estimateKcal: z.number().int(),
-  targetKcal: z.number().int(),
+  estimateKcal: z.number().int().nullable(),
+  targetKcal: z.number().int().nullable(),
   currentTargetKcal: z.number().int().nullable(),
   stepLimited: z.boolean(),
   methodVersion: z.number().int(),
   policyVersion: z.string(),
   window: z.object({ from: z.string(), to: z.string() }),
   /** The full estimate the proposal was made from. */
-  estimate: energyEstimate,
+  estimate: energyEstimate.nullable(),
   createdAt: z.string(),
   expiresAt: z.string(),
   decidedAt: z.string().nullable(),
   acceptedGoalId: z.number().int().nullable(),
+  /** A pending reduction under a soft gate (65+, GLP-1/GIP): accept needs `confirmed: true`. */
+  needsConfirmation: z.boolean(),
   notes: z.array(z.string()),
 });
 export type EnergyProposalWire = z.infer<typeof energyProposal>;
@@ -195,11 +219,22 @@ export type ProposeOutput = z.infer<typeof proposeOutput>;
 
 export const decideProposalInput = z.strictObject({ proposalId: z.number().int().positive() });
 
+/**
+ * Accept: optionally the member's local date the target applies from
+ * (defaults to the server's UTC date) and the extra confirmation a soft gate
+ * needs. Never a number the server would trust.
+ */
+export const acceptProposalInput = z.strictObject({
+  proposalId: z.number().int().positive(),
+  effectiveFrom: localDate.optional(),
+  confirmed: z.boolean().optional(),
+});
+
 const declined = z.object({
   outcome: z.literal("declined"),
   reason: z.enum(PROPOSAL_DECLINE_REASONS),
   note: z.string(),
-  proposal: energyProposal,
+  proposal: energyProposal.nullable(),
   targetId: z.string(),
 });
 

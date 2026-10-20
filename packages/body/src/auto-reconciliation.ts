@@ -1,4 +1,4 @@
-import type { Database } from "@openvalens/db";
+import { lockNutritionSafetyUser, type Database, type DbTransaction } from "@openvalens/db";
 import { dailyWeight, dailyWeightOverride, weightEvent } from "@openvalens/db/schema/body";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -137,9 +137,9 @@ export async function reconcileAutoDailyWeight(
  * `db` so each request runs against the caller's transaction pool.
  */
 /** A database handle or a transaction. */
-type DbLike = Pick<Database, "select" | "insert" | "update" | "delete">;
+type DbLike = Pick<DbTransaction, "select" | "insert" | "update" | "delete">;
 
-export function createAutoReconciliationService(db: DbLike) {
+export function createAutoReconciliationTxService(db: DbLike, tx: DbTransaction) {
   const dependencies: AutoWeightEventDependencies = {
     async insertAutoWeightEvent(autoInput) {
       const [row] = await db
@@ -240,11 +240,14 @@ export function createAutoReconciliationService(db: DbLike) {
     async ingestAutoWeightEvent(
       input: IngestAutoWeightEventInput,
     ): Promise<IngestAutoWeightEventResult> {
+      await lockNutritionSafetyUser(tx, input.userId);
       return ingestAutoWeightEvent(input, dependencies);
     },
 
     reconcileDay(day: { organizationId: string; userId: string; date: string }) {
-      return reconcileAutoDailyWeight(day, dependencies);
+      return lockNutritionSafetyUser(tx, day.userId).then(() =>
+        reconcileAutoDailyWeight(day, dependencies),
+      );
     },
 
     /**
@@ -258,6 +261,22 @@ export function createAutoReconciliationService(db: DbLike) {
       supersededAt: Date;
     }): Promise<number> {
       if (input.metricSampleIds.length === 0) return 0;
+      const matching = await db
+        .select({ userId: weightEvent.userId })
+        .from(weightEvent)
+        .where(
+          and(
+            eq(weightEvent.organizationId, input.organizationId),
+            eq(weightEvent.source, "auto"),
+            isNull(weightEvent.supersededAt),
+            inArray(
+              sql`(${weightEvent.metadataJson}->>'metricSampleId')::int`,
+              input.metricSampleIds,
+            ),
+          ),
+        );
+      for (const userId of [...new Set(matching.map((row) => row.userId))].sort())
+        await lockNutritionSafetyUser(tx, userId);
       const affected = await db
         .update(weightEvent)
         .set({ supersededAt: input.supersededAt.toISOString() })
@@ -292,6 +311,39 @@ export function createAutoReconciliationService(db: DbLike) {
      * `body.listWeightHistory` to surface ingested samples.
      */
     async listWeightHistory(organizationId: string, limit: number) {
+      return db
+        .select()
+        .from(weightEvent)
+        .where(eq(weightEvent.organizationId, organizationId))
+        .orderBy(desc(weightEvent.measuredAt), desc(weightEvent.id))
+        .limit(limit);
+    },
+  };
+}
+
+/** Root-pool entrypoints open one transaction before acquiring the shared safety lock. */
+export function createAutoReconciliationService(db: Database) {
+  return {
+    ingestAutoWeightEvent(input: IngestAutoWeightEventInput) {
+      return db.transaction(async (tx) =>
+        createAutoReconciliationTxService(tx, tx).ingestAutoWeightEvent(input),
+      );
+    },
+    reconcileDay(day: { organizationId: string; userId: string; date: string }) {
+      return db.transaction(async (tx) =>
+        createAutoReconciliationTxService(tx, tx).reconcileDay(day),
+      );
+    },
+    supersedeForMetricSamples(input: {
+      organizationId: string;
+      metricSampleIds: number[];
+      supersededAt: Date;
+    }) {
+      return db.transaction(async (tx) =>
+        createAutoReconciliationTxService(tx, tx).supersedeForMetricSamples(input),
+      );
+    },
+    listWeightHistory(organizationId: string, limit: number) {
       return db
         .select()
         .from(weightEvent)

@@ -47,6 +47,21 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     // Keep this suite's legacy broad-erasure fixture focused on its existing tables.
     await db.execute(sql`delete from stored_object where organization_id in ('org-a', 'org-b')`);
     await db.execute(sql`delete from photo_cleanup_intent where org_id in ('org-a', 'org-b')`);
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('user-a2', 'a2@example.test'), ('user-a3', 'a3@example.test');
+      insert into member (id, organization_id, user_id, role)
+        values ('m-a2', 'org-a', 'user-a2', 'collaborator'), ('m-a3', 'org-a', 'user-a3', 'collaborator');
+      insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+        values ('org-a', 'user-a2', 1, false, array['chronic_kidney_disease']),
+               ('org-a', 'user-a3', 1, false, array['glp1_medication']);
+      insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
+        values ('org-a', 'user-a2', 'protein_g', 45), ('org-a', 'user-a3', 'protein_g', 55);
+      insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
+        values ('org-a', 'user-a2', 'maintenance', 'pending', 2001, 2000, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"other_member": 2001}', now() + interval '1 day'),
+               ('org-a', 'user-a3', 'maintenance', 'pending', 2201, 2200, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"other_member": 2201}', now() + interval '1 day');
+      `),
+    );
 
     for (const who of ["a", "b"]) {
       await db.execute(
@@ -83,6 +98,8 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
           from nutrition_goal where organization_id = 'org-${who}';
         insert into nutrition_diary_day (organization_id, user_id, local_date, completed_at)
           values ('org-${who}', 'user-${who}', '2026-10-01', now());
+        insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+          values ('org-${who}', 'user-${who}', 1, true, array['chronic_kidney_disease']);
         insert into nutrition_favorite_food (organization_id, user_id, snapshot_id)
           select 'org-${who}', 'user-${who}', id from nutrition_food_snapshot where organization_id = 'org-${who}';
         insert into nutrition_diary_mutation (organization_id, user_id, client_mutation_id, kind, entry_id)
@@ -106,8 +123,14 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       insert into supplement_schedule (organization_id, user_id, supplement_id, time_of_day)
         select org, usr, (select id from supplement where name = 'Shared'), 'evening'
         from (values ('org-a', 'user-a'), ('org-b', 'user-b')) v(org, usr);
-      -- A is a collaborator in B's record and appears in B's audit log.
-      insert into member (id, organization_id, user_id, role) values ('m-a-in-b', 'org-b', 'user-a', 'collaborator');
+      -- A is also a viewer of B's record and appears in B's audit log.
+      insert into member (id, organization_id, user_id, role) values ('m-a-in-b', 'org-b', 'user-a', 'viewer');
+      insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
+        values ('org-b', 'user-a', 1, false, array['pregnant_or_breastfeeding']);
+      insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
+        values ('org-b', 'user-a', 'protein_g', 66);
+      insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
+        values ('org-b', 'user-a', 'maintenance', 'pending', 2301, 2300, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"subject_other_org": 2301}', now() + interval '1 day');
       insert into access_audit_log (organization_id, actor_user_id, event_type, created_at)
         values ('org-b', 'user-a', 'RECORD_VIEWED', '2026-10-01');
     `),
@@ -161,6 +184,16 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
         ('evt-a-target', 'setup_completed', null, 'user-a', null);
     `),
     );
+
+    // A collaborator can erase their user-owned settings without affecting
+    // the owner or another collaborator in the same workspace.
+    await deleteSubjectData(db, { userId: "user-a2", organizationIds: [] });
+    const retainedSettings = (
+      await db.execute(
+        sql`select user_id from nutrition_target_settings where organization_id = 'org-a' order by user_id`,
+      )
+    ).rows as { user_id: string }[];
+    expect(retainedSettings.map(({ user_id }) => user_id)).toEqual(["user-a", "user-a3"]);
 
     resolvedA = await resolveSubject(db, "user-a");
     resolvedB = await resolveSubject(db, "user-b");
@@ -226,6 +259,18 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     ).toBe(1);
   });
 
+  test("deleting the owner removes only that subject's nutrition settings", async () => {
+    const remaining = (
+      await db.execute(
+        sql`select organization_id, user_id, declarations from nutrition_target_settings order by organization_id`,
+      )
+    ).rows as { user_id: string; declarations: string[] }[];
+    expect(remaining.map(({ user_id, declarations }) => ({ user_id, declarations }))).toEqual([
+      { user_id: "user-b", declarations: ["chronic_kidney_disease"] },
+    ]);
+    expect(report.rowCounts.nutrition_target_settings).toBe(3);
+  });
+
   test("supplements: own removed, shared and other-account kept", async () => {
     expect(await count("supplement", sql`name = 'Supplement a'`)).toBe(0);
     expect(await count("supplement", sql`name = 'Shared'`)).toBe(1);
@@ -240,11 +285,9 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_food_snapshot",
       "nutrition_meal",
       "nutrition_meal_entry",
-      "nutrition_goal",
       "nutrition_diary_day",
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
-      "nutrition_energy_proposal",
       "plain_water_entry",
       "plain_water_preference",
       "plain_water_mutation",
@@ -256,6 +299,9 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
             ? 4
             : 1,
       );
+    expect(report.rowCounts.nutrition_goal).toBe(3);
+    expect(report.rowCounts.nutrition_energy_proposal).toBe(5);
+    expect(report.rowCounts.nutrition_target_settings).toBe(3);
     expect(report.rowCounts.user).toBe(1);
     expect(report.rowCounts.organization).toBe(1);
     const ledger = (await db.execute(sql`select * from erasure_ledger`)).rows as {
@@ -263,10 +309,10 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       organization_ids: string[];
       row_counts: Record<string, number>;
     }[];
-    expect(ledger).toHaveLength(1);
-    expect(ledger[0]!.subject_user_id).toBe("user-a");
-    expect(ledger[0]!.organization_ids).toEqual(["org-a"]);
-    expect(ledger[0]!.row_counts).toEqual(report.rowCounts);
+    expect(ledger).toHaveLength(2);
+    const ownerErasure = ledger.find((entry) => entry.subject_user_id === "user-a");
+    expect(ownerErasure?.organization_ids).toEqual(["org-a"]);
+    expect(ownerErasure?.row_counts).toEqual(report.rowCounts);
   });
 
   test("subject resolution: owned records only, co-owned records block", () => {
@@ -291,6 +337,31 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     // Preview lists every supplement the record uses; deletion keeps the shared one.
     expect(preview.supplement).toBe(2);
     expect(report.rowCounts.supplement).toBe(1);
+    expect(preview.nutrition_goal).toBe(3); // own rows plus every goal in erased org-a
+    expect(preview.nutrition_energy_proposal).toBe(5);
+    expect(report.rowCounts.nutrition_goal).toBe(3); // org-a rows plus own surviving-org row
+    expect(report.rowCounts.nutrition_energy_proposal).toBe(5);
+  });
+
+  test("erase removes own rows across memberships but preserves other members in surviving orgs", async () => {
+    expect(
+      await count("nutrition_goal", sql`organization_id = 'org-b' and user_id = 'user-a'`),
+    ).toBe(0);
+    expect(
+      await count(
+        "nutrition_energy_proposal",
+        sql`organization_id = 'org-b' and user_id = 'user-a'`,
+      ),
+    ).toBe(0);
+    expect(
+      await count("nutrition_goal", sql`organization_id = 'org-b' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count(
+        "nutrition_energy_proposal",
+        sql`organization_id = 'org-b' and user_id = 'user-b'`,
+      ),
+    ).toBe(1);
     expect(preview.plain_water_entry).toBe(3);
     expect(preview.plain_water_preference).toBe(4);
     expect(preview.plain_water_mutation).toBe(3);

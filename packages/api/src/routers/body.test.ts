@@ -138,7 +138,13 @@ function fakeDb() {
     select,
     insert,
     async transaction<T>(fn: (tx: unknown) => Promise<T>) {
-      return fn({ insert });
+      return fn({
+        select,
+        insert,
+        async execute() {
+          return { rows: [] };
+        },
+      });
     },
   } as unknown as Database;
 

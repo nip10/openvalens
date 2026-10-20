@@ -8,7 +8,8 @@ import {
   provenanceLink,
 } from "@openvalens/db/schema/health-record";
 import { providerConnection } from "@openvalens/db/schema/ingestion";
-import { createAutoReconciliationService } from "@openvalens/body";
+import { createAutoReconciliationTxService } from "@openvalens/body";
+import { lockNutritionSafetyUser } from "@openvalens/db";
 import { stableSerialize } from "@openvalens/health-record";
 import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
 
@@ -380,6 +381,24 @@ export async function runMobileIngestBatchJob(
     if (job.providerConnectionId === null)
       throw new IngestionStateError("mobile ingest job has no provider connection");
 
+    const containsWeight =
+      batch.recordType === "weight" || batch.upserts.some((record) => record.type === "weight");
+    let deviceOwnerId: string | null = null;
+    if (containsWeight) {
+      const [owner] = await tx
+        .select({ userId: providerConnection.userId })
+        .from(providerConnection)
+        .where(
+          and(
+            eq(providerConnection.id, job.providerConnectionId),
+            eq(providerConnection.organizationId, organizationId),
+          ),
+        )
+        .limit(1);
+      deviceOwnerId = owner?.userId ?? null;
+      if (deviceOwnerId) await lockNutritionSafetyUser(tx, deviceOwnerId);
+    }
+
     const totals = {
       metricSampleCount: 0,
       healthEventCount: 0,
@@ -459,23 +478,13 @@ export async function runMobileIngestBatchJob(
 
     // Body bridge: phone weights feed the per-user daily weight, as the old
     // Health Connect import did. Needs the device owner.
-    const [owner] = await tx
-      .select({ userId: providerConnection.userId })
-      .from(providerConnection)
-      .where(
-        and(
-          eq(providerConnection.id, job.providerConnectionId),
-          eq(providerConnection.organizationId, organizationId),
-        ),
-      )
-      .limit(1);
-    const body = createAutoReconciliationService(tx);
-    if (owner?.userId)
+    const body = createAutoReconciliationTxService(tx, tx);
+    if (deviceOwnerId)
       for (const row of inserted) {
         if (row.table !== "metric_sample" || row.metric.code !== "weight") continue;
         await body.ingestAutoWeightEvent({
           organizationId,
-          userId: owner.userId,
+          userId: deviceOwnerId,
           date: localDateIn(row.metric.sampledAt, batch.clientTimezone),
           measuredAt: row.metric.sampledAt,
           weightKg: row.metric.value,

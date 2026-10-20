@@ -5,6 +5,7 @@ import { createStructuredLogger } from "@openvalens/observability";
 import type { Context } from "../context";
 
 import {
+  acceptProposalInput,
   acceptProposalOutput,
   decideProposalInput,
   dismissProposalOutput,
@@ -42,6 +43,18 @@ import { requireProfileOwner } from "../wellness-profile";
  */
 
 const logger = createStructuredLogger({ level: "info" });
+
+/** Nutrition eligibility and refusal details are never useful log dimensions. */
+export function energyEstimateLogMetadata(result: unknown, correlationId: string) {
+  void result;
+  return { correlationId, outcome: "processed" as const };
+}
+
+/** Proposal refusal reasons may encode sensitive declarations; log a generic outcome only. */
+export function energyProposalLogMetadata(result: unknown, correlationId: string) {
+  void result;
+  return { correlationId, outcome: "processed" as const };
+}
 
 function scopeOf(context: {
   authz: { activeOrganizationId: string; user: { id: string } };
@@ -96,12 +109,12 @@ export const nutritionEnergyRouter = {
     .input(energyEstimateInput)
     .output(energyEstimateOutput)
     .handler(async ({ input, context }) => {
+      const scope = scopeOf(context);
+      requireSelf(context, scope);
       await requireWeightRead(context);
-      const result = await run(() => service(context).estimate(scopeOf(context), input));
+      const result = await run(() => service(context).estimate(scope, input));
       logger.info("nutrition.energy_estimate.computed", {
-        correlationId: context.correlationId,
-        status: result.status,
-        reasons: result.status === "adults_only" ? [] : result.reasons,
+        ...energyEstimateLogMetadata(result, context.correlationId),
       });
       return result;
     }),
@@ -110,9 +123,11 @@ export const nutritionEnergyRouter = {
     .use(validateInput(listProposalsInput))
     .input(listProposalsInput)
     .output(listProposalsOutput)
-    .handler(({ context }) =>
-      run(async () => ({ proposals: await service(context).listProposals(scopeOf(context)) })),
-    ),
+    .handler(({ context }) => {
+      const scope = scopeOf(context);
+      requireSelf(context, scope);
+      return run(async () => ({ proposals: await service(context).listProposals(scope) }));
+    }),
 
   propose: write("RECORD_CREATED")
     .use(validateInput(proposeInput))
@@ -124,25 +139,21 @@ export const nutritionEnergyRouter = {
       await requireWeightRead(context);
       const result = await run(() => service(context).propose(scope, input));
       logger.info("nutrition.energy_proposal.requested", {
-        correlationId: context.correlationId,
-        outcome: result.outcome,
-        reason: result.outcome === "declined" ? result.reason : undefined,
+        ...energyProposalLogMetadata(result, context.correlationId),
       });
       return result;
     }),
 
   acceptProposal: write("RECORD_UPDATED")
-    .use(validateInput(decideProposalInput))
-    .input(decideProposalInput)
+    .use(validateInput(acceptProposalInput))
+    .input(acceptProposalInput)
     .output(acceptProposalOutput)
     .handler(async ({ input, context }) => {
       const scope = scopeOf(context);
       requireSelf(context, scope);
       const result = await run(() => service(context).accept(scope, input));
       logger.info("nutrition.energy_proposal.accept", {
-        correlationId: context.correlationId,
-        outcome: result.outcome,
-        reason: result.outcome === "declined" ? result.reason : undefined,
+        ...energyProposalLogMetadata(result, context.correlationId),
       });
       return result;
     }),

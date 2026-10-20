@@ -56,4 +56,23 @@ describe("NutritionDayTotals", () => {
     expect(html).not.toMatch(/>0( |<)/);
     expect(html).not.toContain("Sources:");
   });
+
+  test("hide-numbers replaces every value but keeps coverage and logging notes", () => {
+    const html = renderToStaticMarkup(
+      <NutritionDayTotals
+        totals={totals(
+          { energyKcal: { known: 1840, reported: 3, missing: 1, coverage: "partial" } },
+          { known: null, reported: 0, missing: 0, coverage: "no_entries" },
+        )}
+        sources={{ fdc: 2, off: 0, custom: 0, manual: 1 }}
+        hideNumbers
+      />,
+    );
+    expect(html).not.toContain("1,840");
+    expect(html).toContain("Hidden");
+    expect(html).toContain("3 of 4 entries");
+    expect(html).toContain("Numbers are hidden. Coverage is still shown.");
+    // Coverage is never hidden, and a verdict word never appears.
+    expect(html).not.toMatch(/\b(over|under|good|bad)\b/i);
+  });
 });

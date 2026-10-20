@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
 import { RPCHandler } from "@orpc/server/fetch";
+import { createAutoReconciliationTxService } from "@openvalens/body";
 
 import type { Context } from "../context";
 import type {
@@ -14,6 +15,11 @@ import type {
   ProposeOutput,
 } from "../contracts/energy-estimate";
 import { appRouter } from "./index";
+import {
+  createNutritionRepository,
+  lockNutritionSafetyScope,
+  setGoalInTransaction,
+} from "@openvalens/nutrition";
 
 /**
  * `nutritionEnergy.*` over HTTP (oRPC `RPCHandler`) against a disposable
@@ -55,6 +61,9 @@ const MEMBERS: Record<string, { org: string; role: string }> = {
   "user-u": { org: "org-u", role: "owner" },
   "user-r": { org: "org-a", role: "collaborator" },
   "user-n": { org: "org-n", role: "owner" },
+  "user-x": { org: "org-x", role: "owner" },
+  "user-y": { org: "org-y", role: "owner" },
+  "user-z": { org: "org-z", role: "owner" },
 };
 const NO_WEIGHT_READ = new Set(["user-r"]);
 
@@ -141,7 +150,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/nutrition_energy_test" });
   const rpc = new RPCHandler(appRouter);
 
-  function contextFor(headers: Headers): Context {
+  function contextFor(headers: Headers, database: Database = db): Context {
     const id = actorOf(headers);
     return {
       session: MEMBERS[id]
@@ -155,7 +164,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
             },
           }
         : null,
-      db,
+      db: database,
       correlationId: "corr-76",
       cronSecret: "cron-secret-long-enough-value",
       betterAuthSecretConfigured: true,
@@ -173,6 +182,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     input: unknown,
     user = "user-a",
     extraHeaders: Record<string, string> = {},
+    database: Database = db,
   ): Promise<{ status: number; body: T }> {
     const headers = new Headers({
       "content-type": "application/json",
@@ -186,7 +196,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     });
     const { matched, response } = await rpc.handle(request, {
       prefix: "/rpc",
-      context: contextFor(headers),
+      context: contextFor(headers, database),
     });
     if (!matched || !response) throw new Error("unmatched RPC path");
     const parsed = (await response.json()) as { json: T };
@@ -223,17 +233,24 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       insert into "user" (id, email) values ${users.map((id) => `('${id}', '${id}@example.test')`).join(", ")};
       insert into organization (id, name, slug) values
         ('org-a', 'Record A', 'record-a'), ('org-b', 'Record B', 'record-b'),
-        ('org-u', 'Record U', 'record-u'), ('org-n', 'Record N', 'record-n');
+        ('org-u', 'Record U', 'record-u'), ('org-n', 'Record N', 'record-n'),
+        ('org-x', 'Record X', 'record-x'), ('org-y', 'Record Y', 'record-y'),
+        ('org-z', 'Record Z', 'record-z');
       insert into member (id, organization_id, user_id, role) values
         ${users.map((id) => `('m-${id}', '${MEMBERS[id]!.org}', '${id}', '${MEMBERS[id]!.role}')`).join(", ")};
       insert into wellness_profile (user_id, revision, eligibility_state, eligibility) values
         ('user-a', 1, 'recorded', 'adult'), ('user-a2', 1, 'recorded', 'adult'),
         ('user-b', 1, 'recorded', 'adult'), ('user-r', 1, 'recorded', 'adult'),
+        ('user-x', 1, 'recorded', 'adult'), ('user-y', 1, 'recorded', 'adult'),
+        ('user-z', 1, 'recorded', 'adult'),
         ('user-u', 1, 'recorded', 'under_18');
       ${seedMember("org-a", "user-a")}
       ${seedMember("org-b", "user-b")}
       ${seedMember("org-u", "user-u")}
       ${seedMember("org-n", "user-n")}
+      ${seedMember("org-x", "user-x")}
+      ${seedMember("org-y", "user-y")}
+      ${seedMember("org-z", "user-z")}
     `),
     );
     setRegisteredAuth(fakeAuth);
@@ -334,11 +351,11 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       estimateKcal: 2680,
       targetKcal: 2700,
       currentTargetKcal: null,
-      policyVersion: "energy-proposal/v1",
+      policyVersion: "nutrition-safety/v1",
       expired: false,
       window: { from: "2026-03-01", to: "2026-03-28" },
     });
-    expect(first.body.proposal.estimate.inputs.intake.usedDays).toBe(26);
+    expect(first.body.proposal.estimate!.inputs.intake.usedDays).toBe(26);
     expect(await energyGoals("user-a")).toEqual([]);
 
     // Asking again replaces the pending one; the old one can no longer be accepted.
@@ -431,14 +448,277 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       { min_amount: 2000, max_amount: 2000, active: true },
     ]);
 
-    // From an existing target the proposal moves one step only.
+    // The member has not chosen "lose"; a target still below the estimate
+    // cannot be proposed as a maintenance step, even while moving upward.
     const stepped = await propose("2026-03-28", "user-b");
-    if (stepped.body.outcome !== "proposed") throw new Error("expected a proposal");
-    expect(stepped.body.proposal).toMatchObject({
-      currentTargetKcal: 2000,
-      targetKcal: 2200,
-      stepLimited: true,
+    expect(stepped.body).toMatchObject({
+      outcome: "declined",
+      reason: "not_suggested_for_profile",
     });
+  });
+
+  test("accept rechecks adult confirmation after the proposal was made", async () => {
+    const proposed = await propose("2026-03-28", "user-y");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    await db.execute(
+      sql`update wellness_profile set eligibility_state = null, eligibility = null where user_id = 'user-y'`,
+    );
+    expect((await accept(proposed.body.proposal.id, "user-y")).body).toMatchObject({
+      outcome: "declined",
+      reason: "adults_only",
+    });
+    expect(await energyGoals("user-y")).toEqual([]);
+    await db.execute(
+      sql`update wellness_profile set eligibility_state = 'recorded', eligibility = 'adult' where user_id = 'user-y'`,
+    );
+  });
+
+  test("auto weight writer holds the shared user lock through a new canonical-day insert", async () => {
+    await db.execute(sql`
+      insert into nutrition_target_settings
+        (organization_id, user_id, revision, hide_numbers, energy_direction, active_protein, height_cm, declarations)
+      values ('org-y', 'user-y', 1, false, 'lose', false, 170, '{}')
+      on conflict (organization_id, user_id) do update
+        set revision = 1, energy_direction = 'lose', height_cm = 170, declarations = '{}'
+    `);
+    await db.execute(sql`
+      insert into daily_weight (organization_id, user_id, date, weight_kg, source, created_at, updated_at)
+      values ('org-y', 'user-y', '2026-10-18', 80, 'manual', now(), now())
+    `);
+    const proposed = await propose("2026-03-28", "user-y");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    expect(proposed.body.proposal.kind).toBe("deficit");
+
+    const scope = { organizationId: "org-y", userId: "user-y" };
+    let writerReady!: () => void;
+    let releaseWriter!: () => void;
+    const ready = new Promise<void>((resolve) => (writerReady = resolve));
+    const blocked = new Promise<void>((resolve) => (releaseWriter = resolve));
+    const writer = db.transaction(async (tx) => {
+      await createAutoReconciliationTxService(tx, tx).ingestAutoWeightEvent({
+        ...scope,
+        date: "2026-10-19",
+        measuredAt: "2026-10-19T12:00:00.000Z",
+        weightKg: 50,
+        sourceDetail: "test-scale",
+        metadataJson: { metricSampleId: 88001 },
+      });
+      const [{ pid }] = (await tx.execute(sql`select pg_backend_pid() as pid`)).rows as [
+        { pid: number },
+      ];
+      writerReady();
+      await blocked;
+      return pid;
+    });
+
+    try {
+      await ready;
+      const accepting = accept(proposed.body.proposal.id, "user-y");
+      let observed = false;
+      for (let attempt = 0; attempt < 500; attempt++) {
+        const waiters = await db.execute(
+          sql`select count(*)::int as count from pg_stat_activity where wait_event_type = 'Lock' and wait_event = 'advisory'`,
+        );
+        if ((waiters.rows[0] as { count: number }).count > 0) {
+          observed = true;
+          break;
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+      expect(observed).toBe(true);
+      releaseWriter();
+      await writer;
+      const result = await accepting;
+      expect(result.body).toMatchObject({
+        outcome: "declined",
+        reason: "not_suggested_for_profile",
+      });
+      expect(await energyGoals("user-y")).toEqual([]);
+      const canonical = await db.execute(
+        sql`select source from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date = '2026-10-19'`,
+      );
+      expect(canonical.rows).toEqual([{ source: "auto" }]);
+    } finally {
+      releaseWriter();
+      await writer.catch(() => undefined);
+      await db.execute(
+        sql`delete from daily_weight where organization_id = 'org-y' and user_id = 'user-y' and date in ('2026-10-18', '2026-10-19')`,
+      );
+      await db.execute(
+        sql`update nutrition_target_settings set energy_direction = 'maintain', height_cm = null where organization_id = 'org-y' and user_id = 'user-y'`,
+      );
+    }
+  });
+
+  test("manual same-value energy replacement supersedes pending; non-energy edits do not", async () => {
+    const repository = createNutritionRepository(db);
+    const scope = { organizationId: "org-x", userId: "user-x" };
+    const proposal = await propose("2026-03-28", "user-x");
+    if (proposal.body.outcome !== "proposed") throw new Error("expected a proposal");
+    await repository.setGoal(scope, {
+      nutrient: "energyKcal",
+      minAmount: 2000,
+      maxAmount: 2000,
+      effectiveFrom: "2026-03-28",
+    });
+    expect((await list("user-x")).body.proposals[0]?.status).toBe("superseded");
+
+    // Recreate a pending historical proposal row so the exact same-value
+    // replacement path is exercised without planner state influencing it.
+    const duplicate = await db.execute(sql`
+      insert into nutrition_energy_proposal
+        (organization_id, user_id, kind, status, estimate_kcal, target_kcal, current_target_kcal,
+         step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at)
+      select organization_id, user_id, kind, 'pending', estimate_kcal, target_kcal, current_target_kcal,
+             step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at
+        from nutrition_energy_proposal where id = ${proposal.body.proposal.id}
+      returning id`);
+    await repository.setGoal(scope, {
+      nutrient: "energyKcal",
+      minAmount: 2000,
+      maxAmount: 2000,
+      effectiveFrom: "2026-03-28",
+    });
+    expect(
+      (
+        await db.execute(
+          sql`select status from nutrition_energy_proposal where id = ${(duplicate.rows[0] as { id: number }).id}`,
+        )
+      ).rows,
+    ).toEqual([{ status: "superseded" }]);
+
+    // A successful clear and archive are invalidations too.
+    const clearProposal = await db.execute(sql`
+      insert into nutrition_energy_proposal
+        (organization_id, user_id, kind, status, estimate_kcal, target_kcal, current_target_kcal,
+         step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at)
+      select organization_id, user_id, kind, 'pending', estimate_kcal, target_kcal, current_target_kcal,
+             step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at
+        from nutrition_energy_proposal where id = ${proposal.body.proposal.id} returning id`);
+    expect(await repository.clearGoal(scope, "energyKcal", "2026-03-28")).toBe(true);
+    expect(
+      (
+        await db.execute(
+          sql`select status from nutrition_energy_proposal where id = ${(clearProposal.rows[0] as { id: number }).id}`,
+        )
+      ).rows,
+    ).toEqual([{ status: "superseded" }]);
+    await repository.setGoal(scope, {
+      nutrient: "energyKcal",
+      minAmount: 2000,
+      maxAmount: 2000,
+      effectiveFrom: "2026-03-28",
+    });
+    const archiveProposal = await db.execute(sql`
+      insert into nutrition_energy_proposal
+        (organization_id, user_id, kind, status, estimate_kcal, target_kcal, current_target_kcal,
+         step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at)
+      select organization_id, user_id, kind, 'pending', estimate_kcal, target_kcal, current_target_kcal,
+             step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at
+        from nutrition_energy_proposal where id = ${proposal.body.proposal.id} returning id`);
+    const activeGoal = (await repository.listActiveGoals(scope)).find(
+      (goal) => goal.nutrient === "energy_kcal",
+    )!;
+    await repository.archiveGoal(scope, activeGoal.id);
+    expect(
+      (
+        await db.execute(
+          sql`select status from nutrition_energy_proposal where id = ${(archiveProposal.rows[0] as { id: number }).id}`,
+        )
+      ).rows,
+    ).toEqual([{ status: "superseded" }]);
+
+    // A non-energy goal mutation does not invalidate pending energy proposals.
+    const another = await propose("2026-03-28", "user-x");
+    if (another.body.outcome === "proposed") {
+      const anotherId = another.body.proposal.id;
+      await repository.setGoal(scope, {
+        nutrient: "proteinG",
+        minAmount: 80,
+        maxAmount: null,
+        effectiveFrom: "2026-03-28",
+      });
+      expect(
+        (await list("user-x")).body.proposals.find((proposal) => proposal.id === anotherId)?.status,
+      ).toBe("pending");
+      await dismiss(anotherId, "user-x");
+    }
+  });
+
+  test("accept/dismiss racing has one terminal result and at most one goal", async () => {
+    const proposed = await propose("2026-03-28", "user-y");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    const outcomes = await Promise.all([
+      accept(proposed.body.proposal.id, "user-y"),
+      dismiss(proposed.body.proposal.id, "user-y"),
+    ]);
+    const accepted = outcomes.filter((result) => result.body.outcome === "accepted");
+    const dismissed = outcomes.filter((result) => result.body.outcome === "dismissed");
+    const declined = outcomes.filter((result) => result.body.outcome === "declined");
+    expect(accepted.length + dismissed.length).toBe(1);
+    expect(declined).toHaveLength(1);
+    const terminal = await db.execute(sql`
+      select status, accepted_goal_id from nutrition_energy_proposal where id = ${proposed.body.proposal.id}`);
+    expect((terminal.rows[0] as { status: string }).status).toMatch(/^(accepted|dismissed)$/);
+    expect(await energyGoals("user-y")).toHaveLength(accepted.length);
+  });
+
+  test("a manual writer holding the user lock commits before accept re-checks", async () => {
+    const proposed = await propose("2026-03-28", "user-x");
+    if (proposed.body.outcome !== "proposed") throw new Error("expected a proposal");
+    let releaseWriter!: () => void;
+    let writerHasLock!: () => void;
+    const release = new Promise<void>((resolve) => {
+      releaseWriter = resolve;
+    });
+    const locked = new Promise<void>((resolve) => {
+      writerHasLock = resolve;
+    });
+    let blockerPid = 0;
+    const writer = db.transaction(async (tx) => {
+      await lockNutritionSafetyScope(tx, { userId: "user-x", organizationId: "org-x" });
+      await setGoalInTransaction(
+        tx,
+        { userId: "user-x", organizationId: "org-x" },
+        {
+          nutrient: "energyKcal",
+          minAmount: 2100,
+          maxAmount: 2100,
+          effectiveFrom: "2026-03-28",
+        },
+      );
+      const pid = await tx.execute(sql`select pg_backend_pid() as pid`);
+      blockerPid = Number((pid.rows[0] as { pid: number }).pid);
+      writerHasLock();
+      await release;
+    });
+    await locked;
+    try {
+      const accepting = accept(proposed.body.proposal.id, "user-x");
+      let observed = false;
+      // Observe the actual PostgreSQL lock wait, bounded by iterations and no sleeps.
+      for (let attempt = 0; attempt < 2_000; attempt += 1) {
+        const waiters = await db.execute(sql`
+          select count(*)::int as n from pg_stat_activity
+           where ${blockerPid} = any(pg_blocking_pids(pid)) and wait_event_type = 'Lock'`);
+        if ((waiters.rows[0] as { n: number }).n > 0) {
+          observed = true;
+          break;
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+      expect(observed).toBe(true);
+      releaseWriter();
+      const result = await accepting;
+      expect(result.body).toMatchObject({ outcome: "declined", reason: "not_pending" });
+      const goals = await energyGoals("user-x");
+      expect(goals.filter((goal) => goal.active)).toEqual([
+        { min_amount: 2100, max_amount: 2100, active: true },
+      ]);
+    } finally {
+      releaseWriter();
+      await writer;
+    }
   });
 
   test("permissions, strict inputs and invalid windows", async () => {
@@ -458,5 +738,178 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       expect(result.body).toMatchObject({ code: "INVALID_INPUT" });
     }
     expect((await accept(999_999)).status).toBe(404);
+  });
+
+  test("estimate and proposal listing reject impersonation before any database access", async () => {
+    let databaseCalls = 0;
+    const watchedDb = new Proxy(db, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target) as unknown;
+        if (
+          typeof value === "function" &&
+          ["execute", "select", "insert", "update", "delete", "transaction"].includes(
+            String(property),
+          )
+        )
+          return (...args: unknown[]) => {
+            databaseCalls += 1;
+            return Reflect.apply(value, target, args);
+          };
+        return value;
+      },
+    });
+    const headers = { "x-test-impersonated": "admin-1" };
+    expect(
+      (await call("estimate", { to: "2026-03-28" }, "user-a", headers, watchedDb)).status,
+    ).toBe(403);
+    expect(databaseCalls).toBe(0);
+    expect((await call("listProposals", {}, "user-a", headers, watchedDb)).status).toBe(403);
+    expect(databaseCalls).toBe(0);
+    expect((await estimate("2026-03-28", "user-a")).status).toBe(200);
+    expect((await list("user-a")).status).toBe(200);
+  });
+
+  test("proposal creation plans against settings committed before its shared-lock turn", async () => {
+    await db.execute(
+      sql`delete from nutrition_target_settings where organization_id = 'org-z' and user_id = 'user-z'`,
+    );
+    let locked!: () => void;
+    let releaseWriter!: () => void;
+    const hasLock = new Promise<void>((resolve) => (locked = resolve));
+    const release = new Promise<void>((resolve) => (releaseWriter = resolve));
+    let blockerPid = 0;
+    const writer = db.transaction(async (tx) => {
+      await lockNutritionSafetyScope(tx, { organizationId: "org-z", userId: "user-z" });
+      await tx.execute(sql`
+        insert into nutrition_target_settings
+          (organization_id, user_id, revision, hide_numbers, energy_direction, active_protein, declarations)
+        values ('org-z', 'user-z', 1, false, 'maintain', false, '{eating_disorder}')
+        on conflict (organization_id, user_id) do update
+          set revision = nutrition_target_settings.revision + 1, declarations = '{eating_disorder}'
+      `);
+      const pid = await tx.execute(sql`select pg_backend_pid() as pid`);
+      blockerPid = Number((pid.rows[0] as { pid: number }).pid);
+      locked();
+      await release;
+    });
+    try {
+      await hasLock;
+      const proposing = propose("2026-03-28", "user-z");
+      let observed = false;
+      for (let attempt = 0; attempt < 2_000; attempt += 1) {
+        const waiters = await db.execute(sql`
+          select count(*)::int as n from pg_stat_activity
+           where ${blockerPid} = any(pg_blocking_pids(pid)) and wait_event_type = 'Lock'`);
+        if ((waiters.rows[0] as { n: number }).n > 0) {
+          observed = true;
+          break;
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+      expect(observed).toBe(true);
+      releaseWriter();
+      await writer;
+      expect((await proposing).body).toMatchObject({
+        outcome: "declined",
+        reason: "suggestions_off",
+      });
+      const pending = await db.execute(
+        sql`select count(*)::int as n from nutrition_energy_proposal where user_id = 'user-z' and status = 'pending'`,
+      );
+      expect(pending.rows[0]).toEqual({ n: 0 });
+    } finally {
+      releaseWriter();
+      await writer;
+    }
+  });
+
+  test("energy endpoint responses redact hidden and ED-gated proposal snapshots", async () => {
+    await db.execute(
+      sql`delete from nutrition_energy_proposal where organization_id = 'org-z' and user_id = 'user-z'`,
+    );
+    await db.execute(
+      sql`delete from nutrition_goal where organization_id = 'org-z' and user_id = 'user-z'`,
+    );
+    await db.execute(
+      sql`delete from nutrition_target_settings where organization_id = 'org-z' and user_id = 'user-z'`,
+    );
+    const initial = await propose("2026-03-28", "user-z");
+    if (initial.body.outcome !== "proposed") throw new Error("expected a proposal");
+    await db.execute(sql`
+      insert into nutrition_target_settings
+        (organization_id, user_id, revision, hide_numbers, energy_direction, active_protein, declarations)
+      values ('org-z', 'user-z', 1, true, 'maintain', false, '{}')
+      on conflict (organization_id, user_id) do update set hide_numbers = true
+    `);
+
+    const listed = await list("user-z");
+    expect(listed.body.proposals).toHaveLength(1);
+    expect(listed.body.proposals[0]).toMatchObject({
+      estimateKcal: null,
+      targetKcal: null,
+      currentTargetKcal: null,
+      estimate: null,
+    });
+    expect(JSON.stringify(listed.body)).not.toContain('"inputs"');
+    expect(await estimate("2026-03-28", "user-z")).toMatchObject({ body: { status: "hidden" } });
+
+    const hiddenOffer = await propose("2026-03-28", "user-z");
+    if (hiddenOffer.body.outcome !== "proposed") throw new Error("expected a proposal");
+    expect(hiddenOffer.body.proposal).toMatchObject({
+      estimateKcal: null,
+      targetKcal: null,
+      currentTargetKcal: null,
+      estimate: null,
+    });
+    expect(JSON.stringify(hiddenOffer.body)).not.toContain('"inputs"');
+    const hiddenAccept = await accept(hiddenOffer.body.proposal.id, "user-z");
+    expect(hiddenAccept.body).toMatchObject({
+      outcome: "accepted",
+      proposal: { estimateKcal: null, targetKcal: null, estimate: null },
+      goal: { minAmount: null, maxAmount: null },
+    });
+    expect(JSON.stringify(hiddenAccept.body)).not.toContain('"inputs"');
+
+    const inserted = await db.execute(sql`
+      insert into nutrition_energy_proposal
+        (organization_id, user_id, kind, status, estimate_kcal, target_kcal, current_target_kcal,
+         step_limited, method_version, policy_version, window_from, window_to, estimate, expires_at,
+         created_at, updated_at)
+      select organization_id, user_id, kind, 'pending', estimate_kcal, target_kcal, current_target_kcal,
+             step_limited, method_version, policy_version, window_from, window_to, estimate, now() + interval '7 days', now(), now()
+        from nutrition_energy_proposal where id = ${hiddenOffer.body.proposal.id}
+      returning id
+    `);
+    const gatedId = Number((inserted.rows[0] as { id: number }).id);
+    await db.execute(
+      sql`update nutrition_target_settings set declarations = '{eating_disorder}' where organization_id = 'org-z' and user_id = 'user-z'`,
+    );
+
+    expect((await list("user-z")).body.proposals).toEqual([]);
+    expect(await estimate("2026-03-28", "user-z")).toMatchObject({ body: { status: "off" } });
+    const refused = await accept(gatedId, "user-z");
+    expect(refused.body).toMatchObject({ outcome: "declined", proposal: null });
+    expect(JSON.stringify(refused.body)).not.toContain("2400");
+    const dismissed = await dismiss(gatedId, "user-z");
+    expect(dismissed.body).toMatchObject({
+      outcome: "dismissed",
+      proposal: { estimateKcal: null, targetKcal: null, currentTargetKcal: null, estimate: null },
+    });
+    expect(JSON.stringify(dismissed.body)).not.toContain("2400");
+    expect((await accept(gatedId, "user-z")).body).toMatchObject({
+      outcome: "declined",
+      reason: "not_pending",
+      proposal: null,
+    });
+    expect((await dismiss(gatedId, "user-z")).body).toMatchObject({
+      outcome: "declined",
+      reason: "not_pending",
+      proposal: null,
+    });
+    expect((await accept(gatedId, "user-a")).status).toBe(404);
+    expect((await propose("2026-03-28", "user-z")).body).toMatchObject({
+      outcome: "declined",
+      reason: "suggestions_off",
+    });
   });
 });

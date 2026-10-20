@@ -38,6 +38,7 @@ SUITES=(
   "WEIGHT_TREND_TEST_DATABASE_URL|weight_trend_test|packages/api/src/routers/weight-trend.integration.test.ts"
   "NUTRITION_CUSTOM_FOODS_TEST_DATABASE_URL|nutrition_custom_foods_test|packages/api/src/routers/nutrition-custom-foods.integration.test.ts"
   "NUTRITION_ENERGY_TEST_DATABASE_URL|nutrition_energy_test|packages/api/src/routers/nutrition-energy.integration.test.ts"
+  "NUTRITION_TARGETS_TEST_DATABASE_URL|nutrition_targets_test|packages/api/src/routers/nutrition-targets.integration.test.ts"
   "NUTRITION_COACH_CONSENT_TEST_DATABASE_URL|nutrition_coach_consent_test|packages/nutrition/src/coach-consent.integration.test.ts"
   "WATER_TEST_DATABASE_URL|water_test|packages/nutrition/src/plain-water.integration.test.ts"
   "WATER_ROUTER_TEST_DATABASE_URL|water_router_test|packages/api/src/routers/plain-water.integration.test.ts"

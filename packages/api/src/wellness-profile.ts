@@ -1,6 +1,6 @@
 import type { Session } from "@openvalens/auth";
 import { requireTrustedIdentity } from "@openvalens/auth/authz/trusted-session";
-import type { Database } from "@openvalens/db";
+import { lockNutritionSafetyUser, type Database } from "@openvalens/db";
 import { wellnessProfile, wellnessProfileConsent } from "@openvalens/db/schema/profile";
 import { and, eq, isNull } from "drizzle-orm";
 
@@ -72,7 +72,7 @@ export type WellnessProfileService = {
   update(userId: string, input: WellnessProfileUpdateInput): Promise<UpdateOutcome>;
 };
 
-type Executor = Pick<Database, "select" | "insert" | "update">;
+type ProfileReadExecutor = Pick<Database, "select">;
 type ProfileRow = typeof wellnessProfile.$inferSelect;
 type ConsentRow = typeof wellnessProfileConsent.$inferSelect;
 
@@ -151,7 +151,7 @@ function columnsFor(snapshotAnswers: ReturnType<typeof snapshotToState>["answers
   };
 }
 
-async function loadConsents(db: Executor, userId: string): Promise<ConsentRow[]> {
+async function loadConsents(db: Pick<Database, "select">, userId: string): Promise<ConsentRow[]> {
   return db.select().from(wellnessProfileConsent).where(eq(wellnessProfileConsent.userId, userId));
 }
 
@@ -163,15 +163,7 @@ export function createWellnessProfileService(deps: {
   const clock = deps.now ?? (() => new Date());
 
   async function read(userId: string): Promise<WellnessProfileSnapshot> {
-    try {
-      const [row] = await db
-        .select()
-        .from(wellnessProfile)
-        .where(eq(wellnessProfile.userId, userId));
-      return toSnapshot(row, await loadConsents(db, userId));
-    } catch (error) {
-      throw error instanceof WellnessProfileError ? error : new WellnessProfileError("INTERNAL");
-    }
+    return readWellnessProfile(db, userId);
   }
 
   async function update(userId: string, input: WellnessProfileUpdateInput): Promise<UpdateOutcome> {
@@ -183,6 +175,7 @@ export function createWellnessProfileService(deps: {
 
     try {
       return await db.transaction(async (tx) => {
+        await lockNutritionSafetyUser(tx, userId);
         await tx.insert(wellnessProfile).values({ userId }).onConflictDoNothing();
         const [row] = await tx
           .select()
@@ -251,6 +244,21 @@ export function createWellnessProfileService(deps: {
   }
 
   return { read, update };
+}
+
+export async function readWellnessProfile(
+  executor: ProfileReadExecutor,
+  userId: string,
+): Promise<WellnessProfileSnapshot> {
+  try {
+    const [row] = await executor
+      .select()
+      .from(wellnessProfile)
+      .where(eq(wellnessProfile.userId, userId));
+    return toSnapshot(row, await loadConsents(executor, userId));
+  } catch (error) {
+    throw error instanceof WellnessProfileError ? error : new WellnessProfileError("INTERNAL");
+  }
 }
 
 /** The trusted, non-impersonated session user, or a value-free denial. */

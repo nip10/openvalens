@@ -1,4 +1,4 @@
-import type { Database } from "@openvalens/db";
+import { lockNutritionSafetyUser, type Database } from "@openvalens/db";
 import {
   dailyWeight,
   dailyWeightOverride,
@@ -23,6 +23,7 @@ export function createDailyWeightService(db: Database) {
   return {
     async writeManualWeight(input: WriteManualDailyWeightInput) {
       return db.transaction(async (tx) => {
+        await lockNutritionSafetyUser(tx, input.userId);
         const [entry] = await tx
           .insert(weightCheckin)
           .values({

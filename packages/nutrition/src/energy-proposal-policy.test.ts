@@ -8,10 +8,12 @@ import {
   PROPOSAL_COPY,
   PROPOSAL_DECLINE_COPY,
 } from "./energy-proposal-policy";
+import { calorieFloorKcal, findBannedCopy } from "./nutrition-safety";
 
-/** Synthetic policy tests (Issue #76): proposals never bypass the v1 limits. */
+/** Synthetic policy tests (Issues #76, #80): maintenance proposals never bypass the limits. */
 
 const NOW = new Date("2026-03-28T12:00:00.000Z");
+const BODY = { weightKg: 80, heightCm: 175, sex: "male" as const, minAge: 40, maxAge: 41 };
 const estimated = (kcalPerDay: number) =>
   ({
     status: "estimated",
@@ -47,7 +49,8 @@ describe("planEnergyProposal", () => {
       targetKcal: 2500,
       currentTargetKcal: null,
       stepLimited: false,
-      policyVersion: "energy-proposal/v1",
+      needsConfirmation: false,
+      policyVersion: "nutrition-safety/v1",
     });
   });
 
@@ -59,11 +62,16 @@ describe("planEnergyProposal", () => {
     });
   });
 
-  test("weekly step: at most max(200 kcal, 10%) per change, one change per 7 days", () => {
-    const up = plan({ estimate: estimated(2900), currentTargetKcal: 2000 });
+  test("weekly step: at most the smaller of 200 kcal or 10% per change", () => {
+    const up = plan({
+      estimate: estimated(2800),
+      currentTargetKcal: 2000,
+      body: BODY,
+      direction: "lose",
+    });
     expect(up).toMatchObject({ outcome: "proposal", targetKcal: 2200, stepLimited: true });
-    const down = plan({ estimate: estimated(2000), currentTargetKcal: 3000 });
-    expect(down).toMatchObject({ outcome: "proposal", targetKcal: 2700, stepLimited: true });
+    const down = plan({ estimate: estimated(2500), currentTargetKcal: 3000, body: BODY });
+    expect(down).toMatchObject({ outcome: "proposal", targetKcal: 2800, stepLimited: true });
     expect(
       plan({ currentTargetKcal: 2000, lastAcceptedAt: new Date(NOW.getTime() - 6 * 86_400_000) }),
     ).toEqual({ outcome: "declined", reason: "recently_changed" });
@@ -72,7 +80,7 @@ describe("planEnergyProposal", () => {
   test("small differences are not proposed", () => {
     expect(plan({ estimate: estimated(2520), currentTargetKcal: 2500 })).toEqual({
       outcome: "declined",
-      reason: "no_change",
+      reason: "not_suggested_for_profile",
     });
   });
 
@@ -83,7 +91,7 @@ describe("planEnergyProposal", () => {
     });
   });
 
-  test("property: no proposal violates the floor or the step limit, for any input", () => {
+  test("property: every returned target respects the floor and weekly step", () => {
     let seed = 76;
     const random = () => {
       seed = (seed * 1_103_515_245 + 12_345) % 2 ** 31;
@@ -95,18 +103,17 @@ describe("planEnergyProposal", () => {
       const result = plan({ estimate: estimated(estimateKcal), currentTargetKcal });
       if (result.outcome !== "proposal") continue;
       expect(result.kind).toBe("maintenance");
-      expect(result.targetKcal).toBeGreaterThanOrEqual(ENERGY_PROPOSAL_POLICY.neverBelowKcal);
+      expect(result.targetKcal).toBeGreaterThanOrEqual(
+        calorieFloorKcal({ sex: null, restingKcal: null }),
+      );
       if (currentTargetKcal !== null) {
-        const step = Math.max(
-          ENERGY_PROPOSAL_POLICY.maxStepKcal,
-          ENERGY_PROPOSAL_POLICY.maxStepFraction * currentTargetKcal,
+        const step = Math.min(
+          ENERGY_PROPOSAL_POLICY.step.maxKcal,
+          ENERGY_PROPOSAL_POLICY.step.maxFraction * currentTargetKcal,
         );
         expect(Math.abs(result.targetKcal - currentTargetKcal)).toBeLessThanOrEqual(step);
-        // Moves toward the estimate, never past it by more than rounding.
-        expect(Math.sign(result.targetKcal - currentTargetKcal)).toBe(
-          Math.sign(estimateKcal - currentTargetKcal) ||
-            Math.sign(result.targetKcal - currentTargetKcal),
-        );
+        // A decrease is available only when the member explicitly chose lose.
+        if (result.targetKcal < estimateKcal) expect(result.kind).toBe("deficit");
       }
     }
   });
@@ -160,6 +167,7 @@ describe("copy", () => {
   test("refusals say what the app won't do; no numbers, no judgement", () => {
     for (const text of [...Object.values(PROPOSAL_DECLINE_COPY), ...Object.values(PROPOSAL_COPY)]) {
       expect(text).not.toMatch(/\b(1,?200|BMI|good|bad|cheat|earn\w*|fail\w*|over|under)\b/i);
+      expect(findBannedCopy(text)).toEqual([]);
     }
   });
 });
