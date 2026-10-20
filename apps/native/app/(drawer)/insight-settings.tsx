@@ -1,10 +1,10 @@
 import {
   EMAIL_DIGEST_ACKNOWLEDGEMENT_VERSION,
   INSIGHT_CHANNELS,
-  INSIGHT_KINDS,
   type InsightPreferencesUpdate,
 } from "@openvalens/api/insight-contract";
 import {
+  GENERIC_DELIVERY_KINDS,
   INSIGHT_CHANNEL_LABELS,
   INSIGHT_DELIVERY_COPY,
   INSIGHT_KIND_LABELS,
@@ -24,6 +24,8 @@ import { client, orpc } from "@/utils/orpc";
  * settings card: push (with "show topic"), the weekly email behind its
  * disclosure, the earliest delivery hour, and per-kind × per-channel switches.
  * Push and email stay off until turned on, and only the workspace owner can.
+ * Nutrition observations are excluded from the kind matrix: they are opted in
+ * only through the dedicated observation card, not per delivery channel.
  */
 
 function Toggle({
@@ -253,7 +255,7 @@ export default function InsightSettingsScreen() {
             <Text className="text-sm text-muted-foreground">
               {INSIGHT_DELIVERY_COPY.kindsIntro}
             </Text>
-            {INSIGHT_KINDS.map((kind) => (
+            {GENERIC_DELIVERY_KINDS.map((kind) => (
               <View key={kind} className="gap-1 border-t border-border pt-2">
                 <Text className="text-sm font-medium text-foreground">
                   {INSIGHT_KIND_LABELS[kind]}

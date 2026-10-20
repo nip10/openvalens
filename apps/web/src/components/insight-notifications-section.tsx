@@ -1,11 +1,11 @@
 import {
   EMAIL_DIGEST_ACKNOWLEDGEMENT_VERSION,
   INSIGHT_CHANNELS,
-  INSIGHT_KINDS,
   type InsightPreferences,
   type InsightPreferencesUpdate,
 } from "@openvalens/api/insight-contract";
 import {
+  GENERIC_DELIVERY_KINDS,
   INSIGHT_CHANNEL_LABELS,
   INSIGHT_DELIVERY_COPY,
   INSIGHT_KIND_LABELS,
@@ -32,7 +32,9 @@ import { orpc } from "@/utils/orpc";
  * the person turns them on; only the workspace owner can. Turning the weekly
  * email on requires ticking the disclosure that it contains values and that
  * email is not private. Per-kind × per-channel switches apply from the next
- * delivery run. Same controls and copy as the native settings screen.
+ * delivery run. Nutrition observations are deliberately not listed here: they
+ * are opted in only through the dedicated observation card. Same controls and
+ * copy as the native settings screen.
  */
 export function InsightNotificationsForm({
   preferences,
@@ -194,7 +196,7 @@ export function InsightNotificationsForm({
               </tr>
             </thead>
             <tbody>
-              {INSIGHT_KINDS.map((kind) => (
+              {GENERIC_DELIVERY_KINDS.map((kind) => (
                 <tr key={kind}>
                   <th scope="row" className="py-1 text-left font-normal">
                     {INSIGHT_KIND_LABELS[kind]}
