@@ -172,6 +172,82 @@ describe("cron.wearablesSync", () => {
   });
 });
 
+describe("cron.photoCleanupRun", () => {
+  test("requires the cron bearer before invoking storage", async () => {
+    const cleanupPhotos = mock(async () => ({
+      scanned: 1,
+      deleted: 1,
+      pending: 0,
+      blocked: 0,
+      skipped: 0,
+      failed: 0,
+    }));
+    for (const headers of [new Headers(), new Headers({ authorization: "Bearer wrong" })]) {
+      await expect(
+        appRouter.cron.photoCleanupRun.callable({
+          context: { ...createTestContext(headers), storage: { cleanupPhotos } as never },
+        })({}),
+      ).rejects.toMatchObject({ code: "UNAUTHENTICATED", status: 401 });
+    }
+    expect(cleanupPhotos).not.toHaveBeenCalled();
+  });
+
+  test("uses the fixed batch limit and reports cleanup counters", async () => {
+    const cleanupPhotos = mock(async (input: { limit: number }) => {
+      expect(input).toEqual({ limit: 25 });
+      return { scanned: 5, deleted: 1, pending: 2, blocked: 1, skipped: 1, failed: 0 };
+    });
+    const result = await appRouter.cron.photoCleanupRun.callable({
+      context: { ...authorizedContext("corr-photo-cleanup"), storage: { cleanupPhotos } as never },
+    })({});
+    expect(result).toEqual({
+      status: "ok",
+      job: "photo.cleanup",
+      startedAt: expect.any(String),
+      finishedAt: expect.any(String),
+      correlationId: "corr-photo-cleanup",
+      unavailable: false,
+      scanned: 5,
+      deleted: 1,
+      pending: 2,
+      blocked: 1,
+      skipped: 1,
+      failed: 0,
+    });
+    expect(cleanupPhotos).toHaveBeenCalledTimes(1);
+  });
+
+  test("reports unavailable storage as a failure, never as clean", async () => {
+    const result = await appRouter.cron.photoCleanupRun.callable({
+      context: authorizedContext("corr-storage-off"),
+    })({});
+    expect(result).toMatchObject({
+      status: "failed",
+      unavailable: true,
+      scanned: 0,
+      deleted: 0,
+      failed: 1,
+    });
+  });
+
+  test("rejects caller-supplied limits", async () => {
+    const cleanupPhotos = mock(async () => ({
+      scanned: 0,
+      deleted: 0,
+      pending: 0,
+      blocked: 0,
+      skipped: 0,
+      failed: 0,
+    }));
+    await expect(
+      appRouter.cron.photoCleanupRun.callable({
+        context: { ...authorizedContext(), storage: { cleanupPhotos } as never },
+      })({ limit: 500 } as never),
+    ).rejects.toBeDefined();
+    expect(cleanupPhotos).not.toHaveBeenCalled();
+  });
+});
+
 describe("cron.ingestionRun", () => {
   // Empty job queue: claim statements return no rows. The purge's query
   // builder is absent from this stub, so it fails and is logged, not fatal.
