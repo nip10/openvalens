@@ -3,6 +3,7 @@ import {
   NutritionError,
   type NutritionScope,
   type WaterEntry,
+  readNutritionTargetSettings,
 } from "@openvalens/nutrition";
 import { z } from "zod";
 
@@ -46,14 +47,18 @@ const run = async <T>(work: () => Promise<T>): Promise<T> => {
   }
 };
 const diary = (context: Pick<Context, "db">) => createPlainWaterDiary(context.db);
-// #80 has not landed. Until the member preference is wired, all display paths
-// fail closed; data-rights export remains a separate explicit user intent.
-const visibleQuantity = (_unknownPreference: unknown, _value: number | null): number | null => null;
-const wireEntry = (entry: WaterEntry) => ({
+const visibilityOf = async (context: AuthContext & Pick<Context, "db">) => {
+  const scope = scopeOf(context);
+  const settings = await readNutritionTargetSettings(context.db, scope);
+  return !settings.hideNumbers;
+};
+const visibleQuantity = (show: boolean, value: number | null): number | null =>
+  show ? value : null;
+const wireEntry = (entry: WaterEntry, show: boolean) => ({
   id: entry.id,
   observedAt: entry.observedAt.toISOString(),
   timeZone: entry.timeZone,
-  quantityMl: visibleQuantity(undefined, entry.quantityMl),
+  quantityMl: visibleQuantity(show, entry.quantityMl),
   revision: entry.revision,
   deleted: entry.deletedAt !== null,
   createdAt: entry.createdAt.toISOString(),
@@ -76,9 +81,10 @@ export const plainWaterRouter = {
       run(async () => {
         const scope = scopeOf(context);
         const prefs = await diary(context).getPreference(scope);
+        const show = await visibilityOf(context);
         return {
           enabled: prefs.enabled,
-          personalGoalMl: visibleQuantity(undefined, prefs.personalGoalMl),
+          personalGoalMl: visibleQuantity(show, prefs.personalGoalMl),
         };
       }),
     ),
@@ -105,9 +111,10 @@ export const plainWaterRouter = {
           ...(input.personalGoal === undefined ? {} : { personalGoalMl: ml }),
         });
         if (!result) throw new Error("Plain-water preference update returned no row");
+        const show = await visibilityOf(context);
         return {
           enabled: result.enabled,
-          personalGoalMl: visibleQuantity(undefined, result.personalGoalMl),
+          personalGoalMl: visibleQuantity(show, result.personalGoalMl),
           targetId: "preferences",
         };
       }),
@@ -119,14 +126,15 @@ export const plainWaterRouter = {
     .handler(({ input, context }) =>
       run(async () => {
         const result = await diary(context).getDay(scopeOf(context), input.date, input.timeZone);
+        const show = await visibilityOf(context);
         return {
           date: result.date,
           timeZone: result.timeZone,
           label: "Plain water subtotal" as const,
           enabled: result.enabled,
-          quantityMl: visibleQuantity(undefined, result.quantityMl),
-          personalGoalMl: visibleQuantity(undefined, result.personalGoalMl),
-          entries: result.entries.map(wireEntry),
+          quantityMl: visibleQuantity(show, result.quantityMl),
+          personalGoalMl: visibleQuantity(show, result.personalGoalMl),
+          entries: result.entries.map((entry) => wireEntry(entry, show)),
         };
       }),
     ),
@@ -140,9 +148,10 @@ export const plainWaterRouter = {
           ...input,
           observedAt: new Date(input.observedAt),
         });
+        const show = await visibilityOf(context);
         return {
           outcome: result.outcome,
-          entry: wireEntry(result.entry),
+          entry: wireEntry(result.entry, show),
           targetId: String(result.entry.id),
         };
       }),
@@ -162,9 +171,10 @@ export const plainWaterRouter = {
           ...(input.observedAt ? { observedAt: new Date(input.observedAt) } : {}),
           ...(input.timeZone === undefined ? {} : { timeZone: input.timeZone }),
         });
+        const show = await visibilityOf(context);
         return {
           outcome: result.outcome,
-          entry: wireEntry(result.entry),
+          entry: wireEntry(result.entry, show),
           targetId: String(result.entry.id),
         };
       }),
@@ -176,9 +186,10 @@ export const plainWaterRouter = {
     .handler(({ input, context }) =>
       run(async () => {
         const result = await diary(context).change(scopeOf(context), { ...input, deleted: true });
+        const show = await visibilityOf(context);
         return {
           outcome: result.outcome,
-          entry: wireEntry(result.entry),
+          entry: wireEntry(result.entry, show),
           targetId: String(result.entry.id),
         };
       }),

@@ -44,3 +44,9 @@ container), plus the subject's own water rows in memberships that remain. The
 organization foreign keys cascade for container deletion; the composite member
 integrity constraints remain restrictive. Subject erasure explicitly deletes
 water entries, preferences, and replay receipts before membership rows.
+
+## Native outbox integration
+
+`usePlainWaterOutbox()` is exported from `apps/native/lib/plain-water/sync.ts`. It returns `{ scope, items, enqueue, retry, discard, syncNow }`. Enqueue takes `{ kind: "add" | "change" | "delete", input }` with the corresponding `plainWater` strict API input; callers must retain a mutation ID for a logical operation. Items expose a stable ID, status, original payload, attempts, error code, and server conflict entry. Conflicts stay held; retry only restarts non-conflict failures, while discard is explicit. Confirmed application/replay invalidates `orpc.plainWater`. Day reads should be queried by date and timezone and invalidated after edits. Server projection is authoritative for hide-numbers; consumers should render unknown preference state hidden.
+
+Water rows are stored in the existing scoped SQLite `nutrition_outbox` table with a water-specific key prefix. Existing offline storage protections and retention behavior apply; this adds no separate encryption claim.
