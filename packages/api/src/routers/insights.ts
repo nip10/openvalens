@@ -5,6 +5,7 @@ import {
   requireTrustedIdentity,
   resolveSessionIdentity,
 } from "@openvalens/auth/authz/trusted-session";
+import { readNutritionTargetSettings } from "@openvalens/nutrition";
 import { createStructuredLogger } from "@openvalens/observability";
 import { ORPCError } from "@orpc/server";
 
@@ -136,6 +137,9 @@ export const insightsRouter = {
             const from = new Date(to);
             from.setUTCDate(from.getUTCDate() - 27);
             const workoutPermission = await can(context, "workout");
+            // The member's persisted hide-numbers setting (#80) governs whether
+            // observation counts are returned; a missing row reads as default.
+            const nutritionSettings = await readNutritionTargetSettings(context.db, scope);
             result.observations = await loadNutritionObservations(
               context.db,
               scope,
@@ -146,9 +150,7 @@ export const insightsRouter = {
                 // The procedure's records:read guard is the sleep/diary read gate.
                 sleep: true,
                 activity: workoutPermission,
-                // #80 has no merged hide-numbers preference yet; fail closed
-                // until its member preference can be wired independently.
-                hideNumbers: true,
+                hideNumbers: nutritionSettings.hideNumbers,
               },
             );
           }
