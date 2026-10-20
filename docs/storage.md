@@ -110,16 +110,67 @@ storage backend. Back up both from the same point in time:
 ## Data rights
 
 `stored_object` is registered with the data-rights registry (Issue #89), so a
-subject's export includes their object metadata (id, purpose, content type,
-size, checksum). "Delete everything" collects eligible non-photo storage keys,
-deletes the database rows in its transaction, then deletes the bytes; if the
-subject has objects while storage is off, deletion is refused rather than
-leaving orphaned files. Account erasure is conservatively blocked while any
-progress photo uploaded by the subject (across memberships) or any progress
-photo in an owned organization remains indexed or has a cleanup intent. This
-also applies when storage is off and to logically hidden legacy photos: finish
-individual lifecycle cleanup first. Managed photo keys are never passed to the
-legacy unbound raw-key eraser.
+subject's text export includes object metadata. That text export is the
+metadata/text component only; it never contains photo bytes. Ordinary
+(non-photo) objects export for organizations the subject owns. Progress-photo
+rows export for their uploader (`created_by_user_id`) across all memberships,
+including organizations the subject does not own, and use a safe-field
+allowlist (id, organization id, uploader id, purpose, content type, size,
+checksum, created time). Storage keys, provider/store identity and lifecycle
+internals never appear in the text files. Other members' photos are excluded
+even inside an organization the subject owns. "Delete everything" collects
+eligible non-photo storage keys, deletes the database rows in its transaction,
+then deletes the bytes; if the subject has objects while storage is off,
+deletion is refused rather than leaving orphaned files. Account erasure is
+conservatively blocked while any progress photo uploaded by the subject
+(across memberships) or any progress photo in an owned organization remains
+indexed or has a cleanup intent. This also applies when storage is off and to
+logically hidden legacy photos: finish individual lifecycle cleanup first.
+Managed photo keys are never passed to the legacy unbound raw-key eraser.
+
+Deletion and preview keep the **owned-organization** `stored_object` scope even
+though export now includes subject photos across memberships. Do not use the
+export predicate for erasure: broader export scope is not a deletion claim.
+
+### Subject photo export
+
+The canonical photo component is `exportSubjectPhotoFiles(db, reader, subject)`
+in `@openvalens/data-rights/photo-export`. `reader` is any structural
+`SubjectPhotoReader` (`getSubjectPhoto` plus the configured `maxObjectBytes`
+read bound); `StorageService` satisfies it. `StorageService.getSubjectPhoto`
+is the trusted server-side primitive: the caller supplies the already-resolved
+subject, and the method accepts only that subject's managed, ready/settled
+progress photo bound to the configured provider/store, with no logical-deletion
+marker. Missing rows, another uploader, legacy NULL provenance, hidden or
+deleting photos and store mismatches return `null` with zero adapter reads.
+Genuine adapter failures throw.
+
+The generator enumerates all subject-created photo rows across memberships in
+stable keyset pages inside one short read-only repeatable-read transaction,
+then releases it before reading bytes. It reads one bounded file at a time,
+verifies the actual byte count and SHA-256 against the indexed metadata, and
+yields:
+
+- `{ kind: "file", path: "photos/<opaque object id>.<jpg|png>", contentType,
+content }` — no user filenames and no storage keys in paths.
+- one final `{ kind: "manifest", path: "photos/manifest.json", manifest }`.
+
+The manifest records the format/version, subject user id, enumeration time,
+`status: "complete" | "incomplete"`, actual `sizeBytes`/`sha256`, and safe
+failure categories (`unavailable`, `read_failed`, `integrity`) keyed by object
+id. It carries no keys, store identity, lifecycle internals or provider
+messages. The manifest is always last; an enumeration failure or consumer
+cancellation produces no `complete` marker.
+
+Enumeration is a database snapshot, not an atomic database-plus-store
+snapshot. A row deleted or changed after enumeration becomes an explicit
+`incomplete` failure; it is never silently dropped or assigned guessed
+provenance. Stream errors, truncation, hash mismatch and oversized bodies are
+also `incomplete`, never a successful file.
+
+This is a headless data-rights component. It does not define an archive
+container, upload UI, download endpoint or HTTP/session authorization; the
+trusted caller supplies the already-authorized subject and reader.
 
 The internal `photo_cleanup_intent` table is system data and is never included
 in exports. Lifecycle-managed photo rows bind to a versioned SHA-256 identity
@@ -203,14 +254,15 @@ For a sanitized progress photo, use `reservePhoto`/`writePhoto` instead of the
 generic `putObject` path; do not upload original bytes. This API is a storage
 primitive only and does not itself authorize a caller or define photo metadata.
 
-| Method                                      | Notes                                                                                        |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `putObject(input)`                          | Validates type and size, hashes, stores, inserts metadata.                                   |
-| `findObject({ organizationId, objectId })`  | Readable metadata or `null` (another tenant's id and hidden/deleting photos are `null` too). |
-| `getObject(ref)`                            | Metadata plus a byte stream, e.g. to embed in a PDF export.                                  |
-| `listObjects({ organizationId, purpose? })` | Newest first, at most 500.                                                                   |
-| `createDownloadUrl(ref, ttl?)`              | Short-lived signed URL; TTL capped by the configured maximum.                                |
-| `deleteObject(ref)`                         | `deleted`, `pending`, or `not_found`; photo cleanup truth is explicit.                       |
+| Method                                         | Notes                                                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `putObject(input)`                             | Validates type and size, hashes, stores, inserts metadata.                                   |
+| `findObject({ organizationId, objectId })`     | Readable metadata or `null` (another tenant's id and hidden/deleting photos are `null` too). |
+| `getObject(ref)`                               | Metadata plus a byte stream, e.g. to embed in a PDF export.                                  |
+| `getSubjectPhoto({ subjectUserId, objectId })` | Subject-owned managed photo read for export; legacy/hidden/mismatch are `null`.              |
+| `listObjects({ organizationId, purpose? })`    | Newest first, at most 500.                                                                   |
+| `createDownloadUrl(ref, ttl?)`                 | Short-lived signed URL; TTL capped by the configured maximum.                                |
+| `deleteObject(ref)`                            | `deleted`, `pending`, or `not_found`; photo cleanup truth is explicit.                       |
 
 Check the purpose's resource with `requirePermission` before calling (see
 `PURPOSE_POLICIES`). The `storage.downloadUrl` and `storage.delete` procedures

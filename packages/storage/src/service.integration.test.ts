@@ -1176,6 +1176,159 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     });
   });
 
+  test("getSubjectPhoto returns only the subject's managed ready photo, with a safe record", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined });
+    const got = await service.getSubjectPhoto({
+      subjectUserId: "user-a",
+      objectId: ref.objectId,
+    });
+    expect(got).not.toBeNull();
+    expect(got!.object).toMatchObject({
+      id: ref.objectId,
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      purpose: "progress_photo",
+      contentType: "image/jpeg",
+      sizeBytes: photo.byteLength,
+      sha256: sha(photo),
+    });
+    expect(got!.object).not.toHaveProperty("storageKey");
+    expect(got!.object).not.toHaveProperty("storageProvider");
+    expect(got!.object).not.toHaveProperty("storageStoreId");
+    expect(got!.object).not.toHaveProperty("photoState");
+    expect(new Uint8Array(await new Response(got!.body).arrayBuffer())).toEqual(photo);
+  });
+
+  test("getSubjectPhoto fails closed with zero adapter reads for every non-exportable case", async () => {
+    const adapter = new LocalObjectStorage(root);
+    let reads = 0;
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.get = async (...args) => {
+      reads += 1;
+      return adapter.get(...args);
+    };
+    const isolated = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+
+    const ready = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/png",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref: ready, bytes: photo, linkPhoto: async () => undefined });
+    const pending = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    const deleting = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref: deleting, bytes: photo, linkPhoto: async () => undefined });
+    await db.execute(
+      sql`update stored_object set photo_state = 'deleting' where id = ${deleting.objectId}`,
+    );
+    const hidden = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref: hidden, bytes: photo, linkPhoto: async () => undefined });
+    await db.execute(
+      sql`update stored_object set photo_deletion_requested_at = now() where id = ${hidden.objectId}`,
+    );
+    const mismatched = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref: mismatched, bytes: photo, linkPhoto: async () => undefined });
+    await db.execute(
+      sql`update stored_object set storage_store_id = 'different-store' where id = ${mismatched.objectId}`,
+    );
+
+    const legacyId = newObjectId();
+    const legacyKey = buildObjectKey("org-a", legacyId);
+    await adapter.put(legacyKey, photo, { contentType: "image/jpeg", sha256: sha(photo) });
+    await db.execute(
+      sql`insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256) values (${legacyId}, 'org-a', 'user-a', 'progress_photo', ${legacyKey}, 'image/jpeg', ${photo.byteLength}, ${sha(photo)})`,
+    );
+
+    for (const objectId of [
+      ready.objectId, // wrong subject below
+      pending.objectId,
+      deleting.objectId,
+      hidden.objectId,
+      mismatched.objectId,
+      legacyId,
+      newObjectId(),
+    ]) {
+      expect(await isolated.getSubjectPhoto({ subjectUserId: "user-b", objectId })).toBeNull();
+    }
+    for (const objectId of [
+      pending.objectId,
+      deleting.objectId,
+      hidden.objectId,
+      mismatched.objectId,
+      legacyId,
+    ]) {
+      expect(await isolated.getSubjectPhoto({ subjectUserId: "user-a", objectId })).toBeNull();
+    }
+    expect(reads).toBe(0);
+
+    // The same row still reads for its real subject, proving the negatives
+    // above were not caused by a broken fixture/service binding.
+    expect(
+      await isolated.getSubjectPhoto({ subjectUserId: "user-a", objectId: ready.objectId }),
+    ).not.toBeNull();
+    expect(reads).toBe(1);
+  });
+
+  test("getSubjectPhoto propagates a genuine adapter failure", async () => {
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await service.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined });
+    const adapter = new LocalObjectStorage(root);
+    const broken = Object.create(adapter) as LocalObjectStorage;
+    broken.get = async () => {
+      throw new Error("synthetic get failure");
+    };
+    const isolated = createStorageService({
+      db,
+      storage: broken,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    await expect(
+      isolated.getSubjectPhoto({ subjectUserId: "user-a", objectId: ref.objectId }),
+    ).rejects.toThrow("synthetic get failure");
+  });
+
   const s3Endpoint = process.env.STORAGE_S3_TEST_ENDPOINT;
   test.skipIf(!s3Endpoint)(
     "S3 (MinIO): put, presigned get and delete through the service",

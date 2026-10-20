@@ -105,6 +105,18 @@ export interface StorageService {
     object: StoredObjectRecord;
     body: ReadableStream<Uint8Array>;
   } | null>;
+  /**
+   * Subject-scoped progress-photo read for trusted server callers (#89 photo
+   * export). The caller supplies the subject; there is no session check here.
+   * Only a managed, ready/settled photo uploaded by that subject and bound to
+   * the configured store is returned. Every other case (missing, another
+   * uploader, legacy/unmanaged, hidden, deleting, store mismatch) is `null`
+   * with no adapter I/O.
+   */
+  getSubjectPhoto(input: {
+    subjectUserId: string;
+    objectId: string;
+  }): Promise<{ object: StoredObjectRecord; body: ReadableStream<Uint8Array> } | null>;
   listObjects(input: {
     organizationId: string;
     purpose?: StoredObjectPurpose;
@@ -269,6 +281,38 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
   async function findObjectForDeletion(ref: ObjectRef): Promise<StoredObjectRecord | null> {
     const row = await findRow(ref);
     return row ? toRecord(row) : null;
+  }
+
+  async function getSubjectPhoto(input: {
+    subjectUserId: string;
+    objectId: string;
+  }): Promise<{ object: StoredObjectRecord; body: ReadableStream<Uint8Array> } | null> {
+    const [row] = await db
+      .select()
+      .from(storedObject)
+      .where(
+        and(
+          eq(storedObject.id, input.objectId),
+          eq(storedObject.createdByUserId, input.subjectUserId),
+          eq(storedObject.purpose, "progress_photo"),
+        ),
+      )
+      .limit(1);
+    if (!row) return null;
+    // Generic isReadable() accepts legacy rows (NULL lifecycle identity) for
+    // compatibility. Subject photo export is stricter: legacy provenance is
+    // unknown, so it is unavailable here.
+    if (row.photoDeletionRequestedAt !== null) return null;
+    if (!row.storageProvider || !row.storageStoreId) return null;
+    if (row.photoState !== "ready" || row.photoWriteState !== "settled") return null;
+    if (
+      row.storageProvider !== storage.storeIdentity?.provider ||
+      row.storageStoreId !== storage.storeIdentity?.storeId
+    )
+      return null;
+    const blob = await storage.get(row.storageKey);
+    if (!blob) return null;
+    return { object: toRecord(row), body: blob.body };
   }
 
   function isReadable(row: typeof storedObject.$inferSelect): boolean {
@@ -841,6 +885,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
 
     findObject,
     findObjectForDeletion,
+    getSubjectPhoto,
 
     async getObject(ref: ObjectRef) {
       const row = await findRow(ref);

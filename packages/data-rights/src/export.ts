@@ -12,6 +12,10 @@ import { DATA_RIGHTS_REGISTRY, isExported, type TableEntry } from "./registry";
  * checksums. Rows keep their database column names so an export can be
  * re-imported. The caller authorizes: only an organization's owner may export
  * it.
+ *
+ * This is the metadata/text component. Progress-photo metadata appears in
+ * `stored_object`, but the bytes are not part of these string files; use
+ * `exportSubjectPhotoFiles` for the canonical photo component.
  */
 
 export const EXPORT_FORMAT = "openvalens-export";
@@ -49,6 +53,22 @@ export function inList(column: string, values: readonly string[]): SQL {
   )})`;
 }
 
+/**
+ * Safe `stored_object` fields for progress-photo metadata. The text export is
+ * metadata only, not photo bytes (see `exportSubjectPhotoFiles`); storage
+ * keys, provider/store identity and photo lifecycle internals stay internal.
+ */
+const PHOTO_OBJECT_COLUMNS = [
+  "id",
+  "organization_id",
+  "created_by_user_id",
+  "purpose",
+  "content_type",
+  "size_bytes",
+  "sha256",
+  "created_at",
+] as const;
+
 /** Row filters for tables reachable only through a parent. */
 const CHILD_QUERIES: Record<string, (orgIds: string[]) => SQL> = {
   access_request_decision: (orgIds) =>
@@ -69,6 +89,14 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
   const orgIds = [...subject.organizationIds];
   switch (entry.kind) {
     case "organization":
+      // Stored objects have two export scopes: ordinary objects belong to an
+      // owned workspace, while a progress photo belongs to its uploader
+      // wherever they are a member. Other members' photos are never exported,
+      // including inside an organization the subject owns. Photo byte content
+      // is delivered separately by `exportSubjectPhotoFiles`.
+      if (table === "stored_object")
+        return sql`(purpose <> 'progress_photo' and ${inList("organization_id", orgIds)})
+          or (purpose = 'progress_photo' and created_by_user_id = ${subject.userId})`;
       // These rows describe one member's targets, not the workspace owner's
       // record. Keep the organization classification for container erasure,
       // but export only this subject's values across their memberships.
@@ -103,8 +131,14 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
  * Erasure includes the subject's member-private plain-water rows and all
  * water rows inside containers being erased. Export intentionally continues
  * to use {@link rowFilter}, so another member's rows are never exported.
+ *
+ * `stored_object` deletion/preview stays conservative and organization-only,
+ * even though export now includes the subject's photos across memberships.
+ * Account erasure is separately blocked while any subject photo exists, so
+ * this predicate must not silently widen or narrow with export scope.
  */
 export function deletionRowFilter(table: string, subject: DataRightsSubject): SQL {
+  if (table === "stored_object") return inList("organization_id", subject.organizationIds);
   if (
     table === "plain_water_entry" ||
     table === "plain_water_preference" ||
@@ -150,6 +184,13 @@ export async function exportSubjectData(
       sql`select * from ${sql.identifier(table)} where ${rowFilter(table, subject)} order by 1`,
     );
     const rows = (result.rows as Row[]).map((row) => {
+      // Photo rows get an explicit allowlist; non-photo stored objects keep
+      // their existing shape so this export broadening changes nothing else.
+      if (table === "stored_object" && row.purpose === "progress_photo") {
+        const copy: Row = {};
+        for (const column of PHOTO_OBJECT_COLUMNS) if (column in row) copy[column] = row[column];
+        return copy;
+      }
       if (!entry.redact?.length) return row;
       const copy = { ...row };
       for (const column of entry.redact) delete copy[column];
