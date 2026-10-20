@@ -23,11 +23,11 @@
 import { createHash } from "node:crypto";
 
 import type { Database } from "@openvalens/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { storedObject } from "@openvalens/db/schema/storage";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { photoCleanupIntent, storedObject } from "@openvalens/db/schema/storage";
 
 import { buildObjectKey, newObjectId, READINESS_PROBE_KEY } from "./keys";
-import { StorageError, type ObjectStorage } from "./object-storage";
+import { StorageError, type ObjectStorage, type StorageStoreIdentity } from "./object-storage";
 import {
   isStoredObjectPurpose,
   normalizeContentType,
@@ -59,6 +59,11 @@ export type PutObjectInput = {
 };
 
 export type ObjectRef = { organizationId: string; objectId: string };
+export type PhotoRef = ObjectRef & { createdByUserId: string };
+export type PhotoLinkCallback = (
+  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+  object: StoredObjectRecord,
+) => Promise<void>;
 
 export type DownloadUrl = {
   /** Absolute (S3 presigned) or server-relative (local signed route) URL. */
@@ -67,23 +72,48 @@ export type DownloadUrl = {
 };
 
 export type StorageProbeResult = "ok" | "unwritable";
+export type PhotoCleanupReport = {
+  scanned: number;
+  deleted: number;
+  pending: number;
+  blocked: number;
+  skipped: number;
+  failed: number;
+};
 
 export interface StorageService {
   /** Stable provider id of the bound adapter (`"local"` or `"s3"`). */
   readonly provider: string;
+  readonly storeIdentity: StorageStoreIdentity | null;
   readonly maxObjectBytes: number;
   putObject(input: PutObjectInput): Promise<StoredObjectRecord>;
+  reservePhoto(input: {
+    organizationId: string;
+    createdByUserId: string;
+    contentType: string;
+    canonicalBytes: Uint8Array;
+  }): Promise<PhotoRef>;
+  writePhoto(input: {
+    ref: PhotoRef;
+    bytes: Uint8Array;
+    linkPhoto: PhotoLinkCallback;
+  }): Promise<StoredObjectRecord>;
+  deletePhoto(ref: PhotoRef): Promise<"deleted" | "pending" | "not_found">;
+  cleanupPhotos(input?: { limit?: number }): Promise<PhotoCleanupReport>;
   findObject(ref: ObjectRef): Promise<StoredObjectRecord | null>;
-  getObject(
-    ref: ObjectRef,
-  ): Promise<{ object: StoredObjectRecord; body: ReadableStream<Uint8Array> } | null>;
+  getObject(ref: ObjectRef): Promise<{
+    object: StoredObjectRecord;
+    body: ReadableStream<Uint8Array>;
+  } | null>;
   listObjects(input: {
     organizationId: string;
     purpose?: StoredObjectPurpose;
     limit?: number;
   }): Promise<StoredObjectRecord[]>;
   /** Removes the bytes, then the metadata row. Returns `false` when not found. */
-  deleteObject(ref: ObjectRef): Promise<boolean>;
+  deleteObject(ref: ObjectRef): Promise<"deleted" | "pending" | "not_found">;
+  /** Internal delete-path metadata lookup, including logically hidden photos. */
+  findObjectForDeletion(ref: ObjectRef): Promise<StoredObjectRecord | null>;
   createDownloadUrl(ref: ObjectRef, expiresInSeconds?: number): Promise<DownloadUrl | null>;
   /** Serves a local signed download path (`GET /api/storage/objects/:id?e=&s=`). */
   serveSignedDownload(url: URL): Promise<Response>;
@@ -172,7 +202,10 @@ function toRecord(row: typeof storedObject.$inferSelect): StoredObjectRecord {
 function jsonError(status: number, error: string): Response {
   return new Response(JSON.stringify({ error }), {
     status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
   });
 }
 
@@ -210,16 +243,568 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
     return row ?? null;
   }
 
+  async function findPhotoRow(ref: PhotoRef) {
+    const [row] = await db
+      .select()
+      .from(storedObject)
+      .where(
+        and(
+          eq(storedObject.id, ref.objectId),
+          eq(storedObject.organizationId, ref.organizationId),
+          eq(storedObject.createdByUserId, ref.createdByUserId),
+          eq(storedObject.purpose, "progress_photo"),
+          eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+          eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
   async function findObject(ref: ObjectRef): Promise<StoredObjectRecord | null> {
+    const row = await findRow(ref);
+    return row && row.photoDeletionRequestedAt === null && isReadable(row) ? toRecord(row) : null;
+  }
+
+  async function findObjectForDeletion(ref: ObjectRef): Promise<StoredObjectRecord | null> {
     const row = await findRow(ref);
     return row ? toRecord(row) : null;
   }
 
+  function isReadable(row: typeof storedObject.$inferSelect): boolean {
+    if (row.photoDeletionRequestedAt !== null) return false;
+    if (row.photoState === null) return true;
+    if (
+      row.storageProvider !== storage.storeIdentity?.provider ||
+      row.storageStoreId !== storage.storeIdentity?.storeId
+    ) {
+      throw new StorageError("unavailable", 0);
+    }
+    return row.photoState === "ready";
+  }
+
+  async function recordCleanup(
+    tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+    row: typeof storedObject.$inferSelect,
+    writeState: "not_started" | "uncertain" | "settled",
+  ): Promise<void> {
+    await tx
+      .insert(photoCleanupIntent)
+      .values({
+        id: row.id,
+        storageKey: row.storageKey,
+        storageProvider: row.storageProvider,
+        storageStoreId: row.storageStoreId,
+        subjectUserId: row.createdByUserId,
+        organizationId: row.organizationId,
+        writeState,
+        createdAt: now(),
+        nextAttemptAt: now(),
+      })
+      .onConflictDoUpdate({
+        target: photoCleanupIntent.storageKey,
+        set: {
+          writeState: sql`case when ${photoCleanupIntent.writeState} = 'uncertain' or excluded.write_state = 'uncertain' then 'uncertain' when ${photoCleanupIntent.writeState} = 'settled' or excluded.write_state = 'settled' then 'settled' else 'not_started' end`,
+        },
+      });
+  }
+
+  async function setPhotoFailure(
+    ref: PhotoRef,
+    expected: "not_started" | "uncertain",
+    state: "not_started" | "uncertain" | "settled",
+  ): Promise<void> {
+    await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(storedObject)
+        .set({ photoState: "deleting", photoWriteState: state })
+        .where(
+          and(
+            eq(storedObject.id, ref.objectId),
+            eq(storedObject.organizationId, ref.organizationId),
+            eq(storedObject.createdByUserId, ref.createdByUserId),
+            eq(storedObject.purpose, "progress_photo"),
+            eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+            eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
+            eq(storedObject.photoState, "pending"),
+            eq(storedObject.photoWriteState, expected),
+          ),
+        )
+        .returning();
+      if (row) await recordCleanup(tx, row, state);
+    });
+  }
+
+  function backoff(attempts: number): Date {
+    const seconds = Math.min(3600, 2 ** Math.min(attempts, 12));
+    return new Date(now().getTime() + seconds * 1000);
+  }
+
+  function pgCode(error: unknown): string | undefined {
+    const value = error as { code?: string; cause?: { code?: string; cause?: { code?: string } } };
+    return value?.code ?? value?.cause?.code ?? value?.cause?.cause?.code;
+  }
+
+  async function lockRowNowait(
+    tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+    id: string,
+  ) {
+    const result = await tx.execute(
+      sql`select id from stored_object where id = ${id} for update nowait`,
+    );
+    return result.rows.length > 0;
+  }
+
+  async function cleanupOne(
+    id: string,
+  ): Promise<"deleted" | "pending" | "blocked" | "skipped" | "missing" | "failed"> {
+    try {
+      return await db.transaction(async (tx) => {
+        // Always acquire object before intent; a locked live publisher is skipped, never interpreted as absent.
+        const objectExists = await lockRowNowait(tx, id);
+        await tx.execute(
+          sql`select id from photo_cleanup_intent where id = ${id} for update nowait`,
+        );
+        const [intent] = await tx
+          .select()
+          .from(photoCleanupIntent)
+          .where(eq(photoCleanupIntent.id, id))
+          .limit(1);
+        if (!intent) return "missing";
+        if (intent.nextAttemptAt > now()) return "skipped";
+        const [row] = objectExists
+          ? await tx.select().from(storedObject).where(eq(storedObject.id, id)).limit(1)
+          : [undefined];
+        if (
+          row &&
+          (row.storageKey !== intent.storageKey ||
+            row.organizationId !== intent.organizationId ||
+            row.storageProvider !== intent.storageProvider ||
+            row.storageStoreId !== intent.storageStoreId)
+        ) {
+          await tx
+            .update(photoCleanupIntent)
+            .set({
+              attempts: sql`${photoCleanupIntent.attempts} + 1`,
+              lastAttemptAt: now(),
+              nextAttemptAt: backoff(intent.attempts),
+            })
+            .where(eq(photoCleanupIntent.id, id));
+          return "blocked";
+        }
+        if (
+          !intent.storageProvider ||
+          !intent.storageStoreId ||
+          intent.storageProvider !== storage.storeIdentity?.provider ||
+          intent.storageStoreId !== storage.storeIdentity?.storeId
+        ) {
+          await tx
+            .update(photoCleanupIntent)
+            .set({
+              attempts: sql`${photoCleanupIntent.attempts} + 1`,
+              lastAttemptAt: now(),
+              nextAttemptAt: backoff(intent.attempts),
+            })
+            .where(eq(photoCleanupIntent.id, id));
+          return "blocked";
+        }
+        if (row && row.purpose === "progress_photo" && row.photoState !== "deleting") {
+          await tx
+            .update(storedObject)
+            .set({ photoState: "deleting" })
+            .where(eq(storedObject.id, id));
+        }
+        try {
+          if (intent.storageProvider === "local") {
+            if (!storage.deleteWithStaging) throw new StorageError("unavailable", 0);
+            await storage.deleteWithStaging(intent.storageKey, intent.id);
+          } else await storage.delete(intent.storageKey);
+        } catch {
+          await tx
+            .update(photoCleanupIntent)
+            .set({
+              attempts: sql`${photoCleanupIntent.attempts} + 1`,
+              lastAttemptAt: now(),
+              nextAttemptAt: backoff(intent.attempts),
+            })
+            .where(eq(photoCleanupIntent.id, id));
+          return "failed";
+        }
+        if (intent.writeState === "uncertain") {
+          if (row) await tx.delete(storedObject).where(eq(storedObject.id, id));
+          await tx
+            .update(photoCleanupIntent)
+            .set({
+              attempts: sql`${photoCleanupIntent.attempts} + 1`,
+              lastAttemptAt: now(),
+              nextAttemptAt: backoff(intent.attempts),
+            })
+            .where(eq(photoCleanupIntent.id, id));
+          return "pending";
+        }
+        if (row) await tx.delete(storedObject).where(eq(storedObject.id, id));
+        await tx.delete(photoCleanupIntent).where(eq(photoCleanupIntent.id, id));
+        return "deleted";
+      });
+    } catch (error) {
+      if (pgCode(error) === "55P03") return "skipped";
+      await db
+        .update(photoCleanupIntent)
+        .set({
+          attempts: sql`${photoCleanupIntent.attempts} + 1`,
+          lastAttemptAt: now(),
+          nextAttemptAt: backoff(0),
+        })
+        .where(eq(photoCleanupIntent.id, id))
+        .catch(() => undefined);
+      return "failed";
+    }
+  }
+
+  async function sweepAbandonedPending(
+    limit: number,
+  ): Promise<{ candidates: number; skipped: number; failed: number }> {
+    const cutoff = new Date(now().getTime() - 10 * 60_000);
+    const candidates = await db
+      .select({ id: storedObject.id })
+      .from(storedObject)
+      .where(
+        and(
+          eq(storedObject.purpose, "progress_photo"),
+          eq(storedObject.photoState, "pending"),
+          sql`${storedObject.createdAt} < ${cutoff}`,
+        ),
+      )
+      .orderBy(storedObject.createdAt)
+      .limit(limit);
+    let skipped = 0;
+    let failed = 0;
+    for (const { id } of candidates) {
+      try {
+        await db.transaction(async (tx) => {
+          if (!(await lockRowNowait(tx, id))) return;
+          const [row] = await tx
+            .select()
+            .from(storedObject)
+            .where(eq(storedObject.id, id))
+            .limit(1);
+          if (!row || row.purpose !== "progress_photo" || row.photoState !== "pending") return;
+          const state = row.photoWriteState === "not_started" ? "not_started" : "uncertain";
+          const [updated] = await tx
+            .update(storedObject)
+            .set({ photoState: "deleting" })
+            .where(and(eq(storedObject.id, row.id), eq(storedObject.photoState, "pending")))
+            .returning();
+          if (updated) await recordCleanup(tx, updated, state);
+        });
+      } catch (error) {
+        if (pgCode(error) === "55P03") skipped += 1;
+        else failed += 1;
+      }
+    }
+    return { candidates: candidates.length, skipped, failed };
+  }
+
+  async function cleanupPhotos(input: { limit?: number } = {}): Promise<PhotoCleanupReport> {
+    const limit = Math.min(100, Math.max(1, Math.floor(input.limit ?? 25)));
+    const swept = await sweepAbandonedPending(Math.max(1, Math.floor(limit / 2)));
+    const dueLimit = Math.max(0, limit - swept.candidates);
+    const due = await db
+      .select({ id: photoCleanupIntent.id })
+      .from(photoCleanupIntent)
+      .where(sql`${photoCleanupIntent.nextAttemptAt} <= ${now()}`)
+      .orderBy(photoCleanupIntent.nextAttemptAt)
+      .limit(dueLimit);
+    const report: PhotoCleanupReport = {
+      scanned: swept.candidates + due.length,
+      deleted: 0,
+      pending: 0,
+      blocked: 0,
+      skipped: swept.skipped,
+      failed: swept.failed,
+    };
+    for (const { id } of due) {
+      const result = await cleanupOne(id);
+      if (result === "deleted") report.deleted += 1;
+      else if (result === "pending") report.pending += 1;
+      else if (result === "blocked") report.blocked += 1;
+      else if (result === "skipped") report.skipped += 1;
+      else if (result === "failed") report.failed += 1;
+    }
+    return report;
+  }
+
+  async function deletePhoto(ref: PhotoRef): Promise<"deleted" | "pending" | "not_found"> {
+    const row = await db.transaction(async (tx) => {
+      const [locked] = await tx
+        .select()
+        .from(storedObject)
+        .where(
+          and(
+            eq(storedObject.id, ref.objectId),
+            eq(storedObject.organizationId, ref.organizationId),
+            eq(storedObject.createdByUserId, ref.createdByUserId),
+            eq(storedObject.purpose, "progress_photo"),
+          ),
+        )
+        .for("update");
+      if (!locked) {
+        const [intent] = await tx
+          .select()
+          .from(photoCleanupIntent)
+          .where(
+            and(
+              eq(photoCleanupIntent.id, ref.objectId),
+              eq(photoCleanupIntent.organizationId, ref.organizationId),
+              eq(photoCleanupIntent.subjectUserId, ref.createdByUserId),
+            ),
+          )
+          .limit(1);
+        return intent ? ("pending" as const) : null;
+      }
+      if (locked.photoState === null) {
+        await tx
+          .update(storedObject)
+          .set({ photoDeletionRequestedAt: locked.photoDeletionRequestedAt ?? now() })
+          .where(
+            and(
+              eq(storedObject.id, locked.id),
+              eq(storedObject.organizationId, ref.organizationId),
+              eq(storedObject.createdByUserId, ref.createdByUserId),
+            ),
+          );
+        await recordCleanup(
+          tx,
+          { ...locked, storageProvider: null, storageStoreId: null },
+          "uncertain",
+        );
+        return "pending" as const;
+      }
+      const [deleting] = await tx
+        .update(storedObject)
+        .set({ photoState: "deleting" })
+        .where(
+          and(
+            eq(storedObject.id, locked.id),
+            eq(storedObject.organizationId, ref.organizationId),
+            eq(storedObject.createdByUserId, ref.createdByUserId),
+            eq(storedObject.photoState, locked.photoState),
+          ),
+        )
+        .returning();
+      if (deleting)
+        await recordCleanup(
+          tx,
+          deleting,
+          deleting.photoWriteState === "uncertain"
+            ? "uncertain"
+            : deleting.photoWriteState === "not_started"
+              ? "not_started"
+              : "settled",
+        );
+      return deleting ? ("pending" as const) : null;
+    });
+    if (row === null) return "not_found";
+    if (row === "pending") {
+      // A matching active store gets one immediate attempt; mismatch/unknown provenance stays pending.
+      const [intent] = await db
+        .select()
+        .from(photoCleanupIntent)
+        .where(eq(photoCleanupIntent.id, ref.objectId))
+        .limit(1);
+      if (!intent) return "pending";
+      const result = await cleanupOne(ref.objectId);
+      return result === "deleted" ? "deleted" : "pending";
+    }
+    return "pending";
+  }
+
   const service: StorageService = {
     provider: storage.provider,
+    storeIdentity: storage.storeIdentity ?? null,
     maxObjectBytes,
 
+    async reservePhoto(input) {
+      const contentType = normalizeContentType(input.contentType);
+      if (!storage.storeIdentity || !["image/jpeg", "image/png"].includes(contentType))
+        throw new StorageError("unsupported_type", 0);
+      if (input.canonicalBytes.byteLength === 0) throw new StorageError("integrity", 0);
+      if (input.canonicalBytes.byteLength > maxObjectBytes) throw new StorageError("too_large", 0);
+      const id = newObjectId();
+      const key = buildObjectKey(input.organizationId, id);
+      const digest = sha256Hex(input.canonicalBytes);
+      await db.insert(storedObject).values({
+        id,
+        organizationId: input.organizationId,
+        createdByUserId: input.createdByUserId,
+        purpose: "progress_photo",
+        storageKey: key,
+        contentType,
+        sizeBytes: input.canonicalBytes.byteLength,
+        sha256: digest,
+        storageProvider: storage.storeIdentity.provider,
+        storageStoreId: storage.storeIdentity.storeId,
+        photoState: "pending",
+        photoWriteState: "not_started",
+        createdAt: now(),
+      });
+      return {
+        organizationId: input.organizationId,
+        objectId: id,
+        createdByUserId: input.createdByUserId,
+      };
+    },
+
+    async writePhoto({ ref, bytes, linkPhoto }) {
+      const reserved = await findPhotoRow(ref);
+      if (!reserved) throw new StorageError("unavailable", 0);
+      let actual: Uint8Array;
+      try {
+        actual = await readBounded(bytes, maxObjectBytes);
+      } catch (error) {
+        await setPhotoFailure(ref, "not_started", "not_started");
+        throw error;
+      }
+      const digest = sha256Hex(actual);
+      if (
+        reserved.purpose !== "progress_photo" ||
+        reserved.photoState !== "pending" ||
+        reserved.photoWriteState !== "not_started" ||
+        reserved.createdByUserId !== ref.createdByUserId ||
+        reserved.sizeBytes !== actual.byteLength ||
+        reserved.sha256 !== digest ||
+        reserved.storageProvider !== storage.storeIdentity?.provider ||
+        reserved.storageStoreId !== storage.storeIdentity?.storeId
+      ) {
+        if (reserved?.photoState === "pending" && reserved.photoWriteState === "not_started")
+          await setPhotoFailure(ref, "not_started", "not_started");
+        throw new StorageError("unavailable", 0);
+      }
+      // Lock parent then object and transition to uncertain before touching storage.
+      const armed = await db.transaction(async (tx) => {
+        await tx.execute(sql`select id from "user" where id = ${ref.createdByUserId} for update`);
+        await tx.execute(
+          sql`select id from organization where id = ${ref.organizationId} for update`,
+        );
+        const [row] = await tx
+          .select()
+          .from(storedObject)
+          .where(
+            and(
+              eq(storedObject.id, ref.objectId),
+              eq(storedObject.organizationId, ref.organizationId),
+              eq(storedObject.createdByUserId, ref.createdByUserId),
+              eq(storedObject.purpose, "progress_photo"),
+              eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+              eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
+            ),
+          )
+          .for("update");
+        if (
+          !row ||
+          row.createdByUserId !== ref.createdByUserId ||
+          row.purpose !== "progress_photo" ||
+          row.createdByUserId === null ||
+          row.photoState !== "pending" ||
+          row.photoWriteState !== "not_started" ||
+          row.storageProvider !== storage.storeIdentity?.provider ||
+          row.storageStoreId !== storage.storeIdentity?.storeId ||
+          row.sizeBytes !== actual.byteLength ||
+          row.sha256 !== digest
+        )
+          throw new StorageError("unavailable", 0);
+        const [updated] = await tx
+          .update(storedObject)
+          .set({ photoWriteState: "uncertain" })
+          .where(
+            and(
+              eq(storedObject.id, ref.objectId),
+              eq(storedObject.organizationId, ref.organizationId),
+              eq(storedObject.createdByUserId, ref.createdByUserId),
+              eq(storedObject.purpose, "progress_photo"),
+              eq(storedObject.storageProvider, storage.storeIdentity.provider),
+              eq(storedObject.storageStoreId, storage.storeIdentity.storeId),
+              eq(storedObject.photoState, "pending"),
+              eq(storedObject.photoWriteState, "not_started"),
+            ),
+          )
+          .returning();
+        return updated ?? null;
+      });
+      if (!armed) throw new StorageError("unavailable", 0);
+      let putStarted = false;
+      let acknowledged = false;
+      try {
+        return await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`select id from "user" where id = ${armed.createdByUserId} for update`,
+          );
+          await tx.execute(
+            sql`select id from organization where id = ${armed.organizationId} for update`,
+          );
+          const [row] = await tx
+            .select()
+            .from(storedObject)
+            .where(
+              and(
+                eq(storedObject.id, ref.objectId),
+                eq(storedObject.organizationId, ref.organizationId),
+                eq(storedObject.createdByUserId, ref.createdByUserId),
+                eq(storedObject.purpose, "progress_photo"),
+                eq(storedObject.storageProvider, storage.storeIdentity?.provider ?? ""),
+                eq(storedObject.storageStoreId, storage.storeIdentity?.storeId ?? ""),
+              ),
+            )
+            .for("update");
+          if (
+            !row ||
+            row.createdByUserId !== ref.createdByUserId ||
+            row.organizationId !== ref.organizationId ||
+            row.photoState !== "pending" ||
+            row.photoWriteState !== "uncertain" ||
+            row.sizeBytes !== actual.byteLength ||
+            row.sha256 !== digest ||
+            row.storageProvider !== storage.storeIdentity?.provider ||
+            row.storageStoreId !== storage.storeIdentity?.storeId
+          )
+            throw new StorageError("unavailable", 0);
+          // Consent/member validation and metadata linking run before any PUT.
+          const record = toRecord(row);
+          await linkPhoto(tx, record);
+          // Hold parent and object locks through bounded PUT and ready activation.
+          putStarted = true;
+          await storage.put(row.storageKey, actual, {
+            contentType: row.contentType,
+            sha256: row.sha256,
+            stagingId: row.id,
+          });
+          acknowledged = true;
+          const [ready] = await tx
+            .update(storedObject)
+            .set({ photoState: "ready", photoWriteState: "settled" })
+            .where(
+              and(
+                eq(storedObject.id, row.id),
+                eq(storedObject.photoState, "pending"),
+                eq(storedObject.photoWriteState, "uncertain"),
+              ),
+            )
+            .returning();
+          if (!ready) throw new StorageError("unavailable", 0);
+          return toRecord(ready);
+        });
+      } catch (error) {
+        await setPhotoFailure(
+          ref,
+          "uncertain",
+          acknowledged ? "settled" : putStarted ? "uncertain" : "not_started",
+        );
+        throw error;
+      }
+    },
+
     async putObject(input: PutObjectInput): Promise<StoredObjectRecord> {
+      if (input.purpose === "progress_photo") throw new StorageError("unavailable", 0);
       const policy = PURPOSE_POLICIES[input.purpose];
       if (!policy) throw new StorageError("unsupported_type", 0);
       const contentType = normalizeContentType(input.contentType);
@@ -255,14 +840,19 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
     },
 
     findObject,
+    findObjectForDeletion,
 
     async getObject(ref: ObjectRef) {
       const row = await findRow(ref);
-      if (!row) return null;
+      if (!row || !isReadable(row)) return null;
       const blob = await storage.get(row.storageKey);
       if (!blob) return null;
       return { object: toRecord(row), body: blob.body };
     },
+
+    deletePhoto,
+
+    cleanupPhotos,
 
     async listObjects({ organizationId, purpose, limit = 100 }) {
       const rows = await db
@@ -278,12 +868,17 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         )
         .orderBy(desc(storedObject.createdAt))
         .limit(Math.min(Math.max(1, limit), 500));
-      return rows.map(toRecord);
+      return rows.filter(isReadable).map(toRecord);
     },
 
-    async deleteObject(ref: ObjectRef): Promise<boolean> {
+    async deleteObject(ref: ObjectRef): Promise<"deleted" | "pending" | "not_found"> {
       const row = await findRow(ref);
-      if (!row) return false;
+      if (!row) return "not_found";
+      if (row.purpose === "progress_photo") {
+        if (!row.createdByUserId) return "pending";
+        const result = await deletePhoto({ ...ref, createdByUserId: row.createdByUserId });
+        return result;
+      }
       // Bytes first: if the row delete then fails, the row points at nothing,
       // which is safer than an unindexed object that erasure can never find.
       await storage.delete(row.storageKey);
@@ -292,13 +887,13 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         .where(
           and(eq(storedObject.id, row.id), eq(storedObject.organizationId, ref.organizationId)),
         );
-      return true;
+      return "deleted";
     },
 
     async createDownloadUrl(ref: ObjectRef, expiresInSeconds = signedUrlTtlSeconds) {
       const ttl = Math.min(Math.max(1, Math.floor(expiresInSeconds)), signedUrlTtlSeconds);
       const row = await findRow(ref);
-      if (!row) return null;
+      if (!row || !isReadable(row)) return null;
       const issuedAt = now();
       const expiresAt = new Date(issuedAt.getTime() + ttl * 1000);
       const native = await storage.signedGetUrl(row.storageKey, {
@@ -320,6 +915,7 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         .where(eq(storedObject.id, verdict.objectId))
         .limit(1);
       if (!row) return jsonError(404, "NOT_FOUND");
+      if (!isReadable(row)) return jsonError(404, "NOT_FOUND");
       const blob = await storage.get(row.storageKey);
       if (!blob) return jsonError(404, "NOT_FOUND");
       return new Response(blob.body, {

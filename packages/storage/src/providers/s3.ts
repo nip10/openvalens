@@ -25,6 +25,7 @@ import {
   type SignedGetUrlOptions,
   type StoredBlob,
   type StoredBlobHead,
+  type StorageStoreIdentity,
 } from "../object-storage";
 
 /** Upper bound on one S3 request before the body starts streaming. */
@@ -130,7 +131,12 @@ export function signSigV4(
  * is signed, so the URL works from a browser `<img>` or download link.
  */
 export function presignUrl(
-  input: { method: string; url: URL; expiresInSeconds: number; query?: Record<string, string> },
+  input: {
+    method: string;
+    url: URL;
+    expiresInSeconds: number;
+    query?: Record<string, string>;
+  },
   credentials: SigV4Credentials,
   now: Date,
 ): string {
@@ -170,6 +176,7 @@ export type S3ObjectStorageOptions = {
 
 export class S3ObjectStorage implements ObjectStorage {
   readonly provider = "s3";
+  readonly storeIdentity: StorageStoreIdentity;
   readonly #config: S3StorageConfig;
   readonly #fetch: typeof fetch;
   readonly #now: () => Date;
@@ -177,6 +184,17 @@ export class S3ObjectStorage implements ObjectStorage {
 
   constructor(config: S3StorageConfig, options: S3ObjectStorageOptions = {}) {
     this.#config = config;
+    const binding = {
+      version: 1,
+      endpoint: new URL(config.endpoint).origin,
+      bucket: config.bucket,
+      region: config.region,
+      forcePathStyle: config.forcePathStyle,
+    };
+    this.storeIdentity = {
+      provider: "s3",
+      storeId: `v1:${createHash("sha256").update(JSON.stringify(binding)).digest("hex")}`,
+    };
     this.#fetch = options.fetch ?? fetch;
     this.#now = options.now ?? (() => new Date());
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_S3_TIMEOUT_MS;

@@ -1,6 +1,8 @@
 import {
   DELETE_CONFIRMATION,
+  countPhotoErasureBlockers,
   deleteSubjectData,
+  PhotoErasureBlockedError,
   isFreshSession,
   previewSubjectData,
   resolveSubject,
@@ -99,10 +101,25 @@ export const dataRightsRouter = {
         context.db,
         resolution.subject.organizationIds,
       );
+      if ((await countPhotoErasureBlockers(context.db, resolution.subject)) > 0)
+        throw raiseApiError(
+          "CONFLICT",
+          "Progress-photo cleanup must finish before account erasure. Delete each remaining photo and retry.",
+        );
       if (objectKeys.length > 0 && !context.storage)
         throw raiseApiError("INTERNAL", "Storage is not available.");
 
-      const report = await deleteSubjectData(context.db, resolution.subject);
+      let report;
+      try {
+        report = await deleteSubjectData(context.db, resolution.subject);
+      } catch (error) {
+        if (error instanceof PhotoErasureBlockedError)
+          throw raiseApiError(
+            "CONFLICT",
+            "Progress-photo cleanup must finish before account erasure. Delete each remaining photo and retry.",
+          );
+        throw error;
+      }
       const objects =
         objectKeys.length > 0 && context.storage
           ? await context.storage.deleteKeys(objectKeys)

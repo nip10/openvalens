@@ -25,6 +25,30 @@ export type DeletionReport = {
   rowCounts: Record<string, number>;
 };
 
+export class PhotoErasureBlockedError extends Error {
+  constructor() {
+    super("Progress-photo cleanup must finish before account erasure.");
+    this.name = "PhotoErasureBlockedError";
+  }
+}
+
+/** Counts distinct photo keys still indexed or awaiting cleanup for this subject/container. */
+export async function countPhotoErasureBlockers(
+  db: Pick<Database, "execute">,
+  subject: DataRightsSubject,
+): Promise<number> {
+  const result = await db.execute(sql`
+    select count(*)::int as n from (
+      select storage_key from stored_object
+      where purpose = 'progress_photo'
+        and (created_by_user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)})
+      union
+      select storage_key from photo_cleanup_intent
+      where subject_id = ${subject.userId} or ${inList("org_id", subject.organizationIds)}
+    ) affected_photos`);
+  return Number((result.rows[0] as { n: number } | undefined)?.n ?? 0);
+}
+
 /** Legacy tables renamed by migration 20261001200000; still hold rows until dropped. */
 const QUARANTINED: { table: string; filter: (subject: DataRightsSubject) => SQL }[] = [
   {
@@ -101,6 +125,8 @@ export async function deleteSubjectData(
   const order = deletionOrder();
 
   return db.transaction(async (tx) => {
+    await tx.execute(sql`select id from "user" where id = ${subject.userId} for update`);
+    if (await countPhotoErasureBlockers(tx, subject)) throw new PhotoErasureBlockedError();
     const rowCounts: Record<string, number> = {};
     const record = (table: string, n: number) => {
       if (n > 0) rowCounts[table] = (rowCounts[table] ?? 0) + n;

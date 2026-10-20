@@ -1,5 +1,6 @@
 import { writeAuditLog } from "@openvalens/audit-security";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
+import { requireTrustedIdentity } from "@openvalens/auth/authz/trusted-session";
 import {
   AuthzHttpError,
   requireOrgMembership,
@@ -55,6 +56,15 @@ function requestContext(context: Context): AuthzRequestContext {
   return { req: { raw: { headers: context.honoContext.req.raw.headers } } };
 }
 
+function isTrustedPhotoOwner(context: Context, uploaderId: string | null): boolean {
+  if (!uploaderId) return false;
+  try {
+    return requireTrustedIdentity(context.session).userId === uploaderId;
+  } catch {
+    return false;
+  }
+}
+
 async function authorized<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
@@ -98,6 +108,30 @@ async function loadAuthorizedObject(
   return { object, authz };
 }
 
+async function loadAuthorizedDeleteObject(
+  context: Context,
+  storage: StorageService,
+  objectId: string,
+): Promise<{ object: StoredObjectRecord; authz: OrgAuthContext }> {
+  const membership = await authorized(() => requireOrgMembership(requestContext(context)));
+  const ref = { organizationId: membership.activeOrganizationId, objectId };
+  const object = await storage.findObjectForDeletion(ref);
+  if (!object) throw raiseApiError("NOT_FOUND", "Object not found.");
+  const authz = await authorized(() =>
+    requirePermission(requestContext(context), {
+      resource: PURPOSE_POLICIES[object.purpose].resource,
+      action: "write",
+    }),
+  );
+  if (authz.activeOrganizationId !== object.organizationId)
+    throw raiseApiError("NOT_FOUND", "Object not found.");
+  if (object.purpose === "progress_photo") {
+    if (!isTrustedPhotoOwner(context, object.createdByUserId))
+      throw raiseApiError("NOT_FOUND", "Object not found.");
+  }
+  return { object, authz };
+}
+
 export const storageRouter = {
   downloadUrl: protectedProcedure
     .use(validateInput(objectInput))
@@ -106,6 +140,10 @@ export const storageRouter = {
     .handler(async ({ context, input }) => {
       const storage = requireStorage(context);
       const { object } = await loadAuthorizedObject(context, storage, input.objectId, "read");
+      if (object.purpose === "progress_photo") {
+        if (!isTrustedPhotoOwner(context, object.createdByUserId))
+          throw raiseApiError("NOT_FOUND", "Object not found.");
+      }
       const link = await storage.createDownloadUrl({
         organizationId: object.organizationId,
         objectId: object.id,
@@ -122,17 +160,21 @@ export const storageRouter = {
   delete: protectedProcedure
     .use(validateInput(objectInput))
     .input(objectInput)
-    .output(z.object({ deleted: z.literal(true) }))
+    .output(
+      z.union([
+        z.object({ deleted: z.literal(true) }),
+        z.object({ deleted: z.literal(false), pending: z.literal(true) }),
+      ]),
+    )
     .handler(async ({ context, input }) => {
       const storage = requireStorage(context);
-      const { object, authz } = await loadAuthorizedObject(
-        context,
-        storage,
-        input.objectId,
-        "write",
-      );
+      const { object, authz } = await loadAuthorizedDeleteObject(context, storage, input.objectId);
+      let deletion: "deleted" | "pending" | "not_found";
       try {
-        await storage.deleteObject({ organizationId: object.organizationId, objectId: object.id });
+        deletion = await storage.deleteObject({
+          organizationId: object.organizationId,
+          objectId: object.id,
+        });
       } catch (error) {
         logger.error("storage.object.delete_failed", {
           correlationId: context.correlationId,
@@ -142,6 +184,7 @@ export const storageRouter = {
         });
         throw raiseApiError("INTERNAL", "Something went wrong.");
       }
+      if (deletion === "not_found") throw raiseApiError("NOT_FOUND", "Object not found.");
       await writeAuditLog({
         db: context.db,
         organizationId: object.organizationId,
@@ -152,6 +195,8 @@ export const storageRouter = {
         correlationId: context.correlationId,
         metadata: { purpose: object.purpose },
       });
-      return { deleted: true as const };
+      return deletion === "pending"
+        ? { deleted: false as const, pending: true as const }
+        : { deleted: true as const };
     }),
 };

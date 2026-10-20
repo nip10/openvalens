@@ -7,6 +7,8 @@ import {
   STORAGE_DEFAULT_MAX_OBJECT_BYTES,
   StorageConfigError,
 } from "./config";
+import { LocalObjectStorage } from "./providers/local";
+import { S3ObjectStorage } from "./providers/s3";
 
 const S3_ENV = {
   STORAGE_PROVIDER: "s3",
@@ -18,6 +20,31 @@ const S3_ENV = {
 };
 
 describe("parseStorageConfig", () => {
+  test("store identities are stable, configuration-bound and omit credentials", () => {
+    const first = parseStorageConfig(S3_ENV).s3!;
+    const rotated = {
+      ...first,
+      accessKeyId: "rotated-id",
+      secretAccessKey: "rotated-secret",
+    };
+    const base = new S3ObjectStorage(first).storeIdentity;
+    expect(new S3ObjectStorage(rotated).storeIdentity).toEqual(base);
+    expect(base.storeId).toMatch(/^v1:[0-9a-f]{64}$/);
+    expect(JSON.stringify(base)).not.toContain("synthetic");
+    expect(new S3ObjectStorage({ ...first, bucket: "different-bucket" }).storeIdentity).not.toEqual(
+      base,
+    );
+    expect(
+      new S3ObjectStorage({ ...first, endpoint: "https://different.example" }).storeIdentity,
+    ).not.toEqual(base);
+    expect(new LocalObjectStorage("./same-root").storeIdentity).toEqual(
+      new LocalObjectStorage("same-root").storeIdentity,
+    );
+    expect(new LocalObjectStorage("./other-root").storeIdentity).not.toEqual(
+      new LocalObjectStorage("./same-root").storeIdentity,
+    );
+  });
+
   test("defaults to private local disk with no env", () => {
     const config = parseStorageConfig({});
     expect(config).toEqual({
@@ -27,7 +54,10 @@ describe("parseStorageConfig", () => {
       maxObjectBytes: STORAGE_DEFAULT_MAX_OBJECT_BYTES,
       signedUrlTtlSeconds: 300,
     });
-    expect(describeStorageIntegration(config)).toEqual({ provider: "local", state: "configured" });
+    expect(describeStorageIntegration(config)).toEqual({
+      provider: "local",
+      state: "configured",
+    });
   });
 
   test("selects S3 when bucket and credentials are present", () => {
@@ -42,7 +72,10 @@ describe("parseStorageConfig", () => {
       forcePathStyle: true,
       sse: "AES256",
     });
-    expect(describeStorageIntegration(config)).toEqual({ provider: "s3", state: "configured" });
+    expect(describeStorageIntegration(config)).toEqual({
+      provider: "s3",
+      state: "configured",
+    });
   });
 
   test("S3 without credentials is off, never a boot failure", () => {
@@ -54,7 +87,10 @@ describe("parseStorageConfig", () => {
       const config = parseStorageConfig({ ...S3_ENV, [missing]: "" });
       expect(config.provider).toBeNull();
       expect(config.s3).toBeNull();
-      expect(describeStorageIntegration(config)).toEqual({ provider: null, state: "off" });
+      expect(describeStorageIntegration(config)).toEqual({
+        provider: null,
+        state: "off",
+      });
     }
   });
 

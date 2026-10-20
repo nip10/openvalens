@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createDb, sql } from "@openvalens/db";
 
-import { deleteSubjectData, type DeletionReport } from "./delete";
+import { deleteSubjectData, PhotoErasureBlockedError, type DeletionReport } from "./delete";
 import { rowFilter } from "./export";
 import { previewSubjectData, resolveSubject, type SubjectResolution } from "./policy";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
@@ -43,6 +43,10 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     await migrateEmptyDatabase(db);
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
+    // Photo erasure is now deliberately gated until per-photo physical cleanup.
+    // Keep this suite's legacy broad-erasure fixture focused on its existing tables.
+    await db.execute(sql`delete from stored_object where organization_id in ('org-a', 'org-b')`);
+    await db.execute(sql`delete from photo_cleanup_intent where org_id in ('org-a', 'org-b')`);
     await db.execute(
       sql.raw(`
       insert into "user" (id, email) values ('user-a2', 'a2@example.test'), ('user-a3', 'a3@example.test');
@@ -56,7 +60,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
         values ('org-a', 'user-a2', 'maintenance', 'pending', 2001, 2000, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"other_member": 2001}', now() + interval '1 day'),
                ('org-a', 'user-a3', 'maintenance', 'pending', 2201, 2200, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"other_member": 2201}', now() + interval '1 day');
-    `),
+      `),
     );
 
     for (const who of ["a", "b"]) {
@@ -284,7 +288,6 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_diary_day",
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
-      "stored_object",
       "plain_water_entry",
       "plain_water_preference",
       "plain_water_mutation",
@@ -387,6 +390,71 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     );
     expect(await count("plain_water_mutation", sql`organization_id = 'direct-water-org'`)).toBe(0);
     expect(await count("member", sql`organization_id = 'direct-water-org'`)).toBe(0);
+  });
+
+  test("photo uploader across memberships is blocked before account erasure", async () => {
+    await db.execute(
+      sql`insert into "user" (id, email) values ('photo-subject', 'photo@example.test')`,
+    );
+    await db.execute(
+      sql`insert into organization (id, name, slug) values ('photo-collab', 'Photo collab', 'photo-collab')`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-photo', 'photo-collab', 'photo-subject', 'collaborator')`,
+    );
+    await db.execute(sql`insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256)
+      values ('photo-unmanaged', 'photo-collab', 'photo-subject', 'progress_photo', 'org/photo-collab/photo-unmanaged', 'image/jpeg', 1, ${"a".repeat(64)})`);
+    try {
+      expect(
+        await previewSubjectData(db, { userId: "photo-subject", organizationIds: [] }),
+      ).toMatchObject({ progress_photo_cleanup_blocked: 1 });
+      await expect(
+        deleteSubjectData(db, { userId: "photo-subject", organizationIds: [] }),
+      ).rejects.toBeInstanceOf(PhotoErasureBlockedError);
+      expect(
+        (await db.execute(sql`select id from "user" where id = 'photo-subject'`)).rows,
+      ).toHaveLength(1);
+      expect(
+        (await db.execute(sql`select id from stored_object where id = 'photo-unmanaged'`)).rows,
+      ).toHaveLength(1);
+    } finally {
+      await db.execute(sql`delete from stored_object where id = 'photo-unmanaged'`);
+      await db.execute(sql`delete from photo_cleanup_intent where id = 'photo-unmanaged'`);
+      await db.execute(sql`delete from member where id = 'm-photo'`);
+      await db.execute(sql`delete from organization where id = 'photo-collab'`);
+      await db.execute(sql`delete from "user" where id = 'photo-subject'`);
+    }
+  });
+
+  test("an owned organization with another uploader's photo is blocked before erasure", async () => {
+    await db.execute(
+      sql`insert into "user" (id, email) values ('photo-owner', 'owner-photo@example.test'), ('photo-uploader', 'uploader-photo@example.test')`,
+    );
+    await db.execute(
+      sql`insert into organization (id, name, slug) values ('photo-owned-org', 'Owned photo org', 'photo-owned-org')`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-photo-owner', 'photo-owned-org', 'photo-owner', 'owner')`,
+    );
+    await db.execute(sql`insert into stored_object (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256)
+      values ('org-photo-unmanaged', 'photo-owned-org', 'photo-uploader', 'progress_photo', 'org/photo-owned-org/org-photo-unmanaged', 'image/jpeg', 1, ${"b".repeat(64)})`);
+    try {
+      await expect(
+        deleteSubjectData(db, { userId: "photo-owner", organizationIds: ["photo-owned-org"] }),
+      ).rejects.toBeInstanceOf(PhotoErasureBlockedError);
+      expect(
+        (await db.execute(sql`select id from "user" where id = 'photo-owner'`)).rows,
+      ).toHaveLength(1);
+      expect(
+        (await db.execute(sql`select id from stored_object where id = 'org-photo-unmanaged'`)).rows,
+      ).toHaveLength(1);
+    } finally {
+      await db.execute(sql`delete from stored_object where id = 'org-photo-unmanaged'`);
+      await db.execute(sql`delete from photo_cleanup_intent where id = 'org-photo-unmanaged'`);
+      await db.execute(sql`delete from member where id = 'm-photo-owner'`);
+      await db.execute(sql`delete from organization where id = 'photo-owned-org'`);
+      await db.execute(sql`delete from "user" where id in ('photo-owner', 'photo-uploader')`);
+    }
   });
 
   test("admission grants: recipient and issued grants erased, third-party grants survive", async () => {

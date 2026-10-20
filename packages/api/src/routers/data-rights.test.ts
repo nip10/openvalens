@@ -6,12 +6,14 @@ import type { Context } from "../context";
 
 const actual = { ...dataRights };
 let blockers: { organizationId: string; organizationName: string; reason: "OTHER_OWNER" }[] = [];
+let photoBlockers = 0;
 const resolveSubject = mock(async (_db: unknown, userId: string) => ({
   subject: { userId, organizationIds: [`org-of-${userId}`] },
   organizations: [{ id: `org-of-${userId}`, name: "Record" }],
   blockers,
 }));
 const previewSubjectData = mock(async () => ({ metric_sample: 3, session: 1 }));
+const countPhotoErasureBlockers = mock(async () => photoBlockers);
 const deleteSubjectData = mock(
   async (_db: unknown, subject: { userId: string; organizationIds: string[] }) => ({
     erasedAt: "2026-10-04T12:00:00.000Z",
@@ -24,6 +26,7 @@ mock.module("@openvalens/data-rights", () => ({
   ...actual,
   resolveSubject,
   previewSubjectData,
+  countPhotoErasureBlockers,
   deleteSubjectData,
 }));
 
@@ -69,11 +72,13 @@ async function code(promise: Promise<unknown>): Promise<string | undefined> {
 
 beforeEach(() => {
   blockers = [];
+  photoBlockers = 0;
   storedKeys = [];
   collectStoredObjectKeys.mockClear();
   deleteKeys.mockClear();
   resolveSubject.mockClear();
   previewSubjectData.mockClear();
+  countPhotoErasureBlockers.mockClear();
   deleteSubjectData.mockClear();
 });
 
@@ -155,6 +160,20 @@ describe("dataRights.deleteEverything", () => {
       "INTERNAL",
     );
     expect(deleteSubjectData).not.toHaveBeenCalled();
+  });
+
+  test("photo cleanup blocker prevents account destruction even with storage off and no owned orgs", async () => {
+    photoBlockers = 1;
+    resolveSubject.mockImplementationOnce(async (_db, userId) => ({
+      subject: { userId: String(userId), organizationIds: [] },
+      organizations: [],
+      blockers: [],
+    }));
+    expect(await code(call(context({ storage: false }), { confirmation: "DELETE" }))).toBe(
+      "CONFLICT",
+    );
+    expect(deleteSubjectData).not.toHaveBeenCalled();
+    expect(deleteKeys).not.toHaveBeenCalled();
   });
 
   test("no objects and storage off still deletes", async () => {

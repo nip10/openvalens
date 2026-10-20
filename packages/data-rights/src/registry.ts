@@ -81,6 +81,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   private_body_measurement_preference: { kind: "user" },
 
   // Clinical
+  photo_cleanup_intent: {
+    kind: "system",
+    reason: "Internal durable object-cleanup intents; not personal-data export material.",
+  },
   blood_panel: organization,
   blood_marker: organization,
   cardiac_exam: organization,
@@ -88,15 +92,24 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   imaging_study: organization,
   consultation: organization,
   family_history: organization,
-  optimal_range: { kind: "reference", reason: "Shared reference ranges, not user data." },
-  blood_marker_info: { kind: "reference", reason: "Shared marker descriptions, not user data." },
+  optimal_range: {
+    kind: "reference",
+    reason: "Shared reference ranges, not user data.",
+  },
+  blood_marker_info: {
+    kind: "reference",
+    reason: "Shared marker descriptions, not user data.",
+  },
 
   // Coach
   ai_feedback: organization,
   coach_profile: organization,
   insight: organization,
   chat_message: organization,
-  coach_template: { kind: "reference", reason: "Shared coach presets, not user data." },
+  coach_template: {
+    kind: "reference",
+    reason: "Shared coach presets, not user data.",
+  },
 
   // Health record and ingestion
   data_source: organization,
@@ -229,7 +242,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // Insights (#92): the person's own feedback, delivery preferences, phones and
   // delivery history. Insights themselves are recomputed, never stored. Keyed
   // by `user_id` so a member's rows in someone else's workspace go with them.
-  insight_preference: { kind: "user", redact: ["email_unsubscribe_token_hash"] },
+  insight_preference: {
+    kind: "user",
+    redact: ["email_unsubscribe_token_hash"],
+  },
   insight_feedback: { kind: "user" },
   insight_delivery: { kind: "user" },
   push_device: { kind: "user", redact: ["expo_push_token"] },

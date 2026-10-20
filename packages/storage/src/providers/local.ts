@@ -12,7 +12,7 @@
  * `docs/storage.md`).
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdir, open, rename, rm, stat, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
@@ -25,6 +25,7 @@ import {
   type PutBlobOptions,
   type StoredBlob,
   type StoredBlobHead,
+  type StorageStoreIdentity,
 } from "../object-storage";
 
 type Sidecar = { contentType: string; sha256: string };
@@ -38,10 +39,17 @@ function isNotFound(error: unknown): boolean {
 
 export class LocalObjectStorage implements ObjectStorage {
   readonly provider = "local";
+  readonly storeIdentity: StorageStoreIdentity;
   readonly #root: string;
 
   constructor(rootDir: string) {
     this.#root = resolve(rootDir);
+    this.storeIdentity = {
+      provider: "local",
+      storeId: `v1:${createHash("sha256")
+        .update(JSON.stringify({ version: 1, root: this.#root }))
+        .digest("hex")}`,
+    };
   }
 
   #path(key: string): string {
@@ -55,13 +63,21 @@ export class LocalObjectStorage implements ObjectStorage {
   async put(key: string, body: Uint8Array, options: PutBlobOptions): Promise<void> {
     const target = this.#path(key);
     const tempDir = join(this.#root, TEMP_DIR);
-    const temp = join(tempDir, randomUUID());
+    const stagingId = options.stagingId;
+    if (stagingId && !/^[A-Za-z0-9_-]{1,128}$/.test(stagingId))
+      throw new StorageError("invalid_key", 0);
+    const temp = join(tempDir, stagingId ?? randomUUID());
     try {
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
       await mkdir(tempDir, { recursive: true, mode: 0o700 });
       // The sidecar is written first: an object file never exists without it.
-      const sidecar: Sidecar = { contentType: options.contentType, sha256: options.sha256 };
-      await writeFile(`${temp}${SIDECAR_SUFFIX}`, JSON.stringify(sidecar), { mode: 0o600 });
+      const sidecar: Sidecar = {
+        contentType: options.contentType,
+        sha256: options.sha256,
+      };
+      await writeFile(`${temp}${SIDECAR_SUFFIX}`, JSON.stringify(sidecar), {
+        mode: 0o600,
+      });
       await rename(`${temp}${SIDECAR_SUFFIX}`, `${target}${SIDECAR_SUFFIX}`);
       const handle = await open(temp, "wx", 0o600);
       try {
@@ -113,6 +129,19 @@ export class LocalObjectStorage implements ObjectStorage {
     try {
       await rm(path, { force: true });
       await rm(`${path}${SIDECAR_SUFFIX}`, { force: true });
+    } catch {
+      throw new StorageError("provider_unavailable", 0);
+    }
+  }
+
+  async deleteWithStaging(key: string, stagingId: string): Promise<void> {
+    this.#path(key);
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(stagingId)) throw new StorageError("invalid_key", 0);
+    await this.delete(key);
+    const temp = join(this.#root, TEMP_DIR, stagingId);
+    try {
+      await rm(temp, { force: true });
+      await rm(`${temp}${SIDECAR_SUFFIX}`, { force: true });
     } catch {
       throw new StorageError("provider_unavailable", 0);
     }

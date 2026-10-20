@@ -27,6 +27,8 @@ export type PutBlobOptions = {
   contentType: string;
   /** Lowercase hex SHA-256 of `body`; stored alongside so copies can be verified. */
   sha256: string;
+  /** Reservation UUID used to identify lifecycle-only local staging files. */
+  stagingId?: string;
 };
 
 export type SignedGetUrlOptions = {
@@ -35,9 +37,16 @@ export type SignedGetUrlOptions = {
   contentType: string;
 };
 
+export type StorageStoreIdentity = {
+  provider: "local" | "s3";
+  storeId: string;
+};
+
 export interface ObjectStorage {
   /** Stable lowercase provider id (`"local"`, `"s3"`). */
   readonly provider: string;
+  /** Present on built-in adapters; custom legacy adapters may omit it. */
+  readonly storeIdentity?: StorageStoreIdentity;
   /** Writes (or atomically replaces) the object. */
   put(key: string, body: Uint8Array, options: PutBlobOptions): Promise<void>;
   /** Streams the object, or `null` when it does not exist. */
@@ -46,6 +55,8 @@ export interface ObjectStorage {
   head(key: string): Promise<StoredBlobHead | null>;
   /** Deletes the object. Deleting a missing object succeeds. */
   delete(key: string): Promise<void>;
+  /** Deletes bytes and, for local lifecycle writes, the reservation staging file. */
+  deleteWithStaging?(key: string, stagingId: string): Promise<void>;
   /**
    * A short-lived URL that downloads the object without a session, or `null`
    * when the adapter has no native signing (local disk: the server mints an
@@ -147,5 +158,9 @@ export function describeStorageError(error: unknown): StorageErrorSummary {
       ...(error.status ? { status: error.status } : {}),
     };
   }
-  return { errorCode: "STORAGE_UNKNOWN", errorCategory: "unknown", retryable: false };
+  return {
+    errorCode: "STORAGE_UNKNOWN",
+    errorCategory: "unknown",
+    retryable: false,
+  };
 }
