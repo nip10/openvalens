@@ -34,6 +34,50 @@ jobs:
       - run: bun run check-types
       - run: bun test
 
+  server-image-sanitizer:
+    name: Built server image Sharp sanitizer proof
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      # Synthetic build-time env values only: no real secrets, providers or DB.
+      - name: Write synthetic build-time env files
+        run: |
+          env_dir="$RUNNER_TEMP/openvalens-build-env"
+          mkdir -p "$env_dir"
+          cat > "$env_dir/web.env" <<'EOF'
+          NODE_ENV=production
+          VITE_SERVER_URL=http://localhost:3000
+          EOF
+          cat > "$env_dir/server.env" <<'EOF'
+          NODE_ENV=production
+          BETTER_AUTH_SECRET=synthetic-build-only-auth-secret-000000000000
+          BETTER_AUTH_URL=http://localhost:3000
+          CORS_ORIGIN=http://localhost:3001
+          DATABASE_URL=postgres://synthetic:synthetic@127.0.0.1:5432/openhealth
+          CRON_SECRET=synthetic-build-only-cron-secret
+          TELEGRAM_WEBHOOK_SECRET=synthetic-build-only-webhook-secret
+          EMAIL_FROM=CI Smoke <ci-smoke@example.invalid>
+          EMAIL_DRY_RUN=true
+          EOF
+          chmod 0600 "$env_dir"/*.env
+          echo "OPENVALENS_BUILD_ENV=$env_dir" >> "$GITHUB_ENV"
+      - name: Build production server image
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: |
+          docker build \
+            --secret id=web_env,src="$OPENVALENS_BUILD_ENV/web.env" \
+            --secret id=server_env,src="$OPENVALENS_BUILD_ENV/server.env" \
+            -f apps/server/Dockerfile \
+            -t openvalens-server:image-sanitizer-proof .
+      - name: Run Sharp sanitizer proof in emitted server distribution
+        run: |
+          docker run --rm --network none \
+            openvalens-server:image-sanitizer-proof \
+            bun dist/image-sanitizer-smoke.mjs
+
   integration:
     name: Postgres integration suites
     runs-on: ubuntu-latest
