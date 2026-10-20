@@ -484,6 +484,80 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     ).toEqual([{ storage_provider: null, storage_store_id: null }]);
   });
 
+  test("store identity mismatch remains durably blocked without adapter I/O", async () => {
+    const originalClock = clock;
+    let ioCalls = 0;
+    const adapter = new LocalObjectStorage(root);
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.deleteWithStaging = async (...args) => {
+      ioCalls += 1;
+      return adapter.deleteWithStaging(...args);
+    };
+    const isolated = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const ref = await service.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await db.execute(
+      sql`update stored_object set storage_store_id = 'different-store' where id = ${ref.objectId}`,
+    );
+    expect(await isolated.deletePhoto(ref)).toBe("pending");
+    try {
+      clock = new Date(clock.getTime() + 5000);
+      expect(await isolated.cleanupPhotos({ limit: 5 })).toMatchObject({ blocked: 1 });
+    } finally {
+      clock = originalClock;
+    }
+    expect(ioCalls).toBe(0);
+    expect(
+      (
+        await db.execute(
+          sql`select storage_store_id from photo_cleanup_intent where id = ${ref.objectId}`,
+        )
+      ).rows,
+    ).toEqual([{ storage_store_id: "different-store" }]);
+  });
+
+  test("cleanup worker limits mixed due work to the requested batch", async () => {
+    const originalClock = clock;
+    const refs = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        service.reservePhoto({
+          organizationId: "org-a",
+          createdByUserId: "user-a",
+          contentType: "image/jpeg",
+          canonicalBytes: photo,
+        }),
+      ),
+    );
+    for (const ref of refs) {
+      await db.execute(
+        sql`update stored_object set storage_store_id = 'mismatched-store' where id = ${ref.objectId}`,
+      );
+      expect(await service.deletePhoto(ref)).toBe("pending");
+    }
+    try {
+      clock = new Date(clock.getTime() + 5000);
+      const report = await service.cleanupPhotos({ limit: 2 });
+      expect(report.scanned).toBeLessThanOrEqual(2);
+      expect(
+        report.blocked + report.pending + report.deleted + report.failed + report.skipped,
+      ).toBe(report.scanned);
+      expect(report.blocked).toBeGreaterThan(0);
+    } finally {
+      clock = originalClock;
+    }
+  });
+
   test("stale oversized writer cannot enqueue cleanup while publisher holds the row lock", async () => {
     const ref = await service.reservePhoto({
       organizationId: "org-a",
@@ -524,6 +598,79 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     expect(
       new Uint8Array(await new Response((await service.getObject(ref))!.body).arrayBuffer()),
     ).toEqual(photo);
+  });
+
+  test("publisher holds cleanup back until publication commits; delete then removes the one PUT", async () => {
+    const originalClock = clock;
+    const adapter = new LocalObjectStorage(root);
+    let putCalls = 0;
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.put = async (...args) => {
+      putCalls += 1;
+      return adapter.put(...args);
+    };
+    counted.deleteWithStaging = (...args) => adapter.deleteWithStaging(...args);
+    const publisherService = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const worker = createStorageService({
+      db,
+      storage: adapter,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const ref = await publisherService.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    let linkEntered!: () => void;
+    let releaseLink!: () => void;
+    const entered = new Promise<void>((resolve) => (linkEntered = resolve));
+    const held = new Promise<void>((resolve) => (releaseLink = resolve));
+    const publisher = publisherService.writePhoto({
+      ref,
+      bytes: photo,
+      linkPhoto: async () => {
+        linkEntered();
+        await held;
+      },
+    });
+    await entered;
+    try {
+      clock = new Date(clock.getTime() + 11 * 60_000);
+      const workerReport = await worker.cleanupPhotos({ limit: 5 });
+      expect(workerReport.skipped).toBe(1);
+      expect(workerReport.scanned).toBeGreaterThanOrEqual(1);
+      expect(
+        (
+          await db.execute(
+            sql`select photo_state, photo_write_state from stored_object where id = ${ref.objectId}`,
+          )
+        ).rows,
+      ).toEqual([{ photo_state: "pending", photo_write_state: "uncertain" }]);
+      const deletion = publisherService.deletePhoto(ref);
+      expect(putCalls).toBe(0);
+      expect(await adapter.head(buildObjectKey(ref.organizationId, ref.objectId))).toBeNull();
+      expect(await publisherService.getObject(ref)).toBeNull();
+      releaseLink();
+      await publisher;
+      expect(await deletion).toBe("deleted");
+      expect(putCalls).toBe(1);
+      expect(await adapter.head(buildObjectKey(ref.organizationId, ref.objectId))).toBeNull();
+    } finally {
+      releaseLink();
+      await publisher.catch(() => undefined);
+      clock = originalClock;
+    }
   });
 
   test("wrong creator and organization refs cannot mutate a reservation", async () => {
@@ -651,13 +798,170 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
     ).toEqual([{ write_state: "uncertain" }]);
   });
 
+  test("late publication after an early delete is removed again; uncertainty survives restart", async () => {
+    const originalClock = clock;
+    const adapter = new LocalObjectStorage(root);
+    let putEntered!: () => void;
+    let rejectClientPut!: () => void;
+    let allowRemoteCompletion!: () => void;
+    const entered = new Promise<void>((resolve) => (putEntered = resolve));
+    const clientReject = new Promise<void>((resolve) => (rejectClientPut = resolve));
+    const remoteGate = new Promise<void>((resolve) => (allowRemoteCompletion = resolve));
+    let remoteCompletion!: Promise<void>;
+    const delayed = Object.create(adapter) as LocalObjectStorage;
+    delayed.deleteWithStaging = (...args) => adapter.deleteWithStaging(...args);
+    delayed.put = async (key, bytes, options) => {
+      remoteCompletion = (async () => {
+        await remoteGate;
+        await adapter.put(key, bytes, options);
+      })();
+      putEntered();
+      await clientReject;
+      throw new Error("request timed out while remote completion remained in flight");
+    };
+    const isolated = createStorageService({
+      db,
+      storage: delayed,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const ref = await isolated.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    const publication = isolated.writePhoto({
+      ref,
+      bytes: photo,
+      linkPhoto: async () => undefined,
+    });
+    await entered;
+    rejectClientPut();
+    await expect(publication).rejects.toThrow("timed out");
+    const [row] = (
+      await db.execute(sql`select storage_key from stored_object where id = ${ref.objectId}`)
+    ).rows as { storage_key: string }[];
+    const key = row!.storage_key;
+    expect(await adapter.head(key)).toBeNull();
+
+    expect(await isolated.deletePhoto(ref)).toBe("pending");
+    expect(await adapter.head(key)).toBeNull();
+    expect(
+      (
+        await db.execute(
+          sql`select write_state from photo_cleanup_intent where id = ${ref.objectId}`,
+        )
+      ).rows,
+    ).toEqual([{ write_state: "uncertain" }]);
+
+    allowRemoteCompletion();
+    await remoteCompletion;
+    expect(await adapter.head(key)).not.toBeNull();
+
+    // Simulate restart and elapsed backoff: successful DELETE still cannot
+    // establish that another delayed publication will never arrive.
+    try {
+      clock = new Date(clock.getTime() + 24 * 60 * 60 * 1000);
+      const restarted = createStorageService({
+        db,
+        storage: adapter,
+        maxObjectBytes: 64,
+        signedUrlTtlSeconds: 300,
+        signingKey: SIGNING_KEY,
+        now: () => clock,
+      });
+      expect(await restarted.cleanupPhotos({ limit: 5 })).toMatchObject({ pending: 1 });
+      expect(await adapter.head(key)).toBeNull();
+      expect(
+        (
+          await db.execute(
+            sql`select write_state from photo_cleanup_intent where id = ${ref.objectId}`,
+          )
+        ).rows,
+      ).toContainEqual({ write_state: "uncertain" });
+    } finally {
+      clock = originalClock;
+    }
+  });
+
+  test("two cleanup workers do not delete the same intent concurrently", async () => {
+    const adapter = new LocalObjectStorage(root);
+    let failFirstDelete = true;
+    let holdDeletes = false;
+    let deleteStarted!: () => void;
+    let releaseDelete!: () => void;
+    const started = new Promise<void>((resolve) => (deleteStarted = resolve));
+    const held = new Promise<void>((resolve) => (releaseDelete = resolve));
+    let activeDeletes = 0;
+    let maxActiveDeletes = 0;
+    const counted = Object.create(adapter) as LocalObjectStorage;
+    counted.put = (...args) => adapter.put(...args);
+    counted.deleteWithStaging = async (key, stagingId) => {
+      if (failFirstDelete) {
+        failFirstDelete = false;
+        throw new Error("create a durable retry intent");
+      }
+      activeDeletes += 1;
+      maxActiveDeletes = Math.max(maxActiveDeletes, activeDeletes);
+      deleteStarted();
+      try {
+        if (holdDeletes) await held;
+        return await adapter.deleteWithStaging(key, stagingId);
+      } finally {
+        activeDeletes -= 1;
+      }
+    };
+    const first = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const second = createStorageService({
+      db,
+      storage: counted,
+      maxObjectBytes: 64,
+      signedUrlTtlSeconds: 300,
+      signingKey: SIGNING_KEY,
+      now: () => clock,
+    });
+    const ref = await first.reservePhoto({
+      organizationId: "org-a",
+      createdByUserId: "user-a",
+      contentType: "image/jpeg",
+      canonicalBytes: photo,
+    });
+    await first.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined });
+    expect(await first.deletePhoto(ref)).toBe("pending");
+    clock = new Date(clock.getTime() + 5000);
+    holdDeletes = true;
+    const firstWorker = first.cleanupPhotos({ limit: 5 });
+    await started;
+    const secondReport = await second.cleanupPhotos({ limit: 5 });
+    expect(secondReport).toMatchObject({ scanned: 1, deleted: 0, skipped: 1 });
+    expect(maxActiveDeletes).toBe(1);
+    releaseDelete();
+    await firstWorker;
+    expect(maxActiveDeletes).toBe(1);
+  });
+
   test("concurrent publication arms a reservation for only one PUT", async () => {
     let writes = 0;
+    let putEntered!: () => void;
+    let releasePut!: () => void;
+    const entered = new Promise<void>((resolve) => (putEntered = resolve));
+    const held = new Promise<void>((resolve) => (releasePut = resolve));
     const adapter = new LocalObjectStorage(root);
     const counted = Object.create(adapter) as LocalObjectStorage;
     counted.put = async (key, bytes, options) => {
       writes += 1;
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      putEntered();
+      await held;
       return adapter.put(key, bytes, options);
     };
     const isolated = createStorageService({
@@ -673,12 +977,18 @@ describe.skipIf(!url)("storage service against disposable PostgreSQL", () => {
       contentType: "image/jpeg",
       canonicalBytes: photo,
     });
-    const results = await Promise.allSettled([
-      isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
-      isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
-    ]);
+    const first = isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined });
+    await entered;
+    try {
+      await expect(
+        isolated.writePhoto({ ref, bytes: photo, linkPhoto: async () => undefined }),
+      ).rejects.toBeInstanceOf(StorageError);
+      expect(writes).toBe(1);
+    } finally {
+      releasePut();
+    }
+    await first;
     expect(writes).toBe(1);
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
   });
 
   test("denied publication callback fails before PUT and retains not-started cleanup", async () => {

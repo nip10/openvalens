@@ -139,6 +139,17 @@ the API reports cleanup as pending until a bound store can complete it. Existing
 S3 presigned bearer URLs may remain usable until their short TTL expires; this
 deletion path does not claim immediate revocation.
 
+The storage worker endpoint is `/rpc/cron/photoCleanupRun`. It uses the
+existing `CRON_SECRET` bearer guard, accepts only an empty JSON object, and
+processes at most 25 cleanup items per invocation. The response reports
+scanned, deleted, pending, blocked, skipped, and failed counts; absent storage
+is explicitly reported with `unavailable: true`, a failed status, and a failure
+count, not as a completed/empty sweep. Run it
+periodically (for example hourly) from the same trusted scheduler as the other
+cron endpoints. This documents an available endpoint; it does not enable or
+deploy a production schedule. Do not pass storage keys or object identifiers
+to this endpoint.
+
 Lifecycle photo writes use `reservePhoto` followed by `writePhoto`: reservation
 stores the canonical byte count/hash and opaque key before publication; only one
 writer can arm that key. Pending/deleting rows are not readable. An ambiguous

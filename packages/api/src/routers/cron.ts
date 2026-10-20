@@ -68,6 +68,16 @@ const ingestionRunOutput = cronRunOutput.extend({
   rawArtifactsPurged: z.number(),
 });
 
+const photoCleanupRunOutput = cronRunOutput.extend({
+  unavailable: z.boolean(),
+  scanned: z.number(),
+  deleted: z.number(),
+  pending: z.number(),
+  blocked: z.number(),
+  skipped: z.number(),
+  failed: z.number(),
+});
+
 /**
  * Ingestion job runners by job type. `mobile_ingest_batch` retries mobile
  * batches whose inline apply failed. The legacy `sync_session_finalize` is
@@ -152,6 +162,34 @@ export const cronRouter = {
         startedAt,
         finishedAt,
         correlationId: context.correlationId,
+        ...totals,
+      };
+    }),
+
+  /** Bounded lifecycle cleanup for durable progress-photo cleanup intents. */
+  photoCleanupRun: cronProcedure
+    .input(z.object({}).strict())
+    .output(photoCleanupRunOutput)
+    .handler(async ({ context }) => {
+      const startedAt = new Date().toISOString();
+      const totals = context.storage
+        ? await context.storage.cleanupPhotos({ limit: 25 })
+        : { scanned: 0, deleted: 0, pending: 0, blocked: 0, skipped: 0, failed: 1 };
+      const status = !context.storage || totals.failed > 0 ? "failed" : "ok";
+      logger.info("cron.photo_cleanup.completed", {
+        job: "photo.cleanup",
+        correlationId: context.correlationId,
+        status,
+        unavailable: !context.storage,
+        ...totals,
+      });
+      return {
+        status,
+        job: "photo.cleanup",
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        correlationId: context.correlationId,
+        unavailable: !context.storage,
         ...totals,
       };
     }),

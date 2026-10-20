@@ -255,13 +255,14 @@ body and provider error message are never logged.
 
 ## 7. Scheduled jobs
 
-Three authenticated cron endpoints are exposed as oRPC procedures:
+Authenticated cron endpoints are exposed as oRPC procedures:
 
-| Endpoint                      | Schedule     | Job                 |
-| ----------------------------- | ------------ | ------------------- |
-| `/rpc/cron/remindersDailyRun` | `5 8 * * *`  | `reminders.daily`   |
-| `/rpc/cron/ingestionRun`      | `15 9 * * *` | `ingestion.daily`   |
-| `/rpc/cron/insightsRun`       | `20 * * * *` | `insights.delivery` |
+| Endpoint                      | Schedule           | Job                 |
+| ----------------------------- | ------------------ | ------------------- |
+| `/rpc/cron/remindersDailyRun` | `5 8 * * *`        | `reminders.daily`   |
+| `/rpc/cron/ingestionRun`      | `15 9 * * *`       | `ingestion.daily`   |
+| `/rpc/cron/insightsRun`       | `20 * * * *`       | `insights.delivery` |
+| `/rpc/cron/photoCleanupRun`   | hourly (suggested) | `photo.cleanup`     |
 
 All require a bearer token equal to `CRON_SECRET`:
 
@@ -275,11 +276,22 @@ curl -fsS -X POST "https://<your-domain>/rpc/cron/ingestionRun" \
   -H "Authorization: Bearer $CRON_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"json":{}}'
+
+curl -fsS -X POST "https://<your-domain>/rpc/cron/photoCleanupRun" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"json":{}}'
 ```
 
+The photo cleanup schedule is a recommendation only; this change does not
+configure or activate any production scheduler. The worker is bounded to 25
+items per call and reports pending, blocked, skipped, and failed work.
+
 - A missing or incorrect bearer token is rejected with `401 UNAUTHENTICATED`.
-- On success the endpoint emits `cron.job.started` and `cron.job.finished`
-  structured logs (tagged with the correlation id) and returns:
+- The other cron endpoints emit their lifecycle logs; photo cleanup emits one
+  `cron.photo_cleanup.completed` event with status and counters only (no keys,
+  URLs, or subject identifiers). Responses include the correlation id and job
+  envelope; a reminder response looks like:
 
 ```json
 {
