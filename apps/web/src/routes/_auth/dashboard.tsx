@@ -60,7 +60,9 @@ function DashboardPage() {
       key: "sleep",
       title: "Sleep",
       primary: sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—",
-      secondary: sleepRow ? `${sleepRow.date} · ${sleepRow.status}` : "No sleep logged",
+      secondary: sleepRow
+        ? `Latest night · ${sleepRow.date} · ${sleepRow.status}`
+        : `No sleep logged in the last ${COCKPIT_SLEEP_WINDOW_DAYS} days`,
       tertiary:
         sleepRow && sleepRow.mainSleepStart && sleepRow.mainSleepEnd
           ? `${formatClockTime(sleepRow.mainSleepStart, settings)} → ${formatClockTime(sleepRow.mainSleepEnd, settings)}`

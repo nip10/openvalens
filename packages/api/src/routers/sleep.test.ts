@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, describe, expect, mock, setSystemTime, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Database } from "@openvalens/db";
 import { accessAuditLog } from "@openvalens/db/schema/auth";
 import { healthEvent } from "@openvalens/db/schema/health-record";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
 import { RPCHandler } from "@orpc/server/fetch";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 import type { Context } from "../context";
 import { COCKPIT_SLEEP_WINDOW_DAYS } from "../presenters/cockpit";
+import type { AppRouterClient } from "./index";
 
 let role = "owner";
 const requirePermission = mock(
@@ -211,75 +214,83 @@ describe("sleep oRPC read boundary", () => {
   });
 });
 
-describe("sleep.summary over the RPC handler (Issue #134)", () => {
-  const handler = new RPCHandler(appRouter);
-  const NOW = new Date("2026-10-14T12:00:00.000Z");
-
-  async function summary(db: Database, input: unknown) {
-    const request = new Request("http://test.local/rpc/sleep/summary", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ json: input }),
+/**
+ * Issue #134 — the dashboard's sleep request over the real RPC wire: the same
+ * `RPCHandler` the server mounts and the same `RPCLink` client the web app
+ * uses, so a contract drift between them surfaces as a status code here.
+ */
+describe("sleep.summary over HTTP (dashboard contract)", () => {
+  function httpClient(db: Database): {
+    client: AppRouterClient;
+    statuses: number[];
+  } {
+    const handler = new RPCHandler(appRouter);
+    const statuses: number[] = [];
+    const link = new RPCLink({
+      url: "http://test.local/rpc",
+      async fetch(request, init) {
+        const { matched, response } = await handler.handle(new Request(request, init), {
+          prefix: "/rpc",
+          context: context(db),
+        });
+        if (!matched || !response) throw new Error("unmatched RPC path");
+        statuses.push(response.status);
+        return response;
+      },
     });
-    const { matched, response } = await handler.handle(request, {
-      prefix: "/rpc",
-      context: context(db),
-    });
-    if (!matched || !response) throw new Error("unmatched sleep/summary");
-    const parsed = (await response.json()) as { json: Record<string, unknown> };
-    return { status: response.status, json: parsed.json };
+    return { client: createORPCClient(link), statuses };
   }
 
-  beforeEach(() => {
+  test("the dashboard lookback is accepted (200) and an empty org yields no night", async () => {
     role = "viewer";
-    setSystemTime(NOW);
-  });
-  afterEach(() => {
-    setSystemTime();
-  });
-
-  test("the cockpit window is accepted and returns an empty summary with no data", async () => {
     const state = fakeDb();
-    const result = await summary(state.db, { days: COCKPIT_SLEEP_WINDOW_DAYS });
-    expect(result.status).toBe(200);
-    expect(result.json).toMatchObject({ days: [], lastNight: null, confidence: "low" });
+    const { client, statuses } = httpClient(state.db);
+    const summary = await client.sleep.summary({ days: COCKPIT_SLEEP_WINDOW_DAYS });
+    expect(statuses).toEqual([200]);
+    expect(summary.lastNight).toBeNull();
+    expect(summary.days).toEqual([]);
     expect(state.selects[0]?.params).toContain("org-1");
   });
 
-  test("the cockpit window returns the most recent night, labelled with its own date", async () => {
+  test("a populated window returns the latest night with its own date", async () => {
+    role = "viewer";
     const state = fakeDb([
       {
-        id: 1,
-        eventAt: new Date("2026-10-11T23:00:00.000Z"),
-        title: null,
-        payloadJson: { endAt: "2026-10-12T06:30:00.000Z" },
+        id: 11,
+        eventAt: new Date("2026-03-06T23:00:00.000Z"),
+        title: "sleep_session",
+        payloadJson: { endAt: "2026-03-07T06:30:00.000Z" },
       },
       {
-        id: 2,
-        eventAt: new Date("2026-10-13T23:00:00.000Z"),
-        title: null,
-        payloadJson: { endAt: "2026-10-14T07:00:00.000Z" },
+        id: 12,
+        eventAt: new Date("2026-03-07T23:30:00.000Z"),
+        title: "sleep_session",
+        payloadJson: { endAt: "2026-03-08T07:00:00.000Z", sourceApp: "Oura" },
       },
     ]);
-    const result = await summary(state.db, { days: COCKPIT_SLEEP_WINDOW_DAYS });
-    expect(result.status).toBe(200);
-    const lastNight = result.json.lastNight as Record<string, unknown>;
-    expect(lastNight).toMatchObject({
-      date: "2026-10-14",
-      asleepMinutes: 480,
-      mainSleepStart: "2026-10-13T23:00:00.000Z",
-      mainSleepEnd: "2026-10-14T07:00:00.000Z",
+    const { client, statuses } = httpClient(state.db);
+    const summary = await client.sleep.summary({ days: COCKPIT_SLEEP_WINDOW_DAYS });
+    expect(statuses).toEqual([200]);
+    expect(summary.days.map((day) => day.date)).toEqual(["2026-03-07", "2026-03-08"]);
+    expect(summary.lastNight).toMatchObject({
+      date: "2026-03-08",
+      mainSleepStart: "2026-03-07T23:30:00.000Z",
+      mainSleepEnd: "2026-03-08T07:00:00.000Z",
+      asleepMinutes: 450,
     });
-    expect((result.json.days as unknown[]).length).toBe(2);
   });
 
-  test("windows below the minimum stay rejected with a value-free 400", async () => {
+  test("the old `days: 1` request is still a 400 INVALID_INPUT and never reaches the DB", async () => {
+    role = "viewer";
     const state = fakeDb();
-    for (const days of [1, COCKPIT_SLEEP_WINDOW_DAYS - 1]) {
-      const result = await summary(state.db, { days });
-      expect(result.status).toBe(400);
-      expect(result.json).toMatchObject({ code: "INVALID_INPUT" });
+    const { client, statuses } = httpClient(state.db);
+    for (const days of [1, 6, 366]) {
+      await expect(client.sleep.summary({ days })).rejects.toMatchObject({
+        code: "INVALID_INPUT",
+        status: 400,
+      });
     }
+    expect(statuses).toEqual([400, 400, 400]);
     expect(state.selects).toEqual([]);
   });
 });
