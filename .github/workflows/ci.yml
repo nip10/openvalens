@@ -33,6 +33,9 @@ jobs:
       - run: bunx oxfmt --check .
       - run: bun run check-types
       - run: bun test
+      - name: Mounted plain-water interaction regressions
+        working-directory: apps/web
+        run: bun run test:mounted-water
 
   server-image-sanitizer:
     name: Built server image Sharp sanitizer proof

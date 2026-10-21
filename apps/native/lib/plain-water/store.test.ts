@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createSqliteWaterStore, type WaterSqlite } from "./store-adapter";
-import { drain, enqueue, type WaterItem, type WaterOperation } from "./outbox";
+import { discard, drain, enqueue, type WaterItem, type WaterOperation } from "./outbox";
 
 class FakeSqlite implements WaterSqlite {
   rows: { seq: number; scope: string; id: string; item: string }[] = [];
@@ -105,6 +105,19 @@ describe("plain-water SQLite adapter", () => {
     db.failWrites = false;
     expect(store.list("user-a:org-a")).toHaveLength(0);
   });
+  test("discard confirms an actual scoped deletion and rejects missing/scope-mismatched rows", () => {
+    const db = new FakeSqlite();
+    const store = createSqliteWaterStore(db);
+    enqueue(store, "user-a:org-a", operation("discard-me"), 1);
+    expect(discard(store, "user-b:org-a", "discard-me")).toBe(false);
+    expect(discard(store, "user-a:org-a", "discard-me")).toBe(true);
+    expect(discard(store, "user-a:org-a", "discard-me")).toBe(false);
+    enqueue(store, "user-a:org-a", operation("fail-remove"), 2);
+    db.failWrites = true;
+    expect(() => discard(store, "user-a:org-a", "fail-remove")).toThrow(
+      "synthetic storage write failure",
+    );
+  });
   test("held adapter transport serializes same-scope drains and skips another scope", async () => {
     const db = new FakeSqlite();
     const store = createSqliteWaterStore(db);
@@ -117,6 +130,8 @@ describe("plain-water SQLite adapter", () => {
       await gate;
     });
     const first = drain(store, transport, "user-a:org-a");
+    await Promise.resolve();
+    expect(discard(store, "user-a:org-a", "held")).toBe(false);
     expect((await drain(store, transport, "user-a:org-a")).stopped).toBe("already_draining");
     expect((await drain(store, transport, "user-b:org-a")).sent).toBe(0);
     expect(store.list("user-b:org-a")).toHaveLength(0);
