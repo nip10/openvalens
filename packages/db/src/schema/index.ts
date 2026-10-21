@@ -1,4 +1,5 @@
 export * from "./admission";
+export * from "./analytics";
 export * from "./auth";
 export * from "./body";
 export * from "./clinical";

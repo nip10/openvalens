@@ -26,6 +26,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
+import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/lib/offline/sync";
@@ -88,6 +89,7 @@ export default function SettingsScreen() {
         )}
 
         {session?.user && <HealthSyncSettings />}
+        {session?.user && <AnalyticsConsentSection />}
 
         {session?.user && <CoachSection />}
 

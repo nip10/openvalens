@@ -35,6 +35,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { AiConsentSection } from "@/components/ai-consent-section";
+import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
 import { OidcConnectSection } from "@/components/oidc-connect-section";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
@@ -55,6 +56,7 @@ function SettingsPage() {
         <OidcConnectSection />
         <ProfileSummarySection />
         <InsightNotificationsSection />
+        <AnalyticsConsentSection />
         <CoachSection />
         <AiConsentSection />
         <DeleteAccountSection />

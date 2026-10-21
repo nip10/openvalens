@@ -40,6 +40,7 @@ const RETIRED =
 
 export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object.freeze({
   // Identity
+  analytics_consent: { kind: "user" },
   user: { kind: "self", match: "user" },
   organization: { kind: "self", match: "organization" },
   account: {
