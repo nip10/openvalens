@@ -4,6 +4,7 @@ import { activityRouter } from "./activity";
 import { adminSettingsRouter } from "./admin-settings";
 import { admissionRouter } from "./admission";
 import { aiRouter } from "./ai";
+import { analyticsRouter } from "./analytics";
 import { bodyRouter } from "./body";
 import { clinicalRouter } from "./clinical";
 import { coachRouter } from "./coach";
@@ -45,6 +46,7 @@ export const appRouter = {
   adminSettings: adminSettingsRouter,
   admission: admissionRouter,
   ai: aiRouter,
+  analytics: analyticsRouter,
   body: bodyRouter,
   clinical: clinicalRouter,
   coach: coachRouter,

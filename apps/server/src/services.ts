@@ -35,6 +35,7 @@ import {
 } from "@openvalens/telegram";
 
 import { ENV } from "./env.server";
+import { createAnalyticsService } from "./services/analytics";
 
 export const db = createDb(ENV);
 
@@ -43,6 +44,19 @@ export const db = createDb(ENV);
 // across requests. The API package never reads the environment or opens its own
 // connection.
 export const productSettingsService = createProductSettingsService({ db });
+
+// Issue #53 — server-only PostHog adapter. The service is inert unless all
+// three explicit operator/configuration gates are satisfied; construction
+// performs no provider request or SDK initialization.
+export const analyticsService = createAnalyticsService(
+  db,
+  {
+    enabled: ENV.ANALYTICS_ENABLED,
+    projectToken: ENV.POSTHOG_PROJECT_TOKEN,
+    ipCaptureDisabled: ENV.POSTHOG_IP_CAPTURE_DISABLED,
+  },
+  globalThis.fetch,
+);
 
 // Issue #58 — server-side email instantiation. The `@openvalens/email` package
 // stays pure; the server binds the five validated email fields explicitly
