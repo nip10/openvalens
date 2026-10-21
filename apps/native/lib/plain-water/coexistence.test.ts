@@ -162,4 +162,18 @@ describe("plain-water and meal outbox coexistence", () => {
     expect(statuses.slice(0, 3)).toEqual(["queued", "queued", "syncing"]);
     expect(base.list(SCOPE)).toHaveLength(0);
   });
+
+  test("crash-recovered syncing rows remain ineligible for discard", async () => {
+    const sqlite = new RealSqlite(new Database(":memory:"));
+    sqlite.exec(OFFLINE_SCHEMA_SQL);
+    const store = createSqliteWaterStore(sqlite);
+    const item = enqueue(store, SCOPE, waterOperation("uncertain-crash"), 1);
+    store.put({ ...item, status: "syncing" });
+    await drain(store, waterSender([], "conflict"), SCOPE);
+    expect(store.list(SCOPE)[0]).toMatchObject({
+      status: "needs_attention",
+      attempts: 2,
+      lastErrorCode: "CONFLICT",
+    });
+  });
 });

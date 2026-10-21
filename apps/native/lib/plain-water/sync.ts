@@ -1,12 +1,23 @@
 import { useCallback, useLayoutEffect, useSyncExternalStore } from "react";
 import { offlineScope } from "@openvalens/api/presenters/offline";
+import { newClientMutationId } from "@openvalens/api/presenters/nutrition-diary";
 import * as Network from "expo-network";
 import { AppState } from "react-native";
 import { authClient } from "@/lib/auth-client";
 import { useOfflineScope } from "@/lib/offline/sync";
 import { client, orpc, queryClient } from "@/utils/orpc";
-import { discard, drain, enqueue, retry, type WaterItem, type WaterOperation } from "./outbox";
+import {
+  canDiscardWaterItem,
+  discard,
+  drain,
+  enqueue,
+  resolveConflict as replaceConflict,
+  retry,
+  type WaterItem,
+  type WaterOperation,
+} from "./outbox";
 import { sqliteWaterStore } from "./store";
+import { readWaterQueueSnapshot } from "./queue-snapshot";
 
 let activeScope: string | null = null;
 let operationError: string | null = null;
@@ -17,7 +28,13 @@ let version = 0;
 const listeners = new Set<() => void>();
 const emit = () => {
   version++;
-  listeners.forEach((listener) => listener());
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // A subscriber failure cannot undo a durable queue transition.
+    }
+  });
 };
 const sender = {
   add: (input: Parameters<typeof client.plainWater.add>[0]) => client.plainWater.add(input),
@@ -91,7 +108,8 @@ export type PlainWaterOutbox = {
   error: string | null;
   enqueue: (op: WaterOperation) => WaterItem | null;
   retry: (id: string) => void;
-  discard: (id: string) => void;
+  discard: (id: string) => boolean;
+  resolveConflict: (id: string) => boolean;
   syncNow: () => Promise<void>;
 };
 /** Scope-bound durable queue. IDs remain stable across retries and account changes. */
@@ -112,6 +130,7 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
     },
     () => version,
   );
+  const snapshot = readWaterQueueSnapshot(sqliteWaterStore, scope);
   const act = useCallback(
     (fn: (s: string) => void) => {
       if (!scope || activeScope !== scope) return;
@@ -129,11 +148,11 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
   );
   return {
     scope,
-    items: scope ? sqliteWaterStore.list(scope) : [],
+    items: snapshot.items,
     busy: scope ? syncingScopes.has(scope) : false,
-    error: operationError,
+    error: snapshot.error ?? operationError,
     enqueue: (op) => {
-      if (!scope || activeScope !== scope) return null;
+      if (!scope || activeScope !== scope || snapshot.error) return null;
       try {
         const item = enqueue(sqliteWaterStore, scope, op);
         operationError = null;
@@ -147,7 +166,41 @@ export function usePlainWaterOutbox(): PlainWaterOutbox {
       }
     },
     retry: (id) => act((s) => retry(sqliteWaterStore, s, id)),
-    discard: (id) => act((s) => discard(sqliteWaterStore, s, id)),
+    discard: (id) => {
+      if (!scope || activeScope !== scope || snapshot.error) return false;
+      try {
+        const item = sqliteWaterStore.list(scope).find((candidate) => candidate.id === id);
+        if (!item || !canDiscardWaterItem(item)) return false;
+        const removed = discard(sqliteWaterStore, scope, id);
+        if (!removed) return false;
+        operationError = null;
+        emit();
+        void sync(scope);
+        return true;
+      } catch {
+        operationError = "STORAGE";
+        emit();
+        return false;
+      }
+    },
+    resolveConflict: (id) => {
+      if (!scope || activeScope !== scope || snapshot.error) return false;
+      let replaced: boolean;
+      try {
+        replaced = replaceConflict(sqliteWaterStore, scope, id, newClientMutationId);
+      } catch {
+        operationError = "STORAGE";
+        emit();
+        return false;
+      }
+      if (!replaced) return false;
+      operationError = null;
+      emit();
+      // The atomic swap is already confirmed. Refresh/sync notification failure
+      // cannot turn it into a reported rollback or trigger a second replacement.
+      void sync(scope);
+      return true;
+    },
     syncNow: async () => {
       if (scope && activeScope === scope) await sync(scope);
     },

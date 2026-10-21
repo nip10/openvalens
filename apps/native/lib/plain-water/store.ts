@@ -7,4 +7,6 @@ export const sqliteWaterStore: WaterStore = {
   put: (item) => createSqliteWaterStore(getDb()).put(item),
   remove: (scope, id) => createSqliteWaterStore(getDb()).remove(scope, id),
   nextSeq: () => createSqliteWaterStore(getDb()).nextSeq(),
+  replaceConflict: (expected, replacement) =>
+    createSqliteWaterStore(getDb()).replaceConflict?.(expected, replacement) ?? false,
 };
