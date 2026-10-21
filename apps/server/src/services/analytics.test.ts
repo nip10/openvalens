@@ -1,12 +1,7 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 
 import type { Database } from "@openvalens/db";
-
-mock.module("@openvalens/db/schema", () => ({
-  analyticsConsent: { enabled: "enabled-column", userId: "user-id-column" },
-}));
-mock.module("drizzle-orm", () => ({ eq: () => ({}) }));
-const { createAnalyticsService } = await import("./analytics");
+import { createAnalyticsService } from "./analytics";
 
 type FakeOptions = {
   enabled?: boolean;
@@ -47,7 +42,7 @@ function fakeDatabase(options: FakeOptions = {}) {
         onConflictDoUpdate() {
           if (options.writeError) return Promise.reject(options.writeError);
           stored = builder.value.enabled;
-          writes.push(stored);
+          writes.push(builder.value.enabled);
           return Promise.resolve();
         },
       };
@@ -61,14 +56,24 @@ function fakeDatabase(options: FakeOptions = {}) {
   return { db: db as unknown as Database, writes };
 }
 
+function stubFetch(
+  handler: (...args: Parameters<typeof fetch>) => Promise<Response>,
+): typeof fetch {
+  return Object.assign(handler, { preconnect: () => {} });
+}
+
 const config = { enabled: true, projectToken: "test-project-token", ipCaptureDisabled: true };
 
 describe("analytics service consent persistence", () => {
   test("defaults consent to false and reports a failed preference read", async () => {
     const absent = fakeDatabase();
-    const service = createAnalyticsService(absent.db, config, async () => {
-      throw new Error("must not fetch");
-    });
+    const service = createAnalyticsService(
+      absent.db,
+      config,
+      stubFetch(async () => {
+        throw new Error("must not fetch");
+      }),
+    );
     expect(await service.getPreference("actor-a")).toEqual({ enabled: false, available: true });
 
     const failed = fakeDatabase({ readError: new Error("private database detail") });
@@ -128,10 +133,10 @@ describe("analytics service provider boundary", () => {
   test("off and unconsented states never call provider; failures are best effort", async () => {
     const noConsent = fakeDatabase();
     let calls = 0;
-    const fetch = async () => {
+    const fetch = stubFetch(async () => {
       calls += 1;
       return new Response('{"status":"ok"}');
-    };
+    });
     expect(
       await createAnalyticsService(noConsent.db, config, fetch).capture(
         "actor-a",
@@ -159,10 +164,10 @@ describe("analytics service provider boundary", () => {
   test("sends only the approved fixed payload, creates a fresh ID, and never retries", async () => {
     const fake = fakeDatabase({ enabled: true });
     const requests: Array<{ url: string; init: RequestInit }> = [];
-    const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetch = stubFetch(async (input, init) => {
       requests.push({ url: String(input), init: init! });
       return new Response('{"status":"ok"}', { status: 200 });
-    };
+    });
     const service = createAnalyticsService(fake.db, config, fetch);
     expect(await service.capture("sensitive-user-id", "preferences_opened")).toBe(true);
     expect(await service.capture("sensitive-user-id", "appearance_control_used")).toBe(true);
@@ -185,7 +190,7 @@ describe("analytics service provider boundary", () => {
         properties: { $process_person_profile: false },
       });
       expect(payload.distinct_id).not.toContain("sensitive-user-id");
-      expect(requests[0].init.headers).toEqual({ "content-type": "application/json" });
+      expect(requests[0]!.init.headers).toEqual({ "content-type": "application/json" });
     }
     expect(new Set(payloads.map((payload) => payload.distinct_id)).size).toBe(2);
   });
@@ -198,10 +203,14 @@ describe("analytics service provider boundary", () => {
       new Response("x".repeat(129), { status: 200 }),
       new Response("not-json", { status: 200 }),
     ];
-    const service = createAnalyticsService(fake.db, config, async () => {
-      calls += 1;
-      return responses.shift()!;
-    });
+    const service = createAnalyticsService(
+      fake.db,
+      config,
+      stubFetch(async () => {
+        calls += 1;
+        return responses.shift()!;
+      }),
+    );
     expect(await service.capture("actor-a", "preferences_opened")).toBe(false);
     expect(await service.capture("actor-a", "preferences_opened")).toBe(false);
     expect(await service.capture("actor-a", "preferences_opened")).toBe(false);
