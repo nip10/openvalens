@@ -184,15 +184,26 @@ describe("production Add Food intent/outbox integration", () => {
     const intent = controller.begin(ticket, "cancelled", () =>
       crypto.randomUUID(),
     )!;
+    const ack = deferred<void>();
+    let announcements = 0;
+    const completion = ack.promise.then(() => {
+      if (!controller.isCurrent(intent) || !ticket) return;
+      if (outbox.enqueueForIntent(ticket, input(intent.diaryMutationId)))
+        announcements++;
+    });
     outbox.clearDeviceData();
     controller.invalidate(); // all form close paths call the same synchronous invalidation
+    ack.resolve();
     expect(controller.isCurrent(intent)).toBe(false);
-    expect(outbox.enqueueForIntent(ticket, input(intent.diaryMutationId))).toBe(
-      false,
-    );
-    expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(
-      0,
-    );
+    return completion.then(() => {
+      expect(announcements).toBe(0);
+      expect(
+        outbox.enqueueForIntent(ticket, input(intent.diaryMutationId)),
+      ).toBe(false);
+      expect(
+        sqlite.query("select id from nutrition_outbox").all(),
+      ).toHaveLength(0);
+    });
   });
 
   test("one active submission wins; ambiguous retry IDs persist and changed/completed intents rotate IDs", () => {
