@@ -10,6 +10,7 @@ import type { FoodLookupProvider } from "@openvalens/nutrition/food-lookup";
 import type { PushProvider } from "@openvalens/push";
 import type { TelegramClient } from "@openvalens/telegram";
 import type { WearablesService } from "@openvalens/wearables";
+import type { AnalyticsService } from "./contracts/analytics";
 
 import type { ProductSettingsService } from "./product-settings";
 
@@ -176,6 +177,8 @@ export type Context = {
    * default). Phone-first ingestion never needs it.
    */
   wearables?: WearablesService | null;
+  /** Issue #53 — optional server-only analytics adapter; absent is fail-closed. */
+  analytics?: AnalyticsService;
   /**
    * Issue #92 — normalized web app origin used for links in the insights email
    * (dashboard, one-step unsubscribe). Absent → the email digest is skipped.

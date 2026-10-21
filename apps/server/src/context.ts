@@ -9,6 +9,7 @@ import {
   aiRateLimiter,
   admissionRateLimiter,
   admissionService,
+  analyticsService,
   auth,
   capabilities,
   db,
@@ -84,6 +85,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // admission mutation's `Origin` header must match.
     admissionOrigin: admissionOriginFrom(ENV.CORS_ORIGIN),
     admissionService,
+    analytics: analyticsService,
     admissionRateLimiter,
     // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
     storage: storageService,
