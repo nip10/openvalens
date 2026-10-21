@@ -63,7 +63,7 @@ import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
 import { mergeDay, type DiaryRow, type QueuedChange } from "@/lib/nutrition/outbox";
 import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutrition/sync";
 import { readCache, writeCache } from "@/lib/offline/cache";
-import { useCacheFirst } from "@/lib/offline/sync";
+import { isOfflineWriteTicketCurrent, useCacheFirst } from "@/lib/offline/sync";
 import { client, orpc } from "@/utils/orpc";
 
 /**
@@ -753,7 +753,18 @@ function AddFood({
   /** Set while the quick-add form is a manual draft started from a barcode. */
   const [draftNote, setDraftNote] = useState<string | null>(null);
   const [saveAsFood, setSaveAsFood] = useState(false);
-  const saveFoodIntent = useRef<{ fingerprint: string; mutationId: string } | null>(null);
+  const saveFoodIntent = useRef<{ fingerprint: string; mutationId: string; diaryMutationId: string } | null>(null);
+  const submission = useRef<{ generation: number; pending: boolean }>({ generation: 0, pending: false });
+  const submissionScope = useRef(outbox.scope);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (submissionScope.current === outbox.scope) return;
+    submissionScope.current = outbox.scope;
+    submission.current.generation += 1;
+    submission.current.pending = false;
+    saveFoodIntent.current = null;
+    setSaving(false);
+  }, [outbox.scope]);
 
   // Cached foods stay searchable offline: filtering is local.
   const saved = useMemo(() => {
@@ -812,6 +823,9 @@ function AddFood({
   };
 
   const close = () => {
+    submission.current.generation += 1;
+    submission.current.pending = false;
+    setSaving(false);
     setChosen(null);
     setQuick(EMPTY_QUICK);
     setDraftNote(null);
@@ -845,7 +859,18 @@ function AddFood({
   const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen) : null;
 
   const save = async () => {
-    if (!preview) return;
+    if (!preview || submission.current.pending) return;
+    const generation = submission.current.generation;
+    submission.current.pending = true;
+    setSaving(true);
+    const ticket = outbox.beginWrite();
+    const ownerScope = outbox.scope;
+    const release = () => {
+      if (submission.current.generation === generation) {
+        submission.current.pending = false;
+        setSaving(false);
+      }
+    };
     let food: FoodRef;
     let name: string;
     let source: DiaryEntry["food"]["source"];
@@ -864,29 +889,40 @@ function AddFood({
           announce(
             "Connect to the internet to save this food. Your diary entry has not been queued.",
           );
+          release();
           return;
         }
         const fingerprint = JSON.stringify(parsed.food);
         if (saveFoodIntent.current?.fingerprint !== fingerprint) {
-          saveFoodIntent.current = { fingerprint, mutationId: newClientMutationId() };
+          saveFoodIntent.current = {
+            fingerprint,
+            mutationId: newClientMutationId(),
+            diaryMutationId: newClientMutationId(),
+          };
         }
+        const createMutationId = saveFoodIntent.current.mutationId;
         try {
           const created = await client.nutritionDiary.createFood({
             ...parsed.food,
-            clientMutationId: saveFoodIntent.current.mutationId,
+            clientMutationId: createMutationId,
           });
+          if (submission.current.generation !== generation || outbox.scope !== ownerScope ||
+              !ticket || !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")) return;
           food = created.ref;
         } catch {
-          announce(CUSTOM_FOOD_COPY.networkError);
+          if (submission.current.generation === generation && outbox.scope === ownerScope) announce(CUSTOM_FOOD_COPY.networkError);
+          release();
           return;
         }
       } else food = { kind: "manual", food: parsed.food };
-    } else return;
-    outbox.enqueue({
+    } else { release(); return; }
+    if (submission.current.generation !== generation || outbox.scope !== ownerScope ||
+        !ticket || !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")) { release(); return; }
+    const stored = outbox.enqueueForIntent(ticket, {
       op: {
         kind: "log",
         input: {
-          clientMutationId: newClientMutationId(),
+          clientMutationId: saveFoodIntent.current?.diaryMutationId ?? newClientMutationId(),
           localDate,
           timeZone,
           slot,
@@ -898,9 +934,11 @@ function AddFood({
       },
       preview: { name, source, nutrients: preview },
     });
+    if (!stored) { release(); return; }
     announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
     saveFoodIntent.current = null;
     close();
+    return;
   };
 
   return (
@@ -1136,7 +1174,7 @@ function AddFood({
       ) : null}
 
       <View className="flex-row flex-wrap gap-2">
-        <Button onPress={save} isDisabled={!preview}>
+        <Button onPress={save} isDisabled={!preview || saving}>
           {`Save to ${SLOT_LABELS[slot]}`}
         </Button>
         <Button

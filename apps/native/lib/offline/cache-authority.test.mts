@@ -20,6 +20,7 @@ mock.module("expo-sqlite", () => ({ openDatabaseSync: () => expoDb }));
 mock.module("react", () => ({
   useEffect: (effect: () => void) => effect(),
   useMemo: (factory: () => unknown) => factory(),
+  useCallback: (callback: (...args: never[]) => unknown) => callback,
   useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
 }));
 mock.module("@tanstack/react-query", () => ({
@@ -39,10 +40,13 @@ mock.module("@/utils/orpc", () => ({
 
 let useCacheFirst: typeof import("./sync").useCacheFirst;
 let prepareOfflineSignOut: typeof import("./sync").prepareOfflineSignOut;
+let useOfflineScope: typeof import("./sync").useOfflineScope;
+let useOfflineWriteTicket: typeof import("./sync").useOfflineWriteTicket;
+let isOfflineWriteTicketCurrent: typeof import("./sync").isOfflineWriteTicketCurrent;
 let readCache: typeof import("./cache").readCache;
 
 beforeAll(async () => {
-  ({ useCacheFirst, prepareOfflineSignOut } = await import("./sync"));
+  ({ useCacheFirst, prepareOfflineSignOut, useOfflineScope, useOfflineWriteTicket, isOfflineWriteTicketCurrent } = await import("./sync"));
   ({ readCache } = await import("./cache"));
 });
 
@@ -64,6 +68,28 @@ function deferred<T>() {
 }
 
 describe("cache write authority across sign-out", () => {
+  test("write tickets are bound to the session and revoked across logout and A→B→A", async () => {
+    session = makeSession("ticket-a", "ticket-session-a1");
+    useOfflineScope();
+    const oldTicket = useOfflineWriteTicket()();
+    expect(oldTicket).not.toBeNull();
+    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(true);
+    await prepareOfflineSignOut();
+    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(false);
+    session = makeSession("ticket-a", "ticket-session-a2");
+    useOfflineScope();
+    const freshTicket = useOfflineWriteTicket()();
+    expect(freshTicket).not.toBeNull();
+    expect(isOfflineWriteTicketCurrent(freshTicket!, "ticket-a:org-a")).toBe(true);
+    session = makeSession("ticket-b", "ticket-session-b1");
+    useOfflineScope();
+    session = makeSession("ticket-a", "ticket-session-a3");
+    useOfflineScope();
+    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(false);
+    expect(isOfflineWriteTicketCurrent(freshTicket!, "ticket-a:org-a")).toBe(false);
+    expect(isOfflineWriteTicketCurrent({} as never, "ticket-a:org-a")).toBe(false);
+  });
+
   test("late reads cannot resurrect purged cache or cross A→B→A session changes", async () => {
     const scopeA = "member-a:org-a";
     session = makeSession("member-a", "session-a1");

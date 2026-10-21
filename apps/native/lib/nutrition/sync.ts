@@ -4,7 +4,13 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 
 import { clearCachePrefix } from "@/lib/offline/cache";
-import { useOfflineScope } from "@/lib/offline/sync";
+import {
+  isOfflineWriteTicketCurrent,
+  invalidateOfflineWriteTickets,
+  useOfflineScope,
+  useOfflineWriteTicket,
+  type OfflineWriteTicket,
+} from "@/lib/offline/sync";
 import { client, orpc, queryClient } from "@/utils/orpc";
 
 import {
@@ -50,6 +56,7 @@ let draining = false;
 let started = false;
 let version = 0;
 const listeners = new Set<() => void>();
+const consumedWriteTickets = new WeakSet<object>();
 
 function emit(): void {
   version += 1;
@@ -107,6 +114,8 @@ export type DiaryOutbox = {
   items: QueuedChange[];
   counts: ReturnType<typeof summarizeOutbox>;
   enqueue: (input: EnqueueInput) => void;
+  beginWrite: () => OfflineWriteTicket | null;
+  enqueueForIntent: (ticket: OfflineWriteTicket | null, input: EnqueueInput) => boolean;
   keepMine: (id: string) => void;
   discard: (id: string) => void;
   retry: (id: string) => void;
@@ -118,6 +127,7 @@ export type DiaryOutbox = {
 /** The signed-in account's diary outbox, live. */
 export function useDiaryOutbox(): DiaryOutbox {
   const currentScope = useOfflineScope();
+  const captureWriteTicket = useOfflineWriteTicket();
   useEffect(() => {
     start();
   }, []);
@@ -146,12 +156,32 @@ export function useDiaryOutbox(): DiaryOutbox {
     [currentScope],
   );
 
+  const beginWrite = useCallback(() => captureWriteTicket(), [captureWriteTicket]);
+  const enqueueForIntent = useCallback((ticket: OfflineWriteTicket | null, input: EnqueueInput) => {
+    if (!ticket || !currentScope || !isOfflineWriteTicketCurrent(ticket, currentScope)) return false;
+    if (consumedWriteTickets.has(ticket as object)) return false;
+    try {
+      enqueue(sqliteOutboxStore, currentScope, input);
+    } catch {
+      return false;
+    }
+    consumedWriteTickets.add(ticket as object);
+    emit();
+    void drainNow();
+    return true;
+  }, [currentScope]);
+
   return {
     scope: currentScope,
     online,
     items,
     counts: summarizeOutbox(items),
-    enqueue: (input) => withScope((s) => enqueue(sqliteOutboxStore, s, input)),
+    enqueue: (input) => {
+      const ticket = beginWrite();
+      enqueueForIntent(ticket, input);
+    },
+    beginWrite,
+    enqueueForIntent,
     keepMine: (id) => withScope((s) => keepMine(sqliteOutboxStore, s, id)),
     discard: (id) => withScope((s) => discard(sqliteOutboxStore, s, id)),
     retry: (id) => withScope((s) => retry(sqliteOutboxStore, s, id)),
@@ -159,11 +189,13 @@ export function useDiaryOutbox(): DiaryOutbox {
       online = true;
       await drainNow();
     },
-    clearDeviceData: () =>
+    clearDeviceData: () => {
+      invalidateOfflineWriteTickets();
       withScope((s) => {
         clearDiaryOutbox(s);
         clearCachePrefix(s, DIARY_CACHE_PREFIX);
         queryClient.removeQueries({ queryKey: orpc.nutritionDiary.key() });
-      }),
+      });
+    },
   };
 }
