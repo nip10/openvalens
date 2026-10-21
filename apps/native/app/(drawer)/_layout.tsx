@@ -18,6 +18,7 @@ const DRAWER_ITEMS = [
   },
   { label: "Supplements", href: "/supplements" as const, icon: "medkit-outline" as const },
   { label: "Meal diary", href: "/nutrition" as const, icon: "restaurant-outline" as const },
+  { label: "Recipe draft", href: "/recipe-drafts" as const, icon: "document-text-outline" as const },
   { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
   { label: "Sleep", href: "/records/sleep" as const, icon: "moon-outline" as const },
   { label: "Activity", href: "/records/activity" as const, icon: "walk-outline" as const },
@@ -115,6 +116,8 @@ function DrawerLayout() {
                     ? "Meal diary"
                     : pathname === "/nutrition-targets"
                       ? "Nutrition targets"
+                      : pathname === "/recipe-drafts"
+                        ? "Recipe draft"
                       : pathname === "/foods"
                         ? "My foods"
                         : pathname === "/workouts"
@@ -204,6 +207,10 @@ function DrawerLayout() {
           headerTitle,
           drawerItemStyle: { display: "none" },
         }}
+      />
+      <Drawer.Screen
+        name="recipe-drafts"
+        options={{ headerTitle, drawerItemStyle: { display: "none" } }}
       />
       <Drawer.Screen
         name="nutrition-targets"
