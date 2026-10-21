@@ -53,15 +53,31 @@ import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "react-native";
+import {
+  AccessibilityInfo,
+  Alert,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Container } from "@/components/container";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
-import { mergeDay, type DiaryRow, type QueuedChange } from "@/lib/nutrition/outbox";
-import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutrition/sync";
+import {
+  mergeDay,
+  type DiaryRow,
+  type QueuedChange,
+} from "@/lib/nutrition/outbox";
+import {
+  DIARY_CACHE_PREFIX,
+  useDiaryOutbox,
+  type DiaryOutbox,
+} from "@/lib/nutrition/sync";
+import { AddFoodSaveController } from "@/lib/nutrition/save-intent";
 import { readCache, writeCache } from "@/lib/offline/cache";
 import { isOfflineWriteTicketCurrent, useCacheFirst } from "@/lib/offline/sync";
 import { client, orpc } from "@/utils/orpc";
@@ -131,15 +147,19 @@ export default function NutritionScreen() {
     `${DIARY_CACHE_PREFIX}foods`,
     orpc.nutritionDiary.listFoods.queryOptions({ input: {} }),
   );
-  const targetOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const targetOptions = orpc.nutritionTargets.get.queryOptions({
+    input: { localDate },
+  });
   const targets = useQuery({
     ...targetOptions,
     queryKey: [...targetOptions.queryKey, { offlineScope: outbox.scope }],
     enabled: Boolean(outbox.scope),
   });
   const cachedDisplayPreference = outbox.scope
-    ? readCache<{ hideNumbers: boolean }>(outbox.scope, "nutrition-display-preference")?.data
-        .hideNumbers
+    ? readCache<{ hideNumbers: boolean }>(
+        outbox.scope,
+        "nutrition-display-preference",
+      )?.data.hideNumbers
     : undefined;
   useEffect(() => {
     if (outbox.scope && targets.data?.settings) {
@@ -154,23 +174,32 @@ export default function NutritionScreen() {
     targets.isSuccess ? targets.data.settings.hideNumbers : undefined,
     cachedDisplayPreference,
   );
-  const [undo, setUndo] = useState<{ entryId: number; revision: number; name: string } | null>(
-    null,
-  );
+  const [undo, setUndo] = useState<{
+    entryId: number;
+    revision: number;
+    name: string;
+  } | null>(null);
 
   const rows = mergeDay(day.data?.entries ?? [], outbox.items, localDate);
-  const visible = rows.filter((row) => !(row.kind === "server" && row.pendingKind === "delete"));
+  const visible = rows.filter(
+    (row) => !(row.kind === "server" && row.pendingKind === "delete"),
+  );
   const totalsInput = visible.map((row) => ({
     nutrients: rowNutrients(row) ?? emptyNutrients(),
   }));
   // Server totals (#79) unless queued changes touch this day; then a local
   // preview with the same domain summary, labelled as pending.
-  const pendingRows = rows.some((row) => row.kind === "local" || row.pendingKind !== null);
+  const pendingRows = rows.some(
+    (row) => row.kind === "local" || row.pendingKind !== null,
+  );
   const serverSummary = day.data?.summary;
-  const summary = serverSummary && !pendingRows ? serverSummary : summarizeDay(totalsInput);
-  const summarySources = serverSummary && !pendingRows ? serverSummary.sources : null;
+  const summary =
+    serverSummary && !pendingRows ? serverSummary : summarizeDay(totalsInput);
+  const summarySources =
+    serverSummary && !pendingRows ? serverSummary.sources : null;
   const pendingStatus = outbox.items.find(
-    (item) => item.op.kind === "setDayStatus" && item.op.input.localDate === localDate,
+    (item) =>
+      item.op.kind === "setDayStatus" && item.op.input.localDate === localDate,
   );
   const status =
     pendingStatus?.op.kind === "setDayStatus"
@@ -179,7 +208,9 @@ export default function NutritionScreen() {
         : "unmarked"
       : (day.data?.status ?? "unmarked");
   const statusText = dayStatusText(status, visible.length);
-  const attention = outbox.items.filter((item) => item.status === "needs_attention");
+  const attention = outbox.items.filter(
+    (item) => item.status === "needs_attention",
+  );
 
   const go = (date: string) => {
     setLocalDate(date);
@@ -194,7 +225,9 @@ export default function NutritionScreen() {
         input: { clientMutationId: newClientMutationId(), localDate, complete },
       },
     });
-    announce(`${localDate}: ${dayStatusText(complete ? "complete" : "unmarked", 0).label}`);
+    announce(
+      `${localDate}: ${dayStatusText(complete ? "complete" : "unmarked", 0).label}`,
+    );
   };
 
   const remove = (row: DiaryRow) => {
@@ -202,7 +235,10 @@ export default function NutritionScreen() {
       outbox.enqueue({
         op: {
           kind: "delete",
-          input: { clientMutationId: newClientMutationId(), entryId: row.key as never },
+          input: {
+            clientMutationId: newClientMutationId(),
+            entryId: row.key as never,
+          },
         },
       });
       announce(`${DIARY_COPY.deleted} ${row.change.preview?.name ?? ""}`);
@@ -218,7 +254,11 @@ export default function NutritionScreen() {
         },
       },
     });
-    setUndo({ entryId: row.entry.id, revision: row.entry.revision + 1, name: row.entry.food.name });
+    setUndo({
+      entryId: row.entry.id,
+      revision: row.entry.revision + 1,
+      name: row.entry.food.name,
+    });
     announce(`${DIARY_COPY.deleted} ${row.entry.food.name}`);
   };
 
@@ -266,32 +306,60 @@ export default function NutritionScreen() {
             selected={false}
             onPress={() => go(shiftLocalDate(localDate, -1))}
           />
-          <Text className="font-mono text-lg text-foreground" accessibilityRole="header">
+          <Text
+            className="font-mono text-lg text-foreground"
+            accessibilityRole="header"
+          >
             {localDate}
           </Text>
-          <Chip label="Next" selected={false} onPress={() => go(shiftLocalDate(localDate, 1))} />
+          <Chip
+            label="Next"
+            selected={false}
+            onPress={() => go(shiftLocalDate(localDate, 1))}
+          />
         </View>
 
         <Link href="/foods" asChild>
-          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-            <Text className="text-sm text-foreground underline">{CUSTOM_FOOD_COPY.manageLink}</Text>
+          <Pressable
+            accessibilityRole="link"
+            className="min-h-11 justify-center"
+          >
+            <Text className="text-sm text-foreground underline">
+              {CUSTOM_FOOD_COPY.manageLink}
+            </Text>
           </Pressable>
         </Link>
         <Link href="/nutrition-targets" asChild>
-          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-            <Text className="text-sm text-foreground underline">{TARGET_COPY.settingsLink}</Text>
+          <Pressable
+            accessibilityRole="link"
+            className="min-h-11 justify-center"
+          >
+            <Text className="text-sm text-foreground underline">
+              {TARGET_COPY.settingsLink}
+            </Text>
           </Pressable>
         </Link>
 
         <OutboxBanner outbox={outbox} />
 
         {attention.map((item) => (
-          <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
+          <AttentionCard
+            key={item.id}
+            item={item}
+            outbox={outbox}
+            hideNumbers={hideNumbers}
+          />
         ))}
 
         {undo ? (
-          <Card variant="secondary" className="flex-row items-center justify-between p-3">
-            <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+          <Card
+            variant="secondary"
+            className="flex-row items-center justify-between p-3"
+          >
+            <Text
+              className="text-sm text-foreground"
+              accessibilityLiveRegion="polite"
+            >
               {DIARY_COPY.deleted} {undo.name}
             </Text>
             <Button size="sm" variant="secondary" onPress={undoDelete}>
@@ -303,7 +371,10 @@ export default function NutritionScreen() {
         {day.isPending && !day.data ? (
           <Spinner />
         ) : day.isError && !day.data ? (
-          <Pressable onPress={() => void day.refetch()} accessibilityRole="button">
+          <Pressable
+            onPress={() => void day.refetch()}
+            accessibilityRole="button"
+          >
             <Text className="text-sm text-muted-foreground">
               {DIARY_COPY.networkError} {DIARY_COPY.retry}
             </Text>
@@ -313,14 +384,23 @@ export default function NutritionScreen() {
         <Card variant="secondary" className="gap-3 p-4">
           <View className="flex-row items-start justify-between gap-3">
             <View className="flex-1 gap-1">
-              <Text className="font-medium text-foreground" accessibilityLiveRegion="polite">
+              <Text
+                className="font-medium text-foreground"
+                accessibilityLiveRegion="polite"
+              >
                 {statusText.label}
-                {pendingStatus ? ` · ${SYNC_STATE_LABELS[pendingStatus.status]}` : ""}
+                {pendingStatus
+                  ? ` · ${SYNC_STATE_LABELS[pendingStatus.status]}`
+                  : ""}
               </Text>
-              <Text className="text-sm text-muted-foreground">{statusText.description}</Text>
+              <Text className="text-sm text-muted-foreground">
+                {statusText.description}
+              </Text>
             </View>
             <Button size="sm" variant="secondary" onPress={toggleStatus}>
-              {status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete}
+              {status === "complete"
+                ? DIARY_COPY.clearComplete
+                : DIARY_COPY.markComplete}
             </Button>
           </View>
           <NutritionDayTotals
@@ -331,7 +411,10 @@ export default function NutritionScreen() {
           />
         </Card>
 
-        <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+        <TargetsOnDay
+          targets={targets.data?.targetsOn.targets ?? []}
+          hideNumbers={hideNumbers}
+        />
 
         <PlainWaterSection
           key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
@@ -359,11 +442,16 @@ export default function NutritionScreen() {
           );
           return (
             <View key={slot} className="gap-2">
-              <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
+              <Text
+                className="text-lg font-medium text-foreground"
+                accessibilityRole="header"
+              >
                 {SLOT_LABELS[slot]}
               </Text>
               {slotRows.length === 0 ? (
-                <Text className="text-sm text-muted-foreground">{DIARY_COPY.emptySlot}</Text>
+                <Text className="text-sm text-muted-foreground">
+                  {DIARY_COPY.emptySlot}
+                </Text>
               ) : (
                 slotRows.map((row) => (
                   <EntryCard
@@ -391,7 +479,9 @@ export default function NutritionScreen() {
           accessibilityRole="button"
           className="min-h-11 justify-center"
         >
-          <Text className="text-sm text-muted-foreground underline">{DIARY_COPY.clearCache}</Text>
+          <Text className="text-sm text-muted-foreground underline">
+            {DIARY_COPY.clearCache}
+          </Text>
         </Pressable>
       </View>
     </Container>
@@ -426,15 +516,22 @@ function TargetsOnDay({
       {targets.map((target) => (
         <View key={target.id} className="gap-0.5">
           <Text className="text-sm text-foreground">
-            {NUTRIENT_LABELS[target.nutrient].label}: {formatTarget(target, hideNumbers)}
+            {NUTRIENT_LABELS[target.nutrient].label}:{" "}
+            {formatTarget(target, hideNumbers)}
           </Text>
-          <Text className="text-xs text-muted-foreground">{describeTargetSource(target)}</Text>
+          <Text className="text-xs text-muted-foreground">
+            {describeTargetSource(target)}
+          </Text>
         </View>
       ))}
-      <Text className="text-xs text-muted-foreground">{TARGET_COPY.targetsNote}</Text>
+      <Text className="text-xs text-muted-foreground">
+        {TARGET_COPY.targetsNote}
+      </Text>
       <Link href="/nutrition-targets" asChild>
         <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-          <Text className="text-sm text-foreground underline">{TARGET_COPY.settingsLink}</Text>
+          <Text className="text-sm text-foreground underline">
+            {TARGET_COPY.settingsLink}
+          </Text>
         </Pressable>
       </Link>
     </Card>
@@ -450,12 +547,24 @@ function OutboxBanner({ outbox }: { outbox: DiaryOutbox }) {
     needs_attention ? `${needs_attention} need attention` : null,
   ].filter(Boolean);
   return (
-    <Card variant="secondary" className="flex-row items-center justify-between gap-3 p-3">
-      <Text className="flex-1 text-sm text-foreground" accessibilityLiveRegion="polite">
-        {outbox.online ? "Diary changes: " : "Offline. Changes are saved on this device: "}
+    <Card
+      variant="secondary"
+      className="flex-row items-center justify-between gap-3 p-3"
+    >
+      <Text
+        className="flex-1 text-sm text-foreground"
+        accessibilityLiveRegion="polite"
+      >
+        {outbox.online
+          ? "Diary changes: "
+          : "Offline. Changes are saved on this device: "}
         {parts.join(", ")}
       </Text>
-      <Button size="sm" variant="secondary" onPress={() => void outbox.syncNow()}>
+      <Button
+        size="sm"
+        variant="secondary"
+        onPress={() => void outbox.syncNow()}
+      >
         Sync now
       </Button>
     </Card>
@@ -506,8 +615,9 @@ function AttentionCard({
         </Text>
       ) : (
         <Text className="text-sm text-muted-foreground">
-          The server did not accept this change ({item.lastErrorCode ?? "unknown"}). It stays on
-          this device until you retry or discard it.
+          The server did not accept this change (
+          {item.lastErrorCode ?? "unknown"}). It stays on this device until you
+          retry or discard it.
         </Text>
       )}
       <View className="flex-row flex-wrap gap-2">
@@ -516,7 +626,11 @@ function AttentionCard({
             <Button size="sm" onPress={() => outbox.keepMine(item.id)}>
               {DIARY_COPY.keepMine}
             </Button>
-            <Button size="sm" variant="secondary" onPress={() => outbox.discard(item.id)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() => outbox.discard(item.id)}
+            >
               {DIARY_COPY.keepServer}
             </Button>
           </>
@@ -525,7 +639,11 @@ function AttentionCard({
             <Button size="sm" onPress={() => outbox.retry(item.id)}>
               {DIARY_COPY.retry}
             </Button>
-            <Button size="sm" variant="secondary" onPress={() => outbox.discard(item.id)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() => outbox.discard(item.id)}
+            >
               Discard change
             </Button>
           </>
@@ -546,7 +664,10 @@ function EntryCard({
   onDelete: () => void;
   hideNumbers: boolean;
 }) {
-  const name = row.kind === "server" ? row.entry.food.name : (row.change.preview?.name ?? "Food");
+  const name =
+    row.kind === "server"
+      ? row.entry.food.name
+      : (row.change.preview?.name ?? "Food");
   const amount =
     row.kind === "server"
       ? row.entry.amount
@@ -560,7 +681,9 @@ function EntryCard({
         ? row.change.op.input.unit
         : "g";
   const source =
-    row.kind === "server" ? row.entry.food.source : (row.change.preview?.source ?? "manual");
+    row.kind === "server"
+      ? row.entry.food.source
+      : (row.change.preview?.source ?? "manual");
   const nutrients = rowNutrients(row);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(hideNumbers ? "" : String(amount));
@@ -614,17 +737,23 @@ function EntryCard({
         <View className="flex-1 gap-0.5">
           <Text className="font-medium text-foreground">{name}</Text>
           <Text className="text-xs text-muted-foreground">
-            {hideNumbers ? HIDDEN_VALUE : formatAmount(amount, unit)} · {foodSourceLabel(source)}
+            {hideNumbers ? HIDDEN_VALUE : formatAmount(amount, unit)} ·{" "}
+            {foodSourceLabel(source)}
           </Text>
           {row.kind === "server" &&
           row.entry.food.source === "off" &&
           row.entry.food.attribution ? (
-            <Text className="text-xs text-muted-foreground">{row.entry.food.attribution}</Text>
+            <Text className="text-xs text-muted-foreground">
+              {row.entry.food.attribution}
+            </Text>
           ) : null}
           <Text className="font-mono text-sm text-foreground">
             {hideNumbers
               ? HIDDEN_VALUE
-              : formatNutrientValue("energyKcal", nutrients?.energyKcal ?? null)}
+              : formatNutrientValue(
+                  "energyKcal",
+                  nutrients?.energyKcal ?? null,
+                )}
           </Text>
         </View>
         <SyncBadge state={row.sync} />
@@ -674,13 +803,26 @@ function EntryCard({
 function scale(values: DiaryEntry["nutrients"] | null, factor: number) {
   if (!values || !Number.isFinite(factor)) return null;
   return Object.fromEntries(
-    Object.entries(values).map(([key, value]) => [key, value === null ? null : value * factor]),
+    Object.entries(values).map(([key, value]) => [
+      key,
+      value === null ? null : value * factor,
+    ]),
   ) as DiaryEntry["nutrients"];
 }
 
-const QUICK_NUTRIENTS: NutrientKey[] = ["energyKcal", "proteinG", "carbohydrateG", "fatG"];
+const QUICK_NUTRIENTS: NutrientKey[] = [
+  "energyKcal",
+  "proteinG",
+  "carbohydrateG",
+  "fatG",
+];
 
-const EMPTY_QUICK: QuickAddFields = { name: "", basisAmount: "100", basisUnit: "g", nutrients: {} };
+const EMPTY_QUICK: QuickAddFields = {
+  name: "",
+  basisAmount: "100",
+  basisUnit: "g",
+  nutrients: {},
+};
 
 /** `value`, settled for `ms` (one search request per pause in typing). */
 function useDebounced<T>(value: T, ms = 300): T {
@@ -710,14 +852,23 @@ function CandidateRow({
     >
       <Text className="text-sm text-foreground">
         {candidate.name}
-        {candidate.brand ? ` · ${candidate.brand}` : ""} · {candidate.sourceLabel}
+        {candidate.brand ? ` · ${candidate.brand}` : ""} ·{" "}
+        {candidate.sourceLabel}
       </Text>
     </Pressable>
   );
 }
 
-function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[] }) {
-  const notices = [...new Set(candidates.flatMap((c) => (c.attribution ? [c.attribution] : [])))];
+function AttributionNotes({
+  candidates,
+}: {
+  candidates: readonly FoodCandidate[];
+}) {
+  const notices = [
+    ...new Set(
+      candidates.flatMap((c) => (c.attribution ? [c.attribution] : [])),
+    ),
+  ];
   return (
     <>
       {notices.map((notice) => (
@@ -738,7 +889,13 @@ function AddFood({
 }: {
   localDate: string;
   timeZone: string;
-  foods: { recents: FoodChoice[]; favorites: FoodChoice[]; customFoods: FoodChoice[] } | undefined;
+  foods:
+    | {
+        recents: FoodChoice[];
+        favorites: FoodChoice[];
+        customFoods: FoodChoice[];
+      }
+    | undefined;
   outbox: DiaryOutbox;
   hideNumbers: boolean;
 }) {
@@ -753,16 +910,13 @@ function AddFood({
   /** Set while the quick-add form is a manual draft started from a barcode. */
   const [draftNote, setDraftNote] = useState<string | null>(null);
   const [saveAsFood, setSaveAsFood] = useState(false);
-  const saveFoodIntent = useRef<{ fingerprint: string; mutationId: string; diaryMutationId: string } | null>(null);
-  const submission = useRef<{ generation: number; pending: boolean }>({ generation: 0, pending: false });
+  const saveController = useRef(new AddFoodSaveController());
   const submissionScope = useRef(outbox.scope);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (submissionScope.current === outbox.scope) return;
     submissionScope.current = outbox.scope;
-    submission.current.generation += 1;
-    submission.current.pending = false;
-    saveFoodIntent.current = null;
+    saveController.current.invalidate();
     setSaving(false);
   }, [outbox.scope]);
 
@@ -770,17 +924,29 @@ function AddFood({
   const saved = useMemo(() => {
     const seen = new Set<string>();
     const needle = query.trim().toLowerCase();
-    return [...(foods?.favorites ?? []), ...(foods?.recents ?? []), ...(foods?.customFoods ?? [])]
+    return [
+      ...(foods?.favorites ?? []),
+      ...(foods?.recents ?? []),
+      ...(foods?.customFoods ?? []),
+    ]
       .filter((food) => {
         const key = JSON.stringify(food.ref);
         if (seen.has(key)) return false;
         seen.add(key);
-        return !needle || `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle);
+        return (
+          !needle ||
+          `${food.name} ${food.brand ?? ""}`.toLowerCase().includes(needle)
+        );
       })
       .map(candidateFromChoice);
   }, [foods, query]);
   const savedIds = useMemo(
-    () => new Set((foods?.customFoods ?? []).flatMap((food) => food.sourceQualifiedId ?? [])),
+    () =>
+      new Set(
+        (foods?.customFoods ?? []).flatMap(
+          (food) => food.sourceQualifiedId ?? [],
+        ),
+      ),
     [foods],
   );
 
@@ -797,13 +963,16 @@ function AddFood({
     [search.data, savedIds],
   );
 
-  if (!open) return <Button onPress={() => setOpen(true)}>{DIARY_COPY.addFood}</Button>;
+  if (!open)
+    return <Button onPress={() => setOpen(true)}>{DIARY_COPY.addFood}</Button>;
 
   const select = (candidate: FoodCandidate) => {
     setChosen(candidate);
     const first = unitsFor(candidate.basis)[0] ?? "g";
     setUnit(first);
-    setAmount(first === "serving" ? "1" : String(candidate.basis.nutrientBasisAmount));
+    setAmount(
+      first === "serving" ? "1" : String(candidate.basis.nutrientBasisAmount),
+    );
   };
 
   const switchMode = (next: typeof mode) => {
@@ -823,14 +992,12 @@ function AddFood({
   };
 
   const close = () => {
-    submission.current.generation += 1;
-    submission.current.pending = false;
+    saveController.current.invalidate();
     setSaving(false);
     setChosen(null);
     setQuick(EMPTY_QUICK);
     setDraftNote(null);
     setMode("choose");
-    saveFoodIntent.current = null;
     setOpen(false);
   };
 
@@ -851,26 +1018,50 @@ function AddFood({
     mode !== "quick"
       ? chosen?.nutrientsPerBasis
       : parsed.ok
-        ? ({ ...emptyNutrients(), ...parsed.food.nutrients } as DiaryEntry["nutrients"])
+        ? ({
+            ...emptyNutrients(),
+            ...parsed.food.nutrients,
+          } as DiaryEntry["nutrients"])
         : undefined;
   const preview =
-    basis && perBasis ? previewNutrients(basis, perBasis, Number(amount), unit) : null;
-  const units = basis ? unitsFor(basis) : (["g", "ml", "serving"] as AmountUnit[]);
-  const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen) : null;
+    basis && perBasis
+      ? previewNutrients(basis, perBasis, Number(amount), unit)
+      : null;
+  const units = basis
+    ? unitsFor(basis)
+    : (["g", "ml", "serving"] as AmountUnit[]);
+  const missingNote =
+    mode !== "quick" && chosen ? missingDataNote(chosen) : null;
 
   const save = async () => {
-    if (!preview || submission.current.pending) return;
-    const generation = submission.current.generation;
-    submission.current.pending = true;
+    if (!preview) return;
     setSaving(true);
     const ticket = outbox.beginWrite();
     const ownerScope = outbox.scope;
+    const fingerprint = JSON.stringify({
+      parsed: parsed.ok ? parsed.food : null,
+      chosen: chosen?.ref,
+      amount,
+      unit,
+      slot,
+    });
+    const intent = saveController.current.begin(
+      ticket,
+      fingerprint,
+      newClientMutationId,
+    );
+    if (!intent) {
+      setSaving(true);
+      return;
+    }
+    const isCurrent = () => saveController.current.isCurrent(intent);
     const release = () => {
-      if (submission.current.generation === generation) {
-        submission.current.pending = false;
-        setSaving(false);
-      }
+      if (saveController.current.release(intent)) setSaving(false);
     };
+    if (!ticket || !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")) {
+      release();
+      return;
+    }
     let food: FoodRef;
     let name: string;
     let source: DiaryEntry["food"]["source"];
@@ -892,37 +1083,46 @@ function AddFood({
           release();
           return;
         }
-        const fingerprint = JSON.stringify(parsed.food);
-        if (saveFoodIntent.current?.fingerprint !== fingerprint) {
-          saveFoodIntent.current = {
-            fingerprint,
-            mutationId: newClientMutationId(),
-            diaryMutationId: newClientMutationId(),
-          };
-        }
-        const createMutationId = saveFoodIntent.current.mutationId;
         try {
           const created = await client.nutritionDiary.createFood({
             ...parsed.food,
-            clientMutationId: createMutationId,
+            clientMutationId: intent.createMutationId,
           });
-          if (submission.current.generation !== generation || outbox.scope !== ownerScope ||
-              !ticket || !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")) return;
+          if (
+            !isCurrent() ||
+            outbox.scope !== ownerScope ||
+            !ticket ||
+            !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")
+          ) {
+            release();
+            return;
+          }
           food = created.ref;
         } catch {
-          if (submission.current.generation === generation && outbox.scope === ownerScope) announce(CUSTOM_FOOD_COPY.networkError);
+          if (isCurrent() && outbox.scope === ownerScope)
+            announce(CUSTOM_FOOD_COPY.networkError);
           release();
           return;
         }
       } else food = { kind: "manual", food: parsed.food };
-    } else { release(); return; }
-    if (submission.current.generation !== generation || outbox.scope !== ownerScope ||
-        !ticket || !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")) { release(); return; }
+    } else {
+      release();
+      return;
+    }
+    if (
+      !isCurrent() ||
+      outbox.scope !== ownerScope ||
+      !ticket ||
+      !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")
+    ) {
+      release();
+      return;
+    }
     const stored = outbox.enqueueForIntent(ticket, {
       op: {
         kind: "log",
         input: {
-          clientMutationId: saveFoodIntent.current?.diaryMutationId ?? newClientMutationId(),
+          clientMutationId: intent.diaryMutationId,
           localDate,
           timeZone,
           slot,
@@ -934,245 +1134,295 @@ function AddFood({
       },
       preview: { name, source, nutrients: preview },
     });
-    if (!stored) { release(); return; }
+    if (!stored) {
+      release();
+      return;
+    }
     announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
-    saveFoodIntent.current = null;
+    saveController.current.finish(intent);
     close();
     return;
   };
 
   return (
     <Card variant="secondary" className="gap-3 p-4">
-      <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
+      <Text
+        className="text-lg font-medium text-foreground"
+        accessibilityRole="header"
+      >
         {DIARY_COPY.addFood}
       </Text>
-      <View className="flex-row flex-wrap gap-2">
-        <Chip
-          label="Search and recents"
-          selected={mode === "choose"}
-          onPress={() => switchMode("choose")}
-        />
-        <Chip
-          label={BARCODE_COPY.mode}
-          selected={mode === "barcode"}
-          onPress={() => switchMode("barcode")}
-        />
-        <Chip label="Quick add" selected={mode === "quick"} onPress={() => switchMode("quick")} />
-      </View>
-      {mode === "choose" ? (
-        <View className="gap-2">
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={BARCODE_COPY.searchLabel}
-            accessibilityLabel={BARCODE_COPY.searchLabel}
-            accessibilityHint={BARCODE_COPY.searchHint}
-            className={inputClass}
-            placeholderTextColor="#9ca3af"
+      <View pointerEvents={saving ? "none" : "auto"}>
+        <View className="flex-row flex-wrap gap-2">
+          <Chip
+            label="Search and recents"
+            selected={mode === "choose"}
+            onPress={() => switchMode("choose")}
           />
-          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-            {BARCODE_COPY.savedFoods}
-          </Text>
-          {saved.length === 0 ? (
-            <Text className="text-sm text-muted-foreground">
-              {query.trim()
-                ? BARCODE_COPY.searchEmpty
-                : "No saved or recent foods yet. Search, scan a barcode or use quick add."}
+          <Chip
+            label={BARCODE_COPY.mode}
+            selected={mode === "barcode"}
+            onPress={() => switchMode("barcode")}
+          />
+          <Chip
+            label="Quick add"
+            selected={mode === "quick"}
+            onPress={() => switchMode("quick")}
+          />
+        </View>
+        {mode === "choose" ? (
+          <View className="gap-2">
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={BARCODE_COPY.searchLabel}
+              accessibilityLabel={BARCODE_COPY.searchLabel}
+              accessibilityHint={BARCODE_COPY.searchHint}
+              className={inputClass}
+              placeholderTextColor="#9ca3af"
+            />
+            <Text
+              className="text-sm font-medium text-foreground"
+              accessibilityRole="header"
+            >
+              {BARCODE_COPY.savedFoods}
             </Text>
-          ) : (
-            saved
-              .slice(0, 15)
-              .map((candidate) => (
-                <CandidateRow
-                  key={candidate.key}
-                  candidate={candidate}
-                  selected={chosen?.key === candidate.key}
-                  onPress={() => select(candidate)}
-                />
-              ))
-          )}
-          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-            {BARCODE_COPY.searchResults}
-          </Text>
-          {!outbox.online ? (
-            <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchOffline}</Text>
-          ) : !searchable ? (
-            <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchHint}</Text>
-          ) : search.isPending ? (
-            <Spinner />
-          ) : search.isError ? (
-            <Pressable onPress={() => void search.refetch()} accessibilityRole="button">
-              <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-                {BARCODE_COPY.searchFailed} {DIARY_COPY.retry}
+            {saved.length === 0 ? (
+              <Text className="text-sm text-muted-foreground">
+                {query.trim()
+                  ? BARCODE_COPY.searchEmpty
+                  : "No saved or recent foods yet. Search, scan a barcode or use quick add."}
               </Text>
-            </Pressable>
-          ) : found.length === 0 ? (
-            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-              {BARCODE_COPY.searchEmpty}
+            ) : (
+              saved
+                .slice(0, 15)
+                .map((candidate) => (
+                  <CandidateRow
+                    key={candidate.key}
+                    candidate={candidate}
+                    selected={chosen?.key === candidate.key}
+                    onPress={() => select(candidate)}
+                  />
+                ))
+            )}
+            <Text
+              className="text-sm font-medium text-foreground"
+              accessibilityRole="header"
+            >
+              {BARCODE_COPY.searchResults}
             </Text>
-          ) : (
-            <>
-              {found.slice(0, 20).map((candidate) => (
-                <CandidateRow
-                  key={candidate.key}
-                  candidate={candidate}
-                  selected={chosen?.key === candidate.key}
-                  onPress={() => select(candidate)}
+            {!outbox.online ? (
+              <Text className="text-sm text-muted-foreground">
+                {BARCODE_COPY.searchOffline}
+              </Text>
+            ) : !searchable ? (
+              <Text className="text-sm text-muted-foreground">
+                {BARCODE_COPY.searchHint}
+              </Text>
+            ) : search.isPending ? (
+              <Spinner />
+            ) : search.isError ? (
+              <Pressable
+                onPress={() => void search.refetch()}
+                accessibilityRole="button"
+              >
+                <Text
+                  className="text-sm text-muted-foreground"
+                  accessibilityLiveRegion="polite"
+                >
+                  {BARCODE_COPY.searchFailed} {DIARY_COPY.retry}
+                </Text>
+              </Pressable>
+            ) : found.length === 0 ? (
+              <Text
+                className="text-sm text-muted-foreground"
+                accessibilityLiveRegion="polite"
+              >
+                {BARCODE_COPY.searchEmpty}
+              </Text>
+            ) : (
+              <>
+                {found.slice(0, 20).map((candidate) => (
+                  <CandidateRow
+                    key={candidate.key}
+                    candidate={candidate}
+                    selected={chosen?.key === candidate.key}
+                    onPress={() => select(candidate)}
+                  />
+                ))}
+                <AttributionNotes candidates={found.slice(0, 20)} />
+              </>
+            )}
+          </View>
+        ) : mode === "barcode" ? (
+          <BarcodePanel
+            outbox={outbox}
+            chosen={chosen}
+            onSelect={select}
+            onManualDraft={startManualDraft}
+          />
+        ) : (
+          <View className="gap-2">
+            {draftNote ? (
+              <View className="gap-1 rounded-lg border border-border p-3">
+                <Text className="text-sm text-foreground">{draftNote}</Text>
+                <Text className="text-sm text-muted-foreground">
+                  {BARCODE_COPY.manualNote}
+                </Text>
+              </View>
+            ) : null}
+            <TextInput
+              value={quick.name}
+              onChangeText={(name) => setQuick({ ...quick, name })}
+              placeholder="Food name"
+              accessibilityLabel="Food name"
+              className={inputClass}
+              placeholderTextColor="#9ca3af"
+            />
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Text className="text-sm text-foreground">Values per</Text>
+              <TextInput
+                value={quick.basisAmount}
+                onChangeText={(basisAmount) =>
+                  setQuick({ ...quick, basisAmount })
+                }
+                keyboardType="numeric"
+                accessibilityLabel="Values per amount"
+                className={`${inputClass} w-20`}
+              />
+              {(["g", "ml", "serving"] as AmountUnit[]).map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  selected={quick.basisUnit === option}
+                  onPress={() => {
+                    setQuick({ ...quick, basisUnit: option });
+                    setUnit(option);
+                  }}
                 />
               ))}
-              <AttributionNotes candidates={found.slice(0, 20)} />
-            </>
-          )}
-        </View>
-      ) : mode === "barcode" ? (
-        <BarcodePanel
-          outbox={outbox}
-          chosen={chosen}
-          onSelect={select}
-          onManualDraft={startManualDraft}
-        />
-      ) : (
-        <View className="gap-2">
-          {draftNote ? (
-            <View className="gap-1 rounded-lg border border-border p-3">
-              <Text className="text-sm text-foreground">{draftNote}</Text>
-              <Text className="text-sm text-muted-foreground">{BARCODE_COPY.manualNote}</Text>
             </View>
-          ) : null}
-          <TextInput
-            value={quick.name}
-            onChangeText={(name) => setQuick({ ...quick, name })}
-            placeholder="Food name"
-            accessibilityLabel="Food name"
-            className={inputClass}
-            placeholderTextColor="#9ca3af"
-          />
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Text className="text-sm text-foreground">Values per</Text>
-            <TextInput
-              value={quick.basisAmount}
-              onChangeText={(basisAmount) => setQuick({ ...quick, basisAmount })}
-              keyboardType="numeric"
-              accessibilityLabel="Values per amount"
-              className={`${inputClass} w-20`}
-            />
-            {(["g", "ml", "serving"] as AmountUnit[]).map((option) => (
-              <Chip
-                key={option}
-                label={option}
-                selected={quick.basisUnit === option}
-                onPress={() => {
-                  setQuick({ ...quick, basisUnit: option });
-                  setUnit(option);
-                }}
+            {QUICK_NUTRIENTS.map((key) => (
+              <TextInput
+                key={key}
+                value={quick.nutrients[key] ?? ""}
+                onChangeText={(text) =>
+                  setQuick({
+                    ...quick,
+                    nutrients: { ...quick.nutrients, [key]: text },
+                  })
+                }
+                keyboardType="numeric"
+                placeholder={`${NUTRIENT_LABELS[key].label} (${NUTRIENT_LABELS[key].unit}, optional)`}
+                accessibilityLabel={`${NUTRIENT_LABELS[key].label} in ${NUTRIENT_LABELS[key].unit}, optional`}
+                className={inputClass}
+                placeholderTextColor="#9ca3af"
               />
             ))}
+            {draftNote !== null ? (
+              <TextInput
+                value={quick.barcode ?? ""}
+                onChangeText={(barcode) => setQuick({ ...quick, barcode })}
+                keyboardType="number-pad"
+                placeholder={`${BARCODE_COPY.barcodeOnDraft}, optional`}
+                accessibilityLabel={`${BARCODE_COPY.barcodeOnDraft}, optional`}
+                className={inputClass}
+                placeholderTextColor="#9ca3af"
+              />
+            ) : null}
+            {!parsed.ok && quick.name ? (
+              <Text
+                className="text-sm text-muted-foreground"
+                accessibilityLiveRegion="polite"
+              >
+                {parsed.error}
+              </Text>
+            ) : null}
           </View>
-          {QUICK_NUTRIENTS.map((key) => (
-            <TextInput
-              key={key}
-              value={quick.nutrients[key] ?? ""}
-              onChangeText={(text) =>
-                setQuick({ ...quick, nutrients: { ...quick.nutrients, [key]: text } })
-              }
-              keyboardType="numeric"
-              placeholder={`${NUTRIENT_LABELS[key].label} (${NUTRIENT_LABELS[key].unit}, optional)`}
-              accessibilityLabel={`${NUTRIENT_LABELS[key].label} in ${NUTRIENT_LABELS[key].unit}, optional`}
-              className={inputClass}
-              placeholderTextColor="#9ca3af"
+        )}
+
+        <View className="flex-row flex-wrap gap-2" accessibilityLabel="Meal">
+          {MEAL_SLOTS.map((option) => (
+            <Chip
+              key={option}
+              label={SLOT_LABELS[option]}
+              selected={slot === option}
+              onPress={() => setSlot(option)}
             />
           ))}
-          {draftNote !== null ? (
-            <TextInput
-              value={quick.barcode ?? ""}
-              onChangeText={(barcode) => setQuick({ ...quick, barcode })}
-              keyboardType="number-pad"
-              placeholder={`${BARCODE_COPY.barcodeOnDraft}, optional`}
-              accessibilityLabel={`${BARCODE_COPY.barcodeOnDraft}, optional`}
-              className={inputClass}
-              placeholderTextColor="#9ca3af"
+        </View>
+        <View className="flex-row flex-wrap items-center gap-2">
+          <TextInput
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="numeric"
+            accessibilityLabel="Amount"
+            className={`${inputClass} w-24`}
+          />
+          {units.map((option) => (
+            <Chip
+              key={option}
+              label={option}
+              selected={unit === option}
+              onPress={() => setUnit(option)}
             />
-          ) : null}
-          {!parsed.ok && quick.name ? (
-            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-              {parsed.error}
+          ))}
+        </View>
+
+        {mode === "quick" ? (
+          <Pressable
+            onPress={() => setSaveAsFood((value) => !value)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: saveAsFood }}
+            className="min-h-11 flex-row items-center gap-2"
+          >
+            <Text className="text-foreground">{saveAsFood ? "☑" : "□"}</Text>
+            <Text className="text-sm text-foreground">
+              Save to my foods for next time
             </Text>
-          ) : null}
-        </View>
-      )}
+          </Pressable>
+        ) : null}
 
-      <View className="flex-row flex-wrap gap-2" accessibilityLabel="Meal">
-        {MEAL_SLOTS.map((option) => (
-          <Chip
-            key={option}
-            label={SLOT_LABELS[option]}
-            selected={slot === option}
-            onPress={() => setSlot(option)}
-          />
-        ))}
+        {preview ? (
+          <View className="gap-1" accessibilityLabel="Review before saving">
+            <Text className="text-sm font-medium text-foreground">
+              Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
+              {hideNumbers
+                ? HIDDEN_VALUE
+                : formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]},{" "}
+              {localDate}
+              {mode !== "quick" && chosen
+                ? ` · ${chosen.sourceLabel}`
+                : draftNote !== null
+                  ? " · Entered by you"
+                  : ""}
+            </Text>
+            <Text className="text-sm text-muted-foreground">
+              {hideNumbers
+                ? HIDDEN_VALUE
+                : SUMMARY_NUTRIENTS.map(
+                    (key) =>
+                      `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
+                  ).join(" · ")}
+            </Text>
+            {missingNote ? (
+              <Text className="text-sm text-muted-foreground">
+                {missingNote}
+              </Text>
+            ) : null}
+            {mode !== "quick" && chosen?.attribution ? (
+              <Text className="text-xs text-muted-foreground">
+                {chosen.attribution}
+              </Text>
+            ) : null}
+            {mode === "barcode" ? (
+              <Text className="text-xs text-muted-foreground">
+                {BARCODE_COPY.verify}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
-      <View className="flex-row flex-wrap items-center gap-2">
-        <TextInput
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="numeric"
-          accessibilityLabel="Amount"
-          className={`${inputClass} w-24`}
-        />
-        {units.map((option) => (
-          <Chip
-            key={option}
-            label={option}
-            selected={unit === option}
-            onPress={() => setUnit(option)}
-          />
-        ))}
-      </View>
-
-      {mode === "quick" ? (
-        <Pressable
-          onPress={() => setSaveAsFood((value) => !value)}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: saveAsFood }}
-          className="min-h-11 flex-row items-center gap-2"
-        >
-          <Text className="text-foreground">{saveAsFood ? "☑" : "□"}</Text>
-          <Text className="text-sm text-foreground">Save to my foods for next time</Text>
-        </Pressable>
-      ) : null}
-
-      {preview ? (
-        <View className="gap-1" accessibilityLabel="Review before saving">
-          <Text className="text-sm font-medium text-foreground">
-            Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
-            {hideNumbers ? HIDDEN_VALUE : formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]},{" "}
-            {localDate}
-            {mode !== "quick" && chosen
-              ? ` · ${chosen.sourceLabel}`
-              : draftNote !== null
-                ? " · Entered by you"
-                : ""}
-          </Text>
-          <Text className="text-sm text-muted-foreground">
-            {hideNumbers
-              ? HIDDEN_VALUE
-              : SUMMARY_NUTRIENTS.map(
-                  (key) =>
-                    `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
-                ).join(" · ")}
-          </Text>
-          {missingNote ? (
-            <Text className="text-sm text-muted-foreground">{missingNote}</Text>
-          ) : null}
-          {mode !== "quick" && chosen?.attribution ? (
-            <Text className="text-xs text-muted-foreground">{chosen.attribution}</Text>
-          ) : null}
-          {mode === "barcode" ? (
-            <Text className="text-xs text-muted-foreground">{BARCODE_COPY.verify}</Text>
-          ) : null}
-        </View>
-      ) : null}
-
       <View className="flex-row flex-wrap gap-2">
         <Button onPress={save} isDisabled={!preview || saving}>
           {`Save to ${SLOT_LABELS[slot]}`}
@@ -1223,7 +1473,9 @@ function BarcodePanel({
       online: outbox.online,
       lookup: (barcode) => client.nutritionFoods.lookupBarcode({ barcode }),
       readCached: (barcode) =>
-        scope ? readCache<BarcodeLookup>(scope, barcodeCacheKey(barcode)) : null,
+        scope
+          ? readCache<BarcodeLookup>(scope, barcodeCacheKey(barcode))
+          : null,
       writeCached: (barcode, result) => {
         if (scope) writeCache(scope, barcodeCacheKey(barcode), result);
       },
@@ -1275,13 +1527,19 @@ function BarcodePanel({
         </Button>
       </View>
       {message ? (
-        <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+        <Text
+          className="text-sm text-foreground"
+          accessibilityLiveRegion="polite"
+        >
           {message}
         </Text>
       ) : null}
       {outcome?.kind === "matches" ? (
         <View className="gap-2">
-          <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+          <Text
+            className="text-sm text-foreground"
+            accessibilityLiveRegion="polite"
+          >
             {outcome.message}
           </Text>
           {outcome.candidates.map((candidate) => (
@@ -1296,22 +1554,34 @@ function BarcodePanel({
           <Button
             size="sm"
             variant="secondary"
-            onPress={() => onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct)}
+            onPress={() =>
+              onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct)
+            }
           >
             {`Not this product? ${BARCODE_COPY.enterManually}`}
           </Button>
         </View>
       ) : outcome?.kind === "manual" ? (
         <View className="gap-2">
-          <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+          <Text
+            className="text-sm text-foreground"
+            accessibilityLiveRegion="polite"
+          >
             {outcome.message}
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            <Button size="sm" onPress={() => onManualDraft(outcome.barcode, outcome.message)}>
+            <Button
+              size="sm"
+              onPress={() => onManualDraft(outcome.barcode, outcome.message)}
+            >
               {BARCODE_COPY.enterManually}
             </Button>
             {outcome.canRetry && last ? (
-              <Button size="sm" variant="secondary" onPress={() => void run(last)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() => void run(last)}
+              >
                 {BARCODE_COPY.retry}
               </Button>
             ) : null}
@@ -1378,10 +1648,14 @@ function CopyDay({
         className={inputClass}
       />
       {fromDate === localDate ? (
-        <Text className="text-sm text-muted-foreground">Choose a different day.</Text>
+        <Text className="text-sm text-muted-foreground">
+          Choose a different day.
+        </Text>
       ) : null}
       {fromDate !== localDate && entries.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{DIARY_COPY.empty}</Text>
+        <Text className="text-sm text-muted-foreground">
+          {DIARY_COPY.empty}
+        </Text>
       ) : fromDate !== localDate ? (
         entries.map((entry) => {
           const checked = selected.has(entry.id);
@@ -1401,7 +1675,9 @@ function CopyDay({
               <Text className="text-foreground">{checked ? "[x]" : "[ ]"}</Text>
               <Text className="text-sm text-foreground">
                 {SLOT_LABELS[entry.slot]}: {entry.food.name},{" "}
-                {hideNumbers ? HIDDEN_VALUE : formatAmount(entry.amount, entry.unit)}
+                {hideNumbers
+                  ? HIDDEN_VALUE
+                  : formatAmount(entry.amount, entry.unit)}
               </Text>
             </Pressable>
           );

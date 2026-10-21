@@ -8,7 +8,11 @@ import {
   type MetricSamplePayload,
   type OutboxEntry,
 } from "@openvalens/api/presenters/offline";
-import { useQuery, type QueryFunction, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useQuery,
+  type QueryFunction,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import * as Network from "expo-network";
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
@@ -51,7 +55,11 @@ const revokedSessionIds = new Set<string>();
 let cacheAuthorityGeneration = 0;
 declare const offlineWriteTicketBrand: unique symbol;
 export type OfflineWriteTicket = { readonly [offlineWriteTicketBrand]: true };
-type OfflineWriteMetadata = { scope: string; sessionId: string; generation: number };
+type OfflineWriteMetadata = {
+  scope: string;
+  sessionId: string;
+  generation: number;
+};
 const offlineWriteTickets = new WeakMap<object, OfflineWriteMetadata>();
 let online = true;
 let syncing = false;
@@ -62,7 +70,11 @@ const listeners = new Set<() => void>();
 
 function computeStatus(): OutboxStatus {
   const pending = currentScope ? readOutbox(currentScope).length : 0;
-  const state: OutboxState = syncing ? "syncing" : online ? "online" : "offline";
+  const state: OutboxState = syncing
+    ? "syncing"
+    : online
+      ? "online"
+      : "offline";
   return { pending, state };
 }
 
@@ -87,20 +99,36 @@ export function useOfflineWriteTicket(): () => OfflineWriteTicket | null {
   const sessionId = data?.session?.id ?? null;
   return useCallback(() => {
     if (
-      !scope || !sessionId || currentScope !== scope || currentSessionId !== sessionId ||
+      !scope ||
+      !sessionId ||
+      currentScope !== scope ||
+      currentSessionId !== sessionId ||
       revokedSessionIds.has(sessionId)
-    ) return null;
+    )
+      return null;
     const ticket = Object.freeze({}) as OfflineWriteTicket;
-    offlineWriteTickets.set(ticket, { scope, sessionId, generation: cacheAuthorityGeneration });
+    offlineWriteTickets.set(ticket, {
+      scope,
+      sessionId,
+      generation: cacheAuthorityGeneration,
+    });
     return ticket;
   }, [scope, sessionId]);
 }
 
-export function isOfflineWriteTicketCurrent(ticket: OfflineWriteTicket, scope: string): boolean {
+export function isOfflineWriteTicketCurrent(
+  ticket: OfflineWriteTicket,
+  scope: string,
+): boolean {
   const metadata = offlineWriteTickets.get(ticket as object);
-  return !!metadata && metadata.scope === scope && metadata.scope === currentScope &&
-    metadata.sessionId === currentSessionId && !revokedSessionIds.has(metadata.sessionId) &&
-    metadata.generation === cacheAuthorityGeneration;
+  return (
+    !!metadata &&
+    metadata.scope === scope &&
+    metadata.scope === currentScope &&
+    metadata.sessionId === currentSessionId &&
+    !revokedSessionIds.has(metadata.sessionId) &&
+    metadata.generation === cacheAuthorityGeneration
+  );
 }
 
 export function invalidateOfflineWriteTickets(): void {
@@ -160,11 +188,19 @@ export function syncNow(): Promise<void> {
  * account. Invalid-input and auth errors are surfaced to the form instead of
  * being queued; nothing is queued while signed out.
  */
-export function enqueueMetricSample(payload: MetricSamplePayload, error?: unknown): void {
+export function enqueueMetricSample(
+  payload: MetricSamplePayload,
+  error?: unknown,
+): void {
   const scope = currentScope;
   if (!scope) return;
-  if (error !== undefined && (isPermanentSyncError(error) || isAuthSyncError(error))) return;
-  const dedupeHash = payload.dedupeHash ?? queueKey(payload.metricCode, payload.observedAt);
+  if (
+    error !== undefined &&
+    (isPermanentSyncError(error) || isAuthSyncError(error))
+  )
+    return;
+  const dedupeHash =
+    payload.dedupeHash ?? queueKey(payload.metricCode, payload.observedAt);
   pushOutbox({
     scope,
     dedupeHash,
@@ -188,7 +224,9 @@ export async function prepareOfflineSignOut(): Promise<void> {
   cacheAuthorityGeneration += 1;
   await Promise.race([
     drainOutbox(),
-    new Promise<void>((resolve) => setTimeout(resolve, SIGN_OUT_SYNC_TIMEOUT_MS)),
+    new Promise<void>((resolve) =>
+      setTimeout(resolve, SIGN_OUT_SYNC_TIMEOUT_MS),
+    ),
   ]);
   clearOfflineData();
   currentScope = null;
@@ -286,7 +324,10 @@ export function useCacheFirst<T>(
   const scope = useOfflineScope();
   const { data: sessionData } = authClient.useSession();
   const sessionIdForQuery = sessionData?.session?.id ?? null;
-  const cached = useMemo(() => (scope ? readCache<T>(scope, queryKey) : null), [scope, queryKey]);
+  const cached = useMemo(
+    () => (scope ? readCache<T>(scope, queryKey) : null),
+    [scope, queryKey],
+  );
 
   return useQuery<T, Error>({
     queryKey: [...queryOptions.queryKey, { offlineScope: scope }],
