@@ -9,7 +9,7 @@ import { Button, Card, Spinner } from "heroui-native";
 import { Link } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
@@ -28,6 +28,13 @@ function safeSourceUrl(value: string | null): string | null {
 }
 function copyDraft(draft: RecipeDraft): RecipeDraft {
   return { ...draft, source: { ...draft.source }, ingredients: draft.ingredients.map((item) => ({ ...item })) };
+}
+type IngredientTextField = "rawText" | "quantityText" | "unitText" | "foodText";
+function editIngredientText(item: RecipeDraftIngredient, key: IngredientTextField, value: string): RecipeDraftIngredient {
+  if (key === "rawText") return { ...item, rawText: value };
+  if (key === "quantityText") return { ...item, quantityText: value || null };
+  if (key === "unitText") return { ...item, unitText: value || null };
+  return { ...item, foodText: value || null };
 }
 
 export default function RecipeDraftEditor() {
@@ -71,20 +78,20 @@ export default function RecipeDraftEditor() {
   if (!scope) return <Container><View className="gap-2 p-4"><Text className="text-2xl font-semibold text-foreground">Recipe draft</Text><Text className="text-sm text-muted-foreground">Sign in to create a private, session-only draft.</Text></View></Container>;
 
   return <Container><KeyboardAvoidingView className="flex-1" behavior={Platform.OS === "ios" ? "padding" : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 p-4">
-    <View className="gap-2"><Text className="text-2xl font-semibold text-foreground" accessibilityRole="header">Recipe draft</Text><Text className="text-sm text-muted-foreground">Paste ingredients or Recipe JSON-LD. Nothing is fetched or saved.</Text><Text className="text-sm text-muted-foreground">This draft stays only in this screen session. Leaving or refreshing loses it.</Text><Link href="/nutrition" asChild><Pressable accessibilityRole="link" className="min-h-11 justify-center"><Text className="text-sm text-foreground underline">Back to meal diary</Text></Pressable></Link></View>
+    <View className="gap-2"><Text className="text-2xl font-semibold text-foreground" accessibilityRole="header">Recipe draft</Text><Text className="text-sm text-muted-foreground">Paste ingredients or Recipe JSON-LD. Nothing is fetched or saved.</Text><Text className="text-sm text-muted-foreground">Not saved. Discard the draft to clear it; reloading may lose it.</Text><Link href="/nutrition" asChild><Pressable accessibilityRole="link" className="min-h-11 justify-center"><Text className="text-sm text-foreground underline">Back to meal diary</Text></Pressable></Link></View>
     {!draft || showPaste ? <Card variant="secondary" className="gap-3 p-4"><Text className="text-lg font-medium text-foreground" accessibilityRole="header">Paste recipe text</Text><View className="gap-1"><Text className="text-sm text-foreground">Paste format</Text><View className="flex-row flex-wrap gap-2"><Choice label="Ingredients" selected={format === "ingredients"} onPress={() => setFormat("ingredients")} /><Choice label="Recipe JSON-LD" selected={format === "json-ld"} onPress={() => setFormat("json-ld")} /></View></View>
-      <TextInput ref={pasteRef} value={text} onChangeText={changePaste} multiline textAlignVertical="top" maxLength={MAX_INPUT} placeholder="Paste ingredients or JSON-LD" accessibilityLabel="Paste recipe text, up to 1 MiB" className={`${INPUT} min-h-48`} placeholderTextColor="#9ca3af" />
+      <TextInput ref={pasteRef} value={text} onChangeText={changePaste} multiline textAlignVertical="top" placeholder="Paste ingredients or JSON-LD" accessibilityLabel="Paste recipe text, up to 1 MiB" className={`${INPUT} min-h-48`} placeholderTextColor="#9ca3af" />
       <TextInput value={sourceUrl} onChangeText={setSourceUrl} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="Source URL (optional, provenance only)" accessibilityLabel="Source URL, optional, provenance only" className={INPUT} placeholderTextColor="#9ca3af" />
-      <View className="flex-row flex-wrap gap-2"><Button isDisabled={!text.trim()} onPress={() => { if (dirty && !replacePending) { setReplacePending(true); return; } parse(); setReplacePending(false); }}>Create draft</Button><Button variant="secondary" onPress={clear}>Clear</Button></View>
-      {replacePending ? <Card variant="secondary" className="gap-2 p-3"><Text className="text-sm text-foreground">Parsing again will replace your edited review. Continue?</Text><View className="flex-row flex-wrap gap-2"><Button onPress={() => { setDraft(null); parse(); setReplacePending(false); }}>Replace review</Button><Button variant="secondary" onPress={() => setReplacePending(false)}>Keep review</Button></View></Card> : null}
+      <View className="flex-row flex-wrap gap-2"><Button isDisabled={!text.trim() || replacePending} onPress={() => { if (replacePending) return; if (dirty && draft) { setReplacePending(true); return; } parse(); }}>Create draft</Button><Button variant="secondary" onPress={clear}>Clear</Button></View>
+      {replacePending ? <Card variant="secondary" className="gap-2 p-3"><Text className="text-sm text-foreground">Parsing again will replace your edited review. Continue?</Text><View className="flex-row flex-wrap gap-2"><Button onPress={() => { setDraft(null); parse(); setReplacePending(false); }}>Replace review</Button><Button variant="secondary" onPress={() => { setReplacePending(false); setShowPaste(false); }}>Keep review</Button></View></Card> : null}
       {message ? <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">{message}</Text> : null}
       {result.status === "choose_recipe" ? <View className="gap-2"><Text className="text-sm font-medium text-foreground">Choose a recipe to review</Text>{result.candidates.map((candidate) => <Button key={candidate.id} variant="secondary" onPress={() => choose(candidate)}>{candidate.title || "Untitled recipe"}</Button>)}</View> : null}
     </Card> : null}
     {draft && !showPaste ? <Card variant="secondary" className="gap-3 p-4"><Text className="text-lg font-medium text-foreground" accessibilityRole="header">Review draft</Text><Text className="rounded-lg border border-border p-3 text-sm text-muted-foreground">Ingredients remain unmatched and unverified. No nutrition values are calculated. This is not clinical advice.</Text>
-      <Field label="Title" value={draft.title ?? ""} onChangeText={(value) => updateDraft((current) => ({ ...current, title: value || null }))} />
-      <Field label="Servings (text)" value={draft.servingsText ?? ""} onChangeText={(value) => updateDraft((current) => ({ ...current, servingsText: value || null }))} />
+      <Field label="Title" maxLength={300} value={draft.title ?? ""} onChangeText={(value) => updateDraft((current) => ({ ...current, title: value || null }))} />
+      <Field label="Servings (text)" maxLength={200} value={draft.servingsText ?? ""} onChangeText={(value) => updateDraft((current) => ({ ...current, servingsText: value || null }))} />
       <View className="gap-3"><Text className="text-lg font-medium text-foreground" accessibilityRole="header">Ingredients ({draft.ingredients.length}/{MAX_INGREDIENTS})</Text>{draft.ingredients.map((item, index) => <View key={item.id} className="gap-2 rounded-lg border border-border p-3"><Text className="font-medium text-foreground">Ingredient {index + 1} · unmatched, unverified</Text>
-        {(["rawText", "quantityText", "unitText", "foodText"] as const).map((key) => <Field key={key} label={({ rawText: "Original text", quantityText: "Quantity (text)", unitText: "Unit (text)", foodText: "Food text" })[key]} value={item[key] ?? ""} onChangeText={(value) => updateIngredient(item.id, (current) => ({ ...current, [key]: value || null }))} />)}
+        {(["rawText", "quantityText", "unitText", "foodText"] as const).map((key) => <Field key={key} label={({ rawText: "Original text", quantityText: "Quantity (text)", unitText: "Unit (text)", foodText: "Food text" })[key]} maxLength={({ rawText: 2000, quantityText: 100, unitText: 100, foodText: 500 })[key]} value={item[key] ?? ""} onChangeText={(value) => updateIngredient(item.id, (current) => editIngredientText(current, key, value))} />)}
         <Text className="text-sm text-foreground">Preparation</Text><View className="flex-row flex-wrap gap-2">{(["unknown", "raw", "cooked"] as const).map((value) => <Choice key={value} label={value} selected={item.preparation === value} onPress={() => updateIngredient(item.id, (current) => ({ ...current, preparation: value }))} />)}</View>
         <Button variant="secondary" onPress={() => updateDraft((current) => ({ ...current, ingredients: current.ingredients.filter((ingredient) => ingredient.id !== item.id) }))}>Remove ingredient {index + 1}</Button>
       </View>)}</View>
@@ -98,6 +105,6 @@ export default function RecipeDraftEditor() {
 function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }} className={`min-h-11 justify-center rounded-lg border px-3 ${selected ? "bg-accent" : "border-border"}`}><Text className="text-sm text-foreground">{label}</Text></Pressable>;
 }
-function Field({ label, value, onChangeText }: { label: string; value: string; onChangeText: (value: string) => void }) {
-  return <View className="gap-1"><Text className="text-sm font-medium text-foreground">{label}</Text><TextInput value={value} onChangeText={onChangeText} accessibilityLabel={label} className={INPUT} placeholderTextColor="#9ca3af" /></View>;
+function Field({ label, value, onChangeText, maxLength }: { label: string; value: string; onChangeText: (value: string) => void; maxLength?: number }) {
+  return <View className="gap-1"><Text className="text-sm font-medium text-foreground">{label}</Text><TextInput value={value} onChangeText={onChangeText} maxLength={maxLength} accessibilityLabel={label} className={INPUT} placeholderTextColor="#9ca3af" /></View>;
 }
