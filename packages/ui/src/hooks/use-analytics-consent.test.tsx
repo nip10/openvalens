@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import * as React from "react";
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { createORPCClient } from "@orpc/client";
 
@@ -307,45 +307,66 @@ describe("mounted analytics consent hook", () => {
   });
 
   test("web settings component stabilizes the actual oRPC namespace proxy across hook rerenders", async () => {
-    let reads = 0;
-    let captures = 0;
-    type ApiClient = { analytics: AnalyticsConsentApi };
-    const client = createORPCClient<ApiClient>({
-      call(path) {
-        if (path.join(".") === "analytics.getPreference") {
-          reads += 1;
+    // Bun's mock.module registry is process-global. Keep the real web component
+    // proxy test in a child so its alias mocks cannot contaminate other suites.
+    const script = `
+      import assert from "node:assert/strict";
+      import { mock } from "bun:test";
+      import * as React from "react";
+      import { act, create } from "react-test-renderer";
+      import { createORPCClient } from "@orpc/client";
+
+      let reads = 0;
+      let captures = 0;
+      const client = createORPCClient({
+        call(path) {
+          if (path.join(".") === "analytics.getPreference") {
+            reads += 1;
+            return Promise.resolve({ enabled: false, available: true });
+          }
+          if (path.join(".") === "analytics.capture") {
+            captures += 1;
+            return Promise.resolve({ accepted: true });
+          }
           return Promise.resolve({ enabled: false, available: true });
-        }
-        if (path.join(".") === "analytics.capture") {
-          captures += 1;
-          return Promise.resolve({ accepted: true });
-        }
-        return Promise.resolve({ enabled: false, available: true });
-      },
+        },
+      });
+      mock.module("@/lib/auth-client", () => ({
+        authClient: {
+          useSession: () => ({
+            data: {
+              user: { id: "component-proxy-user" },
+              session: { activeOrganizationId: "component-proxy-org" },
+            },
+            isPending: false,
+          }),
+        },
+      }));
+      mock.module("@/utils/orpc", () => ({ client }));
+      const { AnalyticsConsentSection } = await import(process.env.REPO_ROOT + "/apps/web/src/components/analytics-consent-section.tsx");
+      globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+      let renderer;
+      act(() => {
+        renderer = create(React.createElement(AnalyticsConsentSection));
+      });
+      await act(async () => {
+        for (let index = 0; index < 8; index += 1) await Promise.resolve();
+      });
+      assert.notEqual(client.analytics, client.analytics);
+      assert.equal(reads, 1);
+      assert.equal(captures, 0);
+      act(() => renderer.unmount());
+    `;
+    const child = Bun.spawnSync({
+      cmd: [process.execPath, "-e", script],
+      cwd: `${process.cwd()}/packages/ui`,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env, REPO_ROOT: process.cwd() },
     });
-    mock.module("@/lib/auth-client", () => ({
-      authClient: {
-        useSession: () => ({
-          data: {
-            user: { id: "component-proxy-user" },
-            session: { activeOrganizationId: "component-proxy-org" },
-          },
-          isPending: false,
-        }),
-      },
-    }));
-    mock.module("@/utils/orpc", () => ({ client }));
-    const componentPath = "../../../../apps/web/src/components/analytics-consent-section";
-    const { AnalyticsConsentSection } = await import(componentPath);
-    act(() => {
-      renderer = create(React.createElement(AnalyticsConsentSection));
-    });
-    await act(async () => {
-      await flush();
-    });
-    expect(client.analytics).not.toBe(client.analytics);
-    expect(reads).toBe(1);
-    expect(captures).toBe(0);
+    const output = `${child.stdout.toString()}\n${child.stderr.toString()}`;
+    if (child.exitCode !== 0)
+      throw new Error(`Isolated web component assertion failed:\n${output}`);
   });
 });
 
