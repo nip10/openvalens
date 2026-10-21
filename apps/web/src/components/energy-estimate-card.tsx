@@ -58,7 +58,7 @@ export function EnergyEstimateCard({
     ? proposals.data?.proposals.find((p) => p.status === "pending")
     : undefined;
   const presented = allowed && !hideNumbers ? presentEnergyEstimate(estimate.data, false) : null;
-  const pendingPresentation = pending && presentProposal(pending, hideNumbers);
+  const pendingPresentation = pending && allowed && presentProposal(pending, hideNumbers);
   const expired = pending
     ? pending.expired ||
       !Number.isFinite(Date.parse(pending.expiresAt)) ||
@@ -166,7 +166,7 @@ export function EnergyEstimateCard({
               </Button>
               <Button
                 variant="outline"
-                disabled={dismiss.isPending}
+                disabled={!allowed || dismiss.isPending}
                 onClick={() =>
                   dismiss.mutate(
                     { proposalId: pending.id },
