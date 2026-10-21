@@ -72,6 +72,90 @@ const base = {
 };
 
 describe("persisted water proof metadata", () => {
+  test("zero-attempt rejection is quarantined before retry can erase its history", async () => {
+    const invalid = persisted({ ...base, attempts: 0, conflict: null });
+    const rawBefore = (
+      invalid.db.query("SELECT item FROM plain_water_outbox WHERE scope=?").get(scope) as {
+        item: string;
+      }
+    ).item;
+    let sends = 0;
+    const sender = {
+      async add() {
+        sends++;
+        throw Object.assign(new Error("denied"), { code: "FORBIDDEN" });
+      },
+      async change() {
+        throw new Error("unexpected");
+      },
+      async delete() {
+        throw new Error("unexpected");
+      },
+    };
+
+    expect(readWaterQueueSnapshot(invalid.store, scope)).toEqual({ items: [], error: "STORAGE" });
+    expect(() => retry(invalid.store, scope, "op-1")).toThrow(
+      "Could not read persisted plain-water changes",
+    );
+    await expect(drain(invalid.store, sender, scope)).rejects.toThrow();
+    expect(() => discard(invalid.store, scope, "op-1")).toThrow(
+      "Could not read persisted plain-water changes",
+    );
+    expect(sends).toBe(0);
+    expect(
+      invalid.db.query("SELECT item FROM plain_water_outbox WHERE scope=?").get(scope),
+    ).toEqual({ item: rawBefore });
+    invalid.db.close();
+  });
+
+  test("persisted status must be a supported string and malformed rows recover after repair", () => {
+    for (const status of [["needs_attention"], {}, 1, null, "unknown"]) {
+      const invalid = persisted({ ...base, status, conflict: null });
+      const raw = (
+        invalid.db.query("SELECT item FROM plain_water_outbox WHERE scope=?").get(scope) as {
+          item: string;
+        }
+      ).item;
+      expect(readWaterQueueSnapshot(invalid.store, scope)).toEqual({
+        items: [],
+        error: "STORAGE",
+      });
+      expect(
+        (
+          invalid.db.query("SELECT item FROM plain_water_outbox WHERE scope=?").get(scope) as {
+            item: string;
+          }
+        ).item,
+      ).toBe(raw);
+      invalid.db.query("UPDATE plain_water_outbox SET item=? WHERE scope=?").run(
+        JSON.stringify({
+          ...base,
+          status: "queued",
+          attempts: 0,
+          lastErrorCode: null,
+          conflict: null,
+        }),
+        scope,
+      );
+      expect(readWaterQueueSnapshot(invalid.store, scope).error).toBeNull();
+      expect(invalid.store.list(scope)).toHaveLength(1);
+      invalid.db.close();
+    }
+  });
+
+  test("valid queued-unsent and syncing crash-boundary rows remain readable", () => {
+    for (const item of [
+      { ...base, status: "queued", attempts: 0, lastErrorCode: null, conflict: null },
+      { ...base, status: "syncing", attempts: 0, lastErrorCode: null, conflict: null },
+      { ...base, status: "queued", attempts: 1, lastErrorCode: "NETWORK", conflict: null },
+    ]) {
+      const valid = persisted(item);
+      expect(readWaterQueueSnapshot(valid.store, scope).error).toBeNull();
+      expect(valid.store.list(scope)).toHaveLength(1);
+      valid.db.close();
+    }
+  });
+
   test("missing conflict metadata is quarantined; valid uncertain attempts remain projectable", () => {
     const { db, store } = persisted(base);
     expect(readWaterQueueSnapshot(store, scope)).toEqual({ items: [], error: "STORAGE" });

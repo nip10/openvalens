@@ -39,6 +39,7 @@ function isPersistedWaterItem(
   if (!operation.input || typeof operation.input !== "object" || Array.isArray(operation.input))
     return false;
   const input = operation.input as Record<string, unknown>;
+  const status = item.status;
   const schema =
     operation.kind === "add"
       ? plainWaterAddInput
@@ -51,7 +52,8 @@ function isPersistedWaterItem(
   const id = row.id.slice(prefix.length);
   if (
     input.clientMutationId !== id ||
-    !["queued", "syncing", "needs_attention"].includes(String(item.status)) ||
+    typeof status !== "string" ||
+    !(status === "queued" || status === "syncing" || status === "needs_attention") ||
     !isValidWaterAttemptHistory(item.attempts) ||
     typeof item.createdAt !== "number" ||
     !Number.isFinite(item.createdAt) ||
@@ -61,9 +63,21 @@ function isPersistedWaterItem(
     )
   )
     return false;
+  const attempts = item.attempts as number;
+  const error = item.lastErrorCode;
+  const conflict = item.conflict;
+  if (
+    (status === "needs_attention" && (attempts < 1 || error === null)) ||
+    (status === "needs_attention" && error === "NETWORK") ||
+    ((status === "queued" || status === "syncing") && error !== null && error !== "NETWORK") ||
+    (attempts === 0 &&
+      (error !== null || conflict !== null || (status !== "queued" && status !== "syncing"))) ||
+    (conflict !== null && (status !== "needs_attention" || error !== "CONFLICT"))
+  )
+    return false;
   const target = operation.kind === "add" ? undefined : input.id;
-  if (item.conflict === null) return item.lastErrorCode !== "CONFLICT";
-  return hasValidWaterConflictReceipt(item.conflict, item.lastErrorCode, target);
+  if (conflict === null) return error !== "CONFLICT";
+  return hasValidWaterConflictReceipt(conflict, error, target);
 }
 
 export type WaterSqlite = {
