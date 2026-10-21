@@ -67,6 +67,7 @@ const MEMBERS: Record<string, { org: string; role: string }> = {
   "user-x": { org: "org-x", role: "owner" },
   "user-y": { org: "org-y", role: "owner" },
   "user-z": { org: "org-z", role: "owner" },
+  "user-q": { org: "org-q", role: "owner" },
 };
 const NO_WEIGHT_READ = new Set(["user-r"]);
 
@@ -238,8 +239,8 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
         ('org-a', 'Record A', 'record-a'), ('org-b', 'Record B', 'record-b'),
         ('org-u', 'Record U', 'record-u'), ('org-n', 'Record N', 'record-n'),
         ('org-v', 'Record V', 'record-v'), ('org-w', 'Record W', 'record-w'),
-        ('org-x', 'Record X', 'record-x'), ('org-y', 'Record Y', 'record-y'),
-        ('org-z', 'Record Z', 'record-z');
+         ('org-x', 'Record X', 'record-x'), ('org-y', 'Record Y', 'record-y'),
+         ('org-z', 'Record Z', 'record-z'), ('org-q', 'Record Q', 'record-q');
       insert into member (id, organization_id, user_id, role) values
         ${users.map((id) => `('m-${id}', '${MEMBERS[id]!.org}', '${id}', '${MEMBERS[id]!.role}')`).join(", ")};
       insert into wellness_profile (user_id, revision, eligibility_state, eligibility) values
@@ -247,7 +248,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
         ('user-b', 1, 'recorded', 'adult'), ('user-r', 1, 'recorded', 'adult'),
         ('user-v', 1, 'recorded', 'adult'), ('user-w', 1, 'recorded', 'adult'),
         ('user-x', 1, 'recorded', 'adult'), ('user-y', 1, 'recorded', 'adult'),
-        ('user-z', 1, 'recorded', 'adult'),
+        ('user-z', 1, 'recorded', 'adult'), ('user-q', 1, 'recorded', 'adult'),
         ('user-u', 1, 'recorded', 'under_18');
       ${seedMember("org-a", "user-a")}
       ${seedMember("org-b", "user-b")}
@@ -258,6 +259,7 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
       ${seedMember("org-x", "user-x")}
       ${seedMember("org-y", "user-y")}
       ${seedMember("org-z", "user-z")}
+      ${seedMember("org-q", "user-q")}
     `),
     );
     setRegisteredAuth(fakeAuth);
@@ -805,6 +807,59 @@ describe.skipIf(!url)("nutritionEnergy over HTTP against disposable PostgreSQL",
     expect(await energyGoals("user-v")).toEqual([
       { min_amount: 2700, max_amount: 2700, active: true },
     ]);
+  });
+
+  test("proposal listing and dismissal require weight:read before database access", async () => {
+    const created = await propose("2026-03-28", "user-q");
+    if (created.body.outcome !== "proposed") throw new Error("expected a proposal");
+    const proposalId = created.body.proposal.id;
+    NO_WEIGHT_READ.add("user-q");
+    try {
+      let databaseCalls = 0;
+      const watchedDb = new Proxy(db, {
+        get(target, property) {
+          const value = Reflect.get(target, property, target) as unknown;
+          if (
+            typeof value === "function" &&
+            ["execute", "select", "insert", "update", "delete", "transaction"].includes(
+              String(property),
+            )
+          )
+            return (...args: unknown[]) => {
+              databaseCalls += 1;
+              return Reflect.apply(value, target, args);
+            };
+          return value;
+        },
+      });
+
+      const listed = await call("listProposals", {}, "user-q", {}, watchedDb);
+      expect(listed.status).toBe(403);
+      expect(listed.body).toMatchObject({ code: "PERMISSION_DENIED" });
+      expect(databaseCalls).toBe(0);
+
+      const dismissed = await call("dismissProposal", { proposalId }, "user-q", {}, watchedDb);
+      expect(dismissed.status).toBe(403);
+      expect(dismissed.body).toMatchObject({ code: "PERMISSION_DENIED" });
+      expect(databaseCalls).toBe(0);
+      expect(await energyGoals("user-q")).toEqual([]);
+      expect(
+        (
+          await db.execute(
+            sql`select status from nutrition_energy_proposal where id = ${proposalId}`,
+          )
+        ).rows,
+      ).toEqual([{ status: "pending" }]);
+    } finally {
+      NO_WEIGHT_READ.delete("user-q");
+    }
+
+    // Restored access retains the existing list and explicit-dismiss behavior.
+    expect((await list("user-q")).body.proposals.map((proposal) => proposal.id)).toContain(
+      proposalId,
+    );
+    expect((await dismiss(proposalId, "user-q")).body).toMatchObject({ outcome: "dismissed" });
+    expect(await energyGoals("user-q")).toEqual([]);
   });
 
   test("estimate and proposal listing reject impersonation before any database access", async () => {
