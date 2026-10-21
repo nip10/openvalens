@@ -46,6 +46,9 @@ export type OutboxStatus = {
 const SIGN_OUT_SYNC_TIMEOUT_MS = 3_000;
 
 let currentScope: string | null = null;
+let currentSessionId: string | null = null;
+const revokedSessionIds = new Set<string>();
+let cacheAuthorityGeneration = 0;
 let online = true;
 let syncing = false;
 let started = false;
@@ -147,12 +150,18 @@ export function enqueueMetricSample(payload: MetricSamplePayload, error?: unknow
  * seconds, then wipes every cached read and queued write from this device.
  */
 export async function prepareOfflineSignOut(): Promise<void> {
+  // Revoke in-flight cache writes before any await; hooks observing the same
+  // still-mounted session must not re-arm authority during sign-out.
+  const signingOutSessionId = currentSessionId;
+  if (signingOutSessionId) revokedSessionIds.add(signingOutSessionId);
+  cacheAuthorityGeneration += 1;
   await Promise.race([
     drainOutbox(),
     new Promise<void>((resolve) => setTimeout(resolve, SIGN_OUT_SYNC_TIMEOUT_MS)),
   ]);
   clearOfflineData();
   currentScope = null;
+  currentSessionId = null;
   emit();
 }
 
@@ -202,12 +211,19 @@ export function stopSyncEngine(): void {
 export function useOfflineScope(): string | null {
   const { data } = authClient.useSession();
   const scope = offlineScope(data as Parameters<typeof offlineScope>[0]);
+  const sessionId = data?.session?.id ?? null;
   useEffect(() => {
-    if (currentScope === scope) return;
+    if (sessionId && revokedSessionIds.has(sessionId)) return;
+    if (currentScope === scope && currentSessionId === sessionId) return;
+    if (currentSessionId && currentSessionId !== sessionId) {
+      revokedSessionIds.add(currentSessionId);
+    }
+    cacheAuthorityGeneration += 1;
     currentScope = scope;
+    currentSessionId = sessionId;
     emit();
     if (scope) void drainOutbox();
-  }, [scope]);
+  }, [scope, sessionId]);
   return scope;
 }
 
@@ -237,13 +253,26 @@ export function useCacheFirst<T>(
   ttlMs: number = CACHE_TTL_MS,
 ): UseQueryResult<T, Error> {
   const scope = useOfflineScope();
+  const { data: sessionData } = authClient.useSession();
+  const sessionIdForQuery = sessionData?.session?.id ?? null;
   const cached = useMemo(() => (scope ? readCache<T>(scope, queryKey) : null), [scope, queryKey]);
 
   return useQuery<T, Error>({
     queryKey: [...queryOptions.queryKey, { offlineScope: scope }],
     queryFn: async (context) => {
+      const generation = cacheAuthorityGeneration;
+      const sessionId = sessionIdForQuery;
       const data = await queryOptions.queryFn(context);
-      if (scope) writeCache(scope, queryKey, data);
+      if (
+        scope &&
+        generation === cacheAuthorityGeneration &&
+        currentScope === scope &&
+        currentSessionId === sessionId &&
+        sessionId !== null &&
+        !revokedSessionIds.has(sessionId)
+      ) {
+        writeCache(scope, queryKey, data);
+      }
       return data;
     },
     initialData: cached?.data,
