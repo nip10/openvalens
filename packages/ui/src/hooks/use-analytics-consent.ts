@@ -37,21 +37,41 @@ export function useAnalyticsConsent({
   active?: boolean;
 }) {
   const authority = React.useRef<Authority>({
-    mounted: false, active: false, scope: "", generation: 0, pending: null,
-    gate: false, preference: null, error: null, openingHandled: false,
+    mounted: false,
+    active: false,
+    scope: "",
+    generation: 0,
+    pending: null,
+    gate: false,
+    preference: null,
+    error: null,
+    openingHandled: false,
     explicitAction: false,
   });
-  const [snapshot, setSnapshot] = React.useState<Snapshot>({ preference: null, pending: null, error: null });
+  const [snapshot, setSnapshot] = React.useState<Snapshot>({
+    preference: null,
+    pending: null,
+    error: null,
+  });
   const trustedScope = React.useRef(scope);
   trustedScope.current = scope;
   const trustedOwner = React.useRef(ownerId);
   trustedOwner.current = ownerId;
 
-  const owns = React.useCallback((capturedScope: string, capturedOwner: string, generation: number) => {
-    const current = authority.current;
-    return current.mounted && current.active && current.scope === capturedScope &&
-      current.generation === generation && trustedScope.current === capturedScope && trustedOwner.current === capturedOwner;
-  }, []);
+  const owns = React.useCallback(
+    (capturedScope: string, capturedOwner: string, generation: number) => {
+      const current = authority.current;
+      return (
+        current.mounted &&
+        current.active &&
+        current.scope === capturedScope &&
+        current.generation === generation &&
+        trustedScope.current === capturedScope &&
+        trustedOwner.current === capturedOwner
+      );
+    },
+    [],
+  );
   const publish = React.useCallback(() => {
     const current = authority.current;
     setSnapshot({ preference: current.preference, pending: current.pending, error: current.error });
@@ -68,7 +88,15 @@ export function useAnalyticsConsent({
 
   const read = React.useCallback(async () => {
     const current = authority.current;
-    if (!current.mounted || !current.active || !current.scope || trustedScope.current !== current.scope || trustedOwner.current !== ownerId || current.pending) return;
+    if (
+      !current.mounted ||
+      !current.active ||
+      !current.scope ||
+      trustedScope.current !== current.scope ||
+      trustedOwner.current !== ownerId ||
+      current.pending
+    )
+      return;
     const capturedScope = current.scope;
     const capturedOwner = ownerId;
     const generation = ++current.generation;
@@ -107,7 +135,13 @@ export function useAnalyticsConsent({
 
   const activate = React.useCallback(() => {
     const current = authority.current;
-    if (!current.mounted || !current.scope || trustedScope.current !== current.scope || current.active) return;
+    if (
+      !current.mounted ||
+      !current.scope ||
+      trustedScope.current !== current.scope ||
+      current.active
+    )
+      return;
     current.active = true;
     current.gate = false;
     current.pending = null;
@@ -118,47 +152,64 @@ export function useAnalyticsConsent({
     void read();
   }, [read]);
 
-  const setPreference = React.useCallback(async (enabled: boolean) => {
-    const current = authority.current;
-    if (!current.mounted || !current.active || !current.scope || trustedScope.current !== current.scope || trustedOwner.current !== ownerId || current.pending) return;
-    const scopeAtStart = current.scope;
-    if (enabled && (!current.preference?.available || current.error === "read" || current.preference.enabled && !revocationLatch.has(ownerId))) return;
-    if (!enabled && !current.preference?.enabled && !revocationLatch.has(ownerId)) return;
-    const action = enabled ? "enable" : "revoke";
-    current.gate = false;
-    current.pending = action;
-    current.error = null;
-    current.explicitAction = true;
-    current.openingHandled = true;
-    if (!enabled) revocationLatch.add(ownerId);
-    const generation = ++current.generation;
-    publish();
-    try {
-      const preference = await api.setPreference({ enabled });
-      if (!owns(scopeAtStart, ownerId, generation)) return;
-      current.preference = preference;
-      const acceptedAck = enabled
-        ? preference.enabled === true && preference.available === true
-        : preference.enabled === false;
-      if (!acceptedAck) {
+  const setPreference = React.useCallback(
+    async (enabled: boolean) => {
+      const current = authority.current;
+      if (
+        !current.mounted ||
+        !current.active ||
+        !current.scope ||
+        trustedScope.current !== current.scope ||
+        trustedOwner.current !== ownerId ||
+        current.pending
+      )
+        return;
+      const scopeAtStart = current.scope;
+      if (
+        enabled &&
+        (!current.preference?.available ||
+          current.error === "read" ||
+          (current.preference.enabled && !revocationLatch.has(ownerId)))
+      )
+        return;
+      if (!enabled && !current.preference?.enabled && !revocationLatch.has(ownerId)) return;
+      const action = enabled ? "enable" : "revoke";
+      current.gate = false;
+      current.pending = action;
+      current.error = null;
+      current.explicitAction = true;
+      current.openingHandled = true;
+      if (!enabled) revocationLatch.add(ownerId);
+      const generation = ++current.generation;
+      publish();
+      try {
+        const preference = await api.setPreference({ enabled });
+        if (!owns(scopeAtStart, ownerId, generation)) return;
+        current.preference = preference;
+        const acceptedAck = enabled
+          ? preference.enabled === true && preference.available === true
+          : preference.enabled === false;
+        if (!acceptedAck) {
+          current.gate = false;
+          current.error = action;
+        } else {
+          revocationLatch.delete(ownerId);
+          current.error = null;
+          current.gate = enabled && preference.available;
+        }
+      } catch {
+        if (!owns(scopeAtStart, ownerId, generation)) return;
         current.gate = false;
         current.error = action;
-      } else {
-        revocationLatch.delete(ownerId);
-        current.error = null;
-        current.gate = enabled && preference.available;
+      } finally {
+        if (owns(scopeAtStart, ownerId, generation)) {
+          current.pending = null;
+          publish();
+        }
       }
-    } catch {
-      if (!owns(scopeAtStart, ownerId, generation)) return;
-      current.gate = false;
-      current.error = action;
-    } finally {
-      if (owns(scopeAtStart, ownerId, generation)) {
-        current.pending = null;
-        publish();
-      }
-    }
-  }, [api, ownerId, owns, publish]);
+    },
+    [api, ownerId, owns, publish],
+  );
 
   const retry = React.useCallback(() => {
     const current = authority.current;
@@ -195,10 +246,27 @@ export function useAnalyticsConsent({
   }, [scope, active, activate, deactivate, publish]);
 
   const current = authority.current;
-  const ownsRenderedScope = !!scope && !!ownerId && trustedScope.current === scope && trustedOwner.current === ownerId && current.scope === scope && current.active;
+  const ownsRenderedScope =
+    !!scope &&
+    !!ownerId &&
+    trustedScope.current === scope &&
+    trustedOwner.current === ownerId &&
+    current.scope === scope &&
+    current.active;
   const preference = ownsRenderedScope ? snapshot.preference : null;
   const pending = ownsRenderedScope ? snapshot.pending : null;
   const error = ownsRenderedScope ? snapshot.error : null;
   const gate = ownsRenderedScope && current.gate && !revocationLatch.has(ownerId);
-  return { preference, pending, error, gate, locallyRevoked: ownsRenderedScope && revocationLatch.has(ownerId), setPreference, retry, refresh: read, activate, deactivate };
+  return {
+    preference,
+    pending,
+    error,
+    gate,
+    locallyRevoked: ownsRenderedScope && revocationLatch.has(ownerId),
+    setPreference,
+    retry,
+    refresh: read,
+    activate,
+    deactivate,
+  };
 }

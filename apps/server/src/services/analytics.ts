@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AnalyticsService, ApprovedAnalyticsEvent } from "@openvalens/api/contracts/analytics";
 import type { Database } from "@openvalens/db";
-import { analyticsConsent } from "@openvalens/db/schema";
+import { analyticsConsent } from "@openvalens/db/schema/analytics";
 import { eq } from "drizzle-orm";
 
 const POSTHOG_CAPTURE_URL = "https://eu.i.posthog.com/i/v0/e/";
@@ -33,9 +33,7 @@ export function createAnalyticsService(
   fetchImpl: typeof fetch = globalThis.fetch,
 ): AnalyticsService {
   const projectToken = config.projectToken?.trim();
-  const available = Boolean(
-    config.enabled && projectToken && config.ipCaptureDisabled,
-  );
+  const available = Boolean(config.enabled && projectToken && config.ipCaptureDisabled);
 
   async function readPreference(userId: string) {
     const [row] = await db
@@ -117,7 +115,10 @@ export function createAnalyticsService(
                 offset += chunk.byteLength;
               }
               try {
-                return (JSON.parse(new TextDecoder().decode(bytes)) as { status?: unknown }).status === "ok";
+                return (
+                  (JSON.parse(new TextDecoder().decode(bytes)) as { status?: unknown }).status ===
+                  "ok"
+                );
               } catch {
                 return false;
               }

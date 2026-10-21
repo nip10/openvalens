@@ -36,6 +36,7 @@
     "@openvalens/config": "workspace:*",
     "@orpc/client": "catalog:",
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/bun": "catalog:",
     "@types/react": "^19.2.18",
     "@types/react-dom": "catalog:",
     "@types/react-test-renderer": "19.3.0",

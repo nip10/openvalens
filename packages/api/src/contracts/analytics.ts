@@ -18,6 +18,9 @@ export const analyticsCaptureResultSchema = z.strictObject({ accepted: z.boolean
 /** Narrow server-injected analytics capability; it accepts no request context. */
 export type AnalyticsService = {
   getPreference(userId: string): Promise<{ enabled: boolean; available: boolean }>;
-  setPreference(userId: string, enabled: boolean): Promise<{ enabled: boolean; available: boolean }>;
+  setPreference(
+    userId: string,
+    enabled: boolean,
+  ): Promise<{ enabled: boolean; available: boolean }>;
   capture(userId: string, event: ApprovedAnalyticsEvent): Promise<boolean>;
 };

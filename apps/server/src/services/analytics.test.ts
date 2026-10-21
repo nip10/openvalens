@@ -21,9 +21,15 @@ function fakeDatabase(options: FakeOptions = {}) {
   const db = {
     select() {
       const builder: any = {
-        from() { return builder; },
-        where() { return builder; },
-        for() { return builder; },
+        from() {
+          return builder;
+        },
+        where() {
+          return builder;
+        },
+        for() {
+          return builder;
+        },
         limit() {
           if (options.readError) return Promise.reject(options.readError);
           if (options.captureError) return Promise.reject(options.captureError);
@@ -34,7 +40,10 @@ function fakeDatabase(options: FakeOptions = {}) {
     },
     insert() {
       const builder: any = {
-        values(value: { enabled: boolean }) { this.value = value; return builder; },
+        values(value: { enabled: boolean }) {
+          this.value = value;
+          return builder;
+        },
         onConflictDoUpdate() {
           if (options.writeError) return Promise.reject(options.writeError);
           stored = builder.value.enabled;
@@ -57,16 +66,22 @@ const config = { enabled: true, projectToken: "test-project-token", ipCaptureDis
 describe("analytics service consent persistence", () => {
   test("defaults consent to false and reports a failed preference read", async () => {
     const absent = fakeDatabase();
-    const service = createAnalyticsService(absent.db, config, async () => { throw new Error("must not fetch"); });
+    const service = createAnalyticsService(absent.db, config, async () => {
+      throw new Error("must not fetch");
+    });
     expect(await service.getPreference("actor-a")).toEqual({ enabled: false, available: true });
 
     const failed = fakeDatabase({ readError: new Error("private database detail") });
-    await expect(createAnalyticsService(failed.db, config).getPreference("actor-a")).rejects.toThrow();
+    await expect(
+      createAnalyticsService(failed.db, config).getPreference("actor-a"),
+    ).rejects.toThrow();
   });
 
   test("does not acknowledge failed writes or failed authoritative readback", async () => {
     const writeFailure = fakeDatabase({ writeError: new Error("private write detail") });
-    await expect(createAnalyticsService(writeFailure.db, config).setPreference("actor-a", false)).rejects.toThrow();
+    await expect(
+      createAnalyticsService(writeFailure.db, config).setPreference("actor-a", false),
+    ).rejects.toThrow();
     expect(writeFailure.writes).toEqual([]);
 
     let reads = 0;
@@ -74,20 +89,38 @@ describe("analytics service consent persistence", () => {
     const db = Object.assign(Object.create(readbackFailure.db), {
       select() {
         reads += 1;
-        if (reads > 0) return { from() { return this; }, where() { return this; }, limit() { return Promise.reject(new Error("private read detail")); } };
+        if (reads > 0)
+          return {
+            from() {
+              return this;
+            },
+            where() {
+              return this;
+            },
+            limit() {
+              return Promise.reject(new Error("private read detail"));
+            },
+          };
         return readbackFailure.db.select();
       },
     }) as Database;
-    await expect(createAnalyticsService(db, config).setPreference("actor-a", false)).rejects.toThrow();
+    await expect(
+      createAnalyticsService(db, config).setPreference("actor-a", false),
+    ).rejects.toThrow();
     expect(readbackFailure.writes).toEqual([false]);
   });
 
   test("unavailable enablement fails without writing while revocation is allowed", async () => {
     const fake = fakeDatabase({ enabled: true });
     const service = createAnalyticsService(fake.db, { enabled: false, ipCaptureDisabled: false });
-    await expect(service.setPreference("actor-a", true)).rejects.toThrow("Analytics is unavailable.");
+    await expect(service.setPreference("actor-a", true)).rejects.toThrow(
+      "Analytics is unavailable.",
+    );
     expect(fake.writes).toEqual([]);
-    expect(await service.setPreference("actor-a", false)).toEqual({ enabled: false, available: false });
+    expect(await service.setPreference("actor-a", false)).toEqual({
+      enabled: false,
+      available: false,
+    });
   });
 });
 
@@ -95,13 +128,31 @@ describe("analytics service provider boundary", () => {
   test("off and unconsented states never call provider; failures are best effort", async () => {
     const noConsent = fakeDatabase();
     let calls = 0;
-    const fetch = async () => { calls += 1; return new Response("{\"status\":\"ok\"}"); };
-    expect(await createAnalyticsService(noConsent.db, config, fetch).capture("actor-a", "preferences_opened")).toBe(false);
-    expect(await createAnalyticsService(noConsent.db, { ...config, enabled: false }, fetch).capture("actor-a", "preferences_opened")).toBe(false);
+    const fetch = async () => {
+      calls += 1;
+      return new Response('{"status":"ok"}');
+    };
+    expect(
+      await createAnalyticsService(noConsent.db, config, fetch).capture(
+        "actor-a",
+        "preferences_opened",
+      ),
+    ).toBe(false);
+    expect(
+      await createAnalyticsService(noConsent.db, { ...config, enabled: false }, fetch).capture(
+        "actor-a",
+        "preferences_opened",
+      ),
+    ).toBe(false);
     expect(calls).toBe(0);
 
     const broken = fakeDatabase({ enabled: true, captureError: new Error("private lock detail") });
-    expect(await createAnalyticsService(broken.db, config, fetch).capture("actor-a", "preferences_opened")).toBe(false);
+    expect(
+      await createAnalyticsService(broken.db, config, fetch).capture(
+        "actor-a",
+        "preferences_opened",
+      ),
+    ).toBe(false);
     expect(calls).toBe(0);
   });
 
@@ -110,16 +161,23 @@ describe("analytics service provider boundary", () => {
     const requests: Array<{ url: string; init: RequestInit }> = [];
     const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       requests.push({ url: String(input), init: init! });
-      return new Response("{\"status\":\"ok\"}", { status: 200 });
+      return new Response('{"status":"ok"}', { status: 200 });
     };
     const service = createAnalyticsService(fake.db, config, fetch);
     expect(await service.capture("sensitive-user-id", "preferences_opened")).toBe(true);
     expect(await service.capture("sensitive-user-id", "appearance_control_used")).toBe(true);
     expect(requests).toHaveLength(2);
-    expect(requests.map(({ url }) => url)).toEqual(Array(2).fill("https://eu.i.posthog.com/i/v0/e/"));
+    expect(requests.map(({ url }) => url)).toEqual(
+      Array(2).fill("https://eu.i.posthog.com/i/v0/e/"),
+    );
     const payloads = requests.map(({ init }) => JSON.parse(String(init.body)));
     for (const payload of payloads) {
-      expect(Object.keys(payload).sort()).toEqual(["api_key", "distinct_id", "event", "properties"]);
+      expect(Object.keys(payload).sort()).toEqual([
+        "api_key",
+        "distinct_id",
+        "event",
+        "properties",
+      ]);
       expect(payload).toEqual({
         api_key: "test-project-token",
         event: expect.any(String),

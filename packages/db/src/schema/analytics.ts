@@ -7,7 +7,5 @@ export const analyticsConsent = pgTable("analytics_consent", {
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
   enabled: boolean("enabled").notNull().default(false),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
-    .notNull()
-    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
