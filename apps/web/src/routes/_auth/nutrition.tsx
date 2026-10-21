@@ -1054,8 +1054,9 @@ function AddFood({
               </select>
             )}
           </Field>
-          <div className="flex gap-2">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button
+              className="w-full sm:w-auto"
               onClick={() => void submit()}
               disabled={!preview || log.isPending || createFood.isPending}
             >
@@ -1063,6 +1064,7 @@ function AddFood({
             </Button>
             {chosen || draftNote !== null ? (
               <Button
+                className="w-full sm:w-auto"
                 variant="outline"
                 onClick={() => {
                   reset();
@@ -1355,11 +1357,11 @@ function CopyDay({
             ))}
           </fieldset>
         )}
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button onClick={submit} disabled={selected.size === 0 || copy.isPending}>
             Copy {selected.size} {selected.size === 1 ? "item" : "items"} to {localDate}
           </Button>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
         </div>

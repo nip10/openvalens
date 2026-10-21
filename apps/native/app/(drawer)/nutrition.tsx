@@ -52,7 +52,7 @@ import {
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import { BarcodeScanner } from "@/components/barcode-scanner";
@@ -286,7 +286,7 @@ export default function NutritionScreen() {
         <OutboxBanner outbox={outbox} />
 
         {attention.map((item) => (
-          <AttentionCard key={item.id} item={item} outbox={outbox} />
+          <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
         ))}
 
         {undo ? (
@@ -379,7 +379,12 @@ export default function NutritionScreen() {
           );
         })}
 
-        <CopyDay localDate={localDate} timeZone={timeZone} outbox={outbox} />
+        <CopyDay
+          localDate={localDate}
+          timeZone={timeZone}
+          outbox={outbox}
+          hideNumbers={hideNumbers}
+        />
 
         <Pressable
           onPress={clearDeviceData}
@@ -457,12 +462,12 @@ function OutboxBanner({ outbox }: { outbox: DiaryOutbox }) {
   );
 }
 
-function describeOp(item: QueuedChange): string {
+function describeOp(item: QueuedChange, hideNumbers: boolean): string {
   switch (item.op.kind) {
     case "log":
-      return `Log ${item.preview?.name ?? "food"} (${formatAmount(item.op.input.amount, item.op.input.unit)})`;
+      return `Log ${item.preview?.name ?? "food"} (${hideNumbers ? HIDDEN_VALUE : formatAmount(item.op.input.amount, item.op.input.unit)})`;
     case "update":
-      return `Change to ${formatAmount(item.op.input.amount, item.op.input.unit)}`;
+      return `Change to ${hideNumbers ? HIDDEN_VALUE : formatAmount(item.op.input.amount, item.op.input.unit)}`;
     case "delete":
       return "Delete entry";
     case "restore":
@@ -474,22 +479,30 @@ function describeOp(item: QueuedChange): string {
   }
 }
 
-function AttentionCard({ item, outbox }: { item: QueuedChange; outbox: DiaryOutbox }) {
+function AttentionCard({
+  item,
+  outbox,
+  hideNumbers,
+}: {
+  item: QueuedChange;
+  outbox: DiaryOutbox;
+  hideNumbers: boolean;
+}) {
   const server = item.conflict;
   return (
     <Card variant="secondary" className="gap-2 p-4" accessibilityRole="alert">
       <Text className="font-medium text-foreground">
         {server
           ? DIARY_COPY.conflictTitle
-          : `${SYNC_STATE_LABELS.needs_attention}: ${describeOp(item)}`}
+          : `${SYNC_STATE_LABELS.needs_attention}: ${describeOp(item, hideNumbers)}`}
       </Text>
       {server ? (
         <Text className="text-sm text-muted-foreground">
           Other version: {server.food.name},{" "}
           {server.deleted
             ? "deleted"
-            : `${formatAmount(server.amount, server.unit)}, ${SLOT_LABELS[server.slot]}`}
-          . Your change: {describeOp(item)}.
+            : `${hideNumbers ? HIDDEN_VALUE : formatAmount(server.amount, server.unit)}, ${SLOT_LABELS[server.slot]}`}
+          . Your change: {describeOp(item, hideNumbers)}.
         </Text>
       ) : (
         <Text className="text-sm text-muted-foreground">
@@ -550,7 +563,11 @@ function EntryCard({
     row.kind === "server" ? row.entry.food.source : (row.change.preview?.source ?? "manual");
   const nutrients = rowNutrients(row);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(amount));
+  const [draft, setDraft] = useState(hideNumbers ? "" : String(amount));
+
+  useEffect(() => {
+    if (hideNumbers) setDraft("");
+  }, [hideNumbers]);
 
   const save = () => {
     const value = Number(draft);
@@ -597,7 +614,7 @@ function EntryCard({
         <View className="flex-1 gap-0.5">
           <Text className="font-medium text-foreground">{name}</Text>
           <Text className="text-xs text-muted-foreground">
-            {formatAmount(amount, unit)} · {foodSourceLabel(source)}
+            {hideNumbers ? HIDDEN_VALUE : formatAmount(amount, unit)} · {foodSourceLabel(source)}
           </Text>
           {row.kind === "server" &&
           row.entry.food.source === "off" &&
@@ -630,7 +647,13 @@ function EntryCard({
         <Button
           size="sm"
           variant="secondary"
-          onPress={() => setEditing((value) => !value)}
+          onPress={() =>
+            setEditing((value) => {
+              const next = !value;
+              if (next) setDraft(hideNumbers ? "" : String(amount));
+              return next;
+            })
+          }
           accessibilityLabel={`Edit ${name}`}
         >
           Edit
@@ -729,6 +752,8 @@ function AddFood({
   const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
   /** Set while the quick-add form is a manual draft started from a barcode. */
   const [draftNote, setDraftNote] = useState<string | null>(null);
+  const [saveAsFood, setSaveAsFood] = useState(false);
+  const saveFoodIntent = useRef<{ fingerprint: string; mutationId: string } | null>(null);
 
   // Cached foods stay searchable offline: filtering is local.
   const saved = useMemo(() => {
@@ -791,6 +816,7 @@ function AddFood({
     setQuick(EMPTY_QUICK);
     setDraftNote(null);
     setMode("choose");
+    saveFoodIntent.current = null;
     setOpen(false);
   };
 
@@ -818,7 +844,7 @@ function AddFood({
   const units = basis ? unitsFor(basis) : (["g", "ml", "serving"] as AmountUnit[]);
   const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen) : null;
 
-  const save = () => {
+  const save = async () => {
     if (!preview) return;
     let food: FoodRef;
     let name: string;
@@ -830,10 +856,31 @@ function AddFood({
       source = chosen.source;
       method = chosen.method;
     } else if (mode === "quick" && parsed.ok) {
-      food = { kind: "manual", food: parsed.food };
       name = parsed.food.name;
       source = "manual";
       method = draftNote !== null ? "barcode" : "quick_add";
+      if (saveAsFood) {
+        if (!outbox.online) {
+          announce(
+            "Connect to the internet to save this food. Your diary entry has not been queued.",
+          );
+          return;
+        }
+        const fingerprint = JSON.stringify(parsed.food);
+        if (saveFoodIntent.current?.fingerprint !== fingerprint) {
+          saveFoodIntent.current = { fingerprint, mutationId: newClientMutationId() };
+        }
+        try {
+          const created = await client.nutritionDiary.createFood({
+            ...parsed.food,
+            clientMutationId: saveFoodIntent.current.mutationId,
+          });
+          food = created.ref;
+        } catch {
+          announce(CUSTOM_FOOD_COPY.networkError);
+          return;
+        }
+      } else food = { kind: "manual", food: parsed.food };
     } else return;
     outbox.enqueue({
       op: {
@@ -852,6 +899,7 @@ function AddFood({
       preview: { name, source, nutrients: preview },
     });
     announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
+    saveFoodIntent.current = null;
     close();
   };
 
@@ -1025,7 +1073,7 @@ function AddFood({
           />
         ))}
       </View>
-      <View className="flex-row items-center gap-2">
+      <View className="flex-row flex-wrap items-center gap-2">
         <TextInput
           value={amount}
           onChangeText={setAmount}
@@ -1043,11 +1091,24 @@ function AddFood({
         ))}
       </View>
 
+      {mode === "quick" ? (
+        <Pressable
+          onPress={() => setSaveAsFood((value) => !value)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: saveAsFood }}
+          className="min-h-11 flex-row items-center gap-2"
+        >
+          <Text className="text-foreground">{saveAsFood ? "☑" : "□"}</Text>
+          <Text className="text-sm text-foreground">Save to my foods for next time</Text>
+        </Pressable>
+      ) : null}
+
       {preview ? (
         <View className="gap-1" accessibilityLabel="Review before saving">
           <Text className="text-sm font-medium text-foreground">
             Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
-            {formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]}, {localDate}
+            {hideNumbers ? HIDDEN_VALUE : formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]},{" "}
+            {localDate}
             {mode !== "quick" && chosen
               ? ` · ${chosen.sourceLabel}`
               : draftNote !== null
@@ -1227,13 +1288,15 @@ function CopyDay({
   localDate,
   timeZone,
   outbox,
+  hideNumbers,
 }: {
   localDate: string;
   timeZone: string;
   outbox: DiaryOutbox;
+  hideNumbers: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const fromDate = shiftLocalDate(localDate, -1);
+  const [fromDate, setFromDate] = useState(() => shiftLocalDate(localDate, -1));
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const source = useCacheFirst(
     `${DIARY_CACHE_PREFIX}day:${fromDate}`,
@@ -1265,10 +1328,23 @@ function CopyDay({
   };
   return (
     <Card variant="secondary" className="gap-2 p-4">
-      <Text className="font-medium text-foreground">Copy from {fromDate}</Text>
-      {entries.length === 0 ? (
+      <Text className="font-medium text-foreground">Copy from</Text>
+      <TextInput
+        value={fromDate}
+        onChangeText={(value) => {
+          setFromDate(value);
+          setSelected(new Set());
+        }}
+        accessibilityLabel="Copy from date"
+        placeholder="YYYY-MM-DD"
+        className={inputClass}
+      />
+      {fromDate === localDate ? (
+        <Text className="text-sm text-muted-foreground">Choose a different day.</Text>
+      ) : null}
+      {fromDate !== localDate && entries.length === 0 ? (
         <Text className="text-sm text-muted-foreground">{DIARY_COPY.empty}</Text>
-      ) : (
+      ) : fromDate !== localDate ? (
         entries.map((entry) => {
           const checked = selected.has(entry.id);
           return (
@@ -1287,12 +1363,12 @@ function CopyDay({
               <Text className="text-foreground">{checked ? "[x]" : "[ ]"}</Text>
               <Text className="text-sm text-foreground">
                 {SLOT_LABELS[entry.slot]}: {entry.food.name},{" "}
-                {formatAmount(entry.amount, entry.unit)}
+                {hideNumbers ? HIDDEN_VALUE : formatAmount(entry.amount, entry.unit)}
               </Text>
             </Pressable>
           );
         })
-      )}
+      ) : null}
       <View className="flex-row flex-wrap gap-2">
         <Button onPress={confirm} isDisabled={selected.size === 0}>
           {`Copy ${selected.size} to ${localDate}`}
