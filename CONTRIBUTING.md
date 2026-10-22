@@ -28,6 +28,11 @@ fine; GPL/AGPL code from other projects is not, unless it carries an
 equivalent permission). Bundled datasets keep their own licences and must be
 recorded; non-commercial (CC BY-NC) data is not accepted.
 
+The same rule applies to npm dependencies. CI runs `bun run licenses:check`,
+which fails on any installed package whose licence is missing or outside the
+allowlist in [`scripts/license-audit.ts`](scripts/license-audit.ts). If a
+dependency genuinely needs an exception, document the reason there.
+
 ## Development setup
 
 ```bash

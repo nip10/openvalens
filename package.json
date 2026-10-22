@@ -63,6 +63,7 @@
     "auth:generate": "cd apps/server && bun run auth:generate",
     "docs:generate": "bun scripts/generate-env-docs.ts && oxfmt docs/reference/env.md",
     "docs:check": "bun run docs:generate && git ls-files --error-unmatch docs/reference/env.md && git diff --exit-code -- docs/reference/env.md",
+    "licenses:check": "bun scripts/license-audit.ts",
     "check": "oxlint && oxfmt --write"
   },
   "dependencies": {

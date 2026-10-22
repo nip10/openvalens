@@ -27,6 +27,8 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      - name: Dependency licence audit
+        run: bun run licenses:check
       - name: Check generated environment reference
         run: bun run docs:check
       - run: bunx oxlint
