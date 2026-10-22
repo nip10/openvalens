@@ -11,6 +11,7 @@ import { coachRouter } from "./coach";
 import { cockpitRouter } from "./cockpit";
 import { comparisonRouter } from "./comparison";
 import { cronRouter } from "./cron";
+import { cycleRouter } from "./cycle";
 import { dataRightsRouter } from "./data-rights";
 import { exampleRouter } from "./example";
 import { exerciseCatalogRouter } from "./exercise-catalog";
@@ -55,6 +56,7 @@ export const appRouter = {
   cockpit: cockpitRouter,
   comparison: comparisonRouter,
   cron: cronRouter,
+  cycle: cycleRouter,
   dataRights: dataRightsRouter,
   example: exampleRouter,
   exerciseCatalog: exerciseCatalogRouter,

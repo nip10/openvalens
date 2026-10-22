@@ -4,6 +4,7 @@ export * from "./auth";
 export * from "./body";
 export * from "./clinical";
 export * from "./coach";
+export * from "./cycle";
 export * from "./food-catalog";
 export * from "./exercises";
 export * from "./health-record";
