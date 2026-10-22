@@ -16,7 +16,7 @@ import { lockNutritionSafetyScope } from "./repository";
 /**
  * Per-member nutrition target settings (Issue #80): hide-numbers mode, the
  * direction energy suggestions may take, the active opt-in for the protein
- * reference, a self-declared height and the member's self-declared yes/no
+ * reference, the logging-streak opt-in (#90), a self-declared height and the member's self-declared yes/no
  * declarations. Scoped to the session's organization AND member; a missing
  * row reads as the defaults. Nothing here logs a value or a declaration.
  */
@@ -26,6 +26,8 @@ export type NutritionTargetSettings = {
   hideNumbers: boolean;
   energyDirection: EnergyDirection;
   activeProtein: boolean;
+  /** Opt-in to the logging streak (Issue #90). */
+  streaksEnabled: boolean;
   heightCm: number | null;
   declarations: NutritionDeclaration[];
 };
@@ -35,6 +37,7 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   hideNumbers: false,
   energyDirection: NUTRITION_SAFETY_POLICY.defaultDirection,
   activeProtein: false,
+  streaksEnabled: false,
   heightCm: null,
   declarations: [],
 });
@@ -60,6 +63,7 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
     hideNumbers: row.hideNumbers,
     energyDirection: row.energyDirection,
     activeProtein: row.activeProtein,
+    streaksEnabled: row.streaksEnabled,
     heightCm: row.heightCm,
     // Display order, and nothing outside the known list.
     declarations: NUTRITION_DECLARATIONS.filter((key) => row.declarations.includes(key)),
@@ -97,6 +101,7 @@ export async function updateNutritionTargetSettingsInTransaction(
     hideNumbers: next.hideNumbers,
     energyDirection: next.energyDirection,
     activeProtein: next.activeProtein,
+    streaksEnabled: next.streaksEnabled,
     heightCm: next.heightCm,
     declarations: next.declarations,
     updatedAt: now,

@@ -57,6 +57,7 @@ import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "reac
 
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { Container } from "@/components/container";
+import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
@@ -146,6 +147,17 @@ export default function NutritionScreen() {
   const targets = useQuery({
     ...targetOptions,
     queryKey: [...targetOptions.queryKey, { offlineScope: outbox.scope }],
+    enabled: Boolean(outbox.scope),
+  });
+  // Network only: offline or before the first answer the streak is not shown.
+  // Pending outbox changes are part of the key, so a sync refreshes it.
+  const streakOptions = orpc.nutritionTargets.loggingStreak.queryOptions({ input: { timeZone } });
+  const streak = useQuery({
+    ...streakOptions,
+    queryKey: [
+      ...streakOptions.queryKey,
+      { offlineScope: outbox.scope, pending: outbox.items.length },
+    ],
     enabled: Boolean(outbox.scope),
   });
   const cachedDisplayPreference = outbox.scope
@@ -350,6 +362,8 @@ export default function NutritionScreen() {
             hideNumbers={hideNumbers}
           />
         </Card>
+
+        <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
 
         <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
 

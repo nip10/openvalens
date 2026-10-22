@@ -58,6 +58,7 @@ export const targetSettings = z.object({
   hideNumbers: z.boolean(),
   energyDirection: z.enum(ENERGY_DIRECTIONS),
   activeProtein: z.boolean(),
+  streaksEnabled: z.boolean(),
   heightCm: z.number().nullable(),
   declarations: z.array(z.enum(DECLARATIONS)),
 });
@@ -141,6 +142,7 @@ export const updateSettingsInput = z.strictObject({
   hideNumbers: z.boolean().optional(),
   energyDirection: z.enum(ENERGY_DIRECTIONS).optional(),
   activeProtein: z.boolean().optional(),
+  streaksEnabled: z.boolean().optional(),
   heightCm: z.number().finite().min(100).max(250).nullable().optional(),
   declarations: z.array(z.enum(DECLARATIONS)).max(DECLARATIONS.length).optional(),
   /** Removing an eating-disorder answer needs this deliberate confirmation. */
@@ -166,3 +168,23 @@ export const updateSettingsOutput = z.discriminatedUnion("outcome", [
   }),
 ]);
 export type UpdateSettingsOutput = z.infer<typeof updateSettingsOutput>;
+
+/** Issue #90 — the logging streak. Today is the member's local day in `timeZone`. */
+export const loggingStreakInput = z.strictObject({ timeZone: z.string().min(1).max(64) });
+export const loggingStreakOutput = z.discriminatedUnion("state", [
+  /** Hide-numbers mode, any exclusion, or no adult confirmation: render nothing. */
+  z.object({ state: z.literal("hidden") }),
+  /** Available but not turned on. */
+  z.object({ state: z.literal("off") }),
+  z.object({
+    state: z.literal("on"),
+    current: z.number().int().nonnegative(),
+    freezesAvailable: z.number().int().nonnegative(),
+    /** Last local day on which logging the missed day repairs the streak. */
+    repairAvailableUntil: localDate.nullable(),
+    daysLoggedThisMonth: z.number().int().nonnegative(),
+    lastLoggedDate: localDate.nullable(),
+    milestone: z.number().int().positive().nullable(),
+  }),
+]);
+export type LoggingStreakOutput = z.infer<typeof loggingStreakOutput>;

@@ -25,6 +25,7 @@ import {
   parseTargetForm,
   resolveScopedHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
+import { STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
@@ -351,6 +352,7 @@ function SettingsCard({
   const [hideNumbers, setHideNumbers] = useState(settings.hideNumbers);
   const [direction, setDirection] = useState<EnergyDirection>(settings.energyDirection);
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
+  const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
   const [height, setHeight] = useState(settings.heightCm === null ? "" : String(settings.heightCm));
   const [declarations, setDeclarations] = useState<Declaration[]>(settings.declarations);
   const [message, setMessage] = useState("");
@@ -361,6 +363,7 @@ function SettingsCard({
     setHideNumbers(settings.hideNumbers);
     setDirection(settings.energyDirection);
     setActiveProtein(settings.activeProtein);
+    setStreaksEnabled(settings.streaksEnabled);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
     setDeclarations(settings.declarations);
   }, [settings]);
@@ -387,6 +390,7 @@ function SettingsCard({
       hideNumbers,
       energyDirection: direction,
       activeProtein,
+      streaksEnabled,
       heightCm: parsedHeight.value,
       declarations,
       ...(confirmClearEatingDisorder ? { confirmClearEatingDisorder: true as const } : {}),
@@ -477,6 +481,18 @@ function SettingsCard({
           onValueChange={setActiveProtein}
           accessibilityLabel={TARGET_COPY.activeProtein}
         />
+      </View>
+
+      <View className="gap-1">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="flex-1 text-sm text-foreground">{STREAK_COPY.settingLabel}</Text>
+          <Switch
+            value={streaksEnabled}
+            onValueChange={setStreaksEnabled}
+            accessibilityLabel={STREAK_COPY.settingLabel}
+          />
+        </View>
+        <Text className="text-xs text-muted-foreground">{STREAK_COPY.settingDescription}</Text>
       </View>
 
       <View className="gap-1">

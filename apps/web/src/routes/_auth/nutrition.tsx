@@ -63,6 +63,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { orpc } from "@/utils/orpc";
@@ -124,12 +125,22 @@ function NutritionPage() {
     queryKey: [...targetOptions.queryKey, { offlineScope: scope }],
     enabled: Boolean(scope),
   });
+  const streakOptions = orpc.nutritionTargets.loggingStreak.queryOptions({ input: { timeZone } });
+  const streakQuery = useQuery({
+    ...streakOptions,
+    queryKey: [...streakOptions.queryKey, { offlineScope: scope }],
+    enabled: Boolean(scope),
+  });
   // Unknown preferences fail closed, including first render, date changes and
   // query errors. A successful response is the only authority to show values.
   const hideNumbers = targetsQuery.isSuccess
     ? resolveHideNumbers(targetsQuery.data?.settings.hideNumbers)
     : true;
-  const refresh = () => queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.key() });
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: orpc.nutritionDiary.key() }),
+      queryClient.invalidateQueries({ queryKey: orpc.nutritionTargets.loggingStreak.key() }),
+    ]);
 
   const go = (date: string) => {
     setLocalDate(date);
@@ -228,6 +239,8 @@ function NutritionPage() {
               ) : null}
             </CardContent>
           </Card>
+
+          <LoggingStreakCard streak={streakQuery.isSuccess ? streakQuery.data : undefined} />
 
           <TargetsOnDay
             targets={targetsQuery.data?.targetsOn.targets ?? []}
