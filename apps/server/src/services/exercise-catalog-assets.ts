@@ -59,6 +59,8 @@ const normalizedMetadata = (row: SourceRow) => ({
   snapshotAt: row.parent.snapshotAt?.toISOString() ?? null,
   mediaSnapshotVersion: row.media.snapshotVersion,
   mediaSnapshotAt: row.media.snapshotAt?.toISOString() ?? null,
+  publicationActive: row.media.publicationActive,
+  publicationRevision: row.media.publicationRevision,
   licenseCode: row.media.licenseCode,
   licenseUrl: row.media.licenseUrl,
   author: row.media.author,
@@ -71,6 +73,7 @@ function approved(row: SourceRow): boolean {
   const expectedUrl = row.media.licenseCode ? LICENSE_URLS[row.media.licenseCode] : undefined;
   const cc0 = row.media.licenseCode === "CC0-1.0";
   return row.parent.source === "wger" && row.parent.organizationId === null && row.media.kind === "image" &&
+    row.media.publicationActive && Number.isSafeInteger(row.media.publicationRevision) && row.media.publicationRevision >= 0 &&
     Boolean(row.parent.externalId && row.parent.snapshotVersion && row.parent.snapshotAt) &&
     row.media.snapshotVersion === row.parent.snapshotVersion && sameDate(row.media.snapshotAt, row.parent.snapshotAt!) &&
     Boolean(expectedUrl && row.media.licenseUrl === expectedUrl && row.media.sourceMediaUrl) &&

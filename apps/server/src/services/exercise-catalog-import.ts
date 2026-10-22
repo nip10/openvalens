@@ -1,7 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Database } from "@openvalens/db";
 import {
   exercise,
+  exerciseCatalogAsset,
   exerciseEquipment,
   exerciseMedia,
   exerciseMuscle,
@@ -18,6 +19,7 @@ export type ImportCounts = {
   muscles: number;
   equipment: number;
   media: number;
+  mediaWithdrawn: number;
 };
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -35,6 +37,7 @@ export async function importWgerSnapshot(
     muscles: 0,
     equipment: 0,
     media: 0,
+    mediaWithdrawn: 0,
   };
   for (const item of snapshot.accepted) {
     await db.transaction(async (tx) => {
@@ -174,6 +177,29 @@ export async function importWgerSnapshot(
         } else counts.unchanged++;
         counts.equipment++;
       }
+      const includedMediaIds = new Set(item.media.map((media) => media.sourceExternalMediaId));
+      const existingMedia = await tx
+        .select()
+        .from(exerciseMedia)
+        .where(eq(exerciseMedia.exerciseId, exerciseId));
+      for (const old of existingMedia) {
+        if (!includedMediaIds.has(old.sourceExternalMediaId) && old.publicationActive) {
+          await tx
+            .update(exerciseMedia)
+            .set({ publicationActive: false, publicationRevision: old.publicationRevision + 1 })
+            .where(and(eq(exerciseMedia.id, old.id), eq(exerciseMedia.publicationActive, true)));
+          await tx
+            .update(exerciseCatalogAsset)
+            .set({ state: "withdrawn", updatedAt: new Date() })
+            .where(
+              and(
+                eq(exerciseCatalogAsset.exerciseMediaId, old.id),
+                inArray(exerciseCatalogAsset.state, ["pending", "ready"]),
+              ),
+            );
+          counts.mediaWithdrawn++;
+        }
+      }
       for (const media of item.media) {
         const [old] = await tx
           .select()
@@ -194,6 +220,10 @@ export async function importWgerSnapshot(
           sourceMediaUrl: media.sourceMediaUrl,
           snapshotVersion: item.snapshotVersion,
           snapshotAt: item.snapshotAt,
+          // A withdrawn source-media identity is a permanent publication
+          // tombstone. A later artifact cannot silently re-authorize old bytes.
+          publicationActive: old ? old.publicationActive : true,
+          publicationRevision: old?.publicationRevision ?? 0,
         };
         if (!old) {
           await tx.insert(exerciseMedia).values({
@@ -219,8 +249,8 @@ export async function importWgerSnapshot(
       }
       // Each item in a complete snapshot has replacement child collections.
       // Missing translations and relationships must not remain searchable.
-      // Keep media rows with published manifests: the updated parent snapshot
-      // breaks their evidence binding, so they fail closed instead of serving.
+      // Omitted/rejected media is retained for audit but publication is
+      // explicitly withdrawn above, independent of snapshot version/timestamp.
       const keepTranslationIds = item.translations.map((translation) => translation.languageCode);
       const oldTranslations = await tx
         .select()

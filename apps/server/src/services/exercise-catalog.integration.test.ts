@@ -622,6 +622,212 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
     }
   });
 
+  test("same-version complete replacement withdraws a previously published omitted media item", async () => {
+    const firstSnapshot = fixture("catalog-stable-version-v1");
+    firstSnapshot.results[0]!.id = 7003;
+    const firstBytes = Buffer.from(JSON.stringify(firstSnapshot));
+    const normalized = normalizeWgerSnapshot(firstSnapshot, firstBytes);
+    await importWgerSnapshot(db, normalized);
+    const unrelatedSnapshot = fixture("catalog-stable-version-v1");
+    unrelatedSnapshot.results[0]!.id = 7005;
+    await importWgerSnapshot(
+      db,
+      normalizeWgerSnapshot(unrelatedSnapshot, Buffer.from(JSON.stringify(unrelatedSnapshot))),
+    );
+    const source =
+      await db.execute(sql`select m.id as media_id,e.id as exercise_id,e.external_id,e.snapshot_version,e.snapshot_at,
+      m.source_external_media_id,m.license_code,m.license_url,m.author,m.raw_attribution,m.source_media_url
+      from exercise_media m join exercise e on e.id=m.exercise_id where e.external_id='7003' limit 1`);
+    const row = source.rows[0] as {
+      media_id: number;
+      exercise_id: number;
+      external_id: string;
+      snapshot_version: string;
+      snapshot_at: Date | string;
+      source_external_media_id: string;
+      license_code: string;
+      license_url: string;
+      author: string | null;
+      raw_attribution: string | null;
+      source_media_url: string;
+    };
+    const evidence = {
+      sourceExerciseId: row.exercise_id,
+      sourceExternalExerciseId: row.external_id,
+      exerciseMediaId: row.media_id,
+      sourceExternalMediaId: row.source_external_media_id,
+      snapshotVersion: row.snapshot_version,
+      snapshotAt: new Date(row.snapshot_at),
+      licenseCode: row.license_code,
+      licenseUrl: row.license_url,
+      author: row.author,
+      attribution: row.raw_attribution,
+      sourceUrl: row.source_media_url,
+      transformationNotice:
+        "Image decoded, EXIF-oriented, resized within publication limits, metadata-stripped, and re-encoded as JPEG or PNG.",
+    };
+    const root = await mkdtemp(
+      "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-same-version-",
+    );
+    const storage = new LocalObjectStorage(root);
+    try {
+      const service = createExerciseCatalogAssetService({
+        db,
+        storage,
+        limits: {
+          maxInputBytes: 10 * 1024 * 1024,
+          maxInputPixels: 16_000_000,
+          maxOutputEdge: 2048,
+          maxOutputBytes: 8 * 1024 * 1024,
+          maxPublishedBytes: 8 * 1024 * 1024,
+          storageIdentity: storage.storeIdentity,
+        },
+      });
+      const original = await pngWithMetadata();
+      const digest = createHash("sha256").update(original).digest("hex");
+      const published = await service.ingestLocalAsset({
+        exerciseMediaId: row.media_id,
+        bytes: original,
+        expectedOriginalSha256: digest,
+        publicationEvidence: evidence,
+      });
+      const app = assetHttpApp(true, async () => service);
+      const path = `http://test.local/api/exercise-assets/${published.id}`;
+      expect((await app.fetch(new Request(path))).status).toBe(200);
+
+      // An unchanged complete artifact is idempotent and leaves the same
+      // publication available before the replacement case below.
+      const unchanged = fixture("catalog-stable-version-v1");
+      unchanged.results[0]!.id = 7003;
+      await importWgerSnapshot(
+        db,
+        normalizeWgerSnapshot(unchanged, Buffer.from(JSON.stringify(unchanged))),
+      );
+      const unchangedMetadata = await service.listPublishedMetadata([row.exercise_id]);
+      expect(unchangedMetadata).toHaveLength(1);
+      expect(unchangedMetadata[0]!.media[0]!.assetId).toBe(published.id);
+      expect((await app.fetch(new Request(path))).status).toBe(200);
+
+      const replacement = fixture("catalog-stable-version-v1", false);
+      replacement.results[0]!.id = 7003;
+      replacement.results[0]!.images = [];
+      expect(replacement.snapshotAt).toBe(firstSnapshot.snapshotAt);
+      const replacementResult = await importWgerSnapshot(
+        db,
+        normalizeWgerSnapshot(replacement, Buffer.from(JSON.stringify(replacement))),
+      );
+      expect(replacementResult.rejected).toBe(0);
+      expect(replacementResult.mediaWithdrawn).toBe(1);
+      expect(await service.listPublishedMetadata([row.exercise_id])).toEqual([]);
+      expect(await service.readPublishedAsset(published.id)).toBeNull();
+      expect((await app.fetch(new Request(path))).status).toBe(404);
+      expect(
+        (
+          await db.execute(
+            sql`select publication_active from exercise_media m join exercise e on e.id=m.exercise_id where e.external_id='7005' limit 1`,
+          )
+        ).rows[0],
+      ).toMatchObject({ publication_active: true });
+      const secondReplacement = fixture("catalog-stable-version-v1", false);
+      secondReplacement.results[0]!.id = 7003;
+      secondReplacement.results[0]!.images = [];
+      const repeated = await importWgerSnapshot(
+        db,
+        normalizeWgerSnapshot(secondReplacement, Buffer.from(JSON.stringify(secondReplacement))),
+      );
+      expect(repeated.rejected).toBe(0);
+      expect(repeated.mediaWithdrawn).toBe(0);
+      expect(await service.listPublishedMetadata([row.exercise_id])).toEqual([]);
+      expect(await service.readPublishedAsset(published.id)).toBeNull();
+      const reintroduced = fixture("catalog-stable-version-v1");
+      reintroduced.results[0]!.id = 7003;
+      const reintroducedCounts = await importWgerSnapshot(
+        db,
+        normalizeWgerSnapshot(reintroduced, Buffer.from(JSON.stringify(reintroduced))),
+      );
+      expect(reintroducedCounts.mediaWithdrawn).toBe(0);
+      expect(
+        (
+          await db.execute(
+            sql`select publication_active from exercise_media where id=${row.media_id}`,
+          )
+        ).rows[0],
+      ).toMatchObject({ publication_active: false });
+      await expect(
+        service.ingestLocalAsset({
+          exerciseMediaId: row.media_id,
+          bytes: original,
+          expectedOriginalSha256: digest,
+          publicationEvidence: evidence,
+        }),
+      ).rejects.toMatchObject({ code: "ineligible" });
+
+      const unknownSnapshot = fixture("catalog-stable-version-v1");
+      unknownSnapshot.results[0]!.id = 7004;
+      await importWgerSnapshot(
+        db,
+        normalizeWgerSnapshot(unknownSnapshot, Buffer.from(JSON.stringify(unknownSnapshot))),
+      );
+      const unknownSource =
+        await db.execute(sql`select m.id as media_id,e.id as exercise_id,e.external_id,e.snapshot_version,e.snapshot_at,
+        m.source_external_media_id,m.license_code,m.license_url,m.author,m.raw_attribution,m.source_media_url
+        from exercise_media m join exercise e on e.id=m.exercise_id where e.external_id='7004' limit 1`);
+      const unknown = unknownSource.rows[0] as typeof row;
+      const unknownEvidence = {
+        ...evidence,
+        sourceExerciseId: unknown.exercise_id,
+        sourceExternalExerciseId: unknown.external_id,
+        exerciseMediaId: unknown.media_id,
+        sourceExternalMediaId: unknown.source_external_media_id,
+        snapshotVersion: unknown.snapshot_version,
+        snapshotAt: new Date(unknown.snapshot_at),
+        licenseCode: unknown.license_code,
+        licenseUrl: unknown.license_url,
+        author: unknown.author,
+        attribution: unknown.raw_attribution,
+        sourceUrl: unknown.source_media_url,
+      };
+      const unknownPublished = await service.ingestLocalAsset({
+        exerciseMediaId: unknown.media_id,
+        bytes: original,
+        expectedOriginalSha256: digest,
+        publicationEvidence: unknownEvidence,
+      });
+      const deniedArtifact = fixture("catalog-stable-version-v1");
+      deniedArtifact.results[0]!.id = 7004;
+      deniedArtifact.results[0]!.images[0]!.license = {
+        short_name: "UNKNOWN",
+        url: "https://example.test/license",
+      };
+      const deniedNormalized = normalizeWgerSnapshot(
+        deniedArtifact,
+        Buffer.from(JSON.stringify(deniedArtifact)),
+      );
+      expect(deniedNormalized.rejectedMedia).toBe(1);
+      const deniedImport = await importWgerSnapshot(db, deniedNormalized);
+      expect(deniedImport.mediaWithdrawn).toBe(1);
+      expect(await service.listPublishedMetadata([unknown.exercise_id])).toEqual([]);
+      expect(await service.readPublishedAsset(unknownPublished.id)).toBeNull();
+      expect(
+        (
+          await app.fetch(
+            new Request(`http://test.local/api/exercise-assets/${unknownPublished.id}`),
+          )
+        ).status,
+      ).toBe(404);
+      await expect(
+        service.ingestLocalAsset({
+          exerciseMediaId: unknown.media_id,
+          bytes: original,
+          expectedOriginalSha256: digest,
+          publicationEvidence: unknownEvidence,
+        }),
+      ).rejects.toMatchObject({ code: "ineligible" });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("CLI dry-run is write-free and two explicit applies are idempotent in isolated Bun processes", async () => {
     const input = fixture("cli-pinned-fixture-v1");
     input.results[0]!.id = 7002;

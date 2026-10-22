@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
@@ -122,12 +123,15 @@ export const exerciseMedia = pgTable(
     sourceMediaUrl: text("source_media_url"),
     snapshotVersion: text("snapshot_version"),
     snapshotAt: timestamp("snapshot_at", { withTimezone: true, mode: "date" }),
+    publicationActive: boolean("publication_active").notNull().default(true),
+    publicationRevision: integer("publication_revision").notNull().default(0),
     storedObjectId: text("stored_object_id").references(() => storedObject.id, { onDelete: "set null" }),
   },
   (table) => ({
     exerciseMediaUnique: uniqueIndex("exercise_media_exercise_source_id_key").on(table.exerciseId, table.sourceExternalMediaId),
     exerciseMediaExerciseIdx: index("exercise_media_exercise_id_idx").on(table.exerciseId),
     exerciseMediaKindCheck: check("exercise_media_kind_check", sql`${table.kind} in ('image', 'video') and length(${table.sourceExternalMediaId}) > 0`),
+    exerciseMediaPublicationRevisionCheck: check("exercise_media_publication_revision_check", sql`${table.publicationRevision} >= 0`),
   }),
 );
 
