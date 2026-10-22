@@ -18,8 +18,8 @@ export type NormalizedExercise = {
   externalId: string;
   name: string;
   category: string | null;
-  licenseCode: string;
-  licenseUrl: string;
+  licenseCode: string | null;
+  licenseUrl: string | null;
   author: string | null;
   rawAttribution: string | null;
   sourceLicenseMetadata: string;
@@ -156,6 +156,7 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
     reasons[reason] = (reasons[reason] ?? 0) + 1;
   };
   const accepted: NormalizedExercise[] = [];
+  const seenIds = new Set<string>();
   let rejectedTranslations = 0;
   let rejectedMedia = 0;
   for (const raw of items) {
@@ -165,6 +166,11 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
       reject("invalid_external_id_or_record");
       continue;
     }
+    if (seenIds.has(id)) {
+      reject("duplicate_external_id");
+      continue;
+    }
+    seenIds.add(id);
     const exerciseRow = row;
     const translationRows =
       Array.isArray(row.translations) && row.translations.length <= 100 ? row.translations : null;
@@ -287,17 +293,24 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
       reject("ambiguous_translation_language");
       continue;
     }
+    const hasDeclaredBaseLicense = row.baseLicense !== undefined;
+    const baseLicense = hasDeclaredBaseLicense ? licenseInfo(row.baseLicense, licenses) : null;
+    const baseAuthor = nonempty(row.baseAuthor) ?? nonempty(row.author);
     accepted.push({
       externalId: id,
       name: canonical.name,
       category: nonempty(object(row.category)?.name),
-      licenseCode: canonical.licenseCode,
-      licenseUrl: canonical.licenseUrl,
-      author: canonical.author,
-      rawAttribution: canonical.rawAttribution,
+      licenseCode: hasDeclaredBaseLicense ? (baseLicense?.code ?? null) : canonical.licenseCode,
+      licenseUrl: hasDeclaredBaseLicense ? (baseLicense?.url ?? null) : canonical.licenseUrl,
+      author: hasDeclaredBaseLicense ? baseAuthor : canonical.author,
+      rawAttribution: hasDeclaredBaseLicense
+        ? nonempty(row.baseAttribution)
+        : canonical.rawAttribution,
       sourceLicenseMetadata: JSON.stringify({
         canonicalNameLanguage: canonical.languageCode,
         canonicalNameLicense: canonical.licenseCode,
+        declaredBaseLicense: baseLicense?.code ?? null,
+        declaredBaseAuthor: baseAuthor,
         translationSourceUrl: canonical.sourceUrl,
         artifactSha256: createHash("sha256").update(bytes).digest("hex"),
       }),

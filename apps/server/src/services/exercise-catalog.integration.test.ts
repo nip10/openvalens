@@ -1,5 +1,5 @@
 import { readdir } from "node:fs/promises";
-import { mkdtemp, rm, writeFile, symlink, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, writeFile, symlink, mkdir, readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -161,6 +161,80 @@ const fixture = (version: string, translations = true) => ({
       ],
     },
   ],
+});
+
+describe("exercise catalog rights normalization", () => {
+  test("keeps declared base rights independent from selected translation rights and resolves numeric lookups", () => {
+    const value = fixture("independent-rights") as unknown as {
+      lookups?: unknown;
+      results: Array<Record<string, any>>;
+    };
+    value.lookups = {
+      languages: { "1": { id: 1, short_name: "en" } },
+      licenses: {
+        "1": {
+          id: 1,
+          short_name: "CC0-1.0",
+          url: "https://creativecommons.org/publicdomain/zero/1.0/",
+        },
+      },
+    };
+    value.results[0]!.translations = [
+      {
+        language: 1,
+        name: "Rights check",
+        license: 1,
+        sourceUrl: "https://wger.de/api/v2/exerciseinfo/7001/",
+      },
+    ];
+    value.results[0]!.baseLicense = {
+      short_name: "CC-BY-SA-4.0",
+      url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    };
+    value.results[0]!.baseAuthor = "base-author";
+    const normalized = normalizeWgerSnapshot(value, Buffer.from(JSON.stringify(value)));
+    expect(normalized.accepted).toHaveLength(1);
+    expect(normalized.accepted[0]).toMatchObject({
+      licenseCode: "CC-BY-SA-4.0",
+      author: "base-author",
+    });
+    expect(normalized.accepted[0]!.translations[0]).toMatchObject({
+      licenseCode: "CC0-1.0",
+      languageCode: "en",
+    });
+    value.results[0]!.baseLicense = {
+      short_name: "CC-BY-SA-4.0",
+      url: "https://example.test/mismatched-license",
+    };
+    const mismatchedBase = normalizeWgerSnapshot(value, Buffer.from(JSON.stringify(value)));
+    expect(mismatchedBase.accepted[0]).toMatchObject({
+      licenseCode: null,
+      licenseUrl: null,
+      author: "base-author",
+    });
+  });
+
+  test("rejects unknown or mismatched translation rights and missing BY-SA author credit", () => {
+    for (const [code, url, author] of [
+      ["CC-BY-SA-4.0", "https://example.test/not-a-license", "known author"],
+      ["UNKNOWN", "https://creativecommons.org/licenses/by-sa/4.0/", "known author"],
+      ["CC-BY-SA-4.0", "https://creativecommons.org/licenses/by-sa/4.0/", null],
+    ] as const) {
+      const value = fixture(`bad-${code}`) as unknown as { results: Array<Record<string, any>> };
+      value.results[0]!.translations = [
+        {
+          language: { short_name: "en" },
+          name: "Needs rights",
+          sourceUrl: "https://wger.de/api/v2/exerciseinfo/7001/",
+          license: { short_name: code, url },
+          author,
+        },
+      ];
+      expect(
+        normalizeWgerSnapshot(value, Buffer.from(JSON.stringify(value))).accepted,
+      ).toHaveLength(0);
+    }
+  });
 });
 
 describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPCHandler", () => {
@@ -978,4 +1052,119 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       );
     }
   });
+
+  test.skipIf(!process.env.EXERCISE_CATALOG_REAL_SNAPSHOT)(
+    "publishes an independently licensed captured wger image through local storage and HTTP",
+    async () => {
+      const file = process.env.EXERCISE_CATALOG_REAL_SNAPSHOT!;
+      const bytes = await readFile(file);
+      const imported = normalizeWgerSnapshot(JSON.parse(bytes.toString("utf8")) as unknown, bytes);
+      await importWgerSnapshot(db, imported);
+      const sample = imported.accepted[0]!;
+      for (const input of [
+        { query: sample.name, limit: 50 },
+        ...(sample.muscles[0]?.externalMuscleId
+          ? [{ muscleExternalId: sample.muscles[0].externalMuscleId, limit: 50 }]
+          : []),
+        ...(sample.equipment[0]?.externalEquipmentId
+          ? [{ equipmentExternalId: sample.equipment[0].externalEquipmentId, limit: 50 }]
+          : []),
+      ]) {
+        const start = performance.now();
+        const result = await catalog<unknown[]>("search", input);
+        const latencyMs = Number((performance.now() - start).toFixed(2));
+        expect(result.status).toBe(200);
+        expect(result.body.length).toBeGreaterThan(0);
+        console.log(
+          JSON.stringify({
+            performanceFixture: "captured-wger",
+            filter: input,
+            latencyMs,
+            resultCount: result.body.length,
+          }),
+        );
+      }
+      const result =
+        await db.execute(sql`select m.id,e.id as exercise_id,e.external_id,e.snapshot_version,e.snapshot_at,
+      m.source_external_media_id,m.license_code,m.license_url,m.author,m.raw_attribution,m.source_media_url
+      from exercise_media m join exercise e on e.id=m.exercise_id
+      where e.source='wger' and m.license_code in ('CC0-1.0','CC-BY-SA-3.0','CC-BY-SA-4.0')
+        and m.author is not null and m.raw_attribution is not null and m.source_media_url like 'https://wger.de/%'
+      order by m.id limit 1`);
+      const row = result.rows[0] as
+        | {
+            id: number;
+            exercise_id: number;
+            external_id: string;
+            snapshot_version: string;
+            snapshot_at: Date;
+            source_external_media_id: string;
+            license_code: string;
+            license_url: string;
+            author: string;
+            raw_attribution: string;
+            source_media_url: string;
+          }
+        | undefined;
+      expect(row).toBeDefined();
+      const response = await fetch(row!.source_media_url, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(15_000),
+      });
+      expect(response.status).toBe(200);
+      expect(new URL(response.url).origin).toBe("https://wger.de");
+      const original = Buffer.from(await response.arrayBuffer());
+      expect(original.byteLength).toBeGreaterThan(0);
+      expect(original.byteLength).toBeLessThanOrEqual(10 * 1024 * 1024);
+      const root = await mkdtemp(
+        "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-real-media-",
+      );
+      try {
+        const storage = new LocalObjectStorage(root);
+        const service = createExerciseCatalogAssetService({
+          db,
+          storage,
+          limits: {
+            maxInputBytes: 10 * 1024 * 1024,
+            maxInputPixels: 16_000_000,
+            maxOutputEdge: 2048,
+            maxOutputBytes: 8 * 1024 * 1024,
+            maxPublishedBytes: 8 * 1024 * 1024,
+            storageIdentity: storage.storeIdentity,
+          },
+        });
+        const published = await service.ingestLocalAsset({
+          exerciseMediaId: row!.id,
+          bytes: original,
+          expectedOriginalSha256: createHash("sha256").update(original).digest("hex"),
+          publicationEvidence: {
+            sourceExerciseId: row!.exercise_id,
+            sourceExternalExerciseId: row!.external_id,
+            exerciseMediaId: row!.id,
+            sourceExternalMediaId: row!.source_external_media_id,
+            snapshotVersion: row!.snapshot_version,
+            snapshotAt: new Date(row!.snapshot_at),
+            licenseCode: row!.license_code,
+            licenseUrl: row!.license_url,
+            author: row!.author,
+            attribution: row!.raw_attribution,
+            sourceUrl: row!.source_media_url,
+            transformationNotice:
+              "Image decoded, EXIF-oriented, resized within publication limits, metadata-stripped, and re-encoded as JPEG or PNG.",
+          },
+        });
+        expect(published.state).toBe("ready");
+        const app = assetHttpApp(true, async () => service);
+        const served = await app.fetch(
+          new Request(`http://test.local/api/exercise-assets/${published.id}`),
+        );
+        expect(served.status).toBe(200);
+        expect(served.headers.get("content-type")).toMatch(/^image\/(jpeg|png)$/);
+        expect((await served.arrayBuffer()).byteLength).toBe(published.size);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+    30_000,
+  );
 });

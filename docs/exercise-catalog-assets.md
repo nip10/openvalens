@@ -9,8 +9,33 @@ CORS to arbitrary origins. The route serves only current, verified global wger
 manifest entries, never upstream URLs, redirects, signed generic-storage URLs,
 or custom-exercise media.
 
-The operator workflow accepts a local JSON manifest and relative files under an
-explicit input directory:
+The catalog snapshot is prepared explicitly from public wger endpoints. This
+command makes bounded HTTPS requests to the fixed `wger.de` API origin, captures
+all exerciseinfo pages and the license/language lookups, verifies complete
+pagination/counts/unique IDs, and writes a new immutable local artifact (it will
+not overwrite an existing path):
+
+```sh
+bun run exercises:prepare --output ./snapshots/wger-YYYY-MM-DD.json
+bun run exercises:import --file ./snapshots/wger-YYYY-MM-DD.json
+bun run exercises:import --file ./snapshots/wger-YYYY-MM-DD.json --apply
+```
+
+Preparation is operator-only: it is never run at app startup or during library
+views, sends no user/session/auth headers, and never connects to a database.
+The artifact carries its capture timestamp, source URLs, per-response SHA-256
+digests, page counts, and the complete adapted records. The importer's normal
+default remains dry-run; only its separate `--apply` opens the explicitly
+configured database. Missing/unknown/mismatched rights and incomplete English
+attribution are rejected rather than guessed. Public source descriptions use
+`description_source` where present; otherwise descriptions remain plain text.
+Entity, translation, and image rights are independent. Image eligibility is
+always based on that image's own source/license/author evidence, never exercise
+or translation rights. CC BY-SA derivatives require independent attribution
+and share-alike review; this tooling is not legal certification.
+
+The media-import operator workflow accepts a local JSON manifest and relative
+files under an explicit input directory:
 
 ```sh
 bun run exercises:media-import --manifest ./exercise-media.json --input-dir ./media

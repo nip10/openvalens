@@ -50,6 +50,7 @@
     "db:watch": "docker compose up postgres",
     "db:stop": "docker compose stop postgres",
     "exercises:import": "bun scripts/import-exercises.ts",
+    "exercises:prepare": "bun scripts/prepare-exercises.ts",
     "exercises:media-import": "bun apps/server/src/exercise-media-import.ts",
     "db:down": "docker compose down postgres",
     "docker:build": "docker compose build",
