@@ -59,3 +59,21 @@ every result carries its source, version, release and attribution.
 
 INSA/PortFIR and other regional databases are not used without written
 permission and a license review. Commercial food databases are not used.
+
+## Exercise library (Issue #93)
+
+| Source                   | Tables                                                                                                       | License                                                                                                                                                                                                      | Attribution                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| [wger](https://wger.de/) | `exercise`, `exercise_translation`, `exercise_media`, `exercise_catalog_asset` (rows with `source = 'wger'`) | Per entry: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) or [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | "From wger · <licence> · <author>" on every exercise and image |
+
+- Operators capture a wger snapshot with `bun run exercises:prepare` and import
+  it with `bun run exercises:import`; nothing from wger is committed here.
+- Each exercise, translation and image keeps its own licence, author, source URL
+  and snapshot version. Records without a recognised licence, or CC BY-SA
+  records without an author, are rejected rather than imported.
+- Images are served from the instance's own storage, never hotlinked. They are
+  re-encoded before publication, so each published image carries a
+  modification notice and stays under its original CC BY-SA licence
+  (share-alike).
+- When a later snapshot rejects a record, its rights fields are cleared and its
+  images are withdrawn from publication.
