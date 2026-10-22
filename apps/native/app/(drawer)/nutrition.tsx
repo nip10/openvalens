@@ -52,7 +52,7 @@ import {
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import { BarcodeScanner } from "@/components/barcode-scanner";
@@ -62,9 +62,13 @@ import { PlainWaterSection } from "@/components/plain-water-section";
 import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
 import { mergeDay, type DiaryRow, type QueuedChange } from "@/lib/nutrition/outbox";
 import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutrition/sync";
-import { AddFoodSaveController } from "@/lib/nutrition/save-intent";
+import { completeAddFoodCreation, useAddFoodSaveLifecycle } from "@/lib/nutrition/save-intent";
 import { readCache, writeCache } from "@/lib/offline/cache";
-import { isOfflineWriteTicketCurrent, useCacheFirst } from "@/lib/offline/sync";
+import {
+  isOfflineWriteTicketCurrent,
+  useCacheFirst,
+  useOfflineWriteSessionKey,
+} from "@/lib/offline/sync";
 import { client, orpc } from "@/utils/orpc";
 
 /**
@@ -98,14 +102,17 @@ function Chip({
   label,
   selected,
   onPress,
+  disabled = false,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={`min-h-11 justify-center rounded-lg border px-3 ${selected ? "border-foreground bg-accent" : "border-border"}`}
@@ -124,6 +131,7 @@ export default function NutritionScreen() {
   const timeZone = useMemo(() => deviceTimeZone(), []);
   const [localDate, setLocalDate] = useState(() => localDateIn(timeZone));
   const outbox = useDiaryOutbox();
+  const sessionKey = useOfflineWriteSessionKey();
   const day = useCacheFirst(
     `${DIARY_CACHE_PREFIX}day:${localDate}`,
     orpc.nutritionDiary.getDay.queryOptions({ input: { localDate } }),
@@ -353,6 +361,7 @@ export default function NutritionScreen() {
         />
 
         <AddFood
+          contextKey={`${outbox.scope ?? "signed-out"}\u001f${sessionKey ?? "signed-out"}\u001f${localDate}\u001f${timeZone}`}
           localDate={localDate}
           timeZone={timeZone}
           foods={foods.data}
@@ -713,14 +722,17 @@ function CandidateRow({
   candidate,
   selected,
   onPress,
+  disabled = false,
 }: {
   candidate: FoodCandidate;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={`min-h-11 justify-center rounded-lg px-3 ${selected ? "bg-accent" : ""}`}
@@ -747,12 +759,14 @@ function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[]
 }
 
 function AddFood({
+  contextKey,
   localDate,
   timeZone,
   foods,
   outbox,
   hideNumbers,
 }: {
+  contextKey: string;
   localDate: string;
   timeZone: string;
   foods:
@@ -776,15 +790,8 @@ function AddFood({
   /** Set while the quick-add form is a manual draft started from a barcode. */
   const [draftNote, setDraftNote] = useState<string | null>(null);
   const [saveAsFood, setSaveAsFood] = useState(false);
-  const saveController = useRef(new AddFoodSaveController());
-  const submissionScope = useRef(outbox.scope);
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    if (submissionScope.current === outbox.scope) return;
-    submissionScope.current = outbox.scope;
-    saveController.current.invalidate();
-    setSaving(false);
-  }, [outbox.scope]);
+  const lifecycle = useAddFoodSaveLifecycle(contextKey);
+  const { editable } = lifecycle;
 
   // Cached foods stay searchable offline: filtering is local.
   const saved = useMemo(() => {
@@ -820,6 +827,7 @@ function AddFood({
   if (!open) return <Button onPress={() => setOpen(true)}>{DIARY_COPY.addFood}</Button>;
 
   const select = (candidate: FoodCandidate) => {
+    if (!lifecycle.canMutate()) return;
     setChosen(candidate);
     const first = unitsFor(candidate.basis)[0] ?? "g";
     setUnit(first);
@@ -827,12 +835,14 @@ function AddFood({
   };
 
   const switchMode = (next: typeof mode) => {
+    if (!lifecycle.canMutate()) return;
     setMode(next);
     setChosen(null);
     if (next !== "quick") setDraftNote(null);
   };
 
   const startManualDraft = (barcode: string | null, note: string) => {
+    if (!lifecycle.canMutate()) return;
     setQuick(manualDraftFields(barcode));
     setDraftNote(note);
     setChosen(null);
@@ -843,8 +853,7 @@ function AddFood({
   };
 
   const close = () => {
-    saveController.current.invalidate();
-    setSaving(false);
+    lifecycle.invalidate();
     setChosen(null);
     setQuick(EMPTY_QUICK);
     setDraftNote(null);
@@ -881,7 +890,7 @@ function AddFood({
 
   const save = async () => {
     if (!preview) return;
-    setSaving(true);
+    if (!lifecycle.canMutate()) return;
     const ticket = outbox.beginWrite();
     const ownerScope = outbox.scope;
     const fingerprint = JSON.stringify({
@@ -891,14 +900,16 @@ function AddFood({
       unit,
       slot,
     });
-    const intent = saveController.current.begin(ticket, fingerprint, newClientMutationId);
-    if (!intent) {
-      setSaving(true);
-      return;
-    }
-    const isCurrent = () => saveController.current.isCurrent(intent);
+    const intent = lifecycle.begin(ticket, fingerprint, newClientMutationId);
+    if (!intent) return;
+    const isCurrent = () =>
+      lifecycle.controller.isCurrent(intent) &&
+      lifecycle.contextKey === contextKey &&
+      outbox.scope === ownerScope &&
+      !!ticket &&
+      isOfflineWriteTicketCurrent(ticket, ownerScope ?? "");
     const release = () => {
-      if (saveController.current.release(intent)) setSaving(false);
+      lifecycle.release(intent);
     };
     if (!ticket || !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")) {
       release();
@@ -925,26 +936,37 @@ function AddFood({
           release();
           return;
         }
-        try {
-          const created = await client.nutritionDiary.createFood({
-            ...parsed.food,
-            clientMutationId: intent.createMutationId,
-          });
-          if (
-            !isCurrent() ||
-            outbox.scope !== ownerScope ||
-            !ticket ||
-            !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")
-          ) {
-            release();
-            return;
-          }
-          food = created.ref;
-        } catch {
-          if (isCurrent() && outbox.scope === ownerScope) announce(CUSTOM_FOOD_COPY.networkError);
-          release();
-          return;
-        }
+        await completeAddFoodCreation({
+          intent,
+          isCurrent,
+          create: (clientMutationId) =>
+            client.nutritionDiary.createFood({ ...parsed.food, clientMutationId }),
+          enqueue: (created) =>
+            outbox.enqueueForIntent(ticket, {
+              op: {
+                kind: "log",
+                input: {
+                  clientMutationId: intent.diaryMutationId,
+                  localDate,
+                  timeZone,
+                  slot,
+                  food: created.ref,
+                  amount: Number(amount),
+                  unit,
+                  method,
+                },
+              },
+              preview: { name, source, nutrients: preview },
+            }),
+          finish: lifecycle.finish,
+          release: lifecycle.release,
+          onError: () => announce(CUSTOM_FOOD_COPY.networkError),
+          onStored: () => {
+            announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
+            close();
+          },
+        });
+        return;
       } else food = { kind: "manual", food: parsed.food };
     } else {
       release();
@@ -980,7 +1002,7 @@ function AddFood({
       return;
     }
     announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
-    saveController.current.finish(intent);
+    lifecycle.finish(intent);
     close();
     return;
   };
@@ -990,246 +1012,285 @@ function AddFood({
       <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
         {DIARY_COPY.addFood}
       </Text>
-      <View pointerEvents={saving ? "none" : "auto"}>
-        <View className="flex-row flex-wrap gap-2">
-          <Chip
-            label="Search and recents"
-            selected={mode === "choose"}
-            onPress={() => switchMode("choose")}
+      <View className="flex-row flex-wrap gap-2">
+        <Chip
+          label="Search and recents"
+          selected={mode === "choose"}
+          onPress={() => switchMode("choose")}
+          disabled={!editable}
+        />
+        <Chip
+          label={BARCODE_COPY.mode}
+          selected={mode === "barcode"}
+          onPress={() => switchMode("barcode")}
+          disabled={!editable}
+        />
+        <Chip
+          label="Quick add"
+          selected={mode === "quick"}
+          onPress={() => switchMode("quick")}
+          disabled={!editable}
+        />
+      </View>
+      {mode === "choose" ? (
+        <View className="gap-2">
+          <TextInput
+            value={query}
+            editable={editable}
+            onChangeText={lifecycle.bindMutation(setQuery)}
+            placeholder={BARCODE_COPY.searchLabel}
+            accessibilityLabel={BARCODE_COPY.searchLabel}
+            accessibilityHint={BARCODE_COPY.searchHint}
+            className={inputClass}
+            placeholderTextColor="#9ca3af"
           />
-          <Chip
-            label={BARCODE_COPY.mode}
-            selected={mode === "barcode"}
-            onPress={() => switchMode("barcode")}
-          />
-          <Chip label="Quick add" selected={mode === "quick"} onPress={() => switchMode("quick")} />
-        </View>
-        {mode === "choose" ? (
-          <View className="gap-2">
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={BARCODE_COPY.searchLabel}
-              accessibilityLabel={BARCODE_COPY.searchLabel}
-              accessibilityHint={BARCODE_COPY.searchHint}
-              className={inputClass}
-              placeholderTextColor="#9ca3af"
-            />
-            <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-              {BARCODE_COPY.savedFoods}
+          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+            {BARCODE_COPY.savedFoods}
+          </Text>
+          {saved.length === 0 ? (
+            <Text className="text-sm text-muted-foreground">
+              {query.trim()
+                ? BARCODE_COPY.searchEmpty
+                : "No saved or recent foods yet. Search, scan a barcode or use quick add."}
             </Text>
-            {saved.length === 0 ? (
-              <Text className="text-sm text-muted-foreground">
-                {query.trim()
-                  ? BARCODE_COPY.searchEmpty
-                  : "No saved or recent foods yet. Search, scan a barcode or use quick add."}
-              </Text>
-            ) : (
-              saved
-                .slice(0, 15)
-                .map((candidate) => (
-                  <CandidateRow
-                    key={candidate.key}
-                    candidate={candidate}
-                    selected={chosen?.key === candidate.key}
-                    onPress={() => select(candidate)}
-                  />
-                ))
-            )}
-            <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-              {BARCODE_COPY.searchResults}
-            </Text>
-            {!outbox.online ? (
-              <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchOffline}</Text>
-            ) : !searchable ? (
-              <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchHint}</Text>
-            ) : search.isPending ? (
-              <Spinner />
-            ) : search.isError ? (
-              <Pressable onPress={() => void search.refetch()} accessibilityRole="button">
-                <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-                  {BARCODE_COPY.searchFailed} {DIARY_COPY.retry}
-                </Text>
-              </Pressable>
-            ) : found.length === 0 ? (
+          ) : (
+            saved
+              .slice(0, 15)
+              .map((candidate) => (
+                <CandidateRow
+                  key={candidate.key}
+                  candidate={candidate}
+                  selected={chosen?.key === candidate.key}
+                  onPress={() => select(candidate)}
+                  disabled={!editable}
+                />
+              ))
+          )}
+          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+            {BARCODE_COPY.searchResults}
+          </Text>
+          {!outbox.online ? (
+            <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchOffline}</Text>
+          ) : !searchable ? (
+            <Text className="text-sm text-muted-foreground">{BARCODE_COPY.searchHint}</Text>
+          ) : search.isPending ? (
+            <Spinner />
+          ) : search.isError ? (
+            <Pressable
+              disabled={!editable}
+              onPress={() => {
+                if (lifecycle.canMutate()) void search.refetch();
+              }}
+              accessibilityRole="button"
+            >
               <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-                {BARCODE_COPY.searchEmpty}
+                {BARCODE_COPY.searchFailed} {DIARY_COPY.retry}
               </Text>
-            ) : (
-              <>
-                {found.slice(0, 20).map((candidate) => (
-                  <CandidateRow
-                    key={candidate.key}
-                    candidate={candidate}
-                    selected={chosen?.key === candidate.key}
-                    onPress={() => select(candidate)}
-                  />
-                ))}
-                <AttributionNotes candidates={found.slice(0, 20)} />
-              </>
-            )}
-          </View>
-        ) : mode === "barcode" ? (
-          <BarcodePanel
-            outbox={outbox}
-            chosen={chosen}
-            onSelect={select}
-            onManualDraft={startManualDraft}
-          />
-        ) : (
-          <View className="gap-2">
-            {draftNote ? (
-              <View className="gap-1 rounded-lg border border-border p-3">
-                <Text className="text-sm text-foreground">{draftNote}</Text>
-                <Text className="text-sm text-muted-foreground">{BARCODE_COPY.manualNote}</Text>
-              </View>
-            ) : null}
-            <TextInput
-              value={quick.name}
-              onChangeText={(name) => setQuick({ ...quick, name })}
-              placeholder="Food name"
-              accessibilityLabel="Food name"
-              className={inputClass}
-              placeholderTextColor="#9ca3af"
-            />
-            <View className="flex-row flex-wrap items-center gap-2">
-              <Text className="text-sm text-foreground">Values per</Text>
-              <TextInput
-                value={quick.basisAmount}
-                onChangeText={(basisAmount) => setQuick({ ...quick, basisAmount })}
-                keyboardType="numeric"
-                accessibilityLabel="Values per amount"
-                className={`${inputClass} w-20`}
-              />
-              {(["g", "ml", "serving"] as AmountUnit[]).map((option) => (
-                <Chip
-                  key={option}
-                  label={option}
-                  selected={quick.basisUnit === option}
-                  onPress={() => {
-                    setQuick({ ...quick, basisUnit: option });
-                    setUnit(option);
-                  }}
+            </Pressable>
+          ) : found.length === 0 ? (
+            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              {BARCODE_COPY.searchEmpty}
+            </Text>
+          ) : (
+            <>
+              {found.slice(0, 20).map((candidate) => (
+                <CandidateRow
+                  key={candidate.key}
+                  candidate={candidate}
+                  selected={chosen?.key === candidate.key}
+                  onPress={() => select(candidate)}
+                  disabled={!editable}
                 />
               ))}
+              <AttributionNotes candidates={found.slice(0, 20)} />
+            </>
+          )}
+        </View>
+      ) : mode === "barcode" ? (
+        <BarcodePanel
+          outbox={outbox}
+          chosen={chosen}
+          onSelect={select}
+          onManualDraft={startManualDraft}
+          disabled={!editable}
+          canMutate={lifecycle.canMutate}
+        />
+      ) : (
+        <View className="gap-2">
+          {draftNote ? (
+            <View className="gap-1 rounded-lg border border-border p-3">
+              <Text className="text-sm text-foreground">{draftNote}</Text>
+              <Text className="text-sm text-muted-foreground">{BARCODE_COPY.manualNote}</Text>
             </View>
-            {QUICK_NUTRIENTS.map((key) => (
-              <TextInput
-                key={key}
-                value={quick.nutrients[key] ?? ""}
-                onChangeText={(text) =>
-                  setQuick({
-                    ...quick,
-                    nutrients: { ...quick.nutrients, [key]: text },
-                  })
-                }
-                keyboardType="numeric"
-                placeholder={`${NUTRIENT_LABELS[key].label} (${NUTRIENT_LABELS[key].unit}, optional)`}
-                accessibilityLabel={`${NUTRIENT_LABELS[key].label} in ${NUTRIENT_LABELS[key].unit}, optional`}
-                className={inputClass}
-                placeholderTextColor="#9ca3af"
+          ) : null}
+          <TextInput
+            value={quick.name}
+            editable={editable}
+            onChangeText={lifecycle.bindMutation((name) => setQuick({ ...quick, name }))}
+            placeholder="Food name"
+            accessibilityLabel="Food name"
+            className={inputClass}
+            placeholderTextColor="#9ca3af"
+          />
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Text className="text-sm text-foreground">Values per</Text>
+            <TextInput
+              value={quick.basisAmount}
+              editable={editable}
+              onChangeText={lifecycle.bindMutation((basisAmount) =>
+                setQuick({ ...quick, basisAmount }),
+              )}
+              keyboardType="numeric"
+              accessibilityLabel="Values per amount"
+              className={`${inputClass} w-20`}
+            />
+            {(["g", "ml", "serving"] as AmountUnit[]).map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                selected={quick.basisUnit === option}
+                disabled={!editable}
+                onPress={() => {
+                  if (!lifecycle.canMutate()) return;
+                  setQuick({ ...quick, basisUnit: option });
+                  setUnit(option);
+                }}
               />
             ))}
-            {draftNote !== null ? (
-              <TextInput
-                value={quick.barcode ?? ""}
-                onChangeText={(barcode) => setQuick({ ...quick, barcode })}
-                keyboardType="number-pad"
-                placeholder={`${BARCODE_COPY.barcodeOnDraft}, optional`}
-                accessibilityLabel={`${BARCODE_COPY.barcodeOnDraft}, optional`}
-                className={inputClass}
-                placeholderTextColor="#9ca3af"
-              />
-            ) : null}
-            {!parsed.ok && quick.name ? (
-              <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-                {parsed.error}
-              </Text>
-            ) : null}
           </View>
-        )}
-
-        <View className="flex-row flex-wrap gap-2" accessibilityLabel="Meal">
-          {MEAL_SLOTS.map((option) => (
-            <Chip
-              key={option}
-              label={SLOT_LABELS[option]}
-              selected={slot === option}
-              onPress={() => setSlot(option)}
+          {QUICK_NUTRIENTS.map((key) => (
+            <TextInput
+              key={key}
+              value={quick.nutrients[key] ?? ""}
+              editable={editable}
+              onChangeText={lifecycle.bindMutation((text) =>
+                setQuick({
+                  ...quick,
+                  nutrients: { ...quick.nutrients, [key]: text },
+                }),
+              )}
+              keyboardType="numeric"
+              placeholder={`${NUTRIENT_LABELS[key].label} (${NUTRIENT_LABELS[key].unit}, optional)`}
+              accessibilityLabel={`${NUTRIENT_LABELS[key].label} in ${NUTRIENT_LABELS[key].unit}, optional`}
+              className={inputClass}
+              placeholderTextColor="#9ca3af"
             />
           ))}
+          {draftNote !== null ? (
+            <TextInput
+              value={quick.barcode ?? ""}
+              editable={editable}
+              onChangeText={lifecycle.bindMutation((barcode) => setQuick({ ...quick, barcode }))}
+              keyboardType="number-pad"
+              placeholder={`${BARCODE_COPY.barcodeOnDraft}, optional`}
+              accessibilityLabel={`${BARCODE_COPY.barcodeOnDraft}, optional`}
+              className={inputClass}
+              placeholderTextColor="#9ca3af"
+            />
+          ) : null}
+          {!parsed.ok && quick.name ? (
+            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              {parsed.error}
+            </Text>
+          ) : null}
         </View>
-        <View className="flex-row flex-wrap items-center gap-2">
-          <TextInput
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            accessibilityLabel="Amount"
-            className={`${inputClass} w-24`}
+      )}
+
+      <View className="flex-row flex-wrap gap-2" accessibilityLabel="Meal">
+        {MEAL_SLOTS.map((option) => (
+          <Chip
+            key={option}
+            label={SLOT_LABELS[option]}
+            selected={slot === option}
+            onPress={() => {
+              if (lifecycle.canMutate()) setSlot(option);
+            }}
+            disabled={!editable}
           />
-          {units.map((option) => (
-            <Chip
-              key={option}
-              label={option}
-              selected={unit === option}
-              onPress={() => setUnit(option)}
-            />
-          ))}
-        </View>
-
-        {mode === "quick" ? (
-          <Pressable
-            onPress={() => setSaveAsFood((value) => !value)}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: saveAsFood }}
-            className="min-h-11 flex-row items-center gap-2"
-          >
-            <Text className="text-foreground">{saveAsFood ? "☑" : "□"}</Text>
-            <Text className="text-sm text-foreground">Save to my foods for next time</Text>
-          </Pressable>
-        ) : null}
-
-        {preview ? (
-          <View className="gap-1" accessibilityLabel="Review before saving">
-            <Text className="text-sm font-medium text-foreground">
-              Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
-              {hideNumbers ? HIDDEN_VALUE : formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]}
-              , {localDate}
-              {mode !== "quick" && chosen
-                ? ` · ${chosen.sourceLabel}`
-                : draftNote !== null
-                  ? " · Entered by you"
-                  : ""}
-            </Text>
-            <Text className="text-sm text-muted-foreground">
-              {hideNumbers
-                ? HIDDEN_VALUE
-                : SUMMARY_NUTRIENTS.map(
-                    (key) =>
-                      `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
-                  ).join(" · ")}
-            </Text>
-            {missingNote ? (
-              <Text className="text-sm text-muted-foreground">{missingNote}</Text>
-            ) : null}
-            {mode !== "quick" && chosen?.attribution ? (
-              <Text className="text-xs text-muted-foreground">{chosen.attribution}</Text>
-            ) : null}
-            {mode === "barcode" ? (
-              <Text className="text-xs text-muted-foreground">{BARCODE_COPY.verify}</Text>
-            ) : null}
-          </View>
-        ) : null}
+        ))}
       </View>
+      <View className="flex-row flex-wrap items-center gap-2">
+        <TextInput
+          value={amount}
+          editable={editable}
+          onChangeText={lifecycle.bindMutation(setAmount)}
+          keyboardType="numeric"
+          accessibilityLabel="Amount"
+          className={`${inputClass} w-24`}
+        />
+        {units.map((option) => (
+          <Chip
+            key={option}
+            label={option}
+            selected={unit === option}
+            onPress={() => {
+              if (lifecycle.canMutate()) setUnit(option);
+            }}
+            disabled={!editable}
+          />
+        ))}
+      </View>
+
+      {mode === "quick" ? (
+        <Pressable
+          disabled={!editable}
+          onPress={() => {
+            if (lifecycle.canMutate()) setSaveAsFood((value) => !value);
+          }}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: saveAsFood }}
+          className="min-h-11 flex-row items-center gap-2"
+        >
+          <Text className="text-foreground">{saveAsFood ? "☑" : "□"}</Text>
+          <Text className="text-sm text-foreground">Save to my foods for next time</Text>
+        </Pressable>
+      ) : null}
+
+      {preview ? (
+        <View className="gap-1" accessibilityLabel="Review before saving">
+          <Text className="text-sm font-medium text-foreground">
+            Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
+            {hideNumbers ? HIDDEN_VALUE : formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]},{" "}
+            {localDate}
+            {mode !== "quick" && chosen
+              ? ` · ${chosen.sourceLabel}`
+              : draftNote !== null
+                ? " · Entered by you"
+                : ""}
+          </Text>
+          <Text className="text-sm text-muted-foreground">
+            {hideNumbers
+              ? HIDDEN_VALUE
+              : SUMMARY_NUTRIENTS.map(
+                  (key) =>
+                    `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
+                ).join(" · ")}
+          </Text>
+          {missingNote ? (
+            <Text className="text-sm text-muted-foreground">{missingNote}</Text>
+          ) : null}
+          {mode !== "quick" && chosen?.attribution ? (
+            <Text className="text-xs text-muted-foreground">{chosen.attribution}</Text>
+          ) : null}
+          {mode === "barcode" ? (
+            <Text className="text-xs text-muted-foreground">{BARCODE_COPY.verify}</Text>
+          ) : null}
+        </View>
+      ) : null}
       <View className="flex-row flex-wrap gap-2">
-        <Button onPress={save} isDisabled={!preview || saving}>
+        <Button onPress={save} isDisabled={!preview || !editable}>
           {`Save to ${SLOT_LABELS[slot]}`}
         </Button>
         <Button
           variant="secondary"
           onPress={() => {
+            const wasSaving = !lifecycle.canMutate();
             close();
-            announce("Nothing saved");
+            announce(
+              wasSaving
+                ? "Save cancelled. A food creation already sent may still complete."
+                : "Nothing saved",
+            );
           }}
         >
           Cancel
@@ -1249,11 +1310,15 @@ function BarcodePanel({
   chosen,
   onSelect,
   onManualDraft,
+  disabled,
+  canMutate,
 }: {
   outbox: DiaryOutbox;
   chosen: FoodCandidate | null;
   onSelect: (candidate: FoodCandidate) => void;
   onManualDraft: (barcode: string | null, note: string) => void;
+  disabled: boolean;
+  canMutate: () => boolean;
 }) {
   const [digits, setDigits] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -1263,6 +1328,7 @@ function BarcodePanel({
   const [last, setLast] = useState<string | null>(null);
 
   const run = async (raw: string) => {
+    if (!canMutate()) return;
     setBusy(true);
     setOutcome(null);
     setMessage(null);
@@ -1273,9 +1339,10 @@ function BarcodePanel({
       readCached: (barcode) =>
         scope ? readCache<BarcodeLookup>(scope, barcodeCacheKey(barcode)) : null,
       writeCached: (barcode, result) => {
-        if (scope) writeCache(scope, barcodeCacheKey(barcode), result);
+        if (scope && canMutate()) writeCache(scope, barcodeCacheKey(barcode), result);
       },
     });
+    if (!canMutate()) return;
     setBusy(false);
     if (resolution.kind === "invalid") {
       setMessage(resolution.message);
@@ -1292,33 +1359,52 @@ function BarcodePanel({
       {scanning ? (
         <BarcodeScanner
           onScanned={(barcode) => {
+            if (!canMutate()) return;
             setScanning(false);
             setDigits(barcode);
             announce(BARCODE_COPY.scanned(barcode));
             void run(barcode);
           }}
           onClose={(note) => {
+            if (!canMutate()) return;
             setScanning(false);
             setMessage(note);
           }}
         />
       ) : (
-        <Button variant="secondary" onPress={() => setScanning(true)}>
+        <Button
+          isDisabled={disabled}
+          variant="secondary"
+          onPress={() => {
+            if (canMutate()) setScanning(true);
+          }}
+        >
           {BARCODE_COPY.scan}
         </Button>
       )}
       <View className="flex-row flex-wrap items-center gap-2">
         <TextInput
           value={digits}
-          onChangeText={setDigits}
+          editable={!disabled}
+          onChangeText={(value) => {
+            if (canMutate()) setDigits(value);
+          }}
           keyboardType="number-pad"
           placeholder={BARCODE_COPY.digitsLabel}
           accessibilityLabel={BARCODE_COPY.digitsLabel}
           className={`${inputClass} flex-1`}
           placeholderTextColor="#9ca3af"
-          onSubmitEditing={() => void run(digits)}
+          onSubmitEditing={() => {
+            if (canMutate()) void run(digits);
+          }}
         />
-        <Button size="sm" onPress={() => void run(digits)} isDisabled={busy}>
+        <Button
+          size="sm"
+          onPress={() => {
+            if (canMutate()) void run(digits);
+          }}
+          isDisabled={busy || disabled}
+        >
           {busy ? BARCODE_COPY.lookingUp : BARCODE_COPY.lookUp}
         </Button>
       </View>
@@ -1338,13 +1424,17 @@ function BarcodePanel({
               candidate={candidate}
               selected={chosen?.key === candidate.key}
               onPress={() => onSelect(candidate)}
+              disabled={disabled}
             />
           ))}
           <AttributionNotes candidates={outcome.candidates} />
           <Button
             size="sm"
             variant="secondary"
-            onPress={() => onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct)}
+            isDisabled={disabled}
+            onPress={() => {
+              if (canMutate()) onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct);
+            }}
           >
             {`Not this product? ${BARCODE_COPY.enterManually}`}
           </Button>
@@ -1355,11 +1445,24 @@ function BarcodePanel({
             {outcome.message}
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            <Button size="sm" onPress={() => onManualDraft(outcome.barcode, outcome.message)}>
+            <Button
+              size="sm"
+              isDisabled={disabled}
+              onPress={() => {
+                if (canMutate()) onManualDraft(outcome.barcode, outcome.message);
+              }}
+            >
               {BARCODE_COPY.enterManually}
             </Button>
             {outcome.canRetry && last ? (
-              <Button size="sm" variant="secondary" onPress={() => void run(last)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                isDisabled={disabled}
+                onPress={() => {
+                  if (canMutate()) void run(last);
+                }}
+              >
                 {BARCODE_COPY.retry}
               </Button>
             ) : null}

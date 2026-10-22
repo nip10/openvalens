@@ -108,6 +108,12 @@ export function useOfflineWriteTicket(): () => OfflineWriteTicket | null {
   }, [scope, sessionId]);
 }
 
+/** Ephemeral session identity for committing form context changes; never persisted or logged. */
+export function useOfflineWriteSessionKey(): string | null {
+  const { data } = authClient.useSession();
+  return data?.session?.id ?? null;
+}
+
 export function isOfflineWriteTicketCurrent(ticket: OfflineWriteTicket, scope: string): boolean {
   const metadata = offlineWriteTickets.get(ticket as object);
   return (

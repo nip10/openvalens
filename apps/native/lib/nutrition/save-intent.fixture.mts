@@ -29,7 +29,10 @@ mock.module("react-native", () => ({
 }));
 mock.module("react", () => ({
   useEffect: (fn: () => void) => fn(),
+  useLayoutEffect: (fn: () => void) => fn(),
   useCallback: (fn: unknown) => fn,
+  useRef: (current: unknown) => ({ current }),
+  useState: (initial: unknown) => [initial, () => undefined],
   useMemo: (fn: () => unknown) => fn(),
   useSyncExternalStore: () => 0,
 }));
@@ -101,6 +104,15 @@ function renderOutbox() {
   useOfflineScope();
   return useDiaryOutbox();
 }
+function beginController(
+  ticket: any,
+  fingerprint: string,
+  newId: () => string,
+  contextKey = "test-context",
+) {
+  controller.setContext(contextKey);
+  return controller.begin(ticket, fingerprint, newId, contextKey);
+}
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => (resolve = done));
@@ -146,7 +158,7 @@ describe("production Add Food intent/outbox integration", () => {
     controller = new Controller();
     const outbox = renderOutbox();
     const ticket = outbox.beginWrite();
-    const intent = controller.begin(ticket, "food", () => crypto.randomUUID())!;
+    const intent = beginController(ticket, "food", () => crypto.randomUUID())!;
     const ack = deferred<{ ref: unknown }>();
     let announcements = 0;
     const completion = ack.promise.then(() => {
@@ -169,7 +181,7 @@ describe("production Add Food intent/outbox integration", () => {
     };
     const outbox = renderOutbox();
     const ticket = outbox.beginWrite();
-    const intent = controller.begin(ticket, "cancelled", () => crypto.randomUUID())!;
+    const intent = beginController(ticket, "cancelled", () => crypto.randomUUID())!;
     const ack = deferred<void>();
     let announcements = 0;
     const completion = ack.promise.then(() => {
@@ -191,17 +203,17 @@ describe("production Add Food intent/outbox integration", () => {
     controller = new Controller();
     const ids = ["create-1", "diary-1", "create-2", "diary-2", "create-3", "diary-3"];
     const next = () => ids.shift()!;
-    const first = controller.begin(useDiaryOutbox().beginWrite(), "same", next)!;
-    expect(controller.begin(null, "same", next)).toBeNull();
+    const first = beginController(useDiaryOutbox().beginWrite(), "same", next)!;
+    expect(beginController(null, "same", next)).toBeNull();
     expect(controller.release(first)).toBe(true);
-    const retry = controller.begin(useDiaryOutbox().beginWrite(), "same", next)!;
+    const retry = beginController(useDiaryOutbox().beginWrite(), "same", next)!;
     expect(retry.createMutationId).toBe(first.createMutationId);
     expect(retry.diaryMutationId).toBe(first.diaryMutationId);
     controller.release(retry);
-    const changed = controller.begin(useDiaryOutbox().beginWrite(), "changed", next)!;
+    const changed = beginController(useDiaryOutbox().beginWrite(), "changed", next)!;
     expect(changed.createMutationId).not.toBe(first.createMutationId);
     controller.finish(changed);
-    const completed = controller.begin(useDiaryOutbox().beginWrite(), "same", next)!;
+    const completed = beginController(useDiaryOutbox().beginWrite(), "same", next)!;
     expect(completed.createMutationId).not.toBe(first.createMutationId);
     expect(controller.finish(first)).toBe(false); // stale finally cannot clear the new submission
   });
@@ -214,18 +226,20 @@ describe("production Add Food intent/outbox integration", () => {
     };
     const outbox = renderOutbox();
     const ticket = outbox.beginWrite();
-    const intent = controller.begin(ticket, "owner-change", () => crypto.randomUUID())!;
+    const intent = beginController(ticket, "owner-change", () => crypto.randomUUID(), "A1");
     session = {
       user: { id: "member-b" },
       session: { id: "b1", activeOrganizationId: "org" },
     };
+    controller.setContext("B1");
     renderOutbox();
     session = {
       user: { id: "member-a" },
       session: { id: "a5", activeOrganizationId: "org" },
     };
+    controller.setContext("A2");
     renderOutbox();
-    expect(controller.isCurrent(intent)).toBe(true); // intent generation remains but ticket rejects
+    expect(controller.isCurrent(intent)).toBe(false);
     expect(outbox.enqueueForIntent(ticket, input(intent.diaryMutationId))).toBe(false);
     controller.invalidate();
     expect(controller.isCurrent(intent)).toBe(false);
