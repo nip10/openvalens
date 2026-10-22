@@ -1,14 +1,13 @@
 import {
   DELETE_CONFIRMATION,
-  countPhotoErasureBlockers,
-  deleteSubjectData,
+  deleteSelfSubjectData,
   PhotoErasureBlockedError,
+  SelfErasureError,
   isFreshSession,
   previewSubjectData,
   resolveSubject,
 } from "@openvalens/data-rights";
 import { createStructuredLogger } from "@openvalens/observability";
-import { collectStoredObjectKeys } from "@openvalens/storage";
 import { z } from "zod";
 
 import { protectedProcedure, raiseApiError, validateInput } from "../index";
@@ -59,6 +58,36 @@ function sessionCreatedAt(session: { session?: { createdAt?: Date | string } }):
   return value instanceof Date ? value : new Date(value ?? 0);
 }
 
+function assertSelfServiceSession(context: {
+  session: {
+    user: { id?: string };
+    session?: { id?: string; impersonatedBy?: string | null };
+  };
+}): { userId: string; sessionId: string } {
+  const userId = context.session.user.id;
+  const sessionId = context.session.session?.id;
+  if (!userId || !sessionId) throw new SelfErasureError("REAUTH_REQUIRED");
+  if (context.session.session?.impersonatedBy != null)
+    throw new SelfErasureError("PERMISSION_DENIED");
+  return { userId, sessionId };
+}
+
+function raiseSelfErasureError(error: unknown): never {
+  if (error instanceof PhotoErasureBlockedError)
+    throw raiseApiError("CONFLICT", "Progress-photo cleanup must finish before account erasure.");
+  if (!(error instanceof SelfErasureError)) throw error;
+  switch (error.code) {
+    case "PERMISSION_DENIED":
+      throw raiseApiError("PERMISSION_DENIED", error.message);
+    case "REAUTH_REQUIRED":
+      throw raiseApiError("REAUTH_REQUIRED", error.message);
+    case "CONFLICT":
+      throw raiseApiError("CONFLICT", error.message);
+    case "STORAGE_UNAVAILABLE":
+      throw raiseApiError("INTERNAL", "Storage is not available.");
+  }
+}
+
 const sum = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0);
 
 export const dataRightsRouter = {
@@ -67,7 +96,13 @@ export const dataRightsRouter = {
     .input(previewInput)
     .output(previewOutput)
     .handler(async ({ context }) => {
-      const resolution = await resolveSubject(context.db, context.session.user.id);
+      let actor;
+      try {
+        actor = assertSelfServiceSession(context);
+      } catch (error) {
+        raiseSelfErasureError(error);
+      }
+      const resolution = await resolveSubject(context.db, actor.userId);
       const rowCounts = await previewSubjectData(context.db, resolution.subject);
       return {
         organizations: resolution.organizations,
@@ -86,44 +121,14 @@ export const dataRightsRouter = {
     .handler(async ({ input, context }) => {
       if (input.confirmation !== DELETE_CONFIRMATION)
         throw raiseApiError("INVALID_INPUT", `Type ${DELETE_CONFIRMATION} to confirm.`);
-      if (!isFreshSession(sessionCreatedAt(context.session)))
-        throw raiseApiError("REAUTH_REQUIRED", "Sign in again to delete your data.");
-
-      const resolution = await resolveSubject(context.db, context.session.user.id);
-      if (resolution.blockers.length > 0)
-        throw raiseApiError(
-          "CONFLICT",
-          "A record you own has another owner. Remove them or transfer it first.",
-          { blockers: resolution.blockers },
-        );
-
-      const objectKeys = await collectStoredObjectKeys(
-        context.db,
-        resolution.subject.organizationIds,
-      );
-      if ((await countPhotoErasureBlockers(context.db, resolution.subject)) > 0)
-        throw raiseApiError(
-          "CONFLICT",
-          "Progress-photo cleanup must finish before account erasure. Delete each remaining photo and retry.",
-        );
-      if (objectKeys.length > 0 && !context.storage)
-        throw raiseApiError("INTERNAL", "Storage is not available.");
-
-      let report;
+      let result;
       try {
-        report = await deleteSubjectData(context.db, resolution.subject);
+        const actor = assertSelfServiceSession(context);
+        result = await deleteSelfSubjectData(context.db, actor, context.storage ?? null);
       } catch (error) {
-        if (error instanceof PhotoErasureBlockedError)
-          throw raiseApiError(
-            "CONFLICT",
-            "Progress-photo cleanup must finish before account erasure. Delete each remaining photo and retry.",
-          );
-        throw error;
+        raiseSelfErasureError(error);
       }
-      const objects =
-        objectKeys.length > 0 && context.storage
-          ? await context.storage.deleteKeys(objectKeys)
-          : { deleted: 0, failed: 0 };
+      const { report, objects } = result;
       const totalRows = sum(report.rowCounts);
       logger.info("data_rights.subject_erased", {
         correlationId: context.correlationId,

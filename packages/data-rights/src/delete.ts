@@ -1,4 +1,4 @@
-import { sql, type Database } from "@openvalens/db";
+import { sql, type Database, type DbTransaction } from "@openvalens/db";
 import * as schema from "@openvalens/db/schema/index";
 import type { SQL } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
@@ -31,6 +31,33 @@ export class PhotoErasureBlockedError extends Error {
     this.name = "PhotoErasureBlockedError";
   }
 }
+
+export type SelfErasureErrorCode =
+  | "PERMISSION_DENIED"
+  | "REAUTH_REQUIRED"
+  | "CONFLICT"
+  | "STORAGE_UNAVAILABLE";
+
+/** Neutral failures from the self-service erasure authorization boundary. */
+export class SelfErasureError extends Error {
+  constructor(readonly code: SelfErasureErrorCode) {
+    super(
+      code === "PERMISSION_DENIED"
+        ? "Account erasure is not permitted."
+        : code === "REAUTH_REQUIRED"
+          ? "Sign in again to delete your data."
+          : code === "CONFLICT"
+            ? "Account erasure could not safely complete."
+            : "Storage is not available.",
+    );
+    this.name = "SelfErasureError";
+  }
+}
+
+export type SelfErasureActor = Readonly<{ userId: string; sessionId: string }>;
+export type SelfErasureStorage = {
+  deleteKeys(keys: readonly string[]): Promise<{ deleted: number; failed: number }>;
+};
 
 /** Counts distinct photo keys still indexed or awaiting cleanup for this subject/container. */
 export async function countPhotoErasureBlockers(
@@ -121,63 +148,219 @@ export async function deleteSubjectData(
   subject: DataRightsSubject,
   now: Date = new Date(),
 ): Promise<DeletionReport> {
-  const orgIds = [...subject.organizationIds];
   const order = deletionOrder();
-
   return db.transaction(async (tx) => {
     await tx.execute(sql`select id from "user" where id = ${subject.userId} for update`);
     if (await countPhotoErasureBlockers(tx, subject)) throw new PhotoErasureBlockedError();
-    const rowCounts: Record<string, number> = {};
-    const record = (table: string, n: number) => {
-      if (n > 0) rowCounts[table] = (rowCounts[table] ?? 0) + n;
-    };
-
-    for (const { table, filter } of QUARANTINED) {
-      const exists = await tx.execute(
-        sql`select to_regclass(${`public.${table}`}) is not null as ok`,
-      );
-      if ((exists.rows[0] as { ok: boolean }).ok)
-        record(table, await deleteCount(tx, table, filter(subject)));
-    }
-
-    // Supplements have no organization_id: capture this subject's ids before their
-    // schedules/changes go, then delete only those no other organization still uses.
-    const supplementIds = (
-      await tx.execute(sql`select id from supplement where ${rowFilter("supplement", subject)}`)
-    ).rows.map((row) => String((row as { id: number }).id));
-
-    for (const table of order) {
-      if (table === "member") {
-        // Member-private nutrition/water rows have already been removed using
-        // deletionRowFilter, before restrictive membership FKs are deleted.
-      }
-      if (table === "supplement") {
-        record(
-          table,
-          await deleteCount(
-            tx,
-            table,
-            sql`${inList("id", supplementIds)}
-              and not exists (select 1 from supplement_schedule s where s.supplement_id = supplement.id)
-              and not exists (select 1 from supplement_change c where c.supplement_id = supplement.id)`,
-          ),
-        );
-        continue;
-      }
-      record(table, await deleteCount(tx, table, deletionRowFilter(table, subject)));
-    }
-
-    record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));
-    record("user", await deleteCount(tx, "user", sql`id = ${subject.userId}`));
-
-    await tx.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts, erased_at)
-      values (${subject.userId}, ${JSON.stringify(orgIds)}::jsonb, ${JSON.stringify(rowCounts)}::jsonb, ${now.toISOString()})`);
-
-    return {
-      erasedAt: now.toISOString(),
-      userId: subject.userId,
-      organizationIds: orgIds,
-      rowCounts,
-    };
+    return eraseInTransaction(tx, subject, now, order);
   });
+}
+
+/** Caller-authorized legacy deletion transaction body; never used by the self-service router. */
+async function eraseInTransaction(
+  tx: DbTransaction,
+  subject: DataRightsSubject,
+  now: Date,
+  order = deletionOrder(),
+): Promise<DeletionReport> {
+  const orgIds = [...subject.organizationIds];
+  const rowCounts: Record<string, number> = {};
+  const record = (table: string, n: number) => {
+    if (n > 0) rowCounts[table] = (rowCounts[table] ?? 0) + n;
+  };
+
+  // Capture subject-owned supplements before the first destructive statement.
+  // The later supplement delete still runs after schedules and changes.
+  const supplementIds = (
+    await tx.execute(sql`select id from supplement where ${rowFilter("supplement", subject)}`)
+  ).rows.map((row) => String((row as { id: number }).id));
+
+  for (const { table, filter } of QUARANTINED) {
+    const exists = await tx.execute(
+      sql`select to_regclass(${`public.${table}`}) is not null as ok`,
+    );
+    if ((exists.rows[0] as { ok: boolean }).ok)
+      record(table, await deleteCount(tx, table, filter(subject)));
+  }
+
+  for (const table of order) {
+    if (table === "supplement") {
+      record(
+        table,
+        await deleteCount(
+          tx,
+          table,
+          sql`${inList("id", supplementIds)}
+            and not exists (select 1 from supplement_schedule s where s.supplement_id = supplement.id)
+            and not exists (select 1 from supplement_change c where c.supplement_id = supplement.id)`,
+        ),
+      );
+      continue;
+    }
+    record(table, await deleteCount(tx, table, deletionRowFilter(table, subject)));
+  }
+
+  record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));
+  record("user", await deleteCount(tx, "user", sql`id = ${subject.userId}`));
+  await tx.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts, erased_at)
+    values (${subject.userId}, ${JSON.stringify(orgIds)}::jsonb, ${JSON.stringify(rowCounts)}::jsonb, ${now.toISOString()})`);
+  return {
+    erasedAt: now.toISOString(),
+    userId: subject.userId,
+    organizationIds: orgIds,
+    rowCounts,
+  };
+}
+
+function sameIds(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function timestampMillis(value: Date | string | null | undefined): number {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string") return new Date(value).getTime();
+  return Number.NaN;
+}
+
+function isSerializationOrDeadlock(error: unknown): boolean {
+  const seen = new Set<object>();
+  let current: unknown = error;
+  for (let depth = 0; depth < 8; depth += 1) {
+    if ((typeof current !== "object" && typeof current !== "function") || current === null)
+      return false;
+    const node = current as { code?: unknown; cause?: unknown };
+    if (node.code === "40001" || node.code === "40P01") return true;
+    if (seen.has(node)) return false;
+    seen.add(node);
+    current = node.cause;
+  }
+  return false;
+}
+
+/**
+ * Authorize and erase the session's own account atomically. Membership and
+ * organization row locks serialize SDK membership writers; no advisory-lock
+ * convention is required of those writers.
+ */
+export async function deleteSelfSubjectData(
+  db: Database,
+  actor: SelfErasureActor,
+  storage: SelfErasureStorage | null,
+): Promise<{ report: DeletionReport; objects: { deleted: number; failed: number } }> {
+  if (!actor.userId || !actor.sessionId) throw new SelfErasureError("REAUTH_REQUIRED");
+  let keys: string[] = [];
+  let report: DeletionReport;
+  try {
+    report = await db.transaction(async (tx) => {
+      await tx.execute(sql`set transaction isolation level read committed`);
+
+      const provisional = (
+        await tx.execute(sql`select organization_id from member
+          where user_id = ${actor.userId} and role = 'owner' order by organization_id`)
+      ).rows.map((row) => String((row as { organization_id: string }).organization_id));
+
+      const userRows = await tx.execute(
+        sql`select id from "user" where id = ${actor.userId} for update`,
+      );
+      if (!userRows.rows.length) throw new SelfErasureError("REAUTH_REQUIRED");
+
+      const sessionRows =
+        await tx.execute(sql`select id, user_id, created_at, expires_at, impersonated_by
+        from "session" where id = ${actor.sessionId} and user_id = ${actor.userId} for update`);
+      const session = sessionRows.rows[0] as
+        | {
+            id: string;
+            user_id: string;
+            created_at: Date;
+            expires_at: Date;
+            impersonated_by: string | null;
+          }
+        | undefined;
+      if (!session) throw new SelfErasureError("REAUTH_REQUIRED");
+      if (session.impersonated_by !== null) throw new SelfErasureError("PERMISSION_DENIED");
+
+      await tx.execute(
+        sql`select id from member where user_id = ${actor.userId} order by id for update`,
+      );
+      const currentOwned = (
+        await tx.execute(sql`select organization_id from member
+          where user_id = ${actor.userId} and role = 'owner' order by organization_id`)
+      ).rows.map((row) => String((row as { organization_id: string }).organization_id));
+      if (!sameIds(provisional, currentOwned)) throw new SelfErasureError("CONFLICT");
+
+      if (provisional.length) {
+        const lockedOrgs = await tx.execute(
+          sql`select id from organization where ${inList("id", provisional)} order by id for update`,
+        );
+        const lockedIds = lockedOrgs.rows.map((row) => String((row as { id: string }).id));
+        if (!sameIds(provisional, lockedIds)) throw new SelfErasureError("CONFLICT");
+        await tx.execute(
+          sql`select id from member where ${inList("organization_id", provisional)} order by id for update`,
+        );
+      }
+
+      const finalRows = await tx.execute(sql`select m.organization_id,
+          exists (select 1 from member other where other.organization_id = m.organization_id
+            and other.role = 'owner' and other.user_id <> ${actor.userId}) as shared
+        from member m where m.user_id = ${actor.userId} and m.role = 'owner'
+        order by m.organization_id`);
+      const finalOwned = finalRows.rows.map((row) =>
+        String((row as { organization_id: string }).organization_id),
+      );
+      if (
+        !sameIds(provisional, finalOwned) ||
+        finalRows.rows.some((row) => (row as { shared: boolean }).shared)
+      )
+        throw new SelfErasureError("CONFLICT");
+
+      const subject: DataRightsSubject = { userId: actor.userId, organizationIds: finalOwned };
+      const objects = await tx.execute(sql`select storage_key from stored_object
+        where ${inList("organization_id", finalOwned)} order by storage_key`);
+      keys = objects.rows.map((row) => String((row as { storage_key: string }).storage_key));
+      if (keys.length && !storage) throw new SelfErasureError("STORAGE_UNAVAILABLE");
+      // This ledger deliberately has no foreign keys, so serialize its writers
+      // while checking blockers and committing erasure.
+      await tx.execute(sql`lock table photo_cleanup_intent in share mode`);
+      if (await countPhotoErasureBlockers(tx, subject)) throw new PhotoErasureBlockedError();
+
+      const currentSessionRows = await tx.execute(sql`select created_at, expires_at, impersonated_by
+        from "session" where id = ${actor.sessionId} and user_id = ${actor.userId}`);
+      const currentSession = currentSessionRows.rows[0] as
+        | {
+            created_at: Date;
+            expires_at: Date;
+            impersonated_by: string | null;
+          }
+        | undefined;
+      if (!currentSession) throw new SelfErasureError("REAUTH_REQUIRED");
+      if (currentSession.impersonated_by !== null) throw new SelfErasureError("PERMISSION_DENIED");
+      const clock = (await tx.execute(sql`select clock_timestamp()::text as now`)).rows[0] as {
+        now: string;
+      };
+      const wallDate = new Date(clock.now);
+      const wallClock = timestampMillis(wallDate);
+      const createdAt = timestampMillis(currentSession.created_at);
+      const expiresAt = timestampMillis(currentSession.expires_at);
+      const age = wallClock - createdAt;
+      if (
+        !Number.isFinite(wallClock) ||
+        !Number.isFinite(createdAt) ||
+        !Number.isFinite(expiresAt) ||
+        expiresAt <= wallClock ||
+        age < 0 ||
+        age > 10 * 60 * 1000
+      )
+        throw new SelfErasureError("REAUTH_REQUIRED");
+
+      return eraseInTransaction(tx, subject, wallDate);
+    });
+  } catch (error) {
+    if (error instanceof SelfErasureError || error instanceof PhotoErasureBlockedError) throw error;
+    if (isSerializationOrDeadlock(error)) throw new SelfErasureError("CONFLICT");
+    throw error;
+  }
+
+  const objects =
+    keys.length && storage ? await storage.deleteKeys(keys) : { deleted: 0, failed: 0 };
+  return { report, objects };
 }
