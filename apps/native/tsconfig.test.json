@@ -1,8 +1,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["bun"]
+    "types": ["bun"],
+    "paths": {
+      "@/utils/orpc": ["./test-types/orpc.d.ts"],
+      "@/*": ["./*"]
+    }
   },
-  "include": ["**/*.test.ts"],
+  "include": ["**/*.test.ts", "uniwind-env.d.ts"],
   "exclude": ["node_modules"]
 }

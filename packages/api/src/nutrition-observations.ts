@@ -121,8 +121,8 @@ export function buildNutritionObservations(
         ? null
         : NUTRITION_OBSERVATION_POLICY.minimumMatchingEvents,
       completeness: input.hideNumbers
-        ? "Sufficient complete matching records were available."
-        : `${count} complete matching events in the ${days}-day window.`,
+        ? "Sufficient matching timestamped records from completed diary days were available."
+        : `${count} matching timestamped records from completed diary days in the ${days}-day window.`,
       title: options.title,
       body: options.body,
     });

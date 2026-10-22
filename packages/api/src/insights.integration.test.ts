@@ -110,6 +110,7 @@ const at = (daysAgo: number, hour: number) =>
 const TODAY = todayUtc.toISOString().slice(0, 10);
 const RHR_INSIGHT = `change.resting_heart_rate:${isoWeek(TODAY)}`;
 const CRON_SECRET = "cron-secret-long-enough-value-for-tests";
+let observationsDataSourceId: number;
 
 describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/insights_test" });
@@ -253,6 +254,23 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       insert into data_source (organization_id, provider_connection_id, source_type, source_key)
       values ('org-a', ${connection.rows[0]!.id}, 'synthetic', 'insights-observations') returning id
     `);
+    observationsDataSourceId = dataSourceId.rows[0]!.id;
+    const outsiderSources: number[] = [];
+    for (const [org, externalId, userId, sourceKey] of [
+      ["org-a", "observations-other-member", "user-v", "observations-other-member"],
+      ["org-a", "observations-unowned", null, "observations-unowned"],
+      ["org-b", "observations-other-tenant", "user-b", "observations-other-tenant"],
+    ] as const) {
+      const provider = await db.execute<{ id: number }>(sql`
+        insert into provider_connection (organization_id, provider, external_user_id, user_id)
+        values (${org}, 'synthetic', ${externalId}, ${userId}) returning id
+      `);
+      const source = await db.execute<{ id: number }>(sql`
+        insert into data_source (organization_id, provider_connection_id, source_type, source_key)
+        values (${org}, ${provider.rows[0]!.id}, 'synthetic', ${sourceKey}) returning id
+      `);
+      outsiderSources.push(source.rows[0]!.id);
+    }
     await db.execute(sql`
       insert into nutrition_food_snapshot
         (organization_id, source, name, nutrient_basis_amount, nutrient_basis_unit, content_hash)
@@ -277,6 +295,14 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
         on s.organization_id = m.organization_id and s.content_hash = 'insights-observation-meal'
       where m.organization_id = 'org-a' and m.user_id = 'user-a';
     `);
+    await db.execute(sql`
+      insert into goal (organization_id, title, category, target_value)
+      values ('org-a', 'Synthetic goal', 'health', 'steady')
+    `);
+    await db.execute(sql`
+      insert into nutrition_target_settings (organization_id, user_id, hide_numbers)
+      values ('org-a', 'user-a', false)
+    `);
     for (const [daysAgo, suffix] of [
       [1, "one"],
       [2, "two"],
@@ -284,11 +310,29 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     ] as const) {
       await db.execute(sql`
         insert into health_event
-          (organization_id, data_source_id, event_type, event_at, dedupe_hash)
+          (organization_id, data_source_id, event_type, event_at, payload_json, dedupe_hash)
         values
-          ('org-a', ${dataSourceId.rows[0]!.id}, 'sleep_session', ${at(daysAgo, 21)}, ${`insight-sleep-${suffix}`}),
-          ('org-a', ${dataSourceId.rows[0]!.id}, 'workout', ${at(daysAgo, 19)}, ${`insight-workout-${suffix}`})
+          ('org-a', ${dataSourceId.rows[0]!.id}, 'sleep_session', ${at(daysAgo, 21)}, ${JSON.stringify({ endAt: at(daysAgo, 29).toISOString() })}::jsonb, ${`insight-sleep-${suffix}`}),
+          ('org-a', ${dataSourceId.rows[0]!.id}, 'workout', ${at(daysAgo, 19)}, ${JSON.stringify({ endAt: at(daysAgo, 20).toISOString(), activity: "running" })}::jsonb, ${`insight-workout-${suffix}`})
       `);
+    }
+    for (const [sourceId, key] of [
+      ...outsiderSources.map((sourceId, index) => [sourceId, `outsider-${index}`] as const),
+      [null, "orphan"] as const,
+    ]) {
+      for (const [daysAgo, suffix] of [
+        [1, "one"],
+        [2, "two"],
+        [3, "three"],
+      ] as const) {
+        await db.execute(sql`
+          insert into health_event
+            (organization_id, data_source_id, event_type, event_at, payload_json, dedupe_hash)
+          values
+            (${key === "outsider-2" ? "org-b" : "org-a"}, ${sourceId}, 'sleep_session', ${at(daysAgo, 21)}, ${JSON.stringify({ endAt: at(daysAgo, 29).toISOString() })}::jsonb, ${`observation-${key}-sleep-${suffix}`}),
+            (${key === "outsider-2" ? "org-b" : "org-a"}, ${sourceId}, 'workout', ${at(daysAgo, 19)}, ${JSON.stringify({ endAt: at(daysAgo, 20).toISOString(), activity: "running" })}::jsonb, ${`observation-${key}-workout-${suffix}`})
+        `);
+      }
     }
   });
 
@@ -341,6 +385,7 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
 
     const spoof = await call("insights/list", { userId: "user-v", organizationId: "org-b" });
     expect(spoof.status).toBe(400);
+    expect((await call("insights/list", { userId: "user-v" })).status).toBe(400);
 
     const otherMember = await call<InsightsResult>("insights/list", {}, "user-v");
     expect(otherMember.body.observations).toEqual([]);
@@ -368,8 +413,16 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       "observation.meals_near_sleep",
       "observation.meals_and_workouts",
     ]);
-    // With no nutrition_target_settings row the #80 default is hide_numbers
-    // false, so the numeric evidence is present.
+    // Settings explicitly keep numbers visible for this member.
+    const beforeObservationRead = await db.execute(sql`
+      select
+        (select jsonb_agg(to_jsonb(e) order by e.id) from nutrition_meal_entry e
+          where e.organization_id = 'org-a' and e.user_id = 'user-a') as intake,
+        (select jsonb_agg(to_jsonb(g) order by g.id) from goal g
+          where g.organization_id = 'org-a') as goals,
+        (select jsonb_agg(to_jsonb(t) order by t.user_id) from nutrition_target_settings t
+          where t.organization_id = 'org-a' and t.user_id = 'user-a') as targets
+    `);
     expect(
       enabled.body.observations.map((entry) => ({
         matchingEvents: entry.matchingEvents,
@@ -381,17 +434,64 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     ]);
     expect(
       enabled.body.observations.every((entry) =>
-        entry.completeness.includes("3 complete matching events in the 28-day window"),
+        entry.completeness.includes(
+          "3 matching timestamped records from completed diary days in the 28-day window",
+        ),
       ),
     ).toBe(true);
     expect(enabled.body.observations.every((entry) => entry.body.includes("records only"))).toBe(
       true,
     );
+    expect(JSON.stringify(enabled.body.observations)).not.toMatch(
+      /diagnos|prescrib|restrict|recommend|should|avoid|hrv|supplement|cycle|eat back|calorie/i,
+    );
+    const afterObservationRead = await db.execute(sql`
+      select
+        (select jsonb_agg(to_jsonb(e) order by e.id) from nutrition_meal_entry e
+          where e.organization_id = 'org-a' and e.user_id = 'user-a') as intake,
+        (select jsonb_agg(to_jsonb(g) order by g.id) from goal g
+          where g.organization_id = 'org-a') as goals,
+        (select jsonb_agg(to_jsonb(t) order by t.user_id) from nutrition_target_settings t
+          where t.organization_id = 'org-a' and t.user_id = 'user-a') as targets
+    `);
+    expect(afterObservationRead.rows).toEqual(beforeObservationRead.rows);
+
+    // Other-member, unowned, orphan-source, and other-tenant events have
+    // matching timestamps but must not increase scoped counts.
+    expect(enabled.body.observations.map((entry) => entry.matchingEvents)).toEqual([3, 3]);
+
+    await db.execute(sql`
+      update nutrition_diary_day set completed_at = null
+      where organization_id = 'org-a' and user_id = 'user-a'
+        and local_date = to_char(current_date - 3, 'YYYY-MM-DD')
+    `);
+    expect((await call<InsightsResult>("insights/list", {})).body.observations).toEqual([]);
+    await db.execute(sql`
+      update nutrition_diary_day set completed_at = now()
+      where organization_id = 'org-a' and user_id = 'user-a'
+        and local_date = to_char(current_date - 3, 'YYYY-MM-DD')
+    `);
+    await db.execute(sql`
+      update health_event set payload_json = '{}'
+      where organization_id = 'org-a' and data_source_id = ${observationsDataSourceId}
+        and event_type = 'sleep_session' and dedupe_hash = 'insight-sleep-three'
+    `);
+    expect(
+      (await call<InsightsResult>("insights/list", {})).body.observations.map(
+        (entry) => entry.ruleId,
+      ),
+    ).toEqual(["observation.meals_and_workouts"]);
+    await db.execute(sql`
+      update health_event set payload_json = jsonb_build_object('endAt', to_char(event_at + interval '8 hours', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+      where organization_id = 'org-a' and data_source_id = ${observationsDataSourceId}
+        and event_type = 'sleep_session' and dedupe_hash = 'insight-sleep-three'
+    `);
 
     // This member's persisted hide-numbers setting withholds the numbers only.
-    await db.execute(
-      sql`insert into nutrition_target_settings (organization_id, user_id, hide_numbers) values ('org-a', 'user-a', true)`,
-    );
+    await db.execute(sql`
+      update nutrition_target_settings set hide_numbers = true
+      where organization_id = 'org-a' and user_id = 'user-a'
+    `);
     // Another tenant's setting is stored but must not affect this member.
     await db.execute(
       sql`insert into nutrition_target_settings (organization_id, user_id, hide_numbers) values ('org-b', 'user-b', true)`,
@@ -408,7 +508,9 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     ).toBe(true);
     expect(
       withheld.body.observations.every(
-        (entry) => entry.completeness === "Sufficient complete matching records were available.",
+        (entry) =>
+          entry.completeness ===
+          "Sufficient matching timestamped records from completed diary days were available.",
       ),
     ).toBe(true);
 
@@ -426,6 +528,70 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       { matchingEvents: 3, minimumMatchingEvents: 3 },
       { matchingEvents: 3, minimumMatchingEvents: 3 },
     ]);
+
+    // Missing workout activity and malformed workout intervals each suppress
+    // workouts independently.
+    await db.execute(sql`
+      update health_event
+      set payload_json = jsonb_build_object('endAt', to_char(event_at + interval '1 hour', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+      where organization_id = 'org-a' and event_type = 'workout'
+    `);
+    expect(
+      (await call<InsightsResult>("insights/list", {})).body.observations.map(
+        (entry) => entry.ruleId,
+      ),
+    ).toEqual(["observation.meals_near_sleep"]);
+    await db.execute(sql`
+      update health_event set payload_json = jsonb_build_object('endAt', 'not-a-timestamp', 'activity', 'running')
+      where organization_id = 'org-a' and event_type = 'workout'
+    `);
+    expect(
+      (await call<InsightsResult>("insights/list", {})).body.observations.map(
+        (entry) => entry.ruleId,
+      ),
+    ).toEqual(["observation.meals_near_sleep"]);
+    await db.execute(sql`
+      update health_event
+      set payload_json = jsonb_build_object('endAt', to_char(event_at + interval '1 hour', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'activity', 'running')
+      where organization_id = 'org-a' and event_type = 'workout'
+    `);
+    // Sleep with a missing, malformed, or reversed end is omitted while
+    // independently valid workouts continue to produce an observation.
+    await db.execute(sql`
+      update health_event set payload_json = '{}'::jsonb
+      where organization_id = 'org-a' and event_type = 'sleep_session'
+    `);
+    expect(
+      (await call<InsightsResult>("insights/list", {})).body.observations.map(
+        (entry) => entry.ruleId,
+      ),
+    ).toEqual(["observation.meals_and_workouts"]);
+    await db.execute(sql`
+      update health_event set payload_json = jsonb_build_object('endAt', 'not-a-timestamp')
+      where organization_id = 'org-a' and event_type = 'sleep_session'
+    `);
+    expect(
+      (await call<InsightsResult>("insights/list", {})).body.observations.map(
+        (entry) => entry.ruleId,
+      ),
+    ).toEqual(["observation.meals_and_workouts"]);
+    await db.execute(sql`
+      update health_event set payload_json = jsonb_build_object('endAt', to_char(event_at - interval '1 hour', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+      where organization_id = 'org-a' and event_type = 'sleep_session'
+    `);
+    expect(
+      (await call<InsightsResult>("insights/list", {})).body.observations.map(
+        (entry) => entry.ruleId,
+      ),
+    ).toEqual(["observation.meals_and_workouts"]);
+    await db.execute(sql`
+      update health_event
+      set payload_json = case
+        when event_type = 'sleep_session' then jsonb_build_object('endAt', to_char(event_at + interval '8 hours', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+        else jsonb_build_object('endAt', to_char(event_at + interval '1 hour', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 'activity', 'running')
+      end
+      where organization_id = 'org-a'
+    `);
 
     const deniedWorkout = await call<InsightsResult>("insights/list", {}, "user-a", {
       "x-test-deny-workout": "true",
