@@ -350,6 +350,58 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       language: "fr",
     });
     expect(localized.body).toMatchObject({ name: "Fixture FR", language: "fr" });
+    await db.execute(sql`
+      insert into exercise_translation
+        (exercise_id, language_code, name, instructions, license_code, license_url, author, source_url)
+      values
+        (${exerciseId}, 'fr-CA', 'Fixture Canadian French', 'Canadian instructions', 'CC0-1.0',
+          'https://creativecommons.org/publicdomain/zero/1.0/', null, 'https://example.test/fr-ca')
+    `);
+    const exactLocale = await catalog<{ name: string; language: string | null }>("get", {
+      id: exerciseId,
+      language: "FR_ca",
+    });
+    expect(exactLocale.body).toMatchObject({ name: "Fixture Canadian French", language: "fr-CA" });
+    const baseLocale = await catalog<{ name: string; language: string | null }>("get", {
+      id: exerciseId,
+      language: "fr-FR",
+    });
+    expect(baseLocale.body).toMatchObject({ name: "Fixture FR", language: "fr" });
+    await db.execute(
+      sql`update exercise_translation set license_code = null where exercise_id = ${exerciseId} and language_code = 'fr-CA'`,
+    );
+    await db.execute(
+      sql`update exercise_translation set license_code = 'CC-BY-SA-4.0', author = null where exercise_id = ${exerciseId} and language_code = 'fr'`,
+    );
+    const ineligibleLocaleFallback = await catalog<{
+      name: string;
+      language: string | null;
+      instructions: string | null;
+      translationAttribution: { license: string | null } | null;
+    }>("get", { id: exerciseId, language: "fr-FR" });
+    expect(ineligibleLocaleFallback.body).toMatchObject({ name: "Fixture row", language: "en" });
+    expect(ineligibleLocaleFallback.body.translationAttribution?.license).toBe("CC0-1.0");
+    await db.execute(sql`
+      update exercise_translation set license_code = 'UNKNOWN' where exercise_id = ${exerciseId} and language_code = 'en';
+    `);
+    const noEligibleTranslation = await catalog<{
+      name: string;
+      language: string | null;
+      instructions: string | null;
+      translationAttribution: unknown;
+    }>("get", { id: exerciseId, language: "fr-FR" });
+    expect(noEligibleTranslation.body).toMatchObject({
+      name: "Fixture row",
+      language: null,
+      instructions: null,
+      translationAttribution: null,
+    });
+    await db.execute(
+      sql`delete from exercise_translation where exercise_id = ${exerciseId} and language_code = 'fr-CA'`,
+    );
+    await db.execute(
+      sql`update exercise_translation set license_code = 'CC0-1.0', author = null where exercise_id = ${exerciseId} and language_code in ('en', 'fr')`,
+    );
     expect((await catalog<unknown[]>("search", { query: "Fixture row" })).body).toHaveLength(1);
     expect((await catalog<unknown[]>("search", { muscleExternalId: "4" })).body).toHaveLength(1);
     expect((await catalog<unknown[]>("search", { equipmentExternalId: "8" })).body).toHaveLength(1);

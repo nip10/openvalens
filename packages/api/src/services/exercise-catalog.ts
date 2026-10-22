@@ -11,6 +11,12 @@ export const canonicalExerciseLicense = (value: string | null): "CC0-1.0" | "CC-
 type CatalogScope = { organizationId: string; language?: string };
 type CatalogExecutor = Database | DbTransaction;
 
+function languagePreferences(language: string): string[] {
+  const exact = language.trim().replaceAll("_", "-").toLowerCase();
+  const base = exact.split("-", 1)[0]!;
+  return [...new Set([exact, ...(base !== exact ? [base] : []), "en"])];
+}
+
 export class ExerciseCatalogMutationConflictError extends Error {
   constructor() {
     super("Exercise catalog mutation key conflicts with a different request.");
@@ -45,7 +51,7 @@ export function createExerciseCatalogService(db: Database, mediaReader?: Exercis
     if (!visible.length) return [];
     const ids = visible.map((row) => row.id);
     const [translations, muscles, equipment] = await Promise.all([
-      executor.select().from(exerciseTranslation).where(inArray(exerciseTranslation.exerciseId, ids)),
+      executor.select().from(exerciseTranslation).where(inArray(exerciseTranslation.exerciseId, ids)).orderBy(asc(exerciseTranslation.id)),
       executor.select().from(exerciseMuscle).where(inArray(exerciseMuscle.exerciseId, ids)),
       executor.select().from(exerciseEquipment).where(inArray(exerciseEquipment.exerciseId, ids)),
     ]);
@@ -54,9 +60,24 @@ export function createExerciseCatalogService(db: Database, mediaReader?: Exercis
     const mediaByExercise = new Map(publishedMedia.map((entry) => [entry.exerciseId, entry.media]));
     return visible.map((row) => {
       const choices = translations.filter((t) => t.exerciseId === row.id);
-      const eligible = (t: typeof choices[number]) => row.source === "user" || (canonicalExerciseLicense(t.licenseCode) !== null && Boolean(t.sourceUrl));
-      const selected = choices.find((t) => t.languageCode.toLowerCase() === language.toLowerCase() && eligible(t))
-        ?? choices.find((t) => t.languageCode.toLowerCase() === "en" && eligible(t));
+      const eligible = (t: typeof choices[number]) => {
+        if (row.source === "user") return true;
+        const license = canonicalExerciseLicense(t.licenseCode);
+        return Boolean(
+          license &&
+            t.licenseUrl &&
+            t.sourceUrl &&
+            (license === "CC0-1.0" || t.author),
+        );
+      };
+      const selected = languagePreferences(language)
+        .map((candidate) =>
+          choices.find(
+            (t) =>
+              t.languageCode.trim().replaceAll("_", "-").toLowerCase() === candidate && eligible(t),
+          ),
+        )
+        .find((translation) => translation !== undefined);
       const useTranslation = Boolean(selected && (row.source === "user" || canonicalExerciseLicense(selected.licenseCode)));
       return {
         id: row.id,
