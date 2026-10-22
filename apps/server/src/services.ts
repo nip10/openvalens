@@ -153,23 +153,30 @@ export const storageService = objectStorage
 // Catalog asset support is opt-in and bypasses the organization-bound generic
 // StorageService only through its dedicated global manifest service. No storage
 // calls occur while binding this inactive capability.
-export const exerciseCatalogAssetsEnabled = ENV.EXERCISE_CATALOG_ASSETS_ENABLED && Boolean(objectStorage && exerciseCatalogStorageIdentity);
-type ExerciseCatalogAssetService = ReturnType<typeof import("./services/exercise-catalog-assets").createExerciseCatalogAssetService>;
+export const exerciseCatalogAssetsEnabled =
+  ENV.EXERCISE_CATALOG_ASSETS_ENABLED && Boolean(objectStorage && exerciseCatalogStorageIdentity);
+type ExerciseCatalogAssetService = ReturnType<
+  typeof import("./services/exercise-catalog-assets").createExerciseCatalogAssetService
+>;
 let exerciseCatalogAssetServicePromise: Promise<ExerciseCatalogAssetService> | null = null;
 export function getExerciseCatalogAssetService(): Promise<ExerciseCatalogAssetService | null> {
-  if (!exerciseCatalogAssetsEnabled || !objectStorage || !exerciseCatalogStorageIdentity) return Promise.resolve(null);
-  exerciseCatalogAssetServicePromise ??= import("./services/exercise-catalog-assets").then(({ createExerciseCatalogAssetService }) => createExerciseCatalogAssetService({
-    db,
-    storage: objectStorage,
-    limits: {
-      maxInputBytes: 10 * 1024 * 1024,
-      maxInputPixels: 16_000_000,
-      maxOutputEdge: 2048,
-      maxOutputBytes: 8 * 1024 * 1024,
-      maxPublishedBytes: Math.min(storageConfig.maxObjectBytes, 8 * 1024 * 1024),
-      storageIdentity: exerciseCatalogStorageIdentity,
-    },
-  }));
+  if (!exerciseCatalogAssetsEnabled || !objectStorage || !exerciseCatalogStorageIdentity)
+    return Promise.resolve(null);
+  exerciseCatalogAssetServicePromise ??= import("./services/exercise-catalog-assets").then(
+    ({ createExerciseCatalogAssetService }) =>
+      createExerciseCatalogAssetService({
+        db,
+        storage: objectStorage,
+        limits: {
+          maxInputBytes: 10 * 1024 * 1024,
+          maxInputPixels: 16_000_000,
+          maxOutputEdge: 2048,
+          maxOutputBytes: 8 * 1024 * 1024,
+          maxPublishedBytes: Math.min(storageConfig.maxObjectBytes, 8 * 1024 * 1024),
+          storageIdentity: exerciseCatalogStorageIdentity,
+        },
+      }),
+  );
   return exerciseCatalogAssetServicePromise;
 }
 // Issue #69 — optional live barcode lookup (Open Food Facts). Off by default:

@@ -29,7 +29,11 @@ const DRAWER_ITEMS = [
   },
   { label: "Labs", href: "/records/labs" as const, icon: "flask-outline" as const },
   { label: "Workouts", href: "/workouts" as const, icon: "barbell-outline" as const },
-  { label: "Exercise library", href: "/exercise-library" as const, icon: "fitness-outline" as const },
+  {
+    label: "Exercise library",
+    href: "/exercise-library" as const,
+    icon: "fitness-outline" as const,
+  },
   { label: "Clinical export", href: "/exports" as const, icon: "download-outline" as const },
   { label: "Coach", href: "/coach" as const, icon: "chatbubbles-outline" as const },
   { label: "Sharing", href: "/sharing" as const, icon: "people-outline" as const },
@@ -117,17 +121,17 @@ function DrawerLayout() {
                           ? "Workouts"
                           : pathname === "/exercise-library"
                             ? "Exercise library"
-                          : pathname === "/exports"
-                            ? "Clinical export"
-                            : pathname === "/settings"
-                              ? "Settings"
-                              : pathname === "/scores"
-                                ? "Scores"
-                                : pathname === "/invitations"
-                                  ? "Invitations"
-                                  : pathname === "/preventive-care"
-                                    ? "Preventive care"
-                                    : "Cockpit";
+                            : pathname === "/exports"
+                              ? "Clinical export"
+                              : pathname === "/settings"
+                                ? "Settings"
+                                : pathname === "/scores"
+                                  ? "Scores"
+                                  : pathname === "/invitations"
+                                    ? "Invitations"
+                                    : pathname === "/preventive-care"
+                                      ? "Preventive care"
+                                      : "Cockpit";
 
   return (
     <Drawer

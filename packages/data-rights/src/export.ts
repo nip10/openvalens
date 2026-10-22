@@ -81,10 +81,14 @@ const CHILD_QUERIES: Record<string, (orgIds: string[]) => SQL> = {
       where ${inList("organization_id", orgIds)} and supplement_id is not null
     )`,
   // Only custom exercises are in owned organizations; global reference rows have NULL organization_id.
-  exercise_translation: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
-  exercise_muscle: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
-  exercise_equipment: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
-  exercise_media: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  exercise_translation: (orgIds) =>
+    sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  exercise_muscle: (orgIds) =>
+    sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  exercise_equipment: (orgIds) =>
+    sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  exercise_media: (orgIds) =>
+    sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
 };
 
 /** WHERE clause selecting the subject's rows in an exported table. */

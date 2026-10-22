@@ -91,14 +91,16 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionRateLimiter,
     // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
     storage: storageService,
-    ...(exerciseCatalogAssetsEnabled ? {
-      exerciseCatalogMediaReader: {
-        async listPublishedMetadata(exerciseIds: number[]) {
-          const service = await getExerciseCatalogAssetService();
-          return service ? service.listPublishedMetadata(exerciseIds) : [];
-        },
-      },
-    } : {}),
+    ...(exerciseCatalogAssetsEnabled
+      ? {
+          exerciseCatalogMediaReader: {
+            async listPublishedMetadata(exerciseIds: number[]) {
+              const service = await getExerciseCatalogAssetService();
+              return service ? service.listPublishedMetadata(exerciseIds) : [];
+            },
+          },
+        }
+      : {}),
     // Issue #69 — optional live barcode lookup; `null` keeps lookups local.
     foodLookup,
     // Issue #65 — public "Continue with <name>" option, or `{ oidc: null }`.

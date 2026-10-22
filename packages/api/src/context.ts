@@ -81,7 +81,9 @@ export type ExerciseCatalogMediaPreview = {
 
 /** Optional server-injected metadata reader; API code cannot access storage or keys. */
 export type ExerciseCatalogMediaReader = {
-  listPublishedMetadata(exerciseIds: number[]): Promise<Array<{ exerciseId: number; media: ExerciseCatalogMediaPreview[] }>>;
+  listPublishedMetadata(
+    exerciseIds: number[],
+  ): Promise<Array<{ exerciseId: number; media: ExerciseCatalogMediaPreview[] }>>;
 };
 
 export type Context = {

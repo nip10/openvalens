@@ -278,7 +278,8 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   exercise_media: { kind: "child", parent: "exercise" },
   exercise_catalog_asset: {
     kind: "reference",
-    reason: "Global wger publication manifest and storage inventory; contains no subject-owned object or operator identity.",
+    reason:
+      "Global wger publication manifest and storage inventory; contains no subject-owned object or operator identity.",
   },
   exercise_catalog_mutation: { kind: "user", redact: ["fingerprint"] },
   workout_set: organization,

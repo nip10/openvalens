@@ -384,9 +384,7 @@ export function createExerciseCatalogAssetService(args: {
     }
   }
 
-  async function readPublishedAsset(
-    assetId: string,
-  ): Promise<{
+  async function readPublishedAsset(assetId: string): Promise<{
     bytes: Buffer;
     contentType: "image/jpeg" | "image/png";
     size: number;

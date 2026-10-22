@@ -644,7 +644,11 @@ export default function WorkoutsScreen() {
         <View>
           <Text className="text-sm text-muted-foreground">Workouts</Text>
           <Text className="font-mono text-3xl text-foreground">Sessions &amp; goals</Text>
-          <Link href="/exercise-library" asChild><Pressable accessibilityRole="link" className="min-h-11 justify-center"><Text className="text-sm text-foreground underline">Exercise library</Text></Pressable></Link>
+          <Link href="/exercise-library" asChild>
+            <Pressable accessibilityRole="link" className="min-h-11 justify-center">
+              <Text className="text-sm text-foreground underline">Exercise library</Text>
+            </Pressable>
+          </Link>
         </View>
 
         {load.isPending ? (

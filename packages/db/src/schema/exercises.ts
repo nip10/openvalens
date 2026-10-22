@@ -20,7 +20,9 @@ export const exercise = pgTable(
   "exercise",
   {
     id: serial("id").primaryKey(),
-    organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").references(() => organization.id, {
+      onDelete: "cascade",
+    }),
     source: text("source").$type<"wger" | "user">().notNull(),
     externalId: text("external_id"),
     name: text("name").notNull(),
@@ -47,7 +49,10 @@ export const exercise = pgTable(
       "exercise_source_ownership_check",
       sql`(${table.source} = 'wger' and ${table.organizationId} is null and ${table.externalId} is not null) or (${table.source} = 'user' and ${table.organizationId} is not null)`,
     ),
-    exerciseTextCheck: check("exercise_text_check", sql`length(${table.name}) > 0 and (${table.externalId} is null or length(${table.externalId}) > 0)`),
+    exerciseTextCheck: check(
+      "exercise_text_check",
+      sql`length(${table.name}) > 0 and (${table.externalId} is null or length(${table.externalId}) > 0)`,
+    ),
     exerciseWgerProvenanceCheck: check(
       "exercise_wger_provenance_check",
       sql`${table.source} <> 'wger' or (${table.sourceRecordUrl} is not null and length(${table.sourceRecordUrl}) > 0 and ${table.snapshotVersion} is not null and length(${table.snapshotVersion}) > 0 and ${table.snapshotAt} is not null)`,
@@ -60,7 +65,9 @@ export const exerciseTranslation = pgTable(
   "exercise_translation",
   {
     id: serial("id").primaryKey(),
-    exerciseId: integer("exercise_id").notNull().references(() => exercise.id, { onDelete: "cascade" }),
+    exerciseId: integer("exercise_id")
+      .notNull()
+      .references(() => exercise.id, { onDelete: "cascade" }),
     languageCode: text("language_code").notNull(),
     name: text("name").notNull(),
     instructions: text("instructions"),
@@ -71,9 +78,17 @@ export const exerciseTranslation = pgTable(
     rawAttribution: text("raw_attribution"),
   },
   (table) => ({
-    exerciseTranslationUnique: uniqueIndex("exercise_translation_exercise_language_key").on(table.exerciseId, table.languageCode),
-    exerciseTranslationExerciseIdx: index("exercise_translation_exercise_id_idx").on(table.exerciseId),
-    exerciseTranslationTextCheck: check("exercise_translation_text_check", sql`length(${table.languageCode}) > 0 and length(${table.name}) > 0`),
+    exerciseTranslationUnique: uniqueIndex("exercise_translation_exercise_language_key").on(
+      table.exerciseId,
+      table.languageCode,
+    ),
+    exerciseTranslationExerciseIdx: index("exercise_translation_exercise_id_idx").on(
+      table.exerciseId,
+    ),
+    exerciseTranslationTextCheck: check(
+      "exercise_translation_text_check",
+      sql`length(${table.languageCode}) > 0 and length(${table.name}) > 0`,
+    ),
   }),
 );
 
@@ -81,16 +96,26 @@ export const exerciseMuscle = pgTable(
   "exercise_muscle",
   {
     id: serial("id").primaryKey(),
-    exerciseId: integer("exercise_id").notNull().references(() => exercise.id, { onDelete: "cascade" }),
+    exerciseId: integer("exercise_id")
+      .notNull()
+      .references(() => exercise.id, { onDelete: "cascade" }),
     externalMuscleId: text("external_muscle_id"),
     name: text("name").notNull(),
     role: text("role").$type<"primary" | "secondary">().notNull(),
     location: text("location").$type<"front" | "back">(),
   },
   (table) => ({
-    exerciseMuscleUnique: uniqueIndex("exercise_muscle_exercise_muscle_role_key").on(table.exerciseId, table.externalMuscleId, table.name, table.role),
+    exerciseMuscleUnique: uniqueIndex("exercise_muscle_exercise_muscle_role_key").on(
+      table.exerciseId,
+      table.externalMuscleId,
+      table.name,
+      table.role,
+    ),
     exerciseMuscleExerciseIdx: index("exercise_muscle_exercise_id_idx").on(table.exerciseId),
-    exerciseMuscleRoleCheck: check("exercise_muscle_role_check", sql`${table.role} in ('primary', 'secondary') and (${table.location} is null or ${table.location} in ('front', 'back'))`),
+    exerciseMuscleRoleCheck: check(
+      "exercise_muscle_role_check",
+      sql`${table.role} in ('primary', 'secondary') and (${table.location} is null or ${table.location} in ('front', 'back'))`,
+    ),
   }),
 );
 
@@ -98,12 +123,18 @@ export const exerciseEquipment = pgTable(
   "exercise_equipment",
   {
     id: serial("id").primaryKey(),
-    exerciseId: integer("exercise_id").notNull().references(() => exercise.id, { onDelete: "cascade" }),
+    exerciseId: integer("exercise_id")
+      .notNull()
+      .references(() => exercise.id, { onDelete: "cascade" }),
     externalEquipmentId: text("external_equipment_id"),
     name: text("name").notNull(),
   },
   (table) => ({
-    exerciseEquipmentUnique: uniqueIndex("exercise_equipment_exercise_equipment_key").on(table.exerciseId, table.externalEquipmentId, table.name),
+    exerciseEquipmentUnique: uniqueIndex("exercise_equipment_exercise_equipment_key").on(
+      table.exerciseId,
+      table.externalEquipmentId,
+      table.name,
+    ),
     exerciseEquipmentExerciseIdx: index("exercise_equipment_exercise_id_idx").on(table.exerciseId),
   }),
 );
@@ -113,7 +144,9 @@ export const exerciseMedia = pgTable(
   "exercise_media",
   {
     id: serial("id").primaryKey(),
-    exerciseId: integer("exercise_id").notNull().references(() => exercise.id, { onDelete: "cascade" }),
+    exerciseId: integer("exercise_id")
+      .notNull()
+      .references(() => exercise.id, { onDelete: "cascade" }),
     sourceExternalMediaId: text("source_external_media_id").notNull(),
     kind: text("kind").$type<"image" | "video">().notNull(),
     licenseCode: text("license_code"),
@@ -125,13 +158,24 @@ export const exerciseMedia = pgTable(
     snapshotAt: timestamp("snapshot_at", { withTimezone: true, mode: "date" }),
     publicationActive: boolean("publication_active").notNull().default(true),
     publicationRevision: integer("publication_revision").notNull().default(0),
-    storedObjectId: text("stored_object_id").references(() => storedObject.id, { onDelete: "set null" }),
+    storedObjectId: text("stored_object_id").references(() => storedObject.id, {
+      onDelete: "set null",
+    }),
   },
   (table) => ({
-    exerciseMediaUnique: uniqueIndex("exercise_media_exercise_source_id_key").on(table.exerciseId, table.sourceExternalMediaId),
+    exerciseMediaUnique: uniqueIndex("exercise_media_exercise_source_id_key").on(
+      table.exerciseId,
+      table.sourceExternalMediaId,
+    ),
     exerciseMediaExerciseIdx: index("exercise_media_exercise_id_idx").on(table.exerciseId),
-    exerciseMediaKindCheck: check("exercise_media_kind_check", sql`${table.kind} in ('image', 'video') and length(${table.sourceExternalMediaId}) > 0`),
-    exerciseMediaPublicationRevisionCheck: check("exercise_media_publication_revision_check", sql`${table.publicationRevision} >= 0`),
+    exerciseMediaKindCheck: check(
+      "exercise_media_kind_check",
+      sql`${table.kind} in ('image', 'video') and length(${table.sourceExternalMediaId}) > 0`,
+    ),
+    exerciseMediaPublicationRevisionCheck: check(
+      "exercise_media_publication_revision_check",
+      sql`${table.publicationRevision} >= 0`,
+    ),
   }),
 );
 
@@ -140,7 +184,9 @@ export const exerciseCatalogAsset = pgTable(
   "exercise_catalog_asset",
   {
     id: uuid("id").primaryKey(),
-    exerciseMediaId: integer("exercise_media_id").notNull().references(() => exerciseMedia.id, { onDelete: "restrict" }),
+    exerciseMediaId: integer("exercise_media_id")
+      .notNull()
+      .references(() => exerciseMedia.id, { onDelete: "restrict" }),
     storageProvider: text("storage_provider").notNull(),
     storageStoreId: text("storage_store_id").notNull(),
     storageKey: text("storage_key").notNull(),
@@ -168,12 +214,27 @@ export const exerciseCatalogAsset = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    exerciseCatalogAssetKeyUnique: uniqueIndex("exercise_catalog_asset_storage_key_key").on(table.storageKey),
-    exerciseCatalogAssetBindingUnique: uniqueIndex("exercise_catalog_asset_media_fingerprint_key").on(table.exerciseMediaId, table.bindingFingerprint),
-    exerciseCatalogAssetMediaIdx: index("exercise_catalog_asset_media_id_idx").on(table.exerciseMediaId),
-    exerciseCatalogAssetIdentityCheck: check("exercise_catalog_asset_identity_check", sql`${table.storageProvider} in ('local', 's3') and length(${table.storageStoreId}) > 0 and ${table.storageKey} = 'catalog/exercise/' || ${table.id}::text`),
-    exerciseCatalogAssetStateCheck: check("exercise_catalog_asset_state_check", sql`${table.state} in ('pending', 'ready', 'withdrawn') and ${table.writeState} in ('not_started', 'uncertain', 'settled') and (${table.state} <> 'ready' or ${table.writeState} = 'settled')`),
-    exerciseCatalogAssetContentCheck: check("exercise_catalog_asset_content_check", sql`${table.contentType} in ('image/jpeg', 'image/png') and ${table.sizeBytes} > 0 and ${table.width} > 0 and ${table.height} > 0 and ${table.sha256} ~ '^[0-9a-f]{64}$' and ${table.originalFileSha256} ~ '^[0-9a-f]{64}$' and ${table.bindingFingerprint} ~ '^[0-9a-f]{64}$'`),
+    exerciseCatalogAssetKeyUnique: uniqueIndex("exercise_catalog_asset_storage_key_key").on(
+      table.storageKey,
+    ),
+    exerciseCatalogAssetBindingUnique: uniqueIndex(
+      "exercise_catalog_asset_media_fingerprint_key",
+    ).on(table.exerciseMediaId, table.bindingFingerprint),
+    exerciseCatalogAssetMediaIdx: index("exercise_catalog_asset_media_id_idx").on(
+      table.exerciseMediaId,
+    ),
+    exerciseCatalogAssetIdentityCheck: check(
+      "exercise_catalog_asset_identity_check",
+      sql`${table.storageProvider} in ('local', 's3') and length(${table.storageStoreId}) > 0 and ${table.storageKey} = 'catalog/exercise/' || ${table.id}::text`,
+    ),
+    exerciseCatalogAssetStateCheck: check(
+      "exercise_catalog_asset_state_check",
+      sql`${table.state} in ('pending', 'ready', 'withdrawn') and ${table.writeState} in ('not_started', 'uncertain', 'settled') and (${table.state} <> 'ready' or ${table.writeState} = 'settled')`,
+    ),
+    exerciseCatalogAssetContentCheck: check(
+      "exercise_catalog_asset_content_check",
+      sql`${table.contentType} in ('image/jpeg', 'image/png') and ${table.sizeBytes} > 0 and ${table.width} > 0 and ${table.height} > 0 and ${table.sha256} ~ '^[0-9a-f]{64}$' and ${table.originalFileSha256} ~ '^[0-9a-f]{64}$' and ${table.bindingFingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
   }),
 );
 
@@ -181,8 +242,12 @@ export const exerciseCatalogAsset = pgTable(
 export const exerciseCatalogMutation = pgTable(
   "exercise_catalog_mutation",
   {
-    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     clientMutationId: uuid("client_mutation_id").notNull(),
     kind: text("kind").$type<"create_custom" | "add_from_library">().notNull(),
     fingerprint: text("fingerprint").notNull(),
@@ -190,8 +255,18 @@ export const exerciseCatalogMutation = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
-    exerciseCatalogMutationKey: uniqueIndex("exercise_catalog_mutation_org_user_client_key").on(table.organizationId, table.userId, table.clientMutationId),
-    exerciseCatalogMutationKindCheck: check("exercise_catalog_mutation_kind_check", sql`${table.kind} in ('create_custom', 'add_from_library')`),
-    exerciseCatalogMutationFingerprintCheck: check("exercise_catalog_mutation_fingerprint_check", sql`${table.fingerprint} ~ '^[0-9a-f]{64}$'`),
+    exerciseCatalogMutationKey: uniqueIndex("exercise_catalog_mutation_org_user_client_key").on(
+      table.organizationId,
+      table.userId,
+      table.clientMutationId,
+    ),
+    exerciseCatalogMutationKindCheck: check(
+      "exercise_catalog_mutation_kind_check",
+      sql`${table.kind} in ('create_custom', 'add_from_library')`,
+    ),
+    exerciseCatalogMutationFingerprintCheck: check(
+      "exercise_catalog_mutation_fingerprint_check",
+      sql`${table.fingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
   }),
 );

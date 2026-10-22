@@ -243,6 +243,7 @@ describe("actual server schema sensitive coverage", () => {
           "EMAIL_DRY_RUN",
           "EMAIL_FROM",
           "EMAIL_REPLY_TO",
+          "EXERCISE_CATALOG_ASSETS_ENABLED",
           "FOOD_LOOKUP_BASE_URL",
           "FOOD_LOOKUP_PROVIDER",
           "FOOD_LOOKUP_USER_AGENT",
