@@ -1,9 +1,19 @@
-import { readdir } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { deleteSubjectData } from "@openvalens/data-rights/delete";
 import { exportSubjectData } from "@openvalens/data-rights/export";
+import {
+  IMAGE_SANITIZATION_FIXTURE_CANARIES,
+  jpegWithExif,
+} from "@openvalens/body/sanitize-image.fixtures";
 import { createDb, sql, type Database } from "@openvalens/db";
+import { createStorageService, type StorageService } from "@openvalens/storage";
+import { LocalObjectStorage } from "@openvalens/storage/providers/local";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "./context";
@@ -62,6 +72,8 @@ const auth = {
 describe.skipIf(!url)("private body measurements over RPC and PostgreSQL", () => {
   const db: Database = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/private_body_test" });
   const rpc = new RPCHandler(appRouter);
+  let storageRoot = "";
+  let storage: StorageService;
 
   async function migrate() {
     const root = new URL("../../db/src/migrations/", import.meta.url);
@@ -98,6 +110,7 @@ describe.skipIf(!url)("private body measurements over RPC and PostgreSQL", () =>
       aiConfig: {} as never,
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,
       honoContext: { req: { raw: { headers } } },
+      storage,
     } as unknown as Context;
   }
 
@@ -133,10 +146,20 @@ describe.skipIf(!url)("private body measurements over RPC and PostgreSQL", () =>
     if (existing.rows.length) throw new Error("Integration database must be empty.");
     await migrate();
     setRegisteredAuth(auth);
+    storageRoot = await mkdtemp(join(tmpdir(), "ov-private-photos-"));
+    storage = createStorageService({
+      db,
+      storage: new LocalObjectStorage(storageRoot),
+      maxObjectBytes: 10 * 1024 * 1024,
+      signedUrlTtlSeconds: 300,
+      signingKey: Buffer.alloc(32, 7),
+    });
   });
 
   beforeEach(async () => {
     noWeightAccess.clear();
+    await db.execute(sql`delete from stored_object`);
+    await db.execute(sql`delete from photo_cleanup_intent`);
     await db.execute(sql`delete from "user"`);
     await db.execute(sql`delete from organization`);
     await db.execute(sql`insert into "user" (id, email) values
@@ -151,6 +174,7 @@ describe.skipIf(!url)("private body measurements over RPC and PostgreSQL", () =>
 
   afterAll(async () => {
     clearRegisteredAuth();
+    if (storageRoot) await rm(storageRoot, { recursive: true, force: true });
     await db.$client.end();
   });
 
@@ -290,5 +314,140 @@ describe.skipIf(!url)("private body measurements over RPC and PostgreSQL", () =>
     expect(erased.rowCounts.private_body_measurement_preference).toBe(1);
     const remaining = await db.execute(sql`select user_id from private_body_measurement`);
     expect(remaining.rows).toEqual([{ user_id: "user-b" }]);
+  });
+
+  /** A real oRPC client, so uploads go through the multipart File encoding. */
+  function clientFor(user: string, extra: Record<string, string> = {}) {
+    const link = new RPCLink({
+      url: "http://test.local/rpc",
+      headers: { "x-test-user": user, ...extra },
+      fetch: async (request) => {
+        const { matched, response } = await rpc.handle(request as Request, {
+          prefix: "/rpc",
+          context: contextFor(new Headers((request as Request).headers)),
+        });
+        if (!matched || !response) throw new Error("unmatched private-body RPC path");
+        return response;
+      },
+    });
+    return createORPCClient<{
+      privateBody: {
+        photos: (input: object) => Promise<{
+          enabled: boolean;
+          storage: boolean;
+          photos: { id: string; contentType: string; sizeBytes: number }[];
+        }>;
+        uploadPhoto: (input: { photo: Blob }) => Promise<{ id: string; contentType: string }>;
+        photoFile: (input: { id: string }) => Promise<Blob>;
+      };
+    }>(link as never);
+  }
+  async function status(promise: Promise<unknown>): Promise<number | "ok"> {
+    try {
+      await promise;
+      return "ok";
+    } catch (error) {
+      return (error as { status?: number }).status ?? 0;
+    }
+  }
+  const jpeg = async () => new File([await jpegWithExif()], "IMG_0001.jpg", { type: "image/jpeg" });
+
+  describe("progress photos (#85)", () => {
+    test("are off until the member opts in, and uploads are refused while off", async () => {
+      const client = clientFor("user-a");
+      expect(await client.privateBody.photos({})).toEqual({
+        enabled: false,
+        storage: true,
+        photos: [],
+      });
+      expect(await status(client.privateBody.uploadPhoto({ photo: await jpeg() }))).toBe(409);
+      const stored = await db.execute(sql`select count(*)::int as n from stored_object`);
+      expect(stored.rows[0]).toEqual({ n: 0 });
+    });
+
+    test("are stripped of EXIF/GPS metadata and stored privately", async () => {
+      await call("setPreference", { enabled: true });
+      const client = clientFor("user-a");
+      const uploaded = await client.privateBody.uploadPhoto({ photo: await jpeg() });
+      expect(uploaded.contentType).toBe("image/jpeg");
+
+      const [row] = (
+        await db.execute(
+          sql`select storage_key, purpose, created_by_user_id, photo_state from stored_object where id = ${uploaded.id}`,
+        )
+      ).rows as {
+        storage_key: string;
+        purpose: string;
+        created_by_user_id: string;
+        photo_state: string;
+      }[];
+      expect(row).toMatchObject({
+        purpose: "progress_photo",
+        created_by_user_id: "user-a",
+        photo_state: "ready",
+      });
+      // The stored bytes carry none of the original metadata canaries or the file name.
+      const bytes = (await readFile(join(storageRoot, row!.storage_key))).toString("latin1");
+      for (const canary of [...IMAGE_SANITIZATION_FIXTURE_CANARIES, "IMG_0001", "Exif"])
+        expect(bytes).not.toContain(canary);
+
+      expect((await client.privateBody.photos({})).photos.map((photo) => photo.id)).toEqual([
+        uploaded.id,
+      ]);
+      const served = await client.privateBody.photoFile({ id: uploaded.id });
+      expect(served.type).toBe("image/jpeg");
+      expect(Buffer.from(await served.arrayBuffer()).toString("latin1")).toBe(bytes);
+    });
+
+    test("are visible only to the uploader, not to same-org owners or other tenants", async () => {
+      await call("setPreference", { enabled: true });
+      const uploaded = await clientFor("user-a").privateBody.uploadPhoto({ photo: await jpeg() });
+      for (const user of ["user-b", "user-c", "user-d"]) {
+        await call("setPreference", { enabled: true }, user);
+        expect((await clientFor(user).privateBody.photos({})).photos).toEqual([]);
+        expect(await status(clientFor(user).privateBody.photoFile({ id: uploaded.id }))).toBe(404);
+        const link = await rpc.handle(
+          new Request("http://test.local/rpc/storage/downloadUrl", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-test-user": user },
+            body: JSON.stringify({ json: { objectId: uploaded.id } }),
+          }),
+          {
+            prefix: "/rpc",
+            context: contextFor(new Headers({ "x-test-user": user })),
+          },
+        );
+        expect(link.response?.status).toBe(404);
+      }
+    });
+
+    test("turning the opt-in off hides photos until it is turned on again", async () => {
+      await call("setPreference", { enabled: true });
+      const client = clientFor("user-a");
+      const uploaded = await client.privateBody.uploadPhoto({ photo: await jpeg() });
+      await call("setPreference", { enabled: false });
+      expect((await client.privateBody.photos({})).photos).toEqual([]);
+      expect(await status(client.privateBody.photoFile({ id: uploaded.id }))).toBe(404);
+      await call("setPreference", { enabled: true });
+      expect((await client.privateBody.photos({})).photos.map((photo) => photo.id)).toEqual([
+        uploaded.id,
+      ]);
+    });
+
+    test("rejects non-images, impersonated sessions and spoofed owner fields", async () => {
+      await call("setPreference", { enabled: true });
+      const client = clientFor("user-a");
+      const text = new File(["not an image"], "note.jpg", { type: "image/jpeg" });
+      expect(await status(client.privateBody.uploadPhoto({ photo: text }))).toBe(400);
+      const impersonated = clientFor("user-a", { "x-test-impersonated": "admin" });
+      expect(await status(impersonated.privateBody.uploadPhoto({ photo: await jpeg() }))).toBe(403);
+      expect(
+        await status(
+          client.privateBody.uploadPhoto({ photo: await jpeg(), userId: "user-b" } as never),
+        ),
+      ).toBe(400);
+      const stored = await db.execute(sql`select count(*)::int as n from stored_object`);
+      expect(stored.rows[0]).toEqual({ n: 0 });
+    });
   });
 });

@@ -23,7 +23,7 @@
 import { createHash } from "node:crypto";
 
 import type { Database } from "@openvalens/db";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { photoCleanupIntent, storedObject } from "@openvalens/db/schema/storage";
 
 import { buildObjectKey, newObjectId, READINESS_PROBE_KEY } from "./keys";
@@ -120,6 +120,15 @@ export interface StorageService {
   listObjects(input: {
     organizationId: string;
     purpose?: StoredObjectPurpose;
+    limit?: number;
+  }): Promise<StoredObjectRecord[]>;
+  /**
+   * The member's own readable progress photos in one organization, newest
+   * first (#85). Pending, deleting, legacy and other-store photos are left out.
+   */
+  listPhotos(input: {
+    organizationId: string;
+    createdByUserId: string;
     limit?: number;
   }): Promise<StoredObjectRecord[]>;
   /** Removes the bytes, then the metadata row. Returns `false` when not found. */
@@ -914,6 +923,28 @@ export function createStorageService(options: StorageServiceOptions): StorageSer
         .orderBy(desc(storedObject.createdAt))
         .limit(Math.min(Math.max(1, limit), 500));
       return rows.filter(isReadable).map(toRecord);
+    },
+
+    async listPhotos({ organizationId, createdByUserId, limit = 100 }) {
+      const identity = storage.storeIdentity;
+      if (!identity) return [];
+      const rows = await db
+        .select()
+        .from(storedObject)
+        .where(
+          and(
+            eq(storedObject.organizationId, organizationId),
+            eq(storedObject.createdByUserId, createdByUserId),
+            eq(storedObject.purpose, "progress_photo"),
+            eq(storedObject.photoState, "ready"),
+            eq(storedObject.storageProvider, identity.provider),
+            eq(storedObject.storageStoreId, identity.storeId),
+            isNull(storedObject.photoDeletionRequestedAt),
+          ),
+        )
+        .orderBy(desc(storedObject.createdAt))
+        .limit(Math.min(Math.max(1, limit), 500));
+      return rows.map(toRecord);
     },
 
     async deleteObject(ref: ObjectRef): Promise<"deleted" | "pending" | "not_found"> {
