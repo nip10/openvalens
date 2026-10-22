@@ -38,11 +38,7 @@ export class AddFoodSaveController {
   }
 
   isCurrent(intent: AddFoodSaveIntent): boolean {
-    return (
-      this.pending &&
-      this.active === intent &&
-      intent.generation === this.generation
-    );
+    return this.pending && this.active === intent && intent.generation === this.generation;
   }
 
   finish(intent: AddFoodSaveIntent): boolean {

@@ -11,20 +11,17 @@ const expoDb = {
     sqlite.query(sql).all(...(params as never[])) as T[],
   getFirstSync: <T,>(sql: string, ...params: unknown[]) =>
     (sqlite.query(sql).get(...(params as never[])) ?? null) as T | null,
-  runSync: (sql: string, ...params: unknown[]) =>
-    sqlite.query(sql).run(...(params as never[])),
+  runSync: (sql: string, ...params: unknown[]) => sqlite.query(sql).run(...(params as never[])),
 };
 let session: unknown;
-let cacheFirstOptions:
-  { queryFn: (context: never) => Promise<unknown> } | undefined;
+let cacheFirstOptions: { queryFn: (context: never) => Promise<unknown> } | undefined;
 
 mock.module("expo-sqlite", () => ({ openDatabaseSync: () => expoDb }));
 mock.module("react", () => ({
   useEffect: (effect: () => void) => effect(),
   useMemo: (factory: () => unknown) => factory(),
   useCallback: (callback: (...args: never[]) => unknown) => callback,
-  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) =>
-    getSnapshot(),
+  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
 }));
 mock.module("@tanstack/react-query", () => ({
   useQuery: (options: typeof cacheFirstOptions) => {
@@ -92,33 +89,21 @@ describe("cache write authority across sign-out", () => {
     useOfflineScope();
     const oldTicket = useOfflineWriteTicket()();
     expect(oldTicket).not.toBeNull();
-    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(
-      true,
-    );
+    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(true);
     await prepareOfflineSignOut();
-    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(
-      false,
-    );
+    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(false);
     session = makeSession("ticket-a", "ticket-session-a2");
     useOfflineScope();
     const freshTicket = useOfflineWriteTicket()();
     expect(freshTicket).not.toBeNull();
-    expect(isOfflineWriteTicketCurrent(freshTicket!, "ticket-a:org-a")).toBe(
-      true,
-    );
+    expect(isOfflineWriteTicketCurrent(freshTicket!, "ticket-a:org-a")).toBe(true);
     session = makeSession("ticket-b", "ticket-session-b1");
     useOfflineScope();
     session = makeSession("ticket-a", "ticket-session-a3");
     useOfflineScope();
-    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(
-      false,
-    );
-    expect(isOfflineWriteTicketCurrent(freshTicket!, "ticket-a:org-a")).toBe(
-      false,
-    );
-    expect(isOfflineWriteTicketCurrent({} as never, "ticket-a:org-a")).toBe(
-      false,
-    );
+    expect(isOfflineWriteTicketCurrent(oldTicket!, "ticket-a:org-a")).toBe(false);
+    expect(isOfflineWriteTicketCurrent(freshTicket!, "ticket-a:org-a")).toBe(false);
+    expect(isOfflineWriteTicketCurrent({} as never, "ticket-a:org-a")).toBe(false);
   });
 
   test("late reads cannot resurrect purged cache or cross A→B→A session changes", async () => {

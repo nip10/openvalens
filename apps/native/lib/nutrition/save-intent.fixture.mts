@@ -10,8 +10,7 @@ const expoDb = {
     sqlite.query(sql).all(...(params as never[])) as T[],
   getFirstSync: <T,>(sql: string, ...params: unknown[]) =>
     (sqlite.query(sql).get(...(params as never[])) ?? null) as T | null,
-  runSync: (sql: string, ...params: unknown[]) =>
-    sqlite.query(sql).run(...(params as never[])),
+  runSync: (sql: string, ...params: unknown[]) => sqlite.query(sql).run(...(params as never[])),
 };
 let session: any = {
   user: { id: "member-a" },
@@ -63,15 +62,13 @@ globalThis.setInterval = (() => 0) as typeof setInterval;
 let useDiaryOutbox: typeof import("./sync").useDiaryOutbox;
 let prepareOfflineSignOut: typeof import("../offline/sync").prepareOfflineSignOut;
 let useOfflineScope: typeof import("../offline/sync").useOfflineScope;
-let useOfflineWriteTicket: typeof import("../offline/sync").useOfflineWriteTicket;
 let controller: typeof import("./save-intent").AddFoodSaveController;
 let Controller: typeof import("./save-intent").AddFoodSaveController;
 let clearDiaryOutbox: typeof import("./store").clearDiaryOutbox;
 let readCache: typeof import("../offline/cache").readCache;
 beforeAll(async () => {
   ({ useDiaryOutbox } = await import("./sync"));
-  ({ prepareOfflineSignOut, useOfflineScope, useOfflineWriteTicket } =
-    await import("../offline/sync"));
+  ({ prepareOfflineSignOut, useOfflineScope } = await import("../offline/sync"));
   ({ AddFoodSaveController: Controller } = await import("./save-intent"));
   ({ clearDiaryOutbox } = await import("./store"));
   ({ readCache } = await import("../offline/cache"));
@@ -119,18 +116,14 @@ describe("production Add Food intent/outbox integration", () => {
     expect(outbox.enqueueForIntent(ticket, input("one"))).toBe(true);
     expect(outbox.enqueueForIntent(ticket, input("two"))).toBe(false);
     expect(outbox.enqueueForIntent({} as never, input("forged"))).toBe(false);
-    expect(
-      sqlite
-        .query("select id from nutrition_outbox where scope = ?")
-        .all(scope),
-    ).toHaveLength(1);
+    expect(sqlite.query("select id from nutrition_outbox where scope = ?").all(scope)).toHaveLength(
+      1,
+    );
     const fresh = outbox.beginWrite();
     expect(fresh).not.toBeNull();
     await prepareOfflineSignOut();
     expect(outbox.enqueueForIntent(fresh, input("obsolete"))).toBe(false);
-    expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(
-      0,
-    );
+    expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(0);
   });
 
   test("offline cached-session authority can enqueue and a new session receives fresh authority", () => {
@@ -143,11 +136,9 @@ describe("production Add Food intent/outbox integration", () => {
     const ticket = outbox.beginWrite();
     expect(outbox.online).toBe(false);
     expect(outbox.enqueueForIntent(ticket, input("offline"))).toBe(true);
-    expect(
-      sqlite
-        .query("select id from nutrition_outbox where scope = ?")
-        .all(scope),
-    ).toHaveLength(1);
+    expect(sqlite.query("select id from nutrition_outbox where scope = ?").all(scope)).toHaveLength(
+      1,
+    );
     clearDiaryOutbox(scope);
   });
 
@@ -160,15 +151,12 @@ describe("production Add Food intent/outbox integration", () => {
     let announcements = 0;
     const completion = ack.promise.then(() => {
       if (!controller.isCurrent(intent) || !ticket) return;
-      if (outbox.enqueueForIntent(ticket, input(intent.diaryMutationId)))
-        announcements++;
+      if (outbox.enqueueForIntent(ticket, input(intent.diaryMutationId))) announcements++;
     });
     await prepareOfflineSignOut();
     ack.resolve({ ref: {} });
     await completion;
-    expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(
-      0,
-    );
+    expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(0);
     expect(announcements).toBe(0);
     expect(readCache(scope, "nutritionDiary.test")).toBeNull();
   });
@@ -181,15 +169,12 @@ describe("production Add Food intent/outbox integration", () => {
     };
     const outbox = renderOutbox();
     const ticket = outbox.beginWrite();
-    const intent = controller.begin(ticket, "cancelled", () =>
-      crypto.randomUUID(),
-    )!;
+    const intent = controller.begin(ticket, "cancelled", () => crypto.randomUUID())!;
     const ack = deferred<void>();
     let announcements = 0;
     const completion = ack.promise.then(() => {
       if (!controller.isCurrent(intent) || !ticket) return;
-      if (outbox.enqueueForIntent(ticket, input(intent.diaryMutationId)))
-        announcements++;
+      if (outbox.enqueueForIntent(ticket, input(intent.diaryMutationId))) announcements++;
     });
     outbox.clearDeviceData();
     controller.invalidate(); // all form close paths call the same synchronous invalidation
@@ -197,53 +182,26 @@ describe("production Add Food intent/outbox integration", () => {
     expect(controller.isCurrent(intent)).toBe(false);
     return completion.then(() => {
       expect(announcements).toBe(0);
-      expect(
-        outbox.enqueueForIntent(ticket, input(intent.diaryMutationId)),
-      ).toBe(false);
-      expect(
-        sqlite.query("select id from nutrition_outbox").all(),
-      ).toHaveLength(0);
+      expect(outbox.enqueueForIntent(ticket, input(intent.diaryMutationId))).toBe(false);
+      expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(0);
     });
   });
 
   test("one active submission wins; ambiguous retry IDs persist and changed/completed intents rotate IDs", () => {
     controller = new Controller();
-    const ids = [
-      "create-1",
-      "diary-1",
-      "create-2",
-      "diary-2",
-      "create-3",
-      "diary-3",
-    ];
+    const ids = ["create-1", "diary-1", "create-2", "diary-2", "create-3", "diary-3"];
     const next = () => ids.shift()!;
-    const first = controller.begin(
-      useDiaryOutbox().beginWrite(),
-      "same",
-      next,
-    )!;
+    const first = controller.begin(useDiaryOutbox().beginWrite(), "same", next)!;
     expect(controller.begin(null, "same", next)).toBeNull();
     expect(controller.release(first)).toBe(true);
-    const retry = controller.begin(
-      useDiaryOutbox().beginWrite(),
-      "same",
-      next,
-    )!;
+    const retry = controller.begin(useDiaryOutbox().beginWrite(), "same", next)!;
     expect(retry.createMutationId).toBe(first.createMutationId);
     expect(retry.diaryMutationId).toBe(first.diaryMutationId);
     controller.release(retry);
-    const changed = controller.begin(
-      useDiaryOutbox().beginWrite(),
-      "changed",
-      next,
-    )!;
+    const changed = controller.begin(useDiaryOutbox().beginWrite(), "changed", next)!;
     expect(changed.createMutationId).not.toBe(first.createMutationId);
     controller.finish(changed);
-    const completed = controller.begin(
-      useDiaryOutbox().beginWrite(),
-      "same",
-      next,
-    )!;
+    const completed = controller.begin(useDiaryOutbox().beginWrite(), "same", next)!;
     expect(completed.createMutationId).not.toBe(first.createMutationId);
     expect(controller.finish(first)).toBe(false); // stale finally cannot clear the new submission
   });
@@ -256,9 +214,7 @@ describe("production Add Food intent/outbox integration", () => {
     };
     const outbox = renderOutbox();
     const ticket = outbox.beginWrite();
-    const intent = controller.begin(ticket, "owner-change", () =>
-      crypto.randomUUID(),
-    )!;
+    const intent = controller.begin(ticket, "owner-change", () => crypto.randomUUID())!;
     session = {
       user: { id: "member-b" },
       session: { id: "b1", activeOrganizationId: "org" },
@@ -270,13 +226,9 @@ describe("production Add Food intent/outbox integration", () => {
     };
     renderOutbox();
     expect(controller.isCurrent(intent)).toBe(true); // intent generation remains but ticket rejects
-    expect(outbox.enqueueForIntent(ticket, input(intent.diaryMutationId))).toBe(
-      false,
-    );
+    expect(outbox.enqueueForIntent(ticket, input(intent.diaryMutationId))).toBe(false);
     controller.invalidate();
     expect(controller.isCurrent(intent)).toBe(false);
-    expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(
-      0,
-    );
+    expect(sqlite.query("select id from nutrition_outbox").all()).toHaveLength(0);
   });
 });

@@ -38,18 +38,14 @@ export const DIARY_CACHE_PREFIX = "nutritionDiary.";
 const sender = {
   logEntry: (input: Parameters<typeof client.nutritionDiary.logEntry>[0]) =>
     client.nutritionDiary.logEntry(input),
-  updateEntry: (
-    input: Parameters<typeof client.nutritionDiary.updateEntry>[0],
-  ) => client.nutritionDiary.updateEntry(input),
-  deleteEntry: (
-    input: Parameters<typeof client.nutritionDiary.deleteEntry>[0],
-  ) => client.nutritionDiary.deleteEntry(input),
-  restoreEntry: (
-    input: Parameters<typeof client.nutritionDiary.restoreEntry>[0],
-  ) => client.nutritionDiary.restoreEntry(input),
-  setDayStatus: (
-    input: Parameters<typeof client.nutritionDiary.setDayStatus>[0],
-  ) => client.nutritionDiary.setDayStatus(input),
+  updateEntry: (input: Parameters<typeof client.nutritionDiary.updateEntry>[0]) =>
+    client.nutritionDiary.updateEntry(input),
+  deleteEntry: (input: Parameters<typeof client.nutritionDiary.deleteEntry>[0]) =>
+    client.nutritionDiary.deleteEntry(input),
+  restoreEntry: (input: Parameters<typeof client.nutritionDiary.restoreEntry>[0]) =>
+    client.nutritionDiary.restoreEntry(input),
+  setDayStatus: (input: Parameters<typeof client.nutritionDiary.setDayStatus>[0]) =>
+    client.nutritionDiary.setDayStatus(input),
   copyDay: (input: Parameters<typeof client.nutritionDiary.copyDay>[0]) =>
     client.nutritionDiary.copyDay(input),
 };
@@ -121,10 +117,7 @@ export type DiaryOutbox = {
   counts: ReturnType<typeof summarizeOutbox>;
   enqueue: (input: EnqueueInput) => void;
   beginWrite: () => OfflineWriteTicket | null;
-  enqueueForIntent: (
-    ticket: OfflineWriteTicket | null,
-    input: EnqueueInput,
-  ) => boolean;
+  enqueueForIntent: (ticket: OfflineWriteTicket | null, input: EnqueueInput) => boolean;
   keepMine: (id: string) => void;
   discard: (id: string) => void;
   retry: (id: string) => void;
@@ -165,17 +158,10 @@ export function useDiaryOutbox(): DiaryOutbox {
     [currentScope],
   );
 
-  const beginWrite = useCallback(
-    () => captureWriteTicket(),
-    [captureWriteTicket],
-  );
+  const beginWrite = useCallback(() => captureWriteTicket(), [captureWriteTicket]);
   const enqueueForIntent = useCallback(
     (ticket: OfflineWriteTicket | null, input: EnqueueInput) => {
-      if (
-        !ticket ||
-        !currentScope ||
-        !isOfflineWriteTicketCurrent(ticket, currentScope)
-      )
+      if (!ticket || !currentScope || !isOfflineWriteTicketCurrent(ticket, currentScope))
         return false;
       if (consumedWriteTickets.has(ticket as object)) return false;
       try {
