@@ -75,6 +75,17 @@ function safeHttpUrl(value: string | null | undefined): string | null {
   }
 }
 
+function Attribution({ title, license, author, attribution, sourceUrl, licenseUrl }: { title: string; license?: string | null; author?: string | null; attribution?: string | null; sourceUrl?: string | null; licenseUrl?: string | null }) {
+  const licenseHref = safeHttpUrl(licenseUrl);
+  const sourceHref = safeHttpUrl(sourceUrl);
+  return <section className="grid gap-1 rounded-md border p-3 text-xs text-muted-foreground" aria-label={title}>
+    <h3 className="font-medium text-foreground">{title}</h3>
+    {license ? <p>License: {license}{author ? ` · ${author}` : ""}</p> : <p>License not listed.</p>}
+    {attribution ? <p className="whitespace-pre-wrap">{attribution}</p> : null}
+    <div className="flex flex-wrap gap-x-3">{licenseHref ? <a className="min-h-11 inline-flex items-center underline" href={licenseHref} target="_blank" rel="noreferrer">License details</a> : null}{sourceHref ? <a className="min-h-11 inline-flex items-center underline" href={sourceHref} target="_blank" rel="noreferrer">Source record</a> : null}</div>
+  </section>;
+}
+
 function previewUrl(asset: PreviewAsset, apiBase: string, browserOrigin: string | null): string | null {
   if (!ASSET_ID.test(asset.assetId) || asset.path !== `/api/exercise-assets/${asset.assetId}`) return null;
   if (!browserOrigin) return null;
@@ -262,6 +273,7 @@ export function ExerciseLibraryPage() {
   return <main className="container mx-auto grid max-w-4xl gap-5 px-4 py-6">
     <header className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Exercise library</h1><p className="mt-1 text-sm text-muted-foreground">Browse licensed library entries and exercises created for your workspace.</p></div><Link to="/workouts" className="text-sm underline">Back to workouts</Link></header>
     {notice ? <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{notice}</p> : null}
+    {isDispatching ? <Button variant="ghost" onClick={() => { intentRef.current = null; dispatchingIntentRef.current = null; setIsDispatching(false); setUncertain(false); setRefreshedAfterUncertain(false); setNotice("Stopped waiting. The request may still complete on the server."); }}>Cancel</Button> : null}
     {uncertain ? <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3"><p className="flex-1 text-sm">Could not confirm. Refresh and review before trying again.</p>{!refreshedAfterUncertain ? <Button variant="outline" disabled={isDispatching} onClick={() => void reconcile()}>Refresh and review</Button> : <Button variant="outline" disabled={isDispatching} onClick={() => { const intent = intentRef.current; if (intent) void dispatchIntent(intent); }}>Retry same request</Button>}</div> : null}
     <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.2fr)_minmax(18rem,.8fr)]">
       <Card><CardHeader><CardTitle>Browse exercises</CardTitle></CardHeader><CardContent className="grid gap-3">
