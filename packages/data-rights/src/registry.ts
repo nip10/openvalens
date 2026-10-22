@@ -80,6 +80,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // Issue #85 private manual measurements and their off-by-default member opt-in.
   private_body_measurement: { kind: "user" },
   private_body_measurement_preference: { kind: "user" },
+  // Cycle logging (#91): member-private, under its own consent.
+  cycle_preference: { kind: "user" },
+  cycle_import: { kind: "user" },
+  cycle_period: { kind: "user" },
 
   // Clinical
   photo_cleanup_intent: {

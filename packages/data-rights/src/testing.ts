@@ -130,6 +130,10 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `insert into weight_checkin (organization_id, date, weight_kg, created_at) values ('${org}', '2026-09-01', 70, '2026-09-01')`,
     `insert into private_body_measurement (organization_id, user_id, kind, value, unit, measured_at) values ('${org}', '${user}', 'waist', 80, 'cm', now())`,
     `insert into private_body_measurement_preference (user_id, enabled) values ('${user}', true)`,
+    // Cycle logging (#91)
+    `insert into cycle_preference (user_id, enabled, consent_version, consented_at) values ('${user}', true, 'cycle-v1', now())`,
+    `with run as (insert into cycle_import (organization_id, user_id, source, period_count) values ('${org}', '${user}', 'health_connect', 1) returning id)
+       insert into cycle_period (organization_id, user_id, start_date, source, source_record_id, import_id) select '${org}', '${user}', '2026-09-01', 'health_connect', 'hc-${who}', id from run`,
     // Clinical
     `with panel as (insert into blood_panel (organization_id, date, created_at) values ('${org}', '2026-09-01', '2026-09-01') returning organization_id, id)
        insert into blood_marker (organization_id, panel_id, category, test_name, test_key) select organization_id, id, 'lipids', 'LDL', 'ldl' from panel`,
