@@ -7,18 +7,19 @@ readiness probe (Issue #57).
 
 ## v1 adapter set
 
-| Family             | Adapters                                                           | Default with no vendor env     | Enable with                                                     | Status             |
-| ------------------ | ------------------------------------------------------------------ | ------------------------------ | --------------------------------------------------------------- | ------------------ |
-| `email`            | Resend (only transport, Issue #61)                                 | `dry-run` — sends are logged   | `RESEND_API_KEY` and `EMAIL_DRY_RUN=false`                      | Implemented        |
-| `ai`               | Anthropic                                                          | `off` — `ai.chat` fails closed | `AI_PROVIDER=anthropic` + `AI_API_KEY`                          | Implemented        |
-| `messaging`        | Telegram                                                           | `off` — no delivery            | `TELEGRAM_BOT_TOKEN`                                            | Implemented        |
-| `ai`               | Any OpenAI-compatible endpoint (Ollama, local)                     | `off` — `ai.chat` fails closed | `AI_PROVIDER=openai-compatible` (#59)                           | Implemented        |
-| `foodLookup`       | Open Food Facts live barcode lookup (#69)                          | `off` — local catalogs only    | `FOOD_LOOKUP_PROVIDER=openfoodfacts` + `FOOD_LOOKUP_USER_AGENT` | Implemented        |
-| `storage`          | Local disk, S3-compatible (S3, R2, MinIO, B2)                      | Local disk, private            | `STORAGE_PROVIDER=s3` + `STORAGE_S3_*`                          | Implemented        |
-| `push`             | Expo push service (forwards to APNs/FCM, #92)                      | `off` — push shown unavailable | `PUSH_PROVIDER=expo`                                            | Implemented        |
-| `oidc`             | One generic OIDC provider (local accounts stay)                    | `off` — local accounts only    | `OIDC_*` env (Issue #65)                                        | Implemented        |
-| `wearables`        | Phone-first ingestion; Oura, Whoop, Polar, Withings, Google Health | Phone-first, no vendor         | Per-vendor env (Issue #60)                                      | Implemented        |
-| Errors / analytics | None by default                                                    | `off`                          | Opt-in only (Issues #53, #54)                                   | Planned — #53, #54 |
+| Family       | Adapters                                                           | Default with no vendor env     | Enable with                                                     | Status      |
+| ------------ | ------------------------------------------------------------------ | ------------------------------ | --------------------------------------------------------------- | ----------- |
+| `email`      | Resend (only transport, Issue #61)                                 | `dry-run` — sends are logged   | `RESEND_API_KEY` and `EMAIL_DRY_RUN=false`                      | Implemented |
+| `ai`         | Anthropic                                                          | `off` — `ai.chat` fails closed | `AI_PROVIDER=anthropic` + `AI_API_KEY`                          | Implemented |
+| `messaging`  | Telegram                                                           | `off` — no delivery            | `TELEGRAM_BOT_TOKEN`                                            | Implemented |
+| `ai`         | Any OpenAI-compatible endpoint (Ollama, local)                     | `off` — `ai.chat` fails closed | `AI_PROVIDER=openai-compatible` (#59)                           | Implemented |
+| `foodLookup` | Open Food Facts live barcode lookup (#69)                          | `off` — local catalogs only    | `FOOD_LOOKUP_PROVIDER=openfoodfacts` + `FOOD_LOOKUP_USER_AGENT` | Implemented |
+| `storage`    | Local disk, S3-compatible (S3, R2, MinIO, B2)                      | Local disk, private            | `STORAGE_PROVIDER=s3` + `STORAGE_S3_*`                          | Implemented |
+| `push`       | Expo push service (forwards to APNs/FCM, #92)                      | `off` — push shown unavailable | `PUSH_PROVIDER=expo`                                            | Implemented |
+| `oidc`       | One generic OIDC provider (local accounts stay)                    | `off` — local accounts only    | `OIDC_*` env (Issue #65)                                        | Implemented |
+| `wearables`  | Phone-first ingestion; Oura, Whoop, Polar, Withings, Google Health | Phone-first, no vendor         | Per-vendor env (Issue #60)                                      | Implemented |
+| Errors       | Sentry (server, web, JS-only mobile), PHI-scrubbed (#54)           | `off` — nothing is sent        | `SENTRY_DSN` (+ `VITE_SENTRY_DSN`, `EXPO_PUBLIC_SENTRY_DSN`)    | Implemented |
+| Analytics    | PostHog, consent-gated (#53)                                       | `off`                          | `ANALYTICS_ENABLED` + token                                     | Implemented |
 
 See [AI providers](ai-providers.md) for AI provider selection and the
 no-tool-calling guarantees, [Object storage](storage.md) for storage, and

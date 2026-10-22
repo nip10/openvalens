@@ -191,7 +191,8 @@ Response shape:
       "telegram": false,
       "anthropic": false,
       "resend": false,
-      "mobilePairing": true
+      "mobilePairing": true,
+      "sentry": false
     },
     "storage": "ok",
     "integrations": {
@@ -367,8 +368,9 @@ Run these after deploy:
   `x-correlation-id` → `x-request-id` → UUID and echoed back on the response.
 - Capture and search both stdout and stderr.
 - Use platform log search/retention for cron and webhook incidents.
-- Sentry is not configured by default; do not assume external error reporting
-  exists.
+- Sentry error reporting (Issue #54) is off unless `SENTRY_DSN` is set; see
+  [Error reporting](self-hosting/configuration.md#error-reporting-sentry). Events
+  carry only error types and code frames, so keep relying on logs for context.
 
 ## 10. Operational notes
 

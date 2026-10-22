@@ -30,6 +30,7 @@ import { cors } from "hono/cors";
 import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
 import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
 import { createContext } from "./context";
+import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
 import {
   auth,
@@ -331,6 +332,7 @@ export const apiHandler = new OpenAPIHandler(appRouter, {
         correlationId: correlationIdFrom(options.context),
         error,
       });
+      reportError(error);
     }),
   ],
 });
@@ -342,6 +344,7 @@ export const rpcHandler = new RPCHandler(appRouter, {
         correlationId: correlationIdFrom(options.context),
         error,
       });
+      reportError(error);
     }),
   ],
 });

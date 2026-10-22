@@ -11,6 +11,7 @@ const ALL_CAPABILITIES: CapabilityFlags = {
   anthropic: true,
   resend: true,
   mobilePairing: true,
+  sentry: true,
 };
 
 function createTestContext(overrides: Partial<Context> = {}): Context {
@@ -119,6 +120,7 @@ describe("health.readiness", () => {
       anthropic: false,
       resend: true,
       mobilePairing: true,
+      sentry: false,
     });
   });
 

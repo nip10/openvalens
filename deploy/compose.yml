@@ -111,6 +111,10 @@ x-server-env: &server-env
   EXERCISE_CATALOG_ASSETS_ENABLED: ${EXERCISE_CATALOG_ASSETS_ENABLED:-false}
   POSTHOG_PROJECT_TOKEN_FILE: ${POSTHOG_PROJECT_TOKEN_FILE:-}
   POSTHOG_IP_CAPTURE_DISABLED: ${POSTHOG_IP_CAPTURE_DISABLED:-false}
+  # Optional, PHI-scrubbed error reporting (Issue #54): off without a DSN.
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
+  SENTRY_RELEASE: ${SENTRY_RELEASE:-}
 
 services:
   caddy:
@@ -146,6 +150,10 @@ services:
       args:
         # Same origin: Caddy routes the API paths to `server`.
         VITE_SERVER_URL: https://${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
+        # Optional browser error reporting (Issue #54), baked in at build time.
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
+        VITE_SENTRY_RELEASE: ${SENTRY_RELEASE:-}
     init: true
     environment:
       # The web document carries its own copy of the policy; keep it in step

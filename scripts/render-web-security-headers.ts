@@ -17,6 +17,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { errorReportingOrigin } from "../packages/observability/src/error-reporting";
 import { buildSecurityHeaders, type CspMode } from "../packages/observability/src/security-headers";
 
 /** Mirrors `CSP_REPORT_PATH` in `apps/server/src/security-csp-report.ts` (asserted by the test). */
@@ -46,14 +47,19 @@ function nginxQuote(value: string): string {
   return `"${value.replaceAll('"', '\\"')}"`;
 }
 
-/** Renders the `add_header` snippet for one CSP mode. */
-export function renderSnippet(cspMode: CspMode, serverOrigin: string): string {
+/**
+ * Renders the `add_header` snippet for one CSP mode. `sentryDsn` (Issue #54)
+ * adds only that DSN's origin to `connect-src` when browser error reporting is on.
+ */
+export function renderSnippet(cspMode: CspMode, serverOrigin: string, sentryDsn?: string): string {
   const headers = buildSecurityHeaders({
     cspMode,
     allowDevScriptEval: false,
     reportToGroup: "csp-endpoint",
     reportToUrl: `${serverOrigin}${CSP_REPORT_PATH}`,
-    additionalConnectSrc: [serverOrigin],
+    additionalConnectSrc: sentryDsn?.trim()
+      ? [serverOrigin, errorReportingOrigin(sentryDsn.trim())]
+      : [serverOrigin],
   });
   const lines = Object.entries(headers).map(
     ([name, value]) => `add_header ${name} ${nginxQuote(value)} always;`,
@@ -72,7 +78,7 @@ if (import.meta.main) {
   for (const cspMode of CSP_MODES) {
     await writeFile(
       join(outDir, `security-headers.${cspMode}.conf`),
-      renderSnippet(cspMode, serverOrigin),
+      renderSnippet(cspMode, serverOrigin, process.env.VITE_SENTRY_DSN),
     );
   }
   console.log(`Wrote web security-header snippets for ${serverOrigin}`);

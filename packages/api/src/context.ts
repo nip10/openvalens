@@ -35,6 +35,8 @@ export type CapabilityFlags = {
   anthropic: boolean;
   resend: boolean;
   mobilePairing: boolean;
+  /** Issue #54 — error reporting to Sentry is configured (`SENTRY_DSN`). Absent reads as `false`. */
+  sentry?: boolean;
 };
 
 /** Telegram configuration the server owns and hands to the API package. */

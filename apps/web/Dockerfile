@@ -7,9 +7,15 @@ RUN --mount=type=secret,id=web_env,target=/app/apps/web/.env.local --mount=type=
 
 ARG VITE_SERVER_URL
 ENV VITE_SERVER_URL=${VITE_SERVER_URL}
+# Issue #54 — optional browser error reporting; empty keeps it off.
+ARG VITE_SENTRY_DSN=
+ARG VITE_SENTRY_ENVIRONMENT=
+ARG VITE_SENTRY_RELEASE=
+ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN} VITE_SENTRY_ENVIRONMENT=${VITE_SENTRY_ENVIRONMENT} VITE_SENTRY_RELEASE=${VITE_SENTRY_RELEASE}
 ENV NODE_ENV=production
 RUN --mount=type=secret,id=web_env,target=/app/apps/web/.env.local --mount=type=secret,id=server_env,target=/app/apps/server/.env.local cd apps/web && bun run build
-# Issue #127 — render the web document's security headers for VITE_SERVER_URL.
+# Issue #127 — render the web document's security headers for VITE_SERVER_URL
+# (and the Sentry DSN origin when VITE_SENTRY_DSN is set, Issue #54).
 RUN --mount=type=secret,id=web_env,target=/app/apps/web/.env.local cd apps/web && bun ../../scripts/render-web-security-headers.ts security-headers
 
 FROM nginx:alpine AS runner

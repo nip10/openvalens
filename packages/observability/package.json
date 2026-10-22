@@ -11,6 +11,9 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
+    "@sentry/bun": "11.7.0",
+    "@sentry/react": "11.7.0",
+    "@sentry/react-native": "8.30.0",
     "varlock": "catalog:",
     "zod": "catalog:"
   },
