@@ -20,7 +20,7 @@ import {
 } from "./photo-export";
 import { previewSubjectData } from "./policy";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
-import { assertDisposable, migrateEmptyDatabase, seedAccount } from "./testing";
+import { assertDisposable, migrateEmptyDatabase, seedAccount, seedEveryModule } from "./testing";
 
 const url = process.env.DATA_RIGHTS_TEST_DATABASE_URL;
 assertDisposable(url, "data_rights_test");
@@ -122,6 +122,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     await migrateEmptyDatabase(db);
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
+    await seedEveryModule(db, "a");
+    await seedEveryModule(db, "b");
     await db.execute(
       sql.raw(`
       insert into "user" (id, email) values ('user-a2', 'water-collaborator@example.test');
@@ -219,6 +221,11 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     for (const excluded of exported.manifest.excluded)
       expect(excluded.reason.length).toBeGreaterThan(0);
     expect(exported.manifest.excluded.map((e) => e.table)).toContain("mobile_sync_session_chunk");
+  });
+
+  test("every exported module contributes the subject's rows (#89)", () => {
+    const empty = exported.manifest.entities.filter((entity) => entity.rows === 0);
+    expect(empty.map((entity) => entity.table)).toEqual([]);
   });
 
   test("contains the subject's data and nothing from the other account", () => {

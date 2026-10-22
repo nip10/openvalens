@@ -5,7 +5,13 @@ import { deleteSubjectData, PhotoErasureBlockedError, type DeletionReport } from
 import { rowFilter } from "./export";
 import { previewSubjectData, resolveSubject, type SubjectResolution } from "./policy";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
-import { applyMigration, assertDisposable, migrateEmptyDatabase, seedAccount } from "./testing";
+import {
+  applyMigration,
+  assertDisposable,
+  migrateEmptyDatabase,
+  seedAccount,
+  seedEveryModule,
+} from "./testing";
 
 const url = process.env.DATA_RIGHTS_DELETE_TEST_DATABASE_URL;
 assertDisposable(url, "data_rights_delete_test");
@@ -20,6 +26,7 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
   let preview: Record<string, number>;
   let resolvedA: SubjectResolution;
   let resolvedB: SubjectResolution;
+  let aBefore: Record<string, number>;
 
   const count = async (table: string, where: ReturnType<typeof sql>) =>
     Number(
@@ -43,6 +50,8 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     await migrateEmptyDatabase(db);
     await seedAccount(db, "a", 3);
     await seedAccount(db, "b", 5);
+    await seedEveryModule(db, "a");
+    await seedEveryModule(db, "b");
     // Photo erasure is now deliberately gated until per-photo physical cleanup.
     // Keep this suite's legacy broad-erasure fixture focused on its existing tables.
     await db.execute(sql`delete from stored_object where organization_id in ('org-a', 'org-b')`);
@@ -66,44 +75,17 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     for (const who of ["a", "b"]) {
       await db.execute(
         sql.raw(`
-        insert into weight_event (organization_id, user_id, date, measured_at, source, weight_kg, created_at)
-          values ('org-${who}', 'user-${who}', '2026-10-01', '2026-10-01T07:00', 'manual', 72, '2026-10-01');
-        insert into daily_weight (organization_id, user_id, date, source, weight_kg, resolved_from_event_id, created_at, updated_at)
-          select 'org-${who}', 'user-${who}', '2026-10-01', 'manual', 72, id, '2026-10-01', '2026-10-01'
-          from weight_event where organization_id = 'org-${who}';
-        insert into health_connect_sync (organization_id, payload_version, started_at, started_at_ts, window_start, window_end, created_at)
-          values ('org-${who}', '1', '2026-10-01', now(), '2026-09-30', '2026-10-01', '2026-10-01');
-        insert into health_connect_record (organization_id, sync_id, record_type, start_time, start_time_ts, value_json, hash, ingested_at)
-          select 'org-${who}', id, 'steps', '2026-10-01', now(), '{"count": 100}', 'hc-${who}', '2026-10-01'
-          from health_connect_sync where organization_id = 'org-${who}';
         insert into "_quarantine_legacy_mobile_sync_session" (id, organization_id, user_id, device_id, payload_version, timezone, window_start, window_end, expected_chunk_count, expires_at)
           values ('legacy-${who}', 'org-${who}', 'user-${who}', 'dev', '1', 'UTC', '2026-09-01', '2026-09-02', 1, now());
         insert into "_quarantine_legacy_mobile_sync_session_chunk" (id, session_id, chunk_index, chunk_count, chunk_hash, payload_json)
           values ('legacy-chunk-${who}', 'legacy-${who}', 0, 1, 'c', '{"hr": 61}');
-        insert into nutrition_food (organization_id, user_id, name, nutrient_basis_amount, nutrient_basis_unit, energy_kcal)
-          values ('org-${who}', 'user-${who}', 'Synthetic food ${who}', 100, 'g', 120);
-        insert into nutrition_food_snapshot (organization_id, source, source_food_id, source_version, custom_food_id, name, nutrient_basis_amount, nutrient_basis_unit, energy_kcal, content_hash)
-          select 'org-${who}', 'custom', id::text, '1', id, name, 100, 'g', 120, 'hash-${who}'
-          from nutrition_food where organization_id = 'org-${who}';
-        insert into nutrition_meal (organization_id, user_id, local_date, time_zone, slot)
-          values ('org-${who}', 'user-${who}', '2026-10-01', 'UTC', 'lunch');
-        insert into nutrition_meal_entry (organization_id, user_id, meal_id, snapshot_id, amount, unit, nutrient_factor, method)
-          select 'org-${who}', 'user-${who}', m.id, s.id, 50, 'g', 0.5, 'manual'
-          from nutrition_meal m, nutrition_food_snapshot s
-          where m.organization_id = 'org-${who}' and s.organization_id = 'org-${who}';
         insert into nutrition_goal (organization_id, user_id, nutrient, min_amount)
           values ('org-${who}', 'user-${who}', 'protein_g', 80);
         insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at, decided_at, accepted_goal_id)
           select 'org-${who}', 'user-${who}', 'maintenance', 'accepted', 2300, 2300, 1, 'energy-proposal/v1', '2026-09-04', '2026-10-01', '{"status": "estimated"}', now(), now(), id
           from nutrition_goal where organization_id = 'org-${who}';
-        insert into nutrition_diary_day (organization_id, user_id, local_date, completed_at)
-          values ('org-${who}', 'user-${who}', '2026-10-01', now());
         insert into nutrition_target_settings (organization_id, user_id, revision, hide_numbers, declarations)
           values ('org-${who}', 'user-${who}', 1, true, array['chronic_kidney_disease']);
-        insert into nutrition_favorite_food (organization_id, user_id, snapshot_id)
-          select 'org-${who}', 'user-${who}', id from nutrition_food_snapshot where organization_id = 'org-${who}';
-        insert into nutrition_diary_mutation (organization_id, user_id, client_mutation_id, kind, entry_id)
-          select 'org-${who}', 'user-${who}', 'cm-${who}', 'update', id from nutrition_meal_entry where organization_id = 'org-${who}';
         insert into plain_water_preference (organization_id, user_id, enabled, personal_goal_ml)
           values ('org-${who}', 'user-${who}', true, 1500);
         with water as (
@@ -205,8 +187,24 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     await db.execute(sql`insert into exercise_catalog_mutation (organization_id,user_id,client_mutation_id,kind,fingerprint,target_id)
       values ('org-a','user-a','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','create_custom',repeat('e',64),${custom.rows[0]!.id})`);
     preview = await previewSubjectData(db, A);
+    aBefore = await subjectCounts(A);
     bBefore = await subjectCounts(B);
     report = await deleteSubjectData(db, A, new Date("2026-10-04T00:00:00.000Z"));
+  });
+
+  /**
+   * Exported tables the subject deliberately has no rows in before erasure.
+   * Everything else must be seeded, so the next test cannot pass vacuously.
+   */
+  const NOT_SEEDED: Record<string, string> = {
+    stored_object: "Photo erasure is gated on physical cleanup; covered by its own suite below.",
+  };
+
+  test("every exported table holds subject rows before erasure (#89)", () => {
+    const empty = Object.entries(aBefore)
+      .filter(([table, n]) => n === 0 && !(table in NOT_SEEDED))
+      .map(([table]) => table);
+    expect(empty).toEqual([]);
   });
 
   test("every table the export covers has no rows left for the subject", async () => {

@@ -154,6 +154,11 @@ fake `EmailProvider` or `EmailService`; never call the live provider.
 3. Follow `docs/migration-safety.md` for tables that hold health data:
    additive first, quarantine instead of delete, no destructive statements in
    the same migration as a rename.
+4. Classify every new table in `packages/data-rights/src/registry.ts`
+   (`registry.test.ts` fails otherwise). If it holds a member's data, add one
+   row for it to `seedEveryModule` in `packages/data-rights/src/testing.ts`:
+   the export and erasure suites fail when an exported table has no seeded
+   rows, so every module proves its own export and delete coverage (#89).
 
 Never use `db:push` against a database with real data.
 
