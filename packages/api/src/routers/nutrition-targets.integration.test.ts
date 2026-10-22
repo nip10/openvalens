@@ -221,6 +221,7 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       hideNumbers: false,
       energyDirection: "maintain",
       activeProtein: false,
+      streaksEnabled: false,
       heightCm: null,
       declarations: [],
     });
@@ -505,5 +506,97 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
     ];
     expect(strings.length).toBeGreaterThan(0);
     for (const text of strings) expect(findBannedCopy(text)).toEqual([]);
+  });
+  describe("logging streak (#90)", () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const daysAgo = (days: number) =>
+      new Date(Date.parse(`${today}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
+    const streak = (user = "user-b", timeZone = "UTC", extraHeaders = {}) =>
+      call<Record<string, unknown>>("loggingStreak", { timeZone }, user, extraHeaders);
+
+    /** Logs one synthetic entry and pins its creation to noon on its own day. */
+    async function logDay(localDate: string, user: string, index: number) {
+      const result = await call<{ entry: { id: number } }>(
+        "nutritionDiary/logEntry",
+        {
+          clientMutationId: `streak-${user}-${index}`,
+          localDate,
+          timeZone: "UTC",
+          slot: "breakfast",
+          food: {
+            kind: "manual",
+            food: {
+              name: "Synthetic oats",
+              nutrientBasisAmount: 100,
+              nutrientBasisUnit: "g",
+              nutrients: { energyKcal: 380 },
+            },
+          },
+          amount: 50,
+          unit: "g",
+          method: "quick_add",
+        },
+        user,
+      );
+      expect(result.status).toBe(200);
+      await db.execute(
+        sql`update nutrition_meal_entry set created_at = ${`${localDate}T12:00:00Z`}::timestamptz where id = ${result.body.entry.id}`,
+      );
+    }
+
+    test("off until the member opts in; then derived from their own diary", async () => {
+      await resetSettings("user-b");
+      expect((await streak()).body).toEqual({ state: "off" });
+
+      for (const [index, days] of [2, 1, 0].entries()) await logDay(daysAgo(days), "user-b", index);
+      const enabled = await updateSettings({ expectedRevision: 0, streaksEnabled: true }, "user-b");
+      expect(enabled.body.outcome).toBe("updated");
+      expect(enabled.body.settings.streaksEnabled).toBe(true);
+
+      expect((await streak()).body).toMatchObject({
+        state: "on",
+        current: 3,
+        freezesAvailable: 2,
+        repairAvailableUntil: null,
+        lastLoggedDate: today,
+      });
+
+      // Another workspace's member never sees user-b's diary.
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, streaksEnabled: true }, "user-a");
+      expect((await streak("user-a")).body).toMatchObject({
+        state: "on",
+        current: 0,
+        lastLoggedDate: null,
+      });
+    });
+
+    test("hide-numbers, any exclusion and an unconfirmed adult hide it entirely", async () => {
+      await resetSettings("user-b");
+      await updateSettings({ expectedRevision: 0, streaksEnabled: true }, "user-b");
+      const hidden = await updateSettings({ expectedRevision: 1, hideNumbers: true }, "user-b");
+      expect(hidden.body.outcome).toBe("updated");
+      expect((await streak()).body).toEqual({ state: "hidden" });
+
+      await updateSettings(
+        { expectedRevision: 2, hideNumbers: false, declarations: ["bariatric_surgery"] },
+        "user-b",
+      );
+      expect((await streak()).body).toEqual({ state: "hidden" });
+
+      // Turning it back on later restores the derived streak: nothing was lost.
+      await updateSettings({ expectedRevision: 3, declarations: [] }, "user-b");
+      expect((await streak()).body).toMatchObject({ state: "on", current: 3 });
+
+      await resetSettings("user-u");
+      await updateSettings({ expectedRevision: 0, streaksEnabled: true }, "user-u");
+      expect((await streak("user-u")).body).toEqual({ state: "hidden" });
+    });
+
+    test("rejects unknown time zones and impersonated sessions", async () => {
+      expect((await streak("user-b", "Mars/Olympus")).status).toBe(400);
+      const impersonated = await streak("user-b", "UTC", { "x-test-impersonated": "admin-1" });
+      expect(impersonated.status).toBe(403);
+    });
   });
 });

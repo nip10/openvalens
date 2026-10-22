@@ -43,6 +43,30 @@ per-entry energy, the portion preview before saving, and the targets card.
 Coverage ("from 3 entries") and logging stay. Streak surfaces (#90) are
 hidden too. Turning it on or off never changes stored data.
 
+## Logging streak (#90)
+
+An opt-in count of consecutive local days with at least one diary entry
+(`nutrition_target_settings.streaks_enabled`, off by default). It is about the
+habit of logging, never about what was eaten. `nutritionTargets.loggingStreak`
+returns `hidden` in hide-numbers mode, after any declaration and until adult
+confirmation; then `off` until the member opts in.
+
+The streak is derived from the diary on every read; nothing about it is
+stored (`packages/nutrition/src/logging-streak.ts`):
+
+- A day counts when its earliest active entry was created by the end of the
+  next local day, in the time zone it was logged from. A backfill for
+  yesterday counts until the end of today, not after.
+- Two freezes at the start; one more per 7 counted days; at most 2 held. A
+  missed day inside a streak uses a freeze automatically.
+- With no freeze left, logging the missed day within the next two local days
+  repairs it, at most once per 30 days.
+- Milestones at 7, 30, 100 and 365 days. After a break the non-resetting
+  "days logged this month" count leads. The copy never mentions a lost
+  streak or the missed day, and never compares people.
+- Entries logged offline count from when the server receives them.
+- There is no reminder notification yet.
+
 ## Safety policy `nutrition-safety/v1`
 
 | Parameter         | Value                                                                                     | Basis                                                  |
@@ -133,7 +157,7 @@ Changing any value is a reviewed config change: bump the version in
 
 ## Data and privacy
 
-`nutrition_target_settings` (hide-numbers, direction, active opt-in, height,
+`nutrition_target_settings` (hide-numbers, direction, active opt-in, streak opt-in, height,
 declarations) is user-owned. Reads and writes require the member's own
 non-impersonated session; exports include only that member's settings. When an
 owned workspace is erased, all member settings in that disappearing workspace

@@ -7,6 +7,10 @@ import {
   goalEffectiveTo,
   goalsInEffectOn,
   helplinesFor,
+  isValidTimeZone,
+  loadLoggedDays,
+  localDateFor,
+  computeLoggingStreak,
   NUTRIENT_COLUMNS,
   NUTRITION_SAFETY_COPY,
   proteinReference,
@@ -23,6 +27,7 @@ import {
 } from "@openvalens/nutrition";
 
 import type {
+  LoggingStreakOutput,
   NutritionTargetWire,
   TargetsOverview,
   UpdateSettingsInput,
@@ -189,6 +194,24 @@ export function createNutritionTargetsService(deps: { db: Database; now?: () => 
           : null,
         notes,
       };
+    },
+
+    /**
+     * The logging streak (#90), derived from the diary. Hidden under the
+     * safeguards and `off` until the member opts in; reads only.
+     */
+    async loggingStreak(
+      scope: NutritionScope,
+      input: { timeZone: string },
+    ): Promise<LoggingStreakOutput> {
+      if (!isValidTimeZone(input.timeZone))
+        throw new NutritionTargetsRequestError("Unknown time zone");
+      const context = await loadSafetyContext(db, scope, { now: now(), readWeight: false });
+      if (context.safety.streaks === "hidden") return { state: "hidden" };
+      if (!context.settings.streaksEnabled) return { state: "off" };
+      const today = localDateFor(now(), input.timeZone);
+      const days = await loadLoggedDays(db, scope, today);
+      return { state: "on", ...computeLoggingStreak({ days, today }) };
     },
 
     /** The member's own target, from `effectiveFrom`; replaces the active one for that nutrient. */

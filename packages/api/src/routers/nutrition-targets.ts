@@ -7,6 +7,8 @@ import type { Context } from "../context";
 import {
   clearTargetInput,
   clearTargetOutput,
+  loggingStreakInput,
+  loggingStreakOutput,
   setTargetInput,
   setTargetOutput,
   targetsOverviewInput,
@@ -31,6 +33,7 @@ import { requireProfileOwner } from "../wellness-profile";
  * - `setTarget`      — the member's own target for one nutrient (`records:write`).
  * - `clearTarget`    — ends the member's target for one nutrient (`records:write`).
  * - `updateSettings` — hide-numbers, direction, active opt-in, height, declarations (`records:write`).
+ * - `loggingStreak`  — the opt-in logging streak (#90), hidden under the safeguards (`records:read`).
  *
  * Every call is keyed by the session's organization and user; inputs are
  * strict. Writes need the person's own, non-impersonated session: targets and
@@ -137,5 +140,15 @@ export const nutritionTargetsRouter = {
         correlationId: context.correlationId,
       });
       return { ...result, targetId: "settings" };
+    }),
+
+  loggingStreak: permissionedProcedure({ resource: "records", action: "read" })
+    .use(validateInput(loggingStreakInput))
+    .input(loggingStreakInput)
+    .output(loggingStreakOutput)
+    .handler(async ({ input, context }) => {
+      const scope = scopeOf(context);
+      requireSelf(context, scope);
+      return run(() => service(context).loggingStreak(scope, input));
     }),
 };
