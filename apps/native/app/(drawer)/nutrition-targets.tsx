@@ -26,6 +26,7 @@ import {
   resolveScopedHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
+import { FOOD_DRAFT_COPY } from "@openvalens/api/presenters/food-draft";
 import { RECIPE_IMPORT_COPY } from "@openvalens/api/presenters/recipe-draft";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
@@ -355,6 +356,7 @@ function SettingsCard({
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
   const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
   const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
+  const [voiceDraftsEnabled, setVoiceDraftsEnabled] = useState(settings.voiceDraftsEnabled);
   const [height, setHeight] = useState(settings.heightCm === null ? "" : String(settings.heightCm));
   const [declarations, setDeclarations] = useState<Declaration[]>(settings.declarations);
   const [message, setMessage] = useState("");
@@ -367,6 +369,7 @@ function SettingsCard({
     setActiveProtein(settings.activeProtein);
     setStreaksEnabled(settings.streaksEnabled);
     setRecipeImportEnabled(settings.recipeImportEnabled);
+    setVoiceDraftsEnabled(settings.voiceDraftsEnabled);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
     setDeclarations(settings.declarations);
   }, [settings]);
@@ -395,6 +398,7 @@ function SettingsCard({
       activeProtein,
       streaksEnabled,
       recipeImportEnabled,
+      voiceDraftsEnabled,
       heightCm: parsedHeight.value,
       declarations,
       ...(confirmClearEatingDisorder ? { confirmClearEatingDisorder: true as const } : {}),
@@ -511,6 +515,18 @@ function SettingsCard({
         <Text className="text-xs text-muted-foreground">
           {RECIPE_IMPORT_COPY.settingDescription}
         </Text>
+      </View>
+
+      <View className="gap-1">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="flex-1 text-sm text-foreground">{FOOD_DRAFT_COPY.settingLabel}</Text>
+          <Switch
+            value={voiceDraftsEnabled}
+            onValueChange={setVoiceDraftsEnabled}
+            accessibilityLabel={FOOD_DRAFT_COPY.settingLabel}
+          />
+        </View>
+        <Text className="text-xs text-muted-foreground">{FOOD_DRAFT_COPY.settingDescription}</Text>
       </View>
 
       <View className="gap-1">

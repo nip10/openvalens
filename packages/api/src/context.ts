@@ -12,6 +12,7 @@ import type { TelegramClient } from "@openvalens/telegram";
 import type { WearablesService } from "@openvalens/wearables";
 import type { AnalyticsService } from "./contracts/analytics";
 
+import type { FoodDraftService } from "./food-drafts";
 import type { ProductSettingsService } from "./product-settings";
 import type { RecipeImportService } from "./recipe-import/service";
 
@@ -158,6 +159,11 @@ export type Context = {
    * fetcher; when absent the router uses its process-wide default.
    */
   recipeImportService?: RecipeImportService;
+  /**
+   * Issue #73 — food-draft service override. Tests bind one with a fake
+   * provider; when absent the router uses its process-wide default.
+   */
+  foodDraftService?: FoodDraftService;
   /**
    * Issue #63 — normalized web origin (`new URL(CORS_ORIGIN).origin`) that an
    * admission mutation's `Origin` header must equal. The server derives it;

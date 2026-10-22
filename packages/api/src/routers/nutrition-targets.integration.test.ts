@@ -10,6 +10,8 @@ import type { TargetsOverview, UpdateSettingsOutput } from "../contracts/nutriti
 import { findBannedCopy } from "@openvalens/nutrition/nutrition-safety";
 import type { ImportRecipeFromUrlOutput } from "../contracts/nutrition-recipe-import";
 import { createRecipeImportService } from "../recipe-import/service";
+import type { ParseFoodDraftOutput } from "../contracts/nutrition-food-drafts";
+import { createFoodDraftService } from "../food-drafts";
 import { appRouter } from "./index";
 
 /**
@@ -116,6 +118,24 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/nutrition_targets_test" });
   const rpc = new RPCHandler(appRouter);
   /** Recipe import (#82) with a fake fetcher: no network in this suite. */
+  /** Food drafts (#73) with a fake provider: no network in this suite. */
+  const providerCalls: string[] = [];
+  const foodDraftService = createFoodDraftService({
+    extract: (async (input: { text: string }) => {
+      providerCalls.push(input.text);
+      return {
+        status: "ok",
+        attempts: 1,
+        model: "test-model",
+        data: {
+          items: [
+            { food: "porridge", quantity: "1", unit: "bowl" },
+            { food: "banana", quantity: null, unit: null },
+          ],
+        },
+      };
+    }) as never,
+  });
   const recipePageFetches: string[] = [];
   const recipeImportService = createRecipeImportService({
     fetchPage: async (target) => {
@@ -156,10 +176,18 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       capabilities: { telegram: false, anthropic: false, resend: false, mobilePairing: true },
       telegram: { webhookSecret: "webhook-secret-value", connectTokenTtlSeconds: 600 },
       telegramClient: null,
-      aiConfig: {} as never,
+      aiConfig: {
+        AI_PROVIDER: "anthropic",
+        AI_API_KEY: "test-key",
+        AI_BASE_URL: null,
+        AI_MODEL: "test-model",
+        AI_SUPPORTS_STRUCTURED_OUTPUTS: false,
+        AI_RATE_LIMIT_PER_MINUTE: 10,
+      },
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,
       honoContext: { req: { raw: { headers } } },
       recipeImportService,
+      foodDraftService,
     } as unknown as Context;
   }
 
@@ -245,6 +273,7 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       activeProtein: false,
       streaksEnabled: false,
       recipeImportEnabled: false,
+      voiceDraftsEnabled: false,
       heightCm: null,
       declarations: [],
     });
@@ -685,6 +714,116 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       expect(smuggled.status).toBe(400);
       expect((await importRecipe("user-a", { "x-test-impersonated": "admin-1" })).status).toBe(403);
       expect((await importRecipe("nobody")).status).toBe(401);
+    });
+  });
+  describe("voice food drafts (#73)", () => {
+    const parse = (input: unknown, user = "user-a", extraHeaders: Record<string, string> = {}) =>
+      call<ParseFoodDraftOutput>("nutritionFoodDrafts/parse", input, user, extraHeaders);
+    const transcript = "Two eggs, a slice of toast and 200g greek yogurt";
+    const anthropic = { provider: "anthropic", host: "api.anthropic.com" };
+    const entryRows = async () =>
+      Number(
+        (
+          (await db.execute(sql`select count(*)::int as n from nutrition_meal_entry`)).rows[0] as {
+            n: number;
+          }
+        ).n,
+      );
+
+    test("is off by default and revocable; nothing is parsed or sent while off", async () => {
+      await resetSettings("user-a");
+      providerCalls.length = 0;
+      expect((await parse({ transcript, mode: "local" })).body).toEqual({
+        status: "disabled",
+        mode: "local",
+        candidates: [],
+      });
+      expect((await parse({ transcript, mode: "ai", sendToProvider: anthropic })).body.status).toBe(
+        "disabled",
+      );
+      expect(providerCalls).toEqual([]);
+
+      await updateSettings({ expectedRevision: 0, voiceDraftsEnabled: true });
+      expect((await parse({ transcript, mode: "local" })).body.status).toBe("ready");
+      await updateSettings({ expectedRevision: 1, voiceDraftsEnabled: false });
+      expect((await parse({ transcript, mode: "local" })).body.status).toBe("disabled");
+    });
+
+    test("local mode returns flagged, unresolved candidates and writes nothing", async () => {
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, voiceDraftsEnabled: true });
+      const before = await entryRows();
+      const result = await parse({ transcript, mode: "local" });
+      expect(
+        result.body.candidates.map((c) => [c.foodText, c.quantity, c.unitText, c.flags]),
+      ).toEqual([
+        ["eggs", 2, null, ["no_unit"]],
+        ["toast", 1, "slice", []],
+        ["greek yogurt", 200, "g", []],
+      ]);
+      expect(JSON.stringify(result.body)).not.toMatch(/kcal|energy|protein/i);
+      expect(await entryRows()).toBe(before);
+      expect((await parse({ transcript: "   ", mode: "local" })).body.status).toBe("empty");
+      expect((await parse({ transcript: "2, 3 and 4", mode: "local" })).body.status).toBe(
+        "unrecognized",
+      );
+    });
+
+    test("ai mode sends nothing without a matching, contemporaneous provider confirmation", async () => {
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, voiceDraftsEnabled: true });
+      providerCalls.length = 0;
+      const provider = await call("nutritionFoodDrafts/provider", {});
+      expect(provider.body).toEqual({ available: true, ...anthropic });
+      expect((await parse({ transcript, mode: "ai" })).body.status).toBe("consent_required");
+      expect(
+        (
+          await parse({
+            transcript,
+            mode: "ai",
+            sendToProvider: { provider: "anthropic", host: "proxy.example.test" },
+          })
+        ).body.status,
+      ).toBe("consent_required");
+      expect(providerCalls).toEqual([]);
+    });
+
+    test("ai mode also respects the organization and member AI consent", async () => {
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, voiceDraftsEnabled: true });
+      providerCalls.length = 0;
+      await db.execute(sql`update organization set metadata = null where id = 'org-a'`);
+      expect((await parse({ transcript, mode: "ai", sendToProvider: anthropic })).status).toBe(403);
+      expect(providerCalls).toEqual([]);
+
+      await db.execute(
+        sql`update organization set metadata = '{"aiConsent":"full"}'::jsonb where id = 'org-a'`,
+      );
+      await db.execute(sql`delete from user_ai_consent where user_id = 'user-a'`);
+      await db.execute(
+        sql`insert into user_ai_consent (user_id, granted, consent_version) values ('user-a', true, 'v1')`,
+      );
+      const result = await parse({ transcript, mode: "ai", sendToProvider: anthropic });
+      expect(result.body).toMatchObject({ status: "ready", mode: "ai" });
+      expect(
+        result.body.candidates.map((c) => [c.foodText, c.quantity, c.unitText, c.flags]),
+      ).toEqual([
+        ["porridge", 1, "bowl", []],
+        ["banana", null, null, ["no_quantity", "no_unit"]],
+      ]);
+      // Only the transcript text is sent.
+      expect(providerCalls).toEqual([transcript]);
+    });
+
+    test("rejects tenant fields, impersonation and signed-out callers", async () => {
+      expect((await parse({ transcript, mode: "local", organizationId: "org-b" })).status).toBe(
+        400,
+      );
+      expect(
+        (await parse({ transcript, mode: "local" }, "user-a", { "x-test-impersonated": "admin-1" }))
+          .status,
+      ).toBe(403);
+      expect((await parse({ transcript, mode: "local" }, "nobody")).status).toBe(401);
     });
   });
 });
