@@ -19,6 +19,9 @@ not overwrite an existing path):
 bun run exercises:prepare --output ./snapshots/wger-YYYY-MM-DD.json
 bun run exercises:import --file ./snapshots/wger-YYYY-MM-DD.json
 bun run exercises:import --file ./snapshots/wger-YYYY-MM-DD.json --apply
+bun run exercises:media-stage --file ./snapshots/wger-YYYY-MM-DD.json --output-dir ./staged-media --manifest ./media-manifest.json --media-id 359
+bun run exercises:media-import --manifest ./media-manifest.json --input-dir ./staged-media
+bun run exercises:media-import --manifest ./media-manifest.json --input-dir ./staged-media --apply
 ```
 
 Preparation is operator-only: it is never run at app startup or during library
@@ -33,6 +36,16 @@ Entity, translation, and image rights are independent. Image eligibility is
 always based on that image's own source/license/author evidence, never exercise
 or translation rights. CC BY-SA derivatives require independent attribution
 and share-alike review; this tooling is not legal certification.
+
+`exercises:media-stage` is a separate explicit network operation. It requires
+the snapshot already imported into the selected database; it reads (but never
+writes) the DB to bind source media IDs and rights to catalog rows. By default it stages at most one eligible
+image; `--media-id` selects a specific wger image. Downloads are limited to
+fixed HTTPS `wger.de/media/exercise-images/...` paths, redirects are rejected,
+and streaming/time are bounded. Filenames are generated and outputs are
+create-only; the output directory and manifest must be new. Staging does not
+sanitize or publish bytes; the existing media importer remains the only
+publication path.
 
 The media-import operator workflow accepts a local JSON manifest and relative
 files under an explicit input directory:

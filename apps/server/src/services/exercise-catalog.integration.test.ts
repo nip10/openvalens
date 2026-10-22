@@ -1089,7 +1089,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       m.source_external_media_id,m.license_code,m.license_url,m.author,m.raw_attribution,m.source_media_url
       from exercise_media m join exercise e on e.id=m.exercise_id
       where e.source='wger' and m.license_code in ('CC0-1.0','CC-BY-SA-3.0','CC-BY-SA-4.0')
-        and m.author is not null and m.raw_attribution is not null and m.source_media_url like 'https://wger.de/%'
+        and m.author is not null and m.raw_attribution is not null and m.source_media_url like 'https://wger.de/%' and m.source_external_media_id <> '359'
       order by m.id limit 1`);
       const row = result.rows[0] as
         | {
@@ -1166,5 +1166,98 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       }
     },
     30_000,
+  );
+
+  test.skipIf(!process.env.EXERCISE_CATALOG_REAL_SNAPSHOT)(
+    "stages captured image through operator and media-import CLIs, then serves local publication over HTTP",
+    async () => {
+      const root = await mkdtemp(
+        "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-media-cli-",
+      );
+      const inputDir = join(root, "staged");
+      const manifest = join(root, "manifest.json");
+      const storageRoot = join(root, "storage");
+      await mkdir(storageRoot);
+      const env = {
+        ...process.env,
+        DATABASE_URL: url!,
+        EXERCISE_CATALOG_TEST_DATABASE_URL: url!,
+        EXERCISE_CATALOG_TEST_STORAGE_DIR: storageRoot,
+        NODE_ENV: "test",
+      };
+      try {
+        const stage = spawnSync(
+          "bun",
+          [
+            "scripts/stage-exercise-media.ts",
+            "--file",
+            process.env.EXERCISE_CATALOG_REAL_SNAPSHOT!,
+            "--output-dir",
+            inputDir,
+            "--manifest",
+            manifest,
+            "--media-id",
+            "359",
+          ],
+          { cwd: process.cwd(), encoding: "utf8", env, timeout: 45_000 },
+        );
+        expect(stage.status).toBe(0);
+        expect(stage.stdout).toContain('"staged":1');
+        const pinned = JSON.parse(await Bun.file(manifest).text()) as {
+          items: Array<{ expectedOriginalSha256: string; file: string }>;
+        };
+        expect(pinned.items).toHaveLength(1);
+        const applied = spawnSync(
+          "bun",
+          [
+            "apps/server/src/exercise-media-import.ts",
+            "--manifest",
+            manifest,
+            "--input-dir",
+            inputDir,
+            "--apply",
+          ],
+          { cwd: process.cwd(), encoding: "utf8", env, timeout: 45_000 },
+        );
+        expect(applied.status).toBe(0);
+        expect(applied.stdout).toContain('"mode":"apply-test-local"');
+        expect(applied.stdout).toContain('"readyOrAlreadyReady":1');
+        const storage = new LocalObjectStorage(storageRoot);
+        const assets = await db.execute(
+          sql`select id from exercise_catalog_asset where state='ready' and storage_provider='local' and storage_store_id=${storage.storeIdentity.storeId} order by created_at desc limit 1`,
+        );
+        const assetId = String((assets.rows[0] as { id: string }).id);
+        const service = createExerciseCatalogAssetService({
+          db,
+          storage,
+          limits: {
+            maxInputBytes: 10 * 1024 * 1024,
+            maxInputPixels: 16_000_000,
+            maxOutputEdge: 2048,
+            maxOutputBytes: 8 * 1024 * 1024,
+            maxPublishedBytes: 8 * 1024 * 1024,
+            storageIdentity: storage.storeIdentity,
+          },
+        });
+        const app = assetHttpApp(true, async () => service);
+        const response = await app.fetch(
+          new Request(`http://test.local/api/exercise-assets/${assetId}`),
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toMatch(/^image\/(jpeg|png)$/);
+        expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0);
+        console.log(
+          JSON.stringify({
+            realMediaCli: "passed",
+            stagedFile: pinned.items[0]!.file,
+            sourceSha256: pinned.items[0]!.expectedOriginalSha256,
+            httpStatus: 200,
+          }),
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+    90_000,
   );
 });
