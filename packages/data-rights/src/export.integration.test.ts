@@ -193,6 +193,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
         ('object-lab-a1', 'org-a', 'user-a', 'lab_document', 'org/org-a/lab-document-key-1', 'application/pdf', 3, '${sha256(encoder.encode("lab"))}'),
         ('object-lab-a2', 'org-a', 'user-a', 'export_bundle', 'org/org-a/export-key-1', 'application/zip', 3, '${sha256(encoder.encode("zip"))}'),
         ('object-lab-collab', 'org-photo-collab', 'user-a', 'lab_document', 'org/org-photo-collab/lab-key-1', 'application/pdf', 3, '${sha256(encoder.encode("lab"))}');
+      insert into exercise_catalog_mutation (organization_id,user_id,client_mutation_id,kind,fingerprint,target_id)
+        values ('org-a','user-a','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','create_custom','${"d".repeat(64)}',2147483000);
     `),
     );
 
@@ -278,9 +280,12 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(all).not.toContain("tg-hash-a");
     expect(parse("session")[0]).not.toHaveProperty("token");
     expect(parse("account")[0]).not.toHaveProperty("password");
+    expect(parse("exercise_catalog_mutation")[0]).not.toHaveProperty("fingerprint");
+    expect(all).not.toContain("d".repeat(64));
     expect(exported.manifest.redacted.map((r) => r.table).sort()).toEqual([
       "account",
       "admission_grant",
+      "exercise_catalog_mutation",
       "insight_preference",
       "push_device",
       "session",

@@ -28,11 +28,14 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 
 import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
+import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import {
   auth,
   db,
+  exerciseCatalogAssetsEnabled,
+  getExerciseCatalogAssetService,
   storageService,
   telegramClient,
   telegramWebhookSecret,
@@ -240,6 +243,13 @@ app.get(`${LOCAL_DOWNLOAD_PATH_PREFIX}:objectId`, async (c) => {
     logger.error("storage.download.failed", { correlationId, ...describeStorageError(error) });
     return c.json({ error: "INTERNAL" }, 500);
   }
+});
+
+// Public media route consumes only the dedicated global manifest capability.
+// Its opt-in registration does not modify the app's shared middleware stack.
+registerExerciseCatalogAssetRoute(app, {
+  enabled: exerciseCatalogAssetsEnabled,
+  getService: getExerciseCatalogAssetService,
 });
 
 // Issue #60 — cloud wearable OAuth callback. Plain Hono (NOT oRPC): the

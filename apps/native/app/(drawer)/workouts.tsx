@@ -28,6 +28,7 @@ import {
 } from "@openvalens/api/presenters/workouts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
+import { Link } from "expo-router";
 import { useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
@@ -643,6 +644,11 @@ export default function WorkoutsScreen() {
         <View>
           <Text className="text-sm text-muted-foreground">Workouts</Text>
           <Text className="font-mono text-3xl text-foreground">Sessions &amp; goals</Text>
+          <Link href="/exercise-library" asChild>
+            <Pressable accessibilityRole="link" className="min-h-11 justify-center">
+              <Text className="text-sm text-foreground underline">Exercise library</Text>
+            </Pressable>
+          </Link>
         </View>
 
         {load.isPending ? (

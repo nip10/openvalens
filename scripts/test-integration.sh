@@ -69,6 +69,8 @@ SUITES=(
   "STORAGE_TEST_DATABASE_URL|storage_test|packages/storage/src/service.integration.test.ts"
   "WEARABLES_TEST_DATABASE_URL|wearables_issue60|packages/integrations/wearables/src/service.integration.test.ts"
   "ANALYTICS_TEST_DATABASE_URL|analytics_consent_test|apps/server/src/services/analytics.integration.test.ts"
+  "EXERCISE_CATALOG_TEST_DATABASE_URL|exercise_catalog_test|apps/server/src/services/exercise-catalog.integration.test.ts"
+  "EXERCISE_CATALOG_API_TEST_DATABASE_URL|exercise_catalog_api_test|packages/api/src/services/exercise-catalog.integration.test.ts"
 )
 
 reset_db() {

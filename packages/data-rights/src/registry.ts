@@ -270,6 +270,18 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   goal_checkin: organization,
   workout: organization,
   workout_exercise: organization,
+  // Mixed global/custom table: org classification excludes NULL-org catalog rows from subject export/erasure.
+  exercise: organization,
+  exercise_translation: { kind: "child", parent: "exercise" },
+  exercise_muscle: { kind: "child", parent: "exercise" },
+  exercise_equipment: { kind: "child", parent: "exercise" },
+  exercise_media: { kind: "child", parent: "exercise" },
+  exercise_catalog_asset: {
+    kind: "reference",
+    reason:
+      "Global wger publication manifest and storage inventory; contains no subject-owned object or operator identity.",
+  },
+  exercise_catalog_mutation: { kind: "user", redact: ["fingerprint"] },
   workout_set: organization,
   weekly_review: organization,
   calendar_event: organization,

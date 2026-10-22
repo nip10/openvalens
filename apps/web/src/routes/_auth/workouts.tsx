@@ -37,7 +37,7 @@ import {
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ActivityLoadCard } from "@/components/activity-load-panel";
@@ -496,7 +496,12 @@ function WorkoutsPage() {
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Workouts</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Workouts</h1>
+        <Link to="/exercise-library" className="text-sm underline">
+          Exercise library
+        </Link>
+      </div>
 
       {load.isPending ? (
         <Skeleton className="h-64 w-full" />

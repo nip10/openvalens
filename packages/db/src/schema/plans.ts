@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { orgId, user, member } from "./auth";
+import { exercise } from "./exercises";
 
 // ─── Supplements & Medications ────────────────────────────────
 
@@ -210,6 +211,8 @@ export const workoutExercise = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     name: text("name").notNull(),
     notes: text("notes"),
+    // Optional catalog link; free-text name/notes remain the workout record. Future APIs must enforce global-or-same-org ownership.
+    exerciseId: integer("exercise_id").references(() => exercise.id, { onDelete: "set null" }),
   },
   (table) => ({
     workoutExerciseOrgIdx: index("workout_exercise_organization_id_idx").on(table.organizationId),
@@ -218,6 +221,7 @@ export const workoutExercise = pgTable(
       table.id,
     ),
     workoutExerciseWorkoutIdIdx: index("workout_exercise_workout_id_idx").on(table.workoutId),
+    workoutExerciseCatalogIdx: index("workout_exercise_exercise_id_idx").on(table.exerciseId),
     workoutExerciseWorkoutSortOrderIdx: index("workout_exercise_workout_id_sort_order_idx").on(
       table.workoutId,
       table.sortOrder,
