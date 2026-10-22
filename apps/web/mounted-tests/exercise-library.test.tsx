@@ -114,7 +114,7 @@ test.skipIf(!mountedMode)(
       author: "Parent author",
       attribution: "Parent notice",
       sourceRecordUrl: "https://example.test/parent-source",
-      muscles: [{ externalMuscleId: "legs", name: "Legs", role: "primary", location: "lower" }],
+      muscles: [{ externalMuscleId: "11", name: "Biceps", role: "primary", location: "front" }],
       equipment: [],
       media,
       translationAttribution: {
@@ -285,6 +285,23 @@ test.skipIf(!mountedMode)(
       expect(preview.src).toBe(`http://localhost:3000/api/exercise-assets/${assetId}`);
       expect(preview.src).not.toContain("images.example.test");
       expect(requests.some((url) => url.includes("example.test"))).toBe(false);
+      expect(screen.queryByRole("region", { name: "Muscle guide" })).toBeNull();
+      fireEvent.error(preview);
+      await screen.findByRole("region", { name: "Muscle guide" });
+      expect(
+        screen.getByText(
+          (_, element) => element?.tagName === "P" && element.textContent === "Primary: Biceps",
+        ),
+      ).toBeTruthy();
+      expect(
+        screen.getByText(
+          (_, element) =>
+            element?.tagName === "P" && element.textContent === "Secondary: None listed",
+        ),
+      ).toBeTruthy();
+      expect(document.querySelectorAll("svg rect")).toHaveLength(2);
+      expect(document.querySelector("svg image")).toBeNull();
+      expect(document.querySelectorAll("svg")).toHaveLength(2);
       await waitFor(() => expect(document.querySelector("img[src*='example.test']")).toBeNull());
 
       const workoutSelect = screen.getByLabelText("Add to workout") as HTMLSelectElement;
@@ -297,6 +314,7 @@ test.skipIf(!mountedMode)(
       await waitFor(() => expect(addInputs).toHaveLength(1));
       await user.click(screen.getByRole("button", { name: "Cancel request" }));
       await user.selectOptions(screen.getByLabelText("Add to workout"), "72");
+      client.setQueryData(key(detailOptions.queryKey), fallbackDetail);
       const secondStarted = new Promise<void>((resolve) => addStartedResolvers.push(resolve));
       await user.click(screen.getByRole("button", { name: "Add exercise" }));
       await secondStarted;
@@ -304,6 +322,8 @@ test.skipIf(!mountedMode)(
       expect(addInputs[0].clientMutationId).not.toBe(addInputs[1].clientMutationId);
       expect(addInputs[0].workoutId).toBe(71);
       expect(addInputs[1].workoutId).toBe(72);
+      expect(addInputs[0].language).toBe("fr");
+      expect(addInputs[1].language).toBe("en");
       await act(async () => addResolvers.shift()!({ id: 51, name: "Translated squat" }));
       expect(screen.getByRole("button", { name: "Cancel request" })).toBeTruthy();
       await act(async () => addResolvers.shift()!({ id: 51, name: "Translated squat" }));
@@ -317,6 +337,19 @@ test.skipIf(!mountedMode)(
       await screen.findByText("Translated squat added to the workout.");
       expect(addInputs).toHaveLength(4);
       expect(addInputs[3]?.clientMutationId).toBe(retryId);
+
+      client.setQueryData(key(detailOptions.queryKey), {
+        ...detail,
+        muscles: [{ name: "Unknown muscle", role: "primary", location: "front" }],
+        media: [],
+      });
+      await screen.findByText("No preview image is provided.");
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName === "P" && element.textContent === "Primary: Unknown muscle",
+      );
+      expect(screen.getByText(/No matching diagram mapping for: Unknown muscle/)).toBeTruthy();
+      expect(document.querySelectorAll("svg rect")).toHaveLength(0);
 
       client.setQueryData(key(detailOptions.queryKey), {
         ...detail,

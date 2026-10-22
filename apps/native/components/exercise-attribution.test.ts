@@ -26,6 +26,17 @@ if (mountedMode) {
     }) => React.createElement("section", { "aria-label": accessibilityLabel }, children),
     Text: ({ children }: { children: React.ReactNode }) =>
       React.createElement("span", null, children),
+    TextInput: "input",
+    Image: ({
+      source,
+      onError,
+      accessibilityLabel,
+    }: {
+      source: { uri: string };
+      onError?: () => void;
+      accessibilityLabel?: string;
+    }) => React.createElement("img", { src: source.uri, onError, alt: accessibilityLabel }),
+    Platform: { OS: "android" },
     Pressable: ({
       children,
       onPress,
@@ -53,11 +64,30 @@ if (mountedMode) {
       },
     },
   }));
+  const svgHost = (tag: string) => (props: Record<string, unknown>) =>
+    React.createElement(tag, props);
+  mock.module("react-native-svg", () => ({
+    default: svgHost("svg"),
+    Circle: svgHost("circle"),
+    Path: svgHost("path"),
+    Rect: svgHost("rect"),
+  }));
+  mock.module("@tanstack/react-query", () => ({ useMutation: () => ({}), useQuery: () => ({}) }));
+  mock.module("expo-crypto", () => ({ randomUUID: () => "12345678-1234-4234-8234-123456789abc" }));
+  mock.module("heroui-native", () => ({ Button: "button", Card: "div", Spinner: "span" }));
+  mock.module("@/components/container", () => ({ Container: "div" }));
+  mock.module("@/lib/auth-client", () => ({ authClient: { useSession: () => ({ data: null }) } }));
+  mock.module("@/src/env", () => ({ ENV: { EXPO_PUBLIC_SERVER_URL: "http://localhost:3000" } }));
+  mock.module("@/utils/orpc", () => ({ orpc: {} }));
 }
 
 const reactDomClientModule = "react-dom/client";
 const mounted = mountedMode
-  ? await Promise.all([import(reactDomClientModule), import("./exercise-attribution")])
+  ? await Promise.all([
+      import(reactDomClientModule),
+      import("./exercise-attribution"),
+      import("./exercise-library"),
+    ])
   : null;
 
 test.skipIf(mountedMode)("isolates native attribution host mocks in a subprocess", async () => {
@@ -67,7 +97,7 @@ test.skipIf(mountedMode)("isolates native attribution host mocks in a subprocess
     maxBuffer: 10 * 1024 * 1024,
   });
   const output = `${result.stdout}${result.stderr}`;
-  expect(output).toContain("1 pass");
+  expect(output).toContain("2 pass");
   expect(output).toContain("0 fail");
 });
 
@@ -170,6 +200,67 @@ test.skipIf(!mountedMode)(
         }),
       );
       expect(links("Selected translation license details")).toHaveLength(0);
+    } finally {
+      await React.act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);
+
+test.skipIf(!mountedMode)(
+  "native production exercise gallery renders a local guide on failure",
+  async () => {
+    if (!mounted) throw new Error("mounted native exercise-library fixture not loaded");
+    const [dom, , library] = mounted;
+    const { ExerciseMediaGallery } = library;
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = dom.createRoot(container);
+    const render = async (props: Record<string, unknown>) =>
+      React.act(async () => root.render(React.createElement(ExerciseMediaGallery, props as never)));
+    const muscles = [
+      { name: "Biceps", role: "primary", location: "front", externalMuscleId: "11" },
+    ];
+    const media = [
+      {
+        assetId: "a1b2c3d4-e5f6-4789-8123-456789abcdef",
+        path: "/api/exercise-assets/a1b2c3d4-e5f6-4789-8123-456789abcdef",
+        contentType: "image/jpeg",
+        width: 640,
+        height: 480,
+        license: "CC BY 4.0",
+        licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+        author: "Image author",
+        attribution: "Image credit",
+        sourceUrl: "https://images.example.test/source",
+        transformationNotice: "Cropped",
+      },
+    ];
+    try {
+      await render({ exerciseName: "Test exercise", media: [], muscles });
+      expect(container.textContent).toContain("Primary: Biceps");
+      expect(container.textContent).toContain("Secondary: None listed");
+      expect(container.querySelectorAll("svg")).toHaveLength(2);
+      expect(container.querySelectorAll("rect")).toHaveLength(2);
+      expect(container.querySelector("image")).toBeNull();
+      await render({ exerciseName: "Test exercise", media, muscles });
+      const preview = container.querySelector("img");
+      expect(preview?.getAttribute("src")).toBe(
+        "http://localhost:3000/api/exercise-assets/a1b2c3d4-e5f6-4789-8123-456789abcdef",
+      );
+      expect(preview?.getAttribute("src")).not.toContain("images.example.test");
+      expect(container.textContent).toContain("License: CC BY 4.0 · Image author");
+      await React.act(async () => preview?.dispatchEvent(new Event("error")));
+      expect(container.textContent).toContain("Muscle guide");
+      expect(container.textContent).toContain("Primary: Biceps");
+      await render({
+        exerciseName: "Test exercise",
+        media: [],
+        muscles: [{ name: "Unknown", role: "primary", location: "front" }],
+      });
+      expect(container.textContent).toContain("No matching diagram mapping for: Unknown");
+      expect(container.querySelectorAll("rect")).toHaveLength(0);
+      expect(container.querySelector("image")).toBeNull();
     } finally {
       await React.act(async () => root.unmount());
       container.remove();

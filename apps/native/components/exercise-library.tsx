@@ -7,6 +7,7 @@ import { Image, Linking, Platform, Pressable, Text, TextInput, View } from "reac
 
 import { Container } from "@/components/container";
 import { ExerciseAttribution, TranslationAttribution } from "@/components/exercise-attribution";
+import { MuscleGuide } from "@/components/muscle-guide";
 import { authClient } from "@/lib/auth-client";
 import { ENV } from "@/src/env";
 import { orpc } from "@/utils/orpc";
@@ -124,7 +125,20 @@ function previewUrl(
   }
 }
 
-function ExerciseMediaGallery({ exerciseName, media }: { exerciseName: string; media: unknown }) {
+export function ExerciseMediaGallery({
+  exerciseName,
+  media,
+  muscles,
+}: {
+  exerciseName: string;
+  media: unknown;
+  muscles: Array<{
+    name: string;
+    role?: string | null;
+    location?: string | null;
+    externalMuscleId?: string | null;
+  }>;
+}) {
   const assets = previewAssets(media);
   const [browserOrigin, setBrowserOrigin] = useState<string | null>(null);
   const [states, setStates] = useState<Record<string, "loaded" | "failed">>({});
@@ -133,11 +147,14 @@ function ExerciseMediaGallery({ exerciseName, media }: { exerciseName: string; m
   }, []);
   if (assets.length === 0)
     return (
-      <Text className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-        {Array.isArray(media) && media.length > 0
-          ? "Preview unavailable because image license details are incomplete."
-          : "No preview image is provided."}
-      </Text>
+      <View className="gap-3">
+        <Text className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+          {Array.isArray(media) && media.length > 0
+            ? "Preview unavailable because image license details are incomplete."
+            : "No preview image is provided."}
+        </Text>
+        <MuscleGuide muscles={muscles} />
+      </View>
     );
   if (Platform.OS === "web" && !browserOrigin)
     return (
@@ -228,6 +245,9 @@ function ExerciseMediaGallery({ exerciseName, media }: { exerciseName: string; m
           </View>
         </View>
       ))}
+      {assets.every((asset) => states[asset.assetId] === "failed") ? (
+        <MuscleGuide muscles={muscles} />
+      ) : null}
     </View>
   );
 }
@@ -408,7 +428,11 @@ export default function ExerciseLibraryScreen() {
       !workoutId
     )
       return;
-    const payload = { workoutId, exerciseId: selectedId, language: "en" };
+    const payload = {
+      workoutId,
+      exerciseId: selectedId,
+      language: detail.data?.language ?? CATALOG_LANGUAGE,
+    };
     const clientMutationId = secureClientMutationId();
     if (!clientMutationId) {
       setNotice("Secure request IDs are unavailable. No request was sent.");
@@ -717,6 +741,7 @@ export default function ExerciseLibraryScreen() {
                   key={`${scope}:${detail.data.id}:${JSON.stringify(previewAssets(detail.data.media))}`}
                   exerciseName={detail.data.name}
                   media={detail.data.media}
+                  muscles={detail.data.muscles}
                 />
                 <Text className="text-sm text-foreground">
                   {detail.data.instructions || "No instructions provided."}

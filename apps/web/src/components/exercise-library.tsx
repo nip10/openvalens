@@ -7,6 +7,7 @@ import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MuscleGuide } from "@/components/muscle-guide";
 
 import { ENV } from "@/env";
 import { authClient } from "@/lib/auth-client";
@@ -198,7 +199,20 @@ function previewUrl(
   }
 }
 
-function ExerciseMediaGallery({ exerciseName, media }: { exerciseName: string; media: unknown }) {
+export function ExerciseMediaGallery({
+  exerciseName,
+  media,
+  muscles,
+}: {
+  exerciseName: string;
+  media: unknown;
+  muscles: Array<{
+    name: string;
+    role?: string | null;
+    location?: string | null;
+    externalMuscleId?: string | null;
+  }>;
+}) {
   const assets = previewAssets(media);
   const [browserOrigin, setBrowserOrigin] = useState<string | null>(null);
   const [states, setStates] = useState<Record<string, "loaded" | "failed">>({});
@@ -207,11 +221,14 @@ function ExerciseMediaGallery({ exerciseName, media }: { exerciseName: string; m
   }, []);
   if (assets.length === 0)
     return (
-      <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-        {Array.isArray(media) && media.length > 0
-          ? "Preview unavailable because image license details are incomplete."
-          : "No preview image is provided."}
-      </p>
+      <div className="grid gap-3">
+        <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+          {Array.isArray(media) && media.length > 0
+            ? "Preview unavailable because image license details are incomplete."
+            : "No preview image is provided."}
+        </p>
+        <MuscleGuide muscles={muscles} />
+      </div>
     );
   if (!browserOrigin)
     return (
@@ -303,6 +320,9 @@ function ExerciseMediaGallery({ exerciseName, media }: { exerciseName: string; m
           </figcaption>
         </figure>
       ))}
+      {assets.every((asset) => states[asset.assetId] === "failed") ? (
+        <MuscleGuide muscles={muscles} />
+      ) : null}
     </div>
   );
 }
@@ -480,7 +500,11 @@ export function ExerciseLibraryPage() {
       !workoutId
     )
       return;
-    const payload = { workoutId: Number(workoutId), exerciseId: selectedId, language: "en" };
+    const payload = {
+      workoutId: Number(workoutId),
+      exerciseId: selectedId,
+      language: detail.data?.language ?? CATALOG_LANGUAGE,
+    };
     const clientMutationId = secureClientMutationId();
     if (!clientMutationId) {
       setNotice("Secure request IDs are unavailable. No request was sent.");
@@ -756,6 +780,7 @@ export function ExerciseLibraryPage() {
                     key={`${scope}:${detail.data.id}:${JSON.stringify(previewAssets(detail.data.media))}`}
                     exerciseName={detail.data.name}
                     media={detail.data.media}
+                    muscles={detail.data.muscles}
                   />
                   {detail.data.instructions ? (
                     <p className="whitespace-pre-wrap text-sm">{detail.data.instructions}</p>
