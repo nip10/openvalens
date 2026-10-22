@@ -51,6 +51,7 @@ export type NormalizationResult = {
   artifactSha256: string;
   accepted: NormalizedExercise[];
   rejectedRecords: number;
+  rejectedExternalIds: string[];
   rejectedTranslations: number;
   rejectedMedia: number;
   rejectedReasonCounts: Record<string, number>;
@@ -156,7 +157,14 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
     reasons[reason] = (reasons[reason] ?? 0) + 1;
   };
   const accepted: NormalizedExercise[] = [];
+  const rejectedExternalIds = new Set<string>();
   const seenIds = new Set<string>();
+  for (const raw of items) {
+    const id = positiveId(object(raw)?.id);
+    if (!id) continue;
+    if (seenIds.has(id)) throw new Error(`Duplicate wger external exercise ID ${id}.`);
+    seenIds.add(id);
+  }
   let rejectedTranslations = 0;
   let rejectedMedia = 0;
   for (const raw of items) {
@@ -166,16 +174,12 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
       reject("invalid_external_id_or_record");
       continue;
     }
-    if (seenIds.has(id)) {
-      reject("duplicate_external_id");
-      continue;
-    }
-    seenIds.add(id);
     const exerciseRow = row;
     const translationRows =
       Array.isArray(row.translations) && row.translations.length <= 100 ? row.translations : null;
     if (!translationRows) {
       reject("unsupported_translations_shape");
+      rejectedExternalIds.add(id);
       continue;
     }
     const translations: NormalizedTranslation[] = [];
@@ -216,6 +220,7 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
       translations.find((t) => t.languageCode.startsWith("en-"));
     if (!canonical) {
       reject("missing_licensed_english_name");
+      rejectedExternalIds.add(id);
       continue;
     }
     function mapNamed(key: "equipment"): NormalizedExercise["equipment"];
@@ -291,25 +296,33 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
       translations.length
     ) {
       reject("ambiguous_translation_language");
+      rejectedExternalIds.add(id);
       continue;
     }
-    const hasDeclaredBaseLicense = row.baseLicense !== undefined;
-    const baseLicense = hasDeclaredBaseLicense ? licenseInfo(row.baseLicense, licenses) : null;
-    const baseAuthor = nonempty(row.baseAuthor) ?? nonempty(row.author);
+    const baseLicense = licenseInfo(row.baseLicense, licenses);
+    const baseAuthor = nonempty(row.baseAuthor);
+    if (!baseLicense) {
+      reject("missing_or_invalid_base_license");
+      rejectedExternalIds.add(id);
+      continue;
+    }
+    if (baseLicense.code !== "CC0-1.0" && !baseAuthor) {
+      reject("missing_base_author");
+      rejectedExternalIds.add(id);
+      continue;
+    }
     accepted.push({
       externalId: id,
       name: canonical.name,
       category: nonempty(object(row.category)?.name),
-      licenseCode: hasDeclaredBaseLicense ? (baseLicense?.code ?? null) : canonical.licenseCode,
-      licenseUrl: hasDeclaredBaseLicense ? (baseLicense?.url ?? null) : canonical.licenseUrl,
-      author: hasDeclaredBaseLicense ? baseAuthor : canonical.author,
-      rawAttribution: hasDeclaredBaseLicense
-        ? nonempty(row.baseAttribution)
-        : canonical.rawAttribution,
+      licenseCode: baseLicense.code,
+      licenseUrl: baseLicense.url,
+      author: baseAuthor,
+      rawAttribution: nonempty(row.baseAttribution),
       sourceLicenseMetadata: JSON.stringify({
         canonicalNameLanguage: canonical.languageCode,
         canonicalNameLicense: canonical.licenseCode,
-        declaredBaseLicense: baseLicense?.code ?? null,
+        declaredBaseLicense: baseLicense.code,
         declaredBaseAuthor: baseAuthor,
         translationSourceUrl: canonical.sourceUrl,
         artifactSha256: createHash("sha256").update(bytes).digest("hex"),
@@ -330,6 +343,7 @@ export function normalizeWgerSnapshot(input: unknown, bytes: Uint8Array): Normal
     artifactSha256: createHash("sha256").update(bytes).digest("hex"),
     accepted,
     rejectedRecords: Object.values(reasons).reduce((sum, count) => sum + count, 0),
+    rejectedExternalIds: [...rejectedExternalIds],
     rejectedTranslations,
     rejectedMedia,
     rejectedReasonCounts: reasons,

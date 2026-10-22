@@ -5,12 +5,17 @@ import {
   collectPages,
   normalizeLicense,
   safeSource,
+  writeCaptureSnapshot,
 } from "./prepare-exercises";
 import { downloadBounded } from "./stage-exercise-media";
 import { normalizeWgerSnapshot } from "../apps/server/src/services/exercise-catalog-normalization";
 import { createNewOutputDirectory } from "./stage-exercise-media";
-import { mkdtemp, mkdir, rm, symlink } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+
+const TMP = realpathSync(tmpdir());
 
 describe("wger capture adapters", () => {
   test("collects complete pages and rejects count changes, duplicates, loops and foreign next URLs", async () => {
@@ -239,9 +244,7 @@ describe("wger capture adapters", () => {
   });
 
   test("media output is create-only and rejects symlinked output parents", async () => {
-    const root = await mkdtemp(
-      "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/capture-path-test-",
-    );
+    const root = await mkdtemp(join(TMP, "capture-path-test-"));
     try {
       const output = join(root, "new-output");
       await createNewOutputDirectory(output, join(root, "manifest.json"));
@@ -253,6 +256,66 @@ describe("wger capture adapters", () => {
       await expect(
         createNewOutputDirectory(join(link, "output"), join(root, "manifest2.json")),
       ).rejects.toThrow("output_parent_invalid");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("snapshot output validates every ancestor and cleans failed create-only writes", async () => {
+    const root = await mkdtemp(join(TMP, "capture-snapshot-test-"));
+    try {
+      const outside = join(root, "outside");
+      await mkdir(outside);
+      const directLink = join(root, "direct-link");
+      await symlink(outside, directLink);
+      const directOutput = join(directLink, "direct.json");
+      await expect(writeCaptureSnapshot(directOutput, Buffer.from("blocked"))).rejects.toThrow(
+        "real directories",
+      );
+      await expect(access(join(outside, "direct.json"))).rejects.toThrow();
+
+      const nested = join(root, "nested");
+      await mkdir(nested);
+      const nestedLink = join(nested, "ancestor-link");
+      await symlink(outside, nestedLink);
+      await expect(
+        writeCaptureSnapshot(join(nestedLink, "nested.json"), Buffer.from("blocked")),
+      ).rejects.toThrow("real directories");
+      await expect(access(join(outside, "nested.json"))).rejects.toThrow();
+
+      const fileAncestor = join(root, "not-a-directory");
+      await writeFile(fileAncestor, "ordinary file");
+      await expect(
+        writeCaptureSnapshot(join(fileAncestor, "child.json"), Buffer.from("blocked")),
+      ).rejects.toThrow("real directories");
+
+      const existing = join(root, "existing.json");
+      await writeFile(existing, "preserve existing");
+      await expect(writeCaptureSnapshot(existing, Buffer.from("overwrite"))).rejects.toThrow();
+      expect(await readFile(existing, "utf8")).toBe("preserve existing");
+
+      const newOutput = join(root, "created", "nested", "snapshot.json");
+      expect(await writeCaptureSnapshot(newOutput, Buffer.from('{"fixture":true}'))).toBe(
+        newOutput,
+      );
+      expect(await readFile(newOutput, "utf8")).toBe('{"fixture":true}');
+
+      const failedOutput = join(root, "failed", "partial.json");
+      await expect(
+        writeCaptureSnapshot(
+          failedOutput,
+          Buffer.from("partial payload"),
+          async (handle, bytes) => {
+            await handle.writeFile(bytes.subarray(0, 4));
+            throw new Error("synthetic write failure");
+          },
+        ),
+      ).rejects.toThrow("synthetic write failure");
+      await expect(access(failedOutput)).rejects.toThrow();
+
+      await expect(
+        writeCaptureSnapshot(`${root}/dot/../escaped.json`, Buffer.from("blocked")),
+      ).rejects.toThrow("dot segments");
     } finally {
       await rm(root, { recursive: true, force: true });
     }

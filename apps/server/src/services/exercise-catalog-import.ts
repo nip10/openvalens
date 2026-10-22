@@ -39,8 +39,8 @@ export async function importWgerSnapshot(
     media: 0,
     mediaWithdrawn: 0,
   };
-  for (const item of snapshot.accepted) {
-    await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
+    for (const item of snapshot.accepted) {
       const [existing] = await tx
         .select()
         .from(exercise)
@@ -284,8 +284,75 @@ export async function importWgerSnapshot(
         if (!keepEquipment.includes(`${old.externalEquipmentId ?? ""}\u0000${old.name}`)) {
           await tx.delete(exerciseEquipment).where(eq(exerciseEquipment.id, old.id));
         }
-    });
-  }
+    }
+    // A complete artifact only tombstones explicitly rejected, valid source IDs.
+    // IDs absent from the artifact are intentionally left unchanged; this importer
+    // does not infer a global purge from omitted rows.
+    for (const externalId of snapshot.rejectedExternalIds) {
+      const [existing] = await tx
+        .select()
+        .from(exercise)
+        .where(
+          and(
+            eq(exercise.source, "wger"),
+            eq(exercise.externalId, externalId),
+            isNull(exercise.organizationId),
+          ),
+        )
+        .limit(1);
+      if (!existing) continue;
+      if (
+        existing.licenseCode !== null ||
+        existing.licenseUrl !== null ||
+        existing.author !== null ||
+        existing.rawAttribution !== null
+      ) {
+        await tx
+          .update(exercise)
+          .set({
+            licenseCode: null,
+            licenseUrl: null,
+            author: null,
+            rawAttribution: null,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(exercise.id, existing.id),
+              eq(exercise.source, "wger"),
+              eq(exercise.externalId, externalId),
+              isNull(exercise.organizationId),
+            ),
+          );
+        counts.updated++;
+      }
+      await tx.delete(exerciseTranslation).where(eq(exerciseTranslation.exerciseId, existing.id));
+      await tx.delete(exerciseMuscle).where(eq(exerciseMuscle.exerciseId, existing.id));
+      await tx.delete(exerciseEquipment).where(eq(exerciseEquipment.exerciseId, existing.id));
+      const media = await tx
+        .select()
+        .from(exerciseMedia)
+        .where(eq(exerciseMedia.exerciseId, existing.id));
+      for (const old of media) {
+        if (old.publicationActive) {
+          await tx
+            .update(exerciseMedia)
+            .set({ publicationActive: false, publicationRevision: old.publicationRevision + 1 })
+            .where(and(eq(exerciseMedia.id, old.id), eq(exerciseMedia.publicationActive, true)));
+          counts.mediaWithdrawn++;
+        }
+        await tx
+          .update(exerciseCatalogAsset)
+          .set({ state: "withdrawn", updatedAt: new Date() })
+          .where(
+            and(
+              eq(exerciseCatalogAsset.exerciseMediaId, old.id),
+              inArray(exerciseCatalogAsset.state, ["pending", "ready"]),
+            ),
+          );
+      }
+    }
+  });
   return counts;
 }
 

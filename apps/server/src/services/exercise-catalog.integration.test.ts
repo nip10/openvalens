@@ -2,6 +2,10 @@ import { readdir } from "node:fs/promises";
 import { mkdtemp, rm, writeFile, symlink, mkdir, readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+
+const TMP = realpathSync(tmpdir());
 import { createHash } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
@@ -122,6 +126,10 @@ const fixture = (version: string, translations = true) => ({
   results: [
     {
       id: 7001,
+      baseLicense: {
+        short_name: "CC0-1.0",
+        url: "https://creativecommons.org/publicdomain/zero/1.0/",
+      },
       translations: [
         {
           language: { short_name: "en" },
@@ -207,11 +215,45 @@ describe("exercise catalog rights normalization", () => {
       url: "https://example.test/mismatched-license",
     };
     const mismatchedBase = normalizeWgerSnapshot(value, Buffer.from(JSON.stringify(value)));
-    expect(mismatchedBase.accepted[0]).toMatchObject({
-      licenseCode: null,
-      licenseUrl: null,
-      author: "base-author",
-    });
+    expect(mismatchedBase.accepted).toHaveLength(0);
+    expect(mismatchedBase.rejectedExternalIds).toEqual(["7001"]);
+  });
+
+  test("requires independent base rights and permits an unattributed CC0 base", () => {
+    const missing = structuredClone(fixture("base-missing")) as unknown as {
+      results: Array<Record<string, any>>;
+    };
+    delete missing.results[0]!.baseLicense;
+    const missingResult = normalizeWgerSnapshot(missing, Buffer.from(JSON.stringify(missing)));
+    expect(missingResult.accepted).toHaveLength(0);
+    expect(missingResult.rejectedExternalIds).toEqual(["7001"]);
+
+    const mismatch = structuredClone(fixture("base-url-mismatch")) as unknown as {
+      results: Array<Record<string, any>>;
+    };
+    mismatch.results[0]!.baseLicense.url = "https://example.test/not-canonical";
+    const mismatchResult = normalizeWgerSnapshot(mismatch, Buffer.from(JSON.stringify(mismatch)));
+    expect(mismatchResult.accepted).toHaveLength(0);
+    expect(mismatchResult.rejectedExternalIds).toEqual(["7001"]);
+
+    const missingAuthor = structuredClone(fixture("base-no-author")) as unknown as {
+      results: Array<Record<string, any>>;
+    };
+    missingAuthor.results[0]!.baseLicense = {
+      short_name: "CC-BY-SA-4.0",
+      url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    };
+    const missingAuthorResult = normalizeWgerSnapshot(
+      missingAuthor,
+      Buffer.from(JSON.stringify(missingAuthor)),
+    );
+    expect(missingAuthorResult.accepted).toHaveLength(0);
+    expect(missingAuthorResult.rejectedExternalIds).toEqual(["7001"]);
+
+    const cc0 = normalizeWgerSnapshot(fixture("base-cc0-no-author"), Buffer.from("cc0"));
+    expect(cc0.accepted).toHaveLength(1);
+    expect(cc0.accepted[0]).toMatchObject({ licenseCode: "CC0-1.0", author: null });
+    expect(cc0.accepted[0]!.translations[0]).toMatchObject({ licenseCode: "CC0-1.0" });
   });
 
   test("rejects unknown or mismatched translation rights and missing BY-SA author credit", () => {
@@ -234,6 +276,14 @@ describe("exercise catalog rights normalization", () => {
         normalizeWgerSnapshot(value, Buffer.from(JSON.stringify(value))).accepted,
       ).toHaveLength(0);
     }
+  });
+
+  test("rejects duplicate valid source IDs before normalizing any records", () => {
+    const duplicate = fixture("duplicate-source-id");
+    duplicate.results.push(structuredClone(duplicate.results[0]!));
+    expect(() => normalizeWgerSnapshot(duplicate, Buffer.from(JSON.stringify(duplicate)))).toThrow(
+      "Duplicate wger external exercise ID 7001",
+    );
   });
 });
 
@@ -571,9 +621,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       transformationNotice:
         "Image decoded, EXIF-oriented, resized within publication limits, metadata-stripped, and re-encoded as JPEG or PNG.",
     };
-    const root = await mkdtemp(
-      "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-storage-",
-    );
+    const root = await mkdtemp(join(TMP, "exercise-storage-"));
     const baseStorage = new LocalObjectStorage(root);
     const storageReads: string[] = [];
     const storage = new Proxy(baseStorage, {
@@ -609,6 +657,32 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
         publicationEvidence: evidence,
       });
       expect(published.state).toBe("ready");
+      const secondStoreRoot = await mkdtemp(join(TMP, "exercise-storage-other-store-"));
+      const secondStore = new LocalObjectStorage(secondStoreRoot);
+      const secondStoreService = createExerciseCatalogAssetService({
+        db,
+        storage: secondStore,
+        limits: {
+          maxInputBytes: 10 * 1024 * 1024,
+          maxInputPixels: 16_000_000,
+          maxOutputEdge: 2048,
+          maxOutputBytes: 8 * 1024 * 1024,
+          maxPublishedBytes: 8 * 1024 * 1024,
+          storageIdentity: secondStore.storeIdentity,
+        },
+      });
+      try {
+        await expect(
+          secondStoreService.ingestLocalAsset({
+            exerciseMediaId: row.media_id,
+            bytes: original,
+            expectedOriginalSha256: digest,
+            publicationEvidence: evidence,
+          }),
+        ).rejects.toMatchObject({ code: "storage_identity_mismatch" });
+      } finally {
+        await rm(secondStoreRoot, { recursive: true, force: true });
+      }
       const readback = await service.readPublishedAsset(published.id);
       expect(readback).toMatchObject({
         contentType: "image/png",
@@ -792,9 +866,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       transformationNotice:
         "Image decoded, EXIF-oriented, resized within publication limits, metadata-stripped, and re-encoded as JPEG or PNG.",
     };
-    const root = await mkdtemp(
-      "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-same-version-",
-    );
+    const root = await mkdtemp(join(TMP, "exercise-same-version-"));
     const storage = new LocalObjectStorage(root);
     try {
       const service = createExerciseCatalogAssetService({
@@ -957,9 +1029,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
   test("CLI dry-run is write-free and two explicit applies are idempotent in isolated Bun processes", async () => {
     const input = fixture("cli-pinned-fixture-v1");
     input.results[0]!.id = 7002;
-    const directory = await mkdtemp(
-      "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-catalog-",
-    );
+    const directory = await mkdtemp(join(TMP, "exercise-catalog-"));
     const file = join(directory, "fixture.json");
     await writeFile(file, JSON.stringify(input));
     const run = (apply: boolean) =>
@@ -1005,9 +1075,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
   });
 
   test("media manifest rejects absolute/traversal paths and symlinks in isolated CLI dry runs", async () => {
-    const directory = await mkdtemp(
-      "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-media-path-",
-    );
+    const directory = await mkdtemp(join(TMP, "exercise-media-path-"));
     const inputDir = join(directory, "input");
     await mkdir(inputDir);
     const outside = join(directory, "outside.png");
@@ -1168,9 +1236,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       const original = Buffer.from(await response.arrayBuffer());
       expect(original.byteLength).toBeGreaterThan(0);
       expect(original.byteLength).toBeLessThanOrEqual(10 * 1024 * 1024);
-      const root = await mkdtemp(
-        "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-real-media-",
-      );
+      const root = await mkdtemp(join(TMP, "exercise-real-media-"));
       try {
         const storage = new LocalObjectStorage(root);
         const service = createExerciseCatalogAssetService({
@@ -1223,9 +1289,7 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
   test.skipIf(!process.env.EXERCISE_CATALOG_REAL_SNAPSHOT)(
     "stages captured image through operator and media-import CLIs, then serves local publication over HTTP",
     async () => {
-      const root = await mkdtemp(
-        "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-media-cli-",
-      );
+      const root = await mkdtemp(join(TMP, "exercise-media-cli-"));
       const inputDir = join(root, "staged");
       const manifest = join(root, "manifest.json");
       const storageRoot = join(root, "storage");
