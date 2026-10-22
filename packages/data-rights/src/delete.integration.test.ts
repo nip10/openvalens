@@ -457,6 +457,106 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     }
   });
 
+  test("caller-authorized deletion fences photo reservations before blocker preflight", async () => {
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('generic-fence-subject', 'generic-fence@example.test');
+      insert into organization (id, name, slug) values ('generic-fence-org', 'Generic fence', 'generic-fence');
+      insert into member (id, organization_id, user_id, role)
+        values ('generic-fence-member', 'generic-fence-org', 'generic-fence-subject', 'owner');
+      create function generic_fence_fail_member_delete() returns trigger language plpgsql as $$
+      begin
+        if old.user_id = 'generic-fence-subject' then
+          raise exception 'synthetic generic erasure rollback';
+        end if;
+        return old;
+      end;
+      $$;
+      create trigger generic_fence_fail_member_delete before delete on member
+        for each row execute function generic_fence_fail_member_delete();
+    `),
+    );
+
+    let releaseGate!: () => void;
+    const blockedGate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    let markGateLocked!: () => void;
+    const gateLocked = new Promise<void>((resolve) => {
+      markGateLocked = resolve;
+    });
+    const gate = db.transaction(async (tx) => {
+      // This relation lock blocks the blocker SELECT only, not stored_object inserts.
+      await tx.execute(sql`lock table photo_cleanup_intent in access exclusive mode`);
+      markGateLocked();
+      await blockedGate;
+    });
+    await gateLocked;
+
+    let erasure: Promise<unknown> | undefined;
+    let photoReservation: Promise<unknown> | undefined;
+    try {
+      erasure = deleteSubjectData(db, {
+        userId: "generic-fence-subject",
+        organizationIds: ["generic-fence-org"],
+      });
+      const until = Date.now() + 3_000;
+      let erasurePid = 0;
+      while (!erasurePid && Date.now() < until) {
+        const waiting = await db.execute(sql`select pid from pg_stat_activity
+          where datname = current_database() and wait_event_type = 'Lock'
+            and query like '%photo_cleanup_intent%' limit 1`);
+        if (waiting.rows.length) erasurePid = Number((waiting.rows[0] as { pid: number }).pid);
+        else await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      if (!erasurePid) throw new Error("Generic erasure did not reach the photo-blocker query.");
+
+      photoReservation = db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select set_config('application_name', 'generic-photo-reservation', true)`,
+        );
+        await tx.execute(sql`insert into stored_object
+          (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256,
+           storage_provider, storage_store_id, photo_state, photo_write_state)
+          values ('generic-fence-photo', 'generic-fence-org', 'generic-fence-subject', 'progress_photo',
+            'org/generic-fence-org/generic-fence-photo', 'image/jpeg', 1, ${"e".repeat(64)},
+            'local', 'synthetic-store', 'pending', 'not_started')`);
+      });
+
+      const writerUntil = Date.now() + 3_000;
+      let writerBlocked = false;
+      while (!writerBlocked && Date.now() < writerUntil) {
+        const wait = await db.execute(sql`select 1 from pg_stat_activity
+          where application_name = 'generic-photo-reservation' and wait_event_type = 'Lock'
+            and ${erasurePid} = any(pg_blocking_pids(pid)) limit 1`);
+        writerBlocked = wait.rows.length > 0;
+        if (!writerBlocked) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(writerBlocked).toBe(true);
+    } finally {
+      releaseGate();
+    }
+
+    await gate;
+    await expect(erasure!).rejects.toThrow();
+    await photoReservation;
+    expect(await count("user", sql`id = 'generic-fence-subject'`)).toBe(1);
+    expect(await count("organization", sql`id = 'generic-fence-org'`)).toBe(1);
+    expect(await count("erasure_ledger", sql`subject_user_id = 'generic-fence-subject'`)).toBe(0);
+    expect(await count("stored_object", sql`id = 'generic-fence-photo'`)).toBe(1);
+    expect(await count("photo_cleanup_intent", sql`id = 'generic-fence-photo'`)).toBe(0);
+
+    await db.execute(
+      sql.raw(`drop trigger generic_fence_fail_member_delete on member;
+      drop function generic_fence_fail_member_delete();`),
+    );
+    await db.execute(sql`delete from stored_object where id = 'generic-fence-photo'`);
+    await db.execute(sql`delete from photo_cleanup_intent where id = 'generic-fence-photo'`);
+    await db.execute(sql`delete from member where id = 'generic-fence-member'`);
+    await db.execute(sql`delete from organization where id = 'generic-fence-org'`);
+    await db.execute(sql`delete from "user" where id = 'generic-fence-subject'`);
+  });
+
   test("admission grants: recipient and issued grants erased, third-party grants survive", async () => {
     // Recipient rows (target user / pending email) are explicitly erased.
     expect(await count("admission_grant", sql`id = 'grant-a-target'`)).toBe(0);

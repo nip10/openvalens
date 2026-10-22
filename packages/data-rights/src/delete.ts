@@ -150,6 +150,7 @@ export async function deleteSubjectData(
 ): Promise<DeletionReport> {
   const order = deletionOrder();
   return db.transaction(async (tx) => {
+    await tx.execute(sql`select id from "user" where id = ${subject.userId} for update`);
     if (await countPhotoErasureBlockers(tx, subject)) throw new PhotoErasureBlockedError();
     return eraseInTransaction(tx, subject, now, order);
   });
@@ -168,6 +169,12 @@ async function eraseInTransaction(
     if (n > 0) rowCounts[table] = (rowCounts[table] ?? 0) + n;
   };
 
+  // Capture subject-owned supplements before the first destructive statement.
+  // The later supplement delete still runs after schedules and changes.
+  const supplementIds = (
+    await tx.execute(sql`select id from supplement where ${rowFilter("supplement", subject)}`)
+  ).rows.map((row) => String((row as { id: number }).id));
+
   for (const { table, filter } of QUARANTINED) {
     const exists = await tx.execute(
       sql`select to_regclass(${`public.${table}`}) is not null as ok`,
@@ -175,10 +182,6 @@ async function eraseInTransaction(
     if ((exists.rows[0] as { ok: boolean }).ok)
       record(table, await deleteCount(tx, table, filter(subject)));
   }
-
-  const supplementIds = (
-    await tx.execute(sql`select id from supplement where ${rowFilter("supplement", subject)}`)
-  ).rows.map((row) => String((row as { id: number }).id));
 
   for (const table of order) {
     if (table === "supplement") {
@@ -211,6 +214,27 @@ async function eraseInTransaction(
 
 function sameIds(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function timestampMillis(value: Date | string | null | undefined): number {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string") return new Date(value).getTime();
+  return Number.NaN;
+}
+
+function isSerializationOrDeadlock(error: unknown): boolean {
+  const seen = new Set<object>();
+  let current: unknown = error;
+  for (let depth = 0; depth < 8; depth += 1) {
+    if ((typeof current !== "object" && typeof current !== "function") || current === null)
+      return false;
+    const node = current as { code?: unknown; cause?: unknown };
+    if (node.code === "40001" || node.code === "40P01") return true;
+    if (seen.has(node)) return false;
+    seen.add(node);
+    current = node.cause;
+  }
+  return false;
 }
 
 /**
@@ -314,10 +338,15 @@ export async function deleteSelfSubjectData(
         now: string;
       };
       const wallDate = new Date(clock.now);
-      const wallClock = wallDate.getTime();
-      const age = wallClock - new Date(currentSession.created_at).getTime();
+      const wallClock = timestampMillis(wallDate);
+      const createdAt = timestampMillis(currentSession.created_at);
+      const expiresAt = timestampMillis(currentSession.expires_at);
+      const age = wallClock - createdAt;
       if (
-        new Date(currentSession.expires_at).getTime() <= wallClock ||
+        !Number.isFinite(wallClock) ||
+        !Number.isFinite(createdAt) ||
+        !Number.isFinite(expiresAt) ||
+        expiresAt <= wallClock ||
         age < 0 ||
         age > 10 * 60 * 1000
       )
@@ -327,8 +356,7 @@ export async function deleteSelfSubjectData(
     });
   } catch (error) {
     if (error instanceof SelfErasureError || error instanceof PhotoErasureBlockedError) throw error;
-    const code = (error as { code?: string }).code;
-    if (code === "40001" || code === "40P01") throw new SelfErasureError("CONFLICT");
+    if (isSerializationOrDeadlock(error)) throw new SelfErasureError("CONFLICT");
     throw error;
   }
 

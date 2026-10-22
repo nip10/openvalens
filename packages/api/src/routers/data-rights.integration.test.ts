@@ -47,7 +47,11 @@ type Identity =
   | "subject-race-gate-c"
   | "subject-race-gate-insert"
   | "subject-storage"
-  | "subject-photo";
+  | "subject-photo"
+  | "subject-infinite-expiry"
+  | "subject-infinite-created"
+  | "subject-serialization"
+  | "subject-deadlock";
 type RpcResponse = { status: number; body: unknown };
 
 async function contextFromDatabase(
@@ -145,13 +149,13 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 
-async function waitForLockWait(queryFragment: string): Promise<void> {
+async function waitForLockWait(queryFragment: string): Promise<number> {
   const deadline = Date.now() + 3_000;
   while (Date.now() < deadline) {
-    const waiting = await db.execute(sql`select 1 from pg_stat_activity
+    const waiting = await db.execute(sql`select pid from pg_stat_activity
       where datname = current_database() and wait_event_type = 'Lock'
         and query like ${`%${queryFragment}%`} limit 1`);
-    if (waiting.rows.length) return;
+    if (waiting.rows.length) return Number((waiting.rows[0] as { pid: number }).pid);
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   const active = await db.execute(sql`select state, wait_event_type, query from pg_stat_activity
@@ -159,6 +163,35 @@ async function waitForLockWait(queryFragment: string): Promise<void> {
   throw new Error(
     `Timed out waiting for PostgreSQL lock query ${queryFragment}; observed ${JSON.stringify(active.rows)}`,
   );
+}
+
+async function waitForWriterBlockedBy(applicationName: string, blockingPid: number): Promise<void> {
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    const blocked = await db.execute(sql`select 1 from pg_stat_activity
+      where application_name = ${applicationName} and wait_event_type = 'Lock'
+        and ${blockingPid} = any(pg_blocking_pids(pid)) limit 1`);
+    if (blocked.rows.length) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`Writer ${applicationName} did not wait on erasure backend ${blockingPid}.`);
+}
+
+async function waitForSessionBoundary(sessionId: string, boundary: "freshness" | "expiry") {
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    const row = (
+      await db.execute(
+        boundary === "freshness"
+          ? sql`select clock_timestamp() > created_at + interval '10 minutes' as passed
+            from "session" where id = ${sessionId}`
+          : sql`select clock_timestamp() >= expires_at as passed from "session" where id = ${sessionId}`,
+      )
+    ).rows[0] as { passed: boolean } | undefined;
+    if (row?.passed) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Database clock did not cross the ${boundary} authorization boundary.`);
 }
 
 describe.skipIf(!url)("data-rights impersonation authorization over HTTP/PostgreSQL", () => {
@@ -192,7 +225,11 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         ('subject-race-gate-c', 'subject-race-gate-c@example.test'),
         ('subject-race-gate-insert', 'subject-race-gate-insert@example.test'),
         ('subject-storage', 'subject-storage@example.test'),
-        ('subject-photo', 'subject-photo@example.test');
+        ('subject-photo', 'subject-photo@example.test'),
+        ('subject-infinite-expiry', 'subject-infinite-expiry@example.test'),
+        ('subject-infinite-created', 'subject-infinite-created@example.test'),
+        ('subject-serialization', 'subject-serialization@example.test'),
+        ('subject-deadlock', 'subject-deadlock@example.test');
       insert into organization (id, name, slug) values
         ('org-subject-impersonated', 'Synthetic subject record', 'synthetic-impersonated'),
         ('org-subject-control', 'Synthetic control record', 'synthetic-control'),
@@ -208,7 +245,11 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         ('org-subject-race-coowner', 'Synthetic co-owner record', 'synthetic-coowner'),
         ('org-subject-race-gate', 'Synthetic lock-gate record', 'synthetic-lock-gate'),
         ('org-subject-storage', 'Synthetic stored-object record', 'synthetic-storage'),
-        ('org-subject-photo', 'Synthetic photo record', 'synthetic-photo');
+        ('org-subject-photo', 'Synthetic photo record', 'synthetic-photo'),
+        ('org-subject-infinite-expiry', 'Synthetic infinite-expiry record', 'synthetic-infinite-expiry'),
+        ('org-subject-infinite-created', 'Synthetic infinite-created record', 'synthetic-infinite-created'),
+        ('org-subject-serialization', 'Synthetic serialization record', 'synthetic-serialization'),
+        ('org-subject-deadlock', 'Synthetic deadlock record', 'synthetic-deadlock');
       insert into member (id, organization_id, user_id, role) values
         ('member-impersonated', 'org-subject-impersonated', 'subject-impersonated', 'owner'),
         ('member-control', 'org-subject-control', 'subject-control', 'owner'),
@@ -229,6 +270,11 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         ('member-race-gate-c', 'org-subject-race-gate', 'subject-race-gate-c', 'collaborator'),
         ('member-storage', 'org-subject-storage', 'subject-storage', 'owner'),
         ('member-photo', 'org-subject-photo', 'subject-photo', 'owner');
+      insert into member (id, organization_id, user_id, role) values
+        ('member-infinite-expiry', 'org-subject-infinite-expiry', 'subject-infinite-expiry', 'owner'),
+        ('member-infinite-created', 'org-subject-infinite-created', 'subject-infinite-created', 'owner'),
+        ('member-serialization', 'org-subject-serialization', 'subject-serialization', 'owner'),
+        ('member-deadlock', 'org-subject-deadlock', 'subject-deadlock', 'owner');
       insert into session (id, user_id, token, expires_at, created_at, impersonated_by) values
         ('session-subject-impersonated', 'subject-impersonated', 'synthetic-token-impersonated', now() + interval '1 hour', now(), 'operator-admin'),
         ('session-subject-control', 'subject-control', 'synthetic-token-control', now() + interval '1 hour', now(), null),
@@ -244,7 +290,11 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         ('session-subject-race-coowner', 'subject-race-coowner', 'synthetic-token-coowner', now() + interval '1 hour', now(), null),
         ('session-subject-race-gate', 'subject-race-gate', 'synthetic-token-lock-gate', now() + interval '1 hour', now(), null),
         ('session-subject-storage', 'subject-storage', 'synthetic-token-storage', now() + interval '1 hour', now(), null),
-        ('session-subject-photo', 'subject-photo', 'synthetic-token-photo', now() + interval '1 hour', now(), null);
+        ('session-subject-photo', 'subject-photo', 'synthetic-token-photo', now() + interval '1 hour', now(), null),
+        ('session-subject-infinite-expiry', 'subject-infinite-expiry', 'synthetic-token-infinite-expiry', now() + interval '1 hour', now(), null),
+        ('session-subject-infinite-created', 'subject-infinite-created', 'synthetic-token-infinite-created', now() + interval '1 hour', now(), null),
+        ('session-subject-serialization', 'subject-serialization', 'synthetic-token-serialization', now() + interval '1 hour', now(), null),
+        ('session-subject-deadlock', 'subject-deadlock', 'synthetic-token-deadlock', now() + interval '1 hour', now(), null);
     `),
     );
   });
@@ -302,6 +352,37 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
       expect(response.status).toBeGreaterThanOrEqual(400);
       expect(await counts(identity)).toEqual(before);
     }
+  });
+
+  test("non-finite persisted timestamps fail closed using a previously captured trusted context", async () => {
+    const headers = new Headers({ "content-type": "application/json" });
+    const expiryContext = await contextFromDatabase(headers, "subject-infinite-expiry");
+    const expiryBefore = await counts("subject-infinite-expiry");
+    await db.execute(sql`update "session" set expires_at = '-infinity'
+      where id = 'session-subject-infinite-expiry'`);
+    const expiredInfinity = await call(
+      "subject-infinite-expiry",
+      { confirmation: "DELETE" },
+      {
+        context: expiryContext,
+      },
+    );
+    expect(expiredInfinity.body).toMatchObject({ json: { code: "REAUTH_REQUIRED" } });
+    expect(await counts("subject-infinite-expiry")).toEqual(expiryBefore);
+
+    const createdContext = await contextFromDatabase(headers, "subject-infinite-created");
+    const createdBefore = await counts("subject-infinite-created");
+    await db.execute(sql`update "session" set created_at = 'infinity'
+      where id = 'session-subject-infinite-created'`);
+    const createdInfinity = await call(
+      "subject-infinite-created",
+      { confirmation: "DELETE" },
+      {
+        context: createdContext,
+      },
+    );
+    expect(createdInfinity.body).toMatchObject({ json: { code: "REAUTH_REQUIRED" } });
+    expect(await counts("subject-infinite-created")).toEqual(createdBefore);
   });
 
   test("revoked and mismatched session ids are rejected without erasure", async () => {
@@ -369,16 +450,21 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
   });
 
   test("freshness is checked against database wall clock after lock wait", async () => {
+    await db.execute(sql`update "session" set created_at = clock_timestamp() - interval '599.5 seconds'
+      where id = 'session-subject-race-stale'`);
     const headers = new Headers({ "content-type": "application/json" });
     const trustedContext = await contextFromDatabase(headers, "subject-race-stale");
+    const validAtStart = (
+      await db.execute(sql`select clock_timestamp() - created_at < interval '10 minutes' as valid
+      from "session" where id = 'session-subject-race-stale'`)
+    ).rows[0] as { valid: boolean };
+    expect(validAtStart.valid).toBe(true);
     const locked = deferred();
     const release = deferred();
     const holder = db.transaction(async (tx) => {
       await tx.execute(sql`select id from "user" where id = 'subject-race-stale' for update`);
       locked.resolve();
       await release.promise;
-      await tx.execute(sql`update "session" set created_at = clock_timestamp() - interval '11 minutes'
-        where id = 'session-subject-race-stale'`);
     });
     await locked.promise;
     let rejected!: Promise<RpcResponse>;
@@ -389,6 +475,7 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         { context: trustedContext },
       );
       await waitForLockWait('from "user" where id');
+      await waitForSessionBoundary("session-subject-race-stale", "freshness");
     } finally {
       release.resolve();
     }
@@ -404,16 +491,21 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
   });
 
   test("session expiry is checked against database wall clock after lock wait", async () => {
+    await db.execute(sql`update "session" set expires_at = clock_timestamp() + interval '500 milliseconds'
+      where id = 'session-subject-race-expired'`);
     const headers = new Headers({ "content-type": "application/json" });
     const trustedContext = await contextFromDatabase(headers, "subject-race-expired");
+    const validAtStart = (
+      await db.execute(sql`select expires_at > clock_timestamp() as valid
+      from "session" where id = 'session-subject-race-expired'`)
+    ).rows[0] as { valid: boolean };
+    expect(validAtStart.valid).toBe(true);
     const locked = deferred();
     const release = deferred();
     const holder = db.transaction(async (tx) => {
       await tx.execute(sql`select id from "user" where id = 'subject-race-expired' for update`);
       locked.resolve();
       await release.promise;
-      await tx.execute(sql`update "session" set expires_at = clock_timestamp() - interval '1 second'
-        where id = 'session-subject-race-expired'`);
     });
     await locked.promise;
     let rejected!: Promise<RpcResponse>;
@@ -424,6 +516,7 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         { context: trustedContext },
       );
       await waitForLockWait('from "user" where id');
+      await waitForSessionBoundary("session-subject-race-expired", "expiry");
     } finally {
       release.resolve();
     }
@@ -519,16 +612,16 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         'org/org-subject-race-gate/synthetic-gated-object', 'application/octet-stream', 1, ${"c".repeat(64)})`);
     await db.execute(
       sql.raw(`
-      create table erasure_test_gate (id integer primary key);
-      insert into erasure_test_gate values (1);
-      create function erasure_test_fail_delete() returns trigger language plpgsql as $$
+      create function erasure_test_fail_ledger() returns trigger language plpgsql as $$
       begin
-        perform id from erasure_test_gate where id = 1 for update;
+        if new.subject_user_id = 'subject-race-gate' then
         raise exception 'synthetic erasure rollback injection';
+        end if;
+        return new;
       end;
       $$;
-      create trigger erasure_test_fail_delete before delete on "user"
-        for each row when (old.id = 'subject-race-gate') execute function erasure_test_fail_delete();
+      create trigger erasure_test_fail_ledger before insert on erasure_ledger
+        for each row execute function erasure_test_fail_ledger();
     `),
     );
 
@@ -547,7 +640,9 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
     const gateLocked = deferred();
     const releaseGate = deferred();
     const gate = db.transaction(async (tx) => {
-      await tx.execute(sql`select id from erasure_test_gate where id = 1 for update`);
+      // A blocks on this selected metadata table only after its authorization locks,
+      // but this table barrier is independent of membership writes.
+      await tx.execute(sql`lock table supplement in access exclusive mode`);
       gateLocked.resolve();
       await releaseGate.promise;
     });
@@ -561,25 +656,49 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
         { confirmation: "DELETE" },
         { context: contextWithStorage },
       );
-      await waitForLockWait('delete from "user"');
+      const erasurePid = await waitForLockWait("select id from supplement where");
+      const barrierQuery = (
+        await db.execute(sql`select query from pg_stat_activity where pid = ${erasurePid}`)
+      ).rows[0] as { query: string };
+      expect(barrierQuery.query.toLowerCase()).toContain("select id from supplement");
+      expect(barrierQuery.query.toLowerCase()).not.toContain("delete");
+      expect(await counts("subject-race-gate")).toEqual({
+        users: 1,
+        sessions: 1,
+        orgs: 1,
+        ledger: 0,
+      });
 
       writers.push(
         Promise.resolve(
-          db.execute(sql`insert into member (id, organization_id, user_id, role)
-        values ('member-race-gate-insert', 'org-subject-race-gate', 'subject-race-gate-insert', 'owner')`),
+          db.transaction(async (tx) => {
+            await tx.execute(sql`select set_config('application_name', 'erase-gate-insert', true)`);
+            await tx.execute(sql`insert into member (id, organization_id, user_id, role)
+              values ('member-race-gate-insert', 'org-subject-race-gate', 'subject-race-gate-insert', 'owner')`);
+          }),
         ),
       );
       writers.push(
         Promise.resolve(
-          db.execute(sql`update member set role = 'owner' where id = 'member-race-gate-a'`),
+          db.transaction(async (tx) => {
+            await tx.execute(
+              sql`select set_config('application_name', 'erase-gate-promote', true)`,
+            );
+            await tx.execute(sql`update member set role = 'owner' where id = 'member-race-gate-a'`);
+          }),
         ),
       );
       writers.push(
-        Promise.resolve(db.execute(sql`delete from member where id = 'member-race-gate-b'`)),
+        Promise.resolve(
+          db.transaction(async (tx) => {
+            await tx.execute(sql`select set_config('application_name', 'erase-gate-delete', true)`);
+            await tx.execute(sql`delete from member where id = 'member-race-gate-b'`);
+          }),
+        ),
       );
-      await waitForLockWait("insert into member");
-      await waitForLockWait("update member");
-      await waitForLockWait("delete from member");
+      await waitForWriterBlockedBy("erase-gate-insert", erasurePid);
+      await waitForWriterBlockedBy("erase-gate-promote", erasurePid);
+      await waitForWriterBlockedBy("erase-gate-delete", erasurePid);
     } finally {
       releaseGate.resolve();
     }
@@ -609,9 +728,71 @@ describe.skipIf(!url)("data-rights impersonation authorization over HTTP/Postgre
       (await db.execute(sql`select id from member where id = 'member-race-gate-b'`)).rows,
     ).toHaveLength(0);
     await db.execute(
-      sql.raw(`drop trigger erasure_test_fail_delete on "user";
-      drop function erasure_test_fail_delete(); drop table erasure_test_gate;`),
+      sql.raw(`drop trigger erasure_test_fail_ledger on erasure_ledger;
+      drop function erasure_test_fail_ledger();`),
     );
+  });
+
+  test("wrapped PostgreSQL serialization and deadlock errors map to conflict without retry", async () => {
+    await db.execute(
+      sql.raw(`
+      create sequence erasure_test_attempts start with 1;
+      create table erasure_test_sqlstates (subject_user_id text primary key, error_code text not null);
+      insert into erasure_test_sqlstates values
+        ('subject-serialization', '40001'), ('subject-deadlock', '40P01');
+      create function erasure_test_raise_sqlstate() returns trigger language plpgsql as $$
+      declare failure_code text;
+      begin
+        select error_code into failure_code from erasure_test_sqlstates
+          where subject_user_id = new.subject_user_id;
+        if found then
+          perform nextval('erasure_test_attempts');
+          raise exception 'synthetic PostgreSQL conflict' using errcode = failure_code;
+        end if;
+        return new;
+      end;
+      $$;
+      create trigger erasure_test_raise_sqlstate before insert on erasure_ledger
+        for each row execute function erasure_test_raise_sqlstate();
+    `),
+    );
+    for (const identity of ["subject-serialization", "subject-deadlock"] as const) {
+      await db.execute(sql`insert into stored_object
+        (id, organization_id, created_by_user_id, purpose, storage_key, content_type, size_bytes, sha256)
+        values (${`object-${identity}`}, ${`org-${identity}`}, ${identity}, 'clinical_export',
+          ${`org/org-${identity}/${identity}`}, 'application/octet-stream', 1, ${"d".repeat(64)})`);
+      const before = await counts(identity);
+      const sequenceBefore = (
+        await db.execute(sql`select last_value, is_called from erasure_test_attempts`)
+      ).rows[0] as { last_value: number; is_called: boolean };
+      const headers = new Headers({ "content-type": "application/json" });
+      const trusted = await contextFromDatabase(headers, identity);
+      let storageCalls = 0;
+      const withStorage = {
+        ...trusted,
+        storage: {
+          deleteKeys: async () => {
+            storageCalls += 1;
+            return { deleted: 1, failed: 0 };
+          },
+        },
+      } as unknown as Context;
+      const response = await call(identity, { confirmation: "DELETE" }, { context: withStorage });
+      expect(response).toMatchObject({ status: 409, body: { json: { code: "CONFLICT" } } });
+      expect(await counts(identity)).toEqual(before);
+      expect(storageCalls).toBe(0);
+      expect(
+        (await db.execute(sql`select id from stored_object where id = ${`object-${identity}`}`))
+          .rows,
+      ).toHaveLength(1);
+      const sequenceAfter = (
+        await db.execute(sql`select last_value, is_called from erasure_test_attempts`)
+      ).rows[0] as { last_value: number; is_called: boolean };
+      expect(Number(sequenceAfter.last_value)).toBe(
+        Number(sequenceBefore.last_value) + (sequenceBefore.is_called ? 1 : 0),
+      );
+      expect(sequenceAfter.is_called).toBe(true);
+    }
   });
 
   test("storage absence refuses indexed objects, and configured storage runs after commit", async () => {
