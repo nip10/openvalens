@@ -67,7 +67,7 @@ export function NutritionDayTotals({
           {ALL_NUTRIENTS.map((key) => (
             <View
               key={key}
-              className="flex-row justify-between gap-3 border-t border-border py-1"
+              className="flex-row flex-wrap justify-between gap-1 border-t border-border py-1"
               accessible
               accessibilityLabel={describeDisplayedTotal(key, totals[key], hideNumbers)}
             >
@@ -77,7 +77,7 @@ export function NutritionDayTotals({
               <Text className="font-mono text-sm text-foreground">
                 {displayTotalValue(key, totals[key], hideNumbers)}
               </Text>
-              <Text className="w-36 text-right text-xs text-muted-foreground">
+              <Text className="w-full text-left text-xs text-muted-foreground sm:w-36 sm:text-right">
                 {formatCoverage(totals[key])}
               </Text>
             </View>

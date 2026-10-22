@@ -35,6 +35,7 @@ import { Container } from "@/components/container";
 import { readCache, writeCache } from "@/lib/offline/cache";
 import { useOfflineScope } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
+import { EnergyEstimateCard } from "@/components/energy-estimate-card";
 
 /**
  * Nutrition targets and display settings (Issue #80), matching the web view.
@@ -151,6 +152,13 @@ export default function NutritionTargetsScreen() {
               hideNumbers={hideNumbers}
               energyOff={data.safety.energyTargets === "off"}
               onChanged={() => void refresh()}
+            />
+
+            <EnergyEstimateCard
+              scope={scope}
+              hideNumbers={hideNumbers}
+              preferenceKnown={overview.isSuccess}
+              safetyOff={data.safety.energyTargets === "off"}
             />
 
             <SettingsCard

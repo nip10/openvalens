@@ -62,8 +62,13 @@ import { PlainWaterSection } from "@/components/plain-water-section";
 import { barcodeCacheKey, resolveBarcode } from "@/lib/nutrition/barcode";
 import { mergeDay, type DiaryRow, type QueuedChange } from "@/lib/nutrition/outbox";
 import { DIARY_CACHE_PREFIX, useDiaryOutbox, type DiaryOutbox } from "@/lib/nutrition/sync";
+import { completeAddFoodCreation, useAddFoodSaveLifecycle } from "@/lib/nutrition/save-intent";
 import { readCache, writeCache } from "@/lib/offline/cache";
-import { useCacheFirst } from "@/lib/offline/sync";
+import {
+  isOfflineWriteTicketCurrent,
+  useCacheFirst,
+  useOfflineWriteSessionKey,
+} from "@/lib/offline/sync";
 import { client, orpc } from "@/utils/orpc";
 
 /**
@@ -97,14 +102,17 @@ function Chip({
   label,
   selected,
   onPress,
+  disabled = false,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={`min-h-11 justify-center rounded-lg border px-3 ${selected ? "border-foreground bg-accent" : "border-border"}`}
@@ -123,6 +131,7 @@ export default function NutritionScreen() {
   const timeZone = useMemo(() => deviceTimeZone(), []);
   const [localDate, setLocalDate] = useState(() => localDateIn(timeZone));
   const outbox = useDiaryOutbox();
+  const sessionKey = useOfflineWriteSessionKey();
   const day = useCacheFirst(
     `${DIARY_CACHE_PREFIX}day:${localDate}`,
     orpc.nutritionDiary.getDay.queryOptions({ input: { localDate } }),
@@ -131,7 +140,9 @@ export default function NutritionScreen() {
     `${DIARY_CACHE_PREFIX}foods`,
     orpc.nutritionDiary.listFoods.queryOptions({ input: {} }),
   );
-  const targetOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const targetOptions = orpc.nutritionTargets.get.queryOptions({
+    input: { localDate },
+  });
   const targets = useQuery({
     ...targetOptions,
     queryKey: [...targetOptions.queryKey, { offlineScope: outbox.scope }],
@@ -154,9 +165,11 @@ export default function NutritionScreen() {
     targets.isSuccess ? targets.data.settings.hideNumbers : undefined,
     cachedDisplayPreference,
   );
-  const [undo, setUndo] = useState<{ entryId: number; revision: number; name: string } | null>(
-    null,
-  );
+  const [undo, setUndo] = useState<{
+    entryId: number;
+    revision: number;
+    name: string;
+  } | null>(null);
 
   const rows = mergeDay(day.data?.entries ?? [], outbox.items, localDate);
   const visible = rows.filter((row) => !(row.kind === "server" && row.pendingKind === "delete"));
@@ -202,7 +215,10 @@ export default function NutritionScreen() {
       outbox.enqueue({
         op: {
           kind: "delete",
-          input: { clientMutationId: newClientMutationId(), entryId: row.key as never },
+          input: {
+            clientMutationId: newClientMutationId(),
+            entryId: row.key as never,
+          },
         },
       });
       announce(`${DIARY_COPY.deleted} ${row.change.preview?.name ?? ""}`);
@@ -218,7 +234,11 @@ export default function NutritionScreen() {
         },
       },
     });
-    setUndo({ entryId: row.entry.id, revision: row.entry.revision + 1, name: row.entry.food.name });
+    setUndo({
+      entryId: row.entry.id,
+      revision: row.entry.revision + 1,
+      name: row.entry.food.name,
+    });
     announce(`${DIARY_COPY.deleted} ${row.entry.food.name}`);
   };
 
@@ -286,7 +306,7 @@ export default function NutritionScreen() {
         <OutboxBanner outbox={outbox} />
 
         {attention.map((item) => (
-          <AttentionCard key={item.id} item={item} outbox={outbox} />
+          <AttentionCard key={item.id} item={item} outbox={outbox} hideNumbers={hideNumbers} />
         ))}
 
         {undo ? (
@@ -341,6 +361,7 @@ export default function NutritionScreen() {
         />
 
         <AddFood
+          contextKey={`${outbox.scope ?? "signed-out"}\u001f${sessionKey ?? "signed-out"}\u001f${localDate}\u001f${timeZone}`}
           localDate={localDate}
           timeZone={timeZone}
           foods={foods.data}
@@ -379,7 +400,12 @@ export default function NutritionScreen() {
           );
         })}
 
-        <CopyDay localDate={localDate} timeZone={timeZone} outbox={outbox} />
+        <CopyDay
+          localDate={localDate}
+          timeZone={timeZone}
+          outbox={outbox}
+          hideNumbers={hideNumbers}
+        />
 
         <Pressable
           onPress={clearDeviceData}
@@ -457,12 +483,12 @@ function OutboxBanner({ outbox }: { outbox: DiaryOutbox }) {
   );
 }
 
-function describeOp(item: QueuedChange): string {
+function describeOp(item: QueuedChange, hideNumbers: boolean): string {
   switch (item.op.kind) {
     case "log":
-      return `Log ${item.preview?.name ?? "food"} (${formatAmount(item.op.input.amount, item.op.input.unit)})`;
+      return `Log ${item.preview?.name ?? "food"} (${hideNumbers ? HIDDEN_VALUE : formatAmount(item.op.input.amount, item.op.input.unit)})`;
     case "update":
-      return `Change to ${formatAmount(item.op.input.amount, item.op.input.unit)}`;
+      return `Change to ${hideNumbers ? HIDDEN_VALUE : formatAmount(item.op.input.amount, item.op.input.unit)}`;
     case "delete":
       return "Delete entry";
     case "restore":
@@ -474,22 +500,30 @@ function describeOp(item: QueuedChange): string {
   }
 }
 
-function AttentionCard({ item, outbox }: { item: QueuedChange; outbox: DiaryOutbox }) {
+function AttentionCard({
+  item,
+  outbox,
+  hideNumbers,
+}: {
+  item: QueuedChange;
+  outbox: DiaryOutbox;
+  hideNumbers: boolean;
+}) {
   const server = item.conflict;
   return (
     <Card variant="secondary" className="gap-2 p-4" accessibilityRole="alert">
       <Text className="font-medium text-foreground">
         {server
           ? DIARY_COPY.conflictTitle
-          : `${SYNC_STATE_LABELS.needs_attention}: ${describeOp(item)}`}
+          : `${SYNC_STATE_LABELS.needs_attention}: ${describeOp(item, hideNumbers)}`}
       </Text>
       {server ? (
         <Text className="text-sm text-muted-foreground">
           Other version: {server.food.name},{" "}
           {server.deleted
             ? "deleted"
-            : `${formatAmount(server.amount, server.unit)}, ${SLOT_LABELS[server.slot]}`}
-          . Your change: {describeOp(item)}.
+            : `${hideNumbers ? HIDDEN_VALUE : formatAmount(server.amount, server.unit)}, ${SLOT_LABELS[server.slot]}`}
+          . Your change: {describeOp(item, hideNumbers)}.
         </Text>
       ) : (
         <Text className="text-sm text-muted-foreground">
@@ -550,7 +584,11 @@ function EntryCard({
     row.kind === "server" ? row.entry.food.source : (row.change.preview?.source ?? "manual");
   const nutrients = rowNutrients(row);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(amount));
+  const [draft, setDraft] = useState(hideNumbers ? "" : String(amount));
+
+  useEffect(() => {
+    if (hideNumbers) setDraft("");
+  }, [hideNumbers]);
 
   const save = () => {
     const value = Number(draft);
@@ -597,7 +635,7 @@ function EntryCard({
         <View className="flex-1 gap-0.5">
           <Text className="font-medium text-foreground">{name}</Text>
           <Text className="text-xs text-muted-foreground">
-            {formatAmount(amount, unit)} · {foodSourceLabel(source)}
+            {hideNumbers ? HIDDEN_VALUE : formatAmount(amount, unit)} · {foodSourceLabel(source)}
           </Text>
           {row.kind === "server" &&
           row.entry.food.source === "off" &&
@@ -630,7 +668,13 @@ function EntryCard({
         <Button
           size="sm"
           variant="secondary"
-          onPress={() => setEditing((value) => !value)}
+          onPress={() =>
+            setEditing((value) => {
+              const next = !value;
+              if (next) setDraft(hideNumbers ? "" : String(amount));
+              return next;
+            })
+          }
           accessibilityLabel={`Edit ${name}`}
         >
           Edit
@@ -657,7 +701,12 @@ function scale(values: DiaryEntry["nutrients"] | null, factor: number) {
 
 const QUICK_NUTRIENTS: NutrientKey[] = ["energyKcal", "proteinG", "carbohydrateG", "fatG"];
 
-const EMPTY_QUICK: QuickAddFields = { name: "", basisAmount: "100", basisUnit: "g", nutrients: {} };
+const EMPTY_QUICK: QuickAddFields = {
+  name: "",
+  basisAmount: "100",
+  basisUnit: "g",
+  nutrients: {},
+};
 
 /** `value`, settled for `ms` (one search request per pause in typing). */
 function useDebounced<T>(value: T, ms = 300): T {
@@ -673,14 +722,17 @@ function CandidateRow({
   candidate,
   selected,
   onPress,
+  disabled = false,
 }: {
   candidate: FoodCandidate;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={`min-h-11 justify-center rounded-lg px-3 ${selected ? "bg-accent" : ""}`}
@@ -707,15 +759,23 @@ function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[]
 }
 
 function AddFood({
+  contextKey,
   localDate,
   timeZone,
   foods,
   outbox,
   hideNumbers,
 }: {
+  contextKey: string;
   localDate: string;
   timeZone: string;
-  foods: { recents: FoodChoice[]; favorites: FoodChoice[]; customFoods: FoodChoice[] } | undefined;
+  foods:
+    | {
+        recents: FoodChoice[];
+        favorites: FoodChoice[];
+        customFoods: FoodChoice[];
+      }
+    | undefined;
   outbox: DiaryOutbox;
   hideNumbers: boolean;
 }) {
@@ -729,6 +789,9 @@ function AddFood({
   const [quick, setQuick] = useState<QuickAddFields>(EMPTY_QUICK);
   /** Set while the quick-add form is a manual draft started from a barcode. */
   const [draftNote, setDraftNote] = useState<string | null>(null);
+  const [saveAsFood, setSaveAsFood] = useState(false);
+  const lifecycle = useAddFoodSaveLifecycle(contextKey);
+  const { editable } = lifecycle;
 
   // Cached foods stay searchable offline: filtering is local.
   const saved = useMemo(() => {
@@ -764,6 +827,7 @@ function AddFood({
   if (!open) return <Button onPress={() => setOpen(true)}>{DIARY_COPY.addFood}</Button>;
 
   const select = (candidate: FoodCandidate) => {
+    if (!lifecycle.canMutate()) return;
     setChosen(candidate);
     const first = unitsFor(candidate.basis)[0] ?? "g";
     setUnit(first);
@@ -771,12 +835,14 @@ function AddFood({
   };
 
   const switchMode = (next: typeof mode) => {
+    if (!lifecycle.canMutate()) return;
     setMode(next);
     setChosen(null);
     if (next !== "quick") setDraftNote(null);
   };
 
   const startManualDraft = (barcode: string | null, note: string) => {
+    if (!lifecycle.canMutate()) return;
     setQuick(manualDraftFields(barcode));
     setDraftNote(note);
     setChosen(null);
@@ -787,6 +853,7 @@ function AddFood({
   };
 
   const close = () => {
+    lifecycle.invalidate();
     setChosen(null);
     setQuick(EMPTY_QUICK);
     setDraftNote(null);
@@ -811,15 +878,43 @@ function AddFood({
     mode !== "quick"
       ? chosen?.nutrientsPerBasis
       : parsed.ok
-        ? ({ ...emptyNutrients(), ...parsed.food.nutrients } as DiaryEntry["nutrients"])
+        ? ({
+            ...emptyNutrients(),
+            ...parsed.food.nutrients,
+          } as DiaryEntry["nutrients"])
         : undefined;
   const preview =
     basis && perBasis ? previewNutrients(basis, perBasis, Number(amount), unit) : null;
   const units = basis ? unitsFor(basis) : (["g", "ml", "serving"] as AmountUnit[]);
   const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen) : null;
 
-  const save = () => {
+  const save = async () => {
     if (!preview) return;
+    if (!lifecycle.canMutate()) return;
+    const ticket = outbox.beginWrite();
+    const ownerScope = outbox.scope;
+    const fingerprint = JSON.stringify({
+      parsed: parsed.ok ? parsed.food : null,
+      chosen: chosen?.ref,
+      amount,
+      unit,
+      slot,
+    });
+    const intent = lifecycle.begin(ticket, fingerprint, newClientMutationId);
+    if (!intent) return;
+    const isCurrent = () =>
+      lifecycle.controller.isCurrent(intent) &&
+      lifecycle.contextKey === contextKey &&
+      outbox.scope === ownerScope &&
+      !!ticket &&
+      isOfflineWriteTicketCurrent(ticket, ownerScope ?? "");
+    const release = () => {
+      lifecycle.release(intent);
+    };
+    if (!ticket || !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")) {
+      release();
+      return;
+    }
     let food: FoodRef;
     let name: string;
     let source: DiaryEntry["food"]["source"];
@@ -830,16 +925,67 @@ function AddFood({
       source = chosen.source;
       method = chosen.method;
     } else if (mode === "quick" && parsed.ok) {
-      food = { kind: "manual", food: parsed.food };
       name = parsed.food.name;
       source = "manual";
       method = draftNote !== null ? "barcode" : "quick_add";
-    } else return;
-    outbox.enqueue({
+      if (saveAsFood) {
+        if (!outbox.online) {
+          announce(
+            "Connect to the internet to save this food. Your diary entry has not been queued.",
+          );
+          release();
+          return;
+        }
+        await completeAddFoodCreation({
+          intent,
+          isCurrent,
+          create: (clientMutationId) =>
+            client.nutritionDiary.createFood({ ...parsed.food, clientMutationId }),
+          enqueue: (created) =>
+            outbox.enqueueForIntent(ticket, {
+              op: {
+                kind: "log",
+                input: {
+                  clientMutationId: intent.diaryMutationId,
+                  localDate,
+                  timeZone,
+                  slot,
+                  food: created.ref,
+                  amount: Number(amount),
+                  unit,
+                  method,
+                },
+              },
+              preview: { name, source, nutrients: preview },
+            }),
+          finish: lifecycle.finish,
+          release: lifecycle.release,
+          onError: () => announce(CUSTOM_FOOD_COPY.networkError),
+          onStored: () => {
+            announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
+            close();
+          },
+        });
+        return;
+      } else food = { kind: "manual", food: parsed.food };
+    } else {
+      release();
+      return;
+    }
+    if (
+      !isCurrent() ||
+      outbox.scope !== ownerScope ||
+      !ticket ||
+      !isOfflineWriteTicketCurrent(ticket, ownerScope ?? "")
+    ) {
+      release();
+      return;
+    }
+    const stored = outbox.enqueueForIntent(ticket, {
       op: {
         kind: "log",
         input: {
-          clientMutationId: newClientMutationId(),
+          clientMutationId: intent.diaryMutationId,
           localDate,
           timeZone,
           slot,
@@ -851,8 +997,14 @@ function AddFood({
       },
       preview: { name, source, nutrients: preview },
     });
+    if (!stored) {
+      release();
+      return;
+    }
     announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
+    lifecycle.finish(intent);
     close();
+    return;
   };
 
   return (
@@ -865,19 +1017,27 @@ function AddFood({
           label="Search and recents"
           selected={mode === "choose"}
           onPress={() => switchMode("choose")}
+          disabled={!editable}
         />
         <Chip
           label={BARCODE_COPY.mode}
           selected={mode === "barcode"}
           onPress={() => switchMode("barcode")}
+          disabled={!editable}
         />
-        <Chip label="Quick add" selected={mode === "quick"} onPress={() => switchMode("quick")} />
+        <Chip
+          label="Quick add"
+          selected={mode === "quick"}
+          onPress={() => switchMode("quick")}
+          disabled={!editable}
+        />
       </View>
       {mode === "choose" ? (
         <View className="gap-2">
           <TextInput
             value={query}
-            onChangeText={setQuery}
+            editable={editable}
+            onChangeText={lifecycle.bindMutation(setQuery)}
             placeholder={BARCODE_COPY.searchLabel}
             accessibilityLabel={BARCODE_COPY.searchLabel}
             accessibilityHint={BARCODE_COPY.searchHint}
@@ -902,6 +1062,7 @@ function AddFood({
                   candidate={candidate}
                   selected={chosen?.key === candidate.key}
                   onPress={() => select(candidate)}
+                  disabled={!editable}
                 />
               ))
           )}
@@ -915,7 +1076,13 @@ function AddFood({
           ) : search.isPending ? (
             <Spinner />
           ) : search.isError ? (
-            <Pressable onPress={() => void search.refetch()} accessibilityRole="button">
+            <Pressable
+              disabled={!editable}
+              onPress={() => {
+                if (lifecycle.canMutate()) void search.refetch();
+              }}
+              accessibilityRole="button"
+            >
               <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
                 {BARCODE_COPY.searchFailed} {DIARY_COPY.retry}
               </Text>
@@ -932,6 +1099,7 @@ function AddFood({
                   candidate={candidate}
                   selected={chosen?.key === candidate.key}
                   onPress={() => select(candidate)}
+                  disabled={!editable}
                 />
               ))}
               <AttributionNotes candidates={found.slice(0, 20)} />
@@ -944,6 +1112,8 @@ function AddFood({
           chosen={chosen}
           onSelect={select}
           onManualDraft={startManualDraft}
+          disabled={!editable}
+          canMutate={lifecycle.canMutate}
         />
       ) : (
         <View className="gap-2">
@@ -955,7 +1125,8 @@ function AddFood({
           ) : null}
           <TextInput
             value={quick.name}
-            onChangeText={(name) => setQuick({ ...quick, name })}
+            editable={editable}
+            onChangeText={lifecycle.bindMutation((name) => setQuick({ ...quick, name }))}
             placeholder="Food name"
             accessibilityLabel="Food name"
             className={inputClass}
@@ -965,7 +1136,10 @@ function AddFood({
             <Text className="text-sm text-foreground">Values per</Text>
             <TextInput
               value={quick.basisAmount}
-              onChangeText={(basisAmount) => setQuick({ ...quick, basisAmount })}
+              editable={editable}
+              onChangeText={lifecycle.bindMutation((basisAmount) =>
+                setQuick({ ...quick, basisAmount }),
+              )}
               keyboardType="numeric"
               accessibilityLabel="Values per amount"
               className={`${inputClass} w-20`}
@@ -975,7 +1149,9 @@ function AddFood({
                 key={option}
                 label={option}
                 selected={quick.basisUnit === option}
+                disabled={!editable}
                 onPress={() => {
+                  if (!lifecycle.canMutate()) return;
                   setQuick({ ...quick, basisUnit: option });
                   setUnit(option);
                 }}
@@ -986,9 +1162,13 @@ function AddFood({
             <TextInput
               key={key}
               value={quick.nutrients[key] ?? ""}
-              onChangeText={(text) =>
-                setQuick({ ...quick, nutrients: { ...quick.nutrients, [key]: text } })
-              }
+              editable={editable}
+              onChangeText={lifecycle.bindMutation((text) =>
+                setQuick({
+                  ...quick,
+                  nutrients: { ...quick.nutrients, [key]: text },
+                }),
+              )}
               keyboardType="numeric"
               placeholder={`${NUTRIENT_LABELS[key].label} (${NUTRIENT_LABELS[key].unit}, optional)`}
               accessibilityLabel={`${NUTRIENT_LABELS[key].label} in ${NUTRIENT_LABELS[key].unit}, optional`}
@@ -999,7 +1179,8 @@ function AddFood({
           {draftNote !== null ? (
             <TextInput
               value={quick.barcode ?? ""}
-              onChangeText={(barcode) => setQuick({ ...quick, barcode })}
+              editable={editable}
+              onChangeText={lifecycle.bindMutation((barcode) => setQuick({ ...quick, barcode }))}
               keyboardType="number-pad"
               placeholder={`${BARCODE_COPY.barcodeOnDraft}, optional`}
               accessibilityLabel={`${BARCODE_COPY.barcodeOnDraft}, optional`}
@@ -1021,14 +1202,18 @@ function AddFood({
             key={option}
             label={SLOT_LABELS[option]}
             selected={slot === option}
-            onPress={() => setSlot(option)}
+            onPress={() => {
+              if (lifecycle.canMutate()) setSlot(option);
+            }}
+            disabled={!editable}
           />
         ))}
       </View>
-      <View className="flex-row items-center gap-2">
+      <View className="flex-row flex-wrap items-center gap-2">
         <TextInput
           value={amount}
-          onChangeText={setAmount}
+          editable={editable}
+          onChangeText={lifecycle.bindMutation(setAmount)}
           keyboardType="numeric"
           accessibilityLabel="Amount"
           className={`${inputClass} w-24`}
@@ -1038,16 +1223,35 @@ function AddFood({
             key={option}
             label={option}
             selected={unit === option}
-            onPress={() => setUnit(option)}
+            onPress={() => {
+              if (lifecycle.canMutate()) setUnit(option);
+            }}
+            disabled={!editable}
           />
         ))}
       </View>
+
+      {mode === "quick" ? (
+        <Pressable
+          disabled={!editable}
+          onPress={() => {
+            if (lifecycle.canMutate()) setSaveAsFood((value) => !value);
+          }}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: saveAsFood }}
+          className="min-h-11 flex-row items-center gap-2"
+        >
+          <Text className="text-foreground">{saveAsFood ? "☑" : "□"}</Text>
+          <Text className="text-sm text-foreground">Save to my foods for next time</Text>
+        </Pressable>
+      ) : null}
 
       {preview ? (
         <View className="gap-1" accessibilityLabel="Review before saving">
           <Text className="text-sm font-medium text-foreground">
             Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
-            {formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]}, {localDate}
+            {hideNumbers ? HIDDEN_VALUE : formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]},{" "}
+            {localDate}
             {mode !== "quick" && chosen
               ? ` · ${chosen.sourceLabel}`
               : draftNote !== null
@@ -1073,16 +1277,20 @@ function AddFood({
           ) : null}
         </View>
       ) : null}
-
       <View className="flex-row flex-wrap gap-2">
-        <Button onPress={save} isDisabled={!preview}>
+        <Button onPress={save} isDisabled={!preview || !editable}>
           {`Save to ${SLOT_LABELS[slot]}`}
         </Button>
         <Button
           variant="secondary"
           onPress={() => {
+            const wasSaving = !lifecycle.canMutate();
             close();
-            announce("Nothing saved");
+            announce(
+              wasSaving
+                ? "Save cancelled. A food creation already sent may still complete."
+                : "Nothing saved",
+            );
           }}
         >
           Cancel
@@ -1102,11 +1310,15 @@ function BarcodePanel({
   chosen,
   onSelect,
   onManualDraft,
+  disabled,
+  canMutate,
 }: {
   outbox: DiaryOutbox;
   chosen: FoodCandidate | null;
   onSelect: (candidate: FoodCandidate) => void;
   onManualDraft: (barcode: string | null, note: string) => void;
+  disabled: boolean;
+  canMutate: () => boolean;
 }) {
   const [digits, setDigits] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -1116,6 +1328,7 @@ function BarcodePanel({
   const [last, setLast] = useState<string | null>(null);
 
   const run = async (raw: string) => {
+    if (!canMutate()) return;
     setBusy(true);
     setOutcome(null);
     setMessage(null);
@@ -1126,9 +1339,10 @@ function BarcodePanel({
       readCached: (barcode) =>
         scope ? readCache<BarcodeLookup>(scope, barcodeCacheKey(barcode)) : null,
       writeCached: (barcode, result) => {
-        if (scope) writeCache(scope, barcodeCacheKey(barcode), result);
+        if (scope && canMutate()) writeCache(scope, barcodeCacheKey(barcode), result);
       },
     });
+    if (!canMutate()) return;
     setBusy(false);
     if (resolution.kind === "invalid") {
       setMessage(resolution.message);
@@ -1145,33 +1359,52 @@ function BarcodePanel({
       {scanning ? (
         <BarcodeScanner
           onScanned={(barcode) => {
+            if (!canMutate()) return;
             setScanning(false);
             setDigits(barcode);
             announce(BARCODE_COPY.scanned(barcode));
             void run(barcode);
           }}
           onClose={(note) => {
+            if (!canMutate()) return;
             setScanning(false);
             setMessage(note);
           }}
         />
       ) : (
-        <Button variant="secondary" onPress={() => setScanning(true)}>
+        <Button
+          isDisabled={disabled}
+          variant="secondary"
+          onPress={() => {
+            if (canMutate()) setScanning(true);
+          }}
+        >
           {BARCODE_COPY.scan}
         </Button>
       )}
       <View className="flex-row flex-wrap items-center gap-2">
         <TextInput
           value={digits}
-          onChangeText={setDigits}
+          editable={!disabled}
+          onChangeText={(value) => {
+            if (canMutate()) setDigits(value);
+          }}
           keyboardType="number-pad"
           placeholder={BARCODE_COPY.digitsLabel}
           accessibilityLabel={BARCODE_COPY.digitsLabel}
           className={`${inputClass} flex-1`}
           placeholderTextColor="#9ca3af"
-          onSubmitEditing={() => void run(digits)}
+          onSubmitEditing={() => {
+            if (canMutate()) void run(digits);
+          }}
         />
-        <Button size="sm" onPress={() => void run(digits)} isDisabled={busy}>
+        <Button
+          size="sm"
+          onPress={() => {
+            if (canMutate()) void run(digits);
+          }}
+          isDisabled={busy || disabled}
+        >
           {busy ? BARCODE_COPY.lookingUp : BARCODE_COPY.lookUp}
         </Button>
       </View>
@@ -1191,13 +1424,17 @@ function BarcodePanel({
               candidate={candidate}
               selected={chosen?.key === candidate.key}
               onPress={() => onSelect(candidate)}
+              disabled={disabled}
             />
           ))}
           <AttributionNotes candidates={outcome.candidates} />
           <Button
             size="sm"
             variant="secondary"
-            onPress={() => onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct)}
+            isDisabled={disabled}
+            onPress={() => {
+              if (canMutate()) onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct);
+            }}
           >
             {`Not this product? ${BARCODE_COPY.enterManually}`}
           </Button>
@@ -1208,11 +1445,24 @@ function BarcodePanel({
             {outcome.message}
           </Text>
           <View className="flex-row flex-wrap gap-2">
-            <Button size="sm" onPress={() => onManualDraft(outcome.barcode, outcome.message)}>
+            <Button
+              size="sm"
+              isDisabled={disabled}
+              onPress={() => {
+                if (canMutate()) onManualDraft(outcome.barcode, outcome.message);
+              }}
+            >
               {BARCODE_COPY.enterManually}
             </Button>
             {outcome.canRetry && last ? (
-              <Button size="sm" variant="secondary" onPress={() => void run(last)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                isDisabled={disabled}
+                onPress={() => {
+                  if (canMutate()) void run(last);
+                }}
+              >
                 {BARCODE_COPY.retry}
               </Button>
             ) : null}
@@ -1227,13 +1477,15 @@ function CopyDay({
   localDate,
   timeZone,
   outbox,
+  hideNumbers,
 }: {
   localDate: string;
   timeZone: string;
   outbox: DiaryOutbox;
+  hideNumbers: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const fromDate = shiftLocalDate(localDate, -1);
+  const [fromDate, setFromDate] = useState(() => shiftLocalDate(localDate, -1));
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const source = useCacheFirst(
     `${DIARY_CACHE_PREFIX}day:${fromDate}`,
@@ -1265,10 +1517,23 @@ function CopyDay({
   };
   return (
     <Card variant="secondary" className="gap-2 p-4">
-      <Text className="font-medium text-foreground">Copy from {fromDate}</Text>
-      {entries.length === 0 ? (
+      <Text className="font-medium text-foreground">Copy from</Text>
+      <TextInput
+        value={fromDate}
+        onChangeText={(value) => {
+          setFromDate(value);
+          setSelected(new Set());
+        }}
+        accessibilityLabel="Copy from date"
+        placeholder="YYYY-MM-DD"
+        className={inputClass}
+      />
+      {fromDate === localDate ? (
+        <Text className="text-sm text-muted-foreground">Choose a different day.</Text>
+      ) : null}
+      {fromDate !== localDate && entries.length === 0 ? (
         <Text className="text-sm text-muted-foreground">{DIARY_COPY.empty}</Text>
-      ) : (
+      ) : fromDate !== localDate ? (
         entries.map((entry) => {
           const checked = selected.has(entry.id);
           return (
@@ -1287,12 +1552,12 @@ function CopyDay({
               <Text className="text-foreground">{checked ? "[x]" : "[ ]"}</Text>
               <Text className="text-sm text-foreground">
                 {SLOT_LABELS[entry.slot]}: {entry.food.name},{" "}
-                {formatAmount(entry.amount, entry.unit)}
+                {hideNumbers ? HIDDEN_VALUE : formatAmount(entry.amount, entry.unit)}
               </Text>
             </Pressable>
           );
         })
-      )}
+      ) : null}
       <View className="flex-row flex-wrap gap-2">
         <Button onPress={confirm} isDisabled={selected.size === 0}>
           {`Copy ${selected.size} to ${localDate}`}

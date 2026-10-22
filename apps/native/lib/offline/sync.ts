@@ -10,7 +10,7 @@ import {
 } from "@openvalens/api/presenters/offline";
 import { useQuery, type QueryFunction, type UseQueryResult } from "@tanstack/react-query";
 import * as Network from "expo-network";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
@@ -49,6 +49,14 @@ let currentScope: string | null = null;
 let currentSessionId: string | null = null;
 const revokedSessionIds = new Set<string>();
 let cacheAuthorityGeneration = 0;
+declare const offlineWriteTicketBrand: unique symbol;
+export type OfflineWriteTicket = { readonly [offlineWriteTicketBrand]: true };
+type OfflineWriteMetadata = {
+  scope: string;
+  sessionId: string;
+  generation: number;
+};
+const offlineWriteTickets = new WeakMap<object, OfflineWriteMetadata>();
 let online = true;
 let syncing = false;
 let started = false;
@@ -74,6 +82,52 @@ function subscribe(listener: () => void): () => void {
 
 function getSnapshot(): OutboxStatus {
   return snapshot;
+}
+
+/** Capture write authority associated with this render's authenticated session. */
+export function useOfflineWriteTicket(): () => OfflineWriteTicket | null {
+  const { data } = authClient.useSession();
+  const scope = offlineScope(data as Parameters<typeof offlineScope>[0]);
+  const sessionId = data?.session?.id ?? null;
+  return useCallback(() => {
+    if (
+      !scope ||
+      !sessionId ||
+      currentScope !== scope ||
+      currentSessionId !== sessionId ||
+      revokedSessionIds.has(sessionId)
+    )
+      return null;
+    const ticket = Object.freeze({}) as OfflineWriteTicket;
+    offlineWriteTickets.set(ticket, {
+      scope,
+      sessionId,
+      generation: cacheAuthorityGeneration,
+    });
+    return ticket;
+  }, [scope, sessionId]);
+}
+
+/** Ephemeral session identity for committing form context changes; never persisted or logged. */
+export function useOfflineWriteSessionKey(): string | null {
+  const { data } = authClient.useSession();
+  return data?.session?.id ?? null;
+}
+
+export function isOfflineWriteTicketCurrent(ticket: OfflineWriteTicket, scope: string): boolean {
+  const metadata = offlineWriteTickets.get(ticket as object);
+  return (
+    !!metadata &&
+    metadata.scope === scope &&
+    metadata.scope === currentScope &&
+    metadata.sessionId === currentSessionId &&
+    !revokedSessionIds.has(metadata.sessionId) &&
+    metadata.generation === cacheAuthorityGeneration
+  );
+}
+
+export function invalidateOfflineWriteTickets(): void {
+  cacheAuthorityGeneration += 1;
 }
 
 function messageOf(error: unknown): string {

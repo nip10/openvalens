@@ -39,6 +39,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
+import { EnergyEstimateCard } from "@/components/energy-estimate-card";
 
 /**
  * Nutrition targets and display settings (Issue #80), reached from the meal
@@ -76,9 +77,10 @@ function NutritionTargetsPage() {
   const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const queryClient = useQueryClient();
   const overviewOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
+  const overviewKey = [...overviewOptions.queryKey, { offlineScope: scope }];
   const overview = useQuery({
     ...overviewOptions,
-    queryKey: [...overviewOptions.queryKey, { offlineScope: scope }],
+    queryKey: overviewKey,
     enabled: Boolean(scope),
   });
   const [hideOverride, setHideOverride] = useState<{ scope: string; value: boolean } | null>(null);
@@ -149,6 +151,13 @@ function NutritionTargetsPage() {
             hideNumbers={hideNumbers}
             energyOff={data.safety.energyTargets === "off"}
             onChanged={() => void refresh()}
+          />
+
+          <EnergyEstimateCard
+            key={scope ?? "no-scope"}
+            hideNumbers={!overview.isSuccess || hideNumbers}
+            scope={scope}
+            targetsQueryKey={overviewKey}
           />
 
           <SettingsCard

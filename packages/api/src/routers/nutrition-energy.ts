@@ -30,10 +30,10 @@ import { requireProfileOwner } from "../wellness-profile";
  * mounted as `appRouter.nutritionEnergy`.
  *
  * - `estimate`        — transparent estimate for a 28-day window (`records:read` + `weight:read`).
- * - `listProposals`   — the member's recent proposals (`records:read`).
+ * - `listProposals`   — the member's recent proposals (`records:read` + `weight:read`).
  * - `propose`         — on request, stores a pending maintenance proposal (`records:write` + `weight:read`).
  * - `acceptProposal`  — the member's explicit accept; writes the energy goal (`records:write` + `weight:read`).
- * - `dismissProposal` — the member's explicit dismiss; no goal change (`records:write`).
+ * - `dismissProposal` — the member's explicit dismiss; no goal change (`records:write` + `weight:read`).
  *
  * Every call is keyed by the session's organization and user; inputs are
  * strict and carry no ids or numbers that the server would trust. Proposal
@@ -62,7 +62,7 @@ function scopeOf(context: {
   return { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id };
 }
 
-/** The estimate reads weights too, so it needs `weight:read` on top of the procedure's permission. */
+/** Numeric energy estimates and proposals require `weight:read` on top of the procedure permission. */
 async function requireWeightRead(context: Pick<Context, "honoContext">): Promise<void> {
   try {
     await requirePermission(context.honoContext as never, { resource: "weight", action: "read" });
@@ -123,9 +123,10 @@ export const nutritionEnergyRouter = {
     .use(validateInput(listProposalsInput))
     .input(listProposalsInput)
     .output(listProposalsOutput)
-    .handler(({ context }) => {
+    .handler(async ({ context }) => {
       const scope = scopeOf(context);
       requireSelf(context, scope);
+      await requireWeightRead(context);
       return run(async () => ({ proposals: await service(context).listProposals(scope) }));
     }),
 
@@ -166,6 +167,7 @@ export const nutritionEnergyRouter = {
     .handler(async ({ input, context }) => {
       const scope = scopeOf(context);
       requireSelf(context, scope);
+      await requireWeightRead(context);
       return run(() => service(context).dismiss(scope, input));
     }),
 };
