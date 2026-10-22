@@ -80,6 +80,11 @@ const CHILD_QUERIES: Record<string, (orgIds: string[]) => SQL> = {
       select supplement_id from supplement_change
       where ${inList("organization_id", orgIds)} and supplement_id is not null
     )`,
+  // Only custom exercises are in owned organizations; global reference rows have NULL organization_id.
+  exercise_translation: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  exercise_muscle: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  exercise_equipment: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  exercise_media: (orgIds) => sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
 };
 
 /** WHERE clause selecting the subject's rows in an exported table. */
@@ -139,6 +144,10 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
  */
 export function deletionRowFilter(table: string, subject: DataRightsSubject): SQL {
   if (table === "stored_object") return inList("organization_id", subject.organizationIds);
+  // Idempotency receipts are exported to their actor only, but erased with
+  // either that actor or a workspace whose owned contents are being removed.
+  if (table === "exercise_catalog_mutation")
+    return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
   if (
     table === "plain_water_entry" ||
     table === "plain_water_preference" ||

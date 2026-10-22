@@ -197,6 +197,13 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
 
     resolvedA = await resolveSubject(db, "user-a");
     resolvedB = await resolveSubject(db, "user-b");
+    await db.execute(sql`insert into exercise (organization_id,source,external_id,name,license_code,license_url,source_record_url,snapshot_version,snapshot_at)
+      values (null,'wger','rights-global','Synthetic global exercise','CC0-1.0','https://creativecommons.org/publicdomain/zero/1.0/','https://example.test/global','rights-fixture-v1','2026-10-01T00:00:00Z')`);
+    const custom = await db.execute(
+      sql`insert into exercise (organization_id,source,name) values ('org-a','user','Private synthetic exercise') returning id`,
+    );
+    await db.execute(sql`insert into exercise_catalog_mutation (organization_id,user_id,client_mutation_id,kind,fingerprint,target_id)
+      values ('org-a','user-a','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','create_custom',repeat('e',64),${custom.rows[0]!.id})`);
     preview = await previewSubjectData(db, A);
     bBefore = await subjectCounts(B);
     report = await deleteSubjectData(db, A, new Date("2026-10-04T00:00:00.000Z"));
@@ -207,6 +214,16 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(left).toEqual([]);
     expect(await count("user", sql`id = 'user-a'`)).toBe(0);
     expect(await count("organization", sql`id = 'org-a'`)).toBe(0);
+    expect(
+      await count("exercise", sql`source = 'user' and name = 'Private synthetic exercise'`),
+    ).toBe(0);
+    expect(
+      await count(
+        "exercise_catalog_mutation",
+        sql`client_mutation_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'`,
+      ),
+    ).toBe(0);
+    expect(await count("exercise", sql`source = 'wger' and external_id = 'rights-global'`)).toBe(1);
     expect(await count("plain_water_entry", sql`organization_id = 'org-a'`)).toBe(0);
     expect(await count("plain_water_preference", sql`organization_id = 'org-a'`)).toBe(0);
     expect(await count("plain_water_mutation", sql`organization_id = 'org-a'`)).toBe(0);

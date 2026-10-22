@@ -108,6 +108,7 @@ x-server-env: &server-env
   # Optional privacy-preserving analytics: disabled by default; token is supplied
   # only through the existing bounded file-secret resolver.
   ANALYTICS_ENABLED: ${ANALYTICS_ENABLED:-false}
+  EXERCISE_CATALOG_ASSETS_ENABLED: ${EXERCISE_CATALOG_ASSETS_ENABLED:-false}
   POSTHOG_PROJECT_TOKEN_FILE: ${POSTHOG_PROJECT_TOKEN_FILE:-}
   POSTHOG_IP_CAPTURE_DISABLED: ${POSTHOG_IP_CAPTURE_DISABLED:-false}
 

@@ -13,6 +13,7 @@ import { comparisonRouter } from "./comparison";
 import { cronRouter } from "./cron";
 import { dataRightsRouter } from "./data-rights";
 import { exampleRouter } from "./example";
+import { exerciseCatalogRouter } from "./exercise-catalog";
 import { exportsRouter } from "./exports";
 import { healthRouter } from "./health";
 import { healthRecordRouter } from "./health-record";
@@ -55,6 +56,7 @@ export const appRouter = {
   cron: cronRouter,
   dataRights: dataRightsRouter,
   example: exampleRouter,
+  exerciseCatalog: exerciseCatalogRouter,
   exports: exportsRouter,
   health: healthRouter,
   healthRecord: healthRecordRouter,

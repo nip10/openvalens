@@ -64,6 +64,26 @@ export type SignInOptions = {
   readonly oidc: { readonly providerId: string; readonly displayName: string } | null;
 };
 
+/** Public, key-free preview metadata for licensed global exercise assets. */
+export type ExerciseCatalogMediaPreview = {
+  assetId: string;
+  path: string;
+  contentType: "image/jpeg" | "image/png";
+  width: number;
+  height: number;
+  license: string;
+  licenseUrl: string;
+  author: string | null;
+  attribution: string | null;
+  sourceUrl: string;
+  transformationNotice: string;
+};
+
+/** Optional server-injected metadata reader; API code cannot access storage or keys. */
+export type ExerciseCatalogMediaReader = {
+  listPublishedMetadata(exerciseIds: number[]): Promise<Array<{ exerciseId: number; media: ExerciseCatalogMediaPreview[] }>>;
+};
+
 export type Context = {
   session: Session | null;
   db: Database;
@@ -160,6 +180,8 @@ export type Context = {
    * reports `storage: off`.
    */
   storage?: StorageService | null;
+  /** Absent while catalog assets are disabled; never supplied by request input. */
+  exerciseCatalogMediaReader?: ExerciseCatalogMediaReader;
   /**
    * Issue #69 — optional live barcode lookup (`foodLookup` integration),
    * built by the server from its parsed config. `null`/absent keeps food
