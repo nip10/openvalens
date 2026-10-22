@@ -26,6 +26,7 @@ import {
   resolveScopedHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
+import { RECIPE_IMPORT_COPY } from "@openvalens/api/presenters/recipe-draft";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
@@ -353,6 +354,7 @@ function SettingsCard({
   const [direction, setDirection] = useState<EnergyDirection>(settings.energyDirection);
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
   const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
+  const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
   const [height, setHeight] = useState(settings.heightCm === null ? "" : String(settings.heightCm));
   const [declarations, setDeclarations] = useState<Declaration[]>(settings.declarations);
   const [message, setMessage] = useState("");
@@ -364,6 +366,7 @@ function SettingsCard({
     setDirection(settings.energyDirection);
     setActiveProtein(settings.activeProtein);
     setStreaksEnabled(settings.streaksEnabled);
+    setRecipeImportEnabled(settings.recipeImportEnabled);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
     setDeclarations(settings.declarations);
   }, [settings]);
@@ -391,6 +394,7 @@ function SettingsCard({
       energyDirection: direction,
       activeProtein,
       streaksEnabled,
+      recipeImportEnabled,
       heightCm: parsedHeight.value,
       declarations,
       ...(confirmClearEatingDisorder ? { confirmClearEatingDisorder: true as const } : {}),
@@ -493,6 +497,20 @@ function SettingsCard({
           />
         </View>
         <Text className="text-xs text-muted-foreground">{STREAK_COPY.settingDescription}</Text>
+      </View>
+
+      <View className="gap-1">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="flex-1 text-sm text-foreground">{RECIPE_IMPORT_COPY.settingLabel}</Text>
+          <Switch
+            value={recipeImportEnabled}
+            onValueChange={setRecipeImportEnabled}
+            accessibilityLabel={RECIPE_IMPORT_COPY.settingLabel}
+          />
+        </View>
+        <Text className="text-xs text-muted-foreground">
+          {RECIPE_IMPORT_COPY.settingDescription}
+        </Text>
       </View>
 
       <View className="gap-1">

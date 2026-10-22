@@ -59,6 +59,7 @@ export const targetSettings = z.object({
   energyDirection: z.enum(ENERGY_DIRECTIONS),
   activeProtein: z.boolean(),
   streaksEnabled: z.boolean(),
+  recipeImportEnabled: z.boolean(),
   heightCm: z.number().nullable(),
   declarations: z.array(z.enum(DECLARATIONS)),
 });
@@ -143,6 +144,7 @@ export const updateSettingsInput = z.strictObject({
   energyDirection: z.enum(ENERGY_DIRECTIONS).optional(),
   activeProtein: z.boolean().optional(),
   streaksEnabled: z.boolean().optional(),
+  recipeImportEnabled: z.boolean().optional(),
   heightCm: z.number().finite().min(100).max(250).nullable().optional(),
   declarations: z.array(z.enum(DECLARATIONS)).max(DECLARATIONS.length).optional(),
   /** Removing an eating-disorder answer needs this deliberate confirmation. */

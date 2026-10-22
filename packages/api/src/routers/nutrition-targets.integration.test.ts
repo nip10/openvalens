@@ -8,6 +8,8 @@ import { RPCHandler } from "@orpc/server/fetch";
 import type { Context } from "../context";
 import type { TargetsOverview, UpdateSettingsOutput } from "../contracts/nutrition-targets";
 import { findBannedCopy } from "@openvalens/nutrition/nutrition-safety";
+import type { ImportRecipeFromUrlOutput } from "../contracts/nutrition-recipe-import";
+import { createRecipeImportService } from "../recipe-import/service";
 import { appRouter } from "./index";
 
 /**
@@ -113,6 +115,25 @@ function seedWeight(org: string, userId: string): string {
 describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/nutrition_targets_test" });
   const rpc = new RPCHandler(appRouter);
+  /** Recipe import (#82) with a fake fetcher: no network in this suite. */
+  const recipePageFetches: string[] = [];
+  const recipeImportService = createRecipeImportService({
+    fetchPage: async (target) => {
+      recipePageFetches.push(target);
+      if (target.endsWith("/robots.txt")) return { ok: false, reason: "http_error", status: 404 };
+      return {
+        ok: true,
+        url: target,
+        status: 200,
+        contentType: "text/html",
+        body: `<script type="application/ld+json">${JSON.stringify({
+          "@type": "Recipe",
+          name: "Lentil soup",
+          recipeIngredient: ["200 g red lentils"],
+        })}</script>`,
+      };
+    },
+  });
 
   function contextFor(headers: Headers): Context {
     const id = actorOf(headers);
@@ -138,6 +159,7 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       aiConfig: {} as never,
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,
       honoContext: { req: { raw: { headers } } },
+      recipeImportService,
     } as unknown as Context;
   }
 
@@ -222,6 +244,7 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       energyDirection: "maintain",
       activeProtein: false,
       streaksEnabled: false,
+      recipeImportEnabled: false,
       heightCm: null,
       declarations: [],
     });
@@ -597,6 +620,71 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       expect((await streak("user-b", "Mars/Olympus")).status).toBe(400);
       const impersonated = await streak("user-b", "UTC", { "x-test-impersonated": "admin-1" });
       expect(impersonated.status).toBe(403);
+    });
+  });
+  describe("recipe import (#82)", () => {
+    const importRecipe = (user = "user-a", extraHeaders: Record<string, string> = {}) =>
+      call<ImportRecipeFromUrlOutput>(
+        "nutritionRecipeImport/fromUrl",
+        { url: "https://recipes.example.test/soup" },
+        user,
+        extraHeaders,
+      );
+    const rowCount = async (table: string) =>
+      Number((await db.execute(sql.raw(`select count(*)::int as n from ${table}`))).rows[0]!.n);
+
+    test("is off by default, opt-in, and revocable; it never fetches while off", async () => {
+      await resetSettings("user-b");
+      recipePageFetches.length = 0;
+      const off = await importRecipe("user-b");
+      expect(off.status).toBe(200);
+      expect(off.body).toMatchObject({ status: "disabled", candidates: [] });
+      expect(recipePageFetches).toEqual([]);
+
+      const on = await updateSettings({ expectedRevision: 0, recipeImportEnabled: true }, "user-b");
+      expect(on.body.outcome).toBe("updated");
+      expect(on.body.settings.recipeImportEnabled).toBe(true);
+      const imported = await importRecipe("user-b");
+      expect(imported.body.status).toBe("ready");
+      expect(imported.body.candidates[0]!.ingredients.map((item) => item.rawText)).toEqual([
+        "200 g red lentils",
+      ]);
+
+      await updateSettings({ expectedRevision: 1, recipeImportEnabled: false }, "user-b");
+      recipePageFetches.length = 0;
+      expect((await importRecipe("user-b")).body.status).toBe("disabled");
+      expect(recipePageFetches).toEqual([]);
+    });
+
+    test("the opt-in is per member: another member stays off", async () => {
+      await resetSettings("user-a");
+      await resetSettings("user-a2");
+      await updateSettings({ expectedRevision: 0, recipeImportEnabled: true }, "user-a");
+      expect((await importRecipe("user-a2")).body.status).toBe("disabled");
+    });
+
+    test("an import writes nothing: no recipe, meal, entry or food rows", async () => {
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, recipeImportEnabled: true }, "user-a");
+      const before = await Promise.all(
+        ["nutrition_meal", "nutrition_meal_entry", "nutrition_food"].map(rowCount),
+      );
+      expect((await importRecipe("user-a")).body.status).toBe("ready");
+      const after = await Promise.all(
+        ["nutrition_meal", "nutrition_meal_entry", "nutrition_food"].map(rowCount),
+      );
+      expect(after).toEqual(before);
+    });
+
+    test("rejects client-supplied tenant fields, impersonation and signed-out callers", async () => {
+      const smuggled = await call(
+        "nutritionRecipeImport/fromUrl",
+        { url: "https://recipes.example.test/soup", organizationId: "org-b" },
+        "user-a",
+      );
+      expect(smuggled.status).toBe(400);
+      expect((await importRecipe("user-a", { "x-test-impersonated": "admin-1" })).status).toBe(403);
+      expect((await importRecipe("nobody")).status).toBe(401);
     });
   });
 });

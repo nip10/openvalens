@@ -738,6 +738,8 @@ export const nutritionTargetSettings = pgTable(
     activeProtein: boolean("active_protein").notNull().default(false),
     /** Opt-in to the logging streak (Issue #90); hidden regardless under the #80 safeguards. */
     streaksEnabled: boolean("streaks_enabled").notNull().default(false),
+    /** Opt-in to importing recipe drafts from a URL (Issue #82). */
+    recipeImportEnabled: boolean("recipe_import_enabled").notNull().default(false),
     /** Self-declared height (cm), used only for the BMI gate and resting estimate. */
     heightCm: real("height_cm"),
     /** Self-declared yes answers (see NUTRITION_DECLARATION_KEYS). */

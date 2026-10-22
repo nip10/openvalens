@@ -13,6 +13,7 @@ import type { WearablesService } from "@openvalens/wearables";
 import type { AnalyticsService } from "./contracts/analytics";
 
 import type { ProductSettingsService } from "./product-settings";
+import type { RecipeImportService } from "./recipe-import/service";
 
 /**
  * Structural view of the inbound request that the authz guards need.
@@ -152,6 +153,11 @@ export type Context = {
    * in-memory fallback: the server always binds the database-backed service.
    */
   productSettingsService?: ProductSettingsService;
+  /**
+   * Issue #82 — recipe import service override. Tests bind one with a fake
+   * fetcher; when absent the router uses its process-wide default.
+   */
+  recipeImportService?: RecipeImportService;
   /**
    * Issue #63 — normalized web origin (`new URL(CORS_ORIGIN).origin`) that an
    * admission mutation's `Origin` header must equal. The server derives it;

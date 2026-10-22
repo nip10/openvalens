@@ -28,6 +28,7 @@ import {
   resolveScopedHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
+import { RECIPE_IMPORT_COPY } from "@openvalens/api/presenters/recipe-draft";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -377,6 +378,7 @@ function SettingsCard({
   const [direction, setDirection] = useState<EnergyDirection>(settings.energyDirection);
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
   const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
+  const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
   const [height, setHeight] = useState(settings.heightCm === null ? "" : String(settings.heightCm));
   const [declarations, setDeclarations] = useState<Declaration[]>(settings.declarations);
   const [message, setMessage] = useState("");
@@ -388,6 +390,7 @@ function SettingsCard({
     setDirection(settings.energyDirection);
     setActiveProtein(settings.activeProtein);
     setStreaksEnabled(settings.streaksEnabled);
+    setRecipeImportEnabled(settings.recipeImportEnabled);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
     setDeclarations(settings.declarations);
   }, [settings]);
@@ -414,6 +417,7 @@ function SettingsCard({
       energyDirection: direction,
       activeProtein,
       streaksEnabled,
+      recipeImportEnabled,
       heightCm: parsedHeight.value,
       declarations,
       ...(confirmClearEatingDisorder ? { confirmClearEatingDisorder: true as const } : {}),
@@ -515,6 +519,16 @@ function SettingsCard({
           {STREAK_COPY.settingLabel}
         </label>
         <p className="text-xs text-muted-foreground">{STREAK_COPY.settingDescription}</p>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={recipeImportEnabled}
+            onChange={(event) => setRecipeImportEnabled(event.target.checked)}
+          />
+          {RECIPE_IMPORT_COPY.settingLabel}
+        </label>
+        <p className="text-xs text-muted-foreground">{RECIPE_IMPORT_COPY.settingDescription}</p>
 
         <fieldset className="grid gap-2">
           <legend className="text-sm font-medium">{TARGET_COPY.declarationsTitle}</legend>

@@ -28,6 +28,8 @@ export type NutritionTargetSettings = {
   activeProtein: boolean;
   /** Opt-in to the logging streak (Issue #90). */
   streaksEnabled: boolean;
+  /** Opt-in to importing recipe drafts from a URL (Issue #82). */
+  recipeImportEnabled: boolean;
   heightCm: number | null;
   declarations: NutritionDeclaration[];
 };
@@ -38,6 +40,7 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   energyDirection: NUTRITION_SAFETY_POLICY.defaultDirection,
   activeProtein: false,
   streaksEnabled: false,
+  recipeImportEnabled: false,
   heightCm: null,
   declarations: [],
 });
@@ -64,6 +67,7 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
     energyDirection: row.energyDirection,
     activeProtein: row.activeProtein,
     streaksEnabled: row.streaksEnabled,
+    recipeImportEnabled: row.recipeImportEnabled,
     heightCm: row.heightCm,
     // Display order, and nothing outside the known list.
     declarations: NUTRITION_DECLARATIONS.filter((key) => row.declarations.includes(key)),
@@ -102,6 +106,7 @@ export async function updateNutritionTargetSettingsInTransaction(
     energyDirection: next.energyDirection,
     activeProtein: next.activeProtein,
     streaksEnabled: next.streaksEnabled,
+    recipeImportEnabled: next.recipeImportEnabled,
     heightCm: next.heightCm,
     declarations: next.declarations,
     updatedAt: now,
