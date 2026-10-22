@@ -28,6 +28,7 @@ const BASE_LINKS = [
   { to: "/body", label: "Body" },
   { to: "/private-measurements", label: "Private measurements" },
   { to: "/nutrition", label: "Meal diary" },
+  { to: "/recipe-drafts", label: "Recipe draft" },
   { to: "/supplements", label: "Supplements" },
   { to: "/workouts", label: "Workouts" },
   { to: "/records/timeline", label: "Timeline" },
