@@ -67,6 +67,20 @@ Weight comes from the canonical daily weight, which carries no device id, so
 weight baselines are not segmented by source. Nutrition insights belong to #86;
 labs and HRV rules are not part of v1.
 
+## Nutrition timing observations (#84)
+
+These optional in-app observations compare meal timestamps from completed
+diary days with recorded sleep starts or workouts in a selected period. Sleep
+and workouts count only when their canonical source event has a finite start
+and an explicit valid `payloadJson.endAt` later than the start; workouts also
+require a non-empty canonical `payloadJson.activity`. Missing, malformed or
+reversed intervals are omitted rather than inferred. A seven-day minimum and
+three matching records gate display; they are product sparsity safeguards, not
+validated thresholds. They describe timestamped records only, not complete
+coverage of the period, causes, health effects, or energy expenditure. Overall
+source coverage is unknown. The feature is opt-in and respects module
+permissions and hide-numbers settings.
+
 ## Budget, dismissal and mutes
 
 - **Change cap:** at most 2 change insights are shown at once (4 in the weekly

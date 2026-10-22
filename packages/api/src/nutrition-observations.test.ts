@@ -89,7 +89,9 @@ describe("buildNutritionObservations", () => {
     ]);
     for (const observation of result) {
       expect(observation.window).toEqual({ from: "2026-10-01", to: "2026-10-07", days: 7 });
-      expect(observation.completeness).toContain("3 complete matching events");
+      expect(observation.completeness).toContain(
+        "3 matching timestamped records from completed diary days",
+      );
       expect(observation.body.toLowerCase()).toMatch(/records only/);
       expect(observation.body.toLowerCase()).toMatch(/does not establish a relationship/);
       expect(observation.body.toLowerCase()).not.toMatch(
@@ -103,7 +105,9 @@ describe("buildNutritionObservations", () => {
     expect(result).toHaveLength(2);
     for (const observation of result) {
       expect(observation.matchingEvents).toBeNull();
-      expect(observation.completeness).toBe("Sufficient complete matching records were available.");
+      expect(observation.completeness).toBe(
+        "Sufficient matching timestamped records from completed diary days were available.",
+      );
     }
   });
 });
