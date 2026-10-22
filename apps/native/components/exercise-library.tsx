@@ -12,6 +12,7 @@ import { orpc } from "@/utils/orpc";
 
 const INPUT = "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CATALOG_LANGUAGE = Intl.DateTimeFormat().resolvedOptions().locale.slice(0, 16) || "en";
 type CatalogIntent =
   | {
       scope: string;
@@ -70,10 +71,13 @@ function isPreviewAsset(value: unknown): value is PreviewAsset {
     item.height > 0 &&
     item.height <= 10_000 &&
     typeof item.license === "string" &&
+    item.license.trim().length > 0 &&
     typeof item.licenseUrl === "string" &&
+    safeHttpUrl(item.licenseUrl) !== null &&
     (typeof item.author === "string" || item.author === null) &&
     (typeof item.attribution === "string" || item.attribution === null) &&
     typeof item.sourceUrl === "string" &&
+    safeHttpUrl(item.sourceUrl) !== null &&
     typeof item.transformationNotice === "string"
   );
 }
@@ -175,7 +179,9 @@ function ExerciseMediaGallery({ exerciseName, media }: { exerciseName: string; m
   if (assets.length === 0)
     return (
       <Text className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-        No preview image is provided.
+        {Array.isArray(media) && media.length > 0
+          ? "Preview unavailable because image license details are incomplete."
+          : "No preview image is provided."}
       </Text>
     );
   if (Platform.OS === "web" && !browserOrigin)
@@ -294,6 +300,13 @@ export default function ExerciseLibraryScreen() {
   const [isDispatching, setIsDispatching] = useState(false);
   currentScopeRef.current = scope;
   const scopeChanging = previousScope.current !== scope;
+  useEffect(
+    () => () => {
+      intentRef.current = null;
+      dispatchingIntentRef.current = null;
+    },
+    [],
+  );
   useEffect(() => {
     if (previousScope.current === scope) return;
     previousScope.current = scope;
@@ -313,7 +326,7 @@ export default function ExerciseLibraryScreen() {
     setRefreshedAfterUncertain(false);
     setNotice("");
   }, [scope]);
-  const params = { query: query.trim() || undefined, language: "en", limit: 50 };
+  const params = { query: query.trim() || undefined, language: CATALOG_LANGUAGE, limit: 50 };
   const filters = useQuery({
     ...orpc.exerciseCatalog.filters.queryOptions({ input: {} }),
     queryKey: [...orpc.exerciseCatalog.filters.queryOptions({ input: {} }).queryKey, { scope }],
@@ -335,10 +348,13 @@ export default function ExerciseLibraryScreen() {
     placeholderData: undefined,
   });
   const detail = useQuery({
-    ...orpc.exerciseCatalog.get.queryOptions({ input: { id: selectedId ?? 1, language: "en" } }),
+    ...orpc.exerciseCatalog.get.queryOptions({
+      input: { id: selectedId ?? 1, language: CATALOG_LANGUAGE },
+    }),
     queryKey: [
-      ...orpc.exerciseCatalog.get.queryOptions({ input: { id: selectedId ?? 1, language: "en" } })
-        .queryKey,
+      ...orpc.exerciseCatalog.get.queryOptions({
+        input: { id: selectedId ?? 1, language: CATALOG_LANGUAGE },
+      }).queryKey,
       { scope },
     ],
     enabled: Boolean(scope && selectedId),
@@ -514,7 +530,7 @@ export default function ExerciseLibraryScreen() {
               setNotice("Stopped waiting. The request may still complete on the server.");
             }}
           >
-            Cancel
+            Cancel request
           </Button>
         ) : null}
         {uncertain ? (
@@ -750,33 +766,35 @@ export default function ExerciseLibraryScreen() {
                 <Text className="text-sm text-foreground">
                   {detail.data.instructions || "No instructions provided."}
                 </Text>
-                <Attribution title="Exercise record" license={detail.data.license} author={detail.data.author} attribution={detail.data.attribution} sourceUrl={detail.data.sourceRecordUrl} licenseUrl={detail.data.licenseUrl} />
-                {detail.data.translationAttribution ? <Attribution title={`Selected translation${detail.data.language?.toLowerCase() === "en" ? " (English fallback)" : detail.data.language ? ` (${detail.data.language})` : ""}`} license={detail.data.translationAttribution.license} author={detail.data.translationAttribution.author} attribution={detail.data.translationAttribution.rawAttribution} sourceUrl={detail.data.translationAttribution.sourceUrl} /> : null}
-                {safeHttpUrl(detail.data.licenseUrl) ? (
-                  <Text
-                    onPress={() => void Linking.openURL(safeHttpUrl(detail.data.licenseUrl)!)}
-                    accessibilityRole="link"
-                    className="min-h-11 text-sm text-foreground underline"
-                  >
-                    View license
-                  </Text>
-                ) : null}
-                {safeHttpUrl(detail.data.sourceRecordUrl) ? (
-                  <Text
-                    onPress={() => void Linking.openURL(safeHttpUrl(detail.data.sourceRecordUrl)!)}
-                    accessibilityRole="link"
-                    className="min-h-11 text-sm text-foreground underline"
-                  >
-                    View source record
-                  </Text>
+                <Attribution
+                  title="Exercise record"
+                  license={detail.data.license}
+                  author={detail.data.author}
+                  attribution={detail.data.attribution}
+                  sourceUrl={detail.data.sourceRecordUrl}
+                  licenseUrl={detail.data.licenseUrl}
+                />
+                {detail.data.translationAttribution ? (
+                  <Attribution
+                    title={`Selected translation${detail.data.language?.toLowerCase() === "en" && CATALOG_LANGUAGE.toLowerCase() !== "en" ? " (English fallback)" : detail.data.language ? ` (${detail.data.language})` : ""}`}
+                    license={detail.data.translationAttribution.license}
+                    author={detail.data.translationAttribution.author}
+                    attribution={detail.data.translationAttribution.rawAttribution}
+                    sourceUrl={detail.data.translationAttribution.sourceUrl}
+                  />
                 ) : null}
                 <Text className="text-sm font-medium text-foreground">Add to workout</Text>
                 {workouts.isPending ? (
                   <Spinner />
                 ) : workouts.isError ? (
-                  <Text className="text-sm text-muted-foreground">
-                    Could not load workouts. Refresh and try again.
-                  </Text>
+                  <View className="gap-2">
+                    <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
+                      Could not load workouts.
+                    </Text>
+                    <Button variant="secondary" onPress={() => void workouts.refetch()}>
+                      Retry workouts
+                    </Button>
+                  </View>
                 ) : workouts.data?.length ? (
                   <View className="flex-row flex-wrap gap-2">
                     {workouts.data.map((workout) => (
