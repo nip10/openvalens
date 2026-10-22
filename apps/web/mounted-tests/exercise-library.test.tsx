@@ -53,6 +53,7 @@ test.skipIf(mountedMode)(
       },
     );
     const output = `${result.stdout}${result.stderr}`;
+    process.stdout.write(output);
     expect(output).toContain("1 pass");
     expect(output).toContain("0 fail");
   },
@@ -151,6 +152,7 @@ test.skipIf(!mountedMode)(
       { id: 72, date: "2026-10-23", type: "Mobility" },
     ]);
     const requests: string[] = [];
+    const searchInputs: Array<Record<string, unknown>> = [];
     const addInputs: Array<Record<string, unknown>> = [];
     const addResolvers: Array<(value: { id: number; name: string }) => void> = [];
     const addStartedResolvers: Array<() => void> = [];
@@ -158,8 +160,12 @@ test.skipIf(!mountedMode)(
     const rpc = new rpcServer.RPCHandler({
       exerciseCatalog: {
         filters: procedure.handler(() => ({ muscles: [], equipment: [] })),
-        search: procedure.handler(() =>
-          currentSession.session.activeOrganizationId === "workspace-b"
+        search: procedure.handler(({ input }: { input: Record<string, unknown> }) => {
+          searchInputs.push({
+            ...input,
+            activeOrganizationId: currentSession.session.activeOrganizationId,
+          });
+          return currentSession.session.activeOrganizationId === "workspace-b"
             ? []
             : [
                 {
@@ -171,8 +177,8 @@ test.skipIf(!mountedMode)(
                   license: detail.license,
                   author: detail.author,
                 },
-              ],
-        ),
+              ];
+        }),
         get: procedure.handler(() => detail),
         addFromLibrary: procedure.handler(({ input }: { input: Record<string, unknown> }) => {
           addInputs.push(input);
@@ -206,7 +212,9 @@ test.skipIf(!mountedMode)(
       },
     });
     try {
-      render(createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)));
+      const view = render(
+        createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)),
+      );
       await user.click(await screen.findByRole("button", { name: /Translated squat/ }));
       await screen.findByText("Parent notice");
       expect(screen.getByRole("region", { name: "Exercise record" })).toBeTruthy();
@@ -288,6 +296,8 @@ test.skipIf(!mountedMode)(
       expect(screen.queryByRole("region", { name: "Muscle guide" })).toBeNull();
       fireEvent.error(preview);
       await screen.findByRole("region", { name: "Muscle guide" });
+      expect(screen.getByText("License: CC BY 4.0 · Image author")).toBeTruthy();
+      expect(screen.getByText("Image credit")).toBeTruthy();
       expect(
         screen.getByText(
           (_, element) => element?.tagName === "P" && element.textContent === "Primary: Biceps",
@@ -348,8 +358,9 @@ test.skipIf(!mountedMode)(
         (_, element) =>
           element?.tagName === "P" && element.textContent === "Primary: Unknown muscle",
       );
-      expect(screen.getByText(/No matching diagram mapping for: Unknown muscle/)).toBeTruthy();
+      expect(screen.getByText(/No matching diagram mapping is available/)).toBeTruthy();
       expect(document.querySelectorAll("svg rect")).toHaveLength(0);
+      expect(document.querySelectorAll("svg")).toHaveLength(0);
 
       client.setQueryData(key(detailOptions.queryKey), {
         ...detail,
@@ -365,7 +376,17 @@ test.skipIf(!mountedMode)(
       await screen.findByText("Preview unavailable because image license details are incomplete.");
       expect(screen.queryByRole("img", { name: "Translated squat preview 1" })).toBeNull();
 
-      cleanup();
+      await user.type(screen.getByLabelText("Search by name"), "private-workspace-query");
+      await waitFor(() =>
+        expect(searchInputs.some((input) => input.query === "private-workspace-query")).toBe(true),
+      );
+      await user.selectOptions(screen.getByLabelText("Add to workout"), "71");
+      const staleStarted = new Promise<void>((resolve) => addStartedResolvers.push(resolve));
+      await user.click(screen.getByRole("button", { name: "Add exercise" }));
+      await staleStarted;
+      expect(addInputs).toHaveLength(5);
+      const staleMutationId = addInputs[4]?.clientMutationId;
+      expect(staleMutationId).toBeTruthy();
       currentSession = { ...session, session: { activeOrganizationId: "workspace-b" } };
       client.setQueryData(key(searchOptions.queryKey), [
         {
@@ -376,13 +397,65 @@ test.skipIf(!mountedMode)(
           source: "user",
         },
       ]);
-      render(createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)));
+      await act(async () =>
+        view.rerender(
+          createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)),
+        ),
+      );
+      await waitFor(() => expect(screen.queryByText("Loading your workspace…")).toBeNull());
       await screen.findByText("The library is empty for now.");
       expect(screen.queryByText("Workspace A private row")).toBeNull();
+      expect(screen.queryByText("Parent notice")).toBeNull();
+      expect((screen.getByLabelText("Search by name") as HTMLInputElement).value).toBe("");
+      expect(
+        searchInputs.filter((input) => input.query === "private-workspace-query"),
+      ).toHaveLength(1);
+      expect(
+        searchInputs.find((input) => input.query === "private-workspace-query")
+          ?.activeOrganizationId,
+      ).toBe("workspace-a");
+      expect(
+        searchInputs.filter(
+          (input) =>
+            input.query === "private-workspace-query" &&
+            input.activeOrganizationId === "workspace-b",
+        ),
+      ).toHaveLength(0);
 
-      cleanup();
+      let unsubscribe = () => {};
+      const staleMutationCompleted = new Promise<void>((resolve) => {
+        unsubscribe = client.getMutationCache().subscribe((event) => {
+          if (
+            event.type === "updated" &&
+            event.mutation.state.status === "success" &&
+            (event.mutation.state.variables as Record<string, unknown> | undefined)
+              ?.clientMutationId === staleMutationId
+          ) {
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+      await act(async () => {
+        addResolvers.shift()!({ id: 51, name: "A-only stale exercise" });
+        await staleMutationCompleted;
+      });
+      expect(screen.queryByText("A-only stale exercise added to the workout.")).toBeNull();
+      expect(screen.queryByText("Parent notice")).toBeNull();
+      expect(
+        searchInputs.filter(
+          (input) =>
+            input.query === "private-workspace-query" &&
+            input.activeOrganizationId === "workspace-b",
+        ),
+      ).toHaveLength(0);
+
       currentSession = session;
-      render(createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)));
+      await act(async () =>
+        view.rerender(
+          createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)),
+        ),
+      );
       await user.click(await screen.findByRole("button", { name: /Workspace A private row/ }));
       await screen.findByText("Parent notice");
       await user.selectOptions(screen.getByLabelText("Add to workout"), "71");

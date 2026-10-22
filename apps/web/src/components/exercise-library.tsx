@@ -243,12 +243,6 @@ export function ExerciseMediaGallery({
     asset,
     url: previewUrl(asset, ENV.VITE_SERVER_URL, browserOrigin),
   }));
-  if (urls.some(({ url }) => url === null))
-    return (
-      <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-        Preview unavailable on this connection.
-      </p>
-    );
   return (
     <div className="grid gap-4" aria-label={`${exerciseName} previews`}>
       {urls.map(({ asset, url }, index) => (
@@ -257,12 +251,12 @@ export function ExerciseMediaGallery({
             className="relative overflow-hidden rounded-lg border bg-muted"
             style={{ aspectRatio: `${asset.width} / ${asset.height}`, maxHeight: "20rem" }}
           >
-            {states[asset.assetId] === "failed" ? (
+            {!url || states[asset.assetId] === "failed" ? (
               <div
                 role="status"
                 className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground"
               >
-                Preview unavailable.
+                {!url ? "Preview unavailable on this connection." : "Preview unavailable."}
               </div>
             ) : (
               <>
@@ -320,7 +314,7 @@ export function ExerciseMediaGallery({
           </figcaption>
         </figure>
       ))}
-      {assets.every((asset) => states[asset.assetId] === "failed") ? (
+      {urls.every(({ asset, url }) => !url || states[asset.assetId] === "failed") ? (
         <MuscleGuide muscles={muscles} />
       ) : null}
     </div>
@@ -346,6 +340,7 @@ export function ExerciseLibraryPage() {
   const intentRef = useRef<CatalogIntent | null>(null);
   const dispatchingIntentRef = useRef<string | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [, refreshAfterScopeReset] = useState(0);
   currentScopeRef.current = scope;
   const scopeChanging = previousScope.current !== scope;
   useEffect(
@@ -362,6 +357,7 @@ export function ExerciseLibraryPage() {
     dispatchingIntentRef.current = null;
     setIsDispatching(false);
     setSelectedId(null);
+    setQuery("");
     setWorkoutId("");
     setName("");
     setInstructions("");
@@ -371,6 +367,7 @@ export function ExerciseLibraryPage() {
     setUncertain(false);
     setRefreshedAfterUncertain(false);
     setNotice("");
+    refreshAfterScopeReset((value) => value + 1);
   }, [scope]);
   const filters = useQuery({
     ...orpc.exerciseCatalog.filters.queryOptions({ input: {} }),
@@ -380,7 +377,7 @@ export function ExerciseLibraryPage() {
   });
   const input = useMemo(
     () => ({
-      query: query.trim() || undefined,
+      query: scopeChanging ? undefined : query.trim() || undefined,
       language: CATALOG_LANGUAGE,
       muscleExternalId: scopeChanging ? undefined : muscleExternalId || undefined,
       equipmentExternalId: scopeChanging ? undefined : equipmentExternalId || undefined,
@@ -404,7 +401,7 @@ export function ExerciseLibraryPage() {
       }).queryKey,
       { scope },
     ],
-    enabled: Boolean(scope && selectedId),
+    enabled: Boolean(scope && selectedId && !scopeChanging),
   });
   const workouts = useQuery({
     ...orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),

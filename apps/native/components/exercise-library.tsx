@@ -245,7 +245,7 @@ export function ExerciseMediaGallery({
           </View>
         </View>
       ))}
-      {assets.every((asset) => states[asset.assetId] === "failed") ? (
+      {urls.every(({ asset, url }) => !url || states[asset.assetId] === "failed") ? (
         <MuscleGuide muscles={muscles} />
       ) : null}
     </View>
@@ -273,6 +273,7 @@ export default function ExerciseLibraryScreen() {
   const intentRef = useRef<CatalogIntent | null>(null);
   const dispatchingIntentRef = useRef<string | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [, refreshAfterScopeReset] = useState(0);
   currentScopeRef.current = scope;
   const scopeChanging = previousScope.current !== scope;
   useEffect(
@@ -289,6 +290,7 @@ export default function ExerciseLibraryScreen() {
     dispatchingIntentRef.current = null;
     setIsDispatching(false);
     setSelectedId(null);
+    setQuery("");
     setWorkoutId(null);
     setName("");
     setInstructions("");
@@ -300,8 +302,13 @@ export default function ExerciseLibraryScreen() {
     setUncertain(false);
     setRefreshedAfterUncertain(false);
     setNotice("");
+    refreshAfterScopeReset((value) => value + 1);
   }, [scope]);
-  const params = { query: query.trim() || undefined, language: CATALOG_LANGUAGE, limit: 50 };
+  const params = {
+    query: scopeChanging ? undefined : query.trim() || undefined,
+    language: CATALOG_LANGUAGE,
+    limit: 50,
+  };
   const filters = useQuery({
     ...orpc.exerciseCatalog.filters.queryOptions({ input: {} }),
     queryKey: [...orpc.exerciseCatalog.filters.queryOptions({ input: {} }).queryKey, { scope }],
@@ -332,7 +339,7 @@ export default function ExerciseLibraryScreen() {
       }).queryKey,
       { scope },
     ],
-    enabled: Boolean(scope && selectedId),
+    enabled: Boolean(scope && selectedId && !scopeChanging),
   });
   const workouts = useQuery({
     ...orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),

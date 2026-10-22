@@ -91,6 +91,30 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
   const primary = muscles.filter((m) => m.role?.toLowerCase() === "primary"),
     secondary = muscles.filter((m) => m.role?.toLowerCase() === "secondary"),
     unknown = mapped.filter((x) => !x.region);
+  if (!front.size && !back.size)
+    return (
+      <View
+        accessibilityLabel="Muscle guide"
+        className="gap-2 rounded-lg border border-border bg-card p-3"
+      >
+        <Text className="text-sm font-medium text-foreground">Muscle guide</Text>
+        <Text className="text-xs text-muted-foreground">
+          Illustration of muscles listed by the source
+        </Text>
+        <Text className="text-xs text-foreground">
+          Source-listed muscles: {muscles.map((m) => m.name).join(", ") || "None listed"}
+        </Text>
+        <Text className="text-xs text-foreground">
+          Primary: {primary.map((x) => x.name).join(", ") || "None listed"}
+        </Text>
+        <Text className="text-xs text-foreground">
+          Secondary: {secondary.map((x) => x.name).join(", ") || "None listed"}
+        </Text>
+        <Text className="text-xs text-muted-foreground">
+          No matching diagram mapping is available; no anatomy is highlighted.
+        </Text>
+      </View>
+    );
   return (
     <View
       accessibilityLabel="Muscle guide"

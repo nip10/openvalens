@@ -258,8 +258,9 @@ test.skipIf(!mountedMode)(
         media: [],
         muscles: [{ name: "Unknown", role: "primary", location: "front" }],
       });
-      expect(container.textContent).toContain("No matching diagram mapping for: Unknown");
+      expect(container.textContent).toContain("No matching diagram mapping is available");
       expect(container.querySelectorAll("rect")).toHaveLength(0);
+      expect(container.querySelectorAll("svg")).toHaveLength(0);
       expect(container.querySelector("image")).toBeNull();
     } finally {
       await React.act(async () => root.unmount());
