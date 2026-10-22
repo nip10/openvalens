@@ -110,6 +110,7 @@ export const healthRouter = {
         anthropic: context.capabilities.anthropic,
         resend: context.capabilities.resend,
         mobilePairing: context.capabilities.mobilePairing,
+        sentry: context.capabilities.sentry ?? false,
       };
 
       // Project each family to exactly `{ provider, state }` so no extra field

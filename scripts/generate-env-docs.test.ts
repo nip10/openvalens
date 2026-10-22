@@ -49,9 +49,9 @@ describe("real committed schemas", () => {
   test("section variable counts", () => {
     const model = buildModel(REAL);
     expect(Object.fromEntries(model.map((entry) => [entry.id, entry.variables.length]))).toEqual({
-      server: 62,
-      web: 2,
-      native: 2,
+      server: 65,
+      web: 5,
+      native: 5,
       db: 2,
     });
     expect(section(model, "server").variables.filter((v) => v.sensitive)).toHaveLength(21);

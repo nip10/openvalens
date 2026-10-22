@@ -41,6 +41,18 @@ export const LICENSE_EXCEPTIONS: Record<string, { license: string; reason: strin
     reason:
       "Prebuilt libvips loaded dynamically by sharp on the server only; it is never bundled into the web or mobile apps, and LGPL is AGPL-compatible.",
   },
+  // Issue #54: Sentry's source-map upload CLIs, pulled in by the Sentry SDKs'
+  // build tooling. They run on a build machine only when an operator opts in
+  // to source-map upload, and are never bundled into the server, web or
+  // mobile output. FSL converts to MIT/Apache-2.0 two years after release.
+  "@sentry/cli*": {
+    license: "FSL-1.1-MIT",
+    reason: "Optional build-time source-map upload tool; never bundled or redistributed.",
+  },
+  sentry: {
+    license: "FSL-1.1-Apache-2.0",
+    reason: "Optional build-time Sentry CLI used by the bundler plugins; never bundled.",
+  },
 };
 
 export type InstalledPackage = { name: string; version: string; license: string | null };

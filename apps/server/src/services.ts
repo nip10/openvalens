@@ -7,7 +7,7 @@ import { describeOidcIntegration, oidcSignInOption, parseOidcConfig } from "@ope
 import { createDb } from "@openvalens/db";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import { createEmailService, describeEmailIntegration, parseEmailConfig } from "@openvalens/email";
-import { createStructuredLogger } from "@openvalens/observability";
+import { createStructuredLogger, errorReportingConfig } from "@openvalens/observability";
 import {
   createFoodLookup,
   describeFoodLookupIntegration,
@@ -35,6 +35,7 @@ import {
 } from "@openvalens/telegram";
 
 import { ENV } from "./env.server";
+import { initErrorReporting } from "./error-reporting";
 import { createAnalyticsService } from "./services/analytics";
 
 export const db = createDb(ENV);
@@ -273,6 +274,16 @@ export const integrations = Object.freeze({
   ...describeWearablesIntegrations(wearablesConfig),
 }) satisfies IntegrationStatuses;
 
+// Issue #54 — optional, PHI-scrubbed Sentry error reporting. Off without a DSN.
+const sentryEnabled = initErrorReporting(
+  errorReportingConfig({
+    dsn: ENV.SENTRY_DSN,
+    environment: ENV.SENTRY_ENVIRONMENT,
+    release: ENV.SENTRY_RELEASE,
+    fallbackEnvironment: ENV.NODE_ENV,
+  }),
+);
+
 /**
  * Readiness capability flags (Issue #11).
  *
@@ -283,13 +294,15 @@ export const integrations = Object.freeze({
  * off. A key alone with the default dry-run would otherwise advertise delivery
  * that never happens. `anthropic` is `true` only when Anthropic is the
  * configured AI provider; an OpenAI-compatible endpoint (Issue #59) shows up as
- * `integrations.ai.provider` instead.
+ * `integrations.ai.provider` instead. `sentry` (Issue #54) is `true` while
+ * error reporting is on (`SENTRY_DSN` set).
  */
 export const capabilities = {
   telegram: integrations.messaging.state === "configured",
   anthropic: integrations.ai.provider === "anthropic",
   resend: integrations.email.state === "configured",
   mobilePairing: true,
+  sentry: sentryEnabled,
 };
 
 // Register the auth singleton so the guards in `@openvalens/auth/authz/*`

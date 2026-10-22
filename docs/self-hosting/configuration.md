@@ -58,6 +58,10 @@ the value already in `deploy/.env`; add any other key by hand
 | `POSTHOG_PROJECT_TOKEN_FILE`                 | yes (secret file)    | empty         | Optional EU PostHog project token file path; keep the token in `deploy/secrets/server/POSTHOG_PROJECT_TOKEN`, not `deploy/.env`.                         |
 | `POSTHOG_IP_CAPTURE_DISABLED`                | no                   | `false`       | Operator attestation only; set `true` only after disabling IP capture in the EU PostHog project. This setting does not configure PostHog.                |
 | `EXERCISE_CATALOG_ASSETS_ENABLED`            | no                   | `false`       | Metadata-gated own-origin exercise media publication; requires configured storage. See [exercise catalog assets](../exercise-catalog-assets.md).         |
+| `SENTRY_DSN`                                 | no                   | —             | Optional server error reporting to Sentry; off when unset. See [error reporting](#error-reporting-sentry).                                               |
+| `SENTRY_ENVIRONMENT`                         | no                   | `NODE_ENV`    | Sentry environment for server, web and mobile events, e.g. `production` or `staging`.                                                                    |
+| `SENTRY_RELEASE`                             | no                   | —             | Release tag (e.g. the deployed commit) shared by server and web events.                                                                                  |
+| `VITE_SENTRY_DSN`                            | no                   | —             | Optional browser error reporting, built into the web image; also allowed in the web CSP.                                                                 |
 | `API_MAX_BODY_BYTES`                         | no                   | `1048576`     | Largest accepted API request body, in bytes; bigger bodies get `413` before parsing.                                                                     |
 | `EMAIL_REPLY_TO`                             | no                   | empty         | Reply-to address of app email; empty means the `EMAIL_FROM` address.                                                                                     |
 | `EMAIL_DRY_RUN`                              | no                   | `false`       | `true` logs email instead of sending it. Without a Resend key email is dry-run regardless.                                                               |
@@ -235,6 +239,32 @@ The setting reaches both the `server` and the `web` containers. Remove the line
 (or set `CSP_MODE=enforce`) and run `upgrade` again to re-enforce. The rollout
 and the violation reports are described in
 [docs/security-csp.md](../security-csp.md).
+
+### Error reporting (Sentry)
+
+Off by default: nothing is sent anywhere unless you set a DSN. To report server
+errors to your own Sentry project (EU data residency is a Sentry project
+setting):
+
+```bash
+echo 'SENTRY_DSN=https://<public-key>@<org>.ingest.de.sentry.io/<project>' >>deploy/.env
+echo 'SENTRY_ENVIRONMENT=production' >>deploy/.env
+echo "SENTRY_RELEASE=openvalens@$(git rev-parse --short HEAD)" >>deploy/.env
+deploy/setup.sh upgrade
+```
+
+Add `VITE_SENTRY_DSN=...` as well to report browser errors; it is built into the
+web image, and its origin is added to the web Content Security Policy. The
+mobile app reads `EXPO_PUBLIC_SENTRY_DSN` at build time and reports JavaScript
+errors only. Use a separate Sentry project (DSN) per app if you want them apart;
+`SENTRY_ENVIRONMENT` and `SENTRY_RELEASE` apply to all of them.
+
+Every event is reduced to the error type, code locations, release and
+environment before it leaves the instance: no error messages, request data,
+headers, cookies, URLs, user, device details or breadcrumbs, and no performance
+tracing. The readiness probe reports `"sentry": true` while server reporting is
+on. Uploading source maps is optional and happens on your build machine with
+`SENTRY_AUTH_TOKEN`; never put that token in `deploy/.env` or the running stack.
 
 ## Product settings
 

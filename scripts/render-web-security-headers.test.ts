@@ -36,6 +36,15 @@ describe("renderSnippet", () => {
     );
   });
 
+  test("a Sentry DSN adds only its origin to connect-src (Issue #54)", () => {
+    const snippet = renderSnippet("enforce", ORIGIN, "https://abc123@o1.ingest.de.sentry.io/42");
+    expect(snippet).toContain(
+      `connect-src 'self' api.resend.com api.telegram.org ${ORIGIN} https://o1.ingest.de.sentry.io;`,
+    );
+    expect(snippet).not.toContain("abc123");
+    expect(renderSnippet("enforce", ORIGIN, "  ")).toBe(renderSnippet("enforce", ORIGIN));
+  });
+
   test("report-only emits the report-only header without a reporting destination", () => {
     const snippet = renderSnippet("report-only", ORIGIN);
 

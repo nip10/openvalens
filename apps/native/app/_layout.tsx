@@ -8,10 +8,14 @@ import { useEffect, useRef } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
 import "@/lib/health-sync/scheduler";
 import { acceptMagicLinkUrl } from "@/lib/magic-link";
 import { queryClient } from "@/utils/orpc";
+
+// Issue #54 — optional, PHI-scrubbed error reporting; off without a DSN.
+initErrorReporting();
 
 export const unstable_settings = {
   initialRouteName: "(drawer)",

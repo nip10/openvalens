@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@openvalens/api": "workspace:*",
+    "@openvalens/observability": "workspace:*",
     "@openvalens/ui": "workspace:*",
     "@orpc/client": "catalog:",
     "@orpc/server": "catalog:",
