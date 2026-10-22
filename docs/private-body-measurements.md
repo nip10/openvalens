@@ -1,4 +1,4 @@
-# Private manual body measurements (#85 backend)
+# Private body measurements and progress photos (#85)
 
 Manual measurements are stored in `private_body_measurement`, scoped to both
 the active organization and the authenticated user. They are intentionally
@@ -33,10 +33,36 @@ applied.
 
 Both measurement and preference tables are classified as user-owned by the
 data-rights registry, so subject exports contain only that user's rows and
-subject erasure removes them. Photo processing and sharing remain out of scope.
+subject erasure removes them. Sharing is not offered.
 The web and native screens support opt-in, manual entry, and history. Both omit
 stored numeric values until the client can confirm the hide-numbers preference;
 users enter a replacement value to edit a saved record. The native screen is
 online-only and scopes query cache entries to the signed-in user and active
 workspace. Turning measurements off gates access but does not delete records.
 Hide-numbers preference integration and photos remain pending.
+
+## Progress photos
+
+Progress photos use the same opt-in: while private body tracking is off, the
+list is empty, image reads return `NOT_FOUND` and uploads are refused.
+
+- `privateBody.photos({})` → `{ enabled, storage, photos: [{ id, contentType, sizeBytes, createdAt }] }`,
+  the member's own ready photos in the active organization, newest first.
+- `privateBody.uploadPhoto({ photo })` (a JPEG or PNG `File`, up to 10 MB) →
+  the stored photo's metadata. The server decodes and re-encodes the image
+  with `sanitizeImage` (EXIF, GPS, XMP, IPTC and other metadata are dropped,
+  orientation is applied, the long edge is capped at 2048 px) and stores only
+  that copy through `reservePhoto`/`writePhoto`. The opt-in is re-checked
+  inside the publishing transaction, so turning it off mid-upload stores
+  nothing. The original file name is never kept.
+- `privateBody.photoFile({ id })` → the image bytes, through the authenticated
+  API only. No shareable or signed link is handed to the client, so the web
+  CSP needs no change and S3 buckets stay private.
+- Delete with `storage.delete({ objectId })`, which already restricts progress
+  photos to their uploader; it works whether or not the opt-in is on.
+
+Photos are visible only to the uploader: same-workspace owners, other members
+and other tenants get `NOT_FOUND`. Subject export and erasure already cover
+progress photos (see [storage](storage.md#data-rights)). The web screen can add,
+view and delete photos; the native screen can view and delete them (adding
+from the phone needs an image picker and is not wired yet).

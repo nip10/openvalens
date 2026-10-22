@@ -5,6 +5,7 @@ import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { ProgressPhotos } from "@/components/progress-photos";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import {
@@ -191,7 +192,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
             <Card variant="secondary" className="gap-3 p-4">
               <Text className="text-sm text-muted-foreground">
                 This optional feature is off by default. Turning it on lets you record weight or
-                circumference measurements in this account.
+                circumference measurements and view progress photos in this account.
               </Text>
               <Button
                 isDisabled={preferenceMutation.isPending}
@@ -439,6 +440,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                   : null}
               </Card>
             </CardStack>
+            <ProgressPhotos subject={subject} />
           </>
         )}
         {notice ? (

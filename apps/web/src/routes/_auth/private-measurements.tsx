@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+import { ProgressPhotos } from "@/components/progress-photos";
 import { authClient } from "@/lib/auth-client";
 import { client } from "@/utils/orpc";
 import {
@@ -189,8 +190,8 @@ function PrivateMeasurementsForSubject({
           </CardHeader>
           <CardContent className="grid gap-4">
             <p className="text-sm text-muted-foreground">
-              Turn this on to record weight or circumference measurements for your own reference. It
-              is off by default.
+              Turn this on to record weight or circumference measurements and progress photos for
+              your own reference. It is off by default.
             </p>
             <Button
               className="w-fit"
@@ -419,6 +420,7 @@ function PrivateMeasurementsForSubject({
               )}
             </CardContent>
           </Card>
+          <ProgressPhotos subject={subject} />
         </>
       )}
     </main>
