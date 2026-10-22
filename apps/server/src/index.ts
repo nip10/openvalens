@@ -28,6 +28,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 
 import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
+import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
 import { createContext } from "./context";
 import { ENV } from "./env.server";
 import {
@@ -244,33 +245,12 @@ app.get(`${LOCAL_DOWNLOAD_PATH_PREFIX}:objectId`, async (c) => {
   }
 });
 
-// Exercise catalog media is served only from the dedicated global publication
-// manifest. The route is absent unless explicitly enabled and the adapter has
-// a stable store identity; it never redirects or follows upstream media URLs.
-if (exerciseCatalogAssetsEnabled) {
-  app.get("/api/exercise-assets/:assetId", async (c) => {
-    const assetId = c.req.param("assetId");
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assetId)) {
-      return c.json({ error: "NOT_FOUND" }, 404);
-    }
-    try {
-      const service = await getExerciseCatalogAssetService();
-      if (!service) return c.json({ error: "NOT_FOUND" }, 404);
-      const asset = await service.readPublishedAsset(assetId);
-      if (!asset) return c.json({ error: "NOT_FOUND" }, 404);
-      return c.body(Uint8Array.from(asset.bytes), 200, {
-        "Content-Type": asset.contentType,
-        "Content-Length": String(asset.size),
-        "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "default-src 'none'; sandbox",
-        "Cross-Origin-Resource-Policy": "same-origin",
-        "Cache-Control": "no-store",
-      });
-    } catch {
-      return c.json({ error: "INTERNAL" }, 500);
-    }
-  });
-}
+// Public media route consumes only the dedicated global manifest capability.
+// Its opt-in registration does not modify the app's shared middleware stack.
+registerExerciseCatalogAssetRoute(app, {
+  enabled: exerciseCatalogAssetsEnabled,
+  getService: getExerciseCatalogAssetService,
+});
 
 // Issue #60 — cloud wearable OAuth callback. Plain Hono (NOT oRPC): the
 // browser arrives here from the vendor with the one-time `code` and the

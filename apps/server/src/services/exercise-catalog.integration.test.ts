@@ -7,6 +7,16 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
 import { RPCHandler } from "@orpc/server/fetch";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import {
+  correlationMiddleware,
+  securityHeadersMiddleware,
+} from "@openvalens/observability/middleware";
+import {
+  registerExerciseCatalogAssetRoute,
+  type ExerciseCatalogAssetReader,
+} from "../exercise-catalog-asset-route";
 import { importWgerSnapshot } from "./exercise-catalog-import";
 import { normalizeWgerSnapshot } from "./exercise-catalog-normalization";
 import { createExerciseCatalogAssetService } from "./exercise-catalog-assets";
@@ -23,6 +33,27 @@ if (url) {
     parsed.pathname !== "/exercise_catalog_test"
   )
     throw new Error("Empty disposable loopback exercise_catalog_test database required.");
+}
+
+function assetHttpApp(
+  enabled: boolean,
+  getService: () => Promise<ExerciseCatalogAssetReader | null>,
+) {
+  const app = new Hono();
+  app.use(correlationMiddleware());
+  app.use(securityHeadersMiddleware({ cspMode: "enforce", allowDevScriptEval: false }));
+  app.use(
+    "/*",
+    cors({
+      origin: "http://test.local",
+      allowMethods: ["GET", "POST", "OPTIONS"],
+      allowHeaders: ["Content-Type", "x-correlation-id"],
+      credentials: true,
+    }),
+  );
+  app.get("/", (c) => c.text("server health"));
+  registerExerciseCatalogAssetRoute(app, { enabled, getService });
+  return app;
 }
 
 async function migrate(db: Database) {
@@ -417,7 +448,19 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
     const root = await mkdtemp(
       "/private/var/folders/8t/tp50trfs7rg_gwkp1pycpmvm0000gn/T/opencode/exercise-storage-",
     );
-    const storage = new LocalObjectStorage(root);
+    const baseStorage = new LocalObjectStorage(root);
+    const storageReads: string[] = [];
+    const storage = new Proxy(baseStorage, {
+      get(target, property) {
+        if (property === "get")
+          return async (key: string) => {
+            storageReads.push(key);
+            return target.get(key);
+          };
+        const value = Reflect.get(target, property, target) as unknown;
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as LocalObjectStorage;
     try {
       const service = createExerciseCatalogAssetService({
         db,
@@ -454,6 +497,118 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
         },
       ]);
       expect(await service.readPublishedAsset("00000000-0000-4000-8000-000000000000")).toBeNull();
+
+      const metadata = (await service.listPublishedMetadata([row.exercise_id]))[0]!.media[0]!;
+      const assetPath = new URL(metadata.path, "http://test.local");
+      expect(assetPath.origin).toBe("http://test.local");
+      expect(assetPath.pathname).toBe(`/api/exercise-assets/${published.id}`);
+      const httpApp = assetHttpApp(true, async () => service);
+      const disabledApp = assetHttpApp(false, async () => {
+        throw new Error("disabled route must not access storage");
+      });
+      const unavailableApp = assetHttpApp(true, async () => null);
+      let outboundRequests = 0;
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
+        outboundRequests += 1;
+        return originalFetch(...args);
+      }) as typeof fetch;
+      try {
+        const health = await httpApp.fetch(new Request("http://test.local/"));
+        expect(health.status).toBe(200);
+        expect(await health.text()).toBe("server health");
+        const response = await httpApp.fetch(
+          new Request(assetPath.toString(), {
+            headers: { origin: "http://test.local", "x-correlation-id": "catalog-route-test" },
+          }),
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toBe("image/png");
+        expect(response.headers.get("content-length")).toBe(String(readback!.size));
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+        expect(response.headers.get("cross-origin-resource-policy")).toBe("same-origin");
+        expect(response.headers.get("content-security-policy")).toContain("default-src");
+        expect(response.headers.get("access-control-allow-origin")).toBe("http://test.local");
+        expect(response.headers.get("x-correlation-id")).toBe("catalog-route-test");
+        expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+          new Uint8Array(readback!.bytes),
+        );
+
+        const malformed = await httpApp.fetch(
+          new Request("http://test.local/api/exercise-assets/not-a-uuid"),
+        );
+        expect(malformed.status).toBe(404);
+        expect(await malformed.json()).toEqual({ error: "NOT_FOUND" });
+        const missing = await httpApp.fetch(
+          new Request("http://test.local/api/exercise-assets/00000000-0000-4000-8000-000000000099"),
+        );
+        expect(missing.status).toBe(404);
+        expect(await missing.text()).not.toContain(root);
+        const disabled = await disabledApp.fetch(new Request(assetPath.toString()));
+        expect(disabled.status).toBe(404);
+        const unavailable = await unavailableApp.fetch(new Request(assetPath.toString()));
+        expect(unavailable.status).toBe(404);
+        expect(await unavailable.json()).toEqual({ error: "NOT_FOUND" });
+
+        const privateId = "f0000000-0000-4000-8000-000000000001";
+        const privateKey = "org/cat-org-a/private-photo-canary";
+        const privateBytes = Buffer.from("synthetic private photo bytes");
+        await db.execute(sql`insert into stored_object (id,organization_id,created_by_user_id,purpose,storage_key,content_type,size_bytes,sha256)
+          values (${privateId},'cat-org-a','cat-a','progress_photo',${privateKey},'image/png',${privateBytes.byteLength},${createHash("sha256").update(privateBytes).digest("hex")})`);
+        await storage.put(privateKey, privateBytes, {
+          contentType: "image/png",
+          sha256: createHash("sha256").update(privateBytes).digest("hex"),
+        });
+        storageReads.length = 0;
+        const privateResponse = await httpApp.fetch(
+          new Request(`http://test.local/api/exercise-assets/${privateId}`),
+        );
+        expect(privateResponse.status).toBe(404);
+        expect(await privateResponse.json()).toEqual({ error: "NOT_FOUND" });
+        expect(storageReads).not.toContain(privateKey);
+        expect(storageReads).toEqual([]);
+
+        await db.execute(
+          sql`update exercise_catalog_asset set state='pending' where id=${published.id}`,
+        );
+        expect((await httpApp.fetch(new Request(assetPath.toString()))).status).toBe(404);
+        await db.execute(
+          sql`update exercise_catalog_asset set state='ready' where id=${published.id}`,
+        );
+        const corrupt = Buffer.from("corrupt synthetic catalog bytes");
+        await storage.put(`catalog/exercise/${published.id}`, corrupt, {
+          contentType: "image/png",
+          sha256: createHash("sha256").update(corrupt).digest("hex"),
+        });
+        expect((await httpApp.fetch(new Request(assetPath.toString()))).status).toBe(404);
+        await db.execute(
+          sql`update exercise_catalog_asset set state='withdrawn' where id=${published.id}`,
+        );
+        expect((await httpApp.fetch(new Request(assetPath.toString()))).status).toBe(404);
+        expect(outboundRequests).toBe(0);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+
+      const rejectedMedia =
+        await db.execute(sql`insert into exercise_media (exercise_id,source_external_media_id,kind,license_code,license_url,source_media_url,snapshot_version,snapshot_at)
+        select id,'unknown-license-image','image','UNKNOWN','https://example.test/license','https://example.test/image.jpg',snapshot_version,snapshot_at from exercise where id=${row.exercise_id} returning id`);
+      await expect(
+        service.ingestLocalAsset({
+          exerciseMediaId: Number((rejectedMedia.rows[0] as { id: number }).id),
+          bytes: original,
+          expectedOriginalSha256: digest,
+          publicationEvidence: {
+            ...evidence,
+            exerciseMediaId: Number((rejectedMedia.rows[0] as { id: number }).id),
+            sourceExternalMediaId: "unknown-license-image",
+            licenseCode: "UNKNOWN",
+            licenseUrl: "https://example.test/license",
+          },
+        }),
+      ).rejects.toMatchObject({ code: "ineligible" });
+
       const replacement = fixture("catalog-checkpoint-fixture-v3", false);
       replacement.results[0]!.images = [];
       await importWgerSnapshot(
