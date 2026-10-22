@@ -51,7 +51,11 @@ export async function loadNutritionObservations(
       ...(access.activity ? ["workout"] : []),
     ];
     const events = await db
-      .select({ eventType: healthEvent.eventType, eventAt: healthEvent.eventAt })
+      .select({
+        eventType: healthEvent.eventType,
+        eventAt: healthEvent.eventAt,
+        payloadJson: healthEvent.payloadJson,
+      })
       .from(healthEvent)
       .innerJoin(
         dataSource,
@@ -79,13 +83,41 @@ export async function loadNutritionObservations(
         ),
       );
     for (const event of events) {
-      if (event.eventType === "sleep_session" && access.sleep)
+      const payload = event.payloadJson;
+      const endAt =
+        payload && typeof payload === "object" && !Array.isArray(payload)
+          ? (payload as Record<string, unknown>).endAt
+          : undefined;
+      const eventTime = event.eventAt.getTime();
+      const endTime =
+        typeof endAt === "string" && /^\d{4}-\d\d-\d\dT.*(?:Z|[+-]\d\d:\d\d)$/.test(endAt)
+          ? Date.parse(endAt)
+          : Number.NaN;
+      if (
+        event.eventType === "sleep_session" &&
+        access.sleep &&
+        Number.isFinite(eventTime) &&
+        Number.isFinite(endTime) &&
+        endTime > eventTime
+      )
         sleep.push({
           memberId: scope.userId,
           startedAt: event.eventAt.toISOString(),
           complete: true,
         });
-      if (event.eventType === "workout" && access.activity)
+      const activity =
+        payload && typeof payload === "object" && !Array.isArray(payload)
+          ? (payload as Record<string, unknown>).activity
+          : undefined;
+      if (
+        event.eventType === "workout" &&
+        access.activity &&
+        Number.isFinite(eventTime) &&
+        Number.isFinite(endTime) &&
+        endTime > eventTime &&
+        typeof activity === "string" &&
+        activity.trim().length > 0
+      )
         workouts.push({
           memberId: scope.userId,
           startedAt: event.eventAt.toISOString(),

@@ -136,7 +136,10 @@ function SubjectInsightsSection({
   const showObservations = shouldShowObservations(
     observationPrefs.data?.channels.observation.in_app,
     hideObservations,
-    observationPrefs.isSuccess && !observationPrefs.isFetching,
+    observationPrefs.isSuccess &&
+      !observationPrefs.isFetching &&
+      insights.isSuccess &&
+      !insights.isFetching,
     observation.isError,
   );
 
