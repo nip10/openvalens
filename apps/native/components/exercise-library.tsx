@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image, Linking, Platform, Pressable, Text, TextInput, View } from "react-native";
 
 import { Container } from "@/components/container";
+import { ExerciseAttribution, TranslationAttribution } from "@/components/exercise-attribution";
 import { authClient } from "@/lib/auth-client";
 import { ENV } from "@/src/env";
 import { orpc } from "@/utils/orpc";
@@ -96,52 +97,6 @@ function safeHttpUrl(value: string | null | undefined): string | null {
   } catch {
     return null;
   }
-}
-
-function Attribution({
-  title,
-  license,
-  author,
-  attribution,
-  sourceUrl,
-  licenseUrl,
-}: {
-  title: string;
-  license?: string | null;
-  author?: string | null;
-  attribution?: string | null;
-  sourceUrl?: string | null;
-  licenseUrl?: string | null;
-}) {
-  const licenseHref = safeHttpUrl(licenseUrl);
-  const sourceHref = safeHttpUrl(sourceUrl);
-  return (
-    <View className="gap-1 rounded-lg border border-border p-3" accessibilityLabel={title}>
-      <Text className="text-sm font-medium text-foreground">{title}</Text>
-      <Text className="text-xs text-muted-foreground">
-        {license ? `License: ${license}${author ? ` · ${author}` : ""}` : "License not listed."}
-      </Text>
-      {attribution ? <Text className="text-xs text-muted-foreground">{attribution}</Text> : null}
-      {licenseHref ? (
-        <Pressable
-          onPress={() => void Linking.openURL(licenseHref)}
-          accessibilityRole="link"
-          className="min-h-11 justify-center"
-        >
-          <Text className="text-sm text-foreground underline">License details</Text>
-        </Pressable>
-      ) : null}
-      {sourceHref ? (
-        <Pressable
-          onPress={() => void Linking.openURL(sourceHref)}
-          accessibilityRole="link"
-          className="min-h-11 justify-center"
-        >
-          <Text className="text-sm text-foreground underline">Source record</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
 }
 
 function previewUrl(
@@ -766,7 +721,7 @@ export default function ExerciseLibraryScreen() {
                 <Text className="text-sm text-foreground">
                   {detail.data.instructions || "No instructions provided."}
                 </Text>
-                <Attribution
+                <ExerciseAttribution
                   title="Exercise record"
                   license={detail.data.license}
                   author={detail.data.author}
@@ -775,12 +730,10 @@ export default function ExerciseLibraryScreen() {
                   licenseUrl={detail.data.licenseUrl}
                 />
                 {detail.data.translationAttribution ? (
-                  <Attribution
-                    title={`Selected translation${detail.data.language?.toLowerCase() === "en" && CATALOG_LANGUAGE.toLowerCase() !== "en" ? " (English fallback)" : detail.data.language ? ` (${detail.data.language})` : ""}`}
-                    license={detail.data.translationAttribution.license}
-                    author={detail.data.translationAttribution.author}
-                    attribution={detail.data.translationAttribution.rawAttribution}
-                    sourceUrl={detail.data.translationAttribution.sourceUrl}
+                  <TranslationAttribution
+                    language={detail.data.language}
+                    requestedLanguage={CATALOG_LANGUAGE}
+                    attribution={detail.data.translationAttribution}
                   />
                 ) : null}
                 <Text className="text-sm font-medium text-foreground">Add to workout</Text>

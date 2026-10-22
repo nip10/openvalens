@@ -104,13 +104,13 @@ test.skipIf(!mountedMode)(
     const detail = {
       id: 51,
       name: "Translated squat",
-      language: "en",
+      language: "fr",
       instructions: "<img src=x onerror=alert(1)>Keep your balance.",
       instructionsArePlainText: true,
       source: "wger",
       category: "Strength",
-      license: "CC BY-SA 4.0",
-      licenseUrl: "https://example.test/parent-license",
+      license: "CC0-1.0",
+      licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
       author: "Parent author",
       attribution: "Parent notice",
       sourceRecordUrl: "https://example.test/parent-source",
@@ -118,10 +118,10 @@ test.skipIf(!mountedMode)(
       equipment: [],
       media,
       translationAttribution: {
-        license: "CC BY 4.0",
+        license: "CC-BY-SA-4.0",
         author: "Translator",
         sourceUrl: "https://example.test/translation-source",
-        rawAttribution: "Translation notice",
+        rawAttribution: null,
       },
     };
     const catalogLanguage = Intl.DateTimeFormat().resolvedOptions().locale.slice(0, 16) || "en";
@@ -210,12 +210,26 @@ test.skipIf(!mountedMode)(
       await user.click(await screen.findByRole("button", { name: /Translated squat/ }));
       await screen.findByText("Parent notice");
       expect(screen.getByRole("region", { name: "Exercise record" })).toBeTruthy();
+      expect(screen.getByRole("region", { name: "Selected translation (fr)" })).toBeTruthy();
+      expect(screen.queryByText("Translation notice")).toBeNull();
+      expect(screen.getByText("License: CC0-1.0 · Parent author")).toBeTruthy();
+      expect(screen.getByText("License: CC-BY-SA-4.0 · Translator")).toBeTruthy();
       expect(
-        screen.getByRole("region", { name: "Selected translation (English fallback)" }),
-      ).toBeTruthy();
-      expect(screen.getByText("Translation notice")).toBeTruthy();
-      expect(screen.getByText("License: CC BY-SA 4.0 · Parent author")).toBeTruthy();
-      expect(screen.getByText("License: CC BY 4.0 · Translator")).toBeTruthy();
+        screen
+          .getAllByRole("link", { name: "License details" })
+          .some(
+            (link) =>
+              (link as HTMLAnchorElement).href ===
+              "https://creativecommons.org/publicdomain/zero/1.0/",
+          ),
+      ).toBe(true);
+      expect(
+        (
+          screen.getByRole("link", {
+            name: "Selected translation license details",
+          }) as HTMLAnchorElement
+        ).href,
+      ).toBe("https://creativecommons.org/licenses/by-sa/4.0/");
       await screen.findByText("License: CC BY 4.0 · Image author");
       expect(screen.getByText("Image credit")).toBeTruthy();
       expect((screen.getByRole("link", { name: "Image source" }) as HTMLAnchorElement).href).toBe(
@@ -228,6 +242,39 @@ test.skipIf(!mountedMode)(
             (link) => (link as HTMLAnchorElement).href === "https://example.test/parent-source",
           ),
       ).toBe(true);
+
+      const fallbackDetail = {
+        ...detail,
+        language: "en",
+        translationAttribution: {
+          license: "CC-BY-SA-3.0",
+          author: "English fallback translator",
+          sourceUrl: "https://example.test/english-fallback-source",
+          rawAttribution: null,
+        },
+      };
+      client.setQueryData(key(detailOptions.queryKey), fallbackDetail);
+      expect(
+        await screen.findByRole("region", { name: "Selected translation (English fallback)" }),
+      ).toBeTruthy();
+      expect(
+        (
+          screen.getByRole("link", {
+            name: "Selected translation license details",
+          }) as HTMLAnchorElement
+        ).href,
+      ).toBe("https://creativecommons.org/licenses/by-sa/3.0/");
+      expect(screen.getByText("License: CC-BY-SA-3.0 · English fallback translator")).toBeTruthy();
+      expect(
+        screen
+          .getAllByRole("link", { name: "Source record" })
+          .some(
+            (link) =>
+              (link as HTMLAnchorElement).href === "https://example.test/english-fallback-source",
+          ),
+      ).toBe(true);
+      client.setQueryData(key(detailOptions.queryKey), detail);
+      await screen.findByText("License: CC-BY-SA-4.0 · Translator");
       expect(screen.getByText("Cropped")).toBeTruthy();
       expect(screen.getByText(/<img src=x onerror=alert\(1\)>Keep your balance\./)).toBeTruthy();
       const preview = screen.getByRole("img", {

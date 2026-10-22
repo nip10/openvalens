@@ -99,6 +99,19 @@ function safeHttpUrl(value: string | null | undefined): string | null {
   }
 }
 
+function canonicalTranslationLicenseUrl(license: string | null | undefined): string | null {
+  switch (license) {
+    case "CC0-1.0":
+      return "https://creativecommons.org/publicdomain/zero/1.0/";
+    case "CC-BY-SA-3.0":
+      return "https://creativecommons.org/licenses/by-sa/3.0/";
+    case "CC-BY-SA-4.0":
+      return "https://creativecommons.org/licenses/by-sa/4.0/";
+    default:
+      return null;
+  }
+}
+
 function Attribution({
   title,
   license,
@@ -106,6 +119,7 @@ function Attribution({
   attribution,
   sourceUrl,
   licenseUrl,
+  licenseLinkLabel = "License details",
 }: {
   title: string;
   license?: string | null;
@@ -113,6 +127,7 @@ function Attribution({
   attribution?: string | null;
   sourceUrl?: string | null;
   licenseUrl?: string | null;
+  licenseLinkLabel?: string;
 }) {
   const licenseHref = safeHttpUrl(licenseUrl);
   const sourceHref = safeHttpUrl(sourceUrl);
@@ -139,7 +154,7 @@ function Attribution({
             target="_blank"
             rel="noreferrer"
           >
-            License details
+            {licenseLinkLabel}
           </a>
         ) : null}
         {sourceHref ? (
@@ -762,6 +777,10 @@ export function ExerciseLibraryPage() {
                       author={detail.data.translationAttribution.author}
                       attribution={detail.data.translationAttribution.rawAttribution}
                       sourceUrl={detail.data.translationAttribution.sourceUrl}
+                      licenseUrl={canonicalTranslationLicenseUrl(
+                        detail.data.translationAttribution.license,
+                      )}
+                      licenseLinkLabel="Selected translation license details"
                     />
                   ) : null}
                   <div className="grid gap-2">
