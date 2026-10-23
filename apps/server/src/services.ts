@@ -330,6 +330,9 @@ function escapeHtml(value: string): string {
 
 export const admissionService = createAdmissionService({
   db,
+  // Admission needs an emailed code: refuse early, with a clear error, when
+  // email is a dry run (no Resend key or EMAIL_DRY_RUN on).
+  emailDeliveryAvailable: () => !emailConfig.EMAIL_DRY_RUN,
   deliverVerification: async ({ email: recipient, verificationCode }) => {
     const result = await email.sendEmail({
       to: recipient,

@@ -7,12 +7,19 @@
  * (or a log line that records the message) cannot leak admission secrets.
  * There is no `cause` and no structured detail to serialise.
  */
-export type AdmissionErrorCode = "DENIED" | "RATE_LIMITED" | "DELIVERY_FAILED" | "INTERNAL";
+export type AdmissionErrorCode =
+  | "DENIED"
+  | "RATE_LIMITED"
+  | "DELIVERY_FAILED"
+  /** The server has no real email delivery (dry run): nothing was written or sent. */
+  | "EMAIL_UNAVAILABLE"
+  | "INTERNAL";
 
 const MESSAGES: Record<AdmissionErrorCode, string> = {
   DENIED: "Admission denied.",
   RATE_LIMITED: "Too many attempts; try again later.",
   DELIVERY_FAILED: "Unable to deliver the message.",
+  EMAIL_UNAVAILABLE: "Email delivery is not configured on this server.",
   INTERNAL: "Admission could not be completed.",
 };
 

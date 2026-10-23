@@ -8135,6 +8135,18 @@ msgstr "Não foi possível carregar esta fotografia."
 msgid "This scan has no regional values."
 msgstr "Este exame não tem valores regionais."
 
+#: apps/web/src/routes/setup.tsx
+msgid "This server can't send email yet, so setup can't finish: the verification code is sent by email. Add a Resend key with <0>deploy/setup.sh install --reconfigure</0>, then reload this page."
+msgstr "Este servidor ainda não consegue enviar email, por isso a configuração não pode terminar: o código de verificação é enviado por email. Adicione uma chave Resend com <0>deploy/setup.sh install --reconfigure</0> e volte a carregar esta página."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "This server can't send email yet, so the verification code can't be delivered. The operator needs to add a Resend key (see the self-hosting email guide)."
+msgstr "Este servidor ainda não consegue enviar email, por isso não é possível entregar o código de verificação. O operador tem de adicionar uma chave Resend (consulte o guia de email do alojamento próprio)."
+
+#: apps/web/src/routes/_auth/admin/invitations.tsx
+msgid "This server can't send email yet. Add a Resend key, then invite again."
+msgstr "Este servidor ainda não consegue enviar email. Adicione uma chave Resend e volte a enviar o convite."
+
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "This suggestion has expired."

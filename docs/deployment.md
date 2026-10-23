@@ -451,14 +451,14 @@ covers this path.
 
 ## Instance admission (Issue #63)
 
-> **Release status.** The admission backend, web setup/join screens (`/setup`,
-> `/join`) and workspace acceptance route (`/accept-invitation/{id}`) are implemented
-> and independently reviewed on `feat/63-setup-token`. They are **not live**.
-> Merging the pull request does **not** deploy them — automatic deployment is
-> disabled. Activating the flow requires an approved merge **and** a separately
-> authorized deployment that includes the approved migration. The steps below
-> describe this release's behavior; this document does not deploy, run the
-> migration, or otherwise activate anything.
+> **Release status.** Admission is merged on `main` and runs in every Compose
+> install (`deploy/setup.sh` mints the setup token). It needs working email:
+> the setup and invitation codes are emailed, so with no Resend key (email in
+> dry-run) `/rpc/admission/status` reports `emailDeliveryAvailable: false`,
+> `/setup` says so, and `begin` / `issueInvitation` refuse with
+> `EMAIL_UNAVAILABLE` (HTTP 503) before writing anything. Automatic deployment
+> stays disabled; rolling a release out is still an authorized, manual step
+> (#129).
 
 A fresh installation starts `pending`: no account can sign in until the first
 global instance administrator is bootstrapped with a one-time setup token.

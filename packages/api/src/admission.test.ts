@@ -99,6 +99,9 @@ describe("mapAdmissionError", () => {
       "RATE_LIMITED",
     );
     expect(codeOf(() => mapAdmissionError(new AdmissionError("DELIVERY_FAILED")))).toBe("INTERNAL");
+    expect(codeOf(() => mapAdmissionError(new AdmissionError("EMAIL_UNAVAILABLE")))).toBe(
+      "EMAIL_UNAVAILABLE",
+    );
     expect(codeOf(() => mapAdmissionError(new AdmissionError("INTERNAL")))).toBe("INTERNAL");
     expect(codeOf(() => mapAdmissionError(new Error("raw db dsn secret")))).toBe("INTERNAL");
   });

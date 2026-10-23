@@ -41,6 +41,7 @@ const ADMISSION_ERROR_MESSAGES: Record<AdmissionErrorCode, MessageDescriptor> = 
   denied: msg`Could not complete enrollment. Check the token and code, then try again.`,
   rate_limited: msg`Too many attempts. Wait a moment, then try again.`,
   delivery_failed: msg`Could not send the email. Try again later.`,
+  email_unavailable: msg`This server can't send email yet, so the verification code can't be delivered. The operator needs to add a Resend key (see the self-hosting email guide).`,
   invalid_input: msg`Check the email and token, then try again.`,
   session_mismatch: msg`Sign in with the matching email first, then return and enter the token again.`,
   network: msg`Connection lost. Check your network and try again.`,
