@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   resolveExerciseGuideMuscle,
   type ExerciseGuideMuscle,
@@ -43,11 +44,14 @@ const parts: Record<GuideRegion, [number, number, number, number][]> = {
   Trapezius: [[35, 27, 30, 14]],
 };
 function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideRegion> }) {
+  const { t } = useLingui();
   return (
     <svg
       viewBox="0 0 100 120"
       role="img"
-      aria-label={`${side} view muscle illustration`}
+      aria-label={
+        side === "front" ? t`front view muscle illustration` : t`back view muscle illustration`
+      }
       className="h-36 w-28 text-muted-foreground"
     >
       <circle cx="50" cy="10" r="7" fill="currentColor" opacity=".16" />
@@ -78,6 +82,7 @@ function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideR
   );
 }
 export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
+  const { t } = useLingui();
   const mapped = muscles.map((muscle) => ({ muscle, region: resolveExerciseGuideMuscle(muscle) }));
   const front = new Set(
     mapped.filter((x) => x.region?.side === "front").map((x) => x.region!.region),
@@ -88,54 +93,84 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
   const primary = muscles.filter((m) => m.role?.toLowerCase() === "primary");
   const secondary = muscles.filter((m) => m.role?.toLowerCase() === "secondary");
   const unresolved = mapped.filter((x) => !x.region);
+  // Muscle names come from the source data (wger) and are shown as listed.
+  const noneListed = t`None listed`;
+  const listedNames = muscles.map((m) => m.name).join(", ") || noneListed;
+  const primaryNames = primary.map((x) => x.name).join(", ") || noneListed;
+  const secondaryNames = secondary.map((x) => x.name).join(", ") || noneListed;
+  const unresolvedNames = unresolved.map((x) => x.muscle.name).join(", ");
   if (!front.size && !back.size)
     return (
-      <section className="grid gap-2 rounded-lg border bg-muted/20 p-3" aria-label="Muscle guide">
-        <h3 className="text-sm font-medium">Muscle guide</h3>
+      <section
+        className="grid gap-2 rounded-lg border bg-muted/20 p-3"
+        aria-label={t`Muscle guide`}
+      >
+        <h3 className="text-sm font-medium">
+          <Trans>Muscle guide</Trans>
+        </h3>
         <p className="text-xs text-muted-foreground">
-          Illustration of muscles listed by the source
+          <Trans>Illustration of muscles listed by the source</Trans>
         </p>
         <p className="text-xs">
-          <strong>Source-listed muscles:</strong>{" "}
-          {muscles.map((m) => m.name).join(", ") || "None listed"}
+          <Trans>
+            <strong>Source-listed muscles:</strong> {listedNames}
+          </Trans>
         </p>
         <p className="text-xs">
-          <strong>Primary:</strong> {primary.map((x) => x.name).join(", ") || "None listed"}
+          <Trans>
+            <strong>Primary:</strong> {primaryNames}
+          </Trans>
         </p>
         <p className="text-xs">
-          <strong>Secondary:</strong> {secondary.map((x) => x.name).join(", ") || "None listed"}
+          <Trans>
+            <strong>Secondary:</strong> {secondaryNames}
+          </Trans>
         </p>
         <p role="note" className="text-xs text-muted-foreground">
-          No matching diagram mapping is available; no anatomy is highlighted.
+          <Trans>No matching diagram mapping is available; no anatomy is highlighted.</Trans>
         </p>
       </section>
     );
   return (
-    <section className="grid gap-2 rounded-lg border bg-muted/20 p-3" aria-label="Muscle guide">
-      <h3 className="text-sm font-medium">Muscle guide</h3>
-      <p className="text-xs text-muted-foreground">Illustration of muscles listed by the source</p>
+    <section className="grid gap-2 rounded-lg border bg-muted/20 p-3" aria-label={t`Muscle guide`}>
+      <h3 className="text-sm font-medium">
+        <Trans>Muscle guide</Trans>
+      </h3>
+      <p className="text-xs text-muted-foreground">
+        <Trans>Illustration of muscles listed by the source</Trans>
+      </p>
       <div className="flex flex-wrap items-center justify-center gap-2">
         <div className="text-center">
           <Figure side="front" regions={front} />
-          <span className="text-xs">Front</span>
+          <span className="text-xs">
+            <Trans>Front</Trans>
+          </span>
         </div>
         <div className="text-center">
           <Figure side="back" regions={back} />
-          <span className="text-xs">Back</span>
+          <span className="text-xs">
+            <Trans>Back</Trans>
+          </span>
         </div>
       </div>
       <div className="grid gap-1 text-xs">
         <p>
-          <strong>Primary:</strong> {primary.map((x) => x.name).join(", ") || "None listed"}
+          <Trans>
+            <strong>Primary:</strong> {primaryNames}
+          </Trans>
         </p>
         <p>
-          <strong>Secondary:</strong> {secondary.map((x) => x.name).join(", ") || "None listed"}
+          <Trans>
+            <strong>Secondary:</strong> {secondaryNames}
+          </Trans>
         </p>
       </div>
       {unresolved.length ? (
         <p role="note" className="text-xs text-muted-foreground">
-          No matching diagram mapping for: {unresolved.map((x) => x.muscle.name).join(", ")}. Names
-          are shown without highlighting.
+          <Trans>
+            No matching diagram mapping for: {unresolvedNames}. Names are shown without
+            highlighting.
+          </Trans>
         </p>
       ) : null}
     </section>

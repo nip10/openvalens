@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   resolveExerciseGuideMuscle,
   type ExerciseGuideMuscle,
@@ -45,13 +46,16 @@ const shapes: Record<GuideRegion, [number, number, number, number][]> = {
   Trapezius: [[35, 27, 30, 14]],
 };
 function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideRegion> }) {
+  const { t } = useLingui();
   return (
     <Svg
       width={112}
       height={135}
       viewBox="0 0 100 120"
       accessibilityRole="image"
-      accessibilityLabel={`${side} view muscle illustration`}
+      accessibilityLabel={
+        side === "front" ? t`front view muscle illustration` : t`back view muscle illustration`
+      }
     >
       <Circle cx="50" cy="10" r="7" fill="#94a3b8" opacity=".25" />
       <Path
@@ -81,6 +85,7 @@ function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideR
   );
 }
 export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
+  const { t } = useLingui();
   const mapped = muscles.map((muscle) => ({ muscle, region: resolveExerciseGuideMuscle(muscle) }));
   const front = new Set(
     mapped.filter((x) => x.region?.side === "front").map((x) => x.region!.region),
@@ -91,59 +96,74 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
   const primary = muscles.filter((m) => m.role?.toLowerCase() === "primary"),
     secondary = muscles.filter((m) => m.role?.toLowerCase() === "secondary"),
     unknown = mapped.filter((x) => !x.region);
+  // Muscle names come from the source data (wger) and are shown as listed.
+  const noneListed = t`None listed`;
+  const listedNames = muscles.map((m) => m.name).join(", ") || noneListed;
+  const primaryNames = primary.map((x) => x.name).join(", ") || noneListed;
+  const secondaryNames = secondary.map((x) => x.name).join(", ") || noneListed;
+  const unknownNames = unknown.map((x) => x.muscle.name).join(", ");
   if (!front.size && !back.size)
     return (
       <View
-        accessibilityLabel="Muscle guide"
+        accessibilityLabel={t`Muscle guide`}
         className="gap-2 rounded-lg border border-border bg-card p-3"
       >
-        <Text className="text-sm font-medium text-foreground">Muscle guide</Text>
-        <Text className="text-xs text-muted-foreground">
-          Illustration of muscles listed by the source
-        </Text>
-        <Text className="text-xs text-foreground">
-          Source-listed muscles: {muscles.map((m) => m.name).join(", ") || "None listed"}
-        </Text>
-        <Text className="text-xs text-foreground">
-          Primary: {primary.map((x) => x.name).join(", ") || "None listed"}
-        </Text>
-        <Text className="text-xs text-foreground">
-          Secondary: {secondary.map((x) => x.name).join(", ") || "None listed"}
+        <Text className="text-sm font-medium text-foreground">
+          <Trans>Muscle guide</Trans>
         </Text>
         <Text className="text-xs text-muted-foreground">
-          No matching diagram mapping is available; no anatomy is highlighted.
+          <Trans>Illustration of muscles listed by the source</Trans>
+        </Text>
+        <Text className="text-xs text-foreground">
+          <Trans>Source-listed muscles: {listedNames}</Trans>
+        </Text>
+        <Text className="text-xs text-foreground">
+          <Trans>Primary: {primaryNames}</Trans>
+        </Text>
+        <Text className="text-xs text-foreground">
+          <Trans>Secondary: {secondaryNames}</Trans>
+        </Text>
+        <Text className="text-xs text-muted-foreground">
+          <Trans>No matching diagram mapping is available; no anatomy is highlighted.</Trans>
         </Text>
       </View>
     );
   return (
     <View
-      accessibilityLabel="Muscle guide"
+      accessibilityLabel={t`Muscle guide`}
       className="gap-2 rounded-lg border border-border bg-card p-3"
     >
-      <Text className="text-sm font-medium text-foreground">Muscle guide</Text>
+      <Text className="text-sm font-medium text-foreground">
+        <Trans>Muscle guide</Trans>
+      </Text>
       <Text className="text-xs text-muted-foreground">
-        Illustration of muscles listed by the source
+        <Trans>Illustration of muscles listed by the source</Trans>
       </Text>
       <View className="flex-row flex-wrap justify-center gap-2">
         <View className="items-center">
           <Figure side="front" regions={front} />
-          <Text className="text-xs text-foreground">Front</Text>
+          <Text className="text-xs text-foreground">
+            <Trans>Front</Trans>
+          </Text>
         </View>
         <View className="items-center">
           <Figure side="back" regions={back} />
-          <Text className="text-xs text-foreground">Back</Text>
+          <Text className="text-xs text-foreground">
+            <Trans>Back</Trans>
+          </Text>
         </View>
       </View>
       <Text className="text-xs text-foreground">
-        Primary: {primary.map((x) => x.name).join(", ") || "None listed"}
+        <Trans>Primary: {primaryNames}</Trans>
       </Text>
       <Text className="text-xs text-foreground">
-        Secondary: {secondary.map((x) => x.name).join(", ") || "None listed"}
+        <Trans>Secondary: {secondaryNames}</Trans>
       </Text>
       {unknown.length > 0 && (
         <Text accessibilityRole="text" className="text-xs text-muted-foreground">
-          No matching diagram mapping for: {unknown.map((x) => x.muscle.name).join(", ")}. Names are
-          shown without highlighting.
+          <Trans>
+            No matching diagram mapping for: {unknownNames}. Names are shown without highlighting.
+          </Trans>
         </Text>
       )}
     </View>

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { inEnglish } from "@openvalens/i18n/testing";
 
 import {
   goalDirectionLabel,
@@ -10,17 +11,18 @@ import {
   workoutDurationLabel,
   workoutExerciseCountLabel,
   workoutTypeLabel,
+  workoutTypeRecordName,
 } from "./workouts";
 
 describe("workouts presenter", () => {
   test("workoutTypeLabel: maps the closed enum and falls back to sentence case", () => {
-    expect(workoutTypeLabel("weights")).toBe("Strength");
-    expect(workoutTypeLabel("running")).toBe("Run");
-    expect(workoutTypeLabel("cycling")).toBe("Cycling");
-    expect(workoutTypeLabel("swimming")).toBe("Swim");
-    expect(workoutTypeLabel("tennis")).toBe("Tennis");
-    expect(workoutTypeLabel("other")).toBe("Other");
-    expect(workoutTypeLabel("mobility_work")).toBe("Mobility work");
+    expect(inEnglish(workoutTypeLabel("weights"))).toBe("Strength");
+    expect(inEnglish(workoutTypeLabel("running"))).toBe("Run");
+    expect(inEnglish(workoutTypeLabel("cycling"))).toBe("Cycling");
+    expect(inEnglish(workoutTypeLabel("swimming"))).toBe("Swim");
+    expect(inEnglish(workoutTypeLabel("tennis"))).toBe("Tennis");
+    expect(inEnglish(workoutTypeLabel("other"))).toBe("Other");
+    expect(inEnglish(workoutTypeLabel("mobility_work"))).toBe("Mobility work");
   });
 
   test("workoutDurationLabel: formats hours and minutes, '—' when missing", () => {
@@ -34,9 +36,9 @@ describe("workouts presenter", () => {
   });
 
   test("workoutExerciseCountLabel: singular, plural, and empty", () => {
-    expect(workoutExerciseCountLabel(0)).toBe("No exercises");
-    expect(workoutExerciseCountLabel(1)).toBe("1 exercise");
-    expect(workoutExerciseCountLabel(4)).toBe("4 exercises");
+    expect(inEnglish(workoutExerciseCountLabel(0))).toBe("No exercises");
+    expect(inEnglish(workoutExerciseCountLabel(1))).toBe("1 exercise");
+    expect(inEnglish(workoutExerciseCountLabel(4))).toBe("4 exercises");
   });
 
   test("summarizeWorkouts: counts sessions and totals minutes", () => {
@@ -51,15 +53,15 @@ describe("workouts presenter", () => {
   });
 
   test("goalStatusLabel: maps the closed enum and aliases, falls back to sentence case", () => {
-    expect(goalStatusLabel("not_started")).toBe("Not started");
-    expect(goalStatusLabel("in_progress")).toBe("In progress");
-    expect(goalStatusLabel("achieved")).toBe("Achieved");
-    expect(goalStatusLabel("paused")).toBe("Paused");
-    expect(goalStatusLabel("cancelled")).toBe("Cancelled");
-    expect(goalStatusLabel("open")).toBe("Open");
-    expect(goalStatusLabel("closed")).toBe("Closed");
-    expect(goalStatusLabel("archived")).toBe("Archived");
-    expect(goalStatusLabel("on_hold")).toBe("On hold");
+    expect(inEnglish(goalStatusLabel("not_started"))).toBe("Not started");
+    expect(inEnglish(goalStatusLabel("in_progress"))).toBe("In progress");
+    expect(inEnglish(goalStatusLabel("achieved"))).toBe("Achieved");
+    expect(inEnglish(goalStatusLabel("paused"))).toBe("Paused");
+    expect(inEnglish(goalStatusLabel("cancelled"))).toBe("Cancelled");
+    expect(inEnglish(goalStatusLabel("open"))).toBe("Open");
+    expect(inEnglish(goalStatusLabel("closed"))).toBe("Closed");
+    expect(inEnglish(goalStatusLabel("archived"))).toBe("Archived");
+    expect(inEnglish(goalStatusLabel("on_hold"))).toBe("On hold");
   });
 
   test("summarizeGoals: counts open vs achieved", () => {
@@ -101,7 +103,9 @@ describe("workouts presenter", () => {
       direction: null,
       priority: "high",
     });
-    expect(result).toEqual({ ok: false, error: "Choose whether the value should go up or down." });
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(inEnglish(result.error)).toBe("Choose whether the value should go up or down.");
   });
 
   test("goalMeasurementFields: the starting value is baseline and first current value", () => {
@@ -131,11 +135,42 @@ describe("workouts presenter", () => {
       priority: "normal",
     });
     expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(inEnglish(result.error)).toBe(
+        'Starting value must start with a number, like "70" or "70 kg".',
+      );
+  });
+
+  test("goalMeasurementFields: each field has its own whole-sentence error", () => {
+    const long = "1".repeat(81);
+    const tooLong = goalMeasurementFields({
+      startValue: "",
+      targetValue: long,
+      direction: "increase",
+      priority: "normal",
+    });
+    if (tooLong.ok) throw new Error("expected an error");
+    expect(inEnglish(tooLong.error)).toBe("Target must be 80 characters or fewer.");
+    const notNumber = goalMeasurementFields({
+      startValue: "",
+      targetValue: "less",
+      direction: "decrease",
+      priority: "normal",
+    });
+    if (notNumber.ok) throw new Error("expected an error");
+    expect(inEnglish(notNumber.error)).toBe(
+      'Target must start with a number, like "70" or "70 kg".',
+    );
+  });
+
+  test("workoutTypeRecordName: stored placeholder names stay English", () => {
+    expect(workoutTypeRecordName("weights")).toBe("Strength");
+    expect(workoutTypeRecordName("mobility_work")).toBe("Mobility work");
   });
 
   test("goal direction and priority labels", () => {
-    expect(goalDirectionLabel("increase")).toBe("Go up");
-    expect(goalDirectionLabel("decrease")).toBe("Go down");
-    expect(goalPriorityLabel("high")).toBe("High");
+    expect(inEnglish(goalDirectionLabel("increase"))).toBe("Go up");
+    expect(inEnglish(goalDirectionLabel("decrease"))).toBe("Go down");
+    expect(inEnglish(goalPriorityLabel("high"))).toBe("High");
   });
 });

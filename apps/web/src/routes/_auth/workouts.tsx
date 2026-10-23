@@ -1,3 +1,6 @@
+import { useLingui as useLinguiRuntime } from "@lingui/react";
+import { plural } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ActivityIntensityOption } from "@openvalens/api/activity-load-contract";
 import { ACTIVITY_INTENSITIES } from "@openvalens/api/activity-load-contract";
 import {
@@ -22,6 +25,7 @@ import {
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
+  workoutTypeRecordName,
 } from "@openvalens/api/presenters/workouts";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -87,15 +91,18 @@ function EffortSelect({
   onChange: (next: string) => void;
   id?: string;
 }) {
+  const { t } = useLingui();
   return (
     <Select value={value} onValueChange={(next) => onChange(String(next))}>
       <SelectTrigger id={id} aria-label={EFFORT_QUESTION}>
         <SelectValue>
-          {value === NOT_SET ? "Not rated" : effortRatingLabel(Number(value))}
+          {value === NOT_SET ? t`Not rated` : effortRatingLabel(Number(value))}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NOT_SET}>Not rated</SelectItem>
+        <SelectItem value={NOT_SET}>
+          <Trans>Not rated</Trans>
+        </SelectItem>
         {EFFORT_RATING_OPTIONS.map((rating) => (
           <SelectItem key={rating} value={String(rating)}>
             {effortRatingLabel(rating)}
@@ -128,14 +135,20 @@ function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => 
         variant="outline"
         disabled={rating === null || rate.isPending}
       >
-        Rate
+        <Trans>Rate</Trans>
       </Button>
-      {rate.isError ? <span className="text-xs text-destructive">Could not save.</span> : null}
+      {rate.isError ? (
+        <span className="text-xs text-destructive">
+          <Trans>Could not save.</Trans>
+        </span>
+      ) : null}
     </form>
   );
 }
 
 function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const [type, setType] = useState<WorkoutType>("weights");
   const [date, setDate] = useState(todayIso);
   const [duration, setDuration] = useState("");
@@ -173,14 +186,16 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
       // `upsertWorkout` requires at least one exercise with one set; the
       // session header is what this form captures, so we seed a single
       // placeholder set the user can refine later.
-      exercises: [{ name: workoutTypeLabel(type), notes: null, sets: [{ reps: 1 }] }],
+      exercises: [{ name: workoutTypeRecordName(type), notes: null, sets: [{ reps: 1 }] }],
     });
   };
 
   return (
     <div className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2">
       <div className="grid gap-2">
-        <Label className="text-sm font-medium">Type</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Type</Trans>
+        </Label>
         <Select
           value={type}
           onValueChange={(next) => {
@@ -188,23 +203,27 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
           }}
         >
           <SelectTrigger>
-            <SelectValue>{workoutTypeLabel(type)}</SelectValue>
+            <SelectValue>{_(workoutTypeLabel(type))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {WORKOUT_TYPES.map((value) => (
               <SelectItem key={value} value={value}>
-                {workoutTypeLabel(value)}
+                {_(workoutTypeLabel(value))}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
       <div className="grid gap-2">
-        <Label className="text-sm font-medium">Date</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Date</Trans>
+        </Label>
         <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
       </div>
       <div className="grid gap-2">
-        <Label className="text-sm font-medium">Duration (minutes)</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Duration (minutes)</Trans>
+        </Label>
         <Input
           inputMode="numeric"
           value={duration}
@@ -214,7 +233,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
       </div>
       <div className="grid gap-2">
         <Label className="text-sm font-medium" htmlFor="workout-intensity">
-          Intensity (optional)
+          <Trans>Intensity (optional)</Trans>
         </Label>
         <Select
           value={intensity ?? NOT_SET}
@@ -228,10 +247,12 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
           }}
         >
           <SelectTrigger id="workout-intensity">
-            <SelectValue>{intensity ? INTENSITY_LABELS[intensity] : "Not set"}</SelectValue>
+            <SelectValue>{intensity ? INTENSITY_LABELS[intensity] : t`Not set`}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NOT_SET}>Not set</SelectItem>
+            <SelectItem value={NOT_SET}>
+              <Trans>Not set</Trans>
+            </SelectItem>
             {ACTIVITY_INTENSITIES.map((value) => (
               <SelectItem key={value} value={value}>
                 {INTENSITY_LABELS[value]} — {INTENSITY_DESCRIPTIONS[value]}
@@ -242,31 +263,39 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
       </div>
       <div className="grid gap-2">
         <Label className="text-sm font-medium" htmlFor="workout-effort">
-          Effort, 0–10 (optional)
+          <Trans>Effort, 0–10 (optional)</Trans>
         </Label>
         <EffortSelect id="workout-effort" value={effort} onChange={setEffort} />
         <span className="text-xs text-muted-foreground">
-          {EFFORT_QUESTION} You can also add it later today.
+          {EFFORT_QUESTION} <Trans>You can also add it later today.</Trans>
         </span>
       </div>
       <div className="grid gap-2 sm:col-span-2">
-        <Label className="text-sm font-medium">Notes</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Notes</Trans>
+        </Label>
         <Textarea
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
-          placeholder="How did it go?"
+          placeholder={t`How did it go?`}
         />
       </div>
       <div className="flex items-center gap-3 sm:col-span-2">
         <Button onClick={submit} disabled={dateMissing || durationInvalid || save.isPending}>
-          {save.isPending ? "Saving…" : "Save"}
+          {save.isPending ? t`Saving…` : t`Save`}
         </Button>
         {durationInvalid ? (
-          <span className="text-sm text-destructive">Duration must be 1–1440 minutes.</span>
+          <span className="text-sm text-destructive">
+            <Trans>Duration must be 1–1440 minutes.</Trans>
+          </span>
         ) : save.isSuccess ? (
-          <span className="text-sm text-success">Saved</span>
+          <span className="text-sm text-success">
+            <Trans>Saved</Trans>
+          </span>
         ) : save.isError ? (
-          <span className="text-sm text-destructive">Could not save.</span>
+          <span className="text-sm text-destructive">
+            <Trans>Could not save.</Trans>
+          </span>
         ) : null}
       </div>
     </div>
@@ -274,6 +303,8 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function AddGoalForm({ onSaved }: { onSaved: () => void }) {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const [title, setTitle] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [status, setStatus] = useState<GoalStatus>("not_started");
@@ -317,15 +348,19 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   return (
     <div className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2">
       <div className="grid gap-2 sm:col-span-2">
-        <Label className="text-sm font-medium">Title</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Title</Trans>
+        </Label>
         <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="Run a 5k"
+          placeholder={t`Run a 5k`}
         />
       </div>
       <div className="grid gap-2">
-        <Label className="text-sm font-medium">Due date</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Due date</Trans>
+        </Label>
         <Input
           type="date"
           value={targetDate}
@@ -333,7 +368,9 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
         />
       </div>
       <div className="grid gap-2">
-        <Label className="text-sm font-medium">Status</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Status</Trans>
+        </Label>
         <Select
           value={status}
           onValueChange={(next) => {
@@ -341,12 +378,12 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
           }}
         >
           <SelectTrigger>
-            <SelectValue>{goalStatusLabel(status)}</SelectValue>
+            <SelectValue>{_(goalStatusLabel(status))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {GOAL_STATUSES.map((value) => (
               <SelectItem key={value} value={value}>
-                {goalStatusLabel(value)}
+                {_(goalStatusLabel(value))}
               </SelectItem>
             ))}
           </SelectContent>
@@ -354,7 +391,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
       </div>
       <div className="grid gap-2">
         <Label className="text-sm font-medium" htmlFor="goal-start-value">
-          Starting value (optional)
+          <Trans>Starting value (optional)</Trans>
         </Label>
         <Input
           id="goal-start-value"
@@ -365,7 +402,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
       </div>
       <div className="grid gap-2">
         <Label className="text-sm font-medium" htmlFor="goal-target-value">
-          Target (optional)
+          <Trans>Target (optional)</Trans>
         </Label>
         <Input
           id="goal-target-value"
@@ -375,7 +412,9 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
         />
       </div>
       <div className="grid gap-2">
-        <Label className="text-sm font-medium">Progress means the value should</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Progress means the value should</Trans>
+        </Label>
         <Select
           value={direction ?? ""}
           onValueChange={(next) => {
@@ -384,19 +423,21 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
           }}
         >
           <SelectTrigger>
-            <SelectValue>{direction ? goalDirectionLabel(direction) : "Choose"}</SelectValue>
+            <SelectValue>{direction ? _(goalDirectionLabel(direction)) : t`Choose`}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {GOAL_DIRECTION_OPTIONS.map((value) => (
               <SelectItem key={value} value={value}>
-                {goalDirectionLabel(value)}
+                {_(goalDirectionLabel(value))}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
       <div className="grid gap-2">
-        <Label className="text-sm font-medium">Priority</Label>
+        <Label className="text-sm font-medium">
+          <Trans>Priority</Trans>
+        </Label>
         <Select
           value={priority}
           onValueChange={(next) => {
@@ -405,12 +446,12 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
           }}
         >
           <SelectTrigger>
-            <SelectValue>{goalPriorityLabel(priority)}</SelectValue>
+            <SelectValue>{_(goalPriorityLabel(priority))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {GOAL_PRIORITY_OPTIONS.map((value) => (
               <SelectItem key={value} value={value}>
-                {goalPriorityLabel(value)}
+                {_(goalPriorityLabel(value))}
               </SelectItem>
             ))}
           </SelectContent>
@@ -418,16 +459,20 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
       </div>
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <Button onClick={submit} disabled={titleMissing || !measurement.ok || save.isPending}>
-          {save.isPending ? "Saving…" : "Save"}
+          {save.isPending ? t`Saving…` : t`Save`}
         </Button>
         {!measurement.ok ? (
           <span className="text-sm text-destructive" role="alert">
-            {measurement.error}
+            {_(measurement.error)}
           </span>
         ) : save.isSuccess ? (
-          <span className="text-sm text-success">Saved</span>
+          <span className="text-sm text-success">
+            <Trans>Saved</Trans>
+          </span>
         ) : save.isError ? (
-          <span className="text-sm text-destructive">Could not save.</span>
+          <span className="text-sm text-destructive">
+            <Trans>Could not save.</Trans>
+          </span>
         ) : null}
       </div>
     </div>
@@ -436,6 +481,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
 
 /** Issue #95 — record today's value for a goal; the latest value becomes its current value. */
 function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void }) {
+  const { t } = useLingui();
   const [value, setValue] = useState("");
   const log = useMutation(
     orpc.plans.goals.upsertCheckin.mutationOptions({
@@ -456,22 +502,28 @@ function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void
       }}
     >
       <Input
-        aria-label="Today's value"
+        aria-label={t`Today's value`}
         className="h-8 w-28"
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        placeholder="Today"
+        placeholder={t`Today`}
         maxLength={80}
       />
       <Button type="submit" size="sm" variant="outline" disabled={!trimmed || log.isPending}>
-        Log
+        <Trans>Log</Trans>
       </Button>
-      {log.isError ? <span className="text-xs text-destructive">Could not save.</span> : null}
+      {log.isError ? (
+        <span className="text-xs text-destructive">
+          <Trans>Could not save.</Trans>
+        </span>
+      ) : null}
     </form>
   );
 }
 
 function WorkoutsPage() {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const queryClient = useQueryClient();
   const workouts = useQuery(
     orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),
@@ -497,9 +549,11 @@ function WorkoutsPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Workouts</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Workouts</Trans>
+        </h1>
         <Link to="/exercise-library" className="text-sm underline">
-          Exercise library
+          <Trans>Exercise library</Trans>
         </Link>
       </div>
 
@@ -507,9 +561,9 @@ function WorkoutsPage() {
         <Skeleton className="h-64 w-full" />
       ) : load.isError || !load.data ? (
         <p className="text-sm text-muted-foreground">
-          Could not load weekly activity.{" "}
+          <Trans>Could not load weekly activity.</Trans>{" "}
           <button className="underline" onClick={() => void load.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       ) : (
@@ -518,11 +572,12 @@ function WorkoutsPage() {
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle>Workouts</CardTitle>
+          <CardTitle>
+            <Trans>Workouts</Trans>
+          </CardTitle>
           {workoutSummary.count > 0 ? (
             <span className="text-sm text-muted-foreground">
-              {workoutSummary.count} session{workoutSummary.count === 1 ? "" : "s"} ·{" "}
-              {workoutSummary.totalDurationLabel}
+              {t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })} · ${workoutSummary.totalDurationLabel}`}
             </span>
           ) : null}
         </CardHeader>
@@ -533,15 +588,19 @@ function WorkoutsPage() {
             <Skeleton className="h-32 w-full" />
           ) : workouts.isError || !workouts.data ? (
             <p className="text-sm text-muted-foreground">
-              Could not load workouts.{" "}
+              <Trans>Could not load workouts.</Trans>{" "}
               <button className="underline" onClick={() => void workouts.refetch()}>
-                Retry
+                <Trans>Retry</Trans>
               </button>
             </p>
           ) : workouts.data.length === 0 ? (
             <div className="py-6 text-center">
-              <p className="font-medium">No workouts yet</p>
-              <p className="text-sm text-muted-foreground">Add a session to start tracking.</p>
+              <p className="font-medium">
+                <Trans>No workouts yet</Trans>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <Trans>Add a session to start tracking.</Trans>
+              </p>
             </div>
           ) : (
             <ul className="divide-y divide-border">
@@ -551,7 +610,7 @@ function WorkoutsPage() {
                   className="flex flex-wrap items-center justify-between gap-4 py-3"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium">{workoutTypeLabel(workout.type)}</div>
+                    <div className="font-medium">{_(workoutTypeLabel(workout.type))}</div>
                     <div className="text-sm text-muted-foreground">
                       {workout.date}
                       {workout.notes ? ` · ${workout.notes}` : ""}
@@ -575,10 +634,14 @@ function WorkoutsPage() {
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle>Goals</CardTitle>
+          <CardTitle>
+            <Trans>Goals</Trans>
+          </CardTitle>
           {goalSummary.total > 0 ? (
             <span className="text-sm text-muted-foreground">
-              {goalSummary.open} open · {goalSummary.achieved} achieved
+              <Trans>
+                {goalSummary.open} open · {goalSummary.achieved} achieved
+              </Trans>
             </span>
           ) : null}
         </CardHeader>
@@ -589,15 +652,19 @@ function WorkoutsPage() {
             <Skeleton className="h-32 w-full" />
           ) : goals.isError || !goals.data ? (
             <p className="text-sm text-muted-foreground">
-              Could not load goals.{" "}
+              <Trans>Could not load goals.</Trans>{" "}
               <button className="underline" onClick={() => void goals.refetch()}>
-                Retry
+                <Trans>Retry</Trans>
               </button>
             </p>
           ) : goals.data.length === 0 ? (
             <div className="py-6 text-center">
-              <p className="font-medium">No goals yet</p>
-              <p className="text-sm text-muted-foreground">Add a goal to start tracking.</p>
+              <p className="font-medium">
+                <Trans>No goals yet</Trans>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <Trans>Add a goal to start tracking.</Trans>
+              </p>
             </div>
           ) : (
             <ul className="divide-y divide-border">
@@ -609,13 +676,13 @@ function WorkoutsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="font-medium">{goal.title}</div>
                     <div className="text-sm text-muted-foreground">
-                      {goal.targetDate ? `Due ${goal.targetDate}` : "No due date"}
-                      {goal.targetValue ? ` · Target ${goal.targetValue}` : ""}
-                      {goal.currentValue ? ` · Now ${goal.currentValue}` : ""}
+                      {goal.targetDate ? t`Due ${goal.targetDate}` : t`No due date`}
+                      {goal.targetValue ? ` · ${t`Target ${goal.targetValue}`}` : ""}
+                      {goal.currentValue ? ` · ${t`Now ${goal.currentValue}`}` : ""}
                     </div>
                   </div>
                   <div className="shrink-0 text-sm text-muted-foreground">
-                    {goalStatusLabel(goal.status)}
+                    {_(goalStatusLabel(goal.status))}
                   </div>
                   <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
                 </li>

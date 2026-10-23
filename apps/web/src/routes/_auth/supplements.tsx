@@ -1,6 +1,9 @@
+import { useLingui as useLinguiRuntime } from "@lingui/react";
+import { plural } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   medicationDoseLabel,
-  sentenceCase,
+  medicationStatusLabel,
   SUPPLEMENT_FREQUENCIES,
   supplementDoseLabel,
   supplementFrequencyLabel,
@@ -48,13 +51,30 @@ function SaveStatus({
   isError: boolean;
   isSuccess: boolean;
 }) {
-  if (isError) return <span className="text-sm text-destructive">Could not save.</span>;
-  if (pending) return <span className="text-sm text-muted-foreground">Saving…</span>;
-  if (isSuccess) return <span className="text-sm text-success">Saved</span>;
+  if (isError)
+    return (
+      <span className="text-sm text-destructive">
+        <Trans>Could not save.</Trans>
+      </span>
+    );
+  if (pending)
+    return (
+      <span className="text-sm text-muted-foreground">
+        <Trans>Saving…</Trans>
+      </span>
+    );
+  if (isSuccess)
+    return (
+      <span className="text-sm text-success">
+        <Trans>Saved</Trans>
+      </span>
+    );
   return null;
 }
 
 function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
@@ -89,10 +109,12 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add supplement</CardTitle>
+        <CardTitle>
+          <Trans>Add supplement</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <Field label="Name">
+        <Field label={t`Name`}>
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -100,7 +122,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Dose">
+          <Field label={t({ message: "Dose", comment: "safety" })}>
             <Input
               inputMode="decimal"
               value={dose}
@@ -108,7 +130,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
               placeholder="500"
             />
           </Field>
-          <Field label="Unit">
+          <Field label={t({ message: "Unit", comment: "safety" })}>
             <Select value={unit} onValueChange={setUnit}>
               <SelectTrigger>
                 <SelectValue>{unit}</SelectValue>
@@ -122,15 +144,15 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Frequency">
+          <Field label={t({ message: "Frequency", comment: "safety" })}>
             <Select value={frequency} onValueChange={setFrequency}>
               <SelectTrigger>
-                <SelectValue>{supplementFrequencyLabel(frequency)}</SelectValue>
+                <SelectValue>{_(supplementFrequencyLabel(frequency))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {SUPPLEMENT_FREQUENCIES.map((option) => (
                   <SelectItem key={option} value={option}>
-                    {supplementFrequencyLabel(option)}
+                    {_(supplementFrequencyLabel(option))}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -139,7 +161,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={() => void submit()} disabled={!valid || pending}>
-            {pending ? "Saving…" : "Save"}
+            {pending ? t`Saving…` : t`Save`}
           </Button>
           <SaveStatus
             pending={pending}
@@ -153,6 +175,8 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
@@ -185,10 +209,12 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add medication</CardTitle>
+        <CardTitle>
+          <Trans>Add medication</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <Field label="Name">
+        <Field label={t`Name`}>
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -196,7 +222,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Dose">
+          <Field label={t({ message: "Dose", comment: "safety" })}>
             <Input
               inputMode="decimal"
               value={dose}
@@ -204,7 +230,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
               placeholder="500"
             />
           </Field>
-          <Field label="Unit">
+          <Field label={t({ message: "Unit", comment: "safety" })}>
             <Select value={unit} onValueChange={setUnit}>
               <SelectTrigger>
                 <SelectValue>{unit}</SelectValue>
@@ -218,15 +244,15 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Frequency">
+          <Field label={t({ message: "Frequency", comment: "safety" })}>
             <Select value={frequency} onValueChange={setFrequency}>
               <SelectTrigger>
-                <SelectValue>{supplementFrequencyLabel(frequency)}</SelectValue>
+                <SelectValue>{_(supplementFrequencyLabel(frequency))}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {SUPPLEMENT_FREQUENCIES.map((option) => (
                   <SelectItem key={option} value={option}>
-                    {supplementFrequencyLabel(option)}
+                    {_(supplementFrequencyLabel(option))}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -235,7 +261,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={submit} disabled={!valid || addMedication.isPending}>
-            {addMedication.isPending ? "Saving…" : "Save"}
+            {addMedication.isPending ? t`Saving…` : t`Save`}
           </Button>
           <SaveStatus
             pending={addMedication.isPending}
@@ -249,13 +275,17 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function SupplementsPage() {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const supplements = useQuery(orpc.plans.listSupplements.queryOptions({ input: {} }));
   const medications = useQuery(orpc.plans.listMedications.queryOptions({ input: {} }));
 
   if (supplements.isPending || medications.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Supplements</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Supplements</Trans>
+        </h1>
         <Skeleton className="h-64 w-full" />
       </div>
     );
@@ -264,9 +294,11 @@ function SupplementsPage() {
   if (supplements.isError || medications.isError || !supplements.data || !medications.data) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Supplements</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Supplements</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Could not load supplements.{" "}
+          <Trans>Could not load supplements.</Trans>{" "}
           <button
             className="underline"
             onClick={() => {
@@ -274,7 +306,7 @@ function SupplementsPage() {
               void medications.refetch();
             }}
           >
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -286,14 +318,18 @@ function SupplementsPage() {
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Supplements</h1>
+      <h1 className="text-2xl font-semibold">
+        <Trans>Supplements</Trans>
+      </h1>
 
       <AddSupplementForm onSaved={() => void supplements.refetch()} />
 
       {supplementList.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No supplements logged. Add one to get reminders.</p>
+            <p className="font-medium">
+              <Trans>No supplements logged. Add one to get reminders.</Trans>
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -309,7 +345,9 @@ function SupplementsPage() {
                   </div>
                 </div>
                 {supplement.activeScheduleCount > 0 ? (
-                  <Badge variant="secondary">{supplement.activeScheduleCount} scheduled</Badge>
+                  <Badge variant="secondary">
+                    {t`${plural(supplement.activeScheduleCount, { one: "# scheduled", other: "# scheduled" })}`}
+                  </Badge>
                 ) : null}
               </li>
             ))}
@@ -322,7 +360,9 @@ function SupplementsPage() {
       {medicationList.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No medications logged. Add one to track your protocol.</p>
+            <p className="font-medium">
+              <Trans>No medications logged. Add one to track your protocol.</Trans>
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -335,11 +375,11 @@ function SupplementsPage() {
                   <div className="text-sm text-muted-foreground">
                     {medicationDoseLabel(medication.dose, null)}
                     {medication.frequency
-                      ? ` · ${supplementFrequencyLabel(medication.frequency)}`
+                      ? ` · ${_(supplementFrequencyLabel(medication.frequency))}`
                       : ""}
                   </div>
                 </div>
-                <Badge variant="outline">{sentenceCase(medication.status)}</Badge>
+                <Badge variant="outline">{_(medicationStatusLabel(medication.status))}</Badge>
               </li>
             ))}
           </ul>

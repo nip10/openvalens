@@ -1,6 +1,9 @@
+import { plural } from "@lingui/core/macro";
+import { useLingui as useLinguiRuntime } from "@lingui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   medicationDoseLabel,
-  sentenceCase,
+  medicationStatusLabel,
   SUPPLEMENT_FREQUENCIES,
   supplementDoseLabel,
   supplementFrequencyLabel,
@@ -74,13 +77,30 @@ function SaveStatus({
   isError: boolean;
   isSuccess: boolean;
 }) {
-  if (isError) return <Text className="text-sm text-destructive">Could not save.</Text>;
-  if (pending) return <Text className="text-sm text-muted-foreground">Saving…</Text>;
-  if (isSuccess) return <Text className="text-sm text-success">Saved</Text>;
+  if (isError)
+    return (
+      <Text className="text-sm text-destructive">
+        <Trans>Could not save.</Trans>
+      </Text>
+    );
+  if (pending)
+    return (
+      <Text className="text-sm text-muted-foreground">
+        <Trans>Saving…</Trans>
+      </Text>
+    );
+  if (isSuccess)
+    return (
+      <Text className="text-sm text-success">
+        <Trans>Saved</Trans>
+      </Text>
+    );
   return null;
 }
 
 function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
@@ -113,9 +133,9 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title="Add supplement">
+    <CardStack title={t`Add supplement`}>
       <Card variant="secondary" className="gap-3 p-4">
-        <Field label="Name">
+        <Field label={t`Name`}>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -126,7 +146,7 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
         </Field>
         <View className="flex-row gap-3">
           <View className="flex-1">
-            <Field label="Dose">
+            <Field label={t({ message: "Dose", comment: "safety" })}>
               <TextInput
                 value={dose}
                 onChangeText={setDose}
@@ -138,20 +158,20 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
             </Field>
           </View>
         </View>
-        <Field label="Unit">
+        <Field label={t({ message: "Unit", comment: "safety" })}>
           <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />
         </Field>
-        <Field label="Frequency">
+        <Field label={t({ message: "Frequency", comment: "safety" })}>
           <Pills
             options={SUPPLEMENT_FREQUENCIES}
             value={frequency}
             onChange={setFrequency}
-            labelFor={supplementFrequencyLabel}
+            labelFor={(option) => _(supplementFrequencyLabel(option))}
           />
         </Field>
         <View className="flex-row items-center gap-3">
           <Button onPress={() => void submit()} isDisabled={!valid || pending}>
-            {pending ? "Saving…" : "Save"}
+            {pending ? t`Saving…` : t`Save`}
           </Button>
           <SaveStatus
             pending={pending}
@@ -165,6 +185,8 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
 }
 
 function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
@@ -195,9 +217,9 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title="Add medication">
+    <CardStack title={t`Add medication`}>
       <Card variant="secondary" className="gap-3 p-4">
-        <Field label="Name">
+        <Field label={t`Name`}>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -206,7 +228,7 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
             placeholderTextColor="#9ca3af"
           />
         </Field>
-        <Field label="Dose">
+        <Field label={t({ message: "Dose", comment: "safety" })}>
           <TextInput
             value={dose}
             onChangeText={setDose}
@@ -216,20 +238,20 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
             placeholderTextColor="#9ca3af"
           />
         </Field>
-        <Field label="Unit">
+        <Field label={t({ message: "Unit", comment: "safety" })}>
           <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />
         </Field>
-        <Field label="Frequency">
+        <Field label={t({ message: "Frequency", comment: "safety" })}>
           <Pills
             options={SUPPLEMENT_FREQUENCIES}
             value={frequency}
             onChange={setFrequency}
-            labelFor={supplementFrequencyLabel}
+            labelFor={(option) => _(supplementFrequencyLabel(option))}
           />
         </Field>
         <View className="flex-row items-center gap-3">
           <Button onPress={submit} isDisabled={!valid || addMedication.isPending}>
-            {addMedication.isPending ? "Saving…" : "Save"}
+            {addMedication.isPending ? t`Saving…` : t`Save`}
           </Button>
           <SaveStatus
             pending={addMedication.isPending}
@@ -243,6 +265,8 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
 }
 
 export default function SupplementsScreen() {
+  const { t } = useLingui();
+  const { _ } = useLinguiRuntime();
   const foreground = useThemeColor("foreground");
   const supplements = useQuery(orpc.plans.listSupplements.queryOptions({ input: {} }));
   const medications = useQuery(orpc.plans.listMedications.queryOptions({ input: {} }));
@@ -257,7 +281,9 @@ export default function SupplementsScreen() {
   if (supplements.isError || medications.isError || !supplements.data || !medications.data)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load supplements.</Text>
+        <Text className="text-base text-foreground">
+          <Trans>Could not load supplements.</Trans>
+        </Text>
         <Pressable
           onPress={() => {
             void supplements.refetch();
@@ -266,7 +292,9 @@ export default function SupplementsScreen() {
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">
+            <Trans>Retry</Trans>
+          </Text>
         </Pressable>
       </Container>
     );
@@ -291,8 +319,12 @@ export default function SupplementsScreen() {
     >
       <View className="gap-6 p-4">
         <View>
-          <Text className="text-sm text-muted-foreground">Supplements</Text>
-          <Text className="font-mono text-3xl text-foreground">Regimen</Text>
+          <Text className="text-sm text-muted-foreground">
+            <Trans>Supplements</Trans>
+          </Text>
+          <Text className="font-mono text-3xl text-foreground">
+            <Trans>Regimen</Trans>
+          </Text>
         </View>
 
         <AddSupplementForm onSaved={() => void supplements.refetch()} />
@@ -300,7 +332,7 @@ export default function SupplementsScreen() {
         {supplementList.length === 0 ? (
           <Card variant="secondary" className="items-center gap-1 p-8">
             <Text className="text-center font-medium text-foreground">
-              No supplements logged. Add one to get reminders.
+              <Trans>No supplements logged. Add one to get reminders.</Trans>
             </Text>
           </Card>
         ) : (
@@ -322,7 +354,9 @@ export default function SupplementsScreen() {
                   </View>
                   {supplement.activeScheduleCount > 0 ? (
                     <Chip size="sm" color="default">
-                      <Chip.Label>{`${supplement.activeScheduleCount} scheduled`}</Chip.Label>
+                      <Chip.Label>
+                        {t`${plural(supplement.activeScheduleCount, { one: "# scheduled", other: "# scheduled" })}`}
+                      </Chip.Label>
                     </Chip>
                   ) : null}
                 </View>
@@ -336,7 +370,7 @@ export default function SupplementsScreen() {
         {medicationList.length === 0 ? (
           <Card variant="secondary" className="items-center gap-1 p-8">
             <Text className="text-center font-medium text-foreground">
-              No medications logged. Add one to track your protocol.
+              <Trans>No medications logged. Add one to track your protocol.</Trans>
             </Text>
           </Card>
         ) : (
@@ -354,12 +388,12 @@ export default function SupplementsScreen() {
                     <Text className="text-xs text-muted-foreground">
                       {medicationDoseLabel(medication.dose, null)}
                       {medication.frequency
-                        ? ` · ${supplementFrequencyLabel(medication.frequency)}`
+                        ? ` · ${_(supplementFrequencyLabel(medication.frequency))}`
                         : ""}
                     </Text>
                   </View>
                   <Chip size="sm" color="default">
-                    <Chip.Label>{sentenceCase(medication.status)}</Chip.Label>
+                    <Chip.Label>{_(medicationStatusLabel(medication.status))}</Chip.Label>
                   </Chip>
                 </View>
               ))}

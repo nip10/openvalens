@@ -185,6 +185,15 @@ const mounted = mountedMode
       import("../../web/node_modules/@testing-library/react"),
     ])
   : null;
+const i18nModules = mountedMode
+  ? await Promise.all([import("@lingui/react"), import("@openvalens/i18n/testing")])
+  : null;
+/** Renders with English catalogs, as the app's provider does (#67). */
+const withI18n = (element: React.ReactNode) => {
+  if (!i18nModules) throw new Error("i18n fixture not loaded");
+  const [{ I18nProvider }, { englishI18n }] = i18nModules;
+  return React.createElement(I18nProvider, { i18n: englishI18n }, element);
+};
 
 test.skipIf(mountedMode)("isolates native production screen mocks in a subprocess", async () => {
   const result = await execFileAsync(process.execPath, ["test", import.meta.path], {
@@ -208,7 +217,8 @@ test.skipIf(!mountedMode)(
     const container = document.createElement("div");
     document.body.append(container);
     const root = dom.createRoot(container);
-    const render = async () => React.act(async () => root.render(React.createElement(Screen)));
+    const render = async () =>
+      React.act(async () => root.render(withI18n(React.createElement(Screen))));
     const clickButton = async (label: string) => {
       const button = Array.from(container.querySelectorAll("button")).find(
         (candidate) =>
@@ -248,7 +258,7 @@ test.skipIf(!mountedMode)(
     document.body.append(container);
     const root = dom.createRoot(container);
     const render = async () =>
-      React.act(async () => root.render(React.createElement(screenModule.default)));
+      React.act(async () => root.render(withI18n(React.createElement(screenModule.default))));
     const clickButton = async (label: string) => {
       const button = Array.from(container.querySelectorAll("button")).find(
         (candidate) =>
@@ -301,7 +311,7 @@ test.skipIf(!mountedMode)(
     document.body.append(container);
     const root = dom.createRoot(container);
     const render = async () =>
-      React.act(async () => root.render(React.createElement(screenModule.default)));
+      React.act(async () => root.render(withI18n(React.createElement(screenModule.default))));
     const clickButton = async (label: string) => {
       const button = Array.from(container.querySelectorAll("button")).find(
         (candidate) =>

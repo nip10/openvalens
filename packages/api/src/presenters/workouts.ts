@@ -1,15 +1,32 @@
 /**
- * Workouts / goals presentation shared by web and mobile. Pure TypeScript,
- * no imports — safe for the app bundle. Copy follows
+ * Workouts / goals presentation shared by web and mobile. Copy follows
  * docs/mobile/tone-of-voice.md: sentence case, activity types as recorded
  * ("Run", "Strength", "Swim"), real units.
+ *
+ * Labels are Lingui message descriptors (#67); the apps render them with
+ * `_()`. This module is app-only: server code must not import it.
  *
  * The workout type and goal status unions live in `@openvalens/plans`; we
  * accept the raw string here so this module stays dependency-free (the
  * presenters bundle must not pull in the DB layer).
  */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
 
-const WORKOUT_TYPE_LABELS: Record<string, string> = {
+const WORKOUT_TYPE_LABELS: Record<string, MessageDescriptor> = {
+  weights: msg`Strength`,
+  running: msg`Run`,
+  cycling: msg`Cycling`,
+  swimming: msg`Swim`,
+  tennis: msg`Tennis`,
+  other: msg`Other`,
+};
+
+/**
+ * English names stored as the placeholder exercise of a new session. This is
+ * saved data, not interface text, so it stays English in every locale.
+ */
+const WORKOUT_TYPE_RECORD_NAMES: Record<string, string> = {
   weights: "Strength",
   running: "Run",
   cycling: "Cycling",
@@ -18,16 +35,16 @@ const WORKOUT_TYPE_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-const GOAL_STATUS_LABELS: Record<string, string> = {
-  not_started: "Not started",
-  in_progress: "In progress",
-  achieved: "Achieved",
-  paused: "Paused",
-  cancelled: "Cancelled",
+const GOAL_STATUS_LABELS: Record<string, MessageDescriptor> = {
+  not_started: msg`Not started`,
+  in_progress: msg`In progress`,
+  achieved: msg`Achieved`,
+  paused: msg`Paused`,
+  cancelled: msg`Cancelled`,
   // Legacy / free-form aliases kept in the calendar/goal surface.
-  open: "Open",
-  closed: "Closed",
-  archived: "Archived",
+  open: msg`Open`,
+  closed: msg`Closed`,
+  archived: msg`Archived`,
 };
 
 /** Fallback for values outside the closed enums: "some_value" -> "Some value". */
@@ -37,9 +54,24 @@ function sentenceCase(value: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
 }
 
+/** A value outside the closed enums, shown as recorded. */
+function asRecorded(value: string): MessageDescriptor {
+  const text = sentenceCase(value);
+  if (text === "Other") return msg`Other`;
+  return msg({
+    message: `${text}`,
+    comment: "A value outside the known list, shown as recorded. Keep the placeholder as is.",
+  });
+}
+
 /** "Strength" / "Run" / "Swim" — the activity type as recorded. */
-export function workoutTypeLabel(value: string): string {
-  return WORKOUT_TYPE_LABELS[value] ?? sentenceCase(value);
+export function workoutTypeLabel(value: string): MessageDescriptor {
+  return WORKOUT_TYPE_LABELS[value] ?? asRecorded(value);
+}
+
+/** The English name saved as a new session's placeholder exercise. */
+export function workoutTypeRecordName(value: string): string {
+  return WORKOUT_TYPE_RECORD_NAMES[value] ?? sentenceCase(value);
 }
 
 /** "1h 30m" / "45m" / "0m" / "—" when missing or invalid. */
@@ -56,9 +88,9 @@ export function workoutDurationLabel(minutes: number | null | undefined): string
 }
 
 /** "3 exercises" / "1 exercise" / "No exercises". */
-export function workoutExerciseCountLabel(count: number): string {
-  if (count <= 0) return "No exercises";
-  return `${count} exercise${count === 1 ? "" : "s"}`;
+export function workoutExerciseCountLabel(count: number): MessageDescriptor {
+  if (count <= 0) return msg`No exercises`;
+  return msg`${plural(count, { one: "# exercise", other: "# exercises" })}`;
 }
 
 export type WorkoutLike = {
@@ -86,8 +118,8 @@ export function summarizeWorkouts(workouts: readonly WorkoutLike[]): WorkoutSumm
 }
 
 /** "Not started" / "In progress" / "Achieved" — sentence-case status. */
-export function goalStatusLabel(value: string): string {
-  return GOAL_STATUS_LABELS[value] ?? sentenceCase(value);
+export function goalStatusLabel(value: string): MessageDescriptor {
+  return GOAL_STATUS_LABELS[value] ?? asRecorded(value);
 }
 
 export type GoalLike = {
@@ -124,23 +156,23 @@ export type GoalDirectionOption = (typeof GOAL_DIRECTION_OPTIONS)[number];
 export const GOAL_PRIORITY_OPTIONS = ["low", "normal", "high"] as const;
 export type GoalPriorityOption = (typeof GOAL_PRIORITY_OPTIONS)[number];
 
-const GOAL_DIRECTION_LABELS: Record<GoalDirectionOption, string> = {
-  increase: "Go up",
-  decrease: "Go down",
+const GOAL_DIRECTION_LABELS: Record<GoalDirectionOption, MessageDescriptor> = {
+  increase: msg`Go up`,
+  decrease: msg`Go down`,
 };
 
-const GOAL_PRIORITY_LABELS: Record<GoalPriorityOption, string> = {
-  low: "Low",
-  normal: "Normal",
-  high: "High",
+const GOAL_PRIORITY_LABELS: Record<GoalPriorityOption, MessageDescriptor> = {
+  low: msg({ message: "Low", context: "goal priority" }),
+  normal: msg({ message: "Normal", context: "goal priority" }),
+  high: msg({ message: "High", context: "goal priority" }),
 };
 
 /** "Go up" / "Go down" — which way counts as progress. */
-export function goalDirectionLabel(value: GoalDirectionOption): string {
+export function goalDirectionLabel(value: GoalDirectionOption): MessageDescriptor {
   return GOAL_DIRECTION_LABELS[value];
 }
 
-export function goalPriorityLabel(value: GoalPriorityOption): string {
+export function goalPriorityLabel(value: GoalPriorityOption): MessageDescriptor {
   return GOAL_PRIORITY_LABELS[value];
 }
 
@@ -172,22 +204,27 @@ const LEADING_NUMBER = /^[-+]?\d/;
  */
 export function goalMeasurementFields(
   draft: GoalMeasurementDraft,
-): { ok: true; fields: GoalMeasurementFields } | { ok: false; error: string } {
+): { ok: true; fields: GoalMeasurementFields } | { ok: false; error: MessageDescriptor } {
   const start = draft.startValue.trim();
   const target = draft.targetValue.trim();
-  for (const [label, value] of [
-    ["Starting value", start],
-    ["Target", target],
-  ] as const) {
-    if (value.length > MAX_GOAL_VALUE_LENGTH) {
-      return { ok: false, error: `${label} must be ${MAX_GOAL_VALUE_LENGTH} characters or fewer.` };
-    }
-    if (value.length > 0 && !LEADING_NUMBER.test(value)) {
-      return { ok: false, error: `${label} must start with a number, like "70" or "70 kg".` };
-    }
+  const max = MAX_GOAL_VALUE_LENGTH;
+  if (start.length > max) {
+    return { ok: false, error: msg`Starting value must be ${max} characters or fewer.` };
+  }
+  if (start.length > 0 && !LEADING_NUMBER.test(start)) {
+    return {
+      ok: false,
+      error: msg`Starting value must start with a number, like "70" or "70 kg".`,
+    };
+  }
+  if (target.length > max) {
+    return { ok: false, error: msg`Target must be ${max} characters or fewer.` };
+  }
+  if (target.length > 0 && !LEADING_NUMBER.test(target)) {
+    return { ok: false, error: msg`Target must start with a number, like "70" or "70 kg".` };
   }
   if (target.length > 0 && draft.direction === null) {
-    return { ok: false, error: "Choose whether the value should go up or down." };
+    return { ok: false, error: msg`Choose whether the value should go up or down.` };
   }
   return {
     ok: true,
