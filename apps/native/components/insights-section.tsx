@@ -119,7 +119,7 @@ function SubjectInsightsSection({
       }
       const registration = await enablePushOnThisPhone();
       await client.insights.preferences.update({ pushOffer: "accepted" });
-      return describePushRegistration(registration);
+      return i18n._(describePushRegistration(registration));
     },
     onSuccess: (text) => {
       setMessage(text);

@@ -269,16 +269,18 @@ function FormStatus({
   isBusy,
   onReloadLatest,
 }: {
-  status: { tag: string; message?: string };
+  status: { tag: string; message?: MessageDescriptor };
   isBusy: boolean;
   onReloadLatest: () => Promise<void>;
 }) {
+  const { i18n } = useLingui();
   if (status.tag === "idle") return null;
+  const message = status.message ? i18n._(status.message) : undefined;
 
   if (status.tag === "success") {
     return (
       <p role="status" aria-live="polite" className="text-sm text-success">
-        {status.message}
+        {message}
       </p>
     );
   }
@@ -286,7 +288,7 @@ function FormStatus({
   if (status.tag === "error") {
     return (
       <p role="alert" aria-live="polite" className="text-sm text-destructive">
-        {status.message}
+        {message}
       </p>
     );
   }
@@ -294,7 +296,7 @@ function FormStatus({
   if (status.tag === "conflict" || status.tag === "stale") {
     return (
       <div role="alert" aria-live="polite" className="rounded-lg border border-destructive/50 p-3">
-        <p className="text-sm text-destructive">{status.message}</p>
+        <p className="text-sm text-destructive">{message}</p>
         <Button
           type="button"
           variant="outline"

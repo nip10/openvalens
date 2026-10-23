@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import type { ProductSettingsSnapshot } from "@openvalens/api/product-settings-contract";
 
 import {
@@ -96,6 +98,10 @@ describe("product-settings form state", () => {
     );
 
     expect(state.status.tag).toBe("stale");
+    if (state.status.tag !== "stale") throw new Error("expected a stale status");
+    expect(inEnglish(state.status.message)).toBe(
+      "A newer version is available. Reload the latest settings to continue.",
+    );
     expect(state.draft.units).toBe("imperial");
     expect(state.baseline.revision).toBe(1);
   });
@@ -132,6 +138,8 @@ describe("product-settings form state", () => {
     );
 
     expect(state.status.tag).toBe("success");
+    if (state.status.tag !== "success") throw new Error("expected a success status");
+    expect(inEnglish(state.status.message)).toBe("Saved.");
     expect(state.baseline.revision).toBe(2);
     expect(state.baseline.units).toBe("imperial");
     expect(state.draft.units).toBe("imperial");
@@ -183,6 +191,10 @@ describe("product-settings form state", () => {
     );
 
     expect(state.status.tag).toBe("conflict");
+    if (state.status.tag !== "conflict") throw new Error("expected a conflict status");
+    expect(inEnglish(state.status.message)).toBe(
+      "These settings were changed elsewhere. Reload the latest version, then make your edits again.",
+    );
     expect(state.draft.units).toBe("imperial");
     expect(state.baseline.revision).toBe(1);
   });
@@ -195,6 +207,8 @@ describe("product-settings form state", () => {
     ]);
 
     expect(state.status.tag).toBe("error");
+    if (state.status.tag !== "error") throw new Error("expected an error status");
+    expect(inEnglish(state.status.message)).toBe("Could not save. Try again.");
     expect(state.draft.locale).toBe("en-GB");
   });
 
@@ -378,7 +392,10 @@ describe("product-settings form state — ownership and rebase invariants", () =
     const idle = dispatchAll(createProductSettingsFormState(snapshot({ revision: 1 }), "owner-a"), [
       { type: "reloadError", requestId: 9 },
     ]);
-    expect(idle.status).toEqual({ tag: "error", requestId: 9, message: "Reload failed." });
+    expect(idle.status.tag).toBe("error");
+    if (idle.status.tag !== "error") throw new Error("expected an error status");
+    expect(idle.status.requestId).toBe(9);
+    expect(inEnglish(idle.status.message)).toBe("Reload failed.");
   });
 
   test("requestStart/requestEnd drive a reactive busy marker scoped to the current request", () => {

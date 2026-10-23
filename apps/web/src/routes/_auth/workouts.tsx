@@ -91,12 +91,12 @@ function EffortSelect({
   onChange: (next: string) => void;
   id?: string;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   return (
     <Select value={value} onValueChange={(next) => onChange(String(next))}>
-      <SelectTrigger id={id} aria-label={EFFORT_QUESTION}>
+      <SelectTrigger id={id} aria-label={i18n._(EFFORT_QUESTION)}>
         <SelectValue>
-          {value === NOT_SET ? t`Not rated` : effortRatingLabel(Number(value))}
+          {value === NOT_SET ? t`Not rated` : effortRatingLabel(Number(value), i18n)}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -105,7 +105,7 @@ function EffortSelect({
         </SelectItem>
         {EFFORT_RATING_OPTIONS.map((rating) => (
           <SelectItem key={rating} value={String(rating)}>
-            {effortRatingLabel(rating)}
+            {effortRatingLabel(rating, i18n)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -247,7 +247,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
           }}
         >
           <SelectTrigger id="workout-intensity">
-            <SelectValue>{intensity ? INTENSITY_LABELS[intensity] : t`Not set`}</SelectValue>
+            <SelectValue>{intensity ? _(INTENSITY_LABELS[intensity]) : t`Not set`}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NOT_SET}>
@@ -255,7 +255,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
             </SelectItem>
             {ACTIVITY_INTENSITIES.map((value) => (
               <SelectItem key={value} value={value}>
-                {INTENSITY_LABELS[value]} — {INTENSITY_DESCRIPTIONS[value]}
+                {_(INTENSITY_LABELS[value])} — {_(INTENSITY_DESCRIPTIONS[value])}
               </SelectItem>
             ))}
           </SelectContent>
@@ -267,7 +267,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
         </Label>
         <EffortSelect id="workout-effort" value={effort} onChange={setEffort} />
         <span className="text-xs text-muted-foreground">
-          {EFFORT_QUESTION} <Trans>You can also add it later today.</Trans>
+          {_(EFFORT_QUESTION)} <Trans>You can also add it later today.</Trans>
         </span>
       </div>
       <div className="grid gap-2 sm:col-span-2">
@@ -522,7 +522,7 @@ function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void
 }
 
 function WorkoutsPage() {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const queryClient = useQueryClient();
   const workouts = useQuery(
@@ -616,7 +616,7 @@ function WorkoutsPage() {
                       {workout.notes ? ` · ${workout.notes}` : ""}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {sessionEffortText(workout)}
+                      {sessionEffortText(workout, i18n)}
                     </div>
                   </div>
                   <div className="shrink-0 font-mono text-sm">

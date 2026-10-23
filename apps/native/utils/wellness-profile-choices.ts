@@ -1,13 +1,9 @@
-import type { WellnessProfileDraft } from "@openvalens/api/presenters/wellness-profile";
+import type { MessageDescriptor } from "@lingui/core";
 import {
-  DECLINE_LABEL,
-  ELIGIBILITY_LABELS,
-  FOCUS_AREA_LABELS,
-  INPUT_METHOD_LABELS,
-  JUST_EXPLORING_LABEL,
-  REGION_LABELS,
-  SEX_LABELS,
-  SEX_NOT_APPLICABLE_LABEL,
+  WELLNESS_CHOICE_LABELS,
+  type WellnessProfileDraft,
+} from "@openvalens/api/presenters/wellness-profile";
+import {
   WELLNESS_ELIGIBILITY,
   WELLNESS_FOCUS_AREAS,
   WELLNESS_INPUT_METHODS,
@@ -24,11 +20,28 @@ import {
  * Each chip key maps to exactly one answer state, keeping unknown, declined,
  * not applicable and recorded distinct; tapping a selected single-choice chip
  * clears it back to unknown, mirroring the web "Clear answer" button.
+ *
+ * Chip labels are Lingui descriptors (#67); the screen renders them with
+ * `_()`. Their English matches the `*_LABELS` copy in
+ * `wellness-profile-contract`, which stays plain English because server code
+ * imports it.
  */
 
 export type ChipField = "eligibility" | "focus" | "inputMethod" | "region" | "sex";
 
-export type Chip = { key: string; label: string; disabled?: boolean };
+export type Chip = { key: string; label: MessageDescriptor; disabled?: boolean };
+
+const {
+  eligibility: ELIGIBILITY_LABELS,
+  focus: FOCUS_AREA_LABELS,
+  inputMethod: INPUT_METHOD_LABELS,
+  region: REGION_LABELS,
+  sex: SEX_LABELS,
+  decline: DECLINE_LABEL,
+  sexNotApplicable: SEX_NOT_APPLICABLE_LABEL,
+  justExploring: JUST_EXPLORING_LABEL,
+  notSureYet: NOT_SURE_YET_LABEL,
+} = WELLNESS_CHOICE_LABELS;
 
 const DECLINED = "declined";
 const NOT_APPLICABLE = "not_applicable";
@@ -49,7 +62,7 @@ export function chipsFor(field: ChipField, draft: WellnessProfileDraft): Chip[] 
     case "inputMethod":
       return [
         ...WELLNESS_INPUT_METHODS.map((key) => ({ key, label: INPUT_METHOD_LABELS[key] })),
-        { key: DECLINED, label: "Not sure yet" },
+        { key: DECLINED, label: NOT_SURE_YET_LABEL },
       ];
     case "region":
       return [

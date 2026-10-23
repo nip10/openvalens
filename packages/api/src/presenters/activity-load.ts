@@ -24,9 +24,8 @@ import {
  * no injury/overtraining/recovery framing, no proprietary strain or PAI
  * scales. Checked by `activity-load.test.ts`.
  *
- * The weekly view is rendered through Lingui (#67). The session-capture
- * helpers below are still plain English: the Workouts screens use them and
- * migrate with that area.
+ * All copy is rendered through Lingui (#67): constants are message
+ * descriptors, and helpers that build a label take the caller's `i18n`.
  */
 
 /**
@@ -67,39 +66,42 @@ export const ACTIVITY_LOAD_WITHHELD_EXPLANATIONS: Record<
 
 // ─── session capture (forms) ───────────────────────────────────
 
-export const INTENSITY_LABELS: Record<ActivityIntensityOption, string> = {
-  light: "Light",
-  moderate: "Moderate",
-  vigorous: "Vigorous",
+export const INTENSITY_LABELS: Record<ActivityIntensityOption, MessageDescriptor> = {
+  light: msg({ message: "Light", context: "intensity" }),
+  moderate: msg({ message: "Moderate", context: "intensity" }),
+  vigorous: msg({ message: "Vigorous", context: "intensity" }),
 };
 
 /** Talk-test descriptions shown next to each intensity choice. */
-export const INTENSITY_DESCRIPTIONS: Record<ActivityIntensityOption, string> = {
-  light: "You can talk and sing",
-  moderate: "You can talk, but not sing",
-  vigorous: "You can only say a few words without pausing for breath",
+export const INTENSITY_DESCRIPTIONS: Record<ActivityIntensityOption, MessageDescriptor> = {
+  light: msg`You can talk and sing`,
+  moderate: msg`You can talk, but not sing`,
+  vigorous: msg`You can only say a few words without pausing for breath`,
 };
 
-/** CR-10 anchors used for session-RPE (Foster et al., 2001); unanchored steps show the number only. */
-const EFFORT_ANCHORS: Record<number, string> = {
-  0: "Rest",
-  1: "Very, very easy",
-  2: "Easy",
-  3: "Moderate",
-  4: "Somewhat hard",
-  5: "Hard",
-  7: "Very hard",
-  10: "Maximal",
+/**
+ * CR-10 anchors used for session-RPE (Foster et al., 2001), as whole labels
+ * with the number; unanchored steps show the number only.
+ */
+const EFFORT_ANCHOR_LABELS: Record<number, MessageDescriptor> = {
+  0: msg`0 · Rest`,
+  1: msg`1 · Very, very easy`,
+  2: msg`2 · Easy`,
+  3: msg`3 · Moderate`,
+  4: msg`4 · Somewhat hard`,
+  5: msg`5 · Hard`,
+  7: msg`7 · Very hard`,
+  10: msg`10 · Maximal`,
 };
 
 export const EFFORT_RATING_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
-export const EFFORT_QUESTION = "How hard was the whole session? (0–10)";
+export const EFFORT_QUESTION = msg`How hard was the whole session? (0–10)`;
 
 /** "7 · Very hard" / "6". */
-export function effortRatingLabel(rating: number): string {
-  const anchor = EFFORT_ANCHORS[rating];
-  return anchor ? `${rating} · ${anchor}` : `${rating}`;
+export function effortRatingLabel(rating: number, i18n: I18n): string {
+  const anchor = EFFORT_ANCHOR_LABELS[rating];
+  return anchor ? i18n._(anchor) : `${rating}`;
 }
 
 export type SessionEffortLike = {
@@ -109,15 +111,21 @@ export type SessionEffortLike = {
   effortRating: number | null;
 };
 
+const NO_INTENSITY = msg`No intensity`;
+
 /** "Moderate · effort 7/10 · 315 points" / "No intensity · effort not rated". */
-export function sessionEffortText(session: SessionEffortLike): string {
-  const intensity = session.intensity ? INTENSITY_LABELS[session.intensity] : "No intensity";
-  if (session.effortRating === null) return `${intensity} · effort not rated`;
-  const points =
-    session.duration !== null && session.duration > 0
-      ? ` · ${thousands(session.effortRating * session.duration)} points`
-      : " · no duration, no points";
-  return `${intensity} · effort ${session.effortRating}/10${points}`;
+export function sessionEffortText(session: SessionEffortLike, i18n: I18n): string {
+  const intensity = i18n._(session.intensity ? INTENSITY_LABELS[session.intensity] : NO_INTENSITY);
+  const rating = session.effortRating;
+  if (rating === null) return i18n._(msg`${intensity} · effort not rated`);
+  if (session.duration === null || session.duration <= 0) {
+    return i18n._(msg`${intensity} · effort ${rating}/10 · no duration, no points`);
+  }
+  const count = rating * session.duration;
+  const points = thousands(count);
+  return i18n._(
+    msg`${intensity} · effort ${rating}/10 · ${plural(count, { one: `${points} point`, other: `${points} points` })}`,
+  );
 }
 
 /**

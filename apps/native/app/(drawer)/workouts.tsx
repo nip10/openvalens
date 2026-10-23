@@ -99,12 +99,13 @@ function EffortPills({
   value: number | null;
   onChange: (next: number | null) => void;
 }) {
+  const { i18n } = useLingui();
   return (
-    <View className="flex-row flex-wrap gap-2" accessibilityLabel={EFFORT_QUESTION}>
+    <View className="flex-row flex-wrap gap-2" accessibilityLabel={i18n._(EFFORT_QUESTION)}>
       {EFFORT_RATING_OPTIONS.map((rating) => (
         <Pill
           key={rating}
-          label={effortRatingLabel(rating)}
+          label={effortRatingLabel(rating, i18n)}
           selected={value === rating}
           onPress={() => onChange(toggleEffort(value, rating))}
         />
@@ -115,7 +116,7 @@ function EffortPills({
 
 /** Issue #99 — add a missing effort rating later the same day (same as web "Rate"). */
 function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => void }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const rate = useMutation(
@@ -135,7 +136,7 @@ function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => 
     );
   return (
     <View className="gap-2">
-      <Text className="text-xs text-muted-foreground">{EFFORT_QUESTION}</Text>
+      <Text className="text-xs text-muted-foreground">{i18n._(EFFORT_QUESTION)}</Text>
       <EffortPills value={rating} onChange={setRating} />
       <View className="flex-row items-center gap-3">
         <Button
@@ -159,7 +160,8 @@ function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => 
 
 /** Issue #99 — weekly activity (same content as the web card). */
 function ActivityLoadView({ result }: { result: ActivityLoadResult }) {
-  const screen = activityLoadScreen(result);
+  const { i18n } = useLingui();
+  const screen = activityLoadScreen(result, i18n);
   const [showMethod, setShowMethod] = useState(false);
   return (
     <CardStack>
@@ -284,10 +286,6 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
     }),
   );
 
-  const talkTest = ACTIVITY_INTENSITIES.map(
-    (value) =>
-      `${INTENSITY_LABELS[value].toLowerCase()} — ${INTENSITY_DESCRIPTIONS[value].toLowerCase()}`,
-  ).join("; ");
   const parsedDuration = parseDurationMinutes(duration);
   const durationInvalid = duration.trim().length > 0 && parsedDuration === null;
   const dateMissing = date.trim().length === 0;
@@ -361,7 +359,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
             {ACTIVITY_INTENSITIES.map((value) => (
               <Pill
                 key={value}
-                label={INTENSITY_LABELS[value]}
+                label={_(INTENSITY_LABELS[value])}
                 selected={value === intensity}
                 onPress={() => setIntensity(toggleIntensity(intensity, value))}
               />
@@ -369,10 +367,15 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
           </View>
           {intensity ? (
             <Text className="text-xs text-muted-foreground">
-              {INTENSITY_DESCRIPTIONS[intensity]}
+              {_(INTENSITY_DESCRIPTIONS[intensity])}
             </Text>
           ) : (
-            <Text className="text-xs text-muted-foreground">{t`Talk test: ${talkTest}.`}</Text>
+            <Text className="text-xs text-muted-foreground">
+              <Trans>
+                Talk test: light — you can talk and sing; moderate — you can talk, but not sing;
+                vigorous — you can only say a few words without pausing for breath.
+              </Trans>
+            </Text>
           )}
         </View>
         <View className="gap-2">
@@ -380,7 +383,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
             <Trans>Effort, 0–10 (optional)</Trans>
           </Text>
           <Text className="text-xs text-muted-foreground">
-            {EFFORT_QUESTION} <Trans>You can also add it later today.</Trans>
+            {_(EFFORT_QUESTION)} <Trans>You can also add it later today.</Trans>
           </Text>
           <EffortPills value={effort} onChange={setEffort} />
         </View>
@@ -626,7 +629,7 @@ function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void
 }
 
 export default function WorkoutsScreen() {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const queryClient = useQueryClient();
   const foreground = useThemeColor("foreground");
@@ -761,7 +764,7 @@ export default function WorkoutsScreen() {
                       {workout.notes ? ` · ${workout.notes}` : ""}
                     </Text>
                     <Text className="text-xs text-muted-foreground">
-                      {sessionEffortText(workout)}
+                      {sessionEffortText(workout, i18n)}
                     </Text>
                     {workout.effortRating === null &&
                     canRateEffortToday(workout.date, todayIso()) ? (

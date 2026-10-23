@@ -309,6 +309,18 @@ msgstr "{granted} of {total} data types · background access off"
 msgid "{hr}h ago"
 msgstr "{hr}h ago"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "{intensity} · effort {rating}/10 · {count, plural, one {{points} point} other {{points} points}}"
+msgstr "{intensity} · effort {rating}/10 · {count, plural, one {{points} point} other {{points} points}}"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{intensity} · effort {rating}/10 · no duration, no points"
+msgstr "{intensity} · effort {rating}/10 · no duration, no points"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{intensity} · effort not rated"
+msgstr "{intensity} · effort not rated"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {A value}} must be 0 or more, or left blank."
 msgstr "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {A value}} must be 0 or more, or left blank."
@@ -627,10 +639,22 @@ msgstr "<0>Secondary:</0> {secondaryNames}"
 msgid "<0>Source-listed muscles:</0> {listedNames}"
 msgstr "<0>Source-listed muscles:</0> {listedNames}"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "0 · Rest"
+msgstr "0 · Rest"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "1 · Very, very easy"
+msgstr "1 · Very, very easy"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
 msgstr "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "10 · Maximal"
+msgstr "10 · Maximal"
 
 #: packages/api/src/presenters/score.ts
 msgid "100% (target reached)"
@@ -648,6 +672,14 @@ msgstr "16 or more"
 msgid "18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution."
 msgstr "18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution."
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "2 · Easy"
+msgstr "2 · Easy"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "3 · Moderate"
+msgstr "3 · Moderate"
+
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/web/src/routes/_auth/body.tsx
 msgid "30 days"
@@ -659,9 +691,21 @@ msgstr "30 days"
 msgid "30-day trend"
 msgstr "30-day trend"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "4 · Somewhat hard"
+msgstr "4 · Somewhat hard"
+
 #: packages/api/src/presenters/body-map.ts
 msgid "4 to under 8"
 msgstr "4 to under 8"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "5 · Hard"
+msgstr "5 · Hard"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "7 · Very hard"
+msgstr "7 · Very hard"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/web/src/routes/_auth/body.tsx
@@ -694,6 +738,10 @@ msgstr "A general reference from your recent weight, not a target. Enter a targe
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "A goal (optional)"
 msgstr "A goal (optional)"
+
+#: apps/web/src/utils/product-settings-form-state.ts
+msgid "A newer version is available. Reload the latest settings to continue."
+msgstr "A newer version is available. Reload the latest settings to continue."
 
 #: packages/api/src/presenters/food-draft.ts
 msgid "A photo can be misread. Check each item, fix or remove anything wrong, then find the matching food in your diary and confirm it there."
@@ -824,6 +872,10 @@ msgstr "Active minutes, last 7 days: {value} minutes. {statusText}"
 #: packages/api/src/presenters/timeline.ts
 msgid "Activity"
 msgstr "Activity"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Activity and fitness"
+msgstr "Activity and fitness"
 
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
@@ -1347,6 +1399,10 @@ msgstr "Blood"
 msgid "Body"
 msgstr "Body"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Body goals"
+msgstr "Body goals"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/components/header.tsx
@@ -1365,6 +1421,10 @@ msgstr "Body map, front view"
 #: packages/api/src/presenters/body-map.ts
 msgid "Bone density"
 msgstr "Bone density"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Both"
+msgstr "Both"
 
 #: packages/api/src/presenters/manual-entry.ts
 msgid "bpm"
@@ -1990,6 +2050,10 @@ msgstr "Copying {0, plural, one {# item} other {# items}} to {localDate}"
 msgid "Could not accept the invitation."
 msgstr "Could not accept the invitation."
 
+#: apps/web/src/utils/session-bootstrap.ts
+msgid "Could not activate your workspace. Please try again."
+msgstr "Could not activate your workspace. Please try again."
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Could not check this setting."
 msgstr "Could not check this setting."
@@ -2016,6 +2080,7 @@ msgid "Could not complete sign-in. Please try again."
 msgstr "Could not complete sign-in. Please try again."
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/utils/workspace-invitation.ts
 msgid "Could not complete that action. Please try again."
 msgstr "Could not complete that action. Please try again."
 
@@ -2061,6 +2126,10 @@ msgstr "Could not confirm whether your water setting was saved."
 #: apps/web/src/components/exercise-library.tsx
 msgid "Could not confirm. Refresh and review before trying again."
 msgstr "Could not confirm. Refresh and review before trying again."
+
+#: apps/web/src/utils/sign-in-options.ts
+msgid "Could not connect {displayName}. Please try again."
+msgstr "Could not connect {displayName}. Please try again."
 
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Could not decline the invitation."
@@ -2339,6 +2408,7 @@ msgid "Could not make a draft. Nothing was saved."
 msgstr "Could not make a draft. Nothing was saved."
 
 #: apps/web/src/routes/_auth/route.tsx
+#: apps/web/src/utils/session-bootstrap.ts
 msgid "Could not prepare your workspace. Please try again."
 msgstr "Could not prepare your workspace. Please try again."
 
@@ -2422,6 +2492,10 @@ msgstr "Could not save. Check your connection and try again."
 #: apps/web/src/routes/_auth/preventive-care.tsx
 msgid "Could not save. Nothing was changed."
 msgstr "Could not save. Nothing was changed."
+
+#: apps/web/src/utils/product-settings-form-state.ts
+msgid "Could not save. Try again."
+msgstr "Could not save. Try again."
 
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "Could not save. Use YYYY-MM-DD dates and try again."
@@ -3395,6 +3469,10 @@ msgstr "Favourite"
 msgid "Favourite <0>{foodName}</0>"
 msgstr "Favourite <0>{foodName}</0>"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Female"
+msgstr "Female"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Fibre"
 msgstr "Fibre"
@@ -3522,6 +3600,10 @@ msgstr "Frequency"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "From 1 entry"
 msgstr "From 1 entry"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "From a device or app"
+msgstr "From a device or app"
 
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "From a photo"
@@ -3787,6 +3869,10 @@ msgstr "How did it go?"
 msgid "How far you have moved toward the targets you set, weighted by your priorities."
 msgstr "How far you have moved toward the targets you set, weighted by your priorities."
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "How hard was the whole session? (0–10)"
+msgstr "How hard was the whole session? (0–10)"
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "How it was measured"
 msgstr "How it was measured"
@@ -3837,6 +3923,10 @@ msgstr "I train regularly and want the active reference"
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "I use hormonal contraception or have no natural cycle (turns estimates off)"
 msgstr "I use hormonal contraception or have no natural cycle (turns estimates off)"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "I'll enter things myself"
+msgstr "I'll enter things myself"
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
@@ -4102,6 +4192,10 @@ msgstr "Items to copy"
 #: apps/web/src/routes/join.tsx
 msgid "Join OpenValens"
 msgstr "Join OpenValens"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Just exploring"
+msgstr "Just exploring"
 
 #: packages/api/src/presenters/cochat.ts
 msgid "just now"
@@ -4382,6 +4476,11 @@ msgstr "License: {license} · {author}"
 msgid "Light"
 msgstr "Light"
 
+#: packages/api/src/presenters/activity-load.ts
+msgctxt "intensity"
+msgid "Light"
+msgstr "Light"
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgctxt "period flow"
@@ -4583,6 +4682,10 @@ msgstr "Make food drafts from a meal photo"
 msgid "Make food drafts from a spoken or typed description"
 msgstr "Make food drafts from a spoken or typed description"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Male"
+msgstr "Male"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Manage my foods"
 msgstr "Manage my foods"
@@ -4766,6 +4869,11 @@ msgid "Moderate"
 msgstr "Moderate"
 
 #: packages/api/src/presenters/activity-load.ts
+msgctxt "intensity"
+msgid "Moderate"
+msgstr "Moderate"
+
+#: packages/api/src/presenters/activity-load.ts
 msgid "Moderate minutes + 2 × vigorous minutes from your sessions in the last 7 days. Light sessions are recorded but not counted."
 msgstr "Moderate minutes + 2 × vigorous minutes from your sessions in the last 7 days. Light sessions are recorded but not counted."
 
@@ -4879,6 +4987,10 @@ msgstr "Needs attention: {change}"
 msgid "Needs steps on at least 2 of the last 3 full days (found {found})."
 msgstr "Needs steps on at least 2 of the last 3 full days (found {found})."
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Neither fits me"
+msgstr "Neither fits me"
+
 #: apps/native/app/(drawer)/coach/index.tsx
 msgid "New"
 msgstr "New"
@@ -4911,6 +5023,10 @@ msgstr "Next day"
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Next unanswered: {0}"
 msgstr "Next unanswered: {0}"
+
+#: apps/web/src/utils/sign-in-options.ts
+msgid "No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings."
+msgstr "No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "No active minutes with a recorded intensity in the last 7 days."
@@ -5024,6 +5140,10 @@ msgstr "No inputs could be used."
 #: apps/web/src/components/exercise-library.tsx
 msgid "No instructions provided."
 msgstr "No instructions provided."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "No intensity"
+msgstr "No intensity"
 
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "No invitations yet."
@@ -5226,6 +5346,10 @@ msgstr "No weight yet"
 msgid "No workouts yet"
 msgstr "No workouts yet"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "No, I'm under 18"
+msgstr "No, I'm under 18"
+
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "None"
@@ -5363,6 +5487,7 @@ msgid "Not sure what this is"
 msgstr "Not sure what this is"
 
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Not sure yet"
 msgstr "Not sure yet"
 
@@ -5424,6 +5549,14 @@ msgstr "Nothing recorded in the last 7 days."
 msgid "Nothing saved"
 msgstr "Nothing saved"
 
+#: apps/native/lib/push-notifications.ts
+msgid "Notifications are blocked for OpenValens in your phone settings, so none will arrive here."
+msgstr "Notifications are blocked for OpenValens in your phone settings, so none will arrive here."
+
+#: apps/native/lib/push-notifications.ts
+msgid "Notifications are on for this phone."
+msgstr "Notifications are on for this phone."
+
 #: apps/web/src/components/insights-panel.tsx
 msgid "Notifications arrive on phones where you allow them in the mobile app."
 msgstr "Notifications arrive on phones where you allow them in the mobile app."
@@ -5464,6 +5597,10 @@ msgstr "Nutrient"
 #: apps/web/src/routes/_auth/foods.tsx
 msgid "Nutrients"
 msgstr "Nutrients"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Nutrition"
+msgstr "Nutrition"
 
 #: apps/native/components/insights-section.tsx
 #: apps/web/src/components/insights-section.tsx
@@ -6009,6 +6146,10 @@ msgstr "Population reference intake (PRI)"
 msgid "Portugal"
 msgstr "Portugal"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Portugal (EU)"
+msgstr "Portugal (EU)"
+
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Potassium"
 msgstr "Potassium"
@@ -6017,6 +6158,10 @@ msgstr "Potassium"
 #: packages/api/src/presenters/supplements.ts
 msgid "Pre-bed"
 msgstr "Pre-bed"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Prefer not to say"
+msgstr "Prefer not to say"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Preferences"
@@ -6142,6 +6287,10 @@ msgstr "Published recommendation figures quoted with attribution (facts, not the
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Push and weekly email, off until you turn them on"
 msgstr "Push and weekly email, off until you turn them on"
+
+#: apps/native/lib/push-notifications.ts
+msgid "Push notifications are not available in this build of the app."
+msgstr "Push notifications are not available in this build of the app."
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Quads"
@@ -6345,6 +6494,10 @@ msgstr "rejected"
 #: packages/api/src/presenters/clinical-records.ts
 msgid "Relation"
 msgstr "Relation"
+
+#: apps/web/src/utils/product-settings-form-state.ts
+msgid "Reload failed."
+msgstr "Reload failed."
 
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Reload latest"
@@ -6766,6 +6919,10 @@ msgstr "Saved foods"
 msgid "Saved on this device. It will sync when you're online."
 msgstr "Saved on this device. It will sync when you're online."
 
+#: apps/web/src/utils/product-settings-form-state.ts
+msgid "Saved."
+msgstr "Saved."
+
 #: apps/web/src/components/progress-photos.tsx
 msgid "Saving photo…"
 msgstr "Saving photo…"
@@ -7121,6 +7278,11 @@ msgstr "Sign in"
 msgid "Sign In"
 msgstr "Sign In"
 
+#: apps/native/utils/workspace-invitation.ts
+#: apps/web/src/utils/session-bootstrap.ts
+msgid "Sign in again to continue."
+msgstr "Sign in again to continue."
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Sign in again to sync."
 msgstr "Sign in again to sync."
@@ -7185,6 +7347,10 @@ msgstr "Sign-in link sent — check your email"
 msgid "Sign-in methods"
 msgstr "Sign-in methods"
 
+#: apps/web/src/utils/sign-in-options.ts
+msgid "Sign-in with {displayName} did not complete. Try again or use an email link."
+msgstr "Sign-in with {displayName} did not complete. Try again or use an email link."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Signed in as {email}. Enter the token again to continue enrollment."
 msgstr "Signed in as {email}. Enter the token again to continue enrollment."
@@ -7218,6 +7384,10 @@ msgstr "Skip for now"
 #: packages/api/src/presenters/timeline.ts
 msgid "Sleep"
 msgstr "Sleep"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Sleep and recovery"
+msgstr "Sleep and recovery"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Sleep duration"
@@ -7612,8 +7782,8 @@ msgid "System Status"
 msgstr "System Status"
 
 #: apps/native/app/(drawer)/workouts.tsx
-msgid "Talk test: {talkTest}."
-msgstr "Talk test: {talkTest}."
+msgid "Talk test: light — you can talk and sing; moderate — you can talk, but not sing; vigorous — you can only say a few words without pausing for breath."
+msgstr "Talk test: light — you can talk and sing; moderate — you can talk, but not sing; vigorous — you can only say a few words without pausing for breath."
 
 #: apps/native/app/(drawer)/body-map.tsx
 msgid "Tap a region to see its value."
@@ -7679,6 +7849,10 @@ msgstr "Template"
 #: packages/api/src/presenters/workouts.ts
 msgid "Tennis"
 msgstr "Tennis"
+
+#: apps/web/src/utils/sign-in-options.ts
+msgid "That {displayName} account is already connected to another user."
+msgstr "That {displayName} account is already connected to another user."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "That amount is too large to save."
@@ -7811,6 +7985,10 @@ msgstr "These scores are for adults 18 and over, based on your profile answer."
 msgid "These settings changed on another device. The latest version is shown."
 msgstr "These settings changed on another device. The latest version is shown."
 
+#: apps/web/src/utils/product-settings-form-state.ts
+msgid "These settings were changed elsewhere. Reload the latest version, then make your edits again."
+msgstr "These settings were changed elsewhere. Reload the latest version, then make your edits again."
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Thigh"
@@ -7873,6 +8051,10 @@ msgstr "This invitation has expired."
 msgid "This invitation is linked to an email address. Sign in to see the details and accept or decline."
 msgstr "This invitation is linked to an email address. Sign in to see the details and accept or decline."
 
+#: apps/native/utils/workspace-invitation.ts
+msgid "This invitation is no longer available. It may have expired or already been used."
+msgstr "This invitation is no longer available. It may have expired or already been used."
+
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "This invitation is no longer pending."
 msgstr "This invitation is no longer pending."
@@ -7889,6 +8071,10 @@ msgstr "This invitation was sent to {0}, but you are signed in as {sessionEmail}
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "This invitation was sent to a different email address."
 msgstr "This invitation was sent to a different email address."
+
+#: apps/native/utils/workspace-invitation.ts
+msgid "This invitation was sent to a different email address. Sign in with the invited account to use it."
+msgstr "This invitation was sent to a different email address. Sign in with the invited account to use it."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "This is a recommended range, not a description of what most people do."
@@ -8306,12 +8492,14 @@ msgstr "Unit not stated"
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "United Kingdom"
 msgstr "United Kingdom"
 
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "United States"
 msgstr "United States"
 
@@ -8540,6 +8728,11 @@ msgid "View global environment settings"
 msgstr "View global environment settings"
 
 #: packages/api/src/presenters/activity-load.ts
+msgctxt "intensity"
+msgid "Vigorous"
+msgstr "Vigorous"
+
+#: packages/api/src/presenters/activity-load.ts
 msgid "Vigorous: {vigorous} min (counts double)"
 msgstr "Vigorous: {vigorous} min (counts double)"
 
@@ -8658,6 +8851,10 @@ msgid "Welcome, <0>{0}</0>"
 msgstr "Welcome, <0>{0}</0>"
 
 #: packages/api/src/presenters/wellness-profile.ts
+msgid "Wellbeing"
+msgstr "Wellbeing"
+
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "What brings you here"
 msgstr "What brings you here"
 
@@ -8736,6 +8933,10 @@ msgstr "Y-axis: avg bpm"
 msgid "Y-axis: minutes of sleep"
 msgstr "Y-axis: minutes of sleep"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Yes, I'm 18 or older"
+msgstr "Yes, I'm 18 or older"
+
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "You"
@@ -8754,9 +8955,25 @@ msgstr "You can also add it later today."
 msgid "You can close this page."
 msgstr "You can close this page."
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "You can only say a few words without pausing for breath"
+msgstr "You can only say a few words without pausing for breath"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "You can talk and sing"
+msgstr "You can talk and sing"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "You can talk, but not sing"
+msgstr "You can talk, but not sing"
+
 #: apps/web/src/components/product-settings-form.tsx
 msgid "You can view these settings but cannot edit them."
 msgstr "You can view these settings but cannot edit them."
+
+#: apps/native/utils/workspace-invitation.ts
+msgid "You cannot use this invitation. Ask the workspace owner for a new one."
+msgstr "You cannot use this invitation. Ask the workspace owner for a new one."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "You chose not to share this."
@@ -8809,6 +9026,10 @@ msgstr "You said neither option fits you."
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
 msgstr "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
+
+#: apps/web/src/utils/sign-in-options.ts
+msgid "Your {displayName} account uses a different email address than this account."
+msgstr "Your {displayName} account uses a different email address than this account."
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Your account has no organization. Sync is paused."

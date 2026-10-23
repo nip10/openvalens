@@ -2,9 +2,12 @@ import "@/testing/varlock-test-setup";
 
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import { ENV } from "../env";
 
 import {
+  BootstrapError,
   bootstrapSession,
   ensureActiveOrganization,
   type BootstrapSessionClient,
@@ -52,7 +55,7 @@ describe("ensureActiveOrganization", () => {
       ),
     ) as unknown as typeof fetch;
 
-    await expect(ensureActiveOrganization()).rejects.toThrow("Sign in again to continue.");
+    await expectUserMessage(ensureActiveOrganization(), "Sign in again to continue.");
   });
 
   test("throws finite copy on unknown api error", async () => {
@@ -65,7 +68,8 @@ describe("ensureActiveOrganization", () => {
       ),
     ) as unknown as typeof fetch;
 
-    await expect(ensureActiveOrganization()).rejects.toThrow(
+    await expectUserMessage(
+      ensureActiveOrganization(),
       "Could not prepare your workspace. Please try again.",
     );
   });
@@ -211,7 +215,8 @@ describe("bootstrapSession", () => {
       },
     });
 
-    await expect(bootstrapSession(client)).rejects.toThrow(
+    await expectUserMessage(
+      bootstrapSession(client),
       "Could not activate your workspace. Please try again.",
     );
   });
@@ -219,6 +224,16 @@ describe("bootstrapSession", () => {
   test("throws non-retryable error when unauthenticated", async () => {
     const client = makeClient({ getSession: jest.fn(async () => ({ data: null, error: null })) });
 
-    await expect(bootstrapSession(client)).rejects.toThrow("Sign in again to continue.");
+    await expectUserMessage(bootstrapSession(client), "Sign in again to continue.");
   });
 });
+
+/** The user-facing copy is a descriptor (#67); assert its English rendering. */
+async function expectUserMessage(promise: Promise<unknown>, english: string) {
+  const error = await promise.then(
+    () => null,
+    (caught: unknown) => caught,
+  );
+  expect(error).toBeInstanceOf(BootstrapError);
+  expect(inEnglish((error as BootstrapError).userMessage)).toBe(english);
+}

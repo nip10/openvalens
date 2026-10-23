@@ -45,10 +45,10 @@ function AuthLayout() {
 
 function AuthBootstrapError({ error }: { error: unknown }) {
   const router = useRouter();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const message =
     error instanceof BootstrapError
-      ? error.message
+      ? i18n._(error.userMessage)
       : t`Could not prepare your workspace. Please try again.`;
 
   return (

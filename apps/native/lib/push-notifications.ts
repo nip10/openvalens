@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
@@ -67,9 +69,9 @@ export async function disablePushOnThisPhone(): Promise<void> {
   await client.insights.pushDevices.unregister({ token: token.data });
 }
 
-export function describePushRegistration(result: PushRegistration): string {
-  if (result.status === "registered") return "Notifications are on for this phone.";
+export function describePushRegistration(result: PushRegistration): MessageDescriptor {
+  if (result.status === "registered") return msg`Notifications are on for this phone.`;
   if (result.status === "denied")
-    return "Notifications are blocked for OpenValens in your phone settings, so none will arrive here.";
-  return "Push notifications are not available in this build of the app.";
+    return msg`Notifications are blocked for OpenValens in your phone settings, so none will arrive here.`;
+  return msg`Push notifications are not available in this build of the app.`;
 }

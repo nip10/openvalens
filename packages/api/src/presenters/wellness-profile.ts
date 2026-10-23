@@ -8,11 +8,16 @@ import {
   MIN_BIRTH_YEAR,
   WELLNESS_CONSENT_PURPOSES,
   type WellnessConsentPurpose,
+  type WellnessEligibility,
+  type WellnessFocusArea,
+  type WellnessInputMethod,
   type WellnessProfileAnswers,
   type WellnessProfileField,
   type WellnessProfileRejection,
   type WellnessProfileSnapshot,
   type WellnessProfileUpdateInput,
+  type WellnessRegion,
+  type WellnessSex,
 } from "../wellness-profile-contract";
 
 /**
@@ -46,6 +51,54 @@ export const SECTION_FIELDS: Record<SetupSection, readonly WellnessProfileField[
   region: ["region"],
   ageAndSex: ["birthYear", "sex"],
 };
+
+const ELIGIBILITY_LABELS: Record<WellnessEligibility, MessageDescriptor> = {
+  adult: msg`Yes, I'm 18 or older`,
+  under_18: msg`No, I'm under 18`,
+};
+
+const FOCUS_AREA_LABELS: Record<WellnessFocusArea, MessageDescriptor> = {
+  sleep_recovery: msg`Sleep and recovery`,
+  activity_fitness: msg`Activity and fitness`,
+  nutrition: msg`Nutrition`,
+  body_goals: msg`Body goals`,
+  wellbeing: msg`Wellbeing`,
+};
+
+const INPUT_METHOD_LABELS: Record<WellnessInputMethod, MessageDescriptor> = {
+  manual: msg`I'll enter things myself`,
+  device: msg`From a device or app`,
+  both: msg`Both`,
+};
+
+const REGION_LABELS: Record<WellnessRegion, MessageDescriptor> = {
+  us: msg`United States`,
+  uk: msg`United Kingdom`,
+  pt: msg`Portugal (EU)`,
+};
+
+const SEX_LABELS: Record<WellnessSex, MessageDescriptor> = {
+  female: msg`Female`,
+  male: msg`Male`,
+};
+
+const DECLINE_LABEL = msg`Prefer not to say`;
+const SEX_NOT_APPLICABLE_LABEL = msg`Neither fits me`;
+const JUST_EXPLORING_LABEL = msg`Just exploring`;
+const NOT_SURE_YET_LABEL = msg`Not sure yet`;
+
+/** Answer labels for the profile choices, shared by the web editor and native chips. */
+export const WELLNESS_CHOICE_LABELS = {
+  eligibility: ELIGIBILITY_LABELS,
+  focus: FOCUS_AREA_LABELS,
+  inputMethod: INPUT_METHOD_LABELS,
+  region: REGION_LABELS,
+  sex: SEX_LABELS,
+  decline: DECLINE_LABEL,
+  sexNotApplicable: SEX_NOT_APPLICABLE_LABEL,
+  justExploring: JUST_EXPLORING_LABEL,
+  notSureYet: NOT_SURE_YET_LABEL,
+} as const;
 
 export const SECTION_TITLES: Record<SetupSection, MessageDescriptor> = {
   eligibility: msg`Age check`,

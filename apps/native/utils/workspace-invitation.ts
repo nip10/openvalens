@@ -4,7 +4,9 @@
  * A signed-in recipient lists the invitations addressed to their own session
  * email and then accepts or declines one through the protected Better Auth
  * organization SDK. This module is dependency-free (no RPC client, no Varlock,
- * no React Native) so it is unit-tested directly with a fake client.
+ * no React Native) so it is unit-tested directly with a fake client. Copy shown
+ * to the recipient is a Lingui descriptor (#67); the screen renders it with
+ * `_()`.
  *
  * Invariants (see CONTRIBUTING.md "Accounts and instance admission"):
  * - An invitation only ever targets an existing account; nothing here creates
@@ -14,6 +16,9 @@
  * - Accepting activates the joined workspace on the session; the caller
  *   refreshes the active organization from the SDK afterwards.
  */
+
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 
 export type WorkspaceInvitation = {
   id: string;
@@ -63,22 +68,27 @@ export type InvitationFailureReason = "wrong_account" | "expired" | "denied" | "
 
 export type InvitationDisplayState = "pending" | "expired" | "wrong_account" | "unavailable";
 
+/**
+ * An invitation failure. `userMessage` is the recipient-facing copy, rendered
+ * with `_()`; `message` keeps the English source text for logs.
+ */
 export class WorkspaceInvitationError extends Error {
   constructor(
-    message: string,
+    readonly userMessage: MessageDescriptor,
     readonly reason: InvitationFailureReason,
   ) {
-    super(message);
+    super(userMessage.message ?? userMessage.id);
     this.name = "WorkspaceInvitationError";
   }
 }
 
-const FAILURE_MESSAGES: Record<InvitationFailureReason, string> = {
-  wrong_account:
-    "This invitation was sent to a different email address. Sign in with the invited account to use it.",
-  expired: "This invitation is no longer available. It may have expired or already been used.",
-  denied: "You cannot use this invitation. Ask the workspace owner for a new one.",
-  unavailable: "Could not complete that action. Please try again.",
+const SIGN_IN_AGAIN = msg`Sign in again to continue.`;
+
+const FAILURE_MESSAGES: Record<InvitationFailureReason, MessageDescriptor> = {
+  wrong_account: msg`This invitation was sent to a different email address. Sign in with the invited account to use it.`,
+  expired: msg`This invitation is no longer available. It may have expired or already been used.`,
+  denied: msg`You cannot use this invitation. Ask the workspace owner for a new one.`,
+  unavailable: msg`Could not complete that action. Please try again.`,
 };
 
 /** Better Auth organization error `code` values mapped to a recipient-facing reason. */
@@ -100,14 +110,14 @@ const ERROR_CODE_REASONS: Record<string, InvitationFailureReason> = {
  */
 export function classifyInvitationError(error: WorkspaceInvitationErrorShape): {
   reason: InvitationFailureReason;
-  message: string;
+  message: MessageDescriptor;
 } {
   const codeReason = error.code ? ERROR_CODE_REASONS[error.code] : undefined;
   if (codeReason) {
     return { reason: codeReason, message: FAILURE_MESSAGES[codeReason] };
   }
   if (error.status === 401) {
-    return { reason: "unavailable", message: "Sign in again to continue." };
+    return { reason: "unavailable", message: SIGN_IN_AGAIN };
   }
   return { reason: "unavailable", message: FAILURE_MESSAGES.unavailable };
 }
@@ -141,7 +151,7 @@ export async function listMyInvitations(
   const session = await client.getSession();
   const email = session.data?.user?.email?.trim().toLowerCase();
   if (!email) {
-    throw new WorkspaceInvitationError("Sign in again to continue.", "unavailable");
+    throw new WorkspaceInvitationError(SIGN_IN_AGAIN, "unavailable");
   }
   const result = await client.organization.listUserInvitations({ query: {} });
   if (result.error) {

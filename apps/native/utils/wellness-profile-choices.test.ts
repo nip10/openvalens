@@ -1,9 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { buildSectionPatch, draftFromSnapshot } from "@openvalens/api/presenters/wellness-profile";
 import {
+  DECLINE_LABEL,
+  ELIGIBILITY_LABELS,
   EMPTY_WELLNESS_PROFILE,
+  FOCUS_AREA_LABELS,
+  INPUT_METHOD_LABELS,
+  JUST_EXPLORING_LABEL,
+  REGION_LABELS,
+  SEX_LABELS,
+  SEX_NOT_APPLICABLE_LABEL,
   type WellnessProfileSnapshot,
 } from "@openvalens/api/wellness-profile-contract";
+import { inEnglish } from "@openvalens/i18n/testing";
 
 import { chipsFor, selectedChips, toggleChip, toggleConsent } from "./wellness-profile-choices";
 
@@ -14,6 +23,24 @@ const adult: WellnessProfileSnapshot = {
 };
 
 describe("native profile chips", () => {
+  test("chip labels render the same English as the shared contract copy", () => {
+    const draft = draftFromSnapshot(adult);
+    const english = (field: Parameters<typeof chipsFor>[0]) =>
+      Object.fromEntries(chipsFor(field, draft).map((chip) => [chip.key, inEnglish(chip.label)]));
+    expect(english("eligibility")).toEqual({ ...ELIGIBILITY_LABELS, declined: DECLINE_LABEL });
+    expect(english("focus")).toEqual({
+      ...FOCUS_AREA_LABELS,
+      just_exploring: JUST_EXPLORING_LABEL,
+    });
+    expect(english("inputMethod")).toEqual({ ...INPUT_METHOD_LABELS, declined: "Not sure yet" });
+    expect(english("region")).toEqual({ ...REGION_LABELS, declined: DECLINE_LABEL });
+    expect(english("sex")).toEqual({
+      ...SEX_LABELS,
+      not_applicable: SEX_NOT_APPLICABLE_LABEL,
+      declined: DECLINE_LABEL,
+    });
+  });
+
   test("single-choice chips map to distinct states and tap again clears", () => {
     let draft = draftFromSnapshot(adult);
     draft = toggleChip("region", "declined", draft);

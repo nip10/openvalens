@@ -6,19 +6,12 @@ import {
   rejectionMessage,
   parseBirthYearInput,
   SECTION_TITLES,
+  WELLNESS_CHOICE_LABELS,
   type SetupSection,
   type WellnessProfileDraft,
 } from "@openvalens/api/presenters/wellness-profile";
 import {
   CONSENT_COPY,
-  DECLINE_LABEL,
-  ELIGIBILITY_LABELS,
-  FOCUS_AREA_LABELS,
-  INPUT_METHOD_LABELS,
-  JUST_EXPLORING_LABEL,
-  REGION_LABELS,
-  SEX_LABELS,
-  SEX_NOT_APPLICABLE_LABEL,
   unavailableExplanation,
   WELLNESS_ELIGIBILITY,
   WELLNESS_FIELD_COPY,
@@ -92,8 +85,11 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
           name="eligibility"
           value={answerValue(draft.answers.eligibility)}
           options={[
-            ...WELLNESS_ELIGIBILITY.map((value) => ({ value, label: ELIGIBILITY_LABELS[value] })),
-            { value: "declined", label: DECLINE_LABEL },
+            ...WELLNESS_ELIGIBILITY.map((value) => ({
+              value,
+              label: i18n._(WELLNESS_CHOICE_LABELS.eligibility[value]),
+            })),
+            { value: "declined", label: i18n._(WELLNESS_CHOICE_LABELS.decline) },
           ]}
           onChange={(value) =>
             onDraftChange(
@@ -117,7 +113,7 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
             return (
               <CheckboxRow
                 key={area}
-                label={FOCUS_AREA_LABELS[area]}
+                label={i18n._(WELLNESS_CHOICE_LABELS.focus[area])}
                 checked={selected}
                 onChange={(checked) => {
                   const current: WellnessFocusArea[] =
@@ -137,7 +133,7 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
             );
           })}
           <CheckboxRow
-            label={JUST_EXPLORING_LABEL}
+            label={i18n._(WELLNESS_CHOICE_LABELS.justExploring)}
             checked={draft.answers.focus.state === "just_exploring"}
             onChange={(checked) =>
               onDraftChange(
@@ -159,7 +155,7 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
           options={[
             ...WELLNESS_INPUT_METHODS.map((value) => ({
               value,
-              label: INPUT_METHOD_LABELS[value],
+              label: i18n._(WELLNESS_CHOICE_LABELS.inputMethod[value]),
             })),
             { value: "declined", label: t`Not sure yet` },
           ]}
@@ -184,8 +180,11 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
           name="region"
           value={answerValue(draft.answers.region)}
           options={[
-            ...WELLNESS_REGIONS.map((value) => ({ value, label: REGION_LABELS[value] })),
-            { value: "declined", label: DECLINE_LABEL },
+            ...WELLNESS_REGIONS.map((value) => ({
+              value,
+              label: i18n._(WELLNESS_CHOICE_LABELS.region[value]),
+            })),
+            { value: "declined", label: i18n._(WELLNESS_CHOICE_LABELS.decline) },
           ]}
           onChange={(value) =>
             onDraftChange(
@@ -295,7 +294,7 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
           ) : null}
         </div>
         <CheckboxRow
-          label={DECLINE_LABEL}
+          label={i18n._(WELLNESS_CHOICE_LABELS.decline)}
           checked={ageDeclined}
           onChange={(checked) => {
             onBirthYearTextChange("");
@@ -321,11 +320,11 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
           options={[
             ...WELLNESS_SEXES.map((value) => ({
               value,
-              label: SEX_LABELS[value],
+              label: i18n._(WELLNESS_CHOICE_LABELS.sex[value]),
               disabled: !draft.consents.sex,
             })),
-            { value: "not_applicable", label: SEX_NOT_APPLICABLE_LABEL },
-            { value: "declined", label: DECLINE_LABEL },
+            { value: "not_applicable", label: i18n._(WELLNESS_CHOICE_LABELS.sexNotApplicable) },
+            { value: "declined", label: i18n._(WELLNESS_CHOICE_LABELS.decline) },
           ]}
           onChange={(value) =>
             onDraftChange(

@@ -59,7 +59,7 @@ export default function InsightSettingsScreen() {
   const preferences = useQuery(orpc.insights.preferences.get.queryOptions({ input: {} }));
   const [acknowledged, setAcknowledged] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const update = useMutation({
     mutationFn: (patch: InsightPreferencesUpdate) => client.insights.preferences.update(patch),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() }),
@@ -69,7 +69,7 @@ export default function InsightSettingsScreen() {
     mutationFn: async () => {
       const registration = await enablePushOnThisPhone();
       await client.insights.preferences.update({ push: { enabled: true } });
-      return describePushRegistration(registration);
+      return i18n._(describePushRegistration(registration));
     },
     onSuccess: (text) => {
       setMessage(text);

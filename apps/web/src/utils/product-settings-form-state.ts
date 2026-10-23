@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useCallback, useLayoutEffect, useReducer, useRef, useState } from "react";
 
 import type {
@@ -9,15 +11,18 @@ import type {
 
 export type { ProductSettingsSnapshot, ProductSettingsUpdateInput };
 
-export type ProductSettingsSaveError = { code: "CONFLICT" } | { code: "UNKNOWN"; message?: string };
+export type ProductSettingsSaveError =
+  | { code: "CONFLICT" }
+  | { code: "UNKNOWN"; message?: MessageDescriptor };
 
+/** Status messages are descriptors (#67); the form renders them with `_()`. */
 type SaveStatus =
   | { tag: "idle" }
   | { tag: "saving"; requestId: number }
-  | { tag: "success"; requestId: number; message: string }
-  | { tag: "error"; requestId: number; message: string }
-  | { tag: "conflict"; requestId: number; message: string }
-  | { tag: "stale"; message: string };
+  | { tag: "success"; requestId: number; message: MessageDescriptor }
+  | { tag: "error"; requestId: number; message: MessageDescriptor }
+  | { tag: "conflict"; requestId: number; message: MessageDescriptor }
+  | { tag: "stale"; message: MessageDescriptor };
 
 export type ProductSettingsFormModel = {
   ownerId: string;
@@ -51,12 +56,11 @@ export type ProductSettingsFormAction =
   | { type: "requestEnd"; requestId: number }
   | { type: "reloadError"; requestId: number };
 
-const SAVE_SUCCESS_MESSAGE = "Saved.";
-const SAVE_ERROR_MESSAGE = "Could not save. Try again.";
-const CONFLICT_MESSAGE =
-  "These settings were changed elsewhere. Reload the latest version, then make your edits again.";
-const STALE_MESSAGE = "A newer version is available. Reload the latest settings to continue.";
-const RELOAD_ERROR_MESSAGE = "Reload failed.";
+export const SAVE_SUCCESS_MESSAGE = msg`Saved.`;
+export const SAVE_ERROR_MESSAGE = msg`Could not save. Try again.`;
+export const CONFLICT_MESSAGE = msg`These settings were changed elsewhere. Reload the latest version, then make your edits again.`;
+export const STALE_MESSAGE = msg`A newer version is available. Reload the latest settings to continue.`;
+export const RELOAD_ERROR_MESSAGE = msg`Reload failed.`;
 
 function isConflictError(error: unknown): error is { code: "CONFLICT" } {
   return (

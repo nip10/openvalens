@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { ActivityLoadResult } from "@openvalens/api/activity-load-contract";
 
+import { createAppI18n } from "@openvalens/i18n";
+import { englishI18n } from "@openvalens/i18n/testing";
+
 import { activityLoadScreen, toggleEffort, toggleIntensity } from "./activity-load-screen";
 
 /** Issue #99 — native weekly activity model. Synthetic fixture shaped like `activity.weeklyLoad`. */
@@ -73,7 +76,7 @@ function result(
 
 describe("native activity load screen model", () => {
   test("both numbers with units, status, breakdown, coverage, formula and WHO source", () => {
-    const screen = activityLoadScreen(result());
+    const screen = activityLoadScreen(result(), englishI18n);
     expect(screen.windowText).toBe("Last 7 days: Sat 10 Oct – Fri 16 Oct");
     const [active, effort] = screen.numbers;
     expect(active).toMatchObject({ key: "active_minutes", valueText: "160", unitText: "min" });
@@ -91,7 +94,7 @@ describe("native activity load screen model", () => {
   });
 
   test("days, comparison withheld below the threshold, context and footer", () => {
-    const screen = activityLoadScreen(result());
+    const screen = activityLoadScreen(result(), englishI18n);
     expect(screen.dayRows.map((row) => row.value)).toEqual([
       "—",
       "—",
@@ -120,6 +123,7 @@ describe("native activity load screen model", () => {
         },
         effort: { ...base.effort, status: "no_sessions", points: null },
       }),
+      englishI18n,
     );
     for (const number of screen.numbers) {
       expect(number.valueText).toBe("—");
@@ -129,17 +133,25 @@ describe("native activity load screen model", () => {
   });
 
   test("withheld for a declared under-18: explanation only", () => {
-    const screen = activityLoadScreen({
-      kind: "activity_load",
-      status: "withheld",
-      withheldReason: "adults_only",
-      load: null,
-    });
+    const screen = activityLoadScreen(
+      {
+        kind: "activity_load",
+        status: "withheld",
+        withheldReason: "adults_only",
+        load: null,
+      },
+      englishI18n,
+    );
     expect(screen.numbers).toEqual([]);
     expect(screen.comparison).toBeNull();
     expect(screen.withheldExplanation).toBe(
       "Weekly activity is for adults 18 and over, based on your profile answer.",
     );
+  });
+
+  test("renders in the interface language passed in", () => {
+    const screen = activityLoadScreen(result(), createAppI18n("pt-PT"));
+    expect(screen.title).toBe("Atividade semanal");
   });
 
   test("choices toggle back to not recorded", () => {

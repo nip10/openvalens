@@ -4,7 +4,6 @@ import type {
 } from "@openvalens/api/activity-load-contract";
 import type { I18n } from "@lingui/core";
 import { activityLoadView } from "@openvalens/api/presenters/activity-load";
-import { createAppI18n } from "@openvalens/i18n";
 
 /**
  * Issue #99 — native layout model for the weekly activity card on the
@@ -15,8 +14,8 @@ import { createAppI18n } from "@openvalens/i18n";
  * status, breakdown, coverage, formula and sources, the per-day effort, the
  * own-history comparison, context and the unavailable states.
  *
- * Text is rendered through the `i18n` passed in (#67). Without one it falls
- * back to English, until the Workouts screen passes its own.
+ * Text is rendered through the `i18n` passed in (#67): the Workouts screen
+ * passes its own, so the card follows the interface language.
  */
 
 export type ActivityNumberBlock = {
@@ -41,10 +40,8 @@ export type ActivityLoadScreen = {
   footer: string[];
 };
 
-let englishFallback: I18n | null = null;
-
-export function activityLoadScreen(result: ActivityLoadResult, i18n?: I18n): ActivityLoadScreen {
-  const view = activityLoadView(result, i18n ?? (englishFallback ??= createAppI18n("en")));
+export function activityLoadScreen(result: ActivityLoadResult, i18n: I18n): ActivityLoadScreen {
+  const view = activityLoadView(result, i18n);
   const numbers: ActivityNumberBlock[] = [];
   for (const part of [view.activeMinutes, view.effort]) {
     if (!part) continue;

@@ -14,6 +14,9 @@
  * - Idempotent: repeated calls return the same organization.
  */
 
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { ENV } from "../env";
 
 export type EnsureActiveOrganizationResult = {
@@ -22,12 +25,20 @@ export type EnsureActiveOrganizationResult = {
   role?: string;
 };
 
+const SIGN_IN_AGAIN = msg`Sign in again to continue.`;
+const PREPARE_FAILED = msg`Could not prepare your workspace. Please try again.`;
+const ACTIVATE_FAILED = msg`Could not activate your workspace. Please try again.`;
+
+/**
+ * A bootstrap failure. `userMessage` is the copy shown to the user (#67),
+ * rendered with `_()`; `message` keeps the English source text for logs.
+ */
 export class BootstrapError extends Error {
   constructor(
-    message: string,
+    readonly userMessage: MessageDescriptor,
     readonly retryable: boolean,
   ) {
-    super(message);
+    super(userMessage.message ?? userMessage.id);
     this.name = "BootstrapError";
   }
 }
@@ -65,9 +76,7 @@ export async function ensureActiveOrganization(): Promise<EnsureActiveOrganizati
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { error?: string };
     throw new BootstrapError(
-      body.error === "UNAUTHENTICATED"
-        ? "Sign in again to continue."
-        : "Could not prepare your workspace. Please try again.",
+      body.error === "UNAUTHENTICATED" ? SIGN_IN_AGAIN : PREPARE_FAILED,
       response.status >= 500 || response.status === 429,
     );
   }
@@ -78,7 +87,7 @@ export async function ensureActiveOrganization(): Promise<EnsureActiveOrganizati
 export async function bootstrapSession(client: BootstrapSessionClient) {
   const first = await client.getSession();
   if (!first.data) {
-    throw new BootstrapError("Sign in again to continue.", false);
+    throw new BootstrapError(SIGN_IN_AGAIN, false);
   }
 
   // Already have an active workspace — preserve the user's explicit choice.
@@ -90,7 +99,7 @@ export async function bootstrapSession(client: BootstrapSessionClient) {
 
   let session = await client.getSession();
   if (!session.data) {
-    throw new BootstrapError("Sign in again to continue.", false);
+    throw new BootstrapError(SIGN_IN_AGAIN, false);
   }
 
   // The server endpoint only activates the organization when it creates a new
@@ -101,16 +110,16 @@ export async function bootstrapSession(client: BootstrapSessionClient) {
       organizationId: ensure.organizationId,
     });
     if (setActive.error) {
-      throw new BootstrapError("Could not activate your workspace. Please try again.", true);
+      throw new BootstrapError(ACTIVATE_FAILED, true);
     }
     session = await client.getSession();
     if (!session.data) {
-      throw new BootstrapError("Sign in again to continue.", false);
+      throw new BootstrapError(SIGN_IN_AGAIN, false);
     }
   }
 
   if (!session.data.session.activeOrganizationId) {
-    throw new BootstrapError("Could not activate your workspace. Please try again.", true);
+    throw new BootstrapError(ACTIVATE_FAILED, true);
   }
 
   return session.data;
