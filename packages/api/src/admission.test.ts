@@ -118,6 +118,19 @@ describe("parseAdmissionInput", () => {
     ).toEqual({ kind: "setup", credential: "abc", email: "user@example.com" });
   });
 
+  test("keeps a shipped locale and ignores anything else (#231)", () => {
+    const base = { kind: "setup" as const, credential: "abc", email: "user@example.com" };
+    expect(parseAdmissionInput(admissionBeginInput, { ...base, locale: "pt-PT" })).toEqual({
+      ...base,
+      locale: "pt-PT" as const,
+    });
+    for (const locale of ["fr", "pt-BR", "", 5, null, "x".repeat(5000)]) {
+      const parsed = parseAdmissionInput(admissionBeginInput, { ...base, locale });
+      expect(parsed.locale).toBeUndefined();
+      expect(parsed.email).toBe("user@example.com");
+    }
+  });
+
   test("raises a bare INVALID_INPUT with no echoed values", () => {
     try {
       parseAdmissionInput(admissionBeginInput, {

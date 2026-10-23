@@ -1,4 +1,6 @@
-import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
+import { msg, plural } from "@lingui/core/macro";
+
+import { emailI18n, renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "Health";
 
@@ -16,32 +18,43 @@ export type RenderedInvitationEmail = {
   text: string;
 };
 
+/**
+ * Workspace invitation, in the recipient's language (#231). The inviter name,
+ * workspace name and role are user or system values and are not translated.
+ */
 export function renderInvitationEmail(
   input: InvitationEmailInput,
   options: EmailRenderOptions = {},
 ): RenderedInvitationEmail {
-  const subject = `${input.inviterName} invited you to ${input.organizationName} on ${APP_NAME}`;
-  const expiryLine =
-    input.expiresInDays === 1
-      ? "This invitation expires in 1 day."
-      : `This invitation expires in ${input.expiresInDays} days.`;
+  const i18n = emailI18n(options);
+  const { inviterName, organizationName, role } = input;
+  const appName = APP_NAME;
+  const days = input.expiresInDays;
+
+  const subject = i18n._(msg`${inviterName} invited you to ${organizationName} on ${appName}`);
+  const expiryLine = i18n._(
+    msg`${plural(days, {
+      one: "This invitation expires in # day.",
+      other: "This invitation expires in # days.",
+    })}`,
+  );
 
   const bodyLines = [
-    `${input.inviterName} invited you to join ${input.organizationName} on ${APP_NAME}.`,
-    `You have been invited with the ${input.role} role.`,
+    i18n._(msg`${inviterName} invited you to join ${organizationName} on ${appName}.`),
+    i18n._(msg`You have been invited with the ${role} role.`),
     expiryLine,
-    "If you were not expecting this invitation, you can ignore this email.",
+    i18n._(msg`If you were not expecting this invitation, you can ignore this email.`),
   ];
 
   const layout = renderLayout(
     {
-      title: "You are invited",
-      preheader: `${input.inviterName} invited you to join ${input.organizationName}.`,
+      title: i18n._(msg`You are invited`),
+      preheader: i18n._(msg`${inviterName} invited you to join ${organizationName}.`),
       bodyHtml: renderParagraphs(bodyLines),
       bodyText: bodyLines.join("\n\n"),
-      ctaLabel: "Accept invitation",
+      ctaLabel: i18n._(msg`Accept invitation`),
       ctaUrl: input.acceptUrl,
-      footerText: `This invitation was sent by ${APP_NAME}.`,
+      footerText: i18n._(msg`This invitation was sent by ${appName}.`),
     },
     options,
   );

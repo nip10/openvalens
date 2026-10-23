@@ -64,9 +64,16 @@ export function AdmissionForm({
   const credentialId = useId();
   const codeId = useId();
   const codeRef = useRef<HTMLInputElement>(null);
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
-  const flow = useAdmissionFlow({ kind, userId, sessionEmail, onRequestMagicLink });
+  // The verification email is written in the language this page is shown in (#231).
+  const flow = useAdmissionFlow({
+    kind,
+    userId,
+    sessionEmail,
+    onRequestMagicLink,
+    locale: i18n.locale,
+  });
   const state = flow.state;
 
   useEffect(() => {

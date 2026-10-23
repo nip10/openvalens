@@ -5,12 +5,14 @@ import {
   renderInsightsDigestEmail,
   type EmailService,
 } from "@openvalens/email";
+import type { Locale } from "@openvalens/i18n";
 import type { StructuredLogger } from "@openvalens/observability";
 import { describePushDeliveryError, type PushProvider } from "@openvalens/push";
 import { and, eq, inArray, lt, or } from "drizzle-orm";
 
 import type { InsightTopic } from "./insight-contract";
 import { isoWeek, selectInsights } from "./insight-rules";
+import { databaseMessageLocales, localeOrEnglish, serverI18n, type MessageLocales } from "./locale";
 import {
   channelsFromDisabled,
   createInsightService,
@@ -185,6 +187,8 @@ export async function sendGenericPush(
     topic: InsightTopic | null;
     showTopic: boolean;
     path: string;
+    /** The recipient's language (#231). */
+    locale: Locale;
     /** Fixed generic text from a reviewed template (#97 reminders); overrides the insight text. */
     content?: InsightPushContent;
   },
@@ -194,7 +198,8 @@ export async function sendGenericPush(
     .from(pushDevice)
     .where(eq(pushDevice.userId, input.userId));
   if (devices.length === 0) return { status: "no_device" };
-  const content = input.content ?? insightPushContent(input.topic, input.showTopic);
+  const content =
+    input.content ?? insightPushContent(serverI18n(input.locale), input.topic, input.showTopic);
   const tickets = await push.send({
     to: devices.map((device) => device.token),
     title: content.title,
@@ -233,7 +238,25 @@ export type InsightDeliveryDeps = {
   /** Key for one-step unsubscribe tokens; email is skipped without it. */
   unsubscribeKey: Buffer | null;
   displaySettings?: ProductDisplaySettings | null;
+  /**
+   * Issue #231 — how to find each person's language. Defaults to their saved
+   * preference in `db`; tests inject a fake.
+   */
+  locales?: Pick<MessageLocales, "forUser">;
 };
+
+/**
+ * The person's language, read at most once per person and only when a
+ * message is about to go out. English when unset or when the lookup fails.
+ */
+export function lazyRecipientLocale(
+  deps: Pick<InsightDeliveryDeps, "db" | "locales">,
+  userId: string,
+): () => Promise<Locale> {
+  const locales = deps.locales ?? databaseMessageLocales(deps.db);
+  let pending: Promise<Locale> | null = null;
+  return () => (pending ??= localeOrEnglish(locales.forUser(userId)));
+}
 
 export type InsightDeliveryResult = {
   candidates: number;
@@ -297,6 +320,7 @@ export async function runInsightDelivery(
       userId: candidate.user_id,
     };
     const log = { correlationId, organizationId: scope.organizationId, userId: scope.userId };
+    const recipientLocale = lazyRecipientLocale(deps, scope.userId);
     try {
       const clock = localClock(now, candidate.time_zone);
       if (clock.hour < candidate.delivery_hour) {
@@ -340,6 +364,7 @@ export async function runInsightDelivery(
                 topic: fresh[0]!.topic,
                 showTopic: candidate.push_show_topic,
                 path: "/",
+                locale: await recipientLocale(),
               });
               if (outcome.status === "sent") {
                 await completeDelivery(db, claim, { status: "sent", at: now });
@@ -407,29 +432,34 @@ export async function runInsightDelivery(
                 ),
               );
             const unsubscribeUrl = `${deps.webOrigin}/unsubscribe?token=${token}`;
-            const rendered = renderInsightsDigestEmail({
-              subject: INSIGHT_EMAIL_COPY.subject,
-              title: INSIGHT_EMAIL_COPY.title,
-              intro: INSIGHT_EMAIL_COPY.intro,
-              emptyText: INSIGHT_EMAIL_COPY.none,
-              items: fresh.map((insight) => {
-                const view = insightView(insight, deps.displaySettings);
-                return {
-                  title: view.title,
-                  lines: [
-                    view.body,
-                    view.certaintyText,
-                    view.coverageText,
-                    view.factorsText,
-                  ].filter((line): line is string => line !== null),
-                };
-              }),
-              appUrl: `${deps.webOrigin}/dashboard`,
-              appLabel: INSIGHT_EMAIL_COPY.manage,
-              unsubscribeUrl,
-              unsubscribeLabel: INSIGHT_EMAIL_COPY.unsubscribe,
-              footer: INSIGHT_EMAIL_COPY.footer,
-            });
+            const locale = await recipientLocale();
+            const i18n = serverI18n(locale);
+            const rendered = renderInsightsDigestEmail(
+              {
+                subject: i18n._(INSIGHT_EMAIL_COPY.subject),
+                title: i18n._(INSIGHT_EMAIL_COPY.title),
+                intro: i18n._(INSIGHT_EMAIL_COPY.intro),
+                emptyText: i18n._(INSIGHT_EMAIL_COPY.none),
+                items: fresh.map((insight) => {
+                  const view = insightView(insight, deps.displaySettings);
+                  return {
+                    title: view.title,
+                    lines: [
+                      view.body,
+                      view.certaintyText,
+                      view.coverageText,
+                      view.factorsText,
+                    ].filter((line): line is string => line !== null),
+                  };
+                }),
+                appUrl: `${deps.webOrigin}/dashboard`,
+                appLabel: i18n._(INSIGHT_EMAIL_COPY.manage),
+                unsubscribeUrl,
+                unsubscribeLabel: i18n._(INSIGHT_EMAIL_COPY.unsubscribe),
+                footer: i18n._(INSIGHT_EMAIL_COPY.footer),
+              },
+              { locale },
+            );
             try {
               await deps.email.sendEmail(
                 {

@@ -1,3 +1,6 @@
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { INSIGHT_KINDS } from "../insight-contract";
 import type {
   Insight,
@@ -376,8 +379,21 @@ export function insightsListView(
 
 // ─── delivery copy ─────────────────────────────────────────────
 
+/** The app name: a brand, never translated. */
 export const GENERIC_PUSH_TITLE = "OpenValens";
-export const GENERIC_PUSH_BODY = "You have a new insight";
+export const GENERIC_PUSH_BODY = msg`You have a new insight`;
+
+/**
+ * Whole push sentences per topic (#231), so a translation never has to fit a
+ * topic word into a fixed frame.
+ */
+export const INSIGHT_PUSH_TOPIC_BODIES: Record<InsightTopic, MessageDescriptor> = {
+  sleep: msg`You have a new sleep insight`,
+  heart: msg`You have a new heart rate insight`,
+  activity: msg`You have a new activity insight`,
+  body: msg`You have a new body insight`,
+  goals: msg`You have a new goals insight`,
+};
 
 export type InsightPushContent = {
   title: string;
@@ -385,21 +401,19 @@ export type InsightPushContent = {
 };
 
 /**
- * The only text a push may carry. Generic by default; with `showTopic` it
- * names the coarse topic of the first insight ("sleep", "goals", …). It is
- * built from the topic alone, so no value, goal title or date can reach a
- * lock screen or a push provider.
+ * The only text a push may carry, in the recipient's language. Generic by
+ * default; with `showTopic` it names the coarse topic of the first insight
+ * ("sleep", "goals", …). It is built from the topic alone, so no value, goal
+ * title or date can reach a lock screen or a push provider.
  */
 export function insightPushContent(
+  i18n: I18n,
   topic: InsightTopic | null,
   showTopic: boolean,
 ): InsightPushContent {
   return {
     title: GENERIC_PUSH_TITLE,
-    body:
-      showTopic && topic
-        ? `You have a new ${INSIGHT_TOPIC_LABELS[topic]} insight`
-        : GENERIC_PUSH_BODY,
+    body: i18n._(showTopic && topic ? INSIGHT_PUSH_TOPIC_BODIES[topic] : GENERIC_PUSH_BODY),
   };
 }
 
@@ -433,14 +447,21 @@ export const INSIGHT_DELIVERY_COPY = {
   timeZone: "Time zone",
 } as const;
 
+/** The weekly insights email (#92), rendered in the recipient's language (#231). */
 export const INSIGHT_EMAIL_COPY = {
-  subject: "Your weekly insights summary",
-  title: "Your weekly insights",
-  intro:
-    "These describe changes in your own records compared with your own usual. They are not medical advice and say nothing about your health.",
-  none: "Nothing stood out this week.",
-  footer:
-    "You get this email because you turned on the weekly insights summary. It contains values from your health records.",
-  unsubscribe: "Turn off this email",
-  manage: "Notification settings",
-} as const;
+  subject: msg`Your weekly insights summary`,
+  title: msg`Your weekly insights`,
+  intro: msg({
+    message:
+      "These describe changes in your own records compared with your own usual. They are not medical advice and say nothing about your health.",
+    comment: "safety",
+  }),
+  none: msg`Nothing stood out this week.`,
+  footer: msg({
+    message:
+      "You get this email because you turned on the weekly insights summary. It contains values from your health records.",
+    comment: "safety",
+  }),
+  unsubscribe: msg`Turn off this email`,
+  manage: msg`Notification settings`,
+} as const satisfies Record<string, MessageDescriptor>;

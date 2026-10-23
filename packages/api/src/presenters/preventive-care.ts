@@ -1,3 +1,6 @@
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import type {
   Applicability,
   DeclarationAnswer,
@@ -278,30 +281,30 @@ export function preventivePageNotes(result: PreventiveCareResult): {
 
 // ─── reminders (push / email) ──────────────────────────────────
 
+export const REMINDER_PUSH_BODY = msg`You have a reminder`;
+
 /**
- * The only text a reminder push may carry. Fixed and generic: it never names
- * the item, a health topic, a date or a value, so nothing health-related
- * reaches a lock screen or a push provider.
+ * The only text a reminder push may carry, in the recipient's language
+ * (#231). Fixed and generic: it never names the item, a health topic, a date
+ * or a value, so nothing health-related reaches a lock screen or a push
+ * provider. The title is the app name, a brand that is never translated.
  */
-export const REMINDER_PUSH_CONTENT: InsightPushContent = {
-  title: "OpenValens",
-  body: "You have a reminder",
-};
+export function reminderPushContent(i18n: I18n): InsightPushContent {
+  return { title: "OpenValens", body: i18n._(REMINDER_PUSH_BODY) };
+}
 
 /** Reminder email: generic too — the item is shown only inside the app. */
 export const REMINDER_EMAIL_COPY = {
-  subject: "You have a reminder in OpenValens",
-  title: "A date you set has arrived",
-  intro:
-    "A date you set in OpenValens has arrived. Open the app to see it. This email does not include any health details.",
-  itemTitle: "Reminder",
-  itemLine: "Open OpenValens to see which date you set.",
-  none: "Nothing is due.",
-  footer:
-    "You get this email because you set a reminder in OpenValens and turned on email notifications.",
-  unsubscribe: "Turn off these emails",
-  manage: "Open OpenValens",
-} as const;
+  subject: msg`You have a reminder in OpenValens`,
+  title: msg`A date you set has arrived`,
+  intro: msg`A date you set in OpenValens has arrived. Open the app to see it. This email does not include any health details.`,
+  itemTitle: msg`Reminder`,
+  itemLine: msg`Open OpenValens to see which date you set.`,
+  none: msg`Nothing is due.`,
+  footer: msg`You get this email because you set a reminder in OpenValens and turned on email notifications.`,
+  unsubscribe: msg`Turn off these emails`,
+  manage: msg`Open OpenValens`,
+} as const satisfies Record<string, MessageDescriptor>;
 
 // ─── evidence-check library ────────────────────────────────────
 

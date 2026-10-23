@@ -14,6 +14,7 @@
     "auth:generate": "bun x auth@latest generate --config src/services.ts --output ../../packages/db/src/schema/auth.ts --yes"
   },
   "dependencies": {
+    "@lingui/core": "6.9.1",
     "@openvalens/ai": "workspace:*",
     "@openvalens/api": "workspace:*",
     "@openvalens/auth": "workspace:*",
@@ -21,6 +22,7 @@
     "@openvalens/config": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@openvalens/email": "workspace:*",
+    "@openvalens/i18n": "workspace:*",
     "@openvalens/nutrition": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/push": "workspace:*",

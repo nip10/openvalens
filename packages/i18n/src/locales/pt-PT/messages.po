@@ -260,6 +260,10 @@ msgstr "{date}"
 msgid "{day}d ago"
 msgstr "há {day} d"
 
+#: packages/email/src/templates/invitation.tsx
+msgid "{days, plural, one {This invitation expires in # day.} other {This invitation expires in # days.}}"
+msgstr "{days, plural, one {Este convite expira dentro de # dia.} other {Este convite expira dentro de # dias.}}"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "{entered} of {total} values entered"
 msgstr "{entered} de {total} valores introduzidos"
@@ -320,6 +324,18 @@ msgstr "{intensity} · esforço {rating}/10 · sem duração, sem pontos"
 #: packages/api/src/presenters/activity-load.ts
 msgid "{intensity} · effort not rated"
 msgstr "{intensity} · esforço não avaliado"
+
+#: packages/email/src/templates/invitation.tsx
+msgid "{inviterName} invited you to {organizationName} on {appName}"
+msgstr "{inviterName} convidou-o para {organizationName} em {appName}"
+
+#: packages/email/src/templates/invitation.tsx
+msgid "{inviterName} invited you to join {organizationName} on {appName}."
+msgstr "{inviterName} convidou-o para aderir a {organizationName} em {appName}."
+
+#: packages/email/src/templates/invitation.tsx
+msgid "{inviterName} invited you to join {organizationName}."
+msgstr "{inviterName} convidou-o para aderir a {organizationName}."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {A value}} must be 0 or more, or left blank."
@@ -434,6 +450,10 @@ msgstr "{luteal}: {from} a {to}"
 #: packages/api/src/presenters/cochat.ts
 msgid "{min}m ago"
 msgstr "há {min} min"
+
+#: packages/email/src/templates/magic-link.tsx
+msgid "{minutes, plural, one {For your security, this link expires in # minute.} other {For your security, this link expires in # minutes.}}"
+msgstr "{minutes, plural, one {Por segurança, esta ligação expira dentro de # minuto.} other {Por segurança, esta ligação expira dentro de # minutos.}}"
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
@@ -726,6 +746,14 @@ msgstr "Média 7 dias"
 msgid "8 to under 12"
 msgstr "8 a menos de 12"
 
+#: packages/api/src/presenters/preventive-care.ts
+msgid "A date you set has arrived"
+msgstr "Chegou uma data que definiu"
+
+#: packages/api/src/presenters/preventive-care.ts
+msgid "A date you set in OpenValens has arrived. Open the app to see it. This email does not include any health details."
+msgstr "Chegou uma data que definiu no OpenValens. Abra a aplicação para a ver. Este email não inclui nenhum dado de saúde."
+
 #: apps/native/components/profile-setup-prompt.tsx
 #: apps/web/src/components/profile-setup-prompt.tsx
 msgid "A few optional questions so the app can show what matters to you. Skip any of them — everything else works without them."
@@ -793,6 +821,10 @@ msgstr "Abdominais"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Accept"
 msgstr "Aceitar"
+
+#: packages/email/src/templates/invitation.tsx
+msgid "Accept invitation"
+msgstr "Aceitar convite"
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Accept suggestion"
@@ -3584,6 +3616,10 @@ msgstr "Por segurança, confirme que é você com um novo início de sessão."
 msgid "For your security, sign out and sign back in, then return here within 10 minutes."
 msgstr "Por segurança, termine sessão e volte a iniciá-la; depois regresse aqui dentro de 10 minutos."
 
+#: packages/email/src/templates/magic-link.tsx
+msgid "For your security, this link expires soon."
+msgstr "Por segurança, esta ligação expira em breve."
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Forceful"
 msgstr "Enérgico"
@@ -3945,9 +3981,21 @@ msgstr "Uso contraceção hormonal ou não tenho ciclo natural (desliga as estim
 msgid "I'll enter things myself"
 msgstr "Vou introduzir os dados manualmente"
 
+#: packages/email/src/templates/magic-link.tsx
+msgid "If the button does not work, paste this link into your browser: {url}"
+msgstr "Se o botão não funcionar, cole esta ligação no seu navegador: {url}"
+
+#: packages/email/src/templates/magic-link.tsx
+msgid "If you did not request this email, you can safely ignore it."
+msgstr "Se não pediu este email, pode ignorá-lo em segurança."
+
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
 msgstr "Se não registou um dia, ainda o pode adicionar até ao fim de {until}."
+
+#: packages/email/src/templates/invitation.tsx
+msgid "If you were not expecting this invitation, you can ignore this email."
+msgstr "Se não estava à espera deste convite, pode ignorar este email."
 
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
@@ -4190,6 +4238,10 @@ msgstr "Ferro"
 #: packages/api/src/presenters/sleep.ts
 msgid "Irregular schedule"
 msgstr "Horário irregular"
+
+#: apps/server/src/admission-email.ts
+msgid "It expires in 10 minutes."
+msgstr "Expira dentro de 10 minutos."
 
 #. safety
 #: packages/api/src/presenters/score.ts
@@ -5559,6 +5611,10 @@ msgstr "Notas (opcional)"
 msgid "Nothing is compared with other OpenValens users, and you are never placed in an order against other people. Only published tables that ship with the app are used."
 msgstr "Nada é comparado com outros utilizadores da OpenValens, e nunca é colocado numa ordem em relação a outras pessoas. Só são usadas tabelas publicadas incluídas na aplicação."
 
+#: packages/api/src/presenters/preventive-care.ts
+msgid "Nothing is due."
+msgstr "Não há nada pendente."
+
 #: packages/api/src/presenters/micronutrients.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Nothing logged"
@@ -5590,6 +5646,14 @@ msgstr "Nada registado nos últimos 7 dias."
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Nothing saved"
 msgstr "Nada guardado"
+
+#: packages/api/src/presenters/insights.ts
+msgid "Nothing stood out this week."
+msgstr "Nada se destacou esta semana."
+
+#: packages/api/src/presenters/insights.ts
+msgid "Notification settings"
+msgstr "Definições de notificações"
 
 #: apps/native/lib/push-notifications.ts
 msgid "Notifications are blocked for OpenValens in your phone settings, so none will arrive here."
@@ -5802,6 +5866,14 @@ msgstr "Abrir {fileName}"
 #: apps/web/src/components/header.tsx
 msgid "Open navigation menu"
 msgstr "Abrir o menu de navegação"
+
+#: packages/api/src/presenters/preventive-care.ts
+msgid "Open OpenValens"
+msgstr "Abrir o OpenValens"
+
+#: packages/api/src/presenters/preventive-care.ts
+msgid "Open OpenValens to see which date you set."
+msgstr "Abra o OpenValens para ver que data definiu."
 
 #: apps/native/components/barcode-scanner.tsx
 msgid "Open Settings"
@@ -6571,6 +6643,10 @@ msgstr "Recarregar a versão mais recente"
 msgid "REM"
 msgstr "REM"
 
+#: packages/api/src/presenters/preventive-care.ts
+msgid "Reminder"
+msgstr "Lembrete"
+
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -7088,6 +7164,10 @@ msgstr "Secundários: {secondaryNames}"
 msgid "Secure request IDs are unavailable. No request was sent."
 msgstr "Não há identificadores de pedido seguros disponíveis. Nenhum pedido foi enviado."
 
+#: packages/email/src/templates/magic-link.tsx
+msgid "Secure sign-in link"
+msgstr "Ligação segura de início de sessão"
+
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Select a region to see its value."
 msgstr "Selecione uma região para ver o seu valor."
@@ -7335,6 +7415,7 @@ msgstr "Lado"
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
+#: packages/email/src/templates/magic-link.tsx
 msgid "Sign in"
 msgstr "Iniciar sessão"
 
@@ -7350,6 +7431,10 @@ msgstr "Inicie sessão novamente para continuar."
 #: apps/native/components/health-sync-settings.tsx
 msgid "Sign in again to sync."
 msgstr "Inicie sessão novamente para sincronizar."
+
+#: packages/email/src/templates/magic-link.tsx
+msgid "Sign in to {appName}"
+msgstr "Iniciar sessão em {appName}"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -8074,6 +8159,11 @@ msgstr "O email semanal de observações está desligado. Pode voltar a ligá-lo
 msgid "There is not enough recent data to compare with your usual pattern, so no number is shown."
 msgstr "Não há dados recentes suficientes para comparar com o seu padrão habitual, por isso não é mostrado nenhum número."
 
+#. safety
+#: packages/api/src/presenters/insights.ts
+msgid "These describe changes in your own records compared with your own usual. They are not medical advice and say nothing about your health."
+msgstr "Descrevem alterações nos seus próprios registos em comparação com o seu habitual. Não são aconselhamento médico e não dizem nada sobre a sua saúde."
+
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "These manual entries are private to your account. Workspace owners and other members cannot view them. They are separate from shared workspace body records."
 msgstr "Estes registos manuais são privados da sua conta. Os proprietários do espaço de trabalho e outros membros não os podem ver. São separados dos registos corporais partilhados do espaço de trabalho."
@@ -8164,6 +8254,10 @@ msgstr "Este convite já não está pendente."
 msgid "This invitation is no longer pending. It may have expired or already been used."
 msgstr "Este convite já não está pendente. Pode ter expirado ou já ter sido usado."
 
+#: packages/email/src/templates/invitation.tsx
+msgid "This invitation was sent by {appName}."
+msgstr "Este convite foi enviado por {appName}."
+
 #. placeholder {0}: summary.email
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "This invitation was sent to {0}, but you are signed in as {sessionEmail}. Sign in with the matching email to accept."
@@ -8184,6 +8278,14 @@ msgstr "Este é um intervalo recomendado, não uma descrição do que a maioria 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead."
 msgstr "Este é um código de loja ou de artigo pesado, por isso não identifica um produto. Em alternativa, introduza o alimento a partir do rótulo."
+
+#: packages/email/src/templates/layout.tsx
+msgid "This is an automated message from {organizationName}."
+msgstr "Esta é uma mensagem automática de {organizationName}."
+
+#: packages/email/src/templates/magic-link.tsx
+msgid "This is an automated security message from {appName}."
+msgstr "Esta é uma mensagem de segurança automática de {appName}."
 
 #: apps/native/app/modal.tsx
 msgid "This is an example modal screen for dialogs and confirmations."
@@ -8461,7 +8563,12 @@ msgstr "Desligar o email semanal"
 msgid "Turn off the weekly insights email for this workspace?"
 msgstr "Desligar o email semanal de observações para este espaço de trabalho?"
 
+#: packages/api/src/presenters/preventive-care.ts
+msgid "Turn off these emails"
+msgstr "Desligar estes emails"
+
 #: apps/web/src/routes/unsubscribe.tsx
+#: packages/api/src/presenters/insights.ts
 msgid "Turn off this email"
 msgstr "Desligar este email"
 
@@ -8743,6 +8850,10 @@ msgstr "Use no máximo 200 caracteres para o nome."
 msgid "Use the AI provider for this draft"
 msgstr "Usar o fornecedor de IA para este rascunho"
 
+#: packages/email/src/templates/magic-link.tsx
+msgid "Use the button below to continue."
+msgstr "Use o botão abaixo para continuar."
+
 #: apps/native/app/(drawer)/preventive-care.tsx
 msgid "Use the format YYYY-MM-DD."
 msgstr "Use o formato AAAA-MM-DD."
@@ -8750,6 +8861,10 @@ msgstr "Use o formato AAAA-MM-DD."
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Use this"
 msgstr "Usar esta opção"
+
+#: packages/email/src/templates/magic-link.tsx
+msgid "Use this link to securely sign in to {appName}."
+msgstr "Use esta ligação para iniciar sessão em segurança em {appName}."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Use YYYY-MM-DD for the start date."
@@ -8835,6 +8950,10 @@ msgstr "Quantidade de referência dos valores"
 #: apps/web/src/components/admission-form.tsx
 msgid "Verification code"
 msgstr "Código de verificação"
+
+#: apps/server/src/admission-email.ts
+msgid "Verify your email for OpenValens"
+msgstr "Confirme o seu email para o OpenValens"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Verifying…"
@@ -9067,6 +9186,10 @@ msgstr "Sim, tenho 18 anos ou mais"
 msgid "You"
 msgstr "Você"
 
+#: packages/email/src/templates/invitation.tsx
+msgid "You are invited"
+msgstr "Foi convidado"
+
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "You are offline."
 msgstr "Está sem ligação."
@@ -9110,6 +9233,47 @@ msgstr "Optou por não partilhar isto."
 msgid "You do not have access to instance administration."
 msgstr "Não tem acesso à administração da instância."
 
+#: packages/api/src/presenters/preventive-care.ts
+msgid "You get this email because you set a reminder in OpenValens and turned on email notifications."
+msgstr "Recebe este email porque definiu um lembrete no OpenValens e ativou as notificações por email."
+
+#. safety
+#: packages/api/src/presenters/insights.ts
+msgid "You get this email because you turned on the weekly insights summary. It contains values from your health records."
+msgstr "Recebe este email porque ativou o resumo semanal de perspetivas. Contém valores dos seus registos de saúde."
+
+#: packages/api/src/presenters/insights.ts
+msgid "You have a new activity insight"
+msgstr "Tem uma nova perspetiva sobre atividade"
+
+#: packages/api/src/presenters/insights.ts
+msgid "You have a new body insight"
+msgstr "Tem uma nova perspetiva sobre o corpo"
+
+#: packages/api/src/presenters/insights.ts
+msgid "You have a new goals insight"
+msgstr "Tem uma nova perspetiva sobre objetivos"
+
+#: packages/api/src/presenters/insights.ts
+msgid "You have a new heart rate insight"
+msgstr "Tem uma nova perspetiva sobre frequência cardíaca"
+
+#: packages/api/src/presenters/insights.ts
+msgid "You have a new insight"
+msgstr "Tem uma nova perspetiva"
+
+#: packages/api/src/presenters/insights.ts
+msgid "You have a new sleep insight"
+msgstr "Tem uma nova perspetiva sobre sono"
+
+#: packages/api/src/presenters/preventive-care.ts
+msgid "You have a reminder"
+msgstr "Tem um lembrete"
+
+#: packages/api/src/presenters/preventive-care.ts
+msgid "You have a reminder in OpenValens"
+msgstr "Tem um lembrete no OpenValens"
+
 #. placeholder {0}: summary.organizationName
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "You have been invited to join <0>{0}</0> as <1>{role}</1>."
@@ -9118,6 +9282,14 @@ msgstr "Foi convidado para aderir a <0>{0}</0> como <1>{role}</1>."
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "You have been invited to join a workspace as <0>{role}</0>."
 msgstr "Foi convidado para aderir a um espaço de trabalho como <0>{role}</0>."
+
+#: apps/server/src/admission-email.ts
+msgid "You have been invited to OpenValens."
+msgstr "Foi convidado para o OpenValens."
+
+#: packages/email/src/templates/invitation.tsx
+msgid "You have been invited with the {role} role."
+msgstr "Foi convidado com a função {role}."
 
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "You have joined the workspace."
@@ -9143,6 +9315,10 @@ msgstr "Marcou este dia como completo sem nada registado."
 msgid "You marked this day complete."
 msgstr "Marcou este dia como completo."
 
+#: packages/email/src/templates/magic-link.tsx
+msgid "You requested a secure sign-in link for {appName}."
+msgstr "Pediu uma ligação segura de início de sessão para {appName}."
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "You said neither option fits you."
 msgstr "Indicou que nenhuma opção se aplica a si."
@@ -9151,6 +9327,10 @@ msgstr "Indicou que nenhuma opção se aplica a si."
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
 msgstr "Retirou o consentimento para esta resposta, por isso não pode ser guardada. Limpe-a ou mantenha o consentimento."
+
+#: apps/server/src/admission-email.ts
+msgid "You’re invited to OpenValens"
+msgstr "Foi convidado para o OpenValens"
 
 #: apps/web/src/utils/sign-in-options.ts
 msgid "Your {displayName} account uses a different email address than this account."
@@ -9212,9 +9392,17 @@ msgstr "A sua alteração: remover o registo."
 msgid "Your change: the entry values."
 msgstr "A sua alteração: os valores do registo."
 
+#: packages/integrations/telegram/src/reminders.ts
+msgid "Your daily reminder"
+msgstr "O seu lembrete diário"
+
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Your decision about {title}"
 msgstr "A sua decisão sobre {title}"
+
+#: apps/server/src/admission-email.ts
+msgid "Your invitation token is {token}."
+msgstr "O seu token de convite é {token}."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your own trend comes first. If you turn a comparison on, your usual value is shown next to a published guideline range, or a broad band for adults of your age group and sex, with its source named."
@@ -9277,6 +9465,18 @@ msgstr "O seu habitual: {usual} (mediana de {0, plural, one {# dia} other {# dia
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."
 msgstr "Os seus valores incluem leituras de dispositivos. Os dispositivos medem muitas vezes a frequência cardíaca em repouso durante o sono, o que provavelmente dá valores mais baixos do que a pulsação sentada usada na referência, por isso esta faixa pode colocá-lo mais abaixo do que uma leitura sentada colocaria."
+
+#: apps/server/src/admission-email.ts
+msgid "Your verification code is {code}."
+msgstr "O seu código de verificação é {code}."
+
+#: packages/api/src/presenters/insights.ts
+msgid "Your weekly insights"
+msgstr "As suas perspetivas da semana"
+
+#: packages/api/src/presenters/insights.ts
+msgid "Your weekly insights summary"
+msgstr "O seu resumo semanal de perspetivas"
 
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "YYYY-MM-DD"

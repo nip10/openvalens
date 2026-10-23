@@ -762,6 +762,33 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     expect(after.body.email.enabled).toBe(false);
   });
 
+  test("cron: push and email go out in the member's saved language (#231)", async () => {
+    await db.execute(
+      sql`insert into user_preference (user_id, locale) values ('user-a', 'pt-PT') on conflict (user_id) do update set locale = 'pt-PT'`,
+    );
+    // Clear this period's records so both channels can send again.
+    await db.execute(sql`delete from insight_delivery where user_id = 'user-a'`);
+    await call("insights/preferences/update", {
+      email: { enabled: true, acknowledgement: EMAIL_DIGEST_ACKNOWLEDGEMENT_VERSION },
+    });
+    pushes.length = 0;
+    emails.length = 0;
+
+    const run = await runCron();
+    expect(run.body).toMatchObject({ pushSent: 1, emailSent: 1 });
+    expect(pushes[0]).toMatchObject({ title: "OpenValens", body: "Tem uma nova perspetiva" });
+    const email = emails[0]!;
+    expect(email.subject).toBe("O seu resumo semanal de perspetivas");
+    expect(email.text).toContain("Não são aconselhamento médico");
+    expect(email.text).toContain(
+      "Desligar este email: https://app.example.test/unsubscribe?token=",
+    );
+    expect(email.html).toContain('<html lang="pt-PT">');
+    expect(email.html).toContain(">Definições de notificações</a>");
+
+    await db.execute(sql`delete from user_preference where user_id = 'user-a'`);
+  });
+
   test("removing the member removes their preferences and stops delivery", async () => {
     await db.execute(
       sql`insert into member (id, organization_id, user_id, role) values ('m-b-in-a', 'org-a', 'user-b', 'viewer')`,
