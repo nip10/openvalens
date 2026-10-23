@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { createAppI18n } from "@openvalens/i18n";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import { EVIDENCE_CHECK_LIBRARY } from "../evidence-check-library";
 import {
@@ -19,7 +21,7 @@ import {
   preventiveItemCard,
   preventivePageNotes,
   REMINDER_EMAIL_COPY,
-  REMINDER_PUSH_CONTENT,
+  reminderPushContent,
 } from "./preventive-care";
 
 /**
@@ -164,16 +166,31 @@ describe("preventive-care copy", () => {
   });
 
   test("reminder push and email are generic: no item, topic, date or value", () => {
+    const push = reminderPushContent(englishI18n);
     const remote = [
-      REMINDER_PUSH_CONTENT.title,
-      REMINDER_PUSH_CONTENT.body,
-      ...Object.values(REMINDER_EMAIL_COPY),
+      push.title,
+      push.body,
+      ...Object.values(REMINDER_EMAIL_COPY).map(inEnglish),
     ].join("\n");
     for (const item of PREVENTIVE_CARE_PACK.items) {
       expect(remote.toLowerCase()).not.toContain(item.title.toLowerCase());
     }
     expect(remote).not.toMatch(/screening|cancer|smok|\d{4}-\d{2}-\d{2}/i);
-    expect(REMINDER_PUSH_CONTENT.body).toBe("You have a reminder");
+    expect(push).toEqual({ title: "OpenValens", body: "You have a reminder" });
+  });
+
+  test("reminder push and email are translated and stay generic (#231)", () => {
+    const pt = createAppI18n("pt-PT");
+    const push = reminderPushContent(pt);
+    expect(push.title).toBe("OpenValens");
+    expect(push.body).toContain("lembrete");
+    for (const [key, message] of Object.entries(REMINDER_EMAIL_COPY)) {
+      expect({ key, text: pt._(message) }).not.toEqual({ key, text: inEnglish(message) });
+    }
+    const remote = [push.body, ...Object.values(REMINDER_EMAIL_COPY).map((m) => pt._(m))].join(
+      "\n",
+    );
+    expect(remote).not.toMatch(/rastreio|cancro|tabac|fum|\d{4}-\d{2}-\d{2}/i);
   });
 });
 

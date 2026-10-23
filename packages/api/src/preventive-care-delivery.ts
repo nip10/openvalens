@@ -8,6 +8,7 @@ import {
   claimDelivery,
   completeDelivery,
   deliveredInsightIds,
+  lazyRecipientLocale,
   localClock,
   sendGenericPush,
   type InsightDeliveryDeps,
@@ -16,7 +17,8 @@ import { channelsFromDisabled, emailUnsubscribeToken, hashUnsubscribeToken } fro
 import { bandForGrade, REMINDER_BANDS } from "./preventive-care-contract";
 import { isBeingReviewed } from "./preventive-care-engine";
 import { findPreventiveItem, PREVENTIVE_CARE_PACK } from "./preventive-care-pack";
-import { REMINDER_EMAIL_COPY, REMINDER_PUSH_CONTENT } from "./presenters/preventive-care";
+import { serverI18n } from "./locale";
+import { REMINDER_EMAIL_COPY, reminderPushContent } from "./presenters/preventive-care";
 import { deriveWellnessProfileInputs } from "./wellness-profile-contract";
 import { createWellnessProfileService } from "./wellness-profile";
 
@@ -103,6 +105,7 @@ export async function runPreventiveReminderDelivery(
     result.candidates += 1;
     const scope = { organizationId: candidate.organization_id, userId: candidate.user_id };
     const log = { correlationId, organizationId: scope.organizationId, userId: scope.userId };
+    const recipientLocale = lazyRecipientLocale(deps, scope.userId);
     try {
       const clock = localClock(now, candidate.time_zone);
       if (clock.hour < candidate.delivery_hour) {
@@ -156,12 +159,14 @@ export async function runPreventiveReminderDelivery(
         if (claim === null) result.skipped += 1;
         else {
           try {
+            const locale = await recipientLocale();
             const outcome = await sendGenericPush(db, deps.push, {
               userId: scope.userId,
               topic: null,
               showTopic: false,
               path: "/preventive-care",
-              content: REMINDER_PUSH_CONTENT,
+              locale,
+              content: reminderPushContent(serverI18n(locale)),
             });
             if (outcome.status === "sent") {
               await completeDelivery(db, claim, { status: "sent", at: now });
@@ -220,20 +225,28 @@ export async function runPreventiveReminderDelivery(
               ),
             );
           const unsubscribeUrl = `${deps.webOrigin}/unsubscribe?token=${token}`;
-          const rendered = renderInsightsDigestEmail({
-            subject: REMINDER_EMAIL_COPY.subject,
-            title: REMINDER_EMAIL_COPY.title,
-            intro: REMINDER_EMAIL_COPY.intro,
-            emptyText: REMINDER_EMAIL_COPY.none,
-            items: [
-              { title: REMINDER_EMAIL_COPY.itemTitle, lines: [REMINDER_EMAIL_COPY.itemLine] },
-            ],
-            appUrl: `${deps.webOrigin}/preventive-care`,
-            appLabel: REMINDER_EMAIL_COPY.manage,
-            unsubscribeUrl,
-            unsubscribeLabel: REMINDER_EMAIL_COPY.unsubscribe,
-            footer: REMINDER_EMAIL_COPY.footer,
-          });
+          const locale = await recipientLocale();
+          const i18n = serverI18n(locale);
+          const rendered = renderInsightsDigestEmail(
+            {
+              subject: i18n._(REMINDER_EMAIL_COPY.subject),
+              title: i18n._(REMINDER_EMAIL_COPY.title),
+              intro: i18n._(REMINDER_EMAIL_COPY.intro),
+              emptyText: i18n._(REMINDER_EMAIL_COPY.none),
+              items: [
+                {
+                  title: i18n._(REMINDER_EMAIL_COPY.itemTitle),
+                  lines: [i18n._(REMINDER_EMAIL_COPY.itemLine)],
+                },
+              ],
+              appUrl: `${deps.webOrigin}/preventive-care`,
+              appLabel: i18n._(REMINDER_EMAIL_COPY.manage),
+              unsubscribeUrl,
+              unsubscribeLabel: i18n._(REMINDER_EMAIL_COPY.unsubscribe),
+              footer: i18n._(REMINDER_EMAIL_COPY.footer),
+            },
+            { locale },
+          );
           try {
             await deps.email.sendEmail(
               {

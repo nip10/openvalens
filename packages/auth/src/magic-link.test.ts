@@ -192,4 +192,37 @@ describe("sendAuthMagicLink", () => {
 
     expect(lines.map(parseLine).some((line) => line.event === "auth.magic-link.sent")).toBe(true);
   });
+
+  test("renders in the requested language; the log line is unchanged (#231)", async () => {
+    const calls: CapturedCall[] = [];
+    const { logger, lines } = createCapturingLogger();
+
+    await sendAuthMagicLink(PAYLOAD, {
+      sendEmail: async (input, options) => {
+        calls.push({ input, options });
+        return { id: "msg-1", dryRun: false };
+      },
+      logger,
+      locale: "pt-PT",
+    });
+
+    expect(calls[0]?.input.subject).toBe("Iniciar sessão em Health");
+    expect(calls[0]?.input.text).toContain("Pediu uma ligação segura de início de sessão");
+    expect(calls[0]?.input.html).toContain(">Iniciar sessão</a>");
+    const success = lines.map(parseLine).find((line) => line.event === "auth.magic-link.sent");
+    expect(success?.subject).toBe("Sign in to Health");
+    expect(lines.join("\n")).not.toMatch(/pt-PT|Iniciar/);
+  });
+
+  test("defaults to English", async () => {
+    const calls: CapturedCall[] = [];
+    await sendAuthMagicLink(PAYLOAD, {
+      sendEmail: async (input, options) => {
+        calls.push({ input, options });
+        return { id: "msg-1", dryRun: false };
+      },
+      logger: createCapturingLogger().logger,
+    });
+    expect(calls[0]?.input.text).toContain("You requested a secure sign-in link for Health.");
+  });
 });

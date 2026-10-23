@@ -9,5 +9,10 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "references": [{ "path": "../db" }, { "path": "../observability" }, { "path": "../config" }]
+  "references": [
+    { "path": "../i18n" },
+    { "path": "../db" },
+    { "path": "../observability" },
+    { "path": "../config" }
+  ]
 }

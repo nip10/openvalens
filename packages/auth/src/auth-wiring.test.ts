@@ -8,6 +8,8 @@ import {
   type SendEmailOptions,
 } from "@openvalens/email";
 
+import type { MessageLocales } from "@openvalens/i18n/server";
+
 import { roles } from "./access/better-auth";
 import { createAuth } from "./index";
 
@@ -52,7 +54,7 @@ type InvitationArgs = {
   email: string;
   invitation: { id: string; role: string };
   organization: { name: string };
-  inviter: { user: { name?: string; email: string } };
+  inviter: { user: { id?: string; name?: string; email: string } };
 };
 
 type MagicLinkData = { email: string; url: string; token: string; metadata?: unknown };
@@ -169,6 +171,105 @@ describe("createAuth email wiring", () => {
     expect(withDesktop.options.trustedOrigins).toContain("openvalens://desktop");
     expect(withoutDesktop.options.trustedOrigins).not.toContain("openvalens://desktop");
     expect(withoutDesktop.options.trustedOrigins).toContain("http://localhost:3000");
+  });
+});
+
+describe("createAuth email language (Issue #231)", () => {
+  /** Saved languages by address and by user id; an address missing here has no account. */
+  function fakeLocales(
+    byEmail: Record<string, "en" | "pt-PT">,
+    byUser: Record<string, "en" | "pt-PT"> = {},
+  ): MessageLocales {
+    return {
+      forEmail: async (email) => byEmail[email.toLowerCase()] ?? null,
+      forUser: async (userId) => byUser[userId] ?? "en",
+    };
+  }
+
+  function buildLocalizedAuth(service: EmailService, locales: MessageLocales) {
+    return createAuth(ENV, fakeDatabase, { email: service, locales });
+  }
+
+  async function sendMagicLink(auth: ReturnType<typeof createAuth>, email: string) {
+    await pluginOptions(auth, "magic-link").sendMagicLink?.(
+      { email, url: "https://app.example/magic-link/verify?token=raw-token", token: "raw-token" },
+      { getHeader: () => undefined },
+    );
+  }
+
+  test("a magic link uses the account's saved language", async () => {
+    const { service, calls } = createFakeEmailService("Alpha");
+    const auth = buildLocalizedAuth(
+      service,
+      fakeLocales({ "pt@example.com": "pt-PT", "en@example.com": "en" }),
+    );
+
+    await sendMagicLink(auth, "PT@example.com");
+    await sendMagicLink(auth, "en@example.com");
+    await sendMagicLink(auth, "nobody@example.com");
+
+    expect(calls.map((call) => call.input.subject)).toEqual([
+      "Iniciar sessão em Health",
+      "Sign in to Health",
+      "Sign in to Health",
+    ]);
+    expect(calls[0]?.input.text).toContain("Por segurança, esta ligação expira");
+    expect(calls[1]?.input.text).toContain("For your security, this link expires");
+  });
+
+  test("a magic link falls back to English when the lookup fails", async () => {
+    const { service, calls } = createFakeEmailService("Alpha");
+    const auth = buildLocalizedAuth(service, {
+      forEmail: async () => {
+        throw new Error("db down");
+      },
+      forUser: async () => "pt-PT",
+    });
+
+    await sendMagicLink(auth, "user@example.com");
+    expect(calls[0]?.input.subject).toBe("Sign in to Health");
+  });
+
+  test("a workspace invitation uses the recipient's language", async () => {
+    const { service, calls } = createFakeEmailService("Alpha");
+    const auth = buildLocalizedAuth(
+      service,
+      fakeLocales({ "invitee@example.com": "pt-PT" }, { "inviter-1": "en" }),
+    );
+
+    await pluginOptions(auth, "organization").sendInvitationEmail?.({
+      ...INVITATION_ARGS,
+      inviter: { user: { id: "inviter-1", name: "Dr. Who", email: "inviter@example.com" } },
+    });
+
+    expect(calls[0]?.input.subject).toBe("Dr. Who convidou-o para Acme Health em Health");
+    expect(calls[0]?.input.html).toContain("Este convite expira dentro de 2 dias.");
+    expect(calls[0]?.input.html).toContain("http://localhost:3000/accept-invitation/inv-1");
+  });
+
+  test("a workspace invitation to an address with no account uses the inviter's language", async () => {
+    const { service, calls } = createFakeEmailService("Alpha");
+    const auth = buildLocalizedAuth(service, fakeLocales({}, { "inviter-1": "pt-PT" }));
+
+    await pluginOptions(auth, "organization").sendInvitationEmail?.({
+      ...INVITATION_ARGS,
+      inviter: { user: { id: "inviter-1", name: "Dr. Who", email: "inviter@example.com" } },
+    });
+    expect(calls[0]?.input.subject).toBe("Dr. Who convidou-o para Acme Health em Health");
+  });
+
+  test("a recipient with an English account gets English even from a pt-PT inviter", async () => {
+    const { service, calls } = createFakeEmailService("Alpha");
+    const auth = buildLocalizedAuth(
+      service,
+      fakeLocales({ "invitee@example.com": "en" }, { "inviter-1": "pt-PT" }),
+    );
+
+    await pluginOptions(auth, "organization").sendInvitationEmail?.({
+      ...INVITATION_ARGS,
+      inviter: { user: { id: "inviter-1", name: "Dr. Who", email: "inviter@example.com" } },
+    });
+    expect(calls[0]?.input.subject).toBe("Dr. Who invited you to Acme Health on Health");
   });
 });
 

@@ -4,10 +4,11 @@ import {
   type EmailRenderOptions,
   type SendEmailFn,
 } from "@openvalens/email";
+import type { Locale } from "@openvalens/i18n";
 import { createStructuredLogger } from "@openvalens/observability";
 
 import { buildMagicLinkSuccessLogMetadata } from "./auth-logging";
-import { renderMagicLinkEmail } from "./email/templates/magic-link";
+import { magicLinkEmailSubject, renderMagicLinkEmail } from "./email/templates/magic-link";
 
 const DEFAULT_EXPIRES_IN_SECONDS = 600;
 const CORRELATION_ID_MAX_LENGTH = 64;
@@ -38,6 +39,8 @@ export type SendAuthMagicLinkOptions = {
   sendEmail: SendEmailFn;
   /** Branding name for the rendered email; defaults to the `Health` brand. */
   organizationName?: EmailRenderOptions["organizationName"];
+  /** The recipient's language (#231); English when omitted. */
+  locale?: Locale;
   /**
    * Local development only: receives the sign-in URL when the email was a
    * dry run (no provider configured), so a developer can sign in. Never set
@@ -168,7 +171,7 @@ export async function sendAuthMagicLink(
       correlationId,
       expiresInMinutes: Math.round(expiresInSeconds / 60),
     },
-    { organizationName: options.organizationName },
+    { organizationName: options.organizationName, locale: options.locale },
   );
 
   const tokenFingerprint = await fingerprintToken(payload.token);
@@ -227,7 +230,9 @@ export async function sendAuthMagicLink(
   // slips them into the metadata.
   logger.info(event, {
     ...metadata,
-    subject: rendered.subject,
+    // Always the English subject, so the log never reveals the recipient's
+    // language (#231).
+    subject: magicLinkEmailSubject(),
     sender: "resend",
   });
 }

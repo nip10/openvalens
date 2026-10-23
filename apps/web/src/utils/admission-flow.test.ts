@@ -76,6 +76,62 @@ function deferredWithReject<T>() {
   return { promise, reject };
 }
 
+describe("createAdmissionFlow locale (#231)", () => {
+  function flowWithLocale(api: AdmissionApi, getLocale: () => string | undefined) {
+    return createAdmissionFlow({
+      kind: "setup",
+      userId: null,
+      sessionEmail: null,
+      onRequestMagicLink: async () => {},
+      onStateChange: () => {},
+      admissionApi: api,
+      getLocale,
+    });
+  }
+
+  test("begin and resend send the current shipped UI language", async () => {
+    const { api, calls } = makeApi();
+    let locale = "pt-PT";
+    const flow = flowWithLocale(api, () => locale);
+    flow.setEmail("owner@example.test");
+    flow.setCredential("setup-token");
+    await flow.begin();
+    locale = "en";
+    await flow.resend();
+    expect(calls).toEqual([
+      {
+        type: "begin",
+        input: {
+          kind: "setup",
+          credential: "setup-token",
+          email: "owner@example.test",
+          locale: "pt-PT",
+        },
+      },
+      {
+        type: "begin",
+        input: {
+          kind: "setup",
+          credential: "setup-token",
+          email: "owner@example.test",
+          locale: "en",
+        },
+      },
+    ]);
+  });
+
+  test("an unshipped or missing language is left out", async () => {
+    for (const locale of ["fr", undefined]) {
+      const { api, calls } = makeApi();
+      const flow = flowWithLocale(api, () => locale);
+      flow.setEmail("owner@example.test");
+      flow.setCredential("setup-token");
+      await flow.begin();
+      expect("locale" in ((calls[0] as { input: object }).input ?? {})).toBe(false);
+    }
+  });
+});
+
 describe("createAdmissionFlow", () => {
   test("begin → code step with enrollmentId, then complete → success", async () => {
     const { api } = makeApi();

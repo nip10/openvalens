@@ -438,6 +438,28 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
     expect(email?.headers?.["List-Unsubscribe"]).toContain("unsubscribe?token=");
   });
 
+  test("reminders go out in the member's saved language (#231)", async () => {
+    await db.execute(
+      sql`insert into user_preference (user_id, locale) values ('user-a', 'pt-PT') on conflict (user_id) do update set locale = 'pt-PT'`,
+    );
+    await db.execute(sql`delete from insight_delivery where user_id = 'user-a'`);
+    pushes.length = 0;
+    emails.length = 0;
+
+    const run = await runCron();
+    expect(run.body).toMatchObject({ remindersPushSent: 1, remindersEmailSent: 1 });
+    expect(pushes[0]).toMatchObject({ title: "OpenValens", body: "Tem um lembrete" });
+    const email = emails.find((entry) => entry.templateName === "preventive-reminder");
+    expect(email?.subject).toBe("Tem um lembrete no OpenValens");
+    expect(email?.text).toContain("Chegou uma data que definiu no OpenValens.");
+    expect(email?.html).toContain('<html lang="pt-PT">');
+    expect(`${email?.text}${email?.html}`).not.toMatch(
+      /breast|blood pressure|screening|mama|tensão|rastreio|cancro/i,
+    );
+
+    await db.execute(sql`delete from user_preference where user_id = 'user-a'`);
+  });
+
   test("logs and delivery records carry no answers, dates or addresses", async () => {
     const all = logged
       .join("")

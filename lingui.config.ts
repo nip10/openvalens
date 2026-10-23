@@ -25,6 +25,8 @@ export default defineConfig({
         // Server code renders email and push in the recipient's language (#231).
         "<rootDir>/packages/api/src",
         "<rootDir>/packages/auth/src",
+        "<rootDir>/packages/email/src",
+        "<rootDir>/packages/integrations/telegram/src",
         "<rootDir>/apps/server/src",
       ],
       exclude: ["**/node_modules/**", "**/*.test.*", "**/routeTree.gen.ts"],

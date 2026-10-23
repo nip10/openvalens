@@ -347,4 +347,49 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
     // cron.test.ts (orchestration in isolation); here we confirm each
     // per-org call returns a typed outcome either way.
   });
+
+  test("the email fallback subject is in the member's language; the label is sent as written (#231)", async () => {
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email, banned) values
+        ('user-pt', 'pt@example.test', false),
+        ('user-en', 'en@example.test', false);
+      insert into "organization" (id, name, slug) values ('org-l', 'L', 'l');
+      insert into "member" (id, organization_id, user_id, role) values
+        ('m-pt', 'org-l', 'user-pt', 'owner'),
+        ('m-en', 'org-l', 'user-en', 'member');
+      insert into "user_preference" (user_id, locale) values ('user-pt', 'pt-PT');
+      insert into "daily_reminder"
+        (organization_id, user_id, date, source_type, source_id, label, created_at)
+      values
+        ('org-l', 'user-pt', '${date}', 'supplement', 7, 'Vitamina D <manhã>', '${date}'),
+        ('org-l', 'user-en', '${date}', 'supplement', 8, 'Vitamin D', '${date}');
+    `),
+    );
+    const sent: SendEmailInput[] = [];
+    const { client } = fakeChannels();
+    const result = await materializeDailyReminders({
+      db,
+      client,
+      logger: capturingLogger().logger,
+      correlationId: "corr-locale",
+      organizationId: "org-l",
+      date,
+      email: {
+        sendEmail: async (input) => {
+          sent.push(input);
+          return { id: "email-1", dryRun: false };
+        },
+        organizationName: "Health",
+      },
+    });
+
+    expect(result.sent).toBe(2);
+    const byRecipient = Object.fromEntries(sent.map((input) => [String(input.to), input]));
+    expect(byRecipient["pt@example.test"]?.subject).toBe("O seu lembrete diário");
+    expect(byRecipient["pt@example.test"]?.text).toBe("Vitamina D <manhã>");
+    expect(byRecipient["pt@example.test"]?.html).toBe("<p>Vitamina D &lt;manhã&gt;</p>");
+    expect(byRecipient["en@example.test"]?.subject).toBe("Your daily reminder");
+    expect(byRecipient["en@example.test"]?.text).toBe("Vitamin D");
+  });
 });

@@ -1,13 +1,30 @@
+import type { I18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { SOURCE_LOCALE, type Locale } from "@openvalens/i18n";
+import { serverI18n } from "@openvalens/i18n/server";
+
 const FALLBACK_ORGANIZATION_NAME = "Health";
 
 /**
  * Branding options threaded from a bound `EmailService` (which structurally
  * satisfies this) or supplied directly. `organizationName` is presentation
  * only — never delivery config — and defaults to the `Health` brand.
+ * `locale` is the recipient's language (#231); English when omitted.
  */
 export type EmailRenderOptions = {
   organizationName?: string;
+  locale?: Locale;
 };
+
+/** The recipient's language for a template, English by default (#231). */
+export function emailLocale(options: EmailRenderOptions = {}): Locale {
+  return options.locale ?? SOURCE_LOCALE;
+}
+
+/** The shared Lingui instance a template renders its text with. */
+export function emailI18n(options: EmailRenderOptions = {}): I18n {
+  return serverI18n(emailLocale(options));
+}
 
 export function escapeHtml(value: string): string {
   return value
@@ -56,7 +73,9 @@ export function renderLayout(
 ): RenderedLayout {
   const organizationName = options.organizationName ?? FALLBACK_ORGANIZATION_NAME;
   const year = new Date().getFullYear();
-  const footerText = input.footerText ?? `This is an automated message from ${organizationName}.`;
+  const footerText =
+    input.footerText ??
+    emailI18n(options)._(msg`This is an automated message from ${organizationName}.`);
 
   const preheader = input.preheader
     ? `<span style="display:none;visibility:hidden;opacity:0;height:0;width:0;">${escapeHtml(
@@ -74,7 +93,7 @@ export function renderLayout(
       : "";
 
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${emailLocale(options)}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

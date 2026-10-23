@@ -373,7 +373,10 @@ describe.skipIf(!url)("AI remaining health tools against disposable PostgreSQL",
       latest: { weightKg: 72.4 },
       trend: "down",
     });
-    expect(JSON.stringify(result)).not.toContain("99");
+    // The legacy-only value must not be blended in. generatedAt is left out:
+    // a timestamp such as ".499Z" would match by chance.
+    const { generatedAt: _generatedAt, ...values } = result as Record<string, unknown>;
+    expect(JSON.stringify(values)).not.toContain("99");
     expectRedacted(result);
   });
 

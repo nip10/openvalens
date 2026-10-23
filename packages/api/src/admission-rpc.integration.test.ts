@@ -7,6 +7,7 @@ import { createDb, sql, type Database } from "@openvalens/db";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "./context";
+import { databaseMessageLocales, localeForInvitee, writeUserLocale } from "./locale";
 import { appRouter } from "./routers/index";
 
 /**
@@ -45,13 +46,18 @@ async function migrate(db: Database): Promise<void> {
 
 describe.skipIf(!url)("admission RPC over real HTTP against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/admission_rpc_test" });
-  const delivered: { email: string; code: string }[] = [];
+  const delivered: { email: string; code: string; locale?: string }[] = [];
+  const invited: { email: string; locale: string }[] = [];
+  const locales = databaseMessageLocales(db);
   const service = createAdmissionService({
     db,
-    deliverVerification: async ({ email, verificationCode }) => {
-      delivered.push({ email, code: verificationCode });
+    deliverVerification: async ({ email, verificationCode, locale }) => {
+      delivered.push({ email, code: verificationCode, ...(locale ? { locale } : {}) });
     },
-    deliverInvitation: async () => {},
+    // Issue #231 — the language the server's sender would pick.
+    deliverInvitation: async ({ email, inviterUserId }) => {
+      invited.push({ email, locale: await localeForInvitee(locales, email, inviterUserId) });
+    },
   });
 
   let adminUserId = "";
@@ -155,12 +161,14 @@ describe.skipIf(!url)("admission RPC over real HTTP against disposable PostgreSQ
 
     const begin = await call(
       "admission/begin",
-      { kind: "setup", credential: minted.token, email: "first@example.test" },
+      { kind: "setup", credential: minted.token, email: "first@example.test", locale: "pt-PT" },
       { origin: ORIGIN },
     );
     expect(begin.status).toBe(200);
     const enrollmentId = (begin.json as { enrollmentId: string }).enrollmentId;
     expect(delivered.at(-1)?.email).toBe("first@example.test");
+    // Issue #231 — the page's language reaches the verification sender.
+    expect(delivered.at(-1)?.locale).toBe("pt-PT");
     const code = delivered.at(-1)!.code;
 
     const complete = await call(
@@ -228,6 +236,19 @@ describe.skipIf(!url)("admission RPC over real HTTP against disposable PostgreSQ
     );
     expect(issued.status).toBe(200);
     expect((issued.json as { invitationId: string }).invitationId).toBeString();
+    // Issue #231 — no account yet and an English administrator: English.
+    expect(invited.at(-1)).toEqual({ email: "invitee@example.test", locale: "en" });
+
+    // A pt-PT administrator's invitation to a new address goes out in pt-PT.
+    await writeUserLocale(db, adminUserId, "pt-PT");
+    const second = await call(
+      "admission/issueInvitation",
+      { email: "invitee-pt@example.test" },
+      { origin: ORIGIN, sessionValue: adminSession },
+    );
+    expect(second.status).toBe(200);
+    expect(invited.at(-1)).toEqual({ email: "invitee-pt@example.test", locale: "pt-PT" });
+    await db.execute(sql`delete from user_preference where user_id = ${adminUserId}`);
 
     const list = await call("admission/listInvitations", {}, { sessionValue: adminSession });
     expect(list.status).toBe(200);

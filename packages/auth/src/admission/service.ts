@@ -1,4 +1,5 @@
 import { sql, type Database } from "@openvalens/db";
+import { isLocale, type Locale } from "@openvalens/i18n";
 
 import { isInstanceAdminRole } from "../authz/instance-admin";
 import {
@@ -63,11 +64,19 @@ export type DeliverVerification = (input: {
   email: string;
   kind: AdmissionKind;
   verificationCode: string;
+  /**
+   * Issue #231 — the language the person is using the app in, when the
+   * client sent a shipped one. The sender falls back to the account's saved
+   * language, then English.
+   */
+  locale?: Locale;
 }) => Promise<void>;
 
 export type DeliverInvitation = (input: {
   email: string;
   invitationToken: string;
+  /** Issue #231 — the issuing administrator, whose language is the fallback. */
+  inviterUserId: string;
 }) => Promise<void>;
 
 export type AdmissionDeps = {
@@ -86,6 +95,8 @@ export type AdmissionBeginInput = {
   kind: AdmissionKind;
   credential: string;
   email: string;
+  /** Issue #231 — the app language, for the verification email. Anything unshipped is ignored. */
+  locale?: Locale;
 };
 
 export type AdmissionCompleteInput = {
@@ -498,6 +509,7 @@ export function createAdmissionService(deps: AdmissionDeps): AdmissionService {
       throw new AdmissionError("DENIED");
     }
     requireEmailDelivery();
+    const locale = isLocale(input.locale) ? input.locale : undefined;
 
     const issued = await run(db, async (tx) => {
       const singleton = requireSingleton(await lockSingleton(tx));
@@ -511,6 +523,7 @@ export function createAdmissionService(deps: AdmissionDeps): AdmissionService {
         email: issued.email,
         kind,
         verificationCode: issued.code,
+        ...(locale ? { locale } : {}),
       });
     } catch {
       throw new AdmissionError("DELIVERY_FAILED");
@@ -855,7 +868,11 @@ export function createAdmissionService(deps: AdmissionDeps): AdmissionService {
     });
 
     try {
-      await deliverInvitation({ email: issued.email, invitationToken: token });
+      await deliverInvitation({
+        email: issued.email,
+        invitationToken: token,
+        inviterUserId: identity.userId,
+      });
     } catch {
       throw new AdmissionError("DELIVERY_FAILED");
     }

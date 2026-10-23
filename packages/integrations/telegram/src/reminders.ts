@@ -1,7 +1,14 @@
+import { msg } from "@lingui/core/macro";
 import type { Database } from "@openvalens/db";
 import { member, user } from "@openvalens/db/schema/auth";
 import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
 import type { EmailService } from "@openvalens/email";
+import {
+  databaseMessageLocales,
+  localeOrEnglish,
+  serverI18n,
+  type MessageLocales,
+} from "@openvalens/i18n/server";
 import type { StructuredLogger } from "@openvalens/observability";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
@@ -43,7 +50,8 @@ import type { TelegramClient } from "./client";
 /** Sentinel `telegram_message_id` marking an email-delivered reminder. */
 export const EMAIL_DELIVERED_TELEGRAM_MESSAGE_ID = -2;
 
-const REMINDER_EMAIL_SUBJECT = "Your daily reminder";
+/** Issue #231 — rendered in the member's language. */
+const REMINDER_EMAIL_SUBJECT = msg`Your daily reminder`;
 const REMINDER_EMAIL_TEMPLATE = "daily-reminder";
 
 /** Diagnostic reasons recorded in log lines and counted in results. */
@@ -68,6 +76,11 @@ export type MaterializeDailyRemindersDeps = {
   date?: string;
   /** Config-bound email transport; required. */
   email: EmailService;
+  /**
+   * Issue #231 — how to find the member's language for the email fallback.
+   * Defaults to their saved preference in `db`; tests inject a fake.
+   */
+  locales?: Pick<MessageLocales, "forUser">;
 };
 
 export type MaterializeDailyRemindersResult = {
@@ -127,6 +140,7 @@ export async function materializeDailyReminders(
   deps: MaterializeDailyRemindersDeps,
 ): Promise<MaterializeDailyRemindersResult> {
   const { db, client, logger, correlationId, organizationId, email } = deps;
+  const locales = deps.locales ?? databaseMessageLocales(db);
   const date = deps.date ?? todayUtcDate();
 
   if (!client) {
@@ -242,10 +256,13 @@ export async function materializeDailyReminders(
     } else if (recipientEmail) {
       channel = "email";
       send = async () => {
+        // The label is the member's own text and is sent as written; only
+        // the subject is translated (#231).
+        const locale = await localeOrEnglish(locales.forUser(reminder.userId));
         await email.sendEmail(
           {
             to: recipientEmail,
-            subject: REMINDER_EMAIL_SUBJECT,
+            subject: serverI18n(locale)._(REMINDER_EMAIL_SUBJECT),
             html: `<p>${escapeHtml(reminder.label)}</p>`,
             text: reminder.label,
             templateName: REMINDER_EMAIL_TEMPLATE,

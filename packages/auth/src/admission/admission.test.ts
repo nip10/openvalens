@@ -280,8 +280,13 @@ class FakeAdmissionDb {
 
 function makeService(options: { emailDeliveryAvailable?: boolean } = {}) {
   const fake = new FakeAdmissionDb();
-  const verifications: { email: string; kind: string; verificationCode: string }[] = [];
-  const invitations: { email: string; invitationToken: string }[] = [];
+  const verifications: {
+    email: string;
+    kind: string;
+    verificationCode: string;
+    locale?: string;
+  }[] = [];
+  const invitations: { email: string; invitationToken: string; inviterUserId: string }[] = [];
   const service = createAdmissionService({
     db: fake as unknown as Database,
     deliverVerification: async (input) => {
@@ -607,6 +612,52 @@ describe("begin(invitation)", () => {
       email: "invitee@example.test",
     });
     expect(begun.enrollmentId).toBe(issued.invitationId);
+  });
+});
+
+// ─── email language (Issue #231) ───────────────────────────────
+
+describe("email language", () => {
+  test("begin hands a shipped app language to the verification sender", async () => {
+    const { fake, service, verifications } = makeService();
+    seedPending(fake);
+    const minted = await service.mintSetupToken();
+
+    await service.begin({
+      kind: "setup",
+      credential: minted.token,
+      email: "new@example.test",
+      locale: "pt-PT",
+    });
+    expect(verifications[0]?.locale).toBe("pt-PT");
+  });
+
+  test("begin ignores a missing or unshipped language", async () => {
+    const { fake, service, verifications } = makeService();
+    seedPending(fake);
+    const minted = await service.mintSetupToken();
+
+    await service.begin({ kind: "setup", credential: minted.token, email: "new@example.test" });
+    await service.begin({
+      kind: "setup",
+      credential: minted.token,
+      email: "new@example.test",
+      locale: "fr" as never,
+    });
+    expect(verifications).toHaveLength(2);
+    for (const verification of verifications) expect("locale" in verification).toBe(false);
+  });
+
+  test("issueInvitation names the issuing administrator for the language fallback", async () => {
+    const { fake, service, invitations } = makeService();
+    seedInviteOnly(fake);
+    addUser(fake, "admin-1", "admin@example.test", "admin");
+
+    await service.issueInvitation({ email: "invitee@example.test" }, sessionFor("admin-1"));
+    expect(invitations[0]).toMatchObject({
+      email: "invitee@example.test",
+      inviterUserId: "admin-1",
+    });
   });
 });
 

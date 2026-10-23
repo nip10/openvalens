@@ -423,7 +423,9 @@ describe.skipIf(!url)("admission auth HTTP against disposable PostgreSQL", () =>
 
   test("production-like SDK origin enforcement runs in an isolated child process", async () => {
     const fixture = new URL("./testing/admission-origin-fixture.ts", import.meta.url).pathname;
-    const child = Bun.spawn(["bun", "--no-env-file", fixture], {
+    // Auth email templates use Lingui macros (#231); compile them in the child too.
+    const macros = new URL("../../../scripts/test/lingui-macro.ts", import.meta.url).pathname;
+    const child = Bun.spawn(["bun", "--no-env-file", "--preload", macros, fixture], {
       cwd: new URL("..", import.meta.url).pathname,
       env: {
         PATH: process.env.PATH ?? "",

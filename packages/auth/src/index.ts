@@ -7,6 +7,12 @@ import {
   type EmailService,
   renderInvitationEmail,
 } from "@openvalens/email";
+import {
+  databaseMessageLocales,
+  localeForEmail,
+  localeForInvitee,
+  type MessageLocales,
+} from "@openvalens/i18n/server";
 import { createStructuredLogger } from "@openvalens/observability";
 import { betterAuth } from "better-auth";
 import { APIError, createAuthMiddleware, getAuthoritativeSessionFromCtx } from "better-auth/api";
@@ -70,6 +76,11 @@ export type CreateAuthOptions = {
    * .provider`. Omitted or `null` keeps sign-in magic-link only.
    */
   oidc?: OidcProviderConfig | null;
+  /**
+   * Issue #231 — how auth email finds the recipient's language. Defaults to
+   * the saved preferences in `database`; tests inject a fake.
+   */
+  locales?: MessageLocales;
 };
 
 /**
@@ -111,6 +122,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
   const email = options.email;
   const devLinkSink = devMagicLinkSink(env);
   const oidc = options.oidc ?? null;
+  const locales = options.locales ?? databaseMessageLocales(database);
 
   return betterAuth({
     database: drizzleAdapter(database, {
@@ -322,6 +334,8 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
           },
         },
         sendInvitationEmail: async ({ email: recipient, invitation, organization, inviter }) => {
+          // Issue #231 — the recipient's language, else the inviter's.
+          const locale = await localeForInvitee(locales, recipient, inviter.user.id);
           const rendered = renderInvitationEmail(
             {
               inviterName: inviter.user.name || inviter.user.email,
@@ -330,7 +344,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
               expiresInDays: Math.round(INVITATION_EXPIRES_IN_SECONDS / (60 * 60 * 24)),
               role: invitation.role,
             },
-            email,
+            { organizationName: email.organizationName, locale },
           );
 
           try {
@@ -377,7 +391,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
         disableSignUp: true,
         storeToken: "hashed",
         expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
-        sendMagicLink: (data, ctx) =>
+        sendMagicLink: async (data, ctx) =>
           sendAuthMagicLink(
             {
               email: data.email,
@@ -391,6 +405,8 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
               devLinkSink,
               sendEmail: email.sendEmail,
               organizationName: email.organizationName,
+              // Issue #231 — the account's language, English when unknown.
+              locale: await localeForEmail(locales, data.email),
             },
           ),
       }),

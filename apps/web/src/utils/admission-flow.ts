@@ -16,6 +16,7 @@
  *   commit-phase effect on userId/kind changes, wiping secrets so a new actor
  *   must re-enter the token and code from scratch.
  */
+import { isLocale, type Locale } from "@openvalens/i18n";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { AdmissionKind } from "./admission-keys";
@@ -23,7 +24,13 @@ import { classifyAdmissionError, type AdmissionErrorCode } from "./admission-err
 import { client } from "./orpc";
 
 export type AdmissionApi = {
-  begin: (input: { kind: AdmissionKind; credential: string; email: string }) => Promise<{
+  begin: (input: {
+    kind: AdmissionKind;
+    credential: string;
+    email: string;
+    /** The UI language, so the verification email uses it (#231). */
+    locale?: Locale;
+  }) => Promise<{
     enrollmentId: string;
   }>;
   complete: (input: {
@@ -107,6 +114,7 @@ export function createAdmissionFlow({
   onRequestMagicLink,
   onStateChange,
   admissionApi = client.admission,
+  getLocale = () => undefined,
 }: {
   kind: AdmissionKind;
   userId: string | null;
@@ -114,6 +122,8 @@ export function createAdmissionFlow({
   onRequestMagicLink: (email: string, purpose: "resume" | "dashboard") => Promise<void>;
   onStateChange: (state: AdmissionFlowState) => void;
   admissionApi?: AdmissionApi;
+  /** The current UI language, read at send time (#231). */
+  getLocale?: () => string | undefined;
 }): AdmissionFlow {
   const ownerKey = makeOwnerKey(kind, userId);
   let state = initialState(ownerKey);
@@ -138,6 +148,12 @@ export function createAdmissionFlow({
 
   function setSessionEmail(next: string | null) {
     liveSessionEmail = next;
+  }
+
+  /** `{ locale }` when the UI language is a shipped one, else nothing. */
+  function localeField(): { locale?: Locale } {
+    const locale = getLocale();
+    return isLocale(locale) ? { locale } : {};
   }
 
   function checkStale(requestEpoch: number): boolean {
@@ -191,7 +207,7 @@ export function createAdmissionFlow({
     safeUpdate({ errorCode: null, isBusy: true });
 
     try {
-      const result = await admissionApi.begin({ kind, credential, email });
+      const result = await admissionApi.begin({ kind, credential, email, ...localeField() });
       if (checkStale(requestEpoch)) return;
       notify({
         ...state,
@@ -250,7 +266,7 @@ export function createAdmissionFlow({
     safeUpdate({ errorCode: null, isBusy: true });
 
     try {
-      await admissionApi.begin({ kind, credential, email });
+      await admissionApi.begin({ kind, credential, email, ...localeField() });
       if (checkStale(requestEpoch)) return;
       safeUpdate({ code: "", errorCode: null, isBusy: false });
     } catch (error) {
@@ -310,14 +326,22 @@ export function useAdmissionFlow({
   sessionEmail,
   onRequestMagicLink,
   admissionApi = client.admission,
+  locale,
 }: {
   kind: AdmissionKind;
   userId: string | null;
   sessionEmail: string | null;
   onRequestMagicLink: (email: string, purpose: "resume" | "dashboard") => Promise<void>;
   admissionApi?: AdmissionApi;
+  /** The current UI language; the verification email uses it (#231). */
+  locale?: string;
 }): AdmissionFlowActions {
   const ownerKey = makeOwnerKey(kind, userId);
+  // Read at send time, so switching language mid-flow applies to a resend.
+  const localeRef = useRef(locale);
+  useLayoutEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
   const [state, setState] = useState<AdmissionFlowState>(() => initialState(ownerKey));
   const controllerRef = useRef<AdmissionFlow | null>(null);
 
@@ -333,6 +357,7 @@ export function useAdmissionFlow({
       onRequestMagicLink,
       onStateChange: setState,
       admissionApi,
+      getLocale: () => localeRef.current,
     });
     controllerRef.current = controller;
     setState(controller.state);

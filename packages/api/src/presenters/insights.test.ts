@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { createAppI18n } from "@openvalens/i18n";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import {
   INSIGHT_KINDS,
@@ -216,8 +218,8 @@ describe("insight templates (copy lint)", () => {
       ),
       INSIGHT_COPY.hiddenSome(2),
       INSIGHT_COPY.suppressed(1),
-      INSIGHT_EMAIL_COPY.intro,
-      INSIGHT_EMAIL_COPY.none,
+      inEnglish(INSIGHT_EMAIL_COPY.intro),
+      inEnglish(INSIGHT_EMAIL_COPY.none),
     ];
     expect(fixed.flatMap((text) => lint(text).map((hit) => `${hit}: ${text}`))).toEqual([]);
   });
@@ -325,14 +327,31 @@ describe("generic delivery kinds", () => {
 describe("push content", () => {
   test("generic by default; never a value, title, date or digit", () => {
     for (const topic of [...INSIGHT_TOPICS, null]) {
-      const generic = insightPushContent(topic, false);
-      expect(generic.body).toBe(GENERIC_PUSH_BODY);
-      const withTopic = insightPushContent(topic, true);
+      const generic = insightPushContent(englishI18n, topic, false);
+      expect(generic.body).toBe(inEnglish(GENERIC_PUSH_BODY));
+      const withTopic = insightPushContent(englishI18n, topic, true);
       for (const content of [generic, withTopic]) {
         expect(`${content.title} ${content.body}`).not.toMatch(/\d/);
         expect(lint(`${content.title} ${content.body}`)).toEqual([]);
       }
     }
-    expect(insightPushContent("sleep", true).body).toBe("You have a new sleep insight");
+    expect(insightPushContent(englishI18n, "sleep", true).body).toBe(
+      "You have a new sleep insight",
+    );
+    expect(insightPushContent(englishI18n, null, false).body).toBe("You have a new insight");
+  });
+
+  test("is written in the recipient's language (#231), with no digit in any language", () => {
+    const pt = createAppI18n("pt-PT");
+    for (const topic of [...INSIGHT_TOPICS, null]) {
+      for (const showTopic of [false, true]) {
+        const english = insightPushContent(englishI18n, topic, showTopic);
+        const portuguese = insightPushContent(pt, topic, showTopic);
+        expect(portuguese.title).toBe("OpenValens");
+        expect(portuguese.body).not.toBe(english.body);
+        expect(portuguese.body).not.toMatch(/\d/);
+      }
+    }
+    expect(insightPushContent(pt, null, false).body).toContain("perspetiva");
   });
 });

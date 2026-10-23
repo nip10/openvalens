@@ -1,4 +1,5 @@
 import { isAdmissionError, type AdmissionService } from "@openvalens/auth/admission";
+import { LOCALES } from "@openvalens/i18n";
 import { z } from "zod";
 
 import type { Context } from "./context";
@@ -125,6 +126,9 @@ export const admissionBeginInput = z.object({
   kind: setupKind,
   credential: z.string().min(1).max(512),
   email: z.string().min(1).max(320),
+  // Issue #231 — the app language, for the verification email. Only shipped
+  // locales are kept; anything else is ignored rather than rejected.
+  locale: z.enum(LOCALES).optional().catch(undefined),
 });
 
 export const admissionCompleteInput = z.object({

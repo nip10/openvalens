@@ -11,7 +11,9 @@
     "check-types": "tsc -b"
   },
   "dependencies": {
-    "@lingui/core": "6.9.1"
+    "@lingui/core": "6.9.1",
+    "@openvalens/db": "workspace:*",
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@lingui/message-utils": "6.9.1",
