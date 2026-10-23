@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useEffect, useRef } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
+import { LocaleSync } from "@/components/locale-sync";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
@@ -78,6 +79,7 @@ export default function Layout() {
               <AppThemeProvider>
                 <HeroUINativeProvider>
                   <MagicLinkLifecycle />
+                  <LocaleSync />
                   <StackLayout />
                 </HeroUINativeProvider>
               </AppThemeProvider>

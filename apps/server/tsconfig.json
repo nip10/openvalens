@@ -3,6 +3,7 @@
   "references": [{ "path": "../../packages/api" }, { "path": "../../packages/config" }],
   "compilerOptions": {
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"]
     },

@@ -22,7 +22,10 @@ export default defineConfig({
         "<rootDir>/apps/native/contexts",
         "<rootDir>/apps/native/lib",
         "<rootDir>/apps/native/utils",
-        "<rootDir>/packages/api/src/presenters",
+        // Server code renders email and push in the recipient's language (#231).
+        "<rootDir>/packages/api/src",
+        "<rootDir>/packages/auth/src",
+        "<rootDir>/apps/server/src",
       ],
       exclude: ["**/node_modules/**", "**/*.test.*", "**/routeTree.gen.ts"],
     },

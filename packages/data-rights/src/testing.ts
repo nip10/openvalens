@@ -101,6 +101,7 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
   const statements = [
     // Identity and administration
     `insert into analytics_consent (user_id, enabled) values ('${user}', true)`,
+    `insert into user_preference (user_id, locale) values ('${user}', 'pt-PT')`,
     `insert into invitation (id, organization_id, email, role, expires_at) values ('inv-${who}', '${org}', 'invitee-${who}@example.test', 'collaborator', now() + interval '1 day')`,
     `insert into organization_role (id, organization_id, role, permission) values ('role-${who}', '${org}', 'reviewer', '{"records":["read"]}')`,
     `insert into admin_notification (organization_id, type, created_at) values ('${org}', 'seed', '2026-10-01')`,
