@@ -29,7 +29,6 @@ import {
   DIARY_COPY,
   NUTRIENT_LABELS,
   SLOT_LABELS,
-  SUMMARY_NUTRIENTS,
   dayStatusText,
   deviceTimeZone,
   foodSourceLabel,
@@ -50,6 +49,7 @@ import {
   formatTarget,
   describeTargetSource,
   resolveHideNumbers,
+  formatNutrientSummaryLine,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
@@ -1112,12 +1112,7 @@ function AddFood({
                   : " · Quick add"}
             </p>
             <p className="text-muted-foreground">
-              {hideNumbers
-                ? HIDDEN_VALUE
-                : SUMMARY_NUTRIENTS.map(
-                    (key) =>
-                      `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
-                  ).join(" · ")}
+              {formatNutrientSummaryLine(preview, hideNumbers)}
             </p>
             {missingNote ? <p className="mt-1 text-muted-foreground">{missingNote}</p> : null}
             {mode !== "quick" && chosen?.attribution ? (
