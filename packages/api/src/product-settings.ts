@@ -135,7 +135,7 @@ function asUnits(value: unknown): ProductUnits {
 }
 
 function asLocale(value: unknown): ProductLocale {
-  if (value === "en-US" || value === "en-GB" || value === "en-CA") {
+  if (value === "en-US" || value === "en-GB" || value === "en-CA" || value === "pt-PT") {
     return value;
   }
   throw new ProductSettingsError("INTERNAL");

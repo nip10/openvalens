@@ -1,5 +1,6 @@
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { displayLabValue } from "@openvalens/api/presenters/clinical-units";
 import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
@@ -18,6 +19,7 @@ import { useState } from "react";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { client, orpc } from "@/utils/orpc";
+import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
@@ -109,7 +111,13 @@ function LabsPage() {
   const markers = useCacheFirst("labs.latest", () => client.labs.latest({ recentLimit: 10 }));
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { labUnits } = useDisplayPreferences();
   const { t } = useLingui();
+  // Display only (#67): the stored reading and its reported unit never change.
+  const shown = (marker: { code: string; unit: string | null; latestValue: number | null }) =>
+    marker.latestValue === null
+      ? { value: null, unit: marker.unit, converted: false }
+      : displayLabValue(marker, marker.latestValue, labUnits);
 
   if (markers.isPending) {
     return (
@@ -185,9 +193,13 @@ function LabsPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="font-mono text-lg">
-                      {formatLabValue(marker.latestValue, marker.unit)}
+                      {formatLabValue(shown(marker).value, shown(marker).unit)}
                     </div>
-                    <div className="text-xs text-muted-foreground">{marker.unit ?? ""}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {shown(marker).converted
+                        ? t({ message: `Converted from ${marker.unit ?? ""}`, comment: "safety" })
+                        : (marker.unit ?? "")}
+                    </div>
                   </div>
                 </li>
               ))}

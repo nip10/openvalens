@@ -6,6 +6,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
 
 import Loader from "./components/loader";
+import { DisplayPreferencesProvider } from "./lib/display-preferences";
 import { AppI18nProvider } from "./lib/i18n";
 import { initErrorReporting, reportError } from "./lib/error-reporting";
 import { routeTree } from "./routeTree.gen";
@@ -23,7 +24,9 @@ const router = createRouter({
   Wrap: function WrapComponent({ children }: { children: React.ReactNode }) {
     return (
       <AppI18nProvider>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <DisplayPreferencesProvider>
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        </DisplayPreferencesProvider>
       </AppI18nProvider>
     );
   },

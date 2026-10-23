@@ -11,6 +11,7 @@ import { useEffect, useRef } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
 import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
@@ -70,18 +71,20 @@ function StackLayout() {
 export default function Layout() {
   return (
     <AppI18nProvider>
-      <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <KeyboardProvider>
-            <AppThemeProvider>
-              <HeroUINativeProvider>
-                <MagicLinkLifecycle />
-                <StackLayout />
-              </HeroUINativeProvider>
-            </AppThemeProvider>
-          </KeyboardProvider>
-        </GestureHandlerRootView>
-      </QueryClientProvider>
+      <DisplayPreferencesProvider>
+        <QueryClientProvider client={queryClient}>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <KeyboardProvider>
+              <AppThemeProvider>
+                <HeroUINativeProvider>
+                  <MagicLinkLifecycle />
+                  <StackLayout />
+                </HeroUINativeProvider>
+              </AppThemeProvider>
+            </KeyboardProvider>
+          </GestureHandlerRootView>
+        </QueryClientProvider>
+      </DisplayPreferencesProvider>
     </AppI18nProvider>
   );
 }

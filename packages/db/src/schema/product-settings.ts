@@ -31,7 +31,7 @@ export const productSettings = pgTable(
     ),
     productSettingsLocaleCheck: check(
       "product_settings_locale_check",
-      sql`${table.locale} in ('en-US', 'en-GB', 'en-CA')`,
+      sql`${table.locale} in ('en-US', 'en-GB', 'en-CA', 'pt-PT')`,
     ),
     productSettingsRevisionCheck: check(
       "product_settings_revision_check",

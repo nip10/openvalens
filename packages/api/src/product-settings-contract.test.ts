@@ -17,7 +17,7 @@ describe("product-settings contract", () => {
     expect(DEFAULT_PRODUCT_DISPLAY_SETTINGS).toEqual({ units: "metric", locale: "en-US" });
     expect(Object.isFrozen(DEFAULT_PRODUCT_DISPLAY_SETTINGS)).toBe(true);
     expect(PRODUCT_UNITS).toEqual(["metric", "imperial"]);
-    expect(PRODUCT_LOCALES).toEqual(["en-US", "en-GB", "en-CA"]);
+    expect(PRODUCT_LOCALES).toEqual(["en-US", "en-GB", "en-CA", "pt-PT"]);
   });
 
   test("accepts a fully specified valid mutation", () => {
