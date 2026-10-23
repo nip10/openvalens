@@ -30,7 +30,10 @@ export function serverI18n(locale: Locale): I18n {
   return i18n;
 }
 
-export async function readUserLocale(db: Database, userId: string): Promise<Locale> {
+export async function readUserLocale(
+  db: Pick<Database, "select">,
+  userId: string,
+): Promise<Locale> {
   const [row] = await db
     .select({ locale: userPreference.locale })
     .from(userPreference)
@@ -42,7 +45,10 @@ export async function readUserLocale(db: Database, userId: string): Promise<Loca
  * The language of the account that owns `email`, or `null` when no account
  * has that address. An account without a saved choice is English.
  */
-export async function findLocaleForEmail(db: Database, email: string): Promise<Locale | null> {
+export async function findLocaleForEmail(
+  db: Pick<Database, "select">,
+  email: string,
+): Promise<Locale | null> {
   const [row] = await db
     .select({ locale: userPreference.locale })
     .from(user)
@@ -54,7 +60,10 @@ export async function findLocaleForEmail(db: Database, email: string): Promise<L
 }
 
 /** For mail addressed by email (magic links, invitations to existing accounts). */
-export async function readLocaleForEmail(db: Database, email: string): Promise<Locale> {
+export async function readLocaleForEmail(
+  db: Pick<Database, "select">,
+  email: string,
+): Promise<Locale> {
   return (await findLocaleForEmail(db, email)) ?? SOURCE_LOCALE;
 }
 
