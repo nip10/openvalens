@@ -29,7 +29,7 @@ const ACTOR_SESSION = {
 
 function service(overrides: Partial<AdmissionService> = {}): AdmissionService {
   return {
-    status: async () => ({ setupAvailable: true }),
+    status: async () => ({ setupAvailable: true, emailDeliveryAvailable: true }),
     begin: async () => ({ enrollmentId: "enr-1" }),
     complete: async () => ({ completed: true }),
     issueInvitation: async () => ({ invitationId: "inv-1", expiresAt: new Date("2026-10-20") }),
@@ -72,6 +72,7 @@ describe("admission.status", () => {
   test("is public and needs no origin", async () => {
     expect(await appRouter.admission.status.callable({ context: context() })({})).toEqual({
       setupAvailable: true,
+      emailDeliveryAvailable: true,
     });
   });
 

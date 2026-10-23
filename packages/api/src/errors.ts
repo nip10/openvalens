@@ -20,7 +20,9 @@ export type ORPCErrorCode =
   | "REAUTH_REQUIRED"
   | "CONFLICT"
   /** An optional upstream data source (e.g. live food lookup) timed out or is rate-limited. Retryable. */
-  | "SOURCE_UNAVAILABLE";
+  | "SOURCE_UNAVAILABLE"
+  /** The server cannot send email (no Resend key, or dry run), so emailed-code flows can't start. */
+  | "EMAIL_UNAVAILABLE";
 
 /** HTTP statuses reachable through the error envelope. */
 export type ORPCErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500 | 503;
@@ -38,6 +40,7 @@ const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
   REAUTH_REQUIRED: 403,
   CONFLICT: 409,
   SOURCE_UNAVAILABLE: 503,
+  EMAIL_UNAVAILABLE: 503,
 };
 
 /**

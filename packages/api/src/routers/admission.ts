@@ -40,7 +40,11 @@ const rateLimit = (
     return next({});
   });
 
-const statusOutput = z.object({ setupAvailable: z.boolean() });
+const statusOutput = z.object({
+  setupAvailable: z.boolean(),
+  /** False when the server can't send email, so setup and invitations can't start. */
+  emailDeliveryAvailable: z.boolean(),
+});
 const beginOutput = z.object({ enrollmentId: z.string() });
 const completeOutput = z.object({ completed: z.literal(true) });
 const issueOutput = z.object({ invitationId: z.string(), expiresAt: z.date() });

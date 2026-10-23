@@ -122,7 +122,7 @@ describe.skipIf(!url)("admission RPC over real HTTP against disposable PostgreSQ
   test("status is a public read with no origin required", async () => {
     const result = await call("admission/status", {});
     expect(result.status).toBe(200);
-    expect(result.json).toEqual({ setupAvailable: true });
+    expect(result.json).toEqual({ setupAvailable: true, emailDeliveryAvailable: true });
   });
 
   test("a foreign or missing origin is rejected before input validation", async () => {

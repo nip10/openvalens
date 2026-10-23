@@ -698,13 +698,13 @@ describe.skipIf(!url || !schemaReady)("admission core against disposable Postgre
 
   test("status, listInvitations and pruneExpiredGrants are safe and bounded", async () => {
     await reset();
-    expect(await service.status()).toEqual({ setupAvailable: true });
+    expect(await service.status()).toEqual({ setupAvailable: true, emailDeliveryAvailable: true });
 
     await db.execute(
       sql`insert into "user" ("id", "email", "email_verified", "role", "banned") values ('admin-1', 'admin@example.test', true, 'admin', false)`,
     );
     await db.execute(sql`update "instance_admission" set "state" = 'invite_only'`);
-    expect(await service.status()).toEqual({ setupAvailable: false });
+    expect(await service.status()).toEqual({ setupAvailable: false, emailDeliveryAvailable: true });
 
     await service.issueInvitation({ email: "one@example.test" }, sessionFor("admin-1"));
     const listed = await service.listInvitations(sessionFor("admin-1"));

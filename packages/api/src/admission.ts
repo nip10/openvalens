@@ -79,6 +79,11 @@ export function mapAdmissionError(error: unknown): never {
         );
       case "RATE_LIMITED":
         throw raiseApiError("RATE_LIMITED", "Too many attempts; try again later.");
+      case "EMAIL_UNAVAILABLE":
+        throw raiseApiError(
+          "EMAIL_UNAVAILABLE",
+          "Email delivery is not configured on this server.",
+        );
       case "DELIVERY_FAILED":
       case "INTERNAL":
         throw raiseApiError("INTERNAL", "Something went wrong.");

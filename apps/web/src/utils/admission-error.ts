@@ -12,6 +12,8 @@ export type AdmissionErrorCode =
   | "denied"
   | "rate_limited"
   | "delivery_failed"
+  /** The server has no real email delivery configured; retrying won't help. */
+  | "email_unavailable"
   | "invalid_input"
   | "session_mismatch"
   | "network"
@@ -27,6 +29,7 @@ export function classifyAdmissionError(error: unknown): AdmissionErrorCode {
       ? (error as { status?: unknown }).status
       : undefined;
 
+  if (code === "EMAIL_UNAVAILABLE") return "email_unavailable";
   if (code === "RATE_LIMITED" || status === 429) return "rate_limited";
   if (code === "INVALID_INPUT" || status === 400) return "invalid_input";
   if (code === "UNAUTHENTICATED" || code === "UNAUTHORIZED" || status === 401)

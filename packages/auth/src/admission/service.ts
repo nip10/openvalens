@@ -74,6 +74,12 @@ export type AdmissionDeps = {
   db: Database;
   deliverVerification: DeliverVerification;
   deliverInvitation: DeliverInvitation;
+  /**
+   * Whether email can really be delivered (false when email is a dry run).
+   * Admission needs an emailed code, so without it `begin` and
+   * `issueInvitation` refuse before writing anything. Defaults to true.
+   */
+  emailDeliveryAvailable?: () => boolean;
 };
 
 export type AdmissionBeginInput = {
@@ -109,7 +115,7 @@ export type AdmissionService = {
     input: { invitationId: string },
     session: Session | null,
   ): Promise<{ revoked: boolean }>;
-  status(): Promise<{ setupAvailable: boolean }>;
+  status(): Promise<{ setupAvailable: boolean; emailDeliveryAvailable: boolean }>;
   listInvitations(session: Session | null): Promise<AdmissionInvitationSummary[]>;
   /** INTERNAL operator-only cleanup, fixed bound ≤ 500. Never a public RPC. */
   pruneExpiredGrants(input?: { limit?: number }): Promise<{ pruned: number }>;
@@ -421,14 +427,20 @@ function bindTarget(
 
 export function createAdmissionService(deps: AdmissionDeps): AdmissionService {
   const { db, deliverVerification, deliverInvitation } = deps;
+  const emailDeliveryAvailable = deps.emailDeliveryAvailable ?? (() => true);
 
-  async function status(): Promise<{ setupAvailable: boolean }> {
+  /** Refuses before any write when no emailed code could be delivered. */
+  function requireEmailDelivery(): void {
+    if (!emailDeliveryAvailable()) throw new AdmissionError("EMAIL_UNAVAILABLE");
+  }
+
+  async function status(): Promise<{ setupAvailable: boolean; emailDeliveryAvailable: boolean }> {
     const result = await db.execute<SingletonRow>(
       sql`select "id", "state", "generation", "setup_token_hash", "setup_expires_at", "completed_at" from "instance_admission" where "id" = 'instance'`,
     );
     const row = result.rows[0];
     const available = !!row && row.state === "pending" && !row.completed_at;
-    return { setupAvailable: available };
+    return { setupAvailable: available, emailDeliveryAvailable: emailDeliveryAvailable() };
   }
 
   async function mintSetupToken(): Promise<{
@@ -485,6 +497,7 @@ export function createAdmissionService(deps: AdmissionDeps): AdmissionService {
     if (!canonical) {
       throw new AdmissionError("DENIED");
     }
+    requireEmailDelivery();
 
     const issued = await run(db, async (tx) => {
       const singleton = requireSingleton(await lockSingleton(tx));
@@ -807,6 +820,7 @@ export function createAdmissionService(deps: AdmissionDeps): AdmissionService {
       throw new AdmissionError("DENIED");
     }
     const identity = requireTrustedIdentity(session);
+    requireEmailDelivery();
 
     const token = generateInvitationSecret();
     const tokenHash = hashInvitationSecret(token);

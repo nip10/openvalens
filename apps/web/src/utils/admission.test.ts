@@ -5,6 +5,9 @@ import { classifyAdmissionError, isAdmissionPermissionDenied } from "./admission
 describe("classifyAdmissionError", () => {
   test("maps finite oRPC codes to local codes", () => {
     expect(classifyAdmissionError({ code: "RATE_LIMITED" })).toBe("rate_limited");
+    expect(classifyAdmissionError({ code: "EMAIL_UNAVAILABLE", status: 503 })).toBe(
+      "email_unavailable",
+    );
     expect(classifyAdmissionError({ code: "INVALID_INPUT" })).toBe("invalid_input");
     expect(classifyAdmissionError({ code: "UNAUTHENTICATED" })).toBe("session_mismatch");
     expect(classifyAdmissionError({ code: "UNAUTHORIZED" })).toBe("session_mismatch");

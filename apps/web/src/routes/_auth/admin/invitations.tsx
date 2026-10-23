@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AdminInvitationsView } from "@/components/admin-invitations-view";
 import { authClient } from "@/lib/auth-client";
 import { isConfigPermissionDenied } from "@/utils/admin-settings-error";
+import { classifyAdmissionError } from "@/utils/admission-error";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
 import {
   admissionIssueInvitationMutationOptions,
@@ -56,7 +57,11 @@ function AdminInvitationsPage() {
       void list.refetch();
     } catch (error) {
       setIssueState("error");
-      setIssueError(t`Could not send invitation.`);
+      setIssueError(
+        classifyAdmissionError(error) === "email_unavailable"
+          ? t`This server can't send email yet. Add a Resend key, then invite again.`
+          : t`Could not send invitation.`,
+      );
       if (isConfigPermissionDenied(error)) {
         void access.refetch();
       }

@@ -278,7 +278,7 @@ class FakeAdmissionDb {
   }
 }
 
-function makeService() {
+function makeService(options: { emailDeliveryAvailable?: boolean } = {}) {
   const fake = new FakeAdmissionDb();
   const verifications: { email: string; kind: string; verificationCode: string }[] = [];
   const invitations: { email: string; invitationToken: string }[] = [];
@@ -290,6 +290,7 @@ function makeService() {
     deliverInvitation: async (input) => {
       invitations.push(input);
     },
+    emailDeliveryAvailable: () => options.emailDeliveryAvailable ?? true,
   });
   return { fake, service, verifications, invitations };
 }
@@ -388,15 +389,15 @@ describe("AdmissionError", () => {
 describe("status", () => {
   test("reports unavailable for a missing singleton", async () => {
     const { service } = makeService();
-    expect(await service.status()).toEqual({ setupAvailable: false });
+    expect(await service.status()).toEqual({ setupAvailable: false, emailDeliveryAvailable: true });
   });
 
   test("tracks the pending/invite_only state", async () => {
     const { fake, service } = makeService();
     seedPending(fake);
-    expect(await service.status()).toEqual({ setupAvailable: true });
+    expect(await service.status()).toEqual({ setupAvailable: true, emailDeliveryAvailable: true });
     seedInviteOnly(fake);
-    expect(await service.status()).toEqual({ setupAvailable: false });
+    expect(await service.status()).toEqual({ setupAvailable: false, emailDeliveryAvailable: true });
   });
 });
 
@@ -448,6 +449,36 @@ describe("mintSetupToken", () => {
 });
 
 // ─── begin(setup) ──────────────────────────────────────────────
+
+describe("without email delivery (#63)", () => {
+  test("status reports it, and begin refuses before writing or sending anything", async () => {
+    const { fake, service, verifications } = makeService({ emailDeliveryAvailable: false });
+    seedPending(fake);
+    expect(await service.status()).toEqual({
+      setupAvailable: true,
+      emailDeliveryAvailable: false,
+    });
+    const minted = await service.mintSetupToken();
+    const before = fake.grants.size;
+
+    await expect(
+      service.begin({ kind: "setup", credential: minted.token, email: "owner@example.test" }),
+    ).rejects.toMatchObject({ code: "EMAIL_UNAVAILABLE" });
+    expect(fake.grants.size).toBe(before);
+    expect(verifications).toHaveLength(0);
+  });
+
+  test("issueInvitation refuses before creating a grant", async () => {
+    const { fake, service, invitations } = makeService({ emailDeliveryAvailable: false });
+    seedInviteOnly(fake);
+    addUser(fake, "admin-1", "admin@example.test", "admin");
+    await expect(
+      service.issueInvitation({ email: "invitee@example.test" }, sessionFor("admin-1")),
+    ).rejects.toMatchObject({ code: "EMAIL_UNAVAILABLE" });
+    expect(fake.grants.size).toBe(0);
+    expect(invitations).toHaveLength(0);
+  });
+});
 
 describe("begin(setup)", () => {
   test("reserves one canonical email and delivers a proof code", async () => {
