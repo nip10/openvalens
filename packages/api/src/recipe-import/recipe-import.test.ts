@@ -277,6 +277,7 @@ describe("createRecipeImportService", () => {
               streaksEnabled: false,
               recipeImportEnabled: enabled,
               voiceDraftsEnabled: false,
+              photoDraftsEnabled: false,
               heightCm: null,
               declarations: [],
             },

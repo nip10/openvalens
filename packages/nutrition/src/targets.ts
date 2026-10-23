@@ -32,6 +32,8 @@ export type NutritionTargetSettings = {
   recipeImportEnabled: boolean;
   /** Opt-in to food drafts from a spoken description (Issue #73). */
   voiceDraftsEnabled: boolean;
+  /** Opt-in to food drafts from a meal photo (Issue #71). */
+  photoDraftsEnabled: boolean;
   heightCm: number | null;
   declarations: NutritionDeclaration[];
 };
@@ -44,6 +46,7 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   streaksEnabled: false,
   recipeImportEnabled: false,
   voiceDraftsEnabled: false,
+  photoDraftsEnabled: false,
   heightCm: null,
   declarations: [],
 });
@@ -72,6 +75,7 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
     streaksEnabled: row.streaksEnabled,
     recipeImportEnabled: row.recipeImportEnabled,
     voiceDraftsEnabled: row.voiceDraftsEnabled,
+    photoDraftsEnabled: row.photoDraftsEnabled,
     heightCm: row.heightCm,
     // Display order, and nothing outside the known list.
     declarations: NUTRITION_DECLARATIONS.filter((key) => row.declarations.includes(key)),
@@ -112,6 +116,7 @@ export async function updateNutritionTargetSettingsInTransaction(
     streaksEnabled: next.streaksEnabled,
     recipeImportEnabled: next.recipeImportEnabled,
     voiceDraftsEnabled: next.voiceDraftsEnabled,
+    photoDraftsEnabled: next.photoDraftsEnabled,
     heightCm: next.heightCm,
     declarations: next.declarations,
     updatedAt: now,

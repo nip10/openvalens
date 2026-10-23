@@ -17,7 +17,13 @@ export const FOOD_DRAFT_LIMITS = Object.freeze({
 });
 
 /** Why a candidate needs the member's attention before it can be logged. */
-export const FOOD_DRAFT_FLAGS = ["no_quantity", "vague_quantity", "no_unit"] as const;
+/** `unsure_food` comes only from a photo draft whose item could not be identified clearly. */
+export const FOOD_DRAFT_FLAGS = [
+  "no_quantity",
+  "vague_quantity",
+  "no_unit",
+  "unsure_food",
+] as const;
 export type FoodDraftFlag = (typeof FOOD_DRAFT_FLAGS)[number];
 
 export type FoodDraftCandidate = {
@@ -231,7 +237,7 @@ export function foodDraftFlags(candidate: {
  * transcript; anything else stays as text and is flagged.
  */
 export function candidateFromParts(
-  parts: { food: string; quantity: string | null; unit: string | null },
+  parts: { food: string; quantity: string | null; unit: string | null; unsure?: boolean },
   index: number,
 ): FoodDraftCandidate | null {
   const foodText = parts.food
@@ -246,6 +252,7 @@ export function candidateFromParts(
   const rawUnit = parts.unit?.trim().toLowerCase() || null;
   const unitText = rawUnit === null ? null : (UNITS.get(rawUnit) ?? rawUnit.slice(0, 20));
   const flags: FoodDraftFlag[] = [];
+  if (parts.unsure) flags.push("unsure_food");
   if (vague) flags.push("vague_quantity");
   else if (quantity === null) flags.push("no_quantity");
   if (unitText === null) flags.push("no_unit");
