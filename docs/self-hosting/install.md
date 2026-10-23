@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-16
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-23
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -56,21 +56,32 @@ it for a real installation.
 
 ### Resources
 
-Observed on 2026-10-14 on a development machine (arm64, Docker via OrbStack),
-fresh install with an empty database, idle. This is **not** a measurement on a
-reference VPS; treat it as a floor, not a sizing guarantee.
+Measured on 2026-10-23 on a fresh cloud VM: Ubuntu 24.04.5 LTS, x86_64 (AMD
+EPYC), 2 vCPU, 8 GB RAM, Docker 29.1.3 with Compose 2.40.3. It ran a headless
+install of `main` and two upgrades: one across three migrations, one
+recovering from a failed migration.
 
-| Item                          | Observed                                                                |
-| ----------------------------- | ----------------------------------------------------------------------- |
-| Memory, idle                  | server ~89 MiB, postgres ~29 MiB, caddy ~14 MiB, web ~14 MiB (~150 MiB) |
-| First install (build + start) | ~95–140 s, depending on the Docker build cache                          |
-| Images on disk                | server 2.2 GB, postgres 0.7 GB, web 0.1 GB, caddy 0.1 GB                |
-| Fresh database volume         | ~71 MB                                                                  |
+| Item                               | Measured                                                                |
+| ---------------------------------- | ----------------------------------------------------------------------- |
+| First install (build + start)      | 289 s, cold build cache                                                 |
+| Upgrade, three new migrations      | 284 s (full image rebuild, backup, migrate, start)                      |
+| Upgrade, warm build cache          | 48 s                                                                    |
+| Memory, idle after start           | server ~95 MiB, postgres ~47 MiB, caddy ~31 MiB, web ~12 MiB (~190 MiB) |
+| Memory, peak while building images | ~3.5 GB used on the host                                                |
+| Images on disk                     | server 2.75 GB, web 0.1 GB (plus the postgres and caddy base images)    |
+| Docker build cache                 | ~12 GB after the first install, ~23 GB after two upgrades               |
+| Fresh database volume              | ~72 MB                                                                  |
+| Pre-migrate dump, fresh database   | ~0.5 MB each                                                            |
 
-Plan for at least 2 vCPU, 2 GB RAM (4 GB if you use AI features or heavy
-ingestion) and 20 GB free disk, plus room for at least three database-sized
-dumps in the `backups` volume. Measuring minimums on a reference VPS is still
-outstanding.
+Plan for:
+
+- **2 vCPU and 4 GB RAM.** Running the stack needs well under 1 GB, but
+  building the images peaks around 3.5 GB. On a 2 GB host, add at least 2 GB
+  of swap before `install` or `upgrade`, or the build may be killed. (A 2 GB
+  host was not tested.)
+- **40 GB free disk.** That covers the images, the build cache (which grows
+  with every upgrade; see [Upgrading](upgrading.md#disk-space)) and at least
+  three database-sized dumps in the `backups` volume.
 
 ## Install
 

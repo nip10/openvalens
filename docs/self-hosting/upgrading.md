@@ -1,6 +1,6 @@
 # Upgrading
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-23
 
 Upgrades are a `git checkout` followed by `deploy/setup.sh upgrade`. Every
 upgrade takes a database backup before it migrates; read
@@ -36,8 +36,22 @@ chain:
 3. `server`, `web`, `caddy` — start only if `migrate` exited `0`.
 
 The site is unavailable from the moment the old server stops until the new one
-is healthy. On the development machine used for these docs, an upgrade with a
-warm build cache took about 20 seconds.
+is healthy. On the reference VM (2 vCPU, 8 GB; see
+[Resources](install.md#resources)), an upgrade that rebuilt the images took
+about 5 minutes, and one with a warm build cache took 48 seconds.
+
+### Disk space
+
+Every upgrade rebuilds the images, and Docker keeps the old build cache. On the
+reference VM it grew from about 12 GB to about 23 GB over two upgrades. After a
+successful upgrade, reclaim it with:
+
+```bash
+docker builder prune --filter until=24h
+```
+
+This removes only cached build layers, never the database, storage or
+`backups` volumes.
 
 Afterwards, [verify the install](install.md#verify-the-install).
 
