@@ -233,6 +233,7 @@
     "packages/api": {
       "name": "@openvalens/api",
       "dependencies": {
+        "@lingui/core": "6.9.1",
         "@openvalens/activity": "workspace:*",
         "@openvalens/ai": "workspace:*",
         "@openvalens/audit-security": "workspace:*",
@@ -246,6 +247,7 @@
         "@openvalens/db": "workspace:*",
         "@openvalens/email": "workspace:*",
         "@openvalens/health-record": "workspace:*",
+        "@openvalens/i18n": "workspace:*",
         "@openvalens/ingestion": "workspace:*",
         "@openvalens/labs": "workspace:*",
         "@openvalens/nutrition": "workspace:*",
