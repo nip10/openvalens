@@ -13,6 +13,7 @@ export * from "./ingestion";
 export * from "./integrations";
 export * from "./nutrition";
 export * from "./plans";
+export * from "./preferences";
 export * from "./product-settings";
 export * from "./profile";
 export * from "./data-rights";

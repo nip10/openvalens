@@ -1,4 +1,6 @@
 env = false
+# Lingui macros in server code run with `bun run` from the root (#231).
+preload = ["./scripts/test/lingui-macro.ts"]
 
 [test]
 preload = ["./scripts/test/lingui-macro.ts"]

@@ -9,6 +9,7 @@ import {
 } from "@openvalens/ui/components/card";
 import { Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 
+import { LocaleSync } from "@/components/locale-sync";
 import { authClient } from "@/lib/auth-client";
 import { BootstrapError, bootstrapSession } from "@/utils/session-bootstrap";
 
@@ -40,7 +41,12 @@ export const Route = createFileRoute("/_auth")({
 });
 
 function AuthLayout() {
-  return <Outlet />;
+  return (
+    <>
+      <LocaleSync />
+      <Outlet />
+    </>
+  );
 }
 
 function AuthBootstrapError({ error }: { error: unknown }) {

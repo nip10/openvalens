@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -b ../../packages/api && tsdown",
     "check-types": "tsc -b ../../packages/api && tsc --noEmit",
-    "compile": "bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./src/index.ts --outfile server",
+    "compile": "bun run build && bun build --compile --no-compile-autoload-dotenv --minify --sourcemap --bytecode ./dist/index.mjs --outfile server",
     "dev": "bun run --hot src/index.ts",
     "start": "bun run dist/index.mjs",
     "env:generate": "varlock codegen",
