@@ -157,7 +157,7 @@ function BodyPage() {
   const summary = summarizeDailyWeights(daily.data ?? []);
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const unit = weightUnit(settings);
 
   return (
@@ -208,12 +208,16 @@ function BodyPage() {
               />
               <Stat
                 label={t`7 days`}
-                value={summary.change7d === null ? "—" : formatKgDelta(summary.change7d, settings)}
+                value={
+                  summary.change7d === null ? "—" : formatKgDelta(i18n, summary.change7d, settings)
+                }
               />
               <Stat
                 label={t`30 days`}
                 value={
-                  summary.change30d === null ? "—" : formatKgDelta(summary.change30d, settings)
+                  summary.change30d === null
+                    ? "—"
+                    : formatKgDelta(i18n, summary.change30d, settings)
                 }
               />
             </CardContent>
@@ -270,7 +274,7 @@ function BodyPage() {
                       <span className="font-mono text-sm text-muted-foreground">{point.date}</span>
                       <span className="flex items-center gap-4">
                         <span className="text-xs text-muted-foreground">
-                          {weightSourceLabel(source)}
+                          {i18n._(weightSourceLabel(source))}
                         </span>
                         <span className="font-mono">{formatKg(point.weightKg, settings)}</span>
                       </span>

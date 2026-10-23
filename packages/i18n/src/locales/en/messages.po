@@ -752,6 +752,10 @@ msgstr "A photo can be misread. Check each item, fix or remove anything wrong, t
 msgid "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
 msgstr "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
 
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "A Recipe entry contains unsupported or oversized ingredient data."
+msgstr "A Recipe entry contains unsupported or oversized ingredient data."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "A reference you set yourself. Optional."
 msgstr "A reference you set yourself. Optional."
@@ -1734,6 +1738,11 @@ msgstr "Choose the recipe you want to review."
 #: packages/api/src/presenters/workouts.ts
 msgid "Choose whether the value should go up or down."
 msgstr "Choose whether the value should go up or down."
+
+#: packages/api/src/presenters/recipe-draft.ts
+#: packages/api/src/recipe-import/service.ts
+msgid "Choose which recipe to continue with."
+msgstr "Choose which recipe to continue with."
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/components/recipe-draft-editor.tsx
@@ -3214,6 +3223,10 @@ msgstr "Enter a goal greater than zero, or leave it blank to clear it."
 msgid "Enter a minimum, a maximum or both."
 msgstr "Enter a minimum, a maximum or both."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "Enter a public http or https recipe address."
+msgstr "Enter a public http or https recipe address."
+
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Enter a valid email address"
@@ -3472,6 +3485,10 @@ msgstr "Favourite <0>{foodName}</0>"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Female"
 msgstr "Female"
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Fetches this one page once. Nothing is saved."
+msgstr "Fetches this one page once. Nothing is saved."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Fibre"
@@ -3963,6 +3980,10 @@ msgstr "Imperial"
 msgid "Import a lab PDF to add markers."
 msgstr "Import a lab PDF to add markers."
 
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Import recipes from a web address"
+msgstr "Import recipes from a web address"
+
 #. placeholder {0}: result.removed
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Import undone. {0, plural, one {# imported period removed.} other {# imported periods removed.}}"
@@ -3977,6 +3998,10 @@ msgstr "imported"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Imported: {importedAt}"
 msgstr "Imported: {importedAt}"
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Importing…"
+msgstr "Importing…"
 
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Imports"
@@ -4690,6 +4715,11 @@ msgstr "Male"
 msgid "Manage my foods"
 msgstr "Manage my foods"
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Manual"
+msgstr "Manual"
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Manual entries for your own reference. Workspace owners and other members cannot view them. Values stay hidden in history until the hide-numbers setting can be checked."
 msgstr "Manual entries for your own reference. Workspace owners and other members cannot view them. Values stay hidden in history until the hide-numbers setting can be checked."
@@ -5047,6 +5077,10 @@ msgstr "No activity yet"
 msgid "No cardiac exams recorded."
 msgstr "No cardiac exams recorded."
 
+#: packages/api/src/presenters/body.ts
+msgid "No change"
+msgstr "No change"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "No changes to save."
 msgstr "No changes to save."
@@ -5305,10 +5339,18 @@ msgstr "No sleep yet"
 msgid "No stage data."
 msgstr "No stage data."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "No structured recipe was found on that page. The draft has the page title only; add the ingredients yourself."
+msgstr "No structured recipe was found on that page. The draft has the page title only; add the ingredients yourself."
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "No supplements logged. Add one to get reminders."
 msgstr "No supplements logged. Add one to get reminders."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "No supported Recipe entry was found."
+msgstr "No supported Recipe entry was found."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "No targets set. Logging works the same without them."
@@ -5678,6 +5720,10 @@ msgstr "Off by default. No nutrition observations are shown."
 msgid "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
 msgstr "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
 
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time."
+msgstr "Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time."
+
 #: apps/native/app/(drawer)/index.tsx
 msgid "OFFLINE"
 msgstr "OFFLINE"
@@ -5828,6 +5874,11 @@ msgctxt "data source"
 msgid "Other"
 msgstr "Other"
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Other"
+msgstr "Other"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Other version"
 msgstr "Other version"
@@ -5869,6 +5920,11 @@ msgstr "out of 100"
 msgid "Output and training readiness."
 msgstr "Output and training readiness."
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Override"
+msgstr "Override"
+
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -5908,6 +5964,10 @@ msgstr "Paste ingredients or Recipe JSON-LD, or import one recipe page if you tu
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Paste is over the 1 MiB limit. Shorten it and try again."
 msgstr "Paste is over the 1 MiB limit. Shorten it and try again."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Paste one ingredient per line."
+msgstr "Paste one ingredient per line."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -6414,6 +6474,10 @@ msgstr "Recipe draft"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Recipe JSON-LD"
 msgstr "Recipe JSON-LD"
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Recipe web address"
+msgstr "Recipe web address"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Recommendations issued 2015"
@@ -7755,6 +7819,11 @@ msgstr "Sync state: {label}"
 msgid "Synced"
 msgstr "Synced"
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Synced"
+msgstr "Synced"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Syncing"
@@ -7915,9 +7984,33 @@ msgstr "The micronutrient summary is off. Turn it on in nutrition settings."
 msgid "The minimum must not be more than the maximum."
 msgstr "The minimum must not be more than the maximum."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "The page could not be loaded. Check the address or paste the ingredients instead."
+msgstr "The page could not be loaded. Check the address or paste the ingredients instead."
+
 #: apps/native/app/+not-found.tsx
 msgid "The page you're looking for doesn't exist."
 msgstr "The page you're looking for doesn't exist."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted ingredients exceed supported limits."
+msgstr "The pasted ingredients exceed supported limits."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted JSON-LD exceeds supported limits."
+msgstr "The pasted JSON-LD exceeds supported limits."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted JSON-LD is not valid JSON."
+msgstr "The pasted JSON-LD is not valid JSON."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted recipe exceeds the supported size limit."
+msgstr "The pasted recipe exceeds the supported size limit."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted recipe input is invalid."
+msgstr "The pasted recipe input is invalid."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -7945,6 +8038,10 @@ msgstr "The provider's reply could not be read, so nothing was guessed. Try agai
 msgid "The range comes from large observational studies, where more weekly activity was associated with lower mortality. It is a population guideline, not a personal target or an assessment of you."
 msgstr "The range comes from large observational studies, where more weekly activity was associated with lower mortality. It is a population guideline, not a personal target or an assessment of you."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "The recipe data on that page could not be read. Paste the ingredients instead."
+msgstr "The recipe data on that page could not be read. Paste the ingredients instead."
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "The reference group is US adults measured in 1999–2008 and may differ from people where you live."
 msgstr "The reference group is US adults measured in 1999–2008 and may differ from people where you live."
@@ -7964,6 +8061,10 @@ msgstr "The server did not accept this change."
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The source has this barcode but no product name. Enter the food from its label instead."
 msgstr "The source has this barcode but no product name. Enter the food from its label instead."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The source URL must be a credential-free HTTP or HTTPS URL."
+msgstr "The source URL must be a credential-free HTTP or HTTPS URL."
 
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "The weekly insights email is off. You can turn it on again in Settings."
@@ -8147,6 +8248,10 @@ msgstr "This server can't send email yet, so the verification code can't be deli
 msgid "This server can't send email yet. Add a Resend key, then invite again."
 msgstr "This server can't send email yet. Add a Resend key, then invite again."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "This site does not allow automated imports. Paste the ingredients instead."
+msgstr "This site does not allow automated imports. Paste the ingredients instead."
+
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "This suggestion has expired."
@@ -8255,6 +8360,10 @@ msgstr "Tone"
 #: apps/web/src/components/admission-form.tsx
 msgid "Too many attempts. Wait a moment, then try again."
 msgstr "Too many attempts. Wait a moment, then try again."
+
+#: packages/api/src/recipe-import/service.ts
+msgid "Too many imports just now. Try again in a minute."
+msgstr "Too many imports just now. Try again in a minute."
 
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Total"
@@ -8382,6 +8491,10 @@ msgstr "Turn on photo drafts in your nutrition settings first."
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Turn on private measurements"
 msgstr "Turn on private measurements"
+
+#: packages/api/src/recipe-import/service.ts
+msgid "Turn on recipe import in your nutrition settings first."
+msgstr "Turn on recipe import in your nutrition settings first."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx

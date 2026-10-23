@@ -1,3 +1,4 @@
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { describe, expect, test } from "bun:test";
 
 import { formatKg, formatKgDelta, summarizeDailyWeights, weightSourceLabel } from "./body";
@@ -37,12 +38,12 @@ describe("body presenter", () => {
 
   test("formatting: one decimal, explicit sign, sources in plain words", () => {
     expect(formatKg(72.44)).toBe("72.4 kg");
-    expect(formatKgDelta(-0.6)).toBe("−0.6 kg");
-    expect(formatKgDelta(0.25)).toBe("+0.3 kg");
-    expect(formatKgDelta(0.01)).toBe("No change");
-    expect(weightSourceLabel("auto")).toBe("Synced");
-    expect(weightSourceLabel("manual")).toBe("Manual");
-    expect(weightSourceLabel("override")).toBe("Override");
+    expect(formatKgDelta(englishI18n, -0.6)).toBe("−0.6 kg");
+    expect(formatKgDelta(englishI18n, 0.25)).toBe("+0.3 kg");
+    expect(formatKgDelta(englishI18n, 0.01)).toBe("No change");
+    expect(inEnglish(weightSourceLabel("auto"))).toBe("Synced");
+    expect(inEnglish(weightSourceLabel("manual"))).toBe("Manual");
+    expect(inEnglish(weightSourceLabel("override"))).toBe("Override");
   });
 
   test("imperial weight: real kg→lb conversion, canonical record unchanged", () => {
@@ -58,11 +59,11 @@ describe("body presenter", () => {
 
   test("imperial deltas: sign, magnitude, and no negative zero", () => {
     const imperial = { units: "imperial" as const, locale: "en-US" as const };
-    expect(formatKgDelta(-1, imperial)).toBe("−2.2 lb");
-    expect(formatKgDelta(1, imperial)).toBe("+2.2 lb");
-    expect(formatKgDelta(0, imperial)).toBe("No change");
-    expect(formatKgDelta(-0, imperial)).toBe("No change");
-    expect(formatKgDelta(0.01, imperial)).toBe("No change");
-    expect(formatKgDelta(0.25, { units: "metric", locale: "en-US" })).toBe("+0.3 kg");
+    expect(formatKgDelta(englishI18n, -1, imperial)).toBe("−2.2 lb");
+    expect(formatKgDelta(englishI18n, 1, imperial)).toBe("+2.2 lb");
+    expect(formatKgDelta(englishI18n, 0, imperial)).toBe("No change");
+    expect(formatKgDelta(englishI18n, -0, imperial)).toBe("No change");
+    expect(formatKgDelta(englishI18n, 0.01, imperial)).toBe("No change");
+    expect(formatKgDelta(englishI18n, 0.25, { units: "metric", locale: "en-US" })).toBe("+0.3 kg");
   });
 });

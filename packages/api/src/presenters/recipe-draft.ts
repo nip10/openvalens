@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 export type RecipeDraftIngredient = {
   id: string;
   rawText: string;
@@ -18,7 +21,7 @@ export type RecipeDraft = {
 export type RecipeDraftParseResult = {
   status: "ready" | "choose_recipe" | "empty" | "invalid" | "unsupported";
   candidates: RecipeDraft[];
-  message: string | null;
+  message: MessageDescriptor | null;
 };
 
 const MAX_INPUT_BYTES = 1024 * 1024;
@@ -42,7 +45,7 @@ type RecipeObject = Record<string, unknown>;
 
 function result(
   status: RecipeDraftParseResult["status"],
-  message: string | null,
+  message: MessageDescriptor | null,
   candidates = EMPTY_CANDIDATES,
 ): RecipeDraftParseResult {
   return { status, candidates, message };
@@ -191,16 +194,16 @@ export function parseRecipeDraft(input: ParseInput): RecipeDraftParseResult {
     (input.format !== "ingredients" && input.format !== "json-ld") ||
     !isValidImportedAt(input.importedAt)
   ) {
-    return result("invalid", "The pasted recipe input is invalid.");
+    return result("invalid", msg`The pasted recipe input is invalid.`);
   }
   if (new TextEncoder().encode(input.text).byteLength > MAX_INPUT_BYTES) {
-    return result("invalid", "The pasted recipe exceeds the supported size limit.");
+    return result("invalid", msg`The pasted recipe exceeds the supported size limit.`);
   }
   let suppliedUrl: URL | null = null;
   if (input.sourceUrl !== undefined) {
     suppliedUrl = supportedUrl(input.sourceUrl);
     if (!suppliedUrl)
-      return result("invalid", "The source URL must be a credential-free HTTP or HTTPS URL.");
+      return result("invalid", msg`The source URL must be a credential-free HTTP or HTTPS URL.`);
   }
 
   if (input.format === "ingredients") {
@@ -208,12 +211,12 @@ export function parseRecipeDraft(input: ParseInput): RecipeDraftParseResult {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
-    if (!lines.length) return result("empty", "Paste one ingredient per line.");
+    if (!lines.length) return result("empty", msg`Paste one ingredient per line.`);
     if (
       lines.length > MAX_INGREDIENTS ||
       lines.some((line) => line.length > MAX_INGREDIENT_LENGTH)
     ) {
-      return result("invalid", "The pasted ingredients exceed supported limits.");
+      return result("invalid", msg`The pasted ingredients exceed supported limits.`);
     }
     return result("ready", null, [
       {
@@ -242,29 +245,31 @@ export function parseRecipeDraft(input: ParseInput): RecipeDraftParseResult {
   try {
     parsed = JSON.parse(input.text);
   } catch {
-    return result("invalid", "The pasted JSON-LD is not valid JSON.");
+    return result("invalid", msg`The pasted JSON-LD is not valid JSON.`);
   }
   const recipes = findRecipes(parsed);
-  if (!recipes) return result("invalid", "The pasted JSON-LD exceeds supported limits.");
-  if (!recipes.length) return result("unsupported", "No supported Recipe entry was found.");
+  if (!recipes) return result("invalid", msg`The pasted JSON-LD exceeds supported limits.`);
+  if (!recipes.length) return result("unsupported", msg`No supported Recipe entry was found.`);
   const candidates: RecipeDraft[] = [];
   for (let index = 0; index < recipes.length; index++) {
     const draft = draftFromRecipe(recipes[index]!, index, input.importedAt, suppliedUrl);
     if (!draft)
-      return result("invalid", "A Recipe entry contains unsupported or oversized ingredient data.");
+      return result(
+        "invalid",
+        msg`A Recipe entry contains unsupported or oversized ingredient data.`,
+      );
     candidates.push(draft);
   }
   return candidates.length > 1
-    ? result("choose_recipe", "Choose which recipe to continue with.", candidates)
+    ? result("choose_recipe", msg`Choose which recipe to continue with.`, candidates)
     : result("ready", null, candidates);
 }
 
 /** Copy for the opt-in URL import (Issue #82); shared by web and native. */
 export const RECIPE_IMPORT_COPY = Object.freeze({
-  settingLabel: "Import recipes from a web address",
-  settingDescription:
-    "Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time.",
-  urlLabel: "Recipe web address",
-  urlHint: "Fetches this one page once. Nothing is saved.",
-  importing: "Importing…",
+  settingLabel: msg`Import recipes from a web address`,
+  settingDescription: msg`Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time.`,
+  urlLabel: msg`Recipe web address`,
+  urlHint: msg`Fetches this one page once. Nothing is saved.`,
+  importing: msg`Importing…`,
 });

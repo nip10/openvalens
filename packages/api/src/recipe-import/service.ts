@@ -1,9 +1,12 @@
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { InMemoryRateLimiter } from "@openvalens/ai/rate-limit";
 import type { Database } from "@openvalens/db";
 import type { NutritionScope } from "@openvalens/nutrition";
 import { readNutritionTargetSettings } from "@openvalens/nutrition/targets";
 
 import type { ImportRecipeFromUrlOutput } from "../contracts/nutrition-recipe-import";
+import { readUserLocale, serverI18n } from "../locale";
 import { parseRecipeDraft } from "../presenters/recipe-draft";
 import { extractRecipePage } from "./html-recipe";
 import { isAllowedByRobots } from "./robots";
@@ -58,23 +61,24 @@ export type RecipeImportService = {
   ): Promise<ImportRecipeFromUrlOutput>;
 };
 
+/** Messages for the member, rendered in their interface language (#231). */
 const COPY = {
-  disabled: "Turn on recipe import in your nutrition settings first.",
-  rateLimited: "Too many imports just now. Try again in a minute.",
-  blockedUrl: "Enter a public http or https recipe address.",
-  robots: "This site does not allow automated imports. Paste the ingredients instead.",
-  fetchFailed: "The page could not be loaded. Check the address or paste the ingredients instead.",
-  noRecipe:
-    "No structured recipe was found on that page. The draft has the page title only; add the ingredients yourself.",
-  invalid: "The recipe data on that page could not be read. Paste the ingredients instead.",
-  choose: "Choose which recipe to continue with.",
+  disabled: msg`Turn on recipe import in your nutrition settings first.`,
+  rateLimited: msg`Too many imports just now. Try again in a minute.`,
+  blockedUrl: msg`Enter a public http or https recipe address.`,
+  robots: msg`This site does not allow automated imports. Paste the ingredients instead.`,
+  fetchFailed: msg`The page could not be loaded. Check the address or paste the ingredients instead.`,
+  noRecipe: msg`No structured recipe was found on that page. The draft has the page title only; add the ingredients yourself.`,
+  invalid: msg`The recipe data on that page could not be read. Paste the ingredients instead.`,
+  choose: msg`Choose which recipe to continue with.`,
 } as const;
 
 function failure(
+  i18n: I18n,
   status: ImportRecipeFromUrlOutput["status"],
-  message: string,
+  message: MessageDescriptor,
 ): ImportRecipeFromUrlOutput {
-  return { status, candidates: [], message };
+  return { status, candidates: [], message: i18n._(message) };
 }
 
 export function createRecipeImportService(deps: RecipeImportDeps = {}): RecipeImportService {
@@ -111,17 +115,18 @@ export function createRecipeImportService(deps: RecipeImportDeps = {}): RecipeIm
 
   return {
     async importFromUrl(db, scope, input) {
+      const i18n = serverI18n(await readUserLocale(db, scope.userId));
       const settings = await readNutritionTargetSettings(db, scope);
-      if (!settings.recipeImportEnabled) return failure("disabled", COPY.disabled);
+      if (!settings.recipeImportEnabled) return failure(i18n, "disabled", COPY.disabled);
 
       const url = parseImportUrl(input.url, base.allowPort);
-      if (!url) return failure("blocked_url", COPY.blockedUrl);
+      if (!url) return failure(i18n, "blocked_url", COPY.blockedUrl);
       if (!userLimiter.check(`${scope.organizationId}:${scope.userId}`).allowed)
-        return failure("rate_limited", COPY.rateLimited);
+        return failure(i18n, "rate_limited", COPY.rateLimited);
       if (!domainLimiter.check(url.hostname).allowed)
-        return failure("rate_limited", COPY.rateLimited);
+        return failure(i18n, "rate_limited", COPY.rateLimited);
 
-      if (!(await robotsAllow(url))) return failure("robots_disallowed", COPY.robots);
+      if (!(await robotsAllow(url))) return failure(i18n, "robots_disallowed", COPY.robots);
 
       const page = await fetchPage(url.href, {
         ...base,
@@ -131,8 +136,8 @@ export function createRecipeImportService(deps: RecipeImportDeps = {}): RecipeIm
       });
       if (!page.ok)
         return page.reason === "invalid_url" || page.reason === "blocked_address"
-          ? failure("blocked_url", COPY.blockedUrl)
-          : failure("fetch_failed", COPY.fetchFailed);
+          ? failure(i18n, "blocked_url", COPY.blockedUrl)
+          : failure(i18n, "fetch_failed", COPY.fetchFailed);
 
       const extracted = extractRecipePage(page.body);
       const importedAt = now().toISOString();
@@ -145,8 +150,12 @@ export function createRecipeImportService(deps: RecipeImportDeps = {}): RecipeIm
       if (parsed.status === "ready")
         return { status: "ready", candidates: parsed.candidates, message: null };
       if (parsed.status === "choose_recipe")
-        return { status: "choose_recipe", candidates: parsed.candidates, message: COPY.choose };
-      if (parsed.status === "invalid") return failure("invalid", COPY.invalid);
+        return {
+          status: "choose_recipe",
+          candidates: parsed.candidates,
+          message: i18n._(COPY.choose),
+        };
+      if (parsed.status === "invalid") return failure(i18n, "invalid", COPY.invalid);
       const source = new URL(page.url);
       return {
         status: "no_recipe",
@@ -159,7 +168,7 @@ export function createRecipeImportService(deps: RecipeImportDeps = {}): RecipeIm
             ingredients: [],
           },
         ],
-        message: COPY.noRecipe,
+        message: i18n._(COPY.noRecipe),
       };
     },
   };

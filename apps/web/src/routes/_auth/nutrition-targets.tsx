@@ -580,9 +580,11 @@ function SettingsCard({
             checked={recipeImportEnabled}
             onChange={(event) => setRecipeImportEnabled(event.target.checked)}
           />
-          {RECIPE_IMPORT_COPY.settingLabel}
+          {i18n._(RECIPE_IMPORT_COPY.settingLabel)}
         </label>
-        <p className="text-xs text-muted-foreground">{RECIPE_IMPORT_COPY.settingDescription}</p>
+        <p className="text-xs text-muted-foreground">
+          {i18n._(RECIPE_IMPORT_COPY.settingDescription)}
+        </p>
 
         <label className="flex items-center gap-2 text-sm">
           <input

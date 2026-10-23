@@ -1,3 +1,4 @@
+import { inEnglish } from "@openvalens/i18n/testing";
 import { describe, expect, test } from "bun:test";
 
 import { parseRecipeDraft } from "./recipe-draft";
@@ -73,7 +74,7 @@ describe("parseRecipeDraft", () => {
       const result = parseRecipeDraft({ text, format: "json-ld", importedAt });
       expect(result.status).toBe("invalid");
       expect(result.candidates).toEqual([]);
-      expect(result.message).not.toContain(secret);
+      expect(inEnglish(result.message!)).not.toContain(secret);
     }
     expect(
       parseRecipeDraft({

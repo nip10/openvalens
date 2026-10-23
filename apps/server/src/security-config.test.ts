@@ -27,6 +27,9 @@ const SERVICES_URL = pathToFileURL(join(SRC_DIR, "services.ts")).href;
 const SERVER_SCHEMA_PATH = join(SRC_DIR, "..", ".env.schema");
 
 const RESULT_MARKER = "SECURITY_CONFIG_RESULT ";
+// Server code uses Lingui macros (#231); the fixture has no bunfig, so load the
+// same preload apps/server/bunfig.toml uses.
+const LINGUI_PRELOAD = join(SRC_DIR, "..", "..", "..", "scripts", "test", "lingui-macro.ts");
 
 const CHILD_SCRIPT = `
 const app = (await import(${JSON.stringify(INDEX_URL)})).default;
@@ -113,7 +116,7 @@ async function runColdChild(extraEnv: Record<string, string>): Promise<ColdRun> 
   const childPath = join(fixtureDir, "child.ts");
   await writeFile(childPath, CHILD_SCRIPT);
 
-  const child = spawn(process.execPath, ["run", childPath], {
+  const child = spawn(process.execPath, ["run", "--preload", LINGUI_PRELOAD, childPath], {
     cwd: fixtureDir,
     env: {
       PATH: `${binDir}:/usr/bin:/bin`,
