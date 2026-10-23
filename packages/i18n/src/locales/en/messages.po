@@ -252,6 +252,10 @@ msgstr "{count, plural, one {# insight is hidden by your dismissals or settings.
 msgid "{count, plural, one {# match found. Check it before saving.} other {# matches found. Pick one and check it before saving.}}"
 msgstr "{count, plural, one {# match found. Check it before saving.} other {# matches found. Pick one and check it before saving.}}"
 
+#: packages/api/src/nutrition-observations.ts
+msgid "{count, plural, one {# matching timestamped record} other {# matching timestamped records}} from completed diary days in the {days}-day window."
+msgstr "{count, plural, one {# matching timestamped record} other {# matching timestamped records}} from completed diary days in the {days}-day window."
+
 #: packages/api/src/presenters/insights.ts
 msgid "{count, plural, one {# more change held back so only the clearest are shown.} other {# more changes held back so only the clearest are shown.}}"
 msgstr "{count, plural, one {# more change held back so only the clearest are shown.} other {# more changes held back so only the clearest are shown.}}"
@@ -5172,10 +5176,12 @@ msgstr "Meal diary"
 msgid "Meal photo (JPEG or PNG, up to 10 MB)"
 msgstr "Meal photo (JPEG or PNG, up to 10 MB)"
 
+#: packages/api/src/nutrition-observations.ts
 #: packages/api/src/presenters/insights.ts
 msgid "Meals and recorded sleep timing"
 msgstr "Meals and recorded sleep timing"
 
+#: packages/api/src/nutrition-observations.ts
 #: packages/api/src/presenters/insights.ts
 msgid "Meals and recorded workouts"
 msgstr "Meals and recorded workouts"
@@ -8174,6 +8180,16 @@ msgid "Some answers could not be saved. Check them and try again."
 msgstr "Some answers could not be saved. Check them and try again."
 
 #. safety
+#: packages/api/src/nutrition-observations.ts
+msgid "Some logged meals occurred within four hours before recorded sleep starts in this window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
+msgstr "Some logged meals occurred within four hours before recorded sleep starts in this window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
+
+#. safety
+#: packages/api/src/nutrition-observations.ts
+msgid "Some logged meals occurred within four hours of recorded workouts in this window. This describes timing in your records only and does not establish a relationship between meal timing and workouts."
+msgstr "Some logged meals occurred within four hours of recorded workouts in this window. This describes timing in your records only and does not establish a relationship between meal timing and workouts."
+
+#. safety
 #: packages/api/src/presenters/insights.ts
 msgid "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
 msgstr "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
@@ -8395,6 +8411,10 @@ msgstr "Strength volume: no weighted sets recorded."
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Strict"
 msgstr "Strict"
+
+#: packages/api/src/nutrition-observations.ts
+msgid "Sufficient matching timestamped records from completed diary days were available."
+msgstr "Sufficient matching timestamped records from completed diary days were available."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Suggested from your profile"

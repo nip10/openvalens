@@ -1,3 +1,4 @@
+import { serverI18n } from "@openvalens/i18n/server";
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -109,5 +110,18 @@ describe("buildNutritionObservations", () => {
         "Sufficient matching timestamped records from completed diary days were available.",
       );
     }
+  });
+});
+
+describe("observation text in the member's language (#231)", () => {
+  test("renders in pt-PT when given a pt-PT i18n, English by default", () => {
+    const english = buildNutritionObservations(base);
+    const portuguese = buildNutritionObservations({ ...base, i18n: serverI18n("pt-PT") });
+    expect(portuguese).toHaveLength(english.length);
+    expect(english[0]?.title).toBe("Meals and recorded sleep timing");
+    expect(portuguese[0]?.title).toBe("Refeições e horário do sono registado");
+    expect(portuguese[0]?.completeness).toContain("registos");
+    // Structured fields are unchanged.
+    expect(portuguese.map((o) => o.ruleId)).toEqual(english.map((o) => o.ruleId));
   });
 });
