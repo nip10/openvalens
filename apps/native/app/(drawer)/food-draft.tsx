@@ -1,5 +1,8 @@
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
 import { FOOD_DRAFT_COPY, FOOD_DRAFT_FLAG_LABELS } from "@openvalens/api/presenters/food-draft";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Button, Card } from "heroui-native";
@@ -19,13 +22,17 @@ import { client } from "@/utils/orpc";
 const INPUT =
   "min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground";
 
+const DRAFT_FAILED = msg`Could not make a draft. Nothing was saved.`;
+const DRAFT_DISCARDED = msg`Draft discarded. Nothing was saved.`;
+
 export default function FoodDraftScreen() {
   const router = useRouter();
+  const { t, i18n } = useLingui();
   const [transcript, setTranscript] = useState("");
   const [useAi, setUseAi] = useState(false);
   const [aiAgreed, setAiAgreed] = useState(false);
   const [candidates, setCandidates] = useState<FoodDraftCandidateWire[] | null>(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<MessageDescriptor | null>(null);
   const provider = useQuery({
     queryKey: ["nutritionFoodDrafts", "provider"],
     queryFn: () => client.nutritionFoodDrafts.provider({}),
@@ -44,17 +51,20 @@ export default function FoodDraftScreen() {
       setCandidates(result.status === "ready" ? result.candidates : null);
       setMessage(FOOD_DRAFT_COPY.status[result.status]);
     },
-    onError: () => setMessage("Could not make a draft. Nothing was saved."),
+    onError: () => setMessage(DRAFT_FAILED),
   });
+  const providerName = provider.data?.host
+    ? `${provider.data.provider} (${provider.data.host})`
+    : (provider.data?.provider ?? "");
 
   return (
     <Container className="p-4">
       <View className="gap-6">
         <View className="gap-2">
           <Text accessibilityRole="header" className="font-mono text-3xl text-foreground">
-            Describe a meal
+            <Trans>Describe a meal</Trans>
           </Text>
-          <Text className="text-sm text-muted-foreground">{FOOD_DRAFT_COPY.intro}</Text>
+          <Text className="text-sm text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.intro)}</Text>
         </View>
         <Card variant="secondary" className="gap-3 p-4">
           <TextInput
@@ -63,17 +73,17 @@ export default function FoodDraftScreen() {
             multiline
             maxLength={2000}
             textAlignVertical="top"
-            placeholder="Two eggs, a slice of toast and a coffee"
-            accessibilityLabel="What did you have?"
+            placeholder={t`Two eggs, a slice of toast and a coffee`}
+            accessibilityLabel={t`What did you have?`}
             className={`${INPUT} min-h-28`}
             placeholderTextColor="#9ca3af"
           />
-          <Text className="text-xs text-muted-foreground">{FOOD_DRAFT_COPY.dictation}</Text>
+          <Text className="text-xs text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.dictation)}</Text>
           {provider.data?.available ? (
             <View className="gap-2 rounded-lg border border-border p-3">
               <View className="flex-row items-center justify-between gap-3">
                 <Text className="flex-1 text-sm text-foreground">
-                  Use the AI provider for this draft
+                  <Trans>Use the AI provider for this draft</Trans>
                 </Text>
                 <Switch
                   value={useAi}
@@ -81,20 +91,24 @@ export default function FoodDraftScreen() {
                     setUseAi(value);
                     setAiAgreed(false);
                   }}
-                  accessibilityLabel="Use the AI provider for this draft"
+                  accessibilityLabel={t`Use the AI provider for this draft`}
                 />
               </View>
               {useAi ? (
                 <View className="flex-row items-center justify-between gap-3">
                   <Text className="flex-1 text-sm text-foreground">
-                    Send this text, and nothing else, to {provider.data.provider}
-                    {provider.data.host ? ` (${provider.data.host})` : ""} now.{" "}
-                    {FOOD_DRAFT_COPY.aiDisclosure}
+                    <Trans comment="safety">
+                      Send this text, and nothing else, to {providerName} now.
+                    </Trans>{" "}
+                    {i18n._(FOOD_DRAFT_COPY.aiDisclosure)}
                   </Text>
                   <Switch
                     value={aiAgreed}
                     onValueChange={setAiAgreed}
-                    accessibilityLabel="Agree to send this text to the AI provider now"
+                    accessibilityLabel={t({
+                      message: "Agree to send this text to the AI provider now",
+                      comment: "safety",
+                    })}
                   />
                 </View>
               ) : null}
@@ -104,23 +118,25 @@ export default function FoodDraftScreen() {
             isDisabled={!transcript.trim() || (useAi && !aiAgreed) || parse.isPending}
             onPress={() => parse.mutate()}
           >
-            {parse.isPending ? "Working…" : "Make a draft"}
+            {parse.isPending ? t`Working…` : t`Make a draft`}
           </Button>
           {message ? (
             <Text accessibilityLiveRegion="polite" className="text-sm text-muted-foreground">
-              {message}
+              {i18n._(message)}
             </Text>
           ) : null}
         </Card>
 
         {candidates ? (
-          <CardStack title="Review the draft">
+          <CardStack title={t`Review the draft`}>
             <Card variant="secondary" className="gap-3 p-4">
-              <Text className="text-sm text-muted-foreground">{FOOD_DRAFT_COPY.review}</Text>
+              <Text className="text-sm text-muted-foreground">
+                {i18n._(FOOD_DRAFT_COPY.review)}
+              </Text>
               {candidates.map((item, index) => (
                 <View key={item.id} className="gap-2 rounded-lg border border-border p-3">
                   <Text className="text-sm font-medium text-foreground">
-                    Item {index + 1} · heard “{item.sourceText}”
+                    {t`Item ${index + 1} · heard “${item.sourceText}”`}
                   </Text>
                   <TextInput
                     value={item.foodText}
@@ -134,15 +150,15 @@ export default function FoodDraftScreen() {
                           : current,
                       )
                     }
-                    accessibilityLabel={`Food for item ${index + 1}`}
+                    accessibilityLabel={t`Food for item ${index + 1}`}
                     className={INPUT}
                   />
                   <Text className="text-sm text-muted-foreground">
-                    {item.quantityText ?? "No quantity"} · {item.unitText ?? "no unit"}
+                    {item.quantityText ?? t`No quantity`} · {item.unitText ?? t`no unit`}
                   </Text>
                   {item.flags.length ? (
                     <Text className="text-sm text-foreground">
-                      {item.flags.map((flag) => FOOD_DRAFT_FLAG_LABELS[flag]).join(" · ")}
+                      {item.flags.map((flag) => i18n._(FOOD_DRAFT_FLAG_LABELS[flag])).join(" · ")}
                     </Text>
                   ) : null}
                   <View className="flex-row flex-wrap gap-2">
@@ -152,7 +168,7 @@ export default function FoodDraftScreen() {
                         router.push({ pathname: "/nutrition", params: { food: item.foodText } })
                       }
                     >
-                      Find and log this food
+                      <Trans>Find and log this food</Trans>
                     </Button>
                     <Button
                       size="sm"
@@ -163,7 +179,7 @@ export default function FoodDraftScreen() {
                         )
                       }
                     >
-                      Remove
+                      <Trans>Remove</Trans>
                     </Button>
                   </View>
                 </View>
@@ -172,10 +188,10 @@ export default function FoodDraftScreen() {
                 variant="secondary"
                 onPress={() => {
                   setCandidates(null);
-                  setMessage("Draft discarded. Nothing was saved.");
+                  setMessage(DRAFT_DISCARDED);
                 }}
               >
-                Discard draft
+                <Trans>Discard draft</Trans>
               </Button>
             </Card>
           </CardStack>

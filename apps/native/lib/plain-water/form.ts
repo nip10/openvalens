@@ -1,3 +1,4 @@
+import type { MessageDescriptor } from "@lingui/core";
 import { parseWaterAmount, type WaterUnit } from "@openvalens/api/presenters/plain-water";
 
 export type WaterEditAmount = { amount: string; amountDirty: boolean; unit: WaterUnit };
@@ -5,7 +6,9 @@ export type WaterEditAmount = { amount: string; amountDirty: boolean; unit: Wate
 /** Builds only an intentional amount change; display rounding is not an edit. */
 export function waterEditAmountPatch(
   edit: WaterEditAmount,
-): { ok: true; patch: { quantity?: number; unit?: WaterUnit } } | { ok: false; error: string } {
+):
+  | { ok: true; patch: { quantity?: number; unit?: WaterUnit } }
+  | { ok: false; error: MessageDescriptor } {
   if (!edit.amountDirty) return { ok: true, patch: {} };
   const parsed = parseWaterAmount(edit.amount, edit.unit);
   if (!parsed.ok) return parsed;

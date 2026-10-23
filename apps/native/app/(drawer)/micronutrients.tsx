@@ -5,6 +5,8 @@ import {
   MICRONUTRIENT_COPY,
   MICRONUTRIENT_LABELS,
 } from "@openvalens/api/presenters/micronutrients";
+import type { MicronutrientSummaryWire } from "@openvalens/api/contracts/nutrition-micronutrients";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Card, Spinner } from "heroui-native";
 import { useState } from "react";
@@ -38,20 +40,35 @@ export default function MicronutrientsScreen() {
     queryFn: () => client.nutritionMicronutrients.summary({ localDate }),
   });
   const data = summary.data;
+  const { t, i18n } = useLingui();
+  const reference = data?.reference ?? null;
+  const sourceOrg = reference?.sourceOrg ?? "";
+  const populationLabel = reference?.populationLabel ?? "";
+  const licenceNote = reference?.licenceNote ?? "";
+  const datasetVersion = data?.datasetVersion ?? "";
+  const rowTitle = (
+    row: Pick<MicronutrientSummaryWire["rows"][number], "nutrient" | "amount" | "atLeast">,
+    hideNumbers: boolean,
+  ) => {
+    const label = i18n._(MICRONUTRIENT_LABELS[row.nutrient]);
+    if (row.amount === null) return hideNumbers ? label : t`${label}: unknown`;
+    const amount = formatMicronutrientAmount(row.nutrient, row.amount);
+    return row.atLeast ? t`${label}: at least ${amount}` : t`${label}: ${amount}`;
+  };
 
   return (
     <Container className="p-4">
       <View className="gap-6">
         <View className="gap-2">
           <Text accessibilityRole="header" className="font-mono text-3xl text-foreground">
-            Micronutrients
+            <Trans>Micronutrients</Trans>
           </Text>
-          <Text className="text-sm text-muted-foreground">{MICRONUTRIENT_COPY.intro}</Text>
+          <Text className="text-sm text-muted-foreground">{i18n._(MICRONUTRIENT_COPY.intro)}</Text>
           <TextInput
             value={draftDate}
             onChangeText={setDraftDate}
             placeholder="YYYY-MM-DD"
-            accessibilityLabel="Day, YYYY-MM-DD"
+            accessibilityLabel={t`Day, YYYY-MM-DD`}
             className={INPUT}
             placeholderTextColor="#9ca3af"
           />
@@ -60,75 +77,79 @@ export default function MicronutrientsScreen() {
         {summary.isPending ? (
           <Spinner />
         ) : summary.isError || !data ? (
-          <Text className="text-sm text-foreground">Could not load the summary.</Text>
+          <Text className="text-sm text-foreground">
+            <Trans>Could not load the summary.</Trans>
+          </Text>
         ) : data.status === "off" ? (
-          <Text className="text-sm text-foreground">{MICRONUTRIENT_COPY.off}</Text>
+          <Text className="text-sm text-foreground">{i18n._(MICRONUTRIENT_COPY.off)}</Text>
         ) : data.status === "hidden" ? (
-          <Text className="text-sm text-foreground">{MICRONUTRIENT_COPY.hidden}</Text>
+          <Text className="text-sm text-foreground">{i18n._(MICRONUTRIENT_COPY.hidden)}</Text>
         ) : (
           <>
             <Card variant="secondary" className="gap-2 p-4">
               {data.reference ? (
                 <>
                   <Text className="text-sm text-foreground">
-                    Reference: {data.reference.sourceOrg}, {data.reference.populationLabel}.{" "}
-                    {data.reference.licenceNote}
+                    <Trans>
+                      Reference: {sourceOrg}, {populationLabel}. {licenceNote}
+                    </Trans>
                   </Text>
                   <Pressable
                     accessibilityRole="link"
                     onPress={() => void Linking.openURL(data.reference!.sourceUrl)}
                     className="min-h-11 justify-center"
                   >
-                    <Text className="text-sm text-foreground underline">Source</Text>
+                    <Text className="text-sm text-foreground underline">
+                      <Trans>Source</Trans>
+                    </Text>
                   </Pressable>
                 </>
               ) : (
                 <Text className="text-sm text-foreground">
-                  {data.referenceNote === "adults_only"
-                    ? MICRONUTRIENT_COPY.adultsOnly
-                    : MICRONUTRIENT_COPY.noReference}
+                  {i18n._(
+                    data.referenceNote === "adults_only"
+                      ? MICRONUTRIENT_COPY.adultsOnly
+                      : MICRONUTRIENT_COPY.noReference,
+                  )}
                 </Text>
               )}
               <Text className="text-sm text-muted-foreground">
-                {MICRONUTRIENT_COPY.intakeExplainer}
+                {i18n._(MICRONUTRIENT_COPY.intakeExplainer)}
               </Text>
               <Text className="text-xs text-muted-foreground">
-                Dataset {data.datasetVersion}. {MICRONUTRIENT_COPY.notAdvice}
+                <Trans>Dataset {datasetVersion}.</Trans> {i18n._(MICRONUTRIENT_COPY.notAdvice)}
               </Text>
             </Card>
 
             {data.totalEntries === 0 ? (
-              <Text className="text-sm text-foreground">Nothing logged on this day.</Text>
+              <Text className="text-sm text-foreground">
+                <Trans>Nothing logged on this day.</Trans>
+              </Text>
             ) : (
-              <CardStack title="By nutrient">
+              <CardStack title={t`By nutrient`}>
                 {data.rows.map((row) => (
                   <Card key={row.nutrient} variant="secondary" className="gap-1 p-4">
                     <Text className="text-base font-medium text-foreground">
-                      {MICRONUTRIENT_LABELS[row.nutrient]}
-                      {row.amount !== null
-                        ? `: ${row.atLeast ? "at least " : ""}${formatMicronutrientAmount(row.nutrient, row.amount)}`
-                        : data.hideNumbers
-                          ? ""
-                          : ": unknown"}
+                      {rowTitle(row, data.hideNumbers)}
                     </Text>
-                    <Text className="text-sm text-foreground">{coverageText(row)}</Text>
+                    <Text className="text-sm text-foreground">{i18n._(coverageText(row))}</Text>
                     {row.atLeast ? (
                       <Text className="text-sm text-muted-foreground">
-                        {MICRONUTRIENT_COPY.incomplete}
+                        {i18n._(MICRONUTRIENT_COPY.incomplete)}
                       </Text>
                     ) : null}
                     {row.percentOfReference !== null ? (
                       <Text className="text-sm text-foreground">
-                        {row.percentOfReference}% of the intake reference below.
+                        {t`${row.percentOfReference}% of the intake reference below.`}
                       </Text>
                     ) : row.references.length && row.knownEntries < row.totalEntries ? (
                       <Text className="text-sm text-muted-foreground">
-                        {MICRONUTRIENT_COPY.notCompared}
+                        {i18n._(MICRONUTRIENT_COPY.notCompared)}
                       </Text>
                     ) : null}
                     {row.references.map((reference) => (
                       <Text key={reference.type} className="text-sm text-muted-foreground">
-                        {describeReference(row.nutrient, reference)}
+                        {describeReference(row.nutrient, reference, i18n)}
                       </Text>
                     ))}
                   </Card>

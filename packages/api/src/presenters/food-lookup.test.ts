@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { CATALOG_SOURCE_TERMS } from "@openvalens/nutrition/catalog/sources";
 import {
   FOOD_SOURCES as DOMAIN_FOOD_SOURCES,
@@ -124,19 +125,19 @@ describe("candidates", () => {
       ref: { kind: "catalog", id: "off:5901234123457" },
       method: "barcode",
       source: "off",
-      sourceLabel: "Open Food Facts",
       attribution: OFF_NOTICE,
     });
+    expect(inEnglish(candidate!.sourceLabel)).toBe("Open Food Facts");
     // Unknown values are listed, never filled in.
-    expect(candidate!.missing).toEqual(["Carbohydrate", "Fat", "Fibre"]);
+    expect(candidate!.missing.map(inEnglish)).toEqual(["Carbohydrate", "Fat", "Fibre"]);
     expect(candidate!.nutrientsPerBasis.fatG).toBeNull();
-    expect(missingDataNote(candidate!)).toBe(
+    expect(missingDataNote(candidate!, englishI18n)).toBe(
       "Not provided by the source: Carbohydrate, Fat, Fibre. Shown as unknown.",
     );
   });
 
   test("live results say so; nameless products cannot be logged as-is", () => {
-    expect(candidateFromResult(result({ origin: "live" }), "barcode")?.sourceLabel).toBe(
+    expect(inEnglish(candidateFromResult(result({ origin: "live" }), "barcode")!.sourceLabel)).toBe(
       "Open Food Facts (live lookup)",
     );
     expect(candidateFromResult(result({ name: null }), "barcode")).toBeNull();
@@ -159,12 +160,12 @@ describe("candidates", () => {
       }),
       "search",
     );
+    expect(inEnglish(candidate!.sourceLabel)).toBe("My food");
     expect(candidate).toMatchObject({
-      sourceLabel: "My food",
       attribution: null,
       method: "search",
     });
-    expect(missingDataNote(candidate!)).toBeNull();
+    expect(missingDataNote(candidate!, englishI18n)).toBeNull();
   });
 
   test("saved foods become candidates with their own ref", () => {
@@ -182,9 +183,9 @@ describe("candidates", () => {
     expect(candidate).toMatchObject({
       ref: { kind: "snapshot", snapshotId: 3 },
       method: "manual",
-      sourceLabel: "USDA FoodData Central",
       attribution: "USDA notice",
     });
+    expect(inEnglish(candidate.sourceLabel)).toBe("USDA FoodData Central");
   });
 
   test("search drops foods already listed and nameless products", () => {
@@ -216,7 +217,7 @@ describe("barcode outcomes", () => {
     if (outcome.kind !== "matches") return;
     expect(outcome.candidates).toHaveLength(1);
     expect(outcome.cachedAt).toBeNull();
-    expect(outcome.message).toBe(BARCODE_COPY.found(1));
+    expect(outcome.message).toEqual(BARCODE_COPY.found(1));
   });
 
   test("a miss is a manual draft with the code prefilled", () => {
@@ -266,7 +267,7 @@ describe("barcode outcomes", () => {
     };
     const hit = describeOfflineBarcode("5901234123457", cached);
     expect(hit).toMatchObject({ kind: "matches", cachedAt: 1_000 });
-    expect(hit.message).toBe(BARCODE_COPY.foundCached(1));
+    expect(hit.message).toEqual(BARCODE_COPY.foundCached(1));
 
     const miss = describeOfflineBarcode("4006381333931", null);
     expect(miss).toEqual({
@@ -327,7 +328,7 @@ describe("manual draft", () => {
   });
 
   test("copy stays neutral and never claims a product from a code", () => {
-    const text = JSON.stringify(BARCODE_COPY.manual).toLowerCase();
+    const text = Object.values(BARCODE_COPY.manual).map(inEnglish).join("\n").toLowerCase();
     for (const word of ["healthy", "unhealthy", "good", "bad", "diagnos", "guess"])
       expect(text).not.toContain(word);
   });

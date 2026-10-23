@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import {
   WATER_COPY,
@@ -167,9 +168,11 @@ describe("persisted water proof metadata", () => {
     const view = buildWaterDayView(day, valid, false);
     expect(view.reconciliationUnknown).toBe(true);
     expect(view.subtotalMl).toBeNull();
-    expect(formatWaterSubtotal(view, "ml", false)).toBe(WATER_COPY.reconciliationUnknown);
-    expect(describeWaterAttention(view.attention[0]!, "ml").title).toBe(
-      WATER_COPY.reconciliationUnknown,
+    expect(formatWaterSubtotal(view, "ml", false, englishI18n)).toBe(
+      inEnglish(WATER_COPY.reconciliationUnknown),
+    );
+    expect(describeWaterAttention(view.attention[0]!, "ml", englishI18n).title).toBe(
+      inEnglish(WATER_COPY.reconciliationUnknown),
     );
     expect(canDiscardWaterItem(valid[0]!)).toBe(false);
     expect(discard(store, scope, valid[0]!.id)).toBe(false);

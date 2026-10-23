@@ -15,6 +15,9 @@
  * display preference is the caller's responsibility (`resolveHideNumbers`);
  * this module fails closed when told `hideNumbers: true`.
  */
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { HIDDEN_VALUE } from "./nutrition-targets";
 import {
   hasAuthoritativeWaterNonApplication,
@@ -106,81 +109,80 @@ const ML_PER_UNIT: Readonly<Record<WaterUnit, number>> = Object.freeze({
 });
 
 export const WATER_COPY = Object.freeze({
-  title: "Plain water",
-  optional: "Optional",
-  scopeNote: "Plain water only, separate from meals and other drinks.",
-  subtotalLabel: "Plain water subtotal",
-  empty: "Nothing logged for this day.",
-  unavailable: "Not available on this device. It updates after sync.",
-  reconciliationUnknown: "Could not confirm whether this change was saved.",
-  offTitle: "Plain water is off.",
-  offBody: "Saved entries are kept but not shown while it's off. Turn it on to see or remove them.",
-  turnOn: "Turn on",
-  turnedOn: "Plain water is on.",
-  turnedOff: "Plain water is off.",
-  settingsTitle: "Plain water logging",
-  goalLabel: "Personal goal",
-  goalNote: "A reference you set yourself. Optional.",
-  goalUnset: "No personal goal set.",
-  setGoal: "Set a goal",
-  clearGoal: "Clear goal",
-  goalAmountLabel: "Goal amount",
-  goalAmountPlaceholder: "Goal amount",
-  goalSaved: "Personal goal saved.",
-  goalCleared: "Personal goal cleared.",
-  editGoalHiddenNote: "Your saved goal is hidden. Enter a new goal to replace it, or clear it.",
-  add: "Add plain water",
-  addTitle: "Add plain water",
-  amountLabel: "Amount",
-  amountPlaceholder: "Amount",
-  unitLabel: "Unit",
-  timeLabel: "Time",
-  timePlaceholder: "HH:MM",
-  useNow: "Now",
-  save: "Save",
-  saving: "Saving…",
-  cancel: "Cancel",
-  saved: "Plain water entry saved.",
-  savedOnDevice: "Saved on this device. It will sync when you're online.",
-  changed: "Plain water entry updated.",
-  deleted: "Plain water entry removed.",
-  deleteConfirm: "Delete this entry?",
-  deleteConfirmLocal: "Discard this entry? It was saved on this device only.",
-  confirmDelete: "Delete entry",
-  confirmDiscard: "Discard entry",
-  edit: "Edit",
-  delete: "Delete",
-  editHiddenNote: "Your saved amount is hidden. Enter a new amount to replace it.",
-  nothingChanged: "Change the amount or the time, then save.",
-  entriesLabel: "Plain water entries",
-  hiddenNote: "Numbers are hidden. You can still log water.",
-  networkError: "Could not confirm whether your change was saved.",
-  settingsError: "Could not confirm whether your water setting was saved.",
-  readError: "Could not load plain-water entries or settings. Refresh to try again.",
-  retry: "Retry",
-  storageError:
-    "Could not read changes saved on this device. Entries on the server are unaffected.",
-  storageSaveError: "Could not save this change on this device. Nothing was sent.",
-  pendingTitle: "Water changes on this device",
-  syncNow: "Sync now",
-  conflictTitle: "This entry changed on another device.",
-  conflictOther: "Other version",
-  conflictMine: "Your change",
-  keepMine: "Keep my change",
-  keepOther: "Keep the other version",
-  rejectedTitle: "The server did not accept this change.",
-  rejectedBody: "This change remains on this device until you resolve it.",
-  conflictGone: "This entry was already removed.",
-  discard: "Discard change",
-  discardConfirm: "Discard this change? Your saved entry is unchanged.",
-  rowNeedsAttention: "Needs attention",
-  rowQueued: "Waiting to sync",
-  rowSyncing: "Syncing",
-  amountInvalid: "Enter an amount greater than zero.",
-  amountTooLarge: "That amount is too large to save.",
-  goalInvalid: "Enter a goal greater than zero, or leave it blank to clear it.",
-  timeInvalid: "Use 24-hour time, for example 14:05.",
-  timeNonexistent: "That time does not exist on this date in your time zone. Choose another time.",
+  title: msg`Plain water`,
+  optional: msg`Optional`,
+  scopeNote: msg`Plain water only, separate from meals and other drinks.`,
+  subtotalLabel: msg`Plain water subtotal`,
+  empty: msg`Nothing logged for this day.`,
+  unavailable: msg`Not available on this device. It updates after sync.`,
+  reconciliationUnknown: msg`Could not confirm whether this change was saved.`,
+  offTitle: msg`Plain water is off.`,
+  offBody: msg`Saved entries are kept but not shown while it's off. Turn it on to see or remove them.`,
+  turnOn: msg`Turn on`,
+  turnedOn: msg`Plain water is on.`,
+  turnedOff: msg`Plain water is off.`,
+  settingsTitle: msg`Plain water logging`,
+  goalLabel: msg`Personal goal`,
+  goalNote: msg`A reference you set yourself. Optional.`,
+  goalUnset: msg`No personal goal set.`,
+  setGoal: msg`Set a goal`,
+  clearGoal: msg`Clear goal`,
+  goalAmountLabel: msg`Goal amount`,
+  goalAmountPlaceholder: msg`Goal amount`,
+  goalSaved: msg`Personal goal saved.`,
+  goalCleared: msg`Personal goal cleared.`,
+  editGoalHiddenNote: msg`Your saved goal is hidden. Enter a new goal to replace it, or clear it.`,
+  add: msg`Add plain water`,
+  addTitle: msg`Add plain water`,
+  amountLabel: msg`Amount`,
+  amountPlaceholder: msg`Amount`,
+  unitLabel: msg`Unit`,
+  timeLabel: msg`Time`,
+  timePlaceholder: msg`HH:MM`,
+  useNow: msg`Now`,
+  save: msg`Save`,
+  saving: msg`Saving…`,
+  cancel: msg`Cancel`,
+  saved: msg`Plain water entry saved.`,
+  savedOnDevice: msg`Saved on this device. It will sync when you're online.`,
+  changed: msg`Plain water entry updated.`,
+  deleted: msg`Plain water entry removed.`,
+  deleteConfirm: msg`Delete this entry?`,
+  deleteConfirmLocal: msg`Discard this entry? It was saved on this device only.`,
+  confirmDelete: msg`Delete entry`,
+  confirmDiscard: msg`Discard entry`,
+  edit: msg`Edit`,
+  delete: msg`Delete`,
+  editHiddenNote: msg`Your saved amount is hidden. Enter a new amount to replace it.`,
+  nothingChanged: msg`Change the amount or the time, then save.`,
+  entriesLabel: msg`Plain water entries`,
+  hiddenNote: msg`Numbers are hidden. You can still log water.`,
+  networkError: msg`Could not confirm whether your change was saved.`,
+  settingsError: msg`Could not confirm whether your water setting was saved.`,
+  readError: msg`Could not load plain-water entries or settings. Refresh to try again.`,
+  retry: msg`Retry`,
+  storageError: msg`Could not read changes saved on this device. Entries on the server are unaffected.`,
+  storageSaveError: msg`Could not save this change on this device. Nothing was sent.`,
+  pendingTitle: msg`Water changes on this device`,
+  syncNow: msg`Sync now`,
+  conflictTitle: msg`This entry changed on another device.`,
+  conflictOther: msg`Other version`,
+  conflictMine: msg`Your change`,
+  keepMine: msg`Keep my change`,
+  keepOther: msg`Keep the other version`,
+  rejectedTitle: msg`The server did not accept this change.`,
+  rejectedBody: msg`This change remains on this device until you resolve it.`,
+  conflictGone: msg`This entry was already removed.`,
+  discard: msg`Discard change`,
+  discardConfirm: msg`Discard this change? Your saved entry is unchanged.`,
+  rowNeedsAttention: msg`Needs attention`,
+  rowQueued: msg`Waiting to sync`,
+  rowSyncing: msg`Syncing`,
+  amountInvalid: msg`Enter an amount greater than zero.`,
+  amountTooLarge: msg`That amount is too large to save.`,
+  goalInvalid: msg`Enter a goal greater than zero, or leave it blank to clear it.`,
+  timeInvalid: msg`Use 24-hour time, for example 14:05.`,
+  timeNonexistent: msg`That time does not exist on this date in your time zone. Choose another time.`,
 });
 
 export type WaterRowState = "synced" | "queued" | "syncing" | "needs_attention";
@@ -264,9 +266,10 @@ export function formatWaterAmount(
   quantityMl: number | null,
   unit: WaterUnit,
   hideNumbers: boolean,
+  i18n: I18n,
 ): string {
-  if (hideNumbers) return HIDDEN_VALUE;
-  if (quantityMl === null || !Number.isFinite(quantityMl)) return WATER_COPY.unavailable;
+  if (hideNumbers) return i18n._(HIDDEN_VALUE);
+  if (quantityMl === null || !Number.isFinite(quantityMl)) return i18n._(WATER_COPY.unavailable);
   const value = quantityMl / ML_PER_UNIT[unit];
   // Small millilitre amounts keep one decimal so a real entry never reads as zero.
   const digits = unit === "ml" ? (value < 10 ? 1 : 0) : unit === "l" ? 2 : 1;
@@ -286,13 +289,14 @@ export function formatWaterSubtotal(
   },
   unit: WaterUnit,
   hideNumbers: boolean,
+  i18n: I18n,
 ): string {
-  if (view.reconciliationUnknown) return WATER_COPY.reconciliationUnknown;
-  if (view.incomplete) return WATER_COPY.unavailable;
-  if (view.entryCount === 0) return WATER_COPY.empty;
-  if (hideNumbers) return HIDDEN_VALUE;
-  if (view.subtotalMl === null) return WATER_COPY.unavailable;
-  return formatWaterAmount(view.subtotalMl, unit, false);
+  if (view.reconciliationUnknown) return i18n._(WATER_COPY.reconciliationUnknown);
+  if (view.incomplete) return i18n._(WATER_COPY.unavailable);
+  if (view.entryCount === 0) return i18n._(WATER_COPY.empty);
+  if (hideNumbers) return i18n._(HIDDEN_VALUE);
+  if (view.subtotalMl === null) return i18n._(WATER_COPY.unavailable);
+  return formatWaterAmount(view.subtotalMl, unit, false, i18n);
 }
 
 /** `"No personal goal set."`, `"Hidden"` or the member's own goal. */
@@ -300,10 +304,11 @@ export function formatWaterGoal(
   goalMl: number | null,
   unit: WaterUnit,
   hideNumbers: boolean,
+  i18n: I18n,
 ): string {
-  if (goalMl === null && !hideNumbers) return WATER_COPY.goalUnset;
-  if (hideNumbers) return HIDDEN_VALUE;
-  return formatWaterAmount(goalMl, unit, false);
+  if (goalMl === null && !hideNumbers) return i18n._(WATER_COPY.goalUnset);
+  if (hideNumbers) return i18n._(HIDDEN_VALUE);
+  return formatWaterAmount(goalMl, unit, false, i18n);
 }
 
 /** `"Plain water subtotal: 1.5 L"` for a screen reader. */
@@ -313,24 +318,31 @@ export function describeWaterSubtotal(
   },
   unit: WaterUnit,
   hideNumbers: boolean,
+  i18n: I18n,
 ): string {
-  return `${WATER_COPY.subtotalLabel}: ${formatWaterSubtotal(view, unit, hideNumbers)}`;
+  const value = formatWaterSubtotal(view, unit, hideNumbers, i18n);
+  return i18n._(msg`Plain water subtotal: ${value}`);
 }
 
 /** `"Plain water at 14:05: 300 ml, waiting to sync"`. */
-export function describeWaterRow(row: WaterDayRow, unit: WaterUnit, hideNumbers: boolean): string {
+export function describeWaterRow(
+  row: WaterDayRow,
+  unit: WaterUnit,
+  hideNumbers: boolean,
+  i18n: I18n,
+): string {
   const time = formatObservedClock(row.observedAt, row.timeZone) ?? row.observedAt;
-  const state =
-    row.state === "synced"
-      ? ""
-      : `, ${
-          row.state === "syncing"
-            ? "syncing"
-            : row.state === "needs_attention"
-              ? "needs attention"
-              : "waiting to sync"
-        }`;
-  return `${WATER_COPY.title} at ${time}: ${formatWaterAmount(row.quantityMl, unit, hideNumbers)}${state}`;
+  const amount = formatWaterAmount(row.quantityMl, unit, hideNumbers, i18n);
+  switch (row.state) {
+    case "synced":
+      return i18n._(msg`Plain water at ${time}: ${amount}`);
+    case "syncing":
+      return i18n._(msg`Plain water at ${time}: ${amount}, syncing`);
+    case "needs_attention":
+      return i18n._(msg`Plain water at ${time}: ${amount}, needs attention`);
+    default:
+      return i18n._(msg`Plain water at ${time}: ${amount}, waiting to sync`);
+  }
 }
 
 /** `14:05` in the zone the entry was recorded in, or `null` for an invalid instant. */
@@ -484,7 +496,7 @@ export function waterQuantityMl(quantity: number, unit: WaterUnit): number {
 
 export type WaterAmountResult =
   | { ok: true; quantity: number; unit: WaterUnit; quantityMl: number }
-  | { ok: false; error: string };
+  | { ok: false; error: MessageDescriptor };
 
 /** Form text to an amount. Blank, zero and non-finite values are refused. */
 export function parseWaterAmount(raw: string, unit: WaterUnit): WaterAmountResult {
@@ -503,7 +515,7 @@ export function parseWaterAmount(raw: string, unit: WaterUnit): WaterAmountResul
 export function parseWaterGoal(
   raw: string,
   unit: WaterUnit,
-): { ok: true; personalGoalMl: number | null } | { ok: false; error: string } {
+): { ok: true; personalGoalMl: number | null } | { ok: false; error: MessageDescriptor } {
   if (!raw.trim()) return { ok: true, personalGoalMl: null };
   const parsed = parseWaterAmount(raw, unit);
   if (!parsed.ok) return { ok: false, error: WATER_COPY.goalInvalid };
@@ -742,30 +754,46 @@ export function buildWaterDayView(
 export function describeWaterAttention(
   attention: WaterAttention,
   unit: WaterUnit,
+  i18n: I18n,
 ): { title: string; other: string | null; mine: string } {
+  const amount =
+    attention.opQuantityMl !== null
+      ? formatWaterAmount(attention.opQuantityMl, unit, false, i18n)
+      : null;
+  const clock = attention.opClock;
+  if (attention.reconciliationUnknown || !attention.isConflict) {
+    const mine = attention.opDeleted
+      ? i18n._(msg`Remove the entry.`)
+      : amount !== null
+        ? `${amount}.`
+        : clock
+          ? `${clock}.`
+          : i18n._(msg`the entry values.`);
+    return {
+      title: i18n._(
+        attention.reconciliationUnknown
+          ? WATER_COPY.reconciliationUnknown
+          : WATER_COPY.rejectedTitle,
+      ),
+      other: null,
+      mine,
+    };
+  }
   const mine = attention.opDeleted
-    ? "Your change: remove the entry."
-    : attention.opQuantityMl !== null
-      ? `Your change: ${formatWaterAmount(attention.opQuantityMl, unit, false)}.`
-      : attention.opClock
-        ? `Your change: ${attention.opClock}.`
-        : "Your change: the entry values.";
-  if (attention.reconciliationUnknown)
-    return {
-      title: WATER_COPY.reconciliationUnknown,
-      other: null,
-      mine: attention.opDeleted ? "Remove the entry." : mine.replace("Your change: ", ""),
-    };
-  if (!attention.isConflict)
-    return {
-      title: WATER_COPY.rejectedTitle,
-      other: null,
-      mine: attention.opDeleted ? "Remove the entry." : mine.replace("Your change: ", ""),
-    };
+    ? i18n._(msg`Your change: remove the entry.`)
+    : amount !== null
+      ? i18n._(msg`Your change: ${amount}.`)
+      : clock
+        ? i18n._(msg`Your change: ${clock}.`)
+        : i18n._(msg`Your change: the entry values.`);
+  const otherAmount =
+    attention.conflictQuantityMl === null
+      ? i18n._(HIDDEN_VALUE)
+      : formatWaterAmount(attention.conflictQuantityMl, unit, false, i18n);
   const other = attention.conflictDeleted
-    ? WATER_COPY.conflictGone
-    : `Other version: ${attention.conflictQuantityMl === null ? HIDDEN_VALUE : formatWaterAmount(attention.conflictQuantityMl, unit, false)}.`;
-  return { title: WATER_COPY.conflictTitle, other, mine };
+    ? i18n._(WATER_COPY.conflictGone)
+    : i18n._(msg`Other version: ${otherAmount}.`);
+  return { title: i18n._(WATER_COPY.conflictTitle), other, mine };
 }
 
 /**

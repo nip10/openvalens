@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import {
   WATER_COPY,
@@ -87,9 +88,11 @@ describe("outbox to presenter reconciliation", () => {
     expect(view.reconciliationUnknown).toBe(true);
     expect(view.subtotalMl).toBeNull();
     expect(view.entryCount).toBe(0);
-    expect(formatWaterSubtotal(view, "ml", false)).toBe(WATER_COPY.reconciliationUnknown);
-    expect(describeWaterAttention(view.attention[0]!, "ml").title).toBe(
-      WATER_COPY.reconciliationUnknown,
+    expect(formatWaterSubtotal(view, "ml", false, englishI18n)).toBe(
+      inEnglish(WATER_COPY.reconciliationUnknown),
+    );
+    expect(describeWaterAttention(view.attention[0]!, "ml", englishI18n).title).toBe(
+      inEnglish(WATER_COPY.reconciliationUnknown),
     );
     expect(attention.id).toBe(queued.id);
   });
@@ -143,9 +146,11 @@ describe("outbox to presenter reconciliation", () => {
     const rejected = rejectedStore.list("member")[0]!;
     expect(rejected.attempts).toBe(1);
     expect(project(rejected).reconciliationUnknown).toBe(false);
-    expect(formatWaterSubtotal(project(rejected), "ml", false)).toBe(WATER_COPY.empty);
-    expect(describeWaterAttention(project(rejected).attention[0]!, "ml").title).toBe(
-      WATER_COPY.rejectedTitle,
+    expect(formatWaterSubtotal(project(rejected), "ml", false, englishI18n)).toBe(
+      inEnglish(WATER_COPY.empty),
+    );
+    expect(describeWaterAttention(project(rejected).attention[0]!, "ml", englishI18n).title).toBe(
+      inEnglish(WATER_COPY.rejectedTitle),
     );
 
     const conflictStore = memoryStore();
@@ -170,8 +175,8 @@ describe("outbox to presenter reconciliation", () => {
     );
     const conflict = conflictStore.list("member")[0]!;
     expect(project(conflict).reconciliationUnknown).toBe(false);
-    expect(describeWaterAttention(project(conflict).attention[0]!, "ml").title).toBe(
-      WATER_COPY.conflictTitle,
+    expect(describeWaterAttention(project(conflict).attention[0]!, "ml", englishI18n).title).toBe(
+      inEnglish(WATER_COPY.conflictTitle),
     );
   });
 

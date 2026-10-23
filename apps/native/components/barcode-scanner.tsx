@@ -1,4 +1,5 @@
 import { BARCODE_COPY } from "@openvalens/api/presenters/food-lookup";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Camera, CameraView } from "expo-camera";
 import { Button } from "heroui-native";
 import { useEffect, useMemo, useState } from "react";
@@ -28,6 +29,7 @@ export function BarcodeScanner({
 }) {
   const [state, setState] = useState<ScannerState | "asking" | "failed">("asking");
   const gate = useMemo(() => createScanGate(), []);
+  const { t, i18n } = useLingui();
 
   useEffect(() => {
     let cancelled = false;
@@ -57,12 +59,12 @@ export function BarcodeScanner({
   if (state === "asking")
     return (
       <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-        {BARCODE_COPY.cameraPrompt}
+        {i18n._(BARCODE_COPY.cameraPrompt)}
       </Text>
     );
 
   if (state !== "ready") {
-    const message = state === "failed" ? BARCODE_COPY.cameraFailed : scannerMessage(state);
+    const message = i18n._(state === "failed" ? BARCODE_COPY.cameraFailed : scannerMessage(state));
     return (
       <View className="gap-2" accessibilityRole="alert">
         <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
@@ -71,11 +73,11 @@ export function BarcodeScanner({
         <View className="flex-row flex-wrap gap-2">
           {state === "blocked" || state === "denied" ? (
             <Button size="sm" variant="secondary" onPress={() => void Linking.openSettings()}>
-              Open Settings
+              <Trans>Open Settings</Trans>
             </Button>
           ) : null}
           <Button size="sm" variant="secondary" onPress={() => onClose(message)}>
-            Type digits instead
+            <Trans>Type digits instead</Trans>
           </Button>
         </View>
       </View>
@@ -84,11 +86,11 @@ export function BarcodeScanner({
 
   return (
     <View className="gap-2">
-      <Text className="text-sm text-muted-foreground">{BARCODE_COPY.cameraPrompt}</Text>
+      <Text className="text-sm text-muted-foreground">{i18n._(BARCODE_COPY.cameraPrompt)}</Text>
       <View
         className="h-56 overflow-hidden rounded-lg border border-border"
         accessible
-        accessibilityLabel="Camera view for scanning a barcode"
+        accessibilityLabel={t`Camera view for scanning a barcode`}
       >
         <CameraView
           style={{ flex: 1 }}
@@ -102,7 +104,7 @@ export function BarcodeScanner({
         />
       </View>
       <Button size="sm" variant="secondary" onPress={() => onClose(null)}>
-        {BARCODE_COPY.stopScan}
+        {i18n._(BARCODE_COPY.stopScan)}
       </Button>
     </View>
   );

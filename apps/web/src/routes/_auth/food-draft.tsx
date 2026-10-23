@@ -4,6 +4,9 @@ import {
   FOOD_DRAFT_FLAG_LABELS,
   PHOTO_DRAFT_COPY,
 } from "@openvalens/api/presenters/food-draft";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -33,16 +36,20 @@ function withFlags(flags: Flag[], cleared: Flag[], added: Flag | null): Flag[] {
  * after a per-photo confirmation, with metadata stripped on the server, and
  * is never stored.
  */
+const DRAFT_FAILED = msg`Could not make a draft. Nothing was saved.`;
+const DRAFT_DISCARDED = msg`Draft discarded. Nothing was saved.`;
+
 function FoodDraftPage() {
   const [transcript, setTranscript] = useState("");
   const [useAi, setUseAi] = useState(false);
   const [aiAgreed, setAiAgreed] = useState(false);
   const [candidates, setCandidates] = useState<FoodDraftCandidateWire[] | null>(null);
   const [source, setSource] = useState<"text" | "photo">("text");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<MessageDescriptor | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoAgreed, setPhotoAgreed] = useState(false);
-  const [photoMessage, setPhotoMessage] = useState("");
+  const [photoMessage, setPhotoMessage] = useState<MessageDescriptor | null>(null);
+  const { t, i18n } = useLingui();
   const provider = useQuery({
     queryKey: ["nutritionFoodDrafts", "provider"],
     queryFn: () => client.nutritionFoodDrafts.provider({}),
@@ -63,7 +70,7 @@ function FoodDraftPage() {
       setCandidates(result.status === "ready" ? result.candidates : null);
       setMessage(FOOD_DRAFT_COPY.status[result.status]);
     },
-    onError: () => setMessage("Could not make a draft. Nothing was saved."),
+    onError: () => setMessage(DRAFT_FAILED),
   });
   const parsePhoto = useMutation({
     mutationFn: (file: File) =>
@@ -81,8 +88,13 @@ function FoodDraftPage() {
       setCandidates(result.status === "ready" ? result.candidates : null);
       setPhotoMessage(PHOTO_DRAFT_COPY.status[result.status]);
     },
-    onError: () => setPhotoMessage("Could not make a draft. Nothing was saved."),
+    onError: () => setPhotoMessage(DRAFT_FAILED),
   });
+  const providerName = provider.data?.host
+    ? `${provider.data.provider} (${provider.data.host})`
+    : (provider.data?.provider ?? "");
+  const itemLegend = (number: number, heard: string | null) =>
+    heard === null ? t`Item ${number} · from the photo` : t`Item ${number} · heard “${heard}”`;
   const edit = (id: string, patch: Partial<FoodDraftCandidateWire>) =>
     setCandidates((current) =>
       current ? current.map((item) => (item.id === id ? { ...item, ...patch } : item)) : current,
@@ -91,24 +103,28 @@ function FoodDraftPage() {
   return (
     <main className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">Describe a meal</h1>
-        <p className="text-sm text-muted-foreground">{FOOD_DRAFT_COPY.intro}</p>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Describe a meal</Trans>
+        </h1>
+        <p className="text-sm text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.intro)}</p>
         <Link to="/nutrition" className="w-fit text-sm underline">
-          Back to meal diary
+          <Trans>Back to meal diary</Trans>
         </Link>
       </header>
       <Card>
         <CardContent className="grid gap-4 pt-6">
           <div className="grid gap-1.5">
-            <Label htmlFor="food-draft-text">What did you have?</Label>
+            <Label htmlFor="food-draft-text">
+              <Trans>What did you have?</Trans>
+            </Label>
             <Textarea
               id="food-draft-text"
               maxLength={2000}
               value={transcript}
-              placeholder="Two eggs, a slice of toast and a coffee"
+              placeholder={t`Two eggs, a slice of toast and a coffee`}
               onChange={(event) => setTranscript(event.target.value)}
             />
-            <p className="text-xs text-muted-foreground">{FOOD_DRAFT_COPY.dictation}</p>
+            <p className="text-xs text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.dictation)}</p>
           </div>
           {provider.data?.available ? (
             <div className="grid gap-2 rounded-md border p-3 text-sm">
@@ -121,7 +137,7 @@ function FoodDraftPage() {
                     setAiAgreed(false);
                   }}
                 />
-                Use the AI provider for this draft
+                <Trans>Use the AI provider for this draft</Trans>
               </label>
               {useAi ? (
                 <label className="flex items-start gap-2">
@@ -132,9 +148,10 @@ function FoodDraftPage() {
                     onChange={(event) => setAiAgreed(event.target.checked)}
                   />
                   <span>
-                    Send this text, and nothing else, to {provider.data.provider}
-                    {provider.data.host ? ` (${provider.data.host})` : ""} now.{" "}
-                    {FOOD_DRAFT_COPY.aiDisclosure}
+                    <Trans comment="safety">
+                      Send this text, and nothing else, to {providerName} now.
+                    </Trans>{" "}
+                    {i18n._(FOOD_DRAFT_COPY.aiDisclosure)}
                   </span>
                 </label>
               ) : null}
@@ -145,14 +162,14 @@ function FoodDraftPage() {
             disabled={!transcript.trim() || (useAi && !aiAgreed) || parse.isPending}
             onClick={() => parse.mutate()}
           >
-            {parse.isPending ? "Working…" : "Make a draft"}
+            {parse.isPending ? t`Working…` : t`Make a draft`}
           </Button>
           {message ? (
             <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-              {message}{" "}
+              {i18n._(message)}{" "}
               {message === FOOD_DRAFT_COPY.status.disabled ? (
                 <Link to="/nutrition-targets" className="underline">
-                  Nutrition settings
+                  <Trans>Nutrition settings</Trans>
                 </Link>
               ) : null}
             </p>
@@ -163,12 +180,16 @@ function FoodDraftPage() {
       {provider.data?.available ? (
         <Card>
           <CardHeader>
-            <CardTitle>From a photo</CardTitle>
+            <CardTitle>
+              <Trans>From a photo</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <p className="text-sm text-muted-foreground">{PHOTO_DRAFT_COPY.intro}</p>
+            <p className="text-sm text-muted-foreground">{i18n._(PHOTO_DRAFT_COPY.intro)}</p>
             <div className="grid gap-1.5">
-              <Label htmlFor="food-draft-photo">Meal photo (JPEG or PNG, up to 10 MB)</Label>
+              <Label htmlFor="food-draft-photo">
+                <Trans>Meal photo (JPEG or PNG, up to 10 MB)</Trans>
+              </Label>
               <Input
                 id="food-draft-photo"
                 type="file"
@@ -188,9 +209,8 @@ function FoodDraftPage() {
                 onChange={(event) => setPhotoAgreed(event.target.checked)}
               />
               <span>
-                Send this photo to {provider.data.provider}
-                {provider.data.host ? ` (${provider.data.host})` : ""} now.{" "}
-                {PHOTO_DRAFT_COPY.disclosure}
+                <Trans comment="safety">Send this photo to {providerName} now.</Trans>{" "}
+                {i18n._(PHOTO_DRAFT_COPY.disclosure)}
               </span>
             </label>
             <Button
@@ -198,14 +218,14 @@ function FoodDraftPage() {
               disabled={!photo || !photoAgreed || parsePhoto.isPending}
               onClick={() => photo && parsePhoto.mutate(photo)}
             >
-              {parsePhoto.isPending ? "Working…" : "Make a draft from this photo"}
+              {parsePhoto.isPending ? t`Working…` : t`Make a draft from this photo`}
             </Button>
             {photoMessage ? (
               <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-                {photoMessage}{" "}
+                {i18n._(photoMessage)}{" "}
                 {photoMessage === PHOTO_DRAFT_COPY.status.disabled ? (
                   <Link to="/nutrition-targets" className="underline">
-                    Nutrition settings
+                    <Trans>Nutrition settings</Trans>
                   </Link>
                 ) : null}
               </p>
@@ -217,21 +237,24 @@ function FoodDraftPage() {
       {candidates ? (
         <Card>
           <CardHeader>
-            <CardTitle>Review the draft</CardTitle>
+            <CardTitle>
+              <Trans>Review the draft</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <p className="text-sm text-muted-foreground">
-              {source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review}
+              {i18n._(source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review)}
             </p>
             {candidates.map((item, index) => (
               <fieldset key={item.id} className="grid gap-3 rounded-lg border p-3">
                 <legend className="px-1 text-sm font-medium">
-                  Item {index + 1} ·{" "}
-                  {source === "photo" ? "from the photo" : `heard “${item.sourceText}”`}
+                  {itemLegend(index + 1, source === "photo" ? null : item.sourceText)}
                 </legend>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-food`}>Food</Label>
+                    <Label htmlFor={`${item.id}-food`}>
+                      <Trans>Food</Trans>
+                    </Label>
                     <Input
                       id={`${item.id}-food`}
                       maxLength={200}
@@ -240,7 +263,9 @@ function FoodDraftPage() {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-quantity`}>Quantity</Label>
+                    <Label htmlFor={`${item.id}-quantity`}>
+                      <Trans>Quantity</Trans>
+                    </Label>
                     <Input
                       id={`${item.id}-quantity`}
                       inputMode="decimal"
@@ -263,7 +288,9 @@ function FoodDraftPage() {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-unit`}>Unit</Label>
+                    <Label htmlFor={`${item.id}-unit`}>
+                      <Trans>Unit</Trans>
+                    </Label>
                     <Input
                       id={`${item.id}-unit`}
                       maxLength={20}
@@ -284,7 +311,7 @@ function FoodDraftPage() {
                 </div>
                 {item.flags.length ? (
                   <p className="text-sm text-amber-700 dark:text-amber-400">
-                    {item.flags.map((flag) => FOOD_DRAFT_FLAG_LABELS[flag]).join(" · ")}
+                    {item.flags.map((flag) => i18n._(FOOD_DRAFT_FLAG_LABELS[flag])).join(" · ")}
                   </p>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
@@ -293,7 +320,7 @@ function FoodDraftPage() {
                     search={{ food: item.foodText }}
                     className="inline-flex min-h-9 items-center rounded-md border px-3 text-sm"
                   >
-                    Find and log this food
+                    <Trans>Find and log this food</Trans>
                   </Link>
                   <Button
                     variant="outline"
@@ -304,7 +331,7 @@ function FoodDraftPage() {
                       )
                     }
                   >
-                    Remove
+                    <Trans>Remove</Trans>
                   </Button>
                 </div>
               </fieldset>
@@ -314,10 +341,10 @@ function FoodDraftPage() {
               className="w-fit"
               onClick={() => {
                 setCandidates(null);
-                setMessage("Draft discarded. Nothing was saved.");
+                setMessage(DRAFT_DISCARDED);
               }}
             >
-              Discard draft
+              <Trans>Discard draft</Trans>
             </Button>
           </CardContent>
         </Card>

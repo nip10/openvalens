@@ -4,6 +4,7 @@ import {
   type RecipeDraft,
   type RecipeDraftIngredient,
 } from "@openvalens/api/presenters/recipe-draft";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -70,6 +71,7 @@ export function RecipeDraftEditor() {
   const [showPaste, setShowPaste] = useState(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const importUrl = useMutation(orpc.nutritionRecipeImport.fromUrl.mutationOptions());
+  const { t } = useLingui();
 
   useEffect(() => {
     if (scope === activeScope) return;
@@ -99,8 +101,8 @@ export function RecipeDraftEditor() {
       setDirty(false);
       setMessage(
         parsed.status === "choose_recipe"
-          ? "Choose the recipe you want to review."
-          : (parsed.message ?? "No draft was created."),
+          ? t`Choose the recipe you want to review.`
+          : (parsed.message ?? t`No draft was created.`),
       );
     }
   };
@@ -112,7 +114,7 @@ export function RecipeDraftEditor() {
           onSuccess: show,
           onError: () => {
             setDraft(null);
-            setMessage("The import failed. Nothing was saved.");
+            setMessage(t`The import failed. Nothing was saved.`);
           },
         },
       );
@@ -123,9 +125,9 @@ export function RecipeDraftEditor() {
       setResult({
         status: "invalid",
         candidates: [],
-        message: "Paste is over the 1 MiB limit. Shorten it and try again.",
+        message: t`Paste is over the 1 MiB limit. Shorten it and try again.`,
       });
-      setMessage("The previous review was cleared. Your pasted text is still here.");
+      setMessage(t`The previous review was cleared. Your pasted text is still here.`);
       return;
     }
     const parsed = parseRecipeDraft({
@@ -147,7 +149,7 @@ export function RecipeDraftEditor() {
     if (draft || result.candidates.length) {
       setResult(EMPTY_RESULT);
       setShowPaste(true);
-      setMessage("Paste changed. Create a replacement draft explicitly.");
+      setMessage(t`Paste changed. Create a replacement draft explicitly.`);
     }
   };
   const clear = () => {
@@ -158,7 +160,7 @@ export function RecipeDraftEditor() {
     setDirty(false);
     setReplacePending(false);
     setShowPaste(false);
-    setMessage("Draft cleared. Nothing was saved.");
+    setMessage(t`Draft cleared. Nothing was saved.`);
     textRef.current?.focus();
   };
   const updateDraft = (update: (current: RecipeDraft) => RecipeDraft) => {
@@ -196,42 +198,61 @@ export function RecipeDraftEditor() {
   if (isPending || scope !== activeScope)
     return (
       <main className="mx-auto max-w-3xl px-4 py-6">
-        <p role="status">Loading your workspace…</p>
+        <p role="status">
+          <Trans>Loading your workspace…</Trans>
+        </p>
       </main>
     );
   if (!scope)
     return (
       <main className="mx-auto max-w-3xl px-4 py-6">
-        <h1 className="text-2xl font-semibold">Recipe draft</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Recipe draft</Trans>
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in to create a private, session-only draft.
+          <Trans>Sign in to create a private, session-only draft.</Trans>
         </p>
       </main>
     );
 
+  const notProvided = t`Not provided`;
+  const ingredientCount = draft?.ingredients.length ?? 0;
+  const site = draft?.source.site || notProvided;
+  const author = draft?.source.author || notProvided;
+  const importedAt = draft?.source.importedAt ?? "";
+  const sourceLink = draft?.source.url || notProvided;
+
   return (
     <main className="mx-auto grid max-w-3xl gap-5 px-4 py-6">
       <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">Recipe draft</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Recipe draft</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on in
-          nutrition settings. Nothing is saved.
+          <Trans>
+            Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on in
+            nutrition settings. Nothing is saved.
+          </Trans>
         </p>
         <p className="text-sm text-muted-foreground">
-          Not saved. Discard the draft to clear it; reloading may lose it.
+          <Trans>Not saved. Discard the draft to clear it; reloading may lose it.</Trans>
         </p>
         <Link to="/nutrition" className="min-h-11 w-fit content-center text-sm underline">
-          Back to meal diary
+          <Trans>Back to meal diary</Trans>
         </Link>
       </header>
       {!draft || showPaste ? (
         <Card>
           <CardHeader>
-            <CardTitle>Paste recipe text</CardTitle>
+            <CardTitle>
+              <Trans>Paste recipe text</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <fieldset className="grid gap-2">
-              <legend className="text-sm font-medium">Paste format</legend>
+              <legend className="text-sm font-medium">
+                <Trans>Paste format</Trans>
+              </legend>
               <label className="flex min-h-11 items-center gap-2">
                 <input
                   type="radio"
@@ -239,7 +260,7 @@ export function RecipeDraftEditor() {
                   checked={format === "ingredients"}
                   onChange={() => setFormat("ingredients")}
                 />
-                Ingredients
+                <Trans>Ingredients</Trans>
               </label>
               <label className="flex min-h-11 items-center gap-2">
                 <input
@@ -248,7 +269,7 @@ export function RecipeDraftEditor() {
                   checked={format === "json-ld"}
                   onChange={() => setFormat("json-ld")}
                 />
-                Recipe JSON-LD
+                <Trans>Recipe JSON-LD</Trans>
               </label>
               <label className="flex min-h-11 items-center gap-2">
                 <input
@@ -262,7 +283,9 @@ export function RecipeDraftEditor() {
             </fieldset>
             {format !== "url" ? (
               <div className="grid gap-1.5">
-                <Label htmlFor="recipe-paste">Paste text (up to 1 MiB)</Label>
+                <Label htmlFor="recipe-paste">
+                  <Trans>Paste text (up to 1 MiB)</Trans>
+                </Label>
                 <Textarea
                   ref={textRef}
                   id="recipe-paste"
@@ -276,7 +299,7 @@ export function RecipeDraftEditor() {
               <Label htmlFor="recipe-source">
                 {format === "url"
                   ? RECIPE_IMPORT_COPY.urlLabel
-                  : "Source URL (optional, provenance only)"}
+                  : t`Source URL (optional, provenance only)`}
               </Label>
               <Input
                 id="recipe-source"
@@ -289,7 +312,7 @@ export function RecipeDraftEditor() {
                 <p className="text-xs text-muted-foreground">
                   {RECIPE_IMPORT_COPY.urlHint}{" "}
                   <Link to="/nutrition-targets" className="underline">
-                    Nutrition settings
+                    <Trans>Nutrition settings</Trans>
                   </Link>
                 </p>
               ) : null}
@@ -309,15 +332,17 @@ export function RecipeDraftEditor() {
                   replacePending
                 }
               >
-                {importUrl.isPending ? RECIPE_IMPORT_COPY.importing : "Create draft"}
+                {importUrl.isPending ? RECIPE_IMPORT_COPY.importing : t`Create draft`}
               </Button>
               <Button variant="outline" onClick={clear}>
-                Clear
+                <Trans>Clear</Trans>
               </Button>
             </div>
             {replacePending ? (
               <div role="alert" className="grid gap-2 rounded-lg border p-3">
-                <p className="text-sm">Parsing again will replace your edited review. Continue?</p>
+                <p className="text-sm">
+                  <Trans>Parsing again will replace your edited review. Continue?</Trans>
+                </p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="destructive"
@@ -327,7 +352,7 @@ export function RecipeDraftEditor() {
                       setReplacePending(false);
                     }}
                   >
-                    Replace review
+                    <Trans>Replace review</Trans>
                   </Button>
                   <Button
                     variant="outline"
@@ -336,7 +361,7 @@ export function RecipeDraftEditor() {
                       setShowPaste(false);
                     }}
                   >
-                    Keep review
+                    <Trans>Keep review</Trans>
                   </Button>
                 </div>
               </div>
@@ -348,7 +373,9 @@ export function RecipeDraftEditor() {
             ) : null}
             {result.status === "choose_recipe" ? (
               <fieldset className="grid gap-2">
-                <legend className="text-sm font-medium">Choose a recipe to review</legend>
+                <legend className="text-sm font-medium">
+                  <Trans>Choose a recipe to review</Trans>
+                </legend>
                 {result.candidates.map((candidate) => (
                   <Button
                     key={candidate.id}
@@ -356,7 +383,7 @@ export function RecipeDraftEditor() {
                     className="h-auto min-h-11 justify-start whitespace-normal py-2 text-left"
                     onClick={() => choose(candidate)}
                   >
-                    {candidate.title || "Untitled recipe"}
+                    {candidate.title || t`Untitled recipe`}
                   </Button>
                 ))}
               </fieldset>
@@ -367,15 +394,21 @@ export function RecipeDraftEditor() {
       {draft && !showPaste ? (
         <Card>
           <CardHeader>
-            <CardTitle>Review draft</CardTitle>
+            <CardTitle>
+              <Trans>Review draft</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <p className="rounded-md border p-3 text-sm">
-              Ingredients remain unmatched and unverified. No nutrition values are calculated. This
-              is not clinical advice.
+              <Trans comment="safety">
+                Ingredients remain unmatched and unverified. No nutrition values are calculated.
+                This is not clinical advice.
+              </Trans>
             </p>
             <div className="grid gap-1.5">
-              <Label htmlFor="draft-title">Title</Label>
+              <Label htmlFor="draft-title">
+                <Trans>Title</Trans>
+              </Label>
               <Input
                 id="draft-title"
                 maxLength={300}
@@ -386,7 +419,9 @@ export function RecipeDraftEditor() {
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="draft-servings">Servings (text)</Label>
+              <Label htmlFor="draft-servings">
+                <Trans>Servings (text)</Trans>
+              </Label>
               <Input
                 id="draft-servings"
                 maxLength={200}
@@ -401,22 +436,22 @@ export function RecipeDraftEditor() {
             </div>
             <section className="grid gap-3" aria-labelledby="draft-ingredients-title">
               <h2 id="draft-ingredients-title" className="text-lg font-medium">
-                Ingredients ({draft.ingredients.length}/{MAX_INGREDIENTS})
+                {t`Ingredients (${ingredientCount}/${MAX_INGREDIENTS})`}
               </h2>
               {draft.ingredients.map((item, index) => (
                 <fieldset key={item.id} className="grid gap-3 rounded-lg border p-3">
                   <legend className="px-1 text-sm font-medium">
-                    Ingredient {index + 1} · unmatched, unverified
+                    {t`Ingredient ${index + 1} · unmatched, unverified`}
                   </legend>
                   {(["rawText", "quantityText", "unitText", "foodText"] as const).map((key) => (
                     <div key={key} className="grid gap-1.5">
                       <Label htmlFor={`${item.id}-${key}`}>
                         {
                           {
-                            rawText: "Original text",
-                            quantityText: "Quantity (text)",
-                            unitText: "Unit (text)",
-                            foodText: "Food text",
+                            rawText: t`Original text`,
+                            quantityText: t`Quantity (text)`,
+                            unitText: t`Unit (text)`,
+                            foodText: t`Food text`,
                           }[key]
                         }
                       </Label>
@@ -435,7 +470,9 @@ export function RecipeDraftEditor() {
                     </div>
                   ))}
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-prep`}>Preparation</Label>
+                    <Label htmlFor={`${item.id}-prep`}>
+                      <Trans>Preparation</Trans>
+                    </Label>
                     <select
                       id={`${item.id}-prep`}
                       className="min-h-11 rounded-md border bg-background px-3"
@@ -447,9 +484,9 @@ export function RecipeDraftEditor() {
                         }))
                       }
                     >
-                      <option value="unknown">Unknown</option>
-                      <option value="raw">Raw</option>
-                      <option value="cooked">Cooked</option>
+                      <option value="unknown">{t`Unknown`}</option>
+                      <option value="raw">{t`Raw`}</option>
+                      <option value="cooked">{t`Cooked`}</option>
                     </select>
                   </div>
                   <Button
@@ -464,7 +501,7 @@ export function RecipeDraftEditor() {
                       }))
                     }
                   >
-                    Remove ingredient {index + 1}
+                    {t`Remove ingredient ${index + 1}`}
                   </Button>
                 </fieldset>
               ))}
@@ -475,14 +512,16 @@ export function RecipeDraftEditor() {
               disabled={draft.ingredients.length >= MAX_INGREDIENTS}
               onClick={addIngredient}
             >
-              Add ingredient
+              <Trans>Add ingredient</Trans>
             </Button>
-            <section className="grid gap-1 rounded-lg border p-3" aria-label="Source metadata">
-              <h2 className="font-medium">Source details (provenance only)</h2>
-              <p className="text-sm">Site: {draft.source.site || "Not provided"}</p>
-              <p className="text-sm">Author: {draft.source.author || "Not provided"}</p>
-              <p className="text-sm">Imported: {draft.source.importedAt}</p>
-              <p className="break-all text-sm">Source URL: {draft.source.url || "Not provided"}</p>
+            <section className="grid gap-1 rounded-lg border p-3" aria-label={t`Source metadata`}>
+              <h2 className="font-medium">
+                <Trans>Source details (provenance only)</Trans>
+              </h2>
+              <p className="text-sm">{t`Site: ${site}`}</p>
+              <p className="text-sm">{t`Author: ${author}`}</p>
+              <p className="text-sm">{t`Imported: ${importedAt}`}</p>
+              <p className="break-all text-sm">{t`Source URL: ${sourceLink}`}</p>
               {safeSourceUrl(draft.source.url) ? (
                 <a
                   className="min-h-11 content-center text-sm underline"
@@ -490,7 +529,7 @@ export function RecipeDraftEditor() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Open source URL
+                  <Trans>Open source URL</Trans>
                 </a>
               ) : null}
             </section>
@@ -499,13 +538,13 @@ export function RecipeDraftEditor() {
                 variant="outline"
                 onClick={() => {
                   setShowPaste(true);
-                  setMessage("Change the paste, then explicitly create a replacement draft.");
+                  setMessage(t`Change the paste, then explicitly create a replacement draft.`);
                 }}
               >
-                Change paste
+                <Trans>Change paste</Trans>
               </Button>
               <Button variant="destructive" onClick={clear}>
-                Discard draft
+                <Trans>Discard draft</Trans>
               </Button>
             </div>
           </CardContent>

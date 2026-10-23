@@ -17,6 +17,7 @@ import {
   type WaterDayView,
   type WaterUnit,
 } from "@openvalens/api/presenters/plain-water";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -24,6 +25,7 @@ import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
+import { plural } from "@lingui/core/macro";
 import { useId, useRef, useState } from "react";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "./plain-water-form";
 import {
@@ -147,6 +149,7 @@ function PlainWaterDayViewState({
   aboveList,
   resolvedIntentGeneration = null,
 }: PlainWaterDayViewProps) {
+  const { t, i18n } = useLingui();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [goalText, setGoalText] = useState("");
   const [goalError, setGoalError] = useState<string | null>(null);
@@ -199,11 +202,13 @@ function PlainWaterDayViewState({
   const submitAdd = async () => {
     if (addGeneration === null) return;
     const parsed = parseWaterAmount(amount, addUnit);
-    if (!parsed.ok) return setAddError(parsed.error);
+    if (!parsed.ok) return setAddError(i18n._(parsed.error));
     const instant = waterDateInstant(localDate, clock, timeZone);
     if (!instant.ok)
       return setAddError(
-        instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid,
+        i18n._(
+          instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid,
+        ),
       );
     setAddError(null);
     const saved = await onAdd(
@@ -225,19 +230,21 @@ function PlainWaterDayViewState({
     if (!editing || editGeneration === null) return;
     const timeChanged = editing.clock !== editing.originalClock;
     const amountPatch = waterEditAmountPatch(editing);
-    if (!amountPatch.ok) return setEditError(amountPatch.error);
+    if (!amountPatch.ok) return setEditError(i18n._(amountPatch.error));
     let patch: { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string } =
       amountPatch.patch;
     if (timeChanged) {
       const instant = waterDateInstant(localDate, editing.clock, timeZone);
       if (!instant.ok)
         return setEditError(
-          instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid,
+          i18n._(
+            instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid,
+          ),
         );
       patch = { ...patch, observedAt: instant.observedAt, timeZone };
     }
     if (patch.quantity === undefined && patch.observedAt === undefined)
-      return setEditError(WATER_COPY.nothingChanged);
+      return setEditError(i18n._(WATER_COPY.nothingChanged));
     setEditError(null);
     const saved = await onChange(editing.entryId, editing.revision, patch, editGeneration);
     if (saved && editGenerationRef.current === editGeneration) {
@@ -253,7 +260,7 @@ function PlainWaterDayViewState({
       return;
     }
     const parsed = parseWaterGoal(goalText, unit);
-    if (!parsed.ok) return setGoalError(parsed.error);
+    if (!parsed.ok) return setGoalError(i18n._(parsed.error));
     setGoalError(null);
     await onSaveGoal(parsed.personalGoalMl);
   };
@@ -264,41 +271,41 @@ function PlainWaterDayViewState({
         <div className="grid gap-1">
           <CardTitle>
             <h2 id="plain-water-heading" className="text-lg font-medium">
-              {WATER_COPY.title}
+              {i18n._(WATER_COPY.title)}
             </h2>
           </CardTitle>
-          <p className="text-sm text-muted-foreground">{WATER_COPY.scopeNote}</p>
+          <p className="text-sm text-muted-foreground">{i18n._(WATER_COPY.scopeNote)}</p>
         </div>
-        {enabled === false ? <Badge variant="outline">{WATER_COPY.optional}</Badge> : null}
+        {enabled === false ? <Badge variant="outline">{i18n._(WATER_COPY.optional)}</Badge> : null}
       </CardHeader>
       <CardContent className="grid gap-4">
         {load === "loading" ? <Skeleton className="h-20 w-full" /> : null}
 
         {load === "error" ? (
           <p className="text-sm text-muted-foreground" role="alert">
-            {WATER_COPY.readError}{" "}
+            {i18n._(WATER_COPY.readError)}{" "}
             <button type="button" className="underline" onClick={onRetry}>
-              {WATER_COPY.retry}
+              {i18n._(WATER_COPY.retry)}
             </button>
           </p>
         ) : null}
 
         {load === "ready" && enabled === null ? (
           <p className="text-sm text-muted-foreground" role="alert">
-            {WATER_COPY.readError}{" "}
+            {i18n._(WATER_COPY.readError)}{" "}
             <button type="button" className="underline" onClick={onRetry}>
-              {WATER_COPY.retry}
+              {i18n._(WATER_COPY.retry)}
             </button>
           </p>
         ) : null}
 
         {enabled === false ? (
           <div className="grid gap-2">
-            <p className="font-medium">{WATER_COPY.offTitle}</p>
-            <p className="text-sm text-muted-foreground">{WATER_COPY.offBody}</p>
+            <p className="font-medium">{i18n._(WATER_COPY.offTitle)}</p>
+            <p className="text-sm text-muted-foreground">{i18n._(WATER_COPY.offBody)}</p>
             <div>
               <Button size="sm" onClick={() => onToggleEnabled(true)} disabled={busy !== null}>
-                {WATER_COPY.turnOn}
+                {i18n._(WATER_COPY.turnOn)}
               </Button>
             </div>
           </div>
@@ -308,28 +315,32 @@ function PlainWaterDayViewState({
           <>
             <div
               className="grid gap-1 rounded-md border p-3"
-              aria-label={describeWaterSubtotal(view, unit, hideNumbers)}
+              aria-label={describeWaterSubtotal(view, unit, hideNumbers, i18n)}
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm text-muted-foreground">{WATER_COPY.subtotalLabel}</span>
+                <span className="text-sm text-muted-foreground">
+                  {i18n._(WATER_COPY.subtotalLabel)}
+                </span>
                 <span className="font-mono text-lg">
-                  {formatWaterSubtotal(view, unit, hideNumbers)}
+                  {formatWaterSubtotal(view, unit, hideNumbers, i18n)}
                 </span>
               </div>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-sm">
-                  {WATER_COPY.goalLabel}:{" "}
-                  <span className="font-mono">
-                    {formatWaterGoal(view.personalGoalMl, unit, hideNumbers)}
-                  </span>
+                  <Trans>
+                    Personal goal:{" "}
+                    <span className="font-mono">
+                      {formatWaterGoal(view.personalGoalMl, unit, hideNumbers, i18n)}
+                    </span>
+                  </Trans>
                 </span>
-                <span className="text-xs text-muted-foreground">{WATER_COPY.goalNote}</span>
+                <span className="text-xs text-muted-foreground">{i18n._(WATER_COPY.goalNote)}</span>
               </div>
               {hideNumbers ? (
-                <p className="text-xs text-muted-foreground">{WATER_COPY.hiddenNote}</p>
+                <p className="text-xs text-muted-foreground">{i18n._(WATER_COPY.hiddenNote)}</p>
               ) : (
                 <div className="mt-1">
-                  <UnitChoice value={unit} onChange={onUnitChange} label="Display unit" />
+                  <UnitChoice value={unit} onChange={onUnitChange} label={t`Display unit`} />
                 </div>
               )}
             </div>
@@ -344,20 +355,23 @@ function PlainWaterDayViewState({
 
             {view.pendingRemovalCount > 0 ? (
               <p className="text-xs text-muted-foreground" role="status">
-                {view.pendingRemovalCount === 1
-                  ? "1 removal waiting to sync."
-                  : `${view.pendingRemovalCount} removals waiting to sync.`}
+                {t`${plural(view.pendingRemovalCount, {
+                  one: "# removal waiting to sync.",
+                  other: "# removals waiting to sync.",
+                })}`}
               </p>
             ) : null}
 
             {view.rows.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty}
+                {i18n._(
+                  view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty,
+                )}
               </p>
             ) : (
               <ul
                 className="divide-y divide-border rounded-md border"
-                aria-label={WATER_COPY.entriesLabel}
+                aria-label={i18n._(WATER_COPY.entriesLabel)}
               >
                 {view.rows.map((row) => (
                   <WaterRow
@@ -425,12 +439,12 @@ function PlainWaterDayViewState({
             {addOpen ? (
               <div className="grid gap-3 rounded-md border p-3">
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
-                  <WaterField label={WATER_COPY.amountLabel}>
+                  <WaterField label={i18n._(WATER_COPY.amountLabel)}>
                     {(id) => (
                       <Input
                         id={id}
                         inputMode="decimal"
-                        placeholder={WATER_COPY.amountPlaceholder}
+                        placeholder={i18n._(WATER_COPY.amountPlaceholder)}
                         value={amount}
                         aria-invalid={addError !== null}
                         onChange={(event) => setAmount(event.target.value)}
@@ -438,14 +452,14 @@ function PlainWaterDayViewState({
                     )}
                   </WaterField>
                   <div className="grid gap-1.5">
-                    <span className="text-sm font-medium">{WATER_COPY.unitLabel}</span>
+                    <span className="text-sm font-medium">{i18n._(WATER_COPY.unitLabel)}</span>
                     <UnitChoice
                       value={addUnit}
                       onChange={setAddUnit}
-                      label={WATER_COPY.unitLabel}
+                      label={i18n._(WATER_COPY.unitLabel)}
                     />
                   </div>
-                  <WaterField label={WATER_COPY.timeLabel}>
+                  <WaterField label={i18n._(WATER_COPY.timeLabel)}>
                     {(id) => (
                       <Input
                         id={id}
@@ -458,10 +472,10 @@ function PlainWaterDayViewState({
                   </WaterField>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => void submitAdd()} disabled={busy !== null}>
-                      {busy === "add" ? WATER_COPY.saving : WATER_COPY.save}
+                      {i18n._(busy === "add" ? WATER_COPY.saving : WATER_COPY.save)}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setClock(nowClock(timeZone))}>
-                      {WATER_COPY.useNow}
+                      {i18n._(WATER_COPY.useNow)}
                     </Button>
                   </div>
                 </div>
@@ -472,14 +486,14 @@ function PlainWaterDayViewState({
                 ) : null}
                 <div>
                   <Button size="sm" variant="ghost" onClick={() => setAddOpen(false)}>
-                    {WATER_COPY.cancel}
+                    {i18n._(WATER_COPY.cancel)}
                   </Button>
                 </div>
               </div>
             ) : (
               <div>
                 <Button size="sm" onClick={openAdd}>
-                  {WATER_COPY.add}
+                  {i18n._(WATER_COPY.add)}
                 </Button>
               </div>
             )}
@@ -490,7 +504,7 @@ function PlainWaterDayViewState({
               onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
             >
               <summary className="cursor-pointer text-muted-foreground">
-                {WATER_COPY.settingsTitle}
+                {i18n._(WATER_COPY.settingsTitle)}
               </summary>
               <div className="mt-3 grid gap-3">
                 <label className="flex items-center gap-2">
@@ -500,23 +514,25 @@ function PlainWaterDayViewState({
                     disabled={busy !== null}
                     aria-describedby="plain-water-switch-note"
                   />
-                  <span>{WATER_COPY.settingsTitle}</span>
+                  <span>{i18n._(WATER_COPY.settingsTitle)}</span>
                 </label>
                 <p id="plain-water-switch-note" className="text-xs text-muted-foreground">
-                  {WATER_COPY.offBody}
+                  {i18n._(WATER_COPY.offBody)}
                 </p>
                 <div className="grid gap-2 rounded-md border p-3">
-                  <p className="text-sm font-medium">{WATER_COPY.goalLabel}</p>
+                  <p className="text-sm font-medium">{i18n._(WATER_COPY.goalLabel)}</p>
                   {hideNumbers ? (
-                    <p className="text-xs text-muted-foreground">{WATER_COPY.editGoalHiddenNote}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {i18n._(WATER_COPY.editGoalHiddenNote)}
+                    </p>
                   ) : null}
                   <div className="flex flex-wrap items-end gap-2">
-                    <WaterField label={WATER_COPY.goalAmountLabel}>
+                    <WaterField label={i18n._(WATER_COPY.goalAmountLabel)}>
                       {(id) => (
                         <Input
                           id={id}
                           inputMode="decimal"
-                          placeholder={WATER_COPY.goalAmountPlaceholder}
+                          placeholder={i18n._(WATER_COPY.goalAmountPlaceholder)}
                           value={goalText}
                           aria-invalid={goalError !== null}
                           onChange={(event) => setGoalText(event.target.value)}
@@ -533,7 +549,7 @@ function PlainWaterDayViewState({
                       onClick={() => void submitGoal(false)}
                       disabled={busy !== null}
                     >
-                      {busy === "settings" ? WATER_COPY.saving : WATER_COPY.setGoal}
+                      {i18n._(busy === "settings" ? WATER_COPY.saving : WATER_COPY.setGoal)}
                     </Button>
                     <Button
                       size="sm"
@@ -541,7 +557,7 @@ function PlainWaterDayViewState({
                       onClick={() => void submitGoal(true)}
                       disabled={busy !== null || (view.personalGoalMl === null && !hideNumbers)}
                     >
-                      {WATER_COPY.clearGoal}
+                      {i18n._(WATER_COPY.clearGoal)}
                     </Button>
                   </div>
                   {goalError ? (
@@ -549,7 +565,7 @@ function PlainWaterDayViewState({
                       {goalError}
                     </p>
                   ) : null}
-                  <p className="text-xs text-muted-foreground">{WATER_COPY.goalNote}</p>
+                  <p className="text-xs text-muted-foreground">{i18n._(WATER_COPY.goalNote)}</p>
                 </div>
               </div>
             </details>
@@ -603,20 +619,22 @@ function WaterRow({
   onCancelDelete: () => void;
   onDelete: () => void;
 }) {
+  const { t, i18n } = useLingui();
   const time = observedTimeLabel(row, deviceZone) ?? row.observedAt;
-  const stateLabel =
+  const stateLabel = i18n._(
     row.state === "syncing"
       ? WATER_COPY.rowSyncing
       : row.state === "needs_attention"
         ? WATER_COPY.rowNeedsAttention
-        : WATER_COPY.rowQueued;
+        : WATER_COPY.rowQueued,
+  );
   return (
     <li className="grid gap-2 px-4 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-3">
           <span className="font-mono text-sm text-muted-foreground">{time}</span>
           <span className="font-mono text-sm">
-            {formatWaterAmount(row.quantityMl, unit, hideNumbers)}
+            {formatWaterAmount(row.quantityMl, unit, hideNumbers, i18n)}
           </span>
           {row.state === "synced" ? null : <Badge variant="outline">{stateLabel}</Badge>}
         </div>
@@ -629,10 +647,10 @@ function WaterRow({
                 aria-expanded={editing}
                 onClick={editing ? onCancelEdit : onStartEdit}
               >
-                {WATER_COPY.edit} <span className="sr-only">{`entry at ${time}`}</span>
+                {i18n._(WATER_COPY.edit)} <span className="sr-only">{t`entry at ${time}`}</span>
               </Button>
               <Button variant="ghost" size="sm" onClick={onAskDelete}>
-                {WATER_COPY.delete} <span className="sr-only">{`entry at ${time}`}</span>
+                {i18n._(WATER_COPY.delete)} <span className="sr-only">{t`entry at ${time}`}</span>
               </Button>
             </>
           ) : null}
@@ -641,13 +659,13 @@ function WaterRow({
 
       {confirming ? (
         <div className="grid gap-2 rounded-md border p-3" role="alert">
-          <p className="text-sm">{WATER_COPY.deleteConfirm}</p>
+          <p className="text-sm">{i18n._(WATER_COPY.deleteConfirm)}</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={onDelete} disabled={busy !== null}>
-              {WATER_COPY.confirmDelete}
+              {i18n._(WATER_COPY.confirmDelete)}
             </Button>
             <Button size="sm" variant="outline" onClick={onCancelDelete}>
-              {WATER_COPY.cancel}
+              {i18n._(WATER_COPY.cancel)}
             </Button>
           </div>
         </div>
@@ -657,15 +675,15 @@ function WaterRow({
         <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
           {hideNumbers ? (
             <p className="text-xs text-muted-foreground sm:col-span-4">
-              {WATER_COPY.editHiddenNote}
+              {i18n._(WATER_COPY.editHiddenNote)}
             </p>
           ) : null}
-          <WaterField label={WATER_COPY.amountLabel}>
+          <WaterField label={i18n._(WATER_COPY.amountLabel)}>
             {(id) => (
               <Input
                 id={id}
                 inputMode="decimal"
-                placeholder={WATER_COPY.amountPlaceholder}
+                placeholder={i18n._(WATER_COPY.amountPlaceholder)}
                 value={editAmount}
                 aria-invalid={editError !== null}
                 onChange={(event) => onEditAmount(event.target.value)}
@@ -673,10 +691,14 @@ function WaterRow({
             )}
           </WaterField>
           <div className="grid gap-1.5">
-            <span className="text-sm font-medium">{WATER_COPY.unitLabel}</span>
-            <UnitChoice value={editUnit} onChange={onEditUnit} label={WATER_COPY.unitLabel} />
+            <span className="text-sm font-medium">{i18n._(WATER_COPY.unitLabel)}</span>
+            <UnitChoice
+              value={editUnit}
+              onChange={onEditUnit}
+              label={i18n._(WATER_COPY.unitLabel)}
+            />
           </div>
-          <WaterField label={WATER_COPY.timeLabel}>
+          <WaterField label={i18n._(WATER_COPY.timeLabel)}>
             {(id) => (
               <Input
                 id={id}
@@ -688,10 +710,10 @@ function WaterRow({
           </WaterField>
           <div className="flex gap-2">
             <Button size="sm" onClick={() => void onSaveEdit()} disabled={busy !== null}>
-              {busy === "edit" ? WATER_COPY.saving : WATER_COPY.save}
+              {i18n._(busy === "edit" ? WATER_COPY.saving : WATER_COPY.save)}
             </Button>
             <Button size="sm" variant="ghost" onClick={onCancelEdit}>
-              {WATER_COPY.cancel}
+              {i18n._(WATER_COPY.cancel)}
             </Button>
           </div>
           {editError ? (

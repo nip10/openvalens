@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
 import { RPCHandler } from "@orpc/server/fetch";
 import { os } from "@orpc/server";
 import { z } from "zod";
@@ -34,6 +36,8 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const userEvent = userModule.default;
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
+    const withI18n = (node: ReturnType<typeof createElement>) =>
+      createElement(I18nProvider, { i18n: englishI18n }, node);
     const { PlainWaterSection } = section;
 
     const deleteInputs: unknown[] = [];
@@ -100,16 +104,18 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
 
     try {
       render(
-        createElement(
-          QueryClientProvider,
-          { client },
-          createElement(PlainWaterSection, {
-            trustedScope: "scope-fixture",
-            localDate: date,
-            timeZone: "UTC",
-            hideNumbers: false,
-            announce: () => {},
-          }),
+        withI18n(
+          createElement(
+            QueryClientProvider,
+            { client },
+            createElement(PlainWaterSection, {
+              trustedScope: "scope-fixture",
+              localDate: date,
+              timeZone: "UTC",
+              hideNumbers: false,
+              announce: () => {},
+            }),
+          ),
         ),
       );
 
@@ -154,6 +160,8 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
+    const withI18n = (node: ReturnType<typeof createElement>) =>
+      createElement(I18nProvider, { i18n: englishI18n }, node);
     const { PlainWaterSection } = section;
     const inputs: { clientMutationId: string; expectedRevision: number }[] = [];
     let deleteAttempts = 0;
@@ -200,16 +208,18 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     });
     try {
       render(
-        createElement(
-          QueryClientProvider,
-          { client },
-          createElement(PlainWaterSection, {
-            trustedScope: "scope-fixture",
-            localDate: date,
-            timeZone: "UTC",
-            hideNumbers: false,
-            announce: () => {},
-          }),
+        withI18n(
+          createElement(
+            QueryClientProvider,
+            { client },
+            createElement(PlainWaterSection, {
+              trustedScope: "scope-fixture",
+              localDate: date,
+              timeZone: "UTC",
+              hideNumbers: false,
+              announce: () => {},
+            }),
+          ),
         ),
       );
       await screen.findByRole("listitem");
@@ -247,6 +257,8 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
+    const withI18n = (node: ReturnType<typeof createElement>) =>
+      createElement(I18nProvider, { i18n: englishI18n }, node);
     const { PlainWaterSection } = section;
     const second = {
       ...entry,
@@ -310,16 +322,18 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     });
     try {
       render(
-        createElement(
-          QueryClientProvider,
-          { client },
-          createElement(PlainWaterSection, {
-            trustedScope: "scope-fixture",
-            localDate: date,
-            timeZone: "UTC",
-            hideNumbers: false,
-            announce: () => {},
-          }),
+        withI18n(
+          createElement(
+            QueryClientProvider,
+            { client },
+            createElement(PlainWaterSection, {
+              trustedScope: "scope-fixture",
+              localDate: date,
+              timeZone: "UTC",
+              hideNumbers: false,
+              announce: () => {},
+            }),
+          ),
         ),
       );
       await screen.findAllByRole("listitem");
@@ -363,6 +377,8 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { act, createElement } = react;
+    const withI18n = (node: ReturnType<typeof createElement>) =>
+      createElement(I18nProvider, { i18n: englishI18n }, node);
     const { PlainWaterSection } = section;
     let releaseAdd!: (result: { outcome: "applied" }) => void;
     let markAddStarted!: () => void;
@@ -407,16 +423,18 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     });
     try {
       render(
-        createElement(
-          QueryClientProvider,
-          { client },
-          createElement(PlainWaterSection, {
-            trustedScope: "scope-fixture",
-            localDate: date,
-            timeZone: "UTC",
-            hideNumbers: false,
-            announce: () => {},
-          }),
+        withI18n(
+          createElement(
+            QueryClientProvider,
+            { client },
+            createElement(PlainWaterSection, {
+              trustedScope: "scope-fixture",
+              localDate: date,
+              timeZone: "UTC",
+              hideNumbers: false,
+              announce: () => {},
+            }),
+          ),
         ),
       );
       await screen.findByRole("button", { name: "Add plain water" });
@@ -462,6 +480,8 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { act, createElement } = react;
+    const withI18n = (node: ReturnType<typeof createElement>) =>
+      createElement(I18nProvider, { i18n: englishI18n }, node);
     const { PlainWaterSection } = section;
     let releaseChange!: (result: {
       outcome: "applied";
@@ -512,16 +532,18 @@ test.skipIf(process.env.MOUNTED_WATER_TEST !== "1")(
     });
     try {
       render(
-        createElement(
-          QueryClientProvider,
-          { client },
-          createElement(PlainWaterSection, {
-            trustedScope: "scope-fixture",
-            localDate: date,
-            timeZone: "UTC",
-            hideNumbers: false,
-            announce: () => {},
-          }),
+        withI18n(
+          createElement(
+            QueryClientProvider,
+            { client },
+            createElement(PlainWaterSection, {
+              trustedScope: "scope-fixture",
+              localDate: date,
+              timeZone: "UTC",
+              hideNumbers: false,
+              announce: () => {},
+            }),
+          ),
         ),
       );
       await screen.findByRole("listitem");

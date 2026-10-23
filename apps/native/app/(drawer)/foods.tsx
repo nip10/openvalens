@@ -11,15 +11,12 @@ import {
   parseCustomFood,
   type CustomFoodFields,
 } from "@openvalens/api/presenters/custom-foods";
-import {
-  DIARY_COPY,
-  localDateIn,
-  newClientMutationId,
-} from "@openvalens/api/presenters/nutrition-diary";
+import { localDateIn, newClientMutationId } from "@openvalens/api/presenters/nutrition-diary";
 import {
   formatNutrientSummaryLine,
   resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
@@ -79,6 +76,7 @@ export default function FoodsScreen() {
   const [editing, setEditing] = useState<CustomFood | "new" | null>(null);
   const [error, setError] = useState<{ text: string; retry: () => void } | null>(null);
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
   const foods = useQuery(
     orpc.nutritionCustomFoods.list.queryOptions({ input: { includeArchived: showArchived } }),
   );
@@ -104,14 +102,17 @@ export default function FoodsScreen() {
         {
           onSuccess: () => {
             setError(null);
+            const name = food.name;
             announce(
-              `${food.name}: ${archived ? CUSTOM_FOOD_COPY.archived : CUSTOM_FOOD_COPY.restored}`,
+              archived
+                ? t`${name}: Food archived. It no longer appears in search or quick logging.`
+                : t`${name}: Food restored.`,
             );
             void refresh();
           },
           onError: () => {
-            setError({ text: CUSTOM_FOOD_COPY.networkError, retry: send });
-            announce(CUSTOM_FOOD_COPY.networkError);
+            setError({ text: i18n._(CUSTOM_FOOD_COPY.networkError), retry: send });
+            announce(i18n._(CUSTOM_FOOD_COPY.networkError));
           },
         },
       );
@@ -121,17 +122,17 @@ export default function FoodsScreen() {
   return (
     <Container>
       <View className="gap-5 p-4">
-        <Text className="text-sm text-muted-foreground">{CUSTOM_FOOD_COPY.privacy}</Text>
+        <Text className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.privacy)}</Text>
         <View className="flex-row flex-wrap items-center justify-between gap-2">
           <Link href="/nutrition" asChild>
             <Pressable accessibilityRole="link" className="min-h-11 justify-center">
               <Text className="text-sm text-foreground underline">
-                Back to {DIARY_COPY.title.toLowerCase()}
+                <Trans>Back to meal diary</Trans>
               </Text>
             </Pressable>
           </Link>
           <Button size="sm" onPress={() => setEditing("new")} isDisabled={editing === "new"}>
-            {CUSTOM_FOOD_COPY.create}
+            {i18n._(CUSTOM_FOOD_COPY.create)}
           </Button>
         </View>
 
@@ -141,7 +142,7 @@ export default function FoodsScreen() {
               {error.text}
             </Text>
             <Button size="sm" variant="secondary" onPress={error.retry}>
-              {CUSTOM_FOOD_COPY.retry}
+              {i18n._(CUSTOM_FOOD_COPY.retry)}
             </Button>
           </Card>
         ) : null}
@@ -159,11 +160,11 @@ export default function FoodsScreen() {
         ) : null}
 
         <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-foreground">{CUSTOM_FOOD_COPY.showArchived}</Text>
+          <Text className="text-sm text-foreground">{i18n._(CUSTOM_FOOD_COPY.showArchived)}</Text>
           <Switch
             value={showArchived}
             onValueChange={setShowArchived}
-            accessibilityLabel={CUSTOM_FOOD_COPY.showArchived}
+            accessibilityLabel={i18n._(CUSTOM_FOOD_COPY.showArchived)}
           />
         </View>
 
@@ -172,25 +173,25 @@ export default function FoodsScreen() {
         ) : foods.isError ? (
           <Pressable onPress={() => void foods.refetch()} accessibilityRole="button">
             <Text className="text-sm text-muted-foreground">
-              {CUSTOM_FOOD_COPY.networkError} {CUSTOM_FOOD_COPY.retry}
+              {i18n._(CUSTOM_FOOD_COPY.networkError)} {i18n._(CUSTOM_FOOD_COPY.retry)}
             </Text>
           </Pressable>
         ) : foods.data.foods.length === 0 ? (
-          <Text className="text-sm text-muted-foreground">{CUSTOM_FOOD_COPY.empty}</Text>
+          <Text className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.empty)}</Text>
         ) : (
           foods.data.foods.map((food) => (
             <Card key={food.id} variant="secondary" className="gap-2 p-4">
               <Text className="font-medium text-foreground">
                 {food.name}
                 {food.brand ? ` · ${food.brand}` : ""}
-                {food.archived ? ` · ${CUSTOM_FOOD_COPY.archivedBadge}` : ""}
+                {food.archived ? ` · ${i18n._(CUSTOM_FOOD_COPY.archivedBadge)}` : ""}
               </Text>
               <Text className="text-xs text-muted-foreground">
-                {describeBasis(food.basis)} · {describeCoverage(food)} ·{" "}
-                {CUSTOM_FOOD_COPY.provenance}
+                {describeBasis(food.basis, i18n)} · {i18n._(describeCoverage(food))} ·{" "}
+                {i18n._(CUSTOM_FOOD_COPY.provenance)}
               </Text>
               <Text className="text-xs text-muted-foreground">
-                {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers)}
+                {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers, i18n)}
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {food.archived ? (
@@ -198,9 +199,9 @@ export default function FoodsScreen() {
                     size="sm"
                     variant="secondary"
                     onPress={() => setArchived(food, false)}
-                    accessibilityLabel={`${CUSTOM_FOOD_COPY.restore} ${food.name}`}
+                    accessibilityLabel={t`Restore ${food.name}`}
                   >
-                    {CUSTOM_FOOD_COPY.restore}
+                    {i18n._(CUSTOM_FOOD_COPY.restore)}
                   </Button>
                 ) : (
                   <>
@@ -208,17 +209,17 @@ export default function FoodsScreen() {
                       size="sm"
                       variant="secondary"
                       onPress={() => setEditing(food)}
-                      accessibilityLabel={`${CUSTOM_FOOD_COPY.edit} ${food.name}`}
+                      accessibilityLabel={t`Edit ${food.name}`}
                     >
-                      {CUSTOM_FOOD_COPY.edit}
+                      {i18n._(CUSTOM_FOOD_COPY.edit)}
                     </Button>
                     <Button
                       size="sm"
                       variant="secondary"
                       onPress={() => setArchived(food, true)}
-                      accessibilityLabel={`${CUSTOM_FOOD_COPY.archive} ${food.name}`}
+                      accessibilityLabel={t`Archive ${food.name}`}
                     >
-                      {CUSTOM_FOOD_COPY.archive}
+                      {i18n._(CUSTOM_FOOD_COPY.archive)}
                     </Button>
                   </>
                 )}
@@ -226,7 +227,9 @@ export default function FoodsScreen() {
             </Card>
           ))
         )}
-        <Text className="text-xs text-muted-foreground">{CUSTOM_FOOD_COPY.archiveNote}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {i18n._(CUSTOM_FOOD_COPY.archiveNote)}
+        </Text>
       </View>
     </Container>
   );
@@ -251,10 +254,13 @@ function FoodForm({
   const parsed = parseCustomFood(fields);
   const pending = create.isPending || update.isPending;
   const set = (patch: Partial<CustomFoodFields>) => setFields({ ...fields, ...patch });
+  const { t, i18n } = useLingui();
+  const savedText = (name: string) => t`${name}: Food saved.`;
+  const foodName = food?.name ?? "";
 
   const onError = (retry: () => void) => {
     setFailed(() => retry);
-    announce(CUSTOM_FOOD_COPY.networkError);
+    announce(i18n._(CUSTOM_FOOD_COPY.networkError));
   };
 
   const save = (expectedRevision = food?.revision ?? 1) => {
@@ -265,7 +271,7 @@ function FoodForm({
         create.mutate(
           { clientMutationId, food: parsed.food },
           {
-            onSuccess: (result) => onDone(`${result.food.name}: ${CUSTOM_FOOD_COPY.saved}`),
+            onSuccess: (result) => onDone(savedText(result.food.name)),
             onError: () => onError(send),
           },
         );
@@ -278,13 +284,13 @@ function FoodForm({
           onSuccess: (result) => {
             if (result.outcome === "conflict") {
               setConflict(result.server);
-              announce(CUSTOM_FOOD_COPY.conflictTitle);
+              announce(i18n._(CUSTOM_FOOD_COPY.conflictTitle));
               return;
             }
             onDone(
               result.outcome === "unchanged"
-                ? CUSTOM_FOOD_COPY.unchanged
-                : `${result.food.name}: ${CUSTOM_FOOD_COPY.saved}`,
+                ? i18n._(CUSTOM_FOOD_COPY.unchanged)
+                : savedText(result.food.name),
             );
           },
           onError: () => onError(send),
@@ -292,6 +298,9 @@ function FoodForm({
       );
     send();
   };
+
+  const perUnit = (unit: (typeof AMOUNT_UNITS)[number]) =>
+    unit === "serving" ? t`per serving` : t`per ${unit}`;
 
   const textField = (
     label: string,
@@ -312,20 +321,24 @@ function FoodForm({
   return (
     <Card className="gap-3 p-4">
       <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
-        {food ? `${CUSTOM_FOOD_COPY.edit} ${food.name}` : CUSTOM_FOOD_COPY.create}
+        {food ? t`Edit ${foodName}` : i18n._(CUSTOM_FOOD_COPY.create)}
       </Text>
       {food ? (
-        <Text className="text-sm text-muted-foreground">{CUSTOM_FOOD_COPY.editNote}</Text>
+        <Text className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.editNote)}</Text>
       ) : null}
       {conflict ? (
         <Card variant="secondary" className="gap-2 p-3">
           <Text className="font-medium text-foreground" accessibilityLiveRegion="polite">
-            {conflict.archived ? CUSTOM_FOOD_COPY.conflictArchived : CUSTOM_FOOD_COPY.conflictTitle}
+            {i18n._(
+              conflict.archived
+                ? CUSTOM_FOOD_COPY.conflictArchived
+                : CUSTOM_FOOD_COPY.conflictTitle,
+            )}
           </Text>
           {conflict.archived ? null : (
             <Text className="text-sm text-foreground">
-              Other version: {conflict.name} · {describeBasis(conflict.basis)} ·{" "}
-              {describeCoverage(conflict)}
+              {t`Other version:`} {conflict.name} · {describeBasis(conflict.basis, i18n)} ·{" "}
+              {i18n._(describeCoverage(conflict))}
             </Text>
           )}
           <View className="flex-row flex-wrap gap-2">
@@ -337,31 +350,31 @@ function FoodForm({
                   save(conflict.revision);
                 }}
               >
-                {CUSTOM_FOOD_COPY.keepMine}
+                {i18n._(CUSTOM_FOOD_COPY.keepMine)}
               </Button>
             )}
             <Button size="sm" variant="secondary" onPress={() => onDone(null)}>
-              {CUSTOM_FOOD_COPY.keepServer}
+              {i18n._(CUSTOM_FOOD_COPY.keepServer)}
             </Button>
           </View>
         </Card>
       ) : null}
-      {textField("Food name", "name")}
-      {textField("Brand (optional)", "brand")}
-      {textField("Values per", "basisAmount", "decimal-pad")}
-      <View className="flex-row flex-wrap gap-2" accessibilityLabel="Per unit">
+      {textField(t`Food name`, "name")}
+      {textField(t`Brand (optional)`, "brand")}
+      {textField(t`Values per`, "basisAmount", "decimal-pad")}
+      <View className="flex-row flex-wrap gap-2" accessibilityLabel={t`Per unit`}>
         {AMOUNT_UNITS.map((unit) => (
           <Chip
             key={unit}
-            label={`per ${unit}`}
+            label={perUnit(unit)}
             selected={fields.basisUnit === unit}
             onPress={() => set({ basisUnit: unit })}
           />
         ))}
       </View>
-      {textField("Serving name (optional, e.g. 1 slice)", "servingLabel")}
-      {textField("Serving size (optional)", "servingSizeAmount", "decimal-pad")}
-      <View className="flex-row flex-wrap gap-2" accessibilityLabel="Serving unit">
+      {textField(t`Serving name (optional, e.g. 1 slice)`, "servingLabel")}
+      {textField(t`Serving size (optional)`, "servingSizeAmount", "decimal-pad")}
+      <View className="flex-row flex-wrap gap-2" accessibilityLabel={t`Serving unit`}>
         {(["g", "ml"] as const).map((unit) => (
           <Chip
             key={unit}
@@ -371,43 +384,43 @@ function FoodForm({
           />
         ))}
       </View>
-      {textField("Barcode (optional)", "barcode", "number-pad")}
+      {textField(t`Barcode (optional)`, "barcode", "number-pad")}
       <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-        Nutrients
+        <Trans>Nutrients</Trans>
       </Text>
       {CUSTOM_FOOD_NUTRIENTS.map((key) => (
-        <Field key={key} label={nutrientFieldLabel(key)}>
+        <Field key={key} label={i18n._(nutrientFieldLabel(key))}>
           <TextInput
             className={inputClass}
-            accessibilityLabel={nutrientFieldLabel(key)}
+            accessibilityLabel={i18n._(nutrientFieldLabel(key))}
             keyboardType="decimal-pad"
             value={fields.nutrients[key] ?? ""}
             onChangeText={(text) => set({ nutrients: { ...fields.nutrients, [key]: text } })}
           />
         </Field>
       ))}
-      <Text className="text-xs text-muted-foreground">{CUSTOM_FOOD_COPY.blankNote}</Text>
+      <Text className="text-xs text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.blankNote)}</Text>
       {!parsed.ok && fields.name ? (
         <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-          {parsed.error}
+          {i18n._(parsed.error)}
         </Text>
       ) : null}
       {failed ? (
         <View className="flex-row flex-wrap items-center gap-2">
           <Text className="flex-1 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-            {CUSTOM_FOOD_COPY.networkError}
+            {i18n._(CUSTOM_FOOD_COPY.networkError)}
           </Text>
           <Button size="sm" variant="secondary" onPress={failed}>
-            {CUSTOM_FOOD_COPY.retry}
+            {i18n._(CUSTOM_FOOD_COPY.retry)}
           </Button>
         </View>
       ) : null}
       <View className="flex-row flex-wrap gap-2">
         <Button onPress={() => save()} isDisabled={!parsed.ok || pending}>
-          {pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save}
+          {i18n._(pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save)}
         </Button>
         <Button variant="secondary" onPress={() => onDone(null)}>
-          {CUSTOM_FOOD_COPY.cancel}
+          {i18n._(CUSTOM_FOOD_COPY.cancel)}
         </Button>
       </View>
     </Card>

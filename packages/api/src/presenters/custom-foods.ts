@@ -1,3 +1,6 @@
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg, select } from "@lingui/core/macro";
+
 import type { CustomFood, CustomFoodContent } from "../contracts/nutrition-custom-foods";
 import {
   NUTRIENT_KEYS,
@@ -15,37 +18,33 @@ import { NUTRIENT_LABELS, formatAmount, parseQuickAdd } from "./nutrition-diary"
  */
 
 export const CUSTOM_FOOD_COPY = Object.freeze({
-  title: "My foods",
-  manageLink: "Manage my foods",
-  privacy:
-    "Foods you save here are private to you. They are not shared with other members or added to public food databases.",
-  empty: "No saved foods yet. Create one here or tick “Save to my foods” when you quick add.",
-  create: "New food",
-  save: "Save food",
-  saving: "Saving…",
-  edit: "Edit",
-  cancel: "Cancel",
-  archive: "Archive",
-  restore: "Restore",
-  showArchived: "Show archived foods",
-  archivedBadge: "Archived",
-  archived: "Food archived. It no longer appears in search or quick logging.",
-  restored: "Food restored.",
-  saved: "Food saved.",
-  unchanged: "No changes to save.",
-  editNote:
-    "Changes apply to new entries. Meals you already logged keep the values they were saved with.",
-  archiveNote:
-    "Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later.",
-  blankNote:
-    "Leave a value blank if you do not know it. Blank is shown as unknown; 0 is saved as zero.",
-  provenance: "Entered by you",
-  conflictTitle: "This food changed on another device",
-  conflictArchived: "This food was archived on another device. Restore it to edit.",
-  keepMine: "Keep my change",
-  keepServer: "Keep the other version",
-  networkError: "Could not reach the server. Your saved foods are unchanged.",
-  retry: "Retry",
+  title: msg`My foods`,
+  manageLink: msg`Manage my foods`,
+  privacy: msg`Foods you save here are private to you. They are not shared with other members or added to public food databases.`,
+  empty: msg`No saved foods yet. Create one here or tick “Save to my foods” when you quick add.`,
+  create: msg`New food`,
+  save: msg`Save food`,
+  saving: msg`Saving…`,
+  edit: msg`Edit`,
+  cancel: msg`Cancel`,
+  archive: msg`Archive`,
+  restore: msg`Restore`,
+  showArchived: msg`Show archived foods`,
+  archivedBadge: msg`Archived`,
+  archived: msg`Food archived. It no longer appears in search or quick logging.`,
+  restored: msg`Food restored.`,
+  saved: msg`Food saved.`,
+  unchanged: msg`No changes to save.`,
+  editNote: msg`Changes apply to new entries. Meals you already logged keep the values they were saved with.`,
+  archiveNote: msg`Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later.`,
+  blankNote: msg`Leave a value blank if you do not know it. Blank is shown as unknown; 0 is saved as zero.`,
+  provenance: msg`Entered by you`,
+  conflictTitle: msg`This food changed on another device`,
+  conflictArchived: msg`This food was archived on another device. Restore it to edit.`,
+  keepMine: msg`Keep my change`,
+  keepServer: msg`Keep the other version`,
+  networkError: msg`Could not reach the server. Your saved foods are unchanged.`,
+  retry: msg`Retry`,
 });
 
 /** Every core nutrient, in label order; all optional. */
@@ -103,7 +102,7 @@ export function fieldsFromCustomFood(food: CustomFood): CustomFoodFields {
  */
 export function parseCustomFood(
   fields: CustomFoodFields,
-): { ok: true; food: CustomFoodContent } | { ok: false; error: string } {
+): { ok: true; food: CustomFoodContent } | { ok: false; error: MessageDescriptor } {
   const base = parseQuickAdd({
     name: fields.name,
     basisAmount: fields.basisAmount,
@@ -113,16 +112,17 @@ export function parseCustomFood(
   });
   if (!base.ok) return base;
   if (base.food.name.length > 200)
-    return { ok: false, error: "Use at most 200 characters for the name." };
+    return { ok: false, error: msg`Use at most 200 characters for the name.` };
   const brand = fields.brand.trim();
-  if (brand.length > 200) return { ok: false, error: "Use at most 200 characters for the brand." };
+  if (brand.length > 200)
+    return { ok: false, error: msg`Use at most 200 characters for the brand.` };
   const servingLabel = fields.servingLabel.trim();
   if (servingLabel.length > 100)
-    return { ok: false, error: "Use at most 100 characters for the serving name." };
+    return { ok: false, error: msg`Use at most 100 characters for the serving name.` };
   const rawServing = fields.servingSizeAmount.trim();
   const servingSizeAmount = rawServing ? Number(rawServing) : null;
   if (servingSizeAmount !== null && (!Number.isFinite(servingSizeAmount) || servingSizeAmount <= 0))
-    return { ok: false, error: "Serving size must be a positive amount, or left blank." };
+    return { ok: false, error: msg`Serving size must be a positive amount, or left blank.` };
   const nutrients = Object.fromEntries(
     NUTRIENT_KEYS.map((key) => [key, base.food.nutrients?.[key] ?? null]),
   ) as Record<NutrientKey, number | null>;
@@ -143,21 +143,42 @@ export function parseCustomFood(
 }
 
 /** `"Values per 100 g · 1 slice = 30 g"`. */
-export function describeBasis(basis: NutrientBasis): string {
-  const per = `Values per ${formatAmount(basis.nutrientBasisAmount, basis.nutrientBasisUnit)}`;
+export function describeBasis(basis: NutrientBasis, i18n: I18n): string {
+  const per = formatAmount(basis.nutrientBasisAmount, basis.nutrientBasisUnit, i18n);
+  const label = basis.servingLabel;
   if (basis.servingSizeAmount === null || basis.servingSizeUnit === null)
-    return basis.servingLabel ? `${per} · serving: ${basis.servingLabel}` : per;
-  const size = formatAmount(basis.servingSizeAmount, basis.servingSizeUnit);
-  return `${per} · ${basis.servingLabel ?? "1 serving"} = ${size}`;
+    return label
+      ? i18n._(msg`Values per ${per} · serving: ${label}`)
+      : i18n._(msg`Values per ${per}`);
+  const size = formatAmount(basis.servingSizeAmount, basis.servingSizeUnit, i18n);
+  return label
+    ? i18n._(msg`Values per ${per} · ${label} = ${size}`)
+    : i18n._(msg`Values per ${per} · 1 serving = ${size}`);
 }
 
 /** `"5 of 12 values entered"`: how much of the label the member filled in. */
-export function describeCoverage(food: Pick<CustomFood, "nutrientsPerBasis">): string {
+export function describeCoverage(food: Pick<CustomFood, "nutrientsPerBasis">): MessageDescriptor {
   const entered = NUTRIENT_KEYS.filter((key) => food.nutrientsPerBasis[key] !== null).length;
-  return `${entered} of ${NUTRIENT_KEYS.length} values entered`;
+  const total = NUTRIENT_KEYS.length;
+  return msg`${entered} of ${total} values entered`;
 }
 
 /** Field label with its unit, e.g. `"Protein (g, optional)"`. */
-export function nutrientFieldLabel(key: NutrientKey): string {
-  return `${NUTRIENT_LABELS[key].label} (${NUTRIENT_LABELS[key].unit}, optional)`;
+export function nutrientFieldLabel(key: NutrientKey): MessageDescriptor {
+  const unit = NUTRIENT_LABELS[key].unit;
+  return msg`${select(key, {
+    energyKcal: "Energy",
+    energyKj: "Energy",
+    proteinG: "Protein",
+    carbohydrateG: "Carbohydrate",
+    fatG: "Fat",
+    saturatedFatG: "Saturated fat",
+    fiberG: "Fibre",
+    totalSugarsG: "Total sugars",
+    addedSugarsG: "Added sugars",
+    freeSugarsG: "Free sugars",
+    sodiumMg: "Sodium",
+    saltG: "Salt",
+    other: "Value",
+  })} (${unit}, optional)`;
 }
