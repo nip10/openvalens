@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -22,24 +23,32 @@ function UnsubscribePage() {
 
   return (
     <main className="container mx-auto grid max-w-md gap-4 px-4 py-10">
-      <h1 className="text-2xl font-semibold">Weekly insights email</h1>
+      <h1 className="text-2xl font-semibold">
+        <Trans>Weekly insights email</Trans>
+      </h1>
       {status === "unsubscribed" ? (
-        <p role="status">The weekly insights email is off. You can turn it on again in Settings.</p>
+        <p role="status">
+          <Trans>The weekly insights email is off. You can turn it on again in Settings.</Trans>
+        </p>
       ) : status === "invalid" || !token ? (
         <p role="status">
-          This link is not valid any more. Sign in and open Settings to change your notifications.
+          <Trans>
+            This link is not valid any more. Sign in and open Settings to change your notifications.
+          </Trans>
         </p>
       ) : (
         <>
-          <p>Turn off the weekly insights email for this workspace?</p>
+          <p>
+            <Trans>Turn off the weekly insights email for this workspace?</Trans>
+          </p>
           <div>
             <Button disabled={unsubscribe.isPending} onClick={() => unsubscribe.mutate({ token })}>
-              Turn off this email
+              <Trans>Turn off this email</Trans>
             </Button>
           </div>
           {unsubscribe.isError ? (
             <p role="alert" className="text-sm">
-              Something went wrong. Try again.
+              <Trans>Something went wrong. Try again.</Trans>
             </p>
           ) : null}
         </>

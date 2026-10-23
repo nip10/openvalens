@@ -1,3 +1,4 @@
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { previewLine, relativeTime, truncate } from "@openvalens/api/presenters/cochat";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent } from "@openvalens/ui/components/card";
@@ -21,6 +22,7 @@ function CoachListPage() {
   const [starting, setStarting] = useState(false);
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { t, i18n } = useLingui();
 
   const start = useMutation(
     orpc.ai.chat.mutationOptions({
@@ -41,8 +43,12 @@ function CoachListPage() {
       messages: [
         {
           role: "user",
-          content:
-            "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+          content: t({
+            message:
+              "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+            comment:
+              "First message sent to the AI coach for a new conversation; shown as the person's own message",
+          }),
         },
       ],
     });
@@ -52,7 +58,9 @@ function CoachListPage() {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <div className="mb-6 flex items-baseline justify-between">
-          <h1 className="text-2xl font-semibold">Coach</h1>
+          <h1 className="text-2xl font-semibold">
+            <Trans>Coach</Trans>
+          </h1>
         </div>
         <Skeleton className="h-32 w-full" />
       </div>
@@ -62,11 +70,13 @@ function CoachListPage() {
   if (threads.isError || !threads.data) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Coach</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Coach</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Could not load threads.{" "}
+          <Trans>Could not load threads.</Trans>{" "}
           <button className="underline" onClick={() => void threads.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -78,9 +88,11 @@ function CoachListPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
       <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">Coach</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Coach</Trans>
+        </h1>
         <Button onClick={onNew} disabled={starting || start.isPending}>
-          {start.isPending ? "Starting…" : "New conversation"}
+          {start.isPending ? t`Starting…` : t`New conversation`}
         </Button>
       </div>
 
@@ -88,16 +100,18 @@ function CoachListPage() {
 
       {start.isError ? (
         <p className="mb-4 text-sm text-destructive">
-          Could not start a conversation. Check that AI is enabled in Settings.
+          <Trans>Could not start a conversation. Check that AI is enabled in Settings.</Trans>
         </p>
       ) : null}
 
       {list.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No conversations yet</p>
+            <p className="font-medium">
+              <Trans>No conversations yet</Trans>
+            </p>
             <p className="text-sm text-muted-foreground">
-              Start a new conversation to ask the AI coach for guidance.
+              <Trans>Start a new conversation to ask the AI coach for guidance.</Trans>
             </p>
           </CardContent>
         </Card>
@@ -113,9 +127,8 @@ function CoachListPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm text-muted-foreground">
-                      {relativeTime(thread.lastMessageAt, new Date(), settings)} ·{" "}
-                      {thread.messageCount} message
-                      {thread.messageCount === 1 ? "" : "s"}
+                      {i18n._(relativeTime(thread.lastMessageAt, new Date(), settings))} ·{" "}
+                      <Plural value={thread.messageCount} one="# message" other="# messages" />
                     </div>
                     <div className="truncate font-medium">{truncate(previewLine(thread), 80)}</div>
                   </div>

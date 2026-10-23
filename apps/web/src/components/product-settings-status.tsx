@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { useProductSettings } from "@/utils/product-settings";
 
 /**
@@ -14,7 +15,7 @@ export function ProductSettingsStatus() {
   if (isPending && !data) {
     return (
       <p className="text-xs text-muted-foreground" role="status">
-        Loading display defaults…
+        <Trans>Loading display defaults…</Trans>
       </p>
     );
   }
@@ -22,7 +23,7 @@ export function ProductSettingsStatus() {
   if (isError && !data) {
     return (
       <p className="text-xs text-destructive" role="alert">
-        Display defaults unavailable · showing metric fallback
+        <Trans>Display defaults unavailable · showing metric fallback</Trans>
       </p>
     );
   }
@@ -30,7 +31,7 @@ export function ProductSettingsStatus() {
   if (isError && data) {
     return (
       <p className="text-xs text-muted-foreground" role="status">
-        Display defaults refresh failed · showing last loaded defaults
+        <Trans>Display defaults refresh failed · showing last loaded defaults</Trans>
       </p>
     );
   }

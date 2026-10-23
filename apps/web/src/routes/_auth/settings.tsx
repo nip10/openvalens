@@ -1,4 +1,5 @@
-import { Trans } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   assertivenessLabel,
   COACH_DISCLAIMER_VALUES,
@@ -80,7 +81,9 @@ function AccountSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Account</CardTitle>
+        <CardTitle>
+          <Trans>Account</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex items-center justify-between">
         <div>
@@ -100,7 +103,7 @@ function AccountSection() {
             });
           }}
         >
-          Sign out
+          <Trans>Sign out</Trans>
         </Button>
       </CardContent>
     </Card>
@@ -116,13 +119,15 @@ function CoachSection() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Coach</CardTitle>
+          <CardTitle>
+            <Trans>Coach</Trans>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Could not load coach settings.{" "}
+            <Trans>Could not load coach settings.</Trans>{" "}
             <button className="underline" onClick={() => void config.refetch()}>
-              Retry
+              <Trans>Retry</Trans>
             </button>
           </p>
         </CardContent>
@@ -139,6 +144,9 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
   const [risk, setRisk] = useState<CoachRiskTolerance>(initial.riskTolerance);
   const [disclaimer, setDisclaimer] = useState<CoachDisclaimerMode>(initial.medicalDisclaimerMode);
   const [template, setTemplate] = useState<CoachTemplateId>(initial.selectedTemplateKey);
+  const { t, i18n } = useLingui();
+  const hint = (message: MessageDescriptor | null) => (message ? i18n._(message) : undefined);
+  const assertivenessText = (value: number) => i18n._(assertivenessLabel(value));
 
   useEffect(() => {
     setTone(initial.tone);
@@ -174,18 +182,20 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Coach</CardTitle>
+        <CardTitle>
+          <Trans>Coach</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-5">
-        <Field label="Tone" hint={toneDescription(tone)}>
+        <Field label={t`Tone`} hint={hint(toneDescription(tone))}>
           <Select value={tone} onValueChange={(Value) => setTone(Value as CoachTone)}>
             <SelectTrigger>
-              <SelectValue>{toneLabel(tone)}</SelectValue>
+              <SelectValue>{i18n._(toneLabel(tone))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COACH_TONE_VALUES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {toneLabel(value)}
+                  {i18n._(toneLabel(value))}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -193,68 +203,68 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
         </Field>
 
         <Field
-          label={`Assertiveness · ${assertivenessLabel(assertiveness)}`}
-          hint={`1 = very gentle, 5 = very forceful. Currently ${assertiveness} of 5.`}
+          label={t`Assertiveness · ${assertivenessText(assertiveness)}`}
+          hint={t`1 = very gentle, 5 = very forceful. Currently ${assertiveness} of 5.`}
         >
           <Select
             value={String(assertiveness)}
             onValueChange={(Value) => setAssertiveness(Number(Value) as 1 | 2 | 3 | 4 | 5)}
           >
             <SelectTrigger>
-              <SelectValue>{`${assertiveness} · ${assertivenessLabel(assertiveness)}`}</SelectValue>
+              <SelectValue>{`${assertiveness} · ${assertivenessText(assertiveness)}`}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {[1, 2, 3, 4, 5].map((value) => (
                 <SelectItem key={value} value={String(value)}>
-                  {`${value} · ${assertivenessLabel(value)}`}
+                  {`${value} · ${assertivenessText(value)}`}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
 
-        <Field label="Risk tolerance" hint={riskDescription(risk)}>
+        <Field label={t`Risk tolerance`} hint={hint(riskDescription(risk))}>
           <Select value={risk} onValueChange={(Value) => setRisk(Value as CoachRiskTolerance)}>
             <SelectTrigger>
-              <SelectValue>{riskLabel(risk)}</SelectValue>
+              <SelectValue>{i18n._(riskLabel(risk))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COACH_RISK_VALUES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {riskLabel(value)}
+                  {i18n._(riskLabel(value))}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
 
-        <Field label="Medical disclaimer">
+        <Field label={t({ message: "Medical disclaimer", comment: "safety" })}>
           <Select
             value={disclaimer}
             onValueChange={(Value) => setDisclaimer(Value as CoachDisclaimerMode)}
           >
             <SelectTrigger>
-              <SelectValue>{disclaimerLabel(disclaimer)}</SelectValue>
+              <SelectValue>{i18n._(disclaimerLabel(disclaimer))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COACH_DISCLAIMER_VALUES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {disclaimerLabel(value)}
+                  {i18n._(disclaimerLabel(value))}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
 
-        <Field label="Template" hint={templateDescription(template)}>
+        <Field label={t`Template`} hint={hint(templateDescription(template))}>
           <Select value={template} onValueChange={(Value) => setTemplate(Value as CoachTemplateId)}>
             <SelectTrigger>
-              <SelectValue>{templateLabel(template)}</SelectValue>
+              <SelectValue>{i18n._(templateLabel(template))}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {COACH_TEMPLATE_VALUES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {templateLabel(value)}
+                  {i18n._(templateLabel(value))}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -263,12 +273,16 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
 
         <div className="flex items-center gap-3">
           <Button onClick={handleSave} disabled={!dirty || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t`Saving…` : t`Save`}
           </Button>
           {save.isSuccess && !dirty ? (
-            <span className="text-sm text-success">Saved</span>
+            <span className="text-sm text-success">
+              <Trans>Saved</Trans>
+            </span>
           ) : save.isError ? (
-            <span className="text-sm text-destructive">Could not save.</span>
+            <span className="text-sm text-destructive">
+              <Trans>Could not save.</Trans>
+            </span>
           ) : null}
         </div>
       </CardContent>
@@ -304,6 +318,7 @@ function DeleteAccountSection() {
   const preview = useQuery(orpc.dataRights.deletionPreview.queryOptions({ input: {} }));
   const [typed, setTyped] = useState("");
   const [linkSent, setLinkSent] = useState(false);
+  const { t } = useLingui();
 
   const remove = useMutation(
     orpc.dataRights.deleteEverything.mutationOptions({
@@ -321,6 +336,11 @@ function DeleteAccountSection() {
   if (preview.isPending) return <Skeleton className="h-40 w-full" />;
   if (preview.isError || !preview.data) return null;
   const data = preview.data;
+  const rows = data.totalRows.toLocaleString();
+  const organizationCount = data.organizations.length;
+  const organizationNames = data.organizations.map((o) => o.name).join(", ");
+  const blockerNames = data.blockers.map((b) => b.organizationName).join(", ");
+  const confirmationPhrase = data.confirmationPhrase;
 
   const sendSignInLink = async () => {
     const email = session?.user.email;
@@ -329,51 +349,70 @@ function DeleteAccountSection() {
       email,
       callbackURL: `${window.location.origin}/settings`,
     });
-    if (error) toast.error(error.message ?? "Could not send the sign-in link.");
+    if (error) toast.error(error.message ?? t`Could not send the sign-in link.`);
     else setLinkSent(true);
   };
 
   return (
     <Card className="border-destructive/40">
       <CardHeader>
-        <CardTitle>Delete account and all data</CardTitle>
+        <CardTitle>
+          <Trans>Delete account and all data</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 text-sm">
         <p>
-          This permanently deletes your account and {data.totalRows.toLocaleString()} stored rows
-          across{" "}
-          {data.organizations.length === 1
-            ? "your health record"
-            : `${data.organizations.length} health records`}
-          {data.organizations.length > 0 &&
-            ` (${data.organizations.map((o) => o.name).join(", ")})`}
-          . It can't be undone.{" "}
-          <Link to="/exports" className="underline">
-            Download an export first
-          </Link>
-          .
+          {organizationCount === 1 ? (
+            <Trans comment="safety">
+              This permanently deletes your account and {rows} stored rows across your health record
+              ({organizationNames}). It can't be undone.
+            </Trans>
+          ) : organizationCount > 0 ? (
+            <Trans comment="safety">
+              This permanently deletes your account and {rows} stored rows across{" "}
+              {organizationCount} health records ({organizationNames}). It can't be undone.
+            </Trans>
+          ) : (
+            <Trans comment="safety">
+              This permanently deletes your account and {rows} stored rows across{" "}
+              {organizationCount} health records. It can't be undone.
+            </Trans>
+          )}{" "}
+          <Trans>
+            <Link to="/exports" className="underline">
+              Download an export first
+            </Link>
+            .
+          </Trans>
         </p>
 
         {data.blockers.length > 0 ? (
           <p className="text-destructive">
-            {data.blockers.map((b) => b.organizationName).join(", ")} also{" "}
-            {data.blockers.length === 1 ? "has" : "have"} another owner. Remove them or transfer the
-            record before deleting.
+            <Plural
+              comment="safety"
+              value={data.blockers.length}
+              one={`${blockerNames} also has another owner. Remove them or transfer the record before deleting.`}
+              other={`${blockerNames} also have another owner. Remove them or transfer the record before deleting.`}
+            />
           </p>
         ) : data.reauthRequired ? (
           <div className="grid gap-2">
-            <p>For your security, confirm it's you with a fresh sign-in.</p>
+            <p>
+              <Trans>For your security, confirm it's you with a fresh sign-in.</Trans>
+            </p>
             <div>
               <Button variant="outline" onClick={sendSignInLink} disabled={linkSent}>
-                {linkSent ? "Sign-in link sent — check your email" : "Email me a sign-in link"}
+                {linkSent ? t`Sign-in link sent — check your email` : t`Email me a sign-in link`}
               </Button>
             </div>
           </div>
         ) : (
           <div className="grid gap-2">
             <label htmlFor="delete-confirmation">
-              Type <span className="font-mono font-semibold">{data.confirmationPhrase}</span> to
-              confirm
+              <Trans comment="safety">
+                Type <span className="font-mono font-semibold">{confirmationPhrase}</span> to
+                confirm
+              </Trans>
             </label>
             <div className="flex gap-2">
               <Input
@@ -388,7 +427,9 @@ function DeleteAccountSection() {
                 disabled={typed !== data.confirmationPhrase || remove.isPending}
                 onClick={() => remove.mutate({ confirmation: typed })}
               >
-                {remove.isPending ? "Deleting…" : "Delete everything"}
+                {remove.isPending
+                  ? t`Deleting…`
+                  : t({ message: "Delete everything", comment: "safety" })}
               </Button>
             </div>
           </div>

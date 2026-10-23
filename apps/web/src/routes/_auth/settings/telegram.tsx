@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/_auth/settings/telegram")({
 function TelegramSettingsPage() {
   const status = useQuery(orpc.telegram.status.queryOptions({ input: {} }));
   const queryClient = useQueryClient();
+  const { t } = useLingui();
 
   const connect = useMutation(
     orpc.telegram.issueConnectToken.mutationOptions({
@@ -39,36 +41,40 @@ function TelegramSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Daily reminders over Telegram</CardTitle>
+          <CardTitle>
+            <Trans>Daily reminders over Telegram</Trans>
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div>
-            <div className="font-medium">{connected ? "Connected" : "Not connected"}</div>
+            <div className="font-medium">{connected ? t`Connected` : t`Not connected`}</div>
             <div className="text-sm text-muted-foreground">
               {connected
-                ? "Daily reminders will be sent to your Telegram chat."
-                : "Connect a Telegram chat to receive daily reminders."}
+                ? t`Daily reminders will be sent to your Telegram chat.`
+                : t`Connect a Telegram chat to receive daily reminders.`}
             </div>
           </div>
           <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
-            {connect.isPending ? "Generating link…" : connected ? "Re-link" : "Connect"}
+            {connect.isPending ? t`Generating link…` : connected ? t`Re-link` : t`Connect`}
           </Button>
         </CardContent>
         {connect.isSuccess && connect.data ? (
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Open this link in Telegram and press Start:
+              <Trans>Open this link in Telegram and press Start:</Trans>
             </p>
             <p className="mt-2 break-all rounded-lg border border-border bg-muted/40 p-2 font-mono text-sm">
               {connect.data?.token}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Expires {new Date(connect.data?.expiresAt ?? "").toLocaleString()}.
+              <Trans>Expires {new Date(connect.data?.expiresAt ?? "").toLocaleString()}.</Trans>
             </p>
           </CardContent>
         ) : connect.isError ? (
           <CardContent>
-            <p className="text-sm text-destructive">Could not generate a connect link.</p>
+            <p className="text-sm text-destructive">
+              <Trans>Could not generate a connect link.</Trans>
+            </p>
           </CardContent>
         ) : null}
       </Card>

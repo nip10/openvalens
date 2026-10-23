@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   EMAIL_DIGEST_ACKNOWLEDGEMENT_VERSION,
   INSIGHT_CHANNELS,
@@ -58,10 +59,11 @@ export default function InsightSettingsScreen() {
   const preferences = useQuery(orpc.insights.preferences.get.queryOptions({ input: {} }));
   const [acknowledged, setAcknowledged] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const { t } = useLingui();
   const update = useMutation({
     mutationFn: (patch: InsightPreferencesUpdate) => client.insights.preferences.update(patch),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() }),
-    onError: () => setMessage("Could not update notification settings."),
+    onError: () => setMessage(t`Could not update notification settings.`),
   });
   const enablePush = useMutation({
     mutationFn: async () => {
@@ -73,7 +75,7 @@ export default function InsightSettingsScreen() {
       setMessage(text);
       void queryClient.invalidateQueries({ queryKey: orpc.insights.key() });
     },
-    onError: () => setMessage("Could not turn on notifications."),
+    onError: () => setMessage(t`Could not turn on notifications.`),
   });
 
   if (preferences.isPending)
@@ -85,13 +87,17 @@ export default function InsightSettingsScreen() {
   if (preferences.isError || !preferences.data)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load notification settings.</Text>
+        <Text className="text-base text-foreground">
+          <Trans>Could not load notification settings.</Trans>
+        </Text>
         <Pressable
           onPress={() => void preferences.refetch()}
           accessibilityRole="button"
           className="min-h-11 justify-center px-4"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">
+            <Trans>Retry</Trans>
+          </Text>
         </Pressable>
       </Container>
     );
@@ -150,7 +156,9 @@ export default function InsightSettingsScreen() {
                     onPress={() => enablePush.mutate()}
                     isDisabled={busy}
                   >
-                    <Button.Label>Allow notifications on this phone</Button.Label>
+                    <Button.Label>
+                      <Trans>Allow notifications on this phone</Trans>
+                    </Button.Label>
                   </Button>
                 ) : null}
               </>
@@ -174,7 +182,9 @@ export default function InsightSettingsScreen() {
                 isDisabled={busy || !canDeliver}
                 onPress={() => update.mutate({ email: { enabled: false } })}
               >
-                <Button.Label>Turn off the weekly email</Button.Label>
+                <Button.Label>
+                  <Trans>Turn off the weekly email</Trans>
+                </Button.Label>
               </Button>
             ) : (
               <>
@@ -199,7 +209,9 @@ export default function InsightSettingsScreen() {
                     })
                   }
                 >
-                  <Button.Label>Turn on the weekly email</Button.Label>
+                  <Button.Label>
+                    <Trans>Turn on the weekly email</Trans>
+                  </Button.Label>
                 </Button>
               </>
             )}
@@ -213,7 +225,7 @@ export default function InsightSettingsScreen() {
                 size="sm"
                 variant="secondary"
                 isDisabled={busy || prefs.deliveryHour === 0}
-                accessibilityLabel="Earlier"
+                accessibilityLabel={t`Earlier`}
                 onPress={() => update.mutate({ deliveryHour: prefs.deliveryHour - 1 })}
               >
                 <Button.Label>−</Button.Label>
@@ -228,7 +240,7 @@ export default function InsightSettingsScreen() {
                 size="sm"
                 variant="secondary"
                 isDisabled={busy || prefs.deliveryHour === 23}
-                accessibilityLabel="Later"
+                accessibilityLabel={t`Later`}
                 onPress={() => update.mutate({ deliveryHour: prefs.deliveryHour + 1 })}
               >
                 <Button.Label>+</Button.Label>
@@ -244,7 +256,9 @@ export default function InsightSettingsScreen() {
                 isDisabled={busy}
                 onPress={() => update.mutate({ timeZone: zone })}
               >
-                <Button.Label>Use {zone}</Button.Label>
+                <Button.Label>
+                  <Trans>Use {zone}</Trans>
+                </Button.Label>
               </Button>
             ) : null}
           </Card>

@@ -344,10 +344,20 @@ describe("mounted analytics consent hook", () => {
       }));
       mock.module("@/utils/orpc", () => ({ client }));
       const { AnalyticsConsentSection } = await import(process.env.REPO_ROOT + "/apps/web/src/components/analytics-consent-section.tsx");
+      // The component is translated (#67): render it inside an English I18nProvider.
+      const webRoot = process.env.REPO_ROOT + "/apps/web";
+      const { I18nProvider } = await import(Bun.resolveSync("@lingui/react", webRoot));
+      const { englishI18n } = await import(Bun.resolveSync("@openvalens/i18n/testing", webRoot));
       globalThis.IS_REACT_ACT_ENVIRONMENT = true;
       let renderer;
       act(() => {
-        renderer = create(React.createElement(AnalyticsConsentSection));
+        renderer = create(
+          React.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            React.createElement(AnalyticsConsentSection),
+          ),
+        );
       });
       await act(async () => {
         for (let index = 0; index < 8; index += 1) await Promise.resolve();
@@ -358,7 +368,13 @@ describe("mounted analytics consent hook", () => {
       act(() => renderer.unmount());
     `;
     const child = Bun.spawnSync({
-      cmd: [process.execPath, "-e", script],
+      cmd: [
+        process.execPath,
+        "--preload",
+        `${process.cwd()}/scripts/test/lingui-macro.ts`,
+        "-e",
+        script,
+      ],
       cwd: `${process.cwd()}/packages/ui`,
       stdout: "pipe",
       stderr: "pipe",

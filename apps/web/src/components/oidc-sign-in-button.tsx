@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ export default function OidcSignInButton({
   callbackURL,
 }: OidcSignInButtonProps) {
   const [busy, setBusy] = useState(false);
+  const { t } = useLingui();
 
   return (
     <Button
@@ -39,16 +41,16 @@ export default function OidcSignInButton({
             errorCallbackURL: `${window.location.origin}/login?via=${OIDC_ERROR_MARKER}`,
           });
           if (error) {
-            toast.error(`Could not start sign-in with ${displayName}. Please try again.`);
+            toast.error(t`Could not start sign-in with ${displayName}. Please try again.`);
             setBusy(false);
           }
         } catch {
-          toast.error(`Could not start sign-in with ${displayName}. Please try again.`);
+          toast.error(t`Could not start sign-in with ${displayName}. Please try again.`);
           setBusy(false);
         }
       }}
     >
-      {busy ? "Redirecting…" : `Continue with ${displayName}`}
+      {busy ? t`Redirecting…` : t`Continue with ${displayName}`}
     </Button>
   );
 }

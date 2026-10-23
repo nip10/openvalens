@@ -1,6 +1,7 @@
 // Intl polyfills must load before anything formats or pluralizes (#67).
 import "@/lib/i18n/polyfills";
 import "@/global.css";
+import { useLingui } from "@lingui/react/macro";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { Stack } from "expo-router";
@@ -29,6 +30,9 @@ function MagicLinkLifecycle() {
   const toastRef = useRef(toast);
   const initialUrlStarted = useRef(false);
   toastRef.current = toast;
+  const { t } = useLingui();
+  const failedRef = useRef("");
+  failedRef.current = t`Could not complete sign-in. Please try again.`;
 
   useEffect(() => {
     const handle = async (url: string | null) => {
@@ -36,10 +40,7 @@ function MagicLinkLifecycle() {
       try {
         await acceptMagicLinkUrl(url);
       } catch {
-        toastRef.current.show({
-          variant: "danger",
-          label: "Could not complete sign-in. Please try again.",
-        });
+        toastRef.current.show({ variant: "danger", label: failedRef.current });
       }
     };
     if (!initialUrlStarted.current) {
@@ -47,10 +48,7 @@ function MagicLinkLifecycle() {
       void Linking.getInitialURL()
         .then(handle)
         .catch(() => {
-          toastRef.current.show({
-            variant: "danger",
-            label: "Could not complete sign-in. Please try again.",
-          });
+          toastRef.current.show({ variant: "danger", label: failedRef.current });
         });
     }
     const subscription = Linking.addEventListener("url", ({ url }) => void handle(url));
@@ -60,10 +58,11 @@ function MagicLinkLifecycle() {
 }
 
 function StackLayout() {
+  const { t } = useLingui();
   return (
     <Stack screenOptions={{}}>
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
-      <Stack.Screen name="modal" options={{ title: "Modal", presentation: "modal" }} />
+      <Stack.Screen name="modal" options={{ title: t`Modal`, presentation: "modal" }} />
     </Stack>
   );
 }

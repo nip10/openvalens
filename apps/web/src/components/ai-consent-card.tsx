@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { AppRouterClient } from "@openvalens/api/routers/index";
 import {
   AlertDialog,
@@ -46,8 +47,9 @@ function formatGrantedAt(iso: string): string {
 }
 
 /**
- * Presentational AI consent card. Hook-free and free of API imports so it can
- * be rendered and inspected in isolation by tests; the connected
+ * Presentational AI consent card. Free of data hooks and API imports (it only
+ * reads the Lingui context) so it can be rendered and inspected in isolation
+ * by tests; the connected
  * {@link AiConsentSection} supplies the query/mutation wiring.
  */
 export function AiConsentCard({
@@ -62,14 +64,19 @@ export function AiConsentCard({
   onRevoke,
 }: AiConsentCardProps) {
   const granted = state !== null && state.granted && state.revokedAt === null;
+  const { t } = useLingui();
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI processing</CardTitle>
+        <CardTitle>
+          <Trans>AI processing</Trans>
+        </CardTitle>
         <CardDescription>
-          AI features are opt-in and revocable. This setting applies only to you and is independent
-          of your organization or owner role.
+          <Trans comment="safety">
+            AI features are opt-in and revocable. This setting applies only to you and is
+            independent of your organization or owner role.
+          </Trans>
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -77,9 +84,9 @@ export function AiConsentCard({
           <Skeleton className="h-12 w-full" />
         ) : status === "error" ? (
           <p className="text-sm text-muted-foreground">
-            Could not load AI consent.{" "}
+            <Trans>Could not load AI consent.</Trans>{" "}
             <button className="underline" onClick={onRetry}>
-              Retry
+              <Trans>Retry</Trans>
             </button>
           </p>
         ) : (
@@ -87,17 +94,23 @@ export function AiConsentCard({
             <div className="grid gap-1">
               <span className="text-sm font-medium">
                 {granted && state
-                  ? `Granted on ${formatGrantedAt(state.grantedAt)}`
-                  : "Not granted"}
+                  ? t({
+                      message: `Granted on ${formatGrantedAt(state.grantedAt)}`,
+                      comment: "safety",
+                    })
+                  : t({ message: "Not granted", comment: "safety" })}
               </span>
               <span className="text-xs text-muted-foreground">
                 {granted && state
-                  ? `Consent version ${state.consentVersion}`
-                  : "Turn on to let AI features process your data."}
+                  ? t({ message: `Consent version ${state.consentVersion}`, comment: "safety" })
+                  : t({
+                      message: "Turn on to let AI features process your data.",
+                      comment: "safety",
+                    })}
               </span>
             </div>
             <Switch
-              aria-label="AI processing consent"
+              aria-label={t({ message: "AI processing consent", comment: "safety" })}
               checked={granted}
               disabled={isPending}
               onCheckedChange={(checked) => {
@@ -111,16 +124,22 @@ export function AiConsentCard({
       <AlertDialog open={confirmOpen} onOpenChange={onConfirmOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revoke AI consent?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <Trans comment="safety">Revoke AI consent?</Trans>
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              AI features will stop processing your data until you turn consent back on. Your
-              existing records are not deleted.
+              <Trans comment="safety">
+                AI features will stop processing your data until you turn consent back on. Your
+                existing records are not deleted.
+              </Trans>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              <Trans>Cancel</Trans>
+            </AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={onRevoke}>
-              Revoke
+              <Trans>Revoke</Trans>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

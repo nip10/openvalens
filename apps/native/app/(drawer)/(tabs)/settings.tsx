@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Ionicons } from "@expo/vector-icons";
 import {
   assertivenessLabel,
@@ -42,6 +44,7 @@ export default function SettingsScreen() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
 
   const foreground = useThemeColor("foreground");
+  const { t } = useLingui();
 
   const handleSignOut = async () => {
     // Issue #92 — stop insight pushes to this phone for the signed-out account.
@@ -56,7 +59,7 @@ export default function SettingsScreen() {
     <Container className="p-4">
       <View className="gap-6">
         {session?.user && (
-          <CardStack title="Account">
+          <CardStack title={t`Account`}>
             <Card variant="secondary" className="p-4">
               <Text className="text-base text-foreground">
                 {session.user.name ?? session.user.email}
@@ -73,18 +76,18 @@ export default function SettingsScreen() {
         <LanguageSection />
 
         {session?.user && (
-          <CardStack title="Profile">
+          <CardStack title={t`Profile`}>
             <Card variant="secondary" className="overflow-hidden p-0">
               <ListRow
                 icon={<Ionicons name="person-outline" size={20} color={foreground} />}
-                title="Your profile"
-                subtitle="Optional answers only you can see"
+                title={t`Your profile`}
+                subtitle={t`Optional answers only you can see`}
                 onPress={() => router.push("/profile")}
               />
               <ListRow
                 icon={<Ionicons name="notifications-outline" size={20} color={foreground} />}
-                title="Insight notifications"
-                subtitle="Push and weekly email, off until you turn them on"
+                title={t`Insight notifications`}
+                subtitle={t`Push and weekly email, off until you turn them on`}
                 onPress={() => router.push("/insight-settings")}
               />
             </Card>
@@ -97,12 +100,12 @@ export default function SettingsScreen() {
         {session?.user && <CoachSection />}
 
         {session?.user && (
-          <CardStack title="Integrations">
+          <CardStack title={t`Integrations`}>
             <Card variant="secondary" className="overflow-hidden p-0">
               <ListRow
                 icon={<Text className="text-lg">✈</Text>}
                 title="Telegram"
-                subtitle="Daily reminders"
+                subtitle={t`Daily reminders`}
                 onPress={() => router.push("/settings/telegram")}
               />
             </Card>
@@ -113,7 +116,7 @@ export default function SettingsScreen() {
           <AdministrationRow userId={session.user.id} sessionPending={sessionPending} />
         )}
 
-        <CardStack title="Preferences">
+        <CardStack title={t`Preferences`}>
           <Card variant="secondary" className="overflow-hidden p-0">
             <ListRow
               icon={
@@ -123,25 +126,25 @@ export default function SettingsScreen() {
                   color={foreground}
                 />
               }
-              title="Dark mode"
-              subtitle={isDark ? "On" : "Off"}
+              title={t`Dark mode`}
+              subtitle={isDark ? t`On` : t`Off`}
               onPress={toggleTheme}
               trailing={
                 <Chip size="sm" variant="secondary">
-                  <Chip.Label>{isDark ? "On" : "Off"}</Chip.Label>
+                  <Chip.Label>{isDark ? t`On` : t`Off`}</Chip.Label>
                 </Chip>
               }
             />
             <ListRow
               icon={<Ionicons name="list-outline" size={20} color={foreground} />}
-              title="Compact density"
-              subtitle={density === "compact" ? "On" : "Off"}
+              title={t`Compact density`}
+              subtitle={density === "compact" ? t`On` : t`Off`}
               onPress={() =>
                 setDensity((prev) => (prev === "comfortable" ? "compact" : "comfortable"))
               }
               trailing={
                 <Chip size="sm" variant="secondary">
-                  <Chip.Label>{density}</Chip.Label>
+                  <Chip.Label>{density === "compact" ? t`compact` : t`comfortable`}</Chip.Label>
                 </Chip>
               }
             />
@@ -152,9 +155,11 @@ export default function SettingsScreen() {
           onPress={() => void handleSignOut()}
           className="min-h-14 items-center justify-center rounded-lg bg-destructive active:opacity-70"
           accessibilityRole="button"
-          accessibilityLabel="Sign out"
+          accessibilityLabel={t`Sign out`}
         >
-          <Text className="font-medium text-destructive-foreground">Sign out</Text>
+          <Text className="font-medium text-destructive-foreground">
+            <Trans>Sign out</Trans>
+          </Text>
         </Pressable>
 
         {session?.user && <DeleteAccountSection onSignOut={handleSignOut} />}
@@ -171,6 +176,7 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
   const preview = useQuery(orpc.dataRights.deletionPreview.queryOptions({ input: {} }));
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLingui();
   const remove = useMutation(
     orpc.dataRights.deleteEverything.mutationOptions({
       onSuccess: () => void onSignOut(),
@@ -183,43 +189,57 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
 
   if (preview.isPending || preview.isError || !preview.data) return null;
   const data = preview.data;
-  const records =
-    data.organizations.length === 1
-      ? "your health record"
-      : `${data.organizations.length} health records`;
+  const rows = data.totalRows.toLocaleString();
+  const organizationCount = data.organizations.length;
+  const blockerNames = data.blockers.map((b) => b.organizationName).join(", ");
+  const confirmationPhrase = data.confirmationPhrase;
+  const typeToConfirm = t({ message: `Type ${confirmationPhrase} to confirm`, comment: "safety" });
 
   return (
-    <CardStack title="Delete account">
+    <CardStack title={t`Delete account`}>
       <Card variant="secondary" className="gap-3 p-4">
         <Text className="text-sm text-foreground">
-          Permanently deletes your account and {data.totalRows.toLocaleString()} stored rows across{" "}
-          {records}. This can't be undone. Export your data from Clinical export first.
+          {organizationCount === 1 ? (
+            <Trans comment="safety">
+              Permanently deletes your account and {rows} stored rows across your health record.
+              This can't be undone. Export your data from Clinical export first.
+            </Trans>
+          ) : (
+            <Trans comment="safety">
+              Permanently deletes your account and {rows} stored rows across {organizationCount}{" "}
+              health records. This can't be undone. Export your data from Clinical export first.
+            </Trans>
+          )}
         </Text>
         {data.blockers.length > 0 ? (
           <Text className="text-sm text-destructive">
-            {data.blockers.map((b) => b.organizationName).join(", ")} also has another owner. Remove
-            them or transfer the record before deleting.
+            <Trans comment="safety">
+              {blockerNames} also has another owner. Remove them or transfer the record before
+              deleting.
+            </Trans>
           </Text>
         ) : data.reauthRequired ? (
           <>
             <Text className="text-sm text-muted-foreground">
-              For your security, sign out and sign back in, then return here within 10 minutes.
+              <Trans>
+                For your security, sign out and sign back in, then return here within 10 minutes.
+              </Trans>
             </Text>
             <Button variant="secondary" onPress={() => void onSignOut()}>
-              <Button.Label>Sign out to confirm it's you</Button.Label>
+              <Button.Label>
+                <Trans>Sign out to confirm it's you</Trans>
+              </Button.Label>
             </Button>
           </>
         ) : (
           <>
-            <Text className="text-sm text-foreground">
-              Type {data.confirmationPhrase} to confirm
-            </Text>
+            <Text className="text-sm text-foreground">{typeToConfirm}</Text>
             <TextInput
               value={typed}
               onChangeText={setTyped}
               autoCapitalize="characters"
               autoCorrect={false}
-              accessibilityLabel={`Type ${data.confirmationPhrase} to confirm`}
+              accessibilityLabel={typeToConfirm}
               className="rounded-lg border border-border px-3 py-2 font-mono text-foreground"
             />
             <Pressable
@@ -227,10 +247,12 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
               disabled={typed !== data.confirmationPhrase || remove.isPending}
               className="min-h-12 items-center justify-center rounded-lg bg-destructive active:opacity-70 disabled:opacity-40"
               accessibilityRole="button"
-              accessibilityLabel="Delete everything"
+              accessibilityLabel={t({ message: "Delete everything", comment: "safety" })}
             >
               <Text className="font-medium text-destructive-foreground">
-                {remove.isPending ? "Deleting…" : "Delete everything"}
+                {remove.isPending
+                  ? t`Deleting…`
+                  : t({ message: "Delete everything", comment: "safety" })}
               </Text>
             </Pressable>
           </>
@@ -244,19 +266,20 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
 function CoachSection() {
   const queryClient = useQueryClient();
   const config = useQuery(orpc.coach.getConfig.queryOptions({ input: undefined }));
+  const { t } = useLingui();
 
   if (config.isPending) return null;
   if (config.isError || !config.data) {
     return (
-      <CardStack title="Coach">
+      <CardStack title={t`Coach`}>
         <Card variant="secondary" className="p-4">
           <Text className="text-sm text-muted-foreground">
-            Could not load coach settings.{" "}
+            <Trans>Could not load coach settings.</Trans>{" "}
             <Text
               className="font-medium text-foreground underline"
               onPress={() => void config.refetch()}
             >
-              Retry
+              <Trans>Retry</Trans>
             </Text>
           </Text>
         </Card>
@@ -285,6 +308,9 @@ function CoachForm({
   const [risk, setRisk] = useState<CoachRiskTolerance>(initial.riskTolerance);
   const [disclaimer, setDisclaimer] = useState<CoachDisclaimerMode>(initial.medicalDisclaimerMode);
   const [template, setTemplate] = useState<CoachTemplateId>(initial.selectedTemplateKey);
+  const { t, i18n } = useLingui();
+  const text = (message: MessageDescriptor | null) => (message ? i18n._(message) : undefined);
+  const assertivenessText = (value: number) => i18n._(assertivenessLabel(value));
 
   useEffect(() => {
     setTone(initial.tone);
@@ -308,46 +334,46 @@ function CoachForm({
     template !== initial.selectedTemplateKey;
 
   return (
-    <CardStack title="Coach">
+    <CardStack title={t`Coach`}>
       <Card variant="secondary" className="gap-4 p-4">
         <CoachSelect
-          label="Tone"
-          hint={toneDescription(tone)}
+          label={t`Tone`}
+          hint={text(toneDescription(tone))}
           value={tone}
           onChange={setTone}
           values={COACH_TONE_VALUES}
-          format={toneLabel}
+          format={(value) => i18n._(toneLabel(value))}
         />
         <CoachSelect
-          label={`Assertiveness (${assertivenessLabel(assertiveness)})`}
-          hint={`1 = very gentle, 5 = very forceful. Currently ${assertiveness} of 5.`}
+          label={t`Assertiveness (${assertivenessText(assertiveness)})`}
+          hint={t`1 = very gentle, 5 = very forceful. Currently ${assertiveness} of 5.`}
           value={String(assertiveness)}
           onChange={(next) => setAssertiveness(Number(next))}
           values={["1", "2", "3", "4", "5"]}
-          format={(value) => `${value} · ${assertivenessLabel(Number(value))}`}
+          format={(value) => `${value} · ${assertivenessText(Number(value))}`}
         />
         <CoachSelect
-          label="Risk tolerance"
-          hint={riskDescription(risk)}
+          label={t`Risk tolerance`}
+          hint={text(riskDescription(risk))}
           value={risk}
           onChange={setRisk}
           values={COACH_RISK_VALUES}
-          format={riskLabel}
+          format={(value) => i18n._(riskLabel(value))}
         />
         <CoachSelect
-          label="Medical disclaimer"
+          label={t({ message: "Medical disclaimer", comment: "safety" })}
           value={disclaimer}
           onChange={setDisclaimer}
           values={COACH_DISCLAIMER_VALUES}
-          format={disclaimerLabel}
+          format={(value) => i18n._(disclaimerLabel(value))}
         />
         <CoachSelect
-          label="Template"
-          hint={templateDescription(template)}
+          label={t`Template`}
+          hint={text(templateDescription(template))}
           value={template}
           onChange={setTemplate}
           values={COACH_TEMPLATE_VALUES}
-          format={templateLabel}
+          format={(value) => i18n._(templateLabel(value))}
         />
 
         <View className="flex-row items-center gap-3">
@@ -363,12 +389,16 @@ function CoachForm({
             }
             isDisabled={!dirty || save.isPending}
           >
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t`Saving…` : t`Save`}
           </Button>
           {save.isSuccess && !dirty ? (
-            <Text className="text-sm text-success">Saved</Text>
+            <Text className="text-sm text-success">
+              <Trans>Saved</Trans>
+            </Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">Could not save.</Text>
+            <Text className="text-sm text-destructive">
+              <Trans>Could not save.</Trans>
+            </Text>
           ) : null}
         </View>
       </Card>
@@ -399,6 +429,7 @@ function AdministrationRow({
   );
 
   const foreground = useThemeColor("foreground");
+  const { t } = useLingui();
 
   const showAdministration =
     !!userId &&
@@ -413,12 +444,12 @@ function AdministrationRow({
   }
 
   return (
-    <CardStack title="Administration">
+    <CardStack title={t`Administration`}>
       <Card variant="secondary" className="overflow-hidden p-0">
         <ListRow
           icon={<Ionicons name="shield-outline" size={20} color={foreground} />}
-          title="Instance configuration"
-          subtitle="View global environment settings"
+          title={t`Instance configuration`}
+          subtitle={t`View global environment settings`}
           onPress={() => router.push("/admin/settings")}
         />
       </Card>

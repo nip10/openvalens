@@ -8,18 +8,22 @@ import { plugin } from "bun";
 
 const MACRO_IMPORT = /from\s+["']@lingui\/(core|react)\/macro["']/;
 
+// Babel loads lazily: `setup` must register `onLoad` synchronously, or files
+// imported before an async setup finishes skip the transform.
+let babel: Promise<
+  [typeof import("@babel/core"), typeof import("@lingui/babel-plugin-lingui-macro")]
+>;
+
 plugin({
   name: "lingui-macro",
-  async setup(build) {
-    const [{ transformAsync }, macro] = await Promise.all([
-      import("@babel/core"),
-      import("@lingui/babel-plugin-lingui-macro"),
-    ]);
+  setup(build) {
     build.onLoad({ filter: /\/(apps|packages)\/.+\.(tsx|ts)$/ }, async ({ path }) => {
       const loader = path.endsWith(".tsx") ? "tsx" : "ts";
       const source = await Bun.file(path).text();
       if (path.includes("/node_modules/") || !MACRO_IMPORT.test(source))
         return { contents: source, loader };
+      babel ??= Promise.all([import("@babel/core"), import("@lingui/babel-plugin-lingui-macro")]);
+      const [{ transformAsync }, macro] = await babel;
       const result = await transformAsync(source, {
         filename: path,
         babelrc: false,

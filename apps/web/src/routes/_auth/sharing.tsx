@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -20,16 +23,41 @@ export const Route = createFileRoute("/_auth/sharing")({
   component: SharingPage,
 });
 
+const ROLE_LABELS: Record<string, MessageDescriptor> = {
+  owner: msg`owner`,
+  admin: msg`admin`,
+  member: msg`member`,
+};
+
+const INVITATION_STATUS_LABELS: Record<string, MessageDescriptor> = {
+  pending: msg`pending`,
+  accepted: msg`accepted`,
+  rejected: msg`rejected`,
+  canceled: msg`canceled`,
+};
+
+/** A role or status label, or the stored value when it is not a known one. */
+function useCodeLabel() {
+  const { i18n } = useLingui();
+  return (labels: Record<string, MessageDescriptor>, value: string) => {
+    const label = labels[value];
+    return label ? i18n._(label) : value;
+  };
+}
+
 function SharingPage() {
   const members = useQuery(orpc.sharing.listMembers.queryOptions({ input: {} }));
   const invitations = useQuery(orpc.sharing.listInvitations.queryOptions({ input: {} }));
   const me = useQuery(orpc.sharing.me.queryOptions({ input: {} }));
   const isOwner = me.data?.role === "owner";
+  const codeLabel = useCodeLabel();
 
   if (members.isPending || invitations.isPending || me.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Sharing</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Sharing</Trans>
+        </h1>
         <Skeleton className="h-32 w-full" />
       </div>
     );
@@ -45,9 +73,11 @@ function SharingPage() {
   ) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Sharing</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Sharing</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Could not load sharing info.{" "}
+          <Trans>Could not load sharing info.</Trans>{" "}
           <button
             className="underline"
             onClick={() => {
@@ -56,7 +86,7 @@ function SharingPage() {
               void me.refetch();
             }}
           >
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -66,15 +96,19 @@ function SharingPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Sharing</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Sharing</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Your role: <span className="font-mono">{me.data.role}</span>
+          <Trans>
+            Your role: <span className="font-mono">{codeLabel(ROLE_LABELS, me.data.role)}</span>
+          </Trans>
         </p>
       </div>
 
       {!isOwner ? (
         <p className="text-sm text-muted-foreground">
-          Only org owners can invite or remove members.
+          <Trans>Only org owners can invite or remove members.</Trans>
         </p>
       ) : (
         <InviteForm />
@@ -89,6 +123,7 @@ function SharingPage() {
 function InviteForm() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"owner" | "member">("member");
+  const { t, i18n } = useLingui();
   const invite = useMutation(
     orpc.sharing.createInvitation.mutationOptions({
       onSuccess: () => {
@@ -107,11 +142,15 @@ function InviteForm() {
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>Invite a member</CardTitle>
+        <CardTitle>
+          <Trans>Invite a member</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Email</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Email</Trans>
+          </Label>
           <Input
             type="email"
             value={email}
@@ -120,27 +159,31 @@ function InviteForm() {
           />
         </div>
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Role</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Role</Trans>
+          </Label>
           <Select value={role} onValueChange={(next) => setRole(next as "owner" | "member")}>
             <SelectTrigger>
-              <SelectValue>{role}</SelectValue>
+              <SelectValue>{i18n._(ROLE_LABELS[role]!)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="member">member</SelectItem>
-              <SelectItem value="owner">owner</SelectItem>
+              <SelectItem value="member">{i18n._(ROLE_LABELS.member!)}</SelectItem>
+              <SelectItem value="owner">{i18n._(ROLE_LABELS.owner!)}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-end">
           <Button onClick={submit} disabled={!valid || invite.isPending} className="min-h-11">
-            {invite.isPending ? "Inviting…" : "Send invite"}
+            {invite.isPending ? t`Inviting…` : t`Send invite`}
           </Button>
         </div>
         {invite.isSuccess ? (
-          <p className="text-sm text-success sm:col-span-3">Invitation saved.</p>
+          <p className="text-sm text-success sm:col-span-3">
+            <Trans>Invitation saved.</Trans>
+          </p>
         ) : invite.isError ? (
           <p className="text-sm text-destructive sm:col-span-3">
-            Could not send invite. Email may already be pending.
+            <Trans>Could not send invite. Email may already be pending.</Trans>
           </p>
         ) : null}
       </CardContent>
@@ -167,6 +210,7 @@ function MembersCard({
   currentUserId: string;
 }) {
   const queryClient = useQueryClient();
+  const codeLabel = useCodeLabel();
   const remove = useMutation(
     orpc.sharing.removeMember.mutationOptions({
       onSuccess: () => {
@@ -178,11 +222,13 @@ function MembersCard({
   return (
     <Card className="mb-6 py-0">
       <CardHeader className="border-b border-border">
-        <CardTitle>Members · {members.length}</CardTitle>
+        <CardTitle>
+          <Trans>Members · {members.length}</Trans>
+        </CardTitle>
       </CardHeader>
       {members.length === 0 ? (
         <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          No members yet.
+          <Trans>No members yet.</Trans>
         </CardContent>
       ) : (
         <ul className="divide-y divide-border">
@@ -194,11 +240,13 @@ function MembersCard({
                   <div className="font-medium">
                     {member.name ?? member.email ?? member.userId}
                     {isMe ? (
-                      <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        <Trans>(you)</Trans>
+                      </span>
                     ) : null}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {member.email ?? "—"} · {member.role}
+                    {member.email ?? "—"} · {codeLabel(ROLE_LABELS, member.role)}
                   </div>
                 </div>
                 {isOwner && !isMe ? (
@@ -207,7 +255,7 @@ function MembersCard({
                     onClick={() => remove.mutate({ userId: member.userId })}
                     disabled={remove.isPending}
                   >
-                    Remove
+                    <Trans>Remove</Trans>
                   </Button>
                 ) : null}
               </li>
@@ -237,6 +285,7 @@ function InvitationsCard({
   isOwner: boolean;
 }) {
   const queryClient = useQueryClient();
+  const codeLabel = useCodeLabel();
   const revoke = useMutation(
     orpc.sharing.revokeInvitation.mutationOptions({
       onSuccess: () => {
@@ -248,11 +297,13 @@ function InvitationsCard({
   return (
     <Card className="py-0">
       <CardHeader className="border-b border-border">
-        <CardTitle>Pending invitations · {invitations.length}</CardTitle>
+        <CardTitle>
+          <Trans>Pending invitations · {invitations.length}</Trans>
+        </CardTitle>
       </CardHeader>
       {invitations.length === 0 ? (
         <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          No pending invitations.
+          <Trans>No pending invitations.</Trans>
         </CardContent>
       ) : (
         <ul className="divide-y divide-border">
@@ -261,7 +312,10 @@ function InvitationsCard({
               <div>
                 <div className="font-medium">{invite.email}</div>
                 <div className="text-sm text-muted-foreground">
-                  {invite.role} · status: {invite.status}
+                  <Trans>
+                    {codeLabel(ROLE_LABELS, invite.role)} · status:{" "}
+                    {codeLabel(INVITATION_STATUS_LABELS, invite.status)}
+                  </Trans>
                 </div>
               </div>
               {isOwner ? (
@@ -270,7 +324,7 @@ function InvitationsCard({
                   onClick={() => revoke.mutate({ id: invite.id })}
                   disabled={revoke.isPending}
                 >
-                  Revoke
+                  <Trans>Revoke</Trans>
                 </Button>
               ) : null}
             </li>

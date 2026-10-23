@@ -1,9 +1,17 @@
 import { describe, expect, jest, test } from "bun:test";
 import { AlertDialogAction } from "@openvalens/ui/components/alert-dialog";
 import { Switch } from "@openvalens/ui/components/switch";
-import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactElement } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 import { AiConsentCard, type AiConsentCardProps } from "./ai-consent-card";
+
+/** Renders inside an English I18nProvider: the component is translated (#67). */
+function renderToStaticMarkup(node: ReactElement): string {
+  return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+}
 
 const GRANTED_AT = "2026-02-03T10:00:00.000Z";
 
@@ -57,6 +65,20 @@ function findElement(
   return findElement(element.props.children, predicate);
 }
 
+/**
+ * The element tree AiConsentCard returns, captured during a real render so
+ * its Lingui hook has a provider.
+ */
+function cardTree(props: AiConsentCardProps): unknown {
+  let tree: unknown;
+  function Capture() {
+    tree = AiConsentCard(props);
+    return null;
+  }
+  renderToStaticMarkup(<Capture />);
+  return tree;
+}
+
 describe("AiConsentCard", () => {
   test("renders Not granted when consent is null", () => {
     const html = renderToStaticMarkup(<AiConsentCard {...makeProps({ state: null })} />);
@@ -104,7 +126,7 @@ describe("AiConsentCard", () => {
   test("flipping the switch on grants without opening the revoke dialog", () => {
     const onGrant = jest.fn();
     const onRequestRevoke = jest.fn();
-    const tree = AiConsentCard(makeProps({ state: null, onGrant, onRequestRevoke }));
+    const tree = cardTree(makeProps({ state: null, onGrant, onRequestRevoke }));
 
     const switchElement = findElement(tree, (element) => element.type === Switch);
     if (!switchElement) throw new Error("switch not found");
@@ -118,7 +140,7 @@ describe("AiConsentCard", () => {
   test("flipping the switch off requests revoke confirmation instead of granting", () => {
     const onGrant = jest.fn();
     const onRequestRevoke = jest.fn();
-    const tree = AiConsentCard(makeProps({ state: GRANTED_STATE, onGrant, onRequestRevoke }));
+    const tree = cardTree(makeProps({ state: GRANTED_STATE, onGrant, onRequestRevoke }));
 
     const switchElement = findElement(tree, (element) => element.type === Switch);
     if (!switchElement) throw new Error("switch not found");
@@ -131,7 +153,7 @@ describe("AiConsentCard", () => {
 
   test("confirming the destructive revoke action calls revoke", () => {
     const onRevoke = jest.fn();
-    const tree = AiConsentCard(makeProps({ state: GRANTED_STATE, onRevoke }));
+    const tree = cardTree(makeProps({ state: GRANTED_STATE, onRevoke }));
 
     const actionElement = findElement(tree, (element) => element.type === AlertDialogAction);
     if (!actionElement) throw new Error("revoke action not found");

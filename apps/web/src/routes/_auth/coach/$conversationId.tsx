@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { relativeTime } from "@openvalens/api/presenters/cochat";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent } from "@openvalens/ui/components/card";
@@ -20,6 +21,7 @@ function CoachThreadPage() {
   const queryClient = useQueryClient();
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { t, i18n } = useLingui();
 
   const messages = useQuery(orpc.ai.listMessages.queryOptions({ input: { conversationId } }));
 
@@ -64,11 +66,13 @@ function CoachThreadPage() {
   if (messages.isError || !messages.data) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Coach</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Coach</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Could not load this conversation.{" "}
+          <Trans>Could not load this conversation.</Trans>{" "}
           <button className="underline" onClick={() => void messages.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -81,14 +85,14 @@ function CoachThreadPage() {
     <div className="container mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
       <div className="flex items-center justify-between">
         <Link to="/coach" className="text-sm text-muted-foreground underline">
-          ← All conversations
+          <Trans>← All conversations</Trans>
         </Link>
         <Button
           variant="outline"
           onClick={() => navigate({ to: "/coach" })}
           disabled={send.isPending}
         >
-          New conversation
+          <Trans>New conversation</Trans>
         </Button>
       </div>
 
@@ -100,7 +104,7 @@ function CoachThreadPage() {
       >
         {list.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground">
-            No messages yet — say hello to start.
+            <Trans>No messages yet — say hello to start.</Trans>
           </p>
         ) : (
           list.map((message) => (
@@ -110,8 +114,8 @@ function CoachThreadPage() {
             >
               <CardContent className="p-3">
                 <div className="mb-1 text-xs text-muted-foreground">
-                  {message.role === "user" ? "You" : "Coach"} ·{" "}
-                  {relativeTime(message.createdAt, new Date(), settings)}
+                  {message.role === "user" ? t`You` : t`Coach`} ·{" "}
+                  {i18n._(relativeTime(message.createdAt, new Date(), settings))}
                 </div>
                 <div className="whitespace-pre-wrap text-sm">{message.content}</div>
               </CardContent>
@@ -121,13 +125,17 @@ function CoachThreadPage() {
         {send.isPending ? (
           <Card>
             <CardContent className="p-3">
-              <div className="mb-1 text-xs text-muted-foreground">Coach · thinking…</div>
+              <div className="mb-1 text-xs text-muted-foreground">
+                <Trans>Coach · thinking…</Trans>
+              </div>
               <div className="text-sm text-muted-foreground">…</div>
             </CardContent>
           </Card>
         ) : null}
         {send.isError ? (
-          <p className="text-sm text-destructive">Could not send. Check AI consent in Settings.</p>
+          <p className="text-sm text-destructive">
+            <Trans>Could not send. Check AI consent in Settings.</Trans>
+          </p>
         ) : null}
       </div>
 
@@ -140,13 +148,13 @@ function CoachThreadPage() {
       >
         <input
           className="min-h-11 flex-1 rounded-lg border border-border bg-card px-3 text-base"
-          placeholder="Ask the coach anything…"
+          placeholder={t`Ask the coach anything…`}
           value={input}
           onChange={(event) => setInput(event.target.value)}
           disabled={send.isPending}
         />
         <Button type="submit" disabled={send.isPending || input.trim().length === 0}>
-          {send.isPending ? "Sending…" : "Send"}
+          {send.isPending ? t`Sending…` : t`Send`}
         </Button>
       </form>
     </div>

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ export function OidcConnectSection() {
   const options = useQuery(signInOptionsQueryOptions());
   const oidc = options.data?.oidc ?? null;
   const queryClient = useQueryClient();
+  const { t } = useLingui();
 
   const accounts = useQuery({
     queryKey: ACCOUNTS_QUERY_KEY,
@@ -47,7 +49,7 @@ export function OidcConnectSection() {
       if (error) throw new Error("unlink failed");
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS_QUERY_KEY }),
-    onError: () => toast.error("Could not disconnect. Sign in again and retry."),
+    onError: () => toast.error(t`Could not disconnect. Sign in again and retry.`),
   });
 
   if (!oidc) return null;
@@ -67,15 +69,17 @@ export function OidcConnectSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign-in methods</CardTitle>
+        <CardTitle>
+          <Trans>Sign-in methods</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex items-center justify-between gap-4">
         <div className="text-sm">
           <div className="font-medium">{oidc.displayName}</div>
           <div className="text-muted-foreground">
             {linked
-              ? `Connected. You can sign in with ${oidc.displayName}.`
-              : `Connect your ${oidc.displayName} account to sign in with it. Email links keep working.`}
+              ? t`Connected. You can sign in with ${oidc.displayName}.`
+              : t`Connect your ${oidc.displayName} account to sign in with it. Email links keep working.`}
           </div>
         </div>
         {linked ? (
@@ -84,11 +88,11 @@ export function OidcConnectSection() {
             disabled={disconnect.isPending}
             onClick={() => disconnect.mutate(linked.id)}
           >
-            Disconnect
+            <Trans>Disconnect</Trans>
           </Button>
         ) : (
           <Button disabled={accounts.isPending} onClick={connect}>
-            Connect
+            <Trans>Connect</Trans>
           </Button>
         )}
       </CardContent>

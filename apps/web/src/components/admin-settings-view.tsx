@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -18,23 +19,28 @@ export function AdminSettingsView({
   onRetryAccess,
   onRetryConfig,
 }: AdminSettingsViewProps) {
+  const { t } = useLingui();
   return (
     <main className="container mx-auto max-w-3xl px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Instance configuration</h1>
-        <p className="text-sm text-muted-foreground">Administration</p>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Instance configuration</Trans>
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Administration</Trans>
+        </p>
       </div>
 
       {accessState === "loading" ? (
         <LoadingCard />
       ) : accessState === "error" ? (
-        <ErrorCard message="Could not verify admin access." onRetry={onRetryAccess} />
+        <ErrorCard message={t`Could not verify admin access.`} onRetry={onRetryAccess} />
       ) : accessState === "denied" ? (
         <DeniedCard />
       ) : configState === "loading" ? (
         <LoadingCard />
       ) : configState === "error" ? (
-        <ErrorCard message="Could not load instance configuration." onRetry={onRetryConfig} />
+        <ErrorCard message={t`Could not load instance configuration.`} onRetry={onRetryConfig} />
       ) : configState === "denied" ? (
         <DeniedCard />
       ) : (
@@ -45,21 +51,28 @@ export function AdminSettingsView({
 }
 
 function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) {
+  const { t } = useLingui();
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Environment configuration</CardTitle>
+        <CardTitle>
+          <Trans>Environment configuration</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <p className="text-sm text-muted-foreground">
-          Startup configuration is read-only. Values are hidden for security, even for non-sensitive
-          keys.
+          <Trans>
+            Startup configuration is read-only. Values are hidden for security, even for
+            non-sensitive keys.
+          </Trans>
         </p>
 
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No configuration keys reported.</p>
+          <p className="text-sm text-muted-foreground">
+            <Trans>No configuration keys reported.</Trans>
+          </p>
         ) : (
-          <ul className="grid gap-2" role="list" aria-label="Configuration keys">
+          <ul className="grid gap-2" role="list" aria-label={t`Configuration keys`}>
             {entries.map((entry) => (
               <ConfigurationRow key={entry.key} entry={entry} />
             ))}
@@ -71,22 +84,23 @@ function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) 
 }
 
 function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
+  const { t } = useLingui();
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
       <code className="break-all text-sm font-medium">{entry.key}</code>
       <div className="flex flex-wrap gap-2">
         {entry.configured ? (
-          <Badge variant="default" aria-label={`${entry.key} configured`}>
-            Configured
+          <Badge variant="default" aria-label={t`${entry.key} configured`}>
+            <Trans>Configured</Trans>
           </Badge>
         ) : (
-          <Badge variant="secondary" aria-label={`${entry.key} not set`}>
-            Not set
+          <Badge variant="secondary" aria-label={t`${entry.key} not set`}>
+            <Trans>Not set</Trans>
           </Badge>
         )}
         {entry.sensitive ? (
-          <Badge variant="outline" aria-label={`${entry.key} sensitive`}>
-            Sensitive
+          <Badge variant="outline" aria-label={t`${entry.key} sensitive`}>
+            <Trans>Sensitive</Trans>
           </Badge>
         ) : null}
       </div>
@@ -98,7 +112,9 @@ function LoadingCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Environment configuration</CardTitle>
+        <CardTitle>
+          <Trans>Environment configuration</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <Skeleton className="h-4 w-full" />
@@ -114,14 +130,16 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Environment configuration</CardTitle>
+        <CardTitle>
+          <Trans>Environment configuration</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
           {message}{" "}
           {onRetry ? (
             <button className="underline" onClick={onRetry}>
-              Retry
+              <Trans>Retry</Trans>
             </button>
           ) : null}
         </p>
@@ -134,11 +152,13 @@ function DeniedCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Access denied</CardTitle>
+        <CardTitle>
+          <Trans>Access denied</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          You do not have access to instance administration.
+          <Trans>You do not have access to instance administration.</Trans>
         </p>
       </CardContent>
     </Card>

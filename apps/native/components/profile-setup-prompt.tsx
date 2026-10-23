@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   describeProfileSaveError,
   nextSetupSection,
@@ -30,7 +32,8 @@ export function ProfileSetupPrompt() {
     enabled: !!userId,
     retry: 1,
   });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessageDescriptor | null>(null);
+  const { t, i18n } = useLingui();
   const skip = useMutation({
     mutationFn: (revision: number) =>
       client.profile.update({ expectedRevision: revision, setupStatus: "skipped" }),
@@ -46,18 +49,27 @@ export function ProfileSetupPrompt() {
 
   return (
     <CardStack
-      title={started ? "Continue setting up (optional)" : "Set up your profile (optional)"}
+      title={started ? t`Continue setting up (optional)` : t`Set up your profile (optional)`}
     >
       <Card variant="secondary" className="gap-3 p-4">
         <Text className="text-sm text-foreground">
-          A few optional questions so the app can show what matters to you. Skip any of them —
-          everything else works without them.
-          {started ? ` ${progress.answered} of ${progress.available} sections answered.` : ""}
+          <Trans>
+            A few optional questions so the app can show what matters to you. Skip any of them —
+            everything else works without them.
+          </Trans>
+          {started ? (
+            <>
+              {" "}
+              <Trans>
+                {progress.answered} of {progress.available} sections answered.
+              </Trans>
+            </>
+          ) : null}
         </Text>
         <View className="flex-row flex-wrap gap-3">
           <Button onPress={() => router.push("/profile")}>
             <Button.Label>
-              {started && next ? `Continue: ${SECTION_TITLES[next]}` : "Start"}
+              {started && next ? t`Continue: ${i18n._(SECTION_TITLES[next])}` : t`Start`}
             </Button.Label>
           </Button>
           <Button
@@ -68,12 +80,14 @@ export function ProfileSetupPrompt() {
               skip.mutate(snapshot.revision);
             }}
           >
-            <Button.Label>Not now</Button.Label>
+            <Button.Label>
+              <Trans>Not now</Trans>
+            </Button.Label>
           </Button>
         </View>
         {error ? (
           <Text className="text-sm text-destructive" accessibilityRole="alert">
-            {error}
+            {i18n._(error)}
           </Text>
         ) : null}
       </Card>

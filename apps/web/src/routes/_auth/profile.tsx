@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   buildSectionPatch,
   describeProfileSaveError,
@@ -78,13 +81,17 @@ function ProfilePage() {
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <Card>
           <CardHeader>
-            <CardTitle>Your profile</CardTitle>
+            <CardTitle>
+              <Trans>Your profile</Trans>
+            </CardTitle>
             <CardDescription role="alert">
-              Could not load your profile. Nothing has changed.
+              <Trans>Could not load your profile. Nothing has changed.</Trans>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => void profile.refetch()}>Retry</Button>
+            <Button onClick={() => void profile.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -117,8 +124,9 @@ function ProfileEditorPage({
     snapshot.birthYear.state === "recorded" ? String(snapshot.birthYear.value) : "",
   );
   const [saveState, setSaveState] = useState<Partial<Record<SetupSection, SectionSaveState>>>({});
-  const [pageMessage, setPageMessage] = useState<string | null>(null);
+  const [pageMessage, setPageMessage] = useState<MessageDescriptor | null>(null);
   const baseline = useRef(snapshot);
+  const { t, i18n } = useLingui();
 
   // Follow server snapshots (saves, refetches, conflict reloads) without
   // dropping unsaved edits in other sections.
@@ -133,7 +141,7 @@ function ProfileEditorPage({
   useBlocker({
     shouldBlockFn: () =>
       dirty.length > 0 &&
-      !window.confirm("You have unsaved changes on this page. Leave without saving them?"),
+      !window.confirm(t`You have unsaved changes on this page. Leave without saving them?`),
     enableBeforeUnload: () => dirty.length > 0,
   });
 
@@ -185,12 +193,14 @@ function ProfileEditorPage({
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-2 text-2xl font-semibold">Your profile</h1>
+      <h1 className="mb-2 text-2xl font-semibold">
+        <Trans>Your profile</Trans>
+      </h1>
       <p className="mb-2 text-sm text-muted-foreground">{PROFILE_INTRO}</p>
       <p className="mb-4 text-xs text-muted-foreground">{PROFILE_STORAGE_NOTE}</p>
       {!online ? (
         <p role="status" className="mb-4 rounded-md border p-3 text-sm">
-          You are offline. {PROFILE_OFFLINE_NOTE}
+          <Trans>You are offline.</Trans> {PROFILE_OFFLINE_NOTE}
         </p>
       ) : null}
 
@@ -198,16 +208,18 @@ function ProfileEditorPage({
         <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
           <div className="text-sm">
             <div>
-              {progress.answered} of {progress.available} sections answered
+              <Trans>
+                {progress.answered} of {progress.available} sections answered
+              </Trans>
             </div>
             {resume ? (
               <a href={`#section-${resume}`} className="text-muted-foreground underline">
-                Next unanswered: {SECTION_TITLES[resume]}
+                <Trans>Next unanswered: {i18n._(SECTION_TITLES[resume])}</Trans>
               </a>
             ) : null}
             {dirty.length > 0 ? (
               <div className="text-muted-foreground">
-                Unsaved: {dirty.map((s) => SECTION_TITLES[s]).join(", ")}
+                <Trans>Unsaved: {dirty.map((s) => i18n._(SECTION_TITLES[s])).join(", ")}</Trans>
               </div>
             ) : null}
           </div>
@@ -215,22 +227,22 @@ function ProfileEditorPage({
             {inSetup ? (
               <>
                 <Button variant="outline" onClick={() => void finish("skipped")}>
-                  Skip for now
+                  <Trans>Skip for now</Trans>
                 </Button>
                 <Button onClick={() => void finish("completed")} disabled={dirty.length > 0}>
-                  Done
+                  <Trans>Done</Trans>
                 </Button>
               </>
             ) : (
               <Link to="/settings" className="text-sm underline">
-                Back to settings
+                <Trans>Back to settings</Trans>
               </Link>
             )}
           </div>
         </CardContent>
         {pageMessage ? (
           <p role="alert" className="px-6 pb-4 text-sm text-destructive">
-            {pageMessage}
+            {i18n._(pageMessage)}
           </p>
         ) : null}
       </Card>
@@ -270,12 +282,13 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
   const queryClient = useQueryClient();
   const inputId = useId();
   const [title, setTitle] = useState("");
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: MessageDescriptor } | null>(null);
+  const { t, i18n } = useLingui();
   const add = useMutation(
     orpc.plans.goals.upsertGoal.mutationOptions({
       onSuccess: () => {
         setTitle("");
-        setMessage({ ok: true, text: "Goal added. You can edit it under Workouts." });
+        setMessage({ ok: true, text: msg`Goal added. You can edit it under Workouts.` });
         void queryClient.invalidateQueries({ queryKey: orpc.plans.goals.key() });
       },
       onError: (error) => setMessage({ ok: false, text: describeProfileSaveError(error).message }),
@@ -287,16 +300,18 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
     <Card id="section-goal" role="region" aria-labelledby={`${inputId}-title`}>
       <CardHeader>
         <CardTitle id={`${inputId}-title`} className="text-lg">
-          {SECTION_TITLES.goal}
+          {i18n._(SECTION_TITLES.goal)}
         </CardTitle>
         <CardDescription>
-          Add a goal in your own words if you have one. It is saved to your Goals, where you can set
-          a target and date later. Nothing is suggested or worked out for you.
+          <Trans>
+            Add a goal in your own words if you have one. It is saved to your Goals, where you can
+            set a target and date later. Nothing is suggested or worked out for you.
+          </Trans>
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         <label htmlFor={inputId} className="text-sm font-medium">
-          Goal
+          <Trans>Goal</Trans>
         </label>
         <div className="flex flex-wrap gap-2">
           <Input
@@ -304,7 +319,7 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
             value={title}
             maxLength={200}
             className="max-w-md"
-            placeholder="For example: walk most days"
+            placeholder={t`For example: walk most days`}
             onChange={(event) => setTitle(event.target.value)}
           />
           <Button
@@ -318,7 +333,7 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
               })
             }
           >
-            {add.isPending ? "Adding…" : "Add goal"}
+            {add.isPending ? t`Adding…` : t`Add goal`}
           </Button>
         </div>
         {message ? (
@@ -326,7 +341,7 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
             role={message.ok ? "status" : "alert"}
             className={message.ok ? "text-sm text-success" : "text-sm text-destructive"}
           >
-            {message.text}
+            {i18n._(message.text)}
           </p>
         ) : null}
       </CardContent>

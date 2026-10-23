@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   EMAIL_DIGEST_ACKNOWLEDGEMENT_VERSION,
   INSIGHT_CHANNELS,
@@ -50,6 +51,8 @@ export function InsightNotificationsForm({
   );
   const canDeliver = preferences.canConfigureDelivery;
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { t } = useLingui();
+  const pushTitle = INSIGHT_DELIVERY_COPY.pushTitle;
 
   return (
     <Card role="region" aria-labelledby="insight-notifications-title">
@@ -76,7 +79,7 @@ export function InsightNotificationsForm({
                   onCheckedChange={(enabled) => onUpdate({ push: { enabled } })}
                 />
                 <Label htmlFor="insight-push">
-                  {preferences.push.enabled ? "On" : "Off"} — {INSIGHT_DELIVERY_COPY.pushTitle}
+                  {preferences.push.enabled ? t`On — ${pushTitle}` : t`Off — ${pushTitle}`}
                 </Label>
               </div>
               <div className="flex items-center gap-3">
@@ -108,9 +111,11 @@ export function InsightNotificationsForm({
                 variant="outline"
                 onClick={() => onUpdate({ email: { enabled: false } })}
               >
-                Turn off the weekly email
+                <Trans>Turn off the weekly email</Trans>
               </Button>
-              <span className="text-sm">On</span>
+              <span className="text-sm">
+                <Trans>On</Trans>
+              </span>
             </div>
           ) : (
             <>
@@ -140,7 +145,7 @@ export function InsightNotificationsForm({
                     })
                   }
                 >
-                  Turn on the weekly email
+                  <Trans>Turn on the weekly email</Trans>
                 </Button>
               </div>
             </>
@@ -173,7 +178,7 @@ export function InsightNotificationsForm({
                 variant="outline"
                 onClick={() => onUpdate({ timeZone: browserZone })}
               >
-                Use {browserZone}
+                <Trans>Use {browserZone}</Trans>
               </Button>
             ) : null}
           </div>
@@ -186,7 +191,7 @@ export function InsightNotificationsForm({
             <thead>
               <tr>
                 <th scope="col" className="text-left font-medium">
-                  Kind
+                  <Trans>Kind</Trans>
                 </th>
                 {INSIGHT_CHANNELS.map((channel) => (
                   <th key={channel} scope="col" className="px-2 text-left font-medium">
@@ -225,11 +230,12 @@ export function InsightNotificationsForm({
 
 export function InsightNotificationsSection() {
   const queryClient = useQueryClient();
+  const { t } = useLingui();
   const preferences = useQuery(orpc.insights.preferences.get.queryOptions({ input: {} }));
   const update = useMutation(
     orpc.insights.preferences.update.mutationOptions({
       onSuccess: () => void queryClient.invalidateQueries({ queryKey: orpc.insights.key() }),
-      onError: () => toast.error("Could not update notification settings."),
+      onError: () => toast.error(t`Could not update notification settings.`),
     }),
   );
   if (preferences.isPending) return <Skeleton className="h-48 w-full" />;

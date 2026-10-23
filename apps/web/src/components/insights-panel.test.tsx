@@ -4,7 +4,10 @@ import type { InsightPreferences, InsightsResult } from "@openvalens/api/insight
 import { defaultKindChannels, runInsightRules } from "@openvalens/api/insight-rules";
 import { computeGoalProgress } from "@openvalens/api/score-goal-progress";
 import { computeReadiness } from "@openvalens/api/score-readiness";
-import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactElement } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import {
   INSIGHT_CHANNEL_LABELS,
   INSIGHT_KIND_LABELS,
@@ -17,6 +20,11 @@ import {
 
 import { InsightNotificationsForm } from "./insight-notifications-section";
 import { InsightsCard, PushOfferCard, SummaryCards } from "./insights-panel";
+
+/** Renders inside an English I18nProvider: the component is translated (#67). */
+function renderToStaticMarkup(node: ReactElement): string {
+  return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+}
 
 const AS_OF = "2026-10-15";
 

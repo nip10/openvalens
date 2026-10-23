@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   isAdultConfirmed,
   isSectionDirty,
@@ -54,7 +56,7 @@ export type SectionSaveState =
   | { status: "idle" }
   | { status: "saving" }
   | { status: "saved" }
-  | { status: "error"; message: string };
+  | { status: "error"; message: MessageDescriptor };
 
 export type WellnessProfileEditorProps = {
   snapshot: WellnessProfileSnapshot;
@@ -81,6 +83,7 @@ function setAnswer<F extends WellnessProfileField>(
 export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
   const { draft, onDraftChange } = props;
   const adult = isAdultConfirmed(draft.answers);
+  const { t, i18n } = useLingui();
 
   return (
     <div className="grid gap-6">
@@ -158,7 +161,7 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
               value,
               label: INPUT_METHOD_LABELS[value],
             })),
-            { value: "declined", label: "Not sure yet" },
+            { value: "declined", label: t`Not sure yet` },
           ]}
           onChange={(value) =>
             onDraftChange(
@@ -203,10 +206,12 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">{SECTION_TITLES.ageAndSex}</CardTitle>
+            <CardTitle className="text-lg">{i18n._(SECTION_TITLES.ageAndSex)}</CardTitle>
             <CardDescription>
-              {unavailableExplanation("adult_confirmation_required")} Age and sex are only used by
-              adult features, so they are not asked here.
+              {unavailableExplanation("adult_confirmation_required")}{" "}
+              <Trans>
+                Age and sex are only used by adult features, so they are not asked here.
+              </Trans>
             </CardDescription>
           </CardHeader>
         </Card>
@@ -220,6 +225,7 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
   const birthYearId = useId();
   const parsed = parseBirthYearInput(birthYearText, now);
   const ageDeclined = draft.answers.birthYear.state === "declined";
+  const { i18n } = useLingui();
 
   const setConsent = (purpose: "age_band" | "sex", checked: boolean) => {
     let next: WellnessProfileDraft = {
@@ -253,7 +259,7 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
         />
         <div className="grid gap-1">
           <label htmlFor={birthYearId} className="text-sm">
-            Birth year
+            <Trans>Birth year</Trans>
           </label>
           <Input
             id={birthYearId}
@@ -284,7 +290,7 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
           />
           {!parsed.ok ? (
             <p id={`${birthYearId}-error`} role="alert" className="text-xs text-destructive">
-              {rejectionMessage(parsed.reason)}
+              {i18n._(rejectionMessage(parsed.reason))}
             </p>
           ) : null}
         </div>
@@ -369,12 +375,13 @@ function Section({
   const titleId = useId();
   const fields = extraField ? [field, extraField] : [field];
   const hasAnswer = fields.some((f) => draft.answers[f].state !== "unknown");
+  const { t, i18n } = useLingui();
 
   return (
     <Card id={`section-${section}`} aria-labelledby={titleId} role="region">
       <CardHeader>
         <CardTitle id={titleId} className="text-lg">
-          {SECTION_TITLES[section]}
+          {i18n._(SECTION_TITLES[section])}
         </CardTitle>
         {section !== "ageAndSex" ? <CardDescription>{copy.purpose}</CardDescription> : null}
       </CardHeader>
@@ -390,11 +397,11 @@ function Section({
         )}
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => onSave(section)} disabled={!dirty || state.status === "saving"}>
-            {state.status === "saving" ? "Saving…" : "Save"}
+            {state.status === "saving" ? t`Saving…` : t`Save`}
           </Button>
           {dirty ? (
             <Button variant="ghost" onClick={() => onUndo(section)}>
-              Undo changes
+              <Trans>Undo changes</Trans>
             </Button>
           ) : null}
           {hasAnswer ? (
@@ -407,20 +414,24 @@ function Section({
                 onDraftChange(next);
               }}
             >
-              Clear answer
+              <Trans>Clear answer</Trans>
             </Button>
           ) : null}
           <span role="status" aria-live="polite" className="text-sm">
             {state.status === "error" ? null : dirty ? (
-              <span className="text-muted-foreground">Unsaved changes</span>
+              <span className="text-muted-foreground">
+                <Trans>Unsaved changes</Trans>
+              </span>
             ) : state.status === "saved" ? (
-              <span className="text-success">Saved</span>
+              <span className="text-success">
+                <Trans>Saved</Trans>
+              </span>
             ) : null}
           </span>
         </div>
         {state.status === "error" ? (
           <p role="alert" className="text-sm text-destructive">
-            {state.message}
+            {i18n._(state.message)}
           </p>
         ) : null}
       </CardContent>

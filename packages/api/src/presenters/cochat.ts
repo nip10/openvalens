@@ -1,7 +1,12 @@
 /**
- * Coach chat presentation shared by web and mobile. Pure TypeScript; only
- * sibling presenter helpers are imported — safe for the app bundle.
+ * Coach chat presentation shared by web and mobile. Only sibling presenter
+ * helpers are imported — safe for the app bundle. Text is returned as message
+ * descriptors the apps render with Lingui (#67); not reachable from server
+ * code (see server-safe.test.ts).
  */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { formatProductDate, type ProductDisplaySettings } from "./product-formatting";
 
 export type ChatThreadLike = {
@@ -32,26 +37,27 @@ export function relativeTime(
   iso: string | null | undefined,
   now: Date = new Date(),
   settings?: ProductDisplaySettings | null,
-): string {
-  if (!iso) return "—";
+): MessageDescriptor {
+  if (!iso) return msg({ message: "—", comment: "No time to show" });
   const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return "—";
+  if (Number.isNaN(then.getTime())) return msg({ message: "—", comment: "No time to show" });
   const diffMs = now.getTime() - then.getTime();
-  if (diffMs < 0) return "just now";
+  if (diffMs < 0) return msg`just now`;
   const sec = Math.round(diffMs / 1000);
-  if (sec < 45) return "just now";
+  if (sec < 45) return msg`just now`;
   const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return msg({ message: `${min}m ago`, comment: "Minutes ago, abbreviated" });
   const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return msg({ message: `${hr}h ago`, comment: "Hours ago, abbreviated" });
   const day = Math.round(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  return formatProductDate(
+  if (day < 7) return msg({ message: `${day}d ago`, comment: "Days ago, abbreviated" });
+  const date = formatProductDate(
     then,
     settings?.locale ?? "en-US",
     { month: "short", day: "numeric" },
     settings?.timeZone,
   );
+  return msg({ message: `${date}`, comment: "A short month and day, already formatted" });
 }
 
 /** Truncate long previews for the list row. */

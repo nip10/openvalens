@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactElement } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 import { AdminInvitationsView } from "./admin-invitations-view";
+
+/** Renders inside an English I18nProvider: the component is translated (#67). */
+function renderToStaticMarkup(node: ReactElement): string {
+  return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+}
 
 const SAMPLE_INVITATIONS = [
   {

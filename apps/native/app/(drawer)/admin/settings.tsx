@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
 import { Card, Chip } from "heroui-native";
@@ -16,6 +17,7 @@ export default function AdminSettingsScreen() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const userId = session?.user?.id;
   const hasUserId = !!userId;
+  const { t } = useLingui();
 
   const access = useQuery({
     ...adminAccessQueryOptions(userId ?? ""),
@@ -62,29 +64,33 @@ export default function AdminSettingsScreen() {
     <Container className="p-4">
       <View className="gap-6">
         <View className="gap-1">
-          <Text className="text-2xl font-semibold text-foreground">Instance configuration</Text>
-          <Text className="text-sm text-muted-foreground">Administration</Text>
+          <Text className="text-2xl font-semibold text-foreground">
+            <Trans>Instance configuration</Trans>
+          </Text>
+          <Text className="text-sm text-muted-foreground">
+            <Trans>Administration</Trans>
+          </Text>
         </View>
 
         {state === "loading" || state === "config-loading" ? (
           <LoadingCard />
         ) : state === "access-error" ? (
           <MessageCard
-            title="Could not verify access"
-            message="Could not verify admin access."
-            actionLabel="Retry"
+            title={t`Could not verify access`}
+            message={t`Could not verify admin access.`}
+            actionLabel={t`Retry`}
             onAction={() => void access.refetch()}
           />
         ) : state === "denied" ? (
           <MessageCard
-            title="Access denied"
-            message="You do not have access to instance administration."
+            title={t`Access denied`}
+            message={t`You do not have access to instance administration.`}
           />
         ) : state === "config-error" ? (
           <MessageCard
-            title="Could not load configuration"
-            message="Could not load instance configuration."
-            actionLabel="Retry"
+            title={t`Could not load configuration`}
+            message={t`Could not load instance configuration.`}
+            actionLabel={t`Retry`}
             onAction={() => void config.refetch()}
           />
         ) : state === "ready" ? (
@@ -96,15 +102,20 @@ export default function AdminSettingsScreen() {
 }
 
 function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) {
+  const { t } = useLingui();
   return (
-    <CardStack title="Environment configuration">
+    <CardStack title={t`Environment configuration`}>
       <Text className="text-sm text-muted-foreground">
-        Startup configuration is read-only. Values are hidden for security, even for non-sensitive
-        keys.
+        <Trans>
+          Startup configuration is read-only. Values are hidden for security, even for non-sensitive
+          keys.
+        </Trans>
       </Text>
 
       {entries.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">No configuration keys reported.</Text>
+        <Text className="text-sm text-muted-foreground">
+          <Trans>No configuration keys reported.</Trans>
+        </Text>
       ) : (
         <View className="gap-2">
           {entries.map((entry) => (
@@ -117,16 +128,19 @@ function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) 
 }
 
 function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
+  const { t } = useLingui();
   return (
     <View className="flex-row flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
       <Text className="flex-1 break-words text-sm font-medium text-foreground">{entry.key}</Text>
       <View className="flex-row flex-wrap gap-2">
         <Chip size="sm" variant={entry.configured ? "primary" : "secondary"}>
-          <Chip.Label>{entry.configured ? "Configured" : "Not set"}</Chip.Label>
+          <Chip.Label>{entry.configured ? t`Configured` : t`Not set`}</Chip.Label>
         </Chip>
         {entry.sensitive ? (
           <Chip size="sm" variant="tertiary">
-            <Chip.Label>Sensitive</Chip.Label>
+            <Chip.Label>
+              <Trans>Sensitive</Trans>
+            </Chip.Label>
           </Chip>
         ) : null}
       </View>
@@ -135,8 +149,9 @@ function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
 }
 
 function LoadingCard() {
+  const { t } = useLingui();
   return (
-    <CardStack title="Environment configuration">
+    <CardStack title={t`Environment configuration`}>
       <Card variant="secondary" className="gap-3 p-4">
         <View className="h-4 w-full rounded-md bg-muted" />
         <View className="h-14 w-full rounded-md bg-muted" />

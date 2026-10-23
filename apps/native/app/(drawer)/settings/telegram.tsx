@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { Pressable, RefreshControl, Text, View } from "react-native";
@@ -10,6 +11,7 @@ import { useThemeColor } from "@/utils/theme";
 export default function TelegramSettingsScreen() {
   const foreground = useThemeColor("foreground");
   const queryClient = useQueryClient();
+  const { t } = useLingui();
   const status = useQuery(orpc.telegram.status.queryOptions({ input: {} }));
   const connect = useMutation(
     orpc.telegram.issueConnectToken.mutationOptions({
@@ -45,14 +47,20 @@ export default function TelegramSettingsScreen() {
       <View className="gap-4 p-4">
         <View>
           <Text className="text-sm text-muted-foreground">Telegram</Text>
-          <Text className="font-mono text-3xl text-foreground">Daily reminders</Text>
+          <Text className="font-mono text-3xl text-foreground">
+            <Trans>Daily reminders</Trans>
+          </Text>
         </View>
 
         {status.isError ? (
           <Card variant="secondary" className="items-center gap-2 p-6">
-            <Text className="text-base text-foreground">Could not load Telegram status.</Text>
+            <Text className="text-base text-foreground">
+              <Trans>Could not load Telegram status.</Trans>
+            </Text>
             <Pressable onPress={() => void status.refetch()} accessibilityRole="button">
-              <Text className="font-medium text-foreground underline">Retry</Text>
+              <Text className="font-medium text-foreground underline">
+                <Trans>Retry</Trans>
+              </Text>
             </Pressable>
           </Card>
         ) : (
@@ -61,27 +69,29 @@ export default function TelegramSettingsScreen() {
               <View className="flex-row items-center justify-between">
                 <View className="min-w-0 flex-1">
                   <Text className="text-lg font-medium text-foreground">
-                    {connected ? "Connected" : "Not connected"}
+                    {connected ? t`Connected` : t`Not connected`}
                   </Text>
                   <Text className="text-sm text-muted-foreground">
                     {connected
-                      ? "Daily reminders are sent to your Telegram chat."
-                      : "Connect a Telegram chat to receive daily reminders."}
+                      ? t`Daily reminders are sent to your Telegram chat.`
+                      : t`Connect a Telegram chat to receive daily reminders.`}
                   </Text>
                 </View>
                 <Button onPress={() => connect.mutate({})} isDisabled={connect.isPending}>
-                  {connect.isPending ? "Generating…" : connected ? "Re-link" : "Connect"}
+                  {connect.isPending ? t`Generating…` : connected ? t`Re-link` : t`Connect`}
                 </Button>
               </View>
 
               {connect.isError ? (
-                <Text className="text-sm text-destructive">Could not generate a connect link.</Text>
+                <Text className="text-sm text-destructive">
+                  <Trans>Could not generate a connect link.</Trans>
+                </Text>
               ) : null}
 
               {token ? (
                 <View className="gap-2 rounded-lg border border-border bg-muted/40 p-3">
                   <Text className="text-xs text-muted-foreground">
-                    Open Telegram and send this token to the bot:
+                    <Trans>Open Telegram and send this token to the bot:</Trans>
                   </Text>
                   <Text
                     className="font-mono text-sm text-foreground"
@@ -92,7 +102,7 @@ export default function TelegramSettingsScreen() {
                   </Text>
                   {expiresAt ? (
                     <Text className="text-xs text-muted-foreground">
-                      Expires {expiresAt.toLocaleString()}.
+                      <Trans>Expires {expiresAt.toLocaleString()}.</Trans>
                     </Text>
                   ) : null}
                 </View>

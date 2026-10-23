@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import {
   Card,
@@ -31,17 +34,17 @@ export type AdmissionFormProps = {
   onRequestMagicLink: (email: string, purpose: "resume" | "dashboard") => Promise<void>;
 };
 
-const ADMISSION_ERROR_MESSAGES: Record<AdmissionErrorCode, string> = {
-  unavailable: "Enrollment is not available right now.",
-  closed: "Enrollment is closed. Sign in below if you already have an account.",
-  expired: "This token or code has expired. Request a new one.",
-  denied: "Could not complete enrollment. Check the token and code, then try again.",
-  rate_limited: "Too many attempts. Wait a moment, then try again.",
-  delivery_failed: "Could not send the email. Try again later.",
-  invalid_input: "Check the email and token, then try again.",
-  session_mismatch: "Sign in with the matching email first, then return and enter the token again.",
-  network: "Connection lost. Check your network and try again.",
-  unknown: "Something went wrong. Try again.",
+const ADMISSION_ERROR_MESSAGES: Record<AdmissionErrorCode, MessageDescriptor> = {
+  unavailable: msg`Enrollment is not available right now.`,
+  closed: msg`Enrollment is closed. Sign in below if you already have an account.`,
+  expired: msg`This token or code has expired. Request a new one.`,
+  denied: msg`Could not complete enrollment. Check the token and code, then try again.`,
+  rate_limited: msg`Too many attempts. Wait a moment, then try again.`,
+  delivery_failed: msg`Could not send the email. Try again later.`,
+  invalid_input: msg`Check the email and token, then try again.`,
+  session_mismatch: msg`Sign in with the matching email first, then return and enter the token again.`,
+  network: msg`Connection lost. Check your network and try again.`,
+  unknown: msg`Something went wrong. Try again.`,
 };
 
 export function AdmissionForm({
@@ -60,6 +63,7 @@ export function AdmissionForm({
   const credentialId = useId();
   const codeId = useId();
   const codeRef = useRef<HTMLInputElement>(null);
+  const { t } = useLingui();
 
   const flow = useAdmissionFlow({ kind, userId, sessionEmail, onRequestMagicLink });
   const state = flow.state;
@@ -97,15 +101,19 @@ export function AdmissionForm({
       <CardContent className="grid gap-6">
         {sessionEmail ? (
           <p className="text-sm text-muted-foreground">
-            Signed in as{" "}
-            <span className="font-medium text-foreground wrap-anywhere">{sessionEmail}</span>.
+            <Trans>
+              Signed in as{" "}
+              <span className="font-medium text-foreground wrap-anywhere">{sessionEmail}</span>.
+            </Trans>
           </p>
         ) : null}
 
         {isSessionMatch && state.step === "token" ? (
           <p className="text-sm text-muted-foreground">
-            Enter the token again to continue enrollment as{" "}
-            <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>.
+            <Trans>
+              Enter the token again to continue enrollment as{" "}
+              <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>.
+            </Trans>
           </p>
         ) : null}
 
@@ -118,7 +126,9 @@ export function AdmissionForm({
             className="grid gap-4"
           >
             <div className="grid gap-2">
-              <Label htmlFor={emailId}>Email</Label>
+              <Label htmlFor={emailId}>
+                <Trans>Email</Trans>
+              </Label>
               <Input
                 id={emailId}
                 type="email"
@@ -148,7 +158,7 @@ export function AdmissionForm({
                   type="button"
                   onClick={() => flow.toggleCredentialVisible()}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={state.credentialVisible ? "Hide token" : "Show token"}
+                  aria-label={state.credentialVisible ? t`Hide token` : t`Show token`}
                   tabIndex={-1}
                 >
                   {state.credentialVisible ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -160,7 +170,7 @@ export function AdmissionForm({
             <ErrorMessage code={state.errorCode} />
 
             <Button type="submit" disabled={state.isBusy}>
-              {state.isBusy ? "Sending code…" : "Continue"}
+              {state.isBusy ? t`Sending code…` : t`Continue`}
             </Button>
           </form>
         ) : (
@@ -172,7 +182,9 @@ export function AdmissionForm({
             className="grid gap-4"
           >
             <div className="grid gap-2">
-              <Label htmlFor={codeId}>Verification code</Label>
+              <Label htmlFor={codeId}>
+                <Trans>Verification code</Trans>
+              </Label>
               <Input
                 id={codeId}
                 ref={codeRef}
@@ -182,12 +194,14 @@ export function AdmissionForm({
                 value={state.code}
                 onChange={(e) => flow.setCode(e.target.value)}
                 disabled={state.isBusy}
-                placeholder="Paste the code from your email"
+                placeholder={t`Paste the code from your email`}
               />
               <p className="text-xs text-muted-foreground">
-                We emailed a one-time code to{" "}
-                <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>. It
-                expires in 10 minutes.
+                <Trans>
+                  We emailed a one-time code to{" "}
+                  <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>.
+                  It expires in 10 minutes.
+                </Trans>
               </p>
             </div>
 
@@ -203,7 +217,7 @@ export function AdmissionForm({
             ) : null}
 
             <Button type="submit" disabled={state.isBusy}>
-              {state.isBusy ? "Verifying…" : "Complete enrollment"}
+              {state.isBusy ? t`Verifying…` : t`Complete enrollment`}
             </Button>
 
             <div className="flex items-center justify-between gap-2">
@@ -214,7 +228,7 @@ export function AdmissionForm({
                 onClick={() => flow.reset()}
                 disabled={state.isBusy}
               >
-                Start over
+                <Trans>Start over</Trans>
               </Button>
               <Button
                 type="button"
@@ -223,7 +237,7 @@ export function AdmissionForm({
                 onClick={() => void flow.resend()}
                 disabled={state.isBusy}
               >
-                Resend code
+                <Trans>Resend code</Trans>
               </Button>
             </div>
           </form>
@@ -234,6 +248,7 @@ export function AdmissionForm({
 }
 
 function ErrorMessage({ code }: { code: AdmissionErrorCode | null }) {
+  const { i18n } = useLingui();
   if (!code) return null;
   return (
     <p
@@ -242,7 +257,7 @@ function ErrorMessage({ code }: { code: AdmissionErrorCode | null }) {
       aria-live="polite"
       data-testid="admission-error"
     >
-      {ADMISSION_ERROR_MESSAGES[code]}
+      {i18n._(ADMISSION_ERROR_MESSAGES[code])}
     </p>
   );
 }
@@ -258,10 +273,11 @@ function SessionMismatchHelp({
   linkDelivery: "idle" | "sending" | "sent" | "error";
   isSessionMatch: boolean;
 }) {
+  const { t } = useLingui();
   if (isSessionMatch) {
     return (
       <p className="text-sm text-success">
-        Signed in as {email}. Enter the token again to continue enrollment.
+        <Trans>Signed in as {email}. Enter the token again to continue enrollment.</Trans>
       </p>
     );
   }
@@ -269,9 +285,11 @@ function SessionMismatchHelp({
   return (
     <div className="rounded-lg border border-border p-4">
       <p className="text-sm text-muted-foreground">
-        This email may already belong to an account. Send a sign-in link to{" "}
-        <span className="font-medium text-foreground wrap-anywhere">{email}</span>, then return to
-        this tab and enter the token again.
+        <Trans>
+          This email may already belong to an account. Send a sign-in link to{" "}
+          <span className="font-medium text-foreground wrap-anywhere">{email}</span>, then return to
+          this tab and enter the token again.
+        </Trans>
       </p>
       <Button
         type="button"
@@ -282,13 +300,15 @@ function SessionMismatchHelp({
         disabled={linkDelivery === "sending"}
       >
         {linkDelivery === "sending"
-          ? "Sending…"
+          ? t`Sending…`
           : linkDelivery === "sent"
-            ? "Sign-in link sent"
-            : "Email me a sign-in link"}
+            ? t`Sign-in link sent`
+            : t`Email me a sign-in link`}
       </Button>
       {linkDelivery === "error" ? (
-        <p className="mt-2 text-sm text-destructive">Could not send sign-in link.</p>
+        <p className="mt-2 text-sm text-destructive">
+          <Trans>Could not send sign-in link.</Trans>
+        </p>
       ) : null}
     </div>
   );
@@ -307,48 +327,59 @@ function SuccessCard({
   onSignIn: () => void;
   onStartOver: () => void;
 }) {
+  const { t } = useLingui();
   return (
     <Card className="mx-auto w-full max-w-md">
       <CardHeader>
-        <CardTitle>Enrollment complete</CardTitle>
+        <CardTitle>
+          <Trans>Enrollment complete</Trans>
+        </CardTitle>
         <CardDescription>
           {hasMatchingSession
-            ? "Your account is ready."
-            : "Your account is ready. Sign in to continue."}
+            ? t`Your account is ready.`
+            : t`Your account is ready. Sign in to continue.`}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {hasMatchingSession ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Continue to OpenValens as{" "}
-              <span className="font-medium text-foreground wrap-anywhere">{email}</span>.
+              <Trans>
+                Continue to OpenValens as{" "}
+                <span className="font-medium text-foreground wrap-anywhere">{email}</span>.
+              </Trans>
             </p>
             <Button asChild>
-              <a href="/dashboard">Go to dashboard</a>
+              <a href="/dashboard">
+                <Trans>Go to dashboard</Trans>
+              </a>
             </Button>
           </>
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              Sign in with{" "}
-              <span className="font-medium text-foreground wrap-anywhere">{email}</span> to start
-              using OpenValens.
+              <Trans>
+                Sign in with{" "}
+                <span className="font-medium text-foreground wrap-anywhere">{email}</span> to start
+                using OpenValens.
+              </Trans>
             </p>
             <Button onClick={() => void onSignIn()} disabled={linkDelivery === "sending"}>
               {linkDelivery === "sending"
-                ? "Sending…"
+                ? t`Sending…`
                 : linkDelivery === "sent"
-                  ? "Sign-in link sent"
-                  : "Email me a sign-in link"}
+                  ? t`Sign-in link sent`
+                  : t`Email me a sign-in link`}
             </Button>
             {linkDelivery === "error" ? (
-              <p className="text-sm text-destructive">Could not send sign-in link.</p>
+              <p className="text-sm text-destructive">
+                <Trans>Could not send sign-in link.</Trans>
+              </p>
             ) : null}
           </>
         )}
         <Button variant="link" size="sm" onClick={() => onStartOver()}>
-          Start over
+          <Trans>Start over</Trans>
         </Button>
       </CardContent>
     </Card>
@@ -364,7 +395,9 @@ function ClosedCard({ headline, body }: { headline: string; body: string }) {
       </CardHeader>
       <CardContent className="grid gap-4">
         <Button asChild>
-          <a href="/login">Sign in</a>
+          <a href="/login">
+            <Trans>Sign in</Trans>
+          </a>
         </Button>
       </CardContent>
     </Card>
