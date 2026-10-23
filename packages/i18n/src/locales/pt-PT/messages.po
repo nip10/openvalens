@@ -24,11 +24,52 @@ msgstr "(você)"
 msgid "{0, plural, one {{blockerNames} also has another owner. Remove them or transfer the record before deleting.} other {{blockerNames} also have another owner. Remove them or transfer the record before deleting.}}"
 msgstr "{0, plural, one {{blockerNames} também tem outro proprietário. Remova-o ou transfira o registo antes de eliminar.} other {{blockerNames} também têm outro proprietário. Remova-os ou transfira os registos antes de eliminar.}}"
 
+#. placeholder {0}: streak.current
+#: packages/api/src/presenters/logging-streak.ts
+msgid "{0, plural, one {# day} other {# days}} in a row"
+msgstr "{0, plural, one {# dia} other {# dias}} seguidos"
+
+#. placeholder {0}: streak.daysLoggedThisMonth
+#: packages/api/src/presenters/logging-streak.ts
+msgid "{0, plural, one {# day} other {# days}} logged this month"
+msgstr "{0, plural, one {# dia registado} other {# dias registados}} este mês"
+
+#. placeholder {0}: streak.milestone
+#: packages/api/src/presenters/logging-streak.ts
+msgid "{0, plural, one {# day} other {# days}} of logging. Nicely done."
+msgstr "{0, plural, one {# dia} other {# dias}} de registo. Muito bem."
+
+#. placeholder {0}: found.length
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "{0, plural, one {# food found} other {# foods found}}"
+msgstr "{0, plural, one {# alimento encontrado} other {# alimentos encontrados}}"
+
 #. placeholder {0}: thread.messageCount
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "{0, plural, one {# message} other {# messages}}"
 msgstr "{0, plural, one {# mensagem} other {# mensagens}}"
+
+#. placeholder {0}: counts.attention
+#: apps/native/components/plain-water-section.tsx
+msgid "{0, plural, one {# needs attention} other {# need attention}}"
+msgstr "{0, plural, one {# requer atenção} other {# requerem atenção}}"
+
+#. placeholder {0}: counts.queued
+#: apps/native/components/plain-water-section.tsx
+msgid "{0, plural, one {# queued} other {# queued}}"
+msgstr "{0, plural, one {# em fila} other {# em fila}}"
+
+#. placeholder {0}: view.pendingRemovalCount
+#: apps/native/components/plain-water-section.tsx
+#: apps/web/src/components/plain-water-day-view.tsx
+msgid "{0, plural, one {# removal waiting to sync.} other {# removals waiting to sync.}}"
+msgstr "{0, plural, one {# remoção a aguardar sincronização.} other {# remoções a aguardar sincronização.}}"
+
+#. placeholder {0}: streak.freezesAvailable
+#: packages/api/src/presenters/logging-streak.ts
+msgid "{0, plural, one {# rest day} other {# rest days}} available: a day without logging won't reset the count."
+msgstr "{0, plural, one {# dia de pausa disponível} other {# dias de pausa disponíveis}}: um dia sem registos não reinicia a contagem."
 
 #. placeholder {0}: supplement.activeScheduleCount
 #: apps/native/app/(drawer)/supplements.tsx
@@ -43,6 +84,16 @@ msgstr "{0, plural, one {# agendado} other {# agendados}}"
 msgid "{0, plural, one {# session} other {# sessions}} · {1}"
 msgstr "{0, plural, one {# sessão} other {# sessões}} · {1}"
 
+#. placeholder {0}: counts.syncing
+#: apps/native/components/plain-water-section.tsx
+msgid "{0, plural, one {# syncing} other {# syncing}}"
+msgstr "{0, plural, one {# a sincronizar} other {# a sincronizar}}"
+
+#. placeholder {0}: outbox.items.length
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "{0, plural, one {# unsynced change will be removed from this device.} other {# unsynced changes will be removed from this device.}}"
+msgstr "{0, plural, one {# alteração não sincronizada será removida deste dispositivo.} other {# alterações não sincronizadas serão removidas deste dispositivo.}}"
+
 #. placeholder {0}: equipmentOptions.length
 #: apps/native/components/exercise-library.tsx
 msgid "{0, plural, one {Show # equipment option} other {Show all # equipment options}}"
@@ -52,6 +103,16 @@ msgstr "{0, plural, one {Mostrar # opção de equipamento} other {Mostrar as # o
 #: apps/native/components/exercise-library.tsx
 msgid "{0, plural, one {Show # muscle} other {Show all # muscles}}"
 msgstr "{0, plural, one {Mostrar # músculo} other {Mostrar os # músculos}}"
+
+#. placeholder {0}: target.source
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from}"
+msgstr "{0, select, entered {Introduzido por si} proposal {Sugestão aceite} other {Objetivo}} · a partir de {from}"
+
+#. placeholder {0}: target.source
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from} until {to}"
+msgstr "{0, select, entered {Introduzido por si} proposal {Sugestão aceite} other {Objetivo}} · de {from} até {to}"
 
 #. placeholder {0}: codeLabel(ROLE_LABELS, invite.role)
 #. placeholder {1}: codeLabel(INVITATION_STATUS_LABELS, invite.status)
@@ -107,6 +168,16 @@ msgstr "{0} em aberto · {1} alcançados"
 msgid "{0} sensitive"
 msgstr "{0} sensível"
 
+#. placeholder {0}: row.percentOfReference
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "{0}% of the intake reference below."
+msgstr "{0}% da referência de ingestão abaixo."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "{amount, plural, one {{value} serving} other {{value} servings}}"
+msgstr "{amount, plural, one {{value} porção} other {{value} porções}}"
+
 #. safety
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "{blockerNames} also has another owner. Remove them or transfer the record before deleting."
@@ -115,6 +186,14 @@ msgstr "{blockerNames} também tem outro proprietário. Remova-o ou transfira o 
 #: packages/api/src/presenters/workouts.ts
 msgid "{count, plural, one {# exercise} other {# exercises}}"
 msgstr "{count, plural, one {# exercício} other {# exercícios}}"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "{count, plural, one {# match found. Check it before saving.} other {# matches found. Pick one and check it before saving.}}"
+msgstr "{count, plural, one {# correspondência encontrada. Verifique-a antes de guardar.} other {# correspondências encontradas. Escolha uma e verifique-a antes de guardar.}}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "{count} from {label}"
+msgstr "{count} de {label}"
 
 #. A short month and day, already formatted
 #: packages/api/src/presenters/cochat.ts
@@ -126,6 +205,10 @@ msgstr "{date}"
 msgid "{day}d ago"
 msgstr "há {day} d"
 
+#: packages/api/src/presenters/custom-foods.ts
+msgid "{entered} of {total} values entered"
+msgstr "{entered} de {total} valores introduzidos"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "{exerciseName} preview {number}"
@@ -135,6 +218,15 @@ msgstr "Pré-visualização {number} de {exerciseName}"
 #: apps/web/src/components/exercise-library.tsx
 msgid "{exerciseName} previews"
 msgstr "Pré-visualizações de {exerciseName}"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "{from} to {to}"
+msgstr "{from} a {to}"
+
+#. safety
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{grams} g a day ({perKg} g per kg)"
+msgstr "{grams} g por dia ({perKg} g por kg)"
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "{granted} of {total} data types"
@@ -149,14 +241,118 @@ msgstr "{granted} de {total} tipos de dados · acesso em segundo plano desligado
 msgid "{hr}h ago"
 msgstr "há {hr} h"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {A value}} must be 0 or more, or left blank."
+msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteína} carbohydrateG {Hidratos de carbono} fatG {Lípidos} saturatedFatG {Ácidos gordos saturados} fiberG {Fibra} totalSugarsG {Açúcares totais} addedSugarsG {Açúcares adicionados} freeSugarsG {Açúcares livres} sodiumMg {Sódio} saltG {Sal} other {Um valor}}: indique 0 ou mais, ou deixe em branco."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "{key, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Value}} ({unit}, optional)"
+msgstr "{key, select, energyKcal {Energia} energyKj {Energia} proteinG {Proteína} carbohydrateG {Hidratos de carbono} fatG {Lípidos} saturatedFatG {Ácidos gordos saturados} fiberG {Fibra} totalSugarsG {Açúcares totais} addedSugarsG {Açúcares adicionados} freeSugarsG {Açúcares livres} sodiumMg {Sódio} saltG {Sal} other {Valor}} ({unit}, opcional)"
+
+#. placeholder {0}: row.totalEntries
+#: packages/api/src/presenters/micronutrients.ts
+msgid "{known} of {0, plural, one {# food} other {# foods}} reported this"
+msgstr "{known} de {0, plural, one {# alimento indicou} other {# alimentos indicaram}} este valor"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label} {value}"
+msgstr "{label} {value}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label} target: {value}, {source}"
+msgstr "Objetivo de {label}: {value}, {source}"
+
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "{label}: {amount}"
+msgstr "{label}: {amount}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}: {value}, {coverage}"
+msgstr "{label}: {value}, {coverage}"
+
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "{label}: at least {amount}"
+msgstr "{label}: pelo menos {amount}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}: nothing logged"
+msgstr "{label}: nada registado"
+
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "{label}: unknown"
+msgstr "{label}: desconhecido"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}: unknown, {coverage}"
+msgstr "{label}: desconhecido, {coverage}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{label}: value hidden, {coverage}"
+msgstr "{label}: valor oculto, {coverage}"
+
+#. safety
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "{low}–{high} kcal/day"
+msgstr "{low}–{high} kcal/dia"
+
 #. Minutes ago, abbreviated
 #: packages/api/src/presenters/cochat.ts
 msgid "{min}m ago"
 msgstr "há {min} min"
 
+#: packages/api/src/presenters/food-lookup.ts
+msgid "{name} (live lookup)"
+msgstr "{name} (consulta em direto)"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "{name}: Food archived. It no longer appears in search or quick logging."
+msgstr "{name}: alimento arquivado. Deixa de aparecer na pesquisa e no registo rápido."
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "{name}: Food restored."
+msgstr "{name}: alimento restaurado."
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "{name}: Food saved."
+msgstr "{name}: alimento guardado."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "{needs_attention, plural, one {# needs attention} other {# need attention}}"
+msgstr "{needs_attention, plural, one {# requer atenção} other {# requerem atenção}}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "{nutrient, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Nutrient}} targets must be 0 or more, or left blank."
+msgstr "Os objetivos de {nutrient, select, energyKcal {energia} energyKj {energia} proteinG {proteína} carbohydrateG {hidratos de carbono} fatG {lípidos} saturatedFatG {ácidos gordos saturados} fiberG {fibra} totalSugarsG {açúcares totais} addedSugarsG {açúcares adicionados} freeSugarsG {açúcares livres} sodiumMg {sódio} saltG {sal} other {nutrientes}} devem ser 0 ou mais, ou ficar em branco."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "{queued, plural, one {# queued} other {# queued}}"
+msgstr "{queued, plural, one {# em fila} other {# em fila}}"
+
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "{range} (arithmetic range, not a confidence interval)"
+msgstr "{range} (intervalo aritmético, não um intervalo de confiança)"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "{reported} of {count, plural, one {# entry} other {# entries}}"
+msgstr "{reported} de {count, plural, one {# registo} other {# registos}}"
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "{sourceName} is not available on this device"
 msgstr "{sourceName} não está disponível neste dispositivo"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "{syncing, plural, one {# syncing} other {# syncing}}"
+msgstr "{syncing, plural, one {# a sincronizar} other {# a sincronizar}}"
 
 #. A value outside the known list, shown as recorded. Keep the placeholder as is.
 #. Text the member entered, shown as written. Keep the placeholder as is.
@@ -165,10 +361,29 @@ msgstr "{sourceName} não está disponível neste dispositivo"
 msgid "{text}"
 msgstr "{text}"
 
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "{type}: {amount} {unit} a day"
+msgstr "{type}: {amount} {unit} por dia"
+
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "{type}: {amount} to {max} {unit} a day"
+msgstr "{type}: {amount} a {max} {unit} por dia"
+
 #. An unrecognised setting value, shown as is
 #: packages/api/src/presenters/coach-settings.ts
 msgid "{value}"
 msgstr "{value}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "{value} from {reported} of {count, plural, one {# entry} other {# entries}}"
+msgstr "{value} de {reported} de {count, plural, one {# registo} other {# registos}}"
+
+#. safety
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "{value} kcal/day"
+msgstr "{value} kcal/dia"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -201,23 +416,53 @@ msgstr "1 = muito suave, 5 = muito enérgico. Atualmente {assertiveness} de 5."
 msgid "A few optional questions so the app can show what matters to you. Skip any of them — everything else works without them."
 msgstr "Algumas perguntas opcionais para que a aplicação mostre o que lhe interessa. Pode saltar qualquer uma — tudo o resto funciona sem elas."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "A general reference from your recent weight, not a target. Enter a target yourself if you want one."
+msgstr "Uma referência geral com base no seu peso recente, não um objetivo. Se quiser um objetivo, introduza-o."
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "A goal (optional)"
 msgstr "Um objetivo (opcional)"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "A photo can be misread. Check each item, fix or remove anything wrong, then find the matching food in your diary and confirm it there."
+msgstr "Uma fotografia pode ser mal interpretada. Verifique cada item, corrija ou remova o que estiver errado e depois procure o alimento correspondente no seu diário e confirme-o aí."
+
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
+msgstr "Uma PRI ou RDA cobre as necessidades de quase todas as pessoas do grupo; as suas necessidades podem ser menores. Uma ingestão adequada (AI) é usada quando não há evidência suficiente para isso; não é um limiar de carência. Um nível máximo não é uma meta."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "A reference you set yourself. Optional."
+msgstr "Uma referência definida por si. Opcional."
 
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "A workspace"
 msgstr "Um espaço de trabalho"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "About you"
+msgstr "Sobre si"
+
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: packages/api/src/presenters/nutrition-targets.ts
 msgid "Accept"
 msgstr "Aceitar"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Accept suggestion"
+msgstr "Aceitar sugestão"
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "accepted"
 msgstr "aceite"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Accepted suggestion"
+msgstr "Sugestão aceite"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -282,21 +527,38 @@ msgstr "Adicione uma sessão para começar a acompanhar."
 msgid "Add exercise"
 msgstr "Adicionar exercício"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Add food"
+msgstr "Adicionar alimento"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Add goal"
 msgstr "Adicionar objetivo"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Add ingredient"
+msgstr "Adicionar ingrediente"
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Add medication"
 msgstr "Adicionar medicação"
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Add plain water"
+msgstr "Adicionar água simples"
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Add supplement"
 msgstr "Adicionar suplemento"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Add to favourites: {name}"
+msgstr "Adicionar aos favoritos: {name}"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -307,12 +569,27 @@ msgstr "Adicionar ao treino"
 msgid "Add workout"
 msgstr "Adicionar treino"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Added sugars"
+msgstr "Açúcares adicionados"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Added to favourites"
+msgstr "Adicionado aos favoritos"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Adding…"
 msgstr "A adicionar…"
+
+#. safety
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Adequate intake (AI)"
+msgstr "Ingestão adequada (AI)"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
@@ -351,6 +628,11 @@ msgid "Aggressive"
 msgstr "Arrojado"
 
 #. safety
+#: apps/native/app/(drawer)/food-draft.tsx
+msgid "Agree to send this text to the AI provider now"
+msgstr "Aceitar enviar este texto agora ao fornecedor de IA"
+
+#. safety
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI features are opt-in and revocable. This setting applies only to you and is independent of your organization or owner role."
 msgstr "As funcionalidades de IA são opcionais e revogáveis. Esta definição aplica-se apenas a si e é independente da sua organização ou da função de proprietário."
@@ -379,6 +661,10 @@ msgstr "Tratamento por IA desativado"
 msgid "AI processing enabled"
 msgstr "Tratamento por IA ativado"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "All {count, plural, one {# entry} other {# entries}}"
+msgstr "{count, plural, one {O # registo} other {Todos os # registos}}"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "All equipment"
@@ -389,6 +675,10 @@ msgstr "Todo o equipamento"
 msgid "All muscles"
 msgstr "Todos os músculos"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "All nutrients"
+msgstr "Todos os nutrientes"
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Allow notifications on this phone"
 msgstr "Permitir notificações neste telemóvel"
@@ -398,6 +688,20 @@ msgstr "Permitir notificações neste telemóvel"
 msgid "Always"
 msgstr "Sempre"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Amount"
+msgstr "Quantidade"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Amount in {unit}"
+msgstr "Quantidade em {unit}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Amount in servings"
+msgstr "Quantidade em porções"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "An administrator can import licensed exercises, or create a workspace exercise here."
 msgstr "Um administrador pode importar exercícios licenciados, ou pode criar aqui um exercício do espaço de trabalho."
@@ -405,6 +709,10 @@ msgstr "Um administrador pode importar exercícios licenciados, ou pode criar aq
 #: apps/native/components/exercise-library.tsx
 msgid "An administrator can import licensed exercises, or you can create a workspace exercise below."
 msgstr "Um administrador pode importar exercícios licenciados, ou pode criar abaixo um exercício do espaço de trabalho."
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "An estimate is not available yet."
+msgstr "Ainda não há uma estimativa disponível."
 
 #. safety
 #. safety
@@ -417,9 +725,37 @@ msgstr "As estatísticas não estão disponíveis neste servidor. Pode ainda ass
 msgid "API Status"
 msgstr "Estado da API"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Applies from"
+msgstr "Aplica-se a partir de"
+
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Applies to supplements only, not food."
+msgstr "Aplica-se apenas a suplementos, não a alimentos."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Archive"
+msgstr "Arquivar"
+
+#. placeholder {0}: food.name
+#: apps/native/app/(drawer)/foods.tsx
+msgid "Archive {0}"
+msgstr "Arquivar {0}"
+
+#: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/workouts.ts
 msgid "Archived"
 msgstr "Arquivado"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later."
+msgstr "Arquivar oculta um alimento da pesquisa e do registo. As refeições já registadas mantêm os seus valores e pode restaurá-lo mais tarde."
+
+#: packages/api/src/presenters/energy-estimate.ts
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Ask for a suggestion"
+msgstr "Pedir uma sugestão"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -436,10 +772,29 @@ msgstr "Assertividade · {0}"
 msgid "Assertiveness ({0})"
 msgstr "Assertividade ({0})"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "At least {value} {unit}"
+msgstr "Pelo menos {value} {unit}"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Author: {author}"
+msgstr "Autor: {author}"
+
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
 msgid "Back"
 msgstr "Costas"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Back to meal diary"
+msgstr "Voltar ao diário de refeições"
 
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Back to settings"
@@ -470,6 +825,36 @@ msgstr "Equilibrado"
 msgid "Balances reward and caution."
 msgstr "Equilibra ganhos e prudência."
 
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Barcode"
+msgstr "Código de barras"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Barcode (kept with this food)"
+msgstr "Código de barras (guardado com este alimento)"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Barcode (kept with this food), optional"
+msgstr "Código de barras (guardado com este alimento), opcional"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Barcode (optional)"
+msgstr "Código de barras (opcional)"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Barcode digits"
+msgstr "Dígitos do código de barras"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Barcode matches"
+msgstr "Correspondências do código de barras"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Barcode must be 8 to 14 digits, or left blank."
+msgstr "O código de barras deve ter 8 a 14 dígitos, ou ficar em branco."
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Birth year"
@@ -490,6 +875,15 @@ msgstr "Corpo"
 msgid "Body map"
 msgstr "Mapa corporal"
 
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Brand (optional)"
+msgstr "Marca (opcional)"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Breakfast"
+msgstr "Pequeno-almoço"
+
 #: apps/native/components/exercise-library.tsx
 msgid "Browse"
 msgstr "Explorar"
@@ -506,16 +900,40 @@ msgstr "Explore exercícios licenciados ou crie um para o seu espaço de trabalh
 msgid "Browse licensed library entries and exercises created for your workspace."
 msgstr "Explore entradas licenciadas da biblioteca e exercícios criados para o seu espaço de trabalho."
 
+#: apps/native/app/(drawer)/micronutrients.tsx
+msgid "By nutrient"
+msgstr "Por nutriente"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Cached diary data will be removed from this device. Saved entries stay on the server."
+msgstr "Os dados do diário guardados em cache serão removidos deste dispositivo. Os registos guardados mantêm-se no servidor."
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Calcium"
+msgstr "Cálcio"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Caloric deficit, fat-loss focus."
 msgstr "Défice calórico, foco na perda de gordura."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Camera access is required to scan a barcode. Type the digits instead, or allow access in Settings."
+msgstr "É necessário acesso à câmara para ler um código de barras. Escreva os dígitos ou permita o acesso nas Definições."
+
+#: apps/native/components/barcode-scanner.tsx
+msgid "Camera view for scanning a barcode"
+msgstr "Imagem da câmara para ler um código de barras"
 
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Canada"
 msgstr "Canadá"
 
+#: apps/native/app/(drawer)/nutrition.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+#: packages/api/src/presenters/custom-foods.ts
+#: packages/api/src/presenters/plain-water.ts
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -533,9 +951,47 @@ msgstr "cancelado"
 msgid "Cancelled"
 msgstr "Cancelado"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Carbohydrate"
+msgstr "Hidratos de carbono"
+
+#: apps/native/components/plain-water-section.tsx
+msgid "Change discarded on this device."
+msgstr "Alteração descartada neste dispositivo."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Change paste"
+msgstr "Alterar texto colado"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Change the amount or the time, then save."
+msgstr "Altere a quantidade ou a hora e depois guarde."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Change the paste, then explicitly create a replacement draft."
+msgstr "Altere o texto colado e depois crie explicitamente um rascunho de substituição."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Change to {amount}"
+msgstr "Alterar para {amount}"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Changes apply to new entries. Meals you already logged keep the values they were saved with."
+msgstr "As alterações aplicam-se a novos registos. As refeições já registadas mantêm os valores com que foram guardadas."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Check each item, fix anything misheard, then find the matching food in your diary and confirm it there. Quantities you did not say stay empty."
+msgstr "Verifique cada item, corrija o que tiver sido mal ouvido e depois procure o alimento correspondente no seu diário e confirme-o aí. As quantidades que não indicou ficam vazias."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Check the email and token, then try again."
 msgstr "Verifique o email e o token e tente novamente."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Check the product, source and amount. Nothing is saved until you press Save."
+msgstr "Verifique o produto, a fonte e a quantidade. Nada é guardado até premir Guardar."
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Check your email"
@@ -558,6 +1014,24 @@ msgstr "A verificar…"
 msgid "Choose"
 msgstr "Escolher"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Choose a different day."
+msgstr "Escolha outro dia."
+
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Choose a group"
+msgstr "Escolha um grupo"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Choose a JPEG or PNG photo up to 10 MB. Nothing was sent."
+msgstr "Escolha uma fotografia JPEG ou PNG até 10 MB. Nada foi enviado."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Choose a recipe to review"
+msgstr "Escolha uma receita para rever"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Choose a workout"
 msgstr "Escolha um treino"
@@ -566,23 +1040,59 @@ msgstr "Escolha um treino"
 msgid "Choose an exercise to read its details."
 msgstr "Escolha um exercício para ver os detalhes."
 
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Choose day"
+msgstr "Escolher dia"
+
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Choose how weight and distance are displayed."
 msgstr "Escolha como o peso e a distância são apresentados."
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Choose the recipe you want to review."
+msgstr "Escolha a receita que quer rever."
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Choose whether the value should go up or down."
 msgstr "Escolha se o valor deve subir ou descer."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Clear"
+msgstr "Limpar"
 
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Clear answer"
 msgstr "Limpar resposta"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Clear diary data on this device"
+msgstr "Limpar os dados do diário neste dispositivo"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Clear filters"
 msgstr "Limpar filtros"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Clear goal"
+msgstr "Limpar meta"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Clear marker"
+msgstr "Limpar marcador"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Clear target"
+msgstr "Limpar objetivo"
+
+#. placeholder {0}: i18n._(NUTRIENT_LABELS[target.nutrient].label)
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+msgid "Clear target {0}"
+msgstr "Limpar objetivo de {0}"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -661,6 +1171,14 @@ msgstr "Chaves de configuração"
 msgid "Configured"
 msgstr "Configurada"
 
+#: packages/api/src/presenters/food-draft.ts
+msgid "Confirm sending this photo to the provider first."
+msgstr "Confirme primeiro o envio desta fotografia ao fornecedor."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Confirm sending this text to the provider first."
+msgstr "Confirme primeiro o envio deste texto ao fornecedor."
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Confirm you are 18 or older before adding age or sex."
 msgstr "Confirme que tem 18 anos ou mais antes de indicar a idade ou o sexo."
@@ -676,6 +1194,10 @@ msgstr "Ligar"
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Connect a Telegram chat to receive daily reminders."
 msgstr "Ligue uma conversa do Telegram para receber lembretes diários."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Connect to the internet to save this food. Your diary entry has not been queued."
+msgstr "Ligue-se à internet para guardar este alimento. O seu registo no diário não foi colocado em fila."
 
 #. placeholder {0}: oidc.displayName
 #: apps/web/src/components/oidc-connect-section.tsx
@@ -739,6 +1261,52 @@ msgstr "Continuar: {0}"
 msgid "Conversations"
 msgstr "Conversas"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Cooked"
+msgstr "Cozinhado"
+
+#. placeholder {0}: result.created
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Copied {0, plural, one {# item} other {# items}} to {localDate}"
+msgstr "{0, plural, one {# item copiado} other {# itens copiados}} para {localDate}"
+
+#. placeholder {0}: selected.size
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Copy {0, plural, one {# item} other {# items}} to {localDate}"
+msgstr "Copiar {0, plural, one {# item} other {# itens}} para {localDate}"
+
+#. placeholder {0}: selected.size
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Copy {0} to {localDate}"
+msgstr "Copiar {0} para {localDate}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Copy from"
+msgstr "Copiar de"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Copy from {fromDate}"
+msgstr "Copiar de {fromDate}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Copy from another day"
+msgstr "Copiar de outro dia"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Copy from date"
+msgstr "Copiar da data"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Copy into {date}"
+msgstr "Copiar para {date}"
+
+#. placeholder {0}: selected.size
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Copying {0, plural, one {# item} other {# items}} to {localDate}"
+msgstr "A copiar {0, plural, one {# item} other {# itens}} para {localDate}"
+
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Could not accept the invitation."
 msgstr "Não foi possível aceitar o convite."
@@ -759,6 +1327,10 @@ msgstr "Não foi possível concluir o início de sessão. Tente novamente."
 msgid "Could not complete that action. Please try again."
 msgstr "Não foi possível concluir essa ação. Tente novamente."
 
+#: apps/native/components/plain-water-section.tsx
+msgid "Could not confirm conflict resolution on this device. Review the queued water changes before trying again."
+msgstr "Não foi possível confirmar a resolução do conflito neste dispositivo. Reveja as alterações de água em fila antes de tentar novamente."
+
 #. safety
 #. safety
 #: apps/native/components/analytics-consent-section.tsx
@@ -770,6 +1342,28 @@ msgstr "Não foi possível confirmar a ativação. A partilha continua desligada
 #: apps/web/src/components/exercise-library.tsx
 msgid "Could not confirm the result. Refresh and review before trying again."
 msgstr "Não foi possível confirmar o resultado. Atualize e reveja antes de tentar novamente."
+
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "Could not confirm the result. Refresh to check its status."
+msgstr "Não foi possível confirmar o resultado. Atualize para verificar o estado."
+
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "Could not confirm whether a suggestion was created. Refresh to check."
+msgstr "Não foi possível confirmar se foi criada uma sugestão. Atualize para verificar."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Could not confirm whether this change was saved."
+msgstr "Não foi possível confirmar se esta alteração foi guardada."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Could not confirm whether your change was saved."
+msgstr "Não foi possível confirmar se a sua alteração foi guardada."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Could not confirm whether your water setting was saved."
+msgstr "Não foi possível confirmar se a sua definição de água foi guardada."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -833,6 +1427,10 @@ msgstr "Não foi possível carregar os convites."
 msgid "Could not load notification settings."
 msgstr "Não foi possível carregar as definições de notificações."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Could not load plain-water entries or settings. Refresh to try again."
+msgstr "Não foi possível carregar os registos ou as definições de água simples. Atualize para tentar novamente."
+
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Could not load sharing info."
@@ -847,9 +1445,18 @@ msgstr "Não foi possível carregar os suplementos."
 msgid "Could not load Telegram status."
 msgstr "Não foi possível carregar o estado do Telegram."
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Could not load the estimate. Try again."
+msgstr "Não foi possível carregar a estimativa. Tente novamente."
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Could not load the exercise library."
 msgstr "Não foi possível carregar a biblioteca de exercícios."
+
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Could not load the summary."
+msgstr "Não foi possível carregar o resumo."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -890,9 +1497,30 @@ msgstr "Não foi possível carregar o seu perfil."
 msgid "Could not load your profile. Nothing has changed."
 msgstr "Não foi possível carregar o seu perfil. Nada foi alterado."
 
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Could not make a draft. Nothing was saved."
+msgstr "Não foi possível criar um rascunho. Nada foi guardado."
+
 #: apps/web/src/routes/_auth/route.tsx
 msgid "Could not prepare your workspace. Please try again."
 msgstr "Não foi possível preparar o seu espaço de trabalho. Tente novamente."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Could not reach the server. Your saved entries are unchanged."
+msgstr "Não foi possível contactar o servidor. Os seus registos guardados não foram alterados."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Could not reach the server. Your saved foods are unchanged."
+msgstr "Não foi possível contactar o servidor. Os seus alimentos guardados não foram alterados."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Could not reach the server. Your saved targets are unchanged."
+msgstr "Não foi possível contactar o servidor. Os seus objetivos guardados não foram alterados."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Could not read changes saved on this device. Entries on the server are unaffected."
+msgstr "Não foi possível ler as alterações guardadas neste dispositivo. Os registos no servidor não são afetados."
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Could not read your health data. Check permissions."
@@ -902,6 +1530,10 @@ msgstr "Não foi possível ler os seus dados de saúde. Verifique as permissões
 msgid "Could not revoke invitation."
 msgstr "Não foi possível revogar o convite."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Could not save this change on this device. Nothing was sent."
+msgstr "Não foi possível guardar esta alteração neste dispositivo. Nada foi enviado."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
@@ -910,6 +1542,10 @@ msgstr "Não foi possível revogar o convite."
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not save."
 msgstr "Não foi possível guardar."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Could not search food databases. Showing foods saved on this device."
+msgstr "Não foi possível pesquisar as bases de dados de alimentos. A mostrar os alimentos guardados neste dispositivo."
 
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/routes/_auth/admin/invitations.tsx
@@ -975,10 +1611,23 @@ msgstr "Não foi possível verificar o acesso"
 msgid "Could not verify admin access."
 msgstr "Não foi possível verificar o acesso de administrador."
 
+#: packages/api/src/presenters/logging-streak.ts
+msgid "Counts days with at least one diary entry. It is about the habit of logging, not about what you eat. Hidden in hide-numbers mode and after any declaration."
+msgstr "Conta os dias com pelo menos um registo no diário. Diz respeito ao hábito de registar, não ao que come. Fica oculto no modo de ocultar números e após qualquer declaração."
+
+#: apps/web/src/components/nutrition-day-totals.tsx
+msgid "Coverage"
+msgstr "Cobertura"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Create a workout first, then return here to add an exercise."
 msgstr "Crie primeiro um treino e depois volte aqui para adicionar um exercício."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Create draft"
+msgstr "Criar rascunho"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -994,6 +1643,11 @@ msgstr "Criar exercício do espaço de trabalho"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Creating…"
 msgstr "A criar…"
+
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "Current target: {currentTarget}"
+msgstr "Objetivo atual: {currentTarget}"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Cut"
@@ -1042,10 +1696,31 @@ msgstr "Modo escuro"
 msgid "Dashboard"
 msgstr "Painel de controlo"
 
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Dataset {datasetVersion}."
+msgstr "Conjunto de dados {datasetVersion}."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Date"
 msgstr "Data"
+
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Day"
+msgstr "Dia"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Day marker for {date}"
+msgstr "Marcador do dia {date}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Day totals"
+msgstr "Totais do dia"
+
+#: apps/native/app/(drawer)/micronutrients.tsx
+msgid "Day, YYYY-MM-DD"
+msgstr "Dia, AAAA-MM-DD"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -1057,6 +1732,19 @@ msgstr "Recusar"
 msgid "Declining…"
 msgstr "A recusar…"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Delete"
+msgstr "Eliminar"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Delete {name}"
+msgstr "Eliminar {name}"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Delete <0>{foodName}</0>"
+msgstr "Eliminar <0>{foodName}</0>"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Delete account"
 msgstr "Eliminar conta"
@@ -1065,6 +1753,11 @@ msgstr "Eliminar conta"
 msgid "Delete account and all data"
 msgstr "Eliminar a conta e todos os dados"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Delete entry"
+msgstr "Eliminar registo"
+
 #. safety
 #. safety
 #. safety
@@ -1072,6 +1765,10 @@ msgstr "Eliminar a conta e todos os dados"
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "Delete everything"
 msgstr "Eliminar tudo"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Delete this entry?"
+msgstr "Eliminar este registo?"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
@@ -1083,7 +1780,9 @@ msgid "Deload, sleep, and stress priority."
 msgstr "Descarga de treino, prioridade ao sono e ao stress."
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/food-draft.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Describe a meal"
 msgstr "Descrever uma refeição"
 
@@ -1095,7 +1794,20 @@ msgstr "Detalhes"
 msgid "Details are unavailable. Refresh the library and try again."
 msgstr "Os detalhes não estão disponíveis. Atualize a biblioteca e tente novamente."
 
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Diary changes: {partsText}"
+msgstr "Alterações do diário: {partsText}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Diary data cleared from this device"
+msgstr "Dados do diário limpos deste dispositivo"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Diary date"
+msgstr "Data do diário"
+
 #. safety
+#: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/supplements.ts
 msgid "Dinner"
 msgstr "Jantar"
@@ -1104,6 +1816,30 @@ msgstr "Jantar"
 msgid "Direct"
 msgstr "Direto"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Discard change"
+msgstr "Descartar alteração"
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Discard draft"
+msgstr "Descartar rascunho"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Discard entry"
+msgstr "Descartar registo"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Discard this change? Your saved entry is unchanged."
+msgstr "Descartar esta alteração? O seu registo guardado não é alterado."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Discard this entry? It was saved on this device only."
+msgstr "Descartar este registo? Foi guardado apenas neste dispositivo."
+
 #: apps/web/src/components/oidc-connect-section.tsx
 msgid "Disconnect"
 msgstr "Desligar"
@@ -1111,6 +1847,11 @@ msgstr "Desligar"
 #: apps/web/src/routes/index.tsx
 msgid "Disconnected"
 msgstr "Desligado"
+
+#: packages/api/src/presenters/energy-estimate.ts
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Dismiss"
+msgstr "Dispensar"
 
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Display defaults"
@@ -1123,6 +1864,10 @@ msgstr "Falha ao atualizar as predefinições de apresentação · a mostrar as 
 #: apps/web/src/components/product-settings-status.tsx
 msgid "Display defaults unavailable · showing metric fallback"
 msgstr "Predefinições de apresentação indisponíveis · a mostrar o sistema métrico"
+
+#: apps/web/src/components/plain-water-day-view.tsx
+msgid "Display unit"
+msgstr "Unidade de apresentação"
 
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
@@ -1137,6 +1882,20 @@ msgstr "Concluído"
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Dose"
 msgstr "Dose"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Draft cleared. Nothing was saved."
+msgstr "Rascunho limpo. Nada foi guardado."
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Draft discarded. Nothing was saved."
+msgstr "Rascunho descartado. Nada foi guardado."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Draft ready. Nothing has been logged yet."
+msgstr "Rascunho pronto. Ainda nada foi registado."
 
 #. placeholder {0}: goal.targetDate
 #: apps/native/app/(drawer)/workouts.tsx
@@ -1163,6 +1922,30 @@ msgstr "A duração tem de ser entre 1 e 1440 minutos."
 msgid "Earlier"
 msgstr "Mais cedo"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+#: packages/api/src/presenters/custom-foods.ts
+#: packages/api/src/presenters/plain-water.ts
+msgid "Edit"
+msgstr "Editar"
+
+#. placeholder {0}: food.name
+#: apps/native/app/(drawer)/foods.tsx
+msgid "Edit {0}"
+msgstr "Editar {0}"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Edit {foodName}"
+msgstr "Editar {foodName}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Edit {name}"
+msgstr "Editar {name}"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Edit <0>{foodName}</0>"
+msgstr "Editar <0>{foodName}</0>"
+
 #: apps/web/src/components/profile-summary-card.tsx
 msgid "Edit profile"
 msgstr "Editar perfil"
@@ -1175,6 +1958,14 @@ msgstr "Pontos de esforço por dia"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Effort, 0–10 (optional)"
 msgstr "Esforço, 0–10 (opcional)"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "EFSA (European Food Safety Authority)"
+msgstr "EFSA (Autoridade Europeia para a Segurança dos Alimentos)"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "EFSA is the usual choice in the EU, EEA and UK; NASEM in the United States. Pick the group that fits you; nothing is applied until you save."
+msgstr "A EFSA é a escolha habitual na UE, no EEE e no Reino Unido; a NASEM nos Estados Unidos. Escolha o grupo que se aplica a si; nada é aplicado até guardar."
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/components/sign-in.tsx
@@ -1196,6 +1987,14 @@ msgstr "Enviar-me uma ligação de início de sessão"
 msgid "Encouraging, focused on consistency."
 msgstr "Encorajador, focado na consistência."
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Energy"
+msgstr "Energia"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Energy estimate"
+msgstr "Estimativa de energia"
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Enrollment complete"
 msgstr "Inscrição concluída"
@@ -1208,14 +2007,42 @@ msgstr "As inscrições estão fechadas. Inicie sessão abaixo se já tiver uma 
 msgid "Enrollment is not available right now."
 msgstr "As inscrições não estão disponíveis neste momento."
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Enter a food name."
+msgstr "Introduza o nome do alimento."
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Enter a four-digit birth year."
 msgstr "Introduza um ano de nascimento com quatro dígitos."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Enter a goal greater than zero, or leave it blank to clear it."
+msgstr "Introduza uma meta superior a zero, ou deixe em branco para a limpar."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Enter a minimum, a maximum or both."
+msgstr "Introduza um mínimo, um máximo ou ambos."
 
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Enter a valid email address"
 msgstr "Introduza um endereço de email válido"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Enter an amount greater than zero."
+msgstr "Introduza uma quantidade superior a zero."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Enter food manually"
+msgstr "Introduzir alimento manualmente"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Enter the 8 to 14 digits printed under the barcode."
+msgstr "Introduza os 8 a 14 dígitos impressos por baixo do código de barras."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Enter the food from its label instead."
+msgstr "Em alternativa, introduza o alimento a partir do rótulo."
 
 #: apps/web/src/routes/setup.tsx
 msgid "Enter the setup token from your operator and your email to become the first instance administrator."
@@ -1226,6 +2053,45 @@ msgstr "Introduza o token de configuração fornecido pelo operador e o seu emai
 msgid "Enter the token again to continue enrollment as <0>{0}</0>."
 msgstr "Introduza novamente o token para continuar a inscrição como <0>{0}</0>."
 
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero."
+msgstr "Introduza os valores do rótulo. Deixe em branco o que não souber; é mostrado como desconhecido, não como zero."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+#: packages/api/src/presenters/custom-foods.ts
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Entered by you"
+msgstr "Introduzido por si"
+
+#: apps/web/src/components/plain-water-day-view.tsx
+msgid "entry at {time}"
+msgstr "registo às {time}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Entry removed."
+msgstr "Registo removido."
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Entry removed. {foodName}"
+msgstr "Registo removido. {foodName}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Entry removed. {name}"
+msgstr "Registo removido. {name}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Entry removed. {undoName}"
+msgstr "Registo removido. {undoName}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Entry restored."
+msgstr "Registo restaurado."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Entry restored. {name}"
+msgstr "Registo restaurado. {name}"
+
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "Environment configuration"
@@ -1235,6 +2101,10 @@ msgstr "Configuração do ambiente"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Equipment"
 msgstr "Equipamento"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Estimated maintenance intake"
+msgstr "Ingestão de manutenção estimada"
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Every few hours, when the system allows"
@@ -1278,6 +2148,10 @@ msgstr "Registo do exercício"
 msgid "Exercises"
 msgstr "Exercícios"
 
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Experimental estimate—not a target or a measure of what you ate."
+msgstr "Estimativa experimental — não é um objetivo nem uma medida do que comeu."
+
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Expired"
 msgstr "Expirado"
@@ -1294,6 +2168,22 @@ msgstr "Expira {0}"
 msgid "Expires {0}."
 msgstr "Expira {0}."
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Fat"
+msgstr "Lípidos"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Favourite"
+msgstr "Favorito"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Favourite <0>{foodName}</0>"
+msgstr "Marcar como favorito <0>{foodName}</0>"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Fibre"
+msgstr "Fibra"
+
 #: apps/native/components/exercise-library.tsx
 msgid "Filter by equipment"
 msgstr "Filtrar por equipamento"
@@ -1307,9 +2197,60 @@ msgstr "Filtrar por músculo"
 msgid "Filters are unavailable; name search still works."
 msgstr "Os filtros não estão disponíveis; a pesquisa por nome continua a funcionar."
 
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Find and log this food"
+msgstr "Procurar e registar este alimento"
+
 #: apps/web/src/components/magic-link-form.tsx
 msgid "First setup"
 msgstr "Primeira configuração"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Food"
+msgstr "Alimento"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Food archived. It no longer appears in search or quick logging."
+msgstr "Alimento arquivado. Deixa de aparecer na pesquisa e no registo rápido."
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Food database results"
+msgstr "Resultados das bases de dados de alimentos"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Food databases"
+msgstr "Bases de dados de alimentos"
+
+#. placeholder {0}: index + 1
+#: apps/native/app/(drawer)/food-draft.tsx
+msgid "Food for item {0}"
+msgstr "Alimento do item {0}"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Food name"
+msgstr "Nome do alimento"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Food restored."
+msgstr "Alimento restaurado."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Food saved."
+msgstr "Alimento guardado."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Food text"
+msgstr "Texto do alimento"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Foods you save here are private to you. They are not shared with other members or added to public food databases."
+msgstr "Os alimentos que guarda aqui são privados. Não são partilhados com outros membros nem adicionados a bases de dados públicas de alimentos."
 
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
@@ -1328,6 +2269,10 @@ msgstr "Por segurança, termine sessão e volte a iniciá-la; depois regresse aq
 msgid "Forceful"
 msgstr "Enérgico"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Free sugars"
+msgstr "Açúcares livres"
+
 #. safety
 #. safety
 #. safety
@@ -1336,6 +2281,14 @@ msgstr "Enérgico"
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Frequency"
 msgstr "Frequência"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "From 1 entry"
+msgstr "De 1 registo"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "From a photo"
+msgstr "A partir de uma fotografia"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1356,6 +2309,11 @@ msgstr "Frente"
 #: apps/web/src/components/muscle-guide.tsx
 msgid "front view muscle illustration"
 msgstr "ilustração muscular, vista de frente"
+
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "General information from your own logs, not a diagnosis or medical advice. Ask a health professional before changing your diet or taking supplements."
+msgstr "Informação geral com base nos seus próprios registos, não um diagnóstico nem aconselhamento médico. Consulte um profissional de saúde antes de alterar a sua alimentação ou tomar suplementos."
 
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Generating link…"
@@ -1396,6 +2354,10 @@ msgstr "Objetivo"
 msgid "Goal added. You can edit it under Workouts."
 msgstr "Objetivo adicionado. Pode editá-lo em Treinos."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Goal amount"
+msgstr "Quantidade da meta"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Goals"
@@ -1407,9 +2369,25 @@ msgstr "Objetivos"
 msgid "Granted on {0}"
 msgstr "Concedido em {0}"
 
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Group"
+msgstr "Grupo"
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Health data"
 msgstr "Dados de saúde"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Height (cm, optional)"
+msgstr "Altura (cm, opcional)"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Height must be between 100 and 250 cm, or left blank."
+msgstr "A altura deve estar entre 100 e 250 cm, ou ficar em branco."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "HH:MM"
+msgstr "HH:MM"
 
 #. First message sent to the AI coach for a new conversation; shown as the person's own message
 #. First message sent to the AI coach for a new conversation; shown as the person's own message
@@ -1418,9 +2396,21 @@ msgstr "Dados de saúde"
 msgid "Hi coach — give me a one-line summary of where I am today and one concrete suggestion."
 msgstr "Olá coach — dê-me um resumo numa linha de como estou hoje e uma sugestão concreta."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Hidden"
+msgstr "Oculto"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Hide numbers"
+msgstr "Ocultar números"
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Hide token"
 msgstr "Ocultar token"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Hides energy, nutrient and target numbers in the diary. Logging still works, and you can turn this off at any time."
+msgstr "Oculta os números de energia, nutrientes e objetivos no diário. O registo continua a funcionar e pode desativar esta opção a qualquer momento."
 
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
@@ -1448,9 +2438,33 @@ msgstr "Como correu?"
 msgid "How this is calculated"
 msgstr "Como é calculado"
 
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "How to add"
+msgstr "Como adicionar"
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "How you'll add data"
 msgstr "Como vai adicionar dados"
+
+#. safety
+#. safety
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "I have read this and want to accept the suggestion."
+msgstr "Li esta informação e quero aceitar a sugestão."
+
+#. safety
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "I have read this and want to review the suggestion"
+msgstr "Li esta informação e quero rever a sugestão"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "I train regularly and want the active reference"
+msgstr "Treino regularmente e quero a referência para pessoas ativas"
+
+#: packages/api/src/presenters/logging-streak.ts
+msgid "If you missed a day, you can still add it until the end of {until}."
+msgstr "Se não registou um dia, ainda o pode adicionar até ao fim de {until}."
 
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
@@ -1466,9 +2480,45 @@ msgstr "Origem da imagem"
 msgid "Imperial"
 msgstr "Imperial"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Imported: {importedAt}"
+msgstr "Importado: {importedAt}"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "In progress"
 msgstr "Em curso"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Includes changes waiting to sync. Totals are confirmed after sync."
+msgstr "Inclui alterações a aguardar sincronização. Os totais são confirmados após a sincronização."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Increase"
+msgstr "Aumentar"
+
+#. placeholder {0}: index + 1
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Ingredient {0} · unmatched, unverified"
+msgstr "Ingrediente {0} · sem correspondência, não verificado"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Ingredients"
+msgstr "Ingredientes"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Ingredients ({ingredientCount}/{MAX_INGREDIENTS})"
+msgstr "Ingredientes ({ingredientCount}/{MAX_INGREDIENTS})"
+
+#. safety
+#. safety
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Ingredients remain unmatched and unverified. No nutrition values are calculated. This is not clinical advice."
+msgstr "Os ingredientes ficam sem correspondência e não verificados. Não são calculados valores nutricionais. Isto não é aconselhamento clínico."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Insight notifications"
@@ -1590,6 +2640,28 @@ msgstr "Email convidado: <0>{0}</0>"
 msgid "Inviting…"
 msgstr "A convidar…"
 
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Iron"
+msgstr "Ferro"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: item.sourceText
+#: apps/native/app/(drawer)/food-draft.tsx
+msgid "Item {0} · heard “{1}”"
+msgstr "Item {0} · ouvido «{1}»"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Item {number} · from the photo"
+msgstr "Item {number} · da fotografia"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Item {number} · heard “{heard}”"
+msgstr "Item {number} · ouvido «{heard}»"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Items to copy"
+msgstr "Itens a copiar"
+
 #: apps/web/src/routes/join.tsx
 msgid "Join OpenValens"
 msgstr "Aderir ao OpenValens"
@@ -1597,6 +2669,23 @@ msgstr "Aderir ao OpenValens"
 #: packages/api/src/presenters/cochat.ts
 msgid "just now"
 msgstr "agora mesmo"
+
+#: packages/api/src/presenters/custom-foods.ts
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/plain-water.ts
+msgid "Keep my change"
+msgstr "Manter a minha alteração"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Keep review"
+msgstr "Manter revisão"
+
+#: packages/api/src/presenters/custom-foods.ts
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/plain-water.ts
+msgid "Keep the other version"
+msgstr "Manter a outra versão"
 
 #. safety
 #: apps/web/src/components/product-settings-form.tsx
@@ -1639,6 +2728,10 @@ msgstr "Mais tarde"
 #: apps/web/src/components/product-settings-form.tsx
 msgid "lb, miles"
 msgstr "lb, milhas"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Leave a value blank if you do not know it. Blank is shown as unknown; 0 is saved as zero."
+msgstr "Deixe um valor em branco se não o souber. Em branco é mostrado como desconhecido; 0 é guardado como zero."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1685,6 +2778,11 @@ msgstr "A carregar detalhes…"
 msgid "Loading display defaults…"
 msgstr "A carregar as predefinições de apresentação…"
 
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "Loading estimate…"
+msgstr "A carregar a estimativa…"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading library…"
 msgstr "A carregar a biblioteca…"
@@ -1704,17 +2802,47 @@ msgid "Loading workouts…"
 msgstr "A carregar treinos…"
 
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Loading your workspace…"
 msgstr "A carregar o seu espaço de trabalho…"
+
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Loading…"
+msgstr "A carregar…"
 
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Locale"
 msgstr "Região"
 
+#. safety
+#: packages/api/src/presenters/food-draft.ts
+msgid "Location and other photo details are removed before sending. The photo is not stored here, and no nutrition values or portion sizes come from the reply. The provider processes it under its own terms."
+msgstr "A localização e outros detalhes da fotografia são removidos antes do envio. A fotografia não é guardada aqui e nenhum valor nutricional ou tamanho de porção vem da resposta. O fornecedor processa-a segundo os seus próprios termos."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Log"
 msgstr "Registar"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Log {name} ({amount})"
+msgstr "Registar {name} ({amount})"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Log food ({amount})"
+msgstr "Registar alimento ({amount})"
+
+#: packages/api/src/presenters/logging-streak.ts
+msgid "Logging streak"
+msgstr "Sequência de registos"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Look up"
+msgstr "Consultar"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Looking up…"
+msgstr "A consultar…"
 
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
@@ -1722,26 +2850,86 @@ msgid "Low"
 msgstr "Baixa"
 
 #. safety
+#: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/supplements.ts
 msgid "Lunch"
 msgstr "Almoço"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Magnesium"
+msgstr "Magnésio"
 
 #: apps/web/src/components/header.tsx
 msgid "Main navigation"
 msgstr "Navegação principal"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Maintain"
+msgstr "Manter"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Maintenance"
 msgstr "Manutenção"
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Make a draft"
+msgstr "Criar um rascunho"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Make a draft from this photo"
+msgstr "Criar um rascunho a partir desta fotografia"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Make food drafts from a meal photo"
+msgstr "Criar rascunhos de alimentos a partir de uma fotografia da refeição"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Make food drafts from a spoken or typed description"
+msgstr "Criar rascunhos de alimentos a partir de uma descrição falada ou escrita"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Manage my foods"
+msgstr "Gerir os meus alimentos"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Mark day complete"
+msgstr "Marcar dia como completo"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Marked complete"
+msgstr "Marcado como completo"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Maximises upside, accepts setbacks."
 msgstr "Procura o máximo de ganhos, aceita contratempos."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Maximum (optional)"
+msgstr "Máximo (opcional)"
+
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Maximum (optional) (hidden)"
+msgstr "Máximo (opcional) (oculto)"
+
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+msgid "Maximum (optional), hidden"
+msgstr "Máximo (opcional), oculto"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Meal"
+msgstr "Refeição"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
+#: packages/api/src/presenters/nutrition-diary.ts
 msgid "Meal diary"
 msgstr "Diário de refeições"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Meal photo (JPEG or PNG, up to 10 MB)"
+msgstr "Fotografia da refeição (JPEG ou PNG, até 10 MB)"
 
 #. safety
 #. safety
@@ -1772,9 +2960,23 @@ msgid "Metric"
 msgstr "Métrico"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Micronutrients"
 msgstr "Micronutrientes"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Minimum (optional)"
+msgstr "Mínimo (opcional)"
+
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Minimum (optional) (hidden)"
+msgstr "Mínimo (opcional) (oculto)"
+
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+msgid "Minimum (optional), hidden"
+msgstr "Mínimo (opcional), oculto"
 
 #: apps/web/src/components/header.tsx
 msgid "Mobile navigation"
@@ -1816,7 +3018,12 @@ msgstr "Guia muscular"
 msgid "My Account"
 msgstr "A minha conta"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "My food"
+msgstr "O meu alimento"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: packages/api/src/presenters/custom-foods.ts
 msgid "My foods"
 msgstr "Os meus alimentos"
 
@@ -1827,9 +3034,22 @@ msgstr "Os meus alimentos"
 msgid "Name"
 msgstr "Nome"
 
+#: packages/api/src/presenters/micronutrients.ts
+msgid "NASEM (US National Academies)"
+msgstr "NASEM (Academias Nacionais dos EUA)"
+
 #: apps/web/src/components/header.tsx
 msgid "Navigate the app"
 msgstr "Navegar na aplicação"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/plain-water.ts
+msgid "Needs attention"
+msgstr "Requer atenção"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Needs attention: {change}"
+msgstr "Requer atenção: {change}"
 
 #: apps/native/app/(drawer)/coach/index.tsx
 msgid "New"
@@ -1845,12 +3065,28 @@ msgstr "As novas contas precisam de um convite."
 msgid "New conversation"
 msgstr "Nova conversa"
 
+#: packages/api/src/presenters/custom-foods.ts
+msgid "New food"
+msgstr "Novo alimento"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Next"
+msgstr "Seguinte"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Next day"
+msgstr "Dia seguinte"
+
 #. placeholder {0}: i18n._(SECTION_TITLES[next])
 #. placeholder {0}: i18n._(SECTION_TITLES[resume])
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Next unanswered: {0}"
 msgstr "Próxima por responder: {0}"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "No changes to save."
+msgstr "Não há alterações para guardar."
 
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
@@ -1862,10 +3098,19 @@ msgstr "Não foram comunicadas chaves de configuração."
 msgid "No conversations yet"
 msgstr "Ainda não há conversas"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "No draft was created."
+msgstr "Não foi criado nenhum rascunho."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "No due date"
 msgstr "Sem data-limite"
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "No energy target set"
+msgstr "Sem objetivo de energia definido"
 
 #: apps/native/components/exercise-library.tsx
 msgid "No equipment filters available."
@@ -1887,6 +3132,18 @@ msgstr "Nenhum exercício corresponde a esta pesquisa."
 msgid "No exercises match this search. Try another name."
 msgstr "Nenhum exercício corresponde a esta pesquisa. Experimente outro nome."
 
+#: packages/api/src/presenters/food-draft.ts
+msgid "No food could be made out in this photo. Nothing was guessed."
+msgstr "Não foi possível identificar alimentos nesta fotografia. Nada foi adivinhado."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "No foods match this search."
+msgstr "Nenhum alimento corresponde a esta pesquisa."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "No foods were recognised. Try naming each food, for example “two eggs and toast”."
+msgstr "Não foram reconhecidos alimentos. Experimente indicar cada alimento, por exemplo «dois ovos e uma torrada»."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "No goals yet"
@@ -1900,6 +3157,10 @@ msgstr "Sem instruções."
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "No invitations yet."
 msgstr "Ainda não há convites."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "No match for this barcode. Enter the food from its label instead."
+msgstr "Sem correspondência para este código de barras. Em alternativa, introduza o alimento a partir do rótulo."
 
 #: apps/native/components/muscle-guide.tsx
 msgid "No matching diagram mapping for: {unknownNames}. Names are shown without highlighting."
@@ -1938,20 +3199,58 @@ msgstr "Não há filtros de músculos disponíveis."
 msgid "No pending invitations."
 msgstr "Não há convites pendentes."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "No personal goal set."
+msgstr "Sem meta pessoal definida."
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "No preview image is provided."
 msgstr "Não é fornecida imagem de pré-visualização."
+
+#: apps/native/app/(drawer)/food-draft.tsx
+msgid "No quantity"
+msgstr "Sem quantidade"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "No recent weight for a reference yet."
+msgstr "Ainda não há um peso recente para uma referência."
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "No reference values chosen. Choose them in nutrition settings to see them here."
+msgstr "Não foram escolhidos valores de referência. Escolha-os nas definições de nutrição para os ver aqui."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "No saved foods yet. Create one here or tick “Save to my foods” when you quick add."
+msgstr "Ainda não há alimentos guardados. Crie um aqui ou assinale «Guardar nos meus alimentos» na adição rápida."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "No saved or recent foods yet. Search, scan a barcode or use quick add."
+msgstr "Ainda não há alimentos guardados ou recentes. Pesquise, leia um código de barras ou use a adição rápida."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "No supplements logged. Add one to get reminders."
 msgstr "Nenhum suplemento registado. Adicione um para receber lembretes."
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "No targets set. Logging works the same without them."
+msgstr "Sem objetivos definidos. O registo funciona da mesma forma sem eles."
+
+#: apps/native/app/(drawer)/food-draft.tsx
+msgid "no unit"
+msgstr "sem unidade"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "No workouts yet"
 msgstr "Ainda não há treinos"
+
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "None"
+msgstr "Nenhum"
 
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
@@ -1963,11 +3262,23 @@ msgctxt "goal priority"
 msgid "Normal"
 msgstr "Normal"
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Not available on this device. It updates after sync."
+msgstr "Não disponível neste dispositivo. É atualizado após a sincronização."
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Not compared: not every food reported this."
+msgstr "Não comparado: nem todos os alimentos indicaram este valor."
+
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Not connected"
 msgstr "Não ligado"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Not every food reported this, so the amount is at least this much."
+msgstr "Nem todos os alimentos indicaram este valor, por isso a quantidade é pelo menos esta."
 
 #: apps/native/app/+not-found.tsx
 msgid "Not Found"
@@ -1978,10 +3289,27 @@ msgstr "Não encontrado"
 msgid "Not granted"
 msgstr "Não concedido"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Not marked complete"
+msgstr "Não marcado como completo"
+
 #: apps/native/components/profile-setup-prompt.tsx
 #: apps/web/src/components/profile-setup-prompt.tsx
 msgid "Not now"
 msgstr "Agora não"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Not provided"
+msgstr "Não indicado"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Not provided by {count, plural, one {# entry} other {# entries}}"
+msgstr "Não indicado por {count, plural, one {# registo} other {# registos}}"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Not provided by the source: {list}. Shown as unknown."
+msgstr "Não indicado pela fonte: {list}. Mostrado como desconhecido."
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Not rated"
@@ -1990,6 +3318,11 @@ msgstr "Sem avaliação"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Not saved — you seem to be offline. Saving needs a connection; your changes are still here."
 msgstr "Não guardado — parece estar sem ligação. Para guardar é preciso ligação; as suas alterações continuam aqui."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Not saved. Discard the draft to clear it; reloading may lose it."
+msgstr "Não guardado. Descarte o rascunho para o limpar; ao recarregar pode perdê-lo."
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Not saved. Try again."
@@ -2005,6 +3338,10 @@ msgstr "Não definida"
 msgid "Not started"
 msgstr "Não iniciado"
 
+#: packages/api/src/presenters/food-draft.ts
+msgid "Not sure what this is"
+msgstr "Não é claro o que é"
+
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Not sure yet"
 msgstr "Ainda não sei"
@@ -2012,6 +3349,11 @@ msgstr "Ainda não sei"
 #: apps/native/components/health-sync-settings.tsx
 msgid "Not synced yet"
 msgstr "Ainda não sincronizado"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Not this product? Enter food manually"
+msgstr "Não é este produto? Introduza o alimento manualmente"
 
 #: apps/web/src/components/language-section.tsx
 msgid "Not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
@@ -2022,13 +3364,71 @@ msgstr "Ainda não revista. As unidades, os intervalos de referência e os texto
 msgid "Notes"
 msgstr "Notas"
 
+#: packages/api/src/presenters/micronutrients.ts
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Nothing logged"
+msgstr "Nada registado"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/plain-water.ts
+msgid "Nothing logged for this day."
+msgstr "Nada registado neste dia."
+
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Nothing logged on this day."
+msgstr "Nada registado neste dia."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Nothing logged. Days without a marker are treated as unknown, not as zero."
+msgstr "Nada registado. Os dias sem marcador são tratados como desconhecidos, não como zero."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Nothing saved"
+msgstr "Nada guardado"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Now"
+msgstr "Agora"
+
 #. placeholder {0}: goal.currentValue
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Now {0}"
 msgstr "Atual: {0}"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Numbers are hidden. Coverage is still shown."
+msgstr "Os números estão ocultos. A cobertura continua visível."
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Numbers are hidden. Estimate details are not shown."
+msgstr "Os números estão ocultos. Os detalhes da estimativa não são mostrados."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Numbers are hidden. You can still log water."
+msgstr "Os números estão ocultos. Pode continuar a registar água."
+
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+#: apps/web/src/components/nutrition-day-totals.tsx
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Nutrient"
+msgstr "Nutriente"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Nutrients"
+msgstr "Nutrientes"
+
+#: apps/web/src/components/recipe-draft-editor.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Nutrition settings"
+msgstr "Definições de nutrição"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: packages/api/src/presenters/nutrition-targets.ts
 msgid "Nutrition targets"
 msgstr "Objetivos nutricionais"
 
@@ -2040,6 +3440,37 @@ msgstr "Desligado"
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Off — {pushTitle}"
 msgstr "Desligado — {pushTitle}"
+
+#. safety
+#: packages/api/src/presenters/food-draft.ts
+msgid "Off by default. Describe a meal and get a draft list to match to foods; nothing is logged until you confirm each item. The app never records audio. Turn it off at any time."
+msgstr "Desativado por predefinição. Descreva uma refeição e obtenha uma lista de rascunho para associar a alimentos; nada é registado até confirmar cada item. A aplicação nunca grava áudio. Pode desativar a qualquer momento."
+
+#. safety
+#: packages/api/src/presenters/food-draft.ts
+msgid "Off by default. Each photo is sent to the AI provider only after you confirm it, with location and other photo details removed first. Photos are not stored. Nothing is logged until you confirm each item. Turn it off at any time."
+msgstr "Desativado por predefinição. Cada fotografia só é enviada ao fornecedor de IA depois de a confirmar, com a localização e outros detalhes da fotografia removidos antes. As fotografias não são guardadas. Nada é registado até confirmar cada item. Pode desativar a qualquer momento."
+
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
+msgstr "Desativado por predefinição. Mostra oito vitaminas e minerais dos alimentos que regista, com quantos alimentos indicaram cada um. Muitos alimentos, sobretudo de rótulos, não os indicam, por isso os totais estão muitas vezes incompletos. Pode desativar a qualquer momento."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Offline. {count, plural, one {# match} other {# matches}} saved on this device from an earlier lookup; the source may have changed since."
+msgstr "Sem ligação. {count, plural, one {# correspondência guardada} other {# correspondências guardadas}} neste dispositivo numa consulta anterior; a fonte pode ter mudado entretanto."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Offline. Changes are saved on this device: {partsText}"
+msgstr "Sem ligação. As alterações ficam guardadas neste dispositivo: {partsText}"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Offline. No match for this barcode is saved on this device. Enter the food from its label, or look it up when you are back online."
+msgstr "Sem ligação. Não há nenhuma correspondência para este código de barras guardada neste dispositivo. Introduza o alimento a partir do rótulo ou consulte-o quando voltar a ter ligação."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Offline. Searching food databases needs a connection; showing foods saved on this device."
+msgstr "Sem ligação. A pesquisa nas bases de dados de alimentos precisa de ligação; a mostrar os alimentos guardados neste dispositivo."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/components/health-sync-settings.tsx
@@ -2074,6 +3505,15 @@ msgstr "Em aberto"
 msgid "Open navigation menu"
 msgstr "Abrir o menu de navegação"
 
+#: apps/native/components/barcode-scanner.tsx
+msgid "Open Settings"
+msgstr "Abrir Definições"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Open source URL"
+msgstr "Abrir URL de origem"
+
 #: apps/native/app/(drawer)/settings/telegram.tsx
 msgid "Open Telegram and send this token to the bot:"
 msgstr "Abra o Telegram e envie este token ao bot:"
@@ -2085,6 +3525,10 @@ msgstr "Abra esta ligação no Telegram e carregue em Start:"
 #: apps/native/components/health-sync-settings.tsx
 msgid "Opens {sourceName} permissions"
 msgstr "Abre as permissões de {sourceName}"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Optional"
+msgstr "Opcional"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Optional answers only you can see"
@@ -2105,9 +3549,48 @@ msgstr "Estatísticas de utilização opcionais através do PostHog EU. Envia no
 msgid "or"
 msgstr "ou"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Original text"
+msgstr "Texto original"
+
+#: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/workouts.ts
 msgid "Other"
 msgstr "Outro"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Other version"
+msgstr "Outra versão"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Other version:"
+msgstr "Outra versão:"
+
+#: apps/web/src/components/plain-water-section.tsx
+msgid "Other version: {amount}."
+msgstr "Outra versão: {amount}."
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Other version: {otherAmount}, {otherSlot}. Your change: {mineAmount}, {mineSlot}."
+msgstr "Outra versão: {otherAmount}, {otherSlot}. A sua alteração: {mineAmount}, {mineSlot}."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Other version: {otherAmount}."
+msgstr "Outra versão: {otherAmount}."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Other version: {otherName}, {otherAmount}, {otherSlot}. Your change: {change}."
+msgstr "Outra versão: {otherName}, {otherAmount}, {otherSlot}. A sua alteração: {change}."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Other version: {otherName}, deleted. Your change: {change}."
+msgstr "Outra versão: {otherName}, eliminado. A sua alteração: {change}."
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
+msgstr "Outra versão: eliminado. A sua alteração: {mineAmount}, {mineSlot}."
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Output and training readiness."
@@ -2123,6 +3606,48 @@ msgstr "proprietário"
 #: apps/native/app/+not-found.tsx
 msgid "Page Not Found"
 msgstr "Página não encontrada"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Parsing again will replace your edited review. Continue?"
+msgstr "Analisar novamente substitui a revisão que editou. Continuar?"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Paste changed. Create a replacement draft explicitly."
+msgstr "O texto colado mudou. Crie explicitamente um rascunho de substituição."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Paste format"
+msgstr "Formato do texto colado"
+
+#: apps/native/components/recipe-draft-editor.tsx
+msgid "Paste ingredients or JSON-LD"
+msgstr "Cole ingredientes ou JSON-LD"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on in nutrition settings. Nothing is saved."
+msgstr "Cole ingredientes ou Recipe JSON-LD, ou importe uma página de receita se ativou essa opção nas definições de nutrição. Nada é guardado."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Paste is over the 1 MiB limit. Shorten it and try again."
+msgstr "O texto colado excede o limite de 1 MiB. Encurte-o e tente novamente."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Paste recipe text"
+msgstr "Colar texto da receita"
+
+#: apps/native/components/recipe-draft-editor.tsx
+msgid "Paste recipe text, up to 1 MiB"
+msgstr "Colar texto da receita, até 1 MiB"
+
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Paste text (up to 1 MiB)"
+msgstr "Colar texto (até 1 MiB)"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Paste the code from your email"
@@ -2171,6 +3696,20 @@ msgstr "Convites pendentes"
 msgid "Pending invitations · {0}"
 msgstr "Convites pendentes · {0}"
 
+#: apps/native/app/(drawer)/foods.tsx
+msgid "per {unit}"
+msgstr "por {unit}"
+
+#: apps/native/app/(drawer)/foods.tsx
+msgid "per serving"
+msgstr "por porção"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Per unit"
+msgstr "Por unidade"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Performance"
 msgstr "Desempenho"
@@ -2185,9 +3724,107 @@ msgstr "Elimina permanentemente a sua conta e {rows} linhas guardadas em {organi
 msgid "Permanently deletes your account and {rows} stored rows across your health record. This can't be undone. Export your data from Clinical export first."
 msgstr "Elimina permanentemente a sua conta e {rows} linhas guardadas no seu registo de saúde. Não é possível anular. Exporte primeiro os seus dados em Exportação clínica."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Personal goal"
+msgstr "Meta pessoal"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Personal goal cleared."
+msgstr "Meta pessoal limpa."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Personal goal saved."
+msgstr "Meta pessoal guardada."
+
+#: apps/native/components/plain-water-section.tsx
+msgid "Personal goal:"
+msgstr "Meta pessoal:"
+
+#. placeholder {0}: formatWaterGoal(view.personalGoalMl, unit, hideNumbers, i18n)
+#: apps/web/src/components/plain-water-day-view.tsx
+msgid "Personal goal: <0>{0}</0>"
+msgstr "Meta pessoal: <0>{0}</0>"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Photo drafts need an AI provider, and none is set up on this server."
+msgstr "Os rascunhos a partir de fotografias precisam de um fornecedor de IA e não há nenhum configurado neste servidor."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Pick a photo of your meal. You get a draft list of what the provider could see; nothing is logged until you confirm each item."
+msgstr "Escolha uma fotografia da sua refeição. Obtém uma lista de rascunho do que o fornecedor conseguiu ver; nada é registado até confirmar cada item."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water"
+msgstr "Água simples"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water at {time}: {amount}"
+msgstr "Água simples às {time}: {amount}"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water at {time}: {amount}, needs attention"
+msgstr "Água simples às {time}: {amount}, requer atenção"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water at {time}: {amount}, syncing"
+msgstr "Água simples às {time}: {amount}, a sincronizar"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water at {time}: {amount}, waiting to sync"
+msgstr "Água simples às {time}: {amount}, a aguardar sincronização"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water entries"
+msgstr "Registos de água simples"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water entry removed."
+msgstr "Registo de água simples removido."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water entry saved."
+msgstr "Registo de água simples guardado."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water entry updated."
+msgstr "Registo de água simples atualizado."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water is off."
+msgstr "A água simples está desativada."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water is on."
+msgstr "A água simples está ativada."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water logging"
+msgstr "Registo de água simples"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water only, separate from meals and other drinks."
+msgstr "Apenas água simples, separada das refeições e de outras bebidas."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water subtotal"
+msgstr "Subtotal de água simples"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Plain water subtotal: {value}"
+msgstr "Subtotal de água simples: {value}"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Plays it safe; avoids pushing limits."
 msgstr "Joga pelo seguro; evita forçar limites."
+
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Population reference intake (PRI)"
+msgstr "Ingestão de referência para a população (PRI)"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Potassium"
+msgstr "Potássio"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -2197,6 +3834,11 @@ msgstr "Antes de dormir"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Preferences"
 msgstr "Preferências"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Preparation"
+msgstr "Preparação"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -2227,6 +3869,14 @@ msgstr "Pré-visualização indisponível nesta ligação."
 msgid "Preview unavailable."
 msgstr "Pré-visualização indisponível."
 
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Previous"
+msgstr "Anterior"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Previous day"
+msgstr "Dia anterior"
+
 #: apps/native/components/muscle-guide.tsx
 msgid "Primary: {primaryNames}"
 msgstr "Principais: {primaryNames}"
@@ -2252,9 +3902,44 @@ msgstr "Perfil"
 msgid "Progress means the value should"
 msgstr "Progresso significa que o valor deve"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Protein"
+msgstr "Proteína"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Protein reference"
+msgstr "Referência de proteína"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Push and weekly email, off until you turn them on"
 msgstr "Notificações push e email semanal, desligados até os ativar"
+
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Quantity"
+msgstr "Quantidade"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Quantity (text)"
+msgstr "Quantidade (texto)"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Quantity not stated"
+msgstr "Quantidade não indicada"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Quantity unclear"
+msgstr "Quantidade pouco clara"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Queued"
+msgstr "Em fila"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Quick add"
+msgstr "Adição rápida"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Rate"
@@ -2264,15 +3949,32 @@ msgstr "Avaliar"
 msgid "Rate effort"
 msgstr "Avaliar esforço"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Raw"
+msgstr "Cru"
+
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Re-link"
 msgstr "Voltar a ligar"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Recipe draft"
 msgstr "Rascunho de receita"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Recipe JSON-LD"
+msgstr "Recipe JSON-LD"
+
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Recommended dietary allowance (RDA)"
+msgstr "Dose diária recomendada (RDA)"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Recovery"
@@ -2286,10 +3988,34 @@ msgstr "Usar convite"
 msgid "Redirecting…"
 msgstr "A redirecionar…"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Reduce"
+msgstr "Reduzir"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Reference values"
+msgstr "Valores de referência"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Reference values here are for adults only, so they are not shown."
+msgstr "Os valores de referência aqui são apenas para adultos, por isso não são mostrados."
+
+#: apps/native/app/(drawer)/micronutrients.tsx
+msgid "Reference: {sourceOrg}, {populationLabel}. {licenceNote}"
+msgstr "Referência: {sourceOrg}, {populationLabel}. {licenceNote}"
+
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Reference: {sourceOrg}, {populationLabel}. <0>Source</0>. {licenceNote}"
+msgstr "Referência: {sourceOrg}, {populationLabel}. <0>Fonte</0>. {licenceNote}"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Refresh and review"
 msgstr "Atualizar e rever"
+
+#: apps/web/src/components/plain-water-section.tsx
+msgid "Refresh diary"
+msgstr "Atualizar diário"
 
 #: apps/native/app/(drawer)/supplements.tsx
 msgid "Regimen"
@@ -2308,10 +4034,36 @@ msgstr "recusado"
 msgid "Reload latest"
 msgstr "Recarregar a versão mais recente"
 
+#: apps/native/app/(drawer)/food-draft.tsx
 #: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Remove"
 msgstr "Remover"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Remove from favourites: {name}"
+msgstr "Remover dos favoritos: {name}"
+
+#. placeholder {0}: index + 1
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Remove ingredient {0}"
+msgstr "Remover ingrediente {0}"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Remove the entry."
+msgstr "Remover o registo."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Removed from favourites"
+msgstr "Removido dos favoritos"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Replace review"
+msgstr "Substituir revisão"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Resend code"
@@ -2320,6 +4072,19 @@ msgstr "Reenviar código"
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Reset"
 msgstr "Repor"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Restore"
+msgstr "Restaurar"
+
+#. placeholder {0}: food.name
+#: apps/native/app/(drawer)/foods.tsx
+msgid "Restore {0}"
+msgstr "Restaurar {0}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Restore entry"
+msgstr "Restaurar registo"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/admin/settings.tsx
@@ -2333,11 +4098,13 @@ msgstr "Repor"
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/analytics-consent-section.tsx
+#: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
@@ -2349,6 +4116,9 @@ msgstr "Repor"
 #: apps/web/src/routes/_auth/sharing.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
+#: packages/api/src/presenters/custom-foods.ts
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/plain-water.ts
 msgid "Retry"
 msgstr "Tentar novamente"
 
@@ -2369,6 +4139,41 @@ msgstr "Repetir o mesmo pedido"
 #: apps/native/components/exercise-library.tsx
 msgid "Retry workouts"
 msgstr "Tentar carregar treinos"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Review before saving"
+msgstr "Rever antes de guardar"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Review draft"
+msgstr "Rever rascunho"
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Review the draft"
+msgstr "Rever o rascunho"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Review: {reviewAmount} on {localDate} · {reviewSource}"
+msgstr "Rever: {reviewAmount} em {localDate} · {reviewSource}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Review: {reviewAmount}, {slotLabel}, {localDate}"
+msgstr "Rever: {reviewAmount}, {slotLabel}, {localDate}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Review: {reviewAmount}, {slotLabel}, {localDate} · {source}"
+msgstr "Rever: {reviewAmount}, {slotLabel}, {localDate} · {source}"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Review: {reviewName}, {reviewAmount} on {localDate} · {reviewSource}"
+msgstr "Rever: {reviewName}, {reviewAmount} em {localDate} · {reviewSource}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source}"
+msgstr "Rever: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source}"
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
@@ -2409,21 +4214,60 @@ msgstr "Corrida"
 msgid "Run a 5k"
 msgstr "Correr 5 km"
 
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Safe level of intake"
+msgstr "Nível de ingestão seguro"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Salt"
+msgstr "Sal"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Saturated fat"
+msgstr "Ácidos gordos saturados"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
+#: packages/api/src/presenters/nutrition-targets.ts
+#: packages/api/src/presenters/plain-water.ts
 msgid "Save"
 msgstr "Guardar"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Save cancelled. A food creation already sent may still complete."
+msgstr "Gravação cancelada. A criação de um alimento já enviada ainda pode ser concluída."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Save food"
+msgstr "Guardar alimento"
 
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Save rating"
 msgstr "Guardar avaliação"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Save target"
+msgstr "Guardar objetivo"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Save to {slotLabel}"
+msgstr "Guardar em {slotLabel}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Save to my foods for next time"
+msgstr "Guardar nos meus alimentos para a próxima vez"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
@@ -2436,22 +4280,72 @@ msgstr "Guardar avaliação"
 msgid "Saved"
 msgstr "Guardado"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Saved {name} to {meal} on {localDate}"
+msgstr "{name} guardado em {meal} a {localDate}"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Saved and recent"
+msgstr "Guardados e recentes"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Saved entries are kept but not shown while it's off. Turn it on to see or remove them."
+msgstr "Os registos guardados são mantidos, mas não são mostrados enquanto estiver desativado. Ative para os ver ou remover."
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Saved foods"
+msgstr "Alimentos guardados"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Saved on this device. It will sync when you're online."
+msgstr "Guardado neste dispositivo. Será sincronizado quando tiver ligação."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
+#: packages/api/src/presenters/custom-foods.ts
+#: packages/api/src/presenters/nutrition-targets.ts
+#: packages/api/src/presenters/plain-water.ts
 msgid "Saving…"
 msgstr "A guardar…"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Say or type at least one food."
+msgstr "Diga ou escreva pelo menos um alimento."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Say or type what you had. You get a draft list of items to match to foods; nothing is logged until you confirm each one."
+msgstr "Diga ou escreva o que comeu ou bebeu. Obtém uma lista de rascunho de itens para associar a alimentos; nada é registado até confirmar cada um."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Scan barcode"
+msgstr "Ler código de barras"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Scanned {barcode}. Looking it up."
+msgstr "Lido {barcode}. A consultar."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Scanning is not available on this device. Type the barcode digits instead."
+msgstr "A leitura não está disponível neste dispositivo. Escreva os dígitos do código de barras."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Scores"
 msgstr "Pontuações"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Search and recents"
+msgstr "Pesquisa e recentes"
 
 #: apps/native/components/exercise-library.tsx
 msgid "Search by exercise name"
@@ -2464,6 +4358,14 @@ msgstr "Pesquisar por nome"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Search exercises"
 msgstr "Pesquisar exercícios"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Search foods"
+msgstr "Pesquisar alimentos"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Searching…"
+msgstr "A pesquisar…"
 
 #: apps/native/components/muscle-guide.tsx
 msgid "Secondary: {secondaryNames}"
@@ -2508,6 +4410,18 @@ msgstr "Enviar convite"
 msgid "Send invite"
 msgstr "Enviar convite"
 
+#. safety
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Send this photo to {providerName} now."
+msgstr "Enviar agora esta fotografia para {providerName}."
+
+#. safety
+#. safety
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Send this text, and nothing else, to {providerName} now."
+msgstr "Enviar agora este texto, e nada mais, para {providerName}."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Sending code…"
 msgstr "A enviar o código…"
@@ -2526,9 +4440,41 @@ msgstr "A enviar…"
 msgid "Sensitive"
 msgstr "Sensível"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "serving"
+msgstr "porção"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Serving name (optional, e.g. 1 slice)"
+msgstr "Nome da porção (opcional, por ex. 1 fatia)"
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Serving size (optional)"
+msgstr "Tamanho da porção (opcional)"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Serving size must be a positive amount, or left blank."
+msgstr "O tamanho da porção deve ser uma quantidade positiva, ou ficar em branco."
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+msgid "Serving unit"
+msgstr "Unidade da porção"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Servings (text)"
+msgstr "Porções (texto)"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Sessions & goals"
 msgstr "Sessões e objetivos"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Set a goal"
+msgstr "Definir uma meta"
 
 #: apps/native/components/profile-setup-prompt.tsx
 #: apps/web/src/components/profile-setup-prompt.tsx
@@ -2541,6 +4487,10 @@ msgstr "Configure o seu perfil (opcional)"
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "Settings"
 msgstr "Definições"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Settings saved."
+msgstr "Definições guardadas."
 
 #: apps/web/src/routes/setup.tsx
 msgid "Setup is complete"
@@ -2579,6 +4529,18 @@ msgstr "A partilha está desligada, a menos que a ative expressamente."
 msgid "Sharing is on."
 msgstr "A partilha está ligada."
 
+#: packages/api/src/presenters/logging-streak.ts
+msgid "Show a logging streak"
+msgstr "Mostrar uma sequência de registos"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Show a micronutrient summary"
+msgstr "Mostrar um resumo de micronutrientes"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Show archived foods"
+msgstr "Mostrar alimentos arquivados"
+
 #: apps/native/components/exercise-library.tsx
 msgid "Show fewer muscles"
 msgstr "Mostrar menos músculos"
@@ -2590,6 +4552,11 @@ msgstr "Mostrar menos equipamento"
 #: apps/web/src/components/admission-form.tsx
 msgid "Show token"
 msgstr "Mostrar token"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Showing {date}"
+msgstr "A mostrar {date}"
 
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
@@ -2613,6 +4580,11 @@ msgstr "Inicie sessão para explorar os exercícios do seu espaço de trabalho."
 #: apps/native/components/exercise-library.tsx
 msgid "Sign in to browse your workspace library."
 msgstr "Inicie sessão para explorar a biblioteca do seu espaço de trabalho."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Sign in to create a private, session-only draft."
+msgstr "Inicie sessão para criar um rascunho privado, apenas para esta sessão."
 
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "Sign in to see and accept workspace invitations."
@@ -2671,6 +4643,11 @@ msgstr "Sessão iniciada como <0>{sessionEmail}</0>."
 msgid "single sign-on"
 msgstr "início de sessão único"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Site: {site}"
+msgstr "Site: {site}"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Skip for now"
@@ -2680,6 +4657,14 @@ msgstr "Saltar por agora"
 #: apps/web/src/components/header.tsx
 msgid "Sleep"
 msgstr "Sono"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Snack"
+msgstr "Lanche"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Sodium"
+msgstr "Sódio"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Some answers could not be saved. Check them and try again."
@@ -2694,14 +4679,46 @@ msgstr "Algo correu mal"
 msgid "Something went wrong. Try again."
 msgstr "Algo correu mal. Tente novamente."
 
+#: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Source"
+msgstr "Fonte"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Source details (provenance only)"
+msgstr "Detalhes da fonte (apenas proveniência)"
+
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Source metadata"
+msgstr "Metadados da fonte"
+
 #: apps/native/components/exercise-attribution.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Source record"
 msgstr "Registo de origem"
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Source URL (optional, provenance only)"
+msgstr "URL de origem (opcional, apenas proveniência)"
+
+#: apps/native/components/recipe-draft-editor.tsx
+msgid "Source URL, optional, provenance only"
+msgstr "URL de origem, opcional, apenas proveniência"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Source URL: {sourceLink}"
+msgstr "URL de origem: {sourceLink}"
+
 #: apps/native/components/muscle-guide.tsx
 msgid "Source-listed muscles: {listedNames}"
 msgstr "Músculos indicados pela fonte: {listedNames}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Sources"
+msgstr "Fontes"
 
 #: apps/native/components/profile-setup-prompt.tsx
 #: apps/web/src/components/profile-setup-prompt.tsx
@@ -2749,6 +4766,10 @@ msgstr "Estado"
 msgid "Steady but flexible, weighs context."
 msgstr "Constante mas flexível, tem em conta o contexto."
 
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Stop scanning"
+msgstr "Parar leitura"
+
 #. safety
 #. safety
 #: apps/native/components/analytics-consent-section.tsx
@@ -2769,12 +4790,91 @@ msgstr "Força"
 msgid "Strict"
 msgstr "Rigoroso"
 
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Suggested from your profile"
+msgstr "Sugerido com base no seu perfil"
+
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Suggested from your profile: {sourceName}, {group}."
+msgstr "Sugerido com base no seu perfil: {sourceName}, {group}."
+
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+msgid "Suggested from your profile: {sourceName}, {group}. Use this"
+msgstr "Sugerido com base no seu perfil: {sourceName}, {group}. Usar esta opção"
+
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Suggested from your profile: {sourceName}."
+msgstr "Sugerido com base no seu perfil: {sourceName}."
+
+#: apps/native/app/(drawer)/nutrition-targets.tsx
+msgid "Suggested from your profile: {sourceName}. Use this"
+msgstr "Sugerido com base no seu perfil: {sourceName}. Usar esta opção"
+
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "Suggested: {suggestion}"
+msgstr "Sugerido: {suggestion}"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestion"
+msgstr "Sugestão"
+
+#: apps/native/components/energy-estimate-card.tsx
+msgid "Suggestion accepted. Targets refreshed."
+msgstr "Sugestão aceite. Objetivos atualizados."
+
+#: apps/web/src/components/energy-estimate-card.tsx
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestion accepted. Your target is updated."
+msgstr "Sugestão aceite. O seu objetivo foi atualizado."
+
+#: packages/api/src/presenters/energy-estimate.ts
+msgid "Suggestion awaiting your review"
+msgstr "Sugestão a aguardar a sua revisão"
+
+#: apps/native/components/energy-estimate-card.tsx
+msgid "Suggestion dismissed. Targets refreshed."
+msgstr "Sugestão dispensada. Objetivos atualizados."
+
+#: apps/web/src/components/energy-estimate-card.tsx
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestion dismissed. Your target is unchanged."
+msgstr "Sugestão dispensada. O seu objetivo não foi alterado."
+
+#: apps/native/components/energy-estimate-card.tsx
+msgid "Suggestion is ready for your review."
+msgstr "A sugestão está pronta para a sua revisão."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestions"
+msgstr "Sugestões"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestions are a small, capped increase from the estimate."
+msgstr "As sugestões são um aumento pequeno e limitado em relação à estimativa."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestions are a small, capped reduction from the estimate, within safeguards. Some profiles get no reduction suggestions."
+msgstr "As sugestões são uma redução pequena e limitada em relação à estimativa, dentro de salvaguardas. Alguns perfis não recebem sugestões de redução."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestions are based on your estimate and only change a target if you accept them."
+msgstr "As sugestões baseiam-se na sua estimativa e só alteram um objetivo se as aceitar."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Suggestions follow the estimated intake that keeps your weight trend steady."
+msgstr "As sugestões seguem a ingestão estimada que mantém estável a tendência do seu peso."
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Supplements"
 msgstr "Suplementos"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Support"
+msgstr "Apoio"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Supportive"
@@ -2784,9 +4884,24 @@ msgstr "Apoiante"
 msgid "Swim"
 msgstr "Natação"
 
+#: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: packages/api/src/presenters/plain-water.ts
 msgid "Sync now"
 msgstr "Sincronizar agora"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Sync state: {label}"
+msgstr "Estado de sincronização: {label}"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Synced"
+msgstr "Sincronizado"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/plain-water.ts
+msgid "Syncing"
+msgstr "A sincronizar"
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Syncing…"
@@ -2811,6 +4926,10 @@ msgstr "Meta (opcional)"
 msgid "Target {0}"
 msgstr "Meta: {0}"
 
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Target cleared."
+msgstr "Objetivo limpo."
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Target must be {max} characters or fewer."
 msgstr "A meta deve ter no máximo {max} carateres."
@@ -2818,6 +4937,18 @@ msgstr "A meta deve ter no máximo {max} carateres."
 #: packages/api/src/presenters/workouts.ts
 msgid "Target must start with a number, like \"70\" or \"70 kg\"."
 msgstr "A meta deve começar por um número, como \"70\" ou \"70 kg\"."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Target saved."
+msgstr "Objetivo guardado."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Targets and display"
+msgstr "Objetivos e apresentação"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Targets are yours to set, change or clear. They are shown next to what you logged, not compared with it."
+msgstr "Os objetivos são seus para definir, alterar ou limpar. São mostrados ao lado do que registou, sem comparação."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
@@ -2828,25 +4959,120 @@ msgstr "Modelo"
 msgid "Tennis"
 msgstr "Ténis"
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "That amount is too large to save."
+msgstr "Essa quantidade é demasiado grande para guardar."
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "That birth year is under 18. OpenValens personalisation is for adults only."
 msgstr "Esse ano de nascimento corresponde a menos de 18 anos. A personalização do OpenValens é só para adultos."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "That description is too long. Keep it under 2,000 characters."
+msgstr "Essa descrição é demasiado longa. Mantenha-a abaixo de 2000 caracteres."
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "That sign-in link is invalid or has expired. Request a new one."
 msgstr "Essa ligação de início de sessão é inválida ou expirou. Peça uma nova."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "That time does not exist on this date in your time zone. Choose another time."
+msgstr "Essa hora não existe nesta data no seu fuso horário. Escolha outra hora."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "The AI provider is not set up on this server. Use the on-server draft instead."
+msgstr "O fornecedor de IA não está configurado neste servidor. Use o rascunho feito no servidor."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "The camera could not start. Type the barcode digits instead."
+msgstr "Não foi possível iniciar a câmara. Escreva os dígitos do código de barras."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "The camera is used only while you scan. Nothing is recorded."
+msgstr "A câmara só é usada durante a leitura. Nada é gravado."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "the entry values."
+msgstr "os valores do registo."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "The food source could not be reached. Try the lookup again later, or enter the food from its label."
+msgstr "Não foi possível contactar a fonte de alimentos. Tente a consulta mais tarde ou introduza o alimento a partir do rótulo."
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "The import failed. Nothing was saved."
+msgstr "A importação falhou. Nada foi guardado."
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "The library is empty for now."
 msgstr "Por agora, a biblioteca está vazia."
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "The micronutrient summary is hidden because of an answer in your nutrition settings. Logging is not affected."
+msgstr "O resumo de micronutrientes está oculto devido a uma resposta nas suas definições de nutrição. O registo não é afetado."
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "The micronutrient summary is off. Turn it on in nutrition settings."
+msgstr "O resumo de micronutrientes está desativado. Ative-o nas definições de nutrição."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "The minimum must not be more than the maximum."
+msgstr "O mínimo não pode ser superior ao máximo."
 
 #: apps/native/app/+not-found.tsx
 msgid "The page you're looking for doesn't exist."
 msgstr "A página que procura não existe."
 
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "The previous review was cleared. Your pasted text is still here."
+msgstr "A revisão anterior foi limpa. O texto que colou continua aqui."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "The provider could not process this photo. It may not accept images. Nothing was saved."
+msgstr "O fornecedor não conseguiu processar esta fotografia. Pode não aceitar imagens. Nada foi guardado."
+
+#. safety
+#: packages/api/src/presenters/food-draft.ts
+msgid "The provider processes it under its own terms. Nothing is stored here, and no nutrition values come from the reply."
+msgstr "O fornecedor processa-o segundo os seus próprios termos. Nada é guardado aqui e nenhum valor nutricional vem da resposta."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "The provider's reply could not be read, so nothing was guessed. Try again or use the on-server draft."
+msgstr "Não foi possível ler a resposta do fornecedor, por isso nada foi adivinhado. Tente novamente ou use o rascunho feito no servidor."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "The provider's reply could not be read, so nothing was guessed. Try again."
+msgstr "Não foi possível ler a resposta do fornecedor, por isso nada foi adivinhado. Tente novamente."
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "The server did not accept this change ({errorCode}). It stays on this device until you retry or discard it."
+msgstr "O servidor não aceitou esta alteração ({errorCode}). Fica neste dispositivo até tentar novamente ou a descartar."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "The server did not accept this change."
+msgstr "O servidor não aceitou esta alteração."
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "The source has this barcode but no product name. Enter the food from its label instead."
+msgstr "A fonte tem este código de barras, mas sem nome de produto. Em alternativa, introduza o alimento a partir do rótulo."
+
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "The weekly insights email is off. You can turn it on again in Settings."
 msgstr "O email semanal de observações está desligado. Pode voltar a ligá-lo nas Definições."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "These settings changed on another device. The latest version is shown."
+msgstr "Estas definições foram alteradas noutro dispositivo. É mostrada a versão mais recente."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "This change remains on this device until you resolve it."
+msgstr "Esta alteração fica neste dispositivo até a resolver."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "This day may be partial. Totals cover logged entries only."
+msgstr "Este dia pode estar incompleto. Os totais abrangem apenas os registos feitos."
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "This device's access was revoked. Reconnect from the web app."
@@ -2855,6 +5081,26 @@ msgstr "O acesso deste dispositivo foi revogado. Volte a ligar a partir da aplic
 #: apps/web/src/components/admission-form.tsx
 msgid "This email may already belong to an account. Send a sign-in link to <0>{email}</0>, then return to this tab and enter the token again."
 msgstr "Este email pode já pertencer a uma conta. Envie uma ligação de início de sessão para <0>{email}</0>; depois volte a este separador e introduza novamente o token."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "This entry changed on another device"
+msgstr "Este registo foi alterado noutro dispositivo"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "This entry changed on another device."
+msgstr "Este registo foi alterado noutro dispositivo."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "This entry was already removed."
+msgstr "Este registo já foi removido."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "This food changed on another device"
+msgstr "Este alimento foi alterado noutro dispositivo"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "This food was archived on another device. Restore it to edit."
+msgstr "Este alimento foi arquivado noutro dispositivo. Restaure-o para o editar."
 
 #: apps/web/src/routes/setup.tsx
 msgid "This instance has already been set up. If you have an account, sign in below."
@@ -2885,6 +5131,10 @@ msgstr "Este convite foi enviado para {0}, mas tem sessão iniciada como {sessio
 msgid "This invitation was sent to a different email address."
 msgstr "Este convite foi enviado para outro endereço de email."
 
+#: packages/api/src/presenters/food-lookup.ts
+msgid "This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead."
+msgstr "Este é um código de loja ou de artigo pesado, por isso não identifica um produto. Em alternativa, introduza o alimento a partir do rótulo."
+
 #: apps/native/app/modal.tsx
 msgid "This is an example modal screen for dialogs and confirmations."
 msgstr "Este é um ecrã modal de exemplo para diálogos e confirmações."
@@ -2908,6 +5158,15 @@ msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardada
 msgid "This permanently deletes your account and {rows} stored rows across your health record ({organizationNames}). It can't be undone."
 msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardadas no seu registo de saúde ({organizationNames}). Não é possível anular."
 
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "This suggestion has expired."
+msgstr "Esta sugestão expirou."
+
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "This suggestion is no longer available."
+msgstr "Esta sugestão já não está disponível."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "This token or code has expired. Request a new one."
 msgstr "Este token ou código expirou. Peça um novo."
@@ -2917,6 +5176,10 @@ msgstr "Este token ou código expirou. Peça um novo."
 msgid "Tick the consent box to save this, or choose 'Prefer not to say'."
 msgstr "Assinale a caixa de consentimento para guardar isto, ou escolha 'Prefiro não dizer'."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Time"
+msgstr "Hora"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -2924,6 +5187,8 @@ msgid "Timeline"
 msgstr "Cronologia"
 
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Title"
 msgstr "Título"
@@ -2932,6 +5197,10 @@ msgstr "Título"
 #: apps/web/src/routes/join.tsx
 msgid "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
 msgstr "Para iniciar sessão com {0} mais tarde, termine a adesão, inicie sessão com a ligação por email e depois escolha Ligar em Definições → Métodos de início de sessão."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "To speak, use your keyboard's dictation (microphone) key. This app never records or uploads audio."
+msgstr "Para falar, use a tecla de ditado (microfone) do teclado. Esta aplicação nunca grava nem carrega áudio."
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -2947,6 +5216,12 @@ msgstr "Valor de hoje"
 msgid "Toggle theme"
 msgstr "Alternar tema"
 
+#. safety
+#. safety
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Tolerable upper intake level (UL)"
+msgstr "Nível máximo de ingestão tolerável (UL)"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "Tone"
@@ -2955,6 +5230,18 @@ msgstr "Tom"
 #: apps/web/src/components/admission-form.tsx
 msgid "Too many attempts. Wait a moment, then try again."
 msgstr "Demasiadas tentativas. Aguarde um momento e tente novamente."
+
+#: apps/web/src/components/nutrition-day-totals.tsx
+msgid "Total"
+msgstr "Total"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Total sugars"
+msgstr "Açúcares totais"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Totals are estimates from the foods you logged. They add up only the values each food's source provided."
+msgstr "Os totais são estimativas com base nos alimentos que registou. Somam apenas os valores indicados pela fonte de cada alimento."
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -2975,6 +5262,10 @@ msgstr "Tentar novamente"
 msgid "Try another name, or clear the search."
 msgstr "Experimente outro nome ou limpe a pesquisa."
 
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Try lookup again"
+msgstr "Tentar a consulta novamente"
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Turn off the weekly email"
@@ -2988,6 +5279,18 @@ msgstr "Desligar o email semanal de observações para este espaço de trabalho?
 msgid "Turn off this email"
 msgstr "Desligar este email"
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Turn on"
+msgstr "Ativar"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Turn on food drafts in your nutrition settings first."
+msgstr "Ative primeiro os rascunhos de alimentos nas suas definições de nutrição."
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Turn on photo drafts in your nutrition settings first."
+msgstr "Ative primeiro os rascunhos a partir de fotografias nas suas definições de nutrição."
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Turn on the weekly email"
@@ -2997,6 +5300,11 @@ msgstr "Ligar o email semanal"
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Turn on to let AI features process your data."
 msgstr "Ligue para permitir que as funcionalidades de IA tratem os seus dados."
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Two eggs, a slice of toast and a coffee"
+msgstr "Dois ovos, uma torrada e um café"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -3013,19 +5321,60 @@ msgstr "Escreva {confirmationPhrase} para confirmar"
 msgid "Type <0>{confirmationPhrase}</0> to confirm"
 msgstr "Escreva <0>{confirmationPhrase}</0> para confirmar"
 
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Type at least 2 characters to search food databases too."
+msgstr "Escreva pelo menos 2 caracteres para pesquisar também nas bases de dados de alimentos."
+
+#: apps/native/components/barcode-scanner.tsx
+msgid "Type digits instead"
+msgstr "Escrever os dígitos"
+
+#: packages/api/src/presenters/food-lookup.ts
+msgid "Type the digits printed under the barcode. Camera scanning is available in the mobile app."
+msgstr "Escreva os dígitos impressos por baixo do código de barras. A leitura com a câmara está disponível na aplicação para telemóvel."
+
+#: apps/native/components/energy-estimate-card.tsx
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "Unavailable"
+msgstr "Indisponível"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Undo"
+msgstr "Anular"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Undo changes"
 msgstr "Anular alterações"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Unfavourite"
+msgstr "Remover dos favoritos"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Unfavourite <0>{foodName}</0>"
+msgstr "Remover dos favoritos <0>{foodName}</0>"
 
 #. safety
 #. safety
 #. safety
 #. safety
 #: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
+#: packages/api/src/presenters/plain-water.ts
 msgid "Unit"
 msgstr "Unidade"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Unit (text)"
+msgstr "Unidade (texto)"
+
+#: packages/api/src/presenters/food-draft.ts
+msgid "Unit not stated"
+msgstr "Unidade não indicada"
 
 #: apps/web/src/components/product-settings-form.tsx
 msgid "United Kingdom"
@@ -3039,6 +5388,20 @@ msgstr "Estados Unidos"
 msgid "Units"
 msgstr "Unidades"
 
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "unknown"
+msgstr "desconhecido"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Unknown"
+msgstr "Desconhecido"
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Unknown means the food's source did not provide that value."
+msgstr "Desconhecido significa que a fonte do alimento não indicou esse valor."
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Unsaved changes"
@@ -3049,6 +5412,23 @@ msgstr "Alterações por guardar"
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Unsaved: {0}"
 msgstr "Por guardar: {0}"
+
+#: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/recipe-draft-editor.tsx
+msgid "Untitled recipe"
+msgstr "Receita sem título"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Up to {value} {unit}"
+msgstr "Até {value} {unit}"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Updated {foodName}"
+msgstr "{foodName} atualizado"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Updated {name}"
+msgstr "{name} atualizado"
 
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
@@ -3068,10 +5448,74 @@ msgstr "Usar {browserZone}"
 msgid "Use {zone}"
 msgstr "Usar {zone}"
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Use 24-hour time, for example 14:05."
+msgstr "Use o formato de 24 horas, por exemplo 14:05."
+
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Use a different email"
 msgstr "Usar outro email"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Use at most 100 characters for the serving name."
+msgstr "Use no máximo 100 caracteres para o nome da porção."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Use at most 200 characters for the brand."
+msgstr "Use no máximo 200 caracteres para a marca."
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Use at most 200 characters for the name."
+msgstr "Use no máximo 200 caracteres para o nome."
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Use the AI provider for this draft"
+msgstr "Usar o fornecedor de IA para este rascunho"
+
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Use this"
+msgstr "Usar esta opção"
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Use YYYY-MM-DD for the start date."
+msgstr "Use AAAA-MM-DD para a data de início."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Used only for safeguards on reduction suggestions."
+msgstr "Usado apenas para salvaguardas nas sugestões de redução."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "Values are per a positive amount, for example 100 g."
+msgstr "Os valores referem-se a uma quantidade positiva, por exemplo 100 g."
+
+#: apps/native/app/(drawer)/foods.tsx
+#: apps/native/app/(drawer)/nutrition.tsx
+#: apps/web/src/routes/_auth/foods.tsx
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Values per"
+msgstr "Valores por"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Values per {per}"
+msgstr "Valores por {per}"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Values per {per} · {label} = {size}"
+msgstr "Valores por {per} · {label} = {size}"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Values per {per} · 1 serving = {size}"
+msgstr "Valores por {per} · 1 porção = {size}"
+
+#: packages/api/src/presenters/custom-foods.ts
+msgid "Values per {per} · serving: {label}"
+msgstr "Valores por {per} · porção: {label}"
+
+#: apps/native/app/(drawer)/nutrition.tsx
+msgid "Values per amount"
+msgstr "Quantidade de referência dos valores"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Verification code"
@@ -3102,6 +5546,30 @@ msgstr "Visível para os membros deste espaço de trabalho."
 #: apps/web/src/components/header.tsx
 msgid "Vitals"
 msgstr "Sinais vitais"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Vitamin B12"
+msgstr "Vitamina B12"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Vitamin C"
+msgstr "Vitamina C"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Vitamin D"
+msgstr "Vitamina D"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Vitamins and minerals from the foods you logged that day. Foods that don't report a value are counted as unknown, never as zero."
+msgstr "Vitaminas e minerais dos alimentos que registou nesse dia. Os alimentos que não indicam um valor são contados como desconhecidos, nunca como zero."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Waiting to sync"
+msgstr "A aguardar sincronização"
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Water changes on this device"
+msgstr "Alterações de água neste dispositivo"
 
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "We could not load this invitation. It may have expired or been revoked."
@@ -3140,6 +5608,16 @@ msgstr "Email semanal de observações"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "What brings you here"
 msgstr "O que o traz cá"
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "What did you have?"
+msgstr "O que comeu ou bebeu?"
+
+#: apps/native/app/(drawer)/food-draft.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "Working…"
+msgstr "A processar…"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/workouts.tsx
@@ -3210,6 +5688,14 @@ msgstr "Não tem convites pendentes para espaços de trabalho."
 msgid "You have unsaved changes on this page. Leave without saving them?"
 msgstr "Tem alterações por guardar nesta página. Sair sem as guardar?"
 
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "You marked this day complete with nothing logged."
+msgstr "Marcou este dia como completo sem nada registado."
+
+#: packages/api/src/presenters/nutrition-diary.ts
+msgid "You marked this day complete."
+msgstr "Marcou este dia como completo."
+
 #. safety
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
@@ -3227,6 +5713,34 @@ msgstr "A sua conta está pronta."
 msgid "Your account is ready. Sign in to continue."
 msgstr "A sua conta está pronta. Inicie sessão para continuar."
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Your change"
+msgstr "A sua alteração"
+
+#: apps/web/src/components/plain-water-section.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Your change: {amount}."
+msgstr "A sua alteração: {amount}."
+
+#: apps/web/src/components/plain-water-section.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Your change: {clock}."
+msgstr "A sua alteração: {clock}."
+
+#: apps/web/src/components/plain-water-section.tsx
+msgid "Your change: a different time."
+msgstr "A sua alteração: outra hora."
+
+#: apps/web/src/components/plain-water-section.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Your change: remove the entry."
+msgstr "A sua alteração: remover o registo."
+
+#: apps/web/src/components/plain-water-section.tsx
+#: packages/api/src/presenters/plain-water.ts
+msgid "Your change: the entry values."
+msgstr "A sua alteração: os valores do registo."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
@@ -3242,6 +5756,22 @@ msgstr "O seu perfil foi alterado noutro local. Carregámos a versão mais recen
 msgid "Your role: <0>{0}</0>"
 msgstr "A sua função: <0>{0}</0>"
 
+#: packages/api/src/presenters/plain-water.ts
+msgid "Your saved amount is hidden. Enter a new amount to replace it."
+msgstr "A quantidade guardada está oculta. Introduza uma nova quantidade para a substituir."
+
+#: packages/api/src/presenters/plain-water.ts
+msgid "Your saved goal is hidden. Enter a new goal to replace it, or clear it."
+msgstr "A meta guardada está oculta. Introduza uma nova meta para a substituir, ou limpe-a."
+
+#: packages/api/src/presenters/nutrition-targets.ts
+msgid "Your targets"
+msgstr "Os seus objetivos"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "YYYY-MM-DD"
 msgstr "AAAA-MM-DD"
+
+#: packages/api/src/presenters/micronutrients.ts
+msgid "Zinc"
+msgstr "Zinco"
