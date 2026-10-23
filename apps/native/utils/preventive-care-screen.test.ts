@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n } from "@openvalens/i18n/testing";
 import type { PreventiveCareResult } from "@openvalens/api/preventive-care-contract";
 import { evaluatePreventiveCare } from "@openvalens/api/preventive-care-engine";
 import { PREVENTIVE_CARE_PACK } from "@openvalens/api/preventive-care-pack";
@@ -35,7 +36,7 @@ function result(overrides: Partial<PreventiveCareResult> = {}): PreventiveCareRe
 
 describe("preventive-care screen (native)", () => {
   test("same items, grades and citations as web", () => {
-    const model = preventiveScreenModel(result());
+    const model = preventiveScreenModel(englishI18n, result());
     const breast = model.items.find((entry) => entry.card.key === "uk.breast_screening");
     expect(breast?.card.gradeLabel).toBe("Offered by NHS screening programme (England)");
     expect(breast?.card.framing).toContain("not personal medical advice");
@@ -45,7 +46,7 @@ describe("preventive-care screen (native)", () => {
   });
 
   test("no region: explanation, profile link, no list", () => {
-    const model = preventiveScreenModel(result({ status: "no_region", region: null }));
+    const model = preventiveScreenModel(englishI18n, result({ status: "no_region", region: null }));
     expect(model.statusText).toContain("Choose your region");
     expect(model.showProfileLink).toBe(true);
     expect(model.items).toEqual([]);
@@ -53,7 +54,7 @@ describe("preventive-care screen (native)", () => {
   });
 
   test("library off by default; typed dates validated", () => {
-    expect(libraryModel(undefined).cards).toEqual([]);
+    expect(libraryModel(englishI18n, undefined).cards).toEqual([]);
     expect(parseTypedDate("")).toBeNull();
     expect(parseTypedDate("2027-02-28")).toBe("2027-02-28");
     expect(parseTypedDate("2027-02-30")).toBeUndefined();

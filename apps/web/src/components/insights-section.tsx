@@ -63,7 +63,7 @@ function SubjectInsightsSection({
   organizationId: string | null;
 }) {
   const queryClient = useQueryClient();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const readiness = useQuery({
     ...orpc.score.readiness.queryOptions({ input: {} }),
     queryKey: privateInsightsQueryKey(
@@ -175,7 +175,7 @@ function SubjectInsightsSection({
           goals={goals.data ?? null}
           scoresLink={
             <Link to="/scores" className="text-sm text-muted-foreground underline">
-              {INSIGHT_COPY.summariesLink}
+              {i18n._(INSIGHT_COPY.summariesLink)}
             </Link>
           }
         />
@@ -198,7 +198,7 @@ function SubjectInsightsSection({
             coachLink={
               consent.data?.granted === true ? (
                 <Link to="/coach" className="text-sm underline">
-                  {INSIGHT_COPY.askCoach}
+                  {i18n._(INSIGHT_COPY.askCoach)}
                 </Link>
               ) : null
             }
@@ -273,7 +273,7 @@ function SubjectInsightsSection({
               {showObservations
                 ? insights.data.observations.map((item) =>
                     (() => {
-                      const view = nutritionObservationView(item);
+                      const view = nutritionObservationView(i18n, item);
                       return (
                         <article
                           key={`${item.ruleId}:${item.window.from}`}

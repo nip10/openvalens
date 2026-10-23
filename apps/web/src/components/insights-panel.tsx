@@ -45,7 +45,7 @@ export function SummaryCards({
     <section aria-labelledby="summaries-title" className="grid gap-3">
       <div className="flex items-baseline justify-between">
         <h2 id="summaries-title" className="text-lg font-semibold">
-          {INSIGHT_COPY.summariesTitle}
+          {i18n._(INSIGHT_COPY.summariesTitle)}
         </h2>
         {scoresLink ?? null}
       </div>
@@ -108,6 +108,7 @@ function InsightItem({
   coachLink: ReactNode;
   onFeedback: (action: InsightFeedbackAction) => void;
 }) {
+  const { i18n } = useLingui();
   return (
     <li className="grid gap-2 border-t border-border py-3 first:border-t-0">
       <article aria-label={view.accessibilityLabel} className="grid gap-1">
@@ -131,19 +132,19 @@ function InsightItem({
           variant="outline"
           disabled={pending}
           onClick={() => onFeedback("dismiss")}
-          aria-label={`${INSIGHT_COPY.dismiss}: ${view.title}`}
+          aria-label={i18n._(INSIGHT_COPY.dismissLabel(view.title))}
         >
-          {INSIGHT_COPY.dismiss}
+          {i18n._(INSIGHT_COPY.dismiss)}
         </Button>
         <Button
           size="sm"
           variant="ghost"
           disabled={pending}
           onClick={() => onFeedback("not_useful")}
-          aria-label={`${INSIGHT_COPY.notUseful}: ${view.title}. ${INSIGHT_COPY.notUsefulHint}`}
-          title={INSIGHT_COPY.notUsefulHint}
+          aria-label={i18n._(INSIGHT_COPY.notUsefulLabel(view.title))}
+          title={i18n._(INSIGHT_COPY.notUsefulHint)}
         >
-          {INSIGHT_COPY.notUseful}
+          {i18n._(INSIGHT_COPY.notUseful)}
         </Button>
         {coachLink}
       </div>
@@ -158,20 +159,21 @@ export function PushOfferCard({
   pending: boolean;
   onAnswer: (answer: "accepted" | "declined") => void;
 }) {
+  const { i18n } = useLingui();
   return (
     <Card role="region" aria-labelledby="push-offer-title">
       <CardHeader>
         <CardTitle id="push-offer-title" className="text-base">
-          {INSIGHT_DELIVERY_COPY.pushOfferTitle}
+          {i18n._(INSIGHT_DELIVERY_COPY.pushOfferTitle)}
         </CardTitle>
-        <CardDescription>{INSIGHT_DELIVERY_COPY.pushOfferBody}</CardDescription>
+        <CardDescription>{i18n._(INSIGHT_DELIVERY_COPY.pushOfferBody)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button size="sm" disabled={pending} onClick={() => onAnswer("accepted")}>
-          {INSIGHT_DELIVERY_COPY.pushOfferAccept}
+          {i18n._(INSIGHT_DELIVERY_COPY.pushOfferAccept)}
         </Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={() => onAnswer("declined")}>
-          {INSIGHT_DELIVERY_COPY.pushOfferDecline}
+          {i18n._(INSIGHT_DELIVERY_COPY.pushOfferDecline)}
         </Button>
         <p className="w-full text-xs text-muted-foreground">
           <Trans>Notifications arrive on phones where you allow them in the mobile app.</Trans>
@@ -195,18 +197,19 @@ export function InsightsCard({
   coachLink?: ReactNode;
   onFeedback: (insightId: string, action: InsightFeedbackAction) => void;
 }) {
-  const view = insightsListView(result, settings);
+  const { i18n } = useLingui();
+  const view = insightsListView(i18n, result, settings);
   return (
     <Card role="region" aria-labelledby="insights-title">
       <CardHeader>
-        <CardTitle id="insights-title">{INSIGHT_COPY.sectionTitle}</CardTitle>
-        <CardDescription>{INSIGHT_COPY.sectionIntro}</CardDescription>
+        <CardTitle id="insights-title">{i18n._(INSIGHT_COPY.sectionTitle)}</CardTitle>
+        <CardDescription>{i18n._(INSIGHT_COPY.sectionIntro)}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {view.withheld ? <p className="text-sm">{view.withheld}</p> : null}
         {view.emptyText ? <p className="text-sm">{view.emptyText}</p> : null}
         {view.insights.length > 0 ? (
-          <ul aria-label={INSIGHT_COPY.sectionTitle}>
+          <ul aria-label={i18n._(INSIGHT_COPY.sectionTitle)}>
             {view.insights.map((insight) => (
               <InsightItem
                 key={insight.key}
@@ -225,7 +228,7 @@ export function InsightsCard({
         ))}
         {view.notReady.length > 0 ? (
           <div>
-            <h3 className="mb-1 text-sm font-medium">{INSIGHT_COPY.notReadyTitle}</h3>
+            <h3 className="mb-1 text-sm font-medium">{i18n._(INSIGHT_COPY.notReadyTitle)}</h3>
             <ul className="grid gap-1 text-sm">
               {view.notReady.map((row) => (
                 <li key={row.key}>
@@ -237,10 +240,10 @@ export function InsightsCard({
           </div>
         ) : null}
         <details className="text-sm">
-          <summary className="cursor-pointer font-medium">{INSIGHT_COPY.method}</summary>
-          <p className="mt-2 text-muted-foreground">{INSIGHT_COPY.methodText}</p>
+          <summary className="cursor-pointer font-medium">{i18n._(INSIGHT_COPY.method)}</summary>
+          <p className="mt-2 text-muted-foreground">{i18n._(INSIGHT_COPY.methodText)}</p>
         </details>
-        <p className="text-sm text-muted-foreground">{INSIGHT_COPY.limits}</p>
+        <p className="text-sm text-muted-foreground">{i18n._(INSIGHT_COPY.limits)}</p>
         <p className="text-xs text-muted-foreground">{view.versionText}</p>
       </CardContent>
     </Card>

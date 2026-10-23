@@ -51,25 +51,27 @@ export function InsightNotificationsForm({
   );
   const canDeliver = preferences.canConfigureDelivery;
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const { t } = useLingui();
-  const pushTitle = INSIGHT_DELIVERY_COPY.pushTitle;
+  const { t, i18n } = useLingui();
+  const pushTitle = i18n._(INSIGHT_DELIVERY_COPY.pushTitle);
 
   return (
     <Card role="region" aria-labelledby="insight-notifications-title">
       <CardHeader>
         <CardTitle id="insight-notifications-title">
-          {INSIGHT_DELIVERY_COPY.settingsTitle}
+          {i18n._(INSIGHT_DELIVERY_COPY.settingsTitle)}
         </CardTitle>
-        <CardDescription>{INSIGHT_DELIVERY_COPY.settingsIntro}</CardDescription>
+        <CardDescription>{i18n._(INSIGHT_DELIVERY_COPY.settingsIntro)}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-6">
-        {!canDeliver ? <p className="text-sm">{INSIGHT_DELIVERY_COPY.ownerOnly}</p> : null}
+        {!canDeliver ? <p className="text-sm">{i18n._(INSIGHT_DELIVERY_COPY.ownerOnly)}</p> : null}
 
         <fieldset className="grid gap-2" disabled={pending || !canDeliver}>
-          <legend className="font-medium">{INSIGHT_DELIVERY_COPY.pushTitle}</legend>
-          <p className="text-sm text-muted-foreground">{INSIGHT_DELIVERY_COPY.pushDescription}</p>
+          <legend className="font-medium">{i18n._(INSIGHT_DELIVERY_COPY.pushTitle)}</legend>
+          <p className="text-sm text-muted-foreground">
+            {i18n._(INSIGHT_DELIVERY_COPY.pushDescription)}
+          </p>
           {!preferences.pushAvailable ? (
-            <p className="text-sm">{INSIGHT_DELIVERY_COPY.pushUnavailable}</p>
+            <p className="text-sm">{i18n._(INSIGHT_DELIVERY_COPY.pushUnavailable)}</p>
           ) : (
             <>
               <div className="flex items-center gap-3">
@@ -88,11 +90,13 @@ export function InsightNotificationsForm({
                   checked={preferences.push.showTopic}
                   onCheckedChange={(showTopic) => onUpdate({ push: { showTopic } })}
                 />
-                <Label htmlFor="insight-push-topic">{INSIGHT_DELIVERY_COPY.pushShowTopic}</Label>
+                <Label htmlFor="insight-push-topic">
+                  {i18n._(INSIGHT_DELIVERY_COPY.pushShowTopic)}
+                </Label>
               </div>
               {preferences.push.enabled && preferences.push.registeredDevices === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  {INSIGHT_DELIVERY_COPY.pushNoDevice}
+                  {i18n._(INSIGHT_DELIVERY_COPY.pushNoDevice)}
                 </p>
               ) : null}
             </>
@@ -100,10 +104,12 @@ export function InsightNotificationsForm({
         </fieldset>
 
         <fieldset className="grid gap-2" disabled={pending || !canDeliver}>
-          <legend className="font-medium">{INSIGHT_DELIVERY_COPY.emailTitle}</legend>
-          <p className="text-sm text-muted-foreground">{INSIGHT_DELIVERY_COPY.emailDescription}</p>
+          <legend className="font-medium">{i18n._(INSIGHT_DELIVERY_COPY.emailTitle)}</legend>
+          <p className="text-sm text-muted-foreground">
+            {i18n._(INSIGHT_DELIVERY_COPY.emailDescription)}
+          </p>
           {!preferences.emailAvailable ? (
-            <p className="text-sm">{INSIGHT_DELIVERY_COPY.emailUnavailable}</p>
+            <p className="text-sm">{i18n._(INSIGHT_DELIVERY_COPY.emailUnavailable)}</p>
           ) : preferences.email.enabled ? (
             <div className="flex items-center gap-3">
               <Button
@@ -120,7 +126,7 @@ export function InsightNotificationsForm({
           ) : (
             <>
               <p className="text-sm" id="insight-email-disclosure">
-                {INSIGHT_DELIVERY_COPY.emailDisclosure}
+                {i18n._(INSIGHT_DELIVERY_COPY.emailDisclosure)}
               </p>
               <label className="flex items-start gap-2 text-sm">
                 <input
@@ -130,7 +136,7 @@ export function InsightNotificationsForm({
                   aria-describedby="insight-email-disclosure"
                   onChange={(event) => setAcknowledged(event.target.checked)}
                 />
-                {INSIGHT_DELIVERY_COPY.emailAcknowledge}
+                {i18n._(INSIGHT_DELIVERY_COPY.emailAcknowledge)}
               </label>
               <div>
                 <Button
@@ -153,10 +159,10 @@ export function InsightNotificationsForm({
         </fieldset>
 
         <fieldset className="grid gap-2" disabled={pending}>
-          <legend className="font-medium">{INSIGHT_DELIVERY_COPY.deliveryHour}</legend>
+          <legend className="font-medium">{i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)}</legend>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <label className="flex items-center gap-2">
-              {INSIGHT_DELIVERY_COPY.deliveryHour}
+              {i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)}
               <select
                 className="rounded-md border border-input bg-background px-2 py-1"
                 value={preferences.deliveryHour}
@@ -170,7 +176,7 @@ export function InsightNotificationsForm({
               </select>
             </label>
             <span>
-              {INSIGHT_DELIVERY_COPY.timeZone}: {preferences.timeZone}
+              {i18n._(INSIGHT_DELIVERY_COPY.timeZone)}: {preferences.timeZone}
             </span>
             {browserZone && browserZone !== preferences.timeZone ? (
               <Button
@@ -185,8 +191,10 @@ export function InsightNotificationsForm({
         </fieldset>
 
         <fieldset className="grid gap-2" disabled={pending}>
-          <legend className="font-medium">{INSIGHT_DELIVERY_COPY.kindsTitle}</legend>
-          <p className="text-sm text-muted-foreground">{INSIGHT_DELIVERY_COPY.kindsIntro}</p>
+          <legend className="font-medium">{i18n._(INSIGHT_DELIVERY_COPY.kindsTitle)}</legend>
+          <p className="text-sm text-muted-foreground">
+            {i18n._(INSIGHT_DELIVERY_COPY.kindsIntro)}
+          </p>
           <table className="text-sm">
             <thead>
               <tr>
@@ -195,7 +203,7 @@ export function InsightNotificationsForm({
                 </th>
                 {INSIGHT_CHANNELS.map((channel) => (
                   <th key={channel} scope="col" className="px-2 text-left font-medium">
-                    {INSIGHT_CHANNEL_LABELS[channel]}
+                    {i18n._(INSIGHT_CHANNEL_LABELS[channel])}
                   </th>
                 ))}
               </tr>
@@ -204,13 +212,13 @@ export function InsightNotificationsForm({
               {GENERIC_DELIVERY_KINDS.map((kind) => (
                 <tr key={kind}>
                   <th scope="row" className="py-1 text-left font-normal">
-                    {INSIGHT_KIND_LABELS[kind]}
+                    {i18n._(INSIGHT_KIND_LABELS[kind])}
                   </th>
                   {INSIGHT_CHANNELS.map((channel) => (
                     <td key={channel} className="px-2">
                       <input
                         type="checkbox"
-                        aria-label={`${INSIGHT_KIND_LABELS[kind]} — ${INSIGHT_CHANNEL_LABELS[channel]}`}
+                        aria-label={`${i18n._(INSIGHT_KIND_LABELS[kind])} — ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
                         checked={preferences.channels[kind][channel]}
                         onChange={(event) =>
                           onUpdate({ channels: { [kind]: { [channel]: event.target.checked } } })

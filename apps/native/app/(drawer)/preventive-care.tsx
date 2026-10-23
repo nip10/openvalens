@@ -135,6 +135,7 @@ function ItemCard({
   pending: boolean;
   onUpdate: (patch: PreventiveItemUpdate) => void;
 }) {
+  const { i18n } = useLingui();
   return (
     <Card variant="secondary" className="gap-2 p-4">
       <View accessible accessibilityLabel={card.accessibilityLabel} className="gap-1">
@@ -144,7 +145,7 @@ function ItemCard({
         <Text className="text-sm font-medium text-foreground">{card.gradeLabel}</Text>
       </View>
       {card.beingReviewed ? (
-        <Text className="text-sm text-foreground">{PREVENTIVE_COPY.beingReviewed}</Text>
+        <Text className="text-sm text-foreground">{i18n._(PREVENTIVE_COPY.beingReviewed)}</Text>
       ) : null}
       <Text className="text-sm font-medium text-foreground">{card.applicabilityText}</Text>
       {card.facts.map((fact) => (
@@ -162,7 +163,7 @@ function ItemCard({
       ) : null}
       {card.decisionAidUrl ? (
         <TextButton
-          label={PREVENTIVE_COPY.decisionAid}
+          label={i18n._(PREVENTIVE_COPY.decisionAid)}
           onPress={() => void Linking.openURL(card.decisionAidUrl!)}
         />
       ) : null}
@@ -172,18 +173,18 @@ function ItemCard({
       </Text>
       <View className="flex-row flex-wrap gap-3">
         <TextButton
-          label={PREVENTIVE_COPY.sourceLink}
+          label={i18n._(PREVENTIVE_COPY.sourceLink)}
           onPress={() => void Linking.openURL(card.sourceUrl)}
         />
         <TextButton
-          label={PREVENTIVE_COPY.reportProblem}
+          label={i18n._(PREVENTIVE_COPY.reportProblem)}
           onPress={() => void Linking.openURL(PREVENTIVE_COPY.reportProblemUrl(card.key))}
         />
       </View>
       {canEdit && !card.beingReviewed ? (
         <View className="gap-3 border-t border-border pt-3">
           <DateField
-            label={PREVENTIVE_COPY.lastDone}
+            label={i18n._(PREVENTIVE_COPY.lastDone)}
             initial={view.state.lastDoneOn}
             disabled={pending}
             onSave={(value) => onUpdate({ itemId: view.id, lastDoneOn: value })}
@@ -191,7 +192,7 @@ function ItemCard({
           {view.canRemind ? (
             <>
               <DateField
-                label={PREVENTIVE_COPY.nextDate}
+                label={i18n._(PREVENTIVE_COPY.nextDate)}
                 initial={view.state.nextOn}
                 disabled={pending}
                 onSave={(value) =>
@@ -204,24 +205,28 @@ function ItemCard({
               />
               {view.suggestedNextOn && view.suggestedNextOn !== view.state.nextOn ? (
                 <TextButton
-                  label={PREVENTIVE_COPY.useSuggestion(formatGuidanceDate(view.suggestedNextOn))}
+                  label={i18n._(
+                    PREVENTIVE_COPY.useSuggestion(formatGuidanceDate(view.suggestedNextOn)),
+                  )}
                   disabled={pending}
                   onPress={() => onUpdate({ itemId: view.id, nextOn: view.suggestedNextOn })}
                 />
               ) : null}
               <View className="min-h-11 flex-row items-center justify-between gap-3">
-                <Text className="flex-1 text-sm text-foreground">{PREVENTIVE_COPY.remind}</Text>
+                <Text className="flex-1 text-sm text-foreground">
+                  {i18n._(PREVENTIVE_COPY.remind)}
+                </Text>
                 <Switch
                   value={view.state.remind}
                   disabled={pending || view.state.nextOn === null}
                   onValueChange={(remind) => onUpdate({ itemId: view.id, remind })}
-                  accessibilityLabel={PREVENTIVE_COPY.remind}
+                  accessibilityLabel={i18n._(PREVENTIVE_COPY.remind)}
                   accessibilityState={{ checked: view.state.remind }}
                 />
               </View>
               {view.reminderMode === "expect_invitation" ? (
                 <Choice
-                  label={PREVENTIVE_COPY.plans.expect_invitation}
+                  label={i18n._(PREVENTIVE_COPY.plans.expect_invitation)}
                   selected={view.state.plan === "expect_invitation"}
                   disabled={pending}
                   onPress={() =>
@@ -239,7 +244,7 @@ function ItemCard({
               {(["decided_yes", "decided_no", "decided_later"] as const).map((plan) => (
                 <Choice
                   key={plan}
-                  label={PREVENTIVE_COPY.plans[plan]}
+                  label={i18n._(PREVENTIVE_COPY.plans[plan])}
                   selected={view.state.plan === plan}
                   disabled={pending}
                   onPress={() => onUpdate({ itemId: view.id, plan })}
@@ -255,7 +260,7 @@ function ItemCard({
 
 export default function PreventiveCareScreen() {
   const queryClient = useQueryClient();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const [message, setMessage] = useState<string | null>(null);
   const result = useQuery(orpc.preventiveCare.get.queryOptions({ input: {} }));
   const library = useQuery({
@@ -300,8 +305,8 @@ export default function PreventiveCareScreen() {
       </Container>
     );
 
-  const model = preventiveScreenModel(result.data);
-  const lib = libraryModel(model.libraryEnabled ? library.data : undefined);
+  const model = preventiveScreenModel(i18n, result.data);
+  const lib = libraryModel(i18n, model.libraryEnabled ? library.data : undefined);
 
   return (
     <Container
@@ -327,7 +332,7 @@ export default function PreventiveCareScreen() {
               <Link href="/profile" asChild>
                 <Pressable accessibilityRole="link" className="min-h-11 justify-center">
                   <Text className="font-medium text-foreground underline">
-                    {PREVENTIVE_COPY.profileLink}
+                    {i18n._(PREVENTIVE_COPY.profileLink)}
                   </Text>
                 </Pressable>
               </Link>
@@ -343,9 +348,11 @@ export default function PreventiveCareScreen() {
           <CardStack>
             <Card variant="secondary" className="gap-3 p-4">
               <Text className="text-lg font-semibold text-foreground" accessibilityRole="header">
-                {PREVENTIVE_COPY.criteriaTitle}
+                {i18n._(PREVENTIVE_COPY.criteriaTitle)}
               </Text>
-              <Text className="text-sm text-muted-foreground">{PREVENTIVE_COPY.criteriaIntro}</Text>
+              <Text className="text-sm text-muted-foreground">
+                {i18n._(PREVENTIVE_COPY.criteriaIntro)}
+              </Text>
               {model.criteria.map((criterion) => (
                 <View key={criterion.id} className="gap-1 border-t border-border pt-2">
                   <Text className="text-sm font-medium text-foreground">{criterion.question}</Text>
@@ -354,7 +361,7 @@ export default function PreventiveCareScreen() {
                     {DECLARATION_ANSWERS.map((answer) => (
                       <Choice
                         key={answer}
-                        label={DECLARATION_LABELS[answer]}
+                        label={i18n._(DECLARATION_LABELS[answer])}
                         selected={criterion.answer === answer}
                         disabled={pending || !model.canEdit}
                         onPress={() => declare.mutate({ criterion: criterion.id, answer })}
@@ -363,7 +370,7 @@ export default function PreventiveCareScreen() {
                   </View>
                   {criterion.answer !== null && model.canEdit ? (
                     <TextButton
-                      label={PREVENTIVE_COPY.clearAnswer}
+                      label={i18n._(PREVENTIVE_COPY.clearAnswer)}
                       disabled={pending}
                       onPress={() => declare.mutate({ criterion: criterion.id, answer: null })}
                     />
@@ -386,9 +393,11 @@ export default function PreventiveCareScreen() {
         {model.notShown.length > 0 ? (
           <View className="gap-1">
             <Text className="text-base font-medium text-foreground">
-              {PREVENTIVE_COPY.notShownTitle} ({model.notShown.length})
+              {i18n._(PREVENTIVE_COPY.notShownTitle)} ({model.notShown.length})
             </Text>
-            <Text className="text-sm text-muted-foreground">{PREVENTIVE_COPY.notShownIntro}</Text>
+            <Text className="text-sm text-muted-foreground">
+              {i18n._(PREVENTIVE_COPY.notShownIntro)}
+            </Text>
             {model.notShown.map((title, index) => (
               <Text key={`${title}-${index}`} className="text-sm text-foreground">
                 • {title}
@@ -403,18 +412,18 @@ export default function PreventiveCareScreen() {
               <View className="gap-1">
                 <View className="min-h-11 flex-row items-center justify-between gap-3">
                   <Text className="flex-1 text-sm text-foreground">
-                    {PREVENTIVE_COPY.libraryToggle}
+                    {i18n._(PREVENTIVE_COPY.libraryToggle)}
                   </Text>
                   <Switch
                     value={model.libraryEnabled}
                     disabled={pending}
                     onValueChange={(enabled) => settings.mutate(enabled)}
-                    accessibilityLabel={PREVENTIVE_COPY.libraryToggle}
+                    accessibilityLabel={i18n._(PREVENTIVE_COPY.libraryToggle)}
                     accessibilityState={{ checked: model.libraryEnabled }}
                   />
                 </View>
                 <Text className="text-xs text-muted-foreground">
-                  {PREVENTIVE_COPY.libraryToggleHint}
+                  {i18n._(PREVENTIVE_COPY.libraryToggleHint)}
                 </Text>
               </View>
             ) : null}

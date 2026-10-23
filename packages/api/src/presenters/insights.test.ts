@@ -205,7 +205,7 @@ describe("insight templates (copy lint)", () => {
 
   test("no template uses advice, diagnostic, risk, judging or causal wording", () => {
     const failures = everyInsight()
-      .map((insight) => ({ id: insight.id, text: allText(insightView(insight)) }))
+      .map((insight) => ({ id: insight.id, text: allText(insightView(englishI18n, insight)) }))
       .map(({ id, text }) => ({ id, text, hits: lint(text) }))
       .filter((entry) => entry.hits.length > 0);
     expect(failures).toEqual([]);
@@ -213,11 +213,13 @@ describe("insight templates (copy lint)", () => {
 
   test("fixed copy passes the same lint", () => {
     const fixed = [
-      ...(Object.values(INSIGHT_COPY) as unknown[]).filter(
-        (value): value is string => typeof value === "string",
-      ),
-      INSIGHT_COPY.hiddenSome(2),
-      INSIGHT_COPY.suppressed(1),
+      ...Object.values(INSIGHT_COPY)
+        .filter((value) => typeof value !== "function")
+        .map(inEnglish),
+      inEnglish(INSIGHT_COPY.hiddenSome(2)),
+      inEnglish(INSIGHT_COPY.hiddenSome(1)),
+      inEnglish(INSIGHT_COPY.suppressed(1)),
+      inEnglish(INSIGHT_COPY.suppressed(3)),
       inEnglish(INSIGHT_EMAIL_COPY.intro),
       inEnglish(INSIGHT_EMAIL_COPY.none),
     ];
@@ -226,6 +228,7 @@ describe("insight templates (copy lint)", () => {
 
   test("a change states what changed, against which usual, how sure, and coverage", () => {
     const view = insightView(
+      englishI18n,
       make("change.resting_heart_rate", change("resting_heart_rate", "higher", "clear")),
     );
     expect(view.title).toBe("Resting heart rate higher than your usual");
@@ -241,6 +244,7 @@ describe("insight templates (copy lint)", () => {
 
   test("co-occurring factors are worded as co-occurrence only", () => {
     const view = insightView(
+      englishI18n,
       make("change.sleep_duration", change("sleep_duration", "lower", "modest"), true),
     );
     expect(view.factorsText).toBe(
@@ -250,6 +254,7 @@ describe("insight templates (copy lint)", () => {
 
   test("weight respects imperial display settings", () => {
     const view = insightView(
+      englishI18n,
       make("change.weight_trend", {
         type: "trend",
         metric: "weight",
@@ -265,6 +270,70 @@ describe("insight templates (copy lint)", () => {
     );
     expect(view.body).toContain("lb");
     expect(view.body).not.toContain("kg");
+  });
+});
+
+describe("insight templates in pt-PT (#231)", () => {
+  const pt = createAppI18n("pt-PT");
+  const first = (type: InsightDetail["type"]) =>
+    everyInsight().find((insight) => insight.detail.type === type)!;
+
+  test("one insight of each detail type renders in European Portuguese", () => {
+    const titles = Object.fromEntries(
+      (
+        [
+          "change",
+          "trend",
+          "goal",
+          "recording_gap",
+          "source_change",
+          "streak",
+          "meals_and_workouts",
+          "meals_near_sleep",
+          "activity_energy_context",
+        ] as const
+      ).map((type) => [type, insightView(pt, first(type)).title]),
+    );
+    expect(titles).toEqual({
+      change: "Sono acima do seu habitual",
+      trend: "Peso em tendência de subida",
+      goal: "Alvo atingido: Walk 10k steps",
+      recording_gap: "Sem registos de sono desde 11 Oct",
+      source_change: "Nova fonte de dados para o sono",
+      streak: "14 dias seguidos com registo de sono",
+      meals_and_workouts: "Refeições e treinos registados",
+      meals_near_sleep: "Refeições e horário do sono registado",
+      activity_energy_context: "Energia de atividade registada",
+    });
+    const view = insightView(
+      pt,
+      make("change.resting_heart_rate", change("resting_heart_rate", "lower", "clear"), true),
+    );
+    expect(view.body).toBe(
+      "A sua média de frequência cardíaca em repouso nos últimos 7 dias foi de 64 bpm, 50 bpm abaixo do seu habitual de 59 bpm.",
+    );
+    expect(view.coverageText).toBe(
+      "Com base em 7 dos últimos 7 dias, em comparação com 26 dias nos 28 dias anteriores.",
+    );
+    expect(view.factorsText).toBe(
+      "No mesmo período, o seu número de passos esteve abaixo do habitual e a sua frequência cardíaca em repouso esteve acima do habitual. Estas alterações aconteceram ao mesmo tempo; isso não significa que uma explique a outra.",
+    );
+    expect(view.kindLabel).toBe("Alterações em comparação com o seu habitual");
+    expect(view.ruleText).toBe("Regra change.resting_heart_rate v1");
+  });
+
+  test("no rendered sentence falls back to English", () => {
+    for (const insight of everyInsight()) {
+      const english = insightView(englishI18n, insight);
+      const portuguese = insightView(pt, insight);
+      for (const key of ["title", "body", "certaintyText", "coverageText", "factorsText"] as const)
+        if (english[key] !== null)
+          expect({ key, text: portuguese[key] }).not.toEqual({ key, text: english[key] });
+    }
+    expect(pt._(INSIGHT_COPY.hiddenSome(1))).toBe(
+      "1 perspetiva está oculta pelo que dispensou ou pelas suas definições.",
+    );
+    expect(pt._(INSIGHT_COPY.sectionTitle)).toBe("Perspetivas");
   });
 });
 
@@ -290,7 +359,7 @@ describe("not enough data", () => {
         recentMinDays: 5,
       },
     ];
-    const views = insightReadinessViews(readiness);
+    const views = insightReadinessViews(englishI18n, readiness);
     expect(views).toEqual([
       {
         key: "change.sleep_duration",
@@ -318,8 +387,8 @@ describe("generic delivery kinds", () => {
       "reminder",
     ]);
     for (const kind of GENERIC_DELIVERY_KINDS) {
-      expect(INSIGHT_KIND_LABELS[kind]).toBeTruthy();
-      expect(INSIGHT_KIND_LABELS[kind]).not.toMatch(/observation/i);
+      expect(inEnglish(INSIGHT_KIND_LABELS[kind])).toBeTruthy();
+      expect(inEnglish(INSIGHT_KIND_LABELS[kind])).not.toMatch(/observation/i);
     }
   });
 });

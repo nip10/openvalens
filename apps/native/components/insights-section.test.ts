@@ -191,7 +191,7 @@ if (!childMode) {
     cache.setQueryData(key("insights"), payload);
     cache.setQueryData(key("preferences"), preferences);
     cache.setQueryData(key("consent"), { granted: false });
-    const view = nutritionObservationView(observation);
+    const view = nutritionObservationView(englishI18n, observation);
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -280,7 +280,7 @@ if (!childMode) {
       } as unknown as InsightsResult["observations"][number];
       const redactedPayload = { ...payload, observations: [redacted] };
       await reset(preferences, redactedPayload);
-      const redactedView = nutritionObservationView(redacted);
+      const redactedView = nutritionObservationView(englishI18n, redacted);
       expect(container.textContent).not.toContain("matching timestamped records");
       expect(container.textContent).not.toContain("minimum");
       expect(labels().join("\n")).not.toContain("matching timestamped records");

@@ -1,3 +1,4 @@
+import type { I18n } from "@lingui/core";
 import type {
   EvidenceLibraryResult,
   PreventiveCareResult,
@@ -39,32 +40,43 @@ export type PreventiveScreenModel = {
   libraryEnabled: boolean;
 };
 
-export function preventiveScreenModel(result: PreventiveCareResult): PreventiveScreenModel {
-  const page = preventivePageNotes(result);
+export function preventiveScreenModel(
+  i18n: I18n,
+  result: PreventiveCareResult,
+): PreventiveScreenModel {
+  const page = preventivePageNotes(i18n, result);
   const available = result.status === "available";
   return {
-    title: PREVENTIVE_COPY.pageTitle,
-    intro: PREVENTIVE_COPY.pageIntro,
+    title: i18n._(PREVENTIVE_COPY.pageTitle),
+    intro: i18n._(PREVENTIVE_COPY.pageIntro),
     statusText: page.statusText,
     showProfileLink:
       result.status === "no_region" || result.status === "adult_confirmation_required",
     notes: page.notes,
     criteria: available ? result.criteria : [],
-    items: available ? result.items.map((view) => ({ card: preventiveItemCard(view), view })) : [],
+    items: available
+      ? result.items.map((view) => ({ card: preventiveItemCard(i18n, view), view }))
+      : [],
     notShown: available ? result.notShown.map((entry) => entry.title) : [],
-    disclaimer: PREVENTIVE_COPY.disclaimer,
+    disclaimer: i18n._(PREVENTIVE_COPY.disclaimer),
     versionText: page.versionText,
     canEdit: available && result.canEdit,
     libraryEnabled: result.libraryEnabled,
   };
 }
 
-export function libraryModel(library: EvidenceLibraryResult | undefined): {
+export function libraryModel(
+  i18n: I18n,
+  library: EvidenceLibraryResult | undefined,
+): {
   text: string;
   cards: EvidenceEntryCard[];
 } {
-  if (!library || !library.enabled) return { text: LIBRARY_COPY.off, cards: [] };
-  return { text: LIBRARY_COPY.intro, cards: library.entries.map(evidenceEntryCard) };
+  if (!library || !library.enabled) return { text: i18n._(LIBRARY_COPY.off), cards: [] };
+  return {
+    text: i18n._(LIBRARY_COPY.intro),
+    cards: library.entries.map((entry) => evidenceEntryCard(i18n, entry)),
+  };
 }
 
 /** A typed date (YYYY-MM-DD), `null` for blank, or `undefined` when invalid. */

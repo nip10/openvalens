@@ -114,29 +114,31 @@ export default function InsightSettingsScreen() {
       <View className="gap-6 p-4">
         <View className="gap-1">
           <Text className="font-mono text-2xl text-foreground">
-            {INSIGHT_DELIVERY_COPY.settingsTitle}
+            {i18n._(INSIGHT_DELIVERY_COPY.settingsTitle)}
           </Text>
           <Text className="text-sm text-muted-foreground">
-            {INSIGHT_DELIVERY_COPY.settingsIntro}
+            {i18n._(INSIGHT_DELIVERY_COPY.settingsIntro)}
           </Text>
           {!canDeliver ? (
-            <Text className="text-sm text-foreground">{INSIGHT_DELIVERY_COPY.ownerOnly}</Text>
+            <Text className="text-sm text-foreground">
+              {i18n._(INSIGHT_DELIVERY_COPY.ownerOnly)}
+            </Text>
           ) : null}
         </View>
 
-        <CardStack title={INSIGHT_DELIVERY_COPY.pushTitle}>
+        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.pushTitle)}>
           <Card variant="secondary" className="gap-2 p-4">
             <Text className="text-sm text-muted-foreground">
-              {INSIGHT_DELIVERY_COPY.pushDescription}
+              {i18n._(INSIGHT_DELIVERY_COPY.pushDescription)}
             </Text>
             {!prefs.pushAvailable ? (
               <Text className="text-sm text-foreground">
-                {INSIGHT_DELIVERY_COPY.pushUnavailable}
+                {i18n._(INSIGHT_DELIVERY_COPY.pushUnavailable)}
               </Text>
             ) : (
               <>
                 <Toggle
-                  label={INSIGHT_DELIVERY_COPY.pushTitle}
+                  label={i18n._(INSIGHT_DELIVERY_COPY.pushTitle)}
                   value={prefs.push.enabled}
                   disabled={busy || !canDeliver}
                   onChange={(enabled) =>
@@ -144,7 +146,7 @@ export default function InsightSettingsScreen() {
                   }
                 />
                 <Toggle
-                  label={INSIGHT_DELIVERY_COPY.pushShowTopic}
+                  label={i18n._(INSIGHT_DELIVERY_COPY.pushShowTopic)}
                   value={prefs.push.showTopic}
                   disabled={busy || !canDeliver}
                   onChange={(showTopic) => update.mutate({ push: { showTopic } })}
@@ -166,14 +168,14 @@ export default function InsightSettingsScreen() {
           </Card>
         </CardStack>
 
-        <CardStack title={INSIGHT_DELIVERY_COPY.emailTitle}>
+        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.emailTitle)}>
           <Card variant="secondary" className="gap-2 p-4">
             <Text className="text-sm text-muted-foreground">
-              {INSIGHT_DELIVERY_COPY.emailDescription}
+              {i18n._(INSIGHT_DELIVERY_COPY.emailDescription)}
             </Text>
             {!prefs.emailAvailable ? (
               <Text className="text-sm text-foreground">
-                {INSIGHT_DELIVERY_COPY.emailUnavailable}
+                {i18n._(INSIGHT_DELIVERY_COPY.emailUnavailable)}
               </Text>
             ) : prefs.email.enabled ? (
               <Button
@@ -189,10 +191,10 @@ export default function InsightSettingsScreen() {
             ) : (
               <>
                 <Text className="text-sm text-foreground">
-                  {INSIGHT_DELIVERY_COPY.emailDisclosure}
+                  {i18n._(INSIGHT_DELIVERY_COPY.emailDisclosure)}
                 </Text>
                 <Toggle
-                  label={INSIGHT_DELIVERY_COPY.emailAcknowledge}
+                  label={i18n._(INSIGHT_DELIVERY_COPY.emailAcknowledge)}
                   value={ack}
                   disabled={busy || !canDeliver}
                   onChange={setAcknowledged}
@@ -218,7 +220,7 @@ export default function InsightSettingsScreen() {
           </Card>
         </CardStack>
 
-        <CardStack title={INSIGHT_DELIVERY_COPY.deliveryHour}>
+        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)}>
           <Card variant="secondary" className="gap-2 p-4">
             <View className="flex-row items-center justify-between">
               <Button
@@ -232,7 +234,7 @@ export default function InsightSettingsScreen() {
               </Button>
               <Text
                 className="font-mono text-lg text-foreground"
-                accessibilityLabel={`${INSIGHT_DELIVERY_COPY.deliveryHour} ${prefs.deliveryHour}:00`}
+                accessibilityLabel={`${i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)} ${prefs.deliveryHour}:00`}
               >
                 {String(prefs.deliveryHour).padStart(2, "0")}:00
               </Text>
@@ -247,7 +249,7 @@ export default function InsightSettingsScreen() {
               </Button>
             </View>
             <Text className="text-sm text-muted-foreground">
-              {INSIGHT_DELIVERY_COPY.timeZone}: {prefs.timeZone}
+              {i18n._(INSIGHT_DELIVERY_COPY.timeZone)}: {prefs.timeZone}
             </Text>
             {zone && zone !== prefs.timeZone ? (
               <Button
@@ -264,20 +266,20 @@ export default function InsightSettingsScreen() {
           </Card>
         </CardStack>
 
-        <CardStack title={INSIGHT_DELIVERY_COPY.kindsTitle}>
+        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.kindsTitle)}>
           <Card variant="secondary" className="gap-3 p-4">
             <Text className="text-sm text-muted-foreground">
-              {INSIGHT_DELIVERY_COPY.kindsIntro}
+              {i18n._(INSIGHT_DELIVERY_COPY.kindsIntro)}
             </Text>
             {GENERIC_DELIVERY_KINDS.map((kind) => (
               <View key={kind} className="gap-1 border-t border-border pt-2">
                 <Text className="text-sm font-medium text-foreground">
-                  {INSIGHT_KIND_LABELS[kind]}
+                  {i18n._(INSIGHT_KIND_LABELS[kind])}
                 </Text>
                 {INSIGHT_CHANNELS.map((channel) => (
                   <Toggle
                     key={channel}
-                    label={`${INSIGHT_KIND_LABELS[kind]} — ${INSIGHT_CHANNEL_LABELS[channel]}`}
+                    label={`${i18n._(INSIGHT_KIND_LABELS[kind])} — ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
                     value={prefs.channels[kind][channel]}
                     disabled={busy}
                     onChange={(value) =>

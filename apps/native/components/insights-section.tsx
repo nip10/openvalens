@@ -148,11 +148,11 @@ function SubjectInsightsSection({
 
   const ready = readiness.data ? readinessView(readiness.data, i18n) : null;
   const progress = goals.data ? goalProgressView(goals.data, i18n) : null;
-  const model = insights.data ? insightsSectionModel(insights.data) : null;
+  const model = insights.data ? insightsSectionModel(i18n, insights.data) : null;
 
   return (
     <View className="gap-6">
-      <CardStack title={INSIGHT_COPY.summariesTitle}>
+      <CardStack title={i18n._(INSIGHT_COPY.summariesTitle)}>
         <Card variant="secondary" className="gap-3 p-4">
           {[
             {
@@ -189,15 +189,15 @@ function SubjectInsightsSection({
             className="min-h-11 justify-center"
           >
             <Text className="font-medium text-foreground underline">
-              {INSIGHT_COPY.summariesLink}
+              {i18n._(INSIGHT_COPY.summariesLink)}
             </Text>
           </Pressable>
         </Card>
       </CardStack>
 
-      <CardStack title={INSIGHT_COPY.sectionTitle}>
+      <CardStack title={i18n._(INSIGHT_COPY.sectionTitle)}>
         <Card variant="secondary" className="gap-3 p-4">
-          <Text className="text-sm text-muted-foreground">{INSIGHT_COPY.sectionIntro}</Text>
+          <Text className="text-sm text-muted-foreground">{i18n._(INSIGHT_COPY.sectionIntro)}</Text>
           {insights.isPending ? (
             <Text className="text-sm text-muted-foreground">{t`Loading…`}</Text>
           ) : insights.isError || !model ? (
@@ -234,29 +234,29 @@ function SubjectInsightsSection({
                       size="sm"
                       variant="secondary"
                       isDisabled={pendingId === row.key}
-                      accessibilityLabel={`${INSIGHT_COPY.dismiss}: ${row.title}`}
+                      accessibilityLabel={i18n._(INSIGHT_COPY.dismissLabel(row.title))}
                       onPress={() => {
                         setPendingId(row.key);
                         feedback.mutate({ insightId: row.key, action: "dismiss" });
                       }}
                     >
-                      <Button.Label>{INSIGHT_COPY.dismiss}</Button.Label>
+                      <Button.Label>{i18n._(INSIGHT_COPY.dismiss)}</Button.Label>
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       isDisabled={pendingId === row.key}
-                      accessibilityLabel={`${INSIGHT_COPY.notUseful}: ${row.title}. ${INSIGHT_COPY.notUsefulHint}`}
+                      accessibilityLabel={i18n._(INSIGHT_COPY.notUsefulLabel(row.title))}
                       onPress={() => {
                         setPendingId(row.key);
                         feedback.mutate({ insightId: row.key, action: "not_useful" });
                       }}
                     >
-                      <Button.Label>{INSIGHT_COPY.notUseful}</Button.Label>
+                      <Button.Label>{i18n._(INSIGHT_COPY.notUseful)}</Button.Label>
                     </Button>
                     {consent.data?.granted ? (
                       <Button size="sm" variant="ghost" onPress={() => router.push("/coach")}>
-                        <Button.Label>{INSIGHT_COPY.askCoach}</Button.Label>
+                        <Button.Label>{i18n._(INSIGHT_COPY.askCoach)}</Button.Label>
                       </Button>
                     ) : null}
                   </View>
@@ -283,7 +283,9 @@ function SubjectInsightsSection({
                 accessibilityState={{ expanded: showMethod }}
                 className="min-h-11 justify-center"
               >
-                <Text className="font-medium text-foreground underline">{INSIGHT_COPY.method}</Text>
+                <Text className="font-medium text-foreground underline">
+                  {i18n._(INSIGHT_COPY.method)}
+                </Text>
               </Pressable>
               {showMethod ? (
                 <Text className="text-sm text-muted-foreground">{model.method}</Text>
@@ -354,7 +356,7 @@ function SubjectInsightsSection({
           ) : null}
           {showObservations
             ? insights.data?.observations.map((item) => {
-                const view = nutritionObservationView(item);
+                const view = nutritionObservationView(i18n, item);
                 return (
                   <View
                     key={`${item.ruleId}:${item.window.from}`}
@@ -388,19 +390,21 @@ function SubjectInsightsSection({
       </CardStack>
 
       {insights.data?.offerPush ? (
-        <CardStack title={INSIGHT_DELIVERY_COPY.pushOfferTitle}>
+        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.pushOfferTitle)}>
           <Card variant="secondary" className="gap-3 p-4">
-            <Text className="text-sm text-foreground">{INSIGHT_DELIVERY_COPY.pushOfferBody}</Text>
+            <Text className="text-sm text-foreground">
+              {i18n._(INSIGHT_DELIVERY_COPY.pushOfferBody)}
+            </Text>
             <View className="flex-row flex-wrap gap-3">
               <Button isDisabled={offer.isPending} onPress={() => offer.mutate("accepted")}>
-                <Button.Label>{INSIGHT_DELIVERY_COPY.pushOfferAccept}</Button.Label>
+                <Button.Label>{i18n._(INSIGHT_DELIVERY_COPY.pushOfferAccept)}</Button.Label>
               </Button>
               <Button
                 variant="secondary"
                 isDisabled={offer.isPending}
                 onPress={() => offer.mutate("declined")}
               >
-                <Button.Label>{INSIGHT_DELIVERY_COPY.pushOfferDecline}</Button.Label>
+                <Button.Label>{i18n._(INSIGHT_DELIVERY_COPY.pushOfferDecline)}</Button.Label>
               </Button>
             </View>
           </Card>

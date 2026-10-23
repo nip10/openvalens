@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n } from "@openvalens/i18n/testing";
 import type { InsightsResult } from "@openvalens/api/insight-contract";
 import { runInsightRules } from "@openvalens/api/insight-rules";
 import { insightsListView, nutritionObservationView } from "@openvalens/api/presenters/insights";
@@ -38,7 +39,7 @@ function result(): InsightsResult {
 
 describe("insights section model (native)", () => {
   test("observation view exposes neutral copy, completeness, window, and no hidden counts", () => {
-    const view = nutritionObservationView({
+    const view = nutritionObservationView(englishI18n, {
       ruleId: "observation.meals_and_workouts",
       window: { from: "2026-10-01", to: "2026-10-07", days: 7 },
       matchingEvents: null,
@@ -55,8 +56,8 @@ describe("insights section model (native)", () => {
   });
   test("shows the same text as the web view model (parity)", () => {
     const data = result();
-    const model = insightsSectionModel(data);
-    const web = insightsListView(data);
+    const model = insightsSectionModel(englishI18n, data);
+    const web = insightsListView(englishI18n, data);
     expect(model.rows.map((row) => row.title)).toEqual(web.insights.map((view) => view.title));
     expect(model.rows[0]!.lines).toEqual(
       [web.insights[0]!.body, web.insights[0]!.certaintyText, web.insights[0]!.coverageText].filter(
@@ -68,7 +69,7 @@ describe("insights section model (native)", () => {
   });
 
   test("withheld results show only the adults-only note", () => {
-    const model = insightsSectionModel({
+    const model = insightsSectionModel(englishI18n, {
       ...result(),
       status: "withheld",
       withheldReason: "adults_only",
