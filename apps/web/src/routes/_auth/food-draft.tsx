@@ -1,5 +1,9 @@
 import type { FoodDraftCandidateWire } from "@openvalens/api/contracts/nutrition-food-drafts";
-import { FOOD_DRAFT_COPY, FOOD_DRAFT_FLAG_LABELS } from "@openvalens/api/presenters/food-draft";
+import {
+  FOOD_DRAFT_COPY,
+  FOOD_DRAFT_FLAG_LABELS,
+  PHOTO_DRAFT_COPY,
+} from "@openvalens/api/presenters/food-draft";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -24,13 +28,21 @@ function withFlags(flags: Flag[], cleared: Flag[], added: Flag | null): Flag[] {
  * Describe a meal (#73). The member speaks with their keyboard's dictation or
  * types; this page never records audio. The draft is never saved: each item
  * is matched to a food in the diary and confirmed there.
+ *
+ * A meal photo (#71) feeds the same review. It is sent to the provider only
+ * after a per-photo confirmation, with metadata stripped on the server, and
+ * is never stored.
  */
 function FoodDraftPage() {
   const [transcript, setTranscript] = useState("");
   const [useAi, setUseAi] = useState(false);
   const [aiAgreed, setAiAgreed] = useState(false);
   const [candidates, setCandidates] = useState<FoodDraftCandidateWire[] | null>(null);
+  const [source, setSource] = useState<"text" | "photo">("text");
   const [message, setMessage] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoAgreed, setPhotoAgreed] = useState(false);
+  const [photoMessage, setPhotoMessage] = useState("");
   const provider = useQuery({
     queryKey: ["nutritionFoodDrafts", "provider"],
     queryFn: () => client.nutritionFoodDrafts.provider({}),
@@ -47,10 +59,29 @@ function FoodDraftPage() {
     onSuccess: (result) => {
       // A confirmation covers one send only.
       setAiAgreed(false);
+      setSource("text");
       setCandidates(result.status === "ready" ? result.candidates : null);
       setMessage(FOOD_DRAFT_COPY.status[result.status]);
     },
     onError: () => setMessage("Could not make a draft. Nothing was saved."),
+  });
+  const parsePhoto = useMutation({
+    mutationFn: (file: File) =>
+      client.nutritionFoodDrafts.parsePhoto({
+        photo: file,
+        sendToProvider: {
+          provider: provider.data?.provider ?? "",
+          host: provider.data?.host ?? null,
+        },
+      }),
+    onSuccess: (result) => {
+      // A confirmation covers this one photo only.
+      setPhotoAgreed(false);
+      setSource("photo");
+      setCandidates(result.status === "ready" ? result.candidates : null);
+      setPhotoMessage(PHOTO_DRAFT_COPY.status[result.status]);
+    },
+    onError: () => setPhotoMessage("Could not make a draft. Nothing was saved."),
   });
   const edit = (id: string, patch: Partial<FoodDraftCandidateWire>) =>
     setCandidates((current) =>
@@ -129,17 +160,74 @@ function FoodDraftPage() {
         </CardContent>
       </Card>
 
+      {provider.data?.available ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>From a photo</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <p className="text-sm text-muted-foreground">{PHOTO_DRAFT_COPY.intro}</p>
+            <div className="grid gap-1.5">
+              <Label htmlFor="food-draft-photo">Meal photo (JPEG or PNG, up to 10 MB)</Label>
+              <Input
+                id="food-draft-photo"
+                type="file"
+                accept="image/jpeg,image/png"
+                onChange={(event) => {
+                  setPhoto(event.target.files?.[0] ?? null);
+                  setPhotoAgreed(false);
+                }}
+              />
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={photoAgreed}
+                disabled={!photo}
+                onChange={(event) => setPhotoAgreed(event.target.checked)}
+              />
+              <span>
+                Send this photo to {provider.data.provider}
+                {provider.data.host ? ` (${provider.data.host})` : ""} now.{" "}
+                {PHOTO_DRAFT_COPY.disclosure}
+              </span>
+            </label>
+            <Button
+              className="w-fit"
+              disabled={!photo || !photoAgreed || parsePhoto.isPending}
+              onClick={() => photo && parsePhoto.mutate(photo)}
+            >
+              {parsePhoto.isPending ? "Working…" : "Make a draft from this photo"}
+            </Button>
+            {photoMessage ? (
+              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+                {photoMessage}{" "}
+                {photoMessage === PHOTO_DRAFT_COPY.status.disabled ? (
+                  <Link to="/nutrition-targets" className="underline">
+                    Nutrition settings
+                  </Link>
+                ) : null}
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {candidates ? (
         <Card>
           <CardHeader>
             <CardTitle>Review the draft</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <p className="text-sm text-muted-foreground">{FOOD_DRAFT_COPY.review}</p>
+            <p className="text-sm text-muted-foreground">
+              {source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review}
+            </p>
             {candidates.map((item, index) => (
               <fieldset key={item.id} className="grid gap-3 rounded-lg border p-3">
                 <legend className="px-1 text-sm font-medium">
-                  Item {index + 1} · heard “{item.sourceText}”
+                  Item {index + 1} ·{" "}
+                  {source === "photo" ? "from the photo" : `heard “${item.sourceText}”`}
                 </legend>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="grid gap-1.5">

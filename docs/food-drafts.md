@@ -52,3 +52,62 @@ chips") are split, quantities stated after the food ("pizza, about three
 slices") are not linked to it, and "a couple of" is treated as vague rather
 than 2. These are measurements on a small set, not an accuracy claim; the
 review step exists because the parser will be wrong.
+
+# Food drafts from a meal photo (#71)
+
+An optional way to start a draft from a photo of a meal. It feeds the same
+review and logging steps as above. It is a convenience, not a measurement:
+recognition and portion errors vary by meal, and there is no accuracy claim.
+
+## Opt-in and provider
+
+Off by default. The member turns on "Make food drafts from a meal photo" in
+nutrition settings (`photoDraftsEnabled` on `nutrition_target_settings`) and
+can turn it off at any time. Photo drafts need a configured AI provider; no
+provider is assumed, and there is no on-server image model. The photo section
+appears only when a provider is configured.
+
+Before each send, the screen names the provider and host and the member
+confirms sending this one photo. `nutritionFoodDrafts.parsePhoto` requires that
+confirmation (`sendToProvider`) and refuses anything that does not match the
+configured provider and host (`consent_required`). The organization and member
+AI consent (#123) and the AI rate limit also apply. Every gate is checked
+before the photo leaves the server, and nothing is queued for a later send.
+
+Before enabling a provider for photos, an administrator should check its
+current processing and retention terms and whether the configured model
+accepts images. A provider that rejects the request returns `provider_error`.
+
+## Photo handling and retention
+
+- The server decodes and re-encodes the photo (`sanitizeImage` in
+  `@openvalens/body`), which drops EXIF, GPS location and every other metadata
+  block. Only the re-encoded bytes are sent to the provider. The integration
+  test checks that none of the fixture's metadata canaries, the file name or
+  the `Exif` marker reach the provider.
+- The photo is not stored: not in object storage, not in the database. Its
+  bytes are held in memory for that one provider call. The draft is not stored
+  either, so there is nothing to delete afterwards.
+- Logs carry the mode (`photo`), outcome and item count only.
+
+## What the draft contains
+
+The provider is asked for the foods it can see, a count only when items are
+clearly countable, and a container or piece unit ("slice", "bowl"). It is told
+not to estimate weights, volumes, portions or nutrition values. Items it
+cannot identify are flagged `unsure_food`. Missing quantities and units are
+flagged as for a description. A reply with no items returns `unrecognized`;
+an unreadable reply returns `unparseable`; a file that is not a readable JPEG
+or PNG returns `invalid_photo` before anything is sent. In every case nothing
+is guessed, and no nutrient value is ever taken from the reply.
+
+## Not done yet
+
+- **Mobile:** the setting can be changed in the app, but photo capture is web
+  only for now. Sending a picked photo from React Native as a multipart file
+  needs testing on a device first.
+- **Evaluation:** there is no held-out image set yet. Before recommending a
+  provider, run it against representative held-out meal photos with
+  hand-edited labels, and report the method and the error distribution by
+  case (mixed dishes, drinks, packaged foods, partial views). Do not promise
+  an accuracy figure or show a model confidence.

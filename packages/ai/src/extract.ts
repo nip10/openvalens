@@ -37,6 +37,11 @@ export type ExtractInput<T = Record<string, unknown>> = {
   /** JSON shape the model must match, expressed as a free-form schema. */
   jsonShape: string;
   /**
+   * Optional image sent with the prompt as one user message (Issue #71). The
+   * caller strips metadata first; the bytes are never logged.
+   */
+  image?: { bytes: Uint8Array; mediaType: "image/jpeg" | "image/png" };
+  /**
    * Zod schema the parsed JSON must satisfy. Defaults to "any JSON object".
    * Only a caller-supplied schema is sent as a provider structured output.
    */
@@ -93,6 +98,7 @@ export async function extractStructured<T = Record<string, unknown>>(
     host,
     model: input.config.AI_MODEL,
     textLength: input.text.length,
+    image: input.image !== undefined,
     structuredOutput: useStructuredOutput,
   });
 
@@ -110,7 +116,19 @@ export async function extractStructured<T = Record<string, unknown>>(
     try {
       const result = await generateFn({
         model,
-        prompt,
+        ...(input.image
+          ? {
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: prompt },
+                    { type: "image", image: input.image.bytes, mediaType: input.image.mediaType },
+                  ],
+                },
+              ],
+            }
+          : { prompt }),
         ...(useStructuredOutput ? { output: Output.object({ schema }) } : {}),
       } as never);
       text = (result as { text?: string }).text ?? "";

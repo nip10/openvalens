@@ -379,6 +379,37 @@ describe("structured extraction (Issue #59)", () => {
     expect(JSON.stringify(lines)).not.toContain("high");
   });
 
+  test("sends an image with the prompt as one user message and never logs it (Issue #71)", async () => {
+    const server = startMockServer(() => chatCompletion('{"ferritin": 42, "unit": "ng/mL"}'));
+    const { logger, lines } = captureLogger();
+    const bytes = new TextEncoder().encode("SYNTHETIC_IMAGE_BYTES");
+
+    const result = await extractStructured({
+      config: compatibleConfig(server),
+      text: "",
+      promptHint: "Extract ferritin.",
+      jsonShape: '{ "ferritin": number, "unit": string }',
+      schema,
+      image: { bytes, mediaType: "image/png" },
+      logger,
+    });
+
+    expect(result.status).toBe("ok");
+    const messages = server.requests[0]?.body.messages as {
+      role: string;
+      content: { type: string; image_url?: { url: string } }[];
+    }[];
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.role).toBe("user");
+    expect(messages[0]?.content.map((part) => part.type)).toEqual(["text", "image_url"]);
+    expect(messages[0]?.content[1]?.image_url?.url).toStartWith("data:image/png;base64,");
+    const serialized = JSON.stringify(lines);
+    expect(serialized).not.toContain(Buffer.from(bytes).toString("base64"));
+    expect(lines.find((line) => line.event === "ai.extract.started")).toMatchObject({
+      image: true,
+    });
+  });
+
   test("requests a JSON-schema response only when the endpoint opts in", async () => {
     const server = startMockServer(() => chatCompletion('{"ferritin": 42, "unit": "ng/mL"}'));
 

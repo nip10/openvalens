@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { FOOD_DRAFT_LIMITS, foodDraftFlags, parseFoodTranscript } from "./food-draft";
+import {
+  candidateFromParts,
+  FOOD_DRAFT_LIMITS,
+  foodDraftFlags,
+  parseFoodTranscript,
+} from "./food-draft";
 
 const shape = (transcript: string) => {
   const result = parseFoodTranscript(transcript);
@@ -67,6 +72,17 @@ describe("parseFoodTranscript", () => {
   test("caps the number of candidates", () => {
     const many = Array.from({ length: 30 }, (_, i) => `apple ${i}`).join(", ");
     expect(parseFoodTranscript(many).candidates).toHaveLength(FOOD_DRAFT_LIMITS.maxCandidates);
+  });
+});
+
+describe("candidateFromParts", () => {
+  test("flags an item the provider was unsure of, ahead of the quantity flags", () => {
+    expect(
+      candidateFromParts({ food: "curry?", quantity: null, unit: "bowl", unsure: true }, 0)?.flags,
+    ).toEqual(["unsure_food", "no_quantity"]);
+    expect(candidateFromParts({ food: "apple", quantity: "1", unit: null }, 1)?.flags).toEqual([
+      "no_unit",
+    ]);
   });
 });
 

@@ -2,7 +2,13 @@ import { readdir } from "node:fs/promises";
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
+import {
+  IMAGE_SANITIZATION_FIXTURE_CANARIES,
+  jpegWithExif,
+} from "@openvalens/body/sanitize-image.fixtures";
 import { createDb, sql, type Database } from "@openvalens/db";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "../context";
@@ -10,7 +16,10 @@ import type { TargetsOverview, UpdateSettingsOutput } from "../contracts/nutriti
 import { findBannedCopy } from "@openvalens/nutrition/nutrition-safety";
 import type { ImportRecipeFromUrlOutput } from "../contracts/nutrition-recipe-import";
 import { createRecipeImportService } from "../recipe-import/service";
-import type { ParseFoodDraftOutput } from "../contracts/nutrition-food-drafts";
+import type {
+  ParseFoodDraftOutput,
+  ParsePhotoFoodDraftOutput,
+} from "../contracts/nutrition-food-drafts";
 import { createFoodDraftService } from "../food-drafts";
 import { appRouter } from "./index";
 
@@ -120,8 +129,26 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
   /** Recipe import (#82) with a fake fetcher: no network in this suite. */
   /** Food drafts (#73) with a fake provider: no network in this suite. */
   const providerCalls: string[] = [];
+  /** Photo drafts (#71): what the fake provider received, and how it replies. */
+  const photoCalls: { bytes: Uint8Array; mediaType: string; text: string }[] = [];
+  let photoReply: unknown = {
+    status: "ok",
+    attempts: 1,
+    model: "test-model",
+    data: {
+      items: [
+        { food: "toast", quantity: "2", unit: "slice", unsure: false },
+        { food: "something green", quantity: null, unit: null, unsure: true },
+      ],
+    },
+  };
   const foodDraftService = createFoodDraftService({
-    extract: (async (input: { text: string }) => {
+    extract: (async (input: { text: string; image?: { bytes: Uint8Array; mediaType: string } }) => {
+      if (input.image) {
+        photoCalls.push({ ...input.image, text: input.text });
+        if (photoReply instanceof Error) throw photoReply;
+        return photoReply;
+      }
       providerCalls.push(input.text);
       return {
         status: "ok",
@@ -274,6 +301,7 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       streaksEnabled: false,
       recipeImportEnabled: false,
       voiceDraftsEnabled: false,
+      photoDraftsEnabled: false,
       heightCm: null,
       declarations: [],
     });
@@ -824,6 +852,220 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
           .status,
       ).toBe(403);
       expect((await parse({ transcript, mode: "local" }, "nobody")).status).toBe(401);
+    });
+  });
+  describe("photo food drafts (#71)", () => {
+    const anthropic = { provider: "anthropic", host: "api.anthropic.com" };
+    /** A real oRPC client, so the photo goes through the multipart File encoding. */
+    function clientFor(user: string, extra: Record<string, string> = {}) {
+      const link = new RPCLink({
+        url: "http://test.local/rpc",
+        headers: { "x-test-user": user, ...extra },
+        fetch: async (request) => {
+          const { matched, response } = await rpc.handle(request as Request, {
+            prefix: "/rpc",
+            context: contextFor(new Headers((request as Request).headers)),
+          });
+          if (!matched || !response) throw new Error("unmatched food-draft RPC path");
+          return response;
+        },
+      });
+      return createORPCClient<{
+        nutritionFoodDrafts: {
+          parsePhoto: (input: {
+            photo: Blob;
+            sendToProvider?: { provider: string; host: string | null };
+          }) => Promise<ParsePhotoFoodDraftOutput>;
+        };
+      }>(link as never);
+    }
+    const jpeg = async () =>
+      new File([await jpegWithExif()], "IMG_0001.jpg", { type: "image/jpeg" });
+    async function status(promise: Promise<unknown>): Promise<number | "ok"> {
+      try {
+        await promise;
+        return "ok";
+      } catch (error) {
+        return (error as { status?: number }).status ?? 0;
+      }
+    }
+    const tableCount = async (table: string) =>
+      Number(
+        (
+          (await db.execute(sql.raw(`select count(*)::int as n from ${table}`))).rows[0] as {
+            n: number;
+          }
+        ).n,
+      );
+    const consentFull = async () => {
+      await db.execute(
+        sql`update organization set metadata = '{"aiConsent":"full"}'::jsonb where id = 'org-a'`,
+      );
+      await db.execute(sql`delete from user_ai_consent where user_id = 'user-a'`);
+      await db.execute(
+        sql`insert into user_ai_consent (user_id, granted, consent_version) values ('user-a', true, 'v1')`,
+      );
+    };
+
+    test("is off by default and revocable; nothing is sent while off", async () => {
+      await resetSettings("user-a");
+      await consentFull();
+      photoCalls.length = 0;
+      const client = clientFor("user-a");
+      expect(
+        await client.nutritionFoodDrafts.parsePhoto({
+          photo: await jpeg(),
+          sendToProvider: anthropic,
+        }),
+      ).toEqual({ status: "disabled", candidates: [] });
+
+      await updateSettings({ expectedRevision: 0, photoDraftsEnabled: true });
+      expect(
+        (
+          await client.nutritionFoodDrafts.parsePhoto({
+            photo: await jpeg(),
+            sendToProvider: anthropic,
+          })
+        ).status,
+      ).toBe("ready");
+      await updateSettings({ expectedRevision: 1, photoDraftsEnabled: false });
+      expect(
+        (
+          await client.nutritionFoodDrafts.parsePhoto({
+            photo: await jpeg(),
+            sendToProvider: anthropic,
+          })
+        ).status,
+      ).toBe("disabled");
+      expect(photoCalls).toHaveLength(1);
+    });
+
+    test("sends nothing without a matching confirmation or AI consent", async () => {
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, photoDraftsEnabled: true });
+      photoCalls.length = 0;
+      const client = clientFor("user-a");
+      expect(await status(client.nutritionFoodDrafts.parsePhoto({ photo: await jpeg() }))).toBe(
+        400,
+      );
+      expect(
+        (
+          await client.nutritionFoodDrafts.parsePhoto({
+            photo: await jpeg(),
+            sendToProvider: { provider: "anthropic", host: "proxy.example.test" },
+          })
+        ).status,
+      ).toBe("consent_required");
+      await db.execute(sql`update organization set metadata = null where id = 'org-a'`);
+      expect(
+        await status(
+          client.nutritionFoodDrafts.parsePhoto({ photo: await jpeg(), sendToProvider: anthropic }),
+        ),
+      ).toBe(403);
+      expect(photoCalls).toEqual([]);
+    });
+
+    test("strips EXIF and location before sending, stores nothing, and flags unsure items", async () => {
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, photoDraftsEnabled: true });
+      await consentFull();
+      photoCalls.length = 0;
+      const tables = ["stored_object", "nutrition_meal", "nutrition_meal_entry", "nutrition_food"];
+      const before = await Promise.all(tables.map(tableCount));
+
+      const result = await clientFor("user-a").nutritionFoodDrafts.parsePhoto({
+        photo: await jpeg(),
+        sendToProvider: anthropic,
+      });
+      expect(result.status).toBe("ready");
+      expect(result.candidates.map((c) => [c.foodText, c.quantity, c.unitText, c.flags])).toEqual([
+        ["toast", 2, "slice", []],
+        ["something green", null, null, ["unsure_food", "no_quantity", "no_unit"]],
+      ]);
+      expect(JSON.stringify(result)).not.toMatch(/kcal|energy|protein|gram/i);
+
+      expect(photoCalls).toHaveLength(1);
+      expect(photoCalls[0]!.mediaType).toBe("image/jpeg");
+      expect(photoCalls[0]!.text).toBe("");
+      const sent = Buffer.from(photoCalls[0]!.bytes).toString("latin1");
+      for (const canary of [...IMAGE_SANITIZATION_FIXTURE_CANARIES, "IMG_0001", "Exif"])
+        expect(sent).not.toContain(canary);
+      expect(await Promise.all(tables.map(tableCount))).toEqual(before);
+    });
+
+    test("fails safely on unreadable photos, empty or unreadable replies and provider errors", async () => {
+      await resetSettings("user-a");
+      await updateSettings({ expectedRevision: 0, photoDraftsEnabled: true });
+      await consentFull();
+      photoCalls.length = 0;
+      const client = clientFor("user-a");
+      const notAnImage = new File(["just text"], "meal.jpg", { type: "image/jpeg" });
+      expect(
+        await client.nutritionFoodDrafts.parsePhoto({
+          photo: notAnImage,
+          sendToProvider: anthropic,
+        }),
+      ).toEqual({ status: "invalid_photo", candidates: [] });
+      expect(photoCalls).toEqual([]);
+
+      const saved = photoReply;
+      try {
+        photoReply = { status: "ok", attempts: 1, model: "test-model", data: { items: [] } };
+        expect(
+          (
+            await client.nutritionFoodDrafts.parsePhoto({
+              photo: await jpeg(),
+              sendToProvider: anthropic,
+            })
+          ).status,
+        ).toBe("unrecognized");
+        photoReply = { status: "unparseable", attempts: 2, model: "test-model", data: null };
+        expect(
+          (
+            await client.nutritionFoodDrafts.parsePhoto({
+              photo: await jpeg(),
+              sendToProvider: anthropic,
+            })
+          ).status,
+        ).toBe("unparseable");
+        photoReply = new Error("image input not supported");
+        expect(
+          await client.nutritionFoodDrafts.parsePhoto({
+            photo: await jpeg(),
+            sendToProvider: anthropic,
+          }),
+        ).toEqual({ status: "provider_error", candidates: [] });
+      } finally {
+        photoReply = saved;
+      }
+    });
+
+    test("rejects tenant fields, impersonation and signed-out callers", async () => {
+      expect(
+        await status(
+          clientFor("user-a").nutritionFoodDrafts.parsePhoto({
+            photo: await jpeg(),
+            sendToProvider: anthropic,
+            organizationId: "org-b",
+          } as never),
+        ),
+      ).toBe(400);
+      expect(
+        await status(
+          clientFor("user-a", { "x-test-impersonated": "admin-1" }).nutritionFoodDrafts.parsePhoto({
+            photo: await jpeg(),
+            sendToProvider: anthropic,
+          }),
+        ),
+      ).toBe(403);
+      expect(
+        await status(
+          clientFor("nobody").nutritionFoodDrafts.parsePhoto({
+            photo: await jpeg(),
+            sendToProvider: anthropic,
+          }),
+        ),
+      ).toBe(401);
     });
   });
 });
