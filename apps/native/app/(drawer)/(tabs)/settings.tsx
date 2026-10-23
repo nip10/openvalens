@@ -26,6 +26,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
+import { LanguageSection } from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
@@ -68,6 +69,8 @@ export default function SettingsScreen() {
             </Card>
           </CardStack>
         )}
+
+        <LanguageSection />
 
         {session?.user && (
           <CardStack title="Profile">

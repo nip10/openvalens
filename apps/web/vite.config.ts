@@ -1,3 +1,4 @@
+import { lingui } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { varlockVitePlugin } from "@varlock/vite-integration";
@@ -18,6 +19,8 @@ export default defineConfig({
       target: "react",
       autoCodeSplitting: true,
     }),
+    // Lingui macros (#67), transformed natively; catalogs are committed TS modules.
+    lingui({ macroTransform: true }),
     react(),
   ],
 });

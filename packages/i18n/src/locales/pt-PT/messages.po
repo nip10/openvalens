@@ -1,0 +1,195 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-23 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: pt-PT\n"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Activity"
+msgstr "Atividade"
+
+#: apps/web/src/components/header.tsx
+msgid "Administration"
+msgstr "Administração"
+
+#: apps/native/app/(drawer)/(tabs)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Body"
+msgstr "Corpo"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Body map"
+msgstr "Mapa corporal"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Clinical export"
+msgstr "Exportação clínica"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Coach"
+msgstr "Coach"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/_layout.tsx
+msgid "Cockpit"
+msgstr "Painel"
+
+#: apps/web/src/components/language-section.tsx
+msgid "Community translation"
+msgstr "Tradução da comunidade"
+
+#: apps/native/components/language-section.tsx
+msgid "Community translation, not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
+msgstr "Tradução da comunidade, ainda não revista. As unidades, os intervalos de referência e os textos sobre medicação e consentimento ficam em inglês até um revisor os aprovar."
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Cycle"
+msgstr "Ciclo"
+
+#: apps/web/src/components/header.tsx
+msgid "Dashboard"
+msgstr "Painel de controlo"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Describe a meal"
+msgstr "Descrever uma refeição"
+
+#: apps/native/app/(drawer)/_layout.tsx
+msgid "Exercise library"
+msgstr "Biblioteca de exercícios"
+
+#: apps/web/src/components/header.tsx
+msgid "Home"
+msgstr "Início"
+
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "Interface language"
+msgstr "Idioma da interface"
+
+#: apps/native/app/(drawer)/_layout.tsx
+msgid "Invitations"
+msgstr "Convites"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Labs"
+msgstr "Análises"
+
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "Language"
+msgstr "Idioma"
+
+#: apps/web/src/components/header.tsx
+msgid "Main navigation"
+msgstr "Navegação principal"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Meal diary"
+msgstr "Diário de refeições"
+
+#: apps/web/src/components/header.tsx
+msgid "Menu"
+msgstr "Menu"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Micronutrients"
+msgstr "Micronutrientes"
+
+#: apps/web/src/components/header.tsx
+msgid "Mobile navigation"
+msgstr "Navegação móvel"
+
+#: apps/native/app/(drawer)/_layout.tsx
+msgid "My foods"
+msgstr "Os meus alimentos"
+
+#: apps/web/src/components/header.tsx
+msgid "Navigate the app"
+msgstr "Navegar na aplicação"
+
+#: apps/web/src/components/language-section.tsx
+msgid "Not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
+msgstr "Ainda não revista. As unidades, os intervalos de referência e os textos sobre medicação e consentimento ficam em inglês até um revisor os aprovar."
+
+#: apps/native/app/(drawer)/_layout.tsx
+msgid "Nutrition targets"
+msgstr "Objetivos nutricionais"
+
+#: apps/web/src/components/header.tsx
+msgid "Open navigation menu"
+msgstr "Abrir o menu de navegação"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Preventive care"
+msgstr "Cuidados preventivos"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Private measurements"
+msgstr "Medições privadas"
+
+#: apps/native/app/(drawer)/_layout.tsx
+msgid "Profile"
+msgstr "Perfil"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Recipe draft"
+msgstr "Rascunho de receita"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Scores"
+msgstr "Pontuações"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/_layout.tsx
+#: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Settings"
+msgstr "Definições"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Sharing"
+msgstr "Partilha"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Sleep"
+msgstr "Sono"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Supplements"
+msgstr "Suplementos"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Timeline"
+msgstr "Cronologia"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Vitals"
+msgstr "Sinais vitais"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/web/src/components/header.tsx
+msgid "Workouts"
+msgstr "Treinos"

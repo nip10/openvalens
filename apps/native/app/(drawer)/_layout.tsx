@@ -1,4 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react";
 import { Link, usePathname } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { cn } from "heroui-native";
@@ -9,54 +12,81 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useThemeColor } from "@/utils/theme";
 
 const DRAWER_ITEMS = [
-  { label: "Cockpit", href: "/" as const, icon: "home-outline" as const },
-  { label: "Scores", href: "/scores" as const, icon: "speedometer-outline" as const },
+  { label: msg`Cockpit`, href: "/" as const, icon: "home-outline" as const },
+  { label: msg`Scores`, href: "/scores" as const, icon: "speedometer-outline" as const },
   {
-    label: "Preventive care",
+    label: msg`Preventive care`,
     href: "/preventive-care" as const,
     icon: "shield-checkmark-outline" as const,
   },
-  { label: "Supplements", href: "/supplements" as const, icon: "medkit-outline" as const },
-  { label: "Meal diary", href: "/nutrition" as const, icon: "restaurant-outline" as const },
+  { label: msg`Supplements`, href: "/supplements" as const, icon: "medkit-outline" as const },
+  { label: msg`Meal diary`, href: "/nutrition" as const, icon: "restaurant-outline" as const },
   {
-    label: "Micronutrients",
+    label: msg`Micronutrients`,
     href: "/micronutrients" as const,
     icon: "nutrition-outline" as const,
   },
   {
-    label: "Recipe draft",
+    label: msg`Recipe draft`,
     href: "/recipe-drafts" as const,
     icon: "document-text-outline" as const,
   },
-  { label: "Describe a meal", href: "/food-draft" as const, icon: "mic-outline" as const },
-  { label: "Timeline", href: "/timeline" as const, icon: "time-outline" as const },
-  { label: "Sleep", href: "/records/sleep" as const, icon: "moon-outline" as const },
-  { label: "Activity", href: "/records/activity" as const, icon: "walk-outline" as const },
-  { label: "Vitals", href: "/records/vitals" as const, icon: "pulse-outline" as const },
+  { label: msg`Describe a meal`, href: "/food-draft" as const, icon: "mic-outline" as const },
+  { label: msg`Timeline`, href: "/timeline" as const, icon: "time-outline" as const },
+  { label: msg`Sleep`, href: "/records/sleep" as const, icon: "moon-outline" as const },
+  { label: msg`Activity`, href: "/records/activity" as const, icon: "walk-outline" as const },
+  { label: msg`Vitals`, href: "/records/vitals" as const, icon: "pulse-outline" as const },
   {
-    label: "Private measurements",
+    label: msg`Private measurements`,
     href: "/private-measurements" as const,
     icon: "lock-closed-outline" as const,
   },
-  { label: "Cycle", href: "/cycle" as const, icon: "calendar-outline" as const },
-  { label: "Body map", href: "/body-map" as const, icon: "body-outline" as const },
-  { label: "Labs", href: "/records/labs" as const, icon: "flask-outline" as const },
-  { label: "Workouts", href: "/workouts" as const, icon: "barbell-outline" as const },
+  { label: msg`Cycle`, href: "/cycle" as const, icon: "calendar-outline" as const },
+  { label: msg`Body map`, href: "/body-map" as const, icon: "body-outline" as const },
+  { label: msg`Labs`, href: "/records/labs" as const, icon: "flask-outline" as const },
+  { label: msg`Workouts`, href: "/workouts" as const, icon: "barbell-outline" as const },
   {
-    label: "Exercise library",
+    label: msg`Exercise library`,
     href: "/exercise-library" as const,
     icon: "fitness-outline" as const,
   },
-  { label: "Clinical export", href: "/exports" as const, icon: "download-outline" as const },
-  { label: "Coach", href: "/coach" as const, icon: "chatbubbles-outline" as const },
-  { label: "Sharing", href: "/sharing" as const, icon: "people-outline" as const },
-  { label: "Invitations", href: "/invitations" as const, icon: "mail-outline" as const },
-  { label: "Profile", href: "/profile" as const, icon: "person-outline" as const },
-  { label: "Settings", href: "/settings" as const, icon: "settings-outline" as const },
+  { label: msg`Clinical export`, href: "/exports" as const, icon: "download-outline" as const },
+  { label: msg`Coach`, href: "/coach" as const, icon: "chatbubbles-outline" as const },
+  { label: msg`Sharing`, href: "/sharing" as const, icon: "people-outline" as const },
+  { label: msg`Invitations`, href: "/invitations" as const, icon: "mail-outline" as const },
+  { label: msg`Profile`, href: "/profile" as const, icon: "person-outline" as const },
+  { label: msg`Settings`, href: "/settings" as const, icon: "settings-outline" as const },
 ];
+
+/** Header title per route; anything else is the Cockpit. */
+const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
+  "/timeline": msg`Timeline`,
+  "/records/sleep": msg`Sleep`,
+  "/records/activity": msg`Activity`,
+  "/records/vitals": msg`Vitals`,
+  "/private-measurements": msg`Private measurements`,
+  "/cycle": msg`Cycle`,
+  "/body-map": msg`Body map`,
+  "/records/labs": msg`Labs`,
+  "/supplements": msg`Supplements`,
+  "/nutrition": msg`Meal diary`,
+  "/micronutrients": msg`Micronutrients`,
+  "/nutrition-targets": msg`Nutrition targets`,
+  "/recipe-drafts": msg`Recipe draft`,
+  "/food-draft": msg`Describe a meal`,
+  "/foods": msg`My foods`,
+  "/workouts": msg`Workouts`,
+  "/exercise-library": msg`Exercise library`,
+  "/exports": msg`Clinical export`,
+  "/settings": msg`Settings`,
+  "/scores": msg`Scores`,
+  "/invitations": msg`Invitations`,
+  "/preventive-care": msg`Preventive care`,
+};
 
 function DrawerContent() {
   const pathname = usePathname();
+  const { _ } = useLingui();
   const foreground = useThemeColor("foreground");
   const primary = useThemeColor("primary");
   const background = useThemeColor("background");
@@ -82,7 +112,7 @@ function DrawerContent() {
                 )}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={item.label}
+                accessibilityLabel={_(item.label)}
               >
                 <Ionicons name={item.icon} size={20} color={active ? primary : foreground} />
                 <Text
@@ -91,7 +121,7 @@ function DrawerContent() {
                     active ? "font-medium text-foreground" : "text-muted-foreground",
                   )}
                 >
-                  {item.label}
+                  {_(item.label)}
                 </Text>
               </Pressable>
             </Link>
@@ -109,52 +139,8 @@ function DrawerLayout() {
 
   const renderThemeToggle = useCallback(() => <ThemeToggle />, []);
 
-  const headerTitle =
-    pathname === "/timeline"
-      ? "Timeline"
-      : pathname === "/records/sleep"
-        ? "Sleep"
-        : pathname === "/records/activity"
-          ? "Activity"
-          : pathname === "/records/vitals"
-            ? "Vitals"
-            : pathname === "/private-measurements"
-              ? "Private measurements"
-              : pathname === "/cycle"
-                ? "Cycle"
-                : pathname === "/body-map"
-                  ? "Body map"
-                  : pathname === "/records/labs"
-                    ? "Labs"
-                    : pathname === "/supplements"
-                      ? "Supplements"
-                      : pathname === "/nutrition"
-                        ? "Meal diary"
-                        : pathname === "/micronutrients"
-                          ? "Micronutrients"
-                          : pathname === "/nutrition-targets"
-                            ? "Nutrition targets"
-                            : pathname === "/recipe-drafts"
-                              ? "Recipe draft"
-                              : pathname === "/food-draft"
-                                ? "Describe a meal"
-                                : pathname === "/foods"
-                                  ? "My foods"
-                                  : pathname === "/workouts"
-                                    ? "Workouts"
-                                    : pathname === "/exercise-library"
-                                      ? "Exercise library"
-                                      : pathname === "/exports"
-                                        ? "Clinical export"
-                                        : pathname === "/settings"
-                                          ? "Settings"
-                                          : pathname === "/scores"
-                                            ? "Scores"
-                                            : pathname === "/invitations"
-                                              ? "Invitations"
-                                              : pathname === "/preventive-care"
-                                                ? "Preventive care"
-                                                : "Cockpit";
+  const { _ } = useLingui();
+  const headerTitle = _(HEADER_TITLES[pathname] ?? msg`Cockpit`);
 
   return (
     <Drawer
