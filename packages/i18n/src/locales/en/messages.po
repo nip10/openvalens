@@ -24,6 +24,11 @@ msgstr "(you)"
 msgid "{0, plural, one {{blockerNames} also has another owner. Remove them or transfer the record before deleting.} other {{blockerNames} also have another owner. Remove them or transfer the record before deleting.}}"
 msgstr "{0, plural, one {{blockerNames} also has another owner. Remove them or transfer the record before deleting.} other {{blockerNames} also have another owner. Remove them or transfer the record before deleting.}}"
 
+#. placeholder {0}: cycle.lengthDays ?? 0
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "{0, plural, one {# day} other {# days}}"
+msgstr "{0, plural, one {# day} other {# days}}"
+
 #. placeholder {0}: streak.current
 #: packages/api/src/presenters/logging-streak.ts
 msgid "{0, plural, one {# day} other {# days}} in a row"
@@ -55,10 +60,20 @@ msgstr "{0, plural, one {# message} other {# messages}}"
 msgid "{0, plural, one {# needs attention} other {# need attention}}"
 msgstr "{0, plural, one {# needs attention} other {# need attention}}"
 
+#. placeholder {0}: run.periodCount
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "{0, plural, one {# period} other {# periods}}"
+msgstr "{0, plural, one {# period} other {# periods}}"
+
 #. placeholder {0}: counts.queued
 #: apps/native/components/plain-water-section.tsx
 msgid "{0, plural, one {# queued} other {# queued}}"
 msgstr "{0, plural, one {# queued} other {# queued}}"
+
+#. placeholder {0}: c.ratedMissingDuration
+#: packages/api/src/presenters/activity-load.ts
+msgid "{0, plural, one {# rated session without a duration.} other {# rated sessions without a duration.}}"
+msgstr "{0, plural, one {# rated session without a duration.} other {# rated sessions without a duration.}}"
 
 #. placeholder {0}: view.pendingRemovalCount
 #: apps/native/components/plain-water-section.tsx
@@ -76,6 +91,11 @@ msgstr "{0, plural, one {# rest day} other {# rest days}} available: a day witho
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "{0, plural, one {# scheduled} other {# scheduled}}"
 msgstr "{0, plural, one {# scheduled} other {# scheduled}}"
+
+#. placeholder {0}: c.sessionsMissingDuration
+#: packages/api/src/presenters/activity-load.ts
+msgid "{0, plural, one {# session without a duration.} other {# sessions without a duration.}}"
+msgstr "{0, plural, one {# session without a duration.} other {# sessions without a duration.}}"
 
 #. placeholder {0}: workoutSummary.count
 #. placeholder {1}: workoutSummary.totalDurationLabel
@@ -113,6 +133,14 @@ msgstr "{0, select, entered {Entered by you} proposal {Accepted suggestion} othe
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from} until {to}"
 msgstr "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from} until {to}"
+
+#. placeholder {0}: formatLabDate(marker.latestSampledAt)
+#. placeholder {0}: formatLabDate(marker.latestSampledAt, settings)
+#. placeholder {1}: marker.sampleCount
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "{0} · {1, plural, one {# reading} other {# readings}}"
+msgstr "{0} · {1, plural, one {# reading} other {# readings}}"
 
 #. placeholder {0}: codeLabel(ROLE_LABELS, invite.role)
 #. placeholder {1}: codeLabel(INVITATION_STATUS_LABELS, invite.status)
@@ -168,6 +196,27 @@ msgstr "{0} open · {1} achieved"
 msgid "{0} sensitive"
 msgstr "{0} sensitive"
 
+#. safety
+#. safety
+#. placeholder {0}: formatSteps(day.steps)
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "{0} steps"
+msgstr "{0} steps"
+
+#. placeholder {0}: period.startDate
+#. placeholder {1}: period.endDate
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "{0} to {1}"
+msgstr "{0} to {1}"
+
+#. placeholder {0}: labelOf(kind)
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "{0} value"
+msgstr "{0} value"
+
 #. placeholder {0}: row.percentOfReference
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
@@ -195,6 +244,12 @@ msgstr "{count, plural, one {# match found. Check it before saving.} other {# ma
 msgid "{count} from {label}"
 msgstr "{count} from {label}"
 
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+#: packages/api/src/presenters/body-map.ts
+msgid "{count} sets"
+msgstr "{count} sets"
+
 #. A short month and day, already formatted
 #: packages/api/src/presenters/cochat.ts
 msgid "{date}"
@@ -219,6 +274,19 @@ msgstr "{exerciseName} preview {number}"
 msgid "{exerciseName} previews"
 msgstr "{exerciseName} previews"
 
+#: packages/api/src/presenters/score.ts
+msgid "{first} and {last}"
+msgstr "{first} and {last}"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "{first} and {next}"
+msgstr "{first} and {next}"
+
+#: packages/api/src/presenters/score.ts
+msgid "{flagged, plural, one {# goal moved away from the target recently.} other {# goals moved away from the target recently.}}"
+msgstr "{flagged, plural, one {# goal moved away from the target recently.} other {# goals moved away from the target recently.}}"
+
+#: packages/api/src/presenters/body-map.ts
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "{from} to {to}"
 msgstr "{from} to {to}"
@@ -267,6 +335,27 @@ msgstr "{label} target: {value}, {source}"
 msgid "{label}: {amount}"
 msgstr "{label}: {amount}"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "{label}: {points} effort points (+{unrated, plural, one {# unrated session} other {# unrated sessions}})."
+msgstr "{label}: {points} effort points (+{unrated, plural, one {# unrated session} other {# unrated sessions}})."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{label}: {points} effort points."
+msgstr "{label}: {points} effort points."
+
+#: packages/api/src/presenters/score.ts
+msgid "{label}: {state}. {detail}"
+msgstr "{label}: {state}. {detail}"
+
+#: packages/api/src/presenters/score.ts
+msgid "{label}: {state}. Part score {score} out of 100. {detail}"
+msgstr "{label}: {state}. Part score {score} out of 100. {detail}"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "{label}: {value}"
+msgstr "{label}: {value}"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{label}: {value}, {coverage}"
@@ -277,10 +366,18 @@ msgstr "{label}: {value}, {coverage}"
 msgid "{label}: at least {amount}"
 msgstr "{label}: at least {amount}"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "{label}: no rated sessions."
+msgstr "{label}: no rated sessions."
+
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{label}: nothing logged"
 msgstr "{label}: nothing logged"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{label}: sessions not rated."
+msgstr "{label}: sessions not rated."
 
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
@@ -301,14 +398,48 @@ msgstr "{label}: value hidden, {coverage}"
 msgid "{low}–{high} kcal/day"
 msgstr "{low}–{high} kcal/day"
 
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "{lower}–{upper} hours a night"
+msgstr "{lower}–{upper} hours a night"
+
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "{lower}–{upper} minutes a week"
+msgstr "{lower}–{upper} minutes a week"
+
+#. placeholder {0}: cycle.lutealEstimate.from
+#. placeholder {1}: cycle.lutealEstimate.to
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "{luteal}: {0} to {1}"
+msgstr "{luteal}: {0} to {1}"
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "{luteal}: {from} to {to}"
+msgstr "{luteal}: {from} to {to}"
+
 #. Minutes ago, abbreviated
 #: packages/api/src/presenters/cochat.ts
 msgid "{min}m ago"
 msgstr "{min}m ago"
 
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "{minutes} active minutes"
+msgstr "{minutes} active minutes"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{minutes} min without an intensity are not counted."
+msgstr "{minutes} min without an intensity are not counted."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "{name} (live lookup)"
 msgstr "{name} (live lookup)"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "{name}: {count} sets"
+msgstr "{name}: {count} sets"
 
 #: apps/native/app/(drawer)/foods.tsx
 #: apps/web/src/routes/_auth/foods.tsx
@@ -333,6 +464,38 @@ msgstr "{needs_attention, plural, one {# needs attention} other {# need attentio
 msgid "{nutrient, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Nutrient}} targets must be 0 or more, or left blank."
 msgstr "{nutrient, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Nutrient}} targets must be 0 or more, or left blank."
 
+#: packages/api/src/presenters/score.ts
+msgid "{percent}% above your usual"
+msgstr "{percent}% above your usual"
+
+#: packages/api/src/presenters/score.ts
+msgid "{percent}% below your usual"
+msgstr "{percent}% below your usual"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{points} points"
+msgstr "{points} points"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{points} points (+{unrated, plural, one {# unrated session} other {# unrated sessions}})"
+msgstr "{points} points (+{unrated, plural, one {# unrated session} other {# unrated sessions}})"
+
+#: packages/api/src/presenters/score.ts
+msgid "{priority, select, low {Low priority} normal {Normal priority} other {High priority}}"
+msgstr "{priority, select, low {Low priority} normal {Normal priority} other {High priority}}"
+
+#: packages/api/src/presenters/score.ts
+msgid "{priority, select, low {Low priority} normal {Normal priority} other {High priority}} (default)"
+msgstr "{priority, select, low {Low priority} normal {Normal priority} other {High priority}} (default)"
+
+#: packages/api/src/presenters/score.ts
+msgid "{priority, select, low {Low priority} normal {Normal priority} other {High priority}} (default), {share}% of the total"
+msgstr "{priority, select, low {Low priority} normal {Normal priority} other {High priority}} (default), {share}% of the total"
+
+#: packages/api/src/presenters/score.ts
+msgid "{priority, select, low {Low priority} normal {Normal priority} other {High priority}}, {share}% of the total"
+msgstr "{priority, select, low {Low priority} normal {Normal priority} other {High priority}}, {share}% of the total"
+
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "{queued, plural, one {# queued} other {# queued}}"
 msgstr "{queued, plural, one {# queued} other {# queued}}"
@@ -342,13 +505,54 @@ msgstr "{queued, plural, one {# queued} other {# queued}}"
 msgid "{range} (arithmetic range, not a confidence interval)"
 msgstr "{range} (arithmetic range, not a confidence interval)"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "{range} for adults {ages}"
+msgstr "{range} for adults {ages}"
+
+#. placeholder {0}: c.sessions
+#: packages/api/src/presenters/activity-load.ts
+msgid "{rated} of {0, plural, one {# session} other {# sessions}} rated."
+msgstr "{rated} of {0, plural, one {# session} other {# sessions}} rated."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{ratedWithDuration, plural, one {From # rated session.} other {From # rated sessions.}}"
+msgstr "{ratedWithDuration, plural, one {From # rated session.} other {From # rated sessions.}}"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{reported} of {count, plural, one {# entry} other {# entries}}"
 msgstr "{reported} of {count, plural, one {# entry} other {# entries}}"
 
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "{scanSource}, {scanDate}, compared with {compareDate}"
+msgstr "{scanSource}, {scanDate}, compared with {compareDate}"
+
+#: packages/api/src/presenters/score.ts
+msgid "{scored} of {total, plural, one {# goal} other {# goals}} counted."
+msgstr "{scored} of {total, plural, one {# goal} other {# goals}} counted."
+
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "{sleep} a night"
+msgstr "{sleep} a night"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "{source, select, who {WHO} nsf {The National Sleep Foundation} other {The guideline}} recommends {all}."
+msgstr "{source, select, who {WHO} nsf {The National Sleep Foundation} other {The guideline}} recommends {all}."
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "{sourceName} is not available on this device"
 msgstr "{sourceName} is not available on this device"
+
+#. placeholder {0}: cycle.lengthDays ?? 0
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "{start} to {next} · {0, plural, one {# day} other {# days}}"
+msgstr "{start} to {next} · {0, plural, one {# day} other {# days}}"
+
+#. safety
+#: packages/api/src/presenters/score.ts
+msgid "{steps} steps a day"
+msgstr "{steps} steps a day"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "{syncing, plural, one {# syncing} other {# syncing}}"
@@ -360,6 +564,18 @@ msgstr "{syncing, plural, one {# syncing} other {# syncing}}"
 #: packages/api/src/presenters/workouts.ts
 msgid "{text}"
 msgstr "{text}"
+
+#: packages/api/src/presenters/score.ts
+msgid "{title}: {stateLabel}."
+msgstr "{title}: {stateLabel}."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "{title}: {text}"
+msgstr "{title}: {text}"
+
+#: apps/native/components/reference-comparisons-section.tsx
+msgid "{title}: {toggle}"
+msgstr "{title}: {toggle}"
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -384,6 +600,11 @@ msgstr "{value} from {reported} of {count, plural, one {# entry} other {# entrie
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "{value} kcal/day"
 msgstr "{value} kcal/day"
+
+#. placeholder {0}: c.sessions
+#: packages/api/src/presenters/activity-load.ts
+msgid "{withIntensity} of {0, plural, one {# session has} other {# sessions have}} an intensity."
+msgstr "{withIntensity} of {0, plural, one {# session has} other {# sessions have}} an intensity."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -410,6 +631,56 @@ msgstr "<0>Source-listed muscles:</0> {listedNames}"
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
 msgstr "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
+
+#: packages/api/src/presenters/score.ts
+msgid "100% (target reached)"
+msgstr "100% (target reached)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "12 to under 16"
+msgstr "12 to under 16"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "16 or more"
+msgstr "16 or more"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution."
+msgstr "18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution."
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "30 days"
+msgstr "30 days"
+
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "30-day trend"
+msgstr "30-day trend"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "4 to under 8"
+msgstr "4 to under 8"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "7 days"
+msgstr "7 days"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "7-day average"
+msgstr "7-day average"
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+msgid "7-day avg"
+msgstr "7-day avg"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "8 to under 12"
+msgstr "8 to under 12"
 
 #: apps/native/components/profile-setup-prompt.tsx
 #: apps/web/src/components/profile-setup-prompt.tsx
@@ -441,9 +712,29 @@ msgstr "A reference you set yourself. Optional."
 msgid "A workspace"
 msgstr "A workspace"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "About 1 in 4 people in that group had a resting pulse above {upper} bpm."
+msgstr "About 1 in 4 people in that group had a resting pulse above {upper} bpm."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "About 1 in 4 people in that group had a resting pulse below {lower} bpm."
+msgstr "About 1 in 4 people in that group had a resting pulse below {lower} bpm."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "About 5 in 10 people in that group had a resting pulse between {lower} and {upper} bpm."
+msgstr "About 5 in 10 people in that group had a resting pulse between {lower} and {upper} bpm."
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "About you"
 msgstr "About you"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Above the top of the WHO range (300 minutes a week)."
+msgstr "Above the top of the WHO range (300 minutes a week)."
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Abs"
+msgstr "Abs"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -454,6 +745,10 @@ msgstr "Accept"
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Accept suggestion"
 msgstr "Accept suggestion"
+
+#: packages/api/src/presenters/sleep.ts
+msgid "Acceptable"
+msgstr "Acceptable"
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -502,8 +797,31 @@ msgctxt "medication status"
 msgid "Active"
 msgstr "Active"
 
+#: packages/api/src/presenters/manual-entry.ts
+msgid "Active calories"
+msgstr "Active calories"
+
+#: packages/api/src/presenters/activity-load.ts
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Active minutes"
+msgstr "Active minutes"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Active minutes not available. {statusText}"
+msgstr "Active minutes not available. {statusText}"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Active minutes, last 7 days: {value} minutes. {statusText}"
+msgstr "Active minutes, last 7 days: {value} minutes. {statusText}"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: packages/api/src/presenters/cockpit.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Activity"
 msgstr "Activity"
 
@@ -517,10 +835,23 @@ msgstr "Add a goal in your own words if you have one. It is saved to your Goals,
 msgid "Add a goal to start tracking."
 msgstr "Add a goal to start tracking."
 
+#: packages/api/src/presenters/score.ts
+msgid "Add a goal with a target to see goal progress."
+msgstr "Add a goal with a target to see goal progress."
+
+#: apps/web/src/components/progress-photos.tsx
+msgid "Add a photo (JPEG or PNG, up to 10 MB)"
+msgstr "Add a photo (JPEG or PNG, up to 10 MB)"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Add a session to start tracking."
 msgstr "Add a session to start tracking."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Add an entry"
+msgstr "Add an entry"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -551,6 +882,15 @@ msgstr "Add medication"
 msgid "Add plain water"
 msgstr "Add plain water"
 
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Add reading"
+msgstr "Add reading"
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Add supplement"
@@ -565,9 +905,26 @@ msgstr "Add to favourites: {name}"
 msgid "Add to workout"
 msgstr "Add to workout"
 
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "Add weight"
+msgstr "Add weight"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Add workout"
 msgstr "Add workout"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Add your adult answer in your profile to use this."
+msgstr "Add your adult answer in your profile to use this."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Add your birth year and your sex for reference tables in your profile to use this."
+msgstr "Add your birth year and your sex for reference tables in your profile to use this."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Add your birth year in your profile to use this."
+msgstr "Add your birth year in your profile to use this."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Added sugars"
@@ -606,6 +963,14 @@ msgstr "admin"
 msgid "Administration"
 msgstr "Administration"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Adults aged 18 and over, including older adults (65+)."
+msgstr "Adults aged 18 and over, including older adults (65+)."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Adults without a sleep disorder: adults 18–64 and adults 65 and over."
+msgstr "Adults without a sleep disorder: adults 18–64 and adults 65 and over."
+
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Affects number, date, and time formatting. Language stays English."
 msgstr "Affects number, date, and time formatting. Language stays English."
@@ -623,6 +988,14 @@ msgstr "Age and sex for guidance"
 msgid "Age check"
 msgstr "Age check"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "aged {minAge} and over"
+msgstr "aged {minAge} and over"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "aged {minAge}–{maxAge}"
+msgstr "aged {minAge}–{maxAge}"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Aggressive"
 msgstr "Aggressive"
@@ -631,6 +1004,11 @@ msgstr "Aggressive"
 #: apps/native/app/(drawer)/food-draft.tsx
 msgid "Agree to send this text to the AI provider now"
 msgstr "Agree to send this text to the AI provider now"
+
+#. safety
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Agree to store cycle data"
+msgstr "Agree to store cycle data"
 
 #. safety
 #: apps/web/src/components/ai-consent-card.tsx
@@ -683,6 +1061,10 @@ msgstr "All nutrients"
 msgid "Allow notifications on this phone"
 msgstr "Allow notifications on this phone"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Also recorded"
+msgstr "Also recorded"
+
 #. safety
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Always"
@@ -714,12 +1096,20 @@ msgstr "An administrator can import licensed exercises, or you can create a work
 msgid "An estimate is not available yet."
 msgstr "An estimate is not available yet."
 
+#: packages/api/src/presenters/score.ts
+msgid "An experimental summary of how your recent sleep, resting heart rate and activity compare with your own usual pattern."
+msgstr "An experimental summary of how your recent sleep, resting heart rate and activity compare with your own usual pattern."
+
 #. safety
 #. safety
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Analytics are unavailable on this server. You can still turn off sharing."
 msgstr "Analytics are unavailable on this server. You can still turn off sharing."
+
+#: apps/native/app/(drawer)/index.tsx
+msgid "API Disconnected"
+msgstr "API Disconnected"
 
 #: apps/web/src/routes/index.tsx
 msgid "API Status"
@@ -762,6 +1152,15 @@ msgstr "Ask for a suggestion"
 msgid "Ask the coach anything…"
 msgstr "Ask the coach anything…"
 
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Asleep"
+msgstr "Asleep"
+
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Asleep (min)"
+msgstr "Asleep (min)"
+
 #. placeholder {0}: assertivenessText(assertiveness)
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "Assertiveness · {0}"
@@ -776,13 +1175,55 @@ msgstr "Assertiveness ({0})"
 msgid "At least {value} {unit}"
 msgstr "At least {value} {unit}"
 
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Audit"
+msgstr "Audit"
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Auth secret"
+msgstr "Auth secret"
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Author: {author}"
 msgstr "Author: {author}"
 
+#: packages/api/src/presenters/score.ts
+msgid "Available, not part of this profile"
+msgstr "Available, not part of this profile"
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+msgid "Avg"
+msgstr "Avg"
+
+#. placeholder {0}: vitals.date
+#. placeholder {0}: vitalsRow.date
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: packages/api/src/presenters/cockpit.ts
+msgid "Avg · {0}"
+msgstr "Avg · {0}"
+
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Avg bpm"
+msgstr "Avg bpm"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Avg debt"
+msgstr "Avg debt"
+
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Avg heart rate"
+msgstr "Avg heart rate"
+
+#: packages/api/src/presenters/sleep.ts
+msgid "Awake"
+msgstr "Awake"
+
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
 msgid "Back"
 msgstr "Back"
 
@@ -855,6 +1296,22 @@ msgstr "Barcode matches"
 msgid "Barcode must be 8 to 14 digits, or left blank."
 msgstr "Barcode must be 8 to 14 digits, or left blank."
 
+#: apps/native/app/(drawer)/records/activity.tsx
+msgid "Bars: steps per day"
+msgstr "Bars: steps per day"
+
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Bedtime → wake"
+msgstr "Bedtime → wake"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Below the WHO range of 150–300 minutes a week."
+msgstr "Below the WHO range of 150–300 minutes a week."
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Biceps"
+msgstr "Biceps"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Birth year"
@@ -865,20 +1322,50 @@ msgstr "Birth year"
 msgid "Biweekly"
 msgstr "Biweekly"
 
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Blood"
+msgstr "Blood"
+
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/body.tsx
+#: packages/api/src/presenters/clinical-export.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Body"
 msgstr "Body"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
 msgid "Body map"
 msgstr "Body map"
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Body map, back view"
+msgstr "Body map, back view"
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Body map, front view"
+msgstr "Body map, front view"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Bone density"
+msgstr "Bone density"
+
+#: packages/api/src/presenters/manual-entry.ts
+msgid "bpm"
+msgstr "bpm"
 
 #: apps/native/app/(drawer)/foods.tsx
 #: apps/web/src/routes/_auth/foods.tsx
 msgid "Brand (optional)"
 msgstr "Brand (optional)"
+
+#: apps/web/src/components/score-panels.tsx
+msgid "Breakdown"
+msgstr "Breakdown"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Breakfast"
@@ -900,6 +1387,11 @@ msgstr "Browse licensed exercises or create one for your workspace."
 msgid "Browse licensed library entries and exercises created for your workspace."
 msgstr "Browse licensed library entries and exercises created for your workspace."
 
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "By muscle group"
+msgstr "By muscle group"
+
 #: apps/native/app/(drawer)/micronutrients.tsx
 msgid "By nutrient"
 msgstr "By nutrient"
@@ -912,9 +1404,36 @@ msgstr "Cached diary data will be removed from this device. Saved entries stay o
 msgid "Calcium"
 msgstr "Calcium"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Calculated fresh from your records each time; nothing is stored."
+msgstr "Calculated fresh from your records each time; nothing is stored."
+
+#: packages/api/src/presenters/score.ts
+msgid "Calculated fresh from your records each time; scores are not stored."
+msgstr "Calculated fresh from your records each time; scores are not stored."
+
+#: packages/api/src/presenters/clinical-export.ts
+#: packages/api/src/presenters/timeline.ts
+msgid "Calendar"
+msgstr "Calendar"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Caloric deficit, fat-loss focus."
 msgstr "Caloric deficit, fat-loss focus."
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "Calories"
+msgstr "Calories"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "Calories / day"
+msgstr "Calories / day"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Calves"
+msgstr "Calves"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Camera access is required to scan a barcode. Type the digits instead, or allow access in Settings."
@@ -929,9 +1448,12 @@ msgid "Canada"
 msgstr "Canada"
 
 #: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/progress-photos.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Cancel"
@@ -951,13 +1473,32 @@ msgstr "canceled"
 msgid "Cancelled"
 msgstr "Cancelled"
 
+#: packages/api/src/presenters/score.ts
+msgid "Cancelled, not counted"
+msgstr "Cancelled, not counted"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Carbohydrate"
 msgstr "Carbohydrate"
 
+#: apps/web/src/routes/_auth/clinical.tsx
+#: packages/api/src/presenters/clinical-export.ts
+#: packages/api/src/presenters/timeline.ts
+msgid "Cardiac"
+msgstr "Cardiac"
+
+#. placeholder {0}: cardiac.data.length
+#: apps/native/app/(drawer)/clinical.tsx
+msgid "Cardiac · {0}"
+msgstr "Cardiac · {0}"
+
 #: apps/native/components/plain-water-section.tsx
 msgid "Change discarded on this device."
 msgstr "Change discarded on this device."
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Change in {source}"
+msgstr "Change in {source}"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -981,6 +1522,11 @@ msgstr "Change to {amount}"
 msgid "Changes apply to new entries. Meals you already logged keep the values they were saved with."
 msgstr "Changes apply to new entries. Meals you already logged keep the values they were saved with."
 
+#: apps/native/app/(drawer)/(tabs)/timeline.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Check"
+msgstr "Check"
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "Check each item, fix anything misheard, then find the matching food in your diary and confirm it there. Quantities you did not say stay empty."
 msgstr "Check each item, fix anything misheard, then find the matching food in your diary and confirm it there. Quantities you did not say stay empty."
@@ -997,18 +1543,54 @@ msgstr "Check the product, source and amount. Nothing is saved until you press S
 msgid "Check your email"
 msgstr "Check your email"
 
+#: apps/native/app/(drawer)/index.tsx
+msgid "Checking connection..."
+msgstr "Checking connection..."
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Checking connection…"
+msgstr "Checking connection…"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Checking private measurement setting…"
+msgstr "Checking private measurement setting…"
+
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Checking your account and server settings…"
 msgstr "Checking your account and server settings…"
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Checking your account and workspace…"
+msgstr "Checking your account and workspace…"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Checking your account…"
+msgstr "Checking your account…"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Checking your cycle setting…"
+msgstr "Checking your cycle setting…"
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Checking your private measurement setting…"
+msgstr "Checking your private measurement setting…"
+
 #: apps/web/src/routes/index.tsx
 msgid "Checking..."
 msgstr "Checking..."
 
+#: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/components/health-sync-settings.tsx
 msgid "Checking…"
 msgstr "Checking…"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+#: packages/api/src/presenters/body-map.ts
+msgid "Chest"
+msgstr "Chest"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Choose"
@@ -1036,6 +1618,16 @@ msgstr "Choose a recipe to review"
 msgid "Choose a workout"
 msgstr "Choose a workout"
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Choose a workspace to continue."
+msgstr "Choose a workspace to continue."
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Choose a workspace."
+msgstr "Choose a workspace."
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Choose an exercise to read its details."
 msgstr "Choose an exercise to read its details."
@@ -1043,6 +1635,11 @@ msgstr "Choose an exercise to read its details."
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Choose day"
 msgstr "Choose day"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Choose domains and a format, then download."
+msgstr "Choose domains and a format, then download."
 
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Choose how weight and distance are displayed."
@@ -1067,6 +1664,10 @@ msgstr "Clear"
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Clear answer"
 msgstr "Clear answer"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Clear decision"
+msgstr "Clear decision"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Clear diary data on this device"
@@ -1094,8 +1695,15 @@ msgstr "Clear target"
 msgid "Clear target {0}"
 msgstr "Clear target {0}"
 
+#: apps/native/app/(drawer)/clinical.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Clinical"
+msgstr "Clinical"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/exports.tsx
 msgid "Clinical export"
 msgstr "Clinical export"
 
@@ -1128,6 +1736,10 @@ msgstr "Coach · thinking…"
 msgid "Cockpit"
 msgstr "Cockpit"
 
+#: packages/api/src/presenters/body-map.ts
+msgid "Colours come only from regions the selected scan measured. Regions the scan did not report stay grey; nothing is estimated."
+msgstr "Colours come only from regions the selected scan measured. Regions the scan did not report stay grey; nothing is estimated."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "comfortable"
 msgstr "comfortable"
@@ -1147,6 +1759,35 @@ msgstr "compact"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Compact density"
 msgstr "Compact density"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Compare with"
+msgstr "Compare with"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Compare with the published reference"
+msgstr "Compare with the published reference"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Compared with published references"
+msgstr "Compared with published references"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Compared with your recent weeks"
+msgstr "Compared with your recent weeks"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Comparison not available. {reason}"
+msgstr "Comparison not available. {reason}"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Comparison off."
+msgstr "Comparison off."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Comparisons use your own age and sex, so they are only shown in your own workspace."
+msgstr "Comparisons use your own age and sex, so they are only shown in your own workspace."
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Complete enrollment"
@@ -1195,6 +1836,10 @@ msgstr "Connect"
 msgid "Connect a Telegram chat to receive daily reminders."
 msgstr "Connect a Telegram chat to receive daily reminders."
 
+#: apps/native/app/(drawer)/(tabs)/timeline.tsx
+msgid "Connect Health Connect or Apple Health in Settings to sync your data."
+msgstr "Connect Health Connect or Apple Health in Settings to sync your data."
+
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Connect to the internet to save this food. Your diary entry has not been queued."
 msgstr "Connect to the internet to save this food. Your diary entry has not been queued."
@@ -1210,6 +1855,10 @@ msgstr "Connect your {0} account to sign in with it. Email links keep working."
 #: apps/web/src/routes/index.tsx
 msgid "Connected"
 msgstr "Connected"
+
+#: apps/native/app/(drawer)/index.tsx
+msgid "Connected to API"
+msgstr "Connected to API"
 
 #. placeholder {0}: oidc.displayName
 #: apps/web/src/components/oidc-connect-section.tsx
@@ -1311,6 +1960,19 @@ msgstr "Copying {0, plural, one {# item} other {# items}} to {localDate}"
 msgid "Could not accept the invitation."
 msgstr "Could not accept the invitation."
 
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not check this setting."
+msgstr "Could not check this setting."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Could not check this setting. Measurements stay unavailable until it can be confirmed."
+msgstr "Could not check this setting. Measurements stay unavailable until it can be confirmed."
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Could not check this setting. Try again"
+msgstr "Could not check this setting. Try again"
+
 #: apps/native/components/sign-in.tsx
 msgid "Could not clear the pending sign-in. Please try again."
 msgstr "Could not clear the pending sign-in. Please try again."
@@ -1374,18 +2036,57 @@ msgstr "Could not confirm. Refresh and review before trying again."
 msgid "Could not decline the invitation."
 msgstr "Could not decline the invitation."
 
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Could not delete this entry. Check your connection and try again."
+msgstr "Could not delete this entry. Check your connection and try again."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Could not delete this entry. It is still in history."
+msgstr "Could not delete this entry. It is still in history."
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Could not delete this entry. It is still in your history."
+msgstr "Could not delete this entry. It is still in your history."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Could not delete this entry. It is still in your history. Retry below."
+msgstr "Could not delete this entry. It is still in your history. Retry below."
+
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "Could not delete this photo. Try again."
+msgstr "Could not delete this photo. Try again."
+
 #: apps/web/src/components/oidc-connect-section.tsx
 msgid "Could not disconnect. Sign in again and retry."
 msgstr "Could not disconnect. Sign in again and retry."
+
+#: apps/native/app/(drawer)/exports.tsx
+msgid "Could not export."
+msgstr "Could not export."
+
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Could not export. Try again."
+msgstr "Could not export. Try again."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Could not generate a connect link."
 msgstr "Could not generate a connect link."
 
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "Could not load activity."
+msgstr "Could not load activity."
+
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Could not load AI consent."
 msgstr "Could not load AI consent."
+
+#: apps/native/app/(drawer)/clinical.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "Could not load clinical records."
+msgstr "Could not load clinical records."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
@@ -1401,13 +2102,34 @@ msgstr "Could not load configuration"
 msgid "Could not load display defaults."
 msgstr "Could not load display defaults."
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Could not load entries."
+msgstr "Could not load entries."
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not load estimates."
+msgstr "Could not load estimates."
+
 #: apps/native/components/exercise-library.tsx
 msgid "Could not load exercises."
 msgstr "Could not load exercises."
 
+#: apps/web/src/routes/_auth/scores.tsx
+msgid "Could not load goal progress."
+msgstr "Could not load goal progress."
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load goals."
 msgstr "Could not load goals."
+
+#: apps/web/src/components/insights-section.tsx
+msgid "Could not load insights."
+msgstr "Could not load insights."
+
+#: apps/native/components/insights-section.tsx
+msgid "Could not load insights. Retry"
+msgstr "Could not load insights. Retry"
 
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
@@ -1423,18 +2145,57 @@ msgstr "Could not load invitation."
 msgid "Could not load invitations."
 msgstr "Could not load invitations."
 
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Could not load labs."
+msgstr "Could not load labs."
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Could not load notification settings."
 msgstr "Could not load notification settings."
+
+#: apps/web/src/components/insights-section.tsx
+msgid "Could not load observation setting. Retry"
+msgstr "Could not load observation setting. Retry"
+
+#: apps/native/components/progress-photos.tsx
+msgid "Could not load photos. Try again"
+msgstr "Could not load photos. Try again"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Could not load plain-water entries or settings. Refresh to try again."
 msgstr "Could not load plain-water entries or settings. Refresh to try again."
 
+#: apps/native/app/(drawer)/preventive-care.tsx
+#: apps/web/src/routes/_auth/preventive-care.tsx
+msgid "Could not load preventive care."
+msgstr "Could not load preventive care."
+
+#: apps/web/src/components/reference-comparisons-card.tsx
+msgid "Could not load reference comparisons."
+msgstr "Could not load reference comparisons."
+
+#: apps/native/components/reference-comparisons-section.tsx
+msgid "Could not load reference comparisons. <0>Retry</0>"
+msgstr "Could not load reference comparisons. <0>Retry</0>"
+
+#: apps/native/components/insights-section.tsx
+msgid "Could not load setting. Retry"
+msgstr "Could not load setting. Retry"
+
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Could not load sharing info."
 msgstr "Could not load sharing info."
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Could not load sleep."
+msgstr "Could not load sleep."
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Could not load status. Pull down to retry."
+msgstr "Could not load status. Pull down to retry."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -1453,10 +2214,19 @@ msgstr "Could not load the estimate. Try again."
 msgid "Could not load the exercise library."
 msgstr "Could not load the exercise library."
 
+#: apps/web/src/routes/_auth/scores.tsx
+msgid "Could not load the readiness index."
+msgstr "Could not load the readiness index."
+
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Could not load the summary."
 msgstr "Could not load the summary."
+
+#: apps/native/app/(drawer)/(tabs)/timeline.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Could not load the timeline."
+msgstr "Could not load the timeline."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -1468,6 +2238,11 @@ msgstr "Could not load this conversation."
 msgid "Could not load threads."
 msgstr "Could not load threads."
 
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Could not load vitals."
+msgstr "Could not load vitals."
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load weekly activity."
 msgstr "Could not load weekly activity."
@@ -1476,12 +2251,25 @@ msgstr "Could not load weekly activity."
 msgid "Could not load weekly activity. <0>Retry</0>"
 msgstr "Could not load weekly activity. <0>Retry</0>"
 
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "Could not load weight."
+msgstr "Could not load weight."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load workouts."
 msgstr "Could not load workouts."
+
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "Could not load your data. Pull to retry."
+msgstr "Could not load your data. Pull to retry."
+
+#: apps/web/src/components/progress-photos.tsx
+msgid "Could not load your photos."
+msgstr "Could not load your photos."
 
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
@@ -1496,6 +2284,24 @@ msgstr "Could not load your profile."
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Could not load your profile. Nothing has changed."
 msgstr "Could not load your profile. Nothing has changed."
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Could not load your scans."
+msgstr "Could not load your scans."
+
+#: apps/native/app/(drawer)/scores.tsx
+msgid "Could not load your scores."
+msgstr "Could not load your scores."
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Could not load your workouts."
+msgstr "Could not load your workouts."
+
+#: apps/web/src/components/insights-panel.tsx
+msgid "Could not load."
+msgstr "Could not load."
 
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -1534,14 +2340,62 @@ msgstr "Could not revoke invitation."
 msgid "Could not save this change on this device. Nothing was sent."
 msgstr "Could not save this change on this device. Nothing was sent."
 
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Could not save this choice. Your saved setting is unchanged."
+msgstr "Could not save this choice. Your saved setting is unchanged."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Could not save this entry. Try again."
+msgstr "Could not save this entry. Try again."
+
+#: apps/web/src/components/progress-photos.tsx
+msgid "Could not save this photo. Use a JPEG or PNG up to 10 MB."
+msgstr "Could not save this photo. Use a JPEG or PNG up to 10 MB."
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Could not save your choice."
+msgstr "Could not save your choice."
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Could not save your feedback."
+msgstr "Could not save your feedback."
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not save."
 msgstr "Could not save."
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not save. Check the dates and try again."
+msgstr "Could not save. Check the dates and try again."
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Could not save. Check your connection and try again."
+msgstr "Could not save. Check your connection and try again."
+
+#: apps/native/app/(drawer)/preventive-care.tsx
+#: apps/web/src/routes/_auth/preventive-care.tsx
+msgid "Could not save. Nothing was changed."
+msgstr "Could not save. Nothing was changed."
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Could not save. Use YYYY-MM-DD dates and try again."
+msgstr "Could not save. Use YYYY-MM-DD dates and try again."
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Could not search food databases. Showing foods saved on this device."
@@ -1592,6 +2446,10 @@ msgstr "Could not start sign-in with {displayName}. Please try again."
 msgid "Could not turn on notifications."
 msgstr "Could not turn on notifications."
 
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not turn this on. Try again."
+msgstr "Could not turn this on. Try again."
+
 #: apps/web/src/components/ai-consent-section.tsx
 msgid "Could not update AI consent."
 msgstr "Could not update AI consent."
@@ -1600,6 +2458,24 @@ msgstr "Could not update AI consent."
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Could not update notification settings."
 msgstr "Could not update notification settings."
+
+#: apps/native/components/insights-section.tsx
+msgid "Could not update observation settings."
+msgstr "Could not update observation settings."
+
+#: apps/web/src/components/insights-section.tsx
+msgid "Could not update observation settings. Your saved choice is unchanged; retry when connected."
+msgstr "Could not update observation settings. Your saved choice is unchanged; retry when connected."
+
+#: apps/native/components/reference-comparisons-section.tsx
+#: apps/web/src/components/reference-comparisons-card.tsx
+msgid "Could not update the comparison setting."
+msgstr "Could not update the comparison setting."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Could not update this setting. Try again."
+msgstr "Could not update this setting. Try again."
 
 #: apps/native/app/(drawer)/admin/settings.tsx
 msgid "Could not verify access"
@@ -1610,6 +2486,10 @@ msgstr "Could not verify access"
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "Could not verify admin access."
 msgstr "Could not verify admin access."
+
+#: packages/api/src/presenters/score.ts
+msgid "Counted"
+msgstr "Counted"
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "Counts days with at least one diary entry. It is about the habit of logging, not about what you eat. Hidden in hide-numbers mode and after any declaration."
@@ -1644,6 +2524,10 @@ msgstr "Create workspace exercise"
 msgid "Creating…"
 msgstr "Creating…"
 
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Cron secret"
+msgstr "Cron secret"
+
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "Current target: {currentTarget}"
@@ -1654,9 +2538,21 @@ msgid "Cut"
 msgstr "Cut"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
 msgid "Cycle"
 msgstr "Cycle"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Cycle logging is off"
+msgstr "Cycle logging is off"
+
+#. safety
+#: packages/api/src/presenters/cycle.ts
+msgid "Cycle logging is optional and separate from everything else. Your cycle data stays private to you: workspace owners and other members cannot see it, and it is left out of AI and coach features, clinical exports, Telegram, email and analytics. You can turn it off and erase it at any time."
+msgstr "Cycle logging is optional and separate from everything else. Your cycle data stays private to you: workspace owners and other members cannot see it, and it is left out of AI and coach features, clinical exports, Telegram, email and analytics. You can turn it off and erase it at any time."
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Cycling"
@@ -1693,8 +2589,13 @@ msgid "Dark mode"
 msgstr "Dark mode"
 
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Dashboard"
 msgstr "Dashboard"
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Database"
+msgstr "Database"
 
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
@@ -1709,6 +2610,17 @@ msgstr "Date"
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Day"
 msgstr "Day"
+
+#. placeholder {0}: estimates.data.current.dayOfCycle
+#. placeholder {1}: estimates.data.current.startDate
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Day {0} of the current cycle (started {1})."
+msgstr "Day {0} of the current cycle (started {1})."
+
+#. placeholder {0}: estimates.data.current.dayOfCycle
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Day {0} of the current cycle."
+msgstr "Day {0} of the current cycle."
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Day marker for {date}"
@@ -1732,10 +2644,31 @@ msgstr "Decline"
 msgid "Declining…"
 msgstr "Declining…"
 
+#: packages/api/src/presenters/sleep.ts
+msgid "Deep"
+msgstr "Deep"
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Degraded"
+msgstr "Degraded"
+
+#: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Delete"
 msgstr "Delete"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Delete {label} entry from {date}"
+msgstr "Delete {label} entry from {date}"
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Delete {label} entry from {when}"
+msgstr "Delete {label} entry from {when}"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Delete {name}"
@@ -1766,9 +2699,39 @@ msgstr "Delete entry"
 msgid "Delete everything"
 msgstr "Delete everything"
 
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "Delete photo"
+msgstr "Delete photo"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Delete private measurement?"
+msgstr "Delete private measurement?"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Delete this entry?"
 msgstr "Delete this entry?"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Delete this period?"
+msgstr "Delete this period?"
+
+#: apps/native/components/progress-photos.tsx
+msgid "Delete this photo?"
+msgstr "Delete this photo?"
+
+#: apps/web/src/components/progress-photos.tsx
+msgid "Delete this photo? This cannot be undone."
+msgstr "Delete this photo? This cannot be undone."
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Delete this private measurement? This cannot be undone."
+msgstr "Delete this private measurement? This cannot be undone."
+
+#. safety
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Deletes every period and import you have logged, in every workspace, and withdraws your consent. This cannot be undone."
+msgstr "Deletes every period and import you have logged, in every workspace, and withdraws your consent. This cannot be undone."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
@@ -1794,6 +2757,10 @@ msgstr "Details"
 msgid "Details are unavailable. Refresh the library and try again."
 msgstr "Details are unavailable. Refresh the library and try again."
 
+#: packages/api/src/presenters/clinical-export.ts
+msgid "DEXA"
+msgstr "DEXA"
+
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Diary changes: {partsText}"
 msgstr "Diary changes: {partsText}"
@@ -1815,6 +2782,14 @@ msgstr "Dinner"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Direct"
 msgstr "Direct"
+
+#: packages/api/src/presenters/score.ts
+msgid "Direction inferred from the start value."
+msgstr "Direction inferred from the start value."
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Disabled"
+msgstr "Disabled"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: packages/api/src/presenters/plain-water.ts
@@ -1869,6 +2844,22 @@ msgstr "Display defaults unavailable · showing metric fallback"
 msgid "Display unit"
 msgstr "Display unit"
 
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: packages/api/src/presenters/manual-entry.ts
+msgid "Distance"
+msgstr "Distance"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "Distance / day"
+msgstr "Distance / day"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Domains"
+msgstr "Domains"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Done"
@@ -1882,6 +2873,36 @@ msgstr "Done"
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Dose"
 msgstr "Dose"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Download"
+msgstr "Download"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Download a bundle"
+msgstr "Download a bundle"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Download bundle"
+msgstr "Download bundle"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Download by domain"
+msgstr "Download by domain"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Download your clinical record as a single JSON bundle."
+msgstr "Download your clinical record as a single JSON bundle."
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Downloading…"
+msgstr "Downloading…"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -1918,11 +2939,25 @@ msgstr "Duration (minutes)"
 msgid "Duration must be 1–1440 minutes."
 msgstr "Duration must be 1–1440 minutes."
 
+#: packages/api/src/presenters/score.ts
+msgid "Each goal's progress is how far you have moved from its starting value toward its target, capped at 100% once reached. The total weighs each counted goal by its priority (low 1, normal 2, high 3). Paused or cancelled goals, and goals without a target, current value or direction, are left out instead of counted as zero."
+msgstr "Each goal's progress is how far you have moved from its starting value toward its target, capped at 100% once reached. The total weighs each counted goal by its priority (low 1, normal 2, high 3). Paused or cancelled goals, and goals without a target, current value or direction, are left out instead of counted as zero."
+
+#: packages/api/src/presenters/score.ts
+msgid "Each input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. The index is the plain average of the parts your profile uses."
+msgstr "Each input is compared with your own median over the 28 days before it (at least 7 days with data are needed). 50 means in line with your usual. More sleep than usual raises that part; a higher resting heart rate, or a heavier recent activity load than usual, lowers its part. The index is the plain average of the parts your profile uses."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Each session's effort rating (0–10) × its minutes, added up over the last 7 days (session-RPE)."
+msgstr "Each session's effort rating (0–10) × its minutes, added up over the last 7 days (session-RPE)."
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Earlier"
 msgstr "Earlier"
 
 #: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Edit"
@@ -1938,6 +2973,14 @@ msgstr "Edit {0}"
 msgid "Edit {foodName}"
 msgstr "Edit {foodName}"
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Edit {label} entry from {date}"
+msgstr "Edit {label} entry from {date}"
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Edit {label} entry from {when}"
+msgstr "Edit {label} entry from {when}"
+
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Edit {name}"
 msgstr "Edit {name}"
@@ -1946,13 +2989,36 @@ msgstr "Edit {name}"
 msgid "Edit <0>{foodName}</0>"
 msgstr "Edit <0>{foodName}</0>"
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Edit entry"
+msgstr "Edit entry"
+
 #: apps/web/src/components/profile-summary-card.tsx
 msgid "Edit profile"
 msgstr "Edit profile"
 
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Efficiency"
+msgstr "Efficiency"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Effort points"
+msgstr "Effort points"
+
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/activity-load-panel.tsx
 msgid "Effort points by day"
 msgstr "Effort points by day"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Effort points not available. {statusText}"
+msgstr "Effort points not available. {statusText}"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Effort points, last 7 days: {value} points. {statusText}"
+msgstr "Effort points, last 7 days: {value} points. {statusText}"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -1983,9 +3049,25 @@ msgstr "Email"
 msgid "Email me a sign-in link"
 msgstr "Email me a sign-in link"
 
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Enabled"
+msgstr "Enabled"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Encouraging, focused on consistency."
 msgstr "Encouraging, focused on consistency."
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "End date (optional)"
+msgstr "End date (optional)"
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "End date, optional (YYYY-MM-DD)"
+msgstr "End date, optional (YYYY-MM-DD)"
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "End date, optional, YYYY-MM-DD"
+msgstr "End date, optional, YYYY-MM-DD"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Energy"
@@ -2028,6 +3110,14 @@ msgstr "Enter a minimum, a maximum or both."
 msgid "Enter a valid email address"
 msgstr "Enter a valid email address"
 
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Enter a valid measurement and observed time."
+msgstr "Enter a valid measurement and observed time."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Enter a valid positive value and real local date/time."
+msgstr "Enter a valid positive value and real local date/time."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Enter an amount greater than zero."
 msgstr "Enter an amount greater than zero."
@@ -2068,6 +3158,11 @@ msgstr "Entered by you"
 msgid "entry at {time}"
 msgstr "entry at {time}"
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Entry deleted."
+msgstr "Entry deleted."
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Entry removed."
 msgstr "Entry removed."
@@ -2092,6 +3187,11 @@ msgstr "Entry restored."
 msgid "Entry restored. {name}"
 msgstr "Entry restored. {name}"
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Entry saved."
+msgstr "Entry saved."
+
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "Environment configuration"
@@ -2102,13 +3202,57 @@ msgstr "Environment configuration"
 msgid "Equipment"
 msgstr "Equipment"
 
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Erase"
+msgstr "Erase"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Erase all cycle data"
+msgstr "Erase all cycle data"
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Erase all cycle data?"
+msgstr "Erase all cycle data?"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Erasing…"
+msgstr "Erasing…"
+
+#: packages/api/src/presenters/cycle.ts
+msgid "Estimate"
+msgstr "Estimate"
+
+#. safety
+#: packages/api/src/presenters/cycle.ts
+msgid "Estimated luteal phase (about the last 12–14 days before your period)"
+msgstr "Estimated luteal phase (about the last 12–14 days before your period)"
+
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Estimated maintenance intake"
 msgstr "Estimated maintenance intake"
 
+#. safety
+#: packages/api/src/presenters/cycle.ts
+msgid "Estimated, low confidence. A phase can only be estimated once your next period is logged."
+msgstr "Estimated, low confidence. A phase can only be estimated once your next period is logged."
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Estimates"
+msgstr "Estimates"
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Every few hours, when the system allows"
 msgstr "Every few hours, when the system allows"
+
+#. safety
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Every period and import is deleted and your consent is withdrawn. This cannot be undone."
+msgstr "Every period and import is deleted and your consent is withdrawn. This cannot be undone."
+
+#: packages/api/src/presenters/clinical-records.ts
+msgid "Exam"
+msgstr "Exam"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -2148,9 +3292,25 @@ msgstr "Exercise record"
 msgid "Exercises"
 msgstr "Exercises"
 
+#: packages/api/src/presenters/score.ts
+msgid "Experimental"
+msgstr "Experimental"
+
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Experimental estimate—not a target or a measure of what you ate."
 msgstr "Experimental estimate—not a target or a measure of what you ate."
+
+#: packages/api/src/presenters/score.ts
+msgid "Experimental readiness index {score} out of 100, {profileName}."
+msgstr "Experimental readiness index {score} out of 100, {profileName}."
+
+#: packages/api/src/presenters/score.ts
+msgid "Experimental readiness index not available."
+msgstr "Experimental readiness index not available."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Expert guideline development group reviewing systematic evidence. Vigorous minutes count double (moderate-equivalent)."
+msgstr "Expert guideline development group reviewing systematic evidence. Vigorous minutes count double (moderate-equivalent)."
 
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Expired"
@@ -2168,9 +3328,29 @@ msgstr "Expires {0}"
 msgid "Expires {0}."
 msgstr "Expires {0}."
 
+#: apps/native/components/sync-status-badge.tsx
+#: apps/web/src/components/sync-status-badge.tsx
+msgid "Failed ({pending})"
+msgstr "Failed ({pending})"
+
+#: apps/web/src/routes/_auth/clinical.tsx
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Family history"
+msgstr "Family history"
+
+#. placeholder {0}: family.data.length
+#: apps/native/app/(drawer)/clinical.tsx
+msgid "Family history · {0}"
+msgstr "Family history · {0}"
+
+#: packages/api/src/presenters/body-map.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Fat"
 msgstr "Fat"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Fat mass"
+msgstr "Fat mass"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Favourite"
@@ -2205,6 +3385,10 @@ msgstr "Find and log this food"
 #: apps/web/src/components/magic-link-form.tsx
 msgid "First setup"
 msgstr "First setup"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Flow (optional)"
+msgstr "Flow (optional)"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -2257,6 +3441,11 @@ msgstr "Foods you save here are private to you. They are not shared with other m
 msgid "For example: walk most days"
 msgstr "For example: walk most days"
 
+#. safety
+#: packages/api/src/presenters/cycle.ts
+msgid "For your own reference only. This is not a contraception or fertility tool and does not change your nutrition targets."
+msgstr "For your own reference only. This is not a contraception or fertility tool and does not change your nutrition targets."
+
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "For your security, confirm it's you with a fresh sign-in."
 msgstr "For your security, confirm it's you with a fresh sign-in."
@@ -2268,6 +3457,19 @@ msgstr "For your security, sign out and sign back in, then return here within 10
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Forceful"
 msgstr "Forceful"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Forearms"
+msgstr "Forearms"
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Format"
+msgstr "Format"
+
+#: packages/api/src/presenters/sleep.ts
+msgid "Fragmented"
+msgstr "Fragmented"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Free sugars"
@@ -2300,8 +3502,10 @@ msgstr "From wger · {licenseText}"
 msgid "From wger · {licenseText} · {author}"
 msgstr "From wger · {licenseText} · {author}"
 
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
 msgid "Front"
 msgstr "Front"
 
@@ -2309,6 +3513,10 @@ msgstr "Front"
 #: apps/web/src/components/muscle-guide.tsx
 msgid "front view muscle illustration"
 msgstr "front view muscle illustration"
+
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "Full timeline →"
+msgstr "Full timeline →"
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -2326,6 +3534,10 @@ msgstr "Generating…"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Gentle"
 msgstr "Gentle"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Glutes"
+msgstr "Glutes"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Go down"
@@ -2358,8 +3570,28 @@ msgstr "Goal added. You can edit it under Workouts."
 msgid "Goal amount"
 msgstr "Goal amount"
 
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-panel.tsx
+#: packages/api/src/presenters/score.ts
+msgid "Goal progress"
+msgstr "Goal progress"
+
+#: packages/api/src/presenters/score.ts
+msgid "Goal progress {score} percent across {scored, plural, one {# counted goal} other {# counted goals}}."
+msgstr "Goal progress {score} percent across {scored, plural, one {# counted goal} other {# counted goals}}."
+
+#: packages/api/src/presenters/score.ts
+msgid "Goal progress not available."
+msgstr "Goal progress not available."
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-panel.tsx
+msgid "Goal progress not loaded."
+msgstr "Goal progress not loaded."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
+#: packages/api/src/presenters/clinical-export.ts
 msgid "Goals"
 msgstr "Goals"
 
@@ -2369,13 +3601,57 @@ msgstr "Goals"
 msgid "Granted on {0}"
 msgstr "Granted on {0}"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Grip strength: not recorded by OpenValens yet."
+msgstr "Grip strength: not recorded by OpenValens yet."
+
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Group"
 msgstr "Group"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Guidance issued 2020"
+msgstr "Guidance issued 2020"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Hamstrings"
+msgstr "Hamstrings"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Head (back)"
+msgstr "Head (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Head (front)"
+msgstr "Head (front)"
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Health data"
 msgstr "Health data"
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: packages/api/src/presenters/cockpit.ts
+#: packages/api/src/presenters/manual-entry.ts
+msgid "Heart rate"
+msgstr "Heart rate"
+
+#: packages/api/src/presenters/score.ts
+msgid "Heart rate variability"
+msgstr "Heart rate variability"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Heart rate variability: no published table matches overnight device readings. You see your own trend only."
+msgstr "Heart rate variability: no published table matches overnight device readings. You see your own trend only."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Heart-rate based load is not calculated in this version."
+msgstr "Heart-rate based load is not calculated in this version."
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Heavy"
+msgstr "Heavy"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Height (cm, optional)"
@@ -2417,6 +3693,30 @@ msgctxt "goal priority"
 msgid "High"
 msgstr "High"
 
+#: packages/api/src/presenters/sleep.ts
+msgid "High sleep debt"
+msgstr "High sleep debt"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Higher by more than {strong}"
+msgstr "Higher by more than {strong}"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Hip"
+msgstr "Hip"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Hips (front)"
+msgstr "Hips (front)"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "History"
+msgstr "History"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Hold current weight and habits."
 msgstr "Hold current weight and habits."
@@ -2429,12 +3729,37 @@ msgstr "Holds the line on targets and habits."
 msgid "Home"
 msgstr "Home"
 
+#. safety
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Hormonal contraception or no natural cycle"
+msgstr "Hormonal contraception or no natural cycle"
+
+#. safety
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Hormonal contraception or no natural cycle (turns estimates off)"
+msgstr "Hormonal contraception or no natural cycle (turns estimates off)"
+
+#: packages/api/src/presenters/score.ts
+msgid "How am I doing?"
+msgstr "How am I doing?"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "How did it go?"
 msgstr "How did it go?"
 
+#: packages/api/src/presenters/score.ts
+msgid "How far you have moved toward the targets you set, weighted by your priorities."
+msgstr "How far you have moved toward the targets you set, weighted by your priorities."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "How it was measured"
+msgstr "How it was measured"
+
+#: apps/native/app/(drawer)/scores.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/activity-load-panel.tsx
+#: apps/web/src/components/score-panels.tsx
 msgid "How this is calculated"
 msgstr "How this is calculated"
 
@@ -2442,9 +3767,20 @@ msgstr "How this is calculated"
 msgid "How to add"
 msgstr "How to add"
 
+#: packages/api/src/presenters/score.ts
+msgid "How you feel (check-in)"
+msgstr "How you feel (check-in)"
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "How you'll add data"
 msgstr "How you'll add data"
+
+#. safety
+#. safety
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "I agree to store my cycle data on this server for my own reference."
+msgstr "I agree to store my cycle data on this server for my own reference."
 
 #. safety
 #. safety
@@ -2462,6 +3798,11 @@ msgstr "I have read this and want to review the suggestion"
 msgid "I train regularly and want the active reference"
 msgstr "I train regularly and want the active reference"
 
+#. safety
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "I use hormonal contraception or have no natural cycle (turns estimates off)"
+msgstr "I use hormonal contraception or have no natural cycle (turns estimates off)"
+
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
 msgstr "If you missed a day, you can still add it until the end of {until}."
@@ -2476,14 +3817,54 @@ msgstr "Illustration of muscles listed by the source"
 msgid "Image source"
 msgstr "Image source"
 
+#: apps/web/src/routes/_auth/clinical.tsx
+#: packages/api/src/presenters/clinical-export.ts
+#: packages/api/src/presenters/clinical-records.ts
+#: packages/api/src/presenters/timeline.ts
+msgid "Imaging"
+msgstr "Imaging"
+
+#. placeholder {0}: imaging.data.length
+#: apps/native/app/(drawer)/clinical.tsx
+msgid "Imaging · {0}"
+msgstr "Imaging · {0}"
+
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Imperial"
 msgstr "Imperial"
+
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Import a lab PDF to add markers."
+msgstr "Import a lab PDF to add markers."
+
+#. placeholder {0}: result.removed
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Import undone. {0, plural, one {# imported period removed.} other {# imported periods removed.}}"
+msgstr "Import undone. {0, plural, one {# imported period removed.} other {# imported periods removed.}}"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "imported"
+msgstr "imported"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Imported: {importedAt}"
 msgstr "Imported: {importedAt}"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Imports"
+msgstr "Imports"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "In bed"
+msgstr "In bed"
+
+#: packages/api/src/presenters/score.ts
+msgid "in line with your usual"
+msgstr "in line with your usual"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "In progress"
@@ -2524,6 +3905,14 @@ msgstr "Ingredients remain unmatched and unverified. No nutrition values are cal
 msgid "Insight notifications"
 msgstr "Insight notifications"
 
+#: apps/web/src/components/insights-section.tsx
+msgid "Insight notifications turned on"
+msgstr "Insight notifications turned on"
+
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Insights"
+msgstr "Insights"
+
 #: apps/web/src/routes/_auth/admin/settings.tsx
 msgid "Instance administration"
 msgstr "Instance administration"
@@ -2563,6 +3952,10 @@ msgstr "Integrations"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Intensity (optional)"
 msgstr "Intensity (optional)"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Intensity is the level you recorded for each session (talk test). Wearable workouts have no intensity in OpenValens yet, so their minutes are listed but not counted."
+msgstr "Intensity is the level you recorded for each session (talk test). Wearable workouts have no intensity in OpenValens yet, so their minutes are listed but not counted."
 
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
@@ -2644,6 +4037,15 @@ msgstr "Inviting…"
 msgid "Iron"
 msgstr "Iron"
 
+#: packages/api/src/presenters/sleep.ts
+msgid "Irregular schedule"
+msgstr "Irregular schedule"
+
+#. safety
+#: packages/api/src/presenters/score.ts
+msgid "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
+msgstr "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
+
 #. placeholder {0}: index + 1
 #. placeholder {1}: item.sourceText
 #: apps/native/app/(drawer)/food-draft.tsx
@@ -2670,11 +4072,20 @@ msgstr "Join OpenValens"
 msgid "just now"
 msgstr "just now"
 
+#: packages/api/src/presenters/manual-entry.ts
+msgid "kcal"
+msgstr "kcal"
+
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Keep my change"
 msgstr "Keep my change"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Keep my data"
+msgstr "Keep my data"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -2687,6 +4098,10 @@ msgstr "Keep review"
 msgid "Keep the other version"
 msgstr "Keep the other version"
 
+#: packages/api/src/presenters/manual-entry.ts
+msgid "kg"
+msgstr "kg"
+
 #. safety
 #: apps/web/src/components/product-settings-form.tsx
 msgid "kg, kilometers"
@@ -2697,7 +4112,10 @@ msgid "Kind"
 msgstr "Kind"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: packages/api/src/presenters/timeline.ts
 msgid "Labs"
 msgstr "Labs"
 
@@ -2710,6 +4128,47 @@ msgstr "Language"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Language code"
 msgstr "Language code"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+msgid "Last {windowDays} days"
+msgstr "Last {windowDays} days"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+msgid "Last 30 days"
+msgstr "Last 30 days"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Last 7 days: {recent}."
+msgstr "Last 7 days: {recent}."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Last 7 days: {start} – {end}"
+msgstr "Last 7 days: {start} – {end}"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "Last 90 days"
+msgstr "Last 90 days"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+msgid "Last night"
+msgstr "Last night"
+
+#. placeholder {0}: last.date
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Last night · {0}"
+msgstr "Last night · {0}"
+
+#. placeholder {0}: weight.date
+#. placeholder {0}: weightRow.date
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: packages/api/src/presenters/cockpit.ts
+msgid "Last reading · {0}"
+msgstr "Last reading · {0}"
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Last sync failed. Try again."
@@ -2724,19 +4183,132 @@ msgstr "Last synced {0}"
 msgid "Later"
 msgstr "Later"
 
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+msgid "Latest"
+msgstr "Latest"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Latest ({date}): {recent}."
+msgstr "Latest ({date}): {recent}."
+
+#: apps/native/app/(drawer)/records/labs.tsx
+msgid "Latest markers"
+msgstr "Latest markers"
+
+#. placeholder {0}: sleepRow.date
+#. placeholder {1}: i18n._(sleepStatusLabel(sleepRow.status))
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "Latest night · {0} · {1}"
+msgstr "Latest night · {0} · {1}"
+
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Latest reading"
+msgstr "Latest reading"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Lats"
+msgstr "Lats"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Layer"
+msgstr "Layer"
+
 #. safety
 #: apps/web/src/components/product-settings-form.tsx
 msgid "lb, miles"
 msgstr "lb, miles"
 
+#: packages/api/src/presenters/body-map.ts
+msgid "Lean mass"
+msgstr "Lean mass"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Leave a value blank if you do not know it. Blank is shown as unknown; 0 is saved as zero."
 msgstr "Leave a value blank if you do not know it. Blank is shown as unknown; 0 is saved as zero."
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left abdomen (front)"
+msgstr "Left abdomen (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left back of thigh (back)"
+msgstr "Left back of thigh (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left calf (back)"
+msgstr "Left calf (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left chest (front)"
+msgstr "Left chest (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left forearm (back)"
+msgstr "Left forearm (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left forearm (front)"
+msgstr "Left forearm (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left glute (back)"
+msgstr "Left glute (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left lower back (back)"
+msgstr "Left lower back (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left lower leg (front)"
+msgstr "Left lower leg (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left shoulder (back)"
+msgstr "Left shoulder (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left shoulder (front)"
+msgstr "Left shoulder (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left side (front)"
+msgstr "Left side (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left thigh (front)"
+msgstr "Left thigh (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left upper arm (back)"
+msgstr "Left upper arm (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left upper arm (front)"
+msgstr "Left upper arm (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Left upper back (back)"
+msgstr "Left upper back (back)"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Legend"
+msgstr "Legend"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Library {version}."
+msgstr "Library {version}."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Library and workouts refreshed. Review them, then retry the same request if needed."
 msgstr "Library and workouts refreshed. Review them, then retry the same request if needed."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Licence"
+msgstr "Licence"
 
 #: apps/native/components/exercise-attribution.tsx
 #: apps/native/components/exercise-library.tsx
@@ -2770,6 +4342,29 @@ msgstr "License: {license} · {author}"
 msgid "Light"
 msgstr "Light"
 
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgctxt "period flow"
+msgid "Light"
+msgstr "Light"
+
+#: packages/api/src/presenters/sleep.ts
+msgctxt "sleep stage"
+msgid "Light"
+msgstr "Light"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Light: {light} min (not counted)"
+msgstr "Light: {light} min (not counted)"
+
+#: apps/native/app/(drawer)/index.tsx
+msgid "LIVE"
+msgstr "LIVE"
+
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Load more"
+msgstr "Load more"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading details…"
 msgstr "Loading details…"
@@ -2783,6 +4378,11 @@ msgstr "Loading display defaults…"
 msgid "Loading estimate…"
 msgstr "Loading estimate…"
 
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Loading insights…"
+msgstr "Loading insights…"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading library…"
 msgstr "Loading library…"
@@ -2792,21 +4392,50 @@ msgstr "Loading library…"
 msgid "Loading muscle and equipment filters…"
 msgstr "Loading muscle and equipment filters…"
 
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Loading observation setting…"
+msgstr "Loading observation setting…"
+
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "Loading photos…"
+msgstr "Loading photos…"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading preview…"
 msgstr "Loading preview…"
 
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "Loading progress photo from {date}"
+msgstr "Loading progress photo from {date}"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Loading scans…"
+msgstr "Loading scans…"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading workouts…"
 msgstr "Loading workouts…"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Loading your entries…"
+msgstr "Loading your entries…"
 
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Loading your workspace…"
 msgstr "Loading your workspace…"
 
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Loading…"
 msgstr "Loading…"
 
@@ -2827,6 +4456,16 @@ msgstr "Log"
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Log {name} ({amount})"
 msgstr "Log {name} ({amount})"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Log a period"
+msgstr "Log a period"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Log a period to see your cycle history."
+msgstr "Log a period to see your cycle history."
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Log food ({amount})"
@@ -2849,11 +4488,27 @@ msgctxt "goal priority"
 msgid "Low"
 msgstr "Low"
 
+#: packages/api/src/presenters/sleep.ts
+msgid "Low confidence"
+msgstr "Low confidence"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Lower back"
+msgstr "Lower back"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Lower by more than {strong}"
+msgstr "Lower by more than {strong}"
+
 #. safety
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/supplements.ts
 msgid "Lunch"
 msgstr "Lunch"
+
+#: packages/api/src/presenters/manual-entry.ts
+msgid "m"
+msgstr "m"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Magnesium"
@@ -2891,6 +4546,14 @@ msgstr "Make food drafts from a spoken or typed description"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Manage my foods"
 msgstr "Manage my foods"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Manual entries for your own reference. Workspace owners and other members cannot view them. Values stay hidden in history until the hide-numbers setting can be checked."
+msgstr "Manual entries for your own reference. Workspace owners and other members cannot view them. Values stay hidden in history until the hide-numbers setting can be checked."
+
+#: packages/api/src/presenters/score.ts
+msgid "Manual-friendly profile"
+msgstr "Manual-friendly profile"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Mark day complete"
@@ -2931,12 +4594,41 @@ msgstr "Meal diary"
 msgid "Meal photo (JPEG or PNG, up to 10 MB)"
 msgstr "Meal photo (JPEG or PNG, up to 10 MB)"
 
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Measured composition"
+msgstr "Measured composition"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Measurement"
+msgstr "Measurement"
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Measurement type"
+msgstr "Measurement type"
+
 #. safety
 #. safety
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "Medical disclaimer"
 msgstr "Medical disclaimer"
+
+#: packages/api/src/presenters/clinical-export.ts
+msgid "Medications"
+msgstr "Medications"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Medium"
+msgstr "Medium"
+
+#: packages/api/src/presenters/timeline.ts
+msgid "Meds and supplements"
+msgstr "Meds and supplements"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
@@ -2951,11 +4643,35 @@ msgstr "member"
 msgid "Members · {0}"
 msgstr "Members · {0}"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "men aged {minAge} and over"
+msgstr "men aged {minAge} and over"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "men aged {minAge}–{maxAge}"
+msgstr "men aged {minAge}–{maxAge}"
+
 #: apps/web/src/components/header.tsx
 msgid "Menu"
 msgstr "Menu"
 
+#: packages/api/src/presenters/score.ts
+msgid "Method {version}, as of {asOf}."
+msgstr "Method {version}, as of {asOf}."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Method {version}, as of {asOf}. Details: {docsPath}."
+msgstr "Method {version}, as of {asOf}. Details: {docsPath}."
+
+#: packages/api/src/presenters/score.ts
+msgid "Method {version}."
+msgstr "Method {version}."
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Metric"
 msgstr "Metric"
 
@@ -2965,6 +4681,10 @@ msgstr "Metric"
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Micronutrients"
 msgstr "Micronutrients"
+
+#: packages/api/src/presenters/sleep.ts
+msgid "Mild sleep debt"
+msgstr "Mild sleep debt"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Minimum (optional)"
@@ -2977,6 +4697,10 @@ msgstr "Minimum (optional) (hidden)"
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 msgid "Minimum (optional), hidden"
 msgstr "Minimum (optional), hidden"
+
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Minutes"
+msgstr "Minutes"
 
 #: apps/web/src/components/header.tsx
 msgid "Mobile navigation"
@@ -2994,15 +4718,31 @@ msgstr "Modal Screen"
 msgid "Moderate"
 msgstr "Moderate"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Moderate minutes + 2 × vigorous minutes from your sessions in the last 7 days. Light sessions are recorded but not counted."
+msgstr "Moderate minutes + 2 × vigorous minutes from your sessions in the last 7 days. Light sessions are recorded but not counted."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Moderate: {moderate} min"
+msgstr "Moderate: {moderate} min"
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Monthly"
 msgstr "Monthly"
 
+#: packages/api/src/presenters/score.ts
+msgid "More data for {helpList} would help."
+msgstr "More data for {helpList} would help."
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Morning"
 msgstr "Morning"
+
+#: packages/api/src/presenters/score.ts
+msgid "Moved away from the target at the last check-in"
+msgstr "Moved away from the target at the last check-in"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -3013,6 +4753,12 @@ msgstr "Muscle"
 #: apps/web/src/components/muscle-guide.tsx
 msgid "Muscle guide"
 msgstr "Muscle guide"
+
+#. placeholder {0}: trainingResult.unmappedMuscles.join(", ")
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Muscles not shown on the map: {0}"
+msgstr "Muscles not shown on the map: {0}"
 
 #: apps/web/src/components/user-menu.tsx
 msgid "My Account"
@@ -3042,6 +4788,37 @@ msgstr "NASEM (US National Academies)"
 msgid "Navigate the app"
 msgstr "Navigate the app"
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Neck"
+msgstr "Neck"
+
+#: packages/api/src/presenters/score.ts
+msgid "Needs a current value"
+msgstr "Needs a current value"
+
+#: packages/api/src/presenters/score.ts
+msgid "Needs a direction (increase or decrease)"
+msgstr "Needs a direction (increase or decrease)"
+
+#: packages/api/src/presenters/score.ts
+msgid "Needs a numeric target"
+msgstr "Needs a numeric target"
+
+#: packages/api/src/presenters/score.ts
+msgid "Needs a starting value"
+msgstr "Needs a starting value"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Needs at least 7 days with data in the last 28 days."
+msgstr "Needs at least 7 days with data in the last 28 days."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Needs at least one session with a recorded intensity in the last 7 days."
+msgstr "Needs at least one session with a recorded intensity in the last 7 days."
+
+#: apps/native/app/(drawer)/(tabs)/timeline.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Needs attention"
@@ -3050,6 +4827,10 @@ msgstr "Needs attention"
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Needs attention: {change}"
 msgstr "Needs attention: {change}"
+
+#: packages/api/src/presenters/score.ts
+msgid "Needs steps on at least 2 of the last 3 full days (found {found})."
+msgstr "Needs steps on at least 2 of the last 3 full days (found {found})."
 
 #: apps/native/app/(drawer)/coach/index.tsx
 msgid "New"
@@ -3084,9 +4865,33 @@ msgstr "Next day"
 msgid "Next unanswered: {0}"
 msgstr "Next unanswered: {0}"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "No active minutes with a recorded intensity in the last 7 days."
+msgstr "No active minutes with a recorded intensity in the last 7 days."
+
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: packages/api/src/presenters/cockpit.ts
+msgid "No activity logged"
+msgstr "No activity logged"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "No activity yet"
+msgstr "No activity yet"
+
+#: apps/native/app/(drawer)/clinical.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "No cardiac exams recorded."
+msgstr "No cardiac exams recorded."
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "No changes to save."
 msgstr "No changes to save."
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "No comparison"
+msgstr "No comparison"
 
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
@@ -3097,6 +4902,11 @@ msgstr "No configuration keys reported."
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "No conversations yet"
 msgstr "No conversations yet"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "No DEXA scans yet. Import a scan to see measured regions here."
+msgstr "No DEXA scans yet. Import a scan to see measured regions here."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -3132,6 +4942,11 @@ msgstr "No exercises match this search."
 msgid "No exercises match this search. Try another name."
 msgstr "No exercises match this search. Try another name."
 
+#: apps/native/app/(drawer)/clinical.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "No family history entries."
+msgstr "No family history entries."
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "No food could be made out in this photo. Nothing was guessed."
 msgstr "No food could be made out in this photo. Nothing was guessed."
@@ -3149,6 +4964,15 @@ msgstr "No foods were recognised. Try naming each food, for example “two eggs 
 msgid "No goals yet"
 msgstr "No goals yet"
 
+#: apps/native/app/(drawer)/clinical.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
+msgid "No imaging studies recorded."
+msgstr "No imaging studies recorded."
+
+#: packages/api/src/presenters/score.ts
+msgid "No inputs could be used."
+msgstr "No inputs could be used."
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "No instructions provided."
@@ -3157,6 +4981,15 @@ msgstr "No instructions provided."
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "No invitations yet."
 msgstr "No invitations yet."
+
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "No lab markers yet"
+msgstr "No lab markers yet"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "No logged sets"
+msgstr "No logged sets"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "No match for this barcode. Enter the food from its label instead."
@@ -3194,27 +5027,78 @@ msgstr "No messages yet — say hello to start."
 msgid "No muscle filters available."
 msgstr "No muscle filters available."
 
+#: packages/api/src/presenters/score.ts
+msgid "No numbers recorded yet."
+msgstr "No numbers recorded yet."
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "No observations to show for this period. Some records may be missing or incomplete."
+msgstr "No observations to show for this period. Some records may be missing or incomplete."
+
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "No pending invitations."
 msgstr "No pending invitations."
 
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "No periods logged yet."
+msgstr "No periods logged yet."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "No personal goal set."
 msgstr "No personal goal set."
+
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "No photos yet."
+msgstr "No photos yet."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "No preview image is provided."
 msgstr "No preview image is provided."
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "No private entries yet."
+msgstr "No private entries yet."
+
+#: packages/api/src/presenters/score.ts
+msgid "No profile applies yet"
+msgstr "No profile applies yet"
+
 #: apps/native/app/(drawer)/food-draft.tsx
 msgid "No quantity"
 msgstr "No quantity"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "No rated sessions this week, so there is nothing to compare."
+msgstr "No rated sessions this week, so there is nothing to compare."
+
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: packages/api/src/presenters/cockpit.ts
+msgid "No reading yet"
+msgstr "No reading yet"
+
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "No readings yet"
+msgstr "No readings yet"
+
+#: packages/api/src/presenters/score.ts
+msgid "No recent data"
+msgstr "No recent data"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "No recent weight for a reference yet."
 msgstr "No recent weight for a reference yet."
+
+#: apps/native/app/(drawer)/(tabs)/timeline.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "No records yet"
+msgstr "No records yet"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "No reference values chosen. Choose them in nutrition settings to see them here."
@@ -3229,6 +5113,31 @@ msgstr "No saved foods yet. Create one here or tick “Save to my foods” when 
 msgid "No saved or recent foods yet. Search, scan a barcode or use quick add."
 msgstr "No saved or recent foods yet. Search, scan a barcode or use quick add."
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "No session in the last 7 days has an effort rating and a duration, so there is no number."
+msgstr "No session in the last 7 days has an effort rating and a duration, so there is no number."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "No sessions recorded in the last 7 days, so there is no number (not zero)."
+msgstr "No sessions recorded in the last 7 days, so there is no number (not zero)."
+
+#: packages/api/src/presenters/cockpit.ts
+msgid "No sleep logged"
+msgstr "No sleep logged"
+
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "No sleep logged in the last {windowDays} days"
+msgstr "No sleep logged in the last {windowDays} days"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "No sleep yet"
+msgstr "No sleep yet"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+msgid "No stage data."
+msgstr "No stage data."
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "No supplements logged. Add one to get reminders."
@@ -3241,6 +5150,29 @@ msgstr "No targets set. Logging works the same without them."
 #: apps/native/app/(drawer)/food-draft.tsx
 msgid "no unit"
 msgstr "no unit"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "No usual value yet (needs {minimum} days with data in the last {window})."
+msgstr "No usual value yet (needs {minimum} days with data in the last {window})."
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "no value"
+msgstr "no value"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "No value"
+msgstr "No value"
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "No vitals yet"
+msgstr "No vitals yet"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "No weight yet"
+msgstr "No weight yet"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -3257,6 +5189,14 @@ msgstr "None"
 msgid "None listed"
 msgstr "None listed"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "None of the last 7 days' sessions has an intensity and a duration, so there is no number."
+msgstr "None of the last 7 days' sessions has an intensity and a duration, so there is no number."
+
+#: packages/api/src/presenters/score.ts
+msgid "None of your goals has a numeric target, current value and direction yet, so no number is shown. A focus area alone does not produce a number."
+msgstr "None of your goals has a numeric target, current value and direction yet, so no number is shown. A focus area alone does not produce a number."
+
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
 msgid "Normal"
@@ -3265,6 +5205,10 @@ msgstr "Normal"
 #: packages/api/src/presenters/plain-water.ts
 msgid "Not available on this device. It updates after sync."
 msgstr "Not available on this device. It updates after sync."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Not compared with other people"
+msgstr "Not compared with other people"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Not compared: not every food reported this."
@@ -3275,6 +5219,15 @@ msgstr "Not compared: not every food reported this."
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Not connected"
 msgstr "Not connected"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Not counted (no catalog muscles)"
+msgstr "Not counted (no catalog muscles)"
+
+#: packages/api/src/presenters/score.ts
+msgid "Not enough earlier days yet"
+msgstr "Not enough earlier days yet"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Not every food reported this, so the amount is at least this much."
@@ -3298,6 +5251,10 @@ msgstr "Not marked complete"
 msgid "Not now"
 msgstr "Not now"
 
+#: packages/api/src/presenters/score.ts
+msgid "Not part of the score until OpenValens records it."
+msgstr "Not part of the score until OpenValens records it."
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Not provided"
@@ -3311,9 +5268,25 @@ msgstr "Not provided by {count, plural, one {# entry} other {# entries}}"
 msgid "Not provided by the source: {list}. Shown as unknown."
 msgstr "Not provided by the source: {list}. Shown as unknown."
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "not rated"
+msgstr "not rated"
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Not rated"
 msgstr "Not rated"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Not recorded"
+msgstr "Not recorded"
+
+#: packages/api/src/presenters/score.ts
+msgid "Not recorded by OpenValens yet"
+msgstr "Not recorded by OpenValens yet"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Not reported by this scan"
+msgstr "Not reported by this scan"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Not saved — you seem to be offline. Saving needs a connection; your changes are still here."
@@ -3364,6 +5337,14 @@ msgstr "Not yet reviewed. Units, reference ranges, medication and consent text s
 msgid "Notes"
 msgstr "Notes"
 
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Notes (optional)"
+msgstr "Notes (optional)"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Nothing is compared with other OpenValens users, and you are never placed in an order against other people. Only published tables that ship with the app are used."
+msgstr "Nothing is compared with other OpenValens users, and you are never placed in an order against other people. Only published tables that ship with the app are used."
+
 #: packages/api/src/presenters/micronutrients.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Nothing logged"
@@ -3383,10 +5364,22 @@ msgstr "Nothing logged on this day."
 msgid "Nothing logged. Days without a marker are treated as unknown, not as zero."
 msgstr "Nothing logged. Days without a marker are treated as unknown, not as zero."
 
+#: packages/api/src/presenters/score.ts
+msgid "Nothing recorded for today or yesterday."
+msgstr "Nothing recorded for today or yesterday."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Nothing recorded in the last 7 days."
+msgstr "Nothing recorded in the last 7 days."
+
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Nothing saved"
 msgstr "Nothing saved"
+
+#: apps/web/src/components/insights-panel.tsx
+msgid "Notifications arrive on phones where you allow them in the mobile app."
+msgstr "Notifications arrive on phones where you allow them in the mobile app."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Now"
@@ -3397,6 +5390,10 @@ msgstr "Now"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Now {0}"
 msgstr "Now {0}"
+
+#: packages/api/src/presenters/score.ts
+msgid "Now: {now}."
+msgstr "Now: {now}."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Numbers are hidden. Coverage is still shown."
@@ -3421,6 +5418,11 @@ msgstr "Nutrient"
 msgid "Nutrients"
 msgstr "Nutrients"
 
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Nutrition observations"
+msgstr "Nutrition observations"
+
 #: apps/web/src/components/recipe-draft-editor.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
@@ -3431,6 +5433,37 @@ msgstr "Nutrition settings"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Nutrition targets"
 msgstr "Nutrition targets"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Obliques"
+msgstr "Obliques"
+
+#. safety
+#. safety
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Observations describe recorded timing only. They are not medical advice."
+msgstr "Observations describe recorded timing only. They are not medical advice."
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Observed at"
+msgstr "Observed at"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Observed at (local time)"
+msgstr "Observed at (local time)"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Observed at local time"
+msgstr "Observed at local time"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/components/health-sync-settings.tsx
@@ -3451,10 +5484,24 @@ msgstr "Off by default. Describe a meal and get a draft list to match to foods; 
 msgid "Off by default. Each photo is sent to the AI provider only after you confirm it, with location and other photo details removed first. Photos are not stored. Nothing is logged until you confirm each item. Turn it off at any time."
 msgstr "Off by default. Each photo is sent to the AI provider only after you confirm it, with location and other photo details removed first. Photos are not stored. Nothing is logged until you confirm each item. Turn it off at any time."
 
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Off by default. No nutrition observations are shown."
+msgstr "Off by default. No nutrition observations are shown."
+
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
 msgstr "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
+
+#: apps/native/app/(drawer)/index.tsx
+msgid "OFFLINE"
+msgstr "OFFLINE"
+
+#: apps/native/components/sync-status-badge.tsx
+#: apps/web/src/components/sync-status-badge.tsx
+msgid "Offline ({pending})"
+msgstr "Offline ({pending})"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Offline. {count, plural, one {# match} other {# matches}} saved on this device from an earlier lookup; the source may have changed since."
@@ -3492,14 +5539,35 @@ msgstr "Once"
 msgid "Only org owners can invite or remove members."
 msgstr "Only org owners can invite or remove members."
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Only sessions with a recorded intensity count; sessions without one are left out, not counted as zero."
+msgstr "Only sessions with a recorded intensity count; sessions without one are left out, not counted as zero."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced."
+msgstr "Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced."
+
 #. safety
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Only when relevant"
 msgstr "Only when relevant"
 
+#: apps/native/components/progress-photos.tsx
+msgid "Only you can see these photos. Location, camera and other hidden details are removed before a photo is stored. Add photos from the web app."
+msgstr "Only you can see these photos. Location, camera and other hidden details are removed before a photo is stored. Add photos from the web app."
+
+#: apps/web/src/components/progress-photos.tsx
+msgid "Only you can see these photos. Workspace owners and other members cannot. Location, camera and other hidden details are removed before a photo is stored."
+msgstr "Only you can see these photos. Workspace owners and other members cannot. Location, camera and other hidden details are removed before a photo is stored."
+
+#: apps/native/app/(drawer)/exports.tsx
 #: packages/api/src/presenters/workouts.ts
 msgid "Open"
 msgstr "Open"
+
+#: apps/native/app/(drawer)/exports.tsx
+msgid "Open {fileName}"
+msgstr "Open {fileName}"
 
 #: apps/web/src/components/header.tsx
 msgid "Open navigation menu"
@@ -3526,6 +5594,10 @@ msgstr "Open this link in Telegram and press Start:"
 msgid "Opens {sourceName} permissions"
 msgstr "Opens {sourceName} permissions"
 
+#: packages/api/src/presenters/sleep.ts
+msgid "Optimal"
+msgstr "Optimal"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Optional"
 msgstr "Optional"
@@ -3537,6 +5609,13 @@ msgstr "Optional answers only you can see"
 #: apps/web/src/components/profile-summary-card.tsx
 msgid "Optional answers only you can see."
 msgstr "Optional answers only you can see."
+
+#. safety
+#. safety
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Optional descriptions of how your recorded meals line up in time with recorded sleep and workouts. This reads across those logs only when you turn it on. It does not establish a cause or provide health advice. You can turn it off here without changing either log."
+msgstr "Optional descriptions of how your recorded meals line up in time with recorded sleep and workouts. This reads across those logs only when you turn it on. It does not establish a cause or provide health advice. You can turn it off here without changing either log."
 
 #. safety
 #. safety
@@ -3555,7 +5634,13 @@ msgid "Original text"
 msgstr "Original text"
 
 #: packages/api/src/presenters/nutrition-diary.ts
+#: packages/api/src/presenters/timeline.ts
 #: packages/api/src/presenters/workouts.ts
+msgid "Other"
+msgstr "Other"
+
+#: packages/api/src/presenters/vitals.ts
+msgctxt "data source"
 msgid "Other"
 msgstr "Other"
 
@@ -3591,6 +5676,10 @@ msgstr "Other version: {otherName}, deleted. Your change: {change}."
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
 msgstr "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
+
+#: packages/api/src/presenters/score.ts
+msgid "out of 100"
+msgstr "out of 100"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Output and training readiness."
@@ -3675,6 +5764,10 @@ msgctxt "medication status"
 msgid "Paused"
 msgstr "Paused"
 
+#: packages/api/src/presenters/score.ts
+msgid "Paused, not counted"
+msgstr "Paused, not counted"
+
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "pending"
@@ -3714,6 +5807,15 @@ msgstr "Per unit"
 msgid "Performance"
 msgstr "Performance"
 
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Period deleted."
+msgstr "Period deleted."
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Period saved."
+msgstr "Period saved."
+
 #. safety
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Permanently deletes your account and {rows} stored rows across {organizationCount} health records. This can't be undone. Export your data from Clinical export first."
@@ -3745,9 +5847,35 @@ msgstr "Personal goal:"
 msgid "Personal goal: <0>{0}</0>"
 msgstr "Personal goal: <0>{0}</0>"
 
+#. safety
+#: packages/api/src/presenters/cycle.ts
+msgid "Phase estimates are off because you said you use hormonal contraception or have no natural cycle."
+msgstr "Phase estimates are off because you said you use hormonal contraception or have no natural cycle."
+
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "Photo deleted."
+msgstr "Photo deleted."
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "Photo drafts need an AI provider, and none is set up on this server."
 msgstr "Photo drafts need an AI provider, and none is set up on this server."
+
+#: apps/web/src/components/progress-photos.tsx
+msgid "Photo saved privately. Location and camera details were removed."
+msgstr "Photo saved privately. Location and camera details were removed."
+
+#: apps/web/src/components/progress-photos.tsx
+msgid "Photo storage is not set up on this server, so photos cannot be added."
+msgstr "Photo storage is not set up on this server, so photos cannot be added."
+
+#: apps/native/components/progress-photos.tsx
+msgid "Photo storage is not set up on this server."
+msgstr "Photo storage is not set up on this server."
+
+#: packages/api/src/presenters/score.ts
+msgid "Physiology-enhanced profile"
+msgstr "Physiology-enhanced profile"
 
 #: packages/api/src/presenters/food-draft.ts
 msgid "Pick a photo of your meal. You get a draft list of what the provider could see; nothing is logged until you confirm each item."
@@ -3818,6 +5946,12 @@ msgid "Plays it safe; avoids pushing limits."
 msgstr "Plays it safe; avoids pushing limits."
 
 #. safety
+#: packages/api/src/presenters/activity-load.ts
+msgctxt "unit"
+msgid "points"
+msgstr "points"
+
+#. safety
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Population reference intake (PRI)"
 msgstr "Population reference intake (PRI)"
@@ -3886,10 +6020,34 @@ msgstr "Primary: {primaryNames}"
 msgid "Priority"
 msgstr "Priority"
 
+#: apps/native/app/(drawer)/index.tsx
+msgid "Private Data"
+msgstr "Private Data"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Private measurements"
 msgstr "Private measurements"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Private measurements are off"
+msgstr "Private measurements are off"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Private measurements are off."
+msgstr "Private measurements are off."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Private measurements are on"
+msgstr "Private measurements are on"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "Private measurements are on."
+msgstr "Private measurements are on."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
@@ -3897,10 +6055,24 @@ msgstr "Private measurements"
 msgid "Profile"
 msgstr "Profile"
 
+#: packages/api/src/presenters/score.ts
+msgid "Progress {progressText}."
+msgstr "Progress {progressText}."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Progress means the value should"
 msgstr "Progress means the value should"
+
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "Progress photo from {date}"
+msgstr "Progress photo from {date}"
+
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "Progress photos"
+msgstr "Progress photos"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Protein"
@@ -3910,9 +6082,17 @@ msgstr "Protein"
 msgid "Protein reference"
 msgstr "Protein reference"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Published recommendation figures quoted with attribution (facts, not the article text)."
+msgstr "Published recommendation figures quoted with attribution (facts, not the article text)."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "Push and weekly email, off until you turn them on"
 msgstr "Push and weekly email, off until you turn them on"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Quads"
+msgstr "Quads"
 
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Quantity"
@@ -3941,6 +6121,15 @@ msgstr "Queued"
 msgid "Quick add"
 msgstr "Quick add"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Radial pulse counted by a physician for 30 seconds (×2) after about 4 minutes of seated quiet rest, in a mobile examination centre."
+msgstr "Radial pulse counted by a physician for 30 seconds (×2) after about 4 minutes of seated quiet rest, in a mobile examination centre."
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Range"
+msgstr "Range"
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Rate"
 msgstr "Rate"
@@ -3959,6 +6148,59 @@ msgstr "Raw"
 msgid "Re-link"
 msgstr "Re-link"
 
+#: packages/api/src/presenters/score.ts
+msgid "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
+msgstr "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
+
+#. placeholder {0}: readiness.data.timestamp
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Readiness checked at {0}"
+msgstr "Readiness checked at {0}"
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-panel.tsx
+#: packages/api/src/presenters/score.ts
+msgid "Readiness index"
+msgstr "Readiness index"
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-panel.tsx
+msgid "Readiness index not loaded."
+msgstr "Readiness index not loaded."
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Ready"
+msgstr "Ready"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+msgid "Recent"
+msgstr "Recent"
+
+#: packages/api/src/presenters/score.ts
+msgid "Recent {recent} vs usual {usual} (median of {days} days), {relative}."
+msgstr "Recent {recent} vs usual {usual} (median of {days} days), {relative}."
+
+#: packages/api/src/presenters/score.ts
+msgid "Recent {recent} vs usual {usual} (median of {days} days)."
+msgstr "Recent {recent} vs usual {usual} (median of {days} days)."
+
+#: packages/api/src/presenters/score.ts
+msgid "Recent {recent}. Your usual needs {minimum} days with data in the previous {window}; found {days}."
+msgstr "Recent {recent}. Your usual needs {minimum} days with data in the previous {window}; found {days}."
+
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "Recent activity"
+msgstr "Recent activity"
+
+#: packages/api/src/presenters/score.ts
+msgid "Recent activity load"
+msgstr "Recent activity load"
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+msgid "Recent samples"
+msgstr "Recent samples"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/header.tsx
@@ -3971,10 +6213,19 @@ msgstr "Recipe draft"
 msgid "Recipe JSON-LD"
 msgstr "Recipe JSON-LD"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Recommendations issued 2015"
+msgstr "Recommendations issued 2015"
+
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Recommended dietary allowance (RDA)"
 msgstr "Recommended dietary allowance (RDA)"
+
+#: apps/native/app/(drawer)/clinical.tsx
+#: apps/native/app/(drawer)/exports.tsx
+msgid "Records"
+msgstr "Records"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Recovery"
@@ -3991,6 +6242,14 @@ msgstr "Redirecting…"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Reduce"
 msgstr "Reduce"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Reference comparisons are for adults 18 and over, based on your profile answer."
+msgstr "Reference comparisons are for adults 18 and over, based on your profile answer."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Reference data {version}"
+msgstr "Reference data {version}"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Reference values"
@@ -4030,9 +6289,17 @@ msgstr "Region"
 msgid "rejected"
 msgstr "rejected"
 
+#: packages/api/src/presenters/clinical-records.ts
+msgid "Relation"
+msgstr "Relation"
+
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Reload latest"
 msgstr "Reload latest"
+
+#: packages/api/src/presenters/sleep.ts
+msgid "REM"
+msgstr "REM"
 
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/native/app/(drawer)/sharing.tsx
@@ -4073,6 +6340,12 @@ msgstr "Resend code"
 msgid "Reset"
 msgstr "Reset"
 
+#: packages/api/src/presenters/manual-entry.ts
+#: packages/api/src/presenters/reference-comparison.ts
+#: packages/api/src/presenters/score.ts
+msgid "Resting heart rate"
+msgstr "Resting heart rate"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Restore"
 msgstr "Restore"
@@ -4086,13 +6359,23 @@ msgstr "Restore {0}"
 msgid "Restore entry"
 msgstr "Restore entry"
 
+#: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/native/app/(drawer)/clinical.tsx
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/native/app/(drawer)/coach/index.tsx
+#: apps/native/app/(drawer)/exports.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/app/(drawer)/preventive-care.tsx
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/native/app/(drawer)/scores.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
@@ -4106,12 +6389,23 @@ msgstr "Restore entry"
 #: apps/web/src/components/analytics-consent-section.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/insights-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
+#: apps/web/src/components/reference-comparisons-card.tsx
+#: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/routes/_auth/clinical.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
+#: apps/web/src/routes/_auth/preventive-care.tsx
 #: apps/web/src/routes/_auth/profile.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/route.tsx
+#: apps/web/src/routes/_auth/scores.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -4131,10 +6425,19 @@ msgstr "Retry filters"
 msgid "Retry loading analytics preference"
 msgstr "Retry loading analytics preference"
 
+#: apps/native/components/insights-section.tsx
+msgid "Retry loading observation setting"
+msgstr "Retry loading observation setting"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Retry same request"
 msgstr "Retry same request"
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Retry saving choice"
+msgstr "Retry saving choice"
 
 #: apps/native/components/exercise-library.tsx
 msgid "Retry workouts"
@@ -4191,6 +6494,70 @@ msgstr "Revoke AI consent?"
 msgid "Revoking…"
 msgstr "Revoking…"
 
+#: packages/api/src/presenters/body-map.ts
+msgid "Right abdomen (front)"
+msgstr "Right abdomen (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right back of thigh (back)"
+msgstr "Right back of thigh (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right calf (back)"
+msgstr "Right calf (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right chest (front)"
+msgstr "Right chest (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right forearm (back)"
+msgstr "Right forearm (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right forearm (front)"
+msgstr "Right forearm (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right glute (back)"
+msgstr "Right glute (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right lower back (back)"
+msgstr "Right lower back (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right lower leg (front)"
+msgstr "Right lower leg (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right shoulder (back)"
+msgstr "Right shoulder (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right shoulder (front)"
+msgstr "Right shoulder (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right side (front)"
+msgstr "Right side (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right thigh (front)"
+msgstr "Right thigh (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right upper arm (back)"
+msgstr "Right upper arm (back)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right upper arm (front)"
+msgstr "Right upper arm (front)"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Right upper back (back)"
+msgstr "Right upper back (back)"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 msgid "Risk tolerance"
@@ -4223,18 +6590,32 @@ msgstr "Safe level of intake"
 msgid "Salt"
 msgstr "Salt"
 
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Samples"
+msgstr "Samples"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Saturated fat"
 msgstr "Saturated fat"
 
+#: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/app/(drawer)/preventive-care.tsx
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -4247,9 +6628,32 @@ msgstr "Save"
 msgid "Save cancelled. A food creation already sent may still complete."
 msgstr "Save cancelled. A food creation already sent may still complete."
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Save changes"
+msgstr "Save changes"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Save done date"
+msgstr "Save done date"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Save entry"
+msgstr "Save entry"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Save food"
 msgstr "Save food"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Save next date"
+msgstr "Save next date"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Save period"
+msgstr "Save period"
 
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Save rating"
@@ -4269,11 +6673,19 @@ msgstr "Save to {slotLabel}"
 msgid "Save to my foods for next time"
 msgstr "Save to my foods for next time"
 
+#: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -4301,13 +6713,29 @@ msgstr "Saved foods"
 msgid "Saved on this device. It will sync when you're online."
 msgstr "Saved on this device. It will sync when you're online."
 
+#: apps/web/src/components/progress-photos.tsx
+msgid "Saving photo…"
+msgstr "Saving photo…"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -4324,6 +6752,16 @@ msgstr "Say or type at least one food."
 #: packages/api/src/presenters/food-draft.ts
 msgid "Say or type what you had. You get a draft list of items to match to foods; nothing is logged until you confirm each one."
 msgstr "Say or type what you had. You get a draft list of items to match to foods; nothing is logged until you confirm each one."
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Scan"
+msgstr "Scan"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Scan {scanDate}"
+msgstr "Scan {scanDate}"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Scan barcode"
@@ -4375,6 +6813,15 @@ msgstr "Secondary: {secondaryNames}"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Secure request IDs are unavailable. No request was sent."
 msgstr "Secure request IDs are unavailable. No request was sent."
+
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Select a region to see its value."
+msgstr "Select a region to see its value."
+
+#: apps/native/app/(drawer)/exports.tsx
+#: apps/web/src/routes/_auth/exports.tsx
+msgid "Select at least one domain."
+msgstr "Select at least one domain."
 
 #: apps/native/components/exercise-attribution.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -4472,14 +6919,31 @@ msgstr "Servings (text)"
 msgid "Sessions & goals"
 msgstr "Sessions & goals"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Sessions without a rating are left out, not estimated."
+msgstr "Sessions without a rating are left out, not estimated."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Set a goal"
 msgstr "Set a goal"
+
+#: apps/web/src/routes/_auth/scores.tsx
+msgid "Set targets, directions and priorities for your goals under <0>Workouts</0>."
+msgstr "Set targets, directions and priorities for your goals under <0>Workouts</0>."
+
+#: apps/native/app/(drawer)/scores.tsx
+msgid "Set targets, directions and priorities for your goals under Workouts."
+msgstr "Set targets, directions and priorities for your goals under Workouts."
 
 #: apps/native/components/profile-setup-prompt.tsx
 #: apps/web/src/components/profile-setup-prompt.tsx
 msgid "Set up your profile (optional)"
 msgstr "Set up your profile (optional)"
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Sets from {trainingFrom} to {trainingTo}"
+msgstr "Sets from {trainingFrom} to {trainingTo}"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
@@ -4529,6 +6993,10 @@ msgstr "Sharing is off unless you explicitly opt in."
 msgid "Sharing is on."
 msgstr "Sharing is on."
 
+#: packages/api/src/presenters/body-map.ts
+msgid "Shoulders"
+msgstr "Shoulders"
+
 #: packages/api/src/presenters/logging-streak.ts
 msgid "Show a logging streak"
 msgstr "Show a logging streak"
@@ -4557,6 +7025,38 @@ msgstr "Show token"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Showing {date}"
 msgstr "Showing {date}"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Shown for context only. Steps and strength volume are never converted into points."
+msgstr "Shown for context only. Steps and strength volume are never converted into points."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Shown once at least {minimum} of the previous {considered} weeks have rated sessions (found {windows})."
+msgstr "Shown once at least {minimum} of the previous {considered} weeks have rated sessions (found {windows})."
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Shows the measured change per region between two of your scans."
+msgstr "Shows the measured change per region between two of your scans."
+
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured in 1999–2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
+msgstr "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured in 1999–2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
+
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Shows your active minutes for the last 7 days next to the WHO 2020 range of 150–300 minutes a week for adults. Only sessions with a recorded intensity count."
+msgstr "Shows your active minutes for the last 7 days next to the WHO 2020 range of 150–300 minutes a week for adults. Only sessions with a recorded intensity count."
+
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Shows your usual sleep (the median of the last 28 nights) next to the National Sleep Foundation's recommended range for your age group (2015). Without your birth year, every age group's range is shown instead. A recommendation is not a description of what most people sleep."
+msgstr "Shows your usual sleep (the median of the last 28 nights) next to the National Sleep Foundation's recommended range for your age group (2015). Without your birth year, every age group's range is shown instead. A recommendation is not a description of what most people sleep."
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Side"
+msgstr "Side"
 
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
@@ -4611,6 +7111,7 @@ msgstr "Sign in with the matching email first, then return and enter the token a
 msgid "Sign out"
 msgstr "Sign out"
 
+#: apps/native/app/(drawer)/index.tsx
 #: apps/web/src/components/user-menu.tsx
 msgid "Sign Out"
 msgstr "Sign Out"
@@ -4654,9 +7155,28 @@ msgid "Skip for now"
 msgstr "Skip for now"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+#: packages/api/src/presenters/cockpit.ts
+#: packages/api/src/presenters/score.ts
+#: packages/api/src/presenters/timeline.ts
 msgid "Sleep"
 msgstr "Sleep"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Sleep duration"
+msgstr "Sleep duration"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Slightly higher"
+msgstr "Slightly higher"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Slightly lower"
+msgstr "Slightly lower"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Snack"
@@ -4680,7 +7200,10 @@ msgid "Something went wrong. Try again."
 msgstr "Something went wrong. Try again."
 
 #: apps/native/app/(drawer)/micronutrients.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+#: packages/api/src/presenters/reference-comparison.ts
 msgid "Source"
 msgstr "Source"
 
@@ -4716,9 +7239,27 @@ msgstr "Source URL: {sourceLink}"
 msgid "Source-listed muscles: {listedNames}"
 msgstr "Source-listed muscles: {listedNames}"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Source: {citation}"
+msgstr "Source: {citation}"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Source: {shortLabel}"
+msgstr "Source: {shortLabel}"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Sources"
 msgstr "Sources"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Spotting"
+msgstr "Spotting"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Stages"
+msgstr "Stages"
 
 #: apps/native/components/profile-setup-prompt.tsx
 #: apps/web/src/components/profile-setup-prompt.tsx
@@ -4730,9 +7271,33 @@ msgstr "Start"
 msgid "Start a new conversation to ask the AI coach for guidance."
 msgstr "Start a new conversation to ask the AI coach for guidance."
 
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Start date"
+msgstr "Start date"
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Start date (YYYY-MM-DD)"
+msgstr "Start date (YYYY-MM-DD)"
+
+#: apps/native/app/(drawer)/cycle.tsx
+msgid "Start date, YYYY-MM-DD"
+msgstr "Start date, YYYY-MM-DD"
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Start over"
 msgstr "Start over"
+
+#: packages/api/src/presenters/score.ts
+msgid "Start: {start} (first check-in)."
+msgstr "Start: {start} (first check-in)."
+
+#: packages/api/src/presenters/score.ts
+msgid "Start: {start} (no starting value, measured from 0)."
+msgstr "Start: {start} (no starting value, measured from 0)."
+
+#: packages/api/src/presenters/score.ts
+msgid "Start: {start}."
+msgstr "Start: {start}."
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -4757,6 +7322,7 @@ msgstr "Starting…"
 msgid "Startup configuration is read-only. Values are hidden for security, even for non-sensitive keys."
 msgstr "Startup configuration is read-only. Values are hidden for security, even for non-sensitive keys."
 
+#: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Status"
@@ -4765,6 +7331,40 @@ msgstr "Status"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Steady but flexible, weighs context."
 msgstr "Steady but flexible, weighs context."
+
+#. safety
+#: packages/api/src/presenters/manual-entry.ts
+msgctxt "unit"
+msgid "steps"
+msgstr "steps"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: packages/api/src/presenters/manual-entry.ts
+msgid "Steps"
+msgstr "Steps"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "Steps / active day"
+msgstr "Steps / active day"
+
+#. placeholder {0}: c.stepDays
+#: packages/api/src/presenters/activity-load.ts
+msgid "Steps: {steps} over {0, plural, one {# day} other {# days}} with step data."
+msgstr "Steps: {steps} over {0, plural, one {# day} other {# days}} with step data."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Steps: none recorded in the last 7 days."
+msgstr "Steps: none recorded in the last 7 days."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Steps: the published step tables used hip-worn monitors, and wrist or phone counts are not comparable with them. See active minutes against the WHO range instead."
+msgstr "Steps: the published step tables used hip-worn monitors, and wrist or phone counts are not comparable with them. See active minutes against the WHO range instead."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Stop comparing"
+msgstr "Stop comparing"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Stop scanning"
@@ -4785,6 +7385,15 @@ msgstr "Stopped waiting. The request may still complete on the server."
 #: packages/api/src/presenters/workouts.ts
 msgid "Strength"
 msgstr "Strength"
+
+#. placeholder {0}: c.strengthSessions
+#: packages/api/src/presenters/activity-load.ts
+msgid "Strength volume: {volume} kg (reps × weight) across {0, plural, one {# session} other {# sessions}}."
+msgstr "Strength volume: {volume} kg (reps × weight) across {0, plural, one {# session} other {# sessions}}."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Strength volume: no weighted sets recorded."
+msgstr "Strength volume: no weighted sets recorded."
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Strict"
@@ -4869,6 +7478,7 @@ msgstr "Suggestions follow the estimated intake that keeps your weight trend ste
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
+#: packages/api/src/presenters/clinical-export.ts
 msgid "Supplements"
 msgstr "Supplements"
 
@@ -4884,11 +7494,35 @@ msgstr "Supportive"
 msgid "Swim"
 msgstr "Swim"
 
+#: packages/api/src/presenters/timeline.ts
+msgid "Sync"
+msgstr "Sync"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "Sync a scale through Health Connect or Apple Health, or add a weight."
+msgstr "Sync a scale through Health Connect or Apple Health, or add a weight."
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Sync Health Connect or Apple Health from the mobile app, or add a reading."
+msgstr "Sync Health Connect or Apple Health from the mobile app, or add a reading."
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
+msgid "Sync Health Connect or Apple Health from the mobile app, or add an entry."
+msgstr "Sync Health Connect or Apple Health from the mobile app, or add an entry."
+
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Sync now"
 msgstr "Sync now"
+
+#: apps/web/src/components/sync-status-badge.tsx
+msgid "Sync pending entries"
+msgstr "Sync pending entries"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Sync state: {label}"
@@ -4903,6 +7537,11 @@ msgstr "Synced"
 msgid "Syncing"
 msgstr "Syncing"
 
+#: apps/native/components/sync-status-badge.tsx
+#: apps/web/src/components/sync-status-badge.tsx
+msgid "Syncing ({pending})"
+msgstr "Syncing ({pending})"
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Syncing…"
 msgstr "Syncing…"
@@ -4911,9 +7550,26 @@ msgstr "Syncing…"
 msgid "System"
 msgstr "System"
 
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+msgid "System readiness"
+msgstr "System readiness"
+
+#: apps/native/app/(drawer)/index.tsx
+msgid "System Status"
+msgstr "System Status"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Talk test: {talkTest}."
 msgstr "Talk test: {talkTest}."
+
+#: apps/native/app/(drawer)/body-map.tsx
+msgid "Tap a region to see its value."
+msgstr "Tap a region to see its value."
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Target"
+msgstr "Target"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -4941,6 +7597,18 @@ msgstr "Target must start with a number, like \"70\" or \"70 kg\"."
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Target saved."
 msgstr "Target saved."
+
+#: packages/api/src/presenters/score.ts
+msgid "Target: {target} (down)."
+msgstr "Target: {target} (down)."
+
+#: packages/api/src/presenters/score.ts
+msgid "Target: {target} (up)."
+msgstr "Target: {target} (up)."
+
+#: packages/api/src/presenters/score.ts
+msgid "Target: {target}."
+msgstr "Target: {target}."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Targets and display"
@@ -5046,6 +7714,18 @@ msgstr "The provider's reply could not be read, so nothing was guessed. Try agai
 msgid "The provider's reply could not be read, so nothing was guessed. Try again."
 msgstr "The provider's reply could not be read, so nothing was guessed. Try again."
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "The range comes from large observational studies, where more weekly activity was associated with lower mortality. It is a population guideline, not a personal target or an assessment of you."
+msgstr "The range comes from large observational studies, where more weekly activity was associated with lower mortality. It is a population guideline, not a personal target or an assessment of you."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "The reference group is US adults measured in 1999–2008 and may differ from people where you live."
+msgstr "The reference group is US adults measured in 1999–2008 and may differ from people where you live."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "The reference pulse was counted after about 4 minutes of sitting quietly. Readings taken the same way compare best."
+msgstr "The reference pulse was counted after about 4 minutes of sitting quietly. Readings taken the same way compare best."
+
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "The server did not accept this change ({errorCode}). It stays on this device until you retry or discard it."
 msgstr "The server did not accept this change ({errorCode}). It stays on this device until you retry or discard it."
@@ -5062,9 +7742,31 @@ msgstr "The source has this barcode but no product name. Enter the food from its
 msgid "The weekly insights email is off. You can turn it on again in Settings."
 msgstr "The weekly insights email is off. You can turn it on again in Settings."
 
+#: packages/api/src/presenters/score.ts
+msgid "There is not enough recent data to compare with your usual pattern, so no number is shown."
+msgstr "There is not enough recent data to compare with your usual pattern, so no number is shown."
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "These manual entries are private to your account. Workspace owners and other members cannot view them. They are separate from shared workspace body records."
+msgstr "These manual entries are private to your account. Workspace owners and other members cannot view them. They are separate from shared workspace body records."
+
+#: packages/api/src/presenters/score.ts
+msgid "These scores are for adults 18 and over, based on your profile answer."
+msgstr "These scores are for adults 18 and over, based on your profile answer."
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "These settings changed on another device. The latest version is shown."
 msgstr "These settings changed on another device. The latest version is shown."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Thigh"
+msgstr "Thigh"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/progress-photos.tsx
+msgid "This cannot be undone."
+msgstr "This cannot be undone."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "This change remains on this device until you resolve it."
@@ -5073,6 +7775,10 @@ msgstr "This change remains on this device until you resolve it."
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "This day may be partial. Totals cover logged entries only."
 msgstr "This day may be partial. Totals cover logged entries only."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "This describes your own logs only. It is not a judgement about your body or how to train."
+msgstr "This describes your own logs only. It is not a judgement about your body or how to train."
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "This device's access was revoked. Reconnect from the web app."
@@ -5131,6 +7837,10 @@ msgstr "This invitation was sent to {0}, but you are signed in as {sessionEmail}
 msgid "This invitation was sent to a different email address."
 msgstr "This invitation was sent to a different email address."
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "This is a recommended range, not a description of what most people do."
+msgstr "This is a recommended range, not a description of what most people do."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead."
 msgstr "This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead."
@@ -5139,9 +7849,27 @@ msgstr "This is a store or weighed-item code, so it does not identify a product.
 msgid "This is an example modal screen for dialogs and confirmations."
 msgstr "This is an example modal screen for dialogs and confirmations."
 
+#. safety
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "This is general information about published references. It is not medical advice and says nothing about your health."
+msgstr "This is general information about published references. It is not medical advice and says nothing about your health."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "This is only available after you confirm you are 18 or older."
+msgstr "This is only available after you confirm you are 18 or older."
+
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "This link is not valid any more. Sign in and open Settings to change your notifications."
 msgstr "This link is not valid any more. Sign in and open Settings to change your notifications."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "This needs your consent for this purpose."
+msgstr "This needs your consent for this purpose."
+
+#. safety
+#: apps/native/app/(drawer)/private-measurements.tsx
+msgid "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account."
+msgstr "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account."
 
 #. safety
 #: apps/web/src/routes/_auth/settings.tsx
@@ -5158,6 +7886,16 @@ msgstr "This permanently deletes your account and {rows} stored rows across {org
 msgid "This permanently deletes your account and {rows} stored rows across your health record ({organizationNames}). It can't be undone."
 msgstr "This permanently deletes your account and {rows} stored rows across your health record ({organizationNames}). It can't be undone."
 
+#: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/progress-photos.tsx
+msgid "This photo could not be loaded."
+msgstr "This photo could not be loaded."
+
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "This scan has no regional values."
+msgstr "This scan has no regional values."
+
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "This suggestion has expired."
@@ -5171,6 +7909,31 @@ msgstr "This suggestion is no longer available."
 msgid "This token or code has expired. Request a new one."
 msgstr "This token or code has expired. Request a new one."
 
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "This week"
+msgstr "This week"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "This week: {current} points. Average of {windows, plural, one {# previous week} other {# previous weeks}} with rated sessions: {average} points (this week not included). {windows} of {considered} earlier weeks logged."
+msgstr "This week: {current} points. Average of {windows, plural, one {# previous week} other {# previous weeks}} with rated sessions: {average} points (this week not included). {windows} of {considered} earlier weeks logged."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "This week's effort points are similar to your average for the previous weeks."
+msgstr "This week's effort points are similar to your average for the previous weeks."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "This week's effort points are well above your average for the previous weeks."
+msgstr "This week's effort points are well above your average for the previous weeks."
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "This week's effort points are well below your average for the previous weeks."
+msgstr "This week's effort points are well below your average for the previous weeks."
+
 #. safety
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Tick the consent box to save this, or choose 'Prefer not to say'."
@@ -5183,6 +7946,7 @@ msgstr "Time"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Timeline"
 msgstr "Timeline"
 
@@ -5202,10 +7966,20 @@ msgstr "To sign in with {0} later, finish joining, sign in with the email link, 
 msgid "To speak, use your keyboard's dictation (microphone) key. This app never records or uploads audio."
 msgstr "To speak, use your keyboard's dictation (microphone) key. This app never records or uploads audio."
 
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Today"
 msgstr "Today"
+
+#. placeholder {0}: summary.today.date
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Today · {0}"
+msgstr "Today · {0}"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -5243,6 +8017,11 @@ msgstr "Total sugars"
 msgid "Totals are estimates from the foods you logged. They add up only the values each food's source provided."
 msgstr "Totals are estimates from the foods you logged. They add up only the values each food's source provided."
 
+#: apps/native/app/(drawer)/records/sleep.tsx
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "Track sleep through Health Connect or Apple Health, or add a session."
+msgstr "Track sleep through Health Connect or Apple Health, or add a session."
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Training"
@@ -5253,8 +8032,25 @@ msgstr "Training"
 msgid "Training days"
 msgstr "Training days"
 
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Training this week"
+msgstr "Training this week"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Traps"
+msgstr "Traps"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Triceps"
+msgstr "Triceps"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/progress-photos.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Try again"
 msgstr "Try again"
 
@@ -5262,9 +8058,39 @@ msgstr "Try again"
 msgid "Try another name, or clear the search."
 msgstr "Try another name, or clear the search."
 
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Try delete again"
+msgstr "Try delete again"
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Try lookup again"
 msgstr "Try lookup again"
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Turn observations off"
+msgstr "Turn observations off"
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Turn observations on"
+msgstr "Turn observations on"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Turn off"
+msgstr "Turn off"
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Turn off and erase"
+msgstr "Turn off and erase"
+
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Turn off nutrition observations"
+msgstr "Turn off nutrition observations"
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
@@ -5283,13 +8109,28 @@ msgstr "Turn off this email"
 msgid "Turn on"
 msgstr "Turn on"
 
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Turn on cycle logging"
+msgstr "Turn on cycle logging"
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "Turn on food drafts in your nutrition settings first."
 msgstr "Turn on food drafts in your nutrition settings first."
 
+#: apps/native/components/insights-section.tsx
+#: apps/web/src/components/insights-section.tsx
+msgid "Turn on nutrition observations"
+msgstr "Turn on nutrition observations"
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "Turn on photo drafts in your nutrition settings first."
 msgstr "Turn on photo drafts in your nutrition settings first."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Turn on private measurements"
+msgstr "Turn on private measurements"
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
@@ -5301,10 +8142,32 @@ msgstr "Turn on the weekly email"
 msgid "Turn on to let AI features process your data."
 msgstr "Turn on to let AI features process your data."
 
+#. safety
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Turn this on to record weight or circumference measurements and progress photos for your own reference. It is off by default."
+msgstr "Turn this on to record weight or circumference measurements and progress photos for your own reference. It is off by default."
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Turning on…"
+msgstr "Turning on…"
+
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Two eggs, a slice of toast and a coffee"
 msgstr "Two eggs, a slice of toast and a coffee"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Two separate numbers for the last 7 days, each with its formula. They are not combined into one score."
+msgstr "Two separate numbers for the last 7 days, each with its formula. They are not combined into one score."
+
+#: packages/api/src/presenters/score.ts
+msgid "Two separate numbers, each with its own explanation. They are never combined into one health score."
+msgstr "Two separate numbers, each with its own explanation. They are never combined into one health score."
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Two separate views of your own records: measured DEXA values by region, and the sets you logged this week by muscle group."
+msgstr "Two separate views of your own records: measured DEXA values by region, and the sets you logged this week by muscle group."
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -5333,10 +8196,15 @@ msgstr "Type digits instead"
 msgid "Type the digits printed under the barcode. Camera scanning is available in the mobile app."
 msgstr "Type the digits printed under the barcode. Camera scanning is available in the mobile app."
 
+#: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "Unavailable"
 msgstr "Unavailable"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Under 4 sets"
+msgstr "Under 4 sets"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Undo"
@@ -5346,6 +8214,10 @@ msgstr "Undo"
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Undo changes"
 msgstr "Undo changes"
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Undo import"
+msgstr "Undo import"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Unfavourite"
@@ -5359,9 +8231,11 @@ msgstr "Unfavourite <0>{foodName}</0>"
 #. safety
 #. safety
 #. safety
+#: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Unit"
@@ -5418,6 +8292,10 @@ msgstr "Unsaved: {0}"
 msgid "Untitled recipe"
 msgstr "Untitled recipe"
 
+#: packages/api/src/presenters/sleep.ts
+msgid "Untracked"
+msgstr "Untracked"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Up to {value} {unit}"
 msgstr "Up to {value} {unit}"
@@ -5434,6 +8312,23 @@ msgstr "Updated {name}"
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Updating your setting…"
 msgstr "Updating your setting…"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Upper arm"
+msgstr "Upper arm"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Upper back and neck (back)"
+msgstr "Upper back and neck (back)"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "US civilian, non-institutionalised adults (NHANES), excluding pregnancy, likely infection, irregular pulse, out-of-range thyroid tests and medications that affect heart rate. Weighted to the US population."
+msgstr "US civilian, non-institutionalised adults (NHANES), excluding pregnancy, likely infection, irregular pulse, out-of-range thyroid tests and medications that affect heart rate. Weighted to the US population."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "US federal government work in the public domain (NHANES material may be reproduced without permission; citation requested)."
+msgstr "US federal government work in the public domain (NHANES material may be reproduced without permission; citation requested)."
 
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
@@ -5457,6 +8352,10 @@ msgstr "Use 24-hour time, for example 14:05."
 msgid "Use a different email"
 msgstr "Use a different email"
 
+#: apps/web/src/components/progress-photos.tsx
+msgid "Use a JPEG or PNG photo up to 10 MB."
+msgstr "Use a JPEG or PNG photo up to 10 MB."
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Use at most 100 characters for the serving name."
 msgstr "Use at most 100 characters for the serving name."
@@ -5474,6 +8373,10 @@ msgstr "Use at most 200 characters for the name."
 msgid "Use the AI provider for this draft"
 msgstr "Use the AI provider for this draft"
 
+#: apps/native/app/(drawer)/preventive-care.tsx
+msgid "Use the format YYYY-MM-DD."
+msgstr "Use the format YYYY-MM-DD."
+
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Use this"
 msgstr "Use this"
@@ -5482,9 +8385,51 @@ msgstr "Use this"
 msgid "Use YYYY-MM-DD for the start date."
 msgstr "Use YYYY-MM-DD for the start date."
 
+#: packages/api/src/presenters/score.ts
+msgid "Used"
+msgstr "Used"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Used only for safeguards on reduction suggestions."
 msgstr "Used only for safeguards on reduction suggestions."
+
+#: packages/api/src/presenters/score.ts
+msgid "Uses {used} of {possible} inputs for this profile: {usedList}."
+msgstr "Uses {used} of {possible} inputs for this profile: {usedList}."
+
+#: packages/api/src/presenters/score.ts
+msgid "Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with the physiology-enhanced profile."
+msgstr "Uses sleep and recent activity (steps), which can be entered by hand. Not comparable with the physiology-enhanced profile."
+
+#: packages/api/src/presenters/score.ts
+msgid "Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable."
+msgstr "Uses sleep and resting heart rate, plus recent activity when available. Typically needs a wearable."
+
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Value"
+msgstr "Value"
+
+#: apps/native/app/(drawer)/records/activity.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Value ({unit})"
+msgstr "Value ({unit})"
+
+#: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Value must be between {min} and {max} {unit}."
+msgstr "Value must be between {min} and {max} {unit}."
+
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Value must be between 0 and 100,000."
+msgstr "Value must be between 0 and 100,000."
+
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Values are hidden until your hide-numbers setting can be checked."
+msgstr "Values are hidden until your hide-numbers setting can be checked."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Values are per a positive amount, for example 100 g."
@@ -5537,13 +8482,20 @@ msgstr "Very gentle"
 msgid "View global environment settings"
 msgstr "View global environment settings"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Vigorous: {vigorous} min (counts double)"
+msgstr "Vigorous: {vigorous} min (counts double)"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Visible to members of this workspace."
 msgstr "Visible to members of this workspace."
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+#: packages/api/src/presenters/timeline.ts
 msgid "Vitals"
 msgstr "Vitals"
 
@@ -5562,6 +8514,15 @@ msgstr "Vitamin D"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Vitamins and minerals from the foods you logged that day. Foods that don't report a value are counted as unknown, never as zero."
 msgstr "Vitamins and minerals from the foods you logged that day. Foods that don't report a value are counted as unknown, never as zero."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "VO₂max: not recorded by OpenValens yet. The main lab reference (FRIEND registry) is linked, not copied, and device estimates are too uncertain for a band."
+msgstr "VO₂max: not recorded by OpenValens yet. The main lab reference (FRIEND registry) is linked, not copied, and device estimates are too uncertain for a band."
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Waist"
+msgstr "Waist"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Waiting to sync"
@@ -5601,9 +8562,43 @@ msgstr "We'll email you a link. No password needed."
 msgid "Weekly"
 msgstr "Weekly"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Weekly activity"
+msgstr "Weekly activity"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Weekly activity is for adults 18 and over, based on your profile answer."
+msgstr "Weekly activity is for adults 18 and over, based on your profile answer."
+
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "Weekly insights email"
 msgstr "Weekly insights email"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/body.tsx
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+#: packages/api/src/presenters/clinical-export.ts
+#: packages/api/src/presenters/cockpit.ts
+#: packages/api/src/presenters/manual-entry.ts
+msgid "Weight"
+msgstr "Weight"
+
+#: apps/native/app/(drawer)/(tabs)/body.tsx
+#: apps/web/src/routes/_auth/body.tsx
+msgid "Weight ({unit})"
+msgstr "Weight ({unit})"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Weight, BMI, body fat and waist: never compared with other people. You see your own trend only."
+msgstr "Weight, BMI, body fat and waist: never compared with other people. You see your own trend only."
+
+#. placeholder {0}: session.user.name
+#: apps/native/app/(drawer)/index.tsx
+msgid "Welcome, <0>{0}</0>"
+msgstr "Welcome, <0>{0}</0>"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "What brings you here"
@@ -5614,6 +8609,42 @@ msgstr "What brings you here"
 msgid "What did you have?"
 msgstr "What did you have?"
 
+#: packages/api/src/presenters/activity-load.ts
+msgid "Where your effort ratings come from changed (for example a new device), so earlier weeks are not compared. Shown once {minimum} earlier weeks with the same source exist (found {windows})."
+msgstr "Where your effort ratings come from changed (for example a new device), so earlier weeks are not compared. Shown once {minimum} earlier weeks with the same source exist (found {windows})."
+
+#: apps/web/src/components/activity-load-panel.tsx
+msgid "WHO 2020 guidelines (opens the paper)"
+msgstr "WHO 2020 guidelines (opens the paper)"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "WHO guideline for adults: 150–300 minutes of moderate activity a week, or 75–150 minutes of vigorous activity, or a mix of both (vigorous minutes count double)."
+msgstr "WHO guideline for adults: 150–300 minutes of moderate activity a week, or 75–150 minutes of vigorous activity, or a mix of both (vigorous minutes count double)."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Who was measured"
+msgstr "Who was measured"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Within {slight}"
+msgstr "Within {slight}"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "Within the WHO range of 150–300 minutes a week."
+msgstr "Within the WHO range of 150–300 minutes a week."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "women aged {minAge} and over"
+msgstr "women aged {minAge} and over"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "women aged {minAge}–{maxAge}"
+msgstr "women aged {minAge}–{maxAge}"
+
+#: packages/api/src/presenters/body-map.ts
+msgid "Working sets in the last 7 days. A muscle the exercise mainly works counts 1 per set; a muscle it also works counts 0.5. Exercises not linked to the catalog are listed below and not counted."
+msgstr "Working sets in the last 7 days. A muscle the exercise mainly works counts 1 per set; a muscle it also works counts 0.5. Exercises not linked to the catalog are listed below and not counted."
+
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Working…"
@@ -5623,6 +8654,7 @@ msgstr "Working…"
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
+#: packages/api/src/presenters/clinical-export.ts
 msgid "Workouts"
 msgstr "Workouts"
 
@@ -5638,6 +8670,14 @@ msgstr "Workspace exercise"
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Workspace invitation"
 msgstr "Workspace invitation"
+
+#: apps/native/app/(drawer)/records/vitals.tsx
+msgid "Y-axis: avg bpm"
+msgstr "Y-axis: avg bpm"
+
+#: apps/native/app/(drawer)/records/sleep.tsx
+msgid "Y-axis: minutes of sleep"
+msgstr "Y-axis: minutes of sleep"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -5660,6 +8700,10 @@ msgstr "You can close this page."
 #: apps/web/src/components/product-settings-form.tsx
 msgid "You can view these settings but cannot edit them."
 msgstr "You can view these settings but cannot edit them."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "You chose not to share this."
+msgstr "You chose not to share this."
 
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
@@ -5688,6 +8732,10 @@ msgstr "You have no pending workspace invitations."
 msgid "You have unsaved changes on this page. Leave without saving them?"
 msgstr "You have unsaved changes on this page. Leave without saving them?"
 
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "You haven't added this yet."
+msgstr "You haven't added this yet."
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "You marked this day complete with nothing logged."
 msgstr "You marked this day complete with nothing logged."
@@ -5695,6 +8743,10 @@ msgstr "You marked this day complete with nothing logged."
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "You marked this day complete."
 msgstr "You marked this day complete."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "You said neither option fits you."
+msgstr "You said neither option fits you."
 
 #. safety
 #: packages/api/src/presenters/wellness-profile.ts
@@ -5712,6 +8764,22 @@ msgstr "Your account is ready."
 #: apps/web/src/components/admission-form.tsx
 msgid "Your account is ready. Sign in to continue."
 msgstr "Your account is ready. Sign in to continue."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your active minutes for the last 7 days, {minutes}, are {position, select, within {within} below {below} other {above}} the {range} {source, select, who {WHO} nsf {the National Sleep Foundation} other {the guideline}} recommends for adults {ages}."
+msgstr "Your active minutes for the last 7 days, {minutes}, are {position, select, within {within} below {below} other {above}} the {range} {source, select, who {WHO} nsf {the National Sleep Foundation} other {the guideline}} recommends for adults {ages}."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your age group is not picked for you."
+msgstr "Your age group is not picked for you."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your age range does not fall inside a single age group of this reference, so no group is picked for you."
+msgstr "Your age range does not fall inside a single age group of this reference, so no group is picked for you."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your birth year falls on the edge of two age bands."
+msgstr "Your birth year falls on the edge of two age bands."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Your change"
@@ -5741,6 +8809,14 @@ msgstr "Your change: remove the entry."
 msgid "Your change: the entry values."
 msgstr "Your change: the entry values."
 
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Your decision about {title}"
+msgstr "Your decision about {title}"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your own trend comes first. If you turn a comparison on, your usual value is shown next to a published guideline range, or a broad band for adults of your age group and sex, with its source named."
+msgstr "Your own trend comes first. If you turn a comparison on, your usual value is shown next to a published guideline range, or a broad band for adults of your age group and sex, with its source named."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
@@ -5750,6 +8826,16 @@ msgstr "Your profile"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Your profile was changed somewhere else. We've loaded the latest version — check it and save again."
 msgstr "Your profile was changed somewhere else. We've loaded the latest version — check it and save again."
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Your record for {title}"
+msgstr "Your record for {title}"
+
+#: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
+msgid "Your records"
+msgstr "Your records"
 
 #. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -5767,6 +8853,27 @@ msgstr "Your saved goal is hidden. Enter a new goal to replace it, or clear it."
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Your targets"
 msgstr "Your targets"
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your usual resting heart rate, {usual} bpm, is {position, select, within {within the middle range} below {below the middle range} other {above the middle range}} for {group} in the reference group ({lower}–{upper} bpm)."
+msgstr "Your usual resting heart rate, {usual} bpm, is {position, select, within {within the middle range} below {below the middle range} other {above the middle range}} for {group} in the reference group ({lower}–{upper} bpm)."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your usual sleep, {sleep} a night, is {position, select, within {within} below {below} other {above}} the {range} {source, select, who {WHO} nsf {the National Sleep Foundation} other {the guideline}} recommends for adults {ages}."
+msgstr "Your usual sleep, {sleep} a night, is {position, select, within {within} below {below} other {above}} the {range} {source, select, who {WHO} nsf {the National Sleep Foundation} other {the guideline}} recommends for adults {ages}."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your usual value is close to the edge of the middle range, so a small change could move it to the other side."
+msgstr "Your usual value is close to the edge of the middle range, so a small change could move it to the other side."
+
+#. placeholder {0}: ownTrend.usualDays
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your usual: {usual} (median of {0, plural, one {# day} other {# days}} in the last {window})."
+msgstr "Your usual: {usual} (median of {0, plural, one {# day} other {# days}} in the last {window})."
+
+#: packages/api/src/presenters/reference-comparison.ts
+msgid "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."
+msgstr "Your values include device readings. Devices often measure resting heart rate during sleep, which likely reads lower than the seated pulse used in the reference, so this band may place you lower than a seated reading would."
 
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "YYYY-MM-DD"
