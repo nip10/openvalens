@@ -455,6 +455,7 @@ function Chips({
   draft: WellnessProfileDraft;
   onChange: (draft: WellnessProfileDraft) => void;
 }) {
+  const { i18n } = useLingui();
   const selected = selectedChips(field, draft.answers);
   return (
     <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
@@ -480,7 +481,7 @@ function Chips({
                 isSelected ? "font-medium text-foreground" : "text-muted-foreground"
               }`}
             >
-              {chip.label}
+              {i18n._(chip.label)}
             </Text>
           </Pressable>
         );

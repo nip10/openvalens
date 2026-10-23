@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { orpc } from "./orpc";
 
 /**
@@ -28,22 +31,34 @@ const NOT_ADMITTED_CODES = new Set([
   "registration_not_allowed",
 ]);
 
-/** User-facing message for an OIDC sign-in error redirect. */
-export function oidcSignInErrorMessage(code: string | undefined, displayName: string): string {
+/**
+ * User-facing message for an OIDC sign-in error redirect. Returns a
+ * descriptor (#67); render it with `_()`.
+ */
+export function oidcSignInErrorMessage(
+  code: string | undefined,
+  displayName: string,
+): MessageDescriptor {
   if (code && NOT_ADMITTED_CODES.has(code)) {
-    return "No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings.";
+    return msg`No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings.`;
   }
-  return `Sign-in with ${displayName} did not complete. Try again or use an email link.`;
+  return msg`Sign-in with ${displayName} did not complete. Try again or use an email link.`;
 }
 
-/** User-facing message for an explicit "Connect" (link) error redirect. */
-export function oidcConnectErrorMessage(code: string | undefined, displayName: string): string {
+/**
+ * User-facing message for an explicit "Connect" (link) error redirect.
+ * Returns a descriptor (#67); render it with `_()`.
+ */
+export function oidcConnectErrorMessage(
+  code: string | undefined,
+  displayName: string,
+): MessageDescriptor {
   switch (code) {
     case "email_does_not_match":
-      return `Your ${displayName} account uses a different email address than this account.`;
+      return msg`Your ${displayName} account uses a different email address than this account.`;
     case "account_already_linked_to_different_user":
-      return `That ${displayName} account is already connected to another user.`;
+      return msg`That ${displayName} account is already connected to another user.`;
     default:
-      return `Could not connect ${displayName}. Please try again.`;
+      return msg`Could not connect ${displayName}. Please try again.`;
   }
 }

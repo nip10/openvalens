@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import {
   acceptWorkspaceInvitation,
   classifyInvitationError,
@@ -116,6 +118,13 @@ describe("classifyInvitationError", () => {
     expect(
       classifyInvitationError({ code: "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION" }).reason,
     ).toBe("wrong_account");
+    expect(
+      inEnglish(
+        classifyInvitationError({ code: "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION" }).message,
+      ),
+    ).toBe(
+      "This invitation was sent to a different email address. Sign in with the invited account to use it.",
+    );
   });
 
   test("maps a missing/expired invitation to expired", () => {
@@ -134,11 +143,15 @@ describe("classifyInvitationError", () => {
   });
 
   test("an unauthenticated response asks the user to sign in again", () => {
-    expect(classifyInvitationError({ status: 401 }).message).toContain("Sign in again");
+    expect(inEnglish(classifyInvitationError({ status: 401 }).message)).toBe(
+      "Sign in again to continue.",
+    );
   });
 
   test("an unknown failure stays unavailable", () => {
-    expect(classifyInvitationError({ status: 500 }).reason).toBe("unavailable");
+    const unknown = classifyInvitationError({ status: 500 });
+    expect(unknown.reason).toBe("unavailable");
+    expect(inEnglish(unknown.message)).toBe("Could not complete that action. Please try again.");
   });
 });
 
@@ -170,6 +183,9 @@ describe("listMyInvitations", () => {
     const error = await listMyInvitations(client).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(WorkspaceInvitationError);
     expect((error as WorkspaceInvitationError).reason).toBe("denied");
+    expect(inEnglish((error as WorkspaceInvitationError).userMessage)).toBe(
+      "You cannot use this invitation. Ask the workspace owner for a new one.",
+    );
   });
 });
 
@@ -205,6 +221,9 @@ describe("acceptWorkspaceInvitation", () => {
       (caught: unknown) => caught,
     );
     expect((error as WorkspaceInvitationError).reason).toBe("expired");
+    expect(inEnglish((error as WorkspaceInvitationError).userMessage)).toBe(
+      "This invitation is no longer available. It may have expired or already been used.",
+    );
     expect(calls.getSession).toBe(0);
   });
 

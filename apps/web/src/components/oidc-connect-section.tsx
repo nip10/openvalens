@@ -22,7 +22,7 @@ export function OidcConnectSection() {
   const options = useQuery(signInOptionsQueryOptions());
   const oidc = options.data?.oidc ?? null;
   const queryClient = useQueryClient();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
   const accounts = useQuery({
     queryKey: ACCOUNTS_QUERY_KEY,
@@ -39,9 +39,11 @@ export function OidcConnectSection() {
     if (!oidc) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("oidc") !== "error") return;
-    toast.error(oidcConnectErrorMessage(params.get("error") ?? undefined, oidc.displayName));
+    toast.error(
+      i18n._(oidcConnectErrorMessage(params.get("error") ?? undefined, oidc.displayName)),
+    );
     window.history.replaceState(null, "", window.location.pathname);
-  }, [oidc]);
+  }, [oidc, i18n]);
 
   const disconnect = useMutation({
     mutationFn: async (accountRowId: string) => {
@@ -63,7 +65,7 @@ export function OidcConnectSection() {
       callbackURL: `${origin}/settings`,
       errorCallbackURL: `${origin}/settings?oidc=error`,
     });
-    if (error) toast.error(oidcConnectErrorMessage(undefined, oidc.displayName));
+    if (error) toast.error(i18n._(oidcConnectErrorMessage(undefined, oidc.displayName)));
   };
 
   return (

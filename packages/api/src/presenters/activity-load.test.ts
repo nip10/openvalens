@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { computeWeeklyActivityLoad, type ActivitySession } from "@openvalens/activity/load";
+import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import type { ActivityLoadResult } from "../activity-load-contract";
@@ -15,6 +16,7 @@ import {
   INTENSITY_DESCRIPTIONS,
   INTENSITY_LABELS,
   sessionEffortText,
+  type SessionEffortLike,
 } from "./activity-load";
 
 /** Issue #99 — shared web/native copy and view models. All data is synthetic. */
@@ -139,21 +141,44 @@ describe("activityLoadView", () => {
 describe("session capture helpers", () => {
   test("effort labels use CR-10 anchors", () => {
     expect(EFFORT_RATING_OPTIONS).toHaveLength(11);
-    expect(effortRatingLabel(0)).toBe("0 · Rest");
-    expect(effortRatingLabel(7)).toBe("7 · Very hard");
-    expect(effortRatingLabel(6)).toBe("6");
+    expect(effortRatingLabel(0, englishI18n)).toBe("0 · Rest");
+    expect(effortRatingLabel(7, englishI18n)).toBe("7 · Very hard");
+    expect(effortRatingLabel(6, englishI18n)).toBe("6");
+    expect(inEnglish(EFFORT_QUESTION)).toBe("How hard was the whole session? (0–10)");
+  });
+
+  test("intensity choices keep their talk-test wording", () => {
+    expect(Object.values(INTENSITY_LABELS).map(inEnglish)).toEqual([
+      "Light",
+      "Moderate",
+      "Vigorous",
+    ]);
+    expect(inEnglish(INTENSITY_DESCRIPTIONS.moderate)).toBe("You can talk, but not sing");
   });
 
   test("session text shows missing values as missing", () => {
+    const text = (session: SessionEffortLike) => sessionEffortText(session, englishI18n);
+    expect(text({ date: AS_OF, duration: 45, intensity: "moderate", effortRating: 7 })).toBe(
+      "Moderate · effort 7/10 · 315 points",
+    );
+    expect(text({ date: AS_OF, duration: 45, intensity: null, effortRating: null })).toBe(
+      "No intensity · effort not rated",
+    );
+    expect(text({ date: AS_OF, duration: null, intensity: "light", effortRating: 3 })).toBe(
+      "Light · effort 3/10 · no duration, no points",
+    );
+    expect(text({ date: AS_OF, duration: 300, intensity: "vigorous", effortRating: 10 })).toBe(
+      "Vigorous · effort 10/10 · 3,000 points",
+    );
+  });
+
+  test("session text follows the interface language", () => {
     expect(
-      sessionEffortText({ date: AS_OF, duration: 45, intensity: "moderate", effortRating: 7 }),
-    ).toBe("Moderate · effort 7/10 · 315 points");
-    expect(
-      sessionEffortText({ date: AS_OF, duration: 45, intensity: null, effortRating: null }),
-    ).toBe("No intensity · effort not rated");
-    expect(
-      sessionEffortText({ date: AS_OF, duration: null, intensity: "light", effortRating: 3 }),
-    ).toBe("Light · effort 3/10 · no duration, no points");
+      sessionEffortText(
+        { date: AS_OF, duration: 45, intensity: "moderate", effortRating: 7 },
+        createAppI18n("pt-PT"),
+      ),
+    ).toBe("Moderada · esforço 7/10 · 315 pontos");
   });
 
   test("rating is offered on the session's own day", () => {
@@ -189,10 +214,10 @@ describe("copy review (#99 wording rules)", () => {
         typeof text === "string" ? text : inEnglish(text),
       ),
       ...Object.values(ACTIVITY_LOAD_WITHHELD_EXPLANATIONS).map(inEnglish),
-      ...Object.values(INTENSITY_LABELS),
-      ...Object.values(INTENSITY_DESCRIPTIONS),
-      EFFORT_QUESTION,
-      ...EFFORT_RATING_OPTIONS.map(effortRatingLabel),
+      ...Object.values(INTENSITY_LABELS).map(inEnglish),
+      ...Object.values(INTENSITY_DESCRIPTIONS).map(inEnglish),
+      inEnglish(EFFORT_QUESTION),
+      ...EFFORT_RATING_OPTIONS.map((rating) => effortRatingLabel(rating, englishI18n)),
     ];
     for (const view of views) {
       texts.push(

@@ -21,6 +21,7 @@ export default defineConfig({
         "<rootDir>/apps/native/components",
         "<rootDir>/apps/native/contexts",
         "<rootDir>/apps/native/lib",
+        "<rootDir>/apps/native/utils",
         "<rootDir>/packages/api/src/presenters",
       ],
       exclude: ["**/node_modules/**", "**/*.test.*", "**/routeTree.gen.ts"],

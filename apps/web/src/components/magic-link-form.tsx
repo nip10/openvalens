@@ -34,7 +34,7 @@ export default function MagicLinkForm({
   oidcError = null,
 }: MagicLinkFormProps) {
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
   const callbackURL = (() => {
     const origin = window.location.origin;
@@ -94,7 +94,9 @@ export default function MagicLinkForm({
       </p>
       {oidcError !== null && (
         <p className="mb-4 text-center text-sm text-destructive">
-          {oidcSignInErrorMessage(oidcError || undefined, oidc?.displayName ?? t`single sign-on`)}
+          {i18n._(
+            oidcSignInErrorMessage(oidcError || undefined, oidc?.displayName ?? t`single sign-on`),
+          )}
         </p>
       )}
       {linkError && (

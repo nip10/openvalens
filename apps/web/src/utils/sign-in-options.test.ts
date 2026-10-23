@@ -2,7 +2,17 @@ import "@/testing/varlock-test-setup";
 
 import { describe, expect, test } from "bun:test";
 
-import { oidcConnectErrorMessage, oidcSignInErrorMessage } from "./sign-in-options";
+import { inEnglish } from "@openvalens/i18n/testing";
+
+import {
+  oidcConnectErrorMessage as connectDescriptor,
+  oidcSignInErrorMessage as signInDescriptor,
+} from "./sign-in-options";
+
+const oidcSignInErrorMessage = (code: string | undefined, name: string) =>
+  inEnglish(signInDescriptor(code, name));
+const oidcConnectErrorMessage = (code: string | undefined, name: string) =>
+  inEnglish(connectDescriptor(code, name));
 
 describe("oidcSignInErrorMessage (Issue #65)", () => {
   test("unknown and unlinked identities get the same neutral invitation message", () => {
@@ -27,6 +37,11 @@ describe("oidcConnectErrorMessage (Issue #65)", () => {
     expect(
       oidcConnectErrorMessage("account_already_linked_to_different_user", "Acme SSO"),
     ).toContain("another user");
-    expect(oidcConnectErrorMessage(undefined, "Acme SSO")).toContain("Could not connect");
+    expect(oidcConnectErrorMessage(undefined, "Acme SSO")).toBe(
+      "Could not connect Acme SSO. Please try again.",
+    );
+    expect(oidcSignInErrorMessage("invalid_code", "Acme SSO")).toBe(
+      "Sign-in with Acme SSO did not complete. Try again or use an email link.",
+    );
   });
 });

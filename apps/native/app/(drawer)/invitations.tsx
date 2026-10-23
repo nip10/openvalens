@@ -55,7 +55,7 @@ export default function InvitationsScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const { t, i18n } = useLingui();
   const errorMessage = (error: unknown): string =>
-    error instanceof WorkspaceInvitationError ? error.message : i18n._(ACTION_FAILED);
+    error instanceof WorkspaceInvitationError ? i18n._(error.userMessage) : i18n._(ACTION_FAILED);
 
   const invitations = useQuery({
     queryKey: ["invitations", "mine", email],
