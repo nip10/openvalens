@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { emptyMicronutrients } from "../micronutrients";
 import { emptyNutrients } from "../nutrients";
 import { externalSnapshotContent } from "../snapshot";
 import {
@@ -28,6 +29,7 @@ const offFood: CatalogFood = {
     servingLabel: null,
   },
   nutrients: { ...emptyNutrients(), energyKcal: 500 },
+  micronutrients: emptyMicronutrients(),
   release: {
     id: 1,
     dataset: "products",

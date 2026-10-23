@@ -2,6 +2,13 @@ import { createHash } from "node:crypto";
 
 import { NutritionError } from "./errors";
 import {
+  hasAnyMicronutrient,
+  MICRONUTRIENT_KEYS,
+  micronutrientsOf,
+  normalizeMicronutrients,
+  type MicronutrientValues,
+} from "./micronutrients";
+import {
   NUTRIENT_KEYS,
   normalizeBasis,
   normalizeNutrients,
@@ -35,7 +42,8 @@ export type SnapshotContent = {
   brand: string | null;
   barcode: string | null;
 } & NutrientBasis &
-  NutrientValues;
+  NutrientValues &
+  MicronutrientValues;
 
 /**
  * A catalog (`fdc` / `off`, resolved by #72) or one-off `manual` food, as the
@@ -57,6 +65,8 @@ export type ExternalSnapshotInput = {
   servingSizeUnit?: ServingSizeUnit | null;
   servingLabel?: string | null;
   nutrients?: Partial<NutrientValues>;
+  /** Optional micronutrients (#78); omitted ones are stored as unknown. */
+  micronutrients?: Partial<MicronutrientValues>;
 };
 
 /** Source-qualified food identity, e.g. `fdc:123456`, `off:3017620422003`, `custom:42`. */
@@ -102,6 +112,7 @@ export function externalSnapshotContent(input: ExternalSnapshotInput): SnapshotC
     barcode: input.barcode ? normalizeBarcode(input.barcode) : null,
     ...normalizeBasis(input),
     ...normalizeNutrients(input.nutrients),
+    ...normalizeMicronutrients(input.micronutrients),
   };
 }
 
@@ -114,7 +125,8 @@ export function customFoodSnapshotContent(
     brand: string | null;
     barcode: string | null;
   } & NutrientBasis &
-    NutrientValues,
+    NutrientValues &
+    MicronutrientValues,
 ): SnapshotContent {
   return {
     source: "custom",
@@ -131,6 +143,7 @@ export function customFoodSnapshotContent(
     servingSizeUnit: food.servingSizeUnit,
     servingLabel: food.servingLabel,
     ...nutrientsOf(food),
+    ...micronutrientsOf(food),
   };
 }
 
@@ -154,8 +167,14 @@ const CONTENT_KEYS = [
 /**
  * SHA-256 over the content in a fixed key order. `null` and `0` hash
  * differently, so an unknown nutrient never dedupes into a zero one.
+ * Micronutrients (#78) are appended only when at least one is known, so
+ * content without them keeps the hash it had before they existed.
  */
 export function snapshotContentHash(content: SnapshotContent): string {
-  const canonical = JSON.stringify(CONTENT_KEYS.map((key) => [key, content[key]]));
+  const micronutrients = micronutrientsOf(content);
+  const entries: [string, unknown][] = CONTENT_KEYS.map((key) => [key, content[key]]);
+  if (hasAnyMicronutrient(micronutrients))
+    for (const key of MICRONUTRIENT_KEYS) entries.push([key, micronutrients[key]]);
+  const canonical = JSON.stringify(entries);
   return createHash("sha256").update(canonical).digest("hex");
 }

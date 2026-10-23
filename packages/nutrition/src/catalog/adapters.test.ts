@@ -189,3 +189,65 @@ describe("readJsonLines", () => {
     expect(items).toEqual([{ a: 1 }, { b: 2 }, null, { c: 3 }]);
   });
 });
+
+describe("micronutrients (#78)", () => {
+  test("FDC maps micronutrients by number and unit, and never uses the vitamin D IU value", () => {
+    const record = parseFdcFood({
+      ...fdcFoundation,
+      foodNutrients: [
+        ...fdcFoundation.foodNutrients,
+        fdcNutrient("301", "MG", 19),
+        fdcNutrient("303", "MG", 3.33),
+        fdcNutrient("304", "MG", 36),
+        fdcNutrient("306", "MG", 369),
+        fdcNutrient("309", "MG", 1.27),
+        fdcNutrient("401", "MG", 0),
+        fdcNutrient("418", "UG", 0),
+        fdcNutrient("324", "IU", 40), // IU: ignored
+      ],
+    });
+    expect(record).toMatchObject({
+      calciumMg: 19,
+      ironMg: 3.33,
+      magnesiumMg: 36,
+      potassiumMg: 369,
+      zincMg: 1.27,
+      vitaminCMg: 0,
+      vitaminB12Ug: 0,
+      vitaminDUg: null,
+    });
+    expect(parseFdcFood(fdcBranded)).toMatchObject({ calciumMg: null, vitaminDUg: null });
+  });
+
+  test("FDC converts mass units for micronutrients", () => {
+    const record = parseFdcFood({
+      ...fdcFoundation,
+      foodNutrients: [fdcNutrient("328", "UG", 2.5), fdcNutrient("301", "G", 0.12)],
+    });
+    expect(record).toMatchObject({ vitaminDUg: 2.5, calciumMg: 120 });
+  });
+
+  test("OFF converts gram values to mg and µg and keeps missing values unknown", () => {
+    const record = parseOffProduct({
+      ...offProduct,
+      nutriments: {
+        ...offProduct.nutriments,
+        calcium_100g: 0.12,
+        iron_100g: 0.0042,
+        "vitamin-c_100g": 0,
+        "vitamin-d_100g": 0.0000025,
+        "vitamin-b12_100g": "not a number",
+      },
+    });
+    expect(record).toMatchObject({
+      calciumMg: 120,
+      ironMg: 4.2,
+      vitaminCMg: 0,
+      vitaminDUg: 2.5,
+      vitaminB12Ug: null,
+      magnesiumMg: null,
+      potassiumMg: null,
+      zincMg: null,
+    });
+  });
+});

@@ -1,3 +1,8 @@
+import {
+  emptyMicronutrients,
+  type MicronutrientKey,
+  type MicronutrientValues,
+} from "../micronutrients";
 import { emptyNutrients, type NutrientKey, type NutrientValues } from "../nutrients";
 import type { CatalogRecordAdapter, OffProductRecord } from "./record";
 import { asRecord, asText, gtinOrNull, nonNegativeNumber, roundTo12 } from "./parse-util";
@@ -28,6 +33,32 @@ const OFF_NUTRIENTS: Readonly<Partial<Record<NutrientKey, { key: string; gToMg?:
   sodiumMg: { key: "sodium_100g", gToMg: true },
   saltG: { key: "salt_100g" },
 };
+
+/** Micronutrients (#78): OFF's `*_100g` values are in grams, scaled to the column unit. */
+const OFF_MICRONUTRIENTS: Readonly<Record<MicronutrientKey, { key: string; factor: number }>> = {
+  calciumMg: { key: "calcium_100g", factor: 1e3 },
+  ironMg: { key: "iron_100g", factor: 1e3 },
+  magnesiumMg: { key: "magnesium_100g", factor: 1e3 },
+  potassiumMg: { key: "potassium_100g", factor: 1e3 },
+  zincMg: { key: "zinc_100g", factor: 1e3 },
+  vitaminCMg: { key: "vitamin-c_100g", factor: 1e3 },
+  vitaminDUg: { key: "vitamin-d_100g", factor: 1e6 },
+  vitaminB12Ug: { key: "vitamin-b12_100g", factor: 1e6 },
+};
+
+function offMicronutrients(raw: unknown): MicronutrientValues {
+  const nutriments = asRecord(raw);
+  const values = emptyMicronutrients();
+  if (!nutriments) return values;
+  for (const [key, spec] of Object.entries(OFF_MICRONUTRIENTS) as [
+    MicronutrientKey,
+    { key: string; factor: number },
+  ][]) {
+    const value = nonNegativeNumber(nutriments[spec.key]);
+    if (value !== null) values[key] = roundTo12(value * spec.factor);
+  }
+  return values;
+}
 
 function offNutrients(raw: unknown): NutrientValues {
   const nutriments = asRecord(raw);
@@ -74,6 +105,7 @@ export function parseOffProduct(raw: unknown): OffProductRecord | null {
     servingSizeUnit: hasServing ? servingUnit : null,
     servingLabel: asText(product.serving_size),
     ...offNutrients(product.nutriments),
+    ...offMicronutrients(product.nutriments),
   };
 }
 

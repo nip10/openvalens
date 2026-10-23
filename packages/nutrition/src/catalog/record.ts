@@ -1,3 +1,4 @@
+import type { MicronutrientValues } from "../micronutrients";
 import type { NutrientBasis, NutrientValues } from "../nutrients";
 
 /**
@@ -11,7 +12,8 @@ type CatalogRecordBase = {
   /** Normalized digits-only GTIN/EAN/UPC, or `null`. */
   barcode: string | null;
 } & NutrientBasis &
-  NutrientValues;
+  NutrientValues &
+  MicronutrientValues;
 
 export type FdcFoodRecord = CatalogRecordBase & {
   source: "fdc";
