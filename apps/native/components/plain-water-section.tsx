@@ -19,6 +19,9 @@ import {
   type WaterDayRow,
   type WaterUnit,
 } from "@openvalens/api/presenters/plain-water";
+import type { MessageDescriptor } from "@lingui/core";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -105,6 +108,7 @@ export function PlainWaterSection({
 }) {
   const outbox = usePlainWaterOutbox();
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
   const day = useCacheFirst(
     waterCacheKey(localDate, timeZone),
     orpc.plainWater.getDay.queryOptions({ input: { date: localDate, timeZone } }),
@@ -152,20 +156,22 @@ export function PlainWaterSection({
       );
       if (!active.current) return false;
       announce(
-        "enabled" in input
-          ? input.enabled
-            ? WATER_COPY.turnedOn
-            : WATER_COPY.turnedOff
-          : "personalGoal" in input && input.personalGoal === null
-            ? WATER_COPY.goalCleared
-            : WATER_COPY.goalSaved,
+        i18n._(
+          "enabled" in input
+            ? input.enabled
+              ? WATER_COPY.turnedOn
+              : WATER_COPY.turnedOff
+            : "personalGoal" in input && input.personalGoal === null
+              ? WATER_COPY.goalCleared
+              : WATER_COPY.goalSaved,
+        ),
       );
       void refresh();
       return true;
     } catch {
       if (!active.current) return false;
-      setNotice(WATER_COPY.settingsError);
-      announce(WATER_COPY.settingsError);
+      setNotice(i18n._(WATER_COPY.settingsError));
+      announce(i18n._(WATER_COPY.settingsError));
       void refresh();
       return false;
     } finally {
@@ -177,11 +183,11 @@ export function PlainWaterSection({
     setNotice(null);
     const queued = outbox.enqueue(op);
     if (!queued) {
-      setNotice(WATER_COPY.storageSaveError);
-      announce(WATER_COPY.storageSaveError);
+      setNotice(i18n._(WATER_COPY.storageSaveError));
+      announce(i18n._(WATER_COPY.storageSaveError));
       return false;
     }
-    announce(WATER_COPY.savedOnDevice);
+    announce(i18n._(WATER_COPY.savedOnDevice));
     return true;
   };
 
@@ -191,28 +197,27 @@ export function PlainWaterSection({
     setNotice(null);
     const applied = retryWaterConflict({ resolveConflict: outbox.resolveConflict }, queued);
     if (!applied) {
-      const message =
-        "Could not confirm conflict resolution on this device. Review the queued water changes before trying again.";
+      const message = t`Could not confirm conflict resolution on this device. Review the queued water changes before trying again.`;
       setNotice(message);
       announce(message);
       return;
     }
-    announce(WATER_COPY.savedOnDevice);
+    announce(i18n._(WATER_COPY.savedOnDevice));
   };
 
   return (
     <Card variant="secondary" className="gap-3 p-4">
       <View className="gap-1">
         <Text className="font-medium text-foreground" accessibilityRole="header">
-          {WATER_COPY.title}
+          {i18n._(WATER_COPY.title)}
         </Text>
-        <Text className="text-sm text-muted-foreground">{WATER_COPY.scopeNote}</Text>
+        <Text className="text-sm text-muted-foreground">{i18n._(WATER_COPY.scopeNote)}</Text>
       </View>
 
       {outbox.error ? (
         <Pressable onPress={() => void outbox.syncNow()} accessibilityRole="button">
           <Text className="text-sm text-muted-foreground">
-            {WATER_COPY.storageError} {WATER_COPY.retry}
+            {i18n._(WATER_COPY.storageError)} {i18n._(WATER_COPY.retry)}
           </Text>
         </Pressable>
       ) : null}
@@ -228,23 +233,32 @@ export function PlainWaterSection({
           {counts.queued + counts.syncing + counts.attention > 0 ? (
             <View className="flex-row items-center justify-between gap-3">
               <Text className="flex-1 text-sm text-foreground" accessibilityLiveRegion="polite">
-                {`${WATER_COPY.pendingTitle}: `}
+                {`${i18n._(WATER_COPY.pendingTitle)}: `}
                 {[
-                  counts.queued ? `${counts.queued} queued` : null,
-                  counts.syncing ? `${counts.syncing} syncing` : null,
-                  counts.attention ? `${counts.attention} needs attention` : null,
+                  counts.queued
+                    ? t`${plural(counts.queued, { one: "# queued", other: "# queued" })}`
+                    : null,
+                  counts.syncing
+                    ? t`${plural(counts.syncing, { one: "# syncing", other: "# syncing" })}`
+                    : null,
+                  counts.attention
+                    ? t`${plural(counts.attention, {
+                        one: "# needs attention",
+                        other: "# need attention",
+                      })}`
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(", ")}
               </Text>
               <Button size="sm" variant="secondary" onPress={() => void outbox.syncNow()}>
-                {WATER_COPY.syncNow}
+                {i18n._(WATER_COPY.syncNow)}
               </Button>
             </View>
           ) : null}
 
           {attention.map((item) => {
-            const copy = describeWaterAttention(item, unit);
+            const copy = describeWaterAttention(item, unit, i18n);
             const queued = outbox.items.find((entry) => entry.id === item.id);
             const discardable = queued ? canDiscardWaterItem(queued) : false;
             return (
@@ -257,30 +271,32 @@ export function PlainWaterSection({
                 ) : null}
                 <Text className="text-sm text-muted-foreground">{copy.mine}</Text>
                 {!item.isConflict ? (
-                  <Text className="text-sm text-muted-foreground">{WATER_COPY.rejectedBody}</Text>
+                  <Text className="text-sm text-muted-foreground">
+                    {i18n._(WATER_COPY.rejectedBody)}
+                  </Text>
                 ) : null}
                 <View className="flex-row flex-wrap gap-2">
                   {item.isConflict ? (
                     <>
                       <Button size="sm" onPress={() => keepMine(item)}>
-                        {WATER_COPY.keepMine}
+                        {i18n._(WATER_COPY.keepMine)}
                       </Button>
                       {discardable ? (
                         <Button
                           size="sm"
                           variant="secondary"
                           onPress={() => {
-                            if (outbox.discard(item.id)) announce(WATER_COPY.keepOther);
+                            if (outbox.discard(item.id)) announce(i18n._(WATER_COPY.keepOther));
                           }}
                         >
-                          {WATER_COPY.keepOther}
+                          {i18n._(WATER_COPY.keepOther)}
                         </Button>
                       ) : null}
                     </>
                   ) : (
                     <>
                       <Button size="sm" onPress={() => outbox.retry(item.id)}>
-                        {WATER_COPY.retry}
+                        {i18n._(WATER_COPY.retry)}
                       </Button>
                       {discardable ? (
                         <Button
@@ -288,10 +304,10 @@ export function PlainWaterSection({
                           variant="secondary"
                           onPress={() => {
                             if (outbox.discard(item.id))
-                              announce("Change discarded on this device.");
+                              announce(t`Change discarded on this device.`);
                           }}
                         >
-                          {WATER_COPY.discard}
+                          {i18n._(WATER_COPY.discard)}
                         </Button>
                       ) : null}
                     </>
@@ -313,17 +329,19 @@ export function PlainWaterSection({
                 accessibilityRole="button"
               >
                 <Text className="text-sm text-muted-foreground">
-                  {WATER_COPY.readError} {WATER_COPY.retry}
+                  {i18n._(WATER_COPY.readError)} {i18n._(WATER_COPY.retry)}
                 </Text>
               </Pressable>
             )
           ) : enabled === false ? (
             <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">{WATER_COPY.offTitle}</Text>
-              <Text className="text-sm text-muted-foreground">{WATER_COPY.offBody}</Text>
+              <Text className="text-sm font-medium text-foreground">
+                {i18n._(WATER_COPY.offTitle)}
+              </Text>
+              <Text className="text-sm text-muted-foreground">{i18n._(WATER_COPY.offBody)}</Text>
               <View>
                 <Button size="sm" onPress={() => void saveSettings({ enabled: true })}>
-                  {WATER_COPY.turnOn}
+                  {i18n._(WATER_COPY.turnOn)}
                 </Button>
               </View>
             </View>
@@ -345,12 +363,14 @@ export function PlainWaterSection({
 
           {enabled ? (
             <View className="flex-row items-center justify-between gap-3">
-              <Text className="flex-1 text-sm text-foreground">{WATER_COPY.settingsTitle}</Text>
+              <Text className="flex-1 text-sm text-foreground">
+                {i18n._(WATER_COPY.settingsTitle)}
+              </Text>
               <Switch
                 value={true}
                 onValueChange={(value) => void saveSettings({ enabled: value })}
                 disabled={savingSettings}
-                accessibilityLabel={WATER_COPY.settingsTitle}
+                accessibilityLabel={i18n._(WATER_COPY.settingsTitle)}
               />
             </View>
           ) : null}
@@ -388,6 +408,7 @@ function PlainWaterDayPanel({
   settingsBusy: boolean;
   onSaveGoal: (personalGoalMl: number | null) => Promise<boolean>;
 }) {
+  const { t, i18n } = useLingui();
   const [addOpen, setAddOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [addUnit, setAddUnit] = useState<WaterUnit>(unit);
@@ -412,17 +433,23 @@ function PlainWaterDayPanel({
     return <Spinner />;
   }
 
+  const fail = (set: (message: string) => void, error: MessageDescriptor) => {
+    const message = i18n._(error);
+    set(message);
+    announce(message);
+  };
+
   const submitAdd = () => {
     const parsed = parseWaterAmount(amount, addUnit);
     if (!parsed.ok) {
-      setFormError(parsed.error);
-      announce(parsed.error);
+      fail(setFormError, parsed.error);
       return;
     }
     const instant = waterDateInstant(localDate, clock, timeZone);
     if (!instant.ok) {
-      const message =
-        instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid;
+      const message = i18n._(
+        instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid,
+      );
       setFormError(message);
       announce(message);
       return;
@@ -446,16 +473,16 @@ function PlainWaterDayPanel({
     let patch: { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string } = {};
     const amountPatch = waterEditAmountPatch(editing);
     if (!amountPatch.ok) {
-      setFormError(amountPatch.error);
-      announce(amountPatch.error);
+      fail(setFormError, amountPatch.error);
       return;
     }
     patch = amountPatch.patch;
     if (editing.clock !== editing.originalClock) {
       const instant = waterDateInstant(localDate, editing.clock, timeZone);
       if (!instant.ok) {
-        const message =
-          instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid;
+        const message = i18n._(
+          instant.reason === "nonexistent" ? WATER_COPY.timeNonexistent : WATER_COPY.timeInvalid,
+        );
         setFormError(message);
         announce(message);
         return;
@@ -463,8 +490,7 @@ function PlainWaterDayPanel({
       patch = { ...patch, observedAt: instant.observedAt, timeZone };
     }
     if (patch.quantity === undefined && patch.observedAt === undefined) {
-      setFormError(WATER_COPY.nothingChanged);
-      announce(WATER_COPY.nothingChanged);
+      fail(setFormError, WATER_COPY.nothingChanged);
       return;
     }
     const queued = onEnqueue({
@@ -487,7 +513,7 @@ function PlainWaterDayPanel({
       const item = outbox.items.find((entry) => entry.id === row.pendingOpId);
       if (!item || !canDiscardWaterItem(item) || !outbox.discard(row.pendingOpId)) return;
       setConfirming(null);
-      announce("Change discarded on this device.");
+      announce(t`Change discarded on this device.`);
       return;
     }
     if (row.entryId === null || row.revision === null) return;
@@ -510,8 +536,7 @@ function PlainWaterDayPanel({
     }
     const parsed = parseWaterGoal(goalText, unit);
     if (!parsed.ok) {
-      setGoalError(parsed.error);
-      announce(parsed.error);
+      fail(setGoalError, parsed.error);
       return;
     }
     setGoalError(null);
@@ -523,25 +548,25 @@ function PlainWaterDayPanel({
       <View
         className="gap-1 rounded-lg border border-border p-3"
         accessible
-        accessibilityLabel={describeWaterSubtotal(view, unit, hideNumbers)}
+        accessibilityLabel={describeWaterSubtotal(view, unit, hideNumbers, i18n)}
       >
         <View className="flex-row flex-wrap items-baseline justify-between gap-2">
-          <Text className="text-sm text-muted-foreground">{WATER_COPY.subtotalLabel}</Text>
+          <Text className="text-sm text-muted-foreground">{i18n._(WATER_COPY.subtotalLabel)}</Text>
           <Text className="font-mono text-lg text-foreground">
-            {formatWaterSubtotal(view, unit, hideNumbers)}
+            {formatWaterSubtotal(view, unit, hideNumbers, i18n)}
           </Text>
         </View>
         <View className="flex-row flex-wrap items-baseline justify-between gap-2">
           <Text className="text-sm text-foreground">
-            {WATER_COPY.goalLabel}:{" "}
+            {t`Personal goal:`}{" "}
             <Text className="font-mono">
-              {formatWaterGoal(view.personalGoalMl, unit, hideNumbers)}
+              {formatWaterGoal(view.personalGoalMl, unit, hideNumbers, i18n)}
             </Text>
           </Text>
-          <Text className="text-xs text-muted-foreground">{WATER_COPY.goalNote}</Text>
+          <Text className="text-xs text-muted-foreground">{i18n._(WATER_COPY.goalNote)}</Text>
         </View>
         {hideNumbers ? (
-          <Text className="text-xs text-muted-foreground">{WATER_COPY.hiddenNote}</Text>
+          <Text className="text-xs text-muted-foreground">{i18n._(WATER_COPY.hiddenNote)}</Text>
         ) : (
           <UnitChoice value={unit} onChange={onUnitChange} />
         )}
@@ -549,15 +574,16 @@ function PlainWaterDayPanel({
 
       {view.pendingRemovalCount > 0 ? (
         <Text className="text-xs text-muted-foreground" accessibilityLiveRegion="polite">
-          {view.pendingRemovalCount === 1
-            ? "1 removal waiting to sync."
-            : `${view.pendingRemovalCount} removals waiting to sync.`}
+          {t`${plural(view.pendingRemovalCount, {
+            one: "# removal waiting to sync.",
+            other: "# removals waiting to sync.",
+          })}`}
         </Text>
       ) : null}
 
       {view.rows.length === 0 ? (
         <Text className="text-sm text-muted-foreground">
-          {view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty}
+          {i18n._(view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty)}
         </Text>
       ) : (
         view.rows.map((row) => (
@@ -565,22 +591,24 @@ function PlainWaterDayPanel({
             key={row.key}
             className="gap-2 rounded-lg border border-border p-3"
             accessible
-            accessibilityLabel={describeWaterRow(row, unit, hideNumbers)}
+            accessibilityLabel={describeWaterRow(row, unit, hideNumbers, i18n)}
           >
             <View className="flex-row flex-wrap items-baseline justify-between gap-2">
               <Text className="font-mono text-sm text-muted-foreground">
                 {formatObservedClock(row.observedAt, timeZone) ?? row.observedAt}
               </Text>
               <Text className="font-mono text-sm text-foreground">
-                {formatWaterAmount(row.quantityMl, unit, hideNumbers)}
+                {formatWaterAmount(row.quantityMl, unit, hideNumbers, i18n)}
               </Text>
               {row.state === "synced" ? null : (
                 <Text className="text-xs text-muted-foreground">
-                  {row.state === "syncing"
-                    ? WATER_COPY.rowSyncing
-                    : row.state === "needs_attention"
-                      ? WATER_COPY.rowNeedsAttention
-                      : WATER_COPY.rowQueued}
+                  {i18n._(
+                    row.state === "syncing"
+                      ? WATER_COPY.rowSyncing
+                      : row.state === "needs_attention"
+                        ? WATER_COPY.rowNeedsAttention
+                        : WATER_COPY.rowQueued,
+                  )}
                 </Text>
               )}
             </View>
@@ -606,10 +634,10 @@ function PlainWaterDayPanel({
                       });
                     }}
                   >
-                    {WATER_COPY.edit}
+                    {i18n._(WATER_COPY.edit)}
                   </Button>
                   <Button size="sm" variant="secondary" onPress={() => setConfirming(row.key)}>
-                    {WATER_COPY.delete}
+                    {i18n._(WATER_COPY.delete)}
                   </Button>
                 </>
               ) : null}
@@ -620,7 +648,7 @@ function PlainWaterDayPanel({
                 return item ? canDiscardWaterItem(item) : false;
               })() ? (
                 <Button size="sm" variant="secondary" onPress={() => setConfirming(row.key)}>
-                  {WATER_COPY.discard}
+                  {i18n._(WATER_COPY.discard)}
                 </Button>
               ) : null}
             </View>
@@ -628,18 +656,22 @@ function PlainWaterDayPanel({
             {confirming === row.key ? (
               <View className="gap-2 rounded-lg border border-border p-3">
                 <Text className="text-sm text-foreground">
-                  {row.state !== "synced"
-                    ? row.local
-                      ? WATER_COPY.deleteConfirmLocal
-                      : WATER_COPY.discardConfirm
-                    : WATER_COPY.deleteConfirm}
+                  {i18n._(
+                    row.state !== "synced"
+                      ? row.local
+                        ? WATER_COPY.deleteConfirmLocal
+                        : WATER_COPY.discardConfirm
+                      : WATER_COPY.deleteConfirm,
+                  )}
                 </Text>
                 <View className="flex-row flex-wrap gap-2">
                   <Button size="sm" onPress={() => removeRow(row)}>
-                    {row.state !== "synced" ? WATER_COPY.confirmDiscard : WATER_COPY.confirmDelete}
+                    {i18n._(
+                      row.state !== "synced" ? WATER_COPY.confirmDiscard : WATER_COPY.confirmDelete,
+                    )}
                   </Button>
                   <Button size="sm" variant="secondary" onPress={() => setConfirming(null)}>
-                    {WATER_COPY.cancel}
+                    {i18n._(WATER_COPY.cancel)}
                   </Button>
                 </View>
               </View>
@@ -648,7 +680,9 @@ function PlainWaterDayPanel({
             {editing?.entryId === row.entryId && row.entryId !== null ? (
               <View className="gap-2 rounded-lg border border-border p-3">
                 {hideNumbers ? (
-                  <Text className="text-xs text-muted-foreground">{WATER_COPY.editHiddenNote}</Text>
+                  <Text className="text-xs text-muted-foreground">
+                    {i18n._(WATER_COPY.editHiddenNote)}
+                  </Text>
                 ) : null}
                 <TextInput
                   className={inputClass}
@@ -656,10 +690,10 @@ function PlainWaterDayPanel({
                   onChangeText={(value) =>
                     setEditing((current) => (current ? editAmountChanged(current, value) : current))
                   }
-                  placeholder={WATER_COPY.amountPlaceholder}
+                  placeholder={i18n._(WATER_COPY.amountPlaceholder)}
                   placeholderTextColor="#8b8b8b"
                   keyboardType="decimal-pad"
-                  accessibilityLabel={WATER_COPY.amountLabel}
+                  accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
                 />
                 <UnitChoice
                   value={editing.unit}
@@ -673,14 +707,14 @@ function PlainWaterDayPanel({
                   onChangeText={(value) =>
                     setEditing((current) => (current ? { ...current, clock: value } : current))
                   }
-                  placeholder={WATER_COPY.timePlaceholder}
+                  placeholder={i18n._(WATER_COPY.timePlaceholder)}
                   placeholderTextColor="#8b8b8b"
                   maxLength={5}
-                  accessibilityLabel={WATER_COPY.timeLabel}
+                  accessibilityLabel={i18n._(WATER_COPY.timeLabel)}
                 />
                 <View className="flex-row flex-wrap gap-2">
                   <Button size="sm" onPress={submitEdit} isDisabled={outbox.busy}>
-                    {WATER_COPY.save}
+                    {i18n._(WATER_COPY.save)}
                   </Button>
                   <Button
                     size="sm"
@@ -690,7 +724,7 @@ function PlainWaterDayPanel({
                       setFormError(null);
                     }}
                   >
-                    {WATER_COPY.cancel}
+                    {i18n._(WATER_COPY.cancel)}
                   </Button>
                 </View>
               </View>
@@ -711,10 +745,10 @@ function PlainWaterDayPanel({
             className={inputClass}
             value={amount}
             onChangeText={setAmount}
-            placeholder={WATER_COPY.amountPlaceholder}
+            placeholder={i18n._(WATER_COPY.amountPlaceholder)}
             placeholderTextColor="#8b8b8b"
             keyboardType="decimal-pad"
-            accessibilityLabel={WATER_COPY.amountLabel}
+            accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
           />
           <UnitChoice value={addUnit} onChange={setAddUnit} />
           <View className="flex-row items-end gap-2">
@@ -722,10 +756,10 @@ function PlainWaterDayPanel({
               className={`${inputClass} flex-1`}
               value={clock}
               onChangeText={setClock}
-              placeholder={WATER_COPY.timePlaceholder}
+              placeholder={i18n._(WATER_COPY.timePlaceholder)}
               placeholderTextColor="#8b8b8b"
               maxLength={5}
-              accessibilityLabel={WATER_COPY.timeLabel}
+              accessibilityLabel={i18n._(WATER_COPY.timeLabel)}
             />
             <Button
               size="sm"
@@ -734,15 +768,15 @@ function PlainWaterDayPanel({
                 setClock(formatObservedClock(new Date().toISOString(), timeZone) ?? clock)
               }
             >
-              {WATER_COPY.useNow}
+              {i18n._(WATER_COPY.useNow)}
             </Button>
           </View>
           <View className="flex-row flex-wrap gap-2">
             <Button size="sm" onPress={submitAdd}>
-              {WATER_COPY.save}
+              {i18n._(WATER_COPY.save)}
             </Button>
             <Button size="sm" variant="secondary" onPress={() => setAddOpen(false)}>
-              {WATER_COPY.cancel}
+              {i18n._(WATER_COPY.cancel)}
             </Button>
           </View>
         </View>
@@ -758,25 +792,27 @@ function PlainWaterDayPanel({
               setFormError(null);
             }}
           >
-            {WATER_COPY.add}
+            {i18n._(WATER_COPY.add)}
           </Button>
         </View>
       )}
 
       <View className="gap-2 rounded-lg border border-border p-3">
-        <Text className="text-sm font-medium text-foreground">{WATER_COPY.goalLabel}</Text>
+        <Text className="text-sm font-medium text-foreground">{i18n._(WATER_COPY.goalLabel)}</Text>
         {hideNumbers ? (
-          <Text className="text-xs text-muted-foreground">{WATER_COPY.editGoalHiddenNote}</Text>
+          <Text className="text-xs text-muted-foreground">
+            {i18n._(WATER_COPY.editGoalHiddenNote)}
+          </Text>
         ) : null}
         <View className="flex-row items-end gap-2">
           <TextInput
             className={`${inputClass} flex-1`}
             value={goalText}
             onChangeText={setGoalText}
-            placeholder={WATER_COPY.goalAmountPlaceholder}
+            placeholder={i18n._(WATER_COPY.goalAmountPlaceholder)}
             placeholderTextColor="#8b8b8b"
             keyboardType="decimal-pad"
-            accessibilityLabel={WATER_COPY.goalAmountLabel}
+            accessibilityLabel={i18n._(WATER_COPY.goalAmountLabel)}
           />
           {hideNumbers ? null : (
             <Text className="pb-3 text-sm text-muted-foreground">{WATER_UNIT_LABELS[unit]}</Text>
@@ -784,7 +820,7 @@ function PlainWaterDayPanel({
         </View>
         <View className="flex-row flex-wrap gap-2">
           <Button size="sm" onPress={() => void submitGoal(false)} isDisabled={settingsBusy}>
-            {settingsBusy ? WATER_COPY.saving : WATER_COPY.setGoal}
+            {i18n._(settingsBusy ? WATER_COPY.saving : WATER_COPY.setGoal)}
           </Button>
           <Button
             size="sm"
@@ -792,7 +828,7 @@ function PlainWaterDayPanel({
             onPress={() => void submitGoal(true)}
             isDisabled={settingsBusy || (view.personalGoalMl === null && !hideNumbers)}
           >
-            {WATER_COPY.clearGoal}
+            {i18n._(WATER_COPY.clearGoal)}
           </Button>
         </View>
         {goalError ? (
@@ -800,7 +836,7 @@ function PlainWaterDayPanel({
             {goalError}
           </Text>
         ) : null}
-        <Text className="text-xs text-muted-foreground">{WATER_COPY.goalNote}</Text>
+        <Text className="text-xs text-muted-foreground">{i18n._(WATER_COPY.goalNote)}</Text>
       </View>
     </>
   );

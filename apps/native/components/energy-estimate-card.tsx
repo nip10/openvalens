@@ -3,6 +3,7 @@ import {
   presentEnergyEstimate,
   presentProposal,
 } from "@openvalens/api/presenters/energy-estimate";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, Text, View } from "react-native";
@@ -23,6 +24,7 @@ export function EnergyEstimateCard({
   safetyOff: boolean;
 }) {
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
   const [confirmed, setConfirmed] = useState(false);
   const [status, setStatus] = useState("");
   const activeScope = useRef(scope);
@@ -52,8 +54,11 @@ export function EnergyEstimateCard({
     estimate.data.status === "estimated" &&
     estimate.data.estimate !== null;
   const pending = proposals.data?.proposals.find((p) => p.status === "pending");
-  const display = authorized ? presentEnergyEstimate(estimate.data, false) : null;
-  const proposalDisplay = pending ? presentProposal(pending, false) : null;
+  const display = authorized ? presentEnergyEstimate(estimate.data, false, i18n) : null;
+  const proposalDisplay = pending ? presentProposal(pending, false, i18n) : null;
+  const range = display?.range ?? "";
+  const suggestion = proposalDisplay?.suggestion ?? t`Unavailable`;
+  const currentTarget = proposalDisplay?.current ?? i18n._(ENERGY_ESTIMATE_COPY.noTarget);
   useEffect(() => {
     setConfirmed(false);
     setStatus("");
@@ -75,30 +80,38 @@ export function EnergyEstimateCard({
   return (
     <Card variant="secondary" className="gap-3 p-4">
       <Text className="font-medium text-foreground" accessibilityRole="header">
-        {ENERGY_ESTIMATE_COPY.title}
+        {i18n._(ENERGY_ESTIMATE_COPY.title)}
       </Text>
-      <Text className="text-sm font-medium text-foreground">{ENERGY_ESTIMATE_COPY.subtitle}</Text>
-      <Text className="text-sm text-muted-foreground">{ENERGY_ESTIMATE_COPY.provisional}</Text>
+      <Text className="text-sm font-medium text-foreground">
+        {i18n._(ENERGY_ESTIMATE_COPY.subtitle)}
+      </Text>
+      <Text className="text-sm text-muted-foreground">
+        {i18n._(ENERGY_ESTIMATE_COPY.provisional)}
+      </Text>
       {hideNumbers || !preferenceKnown ? (
-        <Text className="text-sm text-muted-foreground">{ENERGY_ESTIMATE_COPY.hidden}</Text>
+        <Text className="text-sm text-muted-foreground">{i18n._(ENERGY_ESTIMATE_COPY.hidden)}</Text>
       ) : safetyOff ? (
-        <Text className="text-sm text-muted-foreground">{ENERGY_ESTIMATE_COPY.unavailable}</Text>
+        <Text className="text-sm text-muted-foreground">
+          {i18n._(ENERGY_ESTIMATE_COPY.unavailable)}
+        </Text>
       ) : estimate.isError ? (
         <View className="gap-2">
           <Text className="text-sm text-muted-foreground" accessibilityRole="alert">
-            {ENERGY_ESTIMATE_COPY.error}
+            {i18n._(ENERGY_ESTIMATE_COPY.error)}
           </Text>
           <Button variant="secondary" onPress={() => void estimate.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </Button>
         </View>
       ) : estimate.isPending ? (
-        <Text className="text-sm text-muted-foreground">Loading estimate…</Text>
+        <Text className="text-sm text-muted-foreground">
+          <Trans>Loading estimate…</Trans>
+        </Text>
       ) : display ? (
         <View className="gap-1 rounded-lg border border-border p-3">
           <Text className="text-xl font-semibold text-foreground">{display.value}</Text>
           <Text className="text-sm text-foreground">
-            {display.range} (arithmetic range, not a confidence interval)
+            {t`${range} (arithmetic range, not a confidence interval)`}
           </Text>
           <Text className="text-xs text-muted-foreground">{display.window}</Text>
           {display.notes.map((note, i) => (
@@ -109,7 +122,9 @@ export function EnergyEstimateCard({
         </View>
       ) : (
         <View className="gap-1">
-          <Text className="text-sm text-muted-foreground">{ENERGY_ESTIMATE_COPY.unavailable}</Text>
+          <Text className="text-sm text-muted-foreground">
+            {i18n._(ENERGY_ESTIMATE_COPY.unavailable)}
+          </Text>
           {description.map((note, i) => (
             <Text key={i} className="text-xs text-muted-foreground">
               {note}
@@ -119,19 +134,19 @@ export function EnergyEstimateCard({
       )}
       {pending ? (
         <View className="gap-2 rounded-lg border border-border p-3">
-          <Text className="font-medium text-foreground">{ENERGY_ESTIMATE_COPY.pending}</Text>
+          <Text className="font-medium text-foreground">
+            {i18n._(ENERGY_ESTIMATE_COPY.pending)}
+          </Text>
           {authorized && proposalDisplay && (
             <>
-              <Text className="text-sm text-foreground">
-                Suggested: {proposalDisplay.suggestion ?? "Unavailable"}
-              </Text>
-              <Text className="text-sm text-foreground">
-                Current target: {proposalDisplay.current ?? ENERGY_ESTIMATE_COPY.noTarget}
-              </Text>
+              <Text className="text-sm text-foreground">{t`Suggested: ${suggestion}`}</Text>
+              <Text className="text-sm text-foreground">{t`Current target: ${currentTarget}`}</Text>
             </>
           )}
           {pending.expired && (
-            <Text className="text-sm text-muted-foreground">This suggestion has expired.</Text>
+            <Text className="text-sm text-muted-foreground">
+              <Trans>This suggestion has expired.</Trans>
+            </Text>
           )}
           {authorized && pending.needsConfirmation && (
             <Pressable
@@ -142,7 +157,7 @@ export function EnergyEstimateCard({
             >
               <Text className="text-foreground">{confirmed ? "☑" : "☐"}</Text>
               <Text className="flex-1 text-sm text-foreground">
-                I have read this and want to accept the suggestion.
+                <Trans comment="safety">I have read this and want to accept the suggestion.</Trans>
               </Text>
             </Pressable>
           )}
@@ -167,15 +182,15 @@ export function EnergyEstimateCard({
                         finish(
                           result.outcome === "declined"
                             ? result.note
-                            : "Suggestion accepted. Targets refreshed.",
+                            : t`Suggestion accepted. Targets refreshed.`,
                         ),
                       onError: () =>
-                        finish("Could not confirm the result. Refresh to check its status."),
+                        finish(t`Could not confirm the result. Refresh to check its status.`),
                     },
                   )
                 }
               >
-                {ENERGY_ESTIMATE_COPY.accept}
+                {i18n._(ENERGY_ESTIMATE_COPY.accept)}
               </Button>
             ) : null}
             <Button
@@ -189,15 +204,15 @@ export function EnergyEstimateCard({
                       finish(
                         result.outcome === "declined"
                           ? result.note
-                          : "Suggestion dismissed. Targets refreshed.",
+                          : t`Suggestion dismissed. Targets refreshed.`,
                       ),
                     onError: () =>
-                      finish("Could not confirm the result. Refresh to check its status."),
+                      finish(t`Could not confirm the result. Refresh to check its status.`),
                   },
                 )
               }
             >
-              {ENERGY_ESTIMATE_COPY.dismiss}
+              {i18n._(ENERGY_ESTIMATE_COPY.dismiss)}
             </Button>
           </View>
         </View>
@@ -214,17 +229,17 @@ export function EnergyEstimateCard({
                   if (scope !== activeScope.current) return;
                   if (result.outcome === "declined") finish(result.note);
                   else {
-                    setStatus("Suggestion is ready for your review.");
+                    setStatus(t`Suggestion is ready for your review.`);
                     refresh();
                   }
                 },
                 onError: () =>
-                  finish("Could not confirm whether a suggestion was created. Refresh to check."),
+                  finish(t`Could not confirm whether a suggestion was created. Refresh to check.`),
               },
             )
           }
         >
-          {ENERGY_ESTIMATE_COPY.ask}
+          {i18n._(ENERGY_ESTIMATE_COPY.ask)}
         </Button>
       )}
       {status ? (

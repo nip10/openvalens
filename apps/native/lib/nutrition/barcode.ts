@@ -1,3 +1,4 @@
+import type { MessageDescriptor } from "@lingui/core";
 import type { BarcodeLookup } from "@openvalens/api/contracts/nutrition-foods";
 import {
   BARCODE_COPY,
@@ -46,7 +47,7 @@ export function scannerStateFor(available: boolean, permission: CameraPermission
   return permission?.canAskAgain === false ? "blocked" : "denied";
 }
 
-export function scannerMessage(state: Exclude<ScannerState, "ready">): string {
+export function scannerMessage(state: Exclude<ScannerState, "ready">): MessageDescriptor {
   return state === "unavailable" ? BARCODE_COPY.cameraUnavailable : BARCODE_COPY.cameraDenied;
 }
 
@@ -72,7 +73,7 @@ export function createScanGate() {
 
 export type BarcodeResolution =
   | { kind: "outcome"; outcome: BarcodeOutcome }
-  | { kind: "invalid"; message: string };
+  | { kind: "invalid"; message: MessageDescriptor };
 
 export type BarcodeResolver = {
   online: boolean;

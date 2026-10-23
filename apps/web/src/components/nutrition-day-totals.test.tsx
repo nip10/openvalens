@@ -4,6 +4,9 @@ import {
   type NutrientKey,
   type NutrientTotal,
 } from "@openvalens/api/contracts/nutrition-diary";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { NutritionDayTotals } from "./nutrition-day-totals";
@@ -17,9 +20,12 @@ function totals(
   ) as Record<NutrientKey, NutrientTotal>;
 }
 
+const render = (node: ReactNode) =>
+  renderToStaticMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+
 describe("NutritionDayTotals", () => {
   test("shows each total with its coverage; unknown is never rendered as zero", () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <NutritionDayTotals
         totals={totals(
           {
@@ -46,7 +52,7 @@ describe("NutritionDayTotals", () => {
   });
 
   test("a day with nothing logged reads as not logged, not as zero", () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <NutritionDayTotals
         totals={totals({}, { known: null, reported: 0, missing: 0, coverage: "no_entries" })}
         sources={{ fdc: 0, off: 0, custom: 0, manual: 0 }}
@@ -58,7 +64,7 @@ describe("NutritionDayTotals", () => {
   });
 
   test("hide-numbers replaces every value but keeps coverage and logging notes", () => {
-    const html = renderToStaticMarkup(
+    const html = render(
       <NutritionDayTotals
         totals={totals(
           { energyKcal: { known: 1840, reported: 3, missing: 1, coverage: "partial" } },

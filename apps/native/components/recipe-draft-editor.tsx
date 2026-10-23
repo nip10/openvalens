@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   parseRecipeDraft,
   RECIPE_IMPORT_COPY,
@@ -77,6 +78,7 @@ export default function RecipeDraftEditor() {
   const [showPaste, setShowPaste] = useState(false);
   const pasteRef = useRef<TextInput>(null);
   const importUrl = useMutation(orpc.nutritionRecipeImport.fromUrl.mutationOptions());
+  const { t } = useLingui();
 
   useEffect(() => {
     if (scope === activeScope) return;
@@ -106,8 +108,8 @@ export default function RecipeDraftEditor() {
       setDirty(false);
       setMessage(
         parsed.status === "choose_recipe"
-          ? "Choose the recipe you want to review."
-          : (parsed.message ?? "No draft was created."),
+          ? t`Choose the recipe you want to review.`
+          : (parsed.message ?? t`No draft was created.`),
       );
     }
   };
@@ -119,7 +121,7 @@ export default function RecipeDraftEditor() {
           onSuccess: show,
           onError: () => {
             setDraft(null);
-            setMessage("The import failed. Nothing was saved.");
+            setMessage(t`The import failed. Nothing was saved.`);
           },
         },
       );
@@ -130,9 +132,9 @@ export default function RecipeDraftEditor() {
       setResult({
         status: "invalid",
         candidates: [],
-        message: "Paste is over the 1 MiB limit. Shorten it and try again.",
+        message: t`Paste is over the 1 MiB limit. Shorten it and try again.`,
       });
-      setMessage("The previous review was cleared. Your pasted text is still here.");
+      setMessage(t`The previous review was cleared. Your pasted text is still here.`);
       return;
     }
     const parsed = parseRecipeDraft({
@@ -154,7 +156,7 @@ export default function RecipeDraftEditor() {
     if (draft || result.candidates.length) {
       setResult(EMPTY_RESULT);
       setShowPaste(true);
-      setMessage("Paste changed. Create a replacement draft explicitly.");
+      setMessage(t`Paste changed. Create a replacement draft explicitly.`);
     }
   };
   const clear = () => {
@@ -165,7 +167,7 @@ export default function RecipeDraftEditor() {
     setDirty(false);
     setReplacePending(false);
     setShowPaste(false);
-    setMessage("Draft cleared. Nothing was saved.");
+    setMessage(t`Draft cleared. Nothing was saved.`);
     pasteRef.current?.focus();
   };
   const updateDraft = (update: (current: RecipeDraft) => RecipeDraft) => {
@@ -193,13 +195,22 @@ export default function RecipeDraftEditor() {
     return (
       <Container>
         <View className="gap-2 p-4">
-          <Text className="text-2xl font-semibold text-foreground">Recipe draft</Text>
+          <Text className="text-2xl font-semibold text-foreground">
+            <Trans>Recipe draft</Trans>
+          </Text>
           <Text className="text-sm text-muted-foreground">
-            Sign in to create a private, session-only draft.
+            <Trans>Sign in to create a private, session-only draft.</Trans>
           </Text>
         </View>
       </Container>
     );
+
+  const notProvided = t`Not provided`;
+  const ingredientCount = draft?.ingredients.length ?? 0;
+  const site = draft?.source.site || notProvided;
+  const author = draft?.source.author || notProvided;
+  const importedAt = draft?.source.importedAt ?? "";
+  const sourceLink = draft?.source.url || notProvided;
 
   return (
     <Container>
@@ -210,36 +221,42 @@ export default function RecipeDraftEditor() {
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 p-4">
           <View className="gap-2">
             <Text className="text-2xl font-semibold text-foreground" accessibilityRole="header">
-              Recipe draft
+              <Trans>Recipe draft</Trans>
             </Text>
             <Text className="text-sm text-muted-foreground">
-              Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on
-              in nutrition settings. Nothing is saved.
+              <Trans>
+                Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on
+                in nutrition settings. Nothing is saved.
+              </Trans>
             </Text>
             <Text className="text-sm text-muted-foreground">
-              Not saved. Discard the draft to clear it; reloading may lose it.
+              <Trans>Not saved. Discard the draft to clear it; reloading may lose it.</Trans>
             </Text>
             <Link href="/nutrition" asChild>
               <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-                <Text className="text-sm text-foreground underline">Back to meal diary</Text>
+                <Text className="text-sm text-foreground underline">
+                  <Trans>Back to meal diary</Trans>
+                </Text>
               </Pressable>
             </Link>
           </View>
           {!draft || showPaste ? (
             <Card variant="secondary" className="gap-3 p-4">
               <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
-                Paste recipe text
+                <Trans>Paste recipe text</Trans>
               </Text>
               <View className="gap-1">
-                <Text className="text-sm text-foreground">Paste format</Text>
+                <Text className="text-sm text-foreground">
+                  <Trans>Paste format</Trans>
+                </Text>
                 <View className="flex-row flex-wrap gap-2">
                   <Choice
-                    label="Ingredients"
+                    label={t`Ingredients`}
                     selected={format === "ingredients"}
                     onPress={() => setFormat("ingredients")}
                   />
                   <Choice
-                    label="Recipe JSON-LD"
+                    label={t`Recipe JSON-LD`}
                     selected={format === "json-ld"}
                     onPress={() => setFormat("json-ld")}
                   />
@@ -257,8 +274,8 @@ export default function RecipeDraftEditor() {
                   onChangeText={changePaste}
                   multiline
                   textAlignVertical="top"
-                  placeholder="Paste ingredients or JSON-LD"
-                  accessibilityLabel="Paste recipe text, up to 1 MiB"
+                  placeholder={t`Paste ingredients or JSON-LD`}
+                  accessibilityLabel={t`Paste recipe text, up to 1 MiB`}
                   className={`${INPUT} min-h-48`}
                   placeholderTextColor="#9ca3af"
                 />
@@ -272,12 +289,12 @@ export default function RecipeDraftEditor() {
                 placeholder={
                   format === "url"
                     ? RECIPE_IMPORT_COPY.urlLabel
-                    : "Source URL (optional, provenance only)"
+                    : t`Source URL (optional, provenance only)`
                 }
                 accessibilityLabel={
                   format === "url"
                     ? RECIPE_IMPORT_COPY.urlLabel
-                    : "Source URL, optional, provenance only"
+                    : t`Source URL, optional, provenance only`
                 }
                 className={INPUT}
                 placeholderTextColor="#9ca3af"
@@ -300,16 +317,16 @@ export default function RecipeDraftEditor() {
                     parse();
                   }}
                 >
-                  {importUrl.isPending ? RECIPE_IMPORT_COPY.importing : "Create draft"}
+                  {importUrl.isPending ? RECIPE_IMPORT_COPY.importing : t`Create draft`}
                 </Button>
                 <Button variant="secondary" onPress={clear}>
-                  Clear
+                  <Trans>Clear</Trans>
                 </Button>
               </View>
               {replacePending ? (
                 <Card variant="secondary" className="gap-2 p-3">
                   <Text className="text-sm text-foreground">
-                    Parsing again will replace your edited review. Continue?
+                    <Trans>Parsing again will replace your edited review. Continue?</Trans>
                   </Text>
                   <View className="flex-row flex-wrap gap-2">
                     <Button
@@ -319,7 +336,7 @@ export default function RecipeDraftEditor() {
                         setReplacePending(false);
                       }}
                     >
-                      Replace review
+                      <Trans>Replace review</Trans>
                     </Button>
                     <Button
                       variant="secondary"
@@ -328,7 +345,7 @@ export default function RecipeDraftEditor() {
                         setShowPaste(false);
                       }}
                     >
-                      Keep review
+                      <Trans>Keep review</Trans>
                     </Button>
                   </View>
                 </Card>
@@ -341,7 +358,7 @@ export default function RecipeDraftEditor() {
               {result.status === "choose_recipe" ? (
                 <View className="gap-2">
                   <Text className="text-sm font-medium text-foreground">
-                    Choose a recipe to review
+                    <Trans>Choose a recipe to review</Trans>
                   </Text>
                   {result.candidates.map((candidate) => (
                     <Button
@@ -349,7 +366,7 @@ export default function RecipeDraftEditor() {
                       variant="secondary"
                       onPress={() => choose(candidate)}
                     >
-                      {candidate.title || "Untitled recipe"}
+                      {candidate.title || t`Untitled recipe`}
                     </Button>
                   ))}
                 </View>
@@ -359,14 +376,16 @@ export default function RecipeDraftEditor() {
           {draft && !showPaste ? (
             <Card variant="secondary" className="gap-3 p-4">
               <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
-                Review draft
+                <Trans>Review draft</Trans>
               </Text>
               <Text className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
-                Ingredients remain unmatched and unverified. No nutrition values are calculated.
-                This is not clinical advice.
+                <Trans comment="safety">
+                  Ingredients remain unmatched and unverified. No nutrition values are calculated.
+                  This is not clinical advice.
+                </Trans>
               </Text>
               <Field
-                label="Title"
+                label={t`Title`}
                 maxLength={300}
                 value={draft.title ?? ""}
                 onChangeText={(value) =>
@@ -374,7 +393,7 @@ export default function RecipeDraftEditor() {
                 }
               />
               <Field
-                label="Servings (text)"
+                label={t`Servings (text)`}
                 maxLength={200}
                 value={draft.servingsText ?? ""}
                 onChangeText={(value) =>
@@ -383,22 +402,22 @@ export default function RecipeDraftEditor() {
               />
               <View className="gap-3">
                 <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
-                  Ingredients ({draft.ingredients.length}/{MAX_INGREDIENTS})
+                  {t`Ingredients (${ingredientCount}/${MAX_INGREDIENTS})`}
                 </Text>
                 {draft.ingredients.map((item, index) => (
                   <View key={item.id} className="gap-2 rounded-lg border border-border p-3">
                     <Text className="font-medium text-foreground">
-                      Ingredient {index + 1} · unmatched, unverified
+                      {t`Ingredient ${index + 1} · unmatched, unverified`}
                     </Text>
                     {(["rawText", "quantityText", "unitText", "foodText"] as const).map((key) => (
                       <Field
                         key={key}
                         label={
                           {
-                            rawText: "Original text",
-                            quantityText: "Quantity (text)",
-                            unitText: "Unit (text)",
-                            foodText: "Food text",
+                            rawText: t`Original text`,
+                            quantityText: t`Quantity (text)`,
+                            unitText: t`Unit (text)`,
+                            foodText: t`Food text`,
                           }[key]
                         }
                         maxLength={
@@ -412,12 +431,14 @@ export default function RecipeDraftEditor() {
                         }
                       />
                     ))}
-                    <Text className="text-sm text-foreground">Preparation</Text>
+                    <Text className="text-sm text-foreground">
+                      <Trans>Preparation</Trans>
+                    </Text>
                     <View className="flex-row flex-wrap gap-2">
                       {(["unknown", "raw", "cooked"] as const).map((value) => (
                         <Choice
                           key={value}
-                          label={value}
+                          label={{ unknown: t`Unknown`, raw: t`Raw`, cooked: t`Cooked` }[value]}
                           selected={item.preparation === value}
                           onPress={() =>
                             updateIngredient(item.id, (current) => ({
@@ -439,7 +460,7 @@ export default function RecipeDraftEditor() {
                         }))
                       }
                     >
-                      Remove ingredient {index + 1}
+                      {t`Remove ingredient ${index + 1}`}
                     </Button>
                   </View>
                 ))}
@@ -468,28 +489,22 @@ export default function RecipeDraftEditor() {
                   )
                 }
               >
-                Add ingredient
+                <Trans>Add ingredient</Trans>
               </Button>
               <View className="gap-1 rounded-lg border border-border p-3">
                 <Text className="font-medium text-foreground">
-                  Source details (provenance only)
+                  <Trans>Source details (provenance only)</Trans>
                 </Text>
-                <Text className="text-sm text-muted-foreground">
-                  Site: {draft.source.site || "Not provided"}
-                </Text>
-                <Text className="text-sm text-muted-foreground">
-                  Author: {draft.source.author || "Not provided"}
-                </Text>
-                <Text className="text-sm text-muted-foreground">
-                  Imported: {draft.source.importedAt}
-                </Text>
-                <Text className="text-sm text-muted-foreground">
-                  Source URL: {draft.source.url || "Not provided"}
-                </Text>
+                <Text className="text-sm text-muted-foreground">{t`Site: ${site}`}</Text>
+                <Text className="text-sm text-muted-foreground">{t`Author: ${author}`}</Text>
+                <Text className="text-sm text-muted-foreground">{t`Imported: ${importedAt}`}</Text>
+                <Text className="text-sm text-muted-foreground">{t`Source URL: ${sourceLink}`}</Text>
                 {safeSourceUrl(draft.source.url) ? (
                   <Link href={safeSourceUrl(draft.source.url)!} asChild>
                     <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-                      <Text className="text-sm text-foreground underline">Open source URL</Text>
+                      <Text className="text-sm text-foreground underline">
+                        <Trans>Open source URL</Trans>
+                      </Text>
                     </Pressable>
                   </Link>
                 ) : null}
@@ -499,12 +514,14 @@ export default function RecipeDraftEditor() {
                   variant="secondary"
                   onPress={() => {
                     setShowPaste(true);
-                    setMessage("Change the paste, then explicitly create a replacement draft.");
+                    setMessage(t`Change the paste, then explicitly create a replacement draft.`);
                   }}
                 >
-                  Change paste
+                  <Trans>Change paste</Trans>
                 </Button>
-                <Button onPress={clear}>Discard draft</Button>
+                <Button onPress={clear}>
+                  <Trans>Discard draft</Trans>
+                </Button>
               </View>
             </Card>
           ) : null}

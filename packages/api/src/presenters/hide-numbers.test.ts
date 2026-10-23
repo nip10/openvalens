@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
+
 import type { NutrientKey, NutrientTotal } from "../contracts/nutrition-diary";
 import type { NutritionTargetWire } from "../contracts/nutrition-targets";
 import { presentEnergyEstimate, presentProposal } from "./energy-estimate";
@@ -54,38 +56,42 @@ const total: NutrientTotal = { known: 1234, reported: 3, missing: 1, coverage: "
 
 describe("hide-numbers mode (#88)", () => {
   test("food, target and day-total text carries no numbers", () => {
-    expect(formatNutrientSummaryLine(values, true)).toBe(HIDDEN_VALUE);
-    expectNoNumbers(formatTarget(target, true));
-    expectNoNumbers(describeTarget(target, true));
-    expectNoNumbers(displayTotalValue("energyKcal", total, true));
+    expect(formatNutrientSummaryLine(values, true, englishI18n)).toBe(inEnglish(HIDDEN_VALUE));
+    expectNoNumbers(formatTarget(target, true, englishI18n));
+    expectNoNumbers(describeTarget(target, true, englishI18n));
+    expectNoNumbers(displayTotalValue("energyKcal", total, true, englishI18n));
     expectNoNumbers(
-      formatProteinReference({ minG: 55, maxG: 70, minGPerKg: 0.8, maxGPerKg: 1 }, true),
+      formatProteinReference(
+        { minG: 55, maxG: 70, minGPerKg: 0.8, maxGPerKg: 1 },
+        true,
+        englishI18n,
+      ),
     );
   });
 
   test("accessible total readings keep coverage words but no amounts", () => {
-    const reading = describeDisplayedTotal("energyKcal", total, true);
+    const reading = describeDisplayedTotal("energyKcal", total, true, englishI18n);
     expect(reading).not.toContain("1234");
     expect(reading).not.toContain("1,234");
     expect(reading).toContain("value hidden");
   });
 
   test("estimates, pending proposals and water amounts are withheld", () => {
-    expect(presentEnergyEstimate({ status: "estimated" } as never, true)).toBeNull();
+    expect(presentEnergyEstimate({ status: "estimated" } as never, true, englishI18n)).toBeNull();
     expect(
-      presentProposal({ targetKcal: 2000, currentTargetKcal: 1800 } as never, true),
+      presentProposal({ targetKcal: 2000, currentTargetKcal: 1800 } as never, true, englishI18n),
     ).toBeNull();
     for (const unit of ["ml", "l", "fl_oz"] as const) {
-      expectNoNumbers(formatWaterAmount(500, unit, true));
-      expectNoNumbers(formatWaterGoal(2000, unit, true));
+      expectNoNumbers(formatWaterAmount(500, unit, true, englishI18n));
+      expectNoNumbers(formatWaterGoal(2000, unit, true, englishI18n));
       const view = { entryCount: 2, subtotalMl: 750, incomplete: false };
-      expectNoNumbers(formatWaterSubtotal(view, unit, true));
-      expectNoNumbers(describeWaterSubtotal(view, unit, true));
+      expectNoNumbers(formatWaterSubtotal(view, unit, true, englishI18n));
+      expectNoNumbers(describeWaterSubtotal(view, unit, true, englishI18n));
     }
   });
 
   test("the same values are shown when the mode is off", () => {
-    expect(formatNutrientSummaryLine(values, false)).toContain("412 kcal");
-    expect(formatTarget(target, false)).toContain("1,800");
+    expect(formatNutrientSummaryLine(values, false, englishI18n)).toContain("412 kcal");
+    expect(formatTarget(target, false, englishI18n)).toContain("1,800");
   });
 });

@@ -12,6 +12,7 @@ import {
   describeDisplayedTotal,
   displayTotalValue,
 } from "@openvalens/api/presenters/nutrition-targets";
+import { useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -35,22 +36,27 @@ export function NutritionDayTotals({
   hideNumbers?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const sourceLine = sources ? formatSources(sources) : null;
+  const { i18n } = useLingui();
+  const sourceLine = sources ? formatSources(sources, i18n) : null;
   return (
-    <View className="gap-3" accessibilityLabel={DIARY_COPY.totalsTitle}>
+    <View className="gap-3" accessibilityLabel={i18n._(DIARY_COPY.totalsTitle)}>
       <View className="flex-row flex-wrap gap-4">
         {SUMMARY_NUTRIENTS.map((key) => (
           <View
             key={key}
             className="gap-0.5"
             accessible
-            accessibilityLabel={describeDisplayedTotal(key, totals[key], hideNumbers)}
+            accessibilityLabel={describeDisplayedTotal(key, totals[key], hideNumbers, i18n)}
           >
-            <Text className="text-xs text-muted-foreground">{NUTRIENT_LABELS[key].label}</Text>
-            <Text className="font-mono text-sm text-foreground">
-              {displayTotalValue(key, totals[key], hideNumbers)}
+            <Text className="text-xs text-muted-foreground">
+              {i18n._(NUTRIENT_LABELS[key].label)}
             </Text>
-            <Text className="text-xs text-muted-foreground">{formatCoverage(totals[key])}</Text>
+            <Text className="font-mono text-sm text-foreground">
+              {displayTotalValue(key, totals[key], hideNumbers, i18n)}
+            </Text>
+            <Text className="text-xs text-muted-foreground">
+              {i18n._(formatCoverage(totals[key]))}
+            </Text>
           </View>
         ))}
       </View>
@@ -60,7 +66,9 @@ export function NutritionDayTotals({
         accessibilityState={{ expanded }}
         className="min-h-11 justify-center"
       >
-        <Text className="text-sm text-muted-foreground underline">{DIARY_COPY.allNutrients}</Text>
+        <Text className="text-sm text-muted-foreground underline">
+          {i18n._(DIARY_COPY.allNutrients)}
+        </Text>
       </Pressable>
       {expanded ? (
         <View className="gap-1">
@@ -69,34 +77,34 @@ export function NutritionDayTotals({
               key={key}
               className="flex-row flex-wrap justify-between gap-1 border-t border-border py-1"
               accessible
-              accessibilityLabel={describeDisplayedTotal(key, totals[key], hideNumbers)}
+              accessibilityLabel={describeDisplayedTotal(key, totals[key], hideNumbers, i18n)}
             >
               <Text className="flex-1 text-sm text-foreground">
-                {NUTRIENT_LABELS[key].label} ({NUTRIENT_LABELS[key].unit})
+                {i18n._(NUTRIENT_LABELS[key].label)} ({i18n._(NUTRIENT_LABELS[key].unit)})
               </Text>
               <Text className="font-mono text-sm text-foreground">
-                {displayTotalValue(key, totals[key], hideNumbers)}
+                {displayTotalValue(key, totals[key], hideNumbers, i18n)}
               </Text>
               <Text className="w-full text-left text-xs text-muted-foreground sm:w-36 sm:text-right">
-                {formatCoverage(totals[key])}
+                {i18n._(formatCoverage(totals[key]))}
               </Text>
             </View>
           ))}
         </View>
       ) : null}
       {pending ? (
-        <Text className="text-xs text-muted-foreground">{DIARY_COPY.pendingTotals}</Text>
+        <Text className="text-xs text-muted-foreground">{i18n._(DIARY_COPY.pendingTotals)}</Text>
       ) : null}
       {hideNumbers ? (
-        <Text className="text-xs text-muted-foreground">{TARGET_COPY.numbersHidden}</Text>
+        <Text className="text-xs text-muted-foreground">{i18n._(TARGET_COPY.numbersHidden)}</Text>
       ) : null}
       {sourceLine ? (
         <Text className="text-xs text-muted-foreground">
-          {DIARY_COPY.sourcesLabel}: {sourceLine}
+          {i18n._(DIARY_COPY.sourcesLabel)}: {sourceLine}
         </Text>
       ) : null}
       <Text className="text-xs text-muted-foreground">
-        {DIARY_COPY.totalsNote} {DIARY_COPY.unknownNote}
+        {i18n._(DIARY_COPY.totalsNote)} {i18n._(DIARY_COPY.unknownNote)}
       </Text>
     </View>
   );

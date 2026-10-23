@@ -13,6 +13,9 @@
  *   provide. Nothing is logged until the member presses Save.
  * - Search text and barcodes are never sent anywhere but the lookup itself.
  */
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
+
 import type {
   FoodChoice,
   FoodRef,
@@ -41,23 +44,27 @@ export type FoodCandidate = {
   name: string;
   brand: string | null;
   /** E.g. "Open Food Facts", "Open Food Facts (live lookup)", "My food". */
-  sourceLabel: string;
+  sourceLabel: MessageDescriptor;
   /** Source notice to show with the candidate (always set for OFF data). */
   attribution: string | null;
   basis: NutrientBasis;
   nutrientsPerBasis: NutrientValues;
   /** Summary nutrients the source did not provide (shown as unknown). */
-  missing: string[];
+  missing: MessageDescriptor[];
 };
 
-function missingSummary(values: NutrientValues): string[] {
+function missingSummary(values: NutrientValues): MessageDescriptor[] {
   return SUMMARY_NUTRIENTS.filter((key) => values[key] === null).map(
     (key) => NUTRIENT_LABELS[key].label,
   );
 }
 
-function originSuffix(origin: FoodOrigin): string {
-  return origin === "live" ? " (live lookup)" : "";
+function resultSourceLabel(source: FoodResult["source"], origin: FoodOrigin): MessageDescriptor {
+  const label = foodSourceLabel(source);
+  // Catalog source names are never translated, so their text is always set.
+  const name = label.message;
+  if (origin !== "live" || !name || source === "custom") return label;
+  return msg`${name} (live lookup)`;
 }
 
 /** A saved, recent or favourite food (from `nutritionDiary.listFoods`). */
@@ -93,7 +100,7 @@ export function candidateFromResult(
     source: result.source,
     name: result.name,
     brand: result.brand,
-    sourceLabel: `${foodSourceLabel(result.source)}${originSuffix(result.origin)}`,
+    sourceLabel: resultSourceLabel(result.source, result.origin),
     attribution: result.attribution?.notice ?? null,
     basis: result.basis,
     nutrientsPerBasis: result.nutrients,
@@ -102,9 +109,13 @@ export function candidateFromResult(
 }
 
 /** One line naming summary values the source left blank, or `null` when all are present. */
-export function missingDataNote(candidate: Pick<FoodCandidate, "missing">): string | null {
+export function missingDataNote(
+  candidate: Pick<FoodCandidate, "missing">,
+  i18n: I18n,
+): string | null {
   if (candidate.missing.length === 0) return null;
-  return `Not provided by the source: ${candidate.missing.join(", ")}. Shown as unknown.`;
+  const list = candidate.missing.map((label) => i18n._(label)).join(", ");
+  return i18n._(msg`Not provided by the source: ${list}. Shown as unknown.`);
 }
 
 /** Search text the server accepts (2–100 characters after trimming). */
@@ -138,7 +149,7 @@ export function searchCandidates(
  */
 export function parseBarcode(
   raw: string,
-): { ok: true; barcode: string } | { ok: false; error: string } {
+): { ok: true; barcode: string } | { ok: false; error: MessageDescriptor } {
   const digits = raw.replace(/[\s-]/g, "");
   if (!/^\d{8,14}$/.test(digits)) return { ok: false, error: BARCODE_COPY.invalid };
   return { ok: true, barcode: digits };
@@ -170,14 +181,14 @@ export type BarcodeOutcome =
       candidates: FoodCandidate[];
       /** Set when the matches come from this device's cache (offline). */
       cachedAt: number | null;
-      message: string;
+      message: MessageDescriptor;
     }
   | {
       kind: "manual";
       /** Code to prefill on the draft; `null` for store/weighed-item codes. */
       barcode: string | null;
       reason: ManualDraftReason;
-      message: string;
+      message: MessageDescriptor;
       /** The lookup itself may succeed later (source unreachable or offline). */
       canRetry: boolean;
     };
@@ -251,51 +262,44 @@ export function manualDraftFields(barcode: string | null): QuickAddFields {
 }
 
 export const BARCODE_COPY = Object.freeze({
-  mode: "Barcode",
-  scan: "Scan barcode",
-  stopScan: "Stop scanning",
-  digitsLabel: "Barcode digits",
-  lookUp: "Look up",
-  lookingUp: "Looking up…",
-  invalid: "Enter the 8 to 14 digits printed under the barcode.",
-  enterManually: "Enter food manually",
-  notThisProduct: "Enter the food from its label instead.",
-  retry: "Try lookup again",
-  verify: "Check the product, source and amount. Nothing is saved until you press Save.",
-  manualNote:
-    "Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero.",
-  barcodeOnDraft: "Barcode (kept with this food)",
-  found: (count: number) =>
-    count === 1
-      ? "1 match found. Check it before saving."
-      : `${count} matches found. Pick one and check it before saving.`,
-  foundCached: (count: number) =>
-    `Offline. ${count === 1 ? "1 match" : `${count} matches`} saved on this device from an earlier lookup; the source may have changed since.`,
+  mode: msg`Barcode`,
+  scan: msg`Scan barcode`,
+  stopScan: msg`Stop scanning`,
+  digitsLabel: msg`Barcode digits`,
+  lookUp: msg`Look up`,
+  lookingUp: msg`Looking up…`,
+  invalid: msg`Enter the 8 to 14 digits printed under the barcode.`,
+  enterManually: msg`Enter food manually`,
+  notThisProduct: msg`Enter the food from its label instead.`,
+  retry: msg`Try lookup again`,
+  verify: msg`Check the product, source and amount. Nothing is saved until you press Save.`,
+  manualNote: msg`Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero.`,
+  barcodeOnDraft: msg`Barcode (kept with this food)`,
+  found: (count: number): MessageDescriptor =>
+    msg`${plural(count, {
+      one: "# match found. Check it before saving.",
+      other: "# matches found. Pick one and check it before saving.",
+    })}`,
+  foundCached: (count: number): MessageDescriptor =>
+    msg`Offline. ${plural(count, { one: "# match", other: "# matches" })} saved on this device from an earlier lookup; the source may have changed since.`,
   manual: Object.freeze({
-    no_match: "No match for this barcode. Enter the food from its label instead.",
-    variable_measure:
-      "This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead.",
-    unavailable:
-      "The food source could not be reached. Try the lookup again later, or enter the food from its label.",
-    unnamed:
-      "The source has this barcode but no product name. Enter the food from its label instead.",
-    offline:
-      "Offline. No match for this barcode is saved on this device. Enter the food from its label, or look it up when you are back online.",
-  } satisfies Record<ManualDraftReason, string>),
-  cameraPrompt: "The camera is used only while you scan. Nothing is recorded.",
-  cameraDenied:
-    "Camera access is required to scan a barcode. Type the digits instead, or allow access in Settings.",
-  cameraUnavailable: "Scanning is not available on this device. Type the barcode digits instead.",
-  cameraFailed: "The camera could not start. Type the barcode digits instead.",
-  webNoCamera:
-    "Type the digits printed under the barcode. Camera scanning is available in the mobile app.",
-  scanned: (barcode: string) => `Scanned ${barcode}. Looking it up.`,
-  searchLabel: "Search foods",
-  searchHint: "Type at least 2 characters to search food databases too.",
-  searchOffline:
-    "Offline. Searching food databases needs a connection; showing foods saved on this device.",
-  searchEmpty: "No foods match this search.",
-  searchFailed: "Could not search food databases. Showing foods saved on this device.",
-  savedFoods: "Saved and recent",
-  searchResults: "Food databases",
+    no_match: msg`No match for this barcode. Enter the food from its label instead.`,
+    variable_measure: msg`This is a store or weighed-item code, so it does not identify a product. Enter the food from its label instead.`,
+    unavailable: msg`The food source could not be reached. Try the lookup again later, or enter the food from its label.`,
+    unnamed: msg`The source has this barcode but no product name. Enter the food from its label instead.`,
+    offline: msg`Offline. No match for this barcode is saved on this device. Enter the food from its label, or look it up when you are back online.`,
+  } satisfies Record<ManualDraftReason, MessageDescriptor>),
+  cameraPrompt: msg`The camera is used only while you scan. Nothing is recorded.`,
+  cameraDenied: msg`Camera access is required to scan a barcode. Type the digits instead, or allow access in Settings.`,
+  cameraUnavailable: msg`Scanning is not available on this device. Type the barcode digits instead.`,
+  cameraFailed: msg`The camera could not start. Type the barcode digits instead.`,
+  webNoCamera: msg`Type the digits printed under the barcode. Camera scanning is available in the mobile app.`,
+  scanned: (barcode: string): MessageDescriptor => msg`Scanned ${barcode}. Looking it up.`,
+  searchLabel: msg`Search foods`,
+  searchHint: msg`Type at least 2 characters to search food databases too.`,
+  searchOffline: msg`Offline. Searching food databases needs a connection; showing foods saved on this device.`,
+  searchEmpty: msg`No foods match this search.`,
+  searchFailed: msg`Could not search food databases. Showing foods saved on this device.`,
+  savedFoods: msg`Saved and recent`,
+  searchResults: msg`Food databases`,
 });

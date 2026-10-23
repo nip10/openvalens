@@ -7,6 +7,9 @@ import {
   waterQuantityMl,
   type WaterUnit,
 } from "@openvalens/api/presenters/plain-water";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +27,8 @@ import {
 } from "@/components/plain-water-controller";
 import { createPlainWaterFormLifecycle } from "@/components/plain-water-form-lifecycle";
 import { orpc } from "@/utils/orpc";
+
+const REFRESH_DIARY = msg`Refresh diary`;
 
 type ChangePatch = { quantity?: number; unit?: WaterUnit; observedAt?: string; timeZone?: string };
 type Conflict = {
@@ -64,6 +69,7 @@ export function PlainWaterSection({
   const [resolvedIntentGeneration, setResolvedIntentGeneration] = useState<number | null>(null);
   const ownerKeyRef = useRef("");
   const generationRef = useRef(0);
+  const { t, i18n } = useLingui();
   const owner: PlainWaterOwner = { scope: trustedScope, date: localDate, timeZone };
   const ownerKey = JSON.stringify([trustedScope, localDate, timeZone]);
   ownerKeyRef.current = ownerKey;
@@ -156,29 +162,32 @@ export function PlainWaterSection({
       }
       if (next.status === "complete") {
         announce(
-          next.operation.kind === "add"
-            ? WATER_COPY.saved
-            : next.operation.kind === "change"
-              ? WATER_COPY.changed
-              : WATER_COPY.deleted,
+          i18n._(
+            next.operation.kind === "add"
+              ? WATER_COPY.saved
+              : next.operation.kind === "change"
+                ? WATER_COPY.changed
+                : WATER_COPY.deleted,
+          ),
         );
         refresh();
         return;
       }
       if (next.status === "conflict") {
-        announce(WATER_COPY.conflictTitle);
+        announce(i18n._(WATER_COPY.conflictTitle));
         refresh();
         return;
       }
       if (next.status === "uncertain") {
-        setFormError(WATER_COPY.networkError);
-        announce(WATER_COPY.networkError);
-        toast.error(WATER_COPY.networkError, {
-          action: { label: "Refresh diary", onClick: refresh },
+        const error = i18n._(WATER_COPY.networkError);
+        setFormError(error);
+        announce(error);
+        toast.error(error, {
+          action: { label: i18n._(REFRESH_DIARY), onClick: refresh },
         });
       }
     },
-    [announce, ownerKey, refresh],
+    [announce, i18n, ownerKey, refresh],
   );
 
   // Each setup gets a new controller. Cleanup is irreversible; StrictMode's
@@ -241,7 +250,7 @@ export function PlainWaterSection({
     trustedScope !== null &&
     ownerKeyRef.current === ownerKey &&
     generationRef.current === generation;
-  const settingsWrite = async (write: () => Promise<unknown>, success: string) => {
+  const settingsWrite = async (write: () => Promise<unknown>, success: MessageDescriptor) => {
     if (!activeController || trustedScope === null) return false;
     const generation = generationRef.current;
     setFormError(null);
@@ -249,15 +258,16 @@ export function PlainWaterSection({
     try {
       await write();
       if (!ownerIsLive(generation)) return false;
-      announce(success);
+      announce(i18n._(success));
       refresh();
       return true;
     } catch {
       if (!ownerIsLive(generation)) return false;
-      setFormError(WATER_COPY.settingsError);
-      announce(WATER_COPY.settingsError);
-      toast.error(WATER_COPY.settingsError, {
-        action: { label: "Refresh diary", onClick: refresh },
+      const error = i18n._(WATER_COPY.settingsError);
+      setFormError(error);
+      announce(error);
+      toast.error(error, {
+        action: { label: i18n._(REFRESH_DIARY), onClick: refresh },
       });
       refresh();
       return false;
@@ -376,34 +386,42 @@ export function PlainWaterSection({
   };
 
   const mineText = (active: Conflict) => {
-    if (active.kind === "delete") return "remove the entry.";
-    if (active.patch?.quantity !== undefined && active.patch.unit !== undefined)
-      return `${formatWaterAmount(waterQuantityMl(active.patch.quantity, active.patch.unit), unit, hideNumbers)}.`;
-    if (active.patch?.observedAt)
-      return `${formatObservedClock(active.patch.observedAt, active.patch.timeZone ?? timeZone) ?? "a different time"}.`;
-    return "the entry values.";
+    if (active.kind === "delete") return t`Your change: remove the entry.`;
+    if (active.patch?.quantity !== undefined && active.patch.unit !== undefined) {
+      const amount = formatWaterAmount(
+        waterQuantityMl(active.patch.quantity, active.patch.unit),
+        unit,
+        hideNumbers,
+        i18n,
+      );
+      return t`Your change: ${amount}.`;
+    }
+    if (active.patch?.observedAt) {
+      const clock = formatObservedClock(active.patch.observedAt, active.patch.timeZone ?? timeZone);
+      return clock ? t`Your change: ${clock}.` : t`Your change: a different time.`;
+    }
+    return t`Your change: the entry values.`;
+  };
+  const otherText = (active: Conflict) => {
+    if (active.server.deleted) return i18n._(WATER_COPY.conflictGone);
+    const amount = formatWaterAmount(active.server.quantityMl, unit, hideNumbers, i18n);
+    return t`Other version: ${amount}.`;
   };
 
   const conflictCard =
     conflict === null ? null : (
       <div className="grid gap-2 rounded-md border p-3 text-sm" role="alert">
-        <p className="font-medium">{WATER_COPY.conflictTitle}</p>
-        <p className="text-muted-foreground">
-          {conflict.server.deleted
-            ? WATER_COPY.conflictGone
-            : `${WATER_COPY.conflictOther}: ${formatWaterAmount(conflict.server.quantityMl, unit, hideNumbers)}.`}
-        </p>
-        <p className="text-muted-foreground">
-          {WATER_COPY.conflictMine}: {mineText(conflict)}
-        </p>
+        <p className="font-medium">{i18n._(WATER_COPY.conflictTitle)}</p>
+        <p className="text-muted-foreground">{otherText(conflict)}</p>
+        <p className="text-muted-foreground">{mineText(conflict)}</p>
         <div className="flex flex-wrap gap-2">
           {conflict.kind !== "add" && !conflict.server.deleted ? (
             <Button size="sm" onClick={keepMine} disabled={busy !== null}>
-              {WATER_COPY.keepMine}
+              {i18n._(WATER_COPY.keepMine)}
             </Button>
           ) : null}
           <Button size="sm" variant="outline" onClick={keepOther}>
-            {WATER_COPY.keepOther}
+            {i18n._(WATER_COPY.keepOther)}
           </Button>
         </div>
       </div>
@@ -411,9 +429,9 @@ export function PlainWaterSection({
   const uncertainRetry =
     controllerState.status === "uncertain" ? (
       <div className="flex items-center gap-2" role="alert">
-        <span>{WATER_COPY.networkError}</span>
+        <span>{i18n._(WATER_COPY.networkError)}</span>
         <Button size="sm" variant="outline" onClick={retryMutation} disabled={busy !== null}>
-          {WATER_COPY.retry}
+          {i18n._(WATER_COPY.retry)}
         </Button>
       </div>
     ) : null;

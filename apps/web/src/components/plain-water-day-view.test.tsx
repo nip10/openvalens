@@ -4,6 +4,8 @@ import {
   buildWaterDayView,
   type WaterDayWire,
 } from "@openvalens/api/presenters/plain-water";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { PlainWaterDayView, type PlainWaterDayViewProps } from "./plain-water-day-view";
@@ -33,25 +35,27 @@ const rawDay = (overrides: Partial<WaterDayWire> = {}): WaterDayWire => ({
 
 function render(overrides: Partial<PlainWaterDayViewProps> = {}) {
   return renderToStaticMarkup(
-    <PlainWaterDayView
-      view={buildWaterDayView(rawDay(), [], false)}
-      load="ready"
-      enabled
-      hideNumbers={false}
-      unit="ml"
-      onUnitChange={() => {}}
-      localDate="2026-07-01"
-      timeZone="Europe/Lisbon"
-      busy={null}
-      formError={null}
-      onRetry={() => {}}
-      onToggleEnabled={() => {}}
-      onSaveGoal={async () => true}
-      onAdd={async () => true}
-      onChange={async () => true}
-      onDelete={() => {}}
-      {...overrides}
-    />,
+    <I18nProvider i18n={englishI18n}>
+      <PlainWaterDayView
+        view={buildWaterDayView(rawDay(), [], false)}
+        load="ready"
+        enabled
+        hideNumbers={false}
+        unit="ml"
+        onUnitChange={() => {}}
+        localDate="2026-07-01"
+        timeZone="Europe/Lisbon"
+        busy={null}
+        formError={null}
+        onRetry={() => {}}
+        onToggleEnabled={() => {}}
+        onSaveGoal={async () => true}
+        onAdd={async () => true}
+        onChange={async () => true}
+        onDelete={() => {}}
+        {...overrides}
+      />
+    </I18nProvider>,
   );
 }
 
@@ -59,7 +63,7 @@ describe("PlainWaterDayView", () => {
   test("shows a labelled plain-water subtotal and the member's own goal", () => {
     const html = render();
     expect(html).toContain("Plain water");
-    expect(html).toContain(WATER_COPY.scopeNote);
+    expect(html).toContain(inEnglish(WATER_COPY.scopeNote));
     expect(html).toContain("Plain water subtotal");
     expect(html).toContain("123,456 ml");
     expect(html).toContain("987,654 ml");
@@ -84,8 +88,8 @@ describe("PlainWaterDayView", () => {
       reconciliationUnknown: true,
     };
     const html = render({ view });
-    expect(html).toContain(WATER_COPY.reconciliationUnknown);
-    expect(html).not.toContain(WATER_COPY.empty);
+    expect(html).toContain(inEnglish(WATER_COPY.reconciliationUnknown));
+    expect(html).not.toContain(inEnglish(WATER_COPY.empty));
   });
 
   test("an unset goal is stated and offers a goal, with no default amount", () => {
@@ -122,7 +126,7 @@ describe("PlainWaterDayView", () => {
 
   test("an unknown or failed preference never shows a number", () => {
     const html = render({ enabled: null, view: buildWaterDayView(rawDay(), [], true) });
-    expect(html).toContain(WATER_COPY.readError);
+    expect(html).toContain(inEnglish(WATER_COPY.readError));
     expect(html).not.toInclude("123,456");
     expect(html).not.toInclude("Hidden");
   });
@@ -135,7 +139,7 @@ describe("PlainWaterDayView", () => {
 
   test("a failed day read offers a retry and no amounts", () => {
     const html = render({ load: "error", view: null, enabled: null });
-    expect(html).toContain(WATER_COPY.readError);
+    expect(html).toContain(inEnglish(WATER_COPY.readError));
     expect(html).toContain("Retry");
     expect(html).not.toInclude("123,456");
   });

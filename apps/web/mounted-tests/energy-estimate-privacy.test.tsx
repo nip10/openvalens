@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
 
 const mounted =
   process.env.MOUNTED_ENERGY_PRIVACY_TEST === "1"
@@ -25,6 +27,8 @@ test.skipIf(process.env.MOUNTED_ENERGY_PRIVACY_TEST !== "1")(
       mounted;
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
+    const withI18n = (node: ReturnType<typeof createElement>) =>
+      createElement(I18nProvider, { i18n: englishI18n }, node);
     const { EnergyEstimateCard } = component;
     const { orpc } = orpcModule;
     const date = diary.localDateIn(diary.deviceTimeZone());
@@ -131,10 +135,12 @@ test.skipIf(process.env.MOUNTED_ENERGY_PRIVACY_TEST !== "1")(
     };
     const show = (hideNumbers: boolean) =>
       render(
-        createElement(
-          QueryClientProvider,
-          { client },
-          createElement(EnergyEstimateCard, { hideNumbers, scope, targetsQueryKey: targetKey }),
+        withI18n(
+          createElement(
+            QueryClientProvider,
+            { client },
+            createElement(EnergyEstimateCard, { hideNumbers, scope, targetsQueryKey: targetKey }),
+          ),
         ),
       );
     try {

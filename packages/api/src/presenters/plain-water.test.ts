@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
 import { HIDDEN_VALUE } from "./nutrition-targets";
 import {
@@ -77,29 +78,37 @@ describe("WATER_COPY", () => {
     const banned =
       /hydrat|streak|remaining|on track|progress|goal reached|should|must|recommend|clinical|medical|diet|weight loss|total water|total fluid|intake goal|you need/i;
     for (const [key, value] of Object.entries(WATER_COPY)) {
-      expect({ key, value, banned: banned.test(value) }).toEqual({ key, value, banned: false });
+      const text = inEnglish(value);
+      expect({ key, text, banned: banned.test(text) }).toEqual({ key, text, banned: false });
     }
   });
 
   test("form placeholders give no amount to copy", () => {
-    for (const placeholder of [WATER_COPY.amountPlaceholder, WATER_COPY.goalAmountPlaceholder]) {
+    for (const placeholder of [
+      inEnglish(WATER_COPY.amountPlaceholder),
+      inEnglish(WATER_COPY.goalAmountPlaceholder),
+    ]) {
       expect(placeholder).not.toMatch(/\d/);
       expect(placeholder.trim()).not.toBe("");
     }
   });
 
   test("labels a sum as a plain water subtotal, never total hydration", () => {
-    expect(WATER_COPY.subtotalLabel).toBe("Plain water subtotal");
-    expect(WATER_COPY.subtotalLabel.toLowerCase()).not.toInclude("hydration");
-    expect(WATER_COPY.scopeNote).toBe("Plain water only, separate from meals and other drinks.");
+    expect(inEnglish(WATER_COPY.subtotalLabel)).toBe("Plain water subtotal");
+    expect(inEnglish(WATER_COPY.subtotalLabel).toLowerCase()).not.toInclude("hydration");
+    expect(inEnglish(WATER_COPY.scopeNote)).toBe(
+      "Plain water only, separate from meals and other drinks.",
+    );
   });
 
   test("network failures do not claim a mutation or setting was rolled back", () => {
-    expect(WATER_COPY.networkError).toBe("Could not confirm whether your change was saved.");
-    expect(WATER_COPY.readError).toBe(
+    expect(inEnglish(WATER_COPY.networkError)).toBe(
+      "Could not confirm whether your change was saved.",
+    );
+    expect(inEnglish(WATER_COPY.readError)).toBe(
       "Could not load plain-water entries or settings. Refresh to try again.",
     );
-    expect(WATER_COPY.settingsError).toBe(
+    expect(inEnglish(WATER_COPY.settingsError)).toBe(
       "Could not confirm whether your water setting was saved.",
     );
   });
@@ -119,6 +128,7 @@ describe("WATER_COPY", () => {
       },
       "ml",
       true,
+      englishI18n,
     );
     expect(hidden).not.toInclude("hydration");
   });
@@ -126,29 +136,33 @@ describe("WATER_COPY", () => {
 
 describe("formatWaterAmount", () => {
   test("converts millilitres into the member's chosen display unit", () => {
-    expect(formatWaterAmount(300, "ml", false)).toBe("300 ml");
-    expect(formatWaterAmount(1500, "l", false)).toBe("1.50 L");
-    expect(formatWaterAmount(295.735295625, "fl_oz", false)).toBe("10.0 fl oz");
-    expect(formatWaterAmount(5.4, "ml", false)).toBe("5.4 ml");
+    expect(formatWaterAmount(300, "ml", false, englishI18n)).toBe("300 ml");
+    expect(formatWaterAmount(1500, "l", false, englishI18n)).toBe("1.50 L");
+    expect(formatWaterAmount(295.735295625, "fl_oz", false, englishI18n)).toBe("10.0 fl oz");
+    expect(formatWaterAmount(5.4, "ml", false, englishI18n)).toBe("5.4 ml");
     expect(WATER_UNITS).toEqual(["ml", "l", "fl_oz"]);
   });
 
   test("hidden amounts are replaced, never shortened or rounded", () => {
-    expect(formatWaterAmount(ENTRY_CANARY, "ml", true)).toBe(HIDDEN_VALUE);
+    expect(formatWaterAmount(ENTRY_CANARY, "ml", true, englishI18n)).toBe(inEnglish(HIDDEN_VALUE));
   });
 
   test("an amount this device cannot show reads as unavailable, not zero", () => {
-    expect(formatWaterAmount(null, "ml", false)).toBe(WATER_COPY.unavailable);
-    expect(formatWaterAmount(null, "ml", false)).not.toInclude("0 ");
+    expect(formatWaterAmount(null, "ml", false, englishI18n)).toBe(
+      inEnglish(WATER_COPY.unavailable),
+    );
+    expect(formatWaterAmount(null, "ml", false, englishI18n)).not.toInclude("0 ");
   });
 });
 
 describe("subtotal", () => {
   test("empty days read as nothing logged, never zero", () => {
     const view = buildWaterDayView(day({ entries: [], quantityMl: 0 }), [], false);
-    expect(formatWaterSubtotal(view, "ml", view.hidden)).toBe(WATER_COPY.empty);
-    expect(formatWaterSubtotal(view, "ml", view.hidden)).not.toInclude("0");
-    expect(describeWaterSubtotal(view, "ml", view.hidden)).toBe(
+    expect(formatWaterSubtotal(view, "ml", view.hidden, englishI18n)).toBe(
+      inEnglish(WATER_COPY.empty),
+    );
+    expect(formatWaterSubtotal(view, "ml", view.hidden, englishI18n)).not.toInclude("0");
+    expect(describeWaterSubtotal(view, "ml", view.hidden, englishI18n)).toBe(
       "Plain water subtotal: Nothing logged for this day.",
     );
   });
@@ -156,7 +170,7 @@ describe("subtotal", () => {
   test("the server sum is shown when nothing is queued", () => {
     const view = buildWaterDayView(day(), [], false);
     expect(view.subtotalMl).toBe(ENTRY_CANARY);
-    expect(formatWaterSubtotal(view, "ml", view.hidden)).toBe("123,456 ml");
+    expect(formatWaterSubtotal(view, "ml", view.hidden, englishI18n)).toBe("123,456 ml");
   });
 
   test("a stale redacted cache cannot be presented as a total", () => {
@@ -167,7 +181,9 @@ describe("subtotal", () => {
       false,
     );
     expect(view.incomplete).toBe(true);
-    expect(formatWaterSubtotal(view, "ml", view.hidden)).toBe(WATER_COPY.unavailable);
+    expect(formatWaterSubtotal(view, "ml", view.hidden, englishI18n)).toBe(
+      inEnglish(WATER_COPY.unavailable),
+    );
   });
 
   test("queued changes are reflected in the subtotal and rows", () => {
@@ -320,23 +336,25 @@ describe("hide numbers", () => {
     expect(view.attention[0]?.opQuantityMl).toBeNull();
 
     const text = [
-      formatWaterSubtotal(view, "ml", view.hidden),
-      formatWaterGoal(view.personalGoalMl, "ml", true),
-      describeWaterSubtotal(view, "ml", view.hidden),
-      describeWaterRow(view.rows[0]!, "ml", view.hidden),
-      ...Object.values(describeWaterAttention(view.attention[0]!, "ml")),
+      formatWaterSubtotal(view, "ml", view.hidden, englishI18n),
+      formatWaterGoal(view.personalGoalMl, "ml", true, englishI18n),
+      describeWaterSubtotal(view, "ml", view.hidden, englishI18n),
+      describeWaterRow(view.rows[0]!, "ml", view.hidden, englishI18n),
+      ...Object.values(describeWaterAttention(view.attention[0]!, "ml", englishI18n)),
     ].join(" | ");
 
     for (const canary of [ENTRY_CANARY, GOAL_CANARY, OTHER_CANARY])
       expect(text).not.toInclude(String(canary));
     for (const unit of [" ml", " L", " fl oz"]) expect(text).not.toInclude(unit);
-    expect(text).toInclude(HIDDEN_VALUE);
+    expect(text).toInclude(inEnglish(HIDDEN_VALUE));
     expect(text).toInclude("Plain water subtotal");
   });
 
   test("an empty hidden day still reads as empty, not hidden or zero", () => {
     const view = buildWaterDayView(day({ entries: [], quantityMl: null }), [], true);
-    expect(formatWaterSubtotal(view, "ml", view.hidden)).toBe(WATER_COPY.empty);
+    expect(formatWaterSubtotal(view, "ml", view.hidden, englishI18n)).toBe(
+      inEnglish(WATER_COPY.empty),
+    );
   });
 
   test("a queued add is redacted too, including its accessible name", () => {
@@ -347,9 +365,9 @@ describe("hide numbers", () => {
     );
     const row = view.rows[0]!;
     expect(row.quantityMl).toBeNull();
-    const text = `${describeWaterRow(row, "ml", true)} ${formatWaterAmount(row.quantityMl, "ml", true)}`;
+    const text = `${describeWaterRow(row, "ml", true, englishI18n)} ${formatWaterAmount(row.quantityMl, "ml", true, englishI18n)}`;
     expect(text).not.toInclude("300");
-    expect(text).toInclude(HIDDEN_VALUE);
+    expect(text).toInclude(inEnglish(HIDDEN_VALUE));
     expect(text).toInclude("waiting to sync");
   });
 
@@ -380,7 +398,9 @@ describe("hide numbers", () => {
     expect(view.pendingCount).toBe(1);
     expect(view.subtotalMl).toBeNull();
     expect(view.incomplete).toBe(true);
-    expect(formatWaterSubtotal(view, "ml", false)).toBe(WATER_COPY.reconciliationUnknown);
+    expect(formatWaterSubtotal(view, "ml", false, englishI18n)).toBe(
+      inEnglish(WATER_COPY.reconciliationUnknown),
+    );
   });
 
   test("missing attempts are uncertain, while explicit zero-attempt queued adds remain visible", () => {
@@ -399,7 +419,9 @@ describe("hide numbers", () => {
     expect(unknown.pendingCount).toBe(1);
     expect(unknown.subtotalMl).toBeNull();
     expect(unknown.incomplete).toBe(true);
-    expect(formatWaterSubtotal(unknown, "ml", false)).toBe(WATER_COPY.reconciliationUnknown);
+    expect(formatWaterSubtotal(unknown, "ml", false, englishI18n)).toBe(
+      inEnglish(WATER_COPY.reconciliationUnknown),
+    );
   });
 
   test("a refused or conflicted delete leaves the saved server row visible", () => {
@@ -443,13 +465,15 @@ describe("hide numbers", () => {
 describe("goal", () => {
   test("an unset goal is stated, never defaulted", () => {
     const view = buildWaterDayView(day({ personalGoalMl: null }), [], false);
-    expect(formatWaterGoal(view.personalGoalMl, "ml", false)).toBe(WATER_COPY.goalUnset);
-    expect(WATER_COPY.goalUnset).not.toInclude("2");
+    expect(formatWaterGoal(view.personalGoalMl, "ml", false, englishI18n)).toBe(
+      inEnglish(WATER_COPY.goalUnset),
+    );
+    expect(inEnglish(WATER_COPY.goalUnset)).not.toInclude("2");
   });
 
   test("a set goal is the member's own reference", () => {
     const view = buildWaterDayView(day(), [], false);
-    expect(formatWaterGoal(view.personalGoalMl, "l", false)).toBe("987.65 L");
+    expect(formatWaterGoal(view.personalGoalMl, "l", false, englishI18n)).toBe("987.65 L");
   });
 });
 
@@ -653,8 +677,8 @@ describe("queue helpers", () => {
     expect(attention.entryId).toBe(12);
     expect(attention.conflictRevision).toBe(4);
     expect(attention.expectedRevision).toBe(3);
-    const described = describeWaterAttention(attention, "ml");
-    expect(described.title).toBe(WATER_COPY.conflictTitle);
+    const described = describeWaterAttention(attention, "ml", englishI18n);
+    expect(described.title).toBe(inEnglish(WATER_COPY.conflictTitle));
     expect(described.other).toBe("Other version: 654,321 ml.");
     expect(described.mine).toBe("Your change: 500 ml.");
   });

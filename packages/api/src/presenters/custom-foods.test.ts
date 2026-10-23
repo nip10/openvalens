@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
+
 import type { CustomFood } from "../contracts/nutrition-custom-foods";
 import { createCustomFoodInput, updateCustomFoodInput } from "../contracts/nutrition-custom-foods";
 import {
@@ -95,17 +97,17 @@ describe("custom food form", () => {
   });
 
   test("summaries state the basis and how much was entered", () => {
-    expect(describeBasis(food.basis)).toBe("Values per 100 g · 1 slice = 40 g");
-    expect(describeBasis({ ...food.basis, servingSizeAmount: null, servingSizeUnit: null })).toBe(
-      "Values per 100 g · serving: 1 slice",
-    );
-    expect(describeCoverage(food)).toBe("3 of 12 values entered");
+    expect(describeBasis(food.basis, englishI18n)).toBe("Values per 100 g · 1 slice = 40 g");
+    expect(
+      describeBasis({ ...food.basis, servingSizeAmount: null, servingSizeUnit: null }, englishI18n),
+    ).toBe("Values per 100 g · serving: 1 slice");
+    expect(inEnglish(describeCoverage(food))).toBe("3 of 12 values entered");
   });
 
   test("copy is neutral and states privacy", () => {
     const BANNED =
       /\b(good|bad|healthy|unhealthy|junk|clean|cheat|guilt\w*|sin\w*|naughty|over|under|exceed\w*|too much|missed|streak\w*|fail\w*|warning|danger\w*|violat\w*|budget|allowance|earn\w*)\b/i;
-    for (const text of Object.values(CUSTOM_FOOD_COPY)) expect(text).not.toMatch(BANNED);
-    expect(CUSTOM_FOOD_COPY.privacy).toMatch(/private to you/);
+    for (const text of Object.values(CUSTOM_FOOD_COPY)) expect(inEnglish(text)).not.toMatch(BANNED);
+    expect(inEnglish(CUSTOM_FOOD_COPY.privacy)).toMatch(/private to you/);
   });
 });

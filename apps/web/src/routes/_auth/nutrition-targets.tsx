@@ -34,6 +34,8 @@ import {
   MICRONUTRIENT_COPY,
   MICRONUTRIENT_POPULATIONS,
 } from "@openvalens/api/presenters/micronutrients";
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -74,8 +76,10 @@ function Field({ label, children }: { label: string; children: (id: string) => R
   );
 }
 
-function networkFailure(retry: () => void) {
-  toast.error(TARGET_COPY.networkError, { action: { label: DIARY_COPY.retry, onClick: retry } });
+function networkFailure(retry: () => void, i18n: I18n) {
+  toast.error(i18n._(TARGET_COPY.networkError), {
+    action: { label: i18n._(DIARY_COPY.retry), onClick: retry },
+  });
 }
 
 function NutritionTargetsPage() {
@@ -83,6 +87,7 @@ function NutritionTargetsPage() {
   const { data: session } = authClient.useSession();
   const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const queryClient = useQueryClient();
+  const { i18n } = useLingui();
   const overviewOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
   const overviewKey = [...overviewOptions.queryKey, { offlineScope: scope }];
   const overview = useQuery({
@@ -104,9 +109,9 @@ function NutritionTargetsPage() {
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{TARGET_COPY.title}</h1>
+          <h1 className="text-2xl font-semibold">{i18n._(TARGET_COPY.title)}</h1>
           <Link to="/nutrition" className="text-sm underline">
-            Back to {DIARY_COPY.title.toLowerCase()}
+            <Trans>Back to meal diary</Trans>
           </Link>
         </div>
       </div>
@@ -115,15 +120,15 @@ function NutritionTargetsPage() {
         <Skeleton className="h-48 w-full" />
       ) : overview.isError || !data ? (
         <p className="text-sm text-muted-foreground" role="alert">
-          {TARGET_COPY.networkError}{" "}
+          {i18n._(TARGET_COPY.networkError)}{" "}
           <button className="underline" onClick={() => void overview.refetch()}>
-            {DIARY_COPY.retry}
+            {i18n._(DIARY_COPY.retry)}
           </button>
         </p>
       ) : (
         <>
           {data.support ? (
-            <Card role="note" aria-label={TARGET_COPY.helplinesTitle}>
+            <Card role="note" aria-label={i18n._(TARGET_COPY.helplinesTitle)}>
               <CardContent className="grid gap-2 pt-6 text-sm">
                 <p>{data.support.text}</p>
                 <ul className="grid gap-1">
@@ -177,15 +182,17 @@ function NutritionTargetsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>{TARGET_COPY.proteinReferenceTitle}</CardTitle>
+              <CardTitle>{i18n._(TARGET_COPY.proteinReferenceTitle)}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 text-sm">
               <p className="font-mono">
                 {data.proteinReference
-                  ? formatProteinReference(data.proteinReference, hideNumbers)
-                  : TARGET_COPY.proteinReferenceUnavailable}
+                  ? formatProteinReference(data.proteinReference, hideNumbers, i18n)
+                  : i18n._(TARGET_COPY.proteinReferenceUnavailable)}
               </p>
-              <p className="text-xs text-muted-foreground">{TARGET_COPY.proteinReferenceNote}</p>
+              <p className="text-xs text-muted-foreground">
+                {i18n._(TARGET_COPY.proteinReferenceNote)}
+              </p>
               <p className="text-xs text-muted-foreground">{data.safety.policyVersion}</p>
             </CardContent>
           </Card>
@@ -213,9 +220,10 @@ function TargetsCard({
   const [min, setMin] = useState("");
   const [max, setMax] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState(() => localDateIn(deviceTimeZone()));
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessageDescriptor | null>(null);
   const setTarget = useMutation(orpc.nutritionTargets.setTarget.mutationOptions());
   const clearTarget = useMutation(orpc.nutritionTargets.clearTarget.mutationOptions());
+  const { t, i18n } = useLingui();
 
   const activeForSelected = targets.find((target) => target.nutrient === nutrient);
 
@@ -229,12 +237,12 @@ function TargetsCard({
     const send = () =>
       setTarget.mutate(parsed.input, {
         onSuccess: () => {
-          toast.success(TARGET_COPY.saved);
+          toast.success(i18n._(TARGET_COPY.saved));
           setMin("");
           setMax("");
           onChanged();
         },
-        onError: () => networkFailure(send),
+        onError: () => networkFailure(send, i18n),
       });
     send();
   };
@@ -244,10 +252,10 @@ function TargetsCard({
     const send = () =>
       clearTarget.mutate(input, {
         onSuccess: () => {
-          toast.success(TARGET_COPY.cleared);
+          toast.success(i18n._(TARGET_COPY.cleared));
           onChanged();
         },
-        onError: () => networkFailure(send),
+        onError: () => networkFailure(send, i18n),
       });
     send();
   };
@@ -255,14 +263,14 @@ function TargetsCard({
   return (
     <Card>
       <CardHeader className="grid gap-1">
-        <CardTitle>{TARGET_COPY.yourTargets}</CardTitle>
-        <p className="text-sm text-muted-foreground">{TARGET_COPY.targetsNote}</p>
+        <CardTitle>{i18n._(TARGET_COPY.yourTargets)}</CardTitle>
+        <p className="text-sm text-muted-foreground">{i18n._(TARGET_COPY.targetsNote)}</p>
       </CardHeader>
       <CardContent className="grid gap-4">
         {targets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{TARGET_COPY.noTargets}</p>
+          <p className="text-sm text-muted-foreground">{i18n._(TARGET_COPY.noTargets)}</p>
         ) : (
-          <ul className="grid gap-2" aria-label={TARGET_COPY.yourTargets}>
+          <ul className="grid gap-2" aria-label={i18n._(TARGET_COPY.yourTargets)}>
             {targets.map((target) => (
               <li
                 key={target.id}
@@ -270,10 +278,11 @@ function TargetsCard({
               >
                 <div className="grid">
                   <span className="text-sm font-medium">
-                    {NUTRIENT_LABELS[target.nutrient].label}: {formatTarget(target, hideNumbers)}
+                    {i18n._(NUTRIENT_LABELS[target.nutrient].label)}:{" "}
+                    {formatTarget(target, hideNumbers, i18n)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {describeTargetSource(target)}
+                    {i18n._(describeTargetSource(target))}
                   </span>
                 </div>
                 <Button
@@ -282,8 +291,8 @@ function TargetsCard({
                   onClick={() => clear(target)}
                   disabled={clearTarget.isPending}
                 >
-                  {TARGET_COPY.clearTarget}{" "}
-                  <span className="sr-only">{NUTRIENT_LABELS[target.nutrient].label}</span>
+                  {i18n._(TARGET_COPY.clearTarget)}{" "}
+                  <span className="sr-only">{i18n._(NUTRIENT_LABELS[target.nutrient].label)}</span>
                 </Button>
               </li>
             ))}
@@ -291,8 +300,8 @@ function TargetsCard({
         )}
 
         <fieldset className="grid gap-3 rounded-md border p-3 sm:grid-cols-4 sm:items-end">
-          <legend className="px-1 text-sm font-medium">{TARGET_COPY.setTarget}</legend>
-          <Field label="Nutrient">
+          <legend className="px-1 text-sm font-medium">{i18n._(TARGET_COPY.setTarget)}</legend>
+          <Field label={t`Nutrient`}>
             {(id) => (
               <select
                 id={id}
@@ -302,19 +311,21 @@ function TargetsCard({
               >
                 {choices.map((key) => (
                   <option key={key} value={key}>
-                    {NUTRIENT_LABELS[key].label}
+                    {i18n._(NUTRIENT_LABELS[key].label)}
                   </option>
                 ))}
               </select>
             )}
           </Field>
-          <Field label={TARGET_COPY.minimum}>
+          <Field label={i18n._(TARGET_COPY.minimum)}>
             {(id) => (
               <Input
                 id={id}
                 inputMode="decimal"
                 value={hideNumbers ? "" : min}
-                aria-label={`${TARGET_COPY.minimum}${hideNumbers ? " (hidden)" : ""}`}
+                aria-label={
+                  hideNumbers ? t`Minimum (optional) (hidden)` : i18n._(TARGET_COPY.minimum)
+                }
                 placeholder={
                   hideNumbers
                     ? ""
@@ -326,13 +337,15 @@ function TargetsCard({
               />
             )}
           </Field>
-          <Field label={TARGET_COPY.maximum}>
+          <Field label={i18n._(TARGET_COPY.maximum)}>
             {(id) => (
               <Input
                 id={id}
                 inputMode="decimal"
                 value={hideNumbers ? "" : max}
-                aria-label={`${TARGET_COPY.maximum}${hideNumbers ? " (hidden)" : ""}`}
+                aria-label={
+                  hideNumbers ? t`Maximum (optional) (hidden)` : i18n._(TARGET_COPY.maximum)
+                }
                 placeholder={
                   hideNumbers
                     ? ""
@@ -344,7 +357,7 @@ function TargetsCard({
               />
             )}
           </Field>
-          <Field label={TARGET_COPY.effectiveFrom}>
+          <Field label={i18n._(TARGET_COPY.effectiveFrom)}>
             {(id) => (
               <Input
                 id={id}
@@ -356,12 +369,12 @@ function TargetsCard({
           </Field>
           <div className="sm:col-span-4">
             <Button onClick={save} disabled={setTarget.isPending}>
-              {setTarget.isPending ? TARGET_COPY.saving : TARGET_COPY.setTarget}
+              {i18n._(setTarget.isPending ? TARGET_COPY.saving : TARGET_COPY.setTarget)}
             </Button>
           </div>
           {error ? (
             <p className="text-sm text-muted-foreground sm:col-span-4" role="alert">
-              {error}
+              {i18n._(error)}
             </p>
           ) : null}
         </fieldset>
@@ -403,6 +416,7 @@ function SettingsCard({
   const [message, setMessage] = useState("");
   const [needsConfirm, setNeedsConfirm] = useState(false);
   const update = useMutation(orpc.nutritionTargets.updateSettings.mutationOptions());
+  const { t, i18n } = useLingui();
 
   useEffect(() => {
     setHideNumbers(settings.hideNumbers);
@@ -420,6 +434,15 @@ function SettingsCard({
   }, [settings]);
 
   const choices = declarationChoices(declarations);
+  const proposalText = (
+    source: keyof typeof MICRONUTRIENT_COPY.sources,
+    populationId: keyof typeof MICRONUTRIENT_POPULATIONS | null,
+  ) => {
+    const sourceName = i18n._(MICRONUTRIENT_COPY.sources[source]);
+    if (!populationId) return t`Suggested from your profile: ${sourceName}.`;
+    const group = MICRONUTRIENT_POPULATIONS[populationId].label;
+    return t`Suggested from your profile: ${sourceName}, ${group}.`;
+  };
   const toggleDeclaration = (key: Declaration) => {
     setDeclarations((current) =>
       current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
@@ -430,7 +453,7 @@ function SettingsCard({
   const save = (confirmClearEatingDisorder = false) => {
     const parsedHeight = parseHeight(height);
     if (!parsedHeight.ok) {
-      setMessage(parsedHeight.error);
+      setMessage(i18n._(parsedHeight.error));
       return;
     }
     const change = declarationsChange(settings.declarations, declarations);
@@ -455,7 +478,7 @@ function SettingsCard({
       update.mutate(input, {
         onSuccess: (result) => {
           if (result.outcome === "conflict") {
-            setMessage(TARGET_COPY.conflict);
+            setMessage(i18n._(TARGET_COPY.conflict));
             onChanged();
             return;
           }
@@ -464,11 +487,11 @@ function SettingsCard({
             setNeedsConfirm(true);
             return;
           }
-          setMessage(TARGET_COPY.settingsSaved);
+          setMessage(i18n._(TARGET_COPY.settingsSaved));
           setNeedsConfirm(false);
           onChanged();
         },
-        onError: () => networkFailure(send),
+        onError: () => networkFailure(send, i18n),
       });
     send();
   };
@@ -476,7 +499,7 @@ function SettingsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{TARGET_COPY.settingsLink}</CardTitle>
+        <CardTitle>{i18n._(TARGET_COPY.settingsLink)}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <label className="flex items-start gap-2 text-sm">
@@ -489,16 +512,18 @@ function SettingsCard({
             }}
           />
           <span>
-            <span className="font-medium">{TARGET_COPY.hideNumbers}</span>
+            <span className="font-medium">{i18n._(TARGET_COPY.hideNumbers)}</span>
             <span className="block text-muted-foreground">
-              {TARGET_COPY.hideNumbersDescription}
+              {i18n._(TARGET_COPY.hideNumbersDescription)}
             </span>
           </span>
         </label>
 
         <fieldset className="grid gap-2">
-          <legend className="text-sm font-medium">{TARGET_COPY.directionTitle}</legend>
-          <p className="text-xs text-muted-foreground">{TARGET_COPY.directionDescription}</p>
+          <legend className="text-sm font-medium">{i18n._(TARGET_COPY.directionTitle)}</legend>
+          <p className="text-xs text-muted-foreground">
+            {i18n._(TARGET_COPY.directionDescription)}
+          </p>
           {(Object.keys(DIRECTION_LABELS) as EnergyDirection[]).map((key) => (
             <label key={key} className="flex items-start gap-2 text-sm">
               <input
@@ -508,16 +533,16 @@ function SettingsCard({
                 onChange={() => setDirection(key)}
               />
               <span>
-                <span className="font-medium">{DIRECTION_LABELS[key].label}</span>
+                <span className="font-medium">{i18n._(DIRECTION_LABELS[key].label)}</span>
                 <span className="block text-muted-foreground">
-                  {DIRECTION_LABELS[key].description}
+                  {i18n._(DIRECTION_LABELS[key].description)}
                 </span>
               </span>
             </label>
           ))}
         </fieldset>
 
-        <Field label={TARGET_COPY.heightLabel}>
+        <Field label={i18n._(TARGET_COPY.heightLabel)}>
           {(id) => (
             <Input
               id={id}
@@ -528,7 +553,7 @@ function SettingsCard({
             />
           )}
         </Field>
-        <p className="text-xs text-muted-foreground">{TARGET_COPY.heightDescription}</p>
+        <p className="text-xs text-muted-foreground">{i18n._(TARGET_COPY.heightDescription)}</p>
 
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -536,7 +561,7 @@ function SettingsCard({
             checked={activeProtein}
             onChange={(event) => setActiveProtein(event.target.checked)}
           />
-          {TARGET_COPY.activeProtein}
+          {i18n._(TARGET_COPY.activeProtein)}
         </label>
 
         <label className="flex items-center gap-2 text-sm">
@@ -545,9 +570,9 @@ function SettingsCard({
             checked={streaksEnabled}
             onChange={(event) => setStreaksEnabled(event.target.checked)}
           />
-          {STREAK_COPY.settingLabel}
+          {i18n._(STREAK_COPY.settingLabel)}
         </label>
-        <p className="text-xs text-muted-foreground">{STREAK_COPY.settingDescription}</p>
+        <p className="text-xs text-muted-foreground">{i18n._(STREAK_COPY.settingDescription)}</p>
 
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -565,9 +590,11 @@ function SettingsCard({
             checked={voiceDraftsEnabled}
             onChange={(event) => setVoiceDraftsEnabled(event.target.checked)}
           />
-          {FOOD_DRAFT_COPY.settingLabel}
+          {i18n._(FOOD_DRAFT_COPY.settingLabel)}
         </label>
-        <p className="text-xs text-muted-foreground">{FOOD_DRAFT_COPY.settingDescription}</p>
+        <p className="text-xs text-muted-foreground">
+          {i18n._(FOOD_DRAFT_COPY.settingDescription)}
+        </p>
 
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -575,9 +602,11 @@ function SettingsCard({
             checked={photoDraftsEnabled}
             onChange={(event) => setPhotoDraftsEnabled(event.target.checked)}
           />
-          {PHOTO_DRAFT_COPY.settingLabel}
+          {i18n._(PHOTO_DRAFT_COPY.settingLabel)}
         </label>
-        <p className="text-xs text-muted-foreground">{PHOTO_DRAFT_COPY.settingDescription}</p>
+        <p className="text-xs text-muted-foreground">
+          {i18n._(PHOTO_DRAFT_COPY.settingDescription)}
+        </p>
 
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -585,16 +614,20 @@ function SettingsCard({
             checked={micronutrientsEnabled}
             onChange={(event) => setMicronutrientsEnabled(event.target.checked)}
           />
-          {MICRONUTRIENT_COPY.settingLabel}
+          {i18n._(MICRONUTRIENT_COPY.settingLabel)}
         </label>
-        <p className="text-xs text-muted-foreground">{MICRONUTRIENT_COPY.settingDescription}</p>
+        <p className="text-xs text-muted-foreground">
+          {i18n._(MICRONUTRIENT_COPY.settingDescription)}
+        </p>
         {micronutrientsEnabled ? (
           <fieldset className="grid gap-2 rounded-md border p-3">
-            <legend className="px-1 text-sm font-medium">{MICRONUTRIENT_COPY.sourceLabel}</legend>
-            <p className="text-xs text-muted-foreground">{MICRONUTRIENT_COPY.sourceHelp}</p>
+            <legend className="px-1 text-sm font-medium">
+              {i18n._(MICRONUTRIENT_COPY.sourceLabel)}
+            </legend>
+            <p className="text-xs text-muted-foreground">{i18n._(MICRONUTRIENT_COPY.sourceHelp)}</p>
             <div className="flex flex-wrap gap-4">
               <label className="grid gap-1 text-sm">
-                Source
+                <Trans>Source</Trans>
                 <select
                   className="min-h-9 rounded-md border bg-background px-2"
                   value={referenceSource ?? ""}
@@ -604,14 +637,14 @@ function SettingsCard({
                     setPopulation(null);
                   }}
                 >
-                  <option value="">None</option>
-                  <option value="efsa">{MICRONUTRIENT_COPY.sources.efsa}</option>
-                  <option value="nasem">{MICRONUTRIENT_COPY.sources.nasem}</option>
+                  <option value="">{t`None`}</option>
+                  <option value="efsa">{i18n._(MICRONUTRIENT_COPY.sources.efsa)}</option>
+                  <option value="nasem">{i18n._(MICRONUTRIENT_COPY.sources.nasem)}</option>
                 </select>
               </label>
               {referenceSource ? (
                 <label className="grid gap-1 text-sm">
-                  Group
+                  <Trans>Group</Trans>
                   <select
                     className="min-h-9 rounded-md border bg-background px-2"
                     value={population ?? ""}
@@ -622,7 +655,7 @@ function SettingsCard({
                       )
                     }
                   >
-                    <option value="">Choose a group</option>
+                    <option value="">{t`Choose a group`}</option>
                     {Object.entries(MICRONUTRIENT_POPULATIONS)
                       .filter(([, group]) => group.source === referenceSource)
                       .map(([id, group]) => (
@@ -638,11 +671,7 @@ function SettingsCard({
             (proposal.data.source !== referenceSource ||
               (proposal.data.population && proposal.data.population !== population)) ? (
               <p className="text-xs">
-                {MICRONUTRIENT_COPY.proposal}: {MICRONUTRIENT_COPY.sources[proposal.data.source]}
-                {proposal.data.population
-                  ? `, ${MICRONUTRIENT_POPULATIONS[proposal.data.population].label}`
-                  : ""}
-                .{" "}
+                {proposalText(proposal.data.source, proposal.data.population)}{" "}
                 <button
                   type="button"
                   className="underline"
@@ -651,7 +680,7 @@ function SettingsCard({
                     setPopulation(proposal.data!.population);
                   }}
                 >
-                  Use this
+                  <Trans>Use this</Trans>
                 </button>
               </p>
             ) : null}
@@ -659,7 +688,7 @@ function SettingsCard({
         ) : null}
 
         <fieldset className="grid gap-2">
-          <legend className="text-sm font-medium">{TARGET_COPY.declarationsTitle}</legend>
+          <legend className="text-sm font-medium">{i18n._(TARGET_COPY.declarationsTitle)}</legend>
           <p className="text-xs text-muted-foreground">{NUTRITION_SAFETY_COPY.declarationsIntro}</p>
           {choices.map((choice) => (
             <label key={choice.key} className="flex items-center gap-2 text-sm">
@@ -681,15 +710,15 @@ function SettingsCard({
 
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => save()} disabled={update.isPending}>
-            {update.isPending ? TARGET_COPY.saving : TARGET_COPY.saveSettings}
+            {i18n._(update.isPending ? TARGET_COPY.saving : TARGET_COPY.saveSettings)}
           </Button>
           {needsConfirm ? (
             <Button variant="outline" onClick={() => save(true)} disabled={update.isPending}>
-              {TARGET_COPY.saveSettings}
+              {i18n._(TARGET_COPY.saveSettings)}
             </Button>
           ) : null}
         </div>
-        <p className="text-xs text-muted-foreground">{CUSTOM_FOOD_COPY.privacy}</p>
+        <p className="text-xs text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.privacy)}</p>
       </CardContent>
     </Card>
   );

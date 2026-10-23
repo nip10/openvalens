@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n } from "@openvalens/i18n/testing";
+
 import type { EnergyEstimateOutput, EnergyProposalWire } from "../contracts/energy-estimate";
 import { presentEnergyEstimate, presentProposal } from "./energy-estimate";
 
@@ -61,24 +63,24 @@ const proposal = {
 
 describe("energy estimate client presenter", () => {
   test("keeps explicit estimates clearly provisional and shows the arithmetic range", () => {
-    const displayed = presentEnergyEstimate(estimated, false);
+    const displayed = presentEnergyEstimate(estimated, false, englishI18n);
     expect(displayed?.value).toBe("2,000 kcal/day");
     expect(displayed?.range).toBe("1,700–2,300 kcal/day");
     expect(displayed?.notes).toContain("Experimental, not a clinical measure.");
   });
 
   test("hidden numbers suppress all estimate and proposal amounts", () => {
-    expect(presentEnergyEstimate(estimated, true)).toBeNull();
-    expect(presentProposal(proposal, true)).toBeNull();
+    expect(presentEnergyEstimate(estimated, true, englishI18n)).toBeNull();
+    expect(presentProposal(proposal, true, englishI18n)).toBeNull();
   });
 
   test("unknown estimates stay unavailable rather than becoming zero", () => {
     const unknown = { ...estimated, status: "no_estimate", estimate: null } as EnergyEstimateOutput;
-    expect(presentEnergyEstimate(unknown, false)).toBeNull();
+    expect(presentEnergyEstimate(unknown, false, englishI18n)).toBeNull();
   });
 
   test("proposal values are presented for review, not implied as accepted", () => {
-    expect(presentProposal(proposal, false)).toEqual({
+    expect(presentProposal(proposal, false, englishI18n)).toEqual({
       suggestion: "2,000 kcal/day",
       current: "1,800 kcal/day",
     });

@@ -1,5 +1,6 @@
 import type { LoggingStreakOutput } from "@openvalens/api/contracts/nutrition-targets";
 import { presentLoggingStreak, STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
+import { useLingui } from "@lingui/react/macro";
 import { Card } from "heroui-native";
 import { Text } from "react-native";
 
@@ -9,16 +10,19 @@ import { Text } from "react-native";
  * nothing. The copy is shared with the web app.
  */
 export function LoggingStreakCard({ streak }: { streak: LoggingStreakOutput | undefined }) {
+  const { i18n } = useLingui();
   const view = presentLoggingStreak(streak);
   if (!view) return null;
   return (
-    <Card variant="secondary" className="gap-1 p-4" accessibilityLabel={STREAK_COPY.title}>
-      <Text className="font-medium text-foreground">{view.headline}</Text>
-      {view.lines.map((line) => (
-        <Text key={line} className="text-sm text-muted-foreground">
-          {line}
-        </Text>
-      ))}
+    <Card variant="secondary" className="gap-1 p-4" accessibilityLabel={i18n._(STREAK_COPY.title)}>
+      <Text className="font-medium text-foreground">{i18n._(view.headline)}</Text>
+      {view.lines
+        .map((line) => i18n._(line))
+        .map((line) => (
+          <Text key={line} className="text-sm text-muted-foreground">
+            {line}
+          </Text>
+        ))}
     </Card>
   );
 }

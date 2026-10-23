@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { computeNutrientFactor } from "@openvalens/nutrition/nutrients";
 import { summarizeEntries } from "@openvalens/nutrition/totals";
 
@@ -70,58 +71,72 @@ describe("summarizeDay", () => {
       missing: 0,
       coverage: "no_entries",
     });
-    expect(formatNutrientTotal("energyKcal", summary.totals.energyKcal)).toBe("—");
+    expect(formatNutrientTotal("energyKcal", summary.totals.energyKcal, englishI18n)).toBe("—");
   });
 
   test("formats partial coverage explicitly", () => {
-    expect(formatNutrientTotal("energyKcal", { known: 350, reported: 2, missing: 1 })).toBe(
-      "350 kcal from 2 of 3 entries",
-    );
-    expect(formatNutrientTotal("proteinG", { known: 12.34, reported: 2, missing: 0 })).toBe(
-      "12.3 g",
-    );
-    expect(formatNutrientTotal("fiberG", { known: null, reported: 0, missing: 3 })).toBe("Unknown");
+    expect(
+      formatNutrientTotal("energyKcal", { known: 350, reported: 2, missing: 1 }, englishI18n),
+    ).toBe("350 kcal from 2 of 3 entries");
+    expect(
+      formatNutrientTotal("proteinG", { known: 12.34, reported: 2, missing: 0 }, englishI18n),
+    ).toBe("12.3 g");
+    expect(
+      formatNutrientTotal("fiberG", { known: null, reported: 0, missing: 3 }, englishI18n),
+    ).toBe("Unknown");
   });
 
   test("states coverage for every nutrient, including full and empty", () => {
-    expect(formatCoverage({ reported: 0, missing: 0 })).toBe("Nothing logged");
-    expect(formatCoverage({ reported: 1, missing: 0 })).toBe("From 1 entry");
-    expect(formatCoverage({ reported: 3, missing: 0 })).toBe("All 3 entries");
-    expect(formatCoverage({ reported: 2, missing: 1 })).toBe("2 of 3 entries");
-    expect(formatCoverage({ reported: 0, missing: 1 })).toBe("Not provided by 1 entry");
+    expect(inEnglish(formatCoverage({ reported: 0, missing: 0 }))).toBe("Nothing logged");
+    expect(inEnglish(formatCoverage({ reported: 1, missing: 0 }))).toBe("From 1 entry");
+    expect(inEnglish(formatCoverage({ reported: 3, missing: 0 }))).toBe("All 3 entries");
+    expect(inEnglish(formatCoverage({ reported: 2, missing: 1 }))).toBe("2 of 3 entries");
+    expect(inEnglish(formatCoverage({ reported: 0, missing: 1 }))).toBe("Not provided by 1 entry");
     expect(
-      describeNutrientTotal("saltG", { known: null, reported: 0, missing: 2, coverage: "none" }),
+      describeNutrientTotal(
+        "saltG",
+        { known: null, reported: 0, missing: 2, coverage: "none" },
+        englishI18n,
+      ),
     ).toBe("Salt: unknown, not provided by 2 entries");
     expect(
-      describeNutrientTotal("energyKcal", {
-        known: 412,
-        reported: 2,
-        missing: 1,
-        coverage: "partial",
-      }),
+      describeNutrientTotal(
+        "energyKcal",
+        {
+          known: 412,
+          reported: 2,
+          missing: 1,
+          coverage: "partial",
+        },
+        englishI18n,
+      ),
     ).toBe("Energy: 412 kcal, 2 of 3 entries");
     expect(
-      describeNutrientTotal("fiberG", {
-        known: null,
-        reported: 0,
-        missing: 0,
-        coverage: "no_entries",
-      }),
+      describeNutrientTotal(
+        "fiberG",
+        {
+          known: null,
+          reported: 0,
+          missing: 0,
+          coverage: "no_entries",
+        },
+        englishI18n,
+      ),
     ).toBe("Fibre: nothing logged");
   });
 
   test("lists every nutrient once, keeping salt/sodium and sugar types separate", () => {
     expect([...ALL_NUTRIENTS].sort()).toEqual([...NUTRIENT_KEYS].sort());
-    const labels = ALL_NUTRIENTS.map((key) => NUTRIENT_LABELS[key].label);
+    const labels = ALL_NUTRIENTS.map((key) => inEnglish(NUTRIENT_LABELS[key].label));
     for (const label of ["Sodium", "Salt", "Total sugars", "Added sugars", "Free sugars"])
       expect(labels).toContain(label);
   });
 
   test("names the sources behind the totals", () => {
-    expect(formatSources({ fdc: 2, off: 0, custom: 0, manual: 1 })).toBe(
+    expect(formatSources({ fdc: 2, off: 0, custom: 0, manual: 1 }, englishI18n)).toBe(
       "2 from USDA FoodData Central · 1 from Quick add",
     );
-    expect(formatSources({ fdc: 0, off: 0, custom: 0, manual: 0 })).toBeNull();
+    expect(formatSources({ fdc: 0, off: 0, custom: 0, manual: 0 }, englishI18n)).toBeNull();
   });
 
   test("matches the server's domain summary exactly", () => {
@@ -141,18 +156,18 @@ describe("day marker", () => {
   test("a blank unmarked day and a completed empty day read differently", () => {
     const blank = dayStatusText("unmarked", 0);
     const completedEmpty = dayStatusText("complete", 0);
-    expect(blank.label).not.toBe(completedEmpty.label);
-    expect(blank.description).toContain("not as zero");
-    expect(completedEmpty.description).toContain("nothing logged");
+    expect(inEnglish(blank.label)).not.toBe(inEnglish(completedEmpty.label));
+    expect(inEnglish(blank.description)).toContain("not as zero");
+    expect(inEnglish(completedEmpty.description)).toContain("nothing logged");
   });
 });
 
 describe("formatting helpers", () => {
   test("amounts, sources and slots", () => {
-    expect(formatAmount(150, "g")).toBe("150 g");
-    expect(formatAmount(1, "serving")).toBe("1 serving");
-    expect(formatAmount(2.5, "serving")).toBe("2.5 servings");
-    expect(foodSourceLabel("off")).toBe("Open Food Facts");
+    expect(formatAmount(150, "g", englishI18n)).toBe("150 g");
+    expect(formatAmount(1, "serving", englishI18n)).toBe("1 serving");
+    expect(formatAmount(2.5, "serving", englishI18n)).toBe("2.5 servings");
+    expect(inEnglish(foodSourceLabel("off"))).toBe("Open Food Facts");
     expect(groupBySlot([{ slot: "lunch" as const }]).map((group) => group.entries.length)).toEqual([
       0, 1, 0, 0, 0,
     ]);
@@ -196,7 +211,7 @@ describe("neutral copy", () => {
         [0, 3].flatMap((count) => Object.values(dayStatusText(status, count))),
       ),
     ];
-    for (const text of strings) expect(text).not.toMatch(BANNED);
+    for (const text of strings) expect(inEnglish(text)).not.toMatch(BANNED);
   });
 });
 

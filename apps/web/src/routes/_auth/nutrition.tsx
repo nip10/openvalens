@@ -11,7 +11,7 @@ import {
   type NutrientKey,
 } from "@openvalens/api/contracts/nutrition-diary";
 import type { NutritionTargetWire } from "@openvalens/api/contracts/nutrition-targets";
-import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
+import { CUSTOM_FOOD_COPY, nutrientFieldLabel } from "@openvalens/api/presenters/custom-foods";
 import { offlineScope } from "@openvalens/api/presenters/offline";
 import {
   BARCODE_COPY,
@@ -29,6 +29,7 @@ import {
   DIARY_COPY,
   NUTRIENT_LABELS,
   SLOT_LABELS,
+  UNIT_LABELS,
   dayStatusText,
   deviceTimeZone,
   foodSourceLabel,
@@ -51,6 +52,9 @@ import {
   resolveHideNumbers,
   formatNutrientSummaryLine,
 } from "@openvalens/api/presenters/nutrition-targets";
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { plural } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -109,9 +113,10 @@ function useAnnouncer() {
   return { announce: setMessage, region };
 }
 
-function networkFailure(retry: () => void, announce: (text: string) => void) {
-  announce(DIARY_COPY.networkError);
-  toast.error(DIARY_COPY.networkError, { action: { label: DIARY_COPY.retry, onClick: retry } });
+function networkFailure(retry: () => void, announce: (text: string) => void, i18n: I18n) {
+  const message = i18n._(DIARY_COPY.networkError);
+  announce(message);
+  toast.error(message, { action: { label: i18n._(DIARY_COPY.retry), onClick: retry } });
 }
 
 function NutritionPage() {
@@ -122,6 +127,7 @@ function NutritionPage() {
   const [localDate, setLocalDate] = useState(() => localDateIn(timeZone));
   const { announce, region } = useAnnouncer();
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
 
   const dayQuery = useQuery(orpc.nutritionDiary.getDay.queryOptions({ input: { localDate } }));
   const foodsQuery = useQuery(orpc.nutritionDiary.listFoods.queryOptions({ input: {} }));
@@ -150,7 +156,7 @@ function NutritionPage() {
 
   const go = (date: string) => {
     setLocalDate(date);
-    announce(`Showing ${date}`);
+    announce(t`Showing ${date}`);
   };
 
   const day = dayQuery.data;
@@ -160,7 +166,8 @@ function NutritionPage() {
   const setStatus = useMutation(
     orpc.nutritionDiary.setDayStatus.mutationOptions({
       onSuccess: (result) => {
-        announce(`${result.localDate}: ${dayStatusText(result.status, entryCount).label}`);
+        const label = i18n._(dayStatusText(result.status, entryCount).label);
+        announce(`${result.localDate}: ${label}`);
         void refresh();
       },
     }),
@@ -168,7 +175,7 @@ function NutritionPage() {
   const toggleStatus = () => {
     const input = { localDate, complete: day?.status !== "complete" };
     setStatus.mutate(input, {
-      onError: () => networkFailure(() => setStatus.mutate(input), announce),
+      onError: () => networkFailure(() => setStatus.mutate(input), announce, i18n),
     });
   };
 
@@ -177,29 +184,32 @@ function NutritionPage() {
       {region}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{DIARY_COPY.title}</h1>
+          <h1 className="text-2xl font-semibold">{i18n._(DIARY_COPY.title)}</h1>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <Link to="/foods" className="underline">
-              {CUSTOM_FOOD_COPY.manageLink}
+              {i18n._(CUSTOM_FOOD_COPY.manageLink)}
             </Link>
             <Link to="/nutrition-targets" className="underline">
-              {TARGET_COPY.settingsLink}
+              {i18n._(TARGET_COPY.settingsLink)}
             </Link>
           </div>
         </div>
-        <nav className="flex w-full flex-wrap items-center gap-2 sm:w-auto" aria-label="Choose day">
+        <nav
+          className="flex w-full flex-wrap items-center gap-2 sm:w-auto"
+          aria-label={t`Choose day`}
+        >
           <Button variant="outline" size="sm" onClick={() => go(shiftLocalDate(localDate, -1))}>
-            Previous day
+            <Trans>Previous day</Trans>
           </Button>
           <Input
             type="date"
-            aria-label="Diary date"
+            aria-label={t`Diary date`}
             className="min-w-0 flex-1 sm:w-40 sm:flex-none"
             value={localDate}
             onChange={(event) => event.target.value && go(event.target.value)}
           />
           <Button variant="outline" size="sm" onClick={() => go(shiftLocalDate(localDate, 1))}>
-            Next day
+            <Trans>Next day</Trans>
           </Button>
         </nav>
       </div>
@@ -208,9 +218,9 @@ function NutritionPage() {
         <Skeleton className="h-48 w-full" />
       ) : dayQuery.isError ? (
         <p className="text-sm text-muted-foreground" role="alert">
-          {DIARY_COPY.networkError}{" "}
+          {i18n._(DIARY_COPY.networkError)}{" "}
           <button className="underline" onClick={() => void dayQuery.refetch()}>
-            {DIARY_COPY.retry}
+            {i18n._(DIARY_COPY.retry)}
           </button>
         </p>
       ) : (
@@ -221,9 +231,9 @@ function NutritionPage() {
                 <CardTitle>{localDate}</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   <Badge variant={day?.status === "complete" ? "secondary" : "outline"}>
-                    {status.label}
+                    {i18n._(status.label)}
                   </Badge>{" "}
-                  {status.description}
+                  {i18n._(status.description)}
                 </p>
               </div>
               <Button
@@ -232,7 +242,9 @@ function NutritionPage() {
                 onClick={toggleStatus}
                 disabled={setStatus.isPending}
               >
-                {day?.status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete}
+                {i18n._(
+                  day?.status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete,
+                )}
               </Button>
             </CardHeader>
             <CardContent>
@@ -270,7 +282,8 @@ function NutritionPage() {
             foods={foodsQuery.data}
             hideNumbers={hideNumbers}
             onSaved={(name, slot) => {
-              announce(`Saved ${name} to ${SLOT_LABELS[slot]} on ${localDate}`);
+              const meal = i18n._(SLOT_LABELS[slot]);
+              announce(t`Saved ${name} to ${meal} on ${localDate}`);
               void refresh();
             }}
             announce={announce}
@@ -279,10 +292,10 @@ function NutritionPage() {
           {groupBySlot(day?.entries ?? []).map((group) => (
             <section key={group.slot} aria-labelledby={`slot-${group.slot}`}>
               <h2 id={`slot-${group.slot}`} className="mb-2 text-lg font-medium">
-                {group.label}
+                {i18n._(group.label)}
               </h2>
               {group.entries.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{DIARY_COPY.emptySlot}</p>
+                <p className="text-sm text-muted-foreground">{i18n._(DIARY_COPY.emptySlot)}</p>
               ) : (
                 <Card className="py-0">
                   <ul className="divide-y divide-border">
@@ -343,11 +356,13 @@ function EntryRow({
   const remove = useMutation(orpc.nutritionDiary.deleteEntry.mutationOptions());
   const restore = useMutation(orpc.nutritionDiary.restoreEntry.mutationOptions());
   const favoriteMutation = useMutation(orpc.nutritionDiary.setFavorite.mutationOptions());
+  const { t, i18n } = useLingui();
+  const foodName = entry.food.name;
 
   const handle = (result: EntryOutcome, done: string) => {
     if (result.outcome === "conflict") {
       setConflict(result.server);
-      announce(DIARY_COPY.conflictTitle);
+      announce(i18n._(DIARY_COPY.conflictTitle));
       return false;
     }
     announce(done);
@@ -366,12 +381,12 @@ function EntryRow({
     };
     update.mutate(input, {
       onSuccess: (result) => {
-        if (handle(result, `Updated ${entry.food.name}`)) {
+        if (handle(result, t`Updated ${foodName}`)) {
           setEditing(false);
           setConflict(null);
         }
       },
-      onError: () => networkFailure(() => update.mutate(input), announce),
+      onError: () => networkFailure(() => update.mutate(input), announce, i18n),
     });
   };
 
@@ -382,8 +397,8 @@ function EntryRow({
       expectedRevision: revision,
     };
     restore.mutate(input, {
-      onSuccess: (result) => handle(result, DIARY_COPY.restored),
-      onError: () => networkFailure(() => restore.mutate(input), announce),
+      onSuccess: (result) => handle(result, i18n._(DIARY_COPY.restored)),
+      onError: () => networkFailure(() => restore.mutate(input), announce, i18n),
     });
   };
 
@@ -396,16 +411,21 @@ function EntryRow({
     remove.mutate(input, {
       onSuccess: (result) => {
         if (result.outcome === "conflict") return void handle(result, "");
-        handle(result, `${DIARY_COPY.deleted} ${entry.food.name}`);
-        toast(`${DIARY_COPY.deleted} ${entry.food.name}`, {
-          action: { label: DIARY_COPY.undo, onClick: () => undo(result.entry.revision) },
+        const removed = t`Entry removed. ${foodName}`;
+        handle(result, removed);
+        toast(removed, {
+          action: { label: i18n._(DIARY_COPY.undo), onClick: () => undo(result.entry.revision) },
         });
       },
-      onError: () => networkFailure(() => remove.mutate(input), announce),
+      onError: () => networkFailure(() => remove.mutate(input), announce, i18n),
     });
   };
 
   const units = unitsFor(entry.food.basis);
+  const mineAmount = formatAmount(Number(amount), unit, i18n);
+  const mineSlot = i18n._(SLOT_LABELS[slot]);
+  const otherAmount = conflict ? formatAmount(conflict.amount, conflict.unit, i18n) : "";
+  const otherSlot = conflict ? i18n._(SLOT_LABELS[conflict.slot]) : "";
   const preview = previewNutrients(
     entry.food.basis,
     entry.food.nutrientsPerBasis,
@@ -419,7 +439,8 @@ function EntryRow({
         <div className="grid">
           <span className="font-medium">{entry.food.name}</span>
           <span className="text-xs text-muted-foreground">
-            {formatAmount(entry.amount, entry.unit)} · {foodSourceLabel(entry.food.source)}
+            {formatAmount(entry.amount, entry.unit, i18n)} ·{" "}
+            {i18n._(foodSourceLabel(entry.food.source))}
             {entry.food.brand ? ` · ${entry.food.brand}` : ""}
           </span>
           {entry.food.source === "off" && entry.food.attribution ? (
@@ -429,8 +450,8 @@ function EntryRow({
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <span className="font-mono text-sm">
             {hideNumbers
-              ? HIDDEN_VALUE
-              : formatNutrientValue("energyKcal", entry.nutrients.energyKcal)}
+              ? i18n._(HIDDEN_VALUE)
+              : formatNutrientValue("energyKcal", entry.nutrients.energyKcal, i18n)}
           </span>
           <Button
             variant="ghost"
@@ -438,7 +459,9 @@ function EntryRow({
             onClick={() => setEditing((value) => !value)}
             aria-expanded={editing}
           >
-            Edit <span className="sr-only">{entry.food.name}</span>
+            <Trans>
+              Edit <span className="sr-only">{foodName}</span>
+            </Trans>
           </Button>
           <Button
             variant="ghost"
@@ -449,36 +472,43 @@ function EntryRow({
                 { snapshotId: entry.food.snapshotId, favorite: !favorite },
                 {
                   onSuccess: () => {
-                    announce(favorite ? "Removed from favourites" : "Added to favourites");
+                    announce(favorite ? t`Removed from favourites` : t`Added to favourites`);
                     onChanged();
                   },
-                  onError: () => announce(DIARY_COPY.networkError),
+                  onError: () => announce(i18n._(DIARY_COPY.networkError)),
                 },
               )
             }
           >
-            {favorite ? "Unfavourite" : "Favourite"}{" "}
-            <span className="sr-only">{entry.food.name}</span>
+            {favorite ? (
+              <Trans>
+                Unfavourite <span className="sr-only">{foodName}</span>
+              </Trans>
+            ) : (
+              <Trans>
+                Favourite <span className="sr-only">{foodName}</span>
+              </Trans>
+            )}
           </Button>
           <Button variant="ghost" size="sm" onClick={del} disabled={remove.isPending}>
-            Delete <span className="sr-only">{entry.food.name}</span>
+            <Trans>
+              Delete <span className="sr-only">{foodName}</span>
+            </Trans>
           </Button>
         </div>
       </div>
       {conflict ? (
         <div className="grid gap-2 rounded-md border p-3 text-sm" role="alert">
-          <p className="font-medium">{DIARY_COPY.conflictTitle}</p>
+          <p className="font-medium">{i18n._(DIARY_COPY.conflictTitle)}</p>
           <p>
-            Other version:{" "}
             {conflict.deleted
-              ? "deleted"
-              : `${formatAmount(conflict.amount, conflict.unit)}, ${SLOT_LABELS[conflict.slot]}`}
-            . Your change: {formatAmount(Number(amount), unit)}, {SLOT_LABELS[slot]}.
+              ? t`Other version: deleted. Your change: ${mineAmount}, ${mineSlot}.`
+              : t`Other version: ${otherAmount}, ${otherSlot}. Your change: ${mineAmount}, ${mineSlot}.`}
           </p>
           <div className="flex flex-wrap gap-2">
             {conflict.deleted ? null : (
               <Button size="sm" onClick={() => save(conflict.revision)}>
-                {DIARY_COPY.keepMine}
+                {i18n._(DIARY_COPY.keepMine)}
               </Button>
             )}
             <Button
@@ -490,14 +520,14 @@ function EntryRow({
                 onChanged();
               }}
             >
-              {DIARY_COPY.keepServer}
+              {i18n._(DIARY_COPY.keepServer)}
             </Button>
           </div>
         </div>
       ) : null}
       {editing ? (
         <div className="grid gap-3 sm:grid-cols-4 sm:items-end">
-          <Field label="Amount">
+          <Field label={t`Amount`}>
             {(id) => (
               <Input
                 id={id}
@@ -507,7 +537,7 @@ function EntryRow({
               />
             )}
           </Field>
-          <Field label="Unit">
+          <Field label={t`Unit`}>
             {(id) => (
               <select
                 id={id}
@@ -517,13 +547,13 @@ function EntryRow({
               >
                 {units.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {i18n._(UNIT_LABELS[option])}
                   </option>
                 ))}
               </select>
             )}
           </Field>
-          <Field label="Meal">
+          <Field label={t`Meal`}>
             {(id) => (
               <select
                 id={id}
@@ -533,14 +563,14 @@ function EntryRow({
               >
                 {MEAL_SLOTS.map((option) => (
                   <option key={option} value={option}>
-                    {SLOT_LABELS[option]}
+                    {i18n._(SLOT_LABELS[option])}
                   </option>
                 ))}
               </select>
             )}
           </Field>
           <Button onClick={() => save()} disabled={preview === null || update.isPending}>
-            {update.isPending ? "Saving…" : "Save"}
+            {update.isPending ? t`Saving…` : t`Save`}
           </Button>
         </div>
       ) : null}
@@ -561,26 +591,30 @@ function TargetsOnDay({
   targets: NutritionTargetWire[];
   hideNumbers: boolean;
 }) {
+  const { i18n } = useLingui();
   if (targets.length === 0) return null;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{TARGET_COPY.yourTargets}</CardTitle>
+        <CardTitle>{i18n._(TARGET_COPY.yourTargets)}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-2">
-        <ul className="grid gap-1 text-sm" aria-label={TARGET_COPY.yourTargets}>
+        <ul className="grid gap-1 text-sm" aria-label={i18n._(TARGET_COPY.yourTargets)}>
           {targets.map((target) => (
             <li key={target.id} className="flex flex-wrap items-baseline justify-between gap-2">
               <span>
-                {NUTRIENT_LABELS[target.nutrient].label}: {formatTarget(target, hideNumbers)}
+                {i18n._(NUTRIENT_LABELS[target.nutrient].label)}:{" "}
+                {formatTarget(target, hideNumbers, i18n)}
               </span>
-              <span className="text-xs text-muted-foreground">{describeTargetSource(target)}</span>
+              <span className="text-xs text-muted-foreground">
+                {i18n._(describeTargetSource(target))}
+              </span>
             </li>
           ))}
         </ul>
-        <p className="text-xs text-muted-foreground">{TARGET_COPY.targetsNote}</p>
+        <p className="text-xs text-muted-foreground">{i18n._(TARGET_COPY.targetsNote)}</p>
         <Link to="/nutrition-targets" className="text-sm underline">
-          {TARGET_COPY.settingsLink}
+          {i18n._(TARGET_COPY.settingsLink)}
         </Link>
       </CardContent>
     </Card>
@@ -615,6 +649,7 @@ function CandidateButton({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { i18n } = useLingui();
   return (
     <li>
       <button
@@ -627,7 +662,9 @@ function CandidateButton({
           {candidate.name}
           {candidate.brand ? ` · ${candidate.brand}` : ""}
         </span>
-        <span className="shrink-0 text-xs text-muted-foreground">{candidate.sourceLabel}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {i18n._(candidate.sourceLabel)}
+        </span>
       </button>
     </li>
   );
@@ -680,6 +717,7 @@ function AddFood({
   const createFood = useMutation(orpc.nutritionDiary.createFood.mutationOptions());
   // Kept across retries of one save so a lost response cannot save the food twice (#81).
   const [saveFoodMutationId, setSaveFoodMutationId] = useState(newClientMutationId);
+  const { t, i18n } = useLingui();
 
   const saved = useMemo(() => {
     const seen = new Set<string>();
@@ -735,7 +773,7 @@ function AddFood({
     setMode("quick");
     setUnit("g");
     setAmount("100");
-    announce(BARCODE_COPY.enterManually);
+    announce(i18n._(BARCODE_COPY.enterManually));
   };
 
   const reset = () => {
@@ -774,7 +812,19 @@ function AddFood({
   const preview =
     basis && perBasis ? previewNutrients(basis, perBasis, Number(amount), unit) : null;
   const allowedUnits = basis ? unitsFor(basis) : [...AMOUNT_UNITS];
-  const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen) : null;
+  const missingNote = mode !== "quick" && chosen ? missingDataNote(chosen, i18n) : null;
+  const slotLabel = i18n._(SLOT_LABELS[slot]);
+  const reviewAmount = formatAmount(Number(amount), unit, i18n);
+  const reviewSource =
+    mode !== "quick" && chosen
+      ? i18n._(chosen.sourceLabel)
+      : draftNote !== null
+        ? t`Entered by you`
+        : t`Quick add`;
+  const reviewName = mode !== "quick" && chosen ? chosen.name : null;
+  const reviewLine = reviewName
+    ? t`Review: ${reviewName}, ${reviewAmount} on ${localDate} · ${reviewSource}`
+    : t`Review: ${reviewAmount} on ${localDate} · ${reviewSource}`;
 
   const submit = async () => {
     if (!preview) return;
@@ -800,7 +850,7 @@ function AddFood({
         }
       } else return;
     } catch {
-      networkFailure(() => void submit(), announce);
+      networkFailure(() => void submit(), announce, i18n);
       return;
     }
     const input = {
@@ -820,24 +870,24 @@ function AddFood({
           onSaved(name, slot);
           reset();
         },
-        onError: () => networkFailure(send, announce),
+        onError: () => networkFailure(send, announce, i18n),
       });
     send();
   };
 
   const modes = [
-    ["choose", "Search and recents"],
-    ["barcode", BARCODE_COPY.mode],
-    ["quick", "Quick add"],
+    ["choose", t`Search and recents`],
+    ["barcode", i18n._(BARCODE_COPY.mode)],
+    ["quick", t`Quick add`],
   ] as const;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{DIARY_COPY.addFood}</CardTitle>
+        <CardTitle>{i18n._(DIARY_COPY.addFood)}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="How to add">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t`How to add`}>
           {modes.map(([value, label]) => (
             <Button
               key={value}
@@ -853,7 +903,7 @@ function AddFood({
 
         {mode === "choose" ? (
           <div className="grid gap-3">
-            <Field label={BARCODE_COPY.searchLabel}>
+            <Field label={i18n._(BARCODE_COPY.searchLabel)}>
               {(id) => (
                 <Input
                   id={id}
@@ -865,18 +915,21 @@ function AddFood({
               )}
             </Field>
             <p id="food-search-hint" className="sr-only">
-              {BARCODE_COPY.searchHint}
+              {i18n._(BARCODE_COPY.searchHint)}
             </p>
-            <section className="grid gap-1" aria-label={BARCODE_COPY.savedFoods}>
-              <h3 className="text-sm font-medium">{BARCODE_COPY.savedFoods}</h3>
+            <section className="grid gap-1" aria-label={i18n._(BARCODE_COPY.savedFoods)}>
+              <h3 className="text-sm font-medium">{i18n._(BARCODE_COPY.savedFoods)}</h3>
               {saved.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   {query.trim()
-                    ? BARCODE_COPY.searchEmpty
-                    : "No saved or recent foods yet. Search, scan a barcode or use quick add."}
+                    ? i18n._(BARCODE_COPY.searchEmpty)
+                    : t`No saved or recent foods yet. Search, scan a barcode or use quick add.`}
                 </p>
               ) : (
-                <ul className="max-h-56 overflow-y-auto rounded-md border" aria-label="Saved foods">
+                <ul
+                  className="max-h-56 overflow-y-auto rounded-md border"
+                  aria-label={t`Saved foods`}
+                >
                   {saved.map((candidate) => (
                     <CandidateButton
                       key={candidate.key}
@@ -888,33 +941,33 @@ function AddFood({
                 </ul>
               )}
             </section>
-            <section className="grid gap-1" aria-label={BARCODE_COPY.searchResults}>
-              <h3 className="text-sm font-medium">{BARCODE_COPY.searchResults}</h3>
+            <section className="grid gap-1" aria-label={i18n._(BARCODE_COPY.searchResults)}>
+              <h3 className="text-sm font-medium">{i18n._(BARCODE_COPY.searchResults)}</h3>
               {!isSearchable(debounced) ? (
-                <p className="text-sm text-muted-foreground">{BARCODE_COPY.searchHint}</p>
+                <p className="text-sm text-muted-foreground">{i18n._(BARCODE_COPY.searchHint)}</p>
               ) : search.isPending ? (
                 <p className="text-sm text-muted-foreground" role="status">
-                  Searching…
+                  <Trans>Searching…</Trans>
                 </p>
               ) : search.isError ? (
                 <p className="text-sm text-muted-foreground" role="alert">
-                  {BARCODE_COPY.searchFailed}{" "}
+                  {i18n._(BARCODE_COPY.searchFailed)}{" "}
                   <button className="underline" onClick={() => void search.refetch()}>
-                    {DIARY_COPY.retry}
+                    {i18n._(DIARY_COPY.retry)}
                   </button>
                 </p>
               ) : found.length === 0 ? (
                 <p className="text-sm text-muted-foreground" role="status">
-                  {BARCODE_COPY.searchEmpty}
+                  {i18n._(BARCODE_COPY.searchEmpty)}
                 </p>
               ) : (
                 <>
                   <p className="sr-only" role="status">
-                    {found.length} {found.length === 1 ? "food" : "foods"} found
+                    {t`${plural(found.length, { one: "# food found", other: "# foods found" })}`}
                   </p>
                   <ul
                     className="max-h-72 overflow-y-auto rounded-md border"
-                    aria-label="Food database results"
+                    aria-label={t`Food database results`}
                   >
                     {found.map((candidate) => (
                       <CandidateButton
@@ -943,10 +996,10 @@ function AddFood({
             {draftNote ? (
               <div className="grid gap-1 rounded-md border p-3 text-sm sm:col-span-3">
                 <p>{draftNote}</p>
-                <p className="text-muted-foreground">{BARCODE_COPY.manualNote}</p>
+                <p className="text-muted-foreground">{i18n._(BARCODE_COPY.manualNote)}</p>
               </div>
             ) : null}
-            <Field label="Food name">
+            <Field label={t`Food name`}>
               {(id) => (
                 <Input
                   id={id}
@@ -955,7 +1008,7 @@ function AddFood({
                 />
               )}
             </Field>
-            <Field label="Values per">
+            <Field label={t`Values per`}>
               {(id) => (
                 <Input
                   id={id}
@@ -965,7 +1018,7 @@ function AddFood({
                 />
               )}
             </Field>
-            <Field label="Per unit">
+            <Field label={t`Per unit`}>
               {(id) => (
                 <select
                   id={id}
@@ -979,17 +1032,14 @@ function AddFood({
                 >
                   {AMOUNT_UNITS.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {i18n._(UNIT_LABELS[option])}
                     </option>
                   ))}
                 </select>
               )}
             </Field>
             {QUICK_ADD_NUTRIENTS.map((key) => (
-              <Field
-                key={key}
-                label={`${NUTRIENT_LABELS[key].label} (${NUTRIENT_LABELS[key].unit}, optional)`}
-              >
+              <Field key={key} label={i18n._(nutrientFieldLabel(key))}>
                 {(id) => (
                   <Input
                     id={id}
@@ -1006,7 +1056,7 @@ function AddFood({
               </Field>
             ))}
             {draftNote !== null ? (
-              <Field label={`${BARCODE_COPY.barcodeOnDraft}, optional`}>
+              <Field label={t`Barcode (kept with this food), optional`}>
                 {(id) => (
                   <Input
                     id={id}
@@ -1024,18 +1074,18 @@ function AddFood({
                 checked={saveAsFood}
                 onChange={(event) => setSaveAsFood(event.target.checked)}
               />
-              Save to my foods for next time
+              <Trans>Save to my foods for next time</Trans>
             </label>
             {!parsedQuick.ok && quick.name ? (
               <p className="text-sm text-muted-foreground sm:col-span-3" role="alert">
-                {parsedQuick.error}
+                {i18n._(parsedQuick.error)}
               </p>
             ) : null}
           </div>
         )}
 
         <div className="grid gap-3 sm:grid-cols-4 sm:items-end">
-          <Field label="Meal">
+          <Field label={t`Meal`}>
             {(id) => (
               <select
                 id={id}
@@ -1045,13 +1095,13 @@ function AddFood({
               >
                 {MEAL_SLOTS.map((option) => (
                   <option key={option} value={option}>
-                    {SLOT_LABELS[option]}
+                    {i18n._(SLOT_LABELS[option])}
                   </option>
                 ))}
               </select>
             )}
           </Field>
-          <Field label="Amount">
+          <Field label={t`Amount`}>
             {(id) => (
               <Input
                 id={id}
@@ -1061,7 +1111,7 @@ function AddFood({
               />
             )}
           </Field>
-          <Field label="Unit">
+          <Field label={t`Unit`}>
             {(id) => (
               <select
                 id={id}
@@ -1071,7 +1121,7 @@ function AddFood({
               >
                 {allowedUnits.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {i18n._(UNIT_LABELS[option])}
                   </option>
                 ))}
               </select>
@@ -1083,7 +1133,7 @@ function AddFood({
               onClick={() => void submit()}
               disabled={!preview || log.isPending || createFood.isPending}
             >
-              {log.isPending ? "Saving…" : `Save to ${SLOT_LABELS[slot]}`}
+              {log.isPending ? t`Saving…` : t`Save to ${slotLabel}`}
             </Button>
             {chosen || draftNote !== null ? (
               <Button
@@ -1091,35 +1141,27 @@ function AddFood({
                 variant="outline"
                 onClick={() => {
                   reset();
-                  announce("Nothing saved");
+                  announce(t`Nothing saved`);
                 }}
               >
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
             ) : null}
           </div>
         </div>
 
         {preview ? (
-          <div className="rounded-md border p-3 text-sm" aria-label="Review before saving">
-            <p className="mb-1 font-medium">
-              Review: {mode !== "quick" && chosen ? `${chosen.name}, ` : ""}
-              {formatAmount(Number(amount), unit)} on {localDate}
-              {mode !== "quick" && chosen
-                ? ` · ${chosen.sourceLabel}`
-                : draftNote !== null
-                  ? " · Entered by you"
-                  : " · Quick add"}
-            </p>
+          <div className="rounded-md border p-3 text-sm" aria-label={t`Review before saving`}>
+            <p className="mb-1 font-medium">{reviewLine}</p>
             <p className="text-muted-foreground">
-              {formatNutrientSummaryLine(preview, hideNumbers)}
+              {formatNutrientSummaryLine(preview, hideNumbers, i18n)}
             </p>
             {missingNote ? <p className="mt-1 text-muted-foreground">{missingNote}</p> : null}
             {mode !== "quick" && chosen?.attribution ? (
               <p className="mt-1 text-xs text-muted-foreground">{chosen.attribution}</p>
             ) : null}
             {mode === "barcode" ? (
-              <p className="mt-1 text-xs text-muted-foreground">{BARCODE_COPY.verify}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{i18n._(BARCODE_COPY.verify)}</p>
             ) : null}
           </div>
         ) : null}
@@ -1147,10 +1189,11 @@ function BarcodeLookupPanel({
   announce: (text: string) => void;
 }) {
   const [digits, setDigits] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessageDescriptor | null>(null);
   const [outcome, setOutcome] = useState<BarcodeOutcome | null>(null);
   const [lastBarcode, setLastBarcode] = useState<string | null>(null);
   const lookup = useMutation(orpc.nutritionFoods.lookupBarcode.mutationOptions());
+  const { t, i18n } = useLingui();
 
   const run = (barcode: string) => {
     setLastBarcode(barcode);
@@ -1161,16 +1204,16 @@ function BarcodeLookupPanel({
         onSuccess: (result) => {
           const next = describeBarcodeLookup(result);
           setOutcome(next);
-          announce(next.message);
+          announce(i18n._(next.message));
         },
         onError: (failure) => {
           if ((failure as { code?: string }).code === "INVALID_INPUT") {
             setError(BARCODE_COPY.invalid);
-            announce(BARCODE_COPY.invalid);
+            announce(i18n._(BARCODE_COPY.invalid));
             return;
           }
           setError(DIARY_COPY.networkError);
-          announce(DIARY_COPY.networkError);
+          announce(i18n._(DIARY_COPY.networkError));
         },
       },
     );
@@ -1182,7 +1225,7 @@ function BarcodeLookupPanel({
     if (!parsed.ok) {
       setError(parsed.error);
       setOutcome(null);
-      announce(parsed.error);
+      announce(i18n._(parsed.error));
       return;
     }
     setError(null);
@@ -1192,7 +1235,7 @@ function BarcodeLookupPanel({
   return (
     <div className="grid gap-3">
       <form className="flex flex-wrap items-end gap-2" onSubmit={submit} noValidate>
-        <Field label={BARCODE_COPY.digitsLabel}>
+        <Field label={i18n._(BARCODE_COPY.digitsLabel)}>
           {(id) => (
             <Input
               id={id}
@@ -1207,29 +1250,29 @@ function BarcodeLookupPanel({
           )}
         </Field>
         <Button type="submit" disabled={lookup.isPending}>
-          {lookup.isPending ? BARCODE_COPY.lookingUp : BARCODE_COPY.lookUp}
+          {i18n._(lookup.isPending ? BARCODE_COPY.lookingUp : BARCODE_COPY.lookUp)}
         </Button>
       </form>
       <p id="barcode-help" className="text-xs text-muted-foreground">
-        {BARCODE_COPY.webNoCamera}
+        {i18n._(BARCODE_COPY.webNoCamera)}
       </p>
 
       {error ? (
         <div className="grid gap-2 text-sm" role="alert">
-          <p>{error}</p>
+          <p>{i18n._(error)}</p>
           {error === DIARY_COPY.networkError ? (
             <div className="flex flex-wrap gap-2">
               {lastBarcode ? (
                 <Button size="sm" variant="outline" onClick={() => run(lastBarcode)}>
-                  {DIARY_COPY.retry}
+                  {i18n._(DIARY_COPY.retry)}
                 </Button>
               ) : null}
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onManualDraft(lastBarcode, DIARY_COPY.networkError)}
+                onClick={() => onManualDraft(lastBarcode, i18n._(DIARY_COPY.networkError))}
               >
-                {BARCODE_COPY.enterManually}
+                {i18n._(BARCODE_COPY.enterManually)}
               </Button>
             </div>
           ) : null}
@@ -1238,8 +1281,8 @@ function BarcodeLookupPanel({
 
       {outcome?.kind === "matches" ? (
         <div className="grid gap-2">
-          <p className="text-sm">{outcome.message}</p>
-          <ul className="rounded-md border" aria-label="Barcode matches">
+          <p className="text-sm">{i18n._(outcome.message)}</p>
+          <ul className="rounded-md border" aria-label={t`Barcode matches`}>
             {outcome.candidates.map((candidate) => (
               <CandidateButton
                 key={candidate.key}
@@ -1254,22 +1297,25 @@ function BarcodeLookupPanel({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onManualDraft(outcome.barcode, BARCODE_COPY.notThisProduct)}
+              onClick={() => onManualDraft(outcome.barcode, i18n._(BARCODE_COPY.notThisProduct))}
             >
-              Not this product? {BARCODE_COPY.enterManually}
+              <Trans>Not this product? Enter food manually</Trans>
             </Button>
           </div>
         </div>
       ) : outcome?.kind === "manual" ? (
         <div className="grid gap-2 text-sm">
-          <p>{outcome.message}</p>
+          <p>{i18n._(outcome.message)}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => onManualDraft(outcome.barcode, outcome.message)}>
-              {BARCODE_COPY.enterManually}
+            <Button
+              size="sm"
+              onClick={() => onManualDraft(outcome.barcode, i18n._(outcome.message))}
+            >
+              {i18n._(BARCODE_COPY.enterManually)}
             </Button>
             {outcome.canRetry && lastBarcode ? (
               <Button size="sm" variant="outline" onClick={() => run(lastBarcode)}>
-                {BARCODE_COPY.retry}
+                {i18n._(BARCODE_COPY.retry)}
               </Button>
             ) : null}
           </div>
@@ -1298,12 +1344,13 @@ function CopyDay({
     enabled: open && fromDate !== localDate,
   });
   const copy = useMutation(orpc.nutritionDiary.copyDay.mutationOptions());
+  const { t, i18n } = useLingui();
 
   if (!open)
     return (
       <div>
         <Button variant="outline" onClick={() => setOpen(true)}>
-          {DIARY_COPY.copyFrom}
+          {i18n._(DIARY_COPY.copyFrom)}
         </Button>
       </div>
     );
@@ -1320,12 +1367,14 @@ function CopyDay({
     const send = () =>
       copy.mutate(input, {
         onSuccess: (result) => {
-          announce(`Copied ${result.created} items to ${localDate}`);
+          announce(
+            t`Copied ${plural(result.created, { one: "# item", other: "# items" })} to ${localDate}`,
+          );
           setOpen(false);
           setSelected(new Set());
           onCopied();
         },
-        onError: () => networkFailure(send, announce),
+        onError: () => networkFailure(send, announce, i18n),
       });
     send();
   };
@@ -1333,10 +1382,10 @@ function CopyDay({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{DIARY_COPY.copyFrom}</CardTitle>
+        <CardTitle>{i18n._(DIARY_COPY.copyFrom)}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <Field label="Copy from">
+        <Field label={t`Copy from`}>
           {(id) => (
             <Input
               id={id}
@@ -1351,12 +1400,16 @@ function CopyDay({
           )}
         </Field>
         {fromDate === localDate ? (
-          <p className="text-sm text-muted-foreground">Choose a different day.</p>
+          <p className="text-sm text-muted-foreground">
+            <Trans>Choose a different day.</Trans>
+          </p>
         ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{DIARY_COPY.empty}</p>
+          <p className="text-sm text-muted-foreground">{i18n._(DIARY_COPY.empty)}</p>
         ) : (
           <fieldset className="grid gap-1">
-            <legend className="text-sm font-medium">Items to copy</legend>
+            <legend className="text-sm font-medium">
+              <Trans>Items to copy</Trans>
+            </legend>
             {entries.map((entry) => (
               <label key={entry.id} className="flex items-center gap-2 text-sm">
                 <input
@@ -1369,18 +1422,18 @@ function CopyDay({
                     setSelected(next);
                   }}
                 />
-                {SLOT_LABELS[entry.slot]}: {entry.food.name},{" "}
-                {formatAmount(entry.amount, entry.unit)}
+                {i18n._(SLOT_LABELS[entry.slot])}: {entry.food.name},{" "}
+                {formatAmount(entry.amount, entry.unit, i18n)}
               </label>
             ))}
           </fieldset>
         )}
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button onClick={submit} disabled={selected.size === 0 || copy.isPending}>
-            Copy {selected.size} {selected.size === 1 ? "item" : "items"} to {localDate}
+            {t`Copy ${plural(selected.size, { one: "# item", other: "# items" })} to ${localDate}`}
           </Button>
           <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
         </div>
       </CardContent>

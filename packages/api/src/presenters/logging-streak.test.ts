@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import { presentLoggingStreak, STREAK_COPY } from "./logging-streak";
+
+function english(streak: Parameters<typeof presentLoggingStreak>[0]) {
+  const view = presentLoggingStreak(streak);
+  return view && { headline: inEnglish(view.headline), lines: view.lines.map(inEnglish) };
+}
 
 const on = {
   state: "on" as const,
@@ -16,13 +23,13 @@ const NEGATIVE = /\b(lost|lose|broke|broken|fail|failed|missed out|risk|shame|be
 
 describe("logging streak presenter", () => {
   test("hidden, off and missing render nothing", () => {
-    expect(presentLoggingStreak({ state: "hidden" })).toBeNull();
-    expect(presentLoggingStreak({ state: "off" })).toBeNull();
+    expect(english({ state: "hidden" })).toBeNull();
+    expect(english({ state: "off" })).toBeNull();
     expect(presentLoggingStreak(undefined)).toBeNull();
   });
 
   test("an active streak leads with the run, then the month", () => {
-    const view = presentLoggingStreak({ ...on, current: 7, daysLoggedThisMonth: 9, milestone: 7 });
+    const view = english({ ...on, current: 7, daysLoggedThisMonth: 9, milestone: 7 });
     expect(view).toEqual({
       headline: "7 days in a row",
       lines: [
@@ -34,7 +41,7 @@ describe("logging streak presenter", () => {
   });
 
   test("after a break the non-resetting month count leads", () => {
-    const view = presentLoggingStreak({
+    const view = english({
       ...on,
       current: 1,
       daysLoggedThisMonth: 12,
@@ -49,13 +56,13 @@ describe("logging streak presenter", () => {
 
   test("copy stays neutral", () => {
     const views = [
-      presentLoggingStreak({ ...on }),
-      presentLoggingStreak({ ...on, current: 1, daysLoggedThisMonth: 1, freezesAvailable: 1 }),
-      presentLoggingStreak({ ...on, current: 3, repairAvailableUntil: "2026-03-09" }),
+      english({ ...on }),
+      english({ ...on, current: 1, daysLoggedThisMonth: 1, freezesAvailable: 1 }),
+      english({ ...on, current: 3, repairAvailableUntil: "2026-03-09" }),
     ];
     const text = [
       ...views.flatMap((view) => [view!.headline, ...view!.lines]),
-      ...Object.values(STREAK_COPY),
+      ...Object.values(STREAK_COPY).map(inEnglish),
     ].join("\n");
     expect(text).not.toMatch(NEGATIVE);
   });

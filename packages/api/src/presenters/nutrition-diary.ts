@@ -7,6 +7,8 @@
  * "over"/"under", no streaks, no missed-day language. Missing nutrient data
  * is shown as unknown, never as zero, and an unmarked day is never a zero day.
  */
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg, plural, select } from "@lingui/core/macro";
 import { summarizeNutrients } from "@openvalens/nutrition/totals";
 
 import {
@@ -25,18 +27,28 @@ import {
 
 export type { NutrientTotal } from "../contracts/nutrition-diary";
 
-export const SLOT_LABELS: Readonly<Record<MealSlot, string>> = Object.freeze({
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  snack: "Snack",
-  other: "Other",
+/**
+ * Text that is never translated (brand and source names), as a descriptor so
+ * it can sit next to translated labels. Not in any catalog, so it always
+ * renders as written.
+ */
+export function untranslated(text: string): MessageDescriptor {
+  return { id: text, message: text };
+}
+
+export const SLOT_LABELS: Readonly<Record<MealSlot, MessageDescriptor>> = Object.freeze({
+  breakfast: msg`Breakfast`,
+  lunch: msg`Lunch`,
+  dinner: msg`Dinner`,
+  snack: msg`Snack`,
+  other: msg`Other`,
 });
 
-export const UNIT_LABELS: Readonly<Record<AmountUnit, string>> = Object.freeze({
-  g: "g",
-  ml: "ml",
-  serving: "serving",
+/** Unit symbols stay as written; "serving" is a word. */
+export const UNIT_LABELS: Readonly<Record<AmountUnit, MessageDescriptor>> = Object.freeze({
+  g: untranslated("g"),
+  ml: untranslated("ml"),
+  serving: msg`serving`,
 });
 
 /** Nutrients the day summary shows, in order. */
@@ -48,21 +60,22 @@ export const SUMMARY_NUTRIENTS: readonly NutrientKey[] = [
   "fiberG",
 ];
 
-export const NUTRIENT_LABELS: Readonly<Record<NutrientKey, { label: string; unit: string }>> =
-  Object.freeze({
-    energyKcal: { label: "Energy", unit: "kcal" },
-    energyKj: { label: "Energy", unit: "kJ" },
-    proteinG: { label: "Protein", unit: "g" },
-    carbohydrateG: { label: "Carbohydrate", unit: "g" },
-    fatG: { label: "Fat", unit: "g" },
-    saturatedFatG: { label: "Saturated fat", unit: "g" },
-    fiberG: { label: "Fibre", unit: "g" },
-    totalSugarsG: { label: "Total sugars", unit: "g" },
-    addedSugarsG: { label: "Added sugars", unit: "g" },
-    freeSugarsG: { label: "Free sugars", unit: "g" },
-    sodiumMg: { label: "Sodium", unit: "mg" },
-    saltG: { label: "Salt", unit: "g" },
-  });
+export const NUTRIENT_LABELS: Readonly<
+  Record<NutrientKey, { label: MessageDescriptor; unit: string }>
+> = Object.freeze({
+  energyKcal: { label: msg`Energy`, unit: "kcal" },
+  energyKj: { label: msg`Energy`, unit: "kJ" },
+  proteinG: { label: msg`Protein`, unit: "g" },
+  carbohydrateG: { label: msg`Carbohydrate`, unit: "g" },
+  fatG: { label: msg`Fat`, unit: "g" },
+  saturatedFatG: { label: msg`Saturated fat`, unit: "g" },
+  fiberG: { label: msg`Fibre`, unit: "g" },
+  totalSugarsG: { label: msg`Total sugars`, unit: "g" },
+  addedSugarsG: { label: msg`Added sugars`, unit: "g" },
+  freeSugarsG: { label: msg`Free sugars`, unit: "g" },
+  sodiumMg: { label: msg`Sodium`, unit: "mg" },
+  saltG: { label: msg`Salt`, unit: "g" },
+});
 
 export type DaySummary = {
   entryCount: number;
@@ -84,9 +97,9 @@ function round(value: number, unit: string): string {
   return value.toLocaleString("en-US", { maximumFractionDigits: digits });
 }
 
-/** `"412 kcal"`, `"Unknown"`, or a value without a unit when `unit` is omitted. */
-export function formatNutrientValue(key: NutrientKey, value: number | null): string {
-  if (value === null) return "Unknown";
+/** `"412 kcal"` or `"Unknown"`. */
+export function formatNutrientValue(key: NutrientKey, value: number | null, i18n: I18n): string {
+  if (value === null) return i18n._(msg`Unknown`);
   const { unit } = NUTRIENT_LABELS[key];
   return `${round(value, unit)} ${unit}`;
 }
@@ -98,24 +111,26 @@ export function formatNutrientValue(key: NutrientKey, value: number | null): str
 export function formatNutrientTotal(
   key: NutrientKey,
   total: Pick<NutrientTotal, "known" | "reported" | "missing">,
+  i18n: I18n,
 ): string {
-  if (total.known === null) return total.missing > 0 ? "Unknown" : "—";
-  const value = formatNutrientValue(key, total.known);
+  if (total.known === null) return total.missing > 0 ? i18n._(msg`Unknown`) : "—";
+  const value = formatNutrientValue(key, total.known, i18n);
   if (total.missing === 0) return value;
-  return `${value} from ${total.reported} of ${total.reported + total.missing} entries`;
+  const reported = total.reported;
+  const count = total.reported + total.missing;
+  return i18n._(
+    msg`${value} from ${reported} of ${plural(count, { one: "# entry", other: "# entries" })}`,
+  );
 }
 
 /** The value part of a total: a number, `"Unknown"` (no entry provided it) or `"—"` (nothing logged). */
 export function formatTotalValue(
   key: NutrientKey,
   total: Pick<NutrientTotal, "known" | "reported" | "missing">,
+  i18n: I18n,
 ): string {
-  if (total.known !== null) return formatNutrientValue(key, total.known);
-  return total.missing > 0 ? "Unknown" : "—";
-}
-
-function entries(count: number): string {
-  return `${count} ${count === 1 ? "entry" : "entries"}`;
+  if (total.known !== null) return formatNutrientValue(key, total.known, i18n);
+  return total.missing > 0 ? i18n._(msg`Unknown`) : "—";
 }
 
 /**
@@ -123,20 +138,37 @@ function entries(count: number): string {
  * `"Not provided by 3 entries"` or `"Nothing logged"`. Always shown, so a
  * total never looks more complete than the data behind it.
  */
-export function formatCoverage(total: Pick<NutrientTotal, "reported" | "missing">): string {
+export function formatCoverage(
+  total: Pick<NutrientTotal, "reported" | "missing">,
+): MessageDescriptor {
   const count = total.reported + total.missing;
-  if (count === 0) return "Nothing logged";
-  if (total.missing === 0) return count === 1 ? "From 1 entry" : `All ${entries(count)}`;
-  if (total.reported === 0) return `Not provided by ${entries(count)}`;
-  return `${total.reported} of ${entries(count)}`;
+  const reported = total.reported;
+  if (count === 0) return msg`Nothing logged`;
+  if (total.missing === 0)
+    return count === 1
+      ? msg`From 1 entry`
+      : msg`All ${plural(count, { one: "# entry", other: "# entries" })}`;
+  if (reported === 0)
+    return msg`Not provided by ${plural(count, { one: "# entry", other: "# entries" })}`;
+  return msg`${reported} of ${plural(count, { one: "# entry", other: "# entries" })}`;
+}
+
+/** The coverage line in lower case, for use after a comma. */
+export function coveragePhrase(
+  total: Pick<NutrientTotal, "reported" | "missing">,
+  i18n: I18n,
+): string {
+  return i18n._(formatCoverage(total)).toLocaleLowerCase(i18n.locale);
 }
 
 /** Accessible one-line reading of a nutrient total and its coverage. */
-export function describeNutrientTotal(key: NutrientKey, total: NutrientTotal): string {
-  const { label } = NUTRIENT_LABELS[key];
-  if (total.coverage === "no_entries") return `${label}: nothing logged`;
-  if (total.known === null) return `${label}: unknown, ${formatCoverage(total).toLowerCase()}`;
-  return `${label}: ${formatNutrientValue(key, total.known)}, ${formatCoverage(total).toLowerCase()}`;
+export function describeNutrientTotal(key: NutrientKey, total: NutrientTotal, i18n: I18n): string {
+  const label = i18n._(NUTRIENT_LABELS[key].label);
+  if (total.coverage === "no_entries") return i18n._(msg`${label}: nothing logged`);
+  const coverage = coveragePhrase(total, i18n);
+  if (total.known === null) return i18n._(msg`${label}: unknown, ${coverage}`);
+  const value = formatNutrientValue(key, total.known, i18n);
+  return i18n._(msg`${label}: ${value}, ${coverage}`);
 }
 
 /**
@@ -160,31 +192,36 @@ export const ALL_NUTRIENTS: readonly NutrientKey[] = [
 ];
 
 /** Where the day's logged foods came from, e.g. `"2 from USDA FoodData Central · 1 from Quick add"`. */
-export function formatSources(sources: NutrientSummary["sources"]): string | null {
+export function formatSources(sources: NutrientSummary["sources"], i18n: I18n): string | null {
   const parts = (["fdc", "off", "custom", "manual"] as const)
     .filter((source) => sources[source] > 0)
-    .map((source) => `${sources[source]} from ${foodSourceLabel(source)}`);
+    .map((source) => {
+      const count = sources[source];
+      const label = i18n._(foodSourceLabel(source));
+      return i18n._(msg`${count} from ${label}`);
+    });
   return parts.length ? parts.join(" · ") : null;
 }
 
 /** Amount with unit, e.g. `"150 g"`, `"2 servings"`. */
-export function formatAmount(amount: number, unit: AmountUnit): string {
+export function formatAmount(amount: number, unit: AmountUnit, i18n: I18n): string {
   const value = amount.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  if (unit === "serving") return `${value} ${amount === 1 ? "serving" : "servings"}`;
+  if (unit === "serving")
+    return i18n._(msg`${plural(amount, { one: `${value} serving`, other: `${value} servings` })}`);
   return `${value} ${unit}`;
 }
 
 /** Source label shown with every entry so provenance stays visible. */
-export function foodSourceLabel(source: DiaryEntry["food"]["source"]): string {
+export function foodSourceLabel(source: DiaryEntry["food"]["source"]): MessageDescriptor {
   switch (source) {
     case "fdc":
-      return "USDA FoodData Central";
+      return untranslated("USDA FoodData Central");
     case "off":
-      return "Open Food Facts";
+      return untranslated("Open Food Facts");
     case "custom":
-      return "My food";
+      return msg`My food`;
     case "manual":
-      return "Quick add";
+      return msg`Quick add`;
   }
 }
 
@@ -192,59 +229,60 @@ export function foodSourceLabel(source: DiaryEntry["food"]["source"]): string {
 export function dayStatusText(
   status: DayStatus,
   entryCount: number,
-): { label: string; description: string } {
+): { label: MessageDescriptor; description: MessageDescriptor } {
   if (status === "complete")
     return {
-      label: "Marked complete",
+      label: msg`Marked complete`,
       description:
         entryCount === 0
-          ? "You marked this day complete with nothing logged."
-          : "You marked this day complete.",
+          ? msg`You marked this day complete with nothing logged.`
+          : msg`You marked this day complete.`,
     };
   return {
-    label: "Not marked complete",
+    label: msg`Not marked complete`,
     description:
       entryCount === 0
-        ? "Nothing logged. Days without a marker are treated as unknown, not as zero."
-        : "This day may be partial. Totals cover logged entries only.",
+        ? msg`Nothing logged. Days without a marker are treated as unknown, not as zero.`
+        : msg`This day may be partial. Totals cover logged entries only.`,
   };
 }
 
 export const DIARY_COPY = Object.freeze({
-  title: "Meal diary",
-  empty: "Nothing logged for this day.",
-  emptySlot: "Nothing logged",
-  addFood: "Add food",
-  markComplete: "Mark day complete",
-  clearComplete: "Clear marker",
-  copyFrom: "Copy from another day",
-  deleted: "Entry removed.",
-  undo: "Undo",
-  restored: "Entry restored.",
-  networkError: "Could not reach the server. Your saved entries are unchanged.",
-  retry: "Retry",
-  unknownNote: "Unknown means the food's source did not provide that value.",
-  totalsTitle: "Day totals",
-  totalsNote:
-    "Totals are estimates from the foods you logged. They add up only the values each food's source provided.",
-  allNutrients: "All nutrients",
-  sourcesLabel: "Sources",
-  pendingTotals: "Includes changes waiting to sync. Totals are confirmed after sync.",
-  conflictTitle: "This entry changed on another device",
-  keepMine: "Keep my change",
-  keepServer: "Keep the other version",
-  clearCache: "Clear diary data on this device",
+  title: msg`Meal diary`,
+  empty: msg`Nothing logged for this day.`,
+  emptySlot: msg`Nothing logged`,
+  addFood: msg`Add food`,
+  markComplete: msg`Mark day complete`,
+  clearComplete: msg`Clear marker`,
+  copyFrom: msg`Copy from another day`,
+  deleted: msg`Entry removed.`,
+  undo: msg`Undo`,
+  restored: msg`Entry restored.`,
+  networkError: msg`Could not reach the server. Your saved entries are unchanged.`,
+  retry: msg`Retry`,
+  unknownNote: msg`Unknown means the food's source did not provide that value.`,
+  totalsTitle: msg`Day totals`,
+  totalsNote: msg`Totals are estimates from the foods you logged. They add up only the values each food's source provided.`,
+  allNutrients: msg`All nutrients`,
+  sourcesLabel: msg`Sources`,
+  pendingTotals: msg`Includes changes waiting to sync. Totals are confirmed after sync.`,
+  conflictTitle: msg`This entry changed on another device`,
+  keepMine: msg`Keep my change`,
+  keepServer: msg`Keep the other version`,
+  clearCache: msg`Clear diary data on this device`,
 });
 
 /** Local outbox states shown next to unsynced changes (mobile). */
 export type DiarySyncState = "queued" | "syncing" | "synced" | "needs_attention";
 
-export const SYNC_STATE_LABELS: Readonly<Record<DiarySyncState, string>> = Object.freeze({
-  queued: "Queued",
-  syncing: "Syncing",
-  synced: "Synced",
-  needs_attention: "Needs attention",
-});
+export const SYNC_STATE_LABELS: Readonly<Record<DiarySyncState, MessageDescriptor>> = Object.freeze(
+  {
+    queued: msg`Queued`,
+    syncing: msg`Syncing`,
+    synced: msg`Synced`,
+    needs_attention: msg`Needs attention`,
+  },
+);
 
 /** Calendar date (`YYYY-MM-DD`) of `now` in `timeZone`; falls back to UTC. */
 export function localDateIn(timeZone: string | undefined, now: Date = new Date()): string {
@@ -281,7 +319,7 @@ export function deviceTimeZone(): string {
 /** Groups entries by slot in slot order (every slot present, possibly empty). */
 export function groupBySlot<T extends { slot: MealSlot }>(
   entries: readonly T[],
-): { slot: MealSlot; label: string; entries: T[] }[] {
+): { slot: MealSlot; label: MessageDescriptor; entries: T[] }[] {
   return (Object.keys(SLOT_LABELS) as MealSlot[]).map((slot) => ({
     slot,
     label: SLOT_LABELS[slot],
@@ -356,27 +394,23 @@ export type QuickAddFields = {
  */
 export function parseQuickAdd(
   fields: QuickAddFields,
-): { ok: true; food: ManualFoodInput } | { ok: false; error: string } {
+): { ok: true; food: ManualFoodInput } | { ok: false; error: MessageDescriptor } {
   const name = fields.name.trim();
-  if (!name) return { ok: false, error: "Enter a food name." };
+  if (!name) return { ok: false, error: msg`Enter a food name.` };
   const basisAmount = Number(fields.basisAmount);
   if (!fields.basisAmount.trim() || !Number.isFinite(basisAmount) || basisAmount <= 0)
-    return { ok: false, error: "Values are per a positive amount, for example 100 g." };
+    return { ok: false, error: msg`Values are per a positive amount, for example 100 g.` };
   const nutrients: Partial<NutrientValues> = {};
   for (const key of NUTRIENT_KEYS) {
     const raw = fields.nutrients[key]?.trim();
     if (!raw) continue;
     const value = Number(raw);
-    if (!Number.isFinite(value) || value < 0)
-      return {
-        ok: false,
-        error: `${NUTRIENT_LABELS[key].label} must be 0 or more, or left blank.`,
-      };
+    if (!Number.isFinite(value) || value < 0) return { ok: false, error: nutrientValueError(key) };
     nutrients[key] = value;
   }
   const rawBarcode = fields.barcode?.replace(/[\s-]/g, "") ?? "";
   if (rawBarcode && !/^\d{8,14}$/.test(rawBarcode))
-    return { ok: false, error: "Barcode must be 8 to 14 digits, or left blank." };
+    return { ok: false, error: msg`Barcode must be 8 to 14 digits, or left blank.` };
   return {
     ok: true,
     food: {
@@ -387,4 +421,23 @@ export function parseQuickAdd(
       ...(rawBarcode ? { barcode: rawBarcode } : {}),
     },
   };
+}
+
+/** `"Protein must be 0 or more, or left blank."` as one sentence per nutrient. */
+function nutrientValueError(key: NutrientKey): MessageDescriptor {
+  return msg`${select(key, {
+    energyKcal: "Energy",
+    energyKj: "Energy",
+    proteinG: "Protein",
+    carbohydrateG: "Carbohydrate",
+    fatG: "Fat",
+    saturatedFatG: "Saturated fat",
+    fiberG: "Fibre",
+    totalSugarsG: "Total sugars",
+    addedSugarsG: "Added sugars",
+    freeSugarsG: "Free sugars",
+    sodiumMg: "Sodium",
+    saltG: "Salt",
+    other: "A value",
+  })} must be 0 or more, or left blank.`;
 }

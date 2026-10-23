@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import {
   findBannedCopy,
   NUTRITION_DECLARATIONS,
@@ -108,23 +109,31 @@ describe("targets", () => {
     expect(resolveHideNumbers(false, true)).toBe(false);
   });
   test("formats single values, ranges and one-sided bounds", () => {
-    expect(formatTarget(target(), false)).toBe("2,000 kcal");
-    expect(formatTarget(target({ minAmount: 1800, maxAmount: 2200 }), false)).toBe(
+    expect(formatTarget(target(), false, englishI18n)).toBe("2,000 kcal");
+    expect(formatTarget(target({ minAmount: 1800, maxAmount: 2200 }), false, englishI18n)).toBe(
       "1,800–2,200 kcal",
     );
     expect(
-      formatTarget(target({ nutrient: "proteinG", maxAmount: null, minAmount: 55 }), false),
+      formatTarget(
+        target({ nutrient: "proteinG", maxAmount: null, minAmount: 55 }),
+        false,
+        englishI18n,
+      ),
     ).toBe("At least 55 g");
     expect(
-      formatTarget(target({ nutrient: "sodiumMg", minAmount: null, maxAmount: 2300 }), false),
+      formatTarget(
+        target({ nutrient: "sodiumMg", minAmount: null, maxAmount: 2300 }),
+        false,
+        englishI18n,
+      ),
     ).toBe("Up to 2,300 mg");
   });
 
   test("states where a target came from and when it applies", () => {
-    expect(describeTargetSource(target())).toBe("Entered by you · from 2026-10-01");
-    expect(describeTargetSource(target({ source: "proposal", effectiveTo: "2026-10-08" }))).toBe(
-      "Accepted suggestion · from 2026-10-01 until 2026-10-08",
-    );
+    expect(inEnglish(describeTargetSource(target()))).toBe("Entered by you · from 2026-10-01");
+    expect(
+      inEnglish(describeTargetSource(target({ source: "proposal", effectiveTo: "2026-10-08" }))),
+    ).toBe("Accepted suggestion · from 2026-10-01 until 2026-10-08");
   });
 });
 
@@ -132,16 +141,20 @@ describe("hide-numbers mode", () => {
   const total = { known: 1840, reported: 3, missing: 1, coverage: "partial" as const };
 
   test("hides every target, total and reference number, keeps coverage", () => {
-    expect(formatTarget(target(), true)).toBe(HIDDEN_VALUE);
-    expect(describeTarget(target(), true)).not.toContain("2,000");
-    expect(displayTotalValue("energyKcal", total, true)).toBe(HIDDEN_VALUE);
-    expect(displayTotalValue("energyKcal", total, false)).toBe("1,840 kcal");
-    const described = describeDisplayedTotal("energyKcal", total, true);
+    expect(formatTarget(target(), true, englishI18n)).toBe(inEnglish(HIDDEN_VALUE));
+    expect(describeTarget(target(), true, englishI18n)).not.toContain("2,000");
+    expect(displayTotalValue("energyKcal", total, true, englishI18n)).toBe(inEnglish(HIDDEN_VALUE));
+    expect(displayTotalValue("energyKcal", total, false, englishI18n)).toBe("1,840 kcal");
+    const described = describeDisplayedTotal("energyKcal", total, true, englishI18n);
     expect(described).toBe("Energy: value hidden, 3 of 4 entries");
     expect(described).not.toContain("1,840");
     expect(
-      formatProteinReference({ minG: 55, maxG: 55, minGPerKg: 0.8, maxGPerKg: 0.8 }, true),
-    ).toBe(HIDDEN_VALUE);
+      formatProteinReference(
+        { minG: 55, maxG: 55, minGPerKg: 0.8, maxGPerKg: 0.8 },
+        true,
+        englishI18n,
+      ),
+    ).toBe(inEnglish(HIDDEN_VALUE));
   });
 
   test("a day with nothing logged is never read as zero or as off-target", () => {
@@ -150,6 +163,7 @@ describe("hide-numbers mode", () => {
         "energyKcal",
         { known: null, reported: 0, missing: 0, coverage: "no_entries" },
         false,
+        englishI18n,
       ),
     ).toBe("Energy: nothing logged");
   });
@@ -219,12 +233,15 @@ describe("forms", () => {
 describe("neutral copy", () => {
   test("no user-facing target string uses a banned word, a verdict or a body value", () => {
     const strings = [
-      ...Object.values(TARGET_COPY),
-      ...Object.values(TARGET_SOURCE_LABELS),
+      ...Object.values(TARGET_COPY).map(inEnglish),
+      ...Object.values(TARGET_SOURCE_LABELS).map(inEnglish),
       ...Object.values(NUTRITION_SAFETY_COPY),
-      ...Object.values(DIRECTION_LABELS).flatMap((d) => [d.label, d.description]),
-      describeTarget(target(), false),
-      describeTarget(target(), true),
+      ...Object.values(DIRECTION_LABELS).flatMap((d) => [
+        inEnglish(d.label),
+        inEnglish(d.description),
+      ]),
+      describeTarget(target(), false, englishI18n),
+      describeTarget(target(), true, englishI18n),
     ];
     for (const text of strings) {
       expect(findBannedCopy(text)).toEqual([]);

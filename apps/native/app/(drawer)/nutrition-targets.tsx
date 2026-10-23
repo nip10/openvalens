@@ -32,6 +32,7 @@ import {
   MICRONUTRIENT_COPY,
   MICRONUTRIENT_POPULATIONS,
 } from "@openvalens/api/presenters/micronutrients";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
@@ -83,6 +84,7 @@ export default function NutritionTargetsScreen() {
   const localDate = useMemo(() => localDateIn(deviceTimeZone()), []);
   const scope = useOfflineScope();
   const queryClient = useQueryClient();
+  const { i18n } = useLingui();
   const overviewOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
   const overview = useQuery({
     ...overviewOptions,
@@ -115,7 +117,7 @@ export default function NutritionTargetsScreen() {
         <Link href="/nutrition" asChild>
           <Pressable accessibilityRole="link" className="min-h-11 justify-center">
             <Text className="text-sm text-foreground underline">
-              Back to {DIARY_COPY.title.toLowerCase()}
+              <Trans>Back to meal diary</Trans>
             </Text>
           </Pressable>
         </Link>
@@ -125,7 +127,7 @@ export default function NutritionTargetsScreen() {
         ) : overview.isError || !data ? (
           <Pressable onPress={() => void overview.refetch()} accessibilityRole="button">
             <Text className="text-sm text-muted-foreground">
-              {TARGET_COPY.networkError} {DIARY_COPY.retry}
+              {i18n._(TARGET_COPY.networkError)} {i18n._(DIARY_COPY.retry)}
             </Text>
           </Pressable>
         ) : (
@@ -133,7 +135,7 @@ export default function NutritionTargetsScreen() {
             {data.support ? (
               <Card variant="secondary" className="gap-2 p-4">
                 <Text className="text-sm text-foreground" accessibilityRole="header">
-                  {TARGET_COPY.helplinesTitle}
+                  {i18n._(TARGET_COPY.helplinesTitle)}
                 </Text>
                 <Text className="text-sm text-foreground">{data.support.text}</Text>
                 {data.support.helplines.map((line) => (
@@ -180,15 +182,15 @@ export default function NutritionTargetsScreen() {
 
             <Card variant="secondary" className="gap-2 p-4">
               <Text className="font-medium text-foreground" accessibilityRole="header">
-                {TARGET_COPY.proteinReferenceTitle}
+                {i18n._(TARGET_COPY.proteinReferenceTitle)}
               </Text>
               <Text className="font-mono text-sm text-foreground">
                 {data.proteinReference
-                  ? formatProteinReference(data.proteinReference, hideNumbers)
-                  : TARGET_COPY.proteinReferenceUnavailable}
+                  ? formatProteinReference(data.proteinReference, hideNumbers, i18n)
+                  : i18n._(TARGET_COPY.proteinReferenceUnavailable)}
               </Text>
               <Text className="text-xs text-muted-foreground">
-                {TARGET_COPY.proteinReferenceNote}
+                {i18n._(TARGET_COPY.proteinReferenceNote)}
               </Text>
               <Text className="text-xs text-muted-foreground">{data.safety.policyVersion}</Text>
             </Card>
@@ -220,26 +222,27 @@ function TargetsCard({
   const [error, setError] = useState<string | null>(null);
   const setTarget = useMutation(orpc.nutritionTargets.setTarget.mutationOptions());
   const clearTarget = useMutation(orpc.nutritionTargets.clearTarget.mutationOptions());
+  const { t, i18n } = useLingui();
   const activeForSelected = targets.find((target) => target.nutrient === nutrient);
 
   const save = () => {
     const parsed = parseTargetForm(nutrient, { min, max, effectiveFrom });
     if (!parsed.ok) {
-      setError(parsed.error);
-      announce(parsed.error);
+      setError(i18n._(parsed.error));
+      announce(i18n._(parsed.error));
       return;
     }
     setError(null);
     setTarget.mutate(parsed.input, {
       onSuccess: () => {
-        announce(TARGET_COPY.saved);
+        announce(i18n._(TARGET_COPY.saved));
         setMin("");
         setMax("");
         onChanged();
       },
       onError: () => {
-        setError(TARGET_COPY.networkError);
-        announce(TARGET_COPY.networkError);
+        setError(i18n._(TARGET_COPY.networkError));
+        announce(i18n._(TARGET_COPY.networkError));
       },
     });
   };
@@ -249,10 +252,10 @@ function TargetsCard({
       { nutrient: target.nutrient, effectiveTo: localDateIn(deviceTimeZone()) },
       {
         onSuccess: () => {
-          announce(TARGET_COPY.cleared);
+          announce(i18n._(TARGET_COPY.cleared));
           onChanged();
         },
-        onError: () => announce(TARGET_COPY.networkError),
+        onError: () => announce(i18n._(TARGET_COPY.networkError)),
       },
     );
   };
@@ -260,36 +263,39 @@ function TargetsCard({
   return (
     <Card variant="secondary" className="gap-3 p-4">
       <Text className="font-medium text-foreground" accessibilityRole="header">
-        {TARGET_COPY.yourTargets}
+        {i18n._(TARGET_COPY.yourTargets)}
       </Text>
-      <Text className="text-sm text-muted-foreground">{TARGET_COPY.targetsNote}</Text>
+      <Text className="text-sm text-muted-foreground">{i18n._(TARGET_COPY.targetsNote)}</Text>
 
       {targets.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{TARGET_COPY.noTargets}</Text>
+        <Text className="text-sm text-muted-foreground">{i18n._(TARGET_COPY.noTargets)}</Text>
       ) : (
         targets.map((target) => (
           <View key={target.id} className="gap-1">
             <Text className="text-sm font-medium text-foreground">
-              {NUTRIENT_LABELS[target.nutrient].label}: {formatTarget(target, hideNumbers)}
+              {i18n._(NUTRIENT_LABELS[target.nutrient].label)}:{" "}
+              {formatTarget(target, hideNumbers, i18n)}
             </Text>
-            <Text className="text-xs text-muted-foreground">{describeTargetSource(target)}</Text>
+            <Text className="text-xs text-muted-foreground">
+              {i18n._(describeTargetSource(target))}
+            </Text>
             <Button
               size="sm"
               variant="secondary"
               onPress={() => clear(target)}
-              accessibilityLabel={`${TARGET_COPY.clearTarget} ${NUTRIENT_LABELS[target.nutrient].label}`}
+              accessibilityLabel={t`Clear target ${i18n._(NUTRIENT_LABELS[target.nutrient].label)}`}
             >
-              {TARGET_COPY.clearTarget}
+              {i18n._(TARGET_COPY.clearTarget)}
             </Button>
           </View>
         ))
       )}
 
-      <View className="flex-row flex-wrap gap-2" accessibilityLabel="Nutrient">
+      <View className="flex-row flex-wrap gap-2" accessibilityLabel={t`Nutrient`}>
         {choices.map((key) => (
           <Chip
             key={key}
-            label={NUTRIENT_LABELS[key].label}
+            label={i18n._(NUTRIENT_LABELS[key].label)}
             selected={nutrient === key}
             onPress={() => setNutrient(key)}
           />
@@ -301,12 +307,14 @@ function TargetsCard({
         keyboardType="decimal-pad"
         placeholder={
           hideNumbers
-            ? TARGET_COPY.minimum
+            ? i18n._(TARGET_COPY.minimum)
             : activeForSelected && activeForSelected.minAmount !== null
-              ? `${TARGET_COPY.minimum} (${activeForSelected.minAmount})`
-              : TARGET_COPY.minimum
+              ? `${i18n._(TARGET_COPY.minimum)} (${activeForSelected.minAmount})`
+              : i18n._(TARGET_COPY.minimum)
         }
-        accessibilityLabel={`${TARGET_COPY.minimum}${hideNumbers ? ", hidden" : ""}`}
+        accessibilityLabel={
+          hideNumbers ? t`Minimum (optional), hidden` : i18n._(TARGET_COPY.minimum)
+        }
         className={inputClass}
         placeholderTextColor="#9ca3af"
       />
@@ -316,12 +324,14 @@ function TargetsCard({
         keyboardType="decimal-pad"
         placeholder={
           hideNumbers
-            ? TARGET_COPY.maximum
+            ? i18n._(TARGET_COPY.maximum)
             : activeForSelected && activeForSelected.maxAmount !== null
-              ? `${TARGET_COPY.maximum} (${activeForSelected.maxAmount})`
-              : TARGET_COPY.maximum
+              ? `${i18n._(TARGET_COPY.maximum)} (${activeForSelected.maxAmount})`
+              : i18n._(TARGET_COPY.maximum)
         }
-        accessibilityLabel={`${TARGET_COPY.maximum}${hideNumbers ? ", hidden" : ""}`}
+        accessibilityLabel={
+          hideNumbers ? t`Maximum (optional), hidden` : i18n._(TARGET_COPY.maximum)
+        }
         className={inputClass}
         placeholderTextColor="#9ca3af"
       />
@@ -330,7 +340,7 @@ function TargetsCard({
         onChangeText={setEffectiveFrom}
         autoCapitalize="none"
         placeholder="YYYY-MM-DD"
-        accessibilityLabel={TARGET_COPY.effectiveFrom}
+        accessibilityLabel={i18n._(TARGET_COPY.effectiveFrom)}
         className={inputClass}
         placeholderTextColor="#9ca3af"
       />
@@ -340,7 +350,7 @@ function TargetsCard({
         </Text>
       ) : null}
       <Button onPress={save} isDisabled={setTarget.isPending}>
-        {setTarget.isPending ? TARGET_COPY.saving : TARGET_COPY.setTarget}
+        {i18n._(setTarget.isPending ? TARGET_COPY.saving : TARGET_COPY.setTarget)}
       </Button>
     </Card>
   );
@@ -379,6 +389,7 @@ function SettingsCard({
   const [message, setMessage] = useState("");
   const [needsConfirm, setNeedsConfirm] = useState(false);
   const update = useMutation(orpc.nutritionTargets.updateSettings.mutationOptions());
+  const { t, i18n } = useLingui();
 
   useEffect(() => {
     setHideNumbers(settings.hideNumbers);
@@ -396,6 +407,15 @@ function SettingsCard({
   }, [settings]);
 
   const choices = declarationChoices(declarations);
+  const proposalText = (
+    source: keyof typeof MICRONUTRIENT_COPY.sources,
+    populationId: keyof typeof MICRONUTRIENT_POPULATIONS | null,
+  ) => {
+    const sourceName = i18n._(MICRONUTRIENT_COPY.sources[source]);
+    if (!populationId) return t`Suggested from your profile: ${sourceName}. Use this`;
+    const group = MICRONUTRIENT_POPULATIONS[populationId].label;
+    return t`Suggested from your profile: ${sourceName}, ${group}. Use this`;
+  };
   const toggleDeclaration = (key: Declaration) => {
     setDeclarations((current) =>
       current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
@@ -406,8 +426,8 @@ function SettingsCard({
   const save = (confirmClearEatingDisorder = false) => {
     const parsedHeight = parseHeight(height);
     if (!parsedHeight.ok) {
-      setMessage(parsedHeight.error);
-      announce(parsedHeight.error);
+      setMessage(i18n._(parsedHeight.error));
+      announce(i18n._(parsedHeight.error));
       return;
     }
     const change = declarationsChange(settings.declarations, declarations);
@@ -431,7 +451,7 @@ function SettingsCard({
     update.mutate(input, {
       onSuccess: (result) => {
         if (result.outcome === "conflict") {
-          setMessage(TARGET_COPY.conflict);
+          setMessage(i18n._(TARGET_COPY.conflict));
           onChanged();
           return;
         }
@@ -440,14 +460,14 @@ function SettingsCard({
           setNeedsConfirm(true);
           return;
         }
-        setMessage(TARGET_COPY.settingsSaved);
+        setMessage(i18n._(TARGET_COPY.settingsSaved));
         setNeedsConfirm(false);
-        announce(TARGET_COPY.settingsSaved);
+        announce(i18n._(TARGET_COPY.settingsSaved));
         onChanged();
       },
       onError: () => {
-        setMessage(TARGET_COPY.networkError);
-        announce(TARGET_COPY.networkError);
+        setMessage(i18n._(TARGET_COPY.networkError));
+        announce(i18n._(TARGET_COPY.networkError));
       },
     });
   };
@@ -455,14 +475,16 @@ function SettingsCard({
   return (
     <Card variant="secondary" className="gap-3 p-4">
       <Text className="font-medium text-foreground" accessibilityRole="header">
-        {TARGET_COPY.settingsLink}
+        {i18n._(TARGET_COPY.settingsLink)}
       </Text>
 
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 gap-0.5">
-          <Text className="text-sm font-medium text-foreground">{TARGET_COPY.hideNumbers}</Text>
+          <Text className="text-sm font-medium text-foreground">
+            {i18n._(TARGET_COPY.hideNumbers)}
+          </Text>
           <Text className="text-xs text-muted-foreground">
-            {TARGET_COPY.hideNumbersDescription}
+            {i18n._(TARGET_COPY.hideNumbersDescription)}
           </Text>
         </View>
         <Switch
@@ -471,61 +493,69 @@ function SettingsCard({
             setHideNumbers(value);
             onHideNumbersChange(value);
           }}
-          accessibilityLabel={TARGET_COPY.hideNumbers}
+          accessibilityLabel={i18n._(TARGET_COPY.hideNumbers)}
         />
       </View>
 
       <View className="gap-1">
         <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-          {TARGET_COPY.directionTitle}
+          {i18n._(TARGET_COPY.directionTitle)}
         </Text>
-        <Text className="text-xs text-muted-foreground">{TARGET_COPY.directionDescription}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {i18n._(TARGET_COPY.directionDescription)}
+        </Text>
         <View className="flex-row flex-wrap gap-2">
           {(Object.keys(DIRECTION_LABELS) as EnergyDirection[]).map((key) => (
             <Chip
               key={key}
-              label={DIRECTION_LABELS[key].label}
+              label={i18n._(DIRECTION_LABELS[key].label)}
               selected={direction === key}
               onPress={() => setDirection(key)}
             />
           ))}
         </View>
         <Text className="text-xs text-muted-foreground">
-          {DIRECTION_LABELS[direction].description}
+          {i18n._(DIRECTION_LABELS[direction].description)}
         </Text>
       </View>
 
       <View className="gap-1">
-        <Text className="text-sm font-medium text-foreground">{TARGET_COPY.heightLabel}</Text>
+        <Text className="text-sm font-medium text-foreground">
+          {i18n._(TARGET_COPY.heightLabel)}
+        </Text>
         <TextInput
           value={height}
           onChangeText={setHeight}
           keyboardType="decimal-pad"
-          accessibilityLabel={TARGET_COPY.heightLabel}
+          accessibilityLabel={i18n._(TARGET_COPY.heightLabel)}
           className={inputClass}
         />
-        <Text className="text-xs text-muted-foreground">{TARGET_COPY.heightDescription}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {i18n._(TARGET_COPY.heightDescription)}
+        </Text>
       </View>
 
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="flex-1 text-sm text-foreground">{TARGET_COPY.activeProtein}</Text>
+        <Text className="flex-1 text-sm text-foreground">{i18n._(TARGET_COPY.activeProtein)}</Text>
         <Switch
           value={activeProtein}
           onValueChange={setActiveProtein}
-          accessibilityLabel={TARGET_COPY.activeProtein}
+          accessibilityLabel={i18n._(TARGET_COPY.activeProtein)}
         />
       </View>
 
       <View className="gap-1">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">{STREAK_COPY.settingLabel}</Text>
+          <Text className="flex-1 text-sm text-foreground">{i18n._(STREAK_COPY.settingLabel)}</Text>
           <Switch
             value={streaksEnabled}
             onValueChange={setStreaksEnabled}
-            accessibilityLabel={STREAK_COPY.settingLabel}
+            accessibilityLabel={i18n._(STREAK_COPY.settingLabel)}
           />
         </View>
-        <Text className="text-xs text-muted-foreground">{STREAK_COPY.settingDescription}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {i18n._(STREAK_COPY.settingDescription)}
+        </Text>
       </View>
 
       <View className="gap-1">
@@ -544,46 +574,58 @@ function SettingsCard({
 
       <View className="gap-1">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">{FOOD_DRAFT_COPY.settingLabel}</Text>
+          <Text className="flex-1 text-sm text-foreground">
+            {i18n._(FOOD_DRAFT_COPY.settingLabel)}
+          </Text>
           <Switch
             value={voiceDraftsEnabled}
             onValueChange={setVoiceDraftsEnabled}
-            accessibilityLabel={FOOD_DRAFT_COPY.settingLabel}
+            accessibilityLabel={i18n._(FOOD_DRAFT_COPY.settingLabel)}
           />
         </View>
-        <Text className="text-xs text-muted-foreground">{FOOD_DRAFT_COPY.settingDescription}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {i18n._(FOOD_DRAFT_COPY.settingDescription)}
+        </Text>
       </View>
 
       <View className="gap-1">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">{PHOTO_DRAFT_COPY.settingLabel}</Text>
+          <Text className="flex-1 text-sm text-foreground">
+            {i18n._(PHOTO_DRAFT_COPY.settingLabel)}
+          </Text>
           <Switch
             value={photoDraftsEnabled}
             onValueChange={setPhotoDraftsEnabled}
-            accessibilityLabel={PHOTO_DRAFT_COPY.settingLabel}
+            accessibilityLabel={i18n._(PHOTO_DRAFT_COPY.settingLabel)}
           />
         </View>
-        <Text className="text-xs text-muted-foreground">{PHOTO_DRAFT_COPY.settingDescription}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {i18n._(PHOTO_DRAFT_COPY.settingDescription)}
+        </Text>
       </View>
 
       <View className="gap-2">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">{MICRONUTRIENT_COPY.settingLabel}</Text>
+          <Text className="flex-1 text-sm text-foreground">
+            {i18n._(MICRONUTRIENT_COPY.settingLabel)}
+          </Text>
           <Switch
             value={micronutrientsEnabled}
             onValueChange={setMicronutrientsEnabled}
-            accessibilityLabel={MICRONUTRIENT_COPY.settingLabel}
+            accessibilityLabel={i18n._(MICRONUTRIENT_COPY.settingLabel)}
           />
         </View>
         <Text className="text-xs text-muted-foreground">
-          {MICRONUTRIENT_COPY.settingDescription}
+          {i18n._(MICRONUTRIENT_COPY.settingDescription)}
         </Text>
         {micronutrientsEnabled ? (
           <View className="gap-2 rounded-lg border border-border p-3">
             <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-              {MICRONUTRIENT_COPY.sourceLabel}
+              {i18n._(MICRONUTRIENT_COPY.sourceLabel)}
             </Text>
-            <Text className="text-xs text-muted-foreground">{MICRONUTRIENT_COPY.sourceHelp}</Text>
+            <Text className="text-xs text-muted-foreground">
+              {i18n._(MICRONUTRIENT_COPY.sourceHelp)}
+            </Text>
             <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
               {([null, "efsa", "nasem"] as const).map((value) => (
                 <Pressable
@@ -597,7 +639,7 @@ function SettingsCard({
                   className={`min-h-11 justify-center rounded-lg border px-3 ${referenceSource === value ? "bg-accent" : "border-border"}`}
                 >
                   <Text className="text-sm text-foreground">
-                    {value ? MICRONUTRIENT_COPY.sources[value] : "None"}
+                    {value ? i18n._(MICRONUTRIENT_COPY.sources[value]) : t`None`}
                   </Text>
                 </Pressable>
               ))}
@@ -636,11 +678,7 @@ function SettingsCard({
                 className="min-h-11 justify-center"
               >
                 <Text className="text-xs text-foreground underline">
-                  {MICRONUTRIENT_COPY.proposal}: {MICRONUTRIENT_COPY.sources[proposal.data.source]}
-                  {proposal.data.population
-                    ? `, ${MICRONUTRIENT_POPULATIONS[proposal.data.population].label}`
-                    : ""}
-                  . Use this
+                  {proposalText(proposal.data.source, proposal.data.population)}
                 </Text>
               </Pressable>
             ) : null}
@@ -650,7 +688,7 @@ function SettingsCard({
 
       <View className="gap-1">
         <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-          {TARGET_COPY.declarationsTitle}
+          {i18n._(TARGET_COPY.declarationsTitle)}
         </Text>
         <Text className="text-xs text-muted-foreground">
           {NUTRITION_SAFETY_COPY.declarationsIntro}
@@ -677,11 +715,11 @@ function SettingsCard({
 
       <View className="flex-row flex-wrap gap-2">
         <Button onPress={() => save()} isDisabled={update.isPending}>
-          {update.isPending ? TARGET_COPY.saving : TARGET_COPY.saveSettings}
+          {i18n._(update.isPending ? TARGET_COPY.saving : TARGET_COPY.saveSettings)}
         </Button>
         {needsConfirm ? (
           <Button variant="secondary" onPress={() => save(true)} isDisabled={update.isPending}>
-            {TARGET_COPY.saveSettings}
+            {i18n._(TARGET_COPY.saveSettings)}
           </Button>
         ) : null}
       </View>

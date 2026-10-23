@@ -13,6 +13,7 @@ import {
 } from "@openvalens/api/presenters/custom-foods";
 import {
   DIARY_COPY,
+  UNIT_LABELS,
   localDateIn,
   newClientMutationId,
 } from "@openvalens/api/presenters/nutrition-diary";
@@ -20,6 +21,7 @@ import {
   formatNutrientSummaryLine,
   resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -63,6 +65,7 @@ function FoodsPage() {
   const [editing, setEditing] = useState<CustomFood | "new" | null>(null);
   const [message, setMessage] = useState("");
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
   const foods = useQuery(
     orpc.nutritionCustomFoods.list.queryOptions({ input: { includeArchived: showArchived } }),
   );
@@ -89,18 +92,22 @@ function FoodsPage() {
         { foodId: food.id },
         {
           onSuccess: () => {
-            const done = archived ? CUSTOM_FOOD_COPY.archived : CUSTOM_FOOD_COPY.restored;
-            setMessage(`${food.name}: ${done}`);
+            const name = food.name;
+            const done = archived
+              ? t`${name}: Food archived. It no longer appears in search or quick logging.`
+              : t`${name}: Food restored.`;
+            setMessage(done);
             if (archived)
-              toast(`${food.name}: ${done}`, {
-                action: { label: DIARY_COPY.undo, onClick: () => setArchived(food, false) },
+              toast(done, {
+                action: { label: i18n._(DIARY_COPY.undo), onClick: () => setArchived(food, false) },
               });
             void refresh();
           },
           onError: () => {
-            setMessage(CUSTOM_FOOD_COPY.networkError);
-            toast.error(CUSTOM_FOOD_COPY.networkError, {
-              action: { label: CUSTOM_FOOD_COPY.retry, onClick: send },
+            const error = i18n._(CUSTOM_FOOD_COPY.networkError);
+            setMessage(error);
+            toast.error(error, {
+              action: { label: i18n._(CUSTOM_FOOD_COPY.retry), onClick: send },
             });
           },
         },
@@ -115,16 +122,16 @@ function FoodsPage() {
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{CUSTOM_FOOD_COPY.title}</h1>
+          <h1 className="text-2xl font-semibold">{i18n._(CUSTOM_FOOD_COPY.title)}</h1>
           <Link to="/nutrition" className="text-sm underline">
-            Back to {DIARY_COPY.title.toLowerCase()}
+            <Trans>Back to meal diary</Trans>
           </Link>
         </div>
         <Button onClick={() => setEditing("new")} disabled={editing === "new"}>
-          {CUSTOM_FOOD_COPY.create}
+          {i18n._(CUSTOM_FOOD_COPY.create)}
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground">{CUSTOM_FOOD_COPY.privacy}</p>
+      <p className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.privacy)}</p>
 
       {editing ? (
         <FoodForm
@@ -145,23 +152,23 @@ function FoodsPage() {
           checked={showArchived}
           onChange={(event) => setShowArchived(event.target.checked)}
         />
-        {CUSTOM_FOOD_COPY.showArchived}
+        {i18n._(CUSTOM_FOOD_COPY.showArchived)}
       </label>
 
       {foods.isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : foods.isError ? (
         <p className="text-sm text-muted-foreground" role="alert">
-          {CUSTOM_FOOD_COPY.networkError}{" "}
+          {i18n._(CUSTOM_FOOD_COPY.networkError)}{" "}
           <button className="underline" onClick={() => void foods.refetch()}>
-            {CUSTOM_FOOD_COPY.retry}
+            {i18n._(CUSTOM_FOOD_COPY.retry)}
           </button>
         </p>
       ) : foods.data.foods.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{CUSTOM_FOOD_COPY.empty}</p>
+        <p className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.empty)}</p>
       ) : (
         <Card className="py-0">
-          <ul className="divide-y divide-border" aria-label={CUSTOM_FOOD_COPY.title}>
+          <ul className="divide-y divide-border" aria-label={i18n._(CUSTOM_FOOD_COPY.title)}>
             {foods.data.foods.map((food) => (
               <li key={food.id} className="grid gap-1 px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -170,15 +177,15 @@ function FoodsPage() {
                       {food.name}
                       {food.brand ? ` · ${food.brand}` : ""}{" "}
                       {food.archived ? (
-                        <Badge variant="outline">{CUSTOM_FOOD_COPY.archivedBadge}</Badge>
+                        <Badge variant="outline">{i18n._(CUSTOM_FOOD_COPY.archivedBadge)}</Badge>
                       ) : null}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {describeBasis(food.basis)} · {describeCoverage(food)} ·{" "}
-                      {CUSTOM_FOOD_COPY.provenance}
+                      {describeBasis(food.basis, i18n)} · {i18n._(describeCoverage(food))} ·{" "}
+                      {i18n._(CUSTOM_FOOD_COPY.provenance)}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers)}
+                      {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers, i18n)}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -189,12 +196,14 @@ function FoodsPage() {
                         onClick={() => setArchived(food, false)}
                         disabled={restore.isPending}
                       >
-                        {CUSTOM_FOOD_COPY.restore} <span className="sr-only">{food.name}</span>
+                        {i18n._(CUSTOM_FOOD_COPY.restore)}{" "}
+                        <span className="sr-only">{food.name}</span>
                       </Button>
                     ) : (
                       <>
                         <Button variant="ghost" size="sm" onClick={() => setEditing(food)}>
-                          {CUSTOM_FOOD_COPY.edit} <span className="sr-only">{food.name}</span>
+                          {i18n._(CUSTOM_FOOD_COPY.edit)}{" "}
+                          <span className="sr-only">{food.name}</span>
                         </Button>
                         <Button
                           variant="ghost"
@@ -202,7 +211,8 @@ function FoodsPage() {
                           onClick={() => setArchived(food, true)}
                           disabled={archive.isPending}
                         >
-                          {CUSTOM_FOOD_COPY.archive} <span className="sr-only">{food.name}</span>
+                          {i18n._(CUSTOM_FOOD_COPY.archive)}{" "}
+                          <span className="sr-only">{food.name}</span>
                         </Button>
                       </>
                     )}
@@ -213,7 +223,7 @@ function FoodsPage() {
           </ul>
         </Card>
       )}
-      <p className="text-xs text-muted-foreground">{CUSTOM_FOOD_COPY.archiveNote}</p>
+      <p className="text-xs text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.archiveNote)}</p>
     </div>
   );
 }
@@ -238,13 +248,16 @@ function FoodForm({
   const update = useMutation(orpc.nutritionCustomFoods.update.mutationOptions());
   const parsed = parseCustomFood(fields);
   const pending = create.isPending || update.isPending;
+  const { t, i18n } = useLingui();
 
   const failed = (retry: () => void) => {
-    announce(CUSTOM_FOOD_COPY.networkError);
-    toast.error(CUSTOM_FOOD_COPY.networkError, {
-      action: { label: CUSTOM_FOOD_COPY.retry, onClick: retry },
+    const error = i18n._(CUSTOM_FOOD_COPY.networkError);
+    announce(error);
+    toast.error(error, {
+      action: { label: i18n._(CUSTOM_FOOD_COPY.retry), onClick: retry },
     });
   };
+  const savedText = (name: string) => t`${name}: Food saved.`;
 
   const save = (expectedRevision = revision) => {
     if (!parsed.ok) return;
@@ -252,7 +265,7 @@ function FoodForm({
       const input = { clientMutationId, food: parsed.food };
       const send = () =>
         create.mutate(input, {
-          onSuccess: (result) => onDone(`${result.food.name}: ${CUSTOM_FOOD_COPY.saved}`),
+          onSuccess: (result) => onDone(savedText(result.food.name)),
           onError: () => failed(send),
         });
       return send();
@@ -263,13 +276,13 @@ function FoodForm({
         onSuccess: (result) => {
           if (result.outcome === "conflict") {
             setConflict(result.server);
-            announce(CUSTOM_FOOD_COPY.conflictTitle);
+            announce(i18n._(CUSTOM_FOOD_COPY.conflictTitle));
             return;
           }
           onDone(
             result.outcome === "unchanged"
-              ? CUSTOM_FOOD_COPY.unchanged
-              : `${result.food.name}: ${CUSTOM_FOOD_COPY.saved}`,
+              ? i18n._(CUSTOM_FOOD_COPY.unchanged)
+              : savedText(result.food.name),
           );
         },
         onError: () => failed(send),
@@ -278,27 +291,30 @@ function FoodForm({
   };
 
   const set = (patch: Partial<CustomFoodFields>) => setFields({ ...fields, ...patch });
+  const foodName = food?.name ?? "";
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          {food ? `${CUSTOM_FOOD_COPY.edit} ${food.name}` : CUSTOM_FOOD_COPY.create}
-        </CardTitle>
+        <CardTitle>{food ? t`Edit ${foodName}` : i18n._(CUSTOM_FOOD_COPY.create)}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        {food ? <p className="text-sm text-muted-foreground">{CUSTOM_FOOD_COPY.editNote}</p> : null}
+        {food ? (
+          <p className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.editNote)}</p>
+        ) : null}
         {conflict ? (
           <div className="grid gap-2 rounded-md border p-3 text-sm" role="alert">
             <p className="font-medium">
-              {conflict.archived
-                ? CUSTOM_FOOD_COPY.conflictArchived
-                : CUSTOM_FOOD_COPY.conflictTitle}
+              {i18n._(
+                conflict.archived
+                  ? CUSTOM_FOOD_COPY.conflictArchived
+                  : CUSTOM_FOOD_COPY.conflictTitle,
+              )}
             </p>
             {conflict.archived ? null : (
               <p>
-                Other version: {conflict.name} · {describeBasis(conflict.basis)} ·{" "}
-                {describeCoverage(conflict)}
+                <Trans>Other version:</Trans> {conflict.name} ·{" "}
+                {describeBasis(conflict.basis, i18n)} · {i18n._(describeCoverage(conflict))}
               </p>
             )}
             <div className="flex flex-wrap gap-2">
@@ -311,22 +327,22 @@ function FoodForm({
                     save(conflict.revision);
                   }}
                 >
-                  {CUSTOM_FOOD_COPY.keepMine}
+                  {i18n._(CUSTOM_FOOD_COPY.keepMine)}
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={() => onDone(null)}>
-                {CUSTOM_FOOD_COPY.keepServer}
+                {i18n._(CUSTOM_FOOD_COPY.keepServer)}
               </Button>
             </div>
           </div>
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Food name">
+          <Field label={t`Food name`}>
             {(id) => (
               <Input id={id} value={fields.name} onChange={(e) => set({ name: e.target.value })} />
             )}
           </Field>
-          <Field label="Brand (optional)">
+          <Field label={t`Brand (optional)`}>
             {(id) => (
               <Input
                 id={id}
@@ -335,7 +351,7 @@ function FoodForm({
               />
             )}
           </Field>
-          <Field label="Values per">
+          <Field label={t`Values per`}>
             {(id) => (
               <Input
                 id={id}
@@ -345,7 +361,7 @@ function FoodForm({
               />
             )}
           </Field>
-          <Field label="Per unit">
+          <Field label={t`Per unit`}>
             {(id) => (
               <select
                 id={id}
@@ -355,13 +371,13 @@ function FoodForm({
               >
                 {AMOUNT_UNITS.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {i18n._(UNIT_LABELS[option])}
                   </option>
                 ))}
               </select>
             )}
           </Field>
-          <Field label="Serving name (optional, e.g. 1 slice)">
+          <Field label={t`Serving name (optional, e.g. 1 slice)`}>
             {(id) => (
               <Input
                 id={id}
@@ -371,7 +387,7 @@ function FoodForm({
             )}
           </Field>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Serving size (optional)">
+            <Field label={t`Serving size (optional)`}>
               {(id) => (
                 <Input
                   id={id}
@@ -381,7 +397,7 @@ function FoodForm({
                 />
               )}
             </Field>
-            <Field label="Serving unit">
+            <Field label={t`Serving unit`}>
               {(id) => (
                 <select
                   id={id}
@@ -395,7 +411,7 @@ function FoodForm({
               )}
             </Field>
           </div>
-          <Field label="Barcode (optional)">
+          <Field label={t`Barcode (optional)`}>
             {(id) => (
               <Input
                 id={id}
@@ -408,9 +424,11 @@ function FoodForm({
           </Field>
         </div>
         <fieldset className="grid gap-3 sm:grid-cols-3">
-          <legend className="mb-2 text-sm font-medium">Nutrients</legend>
+          <legend className="mb-2 text-sm font-medium">
+            <Trans>Nutrients</Trans>
+          </legend>
           {CUSTOM_FOOD_NUTRIENTS.map((key) => (
-            <Field key={key} label={nutrientFieldLabel(key)}>
+            <Field key={key} label={i18n._(nutrientFieldLabel(key))}>
               {(id) => (
                 <Input
                   id={id}
@@ -424,18 +442,18 @@ function FoodForm({
             </Field>
           ))}
         </fieldset>
-        <p className="text-xs text-muted-foreground">{CUSTOM_FOOD_COPY.blankNote}</p>
+        <p className="text-xs text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.blankNote)}</p>
         {!parsed.ok && fields.name ? (
           <p className="text-sm text-muted-foreground" role="alert">
-            {parsed.error}
+            {i18n._(parsed.error)}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => save()} disabled={!parsed.ok || pending}>
-            {pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save}
+            {i18n._(pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save)}
           </Button>
           <Button variant="outline" onClick={() => onDone(null)}>
-            {CUSTOM_FOOD_COPY.cancel}
+            {i18n._(CUSTOM_FOOD_COPY.cancel)}
           </Button>
         </div>
       </CardContent>
