@@ -30,6 +30,7 @@ const BASE_LINKS = [
   { to: "/private-measurements", label: "Private measurements" },
   { to: "/cycle", label: "Cycle" },
   { to: "/nutrition", label: "Meal diary" },
+  { to: "/micronutrients", label: "Micronutrients" },
   { to: "/recipe-drafts", label: "Recipe draft" },
   { to: "/food-draft", label: "Describe a meal" },
   { to: "/supplements", label: "Supplements" },

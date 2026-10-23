@@ -30,6 +30,10 @@ import {
 import { STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
 import { FOOD_DRAFT_COPY, PHOTO_DRAFT_COPY } from "@openvalens/api/presenters/food-draft";
 import { RECIPE_IMPORT_COPY } from "@openvalens/api/presenters/recipe-draft";
+import {
+  MICRONUTRIENT_COPY,
+  MICRONUTRIENT_POPULATIONS,
+} from "@openvalens/api/presenters/micronutrients";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -382,6 +386,18 @@ function SettingsCard({
   const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
   const [voiceDraftsEnabled, setVoiceDraftsEnabled] = useState(settings.voiceDraftsEnabled);
   const [photoDraftsEnabled, setPhotoDraftsEnabled] = useState(settings.photoDraftsEnabled);
+  const [micronutrientsEnabled, setMicronutrientsEnabled] = useState(
+    settings.micronutrientsEnabled,
+  );
+  const [referenceSource, setReferenceSource] = useState(settings.micronutrientReferenceSource);
+  const [population, setPopulation] = useState(settings.micronutrientPopulation);
+  // Only for the suggestion; the summary itself is on its own page.
+  const proposal = useQuery({
+    ...orpc.nutritionMicronutrients.summary.queryOptions({
+      input: { localDate: new Date().toISOString().slice(0, 10) },
+    }),
+    select: (data) => data.proposal,
+  });
   const [height, setHeight] = useState(settings.heightCm === null ? "" : String(settings.heightCm));
   const [declarations, setDeclarations] = useState<Declaration[]>(settings.declarations);
   const [message, setMessage] = useState("");
@@ -396,6 +412,9 @@ function SettingsCard({
     setRecipeImportEnabled(settings.recipeImportEnabled);
     setVoiceDraftsEnabled(settings.voiceDraftsEnabled);
     setPhotoDraftsEnabled(settings.photoDraftsEnabled);
+    setMicronutrientsEnabled(settings.micronutrientsEnabled);
+    setReferenceSource(settings.micronutrientReferenceSource);
+    setPopulation(settings.micronutrientPopulation);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
     setDeclarations(settings.declarations);
   }, [settings]);
@@ -425,6 +444,9 @@ function SettingsCard({
       recipeImportEnabled,
       voiceDraftsEnabled,
       photoDraftsEnabled,
+      micronutrientsEnabled,
+      micronutrientReferenceSource: referenceSource,
+      micronutrientPopulation: population,
       heightCm: parsedHeight.value,
       declarations,
       ...(confirmClearEatingDisorder ? { confirmClearEatingDisorder: true as const } : {}),
@@ -556,6 +578,85 @@ function SettingsCard({
           {PHOTO_DRAFT_COPY.settingLabel}
         </label>
         <p className="text-xs text-muted-foreground">{PHOTO_DRAFT_COPY.settingDescription}</p>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={micronutrientsEnabled}
+            onChange={(event) => setMicronutrientsEnabled(event.target.checked)}
+          />
+          {MICRONUTRIENT_COPY.settingLabel}
+        </label>
+        <p className="text-xs text-muted-foreground">{MICRONUTRIENT_COPY.settingDescription}</p>
+        {micronutrientsEnabled ? (
+          <fieldset className="grid gap-2 rounded-md border p-3">
+            <legend className="px-1 text-sm font-medium">{MICRONUTRIENT_COPY.sourceLabel}</legend>
+            <p className="text-xs text-muted-foreground">{MICRONUTRIENT_COPY.sourceHelp}</p>
+            <div className="flex flex-wrap gap-4">
+              <label className="grid gap-1 text-sm">
+                Source
+                <select
+                  className="min-h-9 rounded-md border bg-background px-2"
+                  value={referenceSource ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setReferenceSource(value === "efsa" || value === "nasem" ? value : null);
+                    setPopulation(null);
+                  }}
+                >
+                  <option value="">None</option>
+                  <option value="efsa">{MICRONUTRIENT_COPY.sources.efsa}</option>
+                  <option value="nasem">{MICRONUTRIENT_COPY.sources.nasem}</option>
+                </select>
+              </label>
+              {referenceSource ? (
+                <label className="grid gap-1 text-sm">
+                  Group
+                  <select
+                    className="min-h-9 rounded-md border bg-background px-2"
+                    value={population ?? ""}
+                    onChange={(event) =>
+                      setPopulation(
+                        (event.target.value ||
+                          null) as TargetSettingsWire["micronutrientPopulation"],
+                      )
+                    }
+                  >
+                    <option value="">Choose a group</option>
+                    {Object.entries(MICRONUTRIENT_POPULATIONS)
+                      .filter(([, group]) => group.source === referenceSource)
+                      .map(([id, group]) => (
+                        <option key={id} value={id}>
+                          {group.label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            {proposal.data?.source &&
+            (proposal.data.source !== referenceSource ||
+              (proposal.data.population && proposal.data.population !== population)) ? (
+              <p className="text-xs">
+                {MICRONUTRIENT_COPY.proposal}: {MICRONUTRIENT_COPY.sources[proposal.data.source]}
+                {proposal.data.population
+                  ? `, ${MICRONUTRIENT_POPULATIONS[proposal.data.population].label}`
+                  : ""}
+                .{" "}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => {
+                    setReferenceSource(proposal.data!.source);
+                    setPopulation(proposal.data!.population);
+                  }}
+                >
+                  Use this
+                </button>
+              </p>
+            ) : null}
+          </fieldset>
+        ) : null}
 
         <fieldset className="grid gap-2">
           <legend className="text-sm font-medium">{TARGET_COPY.declarationsTitle}</legend>

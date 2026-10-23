@@ -12,6 +12,7 @@ import { cockpitRouter } from "./cockpit";
 import { comparisonRouter } from "./comparison";
 import { cronRouter } from "./cron";
 import { bodyMapRouter } from "./body-map";
+import { nutritionMicronutrientsRouter } from "./nutrition-micronutrients";
 import { cycleRouter } from "./cycle";
 import { dataRightsRouter } from "./data-rights";
 import { exampleRouter } from "./example";
@@ -60,6 +61,7 @@ export const appRouter = {
   cron: cronRouter,
   cycle: cycleRouter,
   bodyMap: bodyMapRouter,
+  nutritionMicronutrients: nutritionMicronutrientsRouter,
   dataRights: dataRightsRouter,
   example: exampleRouter,
   exerciseCatalog: exerciseCatalogRouter,

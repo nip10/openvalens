@@ -28,6 +28,10 @@ import {
 import { STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
 import { FOOD_DRAFT_COPY, PHOTO_DRAFT_COPY } from "@openvalens/api/presenters/food-draft";
 import { RECIPE_IMPORT_COPY } from "@openvalens/api/presenters/recipe-draft";
+import {
+  MICRONUTRIENT_COPY,
+  MICRONUTRIENT_POPULATIONS,
+} from "@openvalens/api/presenters/micronutrients";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
@@ -358,6 +362,18 @@ function SettingsCard({
   const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
   const [voiceDraftsEnabled, setVoiceDraftsEnabled] = useState(settings.voiceDraftsEnabled);
   const [photoDraftsEnabled, setPhotoDraftsEnabled] = useState(settings.photoDraftsEnabled);
+  const [micronutrientsEnabled, setMicronutrientsEnabled] = useState(
+    settings.micronutrientsEnabled,
+  );
+  const [referenceSource, setReferenceSource] = useState(settings.micronutrientReferenceSource);
+  const [population, setPopulation] = useState(settings.micronutrientPopulation);
+  // Only for the suggestion; the summary itself is on its own screen.
+  const proposal = useQuery({
+    ...orpc.nutritionMicronutrients.summary.queryOptions({
+      input: { localDate: new Date().toISOString().slice(0, 10) },
+    }),
+    select: (data) => data.proposal,
+  });
   const [height, setHeight] = useState(settings.heightCm === null ? "" : String(settings.heightCm));
   const [declarations, setDeclarations] = useState<Declaration[]>(settings.declarations);
   const [message, setMessage] = useState("");
@@ -372,6 +388,9 @@ function SettingsCard({
     setRecipeImportEnabled(settings.recipeImportEnabled);
     setVoiceDraftsEnabled(settings.voiceDraftsEnabled);
     setPhotoDraftsEnabled(settings.photoDraftsEnabled);
+    setMicronutrientsEnabled(settings.micronutrientsEnabled);
+    setReferenceSource(settings.micronutrientReferenceSource);
+    setPopulation(settings.micronutrientPopulation);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
     setDeclarations(settings.declarations);
   }, [settings]);
@@ -402,6 +421,9 @@ function SettingsCard({
       recipeImportEnabled,
       voiceDraftsEnabled,
       photoDraftsEnabled,
+      micronutrientsEnabled,
+      micronutrientReferenceSource: referenceSource,
+      micronutrientPopulation: population,
       heightCm: parsedHeight.value,
       declarations,
       ...(confirmClearEatingDisorder ? { confirmClearEatingDisorder: true as const } : {}),
@@ -542,6 +564,88 @@ function SettingsCard({
           />
         </View>
         <Text className="text-xs text-muted-foreground">{PHOTO_DRAFT_COPY.settingDescription}</Text>
+      </View>
+
+      <View className="gap-2">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="flex-1 text-sm text-foreground">{MICRONUTRIENT_COPY.settingLabel}</Text>
+          <Switch
+            value={micronutrientsEnabled}
+            onValueChange={setMicronutrientsEnabled}
+            accessibilityLabel={MICRONUTRIENT_COPY.settingLabel}
+          />
+        </View>
+        <Text className="text-xs text-muted-foreground">
+          {MICRONUTRIENT_COPY.settingDescription}
+        </Text>
+        {micronutrientsEnabled ? (
+          <View className="gap-2 rounded-lg border border-border p-3">
+            <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+              {MICRONUTRIENT_COPY.sourceLabel}
+            </Text>
+            <Text className="text-xs text-muted-foreground">{MICRONUTRIENT_COPY.sourceHelp}</Text>
+            <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+              {([null, "efsa", "nasem"] as const).map((value) => (
+                <Pressable
+                  key={value ?? "none"}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: referenceSource === value }}
+                  onPress={() => {
+                    setReferenceSource(value);
+                    setPopulation(null);
+                  }}
+                  className={`min-h-11 justify-center rounded-lg border px-3 ${referenceSource === value ? "bg-accent" : "border-border"}`}
+                >
+                  <Text className="text-sm text-foreground">
+                    {value ? MICRONUTRIENT_COPY.sources[value] : "None"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {referenceSource ? (
+              <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+                {(
+                  Object.entries(MICRONUTRIENT_POPULATIONS) as [
+                    NonNullable<TargetSettingsWire["micronutrientPopulation"]>,
+                    { source: string; label: string },
+                  ][]
+                )
+                  .filter(([, group]) => group.source === referenceSource)
+                  .map(([id, group]) => (
+                    <Pressable
+                      key={id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: population === id }}
+                      onPress={() => setPopulation(id)}
+                      className={`min-h-11 justify-center rounded-lg border px-3 ${population === id ? "bg-accent" : "border-border"}`}
+                    >
+                      <Text className="text-sm text-foreground">{group.label}</Text>
+                    </Pressable>
+                  ))}
+              </View>
+            ) : null}
+            {proposal.data?.source &&
+            (proposal.data.source !== referenceSource ||
+              (proposal.data.population && proposal.data.population !== population)) ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setReferenceSource(proposal.data!.source);
+                  setPopulation(proposal.data!.population);
+                }}
+                className="min-h-11 justify-center"
+              >
+                <Text className="text-xs text-foreground underline">
+                  {MICRONUTRIENT_COPY.proposal}: {MICRONUTRIENT_COPY.sources[proposal.data.source]}
+                  {proposal.data.population
+                    ? `, ${MICRONUTRIENT_POPULATIONS[proposal.data.population].label}`
+                    : ""}
+                  . Use this
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <View className="gap-1">

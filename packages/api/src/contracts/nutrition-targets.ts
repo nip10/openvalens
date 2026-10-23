@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { NUTRIENT_KEYS } from "./nutrition-diary";
+import { MICRONUTRIENT_POPULATION_KEYS, MICRONUTRIENT_SOURCES } from "./nutrition-micronutrients";
 
 /**
  * `nutritionTargets.*` wire contract (Issue #80). Imports only `zod` (and the
@@ -62,6 +63,9 @@ export const targetSettings = z.object({
   recipeImportEnabled: z.boolean(),
   voiceDraftsEnabled: z.boolean(),
   photoDraftsEnabled: z.boolean(),
+  micronutrientsEnabled: z.boolean(),
+  micronutrientReferenceSource: z.enum(MICRONUTRIENT_SOURCES).nullable(),
+  micronutrientPopulation: z.enum(MICRONUTRIENT_POPULATION_KEYS).nullable(),
   heightCm: z.number().nullable(),
   declarations: z.array(z.enum(DECLARATIONS)),
 });
@@ -149,6 +153,10 @@ export const updateSettingsInput = z.strictObject({
   recipeImportEnabled: z.boolean().optional(),
   voiceDraftsEnabled: z.boolean().optional(),
   photoDraftsEnabled: z.boolean().optional(),
+  micronutrientsEnabled: z.boolean().optional(),
+  /** Set only from the member's explicit choice; `null` clears it. */
+  micronutrientReferenceSource: z.enum(MICRONUTRIENT_SOURCES).nullable().optional(),
+  micronutrientPopulation: z.enum(MICRONUTRIENT_POPULATION_KEYS).nullable().optional(),
   heightCm: z.number().finite().min(100).max(250).nullable().optional(),
   declarations: z.array(z.enum(DECLARATIONS)).max(DECLARATIONS.length).optional(),
   /** Removing an eating-disorder answer needs this deliberate confirmation. */

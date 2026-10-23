@@ -1,3 +1,9 @@
+import {
+  isPopulationOf,
+  MICRONUTRIENT_REFERENCE_SOURCES,
+  type MicronutrientPopulation,
+  type MicronutrientReferenceSource,
+} from "./micronutrient-references";
 import type { Database } from "@openvalens/db";
 import { nutritionTargetSettings } from "@openvalens/db/schema/nutrition";
 import { and, eq } from "drizzle-orm";
@@ -34,6 +40,12 @@ export type NutritionTargetSettings = {
   voiceDraftsEnabled: boolean;
   /** Opt-in to food drafts from a meal photo (Issue #71). */
   photoDraftsEnabled: boolean;
+  /** Opt-in to the micronutrient summary (Issue #78). */
+  micronutrientsEnabled: boolean;
+  /** Reference source the member accepted; `null` until they choose one. */
+  micronutrientReferenceSource: MicronutrientReferenceSource | null;
+  /** Population group the member accepted within that source. */
+  micronutrientPopulation: MicronutrientPopulation | null;
   heightCm: number | null;
   declarations: NutritionDeclaration[];
 };
@@ -47,6 +59,9 @@ export const DEFAULT_TARGET_SETTINGS: Readonly<NutritionTargetSettings> = Object
   recipeImportEnabled: false,
   voiceDraftsEnabled: false,
   photoDraftsEnabled: false,
+  micronutrientsEnabled: false,
+  micronutrientReferenceSource: null,
+  micronutrientPopulation: null,
   heightCm: null,
   declarations: [],
 });
@@ -76,6 +91,21 @@ function toSettings(row: typeof nutritionTargetSettings.$inferSelect): Nutrition
     recipeImportEnabled: row.recipeImportEnabled,
     voiceDraftsEnabled: row.voiceDraftsEnabled,
     photoDraftsEnabled: row.photoDraftsEnabled,
+    micronutrientsEnabled: row.micronutrientsEnabled,
+    micronutrientReferenceSource: MICRONUTRIENT_REFERENCE_SOURCES.includes(
+      row.micronutrientReferenceSource as MicronutrientReferenceSource,
+    )
+      ? (row.micronutrientReferenceSource as MicronutrientReferenceSource)
+      : null,
+    micronutrientPopulation:
+      row.micronutrientPopulation !== null &&
+      row.micronutrientReferenceSource !== null &&
+      isPopulationOf(
+        row.micronutrientReferenceSource as MicronutrientReferenceSource,
+        row.micronutrientPopulation,
+      )
+        ? row.micronutrientPopulation
+        : null,
     heightCm: row.heightCm,
     // Display order, and nothing outside the known list.
     declarations: NUTRITION_DECLARATIONS.filter((key) => row.declarations.includes(key)),
@@ -108,6 +138,15 @@ export async function updateNutritionTargetSettingsInTransaction(
       : previous.declarations,
     revision: previous.revision + 1,
   };
+  if (
+    next.micronutrientPopulation !== null &&
+    (next.micronutrientReferenceSource === null ||
+      !isPopulationOf(next.micronutrientReferenceSource, next.micronutrientPopulation))
+  )
+    throw new NutritionError(
+      "INVALID_INPUT",
+      "Population does not belong to that reference source",
+    );
   const values = {
     revision: next.revision,
     hideNumbers: next.hideNumbers,
@@ -117,6 +156,9 @@ export async function updateNutritionTargetSettingsInTransaction(
     recipeImportEnabled: next.recipeImportEnabled,
     voiceDraftsEnabled: next.voiceDraftsEnabled,
     photoDraftsEnabled: next.photoDraftsEnabled,
+    micronutrientsEnabled: next.micronutrientsEnabled,
+    micronutrientReferenceSource: next.micronutrientReferenceSource,
+    micronutrientPopulation: next.micronutrientPopulation,
     heightCm: next.heightCm,
     declarations: next.declarations,
     updatedAt: now,
@@ -152,6 +194,12 @@ function validate(patch: TargetSettingsPatch): void {
     patch.declarations.some((key) => !NUTRITION_DECLARATIONS.includes(key))
   )
     throw new NutritionError("INVALID_INPUT", "Unknown declaration");
+  if (
+    patch.micronutrientReferenceSource !== undefined &&
+    patch.micronutrientReferenceSource !== null &&
+    !MICRONUTRIENT_REFERENCE_SOURCES.includes(patch.micronutrientReferenceSource)
+  )
+    throw new NutritionError("INVALID_INPUT", "Unknown reference source");
 }
 
 export function createNutritionTargetSettings(db: Database) {

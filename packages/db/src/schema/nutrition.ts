@@ -782,6 +782,12 @@ export const nutritionTargetSettings = pgTable(
     voiceDraftsEnabled: boolean("voice_drafts_enabled").notNull().default(false),
     /** Opt-in to food drafts from a meal photo (Issue #71). */
     photoDraftsEnabled: boolean("photo_drafts_enabled").notNull().default(false),
+    /** Opt-in to the micronutrient summary (Issue #78). */
+    micronutrientsEnabled: boolean("micronutrients_enabled").notNull().default(false),
+    /** Accepted reference source (`efsa` | `nasem`); never set without the member choosing it. */
+    micronutrientReferenceSource: text("micronutrient_reference_source"),
+    /** Accepted population group id within that source. */
+    micronutrientPopulation: text("micronutrient_population"),
     /** Self-declared height (cm), used only for the BMI gate and resting estimate. */
     heightCm: real("height_cm"),
     /** Self-declared yes answers (see NUTRITION_DECLARATION_KEYS). */

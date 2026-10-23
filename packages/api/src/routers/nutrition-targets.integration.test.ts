@@ -14,6 +14,8 @@ import { RPCHandler } from "@orpc/server/fetch";
 import type { Context } from "../context";
 import type { TargetsOverview, UpdateSettingsOutput } from "../contracts/nutrition-targets";
 import { findBannedCopy } from "@openvalens/nutrition/nutrition-safety";
+import { createNutritionRepository } from "@openvalens/nutrition/repository";
+import type { MicronutrientSummaryWire } from "../contracts/nutrition-micronutrients";
 import type { ImportRecipeFromUrlOutput } from "../contracts/nutrition-recipe-import";
 import { createRecipeImportService } from "../recipe-import/service";
 import type {
@@ -302,6 +304,9 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       recipeImportEnabled: false,
       voiceDraftsEnabled: false,
       photoDraftsEnabled: false,
+      micronutrientsEnabled: false,
+      micronutrientReferenceSource: null,
+      micronutrientPopulation: null,
       heightCm: null,
       declarations: [],
     });
@@ -1066,6 +1071,187 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
           }),
         ),
       ).toBe(401);
+    });
+  });
+  describe("micronutrient summary (#78)", () => {
+    const localDate = "2026-05-02";
+    const summary = (
+      user = "user-a2",
+      extraHeaders: Record<string, string> = {},
+      date = localDate,
+    ) =>
+      call<MicronutrientSummaryWire>(
+        "nutritionMicronutrients/summary",
+        { localDate: date },
+        user,
+        extraHeaders,
+      );
+    const repo = createNutritionRepository(db);
+    let logged = 0;
+    async function logFood(user: string, org: string, amountG: number, micronutrients: object) {
+      logged += 1;
+      await repo.logEntry(
+        { organizationId: org, userId: user },
+        {
+          clientMutationId: `micro-${user}-${logged}`,
+          localDate,
+          timeZone: "UTC",
+          slot: "lunch",
+          food: {
+            kind: "external",
+            snapshot: {
+              source: "manual",
+              name: `Synthetic food ${logged}`,
+              nutrientBasisAmount: 100,
+              nutrientBasisUnit: "g",
+              nutrients: { energyKcal: 100 },
+              micronutrients,
+            },
+          },
+          amount: amountG,
+          unit: "g",
+          method: "quick_add",
+        },
+      );
+    }
+    const rowOf = (body: MicronutrientSummaryWire, key: string) =>
+      body.rows.find((row) => row.nutrient === key)!;
+
+    test("is off until the member opts in, and nothing is read while off", async () => {
+      await resetSettings("user-a2");
+      const result = await summary();
+      expect(result.status).toBe(200);
+      expect(result.body).toMatchObject({
+        status: "off",
+        rows: [],
+        reference: null,
+        totalEntries: 0,
+      });
+    });
+
+    test("a population must belong to the chosen source", async () => {
+      await resetSettings("user-a2");
+      const mismatch = await updateSettings(
+        {
+          expectedRevision: 0,
+          micronutrientReferenceSource: "efsa",
+          micronutrientPopulation: "nasem_women_31_50",
+        },
+        "user-a2",
+      );
+      expect(mismatch.status).toBe(400);
+      const orphan = await updateSettings(
+        { expectedRevision: 0, micronutrientPopulation: "efsa_women_25_plus" },
+        "user-a2",
+      );
+      expect(orphan.status).toBe(400);
+    });
+
+    test("keeps unknown apart from zero, shows coverage and compares complete days only", async () => {
+      await resetSettings("user-a2");
+      await updateSettings(
+        {
+          expectedRevision: 0,
+          micronutrientsEnabled: true,
+          micronutrientReferenceSource: "nasem",
+          micronutrientPopulation: "nasem_women_31_50",
+        },
+        "user-a2",
+      );
+      await logFood("user-a2", "org-a", 50, { calciumMg: 100, ironMg: 2, vitaminCMg: 0 });
+      await logFood("user-a2", "org-a", 100, { calciumMg: 200 });
+      // Another member of the same record: never counted.
+      await logFood("user-a", "org-a", 100, { calciumMg: 900, ironMg: 9 });
+
+      const { body } = await summary();
+      expect(body).toMatchObject({
+        status: "ready",
+        totalEntries: 2,
+        datasetVersion: "micronutrient-references/v1",
+        referenceNote: null,
+        reference: { source: "nasem", population: "nasem_women_31_50" },
+      });
+      expect(rowOf(body, "calciumMg")).toMatchObject({
+        knownEntries: 2,
+        amount: 250,
+        atLeast: false,
+        // 250 of the 1,000 mg RDA.
+        percentOfReference: 25,
+      });
+      expect(rowOf(body, "ironMg")).toMatchObject({
+        knownEntries: 1,
+        amount: 1,
+        atLeast: true,
+        percentOfReference: null,
+      });
+      // A reported zero is known; zinc was never reported and is unknown.
+      expect(rowOf(body, "vitaminCMg")).toMatchObject({ knownEntries: 1, amount: 0 });
+      expect(rowOf(body, "zincMg")).toMatchObject({ knownEntries: 0, amount: null });
+      expect(rowOf(body, "calciumMg").references.map((r) => r.type)).toEqual([
+        "nasem_rda",
+        "nasem_ul",
+      ]);
+      const text = JSON.stringify(body).toLowerCase();
+      expect(text).not.toMatch(/deficien|too low|insufficient intake/);
+    });
+
+    test("hide-numbers keeps coverage only; any exclusion hides the summary", async () => {
+      const current = await overview(localDate, "user-a2");
+      await updateSettings(
+        { expectedRevision: current.body.settings.revision, hideNumbers: true },
+        "user-a2",
+      );
+      const hidden = (await summary()).body;
+      expect(rowOf(hidden, "calciumMg")).toMatchObject({
+        knownEntries: 2,
+        amount: null,
+        percentOfReference: null,
+        references: [],
+      });
+      await updateSettings(
+        {
+          expectedRevision: current.body.settings.revision + 1,
+          hideNumbers: false,
+          declarations: ["chronic_kidney_disease"],
+        },
+        "user-a2",
+      );
+      expect((await summary()).body).toMatchObject({ status: "hidden", rows: [] });
+      await resetSettings("user-a2");
+    });
+
+    test("references are adult-only", async () => {
+      await resetSettings("user-u");
+      await updateSettings(
+        {
+          expectedRevision: 0,
+          micronutrientsEnabled: true,
+          micronutrientReferenceSource: "efsa",
+          micronutrientPopulation: "efsa_women_18_24",
+        },
+        "user-u",
+      );
+      const { body } = await summary("user-u");
+      expect(body).toMatchObject({
+        status: "ready",
+        reference: null,
+        referenceNote: "adults_only",
+      });
+      expect(body.rows.every((row) => row.references.length === 0)).toBe(true);
+    });
+
+    test("rejects tenant fields, impersonation and signed-out callers", async () => {
+      expect(
+        (
+          await call(
+            "nutritionMicronutrients/summary",
+            { localDate, organizationId: "org-b" },
+            "user-a2",
+          )
+        ).status,
+      ).toBe(400);
+      expect((await summary("user-a2", { "x-test-impersonated": "admin-1" })).status).toBe(403);
+      expect((await summary("nobody")).status).toBe(401);
     });
   });
 });
