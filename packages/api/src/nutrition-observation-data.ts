@@ -6,6 +6,7 @@ import {
   nutritionMealEntry,
 } from "@openvalens/db/schema/nutrition";
 import { providerConnection } from "@openvalens/db/schema/ingestion";
+import { readUserLocale, serverI18n } from "@openvalens/i18n/server";
 import { and, eq, gte, inArray, isNull, lt, isNotNull } from "drizzle-orm";
 
 import {
@@ -166,6 +167,7 @@ export async function loadNutritionObservations(
   }
 
   return buildNutritionObservations({
+    i18n: serverI18n(await readUserLocale(db, scope.userId)),
     memberId: scope.userId,
     window,
     optedIn: access.optedIn,

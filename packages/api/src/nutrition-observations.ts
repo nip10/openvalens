@@ -1,3 +1,7 @@
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
+import { serverI18n } from "@openvalens/i18n/server";
+
 /**
  * Pure, opt-in descriptions of meal-time co-occurrence. The seven-day minimum,
  * three matching events and four-hour proximity are engineering choices for
@@ -26,6 +30,8 @@ export type NutritionObservationInput = {
   meals: readonly MemberMealRecord[];
   sleep: readonly MemberSleepRecord[];
   workouts: readonly MemberWorkoutRecord[];
+  /** The requesting member's language for the observation text (#231); English by default. */
+  i18n?: I18n;
 };
 
 export type NutritionObservation = {
@@ -87,6 +93,7 @@ function countMatches(
 export function buildNutritionObservations(
   input: NutritionObservationInput,
 ): NutritionObservation[] {
+  const i18n = input.i18n ?? serverI18n("en");
   if (!input.optedIn || !input.permissions.nutrition) return [];
   const from = parseDate(input.window.from);
   const to = parseDate(input.window.to);
@@ -99,8 +106,8 @@ export function buildNutritionObservations(
     permission: boolean;
     records: readonly { memberId: string; startedAt: string | null; complete: boolean }[];
     ruleId: NutritionObservation["ruleId"];
-    title: string;
-    body: string;
+    title: MessageDescriptor;
+    body: MessageDescriptor;
     mealBeforeOnly: boolean;
   }) => {
     if (!options.permission) return;
@@ -121,10 +128,14 @@ export function buildNutritionObservations(
         ? null
         : NUTRITION_OBSERVATION_POLICY.minimumMatchingEvents,
       completeness: input.hideNumbers
-        ? "Sufficient matching timestamped records from completed diary days were available."
-        : `${count} matching timestamped records from completed diary days in the ${days}-day window.`,
-      title: options.title,
-      body: options.body,
+        ? i18n._(
+            msg`Sufficient matching timestamped records from completed diary days were available.`,
+          )
+        : i18n._(
+            msg`${plural(count, { one: "# matching timestamped record", other: "# matching timestamped records" })} from completed diary days in the ${days}-day window.`,
+          ),
+      title: i18n._(options.title),
+      body: i18n._(options.body),
     });
   };
 
@@ -132,16 +143,24 @@ export function buildNutritionObservations(
     permission: input.permissions.sleep,
     records: input.sleep,
     ruleId: "observation.meals_near_sleep",
-    title: "Meals and recorded sleep timing",
-    body: "Some logged meals occurred within four hours before recorded sleep starts in this window. This describes timing in your records only and does not establish a relationship between meal timing and sleep.",
+    title: msg`Meals and recorded sleep timing`,
+    body: msg({
+      message:
+        "Some logged meals occurred within four hours before recorded sleep starts in this window. This describes timing in your records only and does not establish a relationship between meal timing and sleep.",
+      comment: "safety",
+    }),
     mealBeforeOnly: true,
   });
   tryAdd({
     permission: input.permissions.activity,
     records: input.workouts,
     ruleId: "observation.meals_and_workouts",
-    title: "Meals and recorded workouts",
-    body: "Some logged meals occurred within four hours of recorded workouts in this window. This describes timing in your records only and does not establish a relationship between meal timing and workouts.",
+    title: msg`Meals and recorded workouts`,
+    body: msg({
+      message:
+        "Some logged meals occurred within four hours of recorded workouts in this window. This describes timing in your records only and does not establish a relationship between meal timing and workouts.",
+      comment: "safety",
+    }),
     mealBeforeOnly: false,
   });
   return output;

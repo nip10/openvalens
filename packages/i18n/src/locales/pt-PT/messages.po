@@ -252,6 +252,10 @@ msgstr "{count, plural, one {# perspetiva está oculta pelo que dispensou ou pel
 msgid "{count, plural, one {# match found. Check it before saving.} other {# matches found. Pick one and check it before saving.}}"
 msgstr "{count, plural, one {# correspondência encontrada. Verifique-a antes de guardar.} other {# correspondências encontradas. Escolha uma e verifique-a antes de guardar.}}"
 
+#: packages/api/src/nutrition-observations.ts
+msgid "{count, plural, one {# matching timestamped record} other {# matching timestamped records}} from completed diary days in the {days}-day window."
+msgstr "{count, plural, one {# registo com data e hora correspondente} other {# registos com data e hora correspondentes}} de dias do diário concluídos, na janela de {days} dias."
+
 #: packages/api/src/presenters/insights.ts
 msgid "{count, plural, one {# more change held back so only the clearest are shown.} other {# more changes held back so only the clearest are shown.}}"
 msgstr "{count, plural, one {Mais # alteração foi retida para que só as mais claras sejam mostradas.} other {Mais # alterações foram retidas para que só as mais claras sejam mostradas.}}"
@@ -5172,10 +5176,12 @@ msgstr "Diário de refeições"
 msgid "Meal photo (JPEG or PNG, up to 10 MB)"
 msgstr "Fotografia da refeição (JPEG ou PNG, até 10 MB)"
 
+#: packages/api/src/nutrition-observations.ts
 #: packages/api/src/presenters/insights.ts
 msgid "Meals and recorded sleep timing"
 msgstr "Refeições e horário do sono registado"
 
+#: packages/api/src/nutrition-observations.ts
 #: packages/api/src/presenters/insights.ts
 msgid "Meals and recorded workouts"
 msgstr "Refeições e treinos registados"
@@ -8174,6 +8180,16 @@ msgid "Some answers could not be saved. Check them and try again."
 msgstr "Não foi possível guardar algumas respostas. Verifique-as e tente novamente."
 
 #. safety
+#: packages/api/src/nutrition-observations.ts
+msgid "Some logged meals occurred within four hours before recorded sleep starts in this window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
+msgstr "Algumas refeições registadas ocorreram nas quatro horas anteriores ao início do sono registado, nesta janela. Isto descreve apenas horários nos seus registos e não estabelece uma relação entre o horário das refeições e o sono."
+
+#. safety
+#: packages/api/src/nutrition-observations.ts
+msgid "Some logged meals occurred within four hours of recorded workouts in this window. This describes timing in your records only and does not establish a relationship between meal timing and workouts."
+msgstr "Algumas refeições registadas ocorreram até quatro horas antes ou depois de treinos registados, nesta janela. Isto descreve apenas horários nos seus registos e não estabelece uma relação entre o horário das refeições e os treinos."
+
+#. safety
 #: packages/api/src/presenters/insights.ts
 msgid "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
 msgstr "Algumas refeições foram registadas nas quatro horas anteriores ao início do sono, nesta janela de {windowDays} dias. Isto descreve apenas horários nos seus registos e não estabelece uma relação entre o horário das refeições e o sono."
@@ -8395,6 +8411,10 @@ msgstr "Volume de força: sem séries com peso registadas."
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Strict"
 msgstr "Rigoroso"
+
+#: packages/api/src/nutrition-observations.ts
+msgid "Sufficient matching timestamped records from completed diary days were available."
+msgstr "Havia registos suficientes com data e hora correspondentes de dias do diário concluídos."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Suggested from your profile"
