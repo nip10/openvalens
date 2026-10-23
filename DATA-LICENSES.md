@@ -77,3 +77,20 @@ permission and a license review. Commercial food databases are not used.
   (share-alike).
 - When a later snapshot rejects a record, its rights fields are cleared and its
   images are withdrawn from publication.
+
+## Micronutrient reference values (Issue #78)
+
+Unlike the catalogs above, these values are committed, in
+`packages/nutrition/src/micronutrient-references.ts` (dataset
+`micronutrient-references/v1`, retrieved 2026-10-23). The file covers adult
+values for eight nutrients only.
+
+| Source                                                                                     | What is stored                                                  | License or terms                                                                                                                      | Attribution                                                                                                             |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [EFSA Dietary Reference Values](https://multimedia.efsa.europa.eu/drvs/index.htm)          | PRI, AI, UL and safe-level numbers, each with its opinion's DOI | Re-use is authorised, provided EFSA is acknowledged as the source                                                                     | The summary names EFSA as the source and links the DRV Finder.                                                          |
+| [NASEM Dietary Reference Intakes](https://www.nationalacademies.org/read/25353/chapter/28) | RDA, AI and UL numbers with report citations                    | NASEM text and tables are all rights reserved. Only individual numeric facts and citations are stored; no text or table is reproduced | The summary names NASEM and cites the report for each value; NIH ODS fact sheets (public domain) are linked for reading |
+
+- Values were checked against the EFSA DRV Finder data and Appendix J of the
+  2019 NASEM sodium and potassium report (see `docs/micronutrients.md`).
+- They are shown only after the member chooses a source and population, and
+  only as references, never as a diagnosis.
