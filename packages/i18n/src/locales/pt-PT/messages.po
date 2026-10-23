@@ -752,6 +752,10 @@ msgstr "Uma fotografia pode ser mal interpretada. Verifique cada item, corrija o
 msgid "A PRI or RDA covers the needs of nearly all people in the group; your own needs may be lower. An adequate intake (AI) is used when there is too little evidence for that; it is not a cutoff for deficiency. An upper level is not a goal."
 msgstr "Uma PRI ou RDA cobre as necessidades de quase todas as pessoas do grupo; as suas necessidades podem ser menores. Uma ingestão adequada (AI) é usada quando não há evidência suficiente para isso; não é um limiar de carência. Um nível máximo não é uma meta."
 
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "A Recipe entry contains unsupported or oversized ingredient data."
+msgstr "Uma entrada de receita contém dados de ingredientes não suportados ou demasiado grandes."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "A reference you set yourself. Optional."
 msgstr "Uma referência definida por si. Opcional."
@@ -1734,6 +1738,11 @@ msgstr "Escolha a receita que quer rever."
 #: packages/api/src/presenters/workouts.ts
 msgid "Choose whether the value should go up or down."
 msgstr "Escolha se o valor deve subir ou descer."
+
+#: packages/api/src/presenters/recipe-draft.ts
+#: packages/api/src/recipe-import/service.ts
+msgid "Choose which recipe to continue with."
+msgstr "Escolha com que receita quer continuar."
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/components/recipe-draft-editor.tsx
@@ -3214,6 +3223,10 @@ msgstr "Introduza uma meta superior a zero, ou deixe em branco para a limpar."
 msgid "Enter a minimum, a maximum or both."
 msgstr "Introduza um mínimo, um máximo ou ambos."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "Enter a public http or https recipe address."
+msgstr "Introduza um endereço público http ou https de uma receita."
+
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Enter a valid email address"
@@ -3472,6 +3485,10 @@ msgstr "Marcar como favorito <0>{foodName}</0>"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Female"
 msgstr "Feminino"
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Fetches this one page once. Nothing is saved."
+msgstr "Obtém esta página uma única vez. Nada é guardado."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Fibre"
@@ -3963,6 +3980,10 @@ msgstr "Imperial"
 msgid "Import a lab PDF to add markers."
 msgstr "Importe um PDF de análises para adicionar marcadores."
 
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Import recipes from a web address"
+msgstr "Importar receitas a partir de um endereço web"
+
 #. placeholder {0}: result.removed
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Import undone. {0, plural, one {# imported period removed.} other {# imported periods removed.}}"
@@ -3977,6 +3998,10 @@ msgstr "importado"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Imported: {importedAt}"
 msgstr "Importado: {importedAt}"
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Importing…"
+msgstr "A importar…"
 
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Imports"
@@ -4690,6 +4715,11 @@ msgstr "Masculino"
 msgid "Manage my foods"
 msgstr "Gerir os meus alimentos"
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Manual"
+msgstr "Manual"
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Manual entries for your own reference. Workspace owners and other members cannot view them. Values stay hidden in history until the hide-numbers setting can be checked."
 msgstr "Registos manuais para sua própria referência. Os proprietários do espaço de trabalho e outros membros não os podem ver. Os valores ficam ocultos no histórico até ser possível verificar a definição de ocultar números."
@@ -5047,6 +5077,10 @@ msgstr "Ainda sem atividade"
 msgid "No cardiac exams recorded."
 msgstr "Sem exames cardíacos registados."
 
+#: packages/api/src/presenters/body.ts
+msgid "No change"
+msgstr "Sem alteração"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "No changes to save."
 msgstr "Não há alterações para guardar."
@@ -5305,10 +5339,18 @@ msgstr "Ainda sem sono"
 msgid "No stage data."
 msgstr "Sem dados de fases."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "No structured recipe was found on that page. The draft has the page title only; add the ingredients yourself."
+msgstr "Não foi encontrada nenhuma receita estruturada nessa página. O rascunho tem apenas o título da página; adicione os ingredientes."
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "No supplements logged. Add one to get reminders."
 msgstr "Nenhum suplemento registado. Adicione um para receber lembretes."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "No supported Recipe entry was found."
+msgstr "Não foi encontrada nenhuma entrada de receita suportada."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "No targets set. Logging works the same without them."
@@ -5678,6 +5720,10 @@ msgstr "Desligado por predefinição. Não são mostradas observações nutricio
 msgid "Off by default. Shows eight vitamins and minerals from the foods you log, with how many foods reported each one. Many foods, especially from labels, don't report them, so totals are often incomplete. Turn it off at any time."
 msgstr "Desativado por predefinição. Mostra oito vitaminas e minerais dos alimentos que regista, com quantos alimentos indicaram cada um. Muitos alimentos, sobretudo de rótulos, não os indicam, por isso os totais estão muitas vezes incompletos. Pode desativar a qualquer momento."
 
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time."
+msgstr "Desligado por predefinição. Quando ligado, pode enviar a ligação de uma receita e o servidor obtém essa única página para começar um rascunho não guardado. Mantém os ingredientes, as porções e os créditos, nunca os passos, as fotografias ou as histórias. Pode desligá-lo a qualquer momento."
+
 #: apps/native/app/(drawer)/index.tsx
 msgid "OFFLINE"
 msgstr "SEM LIGAÇÃO"
@@ -5828,6 +5874,11 @@ msgctxt "data source"
 msgid "Other"
 msgstr "Outro"
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Other"
+msgstr "Outra"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Other version"
 msgstr "Outra versão"
@@ -5869,6 +5920,11 @@ msgstr "em 100"
 msgid "Output and training readiness."
 msgstr "Rendimento e prontidão para treinar."
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Override"
+msgstr "Correção"
+
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
@@ -5908,6 +5964,10 @@ msgstr "Cole ingredientes ou Recipe JSON-LD, ou importe uma página de receita s
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Paste is over the 1 MiB limit. Shorten it and try again."
 msgstr "O texto colado excede o limite de 1 MiB. Encurte-o e tente novamente."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Paste one ingredient per line."
+msgstr "Cole um ingrediente por linha."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -6414,6 +6474,10 @@ msgstr "Rascunho de receita"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Recipe JSON-LD"
 msgstr "Recipe JSON-LD"
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "Recipe web address"
+msgstr "Endereço web da receita"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Recommendations issued 2015"
@@ -7755,6 +7819,11 @@ msgstr "Estado de sincronização: {label}"
 msgid "Synced"
 msgstr "Sincronizado"
 
+#: packages/api/src/presenters/body.ts
+msgctxt "weight source"
+msgid "Synced"
+msgstr "Sincronizado"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Syncing"
@@ -7915,9 +7984,33 @@ msgstr "O resumo de micronutrientes está desativado. Ative-o nas definições d
 msgid "The minimum must not be more than the maximum."
 msgstr "O mínimo não pode ser superior ao máximo."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "The page could not be loaded. Check the address or paste the ingredients instead."
+msgstr "Não foi possível carregar a página. Verifique o endereço ou cole os ingredientes."
+
 #: apps/native/app/+not-found.tsx
 msgid "The page you're looking for doesn't exist."
 msgstr "A página que procura não existe."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted ingredients exceed supported limits."
+msgstr "Os ingredientes colados excedem os limites suportados."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted JSON-LD exceeds supported limits."
+msgstr "O JSON-LD colado excede os limites suportados."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted JSON-LD is not valid JSON."
+msgstr "O JSON-LD colado não é JSON válido."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted recipe exceeds the supported size limit."
+msgstr "A receita colada excede o tamanho máximo suportado."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The pasted recipe input is invalid."
+msgstr "O conteúdo da receita colada não é válido."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -7945,6 +8038,10 @@ msgstr "Não foi possível ler a resposta do fornecedor, por isso nada foi adivi
 msgid "The range comes from large observational studies, where more weekly activity was associated with lower mortality. It is a population guideline, not a personal target or an assessment of you."
 msgstr "O intervalo vem de grandes estudos observacionais, em que mais atividade semanal esteve associada a menor mortalidade. É uma diretriz populacional, não um alvo pessoal nem uma avaliação de si."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "The recipe data on that page could not be read. Paste the ingredients instead."
+msgstr "Não foi possível ler os dados da receita nessa página. Cole os ingredientes."
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "The reference group is US adults measured in 1999–2008 and may differ from people where you live."
 msgstr "O grupo de referência são adultos dos EUA medidos em 1999–2008 e pode ser diferente das pessoas onde vive."
@@ -7964,6 +8061,10 @@ msgstr "O servidor não aceitou esta alteração."
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The source has this barcode but no product name. Enter the food from its label instead."
 msgstr "A fonte tem este código de barras, mas sem nome de produto. Em alternativa, introduza o alimento a partir do rótulo."
+
+#: packages/api/src/presenters/recipe-draft.ts
+msgid "The source URL must be a credential-free HTTP or HTTPS URL."
+msgstr "O URL de origem tem de ser um URL HTTP ou HTTPS sem credenciais."
 
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "The weekly insights email is off. You can turn it on again in Settings."
@@ -8147,6 +8248,10 @@ msgstr "Este servidor ainda não consegue enviar email, por isso não é possív
 msgid "This server can't send email yet. Add a Resend key, then invite again."
 msgstr "Este servidor ainda não consegue enviar email. Adicione uma chave Resend e volte a enviar o convite."
 
+#: packages/api/src/recipe-import/service.ts
+msgid "This site does not allow automated imports. Paste the ingredients instead."
+msgstr "Este site não permite importações automáticas. Cole os ingredientes."
+
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "This suggestion has expired."
@@ -8255,6 +8360,10 @@ msgstr "Tom"
 #: apps/web/src/components/admission-form.tsx
 msgid "Too many attempts. Wait a moment, then try again."
 msgstr "Demasiadas tentativas. Aguarde um momento e tente novamente."
+
+#: packages/api/src/recipe-import/service.ts
+msgid "Too many imports just now. Try again in a minute."
+msgstr "Demasiadas importações neste momento. Tente novamente daqui a um minuto."
 
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Total"
@@ -8382,6 +8491,10 @@ msgstr "Ative primeiro os rascunhos a partir de fotografias nas suas definiçõe
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Turn on private measurements"
 msgstr "Ativar medições privadas"
+
+#: packages/api/src/recipe-import/service.ts
+msgid "Turn on recipe import in your nutrition settings first."
+msgstr "Ative primeiro a importação de receitas nas definições de nutrição."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx

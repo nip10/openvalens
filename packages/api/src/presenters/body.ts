@@ -4,6 +4,8 @@
  * for decreases. Canonical values stay in kilograms; the optional display
  * settings only change the rendered unit.
  */
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { formatProductNumber, kgToLb, type ProductDisplaySettings } from "./product-formatting";
 
 export type DailyWeightLike = { date: string; weightKg: number; source: string };
@@ -60,21 +62,25 @@ export function formatKg(value: number, settings?: ProductDisplaySettings | null
  * pounds. Sign and magnitude are taken in the displayed unit; a value that
  * rounds to zero stays "No change" with no negative zero.
  */
-export function formatKgDelta(value: number, settings?: ProductDisplaySettings | null): string {
+export function formatKgDelta(
+  i18n: I18n,
+  value: number,
+  settings?: ProductDisplaySettings | null,
+): string {
   const imperial = settings?.units === "imperial";
   const display = imperial ? kgToLb(value) : value;
   const rounded = Math.round(display * 10) / 10;
-  if (rounded === 0) return "No change";
+  if (rounded === 0) return i18n._(msg`No change`);
   const magnitude = Math.abs(rounded).toFixed(1);
   return `${rounded > 0 ? "+" : "−"}${magnitude} ${imperial ? "lb" : "kg"}`;
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  auto: "Synced",
-  manual: "Manual",
-  override: "Override",
+const SOURCE_LABELS: Record<string, MessageDescriptor> = {
+  auto: msg({ message: "Synced", context: "weight source" }),
+  manual: msg({ message: "Manual", context: "weight source" }),
+  override: msg({ message: "Override", context: "weight source" }),
 };
 
-export function weightSourceLabel(source: string): string {
-  return SOURCE_LABELS[source] ?? "Other";
+export function weightSourceLabel(source: string): MessageDescriptor {
+  return SOURCE_LABELS[source] ?? msg({ message: "Other", context: "weight source" });
 }

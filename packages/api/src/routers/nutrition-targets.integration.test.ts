@@ -725,6 +725,20 @@ describe.skipIf(!url)("nutritionTargets over HTTP against disposable PostgreSQL"
       expect((await importRecipe("user-a2")).body.status).toBe("disabled");
     });
 
+    test("messages come back in the member's interface language (#231)", async () => {
+      await resetSettings("user-a2");
+      expect((await importRecipe("user-a2")).body.message).toBe(
+        "Turn on recipe import in your nutrition settings first.",
+      );
+      await db.execute(
+        sql`insert into user_preference (user_id, locale) values ('user-a2', 'pt-PT') on conflict (user_id) do update set locale = 'pt-PT'`,
+      );
+      expect((await importRecipe("user-a2")).body.message).toBe(
+        "Ative primeiro a importação de receitas nas definições de nutrição.",
+      );
+      await db.execute(sql`delete from user_preference where user_id = 'user-a2'`);
+    });
+
     test("an import writes nothing: no recipe, meal, entry or food rows", async () => {
       await resetSettings("user-a");
       await updateSettings({ expectedRevision: 0, recipeImportEnabled: true }, "user-a");

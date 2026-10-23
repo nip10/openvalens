@@ -71,7 +71,7 @@ export function RecipeDraftEditor() {
   const [showPaste, setShowPaste] = useState(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const importUrl = useMutation(orpc.nutritionRecipeImport.fromUrl.mutationOptions());
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
   useEffect(() => {
     if (scope === activeScope) return;
@@ -136,7 +136,7 @@ export function RecipeDraftEditor() {
       ...(sourceUrl.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
       importedAt: new Date().toISOString(),
     });
-    show(parsed);
+    show({ ...parsed, message: parsed.message ? i18n._(parsed.message) : null });
   };
   const choose = (candidate: RecipeDraft) => {
     setDraft(copyDraft(candidate));
@@ -278,7 +278,7 @@ export function RecipeDraftEditor() {
                   checked={format === "url"}
                   onChange={() => setFormat("url")}
                 />
-                {RECIPE_IMPORT_COPY.urlLabel}
+                {i18n._(RECIPE_IMPORT_COPY.urlLabel)}
               </label>
             </fieldset>
             {format !== "url" ? (
@@ -298,7 +298,7 @@ export function RecipeDraftEditor() {
             <div className="grid gap-1.5">
               <Label htmlFor="recipe-source">
                 {format === "url"
-                  ? RECIPE_IMPORT_COPY.urlLabel
+                  ? i18n._(RECIPE_IMPORT_COPY.urlLabel)
                   : t`Source URL (optional, provenance only)`}
               </Label>
               <Input
@@ -310,7 +310,7 @@ export function RecipeDraftEditor() {
               />
               {format === "url" ? (
                 <p className="text-xs text-muted-foreground">
-                  {RECIPE_IMPORT_COPY.urlHint}{" "}
+                  {i18n._(RECIPE_IMPORT_COPY.urlHint)}{" "}
                   <Link to="/nutrition-targets" className="underline">
                     <Trans>Nutrition settings</Trans>
                   </Link>
@@ -332,7 +332,7 @@ export function RecipeDraftEditor() {
                   replacePending
                 }
               >
-                {importUrl.isPending ? RECIPE_IMPORT_COPY.importing : t`Create draft`}
+                {importUrl.isPending ? i18n._(RECIPE_IMPORT_COPY.importing) : t`Create draft`}
               </Button>
               <Button variant="outline" onClick={clear}>
                 <Trans>Clear</Trans>

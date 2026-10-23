@@ -560,15 +560,17 @@ function SettingsCard({
 
       <View className="gap-1">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">{RECIPE_IMPORT_COPY.settingLabel}</Text>
+          <Text className="flex-1 text-sm text-foreground">
+            {i18n._(RECIPE_IMPORT_COPY.settingLabel)}
+          </Text>
           <Switch
             value={recipeImportEnabled}
             onValueChange={setRecipeImportEnabled}
-            accessibilityLabel={RECIPE_IMPORT_COPY.settingLabel}
+            accessibilityLabel={i18n._(RECIPE_IMPORT_COPY.settingLabel)}
           />
         </View>
         <Text className="text-xs text-muted-foreground">
-          {RECIPE_IMPORT_COPY.settingDescription}
+          {i18n._(RECIPE_IMPORT_COPY.settingDescription)}
         </Text>
       </View>
 

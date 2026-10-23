@@ -78,7 +78,7 @@ export default function RecipeDraftEditor() {
   const [showPaste, setShowPaste] = useState(false);
   const pasteRef = useRef<TextInput>(null);
   const importUrl = useMutation(orpc.nutritionRecipeImport.fromUrl.mutationOptions());
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
   useEffect(() => {
     if (scope === activeScope) return;
@@ -143,7 +143,7 @@ export default function RecipeDraftEditor() {
       ...(sourceUrl.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
       importedAt: new Date().toISOString(),
     });
-    show(parsed);
+    show({ ...parsed, message: parsed.message ? i18n._(parsed.message) : null });
   };
   const choose = (candidate: RecipeDraft) => {
     setDraft(copyDraft(candidate));
@@ -261,7 +261,7 @@ export default function RecipeDraftEditor() {
                     onPress={() => setFormat("json-ld")}
                   />
                   <Choice
-                    label={RECIPE_IMPORT_COPY.urlLabel}
+                    label={i18n._(RECIPE_IMPORT_COPY.urlLabel)}
                     selected={format === "url"}
                     onPress={() => setFormat("url")}
                   />
@@ -288,19 +288,21 @@ export default function RecipeDraftEditor() {
                 keyboardType="url"
                 placeholder={
                   format === "url"
-                    ? RECIPE_IMPORT_COPY.urlLabel
+                    ? i18n._(RECIPE_IMPORT_COPY.urlLabel)
                     : t`Source URL (optional, provenance only)`
                 }
                 accessibilityLabel={
                   format === "url"
-                    ? RECIPE_IMPORT_COPY.urlLabel
+                    ? i18n._(RECIPE_IMPORT_COPY.urlLabel)
                     : t`Source URL, optional, provenance only`
                 }
                 className={INPUT}
                 placeholderTextColor="#9ca3af"
               />
               {format === "url" ? (
-                <Text className="text-xs text-muted-foreground">{RECIPE_IMPORT_COPY.urlHint}</Text>
+                <Text className="text-xs text-muted-foreground">
+                  {i18n._(RECIPE_IMPORT_COPY.urlHint)}
+                </Text>
               ) : null}
               <View className="flex-row flex-wrap gap-2">
                 <Button
@@ -317,7 +319,7 @@ export default function RecipeDraftEditor() {
                     parse();
                   }}
                 >
-                  {importUrl.isPending ? RECIPE_IMPORT_COPY.importing : t`Create draft`}
+                  {importUrl.isPending ? i18n._(RECIPE_IMPORT_COPY.importing) : t`Create draft`}
                 </Button>
                 <Button variant="secondary" onPress={clear}>
                   <Trans>Clear</Trans>

@@ -24,7 +24,10 @@ export function serverI18n(locale: Locale): I18n {
   return i18n;
 }
 
-export async function readUserLocale(db: Database, userId: string): Promise<Locale> {
+export async function readUserLocale(
+  db: Pick<Database, "select">,
+  userId: string,
+): Promise<Locale> {
   const [row] = await db
     .select({ locale: userPreference.locale })
     .from(userPreference)
@@ -33,7 +36,10 @@ export async function readUserLocale(db: Database, userId: string): Promise<Loca
 }
 
 /** For mail addressed by email (magic links, invitations to existing accounts). */
-export async function readLocaleForEmail(db: Database, email: string): Promise<Locale> {
+export async function readLocaleForEmail(
+  db: Pick<Database, "select">,
+  email: string,
+): Promise<Locale> {
   const [row] = await db
     .select({ locale: userPreference.locale })
     .from(userPreference)

@@ -114,7 +114,7 @@ export default function BodyScreen() {
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
   const chart1 = useThemeColor("chart-1");
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
 
   const daily = useCacheFirst(
     "body.dailyWeights",
@@ -215,11 +215,11 @@ export default function BodyScreen() {
               <Stat label={t`Weight`} value={formatKg(summary.latest.weightKg)} />
               <Stat
                 label={t`7 days`}
-                value={summary.change7d === null ? "—" : formatKgDelta(summary.change7d)}
+                value={summary.change7d === null ? "—" : formatKgDelta(i18n, summary.change7d)}
               />
               <Stat
                 label={t`30 days`}
-                value={summary.change30d === null ? "—" : formatKgDelta(summary.change30d)}
+                value={summary.change30d === null ? "—" : formatKgDelta(i18n, summary.change30d)}
               />
             </View>
           </Card>
@@ -258,7 +258,7 @@ export default function BodyScreen() {
                   key={point.date}
                   icon={<Ionicons name="barbell-outline" size={20} color={foreground} />}
                   title={point.date}
-                  subtitle={weightSourceLabel(source)}
+                  subtitle={i18n._(weightSourceLabel(source))}
                   trailing={
                     <Text className="font-mono text-base text-foreground">
                       {formatKg(point.weightKg)}
