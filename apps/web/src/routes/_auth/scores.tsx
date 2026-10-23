@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { SCORE_COPY } from "@openvalens/api/presenters/score";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_auth/scores")({
  * Issue #96 adds opt-in reference comparisons below them (own trend first).
  */
 function ScoresPage() {
+  const { i18n } = useLingui();
   const readiness = useQuery({
     ...orpc.score.readiness.queryOptions({ input: {} }),
     staleTime: 60_000,
@@ -30,18 +32,18 @@ function ScoresPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{SCORE_COPY.pageTitle}</h1>
-        <p className="text-sm text-muted-foreground">{SCORE_COPY.pageIntro}</p>
-        <p className="text-xs text-muted-foreground">{SCORE_COPY.noStorage}</p>
+        <h1 className="text-2xl font-semibold">{i18n._(SCORE_COPY.pageTitle)}</h1>
+        <p className="text-sm text-muted-foreground">{i18n._(SCORE_COPY.pageIntro)}</p>
+        <p className="text-xs text-muted-foreground">{i18n._(SCORE_COPY.noStorage)}</p>
       </div>
 
       {readiness.isPending ? (
         <Skeleton className="h-64 w-full" />
       ) : readiness.isError || !readiness.data ? (
         <p className="text-sm text-muted-foreground">
-          Could not load the readiness index.{" "}
+          <Trans>Could not load the readiness index.</Trans>{" "}
           <button className="underline" onClick={() => void readiness.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       ) : (
@@ -52,9 +54,9 @@ function ScoresPage() {
         <Skeleton className="h-64 w-full" />
       ) : goals.isError || !goals.data ? (
         <p className="text-sm text-muted-foreground">
-          Could not load goal progress.{" "}
+          <Trans>Could not load goal progress.</Trans>{" "}
           <button className="underline" onClick={() => void goals.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       ) : (
@@ -64,11 +66,13 @@ function ScoresPage() {
       <ReferenceComparisonsSection />
 
       <p className="text-sm text-muted-foreground">
-        Set targets, directions and priorities for your goals under{" "}
-        <Link to="/workouts" className="underline">
-          Workouts
-        </Link>
-        .
+        <Trans>
+          Set targets, directions and priorities for your goals under{" "}
+          <Link to="/workouts" className="underline">
+            Workouts
+          </Link>
+          .
+        </Trans>
       </p>
     </div>
   );

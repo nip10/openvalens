@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Label } from "@openvalens/ui/components/label";
@@ -18,6 +19,7 @@ type Subject = { userId: string; organizationId: string };
 
 export function ProgressPhotos({ subject }: { subject: Subject }) {
   const qc = useQueryClient();
+  const { t } = useLingui();
   const key = ["privateBody", "photos", subject.organizationId, subject.userId] as const;
   const photos = useQuery({ queryKey: key, queryFn: () => client.privateBody.photos({}) });
   const [notice, setNotice] = useState("");
@@ -27,25 +29,25 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
   const upload = useMutation({
     mutationFn: (photo: File) => client.privateBody.uploadPhoto({ photo }),
     onSuccess: () => {
-      setNotice("Photo saved privately. Location and camera details were removed.");
+      setNotice(t`Photo saved privately. Location and camera details were removed.`);
       if (fileRef.current) fileRef.current.value = "";
       refresh();
     },
-    onError: () => setNotice("Could not save this photo. Use a JPEG or PNG up to 10 MB."),
+    onError: () => setNotice(t`Could not save this photo. Use a JPEG or PNG up to 10 MB.`),
   });
   const remove = useMutation({
     mutationFn: (objectId: string) => client.storage.delete({ objectId }),
     onSuccess: () => {
-      setNotice("Photo deleted.");
+      setNotice(t`Photo deleted.`);
       refresh();
     },
-    onError: () => setNotice("Could not delete this photo. Try again."),
+    onError: () => setNotice(t`Could not delete this photo. Try again.`),
   });
 
   const choose = (file: File | undefined) => {
     if (!file) return;
     if (file.size > MAX_BYTES || !["image/jpeg", "image/png"].includes(file.type)) {
-      setNotice("Use a JPEG or PNG photo up to 10 MB.");
+      setNotice(t`Use a JPEG or PNG photo up to 10 MB.`);
       return;
     }
     upload.mutate(file);
@@ -54,32 +56,40 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Progress photos</CardTitle>
+        <CardTitle>
+          <Trans>Progress photos</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <p className="text-sm text-muted-foreground">
-          Only you can see these photos. Workspace owners and other members cannot. Location, camera
-          and other hidden details are removed before a photo is stored.
+          <Trans>
+            Only you can see these photos. Workspace owners and other members cannot. Location,
+            camera and other hidden details are removed before a photo is stored.
+          </Trans>
         </p>
         {photos.isPending ? (
           <p role="status" className="text-sm text-muted-foreground">
-            Loading photos…
+            <Trans>Loading photos…</Trans>
           </p>
         ) : photos.isError ? (
           <div className="grid gap-2">
-            <p role="alert">Could not load your photos.</p>
+            <p role="alert">
+              <Trans>Could not load your photos.</Trans>
+            </p>
             <Button className="w-fit" variant="outline" onClick={() => void photos.refetch()}>
-              Try again
+              <Trans>Try again</Trans>
             </Button>
           </div>
         ) : !photos.data.storage ? (
           <p className="text-sm text-muted-foreground">
-            Photo storage is not set up on this server, so photos cannot be added.
+            <Trans>Photo storage is not set up on this server, so photos cannot be added.</Trans>
           </p>
         ) : (
           <>
             <div className="grid gap-1.5">
-              <Label htmlFor="progress-photo">Add a photo (JPEG or PNG, up to 10 MB)</Label>
+              <Label htmlFor="progress-photo">
+                <Trans>Add a photo (JPEG or PNG, up to 10 MB)</Trans>
+              </Label>
               <input
                 ref={fileRef}
                 id="progress-photo"
@@ -92,11 +102,13 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
             </div>
             {upload.isPending ? (
               <p role="status" className="text-sm text-muted-foreground">
-                Saving photo…
+                <Trans>Saving photo…</Trans>
               </p>
             ) : null}
             {photos.data.photos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No photos yet.</p>
+              <p className="text-sm text-muted-foreground">
+                <Trans>No photos yet.</Trans>
+              </p>
             ) : (
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {photos.data.photos.map((photo) => (
@@ -107,11 +119,11 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
                       size="sm"
                       disabled={remove.isPending}
                       onClick={() => {
-                        if (window.confirm("Delete this photo? This cannot be undone."))
+                        if (window.confirm(t`Delete this photo? This cannot be undone.`))
                           remove.mutate(photo.id);
                       }}
                     >
-                      Delete photo
+                      <Trans>Delete photo</Trans>
                     </Button>
                   </li>
                 ))}
@@ -142,15 +154,24 @@ function PhotoImage({ id, createdAt }: { id: string; createdAt: string }) {
     setSrc(url);
     return () => URL.revokeObjectURL(url);
   }, [file.data]);
-  const label = `Progress photo from ${new Date(createdAt).toLocaleDateString()}`;
+  const { t } = useLingui();
+  const date = new Date(createdAt).toLocaleDateString();
   if (file.isError)
-    return <p className="text-sm text-muted-foreground">This photo could not be loaded.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        <Trans>This photo could not be loaded.</Trans>
+      </p>
+    );
   return src ? (
-    <img src={src} alt={label} className="aspect-square w-full rounded-md object-cover" />
+    <img
+      src={src}
+      alt={t`Progress photo from ${date}`}
+      className="aspect-square w-full rounded-md object-cover"
+    />
   ) : (
     <div
       role="status"
-      aria-label={`Loading ${label.toLowerCase()}`}
+      aria-label={t`Loading progress photo from ${date}`}
       className="aspect-square w-full animate-pulse rounded-md bg-muted"
     />
   );

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   exportBundleArtifact,
   exportCsvArtifacts,
@@ -65,11 +66,13 @@ function BundleCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Download a bundle</CardTitle>
+        <CardTitle>
+          <Trans>Download a bundle</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <p className="text-sm text-muted-foreground">
-          Download your clinical record as a single JSON bundle.
+          <Trans>Download your clinical record as a single JSON bundle.</Trans>
         </p>
         <div className="flex items-center gap-3">
           <Button
@@ -79,13 +82,15 @@ function BundleCard() {
             }}
             disabled={bundle.isPending}
           >
-            {bundle.isPending ? "Downloading…" : "Download bundle"}
+            {bundle.isPending ? <Trans>Downloading…</Trans> : <Trans>Download bundle</Trans>}
           </Button>
           <Badge variant="secondary">JSON</Badge>
         </div>
         {bundle.isPending ? <Skeleton className="h-4 w-48" /> : null}
         {bundle.isError ? (
-          <p className="text-sm text-destructive">Could not export. Try again.</p>
+          <p className="text-sm text-destructive">
+            <Trans>Could not export. Try again.</Trans>
+          </p>
         ) : null}
         <ArtifactList artifacts={artifacts} />
       </CardContent>
@@ -94,6 +99,7 @@ function BundleCard() {
 }
 
 function DomainCard() {
+  const { i18n } = useLingui();
   const options = useMemo(() => pickExportDomains(), []);
   const [selected, setSelected] = useState<Set<ExportDomain>>(
     () =>
@@ -143,13 +149,19 @@ function DomainCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Download by domain</CardTitle>
+        <CardTitle>
+          <Trans>Download by domain</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">Choose domains and a format, then download.</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Choose domains and a format, then download.</Trans>
+        </p>
 
         <div className="grid gap-2">
-          <span className="text-sm font-medium">Domains</span>
+          <span className="text-sm font-medium">
+            <Trans>Domains</Trans>
+          </span>
           <div className="flex flex-wrap gap-2">
             {options.map((option) => {
               const isSelected = selected.has(option.domain);
@@ -171,18 +183,22 @@ function DomainCard() {
                   >
                     {isSelected ? "✓" : ""}
                   </span>
-                  {option.label}
+                  {i18n._(option.label)}
                 </Button>
               );
             })}
           </div>
           {selected.size === 0 ? (
-            <span className="text-sm text-destructive">Select at least one domain.</span>
+            <span className="text-sm text-destructive">
+              <Trans>Select at least one domain.</Trans>
+            </span>
           ) : null}
         </div>
 
         <div className="grid gap-2">
-          <span className="text-sm font-medium">Format</span>
+          <span className="text-sm font-medium">
+            <Trans>Format</Trans>
+          </span>
           <div className="flex flex-wrap gap-2">
             {(["csv", "pdf"] as const).map((value) => (
               <Button
@@ -201,14 +217,16 @@ function DomainCard() {
 
         <div className="flex items-center gap-3">
           <Button onClick={submit} disabled={selected.size === 0 || active.isPending}>
-            {active.isPending ? "Downloading…" : "Download"}
+            {active.isPending ? <Trans>Downloading…</Trans> : <Trans>Download</Trans>}
           </Button>
           <Badge variant="secondary">{format.toUpperCase()}</Badge>
         </div>
 
         {active.isPending ? <Skeleton className="h-4 w-48" /> : null}
         {active.isError ? (
-          <p className="text-sm text-destructive">Could not export. Try again.</p>
+          <p className="text-sm text-destructive">
+            <Trans>Could not export. Try again.</Trans>
+          </p>
         ) : null}
         <ArtifactList artifacts={artifacts} />
       </CardContent>
@@ -219,7 +237,9 @@ function DomainCard() {
 function ExportsPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Clinical export</h1>
+      <h1 className="text-2xl font-semibold">
+        <Trans>Clinical export</Trans>
+      </h1>
       <BundleCard />
       <DomainCard />
     </div>

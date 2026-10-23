@@ -12,6 +12,7 @@ import {
   summarizeVitals,
   vitalsSourceLabel,
 } from "@openvalens/api/presenters/vitals";
+import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useMemo, useState } from "react";
@@ -41,6 +42,8 @@ const MANUAL_METRICS: ManualEntryMetric[] = ["heart_rate", "resting_heart_rate"]
 function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   const [metric, setMetric] = useState<ManualEntryMetric>("heart_rate");
   const field = MANUAL_ENTRY_FIELDS[metric];
+  const { t, i18n } = useLingui();
+  const unit = i18n._(field.unit);
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
 
@@ -67,10 +70,10 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title="Add reading">
+    <CardStack title={t`Add reading`}>
       <Card variant="secondary" className="gap-4 p-4">
         <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">Metric</Text>
+          <Text className="text-sm font-medium text-foreground">{t`Metric`}</Text>
           <View className="flex-row flex-wrap gap-2">
             {MANUAL_METRICS.map((code) => {
               const selected = code === metric;
@@ -89,7 +92,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
                       selected ? "font-medium text-foreground" : "text-muted-foreground"
                     }`}
                   >
-                    {MANUAL_ENTRY_FIELDS[code].label}
+                    {i18n._(MANUAL_ENTRY_FIELDS[code].label)}
                   </Text>
                 </Pressable>
               );
@@ -98,7 +101,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </View>
         <View className="flex-row gap-3">
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Value ({field.unit})</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Value (${unit})`}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
@@ -109,7 +112,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             />
           </View>
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Observed at</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
             <TextInput
               value={observedAt}
               onChangeText={setObservedAt}
@@ -121,16 +124,16 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </View>
         <View className="flex-row items-center gap-3">
           <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t`Saving…` : t`Save`}
           </Button>
           {numeric === null && value.length > 0 ? (
             <Text className="text-sm text-destructive">
-              {field.min}–{field.max} {field.unit}
+              {field.min}–{field.max} {unit}
             </Text>
           ) : save.isSuccess ? (
-            <Text className="text-sm text-success">Saved</Text>
+            <Text className="text-sm text-success">{t`Saved`}</Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">Could not save.</Text>
+            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
           ) : null}
         </View>
       </Card>
@@ -148,6 +151,8 @@ export default function VitalsScreen() {
     "vitals.daily",
     orpc.vitals.daily.queryOptions({ input: { days: TREND_WINDOW_DAYS } }),
   );
+  const { t, i18n } = useLingui();
+  const windowDays = TREND_WINDOW_DAYS;
   const samples = useCacheFirst(
     "vitals.recentSamples",
     orpc.vitals.recentSamples.queryOptions({ input: { limit: 20 } }),
@@ -169,7 +174,7 @@ export default function VitalsScreen() {
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
         <SyncStatusBadge />
-        <Text className="text-base text-foreground">Could not load vitals.</Text>
+        <Text className="text-base text-foreground">{t`Could not load vitals.`}</Text>
         <Pressable
           onPress={() => {
             void daily.refetch();
@@ -178,7 +183,7 @@ export default function VitalsScreen() {
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -204,8 +209,8 @@ export default function VitalsScreen() {
       <View className="gap-6 p-4">
         <View className="flex-row items-start justify-between gap-3">
           <View>
-            <Text className="text-sm text-muted-foreground">Vitals</Text>
-            <Text className="font-mono text-3xl text-foreground">Last 30 days</Text>
+            <Text className="text-sm text-muted-foreground">{t`Vitals`}</Text>
+            <Text className="font-mono text-3xl text-foreground">{t`Last 30 days`}</Text>
           </View>
           <SyncStatusBadge />
         </View>
@@ -220,9 +225,9 @@ export default function VitalsScreen() {
 
         {!summary.today ? (
           <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">No vitals yet</Text>
+            <Text className="font-medium text-foreground">{t`No vitals yet`}</Text>
             <Text className="text-center text-sm text-muted-foreground">
-              Sync Health Connect or Apple Health from the mobile app, or add a reading.
+              {t`Sync Health Connect or Apple Health from the mobile app, or add a reading.`}
             </Text>
           </Card>
         ) : (
@@ -230,25 +235,25 @@ export default function VitalsScreen() {
             <CardStack>
               <Card variant="secondary" className="gap-2 p-4">
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-medium text-foreground">Today</Text>
+                  <Text className="text-lg font-medium text-foreground">{t`Today`}</Text>
                   <Text className="text-sm text-muted-foreground">{summary.today.date}</Text>
                 </View>
                 <View className="flex-row gap-4">
-                  <Stat label="Avg" value={formatBpm(summary.today.heartRate.avgBpm)} />
+                  <Stat label={t`Avg`} value={formatBpm(summary.today.heartRate.avgBpm)} />
                   <Stat
-                    label="Range"
+                    label={t`Range`}
                     value={formatBpmRange(
                       summary.today.heartRate.avgBpm,
                       summary.today.heartRate.minBpm,
                       summary.today.heartRate.maxBpm,
                     )}
                   />
-                  <Stat label="Samples" value={summary.today.heartRate.sampleCount.toString()} />
+                  <Stat label={t`Samples`} value={summary.today.heartRate.sampleCount.toString()} />
                 </View>
               </Card>
             </CardStack>
 
-            <CardStack title={`Last ${TREND_WINDOW_DAYS} days`}>
+            <CardStack title={t`Last ${windowDays} days`}>
               <Card variant="secondary" className="p-4">
                 <LineChart
                   data={series.map((point) => ({
@@ -272,27 +277,27 @@ export default function VitalsScreen() {
                   xAxisLabelTextStyle={{ color: foreground, fontSize: 9 }}
                   roundToDigits={0}
                 />
-                <Text className="mt-2 text-xs text-muted-foreground">Y-axis: avg bpm</Text>
+                <Text className="mt-2 text-xs text-muted-foreground">{t`Y-axis: avg bpm`}</Text>
               </Card>
             </CardStack>
 
-            <CardStack title="This week">
+            <CardStack title={t`This week`}>
               <Card variant="secondary" className="p-4">
                 <View className="flex-row gap-4">
-                  <Stat label="7-day avg" value={formatBpm(summary.sevenDayAverageBpm)} />
+                  <Stat label={t`7-day avg`} value={formatBpm(summary.sevenDayAverageBpm)} />
                   <Stat
-                    label="Latest"
+                    label={t`Latest`}
                     value={formatBpm(summary.latestSample?.heartRateBpm ?? null)}
                   />
                   <Stat
-                    label="Source"
-                    value={vitalsSourceLabel(summary.latestSample?.source ?? null)}
+                    label={t`Source`}
+                    value={vitalsSourceLabel(summary.latestSample?.source ?? null, i18n)}
                   />
                 </View>
               </Card>
             </CardStack>
 
-            <CardStack title="Recent samples">
+            <CardStack title={t`Recent samples`}>
               <Card variant="secondary" className="p-0">
                 {(samples.data ?? []).map((sample, index, arr) => (
                   <View
@@ -309,7 +314,7 @@ export default function VitalsScreen() {
                         {formatBpm(sample.heartRateBpm)}
                       </Text>
                       <Text className="text-xs text-muted-foreground">
-                        {vitalsSourceLabel(sample.source)}
+                        {vitalsSourceLabel(sample.source, i18n)}
                       </Text>
                     </View>
                   </View>

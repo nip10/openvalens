@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Card, Chip, useThemeColor } from "heroui-native";
 import { Text, View, Pressable } from "react-native";
@@ -17,6 +18,7 @@ export default function Home() {
   const isConnected = readiness?.data?.status === "ok";
   const isLoading = readiness?.isLoading;
   const { data: session } = authClient.useSession();
+  const { t } = useLingui();
 
   const mutedColor = useThemeColor("muted");
   const successColor = useThemeColor("success");
@@ -31,7 +33,9 @@ export default function Home() {
       {session?.user ? (
         <Card variant="secondary" className="mb-6 p-4">
           <Text className="text-foreground text-base mb-2">
-            Welcome, <Text className="font-medium">{session.user.name}</Text>
+            <Trans>
+              Welcome, <Text className="font-medium">{session.user.name}</Text>
+            </Trans>
           </Text>
           <Text className="text-muted text-sm mb-4">{session.user.email}</Text>
           <Pressable
@@ -42,16 +46,16 @@ export default function Home() {
               queryClient.invalidateQueries();
             }}
           >
-            <Text className="text-foreground font-medium">Sign Out</Text>
+            <Text className="text-foreground font-medium">{t`Sign Out`}</Text>
           </Pressable>
         </Card>
       ) : null}
 
       <Card variant="secondary" className="p-6">
         <View className="flex-row items-center justify-between mb-4">
-          <Card.Title>System Status</Card.Title>
+          <Card.Title>{t`System Status`}</Card.Title>
           <Chip variant="secondary" color={isConnected ? "success" : "danger"} size="sm">
-            <Chip.Label>{isConnected ? "LIVE" : "OFFLINE"}</Chip.Label>
+            <Chip.Label>{isConnected ? t`LIVE` : t`OFFLINE`}</Chip.Label>
           </Chip>
         </View>
 
@@ -64,10 +68,10 @@ export default function Home() {
               <Text className="text-foreground font-medium mb-1">ORPC Backend</Text>
               <Card.Description>
                 {isLoading
-                  ? "Checking connection..."
+                  ? t`Checking connection...`
                   : isConnected
-                    ? "Connected to API"
-                    : "API Disconnected"}
+                    ? t`Connected to API`
+                    : t`API Disconnected`}
               </Card.Description>
             </View>
             {isLoading && <Ionicons name="hourglass-outline" size={20} color={mutedColor} />}
@@ -82,7 +86,7 @@ export default function Home() {
       </Card>
 
       <Card variant="secondary" className="mt-6 p-4">
-        <Card.Title className="mb-3">Private Data</Card.Title>
+        <Card.Title className="mb-3">{t`Private Data`}</Card.Title>
         {protectedEcho && <Card.Description>{protectedEcho.data?.message}</Card.Description>}
       </Card>
 

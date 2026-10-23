@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { syncNow, useOutboxStatus } from "@/lib/offline/sync";
@@ -9,15 +10,16 @@ import { syncNow, useOutboxStatus } from "@/lib/offline/sync";
  */
 export function SyncStatusBadge() {
   const { pending, state } = useOutboxStatus();
+  const { t } = useLingui();
 
   if (pending === 0) return null;
 
   const label =
     state === "offline"
-      ? `Offline (${pending})`
+      ? t`Offline (${pending})`
       : state === "syncing"
-        ? `Syncing (${pending})`
-        : `Failed (${pending})`;
+        ? t`Syncing (${pending})`
+        : t`Failed (${pending})`;
 
   return (
     <Pressable

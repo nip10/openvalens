@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { goalProgressView, readinessView, SCORE_COPY } from "@openvalens/api/presenters/score";
 import type { GoalProgressResult, ReadinessResult } from "@openvalens/api/score-contract";
 import { Badge } from "@openvalens/ui/components/badge";
@@ -18,7 +19,8 @@ import {
  */
 
 export function ReadinessCard({ result }: { result: ReadinessResult }) {
-  const view = readinessView(result);
+  const { i18n } = useLingui();
+  const view = readinessView(result, i18n);
   return (
     <Card role="region" aria-labelledby="readiness-title">
       <CardHeader>
@@ -26,7 +28,7 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
           <CardTitle id="readiness-title">{view.title}</CardTitle>
           <Badge variant="outline">{view.badge}</Badge>
         </div>
-        <CardDescription>{SCORE_COPY.readinessIntro}</CardDescription>
+        <CardDescription>{i18n._(SCORE_COPY.readinessIntro)}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="flex items-baseline gap-3">
@@ -34,7 +36,7 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
             {view.scoreText}
           </span>
           {view.available ? (
-            <span className="text-sm text-muted-foreground">out of 100</span>
+            <span className="text-sm text-muted-foreground">{i18n._(SCORE_COPY.outOf100)}</span>
           ) : null}
         </div>
         {view.withheldExplanation ? <p className="text-sm">{view.withheldExplanation}</p> : null}
@@ -50,7 +52,9 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
         </div>
         {view.components.length > 0 ? (
           <div>
-            <h3 className="mb-2 text-sm font-medium">Breakdown</h3>
+            <h3 className="mb-2 text-sm font-medium">
+              <Trans>Breakdown</Trans>
+            </h3>
             <ul className="divide-y divide-border">
               {view.components.map((component) => (
                 <li
@@ -72,10 +76,12 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
           </div>
         ) : null}
         <details className="text-sm">
-          <summary className="cursor-pointer font-medium">How this is calculated</summary>
-          <p className="mt-2 text-muted-foreground">{SCORE_COPY.readinessMethod}</p>
+          <summary className="cursor-pointer font-medium">
+            <Trans>How this is calculated</Trans>
+          </summary>
+          <p className="mt-2 text-muted-foreground">{i18n._(SCORE_COPY.readinessMethod)}</p>
         </details>
-        <p className="text-sm text-muted-foreground">{SCORE_COPY.readinessLimits}</p>
+        <p className="text-sm text-muted-foreground">{i18n._(SCORE_COPY.readinessLimits)}</p>
         <p className="text-xs text-muted-foreground">{view.versionText}</p>
       </CardContent>
     </Card>
@@ -83,12 +89,13 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
 }
 
 export function GoalProgressCard({ result }: { result: GoalProgressResult }) {
-  const view = goalProgressView(result);
+  const { i18n } = useLingui();
+  const view = goalProgressView(result, i18n);
   return (
     <Card role="region" aria-labelledby="goal-progress-title">
       <CardHeader>
         <CardTitle id="goal-progress-title">{view.title}</CardTitle>
-        <CardDescription>{SCORE_COPY.goalProgressIntro}</CardDescription>
+        <CardDescription>{i18n._(SCORE_COPY.goalProgressIntro)}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <span className="font-mono text-4xl" aria-label={view.accessibilityLabel} role="img">
@@ -122,10 +129,12 @@ export function GoalProgressCard({ result }: { result: GoalProgressResult }) {
           </ul>
         ) : null}
         <details className="text-sm">
-          <summary className="cursor-pointer font-medium">How this is calculated</summary>
-          <p className="mt-2 text-muted-foreground">{SCORE_COPY.goalProgressMethod}</p>
+          <summary className="cursor-pointer font-medium">
+            <Trans>How this is calculated</Trans>
+          </summary>
+          <p className="mt-2 text-muted-foreground">{i18n._(SCORE_COPY.goalProgressMethod)}</p>
         </details>
-        <p className="text-sm text-muted-foreground">{SCORE_COPY.goalProgressLimits}</p>
+        <p className="text-sm text-muted-foreground">{i18n._(SCORE_COPY.goalProgressLimits)}</p>
         <p className="text-xs text-muted-foreground">{view.versionText}</p>
       </CardContent>
     </Card>

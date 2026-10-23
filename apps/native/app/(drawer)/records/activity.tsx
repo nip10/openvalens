@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import {
   formatDistanceMeters,
   formatKcalories,
@@ -41,6 +42,8 @@ const MANUAL_METRICS: ManualEntryMetric[] = ["steps", "active_calories", "distan
 function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   const [metric, setMetric] = useState<ManualEntryMetric>("steps");
   const field = MANUAL_ENTRY_FIELDS[metric];
+  const { t, i18n } = useLingui();
+  const unit = i18n._(field.unit);
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
 
@@ -67,10 +70,10 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title="Add reading">
+    <CardStack title={t`Add reading`}>
       <Card variant="secondary" className="gap-3 p-4">
         <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">Metric</Text>
+          <Text className="text-sm font-medium text-foreground">{t`Metric`}</Text>
           <View className="flex-row flex-wrap gap-2">
             {MANUAL_METRICS.map((code) => {
               const selected = code === metric;
@@ -89,7 +92,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
                       selected ? "font-medium text-foreground" : "text-muted-foreground"
                     }`}
                   >
-                    {MANUAL_ENTRY_FIELDS[code].label}
+                    {i18n._(MANUAL_ENTRY_FIELDS[code].label)}
                   </Text>
                 </Pressable>
               );
@@ -98,7 +101,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </View>
         <View className="flex-row gap-3">
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Value ({field.unit})</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Value (${unit})`}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
@@ -109,7 +112,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             />
           </View>
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Observed at</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
             <TextInput
               value={observedAt}
               onChangeText={setObservedAt}
@@ -121,16 +124,16 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </View>
         <View className="flex-row items-center gap-3">
           <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t`Saving…` : t`Save`}
           </Button>
           {numeric === null && value.length > 0 ? (
             <Text className="text-sm text-destructive">
-              {field.min}–{field.max} {field.unit}
+              {field.min}–{field.max} {unit}
             </Text>
           ) : save.isSuccess ? (
-            <Text className="text-sm text-success">Saved</Text>
+            <Text className="text-sm text-success">{t`Saved`}</Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">Could not save.</Text>
+            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
           ) : null}
         </View>
       </Card>
@@ -142,6 +145,8 @@ export default function ActivityScreen() {
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
   const chart1 = useThemeColor("chart-1");
+  const { t } = useLingui();
+  const windowDays = TREND_WINDOW_DAYS;
 
   const totals = useCacheFirst(
     "activity.dailyTotals",
@@ -165,13 +170,13 @@ export default function ActivityScreen() {
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
         <SyncStatusBadge />
-        <Text className="text-base text-foreground">Could not load activity.</Text>
+        <Text className="text-base text-foreground">{t`Could not load activity.`}</Text>
         <Pressable
           onPress={() => void totals.refetch()}
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -195,8 +200,8 @@ export default function ActivityScreen() {
       <View className="gap-6 p-4">
         <View className="flex-row items-start justify-between gap-3">
           <View>
-            <Text className="text-sm text-muted-foreground">Activity</Text>
-            <Text className="font-mono text-3xl text-foreground">Last 30 days</Text>
+            <Text className="text-sm text-muted-foreground">{t`Activity`}</Text>
+            <Text className="font-mono text-3xl text-foreground">{t`Last 30 days`}</Text>
           </View>
           <SyncStatusBadge />
         </View>
@@ -205,9 +210,9 @@ export default function ActivityScreen() {
 
         {!today ? (
           <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">No activity yet</Text>
+            <Text className="font-medium text-foreground">{t`No activity yet`}</Text>
             <Text className="text-center text-sm text-muted-foreground">
-              Sync Health Connect or Apple Health from the mobile app, or add an entry.
+              {t`Sync Health Connect or Apple Health from the mobile app, or add an entry.`}
             </Text>
           </Card>
         ) : (
@@ -215,18 +220,18 @@ export default function ActivityScreen() {
             <CardStack>
               <Card variant="secondary" className="gap-2 p-4">
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-medium text-foreground">Today</Text>
+                  <Text className="text-lg font-medium text-foreground">{t`Today`}</Text>
                   <Text className="text-sm text-muted-foreground">{today.date}</Text>
                 </View>
                 <View className="flex-row gap-4">
-                  <Stat label="Steps" value={formatSteps(today.steps)} />
-                  <Stat label="Calories" value={formatKcalories(today.activeCaloriesKcal)} />
-                  <Stat label="Distance" value={formatDistanceMeters(today.distanceMeters)} />
+                  <Stat label={t`Steps`} value={formatSteps(today.steps)} />
+                  <Stat label={t`Calories`} value={formatKcalories(today.activeCaloriesKcal)} />
+                  <Stat label={t`Distance`} value={formatDistanceMeters(today.distanceMeters)} />
                 </View>
               </Card>
             </CardStack>
 
-            <CardStack title={`Last ${TREND_WINDOW_DAYS} days`}>
+            <CardStack title={t`Last ${windowDays} days`}>
               <Card variant="secondary" className="p-4">
                 <BarChart
                   data={series.map((point) => ({
@@ -248,30 +253,30 @@ export default function ActivityScreen() {
                   maxValue={Math.ceil(maxSteps / 1000) * 1000}
                   yAxisLabelSuffix=""
                 />
-                <Text className="mt-2 text-xs text-muted-foreground">Bars: steps per day</Text>
+                <Text className="mt-2 text-xs text-muted-foreground">{t`Bars: steps per day`}</Text>
               </Card>
             </CardStack>
 
-            <CardStack title="This week">
+            <CardStack title={t`This week`}>
               <Card variant="secondary" className="p-4">
                 <View className="flex-row gap-4">
                   <Stat
-                    label="Steps / active day"
+                    label={t`Steps / active day`}
                     value={formatSteps(summary.sevenDayAverageSteps)}
                   />
                   <Stat
-                    label="Calories / day"
+                    label={t`Calories / day`}
                     value={formatKcalories(summary.sevenDayAverageCalories)}
                   />
                   <Stat
-                    label="Distance / day"
+                    label={t`Distance / day`}
                     value={formatDistanceMeters(summary.sevenDayAverageDistance)}
                   />
                 </View>
               </Card>
             </CardStack>
 
-            <CardStack title="Recent">
+            <CardStack title={t`Recent`}>
               <Card variant="secondary" className="p-0">
                 {recent.map((day, index) => (
                   <View
@@ -283,7 +288,7 @@ export default function ActivityScreen() {
                     <Text className="font-mono text-sm text-muted-foreground">{day.date}</Text>
                     <View className="flex-row items-center gap-4">
                       <Text className="font-mono text-sm text-foreground">
-                        {formatSteps(day.steps)} steps
+                        {t({ message: `${formatSteps(day.steps)} steps`, comment: "safety" })}
                       </Text>
                       <Text className="font-mono text-xs text-muted-foreground">
                         {formatKcalories(day.activeCaloriesKcal)}

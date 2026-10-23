@@ -1,3 +1,5 @@
+import { plural } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
@@ -38,14 +40,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
     }),
   );
 
-  const field = {
-    metric: "weight",
-    label: "Value",
-    unit: "",
-    min: 0,
-    max: 100_000,
-    step: 1,
-  } as const;
+  const field = { min: 0, max: 100_000 } as const;
   const numeric = parseManualEntryValue(field, value);
 
   const submit = () => {
@@ -61,11 +56,15 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add reading</CardTitle>
+        <CardTitle>
+          <Trans>Add reading</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Value</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Value</Trans>
+          </Label>
           <Input
             inputMode="decimal"
             value={value}
@@ -74,7 +73,9 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
           />
         </div>
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Observed at</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Observed at</Trans>
+          </Label>
           <Input
             type="datetime-local"
             value={observedAt}
@@ -83,14 +84,20 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
         </div>
         <div className="flex items-center gap-3 sm:col-span-2">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
           {numeric === null && value.length > 0 ? (
-            <span className="text-sm text-destructive">Value must be between 0 and 100,000.</span>
+            <span className="text-sm text-destructive">
+              <Trans>Value must be between 0 and 100,000.</Trans>
+            </span>
           ) : save.isSuccess ? (
-            <span className="text-sm text-success">Saved</span>
+            <span className="text-sm text-success">
+              <Trans>Saved</Trans>
+            </span>
           ) : save.isError ? (
-            <span className="text-sm text-destructive">Could not save.</span>
+            <span className="text-sm text-destructive">
+              <Trans>Could not save.</Trans>
+            </span>
           ) : null}
         </div>
       </CardContent>
@@ -102,12 +109,15 @@ function LabsPage() {
   const markers = useCacheFirst("labs.latest", () => client.labs.latest({ recentLimit: 10 }));
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { t } = useLingui();
 
   if (markers.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">Labs</h1>
+          <h1 className="text-2xl font-semibold">
+            <Trans>Labs</Trans>
+          </h1>
           <SyncStatusBadge />
         </div>
         <Skeleton className="h-64 w-full" />
@@ -119,13 +129,15 @@ function LabsPage() {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">Labs</h1>
+          <h1 className="text-2xl font-semibold">
+            <Trans>Labs</Trans>
+          </h1>
           <SyncStatusBadge />
         </div>
         <p className="text-sm text-muted-foreground">
-          Could not load labs.{" "}
+          <Trans>Could not load labs.</Trans>{" "}
           <button className="underline" onClick={() => void markers.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -137,7 +149,9 @@ function LabsPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Labs</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Labs</Trans>
+        </h1>
         <SyncStatusBadge />
       </div>
 
@@ -146,8 +160,12 @@ function LabsPage() {
       {list.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No lab markers yet</p>
-            <p className="text-sm text-muted-foreground">Import a lab PDF to add markers.</p>
+            <p className="font-medium">
+              <Trans>No lab markers yet</Trans>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <Trans>Import a lab PDF to add markers.</Trans>
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -161,8 +179,8 @@ function LabsPage() {
                     <div className="font-medium">{marker.displayName}</div>
                     <div className="text-sm text-muted-foreground">
                       {marker.latestValue === null
-                        ? "No readings yet"
-                        : `${formatLabDate(marker.latestSampledAt, settings)} · ${marker.sampleCount} reading${marker.sampleCount === 1 ? "" : "s"}`}
+                        ? t`No readings yet`
+                        : t`${formatLabDate(marker.latestSampledAt, settings)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`}
                     </div>
                   </div>
                   <div className="shrink-0 text-right">

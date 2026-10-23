@@ -1,8 +1,12 @@
 /**
- * Manual entry presentation shared by web and mobile. Pure TypeScript, no
- * imports — safe for the app bundle. Used by the Vitals / Labs / Activity
- * "Add reading" forms, which write through `healthRecord.ingestMetricSample`.
+ * Manual entry presentation shared by web and mobile. Pure TypeScript — safe
+ * for the app bundle. Used by the Vitals / Labs / Activity "Add reading"
+ * forms, which write through `healthRecord.ingestMetricSample`. Labels and
+ * units are Lingui message descriptors (#67).
  */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 export type ManualEntryMetric =
   | "heart_rate"
   | "resting_heart_rate"
@@ -13,41 +17,65 @@ export type ManualEntryMetric =
 
 export type ManualEntryField = {
   metric: ManualEntryMetric;
-  label: string;
-  unit: string;
+  label: MessageDescriptor;
+  /** Unit shown next to the value: a symbol kept as is, or a word for steps. */
+  unit: MessageDescriptor;
   min: number;
   max: number;
   step: number;
 };
 
+const SYMBOL = "Unit symbol; keep as is.";
+
 export const MANUAL_ENTRY_FIELDS: Record<ManualEntryMetric, ManualEntryField> = {
   heart_rate: {
     metric: "heart_rate",
-    label: "Heart rate",
-    unit: "bpm",
+    label: msg`Heart rate`,
+    unit: msg({ message: "bpm", comment: SYMBOL }),
     min: 30,
     max: 220,
     step: 1,
   },
   resting_heart_rate: {
     metric: "resting_heart_rate",
-    label: "Resting heart rate",
-    unit: "bpm",
+    label: msg`Resting heart rate`,
+    unit: msg({ message: "bpm", comment: SYMBOL }),
     min: 30,
     max: 120,
     step: 1,
   },
-  steps: { metric: "steps", label: "Steps", unit: "steps", min: 0, max: 100_000, step: 1 },
+  steps: {
+    metric: "steps",
+    label: msg`Steps`,
+    unit: msg({ message: "steps", context: "unit", comment: "safety" }),
+    min: 0,
+    max: 100_000,
+    step: 1,
+  },
   active_calories: {
     metric: "active_calories",
-    label: "Active calories",
-    unit: "kcal",
+    label: msg`Active calories`,
+    unit: msg({ message: "kcal", comment: SYMBOL }),
     min: 0,
     max: 10_000,
     step: 1,
   },
-  distance: { metric: "distance", label: "Distance", unit: "m", min: 0, max: 200_000, step: 1 },
-  weight: { metric: "weight", label: "Weight", unit: "kg", min: 20, max: 300, step: 0.1 },
+  distance: {
+    metric: "distance",
+    label: msg`Distance`,
+    unit: msg({ message: "m", comment: SYMBOL }),
+    min: 0,
+    max: 200_000,
+    step: 1,
+  },
+  weight: {
+    metric: "weight",
+    label: msg`Weight`,
+    unit: msg({ message: "kg", comment: SYMBOL }),
+    min: 20,
+    max: 300,
+    step: 0.1,
+  },
 };
 
 /**
@@ -72,7 +100,10 @@ export function defaultObservedAt(now: Date = new Date()): string {
 }
 
 /** Parses the value from a form string and clamps to the metric's allowed range. */
-export function parseManualEntryValue(field: ManualEntryField, raw: string): number | null {
+export function parseManualEntryValue(
+  field: Pick<ManualEntryField, "min" | "max">,
+  raw: string,
+): number | null {
   const value = Number(raw);
   if (!Number.isFinite(value)) return null;
   const rounded = Math.round(value * 1000) / 1000;

@@ -1,3 +1,5 @@
+import type { I18n } from "@lingui/core";
+import { useLingui } from "@lingui/react/macro";
 import {
   cardiacExamTypeLabel,
   familyRelationLabel,
@@ -16,6 +18,7 @@ import { useThemeColor } from "@/utils/theme";
 
 export default function ClinicalScreen() {
   const foreground = useThemeColor("foreground");
+  const { t, i18n } = useLingui();
   const cardiac = useQuery(orpc.clinical.listCardiacExams.queryOptions({ input: {} }));
   const imaging = useQuery(orpc.clinical.listImagingStudies.queryOptions({ input: {} }));
   const family = useQuery(orpc.clinical.listFamilyHistory.queryOptions({ input: {} }));
@@ -30,7 +33,7 @@ export default function ClinicalScreen() {
   if (cardiac.isError || imaging.isError || family.isError)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load clinical records.</Text>
+        <Text className="text-base text-foreground">{t`Could not load clinical records.`}</Text>
         <Pressable
           onPress={() => {
             void cardiac.refetch();
@@ -40,7 +43,7 @@ export default function ClinicalScreen() {
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -63,27 +66,27 @@ export default function ClinicalScreen() {
     >
       <View className="gap-4 p-4">
         <View>
-          <Text className="text-sm text-muted-foreground">Clinical</Text>
-          <Text className="font-mono text-3xl text-foreground">Records</Text>
+          <Text className="text-sm text-muted-foreground">{t`Clinical`}</Text>
+          <Text className="font-mono text-3xl text-foreground">{t`Records`}</Text>
         </View>
 
         <Section
-          title={`Cardiac · ${cardiac.data.length}`}
+          title={t`Cardiac · ${cardiac.data.length}`}
           rows={cardiac.data}
-          renderItem={renderCardiac}
-          emptyText="No cardiac exams recorded."
+          renderItem={(row) => renderCardiac(row, i18n)}
+          emptyText={t`No cardiac exams recorded.`}
         />
         <Section
-          title={`Imaging · ${imaging.data.length}`}
+          title={t`Imaging · ${imaging.data.length}`}
           rows={imaging.data}
-          renderItem={renderImaging}
-          emptyText="No imaging studies recorded."
+          renderItem={(row) => renderImaging(row, i18n)}
+          emptyText={t`No imaging studies recorded.`}
         />
         <Section
-          title={`Family history · ${family.data.length}`}
+          title={t`Family history · ${family.data.length}`}
           rows={family.data}
-          renderItem={renderFamily}
-          emptyText="No family history entries."
+          renderItem={(row) => renderFamily(row, i18n)}
+          emptyText={t`No family history entries.`}
         />
       </View>
     </Container>
@@ -135,9 +138,12 @@ type CardiacRow = {
   facility: string | null;
   conclusion: string | null;
 };
-function renderCardiac(row: CardiacRow): { headline: string; date: string; secondary: string } {
+function renderCardiac(
+  row: CardiacRow,
+  i18n: I18n,
+): { headline: string; date: string; secondary: string } {
   return {
-    headline: cardiacExamTypeLabel(row.type),
+    headline: cardiacExamTypeLabel(row.type, i18n),
     date: row.date,
     secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
   };
@@ -150,9 +156,12 @@ type ImagingRow = {
   facility: string | null;
   conclusion: string | null;
 };
-function renderImaging(row: ImagingRow): { headline: string; date: string; secondary: string } {
+function renderImaging(
+  row: ImagingRow,
+  i18n: I18n,
+): { headline: string; date: string; secondary: string } {
   return {
-    headline: `${imagingTypeLabel(row.type)} · ${row.bodyPart}`,
+    headline: `${imagingTypeLabel(row.type, i18n)} · ${row.bodyPart}`,
     date: row.date,
     secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
   };
@@ -164,9 +173,12 @@ type FamilyRow = {
   ageOfOnset: number | null;
   notes: string | null;
 };
-function renderFamily(row: FamilyRow): { headline: string; date: string; secondary: string } {
+function renderFamily(
+  row: FamilyRow,
+  i18n: I18n,
+): { headline: string; date: string; secondary: string } {
   return {
-    headline: `${familyRelationLabel(row.relation)} · ${row.condition}`,
+    headline: `${familyRelationLabel(row.relation, i18n)} · ${row.condition}`,
     date: formatYear(row.ageOfOnset),
     secondary: summaryText(row.notes),
   };

@@ -3,8 +3,11 @@
  * from the body, sleep, activity and vitals read paths. No imports: safe for
  * the app bundle. Copy follows docs/mobile/tone-of-voice.md.
  */
+import type { I18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { formatKg } from "./body";
-import { formatSleepDuration } from "./sleep";
+import { formatSleepDuration, sleepStatusLabel, type SleepDailyLike } from "./sleep";
 import { formatSteps, formatKcalories, formatDistanceMeters } from "./activity";
 import { formatBpm } from "./vitals";
 
@@ -51,22 +54,43 @@ export type CockpitBlock = {
   tertiary: string | null;
 };
 
-export function buildCockpitBlocks(snapshot: CockpitSnapshot): CockpitBlock[] {
+const SLEEP_STATUSES: readonly string[] = [
+  "optimal",
+  "acceptable",
+  "mild_sleep_debt",
+  "high_sleep_debt",
+  "fragmented_sleep",
+  "irregular_schedule",
+  "low_confidence",
+];
+
+/** The sleep status label for a known status code; anything else shows as given. */
+function sleepStatusText(status: string, i18n: I18n): string {
+  return SLEEP_STATUSES.includes(status)
+    ? i18n._(sleepStatusLabel(status as SleepDailyLike["status"]))
+    : status;
+}
+
+/** Text is rendered through `i18n` (#67), so the blocks follow the active language. */
+export function buildCockpitBlocks(snapshot: CockpitSnapshot, i18n: I18n): CockpitBlock[] {
+  const weight = snapshot.weight;
+  const sleep = snapshot.sleep;
+  const vitals = snapshot.vitals;
   return [
     {
       key: "weight",
-      title: "Weight",
-      primary: snapshot.weight ? formatKg(snapshot.weight.weightKg) : "—",
-      secondary: snapshot.weight ? `Last reading · ${snapshot.weight.date}` : "No reading yet",
+      title: i18n._(msg`Weight`),
+      primary: weight ? formatKg(weight.weightKg) : "—",
+      secondary: weight ? i18n._(msg`Last reading · ${weight.date}`) : i18n._(msg`No reading yet`),
       tertiary: null,
     },
     {
       key: "sleep",
-      title: "Sleep",
-      primary: snapshot.sleep ? formatSleepDuration(snapshot.sleep.asleepMinutes) : "—",
-      secondary: snapshot.sleep
-        ? `${snapshot.sleep.date} · ${snapshot.sleep.status}`
-        : "No sleep logged",
+      title: i18n._(msg`Sleep`),
+      primary: sleep ? formatSleepDuration(sleep.asleepMinutes) : "—",
+      secondary: sleep
+        ? `${sleep.date} · ${sleepStatusText(sleep.status, i18n)}`
+        : i18n._(msg`No sleep logged`),
       tertiary:
         snapshot.sleep && snapshot.sleep.bedtime && snapshot.sleep.wakeAt
           ? `${snapshot.sleep.bedtime} → ${snapshot.sleep.wakeAt}`
@@ -74,21 +98,18 @@ export function buildCockpitBlocks(snapshot: CockpitSnapshot): CockpitBlock[] {
     },
     {
       key: "activity",
-      title: "Activity",
+      title: i18n._(msg`Activity`),
       primary: snapshot.activity ? formatSteps(snapshot.activity.steps) : "—",
       secondary: snapshot.activity
         ? `${snapshot.activity.date} · ${formatKcalories(snapshot.activity.activeCaloriesKcal)} · ${formatDistanceMeters(snapshot.activity.distanceMeters)}`
-        : "No activity logged",
+        : i18n._(msg`No activity logged`),
       tertiary: null,
     },
     {
       key: "vitals",
-      title: "Heart rate",
-      primary:
-        snapshot.vitals && snapshot.vitals.heartRateAvgBpm !== null
-          ? formatBpm(snapshot.vitals.heartRateAvgBpm)
-          : "—",
-      secondary: snapshot.vitals ? `Avg · ${snapshot.vitals.date}` : "No reading yet",
+      title: i18n._(msg`Heart rate`),
+      primary: vitals && vitals.heartRateAvgBpm !== null ? formatBpm(vitals.heartRateAvgBpm) : "—",
+      secondary: vitals ? i18n._(msg`Avg · ${vitals.date}`) : i18n._(msg`No reading yet`),
       tertiary: null,
     },
   ];

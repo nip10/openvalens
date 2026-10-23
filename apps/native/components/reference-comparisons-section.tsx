@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Spinner } from "heroui-native";
 import { useState } from "react";
@@ -26,6 +27,9 @@ function BlockView({
   onToggle: () => void;
 }) {
   const [showSource, setShowSource] = useState(false);
+  const { t } = useLingui();
+  const title = block.title;
+  const toggle = block.toggleLabel;
   return (
     <View className="gap-2 border-t border-border pt-3">
       <View accessible accessibilityLabel={block.accessibilityLabel} className="gap-1">
@@ -79,7 +83,7 @@ function BlockView({
         disabled={pending}
         accessibilityRole="switch"
         accessibilityState={{ checked: block.optedIn, disabled: pending }}
-        accessibilityLabel={`${block.title}: ${block.toggleLabel}`}
+        accessibilityLabel={t`${title}: ${toggle}`}
         className="min-h-11 justify-center self-start rounded-full border border-border px-4"
       >
         <Text className="text-sm font-medium text-foreground">{block.toggleLabel}</Text>
@@ -90,6 +94,7 @@ function BlockView({
 
 export function ReferenceComparisonsSection() {
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
   const comparisons = useQuery(orpc.comparison.get.queryOptions({ input: {} }));
   const update = useMutation(
     orpc.comparison.updateSettings.mutationOptions({
@@ -106,12 +111,14 @@ export function ReferenceComparisonsSection() {
         accessibilityRole="button"
       >
         <Text className="text-sm text-foreground">
-          Could not load reference comparisons. <Text className="underline">Retry</Text>
+          <Trans>
+            Could not load reference comparisons. <Text className="underline">Retry</Text>
+          </Trans>
         </Text>
       </Pressable>
     );
 
-  const model = comparisonScreenModel(comparisons.data);
+  const model = comparisonScreenModel(comparisons.data, i18n);
   return (
     <CardStack>
       <Card variant="secondary" className="gap-3 p-4">
@@ -124,7 +131,9 @@ export function ReferenceComparisonsSection() {
           <Text className="text-sm text-foreground">{model.withheldText}</Text>
         ) : null}
         {update.isError ? (
-          <Text className="text-sm text-foreground">Could not update the comparison setting.</Text>
+          <Text className="text-sm text-foreground">
+            {t`Could not update the comparison setting.`}
+          </Text>
         ) : null}
         {model.blocks.map((block) => (
           <BlockView

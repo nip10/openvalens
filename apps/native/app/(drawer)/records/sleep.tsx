@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { useLingui } from "@lingui/react/macro";
 import {
   formatClockTime,
   formatSleepDuration,
@@ -38,7 +40,12 @@ function statusChipColor(status: Parameters<typeof sleepStatusTone>[0]): ChipCol
   return "default";
 }
 
-function StageBars({ stages }: { stages: { stage: string; label: string; minutes: number }[] }) {
+function StageBars({
+  stages,
+}: {
+  stages: { stage: string; label: MessageDescriptor; minutes: number }[];
+}) {
+  const { t, i18n } = useLingui();
   const chart1 = useThemeColor("chart-1");
   const chart2 = useThemeColor("chart-2");
   const chart3 = useThemeColor("chart-3");
@@ -62,7 +69,7 @@ function StageBars({ stages }: { stages: { stage: string; label: string; minutes
   };
 
   if (total === 0) {
-    return <Text className="text-sm text-muted-foreground">No stage data.</Text>;
+    return <Text className="text-sm text-muted-foreground">{t`No stage data.`}</Text>;
   }
 
   return (
@@ -86,7 +93,7 @@ function StageBars({ stages }: { stages: { stage: string; label: string; minutes
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: colorFor(entry.stage) }}
               />
-              <Text className="text-sm text-muted-foreground">{entry.label}</Text>
+              <Text className="text-sm text-muted-foreground">{i18n._(entry.label)}</Text>
             </View>
             <Text className="font-mono text-sm text-foreground">
               {formatSleepDuration(entry.minutes)}
@@ -102,6 +109,8 @@ export default function SleepScreen() {
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
   const chart1 = useThemeColor("chart-1");
+  const { t, i18n } = useLingui();
+  const windowDays = TREND_WINDOW_DAYS;
 
   const summary = useQuery(orpc.sleep.summary.queryOptions({ input: { days: TREND_WINDOW_DAYS } }));
 
@@ -117,13 +126,13 @@ export default function SleepScreen() {
   if (summary.isError || !summary.data)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load sleep.</Text>
+        <Text className="text-base text-foreground">{t`Could not load sleep.`}</Text>
         <Pressable
           onPress={() => void summary.refetch()}
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -146,15 +155,15 @@ export default function SleepScreen() {
     >
       <View className="gap-6 p-4">
         <View>
-          <Text className="text-sm text-muted-foreground">Sleep</Text>
-          <Text className="font-mono text-3xl text-foreground">Last 30 days</Text>
+          <Text className="text-sm text-muted-foreground">{t`Sleep`}</Text>
+          <Text className="font-mono text-3xl text-foreground">{t`Last 30 days`}</Text>
         </View>
 
         {!last ? (
           <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">No sleep yet</Text>
+            <Text className="font-medium text-foreground">{t`No sleep yet`}</Text>
             <Text className="text-center text-sm text-muted-foreground">
-              Track sleep through Health Connect or Apple Health, or add a session.
+              {t`Track sleep through Health Connect or Apple Health, or add a session.`}
             </Text>
           </Card>
         ) : (
@@ -162,16 +171,19 @@ export default function SleepScreen() {
             <CardStack>
               <Card variant="secondary" className="gap-3 p-4">
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-medium text-foreground">Last night</Text>
+                  <Text className="text-lg font-medium text-foreground">{t`Last night`}</Text>
                   <Chip size="sm" color={statusChipColor(last.status)}>
-                    <Chip.Label>{sleepStatusLabel(last.status)}</Chip.Label>
+                    <Chip.Label>{i18n._(sleepStatusLabel(last.status))}</Chip.Label>
                   </Chip>
                 </View>
                 <Text className="text-sm text-muted-foreground">{last.date}</Text>
                 <View className="flex-row gap-4">
-                  <Stat label="Asleep" value={formatSleepDuration(last.asleepMinutes)} />
-                  <Stat label="In bed" value={formatSleepDuration(last.timeInBedMinutes)} />
-                  <Stat label="Efficiency" value={formatSleepEfficiency(last.sleepEfficiencyPct)} />
+                  <Stat label={t`Asleep`} value={formatSleepDuration(last.asleepMinutes)} />
+                  <Stat label={t`In bed`} value={formatSleepDuration(last.timeInBedMinutes)} />
+                  <Stat
+                    label={t`Efficiency`}
+                    value={formatSleepEfficiency(last.sleepEfficiencyPct)}
+                  />
                 </View>
                 <Text className="text-sm text-muted-foreground">
                   {formatClockTime(last.mainSleepStart)} → {formatClockTime(last.mainSleepEnd)}
@@ -179,13 +191,13 @@ export default function SleepScreen() {
               </Card>
             </CardStack>
 
-            <CardStack title="Stages">
+            <CardStack title={t`Stages`}>
               <Card variant="secondary" className="p-4">
                 <StageBars stages={stages} />
               </Card>
             </CardStack>
 
-            <CardStack title={`Last ${TREND_WINDOW_DAYS} days`}>
+            <CardStack title={t`Last ${windowDays} days`}>
               <Card variant="secondary" className="p-4">
                 <LineChart
                   data={series.map((point) => ({
@@ -209,22 +221,24 @@ export default function SleepScreen() {
                   xAxisLabelTextStyle={{ color: foreground, fontSize: 9 }}
                   roundToDigits={0}
                 />
-                <Text className="mt-2 text-xs text-muted-foreground">Y-axis: minutes of sleep</Text>
+                <Text className="mt-2 text-xs text-muted-foreground">
+                  {t`Y-axis: minutes of sleep`}
+                </Text>
               </Card>
             </CardStack>
 
-            <CardStack title="This week">
+            <CardStack title={t`This week`}>
               <Card variant="secondary" className="p-4">
                 <View className="flex-row gap-4">
                   <Stat
-                    label="7-day average"
+                    label={t`7-day average`}
                     value={formatSleepDuration(summary.data.sevenDayAverageMinutes)}
                   />
                   <Stat
-                    label="Avg debt"
+                    label={t`Avg debt`}
                     value={formatSleepDuration(summary.data.averageSleepDebtMinutes)}
                   />
-                  <Stat label="Target" value={formatSleepDuration(last.targetMinutes)} />
+                  <Stat label={t`Target`} value={formatSleepDuration(last.targetMinutes)} />
                 </View>
               </Card>
             </CardStack>

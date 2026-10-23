@@ -12,7 +12,12 @@
  *
  * The shapes are simple self-drawn outlines (no vendored artwork), on a
  * 200 × 400 view box per side.
+ *
+ * Labels and copy are Lingui message descriptors; the layers render their
+ * legend and value text through the `i18n` they are given (#67).
  */
+import type { I18n, MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 
 export type BodyMapView = "front" | "back";
 export type BodyMapSide = "left" | "right";
@@ -22,7 +27,7 @@ export type BodyMapRegion = {
   id: string;
   view: BodyMapView;
   /** Screen-reader and legend label. "Left" is the member's left. */
-  label: string;
+  label: MessageDescriptor;
   path: string;
   /** DEXA regions this map region can show, most specific first. */
   dexaSources: readonly string[];
@@ -56,26 +61,30 @@ export const TRAINING_GROUPS = [
 ] as const;
 export type TrainingGroup = (typeof TRAINING_GROUPS)[number];
 
-export const TRAINING_GROUP_LABELS: Readonly<Record<TrainingGroup, string>> = Object.freeze({
-  shoulders: "Shoulders",
-  chest: "Chest",
-  biceps: "Biceps",
-  triceps: "Triceps",
-  forearms: "Forearms",
-  abs: "Abs",
-  obliques: "Obliques",
-  traps: "Traps",
-  lats: "Lats",
-  lower_back: "Lower back",
-  glutes: "Glutes",
-  quads: "Quads",
-  hamstrings: "Hamstrings",
-  calves: "Calves",
-});
+export const TRAINING_GROUP_LABELS: Readonly<Record<TrainingGroup, MessageDescriptor>> =
+  Object.freeze({
+    shoulders: msg`Shoulders`,
+    chest: msg`Chest`,
+    biceps: msg`Biceps`,
+    triceps: msg`Triceps`,
+    forearms: msg`Forearms`,
+    abs: msg`Abs`,
+    obliques: msg`Obliques`,
+    traps: msg`Traps`,
+    lats: msg`Lats`,
+    lower_back: msg`Lower back`,
+    glutes: msg`Glutes`,
+    quads: msg`Quads`,
+    hamstrings: msg`Hamstrings`,
+    calves: msg`Calves`,
+  });
+
+/** Whole labels per side, so each language can agree the side with the part. */
+type ShapeLabel = MessageDescriptor | { left: MessageDescriptor; right: MessageDescriptor };
 
 type Shape = {
   name: string;
-  label: string;
+  label: ShapeLabel;
   /** Viewer-left x for a paired shape, or the full shape for a single one. */
   x: number;
   y: number;
@@ -95,7 +104,7 @@ const trunk = (side: BodyMapSide | null) => (side ? [`${side}_trunk`, "trunk"] :
 const FRONT: Shape[] = [
   {
     name: "shoulder",
-    label: "shoulder",
+    label: { left: msg`Left shoulder (front)`, right: msg`Right shoulder (front)` },
     x: 52,
     y: 58,
     w: 24,
@@ -107,7 +116,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "chest",
-    label: "chest",
+    label: { left: msg`Left chest (front)`, right: msg`Right chest (front)` },
     x: 76,
     y: 60,
     w: 24,
@@ -119,7 +128,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "biceps",
-    label: "upper arm",
+    label: { left: msg`Left upper arm (front)`, right: msg`Right upper arm (front)` },
     x: 48,
     y: 84,
     w: 18,
@@ -131,7 +140,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "forearm",
-    label: "forearm",
+    label: { left: msg`Left forearm (front)`, right: msg`Right forearm (front)` },
     x: 42,
     y: 130,
     w: 16,
@@ -143,7 +152,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "abs",
-    label: "abdomen",
+    label: { left: msg`Left abdomen (front)`, right: msg`Right abdomen (front)` },
     x: 80,
     y: 102,
     w: 20,
@@ -155,7 +164,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "obliques",
-    label: "side",
+    label: { left: msg`Left side (front)`, right: msg`Right side (front)` },
     x: 70,
     y: 102,
     w: 10,
@@ -167,7 +176,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "pelvis",
-    label: "Hips",
+    label: msg`Hips (front)`,
     x: 72,
     y: 156,
     w: 56,
@@ -179,7 +188,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "thigh",
-    label: "thigh",
+    label: { left: msg`Left thigh (front)`, right: msg`Right thigh (front)` },
     x: 72,
     y: 180,
     w: 26,
@@ -191,7 +200,7 @@ const FRONT: Shape[] = [
   },
   {
     name: "shin",
-    label: "lower leg",
+    label: { left: msg`Left lower leg (front)`, right: msg`Right lower leg (front)` },
     x: 76,
     y: 266,
     w: 20,
@@ -206,7 +215,7 @@ const FRONT: Shape[] = [
 const BACK: Shape[] = [
   {
     name: "traps",
-    label: "Upper back and neck",
+    label: msg`Upper back and neck (back)`,
     x: 80,
     y: 50,
     w: 40,
@@ -218,7 +227,7 @@ const BACK: Shape[] = [
   },
   {
     name: "shoulder",
-    label: "shoulder",
+    label: { left: msg`Left shoulder (back)`, right: msg`Right shoulder (back)` },
     x: 52,
     y: 58,
     w: 24,
@@ -230,7 +239,7 @@ const BACK: Shape[] = [
   },
   {
     name: "upper_back",
-    label: "upper back",
+    label: { left: msg`Left upper back (back)`, right: msg`Right upper back (back)` },
     x: 74,
     y: 76,
     w: 26,
@@ -242,7 +251,7 @@ const BACK: Shape[] = [
   },
   {
     name: "triceps",
-    label: "upper arm",
+    label: { left: msg`Left upper arm (back)`, right: msg`Right upper arm (back)` },
     x: 48,
     y: 84,
     w: 18,
@@ -254,7 +263,7 @@ const BACK: Shape[] = [
   },
   {
     name: "forearm",
-    label: "forearm",
+    label: { left: msg`Left forearm (back)`, right: msg`Right forearm (back)` },
     x: 42,
     y: 130,
     w: 16,
@@ -266,7 +275,7 @@ const BACK: Shape[] = [
   },
   {
     name: "lower_back",
-    label: "lower back",
+    label: { left: msg`Left lower back (back)`, right: msg`Right lower back (back)` },
     x: 80,
     y: 128,
     w: 20,
@@ -278,7 +287,7 @@ const BACK: Shape[] = [
   },
   {
     name: "glutes",
-    label: "glute",
+    label: { left: msg`Left glute (back)`, right: msg`Right glute (back)` },
     x: 72,
     y: 156,
     w: 28,
@@ -290,7 +299,7 @@ const BACK: Shape[] = [
   },
   {
     name: "hamstrings",
-    label: "back of thigh",
+    label: { left: msg`Left back of thigh (back)`, right: msg`Right back of thigh (back)` },
     x: 72,
     y: 188,
     w: 26,
@@ -302,7 +311,7 @@ const BACK: Shape[] = [
   },
   {
     name: "calf",
-    label: "calf",
+    label: { left: msg`Left calf (back)`, right: msg`Right calf (back)` },
     x: 76,
     y: 266,
     w: 20,
@@ -319,18 +328,18 @@ function regionsFor(view: BodyMapView, shapes: Shape[]): BodyMapRegion[] {
     {
       id: `${view}.head`,
       view,
-      label: `Head (${view})`,
+      label: view === "front" ? msg`Head (front)` : msg`Head (back)`,
       path: HEAD,
       dexaSources: ["head"],
       trainingGroup: null,
     },
   ];
   for (const shape of shapes) {
-    if (!shape.paired) {
+    if (!shape.paired || !("left" in shape.label)) {
       regions.push({
         id: `${view}.${shape.name}`,
         view,
-        label: `${shape.label} (${view})`,
+        label: "left" in shape.label ? shape.label.left : shape.label,
         path: rect(shape.x, shape.y, shape.w, shape.h, shape.r),
         dexaSources: shape.dexa(null),
         trainingGroup: shape.group,
@@ -341,11 +350,10 @@ function regionsFor(view: BodyMapView, shapes: Shape[]): BodyMapRegion[] {
     const viewerLeft: BodyMapSide = view === "front" ? "right" : "left";
     for (const side of [viewerLeft, viewerLeft === "left" ? "right" : "left"] as const) {
       const x = side === viewerLeft ? shape.x : 200 - shape.x - shape.w;
-      const sideLabel = side === "left" ? "Left" : "Right";
       regions.push({
         id: `${view}.${shape.name}_${side}`,
         view,
-        label: `${sideLabel} ${shape.label} (${view})`,
+        label: shape.label[side],
         path: rect(x, shape.y, shape.w, shape.h, shape.r),
         dexaSources: shape.dexa(side),
         trainingGroup: shape.group,
@@ -392,13 +400,14 @@ export type RegionFill = {
 
 // ─── Composition layer ───────────────────────────────────────────
 
-export const DEXA_MEASUREMENT_LABELS: Readonly<Record<string, { label: string; unit: string }>> =
-  Object.freeze({
-    fat_pct: { label: "Fat", unit: "%" },
-    bmd: { label: "Bone density", unit: " g/cm²" },
-    lean_mass: { label: "Lean mass", unit: " g" },
-    fat_mass: { label: "Fat mass", unit: " g" },
-  });
+export const DEXA_MEASUREMENT_LABELS: Readonly<
+  Record<string, { label: MessageDescriptor; unit: string }>
+> = Object.freeze({
+  fat_pct: { label: msg`Fat`, unit: "%" },
+  bmd: { label: msg`Bone density`, unit: " g/cm²" },
+  lean_mass: { label: msg`Lean mass`, unit: " g" },
+  fat_mass: { label: msg`Fat mass`, unit: " g" },
+});
 
 /** `Left Arm`, `arm_left`, `L-arm` → `left_arm`. Unknown names pass through lowercased. */
 export function normalizeDexaRegion(region: string): string {
@@ -452,11 +461,14 @@ function sequentialStep(value: number, min: number, max: number): number {
  * Colours each map region from one scan, or from the change between two
  * scans of the same record. Regions without a reported source are neutral.
  */
-export function compositionLayer(input: {
-  measurementType: string;
-  values: readonly DexaValue[];
-  compareValues?: readonly DexaValue[];
-}): { fills: Record<string, RegionFill>; legend: LegendStep[] } {
+export function compositionLayer(
+  input: {
+    measurementType: string;
+    values: readonly DexaValue[];
+    compareValues?: readonly DexaValue[];
+  },
+  i18n: I18n,
+): { fills: Record<string, RegionFill>; legend: LegendStep[] } {
   const current = valuesByRegion(input.values, input.measurementType);
   const earlier = input.compareValues
     ? valuesByRegion(input.compareValues, input.measurementType)
@@ -485,25 +497,25 @@ export function compositionLayer(input: {
     };
     for (const region of BODY_MAP_REGIONS) {
       const entry = chosen.get(region.id);
+      const source = entry ? dexaLabel(entry.source) : "";
       fills[region.id] = entry
         ? {
             colour: BODY_MAP_DIVERGING[step(entry.value)]!,
             valueText: formatMeasurement(entry.value, input.measurementType, true),
-            sourceText: `Change in ${dexaLabel(entry.source)}`,
+            sourceText: i18n._(msg`Change in ${source}`),
           }
         : neutral;
     }
     if (values.length) {
       const f = (v: number) => formatMeasurement(v, input.measurementType, true);
+      const strong = f(maxAbs * 0.6).slice(1);
+      const slight = f(maxAbs * 0.2).slice(1);
       legend = [
-        { colour: BODY_MAP_DIVERGING[0]!, label: `Lower by more than ${f(maxAbs * 0.6).slice(1)}` },
-        { colour: BODY_MAP_DIVERGING[1]!, label: "Slightly lower" },
-        { colour: BODY_MAP_DIVERGING[2]!, label: `Within ${f(maxAbs * 0.2).slice(1)}` },
-        { colour: BODY_MAP_DIVERGING[3]!, label: "Slightly higher" },
-        {
-          colour: BODY_MAP_DIVERGING[4]!,
-          label: `Higher by more than ${f(maxAbs * 0.6).slice(1)}`,
-        },
+        { colour: BODY_MAP_DIVERGING[0]!, label: i18n._(msg`Lower by more than ${strong}`) },
+        { colour: BODY_MAP_DIVERGING[1]!, label: i18n._(msg`Slightly lower`) },
+        { colour: BODY_MAP_DIVERGING[2]!, label: i18n._(msg`Within ${slight}`) },
+        { colour: BODY_MAP_DIVERGING[3]!, label: i18n._(msg`Slightly higher`) },
+        { colour: BODY_MAP_DIVERGING[4]!, label: i18n._(msg`Higher by more than ${strong}`) },
       ];
     }
   } else {
@@ -528,12 +540,19 @@ export function compositionLayer(input: {
                 label: formatMeasurement(min, input.measurementType),
               },
             ]
-          : BODY_MAP_SEQUENTIAL.map((colour, index) => ({
-              colour,
-              label: `${formatMeasurement(min + ((max - min) * index) / 5, input.measurementType)} to ${formatMeasurement(min + ((max - min) * (index + 1)) / 5, input.measurementType)}`,
-            }));
+          : BODY_MAP_SEQUENTIAL.map((colour, index) => {
+              const from = formatMeasurement(
+                min + ((max - min) * index) / 5,
+                input.measurementType,
+              );
+              const to = formatMeasurement(
+                min + ((max - min) * (index + 1)) / 5,
+                input.measurementType,
+              );
+              return { colour, label: i18n._(msg`${from} to ${to}`) };
+            });
   }
-  legend.push({ colour: BODY_MAP_NEUTRAL, label: "Not reported by this scan" });
+  legend.push({ colour: BODY_MAP_NEUTRAL, label: i18n._(msg`Not reported by this scan`) });
   return { fills, legend };
 }
 
@@ -599,7 +618,10 @@ const SET_STEPS = [4, 8, 12, 16] as const;
  * strongest role there (primary = 1 × sets, secondary = 0.5 × sets), so two
  * muscles in one group never double-count the same set.
  */
-export function trainingLayer(exercises: readonly TrainingExerciseInput[]): {
+export function trainingLayer(
+  exercises: readonly TrainingExerciseInput[],
+  i18n: I18n,
+): {
   setsByGroup: Record<TrainingGroup, number>;
   unmappedMuscles: string[];
   fills: Record<string, RegionFill>;
@@ -631,19 +653,20 @@ export function trainingLayer(exercises: readonly TrainingExerciseInput[]): {
       continue;
     }
     const step = SET_STEPS.filter((threshold) => sets >= threshold).length;
+    const count = formatSets(sets);
     fills[region.id] = {
       colour: BODY_MAP_SEQUENTIAL[step]!,
-      valueText: `${formatSets(sets)} sets`,
-      sourceText: TRAINING_GROUP_LABELS[region.trainingGroup],
+      valueText: i18n._(msg`${count} sets`),
+      sourceText: i18n._(TRAINING_GROUP_LABELS[region.trainingGroup]),
     };
   }
   const legend: LegendStep[] = [
-    { colour: BODY_MAP_SEQUENTIAL[0]!, label: "Under 4 sets" },
-    { colour: BODY_MAP_SEQUENTIAL[1]!, label: "4 to under 8" },
-    { colour: BODY_MAP_SEQUENTIAL[2]!, label: "8 to under 12" },
-    { colour: BODY_MAP_SEQUENTIAL[3]!, label: "12 to under 16" },
-    { colour: BODY_MAP_SEQUENTIAL[4]!, label: "16 or more" },
-    { colour: BODY_MAP_NEUTRAL, label: "No logged sets" },
+    { colour: BODY_MAP_SEQUENTIAL[0]!, label: i18n._(msg`Under 4 sets`) },
+    { colour: BODY_MAP_SEQUENTIAL[1]!, label: i18n._(msg`4 to under 8`) },
+    { colour: BODY_MAP_SEQUENTIAL[2]!, label: i18n._(msg`8 to under 12`) },
+    { colour: BODY_MAP_SEQUENTIAL[3]!, label: i18n._(msg`12 to under 16`) },
+    { colour: BODY_MAP_SEQUENTIAL[4]!, label: i18n._(msg`16 or more`) },
+    { colour: BODY_MAP_NEUTRAL, label: i18n._(msg`No logged sets`) },
   ];
   return { setsByGroup, unmappedMuscles: [...unmapped].sort(), fills, legend };
 }
@@ -653,11 +676,8 @@ export function formatSets(sets: number): string {
 }
 
 export const BODY_MAP_COPY = Object.freeze({
-  intro:
-    "Two separate views of your own records: measured DEXA values by region, and the sets you logged this week by muscle group.",
-  composition:
-    "Colours come only from regions the selected scan measured. Regions the scan did not report stay grey; nothing is estimated.",
-  compare: "Shows the measured change per region between two of your scans.",
-  training:
-    "Working sets in the last 7 days. A muscle the exercise mainly works counts 1 per set; a muscle it also works counts 0.5. Exercises not linked to the catalog are listed below and not counted.",
+  intro: msg`Two separate views of your own records: measured DEXA values by region, and the sets you logged this week by muscle group.`,
+  composition: msg`Colours come only from regions the selected scan measured. Regions the scan did not report stay grey; nothing is estimated.`,
+  compare: msg`Shows the measured change per region between two of your scans.`,
+  training: msg`Working sets in the last 7 days. A muscle the exercise mainly works counts 1 per set; a muscle it also works counts 0.5. Exercises not linked to the catalog are listed below and not counted.`,
 });

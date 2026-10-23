@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLingui } from "@lingui/react/macro";
 import {
   formatKg,
   formatKgDelta,
@@ -37,6 +38,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function AddWeightForm({ onSaved }: { onSaved: () => void }) {
   const field = MANUAL_ENTRY_FIELDS.weight;
+  const { t, i18n } = useLingui();
+  const unit = i18n._(field.unit);
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
 
@@ -63,11 +66,11 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title="Add weight">
+    <CardStack title={t`Add weight`}>
       <Card variant="secondary" className="gap-3 p-4">
         <View className="flex-row gap-3">
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Weight ({field.unit})</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Weight (${unit})`}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
@@ -78,7 +81,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
             />
           </View>
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Observed at</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
             <TextInput
               value={observedAt}
               onChangeText={setObservedAt}
@@ -90,16 +93,16 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
         </View>
         <View className="flex-row items-center gap-3">
           <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t`Saving…` : t`Save`}
           </Button>
           {numeric === null && value.length > 0 ? (
             <Text className="text-sm text-destructive">
-              {field.min}–{field.max} {field.unit}
+              {field.min}–{field.max} {unit}
             </Text>
           ) : save.isSuccess ? (
-            <Text className="text-sm text-success">Saved</Text>
+            <Text className="text-sm text-success">{t`Saved`}</Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">Could not save.</Text>
+            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
           ) : null}
         </View>
       </Card>
@@ -111,6 +114,7 @@ export default function BodyScreen() {
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
   const chart1 = useThemeColor("chart-1");
+  const { t } = useLingui();
 
   const daily = useCacheFirst(
     "body.dailyWeights",
@@ -128,13 +132,13 @@ export default function BodyScreen() {
   if (daily.isError)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load weight.</Text>
+        <Text className="text-base text-foreground">{t`Could not load weight.`}</Text>
         <Pressable
           onPress={() => void daily.refetch()}
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -155,15 +159,15 @@ export default function BodyScreen() {
         <View className="gap-6 p-4">
           <View className="flex-row items-start justify-between gap-3">
             <View>
-              <Text className="text-sm text-muted-foreground">Today</Text>
-              <Text className="font-mono text-3xl text-foreground">Body</Text>
+              <Text className="text-sm text-muted-foreground">{t`Today`}</Text>
+              <Text className="font-mono text-3xl text-foreground">{t`Body`}</Text>
             </View>
             <SyncStatusBadge />
           </View>
           <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">No weight yet</Text>
+            <Text className="font-medium text-foreground">{t`No weight yet`}</Text>
             <Text className="text-center text-sm text-muted-foreground">
-              Sync a scale through Health Connect or Apple Health, or add a weight.
+              {t`Sync a scale through Health Connect or Apple Health, or add a weight.`}
             </Text>
           </Card>
         </View>
@@ -193,8 +197,8 @@ export default function BodyScreen() {
       <View className="gap-6 p-4">
         <View className="flex-row items-start justify-between gap-3">
           <View>
-            <Text className="text-sm text-muted-foreground">Body</Text>
-            <Text className="font-mono text-3xl text-foreground">Weight</Text>
+            <Text className="text-sm text-muted-foreground">{t`Body`}</Text>
+            <Text className="font-mono text-3xl text-foreground">{t`Weight`}</Text>
           </View>
           <SyncStatusBadge />
         </View>
@@ -204,17 +208,17 @@ export default function BodyScreen() {
         <CardStack>
           <Card variant="secondary" className="p-4">
             <View className="mb-3 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-foreground">Latest</Text>
+              <Text className="text-lg font-medium text-foreground">{t`Latest`}</Text>
               <Text className="text-sm text-muted-foreground">{summary.latest.date}</Text>
             </View>
             <View className="flex-row gap-4">
-              <Stat label="Weight" value={formatKg(summary.latest.weightKg)} />
+              <Stat label={t`Weight`} value={formatKg(summary.latest.weightKg)} />
               <Stat
-                label="7 days"
+                label={t`7 days`}
                 value={summary.change7d === null ? "—" : formatKgDelta(summary.change7d)}
               />
               <Stat
-                label="30 days"
+                label={t`30 days`}
                 value={summary.change30d === null ? "—" : formatKgDelta(summary.change30d)}
               />
             </View>
@@ -223,7 +227,7 @@ export default function BodyScreen() {
 
         <CardStack>
           <Card variant="secondary" className="p-4">
-            <Text className="mb-3 text-lg font-medium text-foreground">Last 90 days</Text>
+            <Text className="mb-3 text-lg font-medium text-foreground">{t`Last 90 days`}</Text>
             <LineChart
               data={series}
               color={chart1}
@@ -245,7 +249,7 @@ export default function BodyScreen() {
           </Card>
         </CardStack>
 
-        <CardStack title="Recent">
+        <CardStack title={t`Recent`}>
           <Card variant="secondary" className="overflow-hidden p-0">
             {recent.map((point, index) => {
               const source = daily.data?.find((row) => row.date === point.date)?.source ?? "";

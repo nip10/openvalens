@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { SCORE_COPY } from "@openvalens/api/presenters/score";
 import { useQuery } from "@tanstack/react-query";
 import { Card, Spinner } from "heroui-native";
@@ -19,6 +20,7 @@ import { goalProgressCard, readinessCard, type ScoreCard } from "@/utils/score-s
  */
 function ScoreCardView({ card }: { card: ScoreCard }) {
   const [showMethod, setShowMethod] = useState(false);
+  const { t } = useLingui();
   return (
     <CardStack>
       <Card variant="secondary" className="gap-3 p-4">
@@ -72,7 +74,7 @@ function ScoreCardView({ card }: { card: ScoreCard }) {
           accessibilityState={{ expanded: showMethod }}
           className="min-h-11 justify-center"
         >
-          <Text className="font-medium text-foreground underline">How this is calculated</Text>
+          <Text className="font-medium text-foreground underline">{t`How this is calculated`}</Text>
         </Pressable>
         {showMethod ? <Text className="text-sm text-muted-foreground">{card.method}</Text> : null}
         <Text className="text-sm text-muted-foreground">{card.limits}</Text>
@@ -85,6 +87,7 @@ function ScoreCardView({ card }: { card: ScoreCard }) {
 export default function ScoresScreen() {
   const readiness = useQuery(orpc.score.readiness.queryOptions({ input: {} }));
   const goals = useQuery(orpc.score.goalProgress.queryOptions({ input: {} }));
+  const { t, i18n } = useLingui();
 
   if (readiness.isPending || goals.isPending)
     return (
@@ -96,7 +99,7 @@ export default function ScoresScreen() {
   if (readiness.isError || !readiness.data || goals.isError || !goals.data)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load your scores.</Text>
+        <Text className="text-base text-foreground">{t`Could not load your scores.`}</Text>
         <Pressable
           onPress={() => {
             void readiness.refetch();
@@ -105,7 +108,7 @@ export default function ScoresScreen() {
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -126,15 +129,15 @@ export default function ScoresScreen() {
     >
       <View className="gap-6 p-4">
         <View className="gap-1">
-          <Text className="font-mono text-3xl text-foreground">{SCORE_COPY.pageTitle}</Text>
-          <Text className="text-sm text-muted-foreground">{SCORE_COPY.pageIntro}</Text>
-          <Text className="text-xs text-muted-foreground">{SCORE_COPY.noStorage}</Text>
+          <Text className="font-mono text-3xl text-foreground">{i18n._(SCORE_COPY.pageTitle)}</Text>
+          <Text className="text-sm text-muted-foreground">{i18n._(SCORE_COPY.pageIntro)}</Text>
+          <Text className="text-xs text-muted-foreground">{i18n._(SCORE_COPY.noStorage)}</Text>
         </View>
-        <ScoreCardView card={readinessCard(readiness.data)} />
-        <ScoreCardView card={goalProgressCard(goals.data)} />
+        <ScoreCardView card={readinessCard(readiness.data, i18n)} />
+        <ScoreCardView card={goalProgressCard(goals.data, i18n)} />
         <ReferenceComparisonsSection />
         <Text className="text-sm text-muted-foreground">
-          Set targets, directions and priorities for your goals under Workouts.
+          {t`Set targets, directions and priorities for your goals under Workouts.`}
         </Text>
       </View>
     </Container>

@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import {
   exportBundleArtifact,
   exportCsvArtifacts,
@@ -72,6 +73,8 @@ function ArtifactRow({
   artifact: ExportArtifact;
   onOpen: (artifact: ExportArtifact) => void;
 }) {
+  const { t } = useLingui();
+  const fileName = artifact.fileName;
   return (
     <View className="flex-row items-center justify-between gap-3">
       <View className="min-w-0 flex-1">
@@ -86,24 +89,25 @@ function ArtifactRow({
         onPress={() => onOpen(artifact)}
         className="min-h-11 justify-center px-3 active:opacity-70"
         accessibilityRole="button"
-        accessibilityLabel={`Open ${artifact.fileName}`}
+        accessibilityLabel={t`Open ${fileName}`}
       >
-        <Text className="font-medium text-foreground underline">Open</Text>
+        <Text className="font-medium text-foreground underline">{t`Open`}</Text>
       </Pressable>
     </View>
   );
 }
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLingui();
   return (
     <View className="flex-row items-center gap-3">
-      <Text className="text-sm text-destructive">Could not export.</Text>
+      <Text className="text-sm text-destructive">{t`Could not export.`}</Text>
       <Pressable
         onPress={onRetry}
         className="min-h-11 justify-center active:opacity-70"
         accessibilityRole="button"
       >
-        <Text className="font-medium text-foreground underline">Retry</Text>
+        <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
       </Pressable>
     </View>
   );
@@ -111,6 +115,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 export default function ExportsScreen() {
   const foreground = useThemeColor("foreground");
+  const { t, i18n } = useLingui();
   const options = useMemo(() => pickExportDomains(), []);
   const [selected, setSelected] = useState<Set<ExportDomain>>(
     () =>
@@ -190,18 +195,18 @@ export default function ExportsScreen() {
     >
       <View className="gap-6 p-4">
         <View>
-          <Text className="text-sm text-muted-foreground">Records</Text>
-          <Text className="font-mono text-3xl text-foreground">Clinical export</Text>
+          <Text className="text-sm text-muted-foreground">{t`Records`}</Text>
+          <Text className="font-mono text-3xl text-foreground">{t`Clinical export`}</Text>
         </View>
 
-        <CardStack title="Download a bundle">
+        <CardStack title={t`Download a bundle`}>
           <Card variant="secondary" className="gap-3 p-4">
             <Text className="text-sm text-muted-foreground">
-              Download your clinical record as a single JSON bundle.
+              {t`Download your clinical record as a single JSON bundle.`}
             </Text>
             <View className="flex-row items-center gap-3">
               <Button onPress={runBundle} isDisabled={bundle.isPending}>
-                {bundle.isPending ? "Downloading…" : "Download bundle"}
+                {bundle.isPending ? t`Downloading…` : t`Download bundle`}
               </Button>
               <Chip size="sm" variant="secondary">
                 <Chip.Label>JSON</Chip.Label>
@@ -215,14 +220,14 @@ export default function ExportsScreen() {
           </Card>
         </CardStack>
 
-        <CardStack title="Download by domain">
+        <CardStack title={t`Download by domain`}>
           <Card variant="secondary" className="gap-4 p-4">
             <Text className="text-sm text-muted-foreground">
-              Choose domains and a format, then download.
+              {t`Choose domains and a format, then download.`}
             </Text>
 
             <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">Domains</Text>
+              <Text className="text-sm font-medium text-foreground">{t`Domains`}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {options.map((option) => {
                   const isSelected = selected.has(option.domain);
@@ -241,19 +246,19 @@ export default function ExportsScreen() {
                           isSelected ? "font-medium text-foreground" : "text-muted-foreground"
                         }`}
                       >
-                        {option.label}
+                        {i18n._(option.label)}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
               {selected.size === 0 ? (
-                <Text className="text-sm text-destructive">Select at least one domain.</Text>
+                <Text className="text-sm text-destructive">{t`Select at least one domain.`}</Text>
               ) : null}
             </View>
 
             <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">Format</Text>
+              <Text className="text-sm font-medium text-foreground">{t`Format`}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {(["csv", "pdf"] as const).map((value) => {
                   const isSelected = format === value;
@@ -282,7 +287,7 @@ export default function ExportsScreen() {
 
             <View className="flex-row items-center gap-3">
               <Button onPress={runDomainExport} isDisabled={selected.size === 0 || domainPending}>
-                {domainPending ? "Downloading…" : "Download"}
+                {domainPending ? t`Downloading…` : t`Download`}
               </Button>
               <Chip size="sm" variant="secondary">
                 <Chip.Label>{format.toUpperCase()}</Chip.Label>

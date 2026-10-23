@@ -1,3 +1,5 @@
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
@@ -18,6 +20,7 @@ import { useThemeColor } from "@/utils/theme";
 
 function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
   const [value, setValue] = useState("");
+  const { t } = useLingui();
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
 
   const save = useMutation(
@@ -31,14 +34,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
     }),
   );
 
-  const field = {
-    metric: "weight",
-    label: "Value",
-    unit: "",
-    min: 0,
-    max: 100_000,
-    step: 1,
-  } as const;
+  const field = { min: 0, max: 100_000 } as const;
   const numeric = parseManualEntryValue(field, value);
 
   const submit = () => {
@@ -52,11 +48,11 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   };
 
   return (
-    <CardStack title="Add reading">
+    <CardStack title={t`Add reading`}>
       <Card variant="secondary" className="gap-3 p-4">
         <View className="flex-row gap-3">
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Value</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Value`}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
@@ -67,7 +63,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
             />
           </View>
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">Observed at</Text>
+            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
             <TextInput
               value={observedAt}
               onChangeText={setObservedAt}
@@ -79,14 +75,14 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
         </View>
         <View className="flex-row items-center gap-3">
           <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? t`Saving…` : t`Save`}
           </Button>
           {numeric === null && value.length > 0 ? (
             <Text className="text-sm text-destructive">0–100000</Text>
           ) : save.isSuccess ? (
-            <Text className="text-sm text-success">Saved</Text>
+            <Text className="text-sm text-success">{t`Saved`}</Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">Could not save.</Text>
+            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
           ) : null}
         </View>
       </Card>
@@ -96,6 +92,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
 
 export default function LabsScreen() {
   const foreground = useThemeColor("foreground");
+  const { t } = useLingui();
   const markers = useCacheFirst(
     "labs.latest",
     orpc.labs.latest.queryOptions({ input: { recentLimit: 10 } }),
@@ -112,13 +109,13 @@ export default function LabsScreen() {
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
         <SyncStatusBadge />
-        <Text className="text-base text-foreground">Could not load labs.</Text>
+        <Text className="text-base text-foreground">{t`Could not load labs.`}</Text>
         <Pressable
           onPress={() => void markers.refetch()}
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -140,17 +137,17 @@ export default function LabsScreen() {
       <View className="gap-6 p-4">
         <View className="flex-row items-start justify-between gap-3">
           <View>
-            <Text className="text-sm text-muted-foreground">Labs</Text>
-            <Text className="font-mono text-3xl text-foreground">Latest markers</Text>
+            <Text className="text-sm text-muted-foreground">{t`Labs`}</Text>
+            <Text className="font-mono text-3xl text-foreground">{t`Latest markers`}</Text>
           </View>
           <SyncStatusBadge />
         </View>
 
         {list.length === 0 ? (
           <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">No lab markers yet</Text>
+            <Text className="font-medium text-foreground">{t`No lab markers yet`}</Text>
             <Text className="text-center text-sm text-muted-foreground">
-              Import a lab PDF to add markers.
+              {t`Import a lab PDF to add markers.`}
             </Text>
           </Card>
         ) : (
@@ -172,8 +169,8 @@ export default function LabsScreen() {
                       <Text className="text-base text-foreground">{marker.displayName}</Text>
                       <Text className="text-xs text-muted-foreground">
                         {marker.latestValue === null
-                          ? "No readings yet"
-                          : `${formatLabDate(marker.latestSampledAt)} · ${marker.sampleCount} reading${marker.sampleCount === 1 ? "" : "s"}`}
+                          ? t`No readings yet`
+                          : t`${formatLabDate(marker.latestSampledAt)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`}
                       </Text>
                     </View>
                     <View className="shrink-0 items-end">

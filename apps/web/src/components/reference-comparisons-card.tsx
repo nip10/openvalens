@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   COMPARISON_COPY,
   referenceComparisonsView,
@@ -106,15 +107,16 @@ export function ReferenceComparisonsCard({
   pending?: boolean;
   onToggle: (metric: ComparisonMetric, enabled: boolean) => void;
 }) {
-  const view = referenceComparisonsView(result);
+  const { i18n } = useLingui();
+  const view = referenceComparisonsView(result, i18n);
   return (
     <Card role="region" aria-labelledby="reference-comparisons-title">
       <CardHeader>
-        <CardTitle id="reference-comparisons-title">{COMPARISON_COPY.title}</CardTitle>
-        <CardDescription>{COMPARISON_COPY.intro}</CardDescription>
+        <CardTitle id="reference-comparisons-title">{i18n._(COMPARISON_COPY.title)}</CardTitle>
+        <CardDescription>{i18n._(COMPARISON_COPY.intro)}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">{COMPARISON_COPY.noOtherPeople}</p>
+        <p className="text-sm text-muted-foreground">{i18n._(COMPARISON_COPY.noOtherPeople)}</p>
         {view.withheldText ? <p className="text-sm">{view.withheldText}</p> : null}
         {view.metrics.map((metric) => (
           <MetricSection key={metric.key} metric={metric} pending={pending} onToggle={onToggle} />
@@ -124,7 +126,7 @@ export function ReferenceComparisonsCard({
           className="grid gap-2 border-t border-border pt-4"
         >
           <h3 id="not-compared-title" className="font-medium">
-            {COMPARISON_COPY.notComparedTitle}
+            {i18n._(COMPARISON_COPY.notComparedTitle)}
           </h3>
           <ul className="list-disc pl-5 text-sm text-muted-foreground">
             {view.notCompared.map((line) => (
@@ -132,7 +134,7 @@ export function ReferenceComparisonsCard({
             ))}
           </ul>
         </section>
-        <p className="text-sm text-muted-foreground">{COMPARISON_COPY.limits}</p>
+        <p className="text-sm text-muted-foreground">{i18n._(COMPARISON_COPY.limits)}</p>
         <p className="text-xs text-muted-foreground">{view.versionText}</p>
       </CardContent>
     </Card>
@@ -142,6 +144,7 @@ export function ReferenceComparisonsCard({
 /** Loads `comparison.get` and wires the per-metric opt-in toggles. */
 export function ReferenceComparisonsSection() {
   const queryClient = useQueryClient();
+  const { t } = useLingui();
   const comparisons = useQuery({
     ...orpc.comparison.get.queryOptions({ input: {} }),
     staleTime: 60_000,
@@ -149,16 +152,16 @@ export function ReferenceComparisonsSection() {
   const update = useMutation(
     orpc.comparison.updateSettings.mutationOptions({
       onSuccess: () => void queryClient.invalidateQueries({ queryKey: orpc.comparison.key() }),
-      onError: () => toast.error("Could not update the comparison setting."),
+      onError: () => toast.error(t`Could not update the comparison setting.`),
     }),
   );
   if (comparisons.isPending) return <Skeleton className="h-64 w-full" />;
   if (comparisons.isError || !comparisons.data)
     return (
       <p className="text-sm text-muted-foreground">
-        Could not load reference comparisons.{" "}
+        <Trans>Could not load reference comparisons.</Trans>{" "}
         <button className="underline" onClick={() => void comparisons.refetch()}>
-          Retry
+          <Trans>Retry</Trans>
         </button>
       </p>
     );

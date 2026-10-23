@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { InsightFeedbackAction, InsightsResult } from "@openvalens/api/insight-contract";
 import {
   INSIGHT_COPY,
@@ -37,8 +38,9 @@ export function SummaryCards({
   /** Router link to the full breakdown (injected so this stays router-free). */
   scoresLink?: ReactNode;
 }) {
-  const ready = readiness ? readinessView(readiness) : null;
-  const progress = goals ? goalProgressView(goals) : null;
+  const { t, i18n } = useLingui();
+  const ready = readiness ? readinessView(readiness, i18n) : null;
+  const progress = goals ? goalProgressView(goals, i18n) : null;
   return (
     <section aria-labelledby="summaries-title" className="grid gap-3">
       <div className="flex items-baseline justify-between">
@@ -52,7 +54,7 @@ export function SummaryCards({
           <CardHeader>
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-sm font-medium">
-                {ready?.title ?? "Readiness index"}
+                {ready?.title ?? t`Readiness index`}
               </CardTitle>
               {ready ? <Badge variant="outline">{ready.badge}</Badge> : null}
             </div>
@@ -61,31 +63,31 @@ export function SummaryCards({
             <span
               className="font-mono text-3xl"
               role="img"
-              aria-label={ready?.accessibilityLabel ?? "Readiness index not loaded."}
+              aria-label={ready?.accessibilityLabel ?? t`Readiness index not loaded.`}
             >
               {ready?.scoreText ?? "—"}
             </span>
             <p className="text-sm text-muted-foreground">
-              {ready?.withheldExplanation ?? ready?.coverageText ?? "Could not load."}
+              {ready?.withheldExplanation ?? ready?.coverageText ?? t`Could not load.`}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">
-              {progress?.title ?? "Goal progress"}
+              {progress?.title ?? t`Goal progress`}
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-1">
             <span
               className="font-mono text-3xl"
               role="img"
-              aria-label={progress?.accessibilityLabel ?? "Goal progress not loaded."}
+              aria-label={progress?.accessibilityLabel ?? t`Goal progress not loaded.`}
             >
               {progress?.scoreText ?? "—"}
             </span>
             <p className="text-sm text-muted-foreground">
-              {progress?.withheldExplanation ?? progress?.coverageText ?? "Could not load."}
+              {progress?.withheldExplanation ?? progress?.coverageText ?? t`Could not load.`}
             </p>
             {progress?.flaggedText ? <p className="text-sm">{progress.flaggedText}</p> : null}
           </CardContent>
@@ -172,7 +174,7 @@ export function PushOfferCard({
           {INSIGHT_DELIVERY_COPY.pushOfferDecline}
         </Button>
         <p className="w-full text-xs text-muted-foreground">
-          Notifications arrive on phones where you allow them in the mobile app.
+          <Trans>Notifications arrive on phones where you allow them in the mobile app.</Trans>
         </p>
       </CardContent>
     </Card>

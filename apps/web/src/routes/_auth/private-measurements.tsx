@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
@@ -11,7 +14,6 @@ import { authClient } from "@/lib/auth-client";
 import { client } from "@/utils/orpc";
 import {
   PRIVATE_MEASUREMENT_KINDS,
-  PRIVATE_MEASUREMENT_LABELS,
   makePrivateMeasurementPayload,
   mayShowStoredMeasurementValue,
   nextKindDraft,
@@ -31,7 +33,15 @@ export const Route = createFileRoute("/_auth/private-measurements")({
 type Kind = PrivateMeasurementKind;
 type Unit = "kg" | "lb" | "cm" | "in";
 const kinds = PRIVATE_MEASUREMENT_KINDS;
-const labels = PRIVATE_MEASUREMENT_LABELS;
+const KIND_LABELS: Record<Kind, MessageDescriptor> = {
+  weight: msg`Weight`,
+  waist: msg`Waist`,
+  hip: msg`Hip`,
+  neck: msg`Neck`,
+  chest: msg`Chest`,
+  upper_arm: msg`Upper arm`,
+  thigh: msg`Thigh`,
+};
 const nowLocal = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -48,7 +58,11 @@ export function PrivateMeasurements() {
     return (
       <main className="container mx-auto max-w-3xl px-4 py-6">
         <p role="status" className="text-sm text-muted-foreground">
-          {isPending ? "Checking your account and workspace…" : "Choose a workspace to continue."}
+          {isPending ? (
+            <Trans>Checking your account and workspace…</Trans>
+          ) : (
+            <Trans>Choose a workspace to continue.</Trans>
+          )}
         </p>
       </main>
     );
@@ -67,6 +81,11 @@ function PrivateMeasurementsForSubject({
   subject: { userId: string; organizationId: string };
 }) {
   const qc = useQueryClient();
+  const { t, i18n } = useLingui();
+  const labelOf = (value: string) => {
+    const known = KIND_LABELS[value as Kind];
+    return known ? i18n._(known) : value;
+  };
   const keys = privateMeasurementQueryKeys(subject);
   const preference = useQuery({
     queryKey: keys.preference,
@@ -118,7 +137,7 @@ function PrivateMeasurementsForSubject({
         value,
         measuredAtLocal: measuredAt,
       });
-      if (!input) throw new Error("Enter a valid measurement and observed time.");
+      if (!input) throw new Error(t`Enter a valid measurement and observed time.`);
       return id
         ? client.privateBody.update({ id, value: input })
         : client.privateBody.create(input);
@@ -127,25 +146,25 @@ function PrivateMeasurementsForSubject({
       setValue("");
       setEditing(null);
       setMeasuredAt(nowLocal());
-      setNotice("Entry saved.");
+      setNotice(t`Entry saved.`);
       invalidate();
     },
-    onError: () => setNotice("Could not save. Check your connection and try again."),
+    onError: () => setNotice(t`Could not save. Check your connection and try again.`),
   });
   const remove = useMutation({
     mutationFn: (id: string) => client.privateBody.delete({ id }),
     onSuccess: () => {
       invalidate();
-      setNotice("Entry deleted.");
+      setNotice(t`Entry deleted.`);
       historyHeadingRef.current?.focus();
     },
     onError: (_error, id) => {
       setDeleteErrorId(id);
-      setNotice("Could not delete this entry. Check your connection and try again.");
+      setNotice(t`Could not delete this entry. Check your connection and try again.`);
     },
   });
   const deleteEntry = (id: string) => {
-    if (window.confirm("Delete this private measurement? This cannot be undone.")) {
+    if (window.confirm(t`Delete this private measurement? This cannot be undone.`)) {
       if (!remove.isPending) remove.mutate(id);
     }
   };
@@ -159,50 +178,67 @@ function PrivateMeasurementsForSubject({
   return (
     <main className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <header>
-        <p className="text-sm text-muted-foreground">Your records</p>
-        <h1 className="text-2xl font-semibold">Private measurements</h1>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Your records</Trans>
+        </p>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Private measurements</Trans>
+        </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          These manual entries are private to your account. Workspace owners and other members
-          cannot view them. They are separate from shared workspace body records.
+          <Trans>
+            These manual entries are private to your account. Workspace owners and other members
+            cannot view them. They are separate from shared workspace body records.
+          </Trans>
         </p>
       </header>
       {accessState === "identity-pending" ? (
         <Card>
           <CardContent className="py-6" role="status">
-            Checking your private measurement setting…
+            <Trans>Checking your private measurement setting…</Trans>
           </CardContent>
         </Card>
       ) : accessState === "preference-error" ? (
         <Card>
           <CardContent className="py-6">
             <p role="alert">
-              Could not check this setting. Measurements stay unavailable until it can be confirmed.
+              <Trans>
+                Could not check this setting. Measurements stay unavailable until it can be
+                confirmed.
+              </Trans>
             </p>
             <Button className="mt-3" variant="outline" onClick={() => void preference.refetch()}>
-              Try again
+              <Trans>Try again</Trans>
             </Button>
           </CardContent>
         </Card>
       ) : accessState === "disabled" ? (
         <Card>
           <CardHeader>
-            <CardTitle>Private measurements are off</CardTitle>
+            <CardTitle>
+              <Trans>Private measurements are off</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <p className="text-sm text-muted-foreground">
-              Turn this on to record weight or circumference measurements and progress photos for
-              your own reference. It is off by default.
+              <Trans comment="safety">
+                Turn this on to record weight or circumference measurements and progress photos for
+                your own reference. It is off by default.
+              </Trans>
             </p>
             <Button
               className="w-fit"
               onClick={() => toggle.mutate(true)}
               disabled={toggle.isPending}
             >
-              {toggle.isPending ? "Saving…" : "Turn on private measurements"}
+              {toggle.isPending ? (
+                <Trans>Saving…</Trans>
+              ) : (
+                <Trans>Turn on private measurements</Trans>
+              )}
             </Button>
             {toggle.isError && (
               <p role="alert" className="text-sm text-destructive">
-                Could not update this setting. Try again.
+                <Trans>Could not update this setting. Try again.</Trans>
               </p>
             )}
           </CardContent>
@@ -210,27 +246,33 @@ function PrivateMeasurementsForSubject({
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
-            <span className="text-sm">Private measurements are on</span>
+            <span className="text-sm">
+              <Trans>Private measurements are on</Trans>
+            </span>
             <Button
               variant="outline"
               onClick={() => toggle.mutate(false)}
               disabled={toggle.isPending}
             >
-              Turn off
+              <Trans>Turn off</Trans>
             </Button>
           </div>
           {toggle.isError && (
             <p role="alert" className="text-sm text-destructive">
-              Could not update this setting. Try again.
+              <Trans>Could not update this setting. Try again.</Trans>
             </p>
           )}
           <Card>
             <CardHeader>
-              <CardTitle>{editing ? "Edit entry" : "Add an entry"}</CardTitle>
+              <CardTitle>
+                {editing ? <Trans>Edit entry</Trans> : <Trans>Add an entry</Trans>}
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="measurement-kind">Measurement</Label>
+                <Label htmlFor="measurement-kind">
+                  <Trans>Measurement</Trans>
+                </Label>
                 <select
                   id="measurement-kind"
                   className="h-10 rounded-md border bg-background px-3"
@@ -243,17 +285,17 @@ function PrivateMeasurementsForSubject({
                     setUnit(draft.unit);
                     setValue(draft.value);
                   }}
-                  aria-label="Measurement type"
+                  aria-label={t`Measurement type`}
                 >
                   {kinds.map((k) => (
                     <option key={k} value={k}>
-                      {labels[k]}
+                      {i18n._(KIND_LABELS[k])}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="measurement-value">{labels[kind]} value</Label>
+                <Label htmlFor="measurement-value">{t`${labelOf(kind)} value`}</Label>
                 <div className="flex gap-2">
                   <Input
                     id="measurement-value"
@@ -266,7 +308,7 @@ function PrivateMeasurementsForSubject({
                     onChange={(e) => setValue(e.target.value)}
                   />
                   <select
-                    aria-label="Unit"
+                    aria-label={t`Unit`}
                     className="h-10 rounded-md border bg-background px-3"
                     value={unit}
                     onChange={(e) => {
@@ -283,7 +325,9 @@ function PrivateMeasurementsForSubject({
                 </div>
               </div>
               <div className="grid gap-2 sm:col-span-2">
-                <Label htmlFor="measurement-time">Observed at</Label>
+                <Label htmlFor="measurement-time">
+                  <Trans>Observed at</Trans>
+                </Label>
                 <Input
                   id="measurement-time"
                   type="datetime-local"
@@ -296,7 +340,13 @@ function PrivateMeasurementsForSubject({
                   onClick={() => save.mutate(editing ?? undefined)}
                   disabled={!draftPayload || save.isPending}
                 >
-                  {save.isPending ? "Saving…" : editing ? "Save changes" : "Save entry"}
+                  {save.isPending ? (
+                    <Trans>Saving…</Trans>
+                  ) : editing ? (
+                    <Trans>Save changes</Trans>
+                  ) : (
+                    <Trans>Save entry</Trans>
+                  )}
                 </Button>
                 {editing && (
                   <Button
@@ -306,7 +356,7 @@ function PrivateMeasurementsForSubject({
                       setValue("");
                     }}
                   >
-                    Cancel
+                    <Trans>Cancel</Trans>
                   </Button>
                 )}
                 {save.isError && (
@@ -320,97 +370,103 @@ function PrivateMeasurementsForSubject({
           <Card>
             <CardHeader>
               <CardTitle ref={historyHeadingRef} tabIndex={-1}>
-                History
+                <Trans>History</Trans>
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Values are hidden until your hide-numbers setting can be checked.
+                <Trans>Values are hidden until your hide-numbers setting can be checked.</Trans>
               </p>
             </CardHeader>
             <CardContent>
               {historyState === "loading" ? (
                 <p role="status" className="text-sm text-muted-foreground">
-                  Loading your entries…
+                  <Trans>Loading your entries…</Trans>
                 </p>
               ) : historyState === "error" ? (
                 <div>
                   <p role="alert" className="text-sm">
-                    Could not load entries.
+                    <Trans>Could not load entries.</Trans>
                   </p>
                   <Button variant="outline" className="mt-2" onClick={() => void history.refetch()}>
-                    Try again
+                    <Trans>Try again</Trans>
                   </Button>
                 </div>
               ) : historyState === "empty" ? (
-                <p className="text-sm text-muted-foreground">No private entries yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  <Trans>No private entries yet.</Trans>
+                </p>
               ) : (
                 <ul className="divide-y">
-                  {(history.data ?? []).map((row) => (
-                    <li
-                      key={row.id}
-                      className="flex flex-wrap items-center justify-between gap-3 py-3"
-                    >
-                      <div>
-                        <p className="font-medium">{labels[row.kind as Kind]}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(row.measuredAt).toLocaleString()}
-                        </p>
-                        {canDisplayStoredValues && (
-                          <p>
-                            {row.value} {row.unit}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          aria-label={`Edit ${labels[row.kind as Kind]} entry from ${new Date(row.measuredAt).toLocaleString()}`}
-                          onClick={() => {
-                            setEditing(row.id);
-                            setKind(row.kind as Kind);
-                            setUnit(row.unit as Unit);
-                            setValue("");
-                            setMeasuredAt(
-                              new Date(
-                                new Date(row.measuredAt).getTime() -
-                                  new Date(row.measuredAt).getTimezoneOffset() * 60000,
-                              )
-                                .toISOString()
-                                .slice(0, 16),
-                            );
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          aria-label={`Delete ${labels[row.kind as Kind]} entry from ${new Date(row.measuredAt).toLocaleString()}`}
-                          onClick={() => deleteEntry(row.id)}
-                          disabled={remove.isPending}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                      {shouldShowPrivateMeasurementDeleteError({
-                        rowId: row.id,
-                        failedRowId: deleteErrorId,
-                        isError: remove.isError,
-                      }) && (
-                        <div className="w-full" role="alert">
-                          <p className="text-sm text-destructive">
-                            Could not delete this entry. It is still in your history.
-                          </p>
+                  {(history.data ?? []).map((row) => {
+                    const label = labelOf(row.kind);
+                    const when = new Date(row.measuredAt).toLocaleString();
+                    return (
+                      <li
+                        key={row.id}
+                        className="flex flex-wrap items-center justify-between gap-3 py-3"
+                      >
+                        <div>
+                          <p className="font-medium">{label}</p>
+                          <p className="text-sm text-muted-foreground">{when}</p>
+                          {canDisplayStoredValues && (
+                            <p>
+                              {row.value} {row.unit}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
                           <Button
                             variant="outline"
-                            className="mt-2"
-                            onClick={() => remove.mutate(row.id)}
+                            aria-label={t`Edit ${label} entry from ${when}`}
+                            onClick={() => {
+                              setEditing(row.id);
+                              setKind(row.kind as Kind);
+                              setUnit(row.unit as Unit);
+                              setValue("");
+                              setMeasuredAt(
+                                new Date(
+                                  new Date(row.measuredAt).getTime() -
+                                    new Date(row.measuredAt).getTimezoneOffset() * 60000,
+                                )
+                                  .toISOString()
+                                  .slice(0, 16),
+                              );
+                            }}
+                          >
+                            <Trans>Edit</Trans>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            aria-label={t`Delete ${label} entry from ${when}`}
+                            onClick={() => deleteEntry(row.id)}
                             disabled={remove.isPending}
                           >
-                            Try delete again
+                            <Trans>Delete</Trans>
                           </Button>
                         </div>
-                      )}
-                    </li>
-                  ))}
+                        {shouldShowPrivateMeasurementDeleteError({
+                          rowId: row.id,
+                          failedRowId: deleteErrorId,
+                          isError: remove.isError,
+                        }) && (
+                          <div className="w-full" role="alert">
+                            <p className="text-sm text-destructive">
+                              <Trans>
+                                Could not delete this entry. It is still in your history.
+                              </Trans>
+                            </p>
+                            <Button
+                              variant="outline"
+                              className="mt-2"
+                              onClick={() => remove.mutate(row.id)}
+                              disabled={remove.isPending}
+                            >
+                              <Trans>Try delete again</Trans>
+                            </Button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
               {notice && !save.isError && (

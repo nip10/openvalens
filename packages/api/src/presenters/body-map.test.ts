@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
+
 import {
   BODY_MAP_DIVERGING,
   BODY_MAP_NEUTRAL,
@@ -24,7 +26,7 @@ describe("body map regions", () => {
     const ids = BODY_MAP_REGIONS.map((region) => region.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const region of BODY_MAP_REGIONS) {
-      expect(region.label.length).toBeGreaterThan(0);
+      expect(inEnglish(region.label).length).toBeGreaterThan(0);
       expect(region.path).toMatch(/^M[\d .A-Z-]+Z$/);
     }
   });
@@ -35,11 +37,21 @@ describe("body map regions", () => {
     expect(x("front.biceps_left")).toBeGreaterThan(100);
     expect(x("back.triceps_left")).toBeLessThan(100);
   });
+
+  test("labels name the member's side, the part and the view", () => {
+    const label = (id: string) =>
+      inEnglish(BODY_MAP_REGIONS.find((region) => region.id === id)!.label);
+    expect(label("front.head")).toBe("Head (front)");
+    expect(label("front.biceps_left")).toBe("Left upper arm (front)");
+    expect(label("front.pelvis")).toBe("Hips (front)");
+    expect(label("back.traps")).toBe("Upper back and neck (back)");
+    expect(label("back.hamstrings_right")).toBe("Right back of thigh (back)");
+  });
 });
 
 describe("compositionLayer", () => {
   test("colours only regions the scan reported, from the most specific source", () => {
-    const { fills } = compositionLayer({ measurementType: "fat_pct", values: scan });
+    const { fills } = compositionLayer({ measurementType: "fat_pct", values: scan }, englishI18n);
     expect(fills["front.biceps_left"]).toMatchObject({
       valueText: "20.0%",
       sourceText: "DEXA left arm",
@@ -57,8 +69,11 @@ describe("compositionLayer", () => {
   });
 
   test("is deterministic, so web and native draw the same colours and values", () => {
-    const first = compositionLayer({ measurementType: "fat_pct", values: scan });
-    const second = compositionLayer({ measurementType: "fat_pct", values: [...scan].reverse() });
+    const first = compositionLayer({ measurementType: "fat_pct", values: scan }, englishI18n);
+    const second = compositionLayer(
+      { measurementType: "fat_pct", values: [...scan].reverse() },
+      englishI18n,
+    );
     expect(second).toEqual(first);
     expect(
       Object.fromEntries(
@@ -75,11 +90,10 @@ describe("compositionLayer", () => {
       { region: "right_arm", measurementType: "fat_pct", value: 22 },
       { region: "trunk", measurementType: "fat_pct", value: 28 },
     ];
-    const { fills, legend } = compositionLayer({
-      measurementType: "fat_pct",
-      values: scan,
-      compareValues: earlier,
-    });
+    const { fills, legend } = compositionLayer(
+      { measurementType: "fat_pct", values: scan, compareValues: earlier },
+      englishI18n,
+    );
     expect(fills["front.biceps_left"]).toMatchObject({
       valueText: "-4.0%",
       colour: BODY_MAP_DIVERGING[0],
@@ -90,6 +104,7 @@ describe("compositionLayer", () => {
     });
     // Android is only in the newer scan, so the abdomen compares the trunk.
     expect(fills["front.abs_left"]).toMatchObject({ valueText: "+2.0%" });
+    expect(fills["front.biceps_left"]!.sourceText).toBe("Change in DEXA left arm");
     expect(fills["front.thigh_left"]!.colour).toBe(BODY_MAP_NEUTRAL);
     expect(legend.at(-1)).toEqual({ colour: BODY_MAP_NEUTRAL, label: "Not reported by this scan" });
   });
@@ -107,26 +122,29 @@ describe("compositionLayer", () => {
 
 describe("trainingLayer", () => {
   test("counts primary as 1 and secondary as 0.5, once per group, and lists unknown muscles", () => {
-    const result = trainingLayer([
-      // Bench press: 4 sets.
-      {
-        sets: 4,
-        muscles: [
-          { name: "Chest", role: "primary" },
-          { name: "Triceps", role: "secondary" },
-          { name: "Anterior deltoid", role: "secondary" },
-        ],
-      },
-      // Curls: 3 sets. Biceps and brachialis share a group: counted once, as primary.
-      {
-        sets: 3,
-        muscles: [
-          { name: "Biceps", role: "primary" },
-          { name: "Brachialis", role: "secondary" },
-          { name: "Mystery muscle", role: "secondary" },
-        ],
-      },
-    ]);
+    const result = trainingLayer(
+      [
+        // Bench press: 4 sets.
+        {
+          sets: 4,
+          muscles: [
+            { name: "Chest", role: "primary" },
+            { name: "Triceps", role: "secondary" },
+            { name: "Anterior deltoid", role: "secondary" },
+          ],
+        },
+        // Curls: 3 sets. Biceps and brachialis share a group: counted once, as primary.
+        {
+          sets: 3,
+          muscles: [
+            { name: "Biceps", role: "primary" },
+            { name: "Brachialis", role: "secondary" },
+            { name: "Mystery muscle", role: "secondary" },
+          ],
+        },
+      ],
+      englishI18n,
+    );
     expect(result.setsByGroup).toMatchObject({ chest: 4, triceps: 2, shoulders: 2, biceps: 3 });
     expect(result.setsByGroup.quads).toBe(0);
     expect(result.unmappedMuscles).toEqual(["Mystery muscle"]);

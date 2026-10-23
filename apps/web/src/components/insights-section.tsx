@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { InsightFeedbackAction } from "@openvalens/api/insight-contract";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import {
@@ -39,7 +40,12 @@ export function InsightsSection() {
     session?.user?.id,
     session?.session?.activeOrganizationId ?? null,
   );
-  if (!scope) return <p className="text-sm text-muted-foreground">Loading insights…</p>;
+  if (!scope)
+    return (
+      <p className="text-sm text-muted-foreground">
+        <Trans>Loading insights…</Trans>
+      </p>
+    );
   return (
     <SubjectInsightsSection
       key={`${scope.userId}:${scope.organizationId ?? "personal"}`}
@@ -57,6 +63,7 @@ function SubjectInsightsSection({
   organizationId: string | null;
 }) {
   const queryClient = useQueryClient();
+  const { t } = useLingui();
   const readiness = useQuery({
     ...orpc.score.readiness.queryOptions({ input: {} }),
     queryKey: privateInsightsQueryKey(
@@ -119,16 +126,16 @@ function SubjectInsightsSection({
         setPendingId(null);
         invalidate();
       },
-      onError: () => toast.error("Could not save your feedback."),
+      onError: () => toast.error(t`Could not save your feedback.`),
     }),
   );
   const offer = useMutation(
     orpc.insights.preferences.update.mutationOptions({
       onSuccess: (_data, variables) => {
         invalidate();
-        if (variables.pushOffer === "accepted") toast.success("Insight notifications turned on");
+        if (variables.pushOffer === "accepted") toast.success(t`Insight notifications turned on`);
       },
-      onError: () => toast.error("Could not save your choice."),
+      onError: () => toast.error(t`Could not save your choice.`),
     }),
   );
   const observation = useMutation(
@@ -139,7 +146,7 @@ function SubjectInsightsSection({
       },
       onError: () =>
         toast.error(
-          "Could not update observation settings. Your saved choice is unchanged; retry when connected.",
+          t`Could not update observation settings. Your saved choice is unchanged; retry when connected.`,
         ),
     }),
   );
@@ -177,9 +184,9 @@ function SubjectInsightsSection({
         <Skeleton className="h-48 w-full" />
       ) : insights.isError || !insights.data ? (
         <p className="text-sm text-muted-foreground">
-          Could not load insights.{" "}
+          <Trans>Could not load insights.</Trans>{" "}
           <button className="underline" onClick={() => void insights.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       ) : (
@@ -199,30 +206,34 @@ function SubjectInsightsSection({
           />
           <Card aria-labelledby="observation-title">
             <CardHeader>
-              <CardTitle id="observation-title">Nutrition observations</CardTitle>
+              <CardTitle id="observation-title">
+                <Trans>Nutrition observations</Trans>
+              </CardTitle>
               <CardDescription>
-                Optional descriptions of how your recorded meals line up in time with recorded sleep
-                and workouts. This reads across those logs only when you turn it on. It does not
-                establish a cause or provide health advice. You can turn it off here without
-                changing either log.
+                <Trans comment="safety">
+                  Optional descriptions of how your recorded meals line up in time with recorded
+                  sleep and workouts. This reads across those logs only when you turn it on. It does
+                  not establish a cause or provide health advice. You can turn it off here without
+                  changing either log.
+                </Trans>
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {observationPrefs.isPending ? (
                 <p role="status" className="text-sm text-muted-foreground">
-                  Loading observation setting…
+                  <Trans>Loading observation setting…</Trans>
                 </p>
               ) : observationPrefs.isError || !observationPrefs.data ? (
                 <button className="w-fit underline" onClick={() => void observationPrefs.refetch()}>
-                  Could not load observation setting. Retry
+                  <Trans>Could not load observation setting. Retry</Trans>
                 </button>
               ) : (
                 <Button
                   disabled={observation.isPending}
                   aria-label={
                     observationPrefs.data.channels.observation.in_app
-                      ? "Turn off nutrition observations"
-                      : "Turn on nutrition observations"
+                      ? t`Turn off nutrition observations`
+                      : t`Turn on nutrition observations`
                   }
                   onClick={() => {
                     const enabled = !observationPrefs.data!.channels.observation.in_app;
@@ -230,14 +241,16 @@ function SubjectInsightsSection({
                     observation.mutate(observationPreferencePatch(enabled));
                   }}
                 >
-                  {observationPrefs.data.channels.observation.in_app
-                    ? "Turn observations off"
-                    : "Turn observations on"}
+                  {observationPrefs.data.channels.observation.in_app ? (
+                    <Trans>Turn observations off</Trans>
+                  ) : (
+                    <Trans>Turn observations on</Trans>
+                  )}
                 </Button>
               )}
               {observation.isError ? (
                 <p role="alert" className="text-sm text-destructive">
-                  Could not save this choice. Your saved setting is unchanged.
+                  <Trans>Could not save this choice. Your saved setting is unchanged.</Trans>
                 </p>
               ) : null}
               {observation.isError && observation.variables ? (
@@ -246,13 +259,15 @@ function SubjectInsightsSection({
                   size="sm"
                   onClick={() => observation.mutate(observation.variables)}
                 >
-                  Retry saving choice
+                  <Trans>Retry saving choice</Trans>
                 </Button>
               ) : null}
               {showObservations && insights.data.observations.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No observations to show for this period. Some records may be missing or
-                  incomplete.
+                  <Trans>
+                    No observations to show for this period. Some records may be missing or
+                    incomplete.
+                  </Trans>
                 </p>
               ) : null}
               {showObservations
@@ -276,11 +291,13 @@ function SubjectInsightsSection({
                 : null}
               {showObservations ? (
                 <p className="text-xs text-muted-foreground">
-                  Observations describe recorded timing only. They are not medical advice.
+                  <Trans comment="safety">
+                    Observations describe recorded timing only. They are not medical advice.
+                  </Trans>
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Off by default. No nutrition observations are shown.
+                  <Trans>Off by default. No nutrition observations are shown.</Trans>
                 </p>
               )}
             </CardContent>

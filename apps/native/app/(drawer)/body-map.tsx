@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import {
   BODY_MAP_COPY,
   BODY_MAP_REGIONS,
@@ -70,8 +71,9 @@ function Chips<T extends string | number>({
 }
 
 function Legend({ steps }: { steps: LegendStep[] }) {
+  const { t } = useLingui();
   return (
-    <View className="gap-1" accessibilityLabel="Legend">
+    <View className="gap-1" accessibilityLabel={t`Legend`}>
       {steps.map((step) => (
         <View key={step.label} className="flex-row items-center gap-2">
           <View
@@ -97,6 +99,7 @@ function BodyFigure({
   onSelect: (id: string) => void;
 }) {
   const regions = BODY_MAP_REGIONS.filter((region) => region.view === view);
+  const { t, i18n } = useLingui();
   return (
     <View className="items-center">
       <Svg width={180} height={360} viewBox={BODY_MAP_VIEWBOX} accessible={false}>
@@ -116,16 +119,18 @@ function BodyFigure({
         {regions.map((region) => {
           const fill = fills[region.id]!;
           if (!fill.valueText) return null;
+          const label = i18n._(region.label);
+          const value = fill.valueText;
           return (
             <Pressable
               key={region.id}
               accessibilityRole="button"
-              accessibilityLabel={`${region.label}: ${fill.valueText}`}
+              accessibilityLabel={t`${label}: ${value}`}
               accessibilityState={{ selected: selected === region.id }}
               onPress={() => onSelect(region.id)}
               className="min-h-11 flex-row items-center justify-between gap-2 border-b border-border px-1"
             >
-              <Text className="flex-1 text-sm text-foreground">{region.label}</Text>
+              <Text className="flex-1 text-sm text-foreground">{label}</Text>
               <Text className="text-sm text-foreground">{fill.valueText}</Text>
             </Pressable>
           );
@@ -143,6 +148,11 @@ export default function BodyMapScreen() {
   const [compareScanId, setCompareScanId] = useState<number | null>(null);
   const [measurementType, setMeasurementType] = useState<string | null>(null);
   const today = localToday();
+  const { t, i18n } = useLingui();
+  const typeLabel = (type: string) => {
+    const known = DEXA_MEASUREMENT_LABELS[type];
+    return known ? i18n._(known.label) : type;
+  };
 
   const scans = useQuery({
     queryKey: ["bodyMap", "scans"],
@@ -173,13 +183,21 @@ export default function BodyMapScreen() {
     measurementType && types.includes(measurementType) ? measurementType : types[0];
   const compositionResult =
     composition.data && activeType
-      ? compositionLayer({
-          measurementType: activeType,
-          values: composition.data.values,
-          ...(composition.data.compare ? { compareValues: composition.data.compare.values } : {}),
-        })
+      ? compositionLayer(
+          {
+            measurementType: activeType,
+            values: composition.data.values,
+            ...(composition.data.compare ? { compareValues: composition.data.compare.values } : {}),
+          },
+          i18n,
+        )
       : null;
-  const trainingResult = training.data ? trainingLayer(training.data.exercises) : null;
+  const trainingResult = training.data ? trainingLayer(training.data.exercises, i18n) : null;
+  const scanSource = composition.data?.scan.source ?? "";
+  const scanDate = composition.data?.scan.date ?? "";
+  const compareDate = composition.data?.compare?.scan.date ?? null;
+  const trainingFrom = training.data?.from ?? "…";
+  const trainingTo = training.data?.to ?? today;
   const result = layer === "composition" ? compositionResult : trainingResult;
   const selectedRegion = BODY_MAP_REGIONS.find((region) => region.id === selected) ?? null;
   const selectedFill = selectedRegion && result ? result.fills[selectedRegion.id] : null;
@@ -190,55 +208,55 @@ export default function BodyMapScreen() {
       <View className="gap-6">
         <View className="gap-2">
           <Text accessibilityRole="header" className="font-mono text-3xl text-foreground">
-            Body map
+            {t`Body map`}
           </Text>
-          <Text className="text-sm text-muted-foreground">{BODY_MAP_COPY.intro}</Text>
+          <Text className="text-sm text-muted-foreground">{i18n._(BODY_MAP_COPY.intro)}</Text>
         </View>
 
         <Chips
-          label="Layer"
+          label={t`Layer`}
           value={layer}
           onChange={(value) => {
             setLayer(value);
             setSelected(null);
           }}
           options={[
-            { value: "composition", label: "Measured composition" },
-            { value: "training", label: "Training this week" },
+            { value: "composition", label: t`Measured composition` },
+            { value: "training", label: t`Training this week` },
           ]}
         />
         <Chips
-          label="Side"
+          label={t`Side`}
           value={view}
           onChange={(value) => {
             setView(value);
             setSelected(null);
           }}
           options={[
-            { value: "front", label: "Front" },
-            { value: "back", label: "Back" },
+            { value: "front", label: t`Front` },
+            { value: "back", label: t`Back` },
           ]}
         />
 
         {layer === "composition" ? (
-          <CardStack title="Scan">
+          <CardStack title={t`Scan`}>
             <Card variant="secondary" className="gap-3 p-4">
               <Text className="text-sm text-muted-foreground">
-                {compareScanId ? BODY_MAP_COPY.compare : BODY_MAP_COPY.composition}
+                {i18n._(compareScanId ? BODY_MAP_COPY.compare : BODY_MAP_COPY.composition)}
               </Text>
               {scans.isPending ? (
-                <Text className="text-sm text-foreground">Loading scans…</Text>
+                <Text className="text-sm text-foreground">{t`Loading scans…`}</Text>
               ) : scans.isError ? (
-                <Text className="text-sm text-foreground">Could not load your scans.</Text>
+                <Text className="text-sm text-foreground">{t`Could not load your scans.`}</Text>
               ) : !recentScans.length ? (
                 <Text className="text-sm text-foreground">
-                  No DEXA scans yet. Import a scan to see measured regions here.
+                  {t`No DEXA scans yet. Import a scan to see measured regions here.`}
                 </Text>
               ) : (
                 <>
-                  <Text className="text-sm font-medium text-foreground">Scan</Text>
+                  <Text className="text-sm font-medium text-foreground">{t`Scan`}</Text>
                   <Chips
-                    label="Scan"
+                    label={t`Scan`}
                     value={activeScanId}
                     onChange={(value) => {
                       setScanId(value);
@@ -248,13 +266,13 @@ export default function BodyMapScreen() {
                   />
                   {recentScans.length > 1 ? (
                     <>
-                      <Text className="text-sm font-medium text-foreground">Compare with</Text>
+                      <Text className="text-sm font-medium text-foreground">{t`Compare with`}</Text>
                       <Chips
-                        label="Compare with"
+                        label={t`Compare with`}
                         value={compareScanId ?? 0}
                         onChange={(value) => setCompareScanId(value === 0 ? null : value)}
                         options={[
-                          { value: 0, label: "No comparison" },
+                          { value: 0, label: t`No comparison` },
                           ...recentScans
                             .filter((scan) => scan.id !== activeScanId)
                             .map((scan) => ({ value: scan.id, label: scan.date })),
@@ -264,14 +282,14 @@ export default function BodyMapScreen() {
                   ) : null}
                   {types.length > 1 ? (
                     <>
-                      <Text className="text-sm font-medium text-foreground">Measurement</Text>
+                      <Text className="text-sm font-medium text-foreground">{t`Measurement`}</Text>
                       <Chips
-                        label="Measurement"
+                        label={t`Measurement`}
                         value={activeType ?? null}
                         onChange={setMeasurementType}
                         options={types.map((type) => ({
                           value: type,
-                          label: DEXA_MEASUREMENT_LABELS[type]?.label ?? type,
+                          label: typeLabel(type),
                         }))}
                       />
                     </>
@@ -280,25 +298,26 @@ export default function BodyMapScreen() {
               )}
               {composition.data ? (
                 <Text className="text-sm text-foreground">
-                  {composition.data.scan.source}, {composition.data.scan.date}
-                  {composition.data.compare
-                    ? `, compared with ${composition.data.compare.scan.date}`
-                    : ""}
+                  {compareDate
+                    ? t`${scanSource}, ${scanDate}, compared with ${compareDate}`
+                    : `${scanSource}, ${scanDate}`}
                 </Text>
               ) : null}
               {composition.data && !types.length ? (
-                <Text className="text-sm text-foreground">This scan has no regional values.</Text>
+                <Text className="text-sm text-foreground">
+                  {t`This scan has no regional values.`}
+                </Text>
               ) : null}
             </Card>
           </CardStack>
         ) : (
-          <CardStack
-            title={`Sets from ${training.data?.from ?? "…"} to ${training.data?.to ?? today}`}
-          >
+          <CardStack title={t`Sets from ${trainingFrom} to ${trainingTo}`}>
             <Card variant="secondary" className="gap-2 p-4">
-              <Text className="text-sm text-muted-foreground">{BODY_MAP_COPY.training}</Text>
+              <Text className="text-sm text-muted-foreground">
+                {i18n._(BODY_MAP_COPY.training)}
+              </Text>
               {training.isError ? (
-                <Text className="text-sm text-foreground">Could not load your workouts.</Text>
+                <Text className="text-sm text-foreground">{t`Could not load your workouts.`}</Text>
               ) : null}
             </Card>
           </CardStack>
@@ -319,23 +338,21 @@ export default function BodyMapScreen() {
               {selectedRegion && selectedFill ? (
                 <>
                   <Text className="text-sm font-medium text-foreground">
-                    {selectedRegion.label}
+                    {i18n._(selectedRegion.label)}
                   </Text>
                   <Text className="text-sm text-foreground">
-                    {selectedFill.valueText ?? "No value"}
+                    {selectedFill.valueText ?? t`No value`}
                   </Text>
                   {selectedFill.sourceText ? (
                     <Text className="text-sm text-muted-foreground">{selectedFill.sourceText}</Text>
                   ) : null}
                   {layer === "composition" && composition.data ? (
-                    <Text className="text-sm text-muted-foreground">
-                      Scan {composition.data.scan.date}
-                    </Text>
+                    <Text className="text-sm text-muted-foreground">{t`Scan ${scanDate}`}</Text>
                   ) : null}
                 </>
               ) : (
                 <Text className="text-sm text-muted-foreground">
-                  Tap a region to see its value.
+                  {t`Tap a region to see its value.`}
                 </Text>
               )}
             </View>
@@ -344,31 +361,38 @@ export default function BodyMapScreen() {
         ) : null}
 
         {layer === "training" && trainingResult && training.data ? (
-          <CardStack title="By muscle group">
+          <CardStack title={t`By muscle group`}>
             <Card variant="secondary" className="gap-2 p-4">
-              {TRAINING_GROUPS.map((group) => (
-                <View key={group} className="flex-row justify-between gap-2">
-                  <Text className="text-sm text-foreground">{TRAINING_GROUP_LABELS[group]}</Text>
-                  <Text className="text-sm text-foreground">
-                    {formatSets(trainingResult.setsByGroup[group])} sets
-                  </Text>
-                </View>
-              ))}
+              {TRAINING_GROUPS.map((group) => {
+                const count = formatSets(trainingResult.setsByGroup[group]);
+                return (
+                  <View key={group} className="flex-row justify-between gap-2">
+                    <Text className="text-sm text-foreground">
+                      {i18n._(TRAINING_GROUP_LABELS[group])}
+                    </Text>
+                    <Text className="text-sm text-foreground">{t`${count} sets`}</Text>
+                  </View>
+                );
+              })}
               {training.data.unmapped.length ? (
                 <View className="mt-2 gap-1">
                   <Text className="text-sm font-medium text-foreground">
-                    Not counted (no catalog muscles)
+                    {t`Not counted (no catalog muscles)`}
                   </Text>
-                  {training.data.unmapped.map((item) => (
-                    <Text key={item.name} className="text-sm text-foreground">
-                      {item.name}: {item.sets} sets
-                    </Text>
-                  ))}
+                  {training.data.unmapped.map((item) => {
+                    const name = item.name;
+                    const count = item.sets;
+                    return (
+                      <Text key={name} className="text-sm text-foreground">
+                        {t`${name}: ${count} sets`}
+                      </Text>
+                    );
+                  })}
                 </View>
               ) : null}
               {trainingResult.unmappedMuscles.length ? (
                 <Text className="text-sm text-muted-foreground">
-                  Muscles not shown on the map: {trainingResult.unmappedMuscles.join(", ")}
+                  {t`Muscles not shown on the map: ${trainingResult.unmappedMuscles.join(", ")}`}
                 </Text>
               ) : null}
             </Card>

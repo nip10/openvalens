@@ -4,9 +4,17 @@ import { EVIDENCE_CHECK_LIBRARY } from "@openvalens/api/evidence-check-library";
 import type { PreventiveCareResult } from "@openvalens/api/preventive-care-contract";
 import { evaluatePreventiveCare } from "@openvalens/api/preventive-care-engine";
 import { PREVENTIVE_CARE_PACK } from "@openvalens/api/preventive-care-pack";
-import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 import { PreventiveCareView } from "./preventive-care-view";
+
+/** Renders in English through Lingui (#67). */
+function renderToStaticMarkup(node: ReactNode): string {
+  return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+}
 
 const noop = () => {};
 const handlers = { pending: false, onDeclare: noop, onUpdateItem: noop, onLibrary: noop };

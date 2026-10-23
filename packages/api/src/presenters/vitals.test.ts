@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { englishI18n } from "@openvalens/i18n/testing";
+
 import {
   formatBpm,
   formatBpmRange,
@@ -71,10 +73,10 @@ describe("vitals presenter", () => {
   });
 
   test("vitalsSourceLabel: maps provider keys to human labels", () => {
-    expect(vitalsSourceLabel("health_connect")).toBe("Health Connect");
-    expect(vitalsSourceLabel("apple_health")).toBe("Apple Health");
-    expect(vitalsSourceLabel("apple_health_healthkit")).toBe("Apple Health");
-    expect(vitalsSourceLabel(null)).toBe("Other");
-    expect(vitalsSourceLabel("watch")).toBe("Other");
+    expect(vitalsSourceLabel("health_connect", englishI18n)).toBe("Health Connect");
+    expect(vitalsSourceLabel("apple_health", englishI18n)).toBe("Apple Health");
+    expect(vitalsSourceLabel("apple_health_healthkit", englishI18n)).toBe("Apple Health");
+    expect(vitalsSourceLabel(null, englishI18n)).toBe("Other");
+    expect(vitalsSourceLabel("watch", englishI18n)).toBe("Other");
   });
 });

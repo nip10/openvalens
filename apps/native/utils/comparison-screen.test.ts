@@ -9,6 +9,8 @@ import {
   EMPTY_WELLNESS_PROFILE,
 } from "@openvalens/api/wellness-profile-contract";
 
+import { englishI18n } from "@openvalens/i18n/testing";
+
 import { comparisonScreenModel } from "./comparison-screen";
 
 const AS_OF = "2026-10-16";
@@ -41,6 +43,7 @@ function model(optedIn: boolean, sex: "female" | "unknown" = "female") {
       sleepMinutes: days(450),
       activeMinutes: null,
     }),
+    englishI18n,
   );
 }
 
@@ -76,8 +79,8 @@ describe("native comparison screen model", () => {
   });
 
   test("withheld for under-18", () => {
-    expect(comparisonScreenModel(referenceComparisonsAdultsOnly(AS_OF)).withheldText).toContain(
-      "18 and over",
-    );
+    expect(
+      comparisonScreenModel(referenceComparisonsAdultsOnly(AS_OF), englishI18n).withheldText,
+    ).toContain("18 and over");
   });
 });

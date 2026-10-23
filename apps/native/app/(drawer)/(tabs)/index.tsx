@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLingui } from "@lingui/react/macro";
 import {
   buildCockpitBlocks,
   COCKPIT_SLEEP_WINDOW_DAYS,
@@ -40,6 +41,7 @@ function StatBlock({ label, value, sub }: { label: string; value: string; sub: s
 
 export default function CockpitScreen() {
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
   const readiness = useHealthReadiness();
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
@@ -86,19 +88,24 @@ export default function CockpitScreen() {
     [weight.data, sleep.data, activity.data, vitals.data],
   );
 
-  const blocks = useMemo(() => buildCockpitBlocks(snapshot), [snapshot]);
+  const blocks = useMemo(
+    () => buildCockpitBlocks(snapshot, i18n),
+    // Rebuild when the language changes, not only when the data does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [snapshot, i18n, i18n.locale],
+  );
 
   const dataPending = weight.isPending || sleep.isPending || activity.isPending || vitals.isPending;
 
   const status = readiness.data?.status ?? "unknown";
   const statusLabel =
     status === "ok"
-      ? "Ready"
+      ? t`Ready`
       : status === "degraded"
-        ? "Degraded"
+        ? t`Degraded`
         : status === "unready"
-          ? "Unavailable"
-          : "Checking…";
+          ? t`Unavailable`
+          : t`Checking…`;
 
   const capabilityIcon = (enabled: boolean) =>
     enabled ? (
@@ -136,7 +143,7 @@ export default function CockpitScreen() {
     >
       <View className="gap-6">
         <View>
-          <Text className="text-sm text-muted-foreground">Today</Text>
+          <Text className="text-sm text-muted-foreground">{t`Today`}</Text>
           <Text className="font-mono text-3xl text-foreground">{today}</Text>
         </View>
 
@@ -144,28 +151,28 @@ export default function CockpitScreen() {
 
         <InsightsSection />
 
-        <CardStack title="Today">
+        <CardStack title={t`Today`}>
           <Card variant="secondary" className="p-4">
             {dataPending && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
-              <Text className="text-sm text-muted-foreground">Loading…</Text>
+              <Text className="text-sm text-muted-foreground">{t`Loading…`}</Text>
             ) : (
               <View className="gap-4">
                 <StatBlock
-                  label={blocks[0]?.title ?? "Weight"}
+                  label={blocks[0]?.title ?? t`Weight`}
                   value={blocks[0]?.primary ?? "—"}
                   sub={blocks[0]?.secondary ?? ""}
                 />
                 <View className="flex-row gap-4">
                   <View className="flex-1">
                     <StatBlock
-                      label={blocks[1]?.title ?? "Sleep"}
+                      label={blocks[1]?.title ?? t`Sleep`}
                       value={blocks[1]?.primary ?? "—"}
                       sub={blocks[1]?.secondary ?? ""}
                     />
                   </View>
                   <View className="flex-1">
                     <StatBlock
-                      label={blocks[2]?.title ?? "Activity"}
+                      label={blocks[2]?.title ?? t`Activity`}
                       value={blocks[2]?.primary ?? "—"}
                       sub={blocks[2]?.secondary ?? ""}
                     />
@@ -173,7 +180,7 @@ export default function CockpitScreen() {
                 </View>
                 <View>
                   <StatBlock
-                    label={blocks[3]?.title ?? "Heart rate"}
+                    label={blocks[3]?.title ?? t`Heart rate`}
                     value={blocks[3]?.primary ?? "—"}
                     sub={blocks[3]?.secondary ?? ""}
                   />
@@ -183,10 +190,10 @@ export default function CockpitScreen() {
           </Card>
         </CardStack>
 
-        <CardStack title="System readiness">
+        <CardStack title={t`System readiness`}>
           <Card variant="secondary" className="p-4">
             <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-foreground">Status</Text>
+              <Text className="text-lg font-medium text-foreground">{t`Status`}</Text>
               <Chip
                 size="sm"
                 color={
@@ -204,12 +211,12 @@ export default function CockpitScreen() {
             </View>
 
             {readiness.isLoading && !readiness.isError && (
-              <Text className="text-sm text-muted-foreground">Checking connection…</Text>
+              <Text className="text-sm text-muted-foreground">{t`Checking connection…`}</Text>
             )}
 
             {readiness.isError && (
               <Text className="text-sm text-destructive">
-                Could not load status. Pull down to retry.
+                {t`Could not load status. Pull down to retry.`}
               </Text>
             )}
 
@@ -217,7 +224,7 @@ export default function CockpitScreen() {
               <View>
                 <ListRow
                   icon={<Ionicons name="server-outline" size={20} color={foreground} />}
-                  title="Database"
+                  title={t`Database`}
                   trailing={
                     <Chip
                       size="sm"
@@ -229,7 +236,7 @@ export default function CockpitScreen() {
                 />
                 <ListRow
                   icon={<Ionicons name="key-outline" size={20} color={foreground} />}
-                  title="Auth secret"
+                  title={t`Auth secret`}
                   trailing={
                     <Chip
                       size="sm"
@@ -245,7 +252,7 @@ export default function CockpitScreen() {
                 />
                 <ListRow
                   icon={<Ionicons name="shield-checkmark-outline" size={20} color={foreground} />}
-                  title="Cron secret"
+                  title={t`Cron secret`}
                   trailing={
                     <Chip
                       size="sm"
@@ -263,11 +270,11 @@ export default function CockpitScreen() {
         </CardStack>
 
         {readiness.data && (
-          <CardStack title="Recent activity">
+          <CardStack title={t`Recent activity`}>
             <Card variant="secondary" className="p-4">
               <View className="gap-3">
                 <Text className="font-mono text-xs text-muted-foreground">
-                  Readiness checked at {readiness.data.timestamp}
+                  {t`Readiness checked at ${readiness.data.timestamp}`}
                 </Text>
                 <View>
                   {Object.entries(readiness.data.checks.capabilities).map(
@@ -282,7 +289,7 @@ export default function CockpitScreen() {
                               enabled ? "text-sm text-success" : "text-sm text-destructive"
                             }
                           >
-                            {enabled ? "Enabled" : "Disabled"}
+                            {enabled ? t`Enabled` : t`Disabled`}
                           </Text>
                         }
                         showDivider={index < arr.length - 1}

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   defaultObservedAt,
   MANUAL_ENTRY_FIELDS,
@@ -43,8 +44,6 @@ export const Route = createFileRoute("/_auth/records/vitals")({
   component: VitalsPage,
 });
 
-const trendConfig = { avgBpm: { label: "Avg bpm", color: "var(--chart-1)" } } satisfies ChartConfig;
-
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -59,6 +58,10 @@ const MANUAL_METRICS: ManualEntryMetric[] = ["heart_rate", "resting_heart_rate"]
 function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   const [metric, setMetric] = useState<ManualEntryMetric>("heart_rate");
   const field = MANUAL_ENTRY_FIELDS[metric];
+  const { i18n } = useLingui();
+  const unit = i18n._(field.unit);
+  const min = field.min;
+  const max = field.max;
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt);
 
@@ -87,11 +90,15 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add reading</CardTitle>
+        <CardTitle>
+          <Trans>Add reading</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Metric</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Metric</Trans>
+          </Label>
           <Select
             value={metric}
             onValueChange={(next) => {
@@ -99,12 +106,12 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             }}
           >
             <SelectTrigger>
-              <SelectValue>{field.label}</SelectValue>
+              <SelectValue>{i18n._(field.label)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {MANUAL_METRICS.map((code) => (
                 <SelectItem key={code} value={code}>
-                  {MANUAL_ENTRY_FIELDS[code].label}
+                  {i18n._(MANUAL_ENTRY_FIELDS[code].label)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -112,7 +119,9 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label className="text-sm font-medium">Value ({field.unit})</Label>
+            <Label className="text-sm font-medium">
+              <Trans>Value ({unit})</Trans>
+            </Label>
             <Input
               inputMode="decimal"
               value={value}
@@ -121,7 +130,9 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             />
           </div>
           <div className="grid gap-2">
-            <Label className="text-sm font-medium">Observed at</Label>
+            <Label className="text-sm font-medium">
+              <Trans>Observed at</Trans>
+            </Label>
             <Input
               type="datetime-local"
               value={observedAt}
@@ -131,16 +142,22 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
           {numeric === null && value.length > 0 ? (
             <span className="text-sm text-destructive">
-              Value must be between {field.min} and {field.max} {field.unit}.
+              <Trans>
+                Value must be between {min} and {max} {unit}.
+              </Trans>
             </span>
           ) : save.isSuccess ? (
-            <span className="text-sm text-success">Saved</span>
+            <span className="text-sm text-success">
+              <Trans>Saved</Trans>
+            </span>
           ) : save.isError ? (
-            <span className="text-sm text-destructive">Could not save.</span>
+            <span className="text-sm text-destructive">
+              <Trans>Could not save.</Trans>
+            </span>
           ) : null}
         </div>
       </CardContent>
@@ -153,12 +170,18 @@ function VitalsPage() {
   const samples = useCacheFirst("vitals.recentSamples", () =>
     client.vitals.recentSamples({ limit: 20 }),
   );
+  const { t, i18n } = useLingui();
+  const trendConfig = {
+    avgBpm: { label: t`Avg bpm`, color: "var(--chart-1)" },
+  } satisfies ChartConfig;
 
   if (daily.isPending || samples.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">Vitals</h1>
+          <h1 className="text-2xl font-semibold">
+            <Trans>Vitals</Trans>
+          </h1>
           <SyncStatusBadge />
         </div>
         <Skeleton className="h-64 w-full" />
@@ -170,11 +193,13 @@ function VitalsPage() {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">Vitals</h1>
+          <h1 className="text-2xl font-semibold">
+            <Trans>Vitals</Trans>
+          </h1>
           <SyncStatusBadge />
         </div>
         <p className="text-sm text-muted-foreground">
-          Could not load vitals.{" "}
+          <Trans>Could not load vitals.</Trans>{" "}
           <button
             className="underline"
             onClick={() => {
@@ -182,7 +207,7 @@ function VitalsPage() {
               void samples.refetch();
             }}
           >
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -195,7 +220,9 @@ function VitalsPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Vitals</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Vitals</Trans>
+        </h1>
         <SyncStatusBadge />
       </div>
 
@@ -209,9 +236,13 @@ function VitalsPage() {
       {!summary.today ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No vitals yet</p>
+            <p className="font-medium">
+              <Trans>No vitals yet</Trans>
+            </p>
             <p className="text-sm text-muted-foreground">
-              Sync Health Connect or Apple Health from the mobile app, or add a reading.
+              <Trans>
+                Sync Health Connect or Apple Health from the mobile app, or add a reading.
+              </Trans>
             </p>
           </CardContent>
         </Card>
@@ -219,12 +250,12 @@ function VitalsPage() {
         <>
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>Today · {summary.today.date}</CardTitle>
+              <CardTitle>{t`Today · ${summary.today.date}`}</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
-              <Stat label="Avg heart rate" value={formatBpm(summary.today.heartRate.avgBpm)} />
+              <Stat label={t`Avg heart rate`} value={formatBpm(summary.today.heartRate.avgBpm)} />
               <Stat
-                label="Range"
+                label={t`Range`}
                 value={formatBpmRange(
                   summary.today.heartRate.avgBpm,
                   summary.today.heartRate.minBpm,
@@ -232,7 +263,7 @@ function VitalsPage() {
                 )}
               />
               <Stat
-                label="Samples"
+                label={t`Samples`}
                 value={summary.today.heartRate.sampleCount.toLocaleString("en-US")}
               />
             </CardContent>
@@ -240,7 +271,9 @@ function VitalsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>30-day trend</CardTitle>
+              <CardTitle>
+                <Trans>30-day trend</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={trendConfig} className="h-56 w-full">
@@ -274,17 +307,19 @@ function VitalsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>This week</CardTitle>
+              <CardTitle>
+                <Trans>This week</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
-              <Stat label="7-day average" value={formatBpm(summary.sevenDayAverageBpm)} />
+              <Stat label={t`7-day average`} value={formatBpm(summary.sevenDayAverageBpm)} />
               <Stat
-                label="Latest reading"
+                label={t`Latest reading`}
                 value={formatBpm(summary.latestSample?.heartRateBpm ?? null)}
               />
               <Stat
-                label="Source"
-                value={vitalsSourceLabel(summary.latestSample?.source ?? null)}
+                label={t`Source`}
+                value={vitalsSourceLabel(summary.latestSample?.source ?? null, i18n)}
               />
             </CardContent>
           </Card>
@@ -299,7 +334,7 @@ function VitalsPage() {
                   <span className="flex items-center gap-4">
                     <span className="font-mono">{formatBpm(sample.heartRateBpm)}</span>
                     <span className="text-xs text-muted-foreground">
-                      {vitalsSourceLabel(sample.source)}
+                      {vitalsSourceLabel(sample.source, i18n)}
                     </span>
                   </span>
                 </li>

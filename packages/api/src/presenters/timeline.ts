@@ -1,9 +1,12 @@
 /**
  * Timeline presentation shared by web and mobile, so both render the same
- * groups, labels and tones. Pure TypeScript with no imports: safe for the
- * app bundle. Copy follows docs/mobile/tone-of-voice.md (sentence case,
- * ISO dates, 24-hour times).
+ * groups, labels and tones. Pure TypeScript: safe for the app bundle. Copy
+ * follows docs/mobile/tone-of-voice.md (sentence case, ISO dates, 24-hour
+ * times). Labels are Lingui message descriptors (#67).
  */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 export type TimelineItemLike = {
   id: string;
   at: string;
@@ -20,21 +23,21 @@ export type TimelineDayGroup<T extends TimelineItemLike> = {
   items: (T & { time: string })[];
 };
 
-const DOMAIN_LABELS: Record<string, string> = {
-  sleep: "Sleep",
-  activity: "Activity",
-  body: "Body",
-  vitals: "Vitals",
-  labs: "Labs",
-  meds_supplements: "Meds and supplements",
-  calendar: "Calendar",
-  sync: "Sync",
-  imaging: "Imaging",
-  cardiac: "Cardiac",
+const DOMAIN_LABELS: Record<string, MessageDescriptor> = {
+  sleep: msg`Sleep`,
+  activity: msg`Activity`,
+  body: msg`Body`,
+  vitals: msg`Vitals`,
+  labs: msg`Labs`,
+  meds_supplements: msg`Meds and supplements`,
+  calendar: msg`Calendar`,
+  sync: msg`Sync`,
+  imaging: msg`Imaging`,
+  cardiac: msg`Cardiac`,
 };
 
-export function domainLabel(domain: string): string {
-  return DOMAIN_LABELS[domain] ?? "Other";
+export function domainLabel(domain: string): MessageDescriptor {
+  return DOMAIN_LABELS[domain] ?? msg`Other`;
 }
 
 /** Semantic color for a severity; `null` keeps neutral chrome (design-direction.md). */

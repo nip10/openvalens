@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   formatDistanceMeters,
   formatKcalories,
@@ -5,7 +6,11 @@ import {
 } from "@openvalens/api/presenters/activity";
 import { formatKg } from "@openvalens/api/presenters/body";
 import { COCKPIT_SLEEP_WINDOW_DAYS } from "@openvalens/api/presenters/cockpit";
-import { formatClockTime, formatSleepDuration } from "@openvalens/api/presenters/sleep";
+import {
+  formatClockTime,
+  formatSleepDuration,
+  sleepStatusLabel,
+} from "@openvalens/api/presenters/sleep";
 import { formatBpm } from "@openvalens/api/presenters/vitals";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -39,6 +44,8 @@ function DashboardPage() {
   const vitals = useQuery(orpc.vitals.daily.queryOptions({ input: { days: 1 } }));
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { t, i18n } = useLingui();
+  const windowDays = COCKPIT_SLEEP_WINDOW_DAYS;
 
   const isPending = weight.isPending || sleep.isPending || activity.isPending || vitals.isPending;
   const isError = weight.isError || sleep.isError || activity.isError || vitals.isError;
@@ -51,18 +58,18 @@ function DashboardPage() {
   const blocks: CockpitBlock[] = [
     {
       key: "weight",
-      title: "Weight",
+      title: t`Weight`,
       primary: weightRow ? formatKg(weightRow.weightKg, settings) : "—",
-      secondary: weightRow ? `Last reading · ${weightRow.date}` : "No reading yet",
+      secondary: weightRow ? t`Last reading · ${weightRow.date}` : t`No reading yet`,
       tertiary: null,
     },
     {
       key: "sleep",
-      title: "Sleep",
+      title: t`Sleep`,
       primary: sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—",
       secondary: sleepRow
-        ? `Latest night · ${sleepRow.date} · ${sleepRow.status}`
-        : `No sleep logged in the last ${COCKPIT_SLEEP_WINDOW_DAYS} days`,
+        ? t`Latest night · ${sleepRow.date} · ${i18n._(sleepStatusLabel(sleepRow.status))}`
+        : t`No sleep logged in the last ${windowDays} days`,
       tertiary:
         sleepRow && sleepRow.mainSleepStart && sleepRow.mainSleepEnd
           ? `${formatClockTime(sleepRow.mainSleepStart, settings)} → ${formatClockTime(sleepRow.mainSleepEnd, settings)}`
@@ -70,21 +77,21 @@ function DashboardPage() {
     },
     {
       key: "activity",
-      title: "Activity",
+      title: t`Activity`,
       primary: activityRow ? formatSteps(activityRow.steps ?? 0) : "—",
       secondary: activityRow
         ? `${activityRow.date} · ${formatKcalories(activityRow.activeCaloriesKcal ?? 0)} · ${formatDistanceMeters(activityRow.distanceMeters ?? 0, settings)}`
-        : "No activity logged",
+        : t`No activity logged`,
       tertiary: null,
     },
     {
       key: "vitals",
-      title: "Heart rate",
+      title: t`Heart rate`,
       primary:
         vitalsRow && vitalsRow.heartRate.avgBpm !== null
           ? formatBpm(vitalsRow.heartRate.avgBpm)
           : "—",
-      secondary: vitalsRow ? `Avg · ${vitalsRow.date}` : "No reading yet",
+      secondary: vitalsRow ? t`Avg · ${vitalsRow.date}` : t`No reading yet`,
       tertiary: null,
     },
   ];
@@ -92,9 +99,11 @@ function DashboardPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
       <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Dashboard</Trans>
+        </h1>
         <Link to="/records/timeline" className="text-sm text-muted-foreground underline">
-          Full timeline →
+          <Trans>Full timeline →</Trans>
         </Link>
       </div>
 
@@ -109,7 +118,9 @@ function DashboardPage() {
       {isPending ? (
         <Skeleton className="h-64 w-full" />
       ) : isError ? (
-        <p className="text-sm text-muted-foreground">Could not load your data. Pull to retry.</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Could not load your data. Pull to retry.</Trans>
+        </p>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">

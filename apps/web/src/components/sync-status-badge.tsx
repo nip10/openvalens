@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { Badge } from "@openvalens/ui/components/badge";
 
 import { syncNow, useOutboxStatus } from "@/utils/sync-engine";
@@ -9,15 +10,16 @@ import { syncNow, useOutboxStatus } from "@/utils/sync-engine";
  */
 export function SyncStatusBadge() {
   const { pending, state } = useOutboxStatus();
+  const { t } = useLingui();
 
   if (pending === 0) return null;
 
   const label =
     state === "offline"
-      ? `Offline (${pending})`
+      ? t`Offline (${pending})`
       : state === "syncing"
-        ? `Syncing (${pending})`
-        : `Failed (${pending})`;
+        ? t`Syncing (${pending})`
+        : t`Failed (${pending})`;
 
   return (
     <Badge variant={state === "offline" ? "outline" : "secondary"} asChild>
@@ -25,7 +27,7 @@ export function SyncStatusBadge() {
         type="button"
         onClick={() => void syncNow()}
         className="cursor-pointer"
-        title="Sync pending entries"
+        title={t`Sync pending entries`}
       >
         {label}
       </button>

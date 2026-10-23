@@ -1,8 +1,11 @@
 /**
- * Vitals presentation shared by web and mobile. Pure TypeScript, no
- * imports — safe for the app bundle. Copy follows
- * docs/mobile/tone-of-voice.md (sentence case, real units).
+ * Vitals presentation shared by web and mobile. Pure TypeScript — safe for
+ * the app bundle. Copy follows docs/mobile/tone-of-voice.md (sentence case,
+ * real units).
  */
+import type { I18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 export type DailyVitalsLike = {
   date: string;
   heartRate: {
@@ -78,10 +81,13 @@ export function heartRateSeries(days: readonly DailyVitalsLike[]): {
   }));
 }
 
-/** "Health Connect" / "Apple Health" / "Other" — sentence-case source label. */
-export function vitalsSourceLabel(source: string | null): string {
-  if (!source) return "Other";
-  if (source.includes("health_connect")) return "Health Connect";
-  if (source.includes("apple_health") || source.includes("healthkit")) return "Apple Health";
-  return "Other";
+/**
+ * "Health Connect" / "Apple Health" / "Other" — sentence-case source label.
+ * Source names are brand names and stay as they are; only "Other" is
+ * translated.
+ */
+export function vitalsSourceLabel(source: string | null, i18n: I18n): string {
+  if (source?.includes("health_connect")) return "Health Connect";
+  if (source?.includes("apple_health") || source?.includes("healthkit")) return "Apple Health";
+  return i18n._(msg({ message: "Other", context: "data source" }));
 }

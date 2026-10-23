@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { computeGoalProgress } from "@openvalens/api/score-goal-progress";
 import { computeReadiness } from "@openvalens/api/score-readiness";
+import { englishI18n } from "@openvalens/i18n/testing";
 
 import { goalLogValue, goalProgressCard, readinessCard } from "./score-screen";
 
@@ -26,6 +27,7 @@ describe("native score screen model", () => {
         },
         AS_OF,
       ),
+      englishI18n,
     );
     expect(card.badge).toBe("Experimental");
     expect(card.scoreText).toBe("45");
@@ -44,6 +46,7 @@ describe("native score screen model", () => {
   test("withheld readiness shows a dash and the reason, never a default", () => {
     const card = readinessCard(
       computeReadiness({ sleepMinutes: [], restingHeartRate: [], steps: [] }, AS_OF),
+      englishI18n,
     );
     expect(card.scoreText).toBe("—");
     expect(card.scoreSuffix).toBeNull();
@@ -91,6 +94,7 @@ describe("native score screen model", () => {
           ],
         },
       ]),
+      englishI18n,
     );
     expect(card.scoreText).toBe("25%");
     expect(card.rows[0]!.lines).toContain("⚑ Moved away from the target at the last check-in");

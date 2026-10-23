@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import {
   exportBundleArtifact,
   exportCsvArtifacts,
@@ -12,10 +14,10 @@ import {
 
 describe("clinical export presenter", () => {
   test("formatExportDomainLabel: sentence-case labels for the closed enum", () => {
-    expect(formatExportDomainLabel("blood")).toBe("Blood");
-    expect(formatExportDomainLabel("familyHistory")).toBe("Family history");
-    expect(formatExportDomainLabel("dexa")).toBe("DEXA");
-    expect(formatExportDomainLabel("audit")).toBe("Audit");
+    expect(inEnglish(formatExportDomainLabel("blood"))).toBe("Blood");
+    expect(inEnglish(formatExportDomainLabel("familyHistory"))).toBe("Family history");
+    expect(inEnglish(formatExportDomainLabel("dexa"))).toBe("DEXA");
+    expect(inEnglish(formatExportDomainLabel("audit"))).toBe("Audit");
   });
 
   test("formatBytes: base-1024 sizes and '—' for invalid input", () => {
@@ -56,7 +58,7 @@ describe("clinical export presenter", () => {
     ]);
     expect(options.find((option) => option.domain === "blood")?.defaultSelected).toBe(true);
     expect(options.find((option) => option.domain === "audit")?.defaultSelected).toBe(false);
-    expect(options.every((option) => option.label.length > 0)).toBe(true);
+    expect(options.every((option) => inEnglish(option.label).length > 0)).toBe(true);
   });
 
   test("artifact builders: shared filenames, mime types, and JSON body", () => {

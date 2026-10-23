@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { expect, mock, test } from "bun:test";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
 import * as React from "react";
 import type { InsightsResult } from "@openvalens/api/insight-contract";
 import type {} from "uniwind/types";
@@ -204,7 +206,11 @@ if (!childMode) {
           React.createElement(
             realQuery.QueryClientProvider,
             { client: queryClient },
-            React.createElement(InsightsSection),
+            React.createElement(
+              I18nProvider,
+              { i18n: englishI18n },
+              React.createElement(InsightsSection),
+            ),
           ),
         );
       });

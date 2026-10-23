@@ -4,6 +4,9 @@
  * bundle. Copy follows docs/mobile/tone-of-voice.md (sentence case, no
  * marketing language).
  */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import {
   DEFAULT_EXPORT_DOMAINS,
   EXPORT_DOMAINS,
@@ -13,26 +16,26 @@ import {
 export type { ExportDomain } from "@openvalens/clinical-export/domains";
 
 /** Sentence-case label for every domain in the closed export enum. */
-const EXPORT_DOMAIN_LABELS: Record<ExportDomain, string> = {
-  blood: "Blood",
-  body: "Body",
-  medications: "Medications",
-  supplements: "Supplements",
-  workouts: "Workouts",
-  goals: "Goals",
-  familyHistory: "Family history",
-  calendar: "Calendar",
-  insights: "Insights",
-  imaging: "Imaging",
-  cardiac: "Cardiac",
-  dexa: "DEXA",
-  weight: "Weight",
-  audit: "Audit",
+const EXPORT_DOMAIN_LABELS: Record<ExportDomain, MessageDescriptor> = {
+  blood: msg`Blood`,
+  body: msg`Body`,
+  medications: msg`Medications`,
+  supplements: msg`Supplements`,
+  workouts: msg`Workouts`,
+  goals: msg`Goals`,
+  familyHistory: msg`Family history`,
+  calendar: msg`Calendar`,
+  insights: msg`Insights`,
+  imaging: msg`Imaging`,
+  cardiac: msg`Cardiac`,
+  dexa: msg`DEXA`,
+  weight: msg`Weight`,
+  audit: msg`Audit`,
 };
 
 export type ExportDomainOption = {
   domain: ExportDomain;
-  label: string;
+  label: MessageDescriptor;
   defaultSelected: boolean;
 };
 
@@ -44,7 +47,7 @@ export type ExportArtifact = {
 };
 
 /** Sentence-case label for a domain in the closed export enum. */
-export function formatExportDomainLabel(domain: ExportDomain): string {
+export function formatExportDomainLabel(domain: ExportDomain): MessageDescriptor {
   return EXPORT_DOMAIN_LABELS[domain];
 }
 

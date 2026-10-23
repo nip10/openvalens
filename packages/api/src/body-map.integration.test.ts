@@ -2,6 +2,7 @@ import { readdir } from "node:fs/promises";
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
 import { createDb, sql, type Database } from "@openvalens/db";
+import { englishI18n } from "@openvalens/i18n/testing";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import type { Context } from "./context";
@@ -200,7 +201,10 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
     expect(body.values).toHaveLength(4);
     expect(body.compare).toBeNull();
 
-    const { fills } = compositionLayer({ measurementType: "fat_pct", values: body.values });
+    const { fills } = compositionLayer(
+      { measurementType: "fat_pct", values: body.values },
+      englishI18n,
+    );
     expect(fills["front.biceps_left"]!.valueText).toBe("20.0%");
     expect(fills["front.biceps_right"]!.valueText).toBe("22.0%");
     // Legs were not scanned: neutral, never filled in from anything else.
@@ -213,11 +217,10 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
     const same = await call("composition", { scanId: scans.latest, compareScanId: scans.earlier });
     expect(same.status).toBe(200);
     const body = same.body as BodyMapComposition;
-    const { fills } = compositionLayer({
-      measurementType: "fat_pct",
-      values: body.values,
-      compareValues: body.compare!.values,
-    });
+    const { fills } = compositionLayer(
+      { measurementType: "fat_pct", values: body.values, compareValues: body.compare!.values },
+      englishI18n,
+    );
     expect(fills["front.biceps_left"]!.valueText).toBe("-4.0%");
     // The right arm is only in the newer scan, so there is no change to show.
     expect(fills["front.biceps_right"]!.valueText).toBeNull();
@@ -304,7 +307,7 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
       { name: "Farmer carry", sets: 4 },
       { name: "Plank", sets: 2 },
     ]);
-    const layer = trainingLayer(body.exercises);
+    const layer = trainingLayer(body.exercises, englishI18n);
     expect(layer.setsByGroup).toMatchObject({ chest: 5, triceps: 2.5, quads: 0 });
     expect(layer.fills["front.chest_left"]!.valueText).toBe("5 sets");
     expect(layer.fills["back.triceps_right"]!.valueText).toBe("2.5 sets");

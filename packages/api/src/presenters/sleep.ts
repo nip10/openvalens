@@ -4,6 +4,9 @@
  * docs/mobile/tone-of-voice.md (sentence case, ISO dates, no medical
  * disclaimer).
  */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { formatProductTime, type ProductDisplaySettings } from "./product-formatting";
 
 export type SleepDailyLike = {
@@ -43,14 +46,14 @@ export type SleepWindowLike = {
   confidence: SleepDailyLike["confidence"];
 };
 
-const STATUS_LABEL: Record<SleepDailyLike["status"], string> = {
-  optimal: "Optimal",
-  acceptable: "Acceptable",
-  mild_sleep_debt: "Mild sleep debt",
-  high_sleep_debt: "High sleep debt",
-  fragmented_sleep: "Fragmented",
-  irregular_schedule: "Irregular schedule",
-  low_confidence: "Low confidence",
+const STATUS_LABEL: Record<SleepDailyLike["status"], MessageDescriptor> = {
+  optimal: msg`Optimal`,
+  acceptable: msg`Acceptable`,
+  mild_sleep_debt: msg`Mild sleep debt`,
+  high_sleep_debt: msg`High sleep debt`,
+  fragmented_sleep: msg`Fragmented`,
+  irregular_schedule: msg`Irregular schedule`,
+  low_confidence: msg`Low confidence`,
 };
 
 /** Severity tone used to pick a chip color. `null` keeps neutral chrome. */
@@ -63,7 +66,7 @@ export function sleepStatusTone(
   return null;
 }
 
-export function sleepStatusLabel(status: SleepDailyLike["status"]): string {
+export function sleepStatusLabel(status: SleepDailyLike["status"]): MessageDescriptor {
   return STATUS_LABEL[status];
 }
 
@@ -129,13 +132,17 @@ export function sleepSeries(window: Pick<SleepWindowLike, "days">): {
 /** Per-stage minutes for last night, suitable for a stack/segment chart. */
 export function lastNightStages(
   last: SleepDailyLike | null,
-): { stage: string; minutes: number; label: string }[] {
+): { stage: string; minutes: number; label: MessageDescriptor }[] {
   if (!last) return [];
   return [
-    { stage: "awake", minutes: last.awakeMinutes, label: "Awake" },
-    { stage: "light", minutes: last.lightMinutes, label: "Light" },
-    { stage: "deep", minutes: last.deepMinutes, label: "Deep" },
-    { stage: "rem", minutes: last.remMinutes, label: "REM" },
-    { stage: "unknown", minutes: last.unknownStageMinutes, label: "Untracked" },
+    { stage: "awake", minutes: last.awakeMinutes, label: msg`Awake` },
+    {
+      stage: "light",
+      minutes: last.lightMinutes,
+      label: msg({ message: "Light", context: "sleep stage" }),
+    },
+    { stage: "deep", minutes: last.deepMinutes, label: msg`Deep` },
+    { stage: "rem", minutes: last.remMinutes, label: msg`REM` },
+    { stage: "unknown", minutes: last.unknownStageMinutes, label: msg`Untracked` },
   ].filter((entry) => entry.minutes > 0);
 }

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   formatKg,
   formatKgDelta,
@@ -37,15 +38,13 @@ export const Route = createFileRoute("/_auth/body")({
   component: BodyPage,
 });
 
-function weightChartConfig(
-  settings:
-    | { units: "metric" | "imperial"; locale: "en-US" | "en-GB" | "en-CA" }
-    | null
-    | undefined,
-): ChartConfig {
-  const unit = settings?.units === "imperial" ? "lb" : "kg";
+function weightUnit(settings: { units: "metric" | "imperial" } | null | undefined): string {
+  return settings?.units === "imperial" ? "lb" : "kg";
+}
+
+function weightChartConfig(label: string): ChartConfig {
   return {
-    weightKg: { label: `Weight (${unit})`, color: "var(--chart-1)" },
+    weightKg: { label, color: "var(--chart-1)" },
   };
 }
 
@@ -69,7 +68,11 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function AddWeightForm({ onSaved }: { onSaved: () => void }) {
+  const { i18n } = useLingui();
   const field = MANUAL_ENTRY_FIELDS.weight;
+  const unit = i18n._(field.unit);
+  const min = field.min;
+  const max = field.max;
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt);
 
@@ -98,11 +101,15 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add weight</CardTitle>
+        <CardTitle>
+          <Trans>Add weight</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Weight ({field.unit})</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Weight ({unit})</Trans>
+          </Label>
           <Input
             inputMode="decimal"
             value={value}
@@ -111,7 +118,9 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
           />
         </div>
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Observed at</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Observed at</Trans>
+          </Label>
           <Input
             type="datetime-local"
             value={observedAt}
@@ -120,16 +129,22 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
         </div>
         <div className="flex items-center gap-3 sm:col-span-2">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
           {numeric === null && value.length > 0 ? (
             <span className="text-sm text-destructive">
-              Value must be between {field.min} and {field.max} {field.unit}.
+              <Trans>
+                Value must be between {min} and {max} {unit}.
+              </Trans>
             </span>
           ) : save.isSuccess ? (
-            <span className="text-sm text-success">Saved</span>
+            <span className="text-sm text-success">
+              <Trans>Saved</Trans>
+            </span>
           ) : save.isError ? (
-            <span className="text-sm text-destructive">Could not save.</span>
+            <span className="text-sm text-destructive">
+              <Trans>Could not save.</Trans>
+            </span>
           ) : null}
         </div>
       </CardContent>
@@ -142,11 +157,15 @@ function BodyPage() {
   const summary = summarizeDailyWeights(daily.data ?? []);
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { t } = useLingui();
+  const unit = weightUnit(settings);
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Body</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Body</Trans>
+        </h1>
         <SyncStatusBadge />
       </div>
 
@@ -158,17 +177,19 @@ function BodyPage() {
         <Skeleton className="h-64 w-full" />
       ) : daily.isError ? (
         <p className="text-sm text-muted-foreground">
-          Could not load weight.{" "}
+          <Trans>Could not load weight.</Trans>{" "}
           <button className="underline" onClick={() => void daily.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       ) : !summary.latest ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No weight yet</p>
+            <p className="font-medium">
+              <Trans>No weight yet</Trans>
+            </p>
             <p className="text-sm text-muted-foreground">
-              Sync a scale through Health Connect or Apple Health, or add a weight.
+              <Trans>Sync a scale through Health Connect or Apple Health, or add a weight.</Trans>
             </p>
           </CardContent>
         </Card>
@@ -176,7 +197,9 @@ function BodyPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Weight</CardTitle>
+              <CardTitle>
+                <Trans>Weight</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
               <Stat
@@ -184,11 +207,11 @@ function BodyPage() {
                 value={formatKg(summary.latest.weightKg, settings)}
               />
               <Stat
-                label="7 days"
+                label={t`7 days`}
                 value={summary.change7d === null ? "—" : formatKgDelta(summary.change7d, settings)}
               />
               <Stat
-                label="30 days"
+                label={t`30 days`}
                 value={
                   summary.change30d === null ? "—" : formatKgDelta(summary.change30d, settings)
                 }
@@ -198,10 +221,15 @@ function BodyPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Last 90 days</CardTitle>
+              <CardTitle>
+                <Trans>Last 90 days</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={weightChartConfig(settings)} className="h-56 w-full">
+              <ChartContainer
+                config={weightChartConfig(t`Weight (${unit})`)}
+                className="h-56 w-full"
+              >
                 <LineChart data={summary.series}>
                   <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={32} />
                   <YAxis
@@ -214,7 +242,7 @@ function BodyPage() {
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
-                        formatter={(value) => [formatKg(value as number, settings), "Weight"]}
+                        formatter={(value) => [formatKg(value as number, settings), t`Weight`]}
                       />
                     }
                   />

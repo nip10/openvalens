@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { CYCLE_COPY } from "@openvalens/api/presenters/cycle";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -19,11 +22,11 @@ export const Route = createFileRoute("/_auth/cycle")({ component: CyclePage });
  */
 
 const FLOWS = ["spotting", "light", "medium", "heavy"] as const;
-const FLOW_LABELS: Record<(typeof FLOWS)[number], string> = {
-  spotting: "Spotting",
-  light: "Light",
-  medium: "Medium",
-  heavy: "Heavy",
+const FLOW_LABELS: Record<(typeof FLOWS)[number], MessageDescriptor> = {
+  spotting: msg`Spotting`,
+  light: msg({ message: "Light", context: "period flow" }),
+  medium: msg`Medium`,
+  heavy: msg`Heavy`,
 };
 
 function localToday(): string {
@@ -42,7 +45,11 @@ function CyclePage() {
     return (
       <main className="container mx-auto max-w-3xl px-4 py-6">
         <p role="status" className="text-sm text-muted-foreground">
-          {isPending ? "Checking your account…" : "Choose a workspace to continue."}
+          {isPending ? (
+            <Trans>Checking your account…</Trans>
+          ) : (
+            <Trans>Choose a workspace to continue.</Trans>
+          )}
         </p>
       </main>
     );
@@ -51,6 +58,7 @@ function CyclePage() {
 
 function CycleForMember({ scope }: { scope: string }) {
   const qc = useQueryClient();
+  const { i18n } = useLingui();
   const key = (name: string, ...rest: unknown[]) => ["cycle", name, scope, ...rest] as const;
   const refresh = () => void qc.invalidateQueries({ queryKey: ["cycle"] });
   const settings = useQuery({
@@ -67,28 +75,38 @@ function CycleForMember({ scope }: { scope: string }) {
   return (
     <main className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <header>
-        <p className="text-sm text-muted-foreground">Your records</p>
-        <h1 className="text-2xl font-semibold">Cycle</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{CYCLE_COPY.notForContraception}</p>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Your records</Trans>
+        </p>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Cycle</Trans>
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {i18n._(CYCLE_COPY.notForContraception)}
+        </p>
       </header>
       {settings.isPending ? (
         <p role="status" className="text-sm text-muted-foreground">
-          Checking your cycle setting…
+          <Trans>Checking your cycle setting…</Trans>
         </p>
       ) : settings.isError ? (
         <div className="grid gap-2">
-          <p role="alert">Could not check this setting.</p>
+          <p role="alert">
+            <Trans>Could not check this setting.</Trans>
+          </p>
           <Button className="w-fit" variant="outline" onClick={() => void settings.refetch()}>
-            Try again
+            <Trans>Try again</Trans>
           </Button>
         </div>
       ) : !settings.data.enabled ? (
         <Card>
           <CardHeader>
-            <CardTitle>Cycle logging is off</CardTitle>
+            <CardTitle>
+              <Trans>Cycle logging is off</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <p className="text-sm">{CYCLE_COPY.consentText}</p>
+            <p className="text-sm">{i18n._(CYCLE_COPY.consentText)}</p>
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -96,18 +114,20 @@ function CycleForMember({ scope }: { scope: string }) {
                 checked={agreed}
                 onChange={(event) => setAgreed(event.target.checked)}
               />
-              I agree to store my cycle data on this server for my own reference.
+              <Trans comment="safety">
+                I agree to store my cycle data on this server for my own reference.
+              </Trans>
             </label>
             <Button
               className="w-fit"
               disabled={!agreed || enable.isPending}
               onClick={() => enable.mutate()}
             >
-              {enable.isPending ? "Turning on…" : "Turn on cycle logging"}
+              {enable.isPending ? <Trans>Turning on…</Trans> : <Trans>Turn on cycle logging</Trans>}
             </Button>
             {enable.isError ? (
               <p role="alert" className="text-sm text-destructive">
-                Could not turn this on. Try again.
+                <Trans>Could not turn this on. Try again.</Trans>
               </p>
             ) : null}
           </CardContent>
@@ -133,6 +153,7 @@ function CycleEnabled({
   refresh: () => void;
 }) {
   const today = localToday();
+  const { t, i18n } = useLingui();
   const periods = useQuery({
     queryKey: keyFor("periods"),
     queryFn: () => client.cycle.periods({}),
@@ -164,22 +185,24 @@ function CycleEnabled({
       setEndDate("");
       setFlow("");
       setNotes("");
-      setNotice("Period saved.");
+      setNotice(t`Period saved.`);
       refresh();
     },
-    onError: () => setNotice("Could not save. Check the dates and try again."),
+    onError: () => setNotice(t`Could not save. Check the dates and try again.`),
   });
   const remove = useMutation({
     mutationFn: (id: string) => client.cycle.deletePeriod({ id }),
     onSuccess: () => {
-      setNotice("Period deleted.");
+      setNotice(t`Period deleted.`);
       refresh();
     },
   });
   const undo = useMutation({
     mutationFn: (importId: string) => client.cycle.undoImport({ importId }),
     onSuccess: (result) => {
-      setNotice(`Import undone. ${result.removed} imported periods removed.`);
+      setNotice(
+        t`Import undone. ${plural(result.removed, { one: "# imported period removed.", other: "# imported periods removed." })}`,
+      );
       refresh();
     },
   });
@@ -196,41 +219,53 @@ function CycleEnabled({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Estimates</CardTitle>
+          <CardTitle>
+            <Trans>Estimates</Trans>
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           {estimates.isPending ? (
-            <p role="status">Loading…</p>
+            <p role="status">
+              <Trans>Loading…</Trans>
+            </p>
           ) : estimates.isError ? (
-            <p role="alert">Could not load estimates.</p>
+            <p role="alert">
+              <Trans>Could not load estimates.</Trans>
+            </p>
           ) : estimates.data.state === "off" ? (
-            <p>{CYCLE_COPY.noNaturalCycle}</p>
+            <p>{i18n._(CYCLE_COPY.noNaturalCycle)}</p>
           ) : estimates.data.state === "no_data" ? (
-            <p className="text-muted-foreground">Log a period to see your cycle history.</p>
+            <p className="text-muted-foreground">
+              <Trans>Log a period to see your cycle history.</Trans>
+            </p>
           ) : (
             <>
               {estimates.data.current ? (
                 <p>
-                  Day {estimates.data.current.dayOfCycle} of the current cycle (started{" "}
-                  {estimates.data.current.startDate}). {CYCLE_COPY.currentLowConfidence}
+                  {t`Day ${estimates.data.current.dayOfCycle} of the current cycle (started ${estimates.data.current.startDate}).`}{" "}
+                  {i18n._(CYCLE_COPY.currentLowConfidence)}
                 </p>
               ) : null}
               <ul className="grid gap-2">
                 {estimates.data.cycles
                   .filter((cycle) => cycle.nextStartDate)
-                  .map((cycle) => (
-                    <li key={cycle.startDate} className="rounded-md border p-3">
-                      <p>
-                        {cycle.startDate} to {cycle.nextStartDate} · {cycle.lengthDays} days
-                      </p>
-                      {cycle.lutealEstimate ? (
-                        <p className="text-muted-foreground">
-                          {CYCLE_COPY.lutealLabel}: {cycle.lutealEstimate.from} to{" "}
-                          {cycle.lutealEstimate.to}
+                  .map((cycle) => {
+                    const start = cycle.startDate;
+                    const next = cycle.nextStartDate;
+                    const luteal = i18n._(CYCLE_COPY.lutealLabel);
+                    return (
+                      <li key={start} className="rounded-md border p-3">
+                        <p>
+                          {t`${start} to ${next} · ${plural(cycle.lengthDays ?? 0, { one: "# day", other: "# days" })}`}
                         </p>
-                      ) : null}
-                    </li>
-                  ))}
+                        {cycle.lutealEstimate ? (
+                          <p className="text-muted-foreground">
+                            {t`${luteal}: ${cycle.lutealEstimate.from} to ${cycle.lutealEstimate.to}`}
+                          </p>
+                        ) : null}
+                      </li>
+                    );
+                  })}
               </ul>
             </>
           )}
@@ -242,18 +277,24 @@ function CycleEnabled({
               disabled={updateSettings.isPending}
               onChange={(event) => updateSettings.mutate(event.target.checked)}
             />
-            I use hormonal contraception or have no natural cycle (turns estimates off)
+            <Trans comment="safety">
+              I use hormonal contraception or have no natural cycle (turns estimates off)
+            </Trans>
           </label>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Log a period</CardTitle>
+          <CardTitle>
+            <Trans>Log a period</Trans>
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
-            <Label htmlFor="cycle-start">Start date</Label>
+            <Label htmlFor="cycle-start">
+              <Trans>Start date</Trans>
+            </Label>
             <Input
               id="cycle-start"
               type="date"
@@ -263,7 +304,9 @@ function CycleEnabled({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="cycle-end">End date (optional)</Label>
+            <Label htmlFor="cycle-end">
+              <Trans>End date (optional)</Trans>
+            </Label>
             <Input
               id="cycle-end"
               type="date"
@@ -273,23 +316,27 @@ function CycleEnabled({
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="cycle-flow">Flow (optional)</Label>
+            <Label htmlFor="cycle-flow">
+              <Trans>Flow (optional)</Trans>
+            </Label>
             <select
               id="cycle-flow"
               className="h-10 rounded-md border bg-background px-3"
               value={flow}
               onChange={(event) => setFlow(event.target.value as typeof flow)}
             >
-              <option value="">Not recorded</option>
+              <option value="">{t`Not recorded`}</option>
               {FLOWS.map((value) => (
                 <option key={value} value={value}>
-                  {FLOW_LABELS[value]}
+                  {i18n._(FLOW_LABELS[value])}
                 </option>
               ))}
             </select>
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="cycle-notes">Notes (optional)</Label>
+            <Label htmlFor="cycle-notes">
+              <Trans>Notes (optional)</Trans>
+            </Label>
             <Input
               id="cycle-notes"
               maxLength={500}
@@ -302,14 +349,16 @@ function CycleEnabled({
             disabled={!startDate || log.isPending}
             onClick={() => log.mutate()}
           >
-            {log.isPending ? "Saving…" : "Save period"}
+            {log.isPending ? <Trans>Saving…</Trans> : <Trans>Save period</Trans>}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>History</CardTitle>
+          <CardTitle>
+            <Trans>History</Trans>
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           {periods.data?.length ? (
@@ -320,30 +369,35 @@ function CycleEnabled({
                   className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
                 >
                   <span>
-                    {period.startDate}
-                    {period.endDate ? ` to ${period.endDate}` : ""}
-                    {period.flow ? ` · ${FLOW_LABELS[period.flow]}` : ""}
-                    {period.source !== "manual" ? " · imported" : ""}
+                    {period.endDate
+                      ? t`${period.startDate} to ${period.endDate}`
+                      : period.startDate}
+                    {period.flow ? ` · ${i18n._(FLOW_LABELS[period.flow])}` : ""}
+                    {period.source !== "manual" ? ` · ${t`imported`}` : ""}
                   </span>
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={remove.isPending}
                     onClick={() => {
-                      if (window.confirm("Delete this period?")) remove.mutate(period.id);
+                      if (window.confirm(t`Delete this period?`)) remove.mutate(period.id);
                     }}
                   >
-                    Delete
+                    <Trans>Delete</Trans>
                   </Button>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-muted-foreground">No periods logged yet.</p>
+            <p className="text-muted-foreground">
+              <Trans>No periods logged yet.</Trans>
+            </p>
           )}
           {imports.data?.length ? (
             <div className="grid gap-2">
-              <h2 className="font-medium">Imports</h2>
+              <h2 className="font-medium">
+                <Trans>Imports</Trans>
+              </h2>
               {imports.data.map((run) => (
                 <div
                   key={run.id}
@@ -351,7 +405,8 @@ function CycleEnabled({
                 >
                   <span>
                     {run.source === "health_connect" ? "Health Connect" : "Apple Health"} ·{" "}
-                    {run.periodCount} periods · {new Date(run.importedAt).toLocaleDateString()}
+                    {t`${plural(run.periodCount, { one: "# period", other: "# periods" })}`} ·{" "}
+                    {new Date(run.importedAt).toLocaleDateString()}
                   </span>
                   <Button
                     size="sm"
@@ -359,7 +414,7 @@ function CycleEnabled({
                     disabled={undo.isPending}
                     onClick={() => undo.mutate(run.id)}
                   >
-                    Undo import
+                    <Trans>Undo import</Trans>
                   </Button>
                 </div>
               ))}
@@ -370,12 +425,16 @@ function CycleEnabled({
 
       <Card>
         <CardHeader>
-          <CardTitle>Turn off and erase</CardTitle>
+          <CardTitle>
+            <Trans>Turn off and erase</Trans>
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <p>
-            Deletes every period and import you have logged, in every workspace, and withdraws your
-            consent. This cannot be undone.
+            <Trans comment="safety">
+              Deletes every period and import you have logged, in every workspace, and withdraws
+              your consent. This cannot be undone.
+            </Trans>
           </p>
           {confirmErase ? (
             <div className="flex flex-wrap gap-2">
@@ -384,15 +443,15 @@ function CycleEnabled({
                 disabled={erase.isPending}
                 onClick={() => erase.mutate()}
               >
-                {erase.isPending ? "Erasing…" : "Erase all cycle data"}
+                {erase.isPending ? <Trans>Erasing…</Trans> : <Trans>Erase all cycle data</Trans>}
               </Button>
               <Button variant="outline" onClick={() => setConfirmErase(false)}>
-                Keep my data
+                <Trans>Keep my data</Trans>
               </Button>
             </div>
           ) : (
             <Button className="w-fit" variant="outline" onClick={() => setConfirmErase(true)}>
-              Turn off and erase
+              <Trans>Turn off and erase</Trans>
             </Button>
           )}
         </CardContent>

@@ -8,6 +8,7 @@ import {
   sleepStatusLabel,
   sleepStatusTone,
 } from "@openvalens/api/presenters/sleep";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import {
@@ -29,10 +30,6 @@ import { useProductSettings } from "@/utils/product-settings";
 export const Route = createFileRoute("/_auth/records/sleep")({
   component: SleepPage,
 });
-
-const trendConfig = {
-  asleepMinutes: { label: "Asleep (min)", color: "var(--chart-1)" },
-} satisfies ChartConfig;
 
 const TONE_CLASS = {
   destructive: "border-destructive/40 bg-destructive/10 text-destructive",
@@ -58,10 +55,11 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { i18n } = useLingui();
   const tone = sleepStatusTone(status as Parameters<typeof sleepStatusTone>[0]);
   return (
     <Badge variant="outline" className={cn(tone && TONE_CLASS[tone])}>
-      {sleepStatusLabel(status as Parameters<typeof sleepStatusLabel>[0])}
+      {i18n._(sleepStatusLabel(status as Parameters<typeof sleepStatusLabel>[0]))}
     </Badge>
   );
 }
@@ -70,11 +68,17 @@ function SleepPage() {
   const summary = useQuery(orpc.sleep.summary.queryOptions({ input: { days: 30 } }));
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { t, i18n } = useLingui();
+  const trendConfig = {
+    asleepMinutes: { label: t`Asleep (min)`, color: "var(--chart-1)" },
+  } satisfies ChartConfig;
 
   if (summary.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Sleep</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Sleep</Trans>
+        </h1>
         <Skeleton className="h-64 w-full" />
       </div>
     );
@@ -83,11 +87,13 @@ function SleepPage() {
   if (summary.isError || !summary.data) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Sleep</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Sleep</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Could not load sleep.{" "}
+          <Trans>Could not load sleep.</Trans>{" "}
           <button className="underline" onClick={() => void summary.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -101,16 +107,20 @@ function SleepPage() {
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Sleep</h1>
+      <h1 className="text-2xl font-semibold">
+        <Trans>Sleep</Trans>
+      </h1>
 
       <ProductSettingsStatus />
 
       {!last ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No sleep yet</p>
+            <p className="font-medium">
+              <Trans>No sleep yet</Trans>
+            </p>
             <p className="text-sm text-muted-foreground">
-              Track sleep through Health Connect or Apple Health, or add a session.
+              <Trans>Track sleep through Health Connect or Apple Health, or add a session.</Trans>
             </p>
           </CardContent>
         </Card>
@@ -118,15 +128,15 @@ function SleepPage() {
         <>
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>Last night · {last.date}</CardTitle>
+              <CardTitle>{t`Last night · ${last.date}`}</CardTitle>
               <StatusBadge status={last.status} />
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Stat label="Asleep" value={formatSleepDuration(last.asleepMinutes)} />
-              <Stat label="In bed" value={formatSleepDuration(last.timeInBedMinutes)} />
-              <Stat label="Efficiency" value={formatSleepEfficiency(last.sleepEfficiencyPct)} />
+              <Stat label={t`Asleep`} value={formatSleepDuration(last.asleepMinutes)} />
+              <Stat label={t`In bed`} value={formatSleepDuration(last.timeInBedMinutes)} />
+              <Stat label={t`Efficiency`} value={formatSleepEfficiency(last.sleepEfficiencyPct)} />
               <Stat
-                label="Bedtime → wake"
+                label={t`Bedtime → wake`}
                 value={`${formatClockTime(last.mainSleepStart, settings)} → ${formatClockTime(last.mainSleepEnd, settings)}`}
               />
             </CardContent>
@@ -134,13 +144,15 @@ function SleepPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Stages</CardTitle>
+              <CardTitle>
+                <Trans>Stages</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
                 <ChartContainer
                   config={{
-                    minutes: { label: "Minutes" },
+                    minutes: { label: t`Minutes` },
                   }}
                   className="h-32 w-full"
                 >
@@ -171,7 +183,7 @@ function SleepPage() {
                           className="h-2 w-2 rounded-full"
                           style={{ backgroundColor: STAGE_COLORS[entry.stage] ?? "var(--muted)" }}
                         />
-                        {entry.label}
+                        {i18n._(entry.label)}
                       </span>
                       <span className="font-mono">{formatSleepDuration(entry.minutes)}</span>
                     </li>
@@ -183,7 +195,9 @@ function SleepPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>30-day trend</CardTitle>
+              <CardTitle>
+                <Trans>30-day trend</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={trendConfig} className="h-48 w-full">
@@ -218,18 +232,20 @@ function SleepPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>This week</CardTitle>
+              <CardTitle>
+                <Trans>This week</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
               <Stat
-                label="7-day average"
+                label={t`7-day average`}
                 value={formatSleepDuration(summary.data.sevenDayAverageMinutes)}
               />
               <Stat
-                label="Avg debt"
+                label={t`Avg debt`}
                 value={formatSleepDuration(summary.data.averageSleepDebtMinutes)}
               />
-              <Stat label="Target" value={formatSleepDuration(last.targetMinutes)} />
+              <Stat label={t`Target`} value={formatSleepDuration(last.targetMinutes)} />
             </CardContent>
           </Card>
         </>
