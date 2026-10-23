@@ -18,9 +18,14 @@
     "@better-auth/expo": "catalog:",
     "@expo/metro-runtime": "~57.0.15",
     "@expo/vector-icons": "^15.0.2",
+    "@formatjs/intl-locale": "5.3.11",
+    "@formatjs/intl-pluralrules": "6.3.15",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@kingstinct/react-native-healthkit": "^16.0.0",
+    "@lingui/core": "6.9.1",
+    "@lingui/react": "6.9.1",
     "@openvalens/api": "workspace:*",
+    "@openvalens/i18n": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/ui": "workspace:*",
     "@orpc/client": "catalog:",
@@ -74,6 +79,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@lingui/babel-plugin-lingui-macro": "6.9.1",
+    "@lingui/message-utils": "6.9.1",
     "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",

@@ -11,10 +11,14 @@
     "start": "vite",
     "check-types": "tsc -b ../../packages/api && vite build && tsc --noEmit",
     "env:generate": "varlock codegen",
-    "test:mounted-water": "MOUNTED_WATER_TEST=1 VITE_SERVER_URL=http://127.0.0.1:4179 bun test --preload ./mounted-tests/setup.tsx ./mounted-tests/plain-water-delete.test.tsx"
+    "test:mounted-water": "MOUNTED_WATER_TEST=1 VITE_SERVER_URL=http://127.0.0.1:4179 bun test --preload ./mounted-tests/setup.tsx ./mounted-tests/plain-water-delete.test.tsx",
+    "test:mounted-i18n": "MOUNTED_I18N_TEST=1 VITE_SERVER_URL=http://127.0.0.1:4179 bun test --preload ./mounted-tests/setup.tsx ./mounted-tests/language-switch.test.tsx"
   },
   "dependencies": {
+    "@lingui/core": "6.9.1",
+    "@lingui/react": "6.9.1",
     "@openvalens/api": "workspace:*",
+    "@openvalens/i18n": "workspace:*",
     "@openvalens/observability": "workspace:*",
     "@openvalens/ui": "workspace:*",
     "@orpc/client": "catalog:",
@@ -37,6 +41,7 @@
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^21.0.4",
+    "@lingui/vite-plugin": "6.9.1",
     "@openvalens/config": "workspace:*",
     "@tanstack/react-query-devtools": "^5.102.8",
     "@tanstack/react-router-devtools": "^1.167.1",

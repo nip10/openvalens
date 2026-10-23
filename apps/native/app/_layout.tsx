@@ -1,3 +1,5 @@
+// Intl polyfills must load before anything formats or pluralizes (#67).
+import "@/lib/i18n/polyfills";
 import "@/global.css";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
@@ -8,6 +10,7 @@ import { useEffect, useRef } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { AppThemeProvider } from "@/contexts/app-theme-context";
+import { AppI18nProvider } from "@/lib/i18n/provider";
 import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
 import "@/lib/health-sync/scheduler";
@@ -67,17 +70,19 @@ function StackLayout() {
 
 export default function Layout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
-          <AppThemeProvider>
-            <HeroUINativeProvider>
-              <MagicLinkLifecycle />
-              <StackLayout />
-            </HeroUINativeProvider>
-          </AppThemeProvider>
-        </KeyboardProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+    <AppI18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <KeyboardProvider>
+            <AppThemeProvider>
+              <HeroUINativeProvider>
+                <MagicLinkLifecycle />
+                <StackLayout />
+              </HeroUINativeProvider>
+            </AppThemeProvider>
+          </KeyboardProvider>
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </AppI18nProvider>
   );
 }

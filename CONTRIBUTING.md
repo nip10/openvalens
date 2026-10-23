@@ -170,8 +170,12 @@ Run before opening a pull request (CI runs the same):
 bunx oxlint
 bunx oxfmt --check .
 bun run check-types
+bun run i18n:check
 bun test
 ```
+
+User-facing text goes through Lingui macros and needs a pt-PT translation; see
+[docs/translations.md](docs/translations.md).
 
 Database integration suites: `PG_ADMIN_URL=postgres://postgres:pw@127.0.0.1:5432 scripts/test-integration.sh`
 against a disposable Postgres.

@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLingui } from "@lingui/react/macro";
 import { Tabs } from "expo-router";
 import { useThemeColor } from "@/utils/theme";
 
 export default function TabLayout() {
+  const { t } = useLingui();
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
   const themeColorPrimary = useThemeColor("primary");
@@ -30,21 +32,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Cockpit",
+          title: t`Cockpit`,
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="timeline"
         options={{
-          title: "Timeline",
+          title: t`Timeline`,
           tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="body"
         options={{
-          title: "Body",
+          title: t`Body`,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="body-outline" size={size} color={color} />
           ),
@@ -53,7 +55,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: t`Settings`,
           tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
         }}
       />

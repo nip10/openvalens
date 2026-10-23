@@ -31,6 +31,8 @@ jobs:
         run: bun run licenses:check
       - name: Check generated environment reference
         run: bun run docs:check
+      - name: Translation catalogs are current, valid and complete (#67)
+        run: bun run i18n:check
       - run: bunx oxlint
       - run: bunx oxfmt --check .
       - run: bun run check-types
@@ -38,6 +40,9 @@ jobs:
       - name: Mounted plain-water interaction regressions
         working-directory: apps/web
         run: bun run test:mounted-water
+      - name: Mounted language switch (#67)
+        working-directory: apps/web
+        run: bun run test:mounted-i18n
 
   server-image-sanitizer:
     name: Built server image Sharp sanitizer proof

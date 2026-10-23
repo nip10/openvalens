@@ -6,6 +6,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
 
 import Loader from "./components/loader";
+import { AppI18nProvider } from "./lib/i18n";
 import { initErrorReporting, reportError } from "./lib/error-reporting";
 import { routeTree } from "./routeTree.gen";
 import { orpc, queryClient } from "./utils/orpc";
@@ -20,7 +21,11 @@ const router = createRouter({
   defaultPendingComponent: () => <Loader />,
   context: { orpc, queryClient },
   Wrap: function WrapComponent({ children }: { children: React.ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <AppI18nProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </AppI18nProvider>
+    );
   },
 });
 

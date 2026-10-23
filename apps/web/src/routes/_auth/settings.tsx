@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import {
   assertivenessLabel,
   COACH_DISCLAIMER_VALUES,
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 import { AiConsentSection } from "@/components/ai-consent-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
+import { LanguageSection } from "@/components/language-section";
 import { OidcConnectSection } from "@/components/oidc-connect-section";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
 import { authClient } from "@/lib/auth-client";
@@ -50,9 +52,12 @@ export const Route = createFileRoute("/_auth/settings")({
 function SettingsPage() {
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-6 text-2xl font-semibold">Settings</h1>
+      <h1 className="mb-6 text-2xl font-semibold">
+        <Trans>Settings</Trans>
+      </h1>
       <div className="grid gap-6">
         <AccountSection />
+        <LanguageSection />
         <OidcConnectSection />
         <ProfileSummarySection />
         <InsightNotificationsSection />

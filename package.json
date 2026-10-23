@@ -64,13 +64,22 @@
     "docs:generate": "bun scripts/generate-env-docs.ts && oxfmt docs/reference/env.md",
     "docs:check": "bun run docs:generate && git ls-files --error-unmatch docs/reference/env.md && git diff --exit-code -- docs/reference/env.md",
     "licenses:check": "bun scripts/license-audit.ts",
-    "check": "oxlint && oxfmt --write"
+    "check": "oxlint && oxfmt --write",
+    "i18n:extract": "lingui extract --clean && bun scripts/i18n-safety-ids.ts && oxfmt packages/i18n/src/safety-ids.ts",
+    "i18n:compile": "lingui compile --typescript --strict && oxfmt packages/i18n/src/locales",
+    "i18n:check": "bun run i18n:extract && bun run i18n:compile && git diff --exit-code -- packages/i18n/src"
   },
   "dependencies": {
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@babel/core": "7.29.7",
     "@env-spec/parser": "0.5.1",
+    "@lingui/babel-plugin-lingui-macro": "6.9.1",
+    "@lingui/cli": "6.9.1",
+    "@lingui/conf": "6.9.1",
+    "@lingui/format-po": "6.9.1",
+    "@lingui/message-utils": "6.9.1",
     "@openvalens/config": "workspace:*",
     "@types/bun": "catalog:",
     "oxfmt": "^0.66.0",

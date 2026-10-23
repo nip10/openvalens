@@ -1,3 +1,6 @@
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react";
+import { Trans } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
@@ -20,29 +23,29 @@ import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
 const BASE_LINKS = [
-  { to: "/", label: "Home" },
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/scores", label: "Scores" },
-  { to: "/preventive-care", label: "Preventive care" },
-  { to: "/coach", label: "Coach" },
-  { to: "/body", label: "Body" },
-  { to: "/body-map", label: "Body map" },
-  { to: "/private-measurements", label: "Private measurements" },
-  { to: "/cycle", label: "Cycle" },
-  { to: "/nutrition", label: "Meal diary" },
-  { to: "/micronutrients", label: "Micronutrients" },
-  { to: "/recipe-drafts", label: "Recipe draft" },
-  { to: "/food-draft", label: "Describe a meal" },
-  { to: "/supplements", label: "Supplements" },
-  { to: "/workouts", label: "Workouts" },
-  { to: "/records/timeline", label: "Timeline" },
-  { to: "/records/sleep", label: "Sleep" },
-  { to: "/records/activity", label: "Activity" },
-  { to: "/records/vitals", label: "Vitals" },
-  { to: "/records/labs", label: "Labs" },
-  { to: "/exports", label: "Clinical export" },
-  { to: "/sharing", label: "Sharing" },
-  { to: "/settings", label: "Settings" },
+  { to: "/", label: msg`Home` },
+  { to: "/dashboard", label: msg`Dashboard` },
+  { to: "/scores", label: msg`Scores` },
+  { to: "/preventive-care", label: msg`Preventive care` },
+  { to: "/coach", label: msg`Coach` },
+  { to: "/body", label: msg`Body` },
+  { to: "/body-map", label: msg`Body map` },
+  { to: "/private-measurements", label: msg`Private measurements` },
+  { to: "/cycle", label: msg`Cycle` },
+  { to: "/nutrition", label: msg`Meal diary` },
+  { to: "/micronutrients", label: msg`Micronutrients` },
+  { to: "/recipe-drafts", label: msg`Recipe draft` },
+  { to: "/food-draft", label: msg`Describe a meal` },
+  { to: "/supplements", label: msg`Supplements` },
+  { to: "/workouts", label: msg`Workouts` },
+  { to: "/records/timeline", label: msg`Timeline` },
+  { to: "/records/sleep", label: msg`Sleep` },
+  { to: "/records/activity", label: msg`Activity` },
+  { to: "/records/vitals", label: msg`Vitals` },
+  { to: "/records/labs", label: msg`Labs` },
+  { to: "/exports", label: msg`Clinical export` },
+  { to: "/sharing", label: msg`Sharing` },
+  { to: "/settings", label: msg`Settings` },
 ] as const;
 
 export default function Header() {
@@ -71,9 +74,10 @@ export default function Header() {
     access.data?.isInstanceAdmin === true;
 
   const links = showAdministration
-    ? [...BASE_LINKS, { to: "/admin/settings" as const, label: "Administration" }]
+    ? [...BASE_LINKS, { to: "/admin/settings" as const, label: msg`Administration` }]
     : BASE_LINKS;
 
+  const { _ } = useLingui();
   const linkClasses =
     "text-foreground hover:text-foreground/80 whitespace-nowrap rounded-sm px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:font-semibold";
 
@@ -87,10 +91,12 @@ export default function Header() {
                 variant="outline"
                 size="sm"
                 className="2xl:hidden"
-                aria-label="Open navigation menu"
+                aria-label={_(msg`Open navigation menu`)}
               >
                 <Menu className="h-4 w-4" aria-hidden="true" />
-                <span className="ml-2 hidden sm:inline">Menu</span>
+                <span className="ml-2 hidden sm:inline">
+                  <Trans>Menu</Trans>
+                </span>
               </Button>
             </SheetTrigger>
             <SheetContent
@@ -108,13 +114,17 @@ export default function Header() {
               }}
             >
               <SheetHeader>
-                <SheetTitle>Menu</SheetTitle>
-                <SheetDescription className="sr-only">Navigate the app</SheetDescription>
+                <SheetTitle>
+                  <Trans>Menu</Trans>
+                </SheetTitle>
+                <SheetDescription className="sr-only">
+                  <Trans>Navigate the app</Trans>
+                </SheetDescription>
               </SheetHeader>
               <nav
                 ref={mobileNavRef}
                 className="flex min-h-0 flex-col gap-1 overflow-y-auto px-4 pb-4"
-                aria-label="Mobile navigation"
+                aria-label={_(msg`Mobile navigation`)}
               >
                 {links.map(({ to, label }) => (
                   <Link
@@ -123,7 +133,7 @@ export default function Header() {
                     className={linkClasses}
                     onClick={() => setMobileOpen(false)}
                   >
-                    {label}
+                    {_(label)}
                   </Link>
                 ))}
                 <hr className="my-2" />
@@ -136,11 +146,11 @@ export default function Header() {
 
           <nav
             className="hidden min-w-0 items-center gap-x-3 text-sm 2xl:flex"
-            aria-label="Main navigation"
+            aria-label={_(msg`Main navigation`)}
           >
             {links.map(({ to, label }) => (
               <Link key={to} to={to} className={linkClasses}>
-                {label}
+                {_(label)}
               </Link>
             ))}
           </nav>

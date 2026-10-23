@@ -1,0 +1,21 @@
+{
+  "name": "@openvalens/i18n",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b"
+  },
+  "dependencies": {
+    "@lingui/core": "6.9.1"
+  },
+  "devDependencies": {
+    "@lingui/message-utils": "6.9.1",
+    "@openvalens/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}
