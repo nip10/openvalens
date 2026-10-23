@@ -55,6 +55,34 @@ export const nutrientColumns = () => ({
 });
 
 export type NutrientColumnKey = keyof ReturnType<typeof nutrientColumns>;
+
+/**
+ * Optional micronutrient columns (Issue #78), per the same basis as the core
+ * nutrients. `null` means the source did not report the nutrient. They feed
+ * only the opt-in micronutrient summary, never the core diary totals.
+ */
+export const micronutrientColumns = () => ({
+  calciumMg: real("calcium_mg"),
+  ironMg: real("iron_mg"),
+  magnesiumMg: real("magnesium_mg"),
+  potassiumMg: real("potassium_mg"),
+  zincMg: real("zinc_mg"),
+  vitaminCMg: real("vitamin_c_mg"),
+  vitaminDUg: real("vitamin_d_ug"),
+  vitaminB12Ug: real("vitamin_b12_ug"),
+});
+
+export type MicronutrientColumnKey = keyof ReturnType<typeof micronutrientColumns>;
+const MICRONUTRIENT_COLUMN_KEYS = Object.keys(micronutrientColumns()) as MicronutrientColumnKey[];
+
+/** Every micronutrient value is either absent (null) or a non-negative number. */
+export const micronutrientsNonNegative = (
+  table: Record<MicronutrientColumnKey, AnyPgColumn>,
+): SQL =>
+  sql.join(
+    MICRONUTRIENT_COLUMN_KEYS.map((key) => sql`(${table[key]} is null or ${table[key]} >= 0)`),
+    sql` and `,
+  );
 const NUTRIENT_COLUMN_KEYS = Object.keys(nutrientColumns()) as NutrientColumnKey[];
 
 /** Every nutrient value is either absent (null) or a non-negative number. */
@@ -108,6 +136,7 @@ export const nutritionFood = pgTable(
     barcode: text("barcode"),
     ...basisColumns(),
     ...nutrientColumns(),
+    ...micronutrientColumns(),
     revision: integer("revision").notNull().default(1),
     archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
     /**
@@ -149,6 +178,10 @@ export const nutritionFood = pgTable(
       "nutrition_food_nutrients_non_negative_check",
       nutrientsNonNegative(table),
     ),
+    nutritionFoodMicronutrientsCheck: check(
+      "nutrition_food_micronutrients_non_negative_check",
+      micronutrientsNonNegative(table),
+    ),
     nutritionFoodMemberFk: foreignKey({
       columns: [table.organizationId, table.userId],
       foreignColumns: [member.organizationId, member.userId],
@@ -181,6 +214,7 @@ export const nutritionFoodSnapshot = pgTable(
     barcode: text("barcode"),
     ...basisColumns(),
     ...nutrientColumns(),
+    ...micronutrientColumns(),
     /** SHA-256 of the canonical snapshot content; see `@openvalens/nutrition`. */
     contentHash: text("content_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
@@ -215,6 +249,10 @@ export const nutritionFoodSnapshot = pgTable(
     nutritionFoodSnapshotNutrientsCheck: check(
       "nutrition_food_snapshot_nutrients_non_negative_check",
       nutrientsNonNegative(table),
+    ),
+    nutritionFoodSnapshotMicronutrientsCheck: check(
+      "nutrition_food_snapshot_micronutrients_non_negative_check",
+      micronutrientsNonNegative(table),
     ),
     nutritionFoodSnapshotCustomFoodFk: foreignKey({
       columns: [table.organizationId, table.customFoodId],

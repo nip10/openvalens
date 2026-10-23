@@ -1,3 +1,8 @@
+import {
+  emptyMicronutrients,
+  type MicronutrientKey,
+  type MicronutrientValues,
+} from "../micronutrients";
 import { emptyNutrients, type NutrientKey, type NutrientValues } from "../nutrients";
 import type { CatalogRecordAdapter, FdcFoodRecord } from "./record";
 import { asRecord, asText, gtinOrNull, nonNegativeNumber, scaleUnit } from "./parse-util";
@@ -27,6 +32,23 @@ const FDC_NUTRIENTS: Readonly<Partial<Record<NutrientKey, NutrientSpec>>> = {
   totalSugarsG: { numbers: ["269", "269.3"], unit: "g" },
   addedSugarsG: { numbers: ["539"], unit: "g" },
   sodiumMg: { numbers: ["307"], unit: "mg" },
+};
+
+/**
+ * Micronutrients (#78) by FDC nutrient number. Vitamin D uses 328 (µg, D2 +
+ * D3) only; the IU value (324) is never converted.
+ */
+const FDC_MICRONUTRIENTS: Readonly<
+  Record<MicronutrientKey, { number: string; unit: "mg" | "µg" }>
+> = {
+  calciumMg: { number: "301", unit: "mg" },
+  ironMg: { number: "303", unit: "mg" },
+  magnesiumMg: { number: "304", unit: "mg" },
+  potassiumMg: { number: "306", unit: "mg" },
+  zincMg: { number: "309", unit: "mg" },
+  vitaminCMg: { number: "401", unit: "mg" },
+  vitaminDUg: { number: "328", unit: "µg" },
+  vitaminB12Ug: { number: "418", unit: "µg" },
 };
 
 /** `{ number -> { amount, unit } }` from either FDC nutrient shape. */
@@ -68,6 +90,19 @@ function fdcNutrients(raw: unknown): NutrientValues {
   return values;
 }
 
+function fdcMicronutrients(raw: unknown): MicronutrientValues {
+  const table = nutrientTable(raw);
+  const values = emptyMicronutrients();
+  for (const [key, spec] of Object.entries(FDC_MICRONUTRIENTS) as [
+    MicronutrientKey,
+    { number: string; unit: "mg" | "µg" },
+  ][]) {
+    const found = table.get(spec.number);
+    if (found) values[key] = scaleUnit(found.amount, found.unit, spec.unit);
+  }
+  return values;
+}
+
 /** FDC serving units: `g`/`GRM` and `ml`/`MLT`; anything else is not a physical size. */
 function fdcUnit(raw: unknown): "g" | "ml" | null {
   const unit = asText(raw)?.toLowerCase();
@@ -102,6 +137,7 @@ export function parseFdcFood(raw: unknown): FdcFoodRecord | null {
     servingSizeUnit: hasServing ? servingUnit : null,
     servingLabel: asText(food.householdServingFullText),
     ...fdcNutrients(food.foodNutrients),
+    ...fdcMicronutrients(food.foodNutrients),
   };
 }
 

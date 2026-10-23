@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { catalogAttribution } from "./catalog/repository";
 import { foodResultToLogFood, isVariableMeasureBarcode, type FoodResult } from "./food-search";
+import { emptyMicronutrients } from "./micronutrients";
 import { emptyNutrients } from "./nutrients";
 
 const basis = {
@@ -24,6 +25,7 @@ const food = (overrides: Partial<FoodResult>): FoodResult => ({
   barcode: "4006381333931",
   basis,
   nutrients: { ...emptyNutrients(), energyKcal: 400 },
+  micronutrients: emptyMicronutrients(),
   attribution: catalogAttribution("off"),
   release: null,
   overlay: null,

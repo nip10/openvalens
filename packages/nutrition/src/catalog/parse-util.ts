@@ -33,7 +33,7 @@ export function gtinOrNull(value: unknown): string | null {
 const MASS_IN_G: Readonly<Record<string, number>> = { g: 1, mg: 1e-3, µg: 1e-6, ug: 1e-6 };
 
 /** Converts between mass units only; returns `null` for any other unit. */
-export function scaleUnit(amount: number, from: string, to: "g" | "mg"): number | null {
+export function scaleUnit(amount: number, from: string, to: "g" | "mg" | "µg"): number | null {
   const factor = MASS_IN_G[from];
   if (factor === undefined) return null;
   return roundTo12(amount * (factor / MASS_IN_G[to]!));

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { emptyMicronutrients } from "./micronutrients";
 import { emptyNutrients } from "./nutrients";
 import {
   customFoodSnapshotContent,
@@ -45,6 +46,23 @@ describe("snapshots", () => {
     expect(snapshotContentHash(off)).not.toBe(snapshotContentHash(a));
   });
 
+  test("micronutrients keep unknown apart from zero, and old content keeps its hash (#78)", () => {
+    const plain = externalSnapshotContent(fdc);
+    expect(plain.calciumMg).toBeNull();
+    // Content without micronutrients hashes exactly as it did before they existed
+    // (value computed on the commit before #78), so existing snapshots still dedupe.
+    expect(snapshotContentHash(plain)).toBe(
+      "556f1eca46107fd87a25185a109663cff498ca5df99726c8549084918c5541fa",
+    );
+    const withCalcium = externalSnapshotContent({ ...fdc, micronutrients: { calciumMg: 120 } });
+    const withZero = externalSnapshotContent({ ...fdc, micronutrients: { calciumMg: 0 } });
+    expect(withCalcium.calciumMg).toBe(120);
+    expect(withZero.calciumMg).toBe(0);
+    const hashes = new Set([plain, withCalcium, withZero].map(snapshotContentHash));
+    expect(hashes.size).toBe(3);
+    expect(() => externalSnapshotContent({ ...fdc, micronutrients: { ironMg: -1 } })).toThrow();
+  });
+
   test("custom food snapshots carry the food id and revision", () => {
     const content = customFoodSnapshotContent({
       id: 7,
@@ -58,12 +76,16 @@ describe("snapshots", () => {
       servingSizeUnit: "g",
       servingLabel: "1 bar",
       ...emptyNutrients(),
+      ...emptyMicronutrients(),
+      calciumMg: 120,
     });
     expect(content).toMatchObject({
       source: "custom",
       sourceFoodId: "7",
       sourceVersion: "3",
       customFoodId: 7,
+      calciumMg: 120,
+      ironMg: null,
     });
   });
 

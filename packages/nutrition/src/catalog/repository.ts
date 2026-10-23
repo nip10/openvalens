@@ -21,6 +21,7 @@ import {
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { NutritionError } from "../errors";
+import { MICRONUTRIENT_KEYS, micronutrientsOf, type MicronutrientValues } from "../micronutrients";
 import {
   NUTRIENT_KEYS,
   nutrientsOf,
@@ -97,6 +98,8 @@ export type CatalogFood = {
   basis: NutrientBasis;
   /** Per-basis values; `null` = not provided by the source. */
   nutrients: NutrientValues;
+  /** Optional micronutrients (#78), per basis; overlays never change them. */
+  micronutrients: MicronutrientValues;
   release: Pick<
     CatalogRelease,
     "id" | "dataset" | "version" | "artifact" | "artifactSha256" | "sourceUrl" | "importedAt"
@@ -190,6 +193,7 @@ export function catalogFoodToSnapshotInput(food: CatalogFood): ExternalSnapshotI
     barcode: food.barcode,
     ...food.basis,
     nutrients: food.nutrients,
+    micronutrients: food.micronutrients,
   };
 }
 
@@ -288,6 +292,7 @@ function fdcFood(row: FdcRow, release: CatalogRelease): CatalogFood {
     barcode: row.barcode,
     basis: basisOf(row),
     nutrients: nutrientsOf(row),
+    micronutrients: micronutrientsOf(row),
     release: releaseInfo(release),
     attribution: catalogAttribution("fdc"),
     overlay: null,
@@ -323,6 +328,7 @@ function offFood(
     barcode: row.barcode,
     basis: basisOf(row),
     nutrients,
+    micronutrients: micronutrientsOf(row),
     release: releaseInfo(release),
     attribution: catalogAttribution("off"),
     overlay: ids.length ? { ids } : null,
@@ -354,6 +360,7 @@ const RECORD_COLUMNS = [
   "servingSizeUnit",
   "servingLabel",
   ...NUTRIENT_KEYS,
+  ...MICRONUTRIENT_KEYS,
 ] as const;
 
 async function upsertFdc(tx: Tx, releaseId: number, version: string, records: FdcFoodRecord[]) {

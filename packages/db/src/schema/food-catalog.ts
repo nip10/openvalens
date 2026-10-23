@@ -12,7 +12,14 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { basisChecks, basisColumns, nutrientColumns, nutrientsNonNegative } from "./nutrition";
+import {
+  basisChecks,
+  basisColumns,
+  micronutrientColumns,
+  micronutrientsNonNegative,
+  nutrientColumns,
+  nutrientsNonNegative,
+} from "./nutrition";
 
 // ─── Public food catalogs (Issue #72) ─────────────────────────
 //
@@ -114,6 +121,7 @@ export const nutritionCatalogFdcFood = pgTable(
     barcode: text("barcode"),
     ...basisColumns(),
     ...nutrientColumns(),
+    ...micronutrientColumns(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
@@ -144,6 +152,10 @@ export const nutritionCatalogFdcFood = pgTable(
       "nutrition_catalog_fdc_food_nutrients_non_negative_check",
       nutrientsNonNegative(table),
     ),
+    nutritionCatalogFdcFoodMicronutrientsCheck: check(
+      "nutrition_catalog_fdc_food_micronutrients_non_negative_check",
+      micronutrientsNonNegative(table),
+    ),
     nutritionCatalogFdcFoodReleaseFk: foreignKey({
       columns: [table.releaseId, table.source],
       foreignColumns: [nutritionCatalogRelease.id, nutritionCatalogRelease.source],
@@ -172,6 +184,7 @@ export const nutritionCatalogOffProduct = pgTable(
     barcode: text("barcode"),
     ...basisColumns(),
     ...nutrientColumns(),
+    ...micronutrientColumns(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
   (table) => ({
@@ -201,6 +214,10 @@ export const nutritionCatalogOffProduct = pgTable(
     nutritionCatalogOffProductNutrientsCheck: check(
       "nutrition_catalog_off_product_nutrients_non_negative_check",
       nutrientsNonNegative(table),
+    ),
+    nutritionCatalogOffProductMicronutrientsCheck: check(
+      "nutrition_catalog_off_product_micronutrients_non_negative_check",
+      micronutrientsNonNegative(table),
     ),
     nutritionCatalogOffProductReleaseFk: foreignKey({
       columns: [table.releaseId, table.source],

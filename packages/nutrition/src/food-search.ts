@@ -14,6 +14,7 @@ import type { OffProductRecord } from "./catalog/record";
 import { CATALOG_SOURCES } from "./catalog/sources";
 import { NutritionError } from "./errors";
 import type { FoodLookupProvider } from "./food-lookup";
+import { micronutrientsOf, type MicronutrientValues } from "./micronutrients";
 import { nutrientsOf, type NutrientBasis, type NutrientValues } from "./nutrients";
 import type { CustomFood, LogEntryInput, NutritionScope } from "./repository";
 import { normalizeBarcode, sourceQualifiedId } from "./snapshot";
@@ -59,6 +60,8 @@ export type FoodResult = {
   basis: NutrientBasis;
   /** Per-basis values; `null` = not provided. */
   nutrients: NutrientValues;
+  /** Optional micronutrients (#78), per basis; `null` = not provided. */
+  micronutrients: MicronutrientValues;
   /** Source license/notice; `null` for private custom foods. Show `notice` with every result. */
   attribution: CatalogAttribution | null;
   /** Catalog release the record was imported in; `null` for custom foods and live lookups. */
@@ -172,6 +175,7 @@ function customResult(row: CustomFood): FoodResult {
     barcode: row.barcode,
     basis: basisOf(row),
     nutrients: nutrientsOf(row),
+    micronutrients: micronutrientsOf(row),
     attribution: null,
     release: null,
     overlay: null,
@@ -196,6 +200,7 @@ function liveResult(record: OffProductRecord): FoodResult {
     barcode: record.barcode,
     basis: basisOf(record),
     nutrients: nutrientsOf(record),
+    micronutrients: micronutrientsOf(record),
     attribution: catalogAttribution("off"),
     release: null,
     overlay: null,
@@ -256,6 +261,7 @@ export function foodResultToLogFood(food: FoodResult): LogEntryInput["food"] {
       barcode: food.barcode,
       ...food.basis,
       nutrients: food.nutrients,
+      micronutrients: food.micronutrients,
     },
   };
 }

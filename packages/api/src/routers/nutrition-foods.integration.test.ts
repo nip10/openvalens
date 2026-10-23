@@ -111,7 +111,8 @@ const offItems = [
     product_name: "Zyqx granola bar",
     brands: "Synthetic Brand",
     last_modified_t: 1_780_000_000,
-    nutriments: { "energy-kcal_100g": 400, proteins_100g: 8 },
+    // Calcium in grams per 100 g, as OFF reports it (#78).
+    nutriments: { "energy-kcal_100g": 400, proteins_100g: 8, calcium_100g: 0.12 },
   },
 ];
 
@@ -186,7 +187,7 @@ describe.skipIf(!url)("nutritionFoods.* over HTTP against disposable PostgreSQL"
 
   async function snapshotRow(id: number) {
     const result = await db.execute(
-      sql`select source, barcode, source_food_id, attribution from nutrition_food_snapshot where id = ${id}`,
+      sql`select source, barcode, source_food_id, attribution, calcium_mg, iron_mg from nutrition_food_snapshot where id = ${id}`,
     );
     return result.rows[0] as Record<string, unknown>;
   }
@@ -535,6 +536,10 @@ describe.skipIf(!url)("nutritionFoods.* over HTTP against disposable PostgreSQL"
       source: "off",
       barcode: SHARED_BARCODE,
       source_food_id: SHARED_BARCODE,
+      // Micronutrients (#78) are copied from the resolved catalog record:
+      // calcium in mg, and iron (not reported) stays unknown rather than zero.
+      calcium_mg: 120,
+      iron_mg: null,
     });
   });
 
