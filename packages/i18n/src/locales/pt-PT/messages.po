@@ -280,13 +280,13 @@ msgstr "{date}"
 msgid "{day}d ago"
 msgstr "há {day} d"
 
+#: packages/api/src/presenters/insights.ts
+msgid "{days, plural, one {# day} other {# days}} of {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} recorded in a row"
+msgstr "{days, plural, one {# dia seguido} other {# dias seguidos}} com registo de {metric, select, sleep_duration {sono} resting_heart_rate {frequência cardíaca em repouso} steps {passos} other {peso}}"
+
 #: packages/email/src/templates/invitation.tsx
 msgid "{days, plural, one {This invitation expires in # day.} other {This invitation expires in # days.}}"
 msgstr "{days, plural, one {Este convite expira dentro de # dia.} other {Este convite expira dentro de # dias.}}"
-
-#: packages/api/src/presenters/insights.ts
-msgid "{days} days of {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} recorded in a row"
-msgstr "{days} dias seguidos com registo de {metric, select, sleep_duration {sono} resting_heart_rate {frequência cardíaca em repouso} steps {passos} other {peso}}"
 
 #: packages/api/src/presenters/insights.ts
 msgid "{direction, select, higher {Weight trending up} other {Weight trending down}}"
@@ -479,8 +479,8 @@ msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart
 msgstr "{metric, select, sleep_duration {Sono} resting_heart_rate {Frequência cardíaca em repouso} steps {Passos} other {Peso}} {direction, select, higher {acima} other {abaixo}} do seu habitual"
 
 #: packages/api/src/presenters/insights.ts
-msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} had been recorded on most days, but nothing has arrived for {daysWithout} days. Insights that use it pause until new data arrives."
-msgstr "{metric, select, sleep_duration {O sono tinha sido registado} resting_heart_rate {A frequência cardíaca em repouso tinha sido registada} steps {Os passos tinham sido registados} other {O peso tinha sido registado}} na maioria dos dias, mas não chega nada há {daysWithout} dias. As perspetivas que usam estes dados ficam em pausa até chegarem dados novos."
+msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} had been recorded on most days, but nothing has arrived for {daysWithout, plural, one {# day} other {# days}}. Insights that use it pause until new data arrives."
+msgstr "{metric, select, sleep_duration {O sono tinha sido registado} resting_heart_rate {A frequência cardíaca em repouso tinha sido registada} steps {Os passos tinham sido registados} other {O peso tinha sido registado}} na maioria dos dias, mas não chega nada há {daysWithout, plural, one {# dia} other {# dias}}. As perspetivas que usam estes dados ficam em pausa até chegarem dados novos."
 
 #: packages/api/src/presenters/insights.ts
 msgid "{metric, select, sleep_duration {Sleep} resting_heart_rate {Resting heart rate} steps {Steps} other {Weight}} has been coming from a different device or app since {date}. Different sources measure differently, so your usual is being rebuilt from the new source only ({baselineDays} of {baselineMinDays} days so far). Change insights for it pause until then."
@@ -1489,12 +1489,12 @@ msgid "Bars: steps per day"
 msgstr "Barras: passos por dia"
 
 #: packages/api/src/presenters/insights.ts
-msgid "Based on {days} weigh-ins in the last {windowDays} days."
-msgstr "Com base em {days} pesagens nos últimos {windowDays} dias."
+msgid "Based on {days, plural, one {# weigh-in} other {# weigh-ins}} in the last {windowDays} days."
+msgstr "Com base em {days, plural, one {# pesagem} other {# pesagens}} nos últimos {windowDays} dias."
 
 #: packages/api/src/presenters/insights.ts
-msgid "Based on {recentDays} of the last {recentWindowDays} days, compared with {baselineDays} days in the {baselineWindowDays} days before."
-msgstr "Com base em {recentDays} dos últimos {recentWindowDays} dias, em comparação com {baselineDays} dias nos {baselineWindowDays} dias anteriores."
+msgid "Based on {recentDays} of the last {recentWindowDays} days, compared with {baselineDays, plural, one {# day} other {# days}} in the {baselineWindowDays} days before."
+msgstr "Com base em {recentDays} dos últimos {recentWindowDays} dias, em comparação com {baselineDays, plural, one {# dia} other {# dias}} nos {baselineWindowDays} dias anteriores."
 
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Bedtime → wake"
@@ -3067,8 +3067,8 @@ msgid "Diary date"
 msgstr "Data do diário"
 
 #: packages/api/src/presenters/insights.ts
-msgid "Diary marked complete on {diaryCompleteDays} days; workouts were recorded on {workoutDays} days."
-msgstr "Diário marcado como completo em {diaryCompleteDays} dias; foram registados treinos em {workoutDays} dias."
+msgid "Diary marked complete on {diaryCompleteDays, plural, one {# day} other {# days}}; workouts were recorded on {workoutDays, plural, one {# day} other {# days}}."
+msgstr "Diário marcado como completo em {diaryCompleteDays, plural, one {# dia} other {# dias}}; foram registados treinos em {workoutDays, plural, one {# dia} other {# dias}}."
 
 #. safety
 #: packages/api/src/presenters/nutrition-diary.ts
@@ -3545,8 +3545,8 @@ msgid "Estimate"
 msgstr "Estimativa"
 
 #: packages/api/src/presenters/insights.ts
-msgid "Estimated activity energy was recorded on {activityDays} days in this {windowDays}-day window. It is shown separately from food intake."
-msgstr "Foi registada energia de atividade estimada em {activityDays} dias nesta janela de {windowDays} dias. É mostrada separadamente da ingestão alimentar."
+msgid "Estimated activity energy was recorded on {activityDays, plural, one {# day} other {# days}} in this {windowDays}-day window. It is shown separately from food intake."
+msgstr "Foi registada energia de atividade estimada em {activityDays, plural, one {# dia} other {# dias}} nesta janela de {windowDays} dias. É mostrada separadamente da ingestão alimentar."
 
 #. safety
 #: packages/api/src/presenters/cycle.ts
@@ -5021,8 +5021,8 @@ msgstr "Registar alimento ({amount})"
 
 #. safety
 #: packages/api/src/presenters/insights.ts
-msgid "Logged meals and workouts occurred on {daysWithBoth} days in this {windowDays}-day window. This describes co-occurrence in your records only and does not establish a relationship between them."
-msgstr "Houve refeições e treinos registados em {daysWithBoth} dias nesta janela de {windowDays} dias. Isto descreve apenas a ocorrência em simultâneo nos seus registos e não estabelece uma relação entre eles."
+msgid "Logged meals and workouts occurred on {daysWithBoth, plural, one {# day} other {# days}} in this {windowDays}-day window. This describes co-occurrence in your records only and does not establish a relationship between them."
+msgstr "Houve refeições e treinos registados em {daysWithBoth, plural, one {# dia} other {# dias}} nesta janela de {windowDays} dias. Isto descreve apenas a ocorrência em simultâneo nos seus registos e não estabelece uma relação entre eles."
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "Logging streak"
@@ -6632,8 +6632,8 @@ msgid "Period saved."
 msgstr "Período guardado."
 
 #: packages/api/src/presenters/insights.ts
-msgid "Period: {from} to {to} ({days} days)"
-msgstr "Período: {from} a {to} ({days} dias)"
+msgid "Period: {from} to {to} ({days, plural, one {# day} other {# days}})"
+msgstr "Período: {from} a {to} ({days, plural, one {# dia} other {# dias}})"
 
 #. safety
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
@@ -7064,12 +7064,12 @@ msgid "Recent"
 msgstr "Recentes"
 
 #: packages/api/src/presenters/score.ts
-msgid "Recent {recent} vs usual {usual} (median of {days} days), {relative}."
-msgstr "Recente {recent} vs habitual {usual} (mediana de {days} dias), {relative}."
+msgid "Recent {recent} vs usual {usual} (median of {days, plural, one {# day} other {# days}}), {relative}."
+msgstr "Recente {recent} vs habitual {usual} (mediana de {days, plural, one {# dia} other {# dias}}), {relative}."
 
 #: packages/api/src/presenters/score.ts
-msgid "Recent {recent} vs usual {usual} (median of {days} days)."
-msgstr "Recente {recent} vs habitual {usual} (mediana de {days} dias)."
+msgid "Recent {recent} vs usual {usual} (median of {days, plural, one {# day} other {# days}})."
+msgstr "Recente {recent} vs habitual {usual} (mediana de {days, plural, one {# dia} other {# dias}})."
 
 #: packages/api/src/presenters/score.ts
 msgid "Recent {recent}. Your usual needs {minimum} days with data in the previous {window}; found {days}."
