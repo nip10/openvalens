@@ -26,6 +26,7 @@ const BASE_LINKS = [
   { to: "/preventive-care", label: "Preventive care" },
   { to: "/coach", label: "Coach" },
   { to: "/body", label: "Body" },
+  { to: "/body-map", label: "Body map" },
   { to: "/private-measurements", label: "Private measurements" },
   { to: "/cycle", label: "Cycle" },
   { to: "/nutrition", label: "Meal diary" },
