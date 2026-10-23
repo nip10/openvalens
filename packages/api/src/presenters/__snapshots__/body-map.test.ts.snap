@@ -1,0 +1,32 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`compositionLayer is deterministic, so web and native draw the same colours and values 1`] = `
+{
+  "back.forearm_left": "#dbeafe 20.0%",
+  "back.forearm_right": "#dbeafe 22.0%",
+  "back.glutes_left": "#2563eb 30.0%",
+  "back.glutes_right": "#2563eb 30.0%",
+  "back.lower_back_left": "#1e3a8a 35.0%",
+  "back.lower_back_right": "#1e3a8a 35.0%",
+  "back.shoulder_left": "#dbeafe 20.0%",
+  "back.shoulder_right": "#dbeafe 22.0%",
+  "back.traps": "#2563eb 30.0%",
+  "back.triceps_left": "#dbeafe 20.0%",
+  "back.triceps_right": "#dbeafe 22.0%",
+  "back.upper_back_left": "#2563eb 30.0%",
+  "back.upper_back_right": "#2563eb 30.0%",
+  "front.abs_left": "#1e3a8a 35.0%",
+  "front.abs_right": "#1e3a8a 35.0%",
+  "front.biceps_left": "#dbeafe 20.0%",
+  "front.biceps_right": "#dbeafe 22.0%",
+  "front.chest_left": "#2563eb 30.0%",
+  "front.chest_right": "#2563eb 30.0%",
+  "front.forearm_left": "#dbeafe 20.0%",
+  "front.forearm_right": "#dbeafe 22.0%",
+  "front.obliques_left": "#1e3a8a 35.0%",
+  "front.obliques_right": "#1e3a8a 35.0%",
+  "front.pelvis": "#2563eb 30.0%",
+  "front.shoulder_left": "#dbeafe 20.0%",
+  "front.shoulder_right": "#dbeafe 22.0%",
+}
+`;

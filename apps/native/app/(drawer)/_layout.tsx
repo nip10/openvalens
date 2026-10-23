@@ -34,6 +34,7 @@ const DRAWER_ITEMS = [
     icon: "lock-closed-outline" as const,
   },
   { label: "Cycle", href: "/cycle" as const, icon: "calendar-outline" as const },
+  { label: "Body map", href: "/body-map" as const, icon: "body-outline" as const },
   { label: "Labs", href: "/records/labs" as const, icon: "flask-outline" as const },
   { label: "Workouts", href: "/workouts" as const, icon: "barbell-outline" as const },
   {
@@ -116,35 +117,37 @@ function DrawerLayout() {
               ? "Private measurements"
               : pathname === "/cycle"
                 ? "Cycle"
-                : pathname === "/records/labs"
-                  ? "Labs"
-                  : pathname === "/supplements"
-                    ? "Supplements"
-                    : pathname === "/nutrition"
-                      ? "Meal diary"
-                      : pathname === "/nutrition-targets"
-                        ? "Nutrition targets"
-                        : pathname === "/recipe-drafts"
-                          ? "Recipe draft"
-                          : pathname === "/food-draft"
-                            ? "Describe a meal"
-                            : pathname === "/foods"
-                              ? "My foods"
-                              : pathname === "/workouts"
-                                ? "Workouts"
-                                : pathname === "/exercise-library"
-                                  ? "Exercise library"
-                                  : pathname === "/exports"
-                                    ? "Clinical export"
-                                    : pathname === "/settings"
-                                      ? "Settings"
-                                      : pathname === "/scores"
-                                        ? "Scores"
-                                        : pathname === "/invitations"
-                                          ? "Invitations"
-                                          : pathname === "/preventive-care"
-                                            ? "Preventive care"
-                                            : "Cockpit";
+                : pathname === "/body-map"
+                  ? "Body map"
+                  : pathname === "/records/labs"
+                    ? "Labs"
+                    : pathname === "/supplements"
+                      ? "Supplements"
+                      : pathname === "/nutrition"
+                        ? "Meal diary"
+                        : pathname === "/nutrition-targets"
+                          ? "Nutrition targets"
+                          : pathname === "/recipe-drafts"
+                            ? "Recipe draft"
+                            : pathname === "/food-draft"
+                              ? "Describe a meal"
+                              : pathname === "/foods"
+                                ? "My foods"
+                                : pathname === "/workouts"
+                                  ? "Workouts"
+                                  : pathname === "/exercise-library"
+                                    ? "Exercise library"
+                                    : pathname === "/exports"
+                                      ? "Clinical export"
+                                      : pathname === "/settings"
+                                        ? "Settings"
+                                        : pathname === "/scores"
+                                          ? "Scores"
+                                          : pathname === "/invitations"
+                                            ? "Invitations"
+                                            : pathname === "/preventive-care"
+                                              ? "Preventive care"
+                                              : "Cockpit";
 
   return (
     <Drawer
@@ -206,6 +209,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="cycle"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="body-map"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
