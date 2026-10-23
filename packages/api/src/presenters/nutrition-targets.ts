@@ -11,7 +11,7 @@
  */
 import { DECLARATION_LABELS, NUTRITION_SAFETY_COPY } from "@openvalens/nutrition/nutrition-safety";
 
-import type { NutrientKey, NutrientTotal } from "../contracts/nutrition-diary";
+import type { NutrientKey, NutrientTotal, NutrientValues } from "../contracts/nutrition-diary";
 import type {
   Declaration,
   EnergyDirection,
@@ -20,7 +20,13 @@ import type {
   TargetSource,
 } from "../contracts/nutrition-targets";
 import { MAX_TARGET_AMOUNT } from "../contracts/nutrition-targets";
-import { NUTRIENT_LABELS, formatCoverage, formatTotalValue } from "./nutrition-diary";
+import {
+  NUTRIENT_LABELS,
+  SUMMARY_NUTRIENTS,
+  formatCoverage,
+  formatNutrientValue,
+  formatTotalValue,
+} from "./nutrition-diary";
 
 export { DECLARATION_LABELS, NUTRITION_SAFETY_COPY };
 
@@ -35,6 +41,21 @@ export const TARGET_NUTRIENTS: readonly NutrientKey[] = [
 
 /** Shown in place of any number while hide-numbers mode is on. */
 export const HIDDEN_VALUE = "Hidden";
+
+/**
+ * A food's summary nutrients on one line ("Energy 412 kcal · Protein 9 g · …"),
+ * or {@link HIDDEN_VALUE} in hide-numbers mode. Every surface that lists a
+ * food's values uses this, so none can show a number the mode hides (#88).
+ */
+export function formatNutrientSummaryLine(
+  values: Pick<NutrientValues, (typeof SUMMARY_NUTRIENTS)[number]>,
+  hideNumbers: boolean,
+): string {
+  if (hideNumbers) return HIDDEN_VALUE;
+  return SUMMARY_NUTRIENTS.map(
+    (key) => `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, values[key])}`,
+  ).join(" · ");
+}
 
 /** Unknown display preference must never default to exposing health numbers. */
 export function resolveHideNumbers(serverPreference?: boolean, scopedOfflinePreference?: boolean) {

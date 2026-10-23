@@ -25,7 +25,6 @@ import {
   DIARY_COPY,
   NUTRIENT_LABELS,
   SLOT_LABELS,
-  SUMMARY_NUTRIENTS,
   SYNC_STATE_LABELS,
   dayStatusText,
   deviceTimeZone,
@@ -48,10 +47,11 @@ import {
   describeTargetSource,
   formatTarget,
   resolveHideNumbers,
+  formatNutrientSummaryLine,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Link, useLocalSearchParams } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "react-native";
 
@@ -412,6 +412,14 @@ export default function NutritionScreen() {
                     outbox={outbox}
                     onDelete={() => remove(row)}
                     hideNumbers={hideNumbers}
+                    favorite={
+                      row.kind === "server" &&
+                      (foods.data?.favorites ?? []).some(
+                        (food) =>
+                          food.ref.kind === "snapshot" &&
+                          food.ref.snapshotId === row.entry.food.snapshotId,
+                      )
+                    }
                   />
                 ))
               )}
@@ -575,16 +583,60 @@ function AttentionCard({
   );
 }
 
+/**
+ * Marks a logged food as a favourite (#88 parity with web). Needs the server:
+ * a queued offline entry has no stored food yet, so it has no button.
+ */
+function FavoriteButton({
+  snapshotId,
+  name,
+  favorite,
+}: {
+  snapshotId: number;
+  name: string;
+  favorite: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation(orpc.nutritionDiary.setFavorite.mutationOptions());
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      isDisabled={mutation.isPending}
+      accessibilityLabel={`${favorite ? "Remove from favourites" : "Add to favourites"}: ${name}`}
+      accessibilityState={{ selected: favorite }}
+      onPress={() =>
+        mutation.mutate(
+          { snapshotId, favorite: !favorite },
+          {
+            onSuccess: () => {
+              announce(favorite ? "Removed from favourites" : "Added to favourites");
+              void queryClient.invalidateQueries({
+                queryKey: orpc.nutritionDiary.listFoods.key(),
+              });
+            },
+            onError: () => announce(DIARY_COPY.networkError),
+          },
+        )
+      }
+    >
+      {favorite ? "Unfavourite" : "Favourite"}
+    </Button>
+  );
+}
+
 function EntryCard({
   row,
   outbox,
   onDelete,
   hideNumbers,
+  favorite,
 }: {
   row: DiaryRow;
   outbox: DiaryOutbox;
   onDelete: () => void;
   hideNumbers: boolean;
+  favorite: boolean;
 }) {
   const name = row.kind === "server" ? row.entry.food.name : (row.change.preview?.name ?? "Food");
   const amount =
@@ -683,7 +735,7 @@ function EntryCard({
           </Button>
         </View>
       ) : null}
-      <View className="flex-row gap-2">
+      <View className="flex-row flex-wrap gap-2">
         <Button
           size="sm"
           variant="secondary"
@@ -706,6 +758,9 @@ function EntryCard({
         >
           Delete
         </Button>
+        {row.kind === "server" ? (
+          <FavoriteButton snapshotId={row.entry.food.snapshotId} name={name} favorite={favorite} />
+        ) : null}
       </View>
     </Card>
   );
@@ -1280,12 +1335,7 @@ function AddFood({
                 : ""}
           </Text>
           <Text className="text-sm text-muted-foreground">
-            {hideNumbers
-              ? HIDDEN_VALUE
-              : SUMMARY_NUTRIENTS.map(
-                  (key) =>
-                    `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, preview[key])}`,
-                ).join(" · ")}
+            {formatNutrientSummaryLine(preview, hideNumbers)}
           </Text>
           {missingNote ? (
             <Text className="text-sm text-muted-foreground">{missingNote}</Text>

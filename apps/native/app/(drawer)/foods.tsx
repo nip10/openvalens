@@ -13,11 +13,13 @@ import {
 } from "@openvalens/api/presenters/custom-foods";
 import {
   DIARY_COPY,
-  NUTRIENT_LABELS,
-  SUMMARY_NUTRIENTS,
-  formatNutrientValue,
+  localDateIn,
   newClientMutationId,
 } from "@openvalens/api/presenters/nutrition-diary";
+import {
+  formatNutrientSummaryLine,
+  resolveHideNumbers,
+} from "@openvalens/api/presenters/nutrition-targets";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
@@ -79,6 +81,13 @@ export default function FoodsScreen() {
   const queryClient = useQueryClient();
   const foods = useQuery(
     orpc.nutritionCustomFoods.list.queryOptions({ input: { includeArchived: showArchived } }),
+  );
+  // Hide-numbers (#88): values stay hidden until this member's preference is known.
+  const targets = useQuery(
+    orpc.nutritionTargets.get.queryOptions({ input: { localDate: localDateIn(undefined) } }),
+  );
+  const hideNumbers = resolveHideNumbers(
+    targets.isSuccess ? targets.data.settings.hideNumbers : undefined,
   );
   const refresh = () =>
     Promise.all([
@@ -181,10 +190,7 @@ export default function FoodsScreen() {
                 {CUSTOM_FOOD_COPY.provenance}
               </Text>
               <Text className="text-xs text-muted-foreground">
-                {SUMMARY_NUTRIENTS.map(
-                  (key) =>
-                    `${NUTRIENT_LABELS[key].label} ${formatNutrientValue(key, food.nutrientsPerBasis[key])}`,
-                ).join(" · ")}
+                {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers)}
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {food.archived ? (
