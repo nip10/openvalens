@@ -99,39 +99,30 @@ English with Portuguese dates and mmol/L results.
 
 A message missing from a translation always renders in English.
 
-pt-PT starts as `community`. Its first translation was written alongside the
-code and has not had a human review yet.
+pt-PT is `reviewed` (approved by the project owner on 2026-10-23), so all
+its strings show in Portuguese, safety-tagged ones included.
 
-## For translators: Hosted Weblate
+## Contributing a translation
 
-Translations come in through Hosted Weblate (Libre plan for public projects).
-A maintainer connects the project once:
-
-1. Create the component from this repository with file format **gettext PO**,
-   file mask `packages/i18n/src/locales/*/messages.po`, monolingual base
-   language **English**, and template `packages/i18n/src/locales/en/messages.po`.
-2. Turn on **reviews** for the project, so approved strings are tracked
-   separately from translated ones.
-3. Require sign-off: contributors accept the Developer Certificate of Origin.
-   Weblate commits must carry `Signed-off-by` (see CONTRIBUTING, Licensing and
-   sign-off).
-4. Point Weblate at a branch and merge its pull requests like any other. Each
-   merge also needs `bun run i18n:compile`; CI tells you if it was missed.
+Translations come in as ordinary pull requests that edit the `.po` files
+under `packages/i18n/src/locales/`. They need DCO sign-off like any other
+change (see CONTRIBUTING, Licensing and sign-off). There is no hosted
+translation platform for now.
 
 ### Adding a language
 
-1. A translator starts the language in Weblate. Its strings appear as
-   untranslated and render in English.
-2. A developer adds the code to `LOCALES` and `LOCALE_NAMES` in
+1. Add the code to `LOCALES` and `LOCALE_NAMES` in
    `packages/i18n/src/locales.ts`, to `locales` in `lingui.config.ts`, and to
-   `review-state.json` as `community`. Then run `i18n:extract` and
-   `i18n:compile`. Catalogs compile at build time, so the language ships with
-   the next release.
+   `review-state.json` as `community`.
+2. Run `bun run i18n:extract`, translate the new `messages.po`, then run
+   `bun run i18n:compile`. Until every string is translated, `--strict`
+   compilation fails. Catalogs compile at build time, so the language ships
+   with the next release.
 
 ### Reviewing
 
-A reviewer who reads the language fluently approves strings in Weblate. To
-release an approved safety string, add its id to that locale's
-`approvedSafetyIds`. Run `bun scripts/i18n-safety-ids.ts` and look in
-`packages/i18n/src/safety-ids.ts` for the ids. Once the whole locale is
+A reviewer who reads the language fluently checks the catalog. To release
+individual safety strings early, add their ids to that locale's
+`approvedSafetyIds`; the ids are in `packages/i18n/src/safety-ids.ts`, which
+`bun scripts/i18n-safety-ids.ts` generates. Once the whole locale is
 reviewed, set its `status` to `reviewed`.

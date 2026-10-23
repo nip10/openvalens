@@ -56,9 +56,9 @@ describe("messagesFor (#67)", () => {
       expect(Object.keys(messagesFor(locale)).length).toBe(Object.keys(en).length);
   });
 
-  test("pt-PT is a community translation until reviewed; English is the source", () => {
+  test("pt-PT is reviewed; English is the source", () => {
     expect(reviewStatusOf("en")).toBe("reviewed");
-    expect(reviewStatusOf("pt-PT")).toBe("community");
+    expect(reviewStatusOf("pt-PT")).toBe("reviewed");
   });
 });
 
