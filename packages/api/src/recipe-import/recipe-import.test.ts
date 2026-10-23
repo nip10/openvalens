@@ -276,6 +276,7 @@ describe("createRecipeImportService", () => {
               activeProtein: false,
               streaksEnabled: false,
               recipeImportEnabled: enabled,
+              voiceDraftsEnabled: false,
               heightCm: null,
               declarations: [],
             },

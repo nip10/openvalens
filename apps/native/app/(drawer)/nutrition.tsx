@@ -49,7 +49,7 @@ import {
   formatTarget,
   resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { Button, Card, Spinner } from "heroui-native";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -129,6 +129,9 @@ function rowNutrients(row: DiaryRow) {
 }
 
 export default function NutritionScreen() {
+  /** `food` pre-fills the food search, e.g. from a voice draft (#73). Nothing is saved from it. */
+  const { food: draftFood } = useLocalSearchParams<{ food?: string }>();
+  const initialQuery = typeof draftFood === "string" ? draftFood.trim().slice(0, 200) : "";
   const timeZone = useMemo(() => deviceTimeZone(), []);
   const [localDate, setLocalDate] = useState(() => localDateIn(timeZone));
   const outbox = useDiaryOutbox();
@@ -375,6 +378,8 @@ export default function NutritionScreen() {
         />
 
         <AddFood
+          key={initialQuery}
+          initialQuery={initialQuery}
           contextKey={`${outbox.scope ?? "signed-out"}\u001f${sessionKey ?? "signed-out"}\u001f${localDate}\u001f${timeZone}`}
           localDate={localDate}
           timeZone={timeZone}
@@ -773,6 +778,7 @@ function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[]
 }
 
 function AddFood({
+  initialQuery,
   contextKey,
   localDate,
   timeZone,
@@ -780,6 +786,7 @@ function AddFood({
   outbox,
   hideNumbers,
 }: {
+  initialQuery: string;
   contextKey: string;
   localDate: string;
   timeZone: string;
@@ -793,10 +800,10 @@ function AddFood({
   outbox: DiaryOutbox;
   hideNumbers: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(initialQuery));
   const [mode, setMode] = useState<"choose" | "barcode" | "quick">("choose");
   const [slot, setSlot] = useState<MealSlot>("breakfast");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [chosen, setChosen] = useState<FoodCandidate | null>(null);
   const [amount, setAmount] = useState("100");
   const [unit, setUnit] = useState<AmountUnit>("g");

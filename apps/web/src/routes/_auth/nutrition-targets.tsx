@@ -28,6 +28,7 @@ import {
   resolveScopedHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
+import { FOOD_DRAFT_COPY } from "@openvalens/api/presenters/food-draft";
 import { RECIPE_IMPORT_COPY } from "@openvalens/api/presenters/recipe-draft";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
@@ -379,6 +380,7 @@ function SettingsCard({
   const [activeProtein, setActiveProtein] = useState(settings.activeProtein);
   const [streaksEnabled, setStreaksEnabled] = useState(settings.streaksEnabled);
   const [recipeImportEnabled, setRecipeImportEnabled] = useState(settings.recipeImportEnabled);
+  const [voiceDraftsEnabled, setVoiceDraftsEnabled] = useState(settings.voiceDraftsEnabled);
   const [height, setHeight] = useState(settings.heightCm === null ? "" : String(settings.heightCm));
   const [declarations, setDeclarations] = useState<Declaration[]>(settings.declarations);
   const [message, setMessage] = useState("");
@@ -391,6 +393,7 @@ function SettingsCard({
     setActiveProtein(settings.activeProtein);
     setStreaksEnabled(settings.streaksEnabled);
     setRecipeImportEnabled(settings.recipeImportEnabled);
+    setVoiceDraftsEnabled(settings.voiceDraftsEnabled);
     setHeight(settings.heightCm === null ? "" : String(settings.heightCm));
     setDeclarations(settings.declarations);
   }, [settings]);
@@ -418,6 +421,7 @@ function SettingsCard({
       activeProtein,
       streaksEnabled,
       recipeImportEnabled,
+      voiceDraftsEnabled,
       heightCm: parsedHeight.value,
       declarations,
       ...(confirmClearEatingDisorder ? { confirmClearEatingDisorder: true as const } : {}),
@@ -529,6 +533,16 @@ function SettingsCard({
           {RECIPE_IMPORT_COPY.settingLabel}
         </label>
         <p className="text-xs text-muted-foreground">{RECIPE_IMPORT_COPY.settingDescription}</p>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={voiceDraftsEnabled}
+            onChange={(event) => setVoiceDraftsEnabled(event.target.checked)}
+          />
+          {FOOD_DRAFT_COPY.settingLabel}
+        </label>
+        <p className="text-xs text-muted-foreground">{FOOD_DRAFT_COPY.settingDescription}</p>
 
         <fieldset className="grid gap-2">
           <legend className="text-sm font-medium">{TARGET_COPY.declarationsTitle}</legend>

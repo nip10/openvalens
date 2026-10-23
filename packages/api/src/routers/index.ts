@@ -26,6 +26,7 @@ import { nutritionCoachRouter } from "./nutrition-coach";
 import { nutritionCustomFoodsRouter } from "./nutrition-custom-foods";
 import { nutritionDiaryRouter } from "./nutrition-diary";
 import { nutritionEnergyRouter } from "./nutrition-energy";
+import { nutritionFoodDraftsRouter } from "./nutrition-food-drafts";
 import { nutritionFoodsRouter } from "./nutrition-foods";
 import { nutritionRecipeImportRouter } from "./nutrition-recipe-import";
 import { nutritionTargetsRouter } from "./nutrition-targets";
@@ -71,6 +72,7 @@ export const appRouter = {
   nutritionCoach: nutritionCoachRouter,
   nutritionDiary: nutritionDiaryRouter,
   nutritionEnergy: nutritionEnergyRouter,
+  nutritionFoodDrafts: nutritionFoodDraftsRouter,
   nutritionFoods: nutritionFoodsRouter,
   nutritionRecipeImport: nutritionRecipeImportRouter,
   nutritionTargets: nutritionTargetsRouter,

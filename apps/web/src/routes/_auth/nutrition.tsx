@@ -76,6 +76,11 @@ import { orpc } from "@/utils/orpc";
  */
 export const Route = createFileRoute("/_auth/nutrition")({
   component: NutritionPage,
+  /** `food` pre-fills the food search, e.g. from a voice draft (#73). Nothing is saved from it. */
+  validateSearch: (search: Record<string, unknown>): { food?: string } =>
+    typeof search.food === "string" && search.food.trim()
+      ? { food: search.food.trim().slice(0, 200) }
+      : {},
 });
 
 const selectClass =
@@ -110,6 +115,7 @@ function networkFailure(retry: () => void, announce: (text: string) => void) {
 }
 
 function NutritionPage() {
+  const { food: draftFood } = Route.useSearch();
   const timeZone = useMemo(() => deviceTimeZone(), []);
   const { data: session } = authClient.useSession();
   const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
@@ -257,6 +263,8 @@ function NutritionPage() {
           />
 
           <AddFood
+            key={draftFood ?? ""}
+            initialQuery={draftFood ?? ""}
             localDate={localDate}
             timeZone={timeZone}
             foods={foodsQuery.data}
@@ -641,6 +649,7 @@ function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[]
 }
 
 function AddFood({
+  initialQuery,
   localDate,
   timeZone,
   foods,
@@ -648,6 +657,7 @@ function AddFood({
   onSaved,
   announce,
 }: {
+  initialQuery: string;
   localDate: string;
   timeZone: string;
   foods: { recents: FoodChoice[]; favorites: FoodChoice[]; customFoods: FoodChoice[] } | undefined;
@@ -657,7 +667,7 @@ function AddFood({
 }) {
   const [slot, setSlot] = useState<MealSlot>("breakfast");
   const [mode, setMode] = useState<"choose" | "barcode" | "quick">("choose");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [chosen, setChosen] = useState<FoodCandidate | null>(null);
   const [amount, setAmount] = useState("100");
   const [unit, setUnit] = useState<AmountUnit>("g");

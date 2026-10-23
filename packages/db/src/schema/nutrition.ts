@@ -740,6 +740,8 @@ export const nutritionTargetSettings = pgTable(
     streaksEnabled: boolean("streaks_enabled").notNull().default(false),
     /** Opt-in to importing recipe drafts from a URL (Issue #82). */
     recipeImportEnabled: boolean("recipe_import_enabled").notNull().default(false),
+    /** Opt-in to food drafts from a spoken description (Issue #73). */
+    voiceDraftsEnabled: boolean("voice_drafts_enabled").notNull().default(false),
     /** Self-declared height (cm), used only for the BMI gate and resting estimate. */
     heightCm: real("height_cm"),
     /** Self-declared yes answers (see NUTRITION_DECLARATION_KEYS). */
