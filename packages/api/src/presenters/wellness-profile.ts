@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import {
   ADULT_AGE_YEARS,
   answersEqual,
@@ -19,6 +22,9 @@ import {
  * Setup has no fixed step count: it is a list of independent, optional
  * sections that save on their own. "Resume" opens the first section that has
  * not been answered; a partially answered profile is always editable.
+ *
+ * Text is returned as message descriptors the apps render with Lingui (#67);
+ * this module is not reachable from server code (see server-safe.test.ts).
  */
 
 export const SETUP_SECTIONS = [
@@ -41,13 +47,13 @@ export const SECTION_FIELDS: Record<SetupSection, readonly WellnessProfileField[
   ageAndSex: ["birthYear", "sex"],
 };
 
-export const SECTION_TITLES: Record<SetupSection, string> = {
-  eligibility: "Age check",
-  focus: "What brings you here",
-  inputMethod: "How you'll add data",
-  goal: "A goal (optional)",
-  region: "Region",
-  ageAndSex: "Age and sex for guidance",
+export const SECTION_TITLES: Record<SetupSection, MessageDescriptor> = {
+  eligibility: msg`Age check`,
+  focus: msg`What brings you here`,
+  inputMethod: msg`How you'll add data`,
+  goal: msg`A goal (optional)`,
+  region: msg`Region`,
+  ageAndSex: msg`Age and sex for guidance`,
 };
 
 /** Editable copy of the answers plus the consent toggles for the purpose fields. */
@@ -228,17 +234,22 @@ export function dirtySections(
   return SETUP_SECTIONS.filter((section) => isSectionDirty(snapshot, draft, section));
 }
 
-const REJECTION_MESSAGES: Record<WellnessProfileRejection, string> = {
-  ADULT_CONFIRMATION_REQUIRED: "Confirm you are 18 or older before adding age or sex.",
-  CONSENT_REQUIRED: "Tick the consent box to save this, or choose 'Prefer not to say'.",
-  BIRTH_YEAR_UNDER_18:
-    "That birth year is under 18. OpenValens personalisation is for adults only.",
-  BIRTH_YEAR_OUT_OF_RANGE: "Enter a four-digit birth year.",
-  CONSENT_AND_VALUE_CONFLICT:
-    "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent.",
+const REJECTION_MESSAGES: Record<WellnessProfileRejection, MessageDescriptor> = {
+  ADULT_CONFIRMATION_REQUIRED: msg`Confirm you are 18 or older before adding age or sex.`,
+  CONSENT_REQUIRED: msg({
+    message: "Tick the consent box to save this, or choose 'Prefer not to say'.",
+    comment: "safety",
+  }),
+  BIRTH_YEAR_UNDER_18: msg`That birth year is under 18. OpenValens personalisation is for adults only.`,
+  BIRTH_YEAR_OUT_OF_RANGE: msg`Enter a four-digit birth year.`,
+  CONSENT_AND_VALUE_CONFLICT: msg({
+    message:
+      "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent.",
+    comment: "safety",
+  }),
 };
 
-export function rejectionMessage(reason: WellnessProfileRejection): string {
+export function rejectionMessage(reason: WellnessProfileRejection): MessageDescriptor {
   return REJECTION_MESSAGES[reason];
 }
 
@@ -271,7 +282,7 @@ export type ProfileSaveErrorKind = "conflict" | "offline" | "invalid" | "unknown
  */
 export function describeProfileSaveError(error: unknown): {
   kind: ProfileSaveErrorKind;
-  message: string;
+  message: MessageDescriptor;
 } {
   const value = (error ?? {}) as {
     code?: unknown;
@@ -282,8 +293,7 @@ export function describeProfileSaveError(error: unknown): {
   if (value.code === "CONFLICT") {
     return {
       kind: "conflict",
-      message:
-        "Your profile was changed somewhere else. We've loaded the latest version — check it and save again.",
+      message: msg`Your profile was changed somewhere else. We've loaded the latest version — check it and save again.`,
     };
   }
   if (value.code === "INVALID_INPUT") {
@@ -293,7 +303,7 @@ export function describeProfileSaveError(error: unknown): {
     }
     return {
       kind: "invalid",
-      message: "Some answers could not be saved. Check them and try again.",
+      message: msg`Some answers could not be saved. Check them and try again.`,
     };
   }
   const offline =
@@ -303,11 +313,10 @@ export function describeProfileSaveError(error: unknown): {
   if (offline) {
     return {
       kind: "offline",
-      message:
-        "Not saved — you seem to be offline. Saving needs a connection; your changes are still here.",
+      message: msg`Not saved — you seem to be offline. Saving needs a connection; your changes are still here.`,
     };
   }
-  return { kind: "unknown", message: "Not saved. Try again." };
+  return { kind: "unknown", message: msg`Not saved. Try again.` };
 }
 
 /** Query key for the profile, scoped to the signed-in user so caches never cross accounts. */

@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ export function AiConsentSection() {
   const queryClient = useQueryClient();
   const consent = useQuery(orpc.ai.consent.get.queryOptions({ input: {} }));
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const { t } = useLingui();
 
   const invalidateConsent = () =>
     void queryClient.invalidateQueries({ queryKey: orpc.ai.consent.key() });
@@ -23,9 +25,9 @@ export function AiConsentSection() {
     orpc.ai.consent.grant.mutationOptions({
       onSuccess: () => {
         invalidateConsent();
-        toast.success("AI processing enabled");
+        toast.success(t({ message: "AI processing enabled", comment: "safety" }));
       },
-      onError: () => toast.error("Could not update AI consent."),
+      onError: () => toast.error(t`Could not update AI consent.`),
     }),
   );
 
@@ -33,9 +35,9 @@ export function AiConsentSection() {
     orpc.ai.consent.revoke.mutationOptions({
       onSuccess: () => {
         invalidateConsent();
-        toast.success("AI processing disabled");
+        toast.success(t({ message: "AI processing disabled", comment: "safety" }));
       },
-      onError: () => toast.error("Could not update AI consent."),
+      onError: () => toast.error(t`Could not update AI consent.`),
     }),
   );
 

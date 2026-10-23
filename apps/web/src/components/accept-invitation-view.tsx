@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import {
   Card,
@@ -41,12 +44,21 @@ type ActionState =
   | { kind: "rejecting"; ownerKey: string }
   | { kind: "accepted"; ownerKey: string }
   | { kind: "rejected"; ownerKey: string }
-  | { kind: "error"; ownerKey: string; message: string };
+  | { kind: "error"; ownerKey: string; message: MessageDescriptor };
 
 type ActiveSlot = {
   token: symbol;
   ownerKey: string;
 };
+
+const ROLE_LABELS: Record<string, MessageDescriptor> = {
+  member: msg`member`,
+  admin: msg`admin`,
+  owner: msg`owner`,
+};
+
+const ACCEPT_FAILED = msg`Could not accept the invitation.`;
+const DECLINE_FAILED = msg`Could not decline the invitation.`;
 
 function makeOwnerKey(userId: string | null, invitationId: string): string {
   return `${userId ?? "anon"}:${invitationId}`;
@@ -67,6 +79,7 @@ export function AcceptInvitationView({
   const unmountedRef = useRef(false);
   const currentOwnerRef = useRef(ownerKey);
   const activeRef = useRef<ActiveSlot | null>(null);
+  const { i18n } = useLingui();
 
   // Commit-phase identity reset: invalidate any in-flight request owned by a
   // previous {invitationId, userId} scope before the browser paints.
@@ -111,14 +124,16 @@ export function AcceptInvitationView({
     return (
       <Card className="mx-auto w-full max-w-md">
         <CardHeader>
-          <CardTitle>Invitation unavailable</CardTitle>
+          <CardTitle>
+            <Trans>Invitation unavailable</Trans>
+          </CardTitle>
           <CardDescription>
-            We could not load this invitation. It may have expired or been revoked.
+            <Trans>We could not load this invitation. It may have expired or been revoked.</Trans>
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="outline" onClick={onRetry}>
-            Retry
+            <Trans>Retry</Trans>
           </Button>
         </CardContent>
       </Card>
@@ -129,9 +144,13 @@ export function AcceptInvitationView({
     return (
       <Card className="mx-auto w-full max-w-md">
         <CardHeader>
-          <CardTitle>Invitation unavailable</CardTitle>
+          <CardTitle>
+            <Trans>Invitation unavailable</Trans>
+          </CardTitle>
           <CardDescription>
-            This invitation is no longer pending. It may have expired or already been used.
+            <Trans>
+              This invitation is no longer pending. It may have expired or already been used.
+            </Trans>
           </CardDescription>
         </CardHeader>
       </Card>
@@ -147,12 +166,18 @@ export function AcceptInvitationView({
     return (
       <Card className="mx-auto w-full max-w-md">
         <CardHeader>
-          <CardTitle>Invitation accepted</CardTitle>
-          <CardDescription>You have joined the workspace.</CardDescription>
+          <CardTitle>
+            <Trans>Invitation accepted</Trans>
+          </CardTitle>
+          <CardDescription>
+            <Trans>You have joined the workspace.</Trans>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <a href="/dashboard">Go to dashboard</a>
+            <a href="/dashboard">
+              <Trans>Go to dashboard</Trans>
+            </a>
           </Button>
         </CardContent>
       </Card>
@@ -163,13 +188,19 @@ export function AcceptInvitationView({
     return (
       <Card className="mx-auto w-full max-w-md">
         <CardHeader>
-          <CardTitle>Invitation declined</CardTitle>
-          <CardDescription>You can close this page.</CardDescription>
+          <CardTitle>
+            <Trans>Invitation declined</Trans>
+          </CardTitle>
+          <CardDescription>
+            <Trans>You can close this page.</Trans>
+          </CardDescription>
         </CardHeader>
       </Card>
     );
   }
 
+  const roleMessage = ROLE_LABELS[summary.role];
+  const role = roleMessage ? i18n._(roleMessage) : summary.role;
   const busy = ownedAction.kind === "accepting" || ownedAction.kind === "rejecting";
   const mismatch = !!sessionEmail && sessionEmail.toLowerCase() !== summary.email.toLowerCase();
 
@@ -200,7 +231,7 @@ export function AcceptInvitationView({
         setAction({
           kind: "error",
           ownerKey: capturedOwnerKey,
-          message: "Could not accept the invitation.",
+          message: ACCEPT_FAILED,
         });
         return;
       }
@@ -213,7 +244,7 @@ export function AcceptInvitationView({
       setAction({
         kind: "error",
         ownerKey: capturedOwnerKey,
-        message: "Could not accept the invitation.",
+        message: ACCEPT_FAILED,
       });
     } finally {
       if (activeRef.current?.token === token && requestEpoch === epochRef.current) {
@@ -239,7 +270,7 @@ export function AcceptInvitationView({
         setAction({
           kind: "error",
           ownerKey: capturedOwnerKey,
-          message: "Could not decline the invitation.",
+          message: DECLINE_FAILED,
         });
         return;
       }
@@ -249,7 +280,7 @@ export function AcceptInvitationView({
       setAction({
         kind: "error",
         ownerKey: capturedOwnerKey,
-        message: "Could not decline the invitation.",
+        message: DECLINE_FAILED,
       });
     } finally {
       if (activeRef.current?.token === token && requestEpoch === epochRef.current) {
@@ -261,36 +292,51 @@ export function AcceptInvitationView({
   return (
     <Card className="mx-auto w-full max-w-md">
       <CardHeader>
-        <CardTitle>Workspace invitation</CardTitle>
+        <CardTitle>
+          <Trans>Workspace invitation</Trans>
+        </CardTitle>
         <CardDescription>
-          You have been invited to join{" "}
-          <span className="font-medium text-foreground wrap-anywhere">
-            {summary.organizationName ?? "a workspace"}
-          </span>{" "}
-          as <span className="font-medium text-foreground">{summary.role}</span>.
+          {summary.organizationName ? (
+            <Trans>
+              You have been invited to join{" "}
+              <span className="font-medium text-foreground wrap-anywhere">
+                {summary.organizationName}
+              </span>{" "}
+              as <span className="font-medium text-foreground">{role}</span>.
+            </Trans>
+          ) : (
+            <Trans>
+              You have been invited to join a workspace as{" "}
+              <span className="font-medium text-foreground">{role}</span>.
+            </Trans>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <p className="text-sm text-muted-foreground">
-          Invited email:{" "}
-          <span className="font-medium text-foreground wrap-anywhere">{summary.email}</span>
+          <Trans>
+            Invited email:{" "}
+            <span className="font-medium text-foreground wrap-anywhere">{summary.email}</span>
+          </Trans>
         </p>
         {mismatch ? (
           <p className="text-sm text-destructive wrap-anywhere" role="alert" aria-live="polite">
-            This invitation was sent to {summary.email}, but you are signed in as {sessionEmail}.{" "}
-            Sign in with the matching email to accept.
+            <Trans>
+              This invitation was sent to {summary.email}, but you are signed in as {sessionEmail}.
+              Sign in with the matching email to accept.
+            </Trans>
           </p>
         ) : null}
 
         {ownedAction.kind === "error" ? (
           <p className="text-sm text-destructive" role="alert" aria-live="polite">
-            {ownedAction.message}
+            {i18n._(ownedAction.message)}
           </p>
         ) : null}
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button className="flex-1" onClick={handleAccept} disabled={busy || mismatch}>
-            {ownedAction.kind === "accepting" ? "Accepting…" : "Accept"}
+            {ownedAction.kind === "accepting" ? <Trans>Accepting…</Trans> : <Trans>Accept</Trans>}
           </Button>
           <Button
             className="flex-1"
@@ -298,7 +344,7 @@ export function AcceptInvitationView({
             onClick={handleReject}
             disabled={busy || mismatch}
           >
-            {ownedAction.kind === "rejecting" ? "Declining…" : "Decline"}
+            {ownedAction.kind === "rejecting" ? <Trans>Declining…</Trans> : <Trans>Decline</Trans>}
           </Button>
         </div>
       </CardContent>
@@ -317,15 +363,21 @@ function SignInCard({ invitationId }: { invitationId: string }) {
   return (
     <Card className="mx-auto w-full max-w-md">
       <CardHeader>
-        <CardTitle>Sign in to view</CardTitle>
+        <CardTitle>
+          <Trans>Sign in to view</Trans>
+        </CardTitle>
         <CardDescription>
-          This invitation is linked to an email address. Sign in to see the details and accept or
-          decline.
+          <Trans>
+            This invitation is linked to an email address. Sign in to see the details and accept or
+            decline.
+          </Trans>
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <Button asChild>
-          <a href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}>Sign in with email</a>
+          <a href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}>
+            <Trans>Sign in with email</Trans>
+          </a>
         </Button>
       </CardContent>
     </Card>

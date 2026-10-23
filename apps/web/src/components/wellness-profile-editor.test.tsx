@@ -1,10 +1,15 @@
 import "@/testing/varlock-test-setup";
 import { describe, expect, test } from "bun:test";
-import { draftFromSnapshot } from "@openvalens/api/presenters/wellness-profile";
+import { I18nProvider } from "@lingui/react";
+import {
+  describeProfileSaveError,
+  draftFromSnapshot,
+} from "@openvalens/api/presenters/wellness-profile";
 import {
   EMPTY_WELLNESS_PROFILE,
   type WellnessProfileSnapshot,
 } from "@openvalens/api/wellness-profile-contract";
+import { englishI18n } from "@openvalens/i18n/testing";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { ProfileSummaryList } from "./profile-summary-card";
@@ -17,18 +22,20 @@ function render(
   overrides: Partial<WellnessProfileEditorProps> = {},
 ) {
   return renderToStaticMarkup(
-    <WellnessProfileEditor
-      snapshot={snapshot}
-      draft={draftFromSnapshot(snapshot)}
-      onDraftChange={() => {}}
-      birthYearText=""
-      onBirthYearTextChange={() => {}}
-      saveState={{}}
-      onSave={() => {}}
-      onUndo={() => {}}
-      now={NOW}
-      {...overrides}
-    />,
+    <I18nProvider i18n={englishI18n}>
+      <WellnessProfileEditor
+        snapshot={snapshot}
+        draft={draftFromSnapshot(snapshot)}
+        onDraftChange={() => {}}
+        birthYearText=""
+        onBirthYearTextChange={() => {}}
+        saveState={{}}
+        onSave={() => {}}
+        onUndo={() => {}}
+        now={NOW}
+        {...overrides}
+      />
+    </I18nProvider>,
   );
 }
 
@@ -62,7 +69,12 @@ describe("WellnessProfileEditor (web)", () => {
 
   test("save failures are announced as alerts", () => {
     const html = render(adult, {
-      saveState: { region: { status: "error", message: "Not saved — you seem to be offline." } },
+      saveState: {
+        region: {
+          status: "error",
+          message: describeProfileSaveError(new TypeError("Failed to fetch")).message,
+        },
+      },
     });
     expect(html).toContain('role="alert"');
     expect(html).toContain("Not saved");

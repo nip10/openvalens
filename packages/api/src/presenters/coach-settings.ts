@@ -1,8 +1,12 @@
 /**
- * Coach settings presentation shared by web and mobile. Pure TypeScript,
- * no imports — safe for the app bundle. Maps the closed enums on
- * `CoachProfile` to sentence-case labels for display.
+ * Coach settings presentation shared by web and mobile. Maps the closed enums
+ * on `CoachProfile` to sentence-case labels for display, as message
+ * descriptors the apps render with Lingui (#67). Not reachable from server
+ * code (see server-safe.test.ts).
  */
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 export type CoachTone = "strict" | "balanced" | "supportive";
 export type CoachRiskTolerance = "conservative" | "moderate" | "aggressive";
 export type CoachDisclaimerMode = "always" | "contextual";
@@ -16,69 +20,74 @@ export type CoachProfileLike = {
   selectedTemplateKey: CoachTemplateId;
 };
 
-const TONE_LABELS: Record<CoachTone, string> = {
-  strict: "Strict",
-  balanced: "Balanced",
-  supportive: "Supportive",
+const TONE_LABELS: Record<CoachTone, MessageDescriptor> = {
+  strict: msg`Strict`,
+  balanced: msg`Balanced`,
+  supportive: msg`Supportive`,
 };
 
-const RISK_LABELS: Record<CoachRiskTolerance, string> = {
-  conservative: "Conservative",
-  moderate: "Moderate",
-  aggressive: "Aggressive",
+const RISK_LABELS: Record<CoachRiskTolerance, MessageDescriptor> = {
+  conservative: msg`Conservative`,
+  moderate: msg`Moderate`,
+  aggressive: msg`Aggressive`,
 };
 
-const DISCLAIMER_LABELS: Record<CoachDisclaimerMode, string> = {
-  always: "Always",
-  contextual: "Only when relevant",
+const DISCLAIMER_LABELS: Record<CoachDisclaimerMode, MessageDescriptor> = {
+  always: msg({ message: "Always", comment: "safety" }),
+  contextual: msg({ message: "Only when relevant", comment: "safety" }),
 };
 
-const TEMPLATE_LABELS: Record<CoachTemplateId, string> = {
-  cut: "Cut",
-  recovery: "Recovery",
-  performance: "Performance",
-  maintenance: "Maintenance",
+const TEMPLATE_LABELS: Record<CoachTemplateId, MessageDescriptor> = {
+  cut: msg`Cut`,
+  recovery: msg`Recovery`,
+  performance: msg`Performance`,
+  maintenance: msg`Maintenance`,
 };
 
-const TONE_DESCRIPTIONS: Record<CoachTone, string> = {
-  strict: "Holds the line on targets and habits.",
-  balanced: "Steady but flexible, weighs context.",
-  supportive: "Encouraging, focused on consistency.",
+const TONE_DESCRIPTIONS: Record<CoachTone, MessageDescriptor> = {
+  strict: msg`Holds the line on targets and habits.`,
+  balanced: msg`Steady but flexible, weighs context.`,
+  supportive: msg`Encouraging, focused on consistency.`,
 };
 
-const RISK_DESCRIPTIONS: Record<CoachRiskTolerance, string> = {
-  conservative: "Plays it safe; avoids pushing limits.",
-  moderate: "Balances reward and caution.",
-  aggressive: "Maximises upside, accepts setbacks.",
+const RISK_DESCRIPTIONS: Record<CoachRiskTolerance, MessageDescriptor> = {
+  conservative: msg`Plays it safe; avoids pushing limits.`,
+  moderate: msg`Balances reward and caution.`,
+  aggressive: msg`Maximises upside, accepts setbacks.`,
 };
 
-const TEMPLATE_DESCRIPTIONS: Record<CoachTemplateId, string> = {
-  cut: "Caloric deficit, fat-loss focus.",
-  recovery: "Deload, sleep, and stress priority.",
-  performance: "Output and training readiness.",
-  maintenance: "Hold current weight and habits.",
+const TEMPLATE_DESCRIPTIONS: Record<CoachTemplateId, MessageDescriptor> = {
+  cut: msg`Caloric deficit, fat-loss focus.`,
+  recovery: msg`Deload, sleep, and stress priority.`,
+  performance: msg`Output and training readiness.`,
+  maintenance: msg`Hold current weight and habits.`,
 };
 
-export function toneLabel(value: string): string {
-  return TONE_LABELS[value as CoachTone] ?? value;
+/** An unrecognised stored value, shown as is. */
+function asIs(value: string): MessageDescriptor {
+  return msg({ message: `${value}`, comment: "An unrecognised setting value, shown as is" });
 }
-export function toneDescription(value: string): string {
-  return TONE_DESCRIPTIONS[value as CoachTone] ?? "";
+
+export function toneLabel(value: string): MessageDescriptor {
+  return TONE_LABELS[value as CoachTone] ?? asIs(value);
 }
-export function riskLabel(value: string): string {
-  return RISK_LABELS[value as CoachRiskTolerance] ?? value;
+export function toneDescription(value: string): MessageDescriptor | null {
+  return TONE_DESCRIPTIONS[value as CoachTone] ?? null;
 }
-export function riskDescription(value: string): string {
-  return RISK_DESCRIPTIONS[value as CoachRiskTolerance] ?? "";
+export function riskLabel(value: string): MessageDescriptor {
+  return RISK_LABELS[value as CoachRiskTolerance] ?? asIs(value);
 }
-export function disclaimerLabel(value: string): string {
-  return DISCLAIMER_LABELS[value as CoachDisclaimerMode] ?? value;
+export function riskDescription(value: string): MessageDescriptor | null {
+  return RISK_DESCRIPTIONS[value as CoachRiskTolerance] ?? null;
 }
-export function templateLabel(value: string): string {
-  return TEMPLATE_LABELS[value as CoachTemplateId] ?? value;
+export function disclaimerLabel(value: string): MessageDescriptor {
+  return DISCLAIMER_LABELS[value as CoachDisclaimerMode] ?? asIs(value);
 }
-export function templateDescription(value: string): string {
-  return TEMPLATE_DESCRIPTIONS[value as CoachTemplateId] ?? "";
+export function templateLabel(value: string): MessageDescriptor {
+  return TEMPLATE_LABELS[value as CoachTemplateId] ?? asIs(value);
+}
+export function templateDescription(value: string): MessageDescriptor | null {
+  return TEMPLATE_DESCRIPTIONS[value as CoachTemplateId] ?? null;
 }
 
 export const COACH_TONE_VALUES: readonly CoachTone[] = ["strict", "balanced", "supportive"];
@@ -96,10 +105,10 @@ export const COACH_TEMPLATE_VALUES: readonly CoachTemplateId[] = [
 ];
 
 /** "Assertiveness 3 of 5" / maps 1..5 to a plain words sentence. */
-export function assertivenessLabel(value: number): string {
-  if (value <= 1) return "Very gentle";
-  if (value === 2) return "Gentle";
-  if (value === 3) return "Direct";
-  if (value === 4) return "Forceful";
-  return "Very forceful";
+export function assertivenessLabel(value: number): MessageDescriptor {
+  if (value <= 1) return msg`Very gentle`;
+  if (value === 2) return msg`Gentle`;
+  if (value === 3) return msg`Direct`;
+  if (value === 4) return msg`Forceful`;
+  return msg`Very forceful`;
 }

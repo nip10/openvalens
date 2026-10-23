@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useLayoutEffect, useRef } from "react";
@@ -76,6 +77,7 @@ function ProductSettingsSection({ userId }: { userId: string }) {
     epochRef.current = createOwnerEpoch();
   }
   const mountedRef = useRef(true);
+  const { t } = useLingui();
 
   useLayoutEffect(() => {
     epochRef.current!.advance();
@@ -160,7 +162,7 @@ function ProductSettingsSection({ userId }: { userId: string }) {
         ownerId={userId}
         readState={{
           status: "error",
-          message: "Could not load display defaults.",
+          message: t`Could not load display defaults.`,
           onRetry: () => void productSettings.refetch(),
         }}
         onSave={handleSave}
@@ -254,20 +256,21 @@ function ConfigurationInventory({ userId }: { userId: string }) {
 }
 
 function AdminNav() {
+  const { t } = useLingui();
   return (
-    <nav className="container mx-auto max-w-3xl px-4 pt-4" aria-label="Instance administration">
+    <nav className="container mx-auto max-w-3xl px-4 pt-4" aria-label={t`Instance administration`}>
       <div className="flex gap-2">
         <a
           href="/admin/settings"
           className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
         >
-          Configuration
+          <Trans>Configuration</Trans>
         </a>
         <a
           href="/admin/invitations"
           className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         >
-          Invitations
+          <Trans>Invitations</Trans>
         </a>
       </div>
     </nav>

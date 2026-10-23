@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useId } from "react";
 
 import type { ProductLocale, ProductUnits } from "@openvalens/api/product-settings-contract";
@@ -40,9 +43,17 @@ export type ProductSettingsFormProps = {
   onReloadLatest?: () => Promise<ProductSettingsSnapshot>;
 };
 
-const UNIT_OPTIONS: { value: ProductUnits; label: string; hint: string }[] = [
-  { value: "metric", label: "Metric", hint: "kg, kilometers" },
-  { value: "imperial", label: "Imperial", hint: "lb, miles" },
+const UNIT_OPTIONS: { value: ProductUnits; label: MessageDescriptor; hint: MessageDescriptor }[] = [
+  {
+    value: "metric",
+    label: msg`Metric`,
+    hint: msg({ message: "kg, kilometers", comment: "safety" }),
+  },
+  {
+    value: "imperial",
+    label: msg`Imperial`,
+    hint: msg({ message: "lb, miles", comment: "safety" }),
+  },
 ];
 
 const PREVIEW_WEIGHT_KG = 100;
@@ -58,10 +69,10 @@ function localeHint(locale: ProductLocale): string {
   );
 }
 
-const LOCALE_OPTIONS: { value: ProductLocale; label: string; hint: string }[] = [
-  { value: "en-US", label: "United States", hint: localeHint("en-US") },
-  { value: "en-GB", label: "United Kingdom", hint: localeHint("en-GB") },
-  { value: "en-CA", label: "Canada", hint: localeHint("en-CA") },
+const LOCALE_OPTIONS: { value: ProductLocale; label: MessageDescriptor; hint: string }[] = [
+  { value: "en-US", label: msg`United States`, hint: localeHint("en-US") },
+  { value: "en-GB", label: msg`United Kingdom`, hint: localeHint("en-GB") },
+  { value: "en-CA", label: msg`Canada`, hint: localeHint("en-CA") },
 ];
 
 export function ProductSettingsForm({
@@ -116,14 +127,21 @@ function ReadyForm({
 
   const isReadOnly = !form.baseline.canEdit;
   const isBusy = form.isBusy;
+  const { t, i18n } = useLingui();
+  const unitLabel = unitOption ? i18n._(unitOption.label) : undefined;
+  const localeLabel = localeOption ? i18n._(localeOption.label) : undefined;
 
   return (
     <Card className="mx-auto w-full max-w-3xl">
       <CardHeader>
-        <CardTitle>Display defaults</CardTitle>
+        <CardTitle>
+          <Trans>Display defaults</Trans>
+        </CardTitle>
         <CardDescription>
-          Instance-wide defaults affect how weight, distance, dates, and times appear. Stored values
-          stay in canonical kilograms and meters; manual entry stays unchanged.
+          <Trans>
+            Instance-wide defaults affect how weight, distance, dates, and times appear. Stored
+            values stay in canonical kilograms and meters; manual entry stays unchanged.
+          </Trans>
         </CardDescription>
       </CardHeader>
 
@@ -138,54 +156,62 @@ function ReadyForm({
         >
           <div className="grid gap-6 md:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor={unitsId}>Units</Label>
+              <Label htmlFor={unitsId}>
+                <Trans>Units</Trans>
+              </Label>
               <Select
                 value={form.draft.units}
                 onValueChange={(value) => form.setUnits(value as ProductUnits)}
                 disabled={isReadOnly || isBusy}
               >
                 <SelectTrigger id={unitsId} aria-describedby={unitsHintId}>
-                  <SelectValue aria-label={unitOption?.label}>{unitOption?.label}</SelectValue>
+                  <SelectValue aria-label={unitLabel}>{unitLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {UNIT_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label} <span className="text-muted-foreground">({option.hint})</span>
+                      {i18n._(option.label)}{" "}
+                      <span className="text-muted-foreground">({i18n._(option.hint)})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p id={unitsHintId} className="text-xs text-muted-foreground">
-                Choose how weight and distance are displayed.
+                <Trans>Choose how weight and distance are displayed.</Trans>
               </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor={localeId}>Locale</Label>
+              <Label htmlFor={localeId}>
+                <Trans>Locale</Trans>
+              </Label>
               <Select
                 value={form.draft.locale}
                 onValueChange={(value) => form.setLocale(value as ProductLocale)}
                 disabled={isReadOnly || isBusy}
               >
                 <SelectTrigger id={localeId} aria-describedby={localeHintId}>
-                  <SelectValue aria-label={localeOption?.label}>{localeOption?.label}</SelectValue>
+                  <SelectValue aria-label={localeLabel}>{localeLabel}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {LOCALE_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label} <span className="text-muted-foreground">({option.hint})</span>
+                      {i18n._(option.label)}{" "}
+                      <span className="text-muted-foreground">({option.hint})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p id={localeHintId} className="text-xs text-muted-foreground">
-                Affects number, date, and time formatting. Language stays English.
+                <Trans>Affects number, date, and time formatting. Language stays English.</Trans>
               </p>
             </div>
           </div>
 
           <div className="rounded-lg border p-4">
-            <p className="text-sm font-medium">Preview</p>
+            <p className="text-sm font-medium">
+              <Trans>Preview</Trans>
+            </p>
             <p className="text-sm text-muted-foreground">
               {formatKg(PREVIEW_WEIGHT_KG, {
                 units: form.draft.units,
@@ -212,12 +238,12 @@ function ReadyForm({
 
           {isReadOnly ? (
             <p className="text-sm text-muted-foreground">
-              You can view these settings but cannot edit them.
+              <Trans>You can view these settings but cannot edit them.</Trans>
             </p>
           ) : (
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit" disabled={!form.canSave}>
-                {form.status.tag === "saving" ? "Saving…" : "Save"}
+                {form.status.tag === "saving" ? t`Saving…` : t`Save`}
               </Button>
               <Button
                 type="button"
@@ -225,7 +251,7 @@ function ReadyForm({
                 onClick={form.reset}
                 disabled={isBusy || !form.isChanged}
               >
-                Reset
+                <Trans>Reset</Trans>
               </Button>
             </div>
           )}
@@ -276,7 +302,7 @@ function FormStatus({
           onClick={() => void onReloadLatest()}
           disabled={isBusy}
         >
-          Reload latest
+          <Trans>Reload latest</Trans>
         </Button>
       </div>
     );
@@ -289,9 +315,13 @@ function LoadingCard() {
   return (
     <Card className="mx-auto w-full max-w-3xl">
       <CardHeader>
-        <CardTitle>Display defaults</CardTitle>
+        <CardTitle>
+          <Trans>Display defaults</Trans>
+        </CardTitle>
         <CardDescription>
-          Instance-wide defaults affect how weight, distance, dates, and times appear.
+          <Trans>
+            Instance-wide defaults affect how weight, distance, dates, and times appear.
+          </Trans>
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -305,16 +335,19 @@ function LoadingCard() {
 }
 
 function ErrorCard({ message, onRetry }: { message?: string; onRetry: () => void }) {
+  const { t } = useLingui();
   return (
     <Card className="mx-auto w-full max-w-3xl">
       <CardHeader>
-        <CardTitle>Display defaults</CardTitle>
+        <CardTitle>
+          <Trans>Display defaults</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          {message ?? "Could not load display defaults."}{" "}
+          {message ?? t`Could not load display defaults.`}{" "}
           <button type="button" className="underline" onClick={onRetry}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </CardContent>

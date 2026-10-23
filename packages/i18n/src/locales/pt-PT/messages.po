@@ -7,6 +7,29 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: pt-PT\n"
 
+#. No time to show
+#. No time to show
+#: packages/api/src/presenters/cochat.ts
+msgid "—"
+msgstr "—"
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "(you)"
+msgstr "(você)"
+
+#. safety
+#. placeholder {0}: data.blockers.length
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "{0, plural, one {{blockerNames} also has another owner. Remove them or transfer the record before deleting.} other {{blockerNames} also have another owner. Remove them or transfer the record before deleting.}}"
+msgstr "{0, plural, one {{blockerNames} também tem outro proprietário. Remova-o ou transfira o registo antes de eliminar.} other {{blockerNames} também têm outro proprietário. Remova-os ou transfira os registos antes de eliminar.}}"
+
+#. placeholder {0}: thread.messageCount
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "{0, plural, one {# message} other {# messages}}"
+msgstr "{0, plural, one {# mensagem} other {# mensagens}}"
+
 #. placeholder {0}: supplement.activeScheduleCount
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -30,6 +53,12 @@ msgstr "{0, plural, one {Mostrar # opção de equipamento} other {Mostrar as # o
 msgid "{0, plural, one {Show # muscle} other {Show all # muscles}}"
 msgstr "{0, plural, one {Mostrar # músculo} other {Mostrar os # músculos}}"
 
+#. placeholder {0}: codeLabel(ROLE_LABELS, invite.role)
+#. placeholder {1}: codeLabel(INVITATION_STATUS_LABELS, invite.status)
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "{0} · status: {1}"
+msgstr "{0} · estado: {1}"
+
 #. placeholder {0}: result.name
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -42,6 +71,30 @@ msgstr "{0} adicionado ao treino."
 msgid "{0} added to this workspace."
 msgstr "{0} adicionado a este espaço de trabalho."
 
+#. placeholder {0}: entry.key
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "{0} configured"
+msgstr "{0} configurada"
+
+#. placeholder {0}: entry.key
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "{0} not set"
+msgstr "{0} não definida"
+
+#. placeholder {0}: progress.answered
+#. placeholder {1}: progress.available
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "{0} of {1} sections answered"
+msgstr "{0} de {1} secções respondidas"
+
+#. placeholder {0}: progress.answered
+#. placeholder {1}: progress.available
+#: apps/native/components/profile-setup-prompt.tsx
+#: apps/web/src/components/profile-setup-prompt.tsx
+msgid "{0} of {1} sections answered."
+msgstr "{0} de {1} secções respondidas."
+
 #. placeholder {0}: goalSummary.open
 #. placeholder {1}: goalSummary.achieved
 #: apps/native/app/(drawer)/workouts.tsx
@@ -49,9 +102,29 @@ msgstr "{0} adicionado a este espaço de trabalho."
 msgid "{0} open · {1} achieved"
 msgstr "{0} em aberto · {1} alcançados"
 
+#. placeholder {0}: entry.key
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "{0} sensitive"
+msgstr "{0} sensível"
+
+#. safety
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "{blockerNames} also has another owner. Remove them or transfer the record before deleting."
+msgstr "{blockerNames} também tem outro proprietário. Remova-o ou transfira o registo antes de eliminar."
+
 #: packages/api/src/presenters/workouts.ts
 msgid "{count, plural, one {# exercise} other {# exercises}}"
 msgstr "{count, plural, one {# exercício} other {# exercícios}}"
+
+#. A short month and day, already formatted
+#: packages/api/src/presenters/cochat.ts
+msgid "{date}"
+msgstr "{date}"
+
+#. Days ago, abbreviated
+#: packages/api/src/presenters/cochat.ts
+msgid "{day}d ago"
+msgstr "há {day} d"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -63,12 +136,48 @@ msgstr "Pré-visualização {number} de {exerciseName}"
 msgid "{exerciseName} previews"
 msgstr "Pré-visualizações de {exerciseName}"
 
+#: apps/native/components/health-sync-settings.tsx
+msgid "{granted} of {total} data types"
+msgstr "{granted} de {total} tipos de dados"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "{granted} of {total} data types · background access off"
+msgstr "{granted} de {total} tipos de dados · acesso em segundo plano desligado"
+
+#. Hours ago, abbreviated
+#: packages/api/src/presenters/cochat.ts
+msgid "{hr}h ago"
+msgstr "há {hr} h"
+
+#. Minutes ago, abbreviated
+#: packages/api/src/presenters/cochat.ts
+msgid "{min}m ago"
+msgstr "há {min} min"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "{sourceName} is not available on this device"
+msgstr "{sourceName} não está disponível neste dispositivo"
+
 #. A value outside the known list, shown as recorded. Keep the placeholder as is.
 #. Text the member entered, shown as written. Keep the placeholder as is.
 #: packages/api/src/presenters/supplements.ts
 #: packages/api/src/presenters/workouts.ts
 msgid "{text}"
 msgstr "{text}"
+
+#. An unrecognised setting value, shown as is
+#: packages/api/src/presenters/coach-settings.ts
+msgid "{value}"
+msgstr "{value}"
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "← All conversations"
+msgstr "← Todas as conversas"
+
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "<0>Download an export first</0>."
+msgstr "<0>Transfira primeiro uma exportação</0>."
 
 #: apps/web/src/components/muscle-guide.tsx
 msgid "<0>Primary:</0> {primaryNames}"
@@ -81,6 +190,62 @@ msgstr "<0>Secundários:</0> {secondaryNames}"
 #: apps/web/src/components/muscle-guide.tsx
 msgid "<0>Source-listed muscles:</0> {listedNames}"
 msgstr "<0>Músculos indicados pela fonte:</0> {listedNames}"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
+msgstr "1 = muito suave, 5 = muito enérgico. Atualmente {assertiveness} de 5."
+
+#: apps/native/components/profile-setup-prompt.tsx
+#: apps/web/src/components/profile-setup-prompt.tsx
+msgid "A few optional questions so the app can show what matters to you. Skip any of them — everything else works without them."
+msgstr "Algumas perguntas opcionais para que a aplicação mostre o que lhe interessa. Pode saltar qualquer uma — tudo o resto funciona sem elas."
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "A goal (optional)"
+msgstr "Um objetivo (opcional)"
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "A workspace"
+msgstr "Um espaço de trabalho"
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Accept"
+msgstr "Aceitar"
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "accepted"
+msgstr "aceite"
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Accepting…"
+msgstr "A aceitar…"
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Access denied"
+msgstr "Acesso negado"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Access requested for {granted} of {total} data types"
+msgstr "Acesso pedido para {granted} de {total} tipos de dados"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Access requested for {total} data types"
+msgstr "Acesso pedido para {total} tipos de dados"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Account"
+msgstr "Conta"
+
+#: apps/web/src/routes/_auth/route.tsx
+msgid "Account setup failed"
+msgstr "A configuração da conta falhou"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Achieved"
@@ -97,6 +262,11 @@ msgstr "Ativa"
 msgid "Activity"
 msgstr "Atividade"
 
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Add a goal in your own words if you have one. It is saved to your Goals, where you can set a target and date later. Nothing is suggested or worked out for you."
+msgstr "Se tiver um objetivo, adicione-o por palavras suas. Fica guardado nos seus Objetivos, onde pode definir uma meta e uma data mais tarde. Nada é sugerido nem calculado por si."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Add a goal to start tracking."
@@ -112,7 +282,9 @@ msgstr "Adicione uma sessão para começar a acompanhar."
 msgid "Add exercise"
 msgstr "Adicionar exercício"
 
+#: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/profile.tsx
 msgid "Add goal"
 msgstr "Adicionar objetivo"
 
@@ -135,14 +307,77 @@ msgstr "Adicionar ao treino"
 msgid "Add workout"
 msgstr "Adicionar treino"
 
+#: apps/native/app/(drawer)/profile.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/routes/_auth/profile.tsx
 msgid "Adding…"
 msgstr "A adicionar…"
 
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "admin"
+msgstr "administrador"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/header.tsx
 msgid "Administration"
 msgstr "Administração"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Affects number, date, and time formatting. Language stays English."
+msgstr "Afeta o formato de números, datas e horas. O idioma mantém-se em inglês."
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Age and sex are only used by adult features, so they are not asked here."
+msgstr "A idade e o sexo só são usados por funcionalidades para adultos, por isso não são pedidos aqui."
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Age and sex for guidance"
+msgstr "Idade e sexo para orientação"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Age check"
+msgstr "Verificação de idade"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Aggressive"
+msgstr "Arrojado"
+
+#. safety
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "AI features are opt-in and revocable. This setting applies only to you and is independent of your organization or owner role."
+msgstr "As funcionalidades de IA são opcionais e revogáveis. Esta definição aplica-se apenas a si e é independente da sua organização ou da função de proprietário."
+
+#. safety
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "AI features will stop processing your data until you turn consent back on. Your existing records are not deleted."
+msgstr "As funcionalidades de IA deixam de tratar os seus dados até voltar a dar consentimento. Os registos existentes não são eliminados."
+
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "AI processing"
+msgstr "Tratamento por IA"
+
+#. safety
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "AI processing consent"
+msgstr "Consentimento para tratamento por IA"
+
+#. safety
+#: apps/web/src/components/ai-consent-section.tsx
+msgid "AI processing disabled"
+msgstr "Tratamento por IA desativado"
+
+#. safety
+#: apps/web/src/components/ai-consent-section.tsx
+msgid "AI processing enabled"
+msgstr "Tratamento por IA ativado"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -154,6 +389,15 @@ msgstr "Todo o equipamento"
 msgid "All muscles"
 msgstr "Todos os músculos"
 
+#: apps/native/app/(drawer)/insight-settings.tsx
+msgid "Allow notifications on this phone"
+msgstr "Permitir notificações neste telemóvel"
+
+#. safety
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Always"
+msgstr "Sempre"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "An administrator can import licensed exercises, or create a workspace exercise here."
 msgstr "Um administrador pode importar exercícios licenciados, ou pode criar aqui um exercício do espaço de trabalho."
@@ -162,14 +406,44 @@ msgstr "Um administrador pode importar exercícios licenciados, ou pode criar aq
 msgid "An administrator can import licensed exercises, or you can create a workspace exercise below."
 msgstr "Um administrador pode importar exercícios licenciados, ou pode criar abaixo um exercício do espaço de trabalho."
 
+#. safety
+#. safety
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Analytics are unavailable on this server. You can still turn off sharing."
+msgstr "As estatísticas não estão disponíveis neste servidor. Pode ainda assim desligar a partilha."
+
+#: apps/web/src/routes/index.tsx
+msgid "API Status"
+msgstr "Estado da API"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Archived"
 msgstr "Arquivado"
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "Ask the coach anything…"
+msgstr "Pergunte o que quiser ao coach…"
+
+#. placeholder {0}: assertivenessText(assertiveness)
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Assertiveness · {0}"
+msgstr "Assertividade · {0}"
+
+#. placeholder {0}: assertivenessText(assertiveness)
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Assertiveness ({0})"
+msgstr "Assertividade ({0})"
 
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
 msgid "Back"
 msgstr "Costas"
+
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Back to settings"
+msgstr "Voltar às definições"
 
 #: apps/web/src/components/exercise-library.tsx
 msgid "Back to workouts"
@@ -179,6 +453,27 @@ msgstr "Voltar aos treinos"
 #: apps/web/src/components/muscle-guide.tsx
 msgid "back view muscle illustration"
 msgstr "ilustração muscular, vista de costas"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Background sync"
+msgstr "Sincronização em segundo plano"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Background tasks are restricted for this app."
+msgstr "As tarefas em segundo plano estão restritas para esta aplicação."
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Balanced"
+msgstr "Equilibrado"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Balances reward and caution."
+msgstr "Equilibra ganhos e prudência."
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Birth year"
+msgstr "Ano de nascimento"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -211,14 +506,53 @@ msgstr "Explore exercícios licenciados ou crie um para o seu espaço de trabalh
 msgid "Browse licensed library entries and exercises created for your workspace."
 msgstr "Explore entradas licenciadas da biblioteca e exercícios criados para o seu espaço de trabalho."
 
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Caloric deficit, fat-loss focus."
+msgstr "Défice calórico, foco na perda de gordura."
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Canada"
+msgstr "Canadá"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "Cancel"
+msgstr "Cancelar"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Cancel request"
 msgstr "Cancelar pedido"
 
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "canceled"
+msgstr "cancelado"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Cancelled"
 msgstr "Cancelado"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Check the email and token, then try again."
+msgstr "Verifique o email e o token e tente novamente."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Check your email"
+msgstr "Verifique o seu email"
+
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Checking your account and server settings…"
+msgstr "A verificar a sua conta e as definições do servidor…"
+
+#: apps/web/src/routes/index.tsx
+msgid "Checking..."
+msgstr "A verificar..."
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Checking…"
+msgstr "A verificar…"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Choose"
@@ -232,9 +566,18 @@ msgstr "Escolha um treino"
 msgid "Choose an exercise to read its details."
 msgstr "Escolha um exercício para ver os detalhes."
 
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Choose how weight and distance are displayed."
+msgstr "Escolha como o peso e a distância são apresentados."
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Choose whether the value should go up or down."
 msgstr "Escolha se o valor deve subir ou descer."
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Clear answer"
+msgstr "Limpar resposta"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -246,19 +589,38 @@ msgstr "Limpar filtros"
 msgid "Clinical export"
 msgstr "Exportação clínica"
 
+#: apps/native/app/modal.tsx
+msgid "Close"
+msgstr "Fechar"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Closed"
 msgstr "Fechado"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+#: apps/web/src/routes/_auth/settings.tsx
 msgid "Coach"
 msgstr "Coach"
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "Coach · thinking…"
+msgstr "Coach · a pensar…"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 msgid "Cockpit"
 msgstr "Painel"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "comfortable"
+msgstr "confortável"
 
 #: apps/web/src/components/language-section.tsx
 msgid "Community translation"
@@ -268,11 +630,141 @@ msgstr "Tradução da comunidade"
 msgid "Community translation, not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 msgstr "Tradução da comunidade, ainda não revista. As unidades, os intervalos de referência e os textos sobre medicação e consentimento ficam em inglês até um revisor os aprovar."
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "compact"
+msgstr "compacta"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Compact density"
+msgstr "Densidade compacta"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Complete enrollment"
+msgstr "Concluir inscrição"
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgctxt "medication status"
 msgid "Completed"
 msgstr "Concluída"
+
+#: apps/web/src/routes/_auth/admin/settings.tsx
+msgid "Configuration"
+msgstr "Configuração"
+
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Configuration keys"
+msgstr "Chaves de configuração"
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Configured"
+msgstr "Configurada"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Confirm you are 18 or older before adding age or sex."
+msgstr "Confirme que tem 18 anos ou mais antes de indicar a idade ou o sexo."
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/native/components/health-sync-settings.tsx
+#: apps/web/src/components/oidc-connect-section.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Connect"
+msgstr "Ligar"
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Connect a Telegram chat to receive daily reminders."
+msgstr "Ligue uma conversa do Telegram para receber lembretes diários."
+
+#. placeholder {0}: oidc.displayName
+#: apps/web/src/components/oidc-connect-section.tsx
+msgid "Connect your {0} account to sign in with it. Email links keep working."
+msgstr "Ligue a sua conta {0} para iniciar sessão com ela. As ligações por email continuam a funcionar."
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/native/components/health-sync-settings.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+#: apps/web/src/routes/index.tsx
+msgid "Connected"
+msgstr "Ligado"
+
+#. placeholder {0}: oidc.displayName
+#: apps/web/src/components/oidc-connect-section.tsx
+msgid "Connected. You can sign in with {0}."
+msgstr "Ligado. Pode iniciar sessão com {0}."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Connection lost. Check your network and try again."
+msgstr "A ligação perdeu-se. Verifique a rede e tente novamente."
+
+#. safety
+#. placeholder {0}: state.consentVersion
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "Consent version {0}"
+msgstr "Versão do consentimento {0}"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Conservative"
+msgstr "Conservador"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Consumed"
+msgstr "Utilizado"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Continue"
+msgstr "Continuar"
+
+#: apps/native/components/profile-setup-prompt.tsx
+#: apps/web/src/components/profile-setup-prompt.tsx
+msgid "Continue setting up (optional)"
+msgstr "Continuar a configuração (opcional)"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Continue to OpenValens as <0>{email}</0>."
+msgstr "Continue para o OpenValens como <0>{email}</0>."
+
+#: apps/web/src/components/oidc-sign-in-button.tsx
+msgid "Continue with {displayName}"
+msgstr "Continuar com {displayName}"
+
+#. placeholder {0}: i18n._(SECTION_TITLES[next])
+#: apps/native/components/profile-setup-prompt.tsx
+#: apps/web/src/components/profile-setup-prompt.tsx
+msgid "Continue: {0}"
+msgstr "Continuar: {0}"
+
+#: apps/native/app/(drawer)/coach/index.tsx
+msgid "Conversations"
+msgstr "Conversas"
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Could not accept the invitation."
+msgstr "Não foi possível aceitar o convite."
+
+#: apps/native/components/sign-in.tsx
+msgid "Could not clear the pending sign-in. Please try again."
+msgstr "Não foi possível limpar o início de sessão pendente. Tente novamente."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Could not complete enrollment. Check the token and code, then try again."
+msgstr "Não foi possível concluir a inscrição. Verifique o token e o código e tente novamente."
+
+#: apps/native/app/_layout.tsx
+msgid "Could not complete sign-in. Please try again."
+msgstr "Não foi possível concluir o início de sessão. Tente novamente."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Could not complete that action. Please try again."
+msgstr "Não foi possível concluir essa ação. Tente novamente."
+
+#. safety
+#. safety
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Could not confirm enabling. Sharing remains off."
+msgstr "Não foi possível confirmar a ativação. A partilha continua desligada."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -284,6 +776,37 @@ msgstr "Não foi possível confirmar o resultado. Atualize e reveja antes de ten
 msgid "Could not confirm. Refresh and review before trying again."
 msgstr "Não foi possível confirmar. Atualize e reveja antes de tentar novamente."
 
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Could not decline the invitation."
+msgstr "Não foi possível recusar o convite."
+
+#: apps/web/src/components/oidc-connect-section.tsx
+msgid "Could not disconnect. Sign in again and retry."
+msgstr "Não foi possível desligar. Inicie sessão novamente e tente outra vez."
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Could not generate a connect link."
+msgstr "Não foi possível gerar uma ligação."
+
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "Could not load AI consent."
+msgstr "Não foi possível carregar o consentimento para IA."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Could not load coach settings."
+msgstr "Não foi possível carregar as definições do coach."
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+msgid "Could not load configuration"
+msgstr "Não foi possível carregar a configuração"
+
+#: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/routes/_auth/admin/settings.tsx
+msgid "Could not load display defaults."
+msgstr "Não foi possível carregar as predefinições de apresentação."
+
 #: apps/native/components/exercise-library.tsx
 msgid "Could not load exercises."
 msgstr "Não foi possível carregar os exercícios."
@@ -292,14 +815,51 @@ msgstr "Não foi possível carregar os exercícios."
 msgid "Could not load goals."
 msgstr "Não foi possível carregar os objetivos."
 
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Could not load instance configuration."
+msgstr "Não foi possível carregar a configuração da instância."
+
+#: apps/web/src/routes/accept-invitation.$id.tsx
+msgid "Could not load invitation."
+msgstr "Não foi possível carregar o convite."
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Could not load invitations."
+msgstr "Não foi possível carregar os convites."
+
+#: apps/native/app/(drawer)/insight-settings.tsx
+msgid "Could not load notification settings."
+msgstr "Não foi possível carregar as definições de notificações."
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Could not load sharing info."
+msgstr "Não foi possível carregar as informações de partilha."
+
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Could not load supplements."
 msgstr "Não foi possível carregar os suplementos."
 
+#: apps/native/app/(drawer)/settings/telegram.tsx
+msgid "Could not load Telegram status."
+msgstr "Não foi possível carregar o estado do Telegram."
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Could not load the exercise library."
 msgstr "Não foi possível carregar a biblioteca de exercícios."
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "Could not load this conversation."
+msgstr "Não foi possível carregar esta conversa."
+
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Could not load threads."
+msgstr "Não foi possível carregar as conversas."
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load weekly activity."
@@ -316,12 +876,104 @@ msgstr "Não foi possível carregar a atividade semanal. <0>Tentar novamente</0>
 msgid "Could not load workouts."
 msgstr "Não foi possível carregar os treinos."
 
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Could not load your preference."
+msgstr "Não foi possível carregar a sua preferência."
+
+#: apps/web/src/components/profile-summary-card.tsx
+msgid "Could not load your profile."
+msgstr "Não foi possível carregar o seu perfil."
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Could not load your profile. Nothing has changed."
+msgstr "Não foi possível carregar o seu perfil. Nada foi alterado."
+
+#: apps/web/src/routes/_auth/route.tsx
+msgid "Could not prepare your workspace. Please try again."
+msgstr "Não foi possível preparar o seu espaço de trabalho. Tente novamente."
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Could not read your health data. Check permissions."
+msgstr "Não foi possível ler os seus dados de saúde. Verifique as permissões."
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Could not revoke invitation."
+msgstr "Não foi possível revogar o convite."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not save."
 msgstr "Não foi possível guardar."
+
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/routes/_auth/admin/invitations.tsx
+msgid "Could not send invitation."
+msgstr "Não foi possível enviar o convite."
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Could not send invite. Email may already be pending."
+msgstr "Não foi possível enviar o convite. O email pode já ter um convite pendente."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Could not send sign-in link."
+msgstr "Não foi possível enviar a ligação de início de sessão."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Could not send the email. Try again later."
+msgstr "Não foi possível enviar o email. Tente mais tarde."
+
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Could not send the sign-in link."
+msgstr "Não foi possível enviar a ligação de início de sessão."
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Could not send the sign-in link. Please try again."
+msgstr "Não foi possível enviar a ligação de início de sessão. Tente novamente."
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "Could not send. Check AI consent in Settings."
+msgstr "Não foi possível enviar. Verifique o consentimento para IA nas Definições."
+
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Could not start a conversation. Check that AI is enabled in Settings."
+msgstr "Não foi possível iniciar uma conversa. Verifique se a IA está ativada nas Definições."
+
+#: apps/web/src/components/oidc-sign-in-button.tsx
+msgid "Could not start sign-in with {displayName}. Please try again."
+msgstr "Não foi possível iniciar sessão com {displayName}. Tente novamente."
+
+#: apps/native/app/(drawer)/insight-settings.tsx
+msgid "Could not turn on notifications."
+msgstr "Não foi possível ativar as notificações."
+
+#: apps/web/src/components/ai-consent-section.tsx
+msgid "Could not update AI consent."
+msgstr "Não foi possível atualizar o consentimento para IA."
+
+#: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Could not update notification settings."
+msgstr "Não foi possível atualizar as definições de notificações."
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+msgid "Could not verify access"
+msgstr "Não foi possível verificar o acesso"
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Could not verify admin access."
+msgstr "Não foi possível verificar o acesso de administrador."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -343,6 +995,10 @@ msgstr "Criar exercício do espaço de trabalho"
 msgid "Creating…"
 msgstr "A criar…"
 
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Cut"
+msgstr "Definição"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Cycle"
@@ -357,6 +1013,31 @@ msgstr "Ciclismo"
 msgid "Daily"
 msgstr "Diariamente"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings/telegram.tsx
+msgid "Daily reminders"
+msgstr "Lembretes diários"
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+msgid "Daily reminders are sent to your Telegram chat."
+msgstr "Os lembretes diários são enviados para a sua conversa do Telegram."
+
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Daily reminders over Telegram"
+msgstr "Lembretes diários pelo Telegram"
+
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Daily reminders will be sent to your Telegram chat."
+msgstr "Os lembretes diários serão enviados para a sua conversa do Telegram."
+
+#: apps/web/src/components/mode-toggle.tsx
+msgid "Dark"
+msgstr "Escuro"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Dark mode"
+msgstr "Modo escuro"
+
 #: apps/web/src/components/header.tsx
 msgid "Dashboard"
 msgstr "Painel de controlo"
@@ -365,6 +1046,41 @@ msgstr "Painel de controlo"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Date"
 msgstr "Data"
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Decline"
+msgstr "Recusar"
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Declining…"
+msgstr "A recusar…"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Delete account"
+msgstr "Eliminar conta"
+
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Delete account and all data"
+msgstr "Eliminar a conta e todos os dados"
+
+#. safety
+#. safety
+#. safety
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Delete everything"
+msgstr "Eliminar tudo"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Deleting…"
+msgstr "A eliminar…"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Deload, sleep, and stress priority."
+msgstr "Descarga de treino, prioridade ao sono e ao stress."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -383,6 +1099,35 @@ msgstr "Os detalhes não estão disponíveis. Atualize a biblioteca e tente nova
 #: packages/api/src/presenters/supplements.ts
 msgid "Dinner"
 msgstr "Jantar"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Direct"
+msgstr "Direto"
+
+#: apps/web/src/components/oidc-connect-section.tsx
+msgid "Disconnect"
+msgstr "Desligar"
+
+#: apps/web/src/routes/index.tsx
+msgid "Disconnected"
+msgstr "Desligado"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Display defaults"
+msgstr "Predefinições de apresentação"
+
+#: apps/web/src/components/product-settings-status.tsx
+msgid "Display defaults refresh failed · showing last loaded defaults"
+msgstr "Falha ao atualizar as predefinições de apresentação · a mostrar as últimas carregadas"
+
+#: apps/web/src/components/product-settings-status.tsx
+msgid "Display defaults unavailable · showing metric fallback"
+msgstr "Predefinições de apresentação indisponíveis · a mostrar o sistema métrico"
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Done"
+msgstr "Concluído"
 
 #. safety
 #. safety
@@ -414,6 +1159,14 @@ msgstr "Duração (minutos)"
 msgid "Duration must be 1–1440 minutes."
 msgstr "A duração tem de ser entre 1 e 1440 minutos."
 
+#: apps/native/app/(drawer)/insight-settings.tsx
+msgid "Earlier"
+msgstr "Mais cedo"
+
+#: apps/web/src/components/profile-summary-card.tsx
+msgid "Edit profile"
+msgstr "Editar perfil"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Effort points by day"
 msgstr "Pontos de esforço por dia"
@@ -423,10 +1176,69 @@ msgstr "Pontos de esforço por dia"
 msgid "Effort, 0–10 (optional)"
 msgstr "Esforço, 0–10 (opcional)"
 
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Email"
+msgstr "Email"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Email me a sign-in link"
+msgstr "Enviar-me uma ligação de início de sessão"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Encouraging, focused on consistency."
+msgstr "Encorajador, focado na consistência."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Enrollment complete"
+msgstr "Inscrição concluída"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Enrollment is closed. Sign in below if you already have an account."
+msgstr "As inscrições estão fechadas. Inicie sessão abaixo se já tiver uma conta."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Enrollment is not available right now."
+msgstr "As inscrições não estão disponíveis neste momento."
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Enter a four-digit birth year."
+msgstr "Introduza um ano de nascimento com quatro dígitos."
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Enter a valid email address"
+msgstr "Introduza um endereço de email válido"
+
+#: apps/web/src/routes/setup.tsx
+msgid "Enter the setup token from your operator and your email to become the first instance administrator."
+msgstr "Introduza o token de configuração fornecido pelo operador e o seu email para se tornar o primeiro administrador da instância."
+
+#. placeholder {0}: state.email
+#: apps/web/src/components/admission-form.tsx
+msgid "Enter the token again to continue enrollment as <0>{0}</0>."
+msgstr "Introduza novamente o token para continuar a inscrição como <0>{0}</0>."
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Environment configuration"
+msgstr "Configuração do ambiente"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Equipment"
 msgstr "Equipamento"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Every few hours, when the system allows"
+msgstr "De poucas em poucas horas, quando o sistema permitir"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -466,6 +1278,22 @@ msgstr "Registo do exercício"
 msgid "Exercises"
 msgstr "Exercícios"
 
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Expired"
+msgstr "Expirado"
+
+#. placeholder {0}: invitation.expiresAt.toLocaleString()
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Expires {0}"
+msgstr "Expira {0}"
+
+#. placeholder {0}: expiresAt.toLocaleString()
+#. placeholder {0}: new Date(connect.data?.expiresAt ?? "").toLocaleString()
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Expires {0}."
+msgstr "Expira {0}."
+
 #: apps/native/components/exercise-library.tsx
 msgid "Filter by equipment"
 msgstr "Filtrar por equipamento"
@@ -478,6 +1306,27 @@ msgstr "Filtrar por músculo"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Filters are unavailable; name search still works."
 msgstr "Os filtros não estão disponíveis; a pesquisa por nome continua a funcionar."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "First setup"
+msgstr "Primeira configuração"
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "For example: walk most days"
+msgstr "Por exemplo: caminhar na maioria dos dias"
+
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "For your security, confirm it's you with a fresh sign-in."
+msgstr "Por segurança, confirme que é você com um novo início de sessão."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "For your security, sign out and sign back in, then return here within 10 minutes."
+msgstr "Por segurança, termine sessão e volte a iniciá-la; depois regresse aqui dentro de 10 minutos."
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Forceful"
+msgstr "Enérgico"
 
 #. safety
 #. safety
@@ -508,23 +1357,83 @@ msgstr "Frente"
 msgid "front view muscle illustration"
 msgstr "ilustração muscular, vista de frente"
 
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Generating link…"
+msgstr "A gerar ligação…"
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+msgid "Generating…"
+msgstr "A gerar…"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Gentle"
+msgstr "Suave"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Go down"
 msgstr "Descer"
 
+#: apps/native/app/+not-found.tsx
+msgid "Go Home"
+msgstr "Ir para o início"
+
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/admission-form.tsx
+msgid "Go to dashboard"
+msgstr "Ir para o painel de controlo"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Go up"
 msgstr "Subir"
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Goal"
+msgstr "Objetivo"
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Goal added. You can edit it under Workouts."
+msgstr "Objetivo adicionado. Pode editá-lo em Treinos."
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Goals"
 msgstr "Objetivos"
 
+#. safety
+#. placeholder {0}: formatGrantedAt(state.grantedAt)
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "Granted on {0}"
+msgstr "Concedido em {0}"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Health data"
+msgstr "Dados de saúde"
+
+#. First message sent to the AI coach for a new conversation; shown as the person's own message
+#. First message sent to the AI coach for a new conversation; shown as the person's own message
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Hi coach — give me a one-line summary of where I am today and one concrete suggestion."
+msgstr "Olá coach — dê-me um resumo numa linha de como estou hoje e uma sugestão concreta."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Hide token"
+msgstr "Ocultar token"
+
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
 msgid "High"
 msgstr "Alta"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Hold current weight and habits."
+msgstr "Manter o peso e os hábitos atuais."
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Holds the line on targets and habits."
+msgstr "Mantém-se firme nas metas e nos hábitos."
 
 #: apps/web/src/components/header.tsx
 msgid "Home"
@@ -539,6 +1448,10 @@ msgstr "Como correu?"
 msgid "How this is calculated"
 msgstr "Como é calculado"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "How you'll add data"
+msgstr "Como vai adicionar dados"
+
 #: apps/native/components/muscle-guide.tsx
 #: apps/web/src/components/muscle-guide.tsx
 msgid "Illustration of muscles listed by the source"
@@ -549,14 +1462,52 @@ msgstr "Ilustração dos músculos indicados pela fonte"
 msgid "Image source"
 msgstr "Origem da imagem"
 
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Imperial"
+msgstr "Imperial"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "In progress"
 msgstr "Em curso"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Insight notifications"
+msgstr "Notificações de observações"
+
+#: apps/web/src/routes/_auth/admin/settings.tsx
+msgid "Instance administration"
+msgstr "Administração da instância"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Instance configuration"
+msgstr "Configuração da instância"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Instance invitations"
+msgstr "Convites da instância"
+
+#: apps/web/src/routes/setup.tsx
+msgid "Instance setup"
+msgstr "Configuração da instância"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Instance-wide defaults affect how weight, distance, dates, and times appear."
+msgstr "As predefinições da instância afetam a forma como o peso, a distância, as datas e as horas aparecem."
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Instance-wide defaults affect how weight, distance, dates, and times appear. Stored values stay in canonical kilograms and meters; manual entry stays unchanged."
+msgstr "As predefinições da instância afetam a forma como o peso, a distância, as datas e as horas aparecem. Os valores guardados ficam em quilogramas e metros; a introdução manual não muda."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Instructions (optional)"
 msgstr "Instruções (opcional)"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Integrations"
+msgstr "Integrações"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -568,9 +1519,93 @@ msgstr "Intensidade (opcional)"
 msgid "Interface language"
 msgstr "Idioma da interface"
 
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Invitation accepted"
+msgstr "Convite aceite"
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Invitation accepted. The workspace is now active."
+msgstr "Convite aceite. O espaço de trabalho está agora ativo."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Invitation declined"
+msgstr "Convite recusado"
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Invitation declined."
+msgstr "Convite recusado."
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Invitation saved."
+msgstr "Convite guardado."
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Invitation sent."
+msgstr "Convite enviado."
+
+#: apps/web/src/routes/join.tsx
+msgid "Invitation token"
+msgstr "Token do convite"
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Invitation unavailable"
+msgstr "Convite indisponível"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/routes/_auth/admin/settings.tsx
 msgid "Invitations"
 msgstr "Convites"
+
+#. placeholder {0}: invitations.length
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Invitations · {0}"
+msgstr "Convites · {0}"
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Invite a member"
+msgstr "Convidar um membro"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Invite a user"
+msgstr "Convidar um utilizador"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Invite someone to create an account. They will receive an invitation token by email."
+msgstr "Convide alguém para criar uma conta. Vai receber um token de convite por email."
+
+#. placeholder {0}: invitation.email
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Invited email: {0}"
+msgstr "Email convidado: {0}"
+
+#. placeholder {0}: summary.email
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Invited email: <0>{0}</0>"
+msgstr "Email convidado: <0>{0}</0>"
+
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Inviting…"
+msgstr "A convidar…"
+
+#: apps/web/src/routes/join.tsx
+msgid "Join OpenValens"
+msgstr "Aderir ao OpenValens"
+
+#: packages/api/src/presenters/cochat.ts
+msgid "just now"
+msgstr "agora mesmo"
+
+#. safety
+#: apps/web/src/components/product-settings-form.tsx
+msgid "kg, kilometers"
+msgstr "kg, quilómetros"
+
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Kind"
+msgstr "Tipo"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -586,6 +1621,24 @@ msgstr "Idioma"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Language code"
 msgstr "Código de idioma"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Last sync failed. Try again."
+msgstr "A última sincronização falhou. Tente novamente."
+
+#. placeholder {0}: formatTimestamp(last.lastSuccessAt)
+#: apps/native/components/health-sync-settings.tsx
+msgid "Last synced {0}"
+msgstr "Última sincronização: {0}"
+
+#: apps/native/app/(drawer)/insight-settings.tsx
+msgid "Later"
+msgstr "Mais tarde"
+
+#. safety
+#: apps/web/src/components/product-settings-form.tsx
+msgid "lb, miles"
+msgstr "lb, milhas"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -620,9 +1673,17 @@ msgstr "Licença: {license}"
 msgid "License: {license} · {author}"
 msgstr "Licença: {license} · {author}"
 
+#: apps/web/src/components/mode-toggle.tsx
+msgid "Light"
+msgstr "Claro"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading details…"
 msgstr "A carregar detalhes…"
+
+#: apps/web/src/components/product-settings-status.tsx
+msgid "Loading display defaults…"
+msgstr "A carregar as predefinições de apresentação…"
 
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading library…"
@@ -646,6 +1707,10 @@ msgstr "A carregar treinos…"
 msgid "Loading your workspace…"
 msgstr "A carregar o seu espaço de trabalho…"
 
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Locale"
+msgstr "Região"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Log"
@@ -665,14 +1730,46 @@ msgstr "Almoço"
 msgid "Main navigation"
 msgstr "Navegação principal"
 
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Maintenance"
+msgstr "Manutenção"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Maximises upside, accepts setbacks."
+msgstr "Procura o máximo de ganhos, aceita contratempos."
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Meal diary"
 msgstr "Diário de refeições"
 
+#. safety
+#. safety
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Medical disclaimer"
+msgstr "Aviso médico"
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "member"
+msgstr "membro"
+
+#. placeholder {0}: members.length
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Members · {0}"
+msgstr "Membros · {0}"
+
 #: apps/web/src/components/header.tsx
 msgid "Menu"
 msgstr "Menu"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Metric"
+msgstr "Métrico"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -682,6 +1779,18 @@ msgstr "Micronutrientes"
 #: apps/web/src/components/header.tsx
 msgid "Mobile navigation"
 msgstr "Navegação móvel"
+
+#: apps/native/app/_layout.tsx
+msgid "Modal"
+msgstr "Modal"
+
+#: apps/native/app/modal.tsx
+msgid "Modal Screen"
+msgstr "Ecrã modal"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Moderate"
+msgstr "Moderado"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -703,6 +1812,10 @@ msgstr "Músculo"
 msgid "Muscle guide"
 msgstr "Guia muscular"
 
+#: apps/web/src/components/user-menu.tsx
+msgid "My Account"
+msgstr "A minha conta"
+
 #: apps/native/app/(drawer)/_layout.tsx
 msgid "My foods"
 msgstr "Os meus alimentos"
@@ -717,6 +1830,37 @@ msgstr "Nome"
 #: apps/web/src/components/header.tsx
 msgid "Navigate the app"
 msgstr "Navegar na aplicação"
+
+#: apps/native/app/(drawer)/coach/index.tsx
+msgid "New"
+msgstr "Nova"
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "New accounts require an invitation."
+msgstr "As novas contas precisam de um convite."
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "New conversation"
+msgstr "Nova conversa"
+
+#. placeholder {0}: i18n._(SECTION_TITLES[next])
+#. placeholder {0}: i18n._(SECTION_TITLES[resume])
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Next unanswered: {0}"
+msgstr "Próxima por responder: {0}"
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "No configuration keys reported."
+msgstr "Não foram comunicadas chaves de configuração."
+
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "No conversations yet"
+msgstr "Ainda não há conversas"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -753,6 +1897,10 @@ msgstr "Ainda não há objetivos"
 msgid "No instructions provided."
 msgstr "Sem instruções."
 
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "No invitations yet."
+msgstr "Ainda não há convites."
+
 #: apps/native/components/muscle-guide.tsx
 msgid "No matching diagram mapping for: {unknownNames}. Names are shown without highlighting."
 msgstr "Sem correspondência no diagrama para: {unknownNames}. Os nomes são mostrados sem destaque."
@@ -771,9 +1919,24 @@ msgstr "Não há correspondência no diagrama; nenhuma zona do corpo está desta
 msgid "No medications logged. Add one to track your protocol."
 msgstr "Nenhuma medicação registada. Adicione uma para acompanhar o seu protocolo."
 
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "No members yet."
+msgstr "Ainda não há membros."
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "No messages yet — say hello to start."
+msgstr "Ainda não há mensagens — diga olá para começar."
+
 #: apps/native/components/exercise-library.tsx
 msgid "No muscle filters available."
 msgstr "Não há filtros de músculos disponíveis."
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "No pending invitations."
+msgstr "Não há convites pendentes."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -800,10 +1963,40 @@ msgctxt "goal priority"
 msgid "Normal"
 msgstr "Normal"
 
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/native/components/health-sync-settings.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Not connected"
+msgstr "Não ligado"
+
+#: apps/native/app/+not-found.tsx
+msgid "Not Found"
+msgstr "Não encontrado"
+
+#. safety
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "Not granted"
+msgstr "Não concedido"
+
+#: apps/native/components/profile-setup-prompt.tsx
+#: apps/web/src/components/profile-setup-prompt.tsx
+msgid "Not now"
+msgstr "Agora não"
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Not rated"
 msgstr "Sem avaliação"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Not saved — you seem to be offline. Saving needs a connection; your changes are still here."
+msgstr "Não guardado — parece estar sem ligação. Para guardar é preciso ligação; as suas alterações continuam aqui."
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Not saved. Try again."
+msgstr "Não guardado. Tente novamente."
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Not set"
 msgstr "Não definida"
@@ -811,6 +2004,14 @@ msgstr "Não definida"
 #: packages/api/src/presenters/workouts.ts
 msgid "Not started"
 msgstr "Não iniciado"
+
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Not sure yet"
+msgstr "Ainda não sei"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Not synced yet"
+msgstr "Ainda não sincronizado"
 
 #: apps/web/src/components/language-section.tsx
 msgid "Not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
@@ -831,10 +2032,39 @@ msgstr "Atual: {0}"
 msgid "Nutrition targets"
 msgstr "Objetivos nutricionais"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/components/health-sync-settings.tsx
+msgid "Off"
+msgstr "Desligado"
+
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Off — {pushTitle}"
+msgstr "Desligado — {pushTitle}"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/components/health-sync-settings.tsx
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "On"
+msgstr "Ligado"
+
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "On — {pushTitle}"
+msgstr "Ligado — {pushTitle}"
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Once"
 msgstr "Uma vez"
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Only org owners can invite or remove members."
+msgstr "Só os proprietários da organização podem convidar ou remover membros."
+
+#. safety
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Only when relevant"
+msgstr "Só quando relevante"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Open"
@@ -844,9 +2074,71 @@ msgstr "Em aberto"
 msgid "Open navigation menu"
 msgstr "Abrir o menu de navegação"
 
+#: apps/native/app/(drawer)/settings/telegram.tsx
+msgid "Open Telegram and send this token to the bot:"
+msgstr "Abra o Telegram e envie este token ao bot:"
+
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Open this link in Telegram and press Start:"
+msgstr "Abra esta ligação no Telegram e carregue em Start:"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Opens {sourceName} permissions"
+msgstr "Abre as permissões de {sourceName}"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Optional answers only you can see"
+msgstr "Respostas opcionais visíveis apenas para si"
+
+#: apps/web/src/components/profile-summary-card.tsx
+msgid "Optional answers only you can see."
+msgstr "Respostas opcionais visíveis apenas para si."
+
+#. safety
+#. safety
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Optional usage analytics via PostHog EU. Sends approved settings-action names and a new random event ID for each event; events are not linked to your account, device, session, or workspace. No health records or free text are sent. PostHog retains events and their IDs and sees our server’s network IP, not your forwarded IP. Turning this off stops new sends; already-sent events cannot be recalled."
+msgstr "Estatísticas de utilização opcionais através do PostHog EU. Envia nomes aprovados de ações nas definições e um novo ID de evento aleatório para cada evento; os eventos não são associados à sua conta, dispositivo, sessão ou espaço de trabalho. Não são enviados registos de saúde nem texto livre. O PostHog guarda os eventos e os respetivos IDs e vê o IP de rede do nosso servidor, não o seu IP reencaminhado. Desligar esta opção impede novos envios; os eventos já enviados não podem ser recuperados."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "or"
+msgstr "ou"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Other"
 msgstr "Outro"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Output and training readiness."
+msgstr "Rendimento e prontidão para treinar."
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "owner"
+msgstr "proprietário"
+
+#: apps/native/app/+not-found.tsx
+msgid "Page Not Found"
+msgstr "Página não encontrada"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Paste the code from your email"
+msgstr "Cole o código do seu email"
+
+#: apps/web/src/routes/join.tsx
+msgid "Paste the invitation token from your email"
+msgstr "Cole o token do convite do seu email"
+
+#: apps/web/src/routes/join.tsx
+msgid "Paste the invitation token you received to create your account."
+msgstr "Cole o token do convite que recebeu para criar a sua conta."
+
+#: apps/web/src/routes/setup.tsx
+msgid "Paste the token your operator provided"
+msgstr "Cole o token fornecido pelo operador"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Paused"
@@ -858,10 +2150,53 @@ msgctxt "medication status"
 msgid "Paused"
 msgstr "Em pausa"
 
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "pending"
+msgstr "pendente"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Pending"
+msgstr "Pendente"
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Pending invitations"
+msgstr "Convites pendentes"
+
+#. placeholder {0}: invitations.data.length
+#. placeholder {0}: invitations.length
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Pending invitations · {0}"
+msgstr "Convites pendentes · {0}"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Performance"
+msgstr "Desempenho"
+
+#. safety
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Permanently deletes your account and {rows} stored rows across {organizationCount} health records. This can't be undone. Export your data from Clinical export first."
+msgstr "Elimina permanentemente a sua conta e {rows} linhas guardadas em {organizationCount} registos de saúde. Não é possível anular. Exporte primeiro os seus dados em Exportação clínica."
+
+#. safety
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Permanently deletes your account and {rows} stored rows across your health record. This can't be undone. Export your data from Clinical export first."
+msgstr "Elimina permanentemente a sua conta e {rows} linhas guardadas no seu registo de saúde. Não é possível anular. Exporte primeiro os seus dados em Exportação clínica."
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Plays it safe; avoids pushing limits."
+msgstr "Joga pelo seguro; evita forçar limites."
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Pre-bed"
 msgstr "Antes de dormir"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Preferences"
+msgstr "Preferências"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -872,6 +2207,10 @@ msgstr "A preparar pré-visualização…"
 #: apps/web/src/components/header.tsx
 msgid "Preventive care"
 msgstr "Cuidados preventivos"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Preview"
+msgstr "Pré-visualização"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -903,6 +2242,8 @@ msgid "Private measurements"
 msgstr "Medições privadas"
 
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/profile-summary-card.tsx
 msgid "Profile"
 msgstr "Perfil"
 
@@ -910,6 +2251,10 @@ msgstr "Perfil"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Progress means the value should"
 msgstr "Progresso significa que o valor deve"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Push and weekly email, off until you turn them on"
+msgstr "Notificações push e email semanal, desligados até os ativar"
 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Rate"
@@ -919,10 +2264,27 @@ msgstr "Avaliar"
 msgid "Rate effort"
 msgstr "Avaliar esforço"
 
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Re-link"
+msgstr "Voltar a ligar"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Recipe draft"
 msgstr "Rascunho de receita"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Recovery"
+msgstr "Recuperação"
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Redeem invitation"
+msgstr "Usar convite"
+
+#: apps/web/src/components/oidc-sign-in-button.tsx
+msgid "Redirecting…"
+msgstr "A redirecionar…"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -933,9 +2295,58 @@ msgstr "Atualizar e rever"
 msgid "Regimen"
 msgstr "Regime"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Region"
+msgstr "Região"
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "rejected"
+msgstr "recusado"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Reload latest"
+msgstr "Recarregar a versão mais recente"
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Remove"
+msgstr "Remover"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Resend code"
+msgstr "Reenviar código"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Reset"
+msgstr "Repor"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+#: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/components/profile-summary-card.tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+#: apps/web/src/routes/_auth/route.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Retry"
@@ -946,6 +2357,10 @@ msgstr "Tentar novamente"
 msgid "Retry filters"
 msgstr "Tentar carregar filtros"
 
+#: apps/native/components/analytics-consent-section.tsx
+msgid "Retry loading analytics preference"
+msgstr "Tentar carregar novamente a preferência de estatísticas"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Retry same request"
@@ -954,6 +2369,36 @@ msgstr "Repetir o mesmo pedido"
 #: apps/native/components/exercise-library.tsx
 msgid "Retry workouts"
 msgstr "Tentar carregar treinos"
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Revoke"
+msgstr "Revogar"
+
+#. safety
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "Revoke AI consent?"
+msgstr "Revogar o consentimento para IA?"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Revoking…"
+msgstr "A revogar…"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Risk tolerance"
+msgstr "Tolerância ao risco"
+
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Role"
+msgstr "Função"
+
+#. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
+#: apps/native/app/(drawer)/sharing.tsx
+msgid "Role · {0}"
+msgstr "Função · {0}"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Run"
@@ -964,8 +2409,13 @@ msgstr "Corrida"
 msgid "Run a 5k"
 msgstr "Correr 5 km"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Save"
@@ -975,15 +2425,24 @@ msgstr "Guardar"
 msgid "Save rating"
 msgstr "Guardar avaliação"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Saved"
 msgstr "Guardado"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/profile.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/routes/_auth/settings.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Saving…"
@@ -1035,9 +2494,46 @@ msgstr "Tradução selecionada (alternativa em inglês)"
 msgid "Selected translation license details"
 msgstr "Detalhes da licença da tradução selecionada"
 
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "Send"
+msgstr "Enviar"
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Send invitation"
+msgstr "Enviar convite"
+
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Send invite"
+msgstr "Enviar convite"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Sending code…"
+msgstr "A enviar o código…"
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "Sending…"
+msgstr "A enviar…"
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Sensitive"
+msgstr "Sensível"
+
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Sessions & goals"
 msgstr "Sessões e objetivos"
+
+#: apps/native/components/profile-setup-prompt.tsx
+#: apps/web/src/components/profile-setup-prompt.tsx
+msgid "Set up your profile (optional)"
+msgstr "Configure o seu perfil (opcional)"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
@@ -1046,10 +2542,42 @@ msgstr "Sessões e objetivos"
 msgid "Settings"
 msgstr "Definições"
 
+#: apps/web/src/routes/setup.tsx
+msgid "Setup is complete"
+msgstr "A configuração está concluída"
+
+#: apps/web/src/routes/setup.tsx
+msgid "Setup token"
+msgstr "Token de configuração"
+
+#. safety
+#. safety
+#. safety
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Share optional usage analytics"
+msgstr "Partilhar estatísticas de utilização opcionais"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
 msgid "Sharing"
 msgstr "Partilha"
+
+#. safety
+#. safety
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Sharing is off unless you explicitly opt in."
+msgstr "A partilha está desligada, a menos que a ative expressamente."
+
+#. safety
+#. safety
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Sharing is on."
+msgstr "A partilha está ligada."
 
 #: apps/native/components/exercise-library.tsx
 msgid "Show fewer muscles"
@@ -1058,6 +2586,24 @@ msgstr "Mostrar menos músculos"
 #: apps/native/components/exercise-library.tsx
 msgid "Show less equipment"
 msgstr "Mostrar menos equipamento"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Show token"
+msgstr "Mostrar token"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Sign in"
+msgstr "Iniciar sessão"
+
+#: apps/web/src/components/user-menu.tsx
+msgid "Sign In"
+msgstr "Iniciar sessão"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Sign in again to sync."
+msgstr "Inicie sessão novamente para sincronizar."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1068,10 +2614,85 @@ msgstr "Inicie sessão para explorar os exercícios do seu espaço de trabalho."
 msgid "Sign in to browse your workspace library."
 msgstr "Inicie sessão para explorar a biblioteca do seu espaço de trabalho."
 
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Sign in to see and accept workspace invitations."
+msgstr "Inicie sessão para ver e aceitar convites para espaços de trabalho."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Sign in to view"
+msgstr "Inicie sessão para ver"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Sign in with <0>{email}</0> to start using OpenValens."
+msgstr "Inicie sessão com <0>{email}</0> para começar a usar o OpenValens."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Sign in with email"
+msgstr "Iniciar sessão com email"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Sign in with the matching email first, then return and enter the token again."
+msgstr "Inicie primeiro sessão com o email correspondente; depois volte e introduza novamente o token."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Sign out"
+msgstr "Terminar sessão"
+
+#: apps/web/src/components/user-menu.tsx
+msgid "Sign Out"
+msgstr "Terminar sessão"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Sign out to confirm it's you"
+msgstr "Terminar sessão para confirmar que é você"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Sign-in link sent"
+msgstr "Ligação de início de sessão enviada"
+
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Sign-in link sent — check your email"
+msgstr "Ligação de início de sessão enviada — verifique o seu email"
+
+#: apps/web/src/components/oidc-connect-section.tsx
+msgid "Sign-in methods"
+msgstr "Métodos de início de sessão"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Signed in as {email}. Enter the token again to continue enrollment."
+msgstr "Sessão iniciada como {email}. Introduza novamente o token para continuar a inscrição."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Signed in as <0>{sessionEmail}</0>."
+msgstr "Sessão iniciada como <0>{sessionEmail}</0>."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "single sign-on"
+msgstr "início de sessão único"
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Skip for now"
+msgstr "Saltar por agora"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Sleep"
 msgstr "Sono"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Some answers could not be saved. Check them and try again."
+msgstr "Não foi possível guardar algumas respostas. Verifique-as e tente novamente."
+
+#: apps/web/src/components/admin-invitations-view.tsx
+msgid "Something went wrong"
+msgstr "Algo correu mal"
+
+#: apps/web/src/components/admission-form.tsx
+#: apps/web/src/routes/unsubscribe.tsx
+msgid "Something went wrong. Try again."
+msgstr "Algo correu mal. Tente novamente."
 
 #: apps/native/components/exercise-attribution.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1081,6 +2702,20 @@ msgstr "Registo de origem"
 #: apps/native/components/muscle-guide.tsx
 msgid "Source-listed muscles: {listedNames}"
 msgstr "Músculos indicados pela fonte: {listedNames}"
+
+#: apps/native/components/profile-setup-prompt.tsx
+#: apps/web/src/components/profile-setup-prompt.tsx
+msgid "Start"
+msgstr "Começar"
+
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Start a new conversation to ask the AI coach for guidance."
+msgstr "Inicie uma nova conversa para pedir orientação ao coach de IA."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Start over"
+msgstr "Recomeçar"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -1095,10 +2730,31 @@ msgstr "O valor inicial deve ter no máximo {max} carateres."
 msgid "Starting value must start with a number, like \"70\" or \"70 kg\"."
 msgstr "O valor inicial deve começar por um número, como \"70\" ou \"70 kg\"."
 
+#: apps/native/app/(drawer)/coach/index.tsx
+#: apps/web/src/routes/_auth/coach/route.tsx
+msgid "Starting…"
+msgstr "A iniciar…"
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Startup configuration is read-only. Values are hidden for security, even for non-sensitive keys."
+msgstr "A configuração de arranque é só de leitura. Os valores estão ocultos por segurança, mesmo nas chaves não sensíveis."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Status"
 msgstr "Estado"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Steady but flexible, weighs context."
+msgstr "Constante mas flexível, tem em conta o contexto."
+
+#. safety
+#. safety
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Stopped locally; server change unconfirmed. Retry turning it off."
+msgstr "Parado localmente; a alteração no servidor não foi confirmada. Tente desligar novamente."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1109,6 +2765,10 @@ msgstr "Deixou de aguardar. O pedido ainda pode ser concluído no servidor."
 msgid "Strength"
 msgstr "Força"
 
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Strict"
+msgstr "Rigoroso"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/components/header.tsx
@@ -1116,9 +2776,25 @@ msgstr "Força"
 msgid "Supplements"
 msgstr "Suplementos"
 
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Supportive"
+msgstr "Apoiante"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Swim"
 msgstr "Natação"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Sync now"
+msgstr "Sincronizar agora"
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Syncing…"
+msgstr "A sincronizar…"
+
+#: apps/web/src/components/mode-toggle.tsx
+msgid "System"
+msgstr "Sistema"
 
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Talk test: {talkTest}."
@@ -1143,13 +2819,103 @@ msgstr "A meta deve ter no máximo {max} carateres."
 msgid "Target must start with a number, like \"70\" or \"70 kg\"."
 msgstr "A meta deve começar por um número, como \"70\" ou \"70 kg\"."
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Template"
+msgstr "Modelo"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Tennis"
 msgstr "Ténis"
 
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "That birth year is under 18. OpenValens personalisation is for adults only."
+msgstr "Esse ano de nascimento corresponde a menos de 18 anos. A personalização do OpenValens é só para adultos."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "That sign-in link is invalid or has expired. Request a new one."
+msgstr "Essa ligação de início de sessão é inválida ou expirou. Peça uma nova."
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "The library is empty for now."
 msgstr "Por agora, a biblioteca está vazia."
+
+#: apps/native/app/+not-found.tsx
+msgid "The page you're looking for doesn't exist."
+msgstr "A página que procura não existe."
+
+#: apps/web/src/routes/unsubscribe.tsx
+msgid "The weekly insights email is off. You can turn it on again in Settings."
+msgstr "O email semanal de observações está desligado. Pode voltar a ligá-lo nas Definições."
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "This device's access was revoked. Reconnect from the web app."
+msgstr "O acesso deste dispositivo foi revogado. Volte a ligar a partir da aplicação web."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "This email may already belong to an account. Send a sign-in link to <0>{email}</0>, then return to this tab and enter the token again."
+msgstr "Este email pode já pertencer a uma conta. Envie uma ligação de início de sessão para <0>{email}</0>; depois volte a este separador e introduza novamente o token."
+
+#: apps/web/src/routes/setup.tsx
+msgid "This instance has already been set up. If you have an account, sign in below."
+msgstr "Esta instância já foi configurada. Se tiver uma conta, inicie sessão abaixo."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "This invitation has expired."
+msgstr "Este convite expirou."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "This invitation is linked to an email address. Sign in to see the details and accept or decline."
+msgstr "Este convite está associado a um endereço de email. Inicie sessão para ver os detalhes e aceitar ou recusar."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "This invitation is no longer pending."
+msgstr "Este convite já não está pendente."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "This invitation is no longer pending. It may have expired or already been used."
+msgstr "Este convite já não está pendente. Pode ter expirado ou já ter sido usado."
+
+#. placeholder {0}: summary.email
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "This invitation was sent to {0}, but you are signed in as {sessionEmail}. Sign in with the matching email to accept."
+msgstr "Este convite foi enviado para {0}, mas tem sessão iniciada como {sessionEmail}. Inicie sessão com o email correspondente para aceitar."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "This invitation was sent to a different email address."
+msgstr "Este convite foi enviado para outro endereço de email."
+
+#: apps/native/app/modal.tsx
+msgid "This is an example modal screen for dialogs and confirmations."
+msgstr "Este é um ecrã modal de exemplo para diálogos e confirmações."
+
+#: apps/web/src/routes/unsubscribe.tsx
+msgid "This link is not valid any more. Sign in and open Settings to change your notifications."
+msgstr "Esta ligação já não é válida. Inicie sessão e abra as Definições para alterar as notificações."
+
+#. safety
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "This permanently deletes your account and {rows} stored rows across {organizationCount} health records ({organizationNames}). It can't be undone."
+msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardadas em {organizationCount} registos de saúde ({organizationNames}). Não é possível anular."
+
+#. safety
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "This permanently deletes your account and {rows} stored rows across {organizationCount} health records. It can't be undone."
+msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardadas em {organizationCount} registos de saúde. Não é possível anular."
+
+#. safety
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "This permanently deletes your account and {rows} stored rows across your health record ({organizationNames}). It can't be undone."
+msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardadas no seu registo de saúde ({organizationNames}). Não é possível anular."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "This token or code has expired. Request a new one."
+msgstr "Este token ou código expirou. Peça um novo."
+
+#. safety
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Tick the consent box to save this, or choose 'Prefer not to say'."
+msgstr "Assinale a caixa de consentimento para guardar isto, ou escolha 'Prefiro não dizer'."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
@@ -1162,6 +2928,11 @@ msgstr "Cronologia"
 msgid "Title"
 msgstr "Título"
 
+#. placeholder {0}: oidc.displayName
+#: apps/web/src/routes/join.tsx
+msgid "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
+msgstr "Para iniciar sessão com {0} mais tarde, termine a adesão, inicie sessão com a ligação por email e depois escolha Ligar em Definições → Métodos de início de sessão."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Today"
@@ -1171,6 +2942,19 @@ msgstr "Hoje"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Today's value"
 msgstr "Valor de hoje"
+
+#: apps/web/src/components/mode-toggle.tsx
+msgid "Toggle theme"
+msgstr "Alternar tema"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Tone"
+msgstr "Tom"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Too many attempts. Wait a moment, then try again."
+msgstr "Demasiadas tentativas. Aguarde um momento e tente novamente."
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -1191,10 +2975,48 @@ msgstr "Tentar novamente"
 msgid "Try another name, or clear the search."
 msgstr "Experimente outro nome ou limpe a pesquisa."
 
+#: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Turn off the weekly email"
+msgstr "Desligar o email semanal"
+
+#: apps/web/src/routes/unsubscribe.tsx
+msgid "Turn off the weekly insights email for this workspace?"
+msgstr "Desligar o email semanal de observações para este espaço de trabalho?"
+
+#: apps/web/src/routes/unsubscribe.tsx
+msgid "Turn off this email"
+msgstr "Desligar este email"
+
+#: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Turn on the weekly email"
+msgstr "Ligar o email semanal"
+
+#. safety
+#: apps/web/src/components/ai-consent-card.tsx
+msgid "Turn on to let AI features process your data."
+msgstr "Ligue para permitir que as funcionalidades de IA tratem os seus dados."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Type"
 msgstr "Tipo"
+
+#. safety
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Type {confirmationPhrase} to confirm"
+msgstr "Escreva {confirmationPhrase} para confirmar"
+
+#. safety
+#: apps/web/src/routes/_auth/settings.tsx
+msgid "Type <0>{confirmationPhrase}</0> to confirm"
+msgstr "Escreva <0>{confirmationPhrase}</0> para confirmar"
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Undo changes"
+msgstr "Anular alterações"
 
 #. safety
 #. safety
@@ -1204,6 +3026,72 @@ msgstr "Tipo"
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Unit"
 msgstr "Unidade"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "United Kingdom"
+msgstr "Reino Unido"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "United States"
+msgstr "Estados Unidos"
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Units"
+msgstr "Unidades"
+
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Unsaved changes"
+msgstr "Alterações por guardar"
+
+#. placeholder {0}: dirty.map((s) => i18n._(SECTION_TITLES[s])).join(", ")
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Unsaved: {0}"
+msgstr "Por guardar: {0}"
+
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Updating your setting…"
+msgstr "A atualizar a sua definição…"
+
+#: apps/native/components/analytics-consent-section.tsx
+#: apps/web/src/components/analytics-consent-section.tsx
+msgid "Usage analytics"
+msgstr "Estatísticas de utilização"
+
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Use {browserZone}"
+msgstr "Usar {browserZone}"
+
+#: apps/native/app/(drawer)/insight-settings.tsx
+msgid "Use {zone}"
+msgstr "Usar {zone}"
+
+#: apps/native/components/sign-in.tsx
+#: apps/web/src/components/magic-link-form.tsx
+msgid "Use a different email"
+msgstr "Usar outro email"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Verification code"
+msgstr "Código de verificação"
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Verifying…"
+msgstr "A verificar…"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Very forceful"
+msgstr "Muito enérgico"
+
+#: packages/api/src/presenters/coach-settings.ts
+msgid "Very gentle"
+msgstr "Muito suave"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "View global environment settings"
+msgstr "Ver as definições globais do ambiente"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1215,10 +3103,43 @@ msgstr "Visível para os membros deste espaço de trabalho."
 msgid "Vitals"
 msgstr "Sinais vitais"
 
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "We could not load this invitation. It may have expired or been revoked."
+msgstr "Não foi possível carregar este convite. Pode ter expirado ou sido revogado."
+
+#. placeholder {0}: state.email
+#: apps/web/src/components/admission-form.tsx
+msgid "We emailed a one-time code to <0>{0}</0>. It expires in 10 minutes."
+msgstr "Enviámos um código de utilização única para <0>{0}</0>. Expira dentro de 10 minutos."
+
+#: apps/native/components/sign-in.tsx
+msgid "We sent a sign-in link to {sentTo}. Open it on this phone within 10 minutes."
+msgstr "Enviámos uma ligação de início de sessão para {sentTo}. Abra-a neste telemóvel dentro de 10 minutos."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "We sent a sign-in link to <0>{sentTo}</0>. It expires in 10 minutes."
+msgstr "Enviámos uma ligação de início de sessão para <0>{sentTo}</0>. Expira dentro de 10 minutos."
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "We'll email you a link to sign in. No password needed."
+msgstr "Vamos enviar-lhe por email uma ligação para iniciar sessão. Não precisa de palavra-passe."
+
+#: apps/native/components/sign-in.tsx
+msgid "We'll email you a link. No password needed."
+msgstr "Vamos enviar-lhe uma ligação por email. Não precisa de palavra-passe."
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Weekly"
 msgstr "Semanalmente"
+
+#: apps/web/src/routes/unsubscribe.tsx
+msgid "Weekly insights email"
+msgstr "Email semanal de observações"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "What brings you here"
+msgstr "O que o traz cá"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/workouts.tsx
@@ -1227,15 +3148,99 @@ msgstr "Semanalmente"
 msgid "Workouts"
 msgstr "Treinos"
 
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Workspace"
+msgstr "Espaço de trabalho"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Workspace exercise"
 msgstr "Exercício do espaço de trabalho"
 
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Workspace invitation"
+msgstr "Convite para espaço de trabalho"
+
+#: apps/native/app/(drawer)/coach/[conversationId].tsx
+#: apps/web/src/routes/_auth/coach/$conversationId.tsx
+msgid "You"
+msgstr "Você"
+
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "You are offline."
+msgstr "Está sem ligação."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "You can also add it later today."
 msgstr "Também pode adicioná-lo mais tarde, hoje."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "You can close this page."
+msgstr "Pode fechar esta página."
+
+#: apps/web/src/components/product-settings-form.tsx
+msgid "You can view these settings but cannot edit them."
+msgstr "Pode ver estas definições, mas não as pode editar."
+
+#: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "You do not have access to instance administration."
+msgstr "Não tem acesso à administração da instância."
+
+#. placeholder {0}: summary.organizationName
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "You have been invited to join <0>{0}</0> as <1>{role}</1>."
+msgstr "Foi convidado para aderir a <0>{0}</0> como <1>{role}</1>."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "You have been invited to join a workspace as <0>{role}</0>."
+msgstr "Foi convidado para aderir a um espaço de trabalho como <0>{role}</0>."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "You have joined the workspace."
+msgstr "Aderiu ao espaço de trabalho."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "You have no pending workspace invitations."
+msgstr "Não tem convites pendentes para espaços de trabalho."
+
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "You have unsaved changes on this page. Leave without saving them?"
+msgstr "Tem alterações por guardar nesta página. Sair sem as guardar?"
+
+#. safety
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
+msgstr "Retirou o consentimento para esta resposta, por isso não pode ser guardada. Limpe-a ou mantenha o consentimento."
+
+#: apps/native/components/health-sync-settings.tsx
+msgid "Your account has no organization. Sync is paused."
+msgstr "A sua conta não tem organização. A sincronização está em pausa."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Your account is ready."
+msgstr "A sua conta está pronta."
+
+#: apps/web/src/components/admission-form.tsx
+msgid "Your account is ready. Sign in to continue."
+msgstr "A sua conta está pronta. Inicie sessão para continuar."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/profile.tsx
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "Your profile"
+msgstr "O seu perfil"
+
+#: packages/api/src/presenters/wellness-profile.ts
+msgid "Your profile was changed somewhere else. We've loaded the latest version — check it and save again."
+msgstr "O seu perfil foi alterado noutro local. Carregámos a versão mais recente — verifique-a e guarde novamente."
+
+#. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Your role: <0>{0}</0>"
+msgstr "A sua função: <0>{0}</0>"
 
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "YYYY-MM-DD"

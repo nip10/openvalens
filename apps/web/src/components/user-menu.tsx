@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import {
   DropdownMenu,
@@ -25,7 +26,9 @@ export default function UserMenu() {
   if (!session) {
     return (
       <Button variant="outline" asChild>
-        <Link to="/login">Sign In</Link>
+        <Link to="/login">
+          <Trans>Sign In</Trans>
+        </Link>
       </Button>
     );
   }
@@ -39,7 +42,9 @@ export default function UserMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="bg-card">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            <Trans>My Account</Trans>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="max-w-[min(20rem,85vw)]">
             <span className="truncate">{session.user.email}</span>
@@ -59,7 +64,7 @@ export default function UserMenu() {
               });
             }}
           >
-            Sign Out
+            <Trans>Sign Out</Trans>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

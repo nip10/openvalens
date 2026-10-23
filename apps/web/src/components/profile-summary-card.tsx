@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import {
   describeAnswer,
   WELLNESS_FIELD_COPY,
@@ -24,11 +25,13 @@ export function ProfileSummarySection() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Profile</CardTitle>
+          <CardTitle>
+            <Trans>Profile</Trans>
+          </CardTitle>
           <CardDescription>
-            Could not load your profile.{" "}
+            <Trans>Could not load your profile.</Trans>{" "}
             <button className="underline" onClick={() => void profile.refetch()}>
-              Retry
+              <Trans>Retry</Trans>
             </button>
           </CardDescription>
         </CardHeader>
@@ -42,11 +45,13 @@ export function ProfileSummaryCard({ snapshot }: { snapshot: WellnessProfileSnap
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profile</CardTitle>
+        <CardTitle>
+          <Trans>Profile</Trans>
+        </CardTitle>
         <CardDescription>
-          Optional answers only you can see.{" "}
+          <Trans>Optional answers only you can see.</Trans>{" "}
           <Link to="/profile" className="underline">
-            Edit profile
+            <Trans>Edit profile</Trans>
           </Link>
         </CardDescription>
       </CardHeader>

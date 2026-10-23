@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import {
   Card,
@@ -44,20 +45,25 @@ function AuthLayout() {
 
 function AuthBootstrapError({ error }: { error: unknown }) {
   const router = useRouter();
+  const { t } = useLingui();
   const message =
     error instanceof BootstrapError
       ? error.message
-      : "Could not prepare your workspace. Please try again.";
+      : t`Could not prepare your workspace. Please try again.`;
 
   return (
     <main className="container mx-auto max-w-3xl px-4 py-6">
       <Card className="mx-auto w-full max-w-md">
         <CardHeader>
-          <CardTitle>Account setup failed</CardTitle>
+          <CardTitle>
+            <Trans>Account setup failed</Trans>
+          </CardTitle>
           <CardDescription>{message}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={() => router.invalidate()}>Retry</Button>
+          <Button onClick={() => router.invalidate()}>
+            <Trans>Retry</Trans>
+          </Button>
         </CardContent>
       </Card>
     </main>

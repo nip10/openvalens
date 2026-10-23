@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -38,6 +39,7 @@ function AdminInvitationsPage() {
 
   const [issueState, setIssueState] = useState<IssueState>("idle");
   const [issueError, setIssueError] = useState<string | null>(null);
+  const { t } = useLingui();
 
   useEffect(() => {
     if (issueState !== "success") return;
@@ -54,7 +56,7 @@ function AdminInvitationsPage() {
       void list.refetch();
     } catch (error) {
       setIssueState("error");
-      setIssueError("Could not send invitation.");
+      setIssueError(t`Could not send invitation.`);
       if (isConfigPermissionDenied(error)) {
         void access.refetch();
       }

@@ -1,3 +1,4 @@
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { previewLine, relativeTime, truncate } from "@openvalens/api/presenters/cochat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
@@ -16,6 +17,7 @@ export default function CoachListScreen() {
   const foreground = useThemeColor("foreground");
   const threads = useQuery(orpc.ai.listThreads.queryOptions({ input: { limit: 50 } }));
   const [starting, setStarting] = useState(false);
+  const { t, i18n } = useLingui();
 
   const start = useMutation(
     orpc.ai.chat.mutationOptions({
@@ -34,8 +36,12 @@ export default function CoachListScreen() {
       messages: [
         {
           role: "user",
-          content:
-            "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+          content: t({
+            message:
+              "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+            comment:
+              "First message sent to the AI coach for a new conversation; shown as the person's own message",
+          }),
         },
       ],
     });
@@ -51,13 +57,17 @@ export default function CoachListScreen() {
   if (threads.isError || !threads.data)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load threads.</Text>
+        <Text className="text-base text-foreground">
+          <Trans>Could not load threads.</Trans>
+        </Text>
         <Pressable
           onPress={() => void threads.refetch()}
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">
+            <Trans>Retry</Trans>
+          </Text>
         </Pressable>
       </Container>
     );
@@ -79,26 +89,32 @@ export default function CoachListScreen() {
       <View className="gap-4 p-4">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className="text-sm text-muted-foreground">Coach</Text>
-            <Text className="font-mono text-3xl text-foreground">Conversations</Text>
+            <Text className="text-sm text-muted-foreground">
+              <Trans>Coach</Trans>
+            </Text>
+            <Text className="font-mono text-3xl text-foreground">
+              <Trans>Conversations</Trans>
+            </Text>
           </View>
           <Button onPress={onNew} isDisabled={starting || start.isPending}>
-            {start.isPending ? "Starting…" : "New"}
+            {start.isPending ? t`Starting…` : t`New`}
           </Button>
         </View>
 
         {start.isError ? (
           <Text className="text-sm text-destructive">
-            Could not start a conversation. Check that AI is enabled in Settings.
+            <Trans>Could not start a conversation. Check that AI is enabled in Settings.</Trans>
           </Text>
         ) : null}
 
         {list.length === 0 ? (
           <CardStack>
             <Card variant="secondary" className="items-center gap-1 p-8">
-              <Text className="font-medium text-foreground">No conversations yet</Text>
+              <Text className="font-medium text-foreground">
+                <Trans>No conversations yet</Trans>
+              </Text>
               <Text className="text-center text-sm text-muted-foreground">
-                Start a new conversation to ask the AI coach for guidance.
+                <Trans>Start a new conversation to ask the AI coach for guidance.</Trans>
               </Text>
             </Card>
           </CardStack>
@@ -116,8 +132,8 @@ export default function CoachListScreen() {
                 >
                   <View className="min-w-0 flex-1">
                     <Text className="text-xs text-muted-foreground">
-                      {relativeTime(thread.lastMessageAt)} · {thread.messageCount} message
-                      {thread.messageCount === 1 ? "" : "s"}
+                      {i18n._(relativeTime(thread.lastMessageAt))} ·{" "}
+                      <Plural value={thread.messageCount} one="# message" other="# messages" />
                     </Text>
                     <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
                       {truncate(previewLine(thread), 80)}

@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -32,13 +33,21 @@ function HomeComponent() {
       <pre className="overflow-x-auto font-mono text-sm">{TITLE_TEXT}</pre>
       <div className="grid gap-6">
         <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-medium">API Status</h2>
+          <h2 className="mb-2 font-medium">
+            <Trans>API Status</Trans>
+          </h2>
           <div className="flex items-center gap-2">
             <div
               className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
             />
             <span className="text-sm text-muted-foreground">
-              {readiness.isLoading ? "Checking..." : isConnected ? "Connected" : "Disconnected"}
+              {readiness.isLoading ? (
+                <Trans>Checking...</Trans>
+              ) : isConnected ? (
+                <Trans>Connected</Trans>
+              ) : (
+                <Trans>Disconnected</Trans>
+              )}
             </span>
           </div>
         </section>

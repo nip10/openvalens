@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Chip, Spinner } from "heroui-native";
 import { useState } from "react";
@@ -36,10 +39,13 @@ const invitationClient: WorkspaceInvitationClient = {
   },
 };
 
-function errorMessage(error: unknown): string {
-  if (error instanceof WorkspaceInvitationError) return error.message;
-  return "Could not complete that action. Please try again.";
-}
+const ROLE_LABELS: Record<string, MessageDescriptor> = {
+  owner: msg`owner`,
+  admin: msg`admin`,
+  member: msg`member`,
+};
+
+const ACTION_FAILED = msg`Could not complete that action. Please try again.`;
 
 export default function InvitationsScreen() {
   const queryClient = useQueryClient();
@@ -47,6 +53,9 @@ export default function InvitationsScreen() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const email = session?.user?.email?.toLowerCase() ?? null;
   const [message, setMessage] = useState<string | null>(null);
+  const { t, i18n } = useLingui();
+  const errorMessage = (error: unknown): string =>
+    error instanceof WorkspaceInvitationError ? error.message : i18n._(ACTION_FAILED);
 
   const invitations = useQuery({
     queryKey: ["invitations", "mine", email],
@@ -62,7 +71,7 @@ export default function InvitationsScreen() {
   const accept = useMutation({
     mutationFn: (invitationId: string) => acceptWorkspaceInvitation(invitationClient, invitationId),
     onSuccess: () => {
-      setMessage("Invitation accepted. The workspace is now active.");
+      setMessage(t`Invitation accepted. The workspace is now active.`);
       void queryClient.invalidateQueries();
     },
     onError: (error) => setMessage(errorMessage(error)),
@@ -72,7 +81,7 @@ export default function InvitationsScreen() {
     mutationFn: (invitationId: string) =>
       declineWorkspaceInvitation(invitationClient, invitationId),
     onSuccess: () => {
-      setMessage("Invitation declined.");
+      setMessage(t`Invitation declined.`);
       void queryClient.invalidateQueries();
     },
     onError: (error) => setMessage(errorMessage(error)),
@@ -89,7 +98,7 @@ export default function InvitationsScreen() {
     return (
       <Container className="gap-4 p-4">
         <Text className="text-sm text-muted-foreground">
-          Sign in to see and accept workspace invitations.
+          <Trans>Sign in to see and accept workspace invitations.</Trans>
         </Text>
         <SignIn />
       </Container>
@@ -112,8 +121,12 @@ export default function InvitationsScreen() {
     >
       <View className="gap-4 p-4">
         <View>
-          <Text className="text-sm text-muted-foreground">Workspace</Text>
-          <Text className="font-mono text-3xl text-foreground">Invitations</Text>
+          <Text className="text-sm text-muted-foreground">
+            <Trans>Workspace</Trans>
+          </Text>
+          <Text className="font-mono text-3xl text-foreground">
+            <Trans>Invitations</Trans>
+          </Text>
         </View>
 
         {message ? (
@@ -126,25 +139,29 @@ export default function InvitationsScreen() {
           <Spinner />
         ) : invitations.isError ? (
           <Card variant="secondary" className="gap-3 p-4">
-            <Text className="text-base text-foreground">Could not load invitations.</Text>
+            <Text className="text-base text-foreground">
+              <Trans>Could not load invitations.</Trans>
+            </Text>
             <Pressable
               onPress={refresh}
               className="min-h-11 justify-center active:opacity-70"
               accessibilityRole="button"
             >
-              <Text className="font-medium text-foreground underline">Retry</Text>
+              <Text className="font-medium text-foreground underline">
+                <Trans>Retry</Trans>
+              </Text>
             </Pressable>
           </Card>
         ) : invitations.data.length === 0 ? (
-          <CardStack title="Pending invitations">
+          <CardStack title={t`Pending invitations`}>
             <Card variant="secondary" className="p-4">
               <Text className="text-sm text-muted-foreground">
-                You have no pending workspace invitations.
+                <Trans>You have no pending workspace invitations.</Trans>
               </Text>
             </Card>
           </CardStack>
         ) : (
-          <CardStack title={`Pending invitations · ${invitations.data.length}`}>
+          <CardStack title={t`Pending invitations · ${invitations.data.length}`}>
             {invitations.data.map((invitation) => (
               <InvitationRow
                 key={invitation.id}
@@ -188,19 +205,21 @@ function InvitationRow({
   onDecline: () => void;
 }) {
   const state = invitationState(invitation, { sessionEmail, now: Date.now() });
+  const { t, i18n } = useLingui();
+  const roleLabel = ROLE_LABELS[invitation.role];
 
   return (
     <Card variant="secondary" className="gap-3 p-4">
       <View className="gap-1">
         <Text className="text-base text-foreground">
-          {invitation.organizationName ?? "A workspace"}
+          {invitation.organizationName ?? t`A workspace`}
         </Text>
         <View className="flex-row items-center gap-2">
           <Chip size="sm" variant="secondary">
-            <Chip.Label>{invitation.role}</Chip.Label>
+            <Chip.Label>{roleLabel ? i18n._(roleLabel) : invitation.role}</Chip.Label>
           </Chip>
           <Text className="text-xs text-muted-foreground break-words">
-            Invited email: {invitation.email}
+            <Trans>Invited email: {invitation.email}</Trans>
           </Text>
         </View>
       </View>
@@ -208,19 +227,19 @@ function InvitationRow({
       {state === "pending" ? (
         <View className="flex-row gap-2">
           <Button className="flex-1" onPress={onAccept} isDisabled={busy}>
-            {accepting ? "Accepting…" : "Accept"}
+            {accepting ? t`Accepting…` : t`Accept`}
           </Button>
           <Button className="flex-1" variant="outline" onPress={onDecline} isDisabled={busy}>
-            {declining ? "Declining…" : "Decline"}
+            {declining ? t`Declining…` : t`Decline`}
           </Button>
         </View>
       ) : (
         <Text className="text-sm text-muted-foreground">
           {state === "expired"
-            ? "This invitation has expired."
+            ? t`This invitation has expired.`
             : state === "wrong_account"
-              ? "This invitation was sent to a different email address."
-              : "This invitation is no longer pending."}
+              ? t`This invitation was sent to a different email address.`
+              : t`This invitation is no longer pending.`}
         </Text>
       )}
     </Card>

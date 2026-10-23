@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import { EMPTY_WELLNESS_PROFILE, type WellnessProfileSnapshot } from "../wellness-profile-contract";
 import {
   buildSectionPatch,
@@ -163,16 +165,18 @@ describe("save errors", () => {
       data: { reason: "CONSENT_REQUIRED", field: "sex" },
     });
     expect(invalid.kind).toBe("invalid");
-    expect(invalid.message).toContain("consent");
+    expect(inEnglish(invalid.message)).toContain("consent");
     expect(describeProfileSaveError(new TypeError("Failed to fetch")).kind).toBe("offline");
     expect(describeProfileSaveError({ code: "INTERNAL" }).kind).toBe("unknown");
   });
 
   test("error messages never echo a submitted value", () => {
-    const message = describeProfileSaveError({
-      code: "INVALID_INPUT",
-      data: { reason: "BIRTH_YEAR_UNDER_18", field: "birthYear" },
-    }).message;
+    const message = inEnglish(
+      describeProfileSaveError({
+        code: "INVALID_INPUT",
+        data: { reason: "BIRTH_YEAR_UNDER_18", field: "birthYear" },
+      }).message,
+    );
     expect(message).not.toMatch(/\d{4}/);
   });
 });

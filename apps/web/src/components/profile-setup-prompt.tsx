@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   describeProfileSaveError,
   nextSetupSection,
@@ -38,7 +40,8 @@ export function ProfileSetupPromptCard({
   userId: string;
 }) {
   const update = useUpdateWellnessProfile(userId);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<MessageDescriptor | null>(null);
+  const { t, i18n } = useLingui();
   if (!shouldOfferSetup(snapshot)) return null;
 
   const progress = setupProgress(snapshot);
@@ -49,17 +52,28 @@ export function ProfileSetupPromptCard({
     <Card className="mb-6">
       <CardHeader>
         <CardTitle>
-          {started ? "Continue setting up (optional)" : "Set up your profile (optional)"}
+          {started ? t`Continue setting up (optional)` : t`Set up your profile (optional)`}
         </CardTitle>
         <CardDescription>
-          A few optional questions so the app can show what matters to you. Skip any of them —
-          everything else works without them.
-          {started ? ` ${progress.answered} of ${progress.available} sections answered.` : ""}
+          <Trans>
+            A few optional questions so the app can show what matters to you. Skip any of them —
+            everything else works without them.
+          </Trans>
+          {started ? (
+            <>
+              {" "}
+              <Trans>
+                {progress.answered} of {progress.available} sections answered.
+              </Trans>
+            </>
+          ) : null}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">
         <Link to="/profile" search={{ section: next ?? undefined }}>
-          <Button>{started && next ? `Continue: ${SECTION_TITLES[next]}` : "Start"}</Button>
+          <Button>
+            {started && next ? t`Continue: ${i18n._(SECTION_TITLES[next])}` : t`Start`}
+          </Button>
         </Link>
         <Button
           variant="outline"
@@ -72,11 +86,11 @@ export function ProfileSetupPromptCard({
             );
           }}
         >
-          Not now
+          <Trans>Not now</Trans>
         </Button>
         {error ? (
           <p role="alert" className="text-sm text-destructive">
-            {error}
+            {i18n._(error)}
           </p>
         ) : null}
       </CardContent>

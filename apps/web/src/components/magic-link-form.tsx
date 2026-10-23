@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
@@ -33,6 +34,7 @@ export default function MagicLinkForm({
   oidcError = null,
 }: MagicLinkFormProps) {
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const { t } = useLingui();
 
   const callbackURL = (() => {
     const origin = window.location.origin;
@@ -51,28 +53,32 @@ export default function MagicLinkForm({
           callbackURL,
           errorCallbackURL: `${origin}/login?error=link`,
         });
-        if (error) toast.error("Could not send the sign-in link. Please try again.");
+        if (error) toast.error(t`Could not send the sign-in link. Please try again.`);
         else setSentTo(email);
       } catch {
-        toast.error("Could not send the sign-in link. Please try again.");
+        toast.error(t`Could not send the sign-in link. Please try again.`);
       }
     },
     validators: {
-      onSubmit: z.object({ email: z.email("Enter a valid email address") }),
+      onSubmit: z.object({ email: z.email(t`Enter a valid email address`) }),
     },
   });
 
   if (sentTo) {
     return (
       <div className="mx-auto mt-10 w-full max-w-md space-y-4 p-6 text-center">
-        <h1 className="text-3xl font-bold">Check your email</h1>
+        <h1 className="text-3xl font-bold">
+          <Trans>Check your email</Trans>
+        </h1>
         <p className="text-muted-foreground">
-          We sent a sign-in link to{" "}
-          <span className="font-medium text-foreground wrap-anywhere">{sentTo}</span>. It expires in
-          10 minutes.
+          <Trans>
+            We sent a sign-in link to{" "}
+            <span className="font-medium text-foreground wrap-anywhere">{sentTo}</span>. It expires
+            in 10 minutes.
+          </Trans>
         </p>
         <Button variant="link" onClick={() => setSentTo(null)}>
-          Use a different email
+          <Trans>Use a different email</Trans>
         </Button>
       </div>
     );
@@ -80,18 +86,20 @@ export default function MagicLinkForm({
 
   return (
     <div className="mx-auto mt-10 w-full max-w-md p-6">
-      <h1 className="mb-2 text-center text-3xl font-bold">Sign in</h1>
+      <h1 className="mb-2 text-center text-3xl font-bold">
+        <Trans>Sign in</Trans>
+      </h1>
       <p className="mb-6 text-center text-sm text-muted-foreground">
-        We'll email you a link to sign in. No password needed.
+        <Trans>We'll email you a link to sign in. No password needed.</Trans>
       </p>
       {oidcError !== null && (
         <p className="mb-4 text-center text-sm text-destructive">
-          {oidcSignInErrorMessage(oidcError || undefined, oidc?.displayName ?? "single sign-on")}
+          {oidcSignInErrorMessage(oidcError || undefined, oidc?.displayName ?? t`single sign-on`)}
         </p>
       )}
       {linkError && (
         <p className="mb-4 text-center text-sm text-destructive">
-          That sign-in link is invalid or has expired. Request a new one.
+          <Trans>That sign-in link is invalid or has expired. Request a new one.</Trans>
         </p>
       )}
 
@@ -106,7 +114,9 @@ export default function MagicLinkForm({
         <form.Field name="email">
           {(field) => (
             <div className="space-y-2">
-              <Label htmlFor={field.name}>Email</Label>
+              <Label htmlFor={field.name}>
+                <Trans>Email</Trans>
+              </Label>
               <Input
                 id={field.name}
                 name={field.name}
@@ -130,7 +140,7 @@ export default function MagicLinkForm({
         >
           {({ canSubmit, isSubmitting }) => (
             <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? "Sending…" : "Email me a sign-in link"}
+              {isSubmitting ? t`Sending…` : t`Email me a sign-in link`}
             </Button>
           )}
         </form.Subscribe>
@@ -140,7 +150,7 @@ export default function MagicLinkForm({
         <div className="mt-4 space-y-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" />
-            or
+            <Trans>or</Trans>
             <span className="h-px flex-1 bg-border" />
           </div>
           <OidcSignInButton
@@ -152,15 +162,17 @@ export default function MagicLinkForm({
       ) : null}
 
       <div className="mt-6 space-y-2 border-t pt-6 text-center text-sm text-muted-foreground">
-        <p>New accounts require an invitation.</p>
+        <p>
+          <Trans>New accounts require an invitation.</Trans>
+        </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {setupAvailable ? (
             <a href="/setup" className="text-primary underline underline-offset-4">
-              First setup
+              <Trans>First setup</Trans>
             </a>
           ) : null}
           <a href="/join" className="text-primary underline underline-offset-4">
-            Redeem invitation
+            <Trans>Redeem invitation</Trans>
           </a>
         </div>
       </div>

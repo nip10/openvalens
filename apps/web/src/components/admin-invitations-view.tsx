@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
 import {
@@ -37,17 +38,22 @@ export function AdminInvitationsView({
   onIssue,
   onRevoke,
 }: AdminInvitationsViewProps) {
+  const { t } = useLingui();
   return (
     <main className="container mx-auto max-w-3xl px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Instance invitations</h1>
-        <p className="text-sm text-muted-foreground">Administration</p>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Instance invitations</Trans>
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          <Trans>Administration</Trans>
+        </p>
       </div>
 
       {accessState === "loading" ? (
         <LoadingCard />
       ) : accessState === "error" ? (
-        <ErrorCard message="Could not verify admin access." onRetry={onRetryAccess} />
+        <ErrorCard message={t`Could not verify admin access.`} onRetry={onRetryAccess} />
       ) : accessState === "denied" ? (
         <DeniedCard />
       ) : (
@@ -78,6 +84,7 @@ function GrantedView({
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
+  const { t } = useLingui();
 
   const valid = email.includes("@") && email.length <= 320;
 
@@ -100,7 +107,7 @@ function GrantedView({
       await onRevoke(invitationId);
       setConfirmRevoke(null);
     } catch {
-      setRevokeError("Could not revoke invitation.");
+      setRevokeError(t`Could not revoke invitation.`);
     } finally {
       setRevokingId(null);
     }
@@ -110,15 +117,21 @@ function GrantedView({
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Invite a user</CardTitle>
+          <CardTitle>
+            <Trans>Invite a user</Trans>
+          </CardTitle>
           <CardDescription>
-            Invite someone to create an account. They will receive an invitation token by email.
+            <Trans>
+              Invite someone to create an account. They will receive an invitation token by email.
+            </Trans>
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
             <div className="grid gap-2">
-              <Label htmlFor="admin-invite-email">Email</Label>
+              <Label htmlFor="admin-invite-email">
+                <Trans>Email</Trans>
+              </Label>
               <Input
                 id="admin-invite-email"
                 type="email"
@@ -133,15 +146,17 @@ function GrantedView({
             </div>
             <div className="flex items-end">
               <Button onClick={submitIssue} disabled={!valid || issueState === "loading"}>
-                {issueState === "loading" ? "Sending…" : "Send invitation"}
+                {issueState === "loading" ? t`Sending…` : t`Send invitation`}
               </Button>
             </div>
           </div>
           {issueState === "success" ? (
-            <p className="text-sm text-success">Invitation sent.</p>
+            <p className="text-sm text-success">
+              <Trans>Invitation sent.</Trans>
+            </p>
           ) : issueState === "error" ? (
             <p className="text-sm text-destructive" role="alert" aria-live="polite">
-              {issueError ?? "Could not send invitation."}
+              {issueError ?? t`Could not send invitation.`}
             </p>
           ) : null}
         </CardContent>
@@ -150,7 +165,7 @@ function GrantedView({
       {listState === "loading" ? (
         <LoadingCard />
       ) : listState === "error" ? (
-        <ErrorCard message="Could not load invitations." onRetry={onRetryList} />
+        <ErrorCard message={t`Could not load invitations.`} onRetry={onRetryList} />
       ) : (
         <InvitationsList
           invitations={invitations ?? []}
@@ -180,10 +195,13 @@ function InvitationsList({
   onRequestRevoke: (id: string | null) => void;
   onRevoke: (id: string) => void | Promise<void>;
 }) {
+  const { t } = useLingui();
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Invitations · {invitations.length}</CardTitle>
+        <CardTitle>
+          <Trans>Invitations · {invitations.length}</Trans>
+        </CardTitle>
       </CardHeader>
       {revokeError ? (
         <CardContent>
@@ -193,7 +211,9 @@ function InvitationsList({
         </CardContent>
       ) : null}
       {invitations.length === 0 ? (
-        <CardContent className="text-sm text-muted-foreground">No invitations yet.</CardContent>
+        <CardContent className="text-sm text-muted-foreground">
+          <Trans>No invitations yet.</Trans>
+        </CardContent>
       ) : (
         <ul className="divide-y divide-border">
           {invitations.map((invitation) => (
@@ -204,7 +224,7 @@ function InvitationsList({
                   <div className="text-sm text-muted-foreground">
                     <StatusBadge status={invitation.status} />{" "}
                     {invitation.expiresAt
-                      ? `Expires ${invitation.expiresAt.toLocaleString()}`
+                      ? t`Expires ${invitation.expiresAt.toLocaleString()}`
                       : null}
                   </div>
                 </div>
@@ -218,7 +238,7 @@ function InvitationsList({
                           onClick={() => onRequestRevoke(null)}
                           disabled={revokingId === invitation.id}
                         >
-                          Cancel
+                          <Trans>Cancel</Trans>
                         </Button>
                         <Button
                           variant="destructive"
@@ -226,7 +246,7 @@ function InvitationsList({
                           onClick={() => onRevoke(invitation.id)}
                           disabled={revokingId === invitation.id}
                         >
-                          {revokingId === invitation.id ? "Revoking…" : "Revoke"}
+                          {revokingId === invitation.id ? t`Revoking…` : t`Revoke`}
                         </Button>
                       </>
                     ) : (
@@ -236,7 +256,7 @@ function InvitationsList({
                         onClick={() => onRequestRevoke(invitation.id)}
                         disabled={revokingId === invitation.id}
                       >
-                        Revoke
+                        <Trans>Revoke</Trans>
                       </Button>
                     )}
                   </div>
@@ -252,12 +272,24 @@ function InvitationsList({
 
 function StatusBadge({ status }: { status: AdmissionInvitationSummary["status"] }) {
   if (status === "consumed") {
-    return <Badge variant="default">Consumed</Badge>;
+    return (
+      <Badge variant="default">
+        <Trans>Consumed</Trans>
+      </Badge>
+    );
   }
   if (status === "expired") {
-    return <Badge variant="secondary">Expired</Badge>;
+    return (
+      <Badge variant="secondary">
+        <Trans>Expired</Trans>
+      </Badge>
+    );
   }
-  return <Badge variant="outline">Pending</Badge>;
+  return (
+    <Badge variant="outline">
+      <Trans>Pending</Trans>
+    </Badge>
+  );
 }
 
 function LoadingCard() {
@@ -279,14 +311,16 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Something went wrong</CardTitle>
+        <CardTitle>
+          <Trans>Something went wrong</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
           {message}{" "}
           {onRetry ? (
             <button className="underline" onClick={onRetry}>
-              Retry
+              <Trans>Retry</Trans>
             </button>
           ) : null}
         </p>
@@ -299,11 +333,13 @@ function DeniedCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Access denied</CardTitle>
+        <CardTitle>
+          <Trans>Access denied</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          You do not have access to instance administration.
+          <Trans>You do not have access to instance administration.</Trans>
         </p>
       </CardContent>
     </Card>

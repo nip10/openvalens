@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   buildSectionPatch,
   describeProfileSaveError,
@@ -59,7 +62,7 @@ type SaveState =
   | { status: "idle" }
   | { status: "saving" }
   | { status: "saved" }
-  | { status: "error"; message: string };
+  | { status: "error"; message: MessageDescriptor };
 
 export default function ProfileScreen() {
   const { data: session } = authClient.useSession();
@@ -83,10 +86,12 @@ export default function ProfileScreen() {
       <Container className="p-4">
         <Card variant="secondary" className="items-center gap-2 p-6">
           <Text className="text-base text-foreground" accessibilityRole="alert">
-            Could not load your profile. Nothing has changed.
+            <Trans>Could not load your profile. Nothing has changed.</Trans>
           </Text>
           <Pressable onPress={() => void profile.refetch()} accessibilityRole="button">
-            <Text className="font-medium text-foreground underline">Retry</Text>
+            <Text className="font-medium text-foreground underline">
+              <Trans>Retry</Trans>
+            </Text>
           </Pressable>
         </Card>
       </Container>
@@ -112,8 +117,9 @@ function ProfileEditor({
     snapshot.birthYear.state === "recorded" ? String(snapshot.birthYear.value) : "",
   );
   const [saveState, setSaveState] = useState<Partial<Record<SetupSection, SaveState>>>({});
-  const [pageError, setPageError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<MessageDescriptor | null>(null);
   const baseline = useRef(snapshot);
+  const { t, i18n } = useLingui();
 
   useEffect(() => {
     if (baseline.current === snapshot) return;
@@ -196,7 +202,7 @@ function ProfileEditor({
       <View className="gap-6">
         <View className="gap-2">
           <Text className="text-2xl font-semibold text-foreground" accessibilityRole="header">
-            Your profile
+            <Trans>Your profile</Trans>
           </Text>
           <Text className="text-sm text-muted-foreground">{PROFILE_INTRO}</Text>
           <Text className="text-xs text-muted-foreground">{PROFILE_STORAGE_NOTE}</Text>
@@ -205,31 +211,37 @@ function ProfileEditor({
 
         <Card variant="secondary" className="gap-2 p-4">
           <Text className="text-sm text-foreground">
-            {progress.answered} of {progress.available} sections answered
+            <Trans>
+              {progress.answered} of {progress.available} sections answered
+            </Trans>
           </Text>
           {next ? (
             <Text className="text-sm text-muted-foreground">
-              Next unanswered: {SECTION_TITLES[next]}
+              <Trans>Next unanswered: {i18n._(SECTION_TITLES[next])}</Trans>
             </Text>
           ) : null}
           {dirty.length > 0 ? (
             <Text className="text-sm text-muted-foreground">
-              Unsaved: {dirty.map((s) => SECTION_TITLES[s]).join(", ")}
+              <Trans>Unsaved: {dirty.map((s) => i18n._(SECTION_TITLES[s])).join(", ")}</Trans>
             </Text>
           ) : null}
           {snapshot.setupStatus !== "completed" ? (
             <View className="flex-row gap-3">
               <Button variant="secondary" onPress={() => void finish("skipped")}>
-                <Button.Label>Skip for now</Button.Label>
+                <Button.Label>
+                  <Trans>Skip for now</Trans>
+                </Button.Label>
               </Button>
               <Button onPress={() => void finish("completed")} isDisabled={dirty.length > 0}>
-                <Button.Label>Done</Button.Label>
+                <Button.Label>
+                  <Trans>Done</Trans>
+                </Button.Label>
               </Button>
             </View>
           ) : null}
           {pageError ? (
             <Text className="text-sm text-destructive" accessibilityRole="alert">
-              {pageError}
+              {i18n._(pageError)}
             </Text>
           ) : null}
         </Card>
@@ -278,8 +290,8 @@ function ProfileEditor({
                 editable={draft.consents.age_band && draft.answers.birthYear.state !== "declined"}
                 keyboardType="number-pad"
                 maxLength={4}
-                accessibilityLabel="Birth year"
-                placeholder="Birth year"
+                accessibilityLabel={t`Birth year`}
+                placeholder={t`Birth year`}
                 onChangeText={(text) => {
                   setBirthYearText(text);
                   const parsed = parseBirthYearInput(text, new Date());
@@ -300,7 +312,7 @@ function ProfileEditor({
               />
               {!parsedYear.ok ? (
                 <Text className="text-xs text-destructive" accessibilityRole="alert">
-                  {rejectionMessage(parsedYear.reason)}
+                  {i18n._(rejectionMessage(parsedYear.reason))}
                 </Text>
               ) : null}
               <ConsentToggle
@@ -340,11 +352,13 @@ function ProfileEditor({
             </View>
           </Section>
         ) : (
-          <CardStack title={SECTION_TITLES.ageAndSex}>
+          <CardStack title={i18n._(SECTION_TITLES.ageAndSex)}>
             <Card variant="secondary" className="p-4">
               <Text className="text-sm text-muted-foreground">
-                {unavailableExplanation("adult_confirmation_required")} Age and sex are only used by
-                adult features, so they are not asked here.
+                {unavailableExplanation("adult_confirmation_required")}{" "}
+                <Trans>
+                  Age and sex are only used by adult features, so they are not asked here.
+                </Trans>
               </Text>
             </Card>
           </CardStack>
@@ -379,9 +393,10 @@ function Section({
   const state = saveState[section] ?? { status: "idle" };
   const copy = WELLNESS_FIELD_COPY[fields[0]!];
   const hasAnswer = fields.some((field) => draft.answers[field].state !== "unknown");
+  const { t, i18n } = useLingui();
 
   return (
-    <CardStack title={SECTION_TITLES[section]}>
+    <CardStack title={i18n._(SECTION_TITLES[section])}>
       <Card variant="secondary" className="gap-3 p-4">
         {section !== "ageAndSex" ? (
           <>
@@ -395,31 +410,35 @@ function Section({
         ) : null}
         <View className="flex-row flex-wrap items-center gap-3">
           <Button onPress={() => onSave(section)} isDisabled={!dirty || state.status === "saving"}>
-            <Button.Label>{state.status === "saving" ? "Saving…" : "Save"}</Button.Label>
+            <Button.Label>{state.status === "saving" ? t`Saving…` : t`Save`}</Button.Label>
           </Button>
           {dirty ? (
             <Pressable onPress={() => onUndo(section)} accessibilityRole="button">
-              <Text className="text-sm text-foreground underline">Undo changes</Text>
+              <Text className="text-sm text-foreground underline">
+                <Trans>Undo changes</Trans>
+              </Text>
             </Pressable>
           ) : null}
           {hasAnswer ? (
             <Pressable onPress={() => onClear(fields)} accessibilityRole="button">
-              <Text className="text-sm text-foreground underline">Clear answer</Text>
+              <Text className="text-sm text-foreground underline">
+                <Trans>Clear answer</Trans>
+              </Text>
             </Pressable>
           ) : null}
           <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
             {state.status === "error"
               ? ""
               : dirty
-                ? "Unsaved changes"
+                ? t`Unsaved changes`
                 : state.status === "saved"
-                  ? "Saved"
+                  ? t`Saved`
                   : ""}
           </Text>
         </View>
         {state.status === "error" ? (
           <Text className="text-sm text-destructive" accessibilityRole="alert">
-            {state.message}
+            {i18n._(state.message)}
           </Text>
         ) : null}
       </Card>
@@ -502,12 +521,13 @@ function ConsentToggle({
 function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: MessageDescriptor } | null>(null);
+  const { t, i18n } = useLingui();
   const add = useMutation(
     orpc.plans.goals.upsertGoal.mutationOptions({
       onSuccess: () => {
         setTitle("");
-        setMessage({ ok: true, text: "Goal added. You can edit it under Workouts." });
+        setMessage({ ok: true, text: msg`Goal added. You can edit it under Workouts.` });
         void queryClient.invalidateQueries({ queryKey: orpc.plans.goals.key() });
       },
       onError: (error) => setMessage({ ok: false, text: describeProfileSaveError(error).message }),
@@ -516,18 +536,20 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
   const focus = draft.answers.focus.state === "recorded" ? draft.answers.focus.value[0] : undefined;
 
   return (
-    <CardStack title={SECTION_TITLES.goal}>
+    <CardStack title={i18n._(SECTION_TITLES.goal)}>
       <Card variant="secondary" className="gap-3 p-4">
         <Text className="text-xs text-muted-foreground">
-          Add a goal in your own words if you have one. It is saved to your Goals, where you can set
-          a target and date later. Nothing is suggested or worked out for you.
+          <Trans>
+            Add a goal in your own words if you have one. It is saved to your Goals, where you can
+            set a target and date later. Nothing is suggested or worked out for you.
+          </Trans>
         </Text>
         <TextInput
           value={title}
           onChangeText={setTitle}
           maxLength={200}
-          accessibilityLabel="Goal"
-          placeholder="For example: walk most days"
+          accessibilityLabel={t`Goal`}
+          placeholder={t`For example: walk most days`}
           className="rounded-lg border border-border px-3 py-2 text-foreground"
         />
         <Button
@@ -541,14 +563,14 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
             })
           }
         >
-          <Button.Label>{add.isPending ? "Adding…" : "Add goal"}</Button.Label>
+          <Button.Label>{add.isPending ? t`Adding…` : t`Add goal`}</Button.Label>
         </Button>
         {message ? (
           <Text
             className={`text-sm ${message.ok ? "text-success" : "text-destructive"}`}
             accessibilityRole={message.ok ? "text" : "alert"}
           >
-            {message.text}
+            {i18n._(message.text)}
           </Text>
         ) : null}
       </Card>

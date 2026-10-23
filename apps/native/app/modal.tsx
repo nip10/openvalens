@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Button, Surface, useThemeColor } from "heroui-native";
@@ -20,13 +21,17 @@ function Modal() {
             <View className="w-12 h-12 bg-accent rounded-lg items-center justify-center mb-3">
               <Ionicons name="checkmark" size={24} color={accentForegroundColor} />
             </View>
-            <Text className="text-foreground font-medium text-lg mb-1">Modal Screen</Text>
+            <Text className="text-foreground font-medium text-lg mb-1">
+              <Trans>Modal Screen</Trans>
+            </Text>
             <Text className="text-muted text-sm text-center mb-4">
-              This is an example modal screen for dialogs and confirmations.
+              <Trans>This is an example modal screen for dialogs and confirmations.</Trans>
             </Text>
           </View>
           <Button onPress={handleClose} className="w-full" size="sm">
-            <Button.Label>Close</Button.Label>
+            <Button.Label>
+              <Trans>Close</Trans>
+            </Button.Label>
           </Button>
         </Surface>
       </View>

@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Chip, Spinner } from "heroui-native";
@@ -18,11 +21,11 @@ import { useThemeColor } from "@/utils/theme";
 /** Foreground "Sync now" gets more room than a background run. */
 const FOREGROUND_BUDGET = { maxBatches: 50, windowMs: 60_000 };
 
-const ERROR_COPY: Record<string, string> = {
-  PERMISSION_DENIED: "This device's access was revoked. Reconnect from the web app.",
-  UNAUTHENTICATED: "Sign in again to sync.",
-  NO_MEMBERSHIP: "Your account has no organization. Sync is paused.",
-  SOURCE_FAILED: "Could not read your health data. Check permissions.",
+const ERROR_COPY: Record<string, MessageDescriptor> = {
+  PERMISSION_DENIED: msg`This device's access was revoked. Reconnect from the web app.`,
+  UNAUTHENTICATED: msg`Sign in again to sync.`,
+  NO_MEMBERSHIP: msg`Your account has no organization. Sync is paused.`,
+  SOURCE_FAILED: msg`Could not read your health data. Check permissions.`,
 };
 
 /** `2026-10-01 08:42` in local time, matching the timeline. */
@@ -41,6 +44,7 @@ const keys = {
 export function HealthSyncSettings() {
   const queryClient = useQueryClient();
   const foreground = useThemeColor("foreground");
+  const { t, i18n } = useLingui();
   const access = useQuery({ queryKey: keys.access, queryFn: getHealthAccess });
   const status = useQuery({ queryKey: keys.status, queryFn: getHealthSyncStatus });
   const background = useQuery({ queryKey: keys.background, queryFn: isHealthSyncTaskRegistered });
@@ -71,31 +75,36 @@ export function HealthSyncSettings() {
   const granted = access.data?.grantedTypes.length ?? 0;
   const connected = granted > 0;
   const connectionSubtitle = !access.data
-    ? "Checking…"
+    ? t`Checking…`
     : !access.data.available
-      ? `${sourceName} is not available on this device`
+      ? t`${sourceName} is not available on this device`
       : !connected
-        ? "Not connected"
+        ? t`Not connected`
         : appleHealth
           ? // HealthKit never says which read permissions were granted.
             // Installs from before sleep sync (#131) can tap to add it.
             granted < total
-            ? `Access requested for ${granted} of ${total} data types`
-            : `Access requested for ${total} data types`
-          : `${granted} of ${total} data types${access.data.background ? "" : " · background access off"}`;
+            ? t`Access requested for ${granted} of ${total} data types`
+            : t`Access requested for ${total} data types`
+          : access.data.background
+            ? t`${granted} of ${total} data types`
+            : t`${granted} of ${total} data types · background access off`;
 
   const last = status.data;
   const errorCode = last?.lastErrorCode;
+  const errorCopy = errorCode ? ERROR_COPY[errorCode] : undefined;
   const syncSubtitle = sync.isPending
-    ? "Syncing…"
+    ? t`Syncing…`
     : errorCode
-      ? (ERROR_COPY[errorCode] ?? "Last sync failed. Try again.")
+      ? errorCopy
+        ? i18n._(errorCopy)
+        : t`Last sync failed. Try again.`
       : last?.lastSuccessAt
-        ? `Last synced ${formatTimestamp(last.lastSuccessAt)}`
-        : "Not synced yet";
+        ? t`Last synced ${formatTimestamp(last.lastSuccessAt)}`
+        : t`Not synced yet`;
 
   return (
-    <CardStack title="Health data">
+    <CardStack title={t`Health data`}>
       <Card variant="secondary" className="overflow-hidden p-0">
         <ListRow
           icon={<Ionicons name="fitness-outline" size={20} color={foreground} />}
@@ -107,16 +116,16 @@ export function HealthSyncSettings() {
               ? () => connect.mutate()
               : undefined
           }
-          accessibilityHint={`Opens ${sourceName} permissions`}
+          accessibilityHint={t`Opens ${sourceName} permissions`}
           trailing={
             <Chip size="sm" variant="secondary">
-              <Chip.Label>{connected ? "Connected" : "Connect"}</Chip.Label>
+              <Chip.Label>{connected ? t`Connected` : t`Connect`}</Chip.Label>
             </Chip>
           }
         />
         <ListRow
           icon={<Ionicons name="sync-outline" size={20} color={foreground} />}
-          title="Sync now"
+          title={t`Sync now`}
           subtitle={syncSubtitle}
           showDivider
           onPress={connected && !sync.isPending ? () => sync.mutate() : undefined}
@@ -124,11 +133,11 @@ export function HealthSyncSettings() {
         />
         <ListRow
           icon={<Ionicons name="time-outline" size={20} color={foreground} />}
-          title="Background sync"
+          title={t`Background sync`}
           subtitle={
             toggleBackground.error
-              ? "Background tasks are restricted for this app."
-              : "Every few hours, when the system allows"
+              ? t`Background tasks are restricted for this app.`
+              : t`Every few hours, when the system allows`
           }
           onPress={
             connected && !toggleBackground.isPending
@@ -137,7 +146,7 @@ export function HealthSyncSettings() {
           }
           trailing={
             <Chip size="sm" variant="secondary">
-              <Chip.Label>{background.data ? "On" : "Off"}</Chip.Label>
+              <Chip.Label>{background.data ? t`On` : t`Off`}</Chip.Label>
             </Chip>
           }
         />

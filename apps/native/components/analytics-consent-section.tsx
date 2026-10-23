@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "heroui-native";
 import { useFocusEffect } from "expo-router";
@@ -41,32 +42,49 @@ export function AnalyticsConsentSection() {
   const { preference, pending, error, gate, locallyRevoked } = consent;
   const busy = pending !== null;
   const checked = preference?.enabled === true && !locallyRevoked;
+  const { t } = useLingui();
+  const stoppedLocally = t({
+    message: "Stopped locally; server change unconfirmed. Retry turning it off.",
+    comment: "safety",
+  });
+  const shareLabel = t({ message: "Share optional usage analytics", comment: "safety" });
   const status =
     isPending || !scope || (!preference && !error)
-      ? "Checking your account and server settings…"
+      ? t`Checking your account and server settings…`
       : error === "read"
-        ? "Could not load your preference."
+        ? t`Could not load your preference.`
         : error === "revoke"
-          ? "Stopped locally; server change unconfirmed. Retry turning it off."
+          ? stoppedLocally
           : error === "enable"
-            ? "Could not confirm enabling. Sharing remains off."
+            ? t({ message: "Could not confirm enabling. Sharing remains off.", comment: "safety" })
             : !preference?.available
-              ? "Analytics are unavailable on this server. You can still turn off sharing."
+              ? t({
+                  message:
+                    "Analytics are unavailable on this server. You can still turn off sharing.",
+                  comment: "safety",
+                })
               : busy
-                ? "Updating your setting…"
+                ? t`Updating your setting…`
                 : gate
-                  ? "Sharing is on."
-                  : "Sharing is off unless you explicitly opt in.";
+                  ? t({ message: "Sharing is on.", comment: "safety" })
+                  : t({
+                      message: "Sharing is off unless you explicitly opt in.",
+                      comment: "safety",
+                    });
 
   return (
     <Card className="gap-3 p-4">
-      <Text className="text-base font-semibold text-foreground">Usage analytics</Text>
+      <Text className="text-base font-semibold text-foreground">
+        <Trans>Usage analytics</Trans>
+      </Text>
       <Text className="text-sm leading-5 text-muted-foreground">
-        Optional usage analytics via PostHog EU. Sends approved settings-action names and a new
-        random event ID for each event; events are not linked to your account, device, session, or
-        workspace. No health records or free text are sent. PostHog retains events and their IDs and
-        sees our server’s network IP, not your forwarded IP. Turning this off stops new sends;
-        already-sent events cannot be recalled.
+        <Trans comment="safety">
+          Optional usage analytics via PostHog EU. Sends approved settings-action names and a new
+          random event ID for each event; events are not linked to your account, device, session, or
+          workspace. No health records or free text are sent. PostHog retains events and their IDs
+          and sees our server’s network IP, not your forwarded IP. Turning this off stops new sends;
+          already-sent events cannot be recalled.
+        </Trans>
       </Text>
       <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
         {status}
@@ -76,16 +94,18 @@ export function AnalyticsConsentSection() {
           onPress={error ? consent.retry : consent.refresh}
           disabled={busy}
           accessibilityRole="button"
-          accessibilityLabel="Retry loading analytics preference"
+          accessibilityLabel={t`Retry loading analytics preference`}
           className="min-h-11 justify-center"
         >
-          <Text className="text-foreground underline">Retry</Text>
+          <Text className="text-foreground underline">
+            <Trans>Retry</Trans>
+          </Text>
         </Pressable>
       )}
       <View className="min-h-12 flex-row items-center justify-between">
-        <Text className="flex-1 text-sm text-foreground">Share optional usage analytics</Text>
+        <Text className="flex-1 text-sm text-foreground">{shareLabel}</Text>
         <Switch
-          accessibilityLabel="Share optional usage analytics"
+          accessibilityLabel={shareLabel}
           value={checked}
           disabled={
             busy ||
@@ -99,7 +119,7 @@ export function AnalyticsConsentSection() {
       </View>
       {error === "revoke" && (
         <Text accessibilityRole="alert" className="text-sm text-destructive">
-          Stopped locally; server change unconfirmed. Retry turning it off.
+          {stoppedLocally}
         </Text>
       )}
     </Card>
