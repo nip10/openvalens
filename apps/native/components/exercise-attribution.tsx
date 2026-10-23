@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Linking, Pressable, Text, View } from "react-native";
 
 function safeHttpUrl(value: string | null | undefined): string | null {
@@ -32,7 +33,7 @@ export function ExerciseAttribution({
   attribution,
   sourceUrl,
   licenseUrl,
-  licenseLinkLabel = "License details",
+  licenseLinkLabel,
 }: {
   title: string;
   license?: string | null;
@@ -42,33 +43,41 @@ export function ExerciseAttribution({
   licenseUrl?: string | null;
   licenseLinkLabel?: string;
 }) {
+  const { t } = useLingui();
   const licenseHref = safeHttpUrl(licenseUrl);
   const sourceHref = safeHttpUrl(sourceUrl);
+  const licenseLabel = licenseLinkLabel ?? t`License details`;
+  // License names, authors and attribution text come from the source records.
+  const licenseLine = license
+    ? author
+      ? t`License: ${license} · ${author}`
+      : t`License: ${license}`
+    : t`License not listed.`;
   return (
     <View className="gap-1 rounded-lg border border-border p-3" accessibilityLabel={title}>
       <Text className="text-sm font-medium text-foreground">{title}</Text>
-      <Text className="text-xs text-muted-foreground">
-        {license ? `License: ${license}${author ? ` · ${author}` : ""}` : "License not listed."}
-      </Text>
+      <Text className="text-xs text-muted-foreground">{licenseLine}</Text>
       {attribution ? <Text className="text-xs text-muted-foreground">{attribution}</Text> : null}
       {licenseHref ? (
         <Pressable
           onPress={() => void Linking.openURL(licenseHref)}
           accessibilityRole="link"
-          accessibilityLabel={licenseLinkLabel}
+          accessibilityLabel={licenseLabel}
           className="min-h-11 justify-center"
         >
-          <Text className="text-sm text-foreground underline">{licenseLinkLabel}</Text>
+          <Text className="text-sm text-foreground underline">{licenseLabel}</Text>
         </Pressable>
       ) : null}
       {sourceHref ? (
         <Pressable
           onPress={() => void Linking.openURL(sourceHref)}
           accessibilityRole="link"
-          accessibilityLabel="Source record"
+          accessibilityLabel={t`Source record`}
           className="min-h-11 justify-center"
         >
-          <Text className="text-sm text-foreground underline">Source record</Text>
+          <Text className="text-sm text-foreground underline">
+            <Trans>Source record</Trans>
+          </Text>
         </Pressable>
       ) : null}
     </View>
@@ -89,7 +98,13 @@ export function TranslationAttribution({
     rawAttribution: string | null;
   };
 }) {
-  const title = `Selected translation${language?.toLowerCase() === "en" && requestedLanguage.toLowerCase() !== "en" ? " (English fallback)" : language ? ` (${language})` : ""}`;
+  const { t } = useLingui();
+  const title =
+    language?.toLowerCase() === "en" && requestedLanguage.toLowerCase() !== "en"
+      ? t`Selected translation (English fallback)`
+      : language
+        ? t`Selected translation (${language})`
+        : t`Selected translation`;
   return (
     <ExerciseAttribution
       title={title}
@@ -98,7 +113,7 @@ export function TranslationAttribution({
       attribution={attribution.rawAttribution}
       sourceUrl={attribution.sourceUrl}
       licenseUrl={canonicalTranslationLicenseUrl(attribution.license)}
-      licenseLinkLabel="Selected translation license details"
+      licenseLinkLabel={t`Selected translation license details`}
     />
   );
 }

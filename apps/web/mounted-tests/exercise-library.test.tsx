@@ -33,6 +33,8 @@ const mounted = mountedMode
       import("zod"),
       import("../src/components/exercise-library"),
       import("../src/utils/orpc"),
+      import("@lingui/react"),
+      import("@openvalens/i18n/testing"),
     ])
   : null;
 
@@ -41,7 +43,15 @@ test.skipIf(mountedMode)(
   async () => {
     const result = await execFileAsync(
       process.execPath,
-      ["test", "--preload", `${import.meta.dir}/setup.tsx`, import.meta.path],
+      [
+        "test",
+        // Lingui macros (#67): the subprocess runs outside apps/web, so its bunfig preload is not picked up.
+        "--preload",
+        `${import.meta.dir}/../../../scripts/test/lingui-macro.ts`,
+        "--preload",
+        `${import.meta.dir}/setup.tsx`,
+        import.meta.path,
+      ],
       {
         cwd: `${import.meta.dir}/../..`,
         env: {
@@ -73,12 +83,20 @@ test.skipIf(!mountedMode)(
       zod,
       component,
       orpcModule,
+      lingui,
+      i18nTesting,
     ] = mounted;
     const user = userModule.default.setup();
     const { QueryClient, QueryClientProvider } = query;
     const { createElement } = react;
     const { ExerciseLibraryPage } = component;
     const { orpc } = orpcModule;
+    const page = () =>
+      createElement(
+        lingui.I18nProvider,
+        { i18n: i18nTesting.englishI18n },
+        createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)),
+      );
     const client = new QueryClient({
       defaultOptions: {
         queries: { retry: false, staleTime: Infinity },
@@ -212,9 +230,7 @@ test.skipIf(!mountedMode)(
       },
     });
     try {
-      const view = render(
-        createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)),
-      );
+      const view = render(page());
       await user.click(await screen.findByRole("button", { name: /Translated squat/ }));
       await screen.findByText("Parent notice");
       expect(screen.getByRole("region", { name: "Exercise record" })).toBeTruthy();
@@ -397,11 +413,7 @@ test.skipIf(!mountedMode)(
           source: "user",
         },
       ]);
-      await act(async () =>
-        view.rerender(
-          createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)),
-        ),
-      );
+      await act(async () => view.rerender(page()));
       await waitFor(() => expect(screen.queryByText("Loading your workspace…")).toBeNull());
       await screen.findByText("The library is empty for now.");
       expect(screen.queryByText("Workspace A private row")).toBeNull();
@@ -451,11 +463,7 @@ test.skipIf(!mountedMode)(
       ).toHaveLength(0);
 
       currentSession = session;
-      await act(async () =>
-        view.rerender(
-          createElement(QueryClientProvider, { client }, createElement(ExerciseLibraryPage)),
-        ),
-      );
+      await act(async () => view.rerender(page()));
       await user.click(await screen.findByRole("button", { name: /Workspace A private row/ }));
       await screen.findByText("Parent notice");
       await user.selectOptions(screen.getByLabelText("Add to workout"), "71");

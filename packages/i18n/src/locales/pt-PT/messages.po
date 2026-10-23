@@ -7,14 +7,183 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: pt-PT\n"
 
+#. placeholder {0}: supplement.activeScheduleCount
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "{0, plural, one {# scheduled} other {# scheduled}}"
+msgstr "{0, plural, one {# agendado} other {# agendados}}"
+
+#. placeholder {0}: workoutSummary.count
+#. placeholder {1}: workoutSummary.totalDurationLabel
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "{0, plural, one {# session} other {# sessions}} · {1}"
+msgstr "{0, plural, one {# sessão} other {# sessões}} · {1}"
+
+#. placeholder {0}: equipmentOptions.length
+#: apps/native/components/exercise-library.tsx
+msgid "{0, plural, one {Show # equipment option} other {Show all # equipment options}}"
+msgstr "{0, plural, one {Mostrar # opção de equipamento} other {Mostrar as # opções de equipamento}}"
+
+#. placeholder {0}: muscleOptions.length
+#: apps/native/components/exercise-library.tsx
+msgid "{0, plural, one {Show # muscle} other {Show all # muscles}}"
+msgstr "{0, plural, one {Mostrar # músculo} other {Mostrar os # músculos}}"
+
+#. placeholder {0}: result.name
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "{0} added to the workout."
+msgstr "{0} adicionado ao treino."
+
+#. placeholder {0}: result.name
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "{0} added to this workspace."
+msgstr "{0} adicionado a este espaço de trabalho."
+
+#. placeholder {0}: goalSummary.open
+#. placeholder {1}: goalSummary.achieved
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "{0} open · {1} achieved"
+msgstr "{0} em aberto · {1} alcançados"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "{count, plural, one {# exercise} other {# exercises}}"
+msgstr "{count, plural, one {# exercício} other {# exercícios}}"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "{exerciseName} preview {number}"
+msgstr "Pré-visualização {number} de {exerciseName}"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "{exerciseName} previews"
+msgstr "Pré-visualizações de {exerciseName}"
+
+#. A value outside the known list, shown as recorded. Keep the placeholder as is.
+#. Text the member entered, shown as written. Keep the placeholder as is.
+#: packages/api/src/presenters/supplements.ts
+#: packages/api/src/presenters/workouts.ts
+msgid "{text}"
+msgstr "{text}"
+
+#: apps/web/src/components/muscle-guide.tsx
+msgid "<0>Primary:</0> {primaryNames}"
+msgstr "<0>Principais:</0> {primaryNames}"
+
+#: apps/web/src/components/muscle-guide.tsx
+msgid "<0>Secondary:</0> {secondaryNames}"
+msgstr "<0>Secundários:</0> {secondaryNames}"
+
+#: apps/web/src/components/muscle-guide.tsx
+msgid "<0>Source-listed muscles:</0> {listedNames}"
+msgstr "<0>Músculos indicados pela fonte:</0> {listedNames}"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Achieved"
+msgstr "Alcançado"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgctxt "medication status"
+msgid "Active"
+msgstr "Ativa"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Activity"
 msgstr "Atividade"
 
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Add a goal to start tracking."
+msgstr "Adicione um objetivo para começar a acompanhar."
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Add a session to start tracking."
+msgstr "Adicione uma sessão para começar a acompanhar."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Add exercise"
+msgstr "Adicionar exercício"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Add goal"
+msgstr "Adicionar objetivo"
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Add medication"
+msgstr "Adicionar medicação"
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Add supplement"
+msgstr "Adicionar suplemento"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Add to workout"
+msgstr "Adicionar ao treino"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Add workout"
+msgstr "Adicionar treino"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Adding…"
+msgstr "A adicionar…"
+
 #: apps/web/src/components/header.tsx
 msgid "Administration"
 msgstr "Administração"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "All equipment"
+msgstr "Todo o equipamento"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "All muscles"
+msgstr "Todos os músculos"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "An administrator can import licensed exercises, or create a workspace exercise here."
+msgstr "Um administrador pode importar exercícios licenciados, ou pode criar aqui um exercício do espaço de trabalho."
+
+#: apps/native/components/exercise-library.tsx
+msgid "An administrator can import licensed exercises, or you can create a workspace exercise below."
+msgstr "Um administrador pode importar exercícios licenciados, ou pode criar abaixo um exercício do espaço de trabalho."
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Archived"
+msgstr "Arquivado"
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "Back"
+msgstr "Costas"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Back to workouts"
+msgstr "Voltar aos treinos"
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "back view muscle illustration"
+msgstr "ilustração muscular, vista de costas"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Biweekly"
+msgstr "Quinzenal"
 
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -26,10 +195,60 @@ msgstr "Corpo"
 msgid "Body map"
 msgstr "Mapa corporal"
 
+#: apps/native/components/exercise-library.tsx
+msgid "Browse"
+msgstr "Explorar"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Browse exercises"
+msgstr "Explorar exercícios"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Browse licensed exercises or create one for your workspace."
+msgstr "Explore exercícios licenciados ou crie um para o seu espaço de trabalho."
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Browse licensed library entries and exercises created for your workspace."
+msgstr "Explore entradas licenciadas da biblioteca e exercícios criados para o seu espaço de trabalho."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Cancel request"
+msgstr "Cancelar pedido"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Cancelled"
+msgstr "Cancelado"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Choose"
+msgstr "Escolher"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Choose a workout"
+msgstr "Escolha um treino"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Choose an exercise to read its details."
+msgstr "Escolha um exercício para ver os detalhes."
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Choose whether the value should go up or down."
+msgstr "Escolha se o valor deve subir ou descer."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Clear filters"
+msgstr "Limpar filtros"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Clinical export"
 msgstr "Exportação clínica"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Closed"
+msgstr "Fechado"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -49,27 +268,300 @@ msgstr "Tradução da comunidade"
 msgid "Community translation, not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 msgstr "Tradução da comunidade, ainda não revista. As unidades, os intervalos de referência e os textos sobre medicação e consentimento ficam em inglês até um revisor os aprovar."
 
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgctxt "medication status"
+msgid "Completed"
+msgstr "Concluída"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Could not confirm the result. Refresh and review before trying again."
+msgstr "Não foi possível confirmar o resultado. Atualize e reveja antes de tentar novamente."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Could not confirm. Refresh and review before trying again."
+msgstr "Não foi possível confirmar. Atualize e reveja antes de tentar novamente."
+
+#: apps/native/components/exercise-library.tsx
+msgid "Could not load exercises."
+msgstr "Não foi possível carregar os exercícios."
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Could not load goals."
+msgstr "Não foi possível carregar os objetivos."
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Could not load supplements."
+msgstr "Não foi possível carregar os suplementos."
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Could not load the exercise library."
+msgstr "Não foi possível carregar a biblioteca de exercícios."
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Could not load weekly activity."
+msgstr "Não foi possível carregar a atividade semanal."
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Could not load weekly activity. <0>Retry</0>"
+msgstr "Não foi possível carregar a atividade semanal. <0>Tentar novamente</0>"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Could not load workouts."
+msgstr "Não foi possível carregar os treinos."
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Could not save."
+msgstr "Não foi possível guardar."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Create a workout first, then return here to add an exercise."
+msgstr "Crie primeiro um treino e depois volte aqui para adicionar um exercício."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Create exercise"
+msgstr "Criar exercício"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Create workspace exercise"
+msgstr "Criar exercício do espaço de trabalho"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Creating…"
+msgstr "A criar…"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Cycle"
 msgstr "Ciclo"
 
+#: packages/api/src/presenters/workouts.ts
+msgid "Cycling"
+msgstr "Ciclismo"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Daily"
+msgstr "Diariamente"
+
 #: apps/web/src/components/header.tsx
 msgid "Dashboard"
 msgstr "Painel de controlo"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Date"
+msgstr "Data"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Describe a meal"
 msgstr "Descrever uma refeição"
 
+#: apps/native/components/exercise-library.tsx
+msgid "Details"
+msgstr "Detalhes"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Details are unavailable. Refresh the library and try again."
+msgstr "Os detalhes não estão disponíveis. Atualize a biblioteca e tente novamente."
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Dinner"
+msgstr "Jantar"
+
+#. safety
+#. safety
+#. safety
+#. safety
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Dose"
+msgstr "Dose"
+
+#. placeholder {0}: goal.targetDate
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Due {0}"
+msgstr "Prazo: {0}"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Due date"
+msgstr "Data-limite"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Duration (minutes)"
+msgstr "Duração (minutos)"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Duration must be 1–1440 minutes."
+msgstr "A duração tem de ser entre 1 e 1440 minutos."
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Effort points by day"
+msgstr "Pontos de esforço por dia"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Effort, 0–10 (optional)"
+msgstr "Esforço, 0–10 (opcional)"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Equipment"
+msgstr "Equipamento"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Exercise"
+msgstr "Exercício"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Exercise details"
+msgstr "Detalhes do exercício"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Exercise details are unavailable."
+msgstr "Os detalhes do exercício não estão disponíveis."
+
+#: apps/native/components/exercise-library.tsx
+msgid "Exercise instructions, optional"
+msgstr "Instruções do exercício, opcional"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Exercise library"
 msgstr "Biblioteca de exercícios"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Exercise name"
+msgstr "Nome do exercício"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Exercise record"
+msgstr "Registo do exercício"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Exercises"
+msgstr "Exercícios"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Filter by equipment"
+msgstr "Filtrar por equipamento"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Filter by muscle"
+msgstr "Filtrar por músculo"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Filters are unavailable; name search still works."
+msgstr "Os filtros não estão disponíveis; a pesquisa por nome continua a funcionar."
+
+#. safety
+#. safety
+#. safety
+#. safety
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Frequency"
+msgstr "Frequência"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "From wger · {licenseText}"
+msgstr "Do wger · {licenseText}"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "From wger · {licenseText} · {author}"
+msgstr "Do wger · {licenseText} · {author}"
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "Front"
+msgstr "Frente"
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "front view muscle illustration"
+msgstr "ilustração muscular, vista de frente"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Go down"
+msgstr "Descer"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Go up"
+msgstr "Subir"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Goals"
+msgstr "Objetivos"
+
+#: packages/api/src/presenters/workouts.ts
+msgctxt "goal priority"
+msgid "High"
+msgstr "Alta"
 
 #: apps/web/src/components/header.tsx
 msgid "Home"
 msgstr "Início"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "How did it go?"
+msgstr "Como correu?"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "How this is calculated"
+msgstr "Como é calculado"
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "Illustration of muscles listed by the source"
+msgstr "Ilustração dos músculos indicados pela fonte"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Image source"
+msgstr "Origem da imagem"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "In progress"
+msgstr "Em curso"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Instructions (optional)"
+msgstr "Instruções (opcional)"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Intensity (optional)"
+msgstr "Intensidade (opcional)"
 
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
@@ -89,6 +581,85 @@ msgstr "Análises"
 #: apps/web/src/components/language-section.tsx
 msgid "Language"
 msgstr "Idioma"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Language code"
+msgstr "Código de idioma"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Library and workouts refreshed. Review them, then retry the same request if needed."
+msgstr "Biblioteca e treinos atualizados. Reveja-os e, se necessário, repita o mesmo pedido."
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "License details"
+msgstr "Detalhes da licença"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "License not listed"
+msgstr "Licença não indicada"
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "License not listed."
+msgstr "Licença não indicada."
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "License: {license}"
+msgstr "Licença: {license}"
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "License: {license} · {author}"
+msgstr "Licença: {license} · {author}"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Loading details…"
+msgstr "A carregar detalhes…"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Loading library…"
+msgstr "A carregar a biblioteca…"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Loading muscle and equipment filters…"
+msgstr "A carregar filtros de músculos e equipamento…"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Loading preview…"
+msgstr "A carregar pré-visualização…"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Loading workouts…"
+msgstr "A carregar treinos…"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Loading your workspace…"
+msgstr "A carregar o seu espaço de trabalho…"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Log"
+msgstr "Registar"
+
+#: packages/api/src/presenters/workouts.ts
+msgctxt "goal priority"
+msgid "Low"
+msgstr "Baixa"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Lunch"
+msgstr "Almoço"
 
 #: apps/web/src/components/header.tsx
 msgid "Main navigation"
@@ -112,30 +683,219 @@ msgstr "Micronutrientes"
 msgid "Mobile navigation"
 msgstr "Navegação móvel"
 
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Monthly"
+msgstr "Mensalmente"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Morning"
+msgstr "Manhã"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Muscle"
+msgstr "Músculo"
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "Muscle guide"
+msgstr "Guia muscular"
+
 #: apps/native/app/(drawer)/_layout.tsx
 msgid "My foods"
 msgstr "Os meus alimentos"
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Name"
+msgstr "Nome"
 
 #: apps/web/src/components/header.tsx
 msgid "Navigate the app"
 msgstr "Navegar na aplicação"
 
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "No due date"
+msgstr "Sem data-limite"
+
+#: apps/native/components/exercise-library.tsx
+msgid "No equipment filters available."
+msgstr "Não há filtros de equipamento disponíveis."
+
+#: packages/api/src/presenters/workouts.ts
+msgid "No exercises"
+msgstr "Sem exercícios"
+
+#: apps/native/components/exercise-library.tsx
+msgid "No exercises found yet"
+msgstr "Ainda não há exercícios"
+
+#: apps/native/components/exercise-library.tsx
+msgid "No exercises match this search."
+msgstr "Nenhum exercício corresponde a esta pesquisa."
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "No exercises match this search. Try another name."
+msgstr "Nenhum exercício corresponde a esta pesquisa. Experimente outro nome."
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "No goals yet"
+msgstr "Ainda não há objetivos"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "No instructions provided."
+msgstr "Sem instruções."
+
+#: apps/native/components/muscle-guide.tsx
+msgid "No matching diagram mapping for: {unknownNames}. Names are shown without highlighting."
+msgstr "Sem correspondência no diagrama para: {unknownNames}. Os nomes são mostrados sem destaque."
+
+#: apps/web/src/components/muscle-guide.tsx
+msgid "No matching diagram mapping for: {unresolvedNames}. Names are shown without highlighting."
+msgstr "Sem correspondência no diagrama para: {unresolvedNames}. Os nomes são mostrados sem destaque."
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "No matching diagram mapping is available; no anatomy is highlighted."
+msgstr "Não há correspondência no diagrama; nenhuma zona do corpo está destacada."
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "No medications logged. Add one to track your protocol."
+msgstr "Nenhuma medicação registada. Adicione uma para acompanhar o seu protocolo."
+
+#: apps/native/components/exercise-library.tsx
+msgid "No muscle filters available."
+msgstr "Não há filtros de músculos disponíveis."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "No preview image is provided."
+msgstr "Não é fornecida imagem de pré-visualização."
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "No supplements logged. Add one to get reminders."
+msgstr "Nenhum suplemento registado. Adicione um para receber lembretes."
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "No workouts yet"
+msgstr "Ainda não há treinos"
+
+#: apps/native/components/muscle-guide.tsx
+#: apps/web/src/components/muscle-guide.tsx
+msgid "None listed"
+msgstr "Nenhum indicado"
+
+#: packages/api/src/presenters/workouts.ts
+msgctxt "goal priority"
+msgid "Normal"
+msgstr "Normal"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Not rated"
+msgstr "Sem avaliação"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Not set"
+msgstr "Não definida"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Not started"
+msgstr "Não iniciado"
+
 #: apps/web/src/components/language-section.tsx
 msgid "Not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 msgstr "Ainda não revista. As unidades, os intervalos de referência e os textos sobre medicação e consentimento ficam em inglês até um revisor os aprovar."
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Notes"
+msgstr "Notas"
+
+#. placeholder {0}: goal.currentValue
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Now {0}"
+msgstr "Atual: {0}"
 
 #: apps/native/app/(drawer)/_layout.tsx
 msgid "Nutrition targets"
 msgstr "Objetivos nutricionais"
 
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Once"
+msgstr "Uma vez"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Open"
+msgstr "Em aberto"
+
 #: apps/web/src/components/header.tsx
 msgid "Open navigation menu"
 msgstr "Abrir o menu de navegação"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Other"
+msgstr "Outro"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Paused"
+msgstr "Em pausa"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgctxt "medication status"
+msgid "Paused"
+msgstr "Em pausa"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Pre-bed"
+msgstr "Antes de dormir"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Preparing preview…"
+msgstr "A preparar pré-visualização…"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Preventive care"
 msgstr "Cuidados preventivos"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Preview unavailable because image license details are incomplete."
+msgstr "Pré-visualização indisponível porque os detalhes da licença da imagem estão incompletos."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Preview unavailable on this connection."
+msgstr "Pré-visualização indisponível nesta ligação."
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Preview unavailable."
+msgstr "Pré-visualização indisponível."
+
+#: apps/native/components/muscle-guide.tsx
+msgid "Primary: {primaryNames}"
+msgstr "Principais: {primaryNames}"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Priority"
+msgstr "Prioridade"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -146,15 +906,138 @@ msgstr "Medições privadas"
 msgid "Profile"
 msgstr "Perfil"
 
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Progress means the value should"
+msgstr "Progresso significa que o valor deve"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Rate"
+msgstr "Avaliar"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Rate effort"
+msgstr "Avaliar esforço"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Recipe draft"
 msgstr "Rascunho de receita"
 
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Refresh and review"
+msgstr "Atualizar e rever"
+
+#: apps/native/app/(drawer)/supplements.tsx
+msgid "Regimen"
+msgstr "Regime"
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Retry"
+msgstr "Tentar novamente"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Retry filters"
+msgstr "Tentar carregar filtros"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Retry same request"
+msgstr "Repetir o mesmo pedido"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Retry workouts"
+msgstr "Tentar carregar treinos"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Run"
+msgstr "Corrida"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Run a 5k"
+msgstr "Correr 5 km"
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Save"
+msgstr "Guardar"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Save rating"
+msgstr "Guardar avaliação"
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Saved"
+msgstr "Guardado"
+
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Saving…"
+msgstr "A guardar…"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Scores"
 msgstr "Pontuações"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Search by exercise name"
+msgstr "Pesquisar por nome do exercício"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Search by name"
+msgstr "Pesquisar por nome"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Search exercises"
+msgstr "Pesquisar exercícios"
+
+#: apps/native/components/muscle-guide.tsx
+msgid "Secondary: {secondaryNames}"
+msgstr "Secundários: {secondaryNames}"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Secure request IDs are unavailable. No request was sent."
+msgstr "Não há identificadores de pedido seguros disponíveis. Nenhum pedido foi enviado."
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Selected translation"
+msgstr "Tradução selecionada"
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Selected translation ({language})"
+msgstr "Tradução selecionada ({language})"
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Selected translation (English fallback)"
+msgstr "Tradução selecionada (alternativa em inglês)"
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Selected translation license details"
+msgstr "Detalhes da licença da tradução selecionada"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Sessions & goals"
+msgstr "Sessões e objetivos"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
@@ -168,15 +1051,105 @@ msgstr "Definições"
 msgid "Sharing"
 msgstr "Partilha"
 
+#: apps/native/components/exercise-library.tsx
+msgid "Show fewer muscles"
+msgstr "Mostrar menos músculos"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Show less equipment"
+msgstr "Mostrar menos equipamento"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Sign in to browse exercises for your workspace."
+msgstr "Inicie sessão para explorar os exercícios do seu espaço de trabalho."
+
+#: apps/native/components/exercise-library.tsx
+msgid "Sign in to browse your workspace library."
+msgstr "Inicie sessão para explorar a biblioteca do seu espaço de trabalho."
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Sleep"
 msgstr "Sono"
 
+#: apps/native/components/exercise-attribution.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Source record"
+msgstr "Registo de origem"
+
+#: apps/native/components/muscle-guide.tsx
+msgid "Source-listed muscles: {listedNames}"
+msgstr "Músculos indicados pela fonte: {listedNames}"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Starting value (optional)"
+msgstr "Valor inicial (opcional)"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Starting value must be {max} characters or fewer."
+msgstr "O valor inicial deve ter no máximo {max} carateres."
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Starting value must start with a number, like \"70\" or \"70 kg\"."
+msgstr "O valor inicial deve começar por um número, como \"70\" ou \"70 kg\"."
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Status"
+msgstr "Estado"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Stopped waiting. The request may still complete on the server."
+msgstr "Deixou de aguardar. O pedido ainda pode ser concluído no servidor."
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Strength"
+msgstr "Força"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
 msgid "Supplements"
 msgstr "Suplementos"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Swim"
+msgstr "Natação"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Talk test: {talkTest}."
+msgstr "Teste da fala: {talkTest}."
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Target (optional)"
+msgstr "Meta (opcional)"
+
+#. placeholder {0}: goal.targetValue
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Target {0}"
+msgstr "Meta: {0}"
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Target must be {max} characters or fewer."
+msgstr "A meta deve ter no máximo {max} carateres."
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Target must start with a number, like \"70\" or \"70 kg\"."
+msgstr "A meta deve começar por um número, como \"70\" ou \"70 kg\"."
+
+#: packages/api/src/presenters/workouts.ts
+msgid "Tennis"
+msgstr "Ténis"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "The library is empty for now."
+msgstr "Por agora, a biblioteca está vazia."
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
@@ -184,12 +1157,86 @@ msgstr "Suplementos"
 msgid "Timeline"
 msgstr "Cronologia"
 
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Title"
+msgstr "Título"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Today"
+msgstr "Hoje"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Today's value"
+msgstr "Valor de hoje"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Training"
+msgstr "Treino"
+
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Training days"
+msgstr "Dias de treino"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Try again"
+msgstr "Tentar novamente"
+
+#: apps/native/components/exercise-library.tsx
+msgid "Try another name, or clear the search."
+msgstr "Experimente outro nome ou limpe a pesquisa."
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Type"
+msgstr "Tipo"
+
+#. safety
+#. safety
+#. safety
+#. safety
+#: apps/native/app/(drawer)/supplements.tsx
+#: apps/web/src/routes/_auth/supplements.tsx
+msgid "Unit"
+msgstr "Unidade"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Visible to members of this workspace."
+msgstr "Visível para os membros deste espaço de trabalho."
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 msgid "Vitals"
 msgstr "Sinais vitais"
 
+#. safety
+#: packages/api/src/presenters/supplements.ts
+msgid "Weekly"
+msgstr "Semanalmente"
+
 #: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Workouts"
 msgstr "Treinos"
+
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+msgid "Workspace exercise"
+msgstr "Exercício do espaço de trabalho"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "You can also add it later today."
+msgstr "Também pode adicioná-lo mais tarde, hoje."
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "YYYY-MM-DD"
+msgstr "AAAA-MM-DD"

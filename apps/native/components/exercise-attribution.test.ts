@@ -89,6 +89,15 @@ const mounted = mountedMode
       import("./exercise-library"),
     ])
   : null;
+const i18nModules = mountedMode
+  ? await Promise.all([import("@lingui/react"), import("@openvalens/i18n/testing")])
+  : null;
+/** Renders with English catalogs, as the app's provider does (#67). */
+const withI18n = (element: React.ReactNode) => {
+  if (!i18nModules) throw new Error("i18n fixture not loaded");
+  const [{ I18nProvider }, { englishI18n }] = i18nModules;
+  return React.createElement(I18nProvider, { i18n: englishI18n }, element);
+};
 
 test.skipIf(mountedMode)("isolates native attribution host mocks in a subprocess", async () => {
   const result = await execFileAsync(process.execPath, ["test", import.meta.path], {
@@ -111,7 +120,7 @@ test.skipIf(!mountedMode)(
     document.body.append(container);
     const root = dom.createRoot(container);
     const render = async (element: React.ReactNode) => {
-      await React.act(async () => root.render(element));
+      await React.act(async () => root.render(withI18n(element)));
     };
     const text = (value: string) => {
       const element = Array.from(container.querySelectorAll("span")).find(
@@ -217,7 +226,9 @@ test.skipIf(!mountedMode)(
     document.body.append(container);
     const root = dom.createRoot(container);
     const render = async (props: Record<string, unknown>) =>
-      React.act(async () => root.render(React.createElement(ExerciseMediaGallery, props as never)));
+      React.act(async () =>
+        root.render(withI18n(React.createElement(ExerciseMediaGallery, props as never))),
+      );
     const muscles = [
       { name: "Biceps", role: "primary", location: "front", externalMuscleId: "11" },
     ];

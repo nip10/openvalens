@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { inEnglish } from "@openvalens/i18n/testing";
 
 import {
   formatScheduleTime,
   medicationDoseLabel,
+  medicationStatusLabel,
   sentenceCase,
   supplementDoseLabel,
   supplementFrequencyLabel,
@@ -31,24 +33,31 @@ describe("supplements presenter", () => {
   });
 
   test("supplementFrequencyLabel: closed enum to sentence case", () => {
-    expect(supplementFrequencyLabel("daily")).toBe("Daily");
-    expect(supplementFrequencyLabel("training_days")).toBe("Training days");
-    expect(supplementFrequencyLabel("weekly")).toBe("Weekly");
-    expect(supplementFrequencyLabel("")).toBe("—");
-    expect(supplementFrequencyLabel(null)).toBe("—");
+    expect(inEnglish(supplementFrequencyLabel("daily"))).toBe("Daily");
+    expect(inEnglish(supplementFrequencyLabel("training_days"))).toBe("Training days");
+    expect(inEnglish(supplementFrequencyLabel("weekly"))).toBe("Weekly");
+    expect(inEnglish(supplementFrequencyLabel(""))).toBe("—");
+    expect(inEnglish(supplementFrequencyLabel(null))).toBe("—");
   });
 
   test("supplementFrequencyLabel: free-text fallback and sentenceCase helper", () => {
-    expect(supplementFrequencyLabel("every other-day")).toBe("Every other day");
+    expect(inEnglish(supplementFrequencyLabel("every other-day"))).toBe("Every other day");
     expect(sentenceCase("as_needed")).toBe("As needed");
     expect(sentenceCase("")).toBe("—");
   });
 
   test("formatScheduleTime: closed time-of-day enum to sentence case", () => {
-    expect(formatScheduleTime("morning")).toBe("Morning");
-    expect(formatScheduleTime("pre-bed")).toBe("Pre-bed");
-    expect(formatScheduleTime("training")).toBe("Training");
-    expect(formatScheduleTime("evening")).toBe("Evening");
-    expect(formatScheduleTime(null)).toBe("—");
+    expect(inEnglish(formatScheduleTime("morning"))).toBe("Morning");
+    expect(inEnglish(formatScheduleTime("pre-bed"))).toBe("Pre-bed");
+    expect(inEnglish(formatScheduleTime("training"))).toBe("Training");
+    expect(inEnglish(formatScheduleTime("evening"))).toBe("Evening");
+    expect(inEnglish(formatScheduleTime(null))).toBe("—");
+  });
+
+  test("medicationStatusLabel: closed status enum, sentence-case fallback", () => {
+    expect(inEnglish(medicationStatusLabel("active"))).toBe("Active");
+    expect(inEnglish(medicationStatusLabel("completed"))).toBe("Completed");
+    expect(inEnglish(medicationStatusLabel("paused"))).toBe("Paused");
+    expect(inEnglish(medicationStatusLabel("on_hold"))).toBe("On hold");
   });
 });
