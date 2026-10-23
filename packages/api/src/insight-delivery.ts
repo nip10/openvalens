@@ -441,7 +441,7 @@ export async function runInsightDelivery(
                 intro: i18n._(INSIGHT_EMAIL_COPY.intro),
                 emptyText: i18n._(INSIGHT_EMAIL_COPY.none),
                 items: fresh.map((insight) => {
-                  const view = insightView(insight, deps.displaySettings);
+                  const view = insightView(i18n, insight, deps.displaySettings);
                   return {
                     title: view.title,
                     lines: [

@@ -5,7 +5,7 @@ import { defaultKindChannels, runInsightRules } from "@openvalens/api/insight-ru
 import { computeGoalProgress } from "@openvalens/api/score-goal-progress";
 import { computeReadiness } from "@openvalens/api/score-readiness";
 import { I18nProvider } from "@lingui/react";
-import { englishI18n } from "@openvalens/i18n/testing";
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import {
@@ -70,7 +70,7 @@ describe("insights panel (web)", () => {
       title: "Meals and recorded sleep timing",
       body: "Recorded meals and sleep timing overlapped in this period.",
     };
-    const view = nutritionObservationView(hidden);
+    const view = nutritionObservationView(englishI18n, hidden);
     const markup = renderToStaticMarkup(
       <article aria-label={view.accessibilityLabel}>
         <h3>{view.title}</h3>
@@ -201,14 +201,15 @@ describe("insights panel (web)", () => {
     // Nutrition observations are opted in only through their dedicated card:
     // insight delivery never sends them, so no delivery/email/push switch may
     // be offered here. This removes a misleading no-op surface (#84).
-    expect(html).not.toContain(INSIGHT_KIND_LABELS.observation);
+    expect(html).not.toContain(inEnglish(INSIGHT_KIND_LABELS.observation));
     expect(html).not.toMatch(
       /(?:observation|Nutrition observations)\s*—\s*(?:In the app|Push|Weekly)/,
     );
-    for (const [kind, label] of Object.entries(INSIGHT_KIND_LABELS)) {
+    for (const [kind, message] of Object.entries(INSIGHT_KIND_LABELS)) {
       if (kind === "observation") continue;
+      const label = inEnglish(message);
       expect(html).toContain(label);
-      for (const channelLabel of Object.values(INSIGHT_CHANNEL_LABELS)) {
+      for (const channelLabel of Object.values(INSIGHT_CHANNEL_LABELS).map(inEnglish)) {
         expect(html).toContain(`${label} — ${channelLabel}`);
       }
     }

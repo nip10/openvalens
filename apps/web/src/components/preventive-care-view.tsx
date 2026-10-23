@@ -52,7 +52,7 @@ function ItemControls({
   pending: boolean;
   onUpdateItem: Handlers["onUpdateItem"];
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const title = item.title;
   const [done, setDone] = useState(item.state.lastDoneOn ?? "");
   const [next, setNext] = useState(item.state.nextOn ?? "");
@@ -64,7 +64,7 @@ function ItemControls({
       </legend>
       <div className="flex flex-wrap items-end gap-2">
         <div className="grid gap-1">
-          <Label htmlFor={`${id}-done`}>{PREVENTIVE_COPY.lastDone}</Label>
+          <Label htmlFor={`${id}-done`}>{i18n._(PREVENTIVE_COPY.lastDone)}</Label>
           <input
             id={`${id}-done`}
             type="date"
@@ -85,7 +85,7 @@ function ItemControls({
         <div className="grid gap-2">
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid gap-1">
-              <Label htmlFor={`${id}-next`}>{PREVENTIVE_COPY.nextDate}</Label>
+              <Label htmlFor={`${id}-next`}>{i18n._(PREVENTIVE_COPY.nextDate)}</Label>
               <input
                 id={`${id}-next`}
                 type="date"
@@ -116,7 +116,7 @@ function ItemControls({
                   onUpdateItem({ itemId: item.id, nextOn: item.suggestedNextOn });
                 }}
               >
-                {PREVENTIVE_COPY.useSuggestion(formatGuidanceDate(item.suggestedNextOn))}
+                {i18n._(PREVENTIVE_COPY.useSuggestion(formatGuidanceDate(item.suggestedNextOn)))}
               </Button>
             ) : null}
           </div>
@@ -127,7 +127,7 @@ function ItemControls({
               disabled={item.state.nextOn === null}
               onCheckedChange={(checked) => onUpdateItem({ itemId: item.id, remind: checked })}
             />
-            <Label htmlFor={`${id}-remind`}>{PREVENTIVE_COPY.remind}</Label>
+            <Label htmlFor={`${id}-remind`}>{i18n._(PREVENTIVE_COPY.remind)}</Label>
           </div>
           {item.reminderMode === "expect_invitation" ? (
             <div className="flex items-center gap-2">
@@ -142,7 +142,9 @@ function ItemControls({
                   })
                 }
               />
-              <Label htmlFor={`${id}-invite`}>{PREVENTIVE_COPY.plans.expect_invitation}</Label>
+              <Label htmlFor={`${id}-invite`}>
+                {i18n._(PREVENTIVE_COPY.plans.expect_invitation)}
+              </Label>
             </div>
           ) : null}
         </div>
@@ -161,7 +163,7 @@ function ItemControls({
                 checked={item.state.plan === plan}
                 onChange={() => onUpdateItem({ itemId: item.id, plan })}
               />
-              {PREVENTIVE_COPY.plans[plan]}
+              {i18n._(PREVENTIVE_COPY.plans[plan])}
             </label>
           ))}
           {item.state.plan !== "none" ? (
@@ -190,7 +192,8 @@ export function PreventiveItemCardView({
   pending: boolean;
   onUpdateItem: Handlers["onUpdateItem"];
 }) {
-  const card = preventiveItemCard(item);
+  const { i18n } = useLingui();
+  const card = preventiveItemCard(i18n, item);
   return (
     <Card role="article" aria-labelledby={`pc-${card.key}`}>
       <CardHeader>
@@ -200,7 +203,7 @@ export function PreventiveItemCardView({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
-        {card.beingReviewed ? <p>{PREVENTIVE_COPY.beingReviewed}</p> : null}
+        {card.beingReviewed ? <p>{i18n._(PREVENTIVE_COPY.beingReviewed)}</p> : null}
         <p className="font-medium">{card.applicabilityText}</p>
         {card.facts.length > 0 ? (
           <ul className="list-disc pl-5">
@@ -215,14 +218,14 @@ export function PreventiveItemCardView({
         {card.dateReachedText ? <p className="font-medium">{card.dateReachedText}</p> : null}
         {card.decisionAidUrl ? (
           <a className="underline" href={card.decisionAidUrl} target="_blank" rel="noreferrer">
-            {PREVENTIVE_COPY.decisionAid}
+            {i18n._(PREVENTIVE_COPY.decisionAid)}
           </a>
         ) : null}
         <p className="text-muted-foreground">{card.framing}</p>
         <p className="text-xs text-muted-foreground">
           {card.citation}{" "}
           <a className="underline" href={card.sourceUrl} target="_blank" rel="noreferrer">
-            {PREVENTIVE_COPY.sourceLink}
+            {i18n._(PREVENTIVE_COPY.sourceLink)}
           </a>
           . {card.nonEndorsement}{" "}
           <a
@@ -231,7 +234,7 @@ export function PreventiveItemCardView({
             target="_blank"
             rel="noreferrer"
           >
-            {PREVENTIVE_COPY.reportProblem}
+            {i18n._(PREVENTIVE_COPY.reportProblem)}
           </a>
         </p>
         {canEdit && !card.beingReviewed ? (
@@ -251,12 +254,13 @@ function Criteria({
   pending: boolean;
   onDeclare: Handlers["onDeclare"];
 }) {
+  const { i18n } = useLingui();
   if (result.criteria.length === 0) return null;
   return (
     <Card role="region" aria-labelledby="pc-criteria">
       <CardHeader>
-        <CardTitle id="pc-criteria">{PREVENTIVE_COPY.criteriaTitle}</CardTitle>
-        <CardDescription>{PREVENTIVE_COPY.criteriaIntro}</CardDescription>
+        <CardTitle id="pc-criteria">{i18n._(PREVENTIVE_COPY.criteriaTitle)}</CardTitle>
+        <CardDescription>{i18n._(PREVENTIVE_COPY.criteriaIntro)}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {result.criteria.map((criterion) => (
@@ -272,12 +276,12 @@ function Criteria({
                     checked={criterion.answer === answer}
                     onChange={() => onDeclare(criterion.id, answer)}
                   />
-                  {DECLARATION_LABELS[answer]}
+                  {i18n._(DECLARATION_LABELS[answer])}
                 </label>
               ))}
               {criterion.answer !== null ? (
                 <Button size="sm" variant="ghost" onClick={() => onDeclare(criterion.id, null)}>
-                  {PREVENTIVE_COPY.clearAnswer}
+                  {i18n._(PREVENTIVE_COPY.clearAnswer)}
                 </Button>
               ) : null}
             </div>
@@ -289,16 +293,18 @@ function Criteria({
 }
 
 export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResult }) {
+  const { i18n } = useLingui();
   const version = library.version;
-  if (!library.enabled) return <p className="text-sm text-muted-foreground">{LIBRARY_COPY.off}</p>;
+  if (!library.enabled)
+    return <p className="text-sm text-muted-foreground">{i18n._(LIBRARY_COPY.off)}</p>;
   return (
     <section aria-labelledby="pc-library" className="grid gap-3">
       <h2 id="pc-library" className="text-xl font-semibold">
-        {LIBRARY_COPY.title}
+        {i18n._(LIBRARY_COPY.title)}
       </h2>
-      <p className="text-sm text-muted-foreground">{LIBRARY_COPY.intro}</p>
+      <p className="text-sm text-muted-foreground">{i18n._(LIBRARY_COPY.intro)}</p>
       {library.entries.map((entry) => {
-        const card = evidenceEntryCard(entry);
+        const card = evidenceEntryCard(i18n, entry);
         return (
           <Card key={card.key} role="article" aria-labelledby={`ev-${card.key}`}>
             <CardHeader>
@@ -344,12 +350,13 @@ export function PreventiveCareView({
   /** Link to the profile screen (router-specific, so passed in). */
   profileLink?: ReactNode;
 } & Handlers) {
-  const page = preventivePageNotes(result);
+  const { i18n } = useLingui();
+  const page = preventivePageNotes(i18n, result);
   return (
     <div className="grid gap-6">
       <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{PREVENTIVE_COPY.pageTitle}</h1>
-        <p className="text-sm text-muted-foreground">{PREVENTIVE_COPY.pageIntro}</p>
+        <h1 className="text-2xl font-semibold">{i18n._(PREVENTIVE_COPY.pageTitle)}</h1>
+        <p className="text-sm text-muted-foreground">{i18n._(PREVENTIVE_COPY.pageIntro)}</p>
       </div>
       {page.statusText ? (
         <div className="grid gap-2">
@@ -378,9 +385,11 @@ export function PreventiveCareView({
           {result.notShown.length > 0 ? (
             <details>
               <summary className="cursor-pointer text-sm font-medium">
-                {PREVENTIVE_COPY.notShownTitle} ({result.notShown.length})
+                {i18n._(PREVENTIVE_COPY.notShownTitle)} ({result.notShown.length})
               </summary>
-              <p className="text-sm text-muted-foreground">{PREVENTIVE_COPY.notShownIntro}</p>
+              <p className="text-sm text-muted-foreground">
+                {i18n._(PREVENTIVE_COPY.notShownIntro)}
+              </p>
               <ul className="list-disc pl-5 text-sm">
                 {result.notShown.map((entry) => (
                   <li key={entry.id}>{entry.title}</li>
@@ -388,7 +397,7 @@ export function PreventiveCareView({
               </ul>
             </details>
           ) : null}
-          <p className="text-xs text-muted-foreground">{PREVENTIVE_COPY.disclaimer}</p>
+          <p className="text-xs text-muted-foreground">{i18n._(PREVENTIVE_COPY.disclaimer)}</p>
           {result.canEdit ? (
             <div className="flex items-start gap-2">
               <Switch
@@ -398,8 +407,10 @@ export function PreventiveCareView({
                 onCheckedChange={handlers.onLibrary}
               />
               <div className="grid gap-1">
-                <Label htmlFor="pc-library-toggle">{PREVENTIVE_COPY.libraryToggle}</Label>
-                <p className="text-xs text-muted-foreground">{PREVENTIVE_COPY.libraryToggleHint}</p>
+                <Label htmlFor="pc-library-toggle">{i18n._(PREVENTIVE_COPY.libraryToggle)}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {i18n._(PREVENTIVE_COPY.libraryToggleHint)}
+                </p>
               </div>
             </div>
           ) : null}

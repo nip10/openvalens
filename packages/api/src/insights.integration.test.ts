@@ -780,6 +780,10 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     const email = emails[0]!;
     expect(email.subject).toBe("O seu resumo semanal de perspetivas");
     expect(email.text).toContain("Não são aconselhamento médico");
+    // The insight itself is rendered in the member's language too.
+    expect(email.text).toContain("Frequência cardíaca em repouso acima do seu habitual");
+    expect(email.text).toContain("Com base em ");
+    expect(email.text).not.toContain("higher than your usual");
     expect(email.text).toContain(
       "Desligar este email: https://app.example.test/unsubscribe?token=",
     );

@@ -1,3 +1,4 @@
+import type { I18n } from "@lingui/core";
 import type { InsightsResult } from "@openvalens/api/insight-contract";
 import { INSIGHT_COPY, insightsListView } from "@openvalens/api/presenters/insights";
 import type { ProductDisplaySettings } from "@openvalens/api/presenters/product-formatting";
@@ -33,13 +34,14 @@ export type InsightsSectionModel = {
 };
 
 export function insightsSectionModel(
+  i18n: I18n,
   result: InsightsResult,
   settings?: ProductDisplaySettings | null,
 ): InsightsSectionModel {
-  const view = insightsListView(result, settings);
+  const view = insightsListView(i18n, result, settings);
   return {
-    title: INSIGHT_COPY.sectionTitle,
-    intro: INSIGHT_COPY.sectionIntro,
+    title: i18n._(INSIGHT_COPY.sectionTitle),
+    intro: i18n._(INSIGHT_COPY.sectionIntro),
     notes: [view.withheld, view.emptyText, ...view.footnotes].filter(
       (line): line is string => line !== null,
     ),
@@ -56,13 +58,13 @@ export function insightsSectionModel(
       ruleText: insight.ruleText,
       accessibilityLabel: insight.accessibilityLabel,
     })),
-    notReadyTitle: INSIGHT_COPY.notReadyTitle,
+    notReadyTitle: i18n._(INSIGHT_COPY.notReadyTitle),
     notReady: view.notReady.map((row) => ({
       key: row.key,
       text: `${row.label}: ${row.stateLabel}. ${row.detail}`,
     })),
-    method: INSIGHT_COPY.methodText,
-    limits: INSIGHT_COPY.limits,
+    method: i18n._(INSIGHT_COPY.methodText),
+    limits: i18n._(INSIGHT_COPY.limits),
     versionText: view.versionText,
   };
 }

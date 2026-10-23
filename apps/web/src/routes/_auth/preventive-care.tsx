@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_auth/preventive-care")({
  */
 function PreventiveCarePage() {
   const queryClient = useQueryClient();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const result = useQuery(orpc.preventiveCare.get.queryOptions({ input: {} }));
   const library = useQuery({
     ...orpc.preventiveCare.library.queryOptions({ input: {} }),
@@ -57,7 +57,7 @@ function PreventiveCarePage() {
           pending={declare.isPending || updateItem.isPending || settings.isPending}
           profileLink={
             <Link to="/profile" className="underline">
-              {PREVENTIVE_COPY.profileLink}
+              {i18n._(PREVENTIVE_COPY.profileLink)}
             </Link>
           }
           onDeclare={(criterion, answer) => declare.mutate({ criterion, answer })}

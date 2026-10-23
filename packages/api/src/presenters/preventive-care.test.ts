@@ -84,7 +84,7 @@ function allCards() {
             ),
             { asOf: "2026-10-16", showDateReached: true },
           );
-          cards.push(...output.items.map(preventiveItemCard));
+          cards.push(...output.items.map((view) => preventiveItemCard(englishI18n, view)));
         }
   return cards;
 }
@@ -117,20 +117,22 @@ describe("preventive-care copy", () => {
     const decisions = allCards().filter((card) => card.band === "individual_decision");
     expect(decisions.length).toBeGreaterThan(0);
     for (const card of decisions) {
-      expect(card.facts).toContain(PREVENTIVE_COPY.talkToClinician);
+      expect(card.facts).toContain(inEnglish(PREVENTIVE_COPY.talkToClinician));
       expect(card.dateReachedText).toBeNull();
       expect(card.decisionAidUrl).not.toBeNull();
     }
   });
 
   test("grades are readable without colour and mirror the authority", () => {
-    expect(gradeLabel({ scale: "uspstf", value: "B" })).toBe("Recommended (USPSTF B)");
-    expect(gradeLabel({ scale: "uspstf", value: "C" })).toBe(
+    const grade = (value: Parameters<typeof gradeLabel>[0]) => inEnglish(gradeLabel(value));
+    expect(grade({ scale: "uspstf", value: "A" })).toBe("Recommended (USPSTF A)");
+    expect(grade({ scale: "uspstf", value: "B" })).toBe("Recommended (USPSTF B)");
+    expect(grade({ scale: "uspstf", value: "C" })).toBe(
       "Individual decision: discuss with your clinician (USPSTF C)",
     );
-    expect(gradeLabel({ scale: "uspstf", value: "I" })).toBe("Evidence uncertain (USPSTF I)");
-    expect(gradeLabel({ scale: "uspstf", value: "D" })).toBe("Not recommended (USPSTF D)");
-    expect(gradeLabel({ scale: "programme", value: "nhs_screening_programme" })).toContain("NHS");
+    expect(grade({ scale: "uspstf", value: "I" })).toBe("Evidence uncertain (USPSTF I)");
+    expect(grade({ scale: "uspstf", value: "D" })).toBe("Not recommended (USPSTF D)");
+    expect(grade({ scale: "programme", value: "nhs_screening_programme" })).toContain("NHS");
   });
 
   test("page copy for every status and applicability passes the wording rules", () => {
@@ -155,14 +157,20 @@ describe("preventive-care copy", () => {
       "adult_confirmation_required",
       "owner_only",
     ] as const) {
-      const notes = preventivePageNotes({ ...base, status });
+      const notes = preventivePageNotes(englishI18n, { ...base, status });
       for (const text of [notes.statusText ?? "", ...notes.notes])
         expect(violations(text)).toEqual([]);
     }
-    expect(preventivePageNotes({ ...base, status: "no_region" }).statusText).toContain("region");
-    for (const key of APPLICABILITY) expect(violations(APPLICABILITY_TEXT[key])).toEqual([]);
-    for (const text of Object.values(PREVENTIVE_COPY))
-      if (typeof text === "string") expect(violations(text)).toEqual([]);
+    expect(preventivePageNotes(englishI18n, { ...base, status: "no_region" }).statusText).toContain(
+      "region",
+    );
+    for (const key of APPLICABILITY)
+      expect(violations(inEnglish(APPLICABILITY_TEXT[key]))).toEqual([]);
+    for (const value of Object.values(PREVENTIVE_COPY)) {
+      if (typeof value === "function") continue;
+      const messages = "id" in value ? [value] : Object.values(value);
+      for (const message of messages) expect(violations(inEnglish(message))).toEqual([]);
+    }
   });
 
   test("reminder push and email are generic: no item, topic, date or value", () => {
@@ -194,6 +202,85 @@ describe("preventive-care copy", () => {
   });
 });
 
+describe("preventive-care copy in pt-PT (#231)", () => {
+  const pt = createAppI18n("pt-PT");
+
+  test("an item card renders in European Portuguese; the pack's own text stays as published", () => {
+    const output = evaluatePreventiveCare(
+      PREVENTIVE_CARE_PACK,
+      {
+        region: "uk",
+        ageRange: { available: true, value: { minAge: 52, maxAge: 53 } },
+        sex: { available: true, value: "female" },
+        declarations: {},
+      },
+      new Map([
+        [
+          "uk.breast_screening",
+          {
+            ...EMPTY_ITEM_STATE,
+            plan: "expect_invitation",
+            lastDoneOn: "2025-01-01",
+            nextOn: "2026-01-01",
+            remind: true,
+          },
+        ],
+      ]),
+      { asOf: "2026-10-16", showDateReached: true },
+    );
+    const view = output.items.find((item) => item.id === "uk.breast_screening")!;
+    const card = preventiveItemCard(pt, view);
+    expect(card.title).toBe("Breast screening (mammogram)");
+    expect(card.gradeLabel).toBe("Oferecido pelo programa de rastreio do NHS (Inglaterra)");
+    expect(card.applicabilityText).toBe(
+      "Corresponde à idade, ao sexo e às respostas que partilhou.",
+    );
+    expect(card.facts[0]).toBe("Para mulheres dos 50 aos 70 anos");
+    expect(card.facts.at(-1)).toBe(
+      "Este programa envia os convites diretamente às pessoas. O OpenValens não substitui esse convite.",
+    );
+    expect(card.framing).toBe(
+      "Informação do NHS em Inglaterra, publicada em 9 Oct 2025. Orientação geral de saúde pública, não aconselhamento médico personalizado. Pode não se aplicar a si.",
+    );
+    expect(card.nonEndorsement).toBe("O NHS não reviu nem aprovou esta aplicação.");
+    expect(card.stateLines).toEqual([
+      "Aguardar o convite",
+      "Feito pela última vez: 1 Jan 2025",
+      "Próxima data que definiu: 1 Jan 2026 (lembrete ativado)",
+    ]);
+    expect(card.dateReachedText).toBe("Chegou a data que definiu.");
+    expect(card.citation).toContain(
+      "Consultado em 16 Oct 2026; última verificação em 16 Oct 2026.",
+    );
+  });
+
+  test("page notes, labels and the library intro are translated", () => {
+    const notes = preventivePageNotes(pt, {
+      engineVersion: "x",
+      packVersion: "p",
+      asOf: "2026-10-16",
+      status: "available",
+      region: "pt",
+      ageUnavailable: "declined",
+      sexUnavailable: null,
+      items: [],
+      notShown: [],
+      criteria: [],
+      libraryEnabled: false,
+      canEdit: true,
+      showDateReached: true,
+    });
+    expect(notes.notes).toEqual([
+      "A mostrar orientações para: Portugal (UE). Altere a sua região no seu perfil.",
+      "A sua faixa etária não está disponível: Optou por não partilhar isto. Adicione o seu ano de nascimento (grupo etário) no seu perfil para ver que itens se aplicam a si. Nada é adivinhado.",
+      "Nenhum item da sua região corresponde ao que partilhou.",
+    ]);
+    expect(pt._(gradeLabel({ scale: "uspstf", value: "B" }))).toBe("Recomendado (USPSTF B)");
+    expect(pt._(PREVENTIVE_COPY.talkToClinician)).toContain("profissional de saúde");
+    expect(pt._(LIBRARY_COPY.intro)).toContain("sem doses");
+  });
+});
+
 describe("evidence-check library", () => {
   test("matches the schema; every entry cites primary evidence with a certainty label", () => {
     const parsed = evidenceLibrarySchema.safeParse(EVIDENCE_CHECK_LIBRARY);
@@ -202,7 +289,7 @@ describe("evidence-check library", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const entry of EVIDENCE_CHECK_LIBRARY.entries) {
       expect(entry.sources.length).toBeGreaterThan(0);
-      const card = evidenceEntryCard(entry);
+      const card = evidenceEntryCard(englishI18n, entry);
       expect(card.certaintyLabel.length).toBeGreaterThan(3);
       expect(card.verdictLabel.length).toBeGreaterThan(3);
     }
@@ -222,6 +309,6 @@ describe("evidence-check library", () => {
       // Wording rules apply to our text, not to the sources' own URLs.
       expect(violations(text.replace(/https:\/\/\S+/g, ""))).toEqual([]);
     }
-    expect(LIBRARY_COPY.intro).toContain("no doses");
+    expect(inEnglish(LIBRARY_COPY.intro)).toContain("no doses");
   });
 });
