@@ -19,6 +19,11 @@ const DRAWER_ITEMS = [
   { label: "Supplements", href: "/supplements" as const, icon: "medkit-outline" as const },
   { label: "Meal diary", href: "/nutrition" as const, icon: "restaurant-outline" as const },
   {
+    label: "Micronutrients",
+    href: "/micronutrients" as const,
+    icon: "nutrition-outline" as const,
+  },
+  {
     label: "Recipe draft",
     href: "/recipe-drafts" as const,
     icon: "document-text-outline" as const,
@@ -125,29 +130,31 @@ function DrawerLayout() {
                       ? "Supplements"
                       : pathname === "/nutrition"
                         ? "Meal diary"
-                        : pathname === "/nutrition-targets"
-                          ? "Nutrition targets"
-                          : pathname === "/recipe-drafts"
-                            ? "Recipe draft"
-                            : pathname === "/food-draft"
-                              ? "Describe a meal"
-                              : pathname === "/foods"
-                                ? "My foods"
-                                : pathname === "/workouts"
-                                  ? "Workouts"
-                                  : pathname === "/exercise-library"
-                                    ? "Exercise library"
-                                    : pathname === "/exports"
-                                      ? "Clinical export"
-                                      : pathname === "/settings"
-                                        ? "Settings"
-                                        : pathname === "/scores"
-                                          ? "Scores"
-                                          : pathname === "/invitations"
-                                            ? "Invitations"
-                                            : pathname === "/preventive-care"
-                                              ? "Preventive care"
-                                              : "Cockpit";
+                        : pathname === "/micronutrients"
+                          ? "Micronutrients"
+                          : pathname === "/nutrition-targets"
+                            ? "Nutrition targets"
+                            : pathname === "/recipe-drafts"
+                              ? "Recipe draft"
+                              : pathname === "/food-draft"
+                                ? "Describe a meal"
+                                : pathname === "/foods"
+                                  ? "My foods"
+                                  : pathname === "/workouts"
+                                    ? "Workouts"
+                                    : pathname === "/exercise-library"
+                                      ? "Exercise library"
+                                      : pathname === "/exports"
+                                        ? "Clinical export"
+                                        : pathname === "/settings"
+                                          ? "Settings"
+                                          : pathname === "/scores"
+                                            ? "Scores"
+                                            : pathname === "/invitations"
+                                              ? "Invitations"
+                                              : pathname === "/preventive-care"
+                                                ? "Preventive care"
+                                                : "Cockpit";
 
   return (
     <Drawer
@@ -230,6 +237,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="nutrition"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="micronutrients"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
