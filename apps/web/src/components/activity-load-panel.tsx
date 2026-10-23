@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ActivityLoadResult } from "@openvalens/api/activity-load-contract";
 import {
   ACTIVITY_LOAD_COPY,
@@ -51,7 +52,9 @@ function NumberBlock({ part }: { part: ActivityNumberView }) {
         </p>
       ))}
       <details className="text-sm">
-        <summary className="cursor-pointer font-medium">How this is calculated</summary>
+        <summary className="cursor-pointer font-medium">
+          <Trans>How this is calculated</Trans>
+        </summary>
         <p className="mt-2">{part.formula}</p>
         {part.sources.map((line) => (
           <p key={line} className="mt-2 text-muted-foreground">
@@ -66,7 +69,7 @@ function NumberBlock({ part }: { part: ActivityNumberView }) {
               target="_blank"
               rel="noreferrer noopener"
             >
-              WHO 2020 guidelines (opens the paper)
+              <Trans>WHO 2020 guidelines (opens the paper)</Trans>
             </a>
           </p>
         ) : null}
@@ -76,7 +79,8 @@ function NumberBlock({ part }: { part: ActivityNumberView }) {
 }
 
 export function ActivityLoadCard({ result }: { result: ActivityLoadResult }) {
-  const view = activityLoadView(result);
+  const { i18n } = useLingui();
+  const view = activityLoadView(result, i18n);
   return (
     <Card role="region" aria-labelledby="activity-load-title">
       <CardHeader>
@@ -96,7 +100,9 @@ export function ActivityLoadCard({ result }: { result: ActivityLoadResult }) {
         ) : null}
         {view.effortDays.length > 0 ? (
           <div>
-            <h3 className="mb-2 text-sm font-medium">Effort points by day</h3>
+            <h3 className="mb-2 text-sm font-medium">
+              <Trans>Effort points by day</Trans>
+            </h3>
             <ul className="divide-y divide-border">
               {view.effortDays.map((day) => (
                 <li
@@ -128,7 +134,7 @@ export function ActivityLoadCard({ result }: { result: ActivityLoadResult }) {
         {view.context.length > 0 ? (
           <section className="grid gap-1 text-sm" aria-labelledby="activity-context-title">
             <h3 id="activity-context-title" className="font-medium">
-              {ACTIVITY_LOAD_COPY.contextTitle}
+              {i18n._(ACTIVITY_LOAD_COPY.contextTitle)}
             </h3>
             {view.context.map((line) => (
               <p key={line} className="text-muted-foreground">

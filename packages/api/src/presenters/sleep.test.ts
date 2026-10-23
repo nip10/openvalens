@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import {
   formatClockTime,
   formatSleepDuration,
@@ -64,7 +66,7 @@ describe("sleep presenter", () => {
   });
 
   test("maps status to a label and a chip tone", () => {
-    expect(sleepStatusLabel("high_sleep_debt")).toBe("High sleep debt");
+    expect(inEnglish(sleepStatusLabel("high_sleep_debt"))).toBe("High sleep debt");
     expect(sleepStatusTone("high_sleep_debt")).toBe("destructive");
     expect(sleepStatusTone("mild_sleep_debt")).toBe("warning");
     expect(sleepStatusTone("optimal")).toBe("success");
@@ -88,7 +90,8 @@ describe("sleep presenter", () => {
     const stages = lastNightStages({ ...lastNight, unknownStageMinutes: 0 });
     expect(stages.map((s) => s.stage)).toEqual(["awake", "light", "deep", "rem"]);
     const withUnknown = lastNightStages({ ...lastNight, unknownStageMinutes: 17 });
-    expect(withUnknown.find((s) => s.stage === "unknown")?.label).toBe("Untracked");
+    const unknown = withUnknown.find((s) => s.stage === "unknown");
+    expect(unknown && inEnglish(unknown.label)).toBe("Untracked");
     expect(lastNightStages(null)).toEqual([]);
   });
 });

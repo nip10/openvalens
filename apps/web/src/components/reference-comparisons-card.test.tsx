@@ -9,9 +9,17 @@ import {
   deriveWellnessProfileInputs,
   EMPTY_WELLNESS_PROFILE,
 } from "@openvalens/api/wellness-profile-contract";
-import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 import { ReferenceComparisonsCard } from "./reference-comparisons-card";
+
+/** Renders in English through Lingui (#67). */
+function renderToStaticMarkup(node: ReactNode): string {
+  return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+}
 
 const AS_OF = "2026-10-16";
 const NOW = new Date(`${AS_OF}T12:00:00.000Z`);

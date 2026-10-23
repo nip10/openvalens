@@ -1,3 +1,5 @@
+import type { I18n } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   cardiacExamTypeLabel,
   familyRelationLabel,
@@ -17,6 +19,7 @@ export const Route = createFileRoute("/_auth/clinical")({
 });
 
 function ClinicalPage() {
+  const { t, i18n } = useLingui();
   const cardiac = useQuery(orpc.clinical.listCardiacExams.queryOptions({ input: {} }));
   const imaging = useQuery(orpc.clinical.listImagingStudies.queryOptions({ input: {} }));
   const family = useQuery(orpc.clinical.listFamilyHistory.queryOptions({ input: {} }));
@@ -24,7 +27,9 @@ function ClinicalPage() {
   if (cardiac.isPending || imaging.isPending || family.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Clinical</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Clinical</Trans>
+        </h1>
         <Skeleton className="h-32 w-full" />
       </div>
     );
@@ -33,9 +38,11 @@ function ClinicalPage() {
   if (cardiac.isError || imaging.isError || family.isError) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Clinical</h1>
+        <h1 className="mb-6 text-2xl font-semibold">
+          <Trans>Clinical</Trans>
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Could not load clinical records.{" "}
+          <Trans>Could not load clinical records.</Trans>{" "}
           <button
             className="underline"
             onClick={() => {
@@ -44,7 +51,7 @@ function ClinicalPage() {
               void family.refetch();
             }}
           >
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -53,25 +60,27 @@ function ClinicalPage() {
 
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">Clinical</h1>
+      <h1 className="text-2xl font-semibold">
+        <Trans>Clinical</Trans>
+      </h1>
 
       <Section
-        title="Cardiac"
+        title={t`Cardiac`}
         rows={cardiac.data}
-        renderItem={renderCardiac}
-        emptyText="No cardiac exams recorded."
+        renderItem={(row) => renderCardiac(row, i18n)}
+        emptyText={t`No cardiac exams recorded.`}
       />
       <Section
-        title="Imaging"
+        title={t`Imaging`}
         rows={imaging.data}
-        renderItem={renderImaging}
-        emptyText="No imaging studies recorded."
+        renderItem={(row) => renderImaging(row, i18n)}
+        emptyText={t`No imaging studies recorded.`}
       />
       <Section
-        title="Family history"
+        title={t`Family history`}
         rows={family.data}
-        renderItem={renderFamily}
-        emptyText="No family history entries."
+        renderItem={(row) => renderFamily(row, i18n)}
+        emptyText={t`No family history entries.`}
       />
     </div>
   );
@@ -122,9 +131,12 @@ type CardiacRow = {
   facility: string | null;
   conclusion: string | null;
 };
-function renderCardiac(row: CardiacRow): { headline: string; date: string; secondary: string } {
+function renderCardiac(
+  row: CardiacRow,
+  i18n: I18n,
+): { headline: string; date: string; secondary: string } {
   return {
-    headline: cardiacExamTypeLabel(row.type),
+    headline: cardiacExamTypeLabel(row.type, i18n),
     date: row.date,
     secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
   };
@@ -137,9 +149,12 @@ type ImagingRow = {
   facility: string | null;
   conclusion: string | null;
 };
-function renderImaging(row: ImagingRow): { headline: string; date: string; secondary: string } {
+function renderImaging(
+  row: ImagingRow,
+  i18n: I18n,
+): { headline: string; date: string; secondary: string } {
   return {
-    headline: `${imagingTypeLabel(row.type)} · ${row.bodyPart}`,
+    headline: `${imagingTypeLabel(row.type, i18n)} · ${row.bodyPart}`,
     date: row.date,
     secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
   };
@@ -151,9 +166,12 @@ type FamilyRow = {
   ageOfOnset: number | null;
   notes: string | null;
 };
-function renderFamily(row: FamilyRow): { headline: string; date: string; secondary: string } {
+function renderFamily(
+  row: FamilyRow,
+  i18n: I18n,
+): { headline: string; date: string; secondary: string } {
   return {
-    headline: `${familyRelationLabel(row.relation)} · ${row.condition}`,
+    headline: `${familyRelationLabel(row.relation, i18n)} · ${row.condition}`,
     date: formatYear(row.ageOfOnset),
     secondary: summaryText(row.notes),
   };

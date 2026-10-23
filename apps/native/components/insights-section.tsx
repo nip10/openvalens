@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type { InsightFeedbackAction } from "@openvalens/api/insight-contract";
 import {
   INSIGHT_COPY,
@@ -30,6 +31,7 @@ import { authClient } from "@/lib/auth-client";
  */
 export function InsightsSection() {
   const { data: session, isPending } = authClient.useSession();
+  const { t } = useLingui();
   const scope = privateInsightsSubject(
     isPending,
     session?.user?.id,
@@ -38,7 +40,7 @@ export function InsightsSection() {
   if (!scope)
     return (
       <View>
-        <Text>Loading insights…</Text>
+        <Text>{t`Loading insights…`}</Text>
       </View>
     );
   return (
@@ -58,6 +60,7 @@ function SubjectInsightsSection({
   organizationId: string | null;
 }) {
   const queryClient = useQueryClient();
+  const { t, i18n } = useLingui();
   const readinessOptions = orpc.score.readiness.queryOptions({ input: {} });
   const goalsOptions = orpc.score.goalProgress.queryOptions({ input: {} });
   const insightsOptions = orpc.insights.list.queryOptions({ input: {} });
@@ -106,7 +109,7 @@ function SubjectInsightsSection({
       setPendingId(null);
       invalidate();
     },
-    onError: () => setMessage("Could not save your feedback."),
+    onError: () => setMessage(t`Could not save your feedback.`),
   });
   const offer = useMutation({
     mutationFn: async (answer: "accepted" | "declined") => {
@@ -122,7 +125,7 @@ function SubjectInsightsSection({
       setMessage(text);
       invalidate();
     },
-    onError: () => setMessage("Could not save your choice."),
+    onError: () => setMessage(t`Could not save your choice.`),
   });
   const observation = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -131,7 +134,7 @@ function SubjectInsightsSection({
       void queryClient.invalidateQueries({ queryKey: insightsKey });
       void queryClient.invalidateQueries({ queryKey: preferencesKey });
     },
-    onError: () => setMessage("Could not update observation settings."),
+    onError: () => setMessage(t`Could not update observation settings.`),
   });
   const showObservations = shouldShowObservations(
     observationPrefs.data?.channels.observation.in_app,
@@ -143,8 +146,8 @@ function SubjectInsightsSection({
     observation.isError,
   );
 
-  const ready = readiness.data ? readinessView(readiness.data) : null;
-  const progress = goals.data ? goalProgressView(goals.data) : null;
+  const ready = readiness.data ? readinessView(readiness.data, i18n) : null;
+  const progress = goals.data ? goalProgressView(goals.data, i18n) : null;
   const model = insights.data ? insightsSectionModel(insights.data) : null;
 
   return (
@@ -154,18 +157,18 @@ function SubjectInsightsSection({
           {[
             {
               key: "readiness",
-              title: ready?.title ?? "Readiness index",
+              title: ready?.title ?? t`Readiness index`,
               badge: ready?.badge,
               score: ready?.scoreText ?? "—",
-              label: ready?.accessibilityLabel ?? "Readiness index not loaded.",
+              label: ready?.accessibilityLabel ?? t`Readiness index not loaded.`,
               note: ready?.withheldExplanation ?? ready?.coverageText ?? null,
             },
             {
               key: "goals",
-              title: progress?.title ?? "Goal progress",
+              title: progress?.title ?? t`Goal progress`,
               badge: undefined,
               score: progress?.scoreText ?? "—",
-              label: progress?.accessibilityLabel ?? "Goal progress not loaded.",
+              label: progress?.accessibilityLabel ?? t`Goal progress not loaded.`,
               note: progress?.withheldExplanation ?? progress?.coverageText ?? null,
             },
           ].map((summary) => (
@@ -196,7 +199,7 @@ function SubjectInsightsSection({
         <Card variant="secondary" className="gap-3 p-4">
           <Text className="text-sm text-muted-foreground">{INSIGHT_COPY.sectionIntro}</Text>
           {insights.isPending ? (
-            <Text className="text-sm text-muted-foreground">Loading…</Text>
+            <Text className="text-sm text-muted-foreground">{t`Loading…`}</Text>
           ) : insights.isError || !model ? (
             <Pressable
               onPress={() => void insights.refetch()}
@@ -204,7 +207,7 @@ function SubjectInsightsSection({
               className="min-h-11 justify-center"
             >
               <Text className="text-sm text-foreground underline">
-                Could not load insights. Retry
+                {t`Could not load insights. Retry`}
               </Text>
             </Pressable>
           ) : (
@@ -292,32 +295,34 @@ function SubjectInsightsSection({
         </Card>
       </CardStack>
 
-      <CardStack title="Nutrition observations">
+      <CardStack title={t`Nutrition observations`}>
         <Card variant="secondary" className="gap-3 p-4">
           <Text className="text-sm text-muted-foreground">
-            Optional descriptions of how your recorded meals line up in time with recorded sleep and
-            workouts. This reads across those logs only when you turn it on. It does not establish a
-            cause or provide health advice. You can turn it off here without changing either log.
+            {t({
+              message:
+                "Optional descriptions of how your recorded meals line up in time with recorded sleep and workouts. This reads across those logs only when you turn it on. It does not establish a cause or provide health advice. You can turn it off here without changing either log.",
+              comment: "safety",
+            })}
           </Text>
           {observationPrefs.isPending ? (
             <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
-              Loading observation setting…
+              {t`Loading observation setting…`}
             </Text>
           ) : observationPrefs.isError || !observationPrefs.data ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Retry loading observation setting"
+              accessibilityLabel={t`Retry loading observation setting`}
               onPress={() => void observationPrefs.refetch()}
             >
-              <Text className="underline">Could not load setting. Retry</Text>
+              <Text className="underline">{t`Could not load setting. Retry`}</Text>
             </Pressable>
           ) : (
             <Button
               isDisabled={observation.isPending}
               accessibilityLabel={
                 observationPrefs.data.channels.observation.in_app
-                  ? "Turn off nutrition observations"
-                  : "Turn on nutrition observations"
+                  ? t`Turn off nutrition observations`
+                  : t`Turn on nutrition observations`
               }
               onPress={() => {
                 const enabled = !observationPrefs.data!.channels.observation.in_app;
@@ -327,24 +332,24 @@ function SubjectInsightsSection({
             >
               <Button.Label>
                 {observationPrefs.data.channels.observation.in_app
-                  ? "Turn observations off"
-                  : "Turn observations on"}
+                  ? t`Turn observations off`
+                  : t`Turn observations on`}
               </Button.Label>
             </Button>
           )}
           {observation.isError ? (
             <Text accessibilityRole="alert" className="text-sm text-foreground">
-              Could not save this choice. Your saved setting is unchanged.
+              {t`Could not save this choice. Your saved setting is unchanged.`}
             </Text>
           ) : null}
           {observation.isError && typeof observation.variables === "boolean" ? (
             <Button variant="secondary" onPress={() => observation.mutate(observation.variables!)}>
-              <Button.Label>Retry saving choice</Button.Label>
+              <Button.Label>{t`Retry saving choice`}</Button.Label>
             </Button>
           ) : null}
           {showObservations && insights.data?.observations.length === 0 ? (
             <Text className="text-sm text-muted-foreground">
-              No observations to show for this period. Some records may be missing or incomplete.
+              {t`No observations to show for this period. Some records may be missing or incomplete.`}
             </Text>
           ) : null}
           {showObservations
@@ -369,11 +374,14 @@ function SubjectInsightsSection({
             : null}
           {showObservations ? (
             <Text className="text-xs text-muted-foreground">
-              Observations describe recorded timing only. They are not medical advice.
+              {t({
+                message: "Observations describe recorded timing only. They are not medical advice.",
+                comment: "safety",
+              })}
             </Text>
           ) : (
             <Text className="text-sm text-muted-foreground">
-              Off by default. No nutrition observations are shown.
+              {t`Off by default. No nutrition observations are shown.`}
             </Text>
           )}
         </Card>

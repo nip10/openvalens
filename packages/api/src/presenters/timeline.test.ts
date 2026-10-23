@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { inEnglish } from "@openvalens/i18n/testing";
+
 import {
   domainLabel,
   groupTimelineByDay,
@@ -44,9 +46,9 @@ describe("timeline presenter", () => {
   });
 
   test("domains get sentence-case labels; unknown domains fall back", () => {
-    expect(domainLabel("meds_supplements")).toBe("Meds and supplements");
-    expect(domainLabel("vitals")).toBe("Vitals");
-    expect(domainLabel("something_new")).toBe("Other");
+    expect(inEnglish(domainLabel("meds_supplements"))).toBe("Meds and supplements");
+    expect(inEnglish(domainLabel("vitals"))).toBe("Vitals");
+    expect(inEnglish(domainLabel("something_new"))).toBe("Other");
   });
 
   test("technical day/time keys stay ISO and follow the explicit timezone only", () => {

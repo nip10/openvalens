@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { expect, mock, test } from "bun:test";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
 import * as React from "react";
 import type { InsightsResult } from "@openvalens/api/insight-contract";
 
@@ -147,7 +149,15 @@ const mounted = mountedMode
 test.skipIf(mountedMode)("isolates nutrition observation mounts in a subprocess", async () => {
   const result = await execFileAsync(
     process.execPath,
-    ["test", "--preload", `${import.meta.dir}/setup.tsx`, import.meta.path],
+    [
+      "test",
+      // Lingui macros (#67): the subprocess runs outside the web package's bunfig.
+      "--preload",
+      `${import.meta.dir}/../../../scripts/test/lingui-macro.ts`,
+      "--preload",
+      `${import.meta.dir}/setup.tsx`,
+      import.meta.path,
+    ],
     {
       cwd: `${import.meta.dir}/../..`,
       env: {
@@ -180,7 +190,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       await screen.findByText("Off by default. No nutrition observations are shown.");
@@ -246,7 +260,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       await screen.findByText("Could not load observation setting. Retry");
@@ -279,7 +297,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       void client.invalidateQueries({ queryKey: insightsKey });
@@ -303,7 +325,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       expect(
@@ -329,7 +355,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       const redactedArticle = await screen.findByRole("article");
@@ -344,7 +374,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       const restored = await screen.findByRole("article");
@@ -362,7 +396,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       expect(screen.getByText("Loading insights…")).toBeTruthy();
@@ -375,7 +413,11 @@ test.skipIf(!mountedMode)(
         react.createElement(
           QueryClientProvider,
           { client },
-          react.createElement(component.InsightsSection),
+          react.createElement(
+            I18nProvider,
+            { i18n: englishI18n },
+            react.createElement(component.InsightsSection),
+          ),
         ),
       );
       await screen.findByText("Off by default. No nutrition observations are shown.");

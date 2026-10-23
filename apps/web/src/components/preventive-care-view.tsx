@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   DeclarationAnswer,
   EvidenceLibraryResult,
@@ -51,12 +52,16 @@ function ItemControls({
   pending: boolean;
   onUpdateItem: Handlers["onUpdateItem"];
 }) {
+  const { t } = useLingui();
+  const title = item.title;
   const [done, setDone] = useState(item.state.lastDoneOn ?? "");
   const [next, setNext] = useState(item.state.nextOn ?? "");
   const id = item.id.replace(/\W/g, "-");
   return (
     <fieldset className="grid gap-3 border-t pt-3" disabled={pending}>
-      <legend className="sr-only">Your record for {item.title}</legend>
+      <legend className="sr-only">
+        <Trans>Your record for {title}</Trans>
+      </legend>
       <div className="flex flex-wrap items-end gap-2">
         <div className="grid gap-1">
           <Label htmlFor={`${id}-done`}>{PREVENTIVE_COPY.lastDone}</Label>
@@ -73,7 +78,7 @@ function ItemControls({
           variant="outline"
           onClick={() => onUpdateItem({ itemId: item.id, lastDoneOn: done === "" ? null : done })}
         >
-          Save done date
+          <Trans>Save done date</Trans>
         </Button>
       </div>
       {item.canRemind ? (
@@ -100,7 +105,7 @@ function ItemControls({
                 })
               }
             >
-              Save next date
+              <Trans>Save next date</Trans>
             </Button>
             {item.suggestedNextOn && item.suggestedNextOn !== item.state.nextOn ? (
               <Button
@@ -145,7 +150,7 @@ function ItemControls({
       {item.canDecide ? (
         <div
           role="radiogroup"
-          aria-label={`Your decision about ${item.title}`}
+          aria-label={t`Your decision about ${title}`}
           className="flex flex-wrap gap-3"
         >
           {(["decided_yes", "decided_no", "decided_later"] as const).map((plan) => (
@@ -165,7 +170,7 @@ function ItemControls({
               variant="ghost"
               onClick={() => onUpdateItem({ itemId: item.id, plan: "none" })}
             >
-              Clear decision
+              <Trans>Clear decision</Trans>
             </Button>
           ) : null}
         </div>
@@ -284,6 +289,7 @@ function Criteria({
 }
 
 export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResult }) {
+  const version = library.version;
   if (!library.enabled) return <p className="text-sm text-muted-foreground">{LIBRARY_COPY.off}</p>;
   return (
     <section aria-labelledby="pc-library" className="grid gap-3">
@@ -320,7 +326,9 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
           </Card>
         );
       })}
-      <p className="text-xs text-muted-foreground">Library {library.version}.</p>
+      <p className="text-xs text-muted-foreground">
+        <Trans>Library {version}.</Trans>
+      </p>
     </section>
   );
 }

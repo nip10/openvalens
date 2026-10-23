@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { PREVENTIVE_COPY } from "@openvalens/api/presenters/preventive-care";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_auth/preventive-care")({
  */
 function PreventiveCarePage() {
   const queryClient = useQueryClient();
+  const { t } = useLingui();
   const result = useQuery(orpc.preventiveCare.get.queryOptions({ input: {} }));
   const library = useQuery({
     ...orpc.preventiveCare.library.queryOptions({ input: {} }),
@@ -26,7 +28,7 @@ function PreventiveCarePage() {
   });
   const invalidate = () =>
     void queryClient.invalidateQueries({ queryKey: orpc.preventiveCare.key() });
-  const onError = () => toast.error("Could not save. Nothing was changed.");
+  const onError = () => toast.error(t`Could not save. Nothing was changed.`);
   const declare = useMutation(
     orpc.preventiveCare.declare.mutationOptions({ onSuccess: invalidate, onError }),
   );
@@ -43,9 +45,9 @@ function PreventiveCarePage() {
         <Skeleton className="h-64 w-full" />
       ) : result.isError || !result.data ? (
         <p className="text-sm text-muted-foreground">
-          Could not load preventive care.{" "}
+          <Trans>Could not load preventive care.</Trans>{" "}
           <button className="underline" onClick={() => void result.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       ) : (

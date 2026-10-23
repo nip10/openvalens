@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   domainLabel,
   groupTimelineByDay,
@@ -26,6 +27,7 @@ const TONE_CLASS = {
 
 function TimelinePage() {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { i18n } = useLingui();
   const query = useInfiniteQuery(
     orpc.timeline.list.infiniteOptions({
       input: (cursor: string | undefined) => ({ limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) }),
@@ -38,7 +40,9 @@ function TimelinePage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-6 text-2xl font-semibold">Timeline</h1>
+      <h1 className="mb-6 text-2xl font-semibold">
+        <Trans>Timeline</Trans>
+      </h1>
 
       {query.isPending ? (
         <div className="grid gap-3">
@@ -48,17 +52,21 @@ function TimelinePage() {
         </div>
       ) : query.isError ? (
         <p className="text-sm text-muted-foreground">
-          Could not load the timeline.{" "}
+          <Trans>Could not load the timeline.</Trans>{" "}
           <button className="underline" onClick={() => void query.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       ) : groups.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No records yet</p>
+            <p className="font-medium">
+              <Trans>No records yet</Trans>
+            </p>
             <p className="text-sm text-muted-foreground">
-              Sync Health Connect or Apple Health from the mobile app, or add an entry.
+              <Trans>
+                Sync Health Connect or Apple Health from the mobile app, or add an entry.
+              </Trans>
             </p>
           </CardContent>
         </Card>
@@ -82,7 +90,11 @@ function TimelinePage() {
                             <span className="font-medium">{item.title}</span>
                             {tone ? (
                               <Badge variant="outline" className={cn(TONE_CLASS[tone])}>
-                                {item.severity === "critical" ? "Needs attention" : "Check"}
+                                {item.severity === "critical" ? (
+                                  <Trans>Needs attention</Trans>
+                                ) : (
+                                  <Trans>Check</Trans>
+                                )}
                               </Badge>
                             ) : null}
                           </div>
@@ -91,7 +103,7 @@ function TimelinePage() {
                           ) : null}
                         </div>
                         <div className="shrink-0 text-right text-xs text-muted-foreground">
-                          <div>{domainLabel(item.domain)}</div>
+                          <div>{i18n._(domainLabel(item.domain))}</div>
                           {source ? <div>{source}</div> : null}
                         </div>
                       </li>
@@ -107,7 +119,7 @@ function TimelinePage() {
               onClick={() => void query.fetchNextPage()}
               disabled={query.isFetchingNextPage}
             >
-              {query.isFetchingNextPage ? "Loading…" : "Load more"}
+              {query.isFetchingNextPage ? <Trans>Loading…</Trans> : <Trans>Load more</Trans>}
             </Button>
           ) : null}
         </div>

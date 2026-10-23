@@ -1,5 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 let preferenceState: Record<string, unknown>;
 let historyState: Record<string, unknown>;
@@ -20,6 +23,11 @@ mock.module("@tanstack/react-query", () => ({
 }));
 
 const { PrivateMeasurements } = await import("./private-measurements");
+
+/** Renders in English through Lingui (#67). */
+function renderToStaticMarkup(node: ReactNode): string {
+  return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+}
 const row = {
   id: "entry-a",
   kind: "weight",

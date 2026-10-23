@@ -2,9 +2,17 @@ import "@/testing/varlock-test-setup";
 import { describe, expect, test } from "bun:test";
 import { computeGoalProgress } from "@openvalens/api/score-goal-progress";
 import { computeReadiness } from "@openvalens/api/score-readiness";
-import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider } from "@lingui/react";
+import { englishI18n } from "@openvalens/i18n/testing";
+import type { ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 
 import { GoalProgressCard, ReadinessCard } from "./score-panels";
+
+/** Renders in English through Lingui (#67). */
+function renderToStaticMarkup(node: ReactNode): string {
+  return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
+}
 
 const AS_OF = "2026-10-15";
 

@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
 import { useState } from "react";
@@ -14,13 +17,22 @@ import {
   nextKindDraft,
   nextUnitDraft,
   PRIVATE_KINDS,
-  PRIVATE_LABELS,
   privateMeasurementScreenState,
   privateMeasurementKeys,
   unitsFor,
   type PrivateKind,
   type PrivateSubject,
 } from "@/utils/private-measurements";
+
+const KIND_LABELS: Record<PrivateKind, MessageDescriptor> = {
+  weight: msg`Weight`,
+  waist: msg`Waist`,
+  hip: msg`Hip`,
+  neck: msg`Neck`,
+  chest: msg`Chest`,
+  upper_arm: msg`Upper arm`,
+  thigh: msg`Thigh`,
+};
 
 const INPUT_CLASS =
   "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
@@ -32,6 +44,7 @@ const nowLocal = () => {
 
 export default function PrivateMeasurementsScreen() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
+  const { t } = useLingui();
   const subject: PrivateSubject | null =
     session?.user?.id && session.session.activeOrganizationId
       ? { userId: session.user.id, organizationId: session.session.activeOrganizationId }
@@ -45,8 +58,8 @@ export default function PrivateMeasurementsScreen() {
           className="text-sm text-muted-foreground"
         >
           {sessionPending
-            ? "Checking your account and workspace…"
-            : "Choose a workspace to continue."}
+            ? t`Checking your account and workspace…`
+            : t`Choose a workspace to continue.`}
         </Text>
       </Container>
     );
@@ -61,6 +74,11 @@ export default function PrivateMeasurementsScreen() {
 
 function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject }) {
   const qc = useQueryClient();
+  const { t, i18n } = useLingui();
+  const labelOf = (value: string) => {
+    const known = KIND_LABELS[value as PrivateKind];
+    return known ? i18n._(known) : value;
+  };
   const keys = privateMeasurementKeys(subject);
   const actions = bindPrivateMeasurementActions({
     setPreference: (enabled) => orpc.privateBody.setPreference.call({ enabled }),
@@ -95,10 +113,12 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
     mutationFn: actions.setPreference,
     onSuccess: (result) => {
       qc.setQueryData(keys.preference, result);
-      setNotice(result.enabled ? "Private measurements are on." : "Private measurements are off.");
+      setNotice(
+        result.enabled ? t`Private measurements are on.` : t`Private measurements are off.`,
+      );
       invalidate();
     },
-    onError: () => setNotice("Could not update this setting. Try again."),
+    onError: () => setNotice(t`Could not update this setting. Try again.`),
   });
   const save = useMutation({
     mutationFn: (input: {
@@ -109,19 +129,19 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
       setValue("");
       setEditingId(null);
       setMeasuredAt(nowLocal());
-      setNotice("Entry saved.");
+      setNotice(t`Entry saved.`);
       invalidate();
     },
-    onError: () => setNotice("Could not save this entry. Try again."),
+    onError: () => setNotice(t`Could not save this entry. Try again.`),
   });
   const remove = useMutation({
     mutationFn: actions.delete,
     onSuccess: () => {
-      setNotice("Entry deleted.");
+      setNotice(t`Entry deleted.`);
       invalidate();
     },
     onError: () =>
-      setNotice("Could not delete this entry. It is still in your history. Retry below."),
+      setNotice(t`Could not delete this entry. It is still in your history. Retry below.`),
   });
 
   const screen = privateMeasurementScreenState({
@@ -156,7 +176,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
       <Container className="items-center justify-center" isScrollable={false}>
         <Spinner />
         <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-          Checking private measurement setting…
+          {t`Checking private measurement setting…`}
         </Text>
       </Container>
     );
@@ -165,10 +185,10 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
         <Text accessibilityRole="alert" className="text-center text-foreground">
-          Could not check this setting. Measurements stay unavailable until it can be confirmed.
+          {t`Could not check this setting. Measurements stay unavailable until it can be confirmed.`}
         </Text>
         <Button variant="secondary" onPress={screen.retryPreference}>
-          Try again
+          {t`Try again`}
         </Button>
       </Container>
     );
@@ -178,31 +198,33 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
     <Container className="p-4">
       <View className="gap-6">
         <View>
-          <Text className="text-sm text-muted-foreground">Your records</Text>
+          <Text className="text-sm text-muted-foreground">{t`Your records`}</Text>
           <Text accessibilityRole="header" className="font-mono text-3xl text-foreground">
-            Private measurements
+            {t`Private measurements`}
           </Text>
           <Text className="mt-2 text-sm text-muted-foreground">
-            Manual entries for your own reference. Workspace owners and other members cannot view
-            them. Values stay hidden in history until the hide-numbers setting can be checked.
+            {t`Manual entries for your own reference. Workspace owners and other members cannot view them. Values stay hidden in history until the hide-numbers setting can be checked.`}
           </Text>
         </View>
         {screen.access === "disabled" ? (
-          <CardStack title="Private measurements are off">
+          <CardStack title={t`Private measurements are off`}>
             <Card variant="secondary" className="gap-3 p-4">
               <Text className="text-sm text-muted-foreground">
-                This optional feature is off by default. Turning it on lets you record weight or
-                circumference measurements and view progress photos in this account.
+                {t({
+                  message:
+                    "This optional feature is off by default. Turning it on lets you record weight or circumference measurements and view progress photos in this account.",
+                  comment: "safety",
+                })}
               </Text>
               <Button
                 isDisabled={preferenceMutation.isPending}
                 onPress={() => preferenceMutation.mutate(true)}
               >
-                {preferenceMutation.isPending ? "Saving…" : "Turn on private measurements"}
+                {preferenceMutation.isPending ? t`Saving…` : t`Turn on private measurements`}
               </Button>
               {screen.preferenceMutationError ? (
                 <Text accessibilityRole="alert" className="text-sm text-destructive">
-                  Could not update this setting. Try again.
+                  {t`Could not update this setting. Try again.`}
                 </Text>
               ) : null}
             </Card>
@@ -210,25 +232,25 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
         ) : (
           <>
             <View className="flex-row items-center justify-between rounded-xl border border-border bg-card p-4">
-              <Text className="text-sm text-foreground">Private measurements are on</Text>
+              <Text className="text-sm text-foreground">{t`Private measurements are on`}</Text>
               <Button
                 size="sm"
                 variant="secondary"
                 isDisabled={preferenceMutation.isPending}
                 onPress={() => preferenceMutation.mutate(false)}
               >
-                Turn off
+                {t`Turn off`}
               </Button>
             </View>
             {screen.preferenceMutationError ? (
               <Text accessibilityRole="alert" className="text-sm text-destructive">
-                Could not update this setting. Try again.
+                {t`Could not update this setting. Try again.`}
               </Text>
             ) : null}
-            <CardStack title={editingId ? "Edit entry" : "Add an entry"}>
+            <CardStack title={editingId ? t`Edit entry` : t`Add an entry`}>
               <Card variant="secondary" className="gap-4 p-4">
                 <View className="gap-2">
-                  <Text className="text-sm font-medium text-foreground">Measurement</Text>
+                  <Text className="text-sm font-medium text-foreground">{t`Measurement`}</Text>
                   <View className="flex-row flex-wrap gap-2">
                     {PRIVATE_KINDS.map((option) => (
                       <Pressable
@@ -244,7 +266,9 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                         accessibilityState={{ selected: kind === option }}
                         className={`min-h-11 justify-center rounded-full border px-3 ${kind === option ? "border-primary bg-primary/15" : "border-border bg-card"}`}
                       >
-                        <Text className="text-sm text-foreground">{PRIVATE_LABELS[option]}</Text>
+                        <Text className="text-sm text-foreground">
+                          {i18n._(KIND_LABELS[option])}
+                        </Text>
                       </Pressable>
                     ))}
                   </View>
@@ -252,10 +276,10 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                 <View className="flex-row gap-3">
                   <View className="flex-1 gap-2">
                     <Text className="text-sm font-medium text-foreground">
-                      {PRIVATE_LABELS[kind]} value
+                      {t`${labelOf(kind)} value`}
                     </Text>
                     <TextInput
-                      accessibilityLabel={`${PRIVATE_LABELS[kind]} value`}
+                      accessibilityLabel={t`${labelOf(kind)} value`}
                       value={value}
                       onChangeText={setValue}
                       keyboardType="decimal-pad"
@@ -263,7 +287,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                     />
                   </View>
                   <View className="gap-2">
-                    <Text className="text-sm font-medium text-foreground">Unit</Text>
+                    <Text className="text-sm font-medium text-foreground">{t`Unit`}</Text>
                     <View className="flex-row gap-2">
                       {unitsFor(kind).map((option) => (
                         <Pressable
@@ -286,10 +310,10 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                 </View>
                 <View className="gap-2">
                   <Text className="text-sm font-medium text-foreground">
-                    Observed at (local time)
+                    {t`Observed at (local time)`}
                   </Text>
                   <TextInput
-                    accessibilityLabel="Observed at local time"
+                    accessibilityLabel={t`Observed at local time`}
                     value={measuredAt}
                     onChangeText={setMeasuredAt}
                     placeholder="YYYY-MM-DDTHH:MM"
@@ -301,7 +325,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                     isDisabled={!payload || save.isPending}
                     onPress={() => payload && save.mutate({ id: editingId, value: payload })}
                   >
-                    {save.isPending ? "Saving…" : editingId ? "Save changes" : "Save entry"}
+                    {save.isPending ? t`Saving…` : editingId ? t`Save changes` : t`Save entry`}
                   </Button>
                   {editingId ? (
                     <Button
@@ -312,23 +336,23 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                         setMeasuredAt(nowLocal());
                       }}
                     >
-                      Cancel
+                      {t`Cancel`}
                     </Button>
                   ) : null}
                   {value && !payload ? (
                     <Text accessibilityRole="alert" className="text-sm text-destructive">
-                      Enter a valid positive value and real local date/time.
+                      {t`Enter a valid positive value and real local date/time.`}
                     </Text>
                   ) : null}
                 </View>
                 {screen.saveMutationError ? (
                   <Text accessibilityRole="alert" className="text-sm text-destructive">
-                    Could not save this entry. Try again.
+                    {t`Could not save this entry. Try again.`}
                   </Text>
                 ) : null}
               </Card>
             </CardStack>
-            <CardStack title="History">
+            <CardStack title={t`History`}>
               <Card variant="secondary" className="p-0">
                 {screen.history === "loading" ? (
                   <View className="flex-row items-center gap-3 p-4">
@@ -337,26 +361,29 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                       accessibilityLiveRegion="polite"
                       className="text-sm text-muted-foreground"
                     >
-                      Loading your entries…
+                      {t`Loading your entries…`}
                     </Text>
                   </View>
                 ) : null}
                 {screen.history === "error" ? (
                   <View className="gap-3 p-4">
                     <Text accessibilityRole="alert" className="text-sm text-foreground">
-                      Could not load entries.
+                      {t`Could not load entries.`}
                     </Text>
                     <Button variant="secondary" onPress={screen.retryHistory}>
-                      Try again
+                      {t`Try again`}
                     </Button>
                   </View>
                 ) : null}
                 {screen.history === "empty" ? (
-                  <Text className="p-4 text-sm text-muted-foreground">No private entries yet.</Text>
+                  <Text className="p-4 text-sm text-muted-foreground">
+                    {t`No private entries yet.`}
+                  </Text>
                 ) : null}
                 {screen.history === "ready"
                   ? (historyQuery.data ?? []).map((entry, index, entries) => {
                       const date = new Date(entry.measuredAt).toLocaleString();
+                      const label = labelOf(entry.kind);
                       return (
                         <View
                           key={entry.id}
@@ -364,15 +391,13 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                         >
                           <View className="flex-row items-center justify-between gap-2">
                             <View className="flex-1">
-                              <Text className="font-medium text-foreground">
-                                {PRIVATE_LABELS[entry.kind as PrivateKind]}
-                              </Text>
+                              <Text className="font-medium text-foreground">{label}</Text>
                               <Text className="text-xs text-muted-foreground">{date}</Text>
                             </View>
                             <View className="flex-row gap-2">
                               <Pressable
                                 accessibilityRole="button"
-                                accessibilityLabel={`Edit ${PRIVATE_LABELS[entry.kind as PrivateKind]} entry from ${date}`}
+                                accessibilityLabel={t`Edit ${label} entry from ${date}`}
                                 onPress={() => {
                                   setEditingId(entry.id);
                                   setKind(entry.kind as PrivateKind);
@@ -389,20 +414,22 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                                 }}
                                 className="min-h-11 justify-center px-2"
                               >
-                                <Text className="font-medium text-foreground underline">Edit</Text>
+                                <Text className="font-medium text-foreground underline">
+                                  {t`Edit`}
+                                </Text>
                               </Pressable>
                               <Pressable
                                 accessibilityRole="button"
-                                accessibilityLabel={`Delete ${PRIVATE_LABELS[entry.kind as PrivateKind]} entry from ${date}`}
+                                accessibilityLabel={t`Delete ${label} entry from ${date}`}
                                 disabled={remove.isPending}
                                 onPress={() =>
                                   Alert.alert(
-                                    "Delete private measurement?",
-                                    "This cannot be undone.",
+                                    t`Delete private measurement?`,
+                                    t`This cannot be undone.`,
                                     [
-                                      { text: "Cancel", style: "cancel" },
+                                      { text: t`Cancel`, style: "cancel" },
                                       {
-                                        text: "Delete",
+                                        text: t`Delete`,
                                         style: "destructive",
                                         onPress: () => {
                                           if (!remove.isPending) remove.mutate(entry.id);
@@ -414,7 +441,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                                 className="min-h-11 justify-center px-2"
                               >
                                 <Text className="font-medium text-foreground underline">
-                                  Delete
+                                  {t`Delete`}
                                 </Text>
                               </Pressable>
                             </View>
@@ -422,7 +449,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                           {screen.deleteFailureFor === entry.id ? (
                             <View className="gap-2">
                               <Text accessibilityRole="alert" className="text-sm text-destructive">
-                                Could not delete this entry. It is still in history.
+                                {t`Could not delete this entry. It is still in history.`}
                               </Text>
                               <Button
                                 size="sm"
@@ -430,7 +457,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                                 isDisabled={screen.deletePending}
                                 onPress={() => remove.mutate(entry.id)}
                               >
-                                Try delete again
+                                {t`Try delete again`}
                               </Button>
                             </View>
                           ) : null}

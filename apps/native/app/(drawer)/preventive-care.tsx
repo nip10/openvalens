@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import {
   DECLARATION_ANSWERS,
   type PreventiveItemUpdate,
@@ -94,6 +95,7 @@ function DateField({
   disabled: boolean;
 }) {
   const [text, setText] = useState(initial ?? "");
+  const { t } = useLingui();
   const parsed = parseTypedDate(text);
   return (
     <View className="gap-1">
@@ -108,13 +110,13 @@ function DateField({
           placeholderTextColor="#9ca3af"
         />
         <TextButton
-          label="Save"
+          label={t`Save`}
           disabled={disabled || parsed === undefined}
           onPress={() => onSave(parsed ?? null)}
         />
       </View>
       {parsed === undefined ? (
-        <Text className="text-xs text-muted-foreground">Use the format YYYY-MM-DD.</Text>
+        <Text className="text-xs text-muted-foreground">{t`Use the format YYYY-MM-DD.`}</Text>
       ) : null}
     </View>
   );
@@ -253,6 +255,7 @@ function ItemCard({
 
 export default function PreventiveCareScreen() {
   const queryClient = useQueryClient();
+  const { t } = useLingui();
   const [message, setMessage] = useState<string | null>(null);
   const result = useQuery(orpc.preventiveCare.get.queryOptions({ input: {} }));
   const library = useQuery({
@@ -263,7 +266,7 @@ export default function PreventiveCareScreen() {
     setMessage(null);
     void queryClient.invalidateQueries({ queryKey: orpc.preventiveCare.key() });
   };
-  const onError = () => setMessage("Could not save. Nothing was changed.");
+  const onError = () => setMessage(t`Could not save. Nothing was changed.`);
   const declare = useMutation({
     mutationFn: (input: Parameters<typeof client.preventiveCare.declare>[0]) =>
       client.preventiveCare.declare(input),
@@ -292,8 +295,8 @@ export default function PreventiveCareScreen() {
   if (result.isError || !result.data)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load preventive care.</Text>
-        <TextButton label="Retry" onPress={() => void result.refetch()} />
+        <Text className="text-base text-foreground">{t`Could not load preventive care.`}</Text>
+        <TextButton label={t`Retry`} onPress={() => void result.refetch()} />
       </Container>
     );
 

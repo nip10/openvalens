@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useLingui } from "@lingui/react/macro";
 import {
   domainLabel,
   groupTimelineByDay,
@@ -31,6 +32,7 @@ const DOMAIN_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 export default function TimelineScreen() {
   const foreground = useThemeColor("foreground");
+  const { t, i18n } = useLingui();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const query = useInfiniteQuery(
     orpc.timeline.list.infiniteOptions({
@@ -55,13 +57,13 @@ export default function TimelineScreen() {
   if (query.isError)
     return (
       <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">Could not load the timeline.</Text>
+        <Text className="text-base text-foreground">{t`Could not load the timeline.`}</Text>
         <Pressable
           onPress={() => void query.refetch()}
           className="min-h-11 justify-center px-4"
           accessibilityRole="button"
         >
-          <Text className="font-medium text-foreground underline">Retry</Text>
+          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
         </Pressable>
       </Container>
     );
@@ -82,9 +84,9 @@ export default function TimelineScreen() {
         }}
         ListEmptyComponent={
           <View className="items-center gap-1 py-16">
-            <Text className="text-base font-medium text-foreground">No records yet</Text>
+            <Text className="text-base font-medium text-foreground">{t`No records yet`}</Text>
             <Text className="text-center text-sm text-muted-foreground">
-              Connect Health Connect or Apple Health in Settings to sync your data.
+              {t`Connect Health Connect or Apple Health in Settings to sync your data.`}
             </Text>
           </View>
         }
@@ -105,14 +107,14 @@ export default function TimelineScreen() {
                   />
                 }
                 title={item.title}
-                subtitle={[item.time, item.summary, source ?? domainLabel(item.domain)]
+                subtitle={[item.time, item.summary, source ?? i18n._(domainLabel(item.domain))]
                   .filter(Boolean)
                   .join(" · ")}
                 trailing={
                   tone ? (
                     <Chip size="sm" color={tone === "destructive" ? "danger" : "warning"}>
                       <Chip.Label>
-                        {tone === "destructive" ? "Needs attention" : "Check"}
+                        {tone === "destructive" ? t`Needs attention` : t`Check`}
                       </Chip.Label>
                     </Chip>
                   ) : undefined

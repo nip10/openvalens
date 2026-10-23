@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import { CYCLE_COPY } from "@openvalens/api/presenters/cycle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
@@ -16,6 +19,12 @@ import { client } from "@/utils/orpc";
  */
 
 const FLOWS = ["spotting", "light", "medium", "heavy"] as const;
+const FLOW_LABELS: Record<(typeof FLOWS)[number], MessageDescriptor> = {
+  spotting: msg`Spotting`,
+  light: msg({ message: "Light", context: "period flow" }),
+  medium: msg`Medium`,
+  heavy: msg`Heavy`,
+};
 const INPUT =
   "min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground";
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -28,6 +37,7 @@ function localToday(): string {
 
 export default function CycleScreen() {
   const { data: session, isPending } = authClient.useSession();
+  const { t } = useLingui();
   const scope =
     session?.user?.id && session.session.activeOrganizationId
       ? `${session.session.activeOrganizationId}:${session.user.id}`
@@ -35,7 +45,11 @@ export default function CycleScreen() {
   if (isPending || !scope)
     return (
       <Container className="items-center justify-center" isScrollable={false}>
-        {isPending ? <Spinner /> : <Text className="text-foreground">Choose a workspace.</Text>}
+        {isPending ? (
+          <Spinner />
+        ) : (
+          <Text className="text-foreground">{t`Choose a workspace.`}</Text>
+        )}
       </Container>
     );
   return <CycleForMember key={scope} scope={scope} />;
@@ -43,6 +57,11 @@ export default function CycleScreen() {
 
 function CycleForMember({ scope }: { scope: string }) {
   const qc = useQueryClient();
+  const { t, i18n } = useLingui();
+  const flowLabel = (value: string) => {
+    const known = FLOW_LABELS[value as (typeof FLOWS)[number]];
+    return known ? i18n._(known) : value;
+  };
   const refresh = () => void qc.invalidateQueries({ queryKey: ["cycle"] });
   const today = localToday();
   const settings = useQuery({
@@ -76,10 +95,10 @@ function CycleForMember({ scope }: { scope: string }) {
     onSuccess: () => {
       setEndDate("");
       setFlow(null);
-      setNotice("Period saved.");
+      setNotice(t`Period saved.`);
       refresh();
     },
-    onError: () => setNotice("Could not save. Use YYYY-MM-DD dates and try again."),
+    onError: () => setNotice(t`Could not save. Use YYYY-MM-DD dates and try again.`),
   });
   const remove = useMutation({
     mutationFn: (id: string) => client.cycle.deletePeriod({ id }),
@@ -95,11 +114,15 @@ function CycleForMember({ scope }: { scope: string }) {
   });
   const confirmErase = () =>
     Alert.alert(
-      "Erase all cycle data?",
-      "Every period and import is deleted and your consent is withdrawn. This cannot be undone.",
+      t`Erase all cycle data?`,
+      t({
+        message:
+          "Every period and import is deleted and your consent is withdrawn. This cannot be undone.",
+        comment: "safety",
+      }),
       [
-        { text: "Keep my data", style: "cancel" },
-        { text: "Erase", style: "destructive", onPress: () => erase.mutate() },
+        { text: t`Keep my data`, style: "cancel" },
+        { text: t`Erase`, style: "destructive", onPress: () => erase.mutate() },
       ],
     );
 
@@ -115,92 +138,112 @@ function CycleForMember({ scope }: { scope: string }) {
       <View className="gap-6">
         <View>
           <Text accessibilityRole="header" className="font-mono text-3xl text-foreground">
-            Cycle
+            {t`Cycle`}
           </Text>
           <Text className="mt-2 text-sm text-muted-foreground">
-            {CYCLE_COPY.notForContraception}
+            {i18n._(CYCLE_COPY.notForContraception)}
           </Text>
         </View>
         {settings.isError ? (
           <Button variant="secondary" onPress={() => void settings.refetch()}>
-            Could not check this setting. Try again
+            {t`Could not check this setting. Try again`}
           </Button>
         ) : !enabled ? (
-          <CardStack title="Cycle logging is off">
+          <CardStack title={t`Cycle logging is off`}>
             <Card variant="secondary" className="gap-3 p-4">
-              <Text className="text-sm text-foreground">{CYCLE_COPY.consentText}</Text>
+              <Text className="text-sm text-foreground">{i18n._(CYCLE_COPY.consentText)}</Text>
               <View className="flex-row items-center justify-between gap-3">
                 <Text className="flex-1 text-sm text-foreground">
-                  I agree to store my cycle data on this server for my own reference.
+                  {t({
+                    message: "I agree to store my cycle data on this server for my own reference.",
+                    comment: "safety",
+                  })}
                 </Text>
                 <Switch
                   value={agreed}
                   onValueChange={setAgreed}
-                  accessibilityLabel="Agree to store cycle data"
+                  accessibilityLabel={t({
+                    message: "Agree to store cycle data",
+                    comment: "safety",
+                  })}
                 />
               </View>
               <Button isDisabled={!agreed || enable.isPending} onPress={() => enable.mutate()}>
-                {enable.isPending ? "Turning on…" : "Turn on cycle logging"}
+                {enable.isPending ? t`Turning on…` : t`Turn on cycle logging`}
               </Button>
             </Card>
           </CardStack>
         ) : (
           <>
-            <CardStack title="Estimates">
+            <CardStack title={t`Estimates`}>
               <Card variant="secondary" className="gap-2 p-4">
                 {estimates.data?.state === "off" ? (
-                  <Text className="text-sm text-foreground">{CYCLE_COPY.noNaturalCycle}</Text>
+                  <Text className="text-sm text-foreground">
+                    {i18n._(CYCLE_COPY.noNaturalCycle)}
+                  </Text>
                 ) : estimates.data?.state === "estimated" ? (
                   <>
                     {estimates.data.current ? (
                       <Text className="text-sm text-foreground">
-                        Day {estimates.data.current.dayOfCycle} of the current cycle.{" "}
-                        {CYCLE_COPY.currentLowConfidence}
+                        {t`Day ${estimates.data.current.dayOfCycle} of the current cycle.`}{" "}
+                        {i18n._(CYCLE_COPY.currentLowConfidence)}
                       </Text>
                     ) : null}
                     {estimates.data.cycles
                       .filter((cycle) => cycle.lutealEstimate)
                       .slice(0, 3)
-                      .map((cycle) => (
-                        <Text key={cycle.startDate} className="text-sm text-muted-foreground">
-                          {cycle.startDate} · {cycle.lengthDays} days · {CYCLE_COPY.lutealLabel}:{" "}
-                          {cycle.lutealEstimate!.from} to {cycle.lutealEstimate!.to}
-                        </Text>
-                      ))}
+                      .map((cycle) => {
+                        const luteal = i18n._(CYCLE_COPY.lutealLabel);
+                        const from = cycle.lutealEstimate!.from;
+                        const to = cycle.lutealEstimate!.to;
+                        return (
+                          <Text key={cycle.startDate} className="text-sm text-muted-foreground">
+                            {cycle.startDate} ·{" "}
+                            {t`${plural(cycle.lengthDays ?? 0, { one: "# day", other: "# days" })}`}{" "}
+                            · {t`${luteal}: ${from} to ${to}`}
+                          </Text>
+                        );
+                      })}
                   </>
                 ) : (
                   <Text className="text-sm text-muted-foreground">
-                    Log a period to see your cycle history.
+                    {t`Log a period to see your cycle history.`}
                   </Text>
                 )}
                 <View className="flex-row items-center justify-between gap-3">
                   <Text className="flex-1 text-sm text-foreground">
-                    Hormonal contraception or no natural cycle (turns estimates off)
+                    {t({
+                      message: "Hormonal contraception or no natural cycle (turns estimates off)",
+                      comment: "safety",
+                    })}
                   </Text>
                   <Switch
                     value={settings.data.noNaturalCycle}
                     onValueChange={(value) => updateSettings.mutate(value)}
-                    accessibilityLabel="Hormonal contraception or no natural cycle"
+                    accessibilityLabel={t({
+                      message: "Hormonal contraception or no natural cycle",
+                      comment: "safety",
+                    })}
                   />
                 </View>
               </Card>
             </CardStack>
 
-            <CardStack title="Log a period">
+            <CardStack title={t`Log a period`}>
               <Card variant="secondary" className="gap-3 p-4">
                 <TextInput
                   value={startDate}
                   onChangeText={setStartDate}
-                  placeholder="Start date (YYYY-MM-DD)"
-                  accessibilityLabel="Start date, YYYY-MM-DD"
+                  placeholder={t`Start date (YYYY-MM-DD)`}
+                  accessibilityLabel={t`Start date, YYYY-MM-DD`}
                   className={INPUT}
                   placeholderTextColor="#9ca3af"
                 />
                 <TextInput
                   value={endDate}
                   onChangeText={setEndDate}
-                  placeholder="End date, optional (YYYY-MM-DD)"
-                  accessibilityLabel="End date, optional, YYYY-MM-DD"
+                  placeholder={t`End date, optional (YYYY-MM-DD)`}
+                  accessibilityLabel={t`End date, optional, YYYY-MM-DD`}
                   className={INPUT}
                   placeholderTextColor="#9ca3af"
                 />
@@ -213,7 +256,7 @@ function CycleForMember({ scope }: { scope: string }) {
                       accessibilityState={{ selected: flow === value }}
                       className={`min-h-11 justify-center rounded-lg border px-3 ${flow === value ? "bg-accent" : "border-border"}`}
                     >
-                      <Text className="text-sm text-foreground">{value}</Text>
+                      <Text className="text-sm text-foreground">{flowLabel(value)}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -223,39 +266,40 @@ function CycleForMember({ scope }: { scope: string }) {
                   }
                   onPress={() => log.mutate()}
                 >
-                  {log.isPending ? "Saving…" : "Save period"}
+                  {log.isPending ? t`Saving…` : t`Save period`}
                 </Button>
               </Card>
             </CardStack>
 
-            <CardStack title="History">
+            <CardStack title={t`History`}>
               <Card variant="secondary" className="gap-2 p-4">
                 {periods.data?.length ? (
                   periods.data.map((period) => (
                     <View key={period.id} className="flex-row items-center justify-between gap-2">
                       <Text className="flex-1 text-sm text-foreground">
-                        {period.startDate}
-                        {period.endDate ? ` to ${period.endDate}` : ""}
-                        {period.flow ? ` · ${period.flow}` : ""}
-                        {period.source !== "manual" ? " · imported" : ""}
+                        {period.endDate
+                          ? t`${period.startDate} to ${period.endDate}`
+                          : period.startDate}
+                        {period.flow ? ` · ${flowLabel(period.flow)}` : ""}
+                        {period.source !== "manual" ? ` · ${t`imported`}` : ""}
                       </Text>
                       <Pressable
                         accessibilityRole="button"
                         onPress={() => remove.mutate(period.id)}
                         className="min-h-11 justify-center px-2"
                       >
-                        <Text className="text-foreground underline">Delete</Text>
+                        <Text className="text-foreground underline">{t`Delete`}</Text>
                       </Pressable>
                     </View>
                   ))
                 ) : (
-                  <Text className="text-sm text-muted-foreground">No periods logged yet.</Text>
+                  <Text className="text-sm text-muted-foreground">{t`No periods logged yet.`}</Text>
                 )}
               </Card>
             </CardStack>
 
             <Button variant="secondary" isDisabled={erase.isPending} onPress={confirmErase}>
-              Turn off and erase
+              {t`Turn off and erase`}
             </Button>
           </>
         )}

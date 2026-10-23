@@ -1,8 +1,11 @@
 /**
  * Clinical records presentation shared by web and mobile (Issue #24).
- * Pure TypeScript, no imports — safe for the app bundle. Formatting for
- * cardiac exams, imaging studies, and family history rows.
+ * Pure TypeScript — safe for the app bundle. Formatting for cardiac exams,
+ * imaging studies, and family history rows. Recorded values are shown as
+ * recorded; only the fallbacks for a missing value are translated (#67).
  */
+import type { I18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 
 export type CardiacExamLike = {
   id: number;
@@ -30,8 +33,8 @@ export type FamilyHistoryEntryLike = {
 };
 
 /** "Echo" / "Stress" / "Other" — sentence case, falls back to raw value. */
-export function cardiacExamTypeLabel(value: string | null | undefined): string {
-  if (!value) return "Exam";
+export function cardiacExamTypeLabel(value: string | null | undefined, i18n: I18n): string {
+  if (!value) return i18n._(msg`Exam`);
   return value
     .split(/[_\s-]+/)
     .map((word) => (word.length === 0 ? "" : word[0]?.toUpperCase() + word.slice(1)))
@@ -39,10 +42,10 @@ export function cardiacExamTypeLabel(value: string | null | undefined): string {
 }
 
 /** "MRI" / "X-ray" / "Ultrasound" — sentence case. */
-export function imagingTypeLabel(value: string): string {
-  if (!value) return "Imaging";
+export function imagingTypeLabel(value: string, i18n: I18n): string {
+  if (!value) return i18n._(msg`Imaging`);
   const tokens = value.split(/[_\s-]+/).filter((t) => t.length > 0);
-  if (tokens.length === 0) return "Imaging";
+  if (tokens.length === 0) return i18n._(msg`Imaging`);
   const first = tokens[0]!.toLowerCase();
   if (first === "mri" || first === "ct") {
     const rest = tokens
@@ -62,8 +65,8 @@ export function imagingTypeLabel(value: string): string {
 }
 
 /** "Mother", "Father", "Sibling" — sentence case. */
-export function familyRelationLabel(value: string): string {
-  if (!value) return "Relation";
+export function familyRelationLabel(value: string, i18n: I18n): string {
+  if (!value) return i18n._(msg`Relation`);
   return value
     .split(/[_\s-]+/)
     .map((word) => (word.length === 0 ? "" : word[0]?.toUpperCase() + word.slice(1)))

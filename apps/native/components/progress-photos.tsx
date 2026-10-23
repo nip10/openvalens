@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "heroui-native";
 import { useEffect, useState } from "react";
@@ -17,42 +18,42 @@ export function ProgressPhotos({
   subject: { userId: string; organizationId: string };
 }) {
   const qc = useQueryClient();
+  const { t } = useLingui();
   const key = ["privateBody", "photos", subject.organizationId, subject.userId] as const;
   const photos = useQuery({ queryKey: key, queryFn: () => client.privateBody.photos({}) });
   const [notice, setNotice] = useState("");
   const remove = useMutation({
     mutationFn: (objectId: string) => client.storage.delete({ objectId }),
     onSuccess: () => {
-      setNotice("Photo deleted.");
+      setNotice(t`Photo deleted.`);
       void qc.invalidateQueries({ queryKey: key });
     },
-    onError: () => setNotice("Could not delete this photo. Try again."),
+    onError: () => setNotice(t`Could not delete this photo. Try again.`),
   });
   const confirmDelete = (id: string) =>
-    Alert.alert("Delete this photo?", "This cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => remove.mutate(id) },
+    Alert.alert(t`Delete this photo?`, t`This cannot be undone.`, [
+      { text: t`Cancel`, style: "cancel" },
+      { text: t`Delete`, style: "destructive", onPress: () => remove.mutate(id) },
     ]);
 
   return (
-    <CardStack title="Progress photos">
+    <CardStack title={t`Progress photos`}>
       <Card variant="secondary" className="gap-3 p-4">
         <Text className="text-sm text-muted-foreground">
-          Only you can see these photos. Location, camera and other hidden details are removed
-          before a photo is stored. Add photos from the web app.
+          {t`Only you can see these photos. Location, camera and other hidden details are removed before a photo is stored. Add photos from the web app.`}
         </Text>
         {photos.isPending ? (
-          <Text className="text-sm text-muted-foreground">Loading photos…</Text>
+          <Text className="text-sm text-muted-foreground">{t`Loading photos…`}</Text>
         ) : photos.isError ? (
           <Button size="sm" variant="secondary" onPress={() => void photos.refetch()}>
-            Could not load photos. Try again
+            {t`Could not load photos. Try again`}
           </Button>
         ) : !photos.data.storage ? (
           <Text className="text-sm text-muted-foreground">
-            Photo storage is not set up on this server.
+            {t`Photo storage is not set up on this server.`}
           </Text>
         ) : photos.data.photos.length === 0 ? (
-          <Text className="text-sm text-muted-foreground">No photos yet.</Text>
+          <Text className="text-sm text-muted-foreground">{t`No photos yet.`}</Text>
         ) : (
           <View className="flex-row flex-wrap gap-3">
             {photos.data.photos.map((photo) => (
@@ -64,7 +65,7 @@ export function ProgressPhotos({
                   isDisabled={remove.isPending}
                   onPress={() => confirmDelete(photo.id)}
                 >
-                  Delete photo
+                  {t`Delete photo`}
                 </Button>
               </View>
             ))}
@@ -94,18 +95,21 @@ function PhotoImage({ id, createdAt }: { id: string; createdAt: string }) {
     reader.readAsDataURL(file.data);
     return () => reader.abort();
   }, [file.data]);
-  const label = `Progress photo from ${new Date(createdAt).toLocaleDateString()}`;
+  const { t } = useLingui();
+  const date = new Date(createdAt).toLocaleDateString();
   if (file.isError)
-    return <Text className="text-sm text-muted-foreground">This photo could not be loaded.</Text>;
+    return (
+      <Text className="text-sm text-muted-foreground">{t`This photo could not be loaded.`}</Text>
+    );
   return uri ? (
     <Image
       source={{ uri }}
-      accessibilityLabel={label}
+      accessibilityLabel={t`Progress photo from ${date}`}
       className="aspect-square w-full rounded-lg"
     />
   ) : (
     <View
-      accessibilityLabel={`Loading ${label}`}
+      accessibilityLabel={t`Loading progress photo from ${date}`}
       className="aspect-square w-full rounded-lg bg-muted"
     />
   );

@@ -1,3 +1,4 @@
+import type { I18n } from "@lingui/core";
 import {
   COMPARISON_COPY,
   referenceComparisonsView,
@@ -14,7 +15,8 @@ import type {
  * into text blocks, so the native screen shows exactly what the web card
  * shows: own trend first, the band or guideline range in words, the source
  * with its population, method and licence, comparability notes, unavailable
- * reasons and the per-metric opt-in with its disclosure.
+ * reasons and the per-metric opt-in with its disclosure. Text is rendered
+ * through the `i18n` passed in (#67).
  */
 
 export type ComparisonBlock = {
@@ -47,12 +49,15 @@ export type ComparisonScreenModel = {
   versionText: string;
 };
 
-export function comparisonScreenModel(result: ReferenceComparisonsResult): ComparisonScreenModel {
-  const view = referenceComparisonsView(result);
+export function comparisonScreenModel(
+  result: ReferenceComparisonsResult,
+  i18n: I18n,
+): ComparisonScreenModel {
+  const view = referenceComparisonsView(result, i18n);
   return {
-    title: COMPARISON_COPY.title,
-    intro: COMPARISON_COPY.intro,
-    noOtherPeople: COMPARISON_COPY.noOtherPeople,
+    title: i18n._(COMPARISON_COPY.title),
+    intro: i18n._(COMPARISON_COPY.intro),
+    noOtherPeople: i18n._(COMPARISON_COPY.noOtherPeople),
     withheldText: view.withheldText,
     blocks: view.metrics.map((metric) => ({
       key: metric.key,
@@ -70,9 +75,9 @@ export function comparisonScreenModel(result: ReferenceComparisonsResult): Compa
       toggleLabel: metric.toggleLabel,
       accessibilityLabel: metric.accessibilityLabel,
     })),
-    notComparedTitle: COMPARISON_COPY.notComparedTitle,
+    notComparedTitle: i18n._(COMPARISON_COPY.notComparedTitle),
     notCompared: view.notCompared,
-    limits: COMPARISON_COPY.limits,
+    limits: i18n._(COMPARISON_COPY.limits),
     versionText: view.versionText,
   };
 }

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
+
 import type { GoalProgressResult, ReadinessResult } from "../score-contract";
 import { computeGoalProgress } from "../score-goal-progress";
 import { computeReadiness, readinessAdultsOnly } from "../score-readiness";
@@ -41,7 +43,7 @@ const available: ReadinessResult = computeReadiness(
 
 describe("readinessView", () => {
   test("labels the score experimental and shows profile, coverage and parts", () => {
-    const view = readinessView(available);
+    const view = readinessView(available, englishI18n);
     expect(view.badge).toBe("Experimental");
     expect(view.scoreText).toBe("38");
     expect(view.accessibilityLabel).toBe(
@@ -64,10 +66,13 @@ describe("readinessView", () => {
   test("a withheld score shows no number, a reason and what would help", () => {
     const view = readinessView(
       computeReadiness({ sleepMinutes: [], restingHeartRate: [], steps: [] }, AS_OF),
+      englishI18n,
     );
     expect(view.available).toBe(false);
     expect(view.scoreText).toBe("—");
-    expect(view.withheldExplanation).toBe(READINESS_WITHHELD_EXPLANATIONS.insufficient_inputs);
+    expect(view.withheldExplanation).toBe(
+      inEnglish(READINESS_WITHHELD_EXPLANATIONS.insufficient_inputs),
+    );
     expect(view.wouldHelpText).toBe(
       "More data for Sleep, Resting heart rate and Recent activity load would help.",
     );
@@ -77,8 +82,8 @@ describe("readinessView", () => {
   });
 
   test("adults-only result explains itself", () => {
-    const view = readinessView(readinessAdultsOnly(AS_OF));
-    expect(view.withheldExplanation).toBe(READINESS_WITHHELD_EXPLANATIONS.adults_only);
+    const view = readinessView(readinessAdultsOnly(AS_OF), englishI18n);
+    expect(view.withheldExplanation).toBe(inEnglish(READINESS_WITHHELD_EXPLANATIONS.adults_only));
     expect(view.components).toEqual([]);
   });
 });
@@ -125,36 +130,37 @@ describe("goalProgressView", () => {
   ]);
 
   test("shows the total, each goal, its priority share and a setback flag", () => {
-    const view = goalProgressView(result);
+    const view = goalProgressView(result, englishI18n);
     expect(view.scoreText).toBe("25%");
-    expect(view.coverageText).toBe("1 of 1 goals counted.");
+    expect(view.coverageText).toBe("1 of 1 goal counted.");
     expect(view.flaggedText).toBe("1 goal moved away from the target recently.");
     expect(view.goals[0]).toMatchObject({
       title: "Synthetic weight goal",
       counted: true,
       progressText: "25%",
-      detail: "Start 82, now 79, target 70 (down).",
+      detail: "Start: 82. Now: 79. Target: 70 (down).",
       priorityText: "High priority, 100% of the total",
       flagText: "Moved away from the target at the last check-in",
     });
   });
 
   test("withheld goal progress shows no number", () => {
-    const view = goalProgressView(computeGoalProgress([]));
+    const view = goalProgressView(computeGoalProgress([]), englishI18n);
     expect(view.scoreText).toBe("—");
-    expect(view.withheldExplanation).toBe(GOAL_PROGRESS_WITHHELD_EXPLANATIONS.no_goals);
+    expect(view.withheldExplanation).toBe(inEnglish(GOAL_PROGRESS_WITHHELD_EXPLANATIONS.no_goals));
   });
 });
 
 describe("formatting", () => {
   test("values and differences", () => {
-    expect(formatReadinessValue(425, "minutes")).toBe("7h 05m");
-    expect(formatReadinessValue(58.4, "bpm")).toBe("58 bpm");
-    expect(formatReadinessValue(12345, "steps_per_day")).toBe("12,345 steps a day");
-    expect(formatReadinessValue(null, "bpm")).toBe("—");
-    expect(formatRelativeDifference(0.004)).toBe("in line with your usual");
-    expect(formatRelativeDifference(0.12)).toBe("12% above your usual");
-    expect(formatRelativeDifference(null)).toBeNull();
+    expect(formatReadinessValue(425, "minutes", englishI18n)).toBe("7h 05m");
+    expect(formatReadinessValue(58.4, "bpm", englishI18n)).toBe("58 bpm");
+    expect(formatReadinessValue(12345, "steps_per_day", englishI18n)).toBe("12,345 steps a day");
+    expect(formatReadinessValue(null, "bpm", englishI18n)).toBe("—");
+    expect(formatRelativeDifference(0.004, englishI18n)).toBe("in line with your usual");
+    expect(formatRelativeDifference(0.12, englishI18n)).toBe("12% above your usual");
+    expect(formatRelativeDifference(-0.09, englishI18n)).toBe("9% below your usual");
+    expect(formatRelativeDifference(null, englishI18n)).toBeNull();
   });
 });
 
@@ -165,24 +171,28 @@ describe("copy", () => {
 
   test("score copy follows the health-copy rules", () => {
     const texts = [
-      ...Object.values(SCORE_COPY),
-      ...Object.values(READINESS_INPUT_LABELS),
-      ...Object.values(READINESS_INPUT_STATE_LABELS),
-      ...Object.values(READINESS_PROFILE_LABELS),
-      ...Object.values(READINESS_PROFILE_DESCRIPTIONS),
-      ...Object.values(READINESS_WITHHELD_EXPLANATIONS),
-      ...Object.values(GOAL_RESULT_STATE_LABELS),
-      ...Object.values(GOAL_PROGRESS_WITHHELD_EXPLANATIONS),
-      ...readinessView(available).components.map((c) => c.accessibilityLabel),
-      ...goalProgressView(computeGoalProgress([])).goals.map((g) => g.accessibilityLabel),
+      ...[
+        SCORE_COPY,
+        READINESS_INPUT_LABELS,
+        READINESS_INPUT_STATE_LABELS,
+        READINESS_PROFILE_LABELS,
+        READINESS_PROFILE_DESCRIPTIONS,
+        READINESS_WITHHELD_EXPLANATIONS,
+        GOAL_RESULT_STATE_LABELS,
+        GOAL_PROGRESS_WITHHELD_EXPLANATIONS,
+      ].flatMap((copy) => Object.values(copy).map(inEnglish)),
+      ...readinessView(available, englishI18n).components.map((c) => c.accessibilityLabel),
+      ...goalProgressView(computeGoalProgress([]), englishI18n).goals.map(
+        (g) => g.accessibilityLabel,
+      ),
     ];
     for (const text of texts) expect(text).not.toMatch(BANNED);
   });
 
   test("readiness copy says it is experimental and not advice", () => {
-    expect(SCORE_COPY.experimentalBadge).toBe("Experimental");
-    expect(SCORE_COPY.readinessIntro).toMatch(/experimental/i);
-    expect(SCORE_COPY.readinessLimits).toMatch(/not medical advice/);
-    expect(SCORE_COPY.pageIntro).toMatch(/never combined/);
+    expect(inEnglish(SCORE_COPY.experimentalBadge)).toBe("Experimental");
+    expect(inEnglish(SCORE_COPY.readinessIntro)).toMatch(/experimental/i);
+    expect(inEnglish(SCORE_COPY.readinessLimits)).toMatch(/not medical advice/);
+    expect(inEnglish(SCORE_COPY.pageIntro)).toMatch(/never combined/);
   });
 });

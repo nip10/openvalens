@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   formatDistanceMeters,
   formatKcalories,
@@ -45,8 +46,6 @@ export const Route = createFileRoute("/_auth/records/activity")({
   component: ActivityPage,
 });
 
-const trendConfig = { steps: { label: "Steps", color: "var(--chart-1)" } } satisfies ChartConfig;
-
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -61,6 +60,10 @@ const MANUAL_METRICS: ManualEntryMetric[] = ["steps", "active_calories", "distan
 function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   const [metric, setMetric] = useState<ManualEntryMetric>("steps");
   const field = MANUAL_ENTRY_FIELDS[metric];
+  const { i18n } = useLingui();
+  const unit = i18n._(field.unit);
+  const min = field.min;
+  const max = field.max;
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt);
 
@@ -89,11 +92,15 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add reading</CardTitle>
+        <CardTitle>
+          <Trans>Add reading</Trans>
+        </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-3">
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Metric</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Metric</Trans>
+          </Label>
           <Select
             value={metric}
             onValueChange={(next) => {
@@ -103,19 +110,21 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             }}
           >
             <SelectTrigger>
-              <SelectValue>{field.label}</SelectValue>
+              <SelectValue>{i18n._(field.label)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {MANUAL_METRICS.map((code) => (
                 <SelectItem key={code} value={code}>
-                  {MANUAL_ENTRY_FIELDS[code].label}
+                  {i18n._(MANUAL_ENTRY_FIELDS[code].label)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Value ({field.unit})</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Value ({unit})</Trans>
+          </Label>
           <Input
             inputMode="decimal"
             value={value}
@@ -124,7 +133,9 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
           />
         </div>
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">Observed at</Label>
+          <Label className="text-sm font-medium">
+            <Trans>Observed at</Trans>
+          </Label>
           <Input
             type="datetime-local"
             value={observedAt}
@@ -133,16 +144,22 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </div>
         <div className="flex items-center gap-3 sm:col-span-3">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
+            {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
           {numeric === null && value.length > 0 ? (
             <span className="text-sm text-destructive">
-              Value must be between {field.min} and {field.max} {field.unit}.
+              <Trans>
+                Value must be between {min} and {max} {unit}.
+              </Trans>
             </span>
           ) : save.isSuccess ? (
-            <span className="text-sm text-success">Saved</span>
+            <span className="text-sm text-success">
+              <Trans>Saved</Trans>
+            </span>
           ) : save.isError ? (
-            <span className="text-sm text-destructive">Could not save.</span>
+            <span className="text-sm text-destructive">
+              <Trans>Could not save.</Trans>
+            </span>
           ) : null}
         </div>
       </CardContent>
@@ -156,12 +173,18 @@ function ActivityPage() {
   );
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { t } = useLingui();
+  const trendConfig = {
+    steps: { label: t`Steps`, color: "var(--chart-1)" },
+  } satisfies ChartConfig;
 
   if (totals.isPending) {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">Activity</h1>
+          <h1 className="text-2xl font-semibold">
+            <Trans>Activity</Trans>
+          </h1>
           <SyncStatusBadge />
         </div>
         <Skeleton className="h-64 w-full" />
@@ -173,13 +196,15 @@ function ActivityPage() {
     return (
       <div className="container mx-auto max-w-3xl px-4 py-6">
         <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">Activity</h1>
+          <h1 className="text-2xl font-semibold">
+            <Trans>Activity</Trans>
+          </h1>
           <SyncStatusBadge />
         </div>
         <p className="text-sm text-muted-foreground">
-          Could not load activity.{" "}
+          <Trans>Could not load activity.</Trans>{" "}
           <button className="underline" onClick={() => void totals.refetch()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </p>
       </div>
@@ -192,7 +217,9 @@ function ActivityPage() {
   return (
     <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Activity</h1>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Activity</Trans>
+        </h1>
         <SyncStatusBadge />
       </div>
 
@@ -203,9 +230,13 @@ function ActivityPage() {
       {!summary.today ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="font-medium">No activity yet</p>
+            <p className="font-medium">
+              <Trans>No activity yet</Trans>
+            </p>
             <p className="text-sm text-muted-foreground">
-              Sync Health Connect or Apple Health from the mobile app, or add an entry.
+              <Trans>
+                Sync Health Connect or Apple Health from the mobile app, or add an entry.
+              </Trans>
             </p>
           </CardContent>
         </Card>
@@ -213,13 +244,13 @@ function ActivityPage() {
         <>
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>Today · {summary.today.date}</CardTitle>
+              <CardTitle>{t`Today · ${summary.today.date}`}</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
-              <Stat label="Steps" value={formatSteps(summary.today.steps)} />
-              <Stat label="Calories" value={formatKcalories(summary.today.activeCaloriesKcal)} />
+              <Stat label={t`Steps`} value={formatSteps(summary.today.steps)} />
+              <Stat label={t`Calories`} value={formatKcalories(summary.today.activeCaloriesKcal)} />
               <Stat
-                label="Distance"
+                label={t`Distance`}
                 value={formatDistanceMeters(summary.today.distanceMeters, settings)}
               />
             </CardContent>
@@ -227,7 +258,9 @@ function ActivityPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>30-day trend</CardTitle>
+              <CardTitle>
+                <Trans>30-day trend</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ChartContainer config={trendConfig} className="h-56 w-full">
@@ -249,16 +282,21 @@ function ActivityPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>This week</CardTitle>
+              <CardTitle>
+                <Trans>This week</Trans>
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-4">
-              <Stat label="Steps / active day" value={formatSteps(summary.sevenDayAverageSteps)} />
               <Stat
-                label="Calories / day"
+                label={t`Steps / active day`}
+                value={formatSteps(summary.sevenDayAverageSteps)}
+              />
+              <Stat
+                label={t`Calories / day`}
                 value={formatKcalories(summary.sevenDayAverageCalories)}
               />
               <Stat
-                label="Distance / day"
+                label={t`Distance / day`}
                 value={formatDistanceMeters(summary.sevenDayAverageDistance, settings)}
               />
             </CardContent>
@@ -273,7 +311,9 @@ function ActivityPage() {
                   <li key={day.date} className="flex items-center justify-between px-4 py-3">
                     <span className="font-mono text-sm text-muted-foreground">{day.date}</span>
                     <span className="flex items-center gap-6 text-sm">
-                      <span className="font-mono">{formatSteps(day.steps)} steps</span>
+                      <span className="font-mono">
+                        {t({ message: `${formatSteps(day.steps)} steps`, comment: "safety" })}
+                      </span>
                       <span className="font-mono text-muted-foreground">
                         {formatKcalories(day.activeCaloriesKcal)}
                       </span>

@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   BODY_MAP_COPY,
   BODY_MAP_REGIONS,
@@ -66,8 +67,9 @@ function Toggle<T extends string>({
 }
 
 function Legend({ steps }: { steps: LegendStep[] }) {
+  const { t } = useLingui();
   return (
-    <ul className="grid gap-1 text-sm" aria-label="Legend">
+    <ul className="grid gap-1 text-sm" aria-label={t`Legend`}>
       {steps.map((step) => (
         <li key={step.label} className="flex items-center gap-2">
           <span
@@ -93,15 +95,19 @@ function BodyFigure({
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { t, i18n } = useLingui();
   return (
     <svg
       viewBox={BODY_MAP_VIEWBOX}
       className="mx-auto h-96 w-auto"
       role="group"
-      aria-label={`Body map, ${view} view`}
+      aria-label={view === "front" ? t`Body map, front view` : t`Body map, back view`}
     >
       {BODY_MAP_REGIONS.filter((region) => region.view === view).map((region) => {
         const fill = fills[region.id]!;
+        const label = i18n._(region.label);
+        const value = fill.valueText ?? t`no value`;
+        const description = t`${label}: ${value}`;
         return (
           <path
             key={region.id}
@@ -112,7 +118,7 @@ function BodyFigure({
             tabIndex={0}
             role="button"
             aria-pressed={selected === region.id}
-            aria-label={`${region.label}: ${fill.valueText ?? "no value"}`}
+            aria-label={description}
             className="cursor-pointer outline-none focus-visible:stroke-[3]"
             onClick={() => onSelect(region.id)}
             onKeyDown={(event) => {
@@ -122,7 +128,7 @@ function BodyFigure({
               }
             }}
           >
-            <title>{`${region.label}: ${fill.valueText ?? "no value"}`}</title>
+            <title>{description}</title>
           </path>
         );
       })}
@@ -138,6 +144,11 @@ function BodyMapPage() {
   const [compareScanId, setCompareScanId] = useState<number | null>(null);
   const [measurementType, setMeasurementType] = useState<string | null>(null);
   const today = localToday();
+  const { t, i18n } = useLingui();
+  const typeLabel = (type: string) => {
+    const known = DEXA_MEASUREMENT_LABELS[type];
+    return known ? i18n._(known.label) : type;
+  };
 
   const scans = useQuery({
     queryKey: ["bodyMap", "scans"],
@@ -168,13 +179,21 @@ function BodyMapPage() {
     measurementType && types.includes(measurementType) ? measurementType : types[0];
   const compositionResult =
     composition.data && activeType
-      ? compositionLayer({
-          measurementType: activeType,
-          values: composition.data.values,
-          ...(composition.data.compare ? { compareValues: composition.data.compare.values } : {}),
-        })
+      ? compositionLayer(
+          {
+            measurementType: activeType,
+            values: composition.data.values,
+            ...(composition.data.compare ? { compareValues: composition.data.compare.values } : {}),
+          },
+          i18n,
+        )
       : null;
-  const trainingResult = training.data ? trainingLayer(training.data.exercises) : null;
+  const trainingResult = training.data ? trainingLayer(training.data.exercises, i18n) : null;
+  const scanSource = composition.data?.scan.source ?? "";
+  const scanDate = composition.data?.scan.date ?? "";
+  const compareDate = composition.data?.compare?.scan.date ?? null;
+  const trainingFrom = training.data?.from ?? "…";
+  const trainingTo = training.data?.to ?? today;
   const result = layer === "composition" ? compositionResult : trainingResult;
   const selectedRegion = BODY_MAP_REGIONS.find((region) => region.id === selected) ?? null;
   const selectedFill = selectedRegion && result ? result.fills[selectedRegion.id] : null;
@@ -182,33 +201,35 @@ function BodyMapPage() {
   return (
     <main className="container mx-auto grid max-w-4xl gap-6 px-4 py-6">
       <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">Body map</h1>
-        <p className="text-sm text-muted-foreground">{BODY_MAP_COPY.intro}</p>
+        <h1 className="text-2xl font-semibold">
+          <Trans>Body map</Trans>
+        </h1>
+        <p className="text-sm text-muted-foreground">{i18n._(BODY_MAP_COPY.intro)}</p>
       </header>
 
       <div className="flex flex-wrap gap-4">
         <Toggle
-          label="Layer"
+          label={t`Layer`}
           value={layer}
           onChange={(value) => {
             setLayer(value);
             setSelected(null);
           }}
           options={[
-            { value: "composition", label: "Measured composition" },
-            { value: "training", label: "Training this week" },
+            { value: "composition", label: t`Measured composition` },
+            { value: "training", label: t`Training this week` },
           ]}
         />
         <Toggle
-          label="Side"
+          label={t`Side`}
           value={view}
           onChange={(value) => {
             setView(value);
             setSelected(null);
           }}
           options={[
-            { value: "front", label: "Front" },
-            { value: "back", label: "Back" },
+            { value: "front", label: t`Front` },
+            { value: "back", label: t`Back` },
           ]}
         />
       </div>
@@ -216,22 +237,30 @@ function BodyMapPage() {
       {layer === "composition" ? (
         <Card>
           <CardHeader>
-            <CardTitle>Scan</CardTitle>
+            <CardTitle>
+              <Trans>Scan</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
             <p className="text-muted-foreground">
-              {compareScanId ? BODY_MAP_COPY.compare : BODY_MAP_COPY.composition}
+              {i18n._(compareScanId ? BODY_MAP_COPY.compare : BODY_MAP_COPY.composition)}
             </p>
             {scans.isPending ? (
-              <p role="status">Loading scans…</p>
+              <p role="status">
+                <Trans>Loading scans…</Trans>
+              </p>
             ) : scans.isError ? (
-              <p role="alert">Could not load your scans.</p>
+              <p role="alert">
+                <Trans>Could not load your scans.</Trans>
+              </p>
             ) : !scans.data?.length ? (
-              <p>No DEXA scans yet. Import a scan to see measured regions here.</p>
+              <p>
+                <Trans>No DEXA scans yet. Import a scan to see measured regions here.</Trans>
+              </p>
             ) : (
               <div className="flex flex-wrap gap-4">
                 <label className="grid gap-1">
-                  Scan
+                  <Trans>Scan</Trans>
                   <select
                     className="min-h-9 rounded-md border bg-background px-2"
                     value={activeScanId ?? ""}
@@ -248,7 +277,7 @@ function BodyMapPage() {
                   </select>
                 </label>
                 <label className="grid gap-1">
-                  Compare with
+                  <Trans>Compare with</Trans>
                   <select
                     className="min-h-9 rounded-md border bg-background px-2"
                     value={compareScanId ?? ""}
@@ -256,7 +285,7 @@ function BodyMapPage() {
                       setCompareScanId(event.target.value ? Number(event.target.value) : null)
                     }
                   >
-                    <option value="">No comparison</option>
+                    <option value="">{t`No comparison`}</option>
                     {scans.data
                       .filter((scan) => scan.id !== activeScanId)
                       .map((scan) => (
@@ -268,7 +297,7 @@ function BodyMapPage() {
                 </label>
                 {types.length > 1 ? (
                   <label className="grid gap-1">
-                    Measurement
+                    <Trans>Measurement</Trans>
                     <select
                       className="min-h-9 rounded-md border bg-background px-2"
                       value={activeType}
@@ -276,7 +305,7 @@ function BodyMapPage() {
                     >
                       {types.map((type) => (
                         <option key={type} value={type}>
-                          {DEXA_MEASUREMENT_LABELS[type]?.label ?? type}
+                          {typeLabel(type)}
                         </option>
                       ))}
                     </select>
@@ -286,26 +315,35 @@ function BodyMapPage() {
             )}
             {composition.data ? (
               <p>
-                {composition.data.scan.source}, {composition.data.scan.date}
-                {composition.data.compare
-                  ? `, compared with ${composition.data.compare.scan.date}`
-                  : ""}
-                {activeType ? ` · ${DEXA_MEASUREMENT_LABELS[activeType]?.label ?? activeType}` : ""}
+                {compareDate
+                  ? t`${scanSource}, ${scanDate}, compared with ${compareDate}`
+                  : `${scanSource}, ${scanDate}`}
+                {activeType ? ` · ${typeLabel(activeType)}` : ""}
               </p>
             ) : null}
-            {composition.data && !types.length ? <p>This scan has no regional values.</p> : null}
+            {composition.data && !types.length ? (
+              <p>
+                <Trans>This scan has no regional values.</Trans>
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
             <CardTitle>
-              Sets from {training.data?.from ?? "…"} to {training.data?.to ?? today}
+              <Trans>
+                Sets from {trainingFrom} to {trainingTo}
+              </Trans>
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 text-sm">
-            <p className="text-muted-foreground">{BODY_MAP_COPY.training}</p>
-            {training.isError ? <p role="alert">Could not load your workouts.</p> : null}
+            <p className="text-muted-foreground">{i18n._(BODY_MAP_COPY.training)}</p>
+            {training.isError ? (
+              <p role="alert">
+                <Trans>Could not load your workouts.</Trans>
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       )}
@@ -317,17 +355,21 @@ function BodyMapPage() {
             <div role="status" aria-live="polite" className="rounded-md border p-3 text-sm">
               {selectedRegion && selectedFill ? (
                 <>
-                  <p className="font-medium">{selectedRegion.label}</p>
-                  <p>{selectedFill.valueText ?? "No value"}</p>
+                  <p className="font-medium">{i18n._(selectedRegion.label)}</p>
+                  <p>{selectedFill.valueText ?? t`No value`}</p>
                   {selectedFill.sourceText ? (
                     <p className="text-muted-foreground">{selectedFill.sourceText}</p>
                   ) : null}
                   {layer === "composition" && composition.data ? (
-                    <p className="text-muted-foreground">Scan {composition.data.scan.date}</p>
+                    <p className="text-muted-foreground">
+                      <Trans>Scan {scanDate}</Trans>
+                    </p>
                   ) : null}
                 </>
               ) : (
-                <p className="text-muted-foreground">Select a region to see its value.</p>
+                <p className="text-muted-foreground">
+                  <Trans>Select a region to see its value.</Trans>
+                </p>
               )}
             </div>
             <Legend steps={result.legend} />
@@ -338,32 +380,39 @@ function BodyMapPage() {
       {layer === "training" && trainingResult && training.data ? (
         <Card>
           <CardHeader>
-            <CardTitle>By muscle group</CardTitle>
+            <CardTitle>
+              <Trans>By muscle group</Trans>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
             <ul className="grid gap-1 sm:grid-cols-2">
-              {TRAINING_GROUPS.map((group) => (
-                <li key={group} className="flex justify-between gap-2">
-                  <span>{TRAINING_GROUP_LABELS[group]}</span>
-                  <span>{formatSets(trainingResult.setsByGroup[group])} sets</span>
-                </li>
-              ))}
+              {TRAINING_GROUPS.map((group) => {
+                const count = formatSets(trainingResult.setsByGroup[group]);
+                return (
+                  <li key={group} className="flex justify-between gap-2">
+                    <span>{i18n._(TRAINING_GROUP_LABELS[group])}</span>
+                    <span>{t`${count} sets`}</span>
+                  </li>
+                );
+              })}
             </ul>
             {training.data.unmapped.length ? (
               <div>
-                <p className="font-medium">Not counted (no catalog muscles)</p>
+                <p className="font-medium">
+                  <Trans>Not counted (no catalog muscles)</Trans>
+                </p>
                 <ul className="list-disc pl-5">
-                  {training.data.unmapped.map((item) => (
-                    <li key={item.name}>
-                      {item.name}: {item.sets} sets
-                    </li>
-                  ))}
+                  {training.data.unmapped.map((item) => {
+                    const name = item.name;
+                    const count = item.sets;
+                    return <li key={name}>{t`${name}: ${count} sets`}</li>;
+                  })}
                 </ul>
               </div>
             ) : null}
             {trainingResult.unmappedMuscles.length ? (
               <p className="text-muted-foreground">
-                Muscles not shown on the map: {trainingResult.unmappedMuscles.join(", ")}
+                {t`Muscles not shown on the map: ${trainingResult.unmappedMuscles.join(", ")}`}
               </p>
             ) : null}
           </CardContent>
