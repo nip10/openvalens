@@ -17,8 +17,7 @@ import { SAFETY_MESSAGE_IDS } from "./safety-ids";
  *   consent text). Those stay English until a reviewer approves them, by
  *   listing the id in `approvedSafetyIds` or marking the locale `reviewed`.
  *
- * Review state is maintained by reviewers in `review-state.json`, mirroring
- * the approved state in Hosted Weblate.
+ * Review state is maintained by reviewers in `review-state.json`.
  */
 
 export type ReviewStatus = "reviewed" | "community";

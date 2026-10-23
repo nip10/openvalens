@@ -42,7 +42,8 @@ test.skipIf(process.env.MOUNTED_I18N_TEST !== "1")(
 
     await userEvent.selectOptions(screen.getByLabelText("Interface language"), "pt-PT");
     expect(screen.getByText("Idioma da interface")).toBeTruthy();
-    expect(screen.getByText("Tradução da comunidade")).toBeTruthy();
+    // pt-PT is reviewed, so no community-translation note.
+    expect(screen.queryByText("Tradução da comunidade")).toBeNull();
     expect(document.documentElement.lang).toBe("pt-PT");
     expect(localStorage.getItem("openvalens.locale")).toBe("pt-PT");
     expect(reloads).toEqual([]);
