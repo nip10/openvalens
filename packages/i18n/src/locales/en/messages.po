@@ -873,7 +873,7 @@ msgstr "Active minutes, last 7 days: {value} minutes. {statusText}"
 msgid "Activity"
 msgstr "Activity"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Activity and fitness"
 msgstr "Activity and fitness"
 
@@ -1399,7 +1399,7 @@ msgstr "Blood"
 msgid "Body"
 msgstr "Body"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Body goals"
 msgstr "Body goals"
 
@@ -1422,7 +1422,7 @@ msgstr "Body map, front view"
 msgid "Bone density"
 msgstr "Bone density"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Both"
 msgstr "Both"
 
@@ -3469,7 +3469,7 @@ msgstr "Favourite"
 msgid "Favourite <0>{foodName}</0>"
 msgstr "Favourite <0>{foodName}</0>"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Female"
 msgstr "Female"
 
@@ -3601,7 +3601,7 @@ msgstr "Frequency"
 msgid "From 1 entry"
 msgstr "From 1 entry"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "From a device or app"
 msgstr "From a device or app"
 
@@ -3924,7 +3924,7 @@ msgstr "I train regularly and want the active reference"
 msgid "I use hormonal contraception or have no natural cycle (turns estimates off)"
 msgstr "I use hormonal contraception or have no natural cycle (turns estimates off)"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "I'll enter things myself"
 msgstr "I'll enter things myself"
 
@@ -4193,7 +4193,7 @@ msgstr "Items to copy"
 msgid "Join OpenValens"
 msgstr "Join OpenValens"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Just exploring"
 msgstr "Just exploring"
 
@@ -4682,7 +4682,7 @@ msgstr "Make food drafts from a meal photo"
 msgid "Make food drafts from a spoken or typed description"
 msgstr "Make food drafts from a spoken or typed description"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Male"
 msgstr "Male"
 
@@ -4987,7 +4987,7 @@ msgstr "Needs attention: {change}"
 msgid "Needs steps on at least 2 of the last 3 full days (found {found})."
 msgstr "Needs steps on at least 2 of the last 3 full days (found {found})."
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Neither fits me"
 msgstr "Neither fits me"
 
@@ -5346,7 +5346,7 @@ msgstr "No weight yet"
 msgid "No workouts yet"
 msgstr "No workouts yet"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "No, I'm under 18"
 msgstr "No, I'm under 18"
 
@@ -5486,8 +5486,8 @@ msgstr "Not started"
 msgid "Not sure what this is"
 msgstr "Not sure what this is"
 
-#: apps/native/utils/wellness-profile-choices.ts
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Not sure yet"
 msgstr "Not sure yet"
 
@@ -5598,7 +5598,7 @@ msgstr "Nutrient"
 msgid "Nutrients"
 msgstr "Nutrients"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Nutrition"
 msgstr "Nutrition"
 
@@ -6146,7 +6146,7 @@ msgstr "Population reference intake (PRI)"
 msgid "Portugal"
 msgstr "Portugal"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Portugal (EU)"
 msgstr "Portugal (EU)"
 
@@ -6159,7 +6159,7 @@ msgstr "Potassium"
 msgid "Pre-bed"
 msgstr "Pre-bed"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Prefer not to say"
 msgstr "Prefer not to say"
 
@@ -7385,7 +7385,7 @@ msgstr "Skip for now"
 msgid "Sleep"
 msgstr "Sleep"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Sleep and recovery"
 msgstr "Sleep and recovery"
 
@@ -8490,16 +8490,16 @@ msgid "Unit not stated"
 msgstr "Unit not stated"
 
 #: apps/native/components/language-section.tsx
-#: apps/native/utils/wellness-profile-choices.ts
 #: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "United Kingdom"
 msgstr "United Kingdom"
 
 #: apps/native/components/language-section.tsx
-#: apps/native/utils/wellness-profile-choices.ts
 #: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "United States"
 msgstr "United States"
 
@@ -8850,7 +8850,7 @@ msgstr "Weight, BMI, body fat and waist: never compared with other people. You s
 msgid "Welcome, <0>{0}</0>"
 msgstr "Welcome, <0>{0}</0>"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Wellbeing"
 msgstr "Wellbeing"
 
@@ -8933,7 +8933,7 @@ msgstr "Y-axis: avg bpm"
 msgid "Y-axis: minutes of sleep"
 msgstr "Y-axis: minutes of sleep"
 
-#: apps/native/utils/wellness-profile-choices.ts
+#: packages/api/src/presenters/wellness-profile.ts
 msgid "Yes, I'm 18 or older"
 msgstr "Yes, I'm 18 or older"
 

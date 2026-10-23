@@ -1,18 +1,16 @@
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import type { WellnessProfileDraft } from "@openvalens/api/presenters/wellness-profile";
+import {
+  WELLNESS_CHOICE_LABELS,
+  type WellnessProfileDraft,
+} from "@openvalens/api/presenters/wellness-profile";
 import {
   WELLNESS_ELIGIBILITY,
   WELLNESS_FOCUS_AREAS,
   WELLNESS_INPUT_METHODS,
   WELLNESS_REGIONS,
   WELLNESS_SEXES,
-  type WellnessEligibility,
   type WellnessFocusArea,
-  type WellnessInputMethod,
   type WellnessProfileAnswers,
-  type WellnessRegion,
-  type WellnessSex,
 } from "@openvalens/api/wellness-profile-contract";
 
 /**
@@ -33,40 +31,17 @@ export type ChipField = "eligibility" | "focus" | "inputMethod" | "region" | "se
 
 export type Chip = { key: string; label: MessageDescriptor; disabled?: boolean };
 
-const ELIGIBILITY_LABELS: Record<WellnessEligibility, MessageDescriptor> = {
-  adult: msg`Yes, I'm 18 or older`,
-  under_18: msg`No, I'm under 18`,
-};
-
-const FOCUS_AREA_LABELS: Record<WellnessFocusArea, MessageDescriptor> = {
-  sleep_recovery: msg`Sleep and recovery`,
-  activity_fitness: msg`Activity and fitness`,
-  nutrition: msg`Nutrition`,
-  body_goals: msg`Body goals`,
-  wellbeing: msg`Wellbeing`,
-};
-
-const INPUT_METHOD_LABELS: Record<WellnessInputMethod, MessageDescriptor> = {
-  manual: msg`I'll enter things myself`,
-  device: msg`From a device or app`,
-  both: msg`Both`,
-};
-
-const REGION_LABELS: Record<WellnessRegion, MessageDescriptor> = {
-  us: msg`United States`,
-  uk: msg`United Kingdom`,
-  pt: msg`Portugal (EU)`,
-};
-
-const SEX_LABELS: Record<WellnessSex, MessageDescriptor> = {
-  female: msg`Female`,
-  male: msg`Male`,
-};
-
-const DECLINE_LABEL = msg`Prefer not to say`;
-const SEX_NOT_APPLICABLE_LABEL = msg`Neither fits me`;
-const JUST_EXPLORING_LABEL = msg`Just exploring`;
-const NOT_SURE_YET_LABEL = msg`Not sure yet`;
+const {
+  eligibility: ELIGIBILITY_LABELS,
+  focus: FOCUS_AREA_LABELS,
+  inputMethod: INPUT_METHOD_LABELS,
+  region: REGION_LABELS,
+  sex: SEX_LABELS,
+  decline: DECLINE_LABEL,
+  sexNotApplicable: SEX_NOT_APPLICABLE_LABEL,
+  justExploring: JUST_EXPLORING_LABEL,
+  notSureYet: NOT_SURE_YET_LABEL,
+} = WELLNESS_CHOICE_LABELS;
 
 const DECLINED = "declined";
 const NOT_APPLICABLE = "not_applicable";
