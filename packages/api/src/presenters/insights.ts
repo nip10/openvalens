@@ -79,7 +79,9 @@ export function nutritionObservationView(
     title: observation.title,
     body: observation.body,
     completeness: observation.completeness,
-    period: i18n._(msg`Period: ${from} to ${to} (${days} days)`),
+    period: i18n._(
+      msg`Period: ${from} to ${to} (${plural(days, { one: "# day", other: "# days" })})`,
+    ),
     accessibilityLabel: `${observation.title}. ${observation.body}. ${observation.completeness}`,
   };
 }
@@ -309,7 +311,7 @@ export function insightView(
           ? i18n._(msg`This is clearly larger than your usual day-to-day variation.`)
           : i18n._(msg`This is only a little larger than your usual day-to-day variation.`);
       coverageText = i18n._(
-        msg`Based on ${recentDays} of the last ${recentWindowDays} days, compared with ${baselineDays} days in the ${baselineWindowDays} days before.`,
+        msg`Based on ${recentDays} of the last ${recentWindowDays} days, compared with ${plural(baselineDays, { one: "# day", other: "# days" })} in the ${baselineWindowDays} days before.`,
       );
       break;
     }
@@ -331,7 +333,9 @@ export function insightView(
           : i18n._(
               msg`The trend is only a little larger than your usual day-to-day ups and downs.`,
             );
-      coverageText = i18n._(msg`Based on ${days} weigh-ins in the last ${windowDays} days.`);
+      coverageText = i18n._(
+        msg`Based on ${plural(days, { one: "# weigh-in", other: "# weigh-ins" })} in the last ${windowDays} days.`,
+      );
       break;
     }
     case "goal": {
@@ -370,7 +374,7 @@ export function insightView(
           resting_heart_rate: "Resting heart rate",
           steps: "Steps",
           other: "Weight",
-        })} had been recorded on most days, but nothing has arrived for ${daysWithout} days. Insights that use it pause until new data arrives.`,
+        })} had been recorded on most days, but nothing has arrived for ${plural(daysWithout, { one: "# day", other: "# days" })}. Insights that use it pause until new data arrives.`,
       );
       break;
     }
@@ -399,7 +403,7 @@ export function insightView(
       const { metric, days } = detail;
       const date = formatInsightDate(detail.startDate);
       title = i18n._(
-        msg`${days} days of ${select(metric, {
+        msg`${plural(days, { one: "# day", other: "# days" })} of ${select(metric, {
           sleep_duration: "sleep",
           resting_heart_rate: "resting heart rate",
           steps: "step count",
@@ -422,12 +426,12 @@ export function insightView(
       title = i18n._(msg`Meals and recorded workouts`);
       body = i18n._(
         msg({
-          message: `Logged meals and workouts occurred on ${daysWithBoth} days in this ${windowDays}-day window. This describes co-occurrence in your records only and does not establish a relationship between them.`,
+          message: `Logged meals and workouts occurred on ${plural(daysWithBoth, { one: "# day", other: "# days" })} in this ${windowDays}-day window. This describes co-occurrence in your records only and does not establish a relationship between them.`,
           comment: "safety",
         }),
       );
       coverageText = i18n._(
-        msg`Diary marked complete on ${diaryCompleteDays} days; workouts were recorded on ${workoutDays} days.`,
+        msg`Diary marked complete on ${plural(diaryCompleteDays, { one: "# day", other: "# days" })}; workouts were recorded on ${plural(workoutDays, { one: "# day", other: "# days" })}.`,
       );
       break;
     }
@@ -451,7 +455,7 @@ export function insightView(
       const windowDays = detail.window.days;
       title = i18n._(msg`Recorded activity energy`);
       body = i18n._(
-        msg`Estimated activity energy was recorded on ${activityDays} days in this ${windowDays}-day window. It is shown separately from food intake.`,
+        msg`Estimated activity energy was recorded on ${plural(activityDays, { one: "# day", other: "# days" })} in this ${windowDays}-day window. It is shown separately from food intake.`,
       );
       break;
     }

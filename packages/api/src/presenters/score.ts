@@ -170,8 +170,12 @@ function componentDetail(component: ReadinessComponent, i18n: I18n): string {
   const usual = formatReadinessValue(component.baselineValue, component.unit, i18n);
   const relative = formatRelativeDifference(component.relativeDifference, i18n);
   return relative
-    ? i18n._(msg`Recent ${recent} vs usual ${usual} (median of ${days} days), ${relative}.`)
-    : i18n._(msg`Recent ${recent} vs usual ${usual} (median of ${days} days).`);
+    ? i18n._(
+        msg`Recent ${recent} vs usual ${usual} (median of ${plural(days, { one: "# day", other: "# days" })}), ${relative}.`,
+      )
+    : i18n._(
+        msg`Recent ${recent} vs usual ${usual} (median of ${plural(days, { one: "# day", other: "# days" })}).`,
+      );
 }
 
 /** Text is rendered through `i18n` (#67), so the view follows the active language. */
