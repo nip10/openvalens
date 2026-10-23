@@ -69,6 +69,25 @@ Hermes lacks `Intl.PluralRules` and `Intl.Locale`.
 `apps/native/lib/i18n/polyfills.test.ts` checks pt-PT and Polish plural
 selection with the native Intl removed.
 
+## Language, formats and lab units are separate
+
+Settings → Language holds three independent choices:
+
+- **Interface language:** which words the app uses.
+- **Date and number format:** how dates and numbers look. "App default"
+  follows the installation setting an administrator chose (United States,
+  United Kingdom, Canada or Portugal). Picking one here overrides it on this
+  device only.
+- **Lab concentration units:** "As reported by the lab", mg/dL, or mmol/L
+  (µmol/L for creatinine). This changes only how glucose, cholesterol,
+  triglycerides and creatinine are displayed
+  (`presenters/clinical-units.ts`). A stored result and its reported unit
+  never change. Any other analyte, or a unit outside the pair, is shown
+  exactly as reported.
+
+Language does not imply a format or a unit. A member can read the app in
+English with Portuguese dates and mmol/L results.
+
 ## Review states
 
 `packages/i18n/src/review-state.json` records each locale's state:

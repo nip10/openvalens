@@ -73,6 +73,7 @@ const LOCALE_OPTIONS: { value: ProductLocale; label: MessageDescriptor; hint: st
   { value: "en-US", label: msg`United States`, hint: localeHint("en-US") },
   { value: "en-GB", label: msg`United Kingdom`, hint: localeHint("en-GB") },
   { value: "en-CA", label: msg`Canada`, hint: localeHint("en-CA") },
+  { value: "pt-PT", label: msg`Portugal`, hint: localeHint("pt-PT") },
 ];
 
 export function ProductSettingsForm({

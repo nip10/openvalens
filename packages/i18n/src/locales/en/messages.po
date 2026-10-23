@@ -134,7 +134,7 @@ msgstr "{0, select, entered {Entered by you} proposal {Accepted suggestion} othe
 msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from} until {to}"
 msgstr "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from} until {to}"
 
-#. placeholder {0}: formatLabDate(marker.latestSampledAt)
+#. placeholder {0}: formatLabDate(marker.latestSampledAt, dateSettings)
 #. placeholder {0}: formatLabDate(marker.latestSampledAt, settings)
 #. placeholder {1}: marker.sampleCount
 #: apps/native/app/(drawer)/records/labs.tsx
@@ -1115,6 +1115,11 @@ msgstr "API Disconnected"
 msgid "API Status"
 msgstr "API Status"
 
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "App default"
+msgstr "App default"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Applies from"
 msgstr "Applies from"
@@ -1141,6 +1146,13 @@ msgstr "Archived"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later."
 msgstr "Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later."
+
+#. safety
+#. safety
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "As reported by the lab"
+msgstr "As reported by the lab"
 
 #: packages/api/src/presenters/energy-estimate.ts
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -1443,6 +1455,8 @@ msgstr "Camera access is required to scan a barcode. Type the digits instead, or
 msgid "Camera view for scanning a barcode"
 msgstr "Camera view for scanning a barcode"
 
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Canada"
 msgstr "Canada"
@@ -1521,6 +1535,13 @@ msgstr "Change to {amount}"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Changes apply to new entries. Meals you already logged keep the values they were saved with."
 msgstr "Changes apply to new entries. Meals you already logged keep the values they were saved with."
+
+#. safety
+#. safety
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "Changes only how glucose, cholesterol, triglycerides and creatinine are shown. Your stored results and the lab's units are never changed."
+msgstr "Changes only how glucose, cholesterol, triglycerides and creatinine are shown. Your stored results and the lab's units are never changed."
 
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
@@ -1909,6 +1930,15 @@ msgstr "Continue: {0}"
 #: apps/native/app/(drawer)/coach/index.tsx
 msgid "Conversations"
 msgstr "Conversations"
+
+#. safety
+#. safety
+#. placeholder {0}: marker.unit
+#. placeholder {0}: marker.unit ?? ""
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Converted from {0}"
+msgstr "Converted from {0}"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -2606,6 +2636,11 @@ msgstr "Dataset {datasetVersion}."
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Date"
 msgstr "Date"
+
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "Date and number format"
+msgstr "Date and number format"
 
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Day"
@@ -4111,6 +4146,11 @@ msgstr "kg, kilometers"
 msgid "Kind"
 msgstr "Kind"
 
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "Lab concentration units"
+msgstr "Lab concentration units"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/components/header.tsx
@@ -4701,6 +4741,13 @@ msgstr "Minimum (optional), hidden"
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Minutes"
 msgstr "Minutes"
+
+#. safety
+#. safety
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+msgid "mmol/L (µmol/L for creatinine)"
+msgstr "mmol/L (µmol/L for creatinine)"
 
 #: apps/web/src/components/header.tsx
 msgid "Mobile navigation"
@@ -5955,6 +6002,12 @@ msgstr "points"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Population reference intake (PRI)"
 msgstr "Population reference intake (PRI)"
+
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
+#: apps/web/src/components/product-settings-form.tsx
+msgid "Portugal"
+msgstr "Portugal"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Potassium"
@@ -8250,10 +8303,14 @@ msgstr "Unit (text)"
 msgid "Unit not stated"
 msgstr "Unit not stated"
 
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
 msgid "United Kingdom"
 msgstr "United Kingdom"
 
+#: apps/native/components/language-section.tsx
+#: apps/web/src/components/language-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
 msgid "United States"
 msgstr "United States"

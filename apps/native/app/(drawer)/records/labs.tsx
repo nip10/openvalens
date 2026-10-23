@@ -1,5 +1,6 @@
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
+import { displayLabValue } from "@openvalens/api/presenters/clinical-units";
 import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
@@ -14,6 +15,7 @@ import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { useDisplayPreferences } from "@/lib/display-preferences";
 import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
@@ -93,6 +95,15 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
 export default function LabsScreen() {
   const foreground = useThemeColor("foreground");
   const { t } = useLingui();
+  const { formatLocale, labUnits } = useDisplayPreferences();
+  const dateSettings = formatLocale
+    ? { units: "metric" as const, locale: formatLocale }
+    : undefined;
+  // Display only (#67): the stored reading and its reported unit never change.
+  const shown = (marker: { code: string; unit: string | null; latestValue: number | null }) =>
+    marker.latestValue === null
+      ? { value: null, unit: marker.unit, converted: false }
+      : displayLabValue(marker, marker.latestValue, labUnits);
   const markers = useCacheFirst(
     "labs.latest",
     orpc.labs.latest.queryOptions({ input: { recentLimit: 10 } }),
@@ -170,15 +181,19 @@ export default function LabsScreen() {
                       <Text className="text-xs text-muted-foreground">
                         {marker.latestValue === null
                           ? t`No readings yet`
-                          : t`${formatLabDate(marker.latestSampledAt)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`}
+                          : t`${formatLabDate(marker.latestSampledAt, dateSettings)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`}
                       </Text>
                     </View>
                     <View className="shrink-0 items-end">
                       <Text className="font-mono text-base text-foreground">
-                        {formatLabValue(marker.latestValue, marker.unit)}
+                        {formatLabValue(shown(marker).value, shown(marker).unit)}
                       </Text>
                       {marker.unit ? (
-                        <Text className="text-xs text-muted-foreground">{marker.unit}</Text>
+                        <Text className="text-xs text-muted-foreground">
+                          {shown(marker).converted
+                            ? t({ message: `Converted from ${marker.unit}`, comment: "safety" })
+                            : marker.unit}
+                        </Text>
                       ) : null}
                     </View>
                   </View>

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { authClient } from "@/lib/auth-client";
+import { useDisplayPreferences } from "@/lib/display-preferences";
 import { orpc } from "@/utils/orpc";
 
 import { productSettingsQueryKey } from "./product-settings-keys";
@@ -29,10 +30,14 @@ export function productSettingsQueryOptions(userId: string) {
 export function useProductSettings() {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
+  // A personal date and number format (#67) overrides the installation default
+  // for display only; the admin form reads the installation value directly.
+  const { formatLocale } = useDisplayPreferences();
 
   return useQuery({
     ...productSettingsQueryOptions(userId ?? ""),
     enabled: !!userId,
+    select: (snapshot) => (formatLocale ? { ...snapshot, locale: formatLocale } : snapshot),
   });
 }
 

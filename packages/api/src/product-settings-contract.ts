@@ -16,7 +16,7 @@ export const PRODUCT_UNITS = ["metric", "imperial"] as const;
 export type ProductUnits = (typeof PRODUCT_UNITS)[number];
 
 /** Presentation locale. Controls formatting, not timezone or translation. */
-export const PRODUCT_LOCALES = ["en-US", "en-GB", "en-CA"] as const;
+export const PRODUCT_LOCALES = ["en-US", "en-GB", "en-CA", "pt-PT"] as const;
 export type ProductLocale = (typeof PRODUCT_LOCALES)[number];
 
 /** The effective product display settings (public fields only). */

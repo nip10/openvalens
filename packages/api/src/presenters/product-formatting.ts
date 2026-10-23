@@ -13,7 +13,7 @@
 /** Display units accepted by the product settings contract. */
 export type ProductUnits = "metric" | "imperial";
 /** Locales the product supports. */
-export type ProductLocale = "en-US" | "en-GB" | "en-CA";
+export type ProductLocale = "en-US" | "en-GB" | "en-CA" | "pt-PT";
 
 /**
  * Structural shape of the client-safe product display settings. Kept local so
