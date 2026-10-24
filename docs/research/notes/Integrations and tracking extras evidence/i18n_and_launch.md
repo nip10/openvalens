@@ -1,4 +1,4 @@
-# Internationalization and Open-Source Launch Surfaces for openhealth (as of 2026-10-02)
+# Internationalization and Open-Source Launch Surfaces for OpenValens (as of 2026-10-02)
 
 Scope: inputs for rewriting ticket #67 (i18n) and ticket #66 (landing page, README, screenshots). Stack: React + TanStack Router web (apps/web), Expo/React Native (apps/native), oRPC, bun. License AGPLv3 + DCO. Maintainer in Lisbon.
 Research date: 2026-10-02. Tool budget was limited, so some claims come from secondary sources and are flagged as such.

@@ -1,6 +1,6 @@
 # Change detection in one person's self-tracked and wearable health data: signal or noise?
 
-Scope: statistical and methodological basis for deterministic "insight" rules in openhealth (adults 18+, general wellness, no diagnosis). Notification timing, frequency and engagement are out of scope; another researcher covers them. Research date: October 2026. Evidence type and population are given for each claim. Several primary PDFs (Hopkins 2000, Mohammed 2008, the Nature step-count paper, Plews 2013 Sports Med full text) could not be fetched in full (paywall, bot-check or binary PDF). Where a claim depends only on a search-result snippet or an abstract, it is marked **[snippet/abstract only]**.
+Scope: statistical and methodological basis for deterministic "insight" rules in OpenValens (adults 18+, general wellness, no diagnosis). Notification timing, frequency and engagement are out of scope; another researcher covers them. Research date: October 2026. Evidence type and population are given for each claim. Several primary PDFs (Hopkins 2000, Mohammed 2008, the Nature step-count paper, Plews 2013 Sports Med full text) could not be fetched in full (paywall, bot-check or binary PDF). Where a claim depends only on a search-result snippet or an abstract, it is marked **[snippet/abstract only]**.
 
 ## Q1. Smallest worthwhile change (SWC), typical error, and personal baselines
 
@@ -21,7 +21,7 @@ The sports-science approach is to compare an observed change with two things: th
 
 ### Inferences
 
-- A defensible rule pattern for openhealth has three parts:
+- A defensible rule pattern for OpenValens has three parts:
   - A **personal baseline** of the trailing N days (Quer used 20 readings; sports science typically uses about 4–8 weeks of data).
   - A **current window** of a 7-day rolling mean, not a single day.
   - A **threshold** stated in personal SD units or as a % CV. Only flag when the rolling mean exceeds both the noise band and a practical-importance floor (SWC).
@@ -78,7 +78,7 @@ SPC has been used both for healthcare improvement and directly on individual pat
 
 ### Inferences
 
-- Mapping onto openhealth rules:
+- Mapping onto OpenValens rules:
   - "Sudden unusual day" → Shewhart/XmR-style outlier (e.g., beyond about 3 SD).
   - "Trending up/down" → EWMA of the daily value, or a one-sided CUSUM against the baseline mean with a reference value k ≈ 0.5 SD.
   - Reporting "shift" only after a run of several consecutive days on one side (as in Quer's 3-of-5 rule) is a cheap way to reduce single-day noise.

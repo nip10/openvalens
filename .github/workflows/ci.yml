@@ -65,7 +65,7 @@ jobs:
           BETTER_AUTH_SECRET=synthetic-build-only-auth-secret-000000000000
           BETTER_AUTH_URL=http://localhost:3000
           CORS_ORIGIN=http://localhost:3001
-          DATABASE_URL=postgres://synthetic:synthetic@127.0.0.1:5432/openhealth
+          DATABASE_URL=postgres://synthetic:synthetic@127.0.0.1:5432/openvalens
           CRON_SECRET=synthetic-build-only-cron-secret
           TELEGRAM_WEBHOOK_SECRET=synthetic-build-only-webhook-secret
           EMAIL_FROM=CI Smoke <ci-smoke@example.invalid>

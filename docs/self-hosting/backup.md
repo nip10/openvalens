@@ -100,9 +100,9 @@ command above in a script of your own.
    ```bash
    docker compose -f deploy/compose.yml run --rm --no-deps --entrypoint sh backup -c \
      'export PGPASSWORD="$(cat /run/secrets/POSTGRES_PASSWORD)" &&
-      dropdb --force --no-password openhealth &&
-      createdb --no-password openhealth &&
-      pg_restore --no-password --exit-on-error --dbname=openhealth /backups/<file>.dump'
+      dropdb --force --no-password openvalens &&
+      createdb --no-password openvalens &&
+      pg_restore --no-password --exit-on-error --dbname=openvalens /backups/<file>.dump'
    ```
 
 4. Check out the version that matches the dump — for a rollback, the version

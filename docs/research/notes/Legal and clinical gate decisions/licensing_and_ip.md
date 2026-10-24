@@ -1,4 +1,4 @@
-# Licensing and IP decisions for openhealth (AGPL-3.0-or-later, EU/Portugal maintainer), researched 2026-10-02
+# Licensing and IP decisions for OpenValens (AGPL-3.0-or-later, EU/Portugal maintainer), researched 2026-10-02
 
 Scope: app-store exception (#56), trademark policy (#56), name clearance, Open Food Facts ODbL (#72), recipe URL import (#82), guideline-fact licensing (#97). Each section has the facts, precedent texts, a recommended decision, and one line on the risk that remains. "Verified" means the source was fetched during this research. Statements from background knowledge that were not fetched are marked **[unverified]**.
 
@@ -6,7 +6,7 @@ Scope: app-store exception (#56), trademark policy (#56), name clearance, Open F
 
 ### Takeaway
 
-Adopt a written §7 additional permission now, before any external contribution lands. It should permit conveying through Apple App Store, Google Play and similar stores despite their usage rules or DRM, on condition that the Corresponding Source is also available under plain AGPL through an unrestricted channel. Most large AGPL/GPL mobile apps (Signal, Element X, Threema, Nextcloud, Bitwarden, Immich) ship to the App Store with no exception at all. They can do that only because they own or control the copyright (through a CLA or a single owner). openhealth uses DCO with no CLA, so it needs the exception written down.
+Adopt a written §7 additional permission now, before any external contribution lands. It should permit conveying through Apple App Store, Google Play and similar stores despite their usage rules or DRM, on condition that the Corresponding Source is also available under plain AGPL through an unrestricted channel. Most large AGPL/GPL mobile apps (Signal, Element X, Threema, Nextcloud, Bitwarden, Immich) ship to the App Store with no exception at all. They can do that only because they own or control the copyright (through a CLA or a single owner). OpenValens uses DCO with no CLA, so it needs the exception written down.
 
 ### Cited Findings
 
@@ -42,7 +42,7 @@ Adopt a written §7 additional permission now, before any external contribution 
 
   > **Additional permission under GNU AGPL version 3 section 7 (application store distribution)**
   >
-  > As an additional permission under section 7 of the GNU Affero General Public License version 3, the copyright holders of openhealth grant you permission to convey the Program, or a work based on the Program, in object code form through an application distribution platform (including without limitation the Apple App Store, Google Play, and comparable services), notwithstanding that the terms of service, usage rules, or technical measures of such a platform impose restrictions on recipients' exercise of the rights granted by this License, including (a) limits on redistribution or further conveyance of the conveyed copy, (b) limits on the number of devices or accounts on which it may be installed or used, (c) a requirement that recipients accept the platform operator's terms, and (d) technical measures that control installation or execution of the conveyed copy;
+  > As an additional permission under section 7 of the GNU Affero General Public License version 3, the copyright holders of OpenValens grant you permission to convey the Program, or a work based on the Program, in object code form through an application distribution platform (including without limitation the Apple App Store, Google Play, and comparable services), notwithstanding that the terms of service, usage rules, or technical measures of such a platform impose restrictions on recipients' exercise of the rights granted by this License, including (a) limits on redistribution or further conveyance of the conveyed copy, (b) limits on the number of devices or accounts on which it may be installed or used, (c) a requirement that recipients accept the platform operator's terms, and (d) technical measures that control installation or execution of the conveyed copy;
   >
   > provided that (1) you comply with this License in all other respects, and (2) the Corresponding Source of the exact version you convey is also available, under this License with or without this permission, free of charge through a channel that does not impose those restrictions (for example, a public source repository), and the conveyed app or its store listing gives recipients a notice of how to obtain it.
   >
@@ -196,7 +196,7 @@ An unmodified OFF mirror kept in its own table is "this Database in unmodified f
   2. Show the attribution "Contains data from Open Food Facts, available under the Open Database License" (both linked) on every product view and search result that uses OFF, and in About/Settings and the export footers.
   3. Publish the OFF import and transform scripts (already AGPL in the repo) and state in `DATA-LICENSES.md` that the OFF-derived tables are ODbL. Offer a downloadable dump or "regenerate from OFF dump with this script", which satisfies the §4.6b "method of making the alterations".
   4. Product images are CC BY-SA. Either do not store them (link or hotlink with credit) or store them with per-image attribution.
-  5. Use the nightly dumps for bulk data. Make API calls only for real user scans, and send a User-Agent identifying openhealth with contact details.
+  5. Use the nightly dumps for bulk data. Make API calls only for real user scans, and send a User-Agent identifying OpenValens with contact details.
   6. User-contributed product data goes to an overlay table and is optionally pushed to OFF. Never put it under terms that conflict with ODbL (§4.7).
   7. Tenant exports of food logs carry the ODbL notice if they include OFF-derived nutrient values.
 - **Residual risk:** low. ODbL compliance here is cheap. The main failure mode is missing attribution or a proprietary merged table.
@@ -295,7 +295,7 @@ Decision: store your own short paraphrased fields plus a deep link and a citatio
   - **NICE:** for a product available outside the UK, do not ingest NICE content, use its API, or scrape. At most, store a hand-entered factual summary of a few fields plus a link. More conservatively, link only to NICE (for UK users) without any stored NICE-derived fields, because NICE asserts licensing over "use of our content" in products.
   - **WHO:** the hosted service may be commercial, so do not reproduce WHO text or tables. Store facts and a link only, and never use the logo.
   - **DGS:** factual fields plus a link and the citation "Norma DGS n.º X/AAAA". No reproduction of the Norma text until DGS terms are confirmed.
-  - **All sources:** add a UI line saying the source organisations do not endorse openhealth. Link to the canonical page, not a mirror.
+  - **All sources:** add a UI line saying the source organisations do not endorse OpenValens. Link to the canonical page, not a mirror.
 - **Residual risk:** low for USPSTF, WHO and DGS facts with links. Medium for NICE, whose terms reach broadly to any "use of our content" outside the UK, so link only or seek a licence before storing NICE-derived fields.
 
 ### Gaps

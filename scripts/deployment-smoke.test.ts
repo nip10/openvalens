@@ -307,7 +307,7 @@ exit 0
     expect(yaml).toContain("com.openvalens.deployment-smoke.run");
     expect(yaml).toContain("networks:");
     expect(yaml).not.toContain("container_name:");
-    expect(yaml).not.toContain("openhealth_openhealth_postgres_data");
+    expect(yaml).not.toContain("openvalens_postgres_data");
     expect(yaml).not.toMatch(/\n\s+ports:\n\s+- .*5432/);
     expect(yaml).not.toContain("/run/secrets");
   });
@@ -335,7 +335,7 @@ exit 0
     const base = {
       apiOrigin: "http://127.0.0.1:43210",
       webOrigin: "http://127.0.0.1:43211",
-      databaseUrl: "postgresql://postgres:pw@db:5432/openhealth",
+      databaseUrl: "postgresql://postgres:pw@db:5432/openvalens",
       authSecret: "synthetic-auth-secret-value-0123456789",
       cronSecret: "synthetic-cron-secret-value-0123456789",
       webhookSecret: "synthetic-webhook-secret-0123456789",

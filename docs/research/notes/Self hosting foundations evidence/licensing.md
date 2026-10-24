@@ -1,4 +1,4 @@
-# Open-source license choice for openhealth (self-hostable personal health app)
+# Open-source license choice for OpenValens (self-hostable personal health app)
 
 Scope: AGPLv3 vs GPLv3 vs MPL-2.0 vs Apache-2.0 vs MIT vs source-available (BSL/FSL/Elastic) for a TypeScript monorepo (Hono/oRPC server, React web, Expo RN mobile, Postgres) that may later have a maintainer-run hosted offering. Research current as of 2026-10-02. **Not legal advice.** Items marked "COUNSEL" should be checked with a lawyer before relying on them.
 
@@ -112,8 +112,8 @@ AGPL §13 obligates source offering only when someone **modifies** the program a
 
 ### Inferences
 
-- Self-hosters: running unmodified openhealth (even for family members over the internet) triggers no source-offer duty under AGPL; running a modified fork exposed to users does. For a health app this is a low burden for individuals, and it deters a closed SaaS fork.
-- Maintainer's hosted offering: if openhealth Inc./the maintainer holds all copyright (sole author or CLA), the maintainer can run proprietary hosted-only modules. Without a CLA, any hosted-only proprietary features must be cleanly separated (separate program, not a modification of the AGPL work) — this boundary is a COUNSEL item.
+- Self-hosters: running unmodified OpenValens (even for family members over the internet) triggers no source-offer duty under AGPL; running a modified fork exposed to users does. For a health app this is a low burden for individuals, and it deters a closed SaaS fork.
+- Maintainer's hosted offering: if OpenValens Inc./the maintainer holds all copyright (sole author or CLA), the maintainer can run proprietary hosted-only modules. Without a CLA, any hosted-only proprietary features must be cleanly separated (separate program, not a modification of the AGPL work) — this boundary is a COUNSEL item.
 - Middle-ground options seen in practice: (a) DCO (Developer Certificate of Origin, sign-off per commit) — certifies provenance but grants no relicensing rights; (b) a narrow CLA/"license-back" granting the maintainer a relicensing right; (c) no CLA plus a public pledge (Immich). The trade-off is optionality vs contributor trust.
 - Choosing AGPL now and keeping DCO preserves the ability to move to a _more_ permissive license only with contributor consent; moving from MIT to AGPL later (as Immich and Plausible did) is easy because permissive code can be relicensed into copyleft.
 
@@ -155,7 +155,7 @@ Apple's App Store has a documented history of conflict with GPL (GNU Go 2010, VL
 
 ### Takeaway
 
-MIT/ISC/BSD/Apache-2.0 deps flow into any of the candidate licenses (Apache-2.0 into GPLv3/AGPLv3 only, not GPLv2). MPL-2.0 deps are fine (file-level copyleft; combinable with GPL by default). GPL/AGPL deps would force a copyleft outcome on a permissively licensed openhealth. Data is a separate track: Open Food Facts is ODbL (database) + DbCL (contents) + CC BY-SA (images) with attribution and share-alike on adapted databases; wger exercise/ingredient data is CC-BY-SA; CC BY-NC data is incompatible with any OSI license and with commercial hosting. Use REUSE/SPDX for the repo's own licensing and an SBOM/license scanner for deps.
+MIT/ISC/BSD/Apache-2.0 deps flow into any of the candidate licenses (Apache-2.0 into GPLv3/AGPLv3 only, not GPLv2). MPL-2.0 deps are fine (file-level copyleft; combinable with GPL by default). GPL/AGPL deps would force a copyleft outcome on a permissively licensed OpenValens. Data is a separate track: Open Food Facts is ODbL (database) + DbCL (contents) + CC BY-SA (images) with attribution and share-alike on adapted databases; wger exercise/ingredient data is CC-BY-SA; CC BY-NC data is incompatible with any OSI license and with commercial hosting. Use REUSE/SPDX for the repo's own licensing and an SBOM/license scanner for deps.
 
 ### Cited Findings
 
@@ -193,7 +193,7 @@ Tooling (GitHub API, 2026-10-02):
 
 - USDA FoodData Central licensing (commonly described as public domain/CC0) not verified from a primary USDA page this session.
 - GNU license-list entries (ODbL, CC BY-NC, ISC) not retrievable (gnu.org 429).
-- No live scan of the actual openhealth dependency tree was performed.
+- No live scan of the actual OpenValens dependency tree was performed.
 
 ## 5. OSI open source vs source-available (FSL, BSL, Elastic/SSPL) and community perception
 
@@ -212,14 +212,14 @@ FSL, BSL, SSPL, and the Elastic License are not OSI-approved and are not "open s
 
 ### Inferences
 
-- Comparison summary for openhealth:
+- Comparison summary for OpenValens:
   - **AGPLv3**: strongest protection against a closed hosted fork; standard in self-hosted niche; some corporate users ban it (Google); App Store needs care; CLA question is central.
-  - **GPLv3**: protects distributed binaries (mobile app, desktop) but not SaaS — a third party could run a modified hosted openhealth without sharing changes. Weak fit for the server.
-  - **MPL-2.0**: file-level copyleft; modifications to openhealth files must be shared when distributed, but no network clause; good candidate for shared packages/SDK or the mobile client.
+  - **GPLv3**: protects distributed binaries (mobile app, desktop) but not SaaS — a third party could run a modified hosted OpenValens without sharing changes. Weak fit for the server.
+  - **MPL-2.0**: file-level copyleft; modifications to OpenValens files must be shared when distributed, but no network clause; good candidate for shared packages/SDK or the mobile client.
   - **Apache-2.0**: permissive + explicit patent grant; maximum adoption; no protection against closed hosted forks (Home Assistant pattern; relies on brand/trademark).
   - **MIT**: like Apache without patent grant; Umami/Actual/Cal.diy pattern.
   - **FSL/BSL/Elastic**: protects a hosted business; not open source; likely to reduce trust and contributions for a privacy-sensitive, community-oriented health app.
-- A common hybrid that fits openhealth's goals: AGPLv3 server + web; MPL-2.0 or Apache-2.0 for the mobile app and any client SDK/schemas; data under its upstream licenses; trademark policy for the "openhealth" name (Bitwarden shows trademark is a separate lever from copyright). Decide CLA vs DCO before the first external PR — retrofitting is hard.
+- A common hybrid that fits OpenValens's goals: AGPLv3 server + web; MPL-2.0 or Apache-2.0 for the mobile app and any client SDK/schemas; data under its upstream licenses; trademark policy for the project name (Bitwarden shows trademark is a separate lever from copyright). Decide CLA vs DCO before the first external PR — retrofitting is hard.
 - Trademark policy is often the most effective protection of a hosted offering's brand, independent of copyright license.
 
 ### Gaps

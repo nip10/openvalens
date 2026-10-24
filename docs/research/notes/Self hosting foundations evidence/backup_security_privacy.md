@@ -1,4 +1,4 @@
-# Backup/Restore, Secure-by-Default Deployment, and Privacy Obligations for a Self-Hosted Health App (openhealth)
+# Backup/Restore, Secure-by-Default Deployment, and Privacy Obligations for a Self-Hosted Health App (OpenValens)
 
 Scope: Postgres + Bun/Hono server + React web + Expo mobile, shipped as Docker Compose; may later store photos/exports as files. Research date: 2026-10-02. Legal points are flagged **[COUNSEL]** where a lawyer should confirm before relying on them. Claims drawn from my background knowledge rather than a source fetched in this session are explicitly labelled "unverified this session" and kept out of the Cited Findings lists.
 
@@ -25,12 +25,12 @@ For a single-node, small-database self-hosted app, a scheduled logical dump (`pg
 
 ### Inferences
 
-- Recommended openhealth design:
+- Recommended OpenValens design:
   - A built-in scheduled `pg_dump -Fc` job, Immich-style. Use a sidecar container or a server cron, with configurable time and retention (e.g. 14).
   - Write dumps into the same data volume as the files dir, so that one directory is "the thing to back up".
   - Add a manifest that records app version, schema/migration version, Postgres version and checksums.
 - Restore should be a first-class, documented command, and ideally a UI flow like Immich's. Use `--single-transaction` or a pre-restore snapshot so that a failed restore leaves the instance in its prior state.
-- Do not include `pg_dumpall` globals unless openhealth relies on custom roles. Compose-managed DBs usually have a single owner role recreated from env, and a single-DB `pg_dump` with `--no-owner` restores more portably.
+- Do not include `pg_dumpall` globals unless OpenValens relies on custom roles. Compose-managed DBs usually have a single owner role recreated from env, and a single-DB `pg_dump` with `--no-owner` restores more portably.
 - Document PITR (pgBackRest/WAL-G) as optional. It does not fit a "simple self-host" default, mainly because it is version-locked and only restores whole clusters.
 - When files (photos/exports) are added, their storage has to be copied together with the DB dump. Otherwise metadata and files drift apart, the same problem Immich warns about. A Nextcloud-style option is to wrap both in a borg/restic snapshot.
 
@@ -86,7 +86,7 @@ Docker publishes ports on all interfaces by default and its NAT rules bypass ufw
 
 ### Inferences
 
-- Concrete Compose defaults for openhealth:
+- Concrete Compose defaults for OpenValens:
   1. The `db` service has no `ports:`. Only an internal `backend` network is shared with `server`.
   2. Only Caddy publishes 80/443.
   3. Optional dev override binds `127.0.0.1:5432:5432`.
@@ -164,7 +164,7 @@ For self-hosting, disk/volume encryption (LUKS/FileVault/cloud-volume encryption
 
 ### Inferences
 
-- openhealth combines labs, wearables, manual entries and similar sources, so it squarely matches the FTC's "draws from multiple sources" PHR definition. Any **commercial** hosted openhealth, or a paid sync service, should assume HBNR applies **[COUNSEL]**.
+- OpenValens combines labs, wearables, manual entries and similar sources, so it squarely matches the FTC's "draws from multiple sources" PHR definition. Any **commercial** hosted OpenValens, or a paid sync service, should assume HBNR applies **[COUNSEL]**.
 - Responsibility split to document (proposed):
   - **Project:** ships privacy-protective defaults (no telemetry by default, or opt-in and PHI-free), working export and delete features, a backup/restore toolkit, a security policy and a vulnerability disclosure process.
   - **Self-hoster:** host security, disk encryption, backup key custody, TLS/DNS, legal basis and DSR handling if they serve others, and breach notification in their jurisdiction.
@@ -194,7 +194,7 @@ For self-hosting, disk/volume encryption (LUKS/FileVault/cloud-volume encryption
 
 ### Takeaway
 
-A versioned JSON export (full fidelity, round-trippable into openhealth) plus CSV per data type (human/spreadsheet friendly) meets the Art. 20 "structured, commonly used and machine-readable" bar. FHIR R4 Bundles are feasible as an optional interoperability export using existing TypeScript types (`@medplum/fhirtypes`), but mapping custom domains (supplements, workouts) to FHIR resources is lossy. For deletion, do hard deletes in the live DB and files, then let backups expire by retention while holding them "beyond use".
+A versioned JSON export (full fidelity, round-trippable into OpenValens) plus CSV per data type (human/spreadsheet friendly) meets the Art. 20 "structured, commonly used and machine-readable" bar. FHIR R4 Bundles are feasible as an optional interoperability export using existing TypeScript types (`@medplum/fhirtypes`), but mapping custom domains (supplements, workouts) to FHIR resources is lossy. For deletion, do hard deletes in the live DB and files, then let backups expire by retention while holding them "beyond use".
 
 ### Cited Findings
 

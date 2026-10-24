@@ -1,4 +1,4 @@
-# External login (OIDC) and multi-provider AI for openhealth — evidence notes
+# External login (OIDC) and multi-provider AI for OpenValens — evidence notes
 
 Research date: 2026-10-02. All web pages were fetched on that date unless noted. Vendor docs change often, so re-check anything marked "verify before release".
 
@@ -32,7 +32,7 @@ Better Auth's `genericOAuth` plugin covers the v1 decision of one env-configured
 
 ### Takeaway
 
-Linking by email is the main account-takeover vector. Two rules make it safer: key OIDC identities on `iss`+`sub`, never on email, and only link implicitly when the IdP asserts `email_verified: true` and the local account's email is also verified. Better Auth versions before 1.6.11 did not check the local side. Several 2026 Better Auth advisories (OAuth implicit linking, magic-link pre-account hijacking) mean v1 must pin a patched version. For openhealth, the safest v1 setting is `disableImplicitLinking: true`, or no `trustedProviders`, combined with explicit "link OIDC" from a signed-in session.
+Linking by email is the main account-takeover vector. Two rules make it safer: key OIDC identities on `iss`+`sub`, never on email, and only link implicitly when the IdP asserts `email_verified: true` and the local account's email is also verified. Better Auth versions before 1.6.11 did not check the local side. Several 2026 Better Auth advisories (OAuth implicit linking, magic-link pre-account hijacking) mean v1 must pin a patched version. For OpenValens, the safest v1 setting is `disableImplicitLinking: true`, or no `trustedProviders`, combined with explicit "link OIDC" from a signed-in session.
 
 ### Cited Findings
 
@@ -46,7 +46,7 @@ Linking by email is the main account-takeover vector. Two rules make it safer: k
 
 ### Inferences
 
-- openhealth currently has emailAndPassword disabled, so the specific OAuth-linking CVE precondition is not met. The magic-link plus OIDC combination still makes email the join key, so the general class of risk remains. Ticket #65 should (a) pin better-auth >= the latest patched release (at least 1.6.22 / 1.7.7 based on the advisories above; check the current advisory list at implementation time), (b) set `disableImplicitLinking: true` or leave `trustedProviders` empty, and (c) provide an explicit "Connect OIDC" action in account settings that uses `linkSocial` / `oauth2.link` from an authenticated session.
+- OpenValens currently has emailAndPassword disabled, so the specific OAuth-linking CVE precondition is not met. The magic-link plus OIDC combination still makes email the join key, so the general class of risk remains. Ticket #65 should (a) pin better-auth >= the latest patched release (at least 1.6.22 / 1.7.7 based on the advisories above; check the current advisory list at implementation time), (b) set `disableImplicitLinking: true` or leave `trustedProviders` empty, and (c) provide an explicit "Connect OIDC" action in account settings that uses `linkSocial` / `oauth2.link` from an authenticated session.
 - For a single self-hoster-controlled IdP, it is reasonable to add the provider to `trustedProviders` as an opt-in env flag (for example `OIDC_TRUST_EMAIL=true`), off by default. The self-hoster then takes on the risk that their IdP lets users edit their own email.
 - PHI raises the cost of a takeover, so the conservative default is justified.
 
@@ -59,7 +59,7 @@ Linking by email is the main account-takeover vector. Two rules make it safer: k
 
 ### Takeaway
 
-Most comparable self-hosted apps provide an "OIDC sign-up allowed" toggle, and several turn it on by default. Many also map admin from a claim or group. To keep openhealth's first-user-then-invite-only rule, OIDC should not create accounts by default (`disableSignUp: true`). It should only sign in users who already exist or were invited, matched by email at invite acceptance and then bound by `sub`. Auto-registration can be an opt-in env flag. Role mapping from claims is unnecessary for v1 and is risky with PHI.
+Most comparable self-hosted apps provide an "OIDC sign-up allowed" toggle, and several turn it on by default. Many also map admin from a claim or group. To keep OpenValens's first-user-then-invite-only rule, OIDC should not create accounts by default (`disableSignUp: true`). It should only sign in users who already exist or were invited, matched by email at invite acceptance and then bound by `sub`. Auto-registration can be an opt-in env flag. Role mapping from claims is unnecessary for v1 and is risky with PHI.
 
 ### Cited Findings
 
@@ -98,7 +98,7 @@ Guideline 4.8 lists third-party or social login services (Google, Facebook and s
 
 ### Inferences
 
-- Under a client-for-your-own-server model, the "primary account" is the account on the user's own openhealth instance. Its default sign-in is magic link or passkey, which openhealth controls itself. OIDC is optional and is configured by the server owner against their own IdP, so it fits "company's own account system" or "existing enterprise account" better than "social login".
+- Under a client-for-your-own-server model, the "primary account" is the account on the user's own OpenValens instance. Its default sign-in is magic link or passkey, which OpenValens controls itself. OIDC is optional and is configured by the server owner against their own IdP, so it fits "company's own account system" or "existing enterprise account" better than "social login".
 - The risky case is a self-hoster pointing OIDC at Google. The app still never hard-codes a social provider, and local sign-in is always available, which meets the "equivalent option" in spirit (email-only, no ad tracking). This is a judgment call. Write the review notes for App Review accordingly.
 - If App Review objects anyway, the fallback is to add Sign in with Apple through Better Auth's `apple` social provider. This would clash with the "one generic OIDC" v1 decision.
 

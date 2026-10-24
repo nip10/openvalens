@@ -1,4 +1,4 @@
-# Effects of Normative/Percentile Health Comparisons and Privacy of Community Benchmarks (openhealth)
+# Effects of Normative/Percentile Health Comparisons and Privacy of Community Benchmarks (OpenValens)
 
 Scope: whether and how to show "top 10% for your age" / "+10% vs 20-year-olds" comparisons to adults (18+) in a self-hosted, non-diagnostic wellness app, and whether an opt-in community-aggregate benchmark is safe. Reference-dataset availability is out of scope (another researcher owns it). Research done 2026-10-02. Source-access notes: several publisher pages (ScienceDirect, SAGE, JMIR full text, PubMed) returned 403/empty to the fetch tool, so a few findings rely on search-result abstracts. These are marked "(abstract/snippet only)". Citations marked "(not re-fetched this session)" are well-known primary works cited from prior knowledge with their DOI/URL. The report writer should spot-check them before quoting exact numbers.
 
@@ -38,7 +38,7 @@ Normative feedback can change behaviour, but evidence for physical-activity apps
 - Comparing someone to a distant upper cohort ("vs 20-year-olds", "top 10%") for a person far below it is the configuration most likely to demotivate, based on the Arigo 2023 distance effect. Comparisons to self-history or to a near/attainable reference are likely safer.
 - Descriptive percentile feedback alone, with no evaluative framing, risks pulling high performers toward average (boomerang). Feedback should pair the number with an injunctive or goal-based message ("in the range associated with good health") rather than rank alone.
 - Weight, body-fat and calorie metrics carry the clearest signal for disordered eating, even though causation is not shown. Comparison for these metrics should be off by default or omitted.
-- Almost none of this evidence comes from adults outside student samples or from percentile-for-age displays specifically. Effects for openhealth's adult users are extrapolated.
+- Almost none of this evidence comes from adults outside student samples or from percentile-for-age displays specifically. Effects for OpenValens's adult users are extrapolated.
 
 ### Gaps
 
@@ -159,7 +159,7 @@ DP is the only approach here with formal guarantees against differencing and rec
 
 ### Inferences
 
-- Practical guidance in the literature generally treats ε≤1 as strong and single-digit ε as moderate. Composition across repeated releases (e.g. recomputing nightly) adds up. For openhealth, any community benchmark would need a **fixed, infrequent release cadence** with a lifetime budget, not live recomputation.
+- Practical guidance in the literature generally treats ε≤1 as strong and single-digit ε as moderate. Composition across repeated releases (e.g. recomputing nightly) adds up. For OpenValens, any community benchmark would need a **fixed, infrequent release cadence** with a lifetime budget, not live recomputation.
 - The noise scale for a bounded mean is roughly (range)/(n·ε). With n≈5–50 and ε≈1, noise is comparable to the spread between people, so percentiles would carry little information.
 
 ### Gaps
@@ -204,7 +204,7 @@ Within a single household or small organisation, a "community" benchmark cannot 
 
 ### Inferences
 
-- Recommendation for openhealth: (1) no intra-instance community benchmark. (2) If cross-instance pooling is ever considered, use opt-in explicit consent; client-side or central DP with a fixed lifetime ε budget; release only in coarse bands on a fixed infrequent schedule; minimum-n suppression _in addition to_ DP; and no per-metric live recomputation. (3) Show comparisons against published reference ranges by default, with self-trend as the primary view.
+- Recommendation for OpenValens: (1) no intra-instance community benchmark. (2) If cross-instance pooling is ever considered, use opt-in explicit consent; client-side or central DP with a fixed lifetime ε budget; release only in coarse bands on a fixed infrequent schedule; minimum-n suppression _in addition to_ DP; and no per-metric live recomputation. (3) Show comparisons against published reference ranges by default, with self-trend as the primary view.
 - Even in a 100+ user small-org instance, the employer/admin is a motivated intruder (and there are HR/power-imbalance concerns). This strengthens the case against intra-org benchmarks.
 
 ### Gaps

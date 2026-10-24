@@ -1,6 +1,6 @@
 # Preventive-care reminders in a consumer app: regulation, effectiveness, shared decision-making, safety governance, and data handling
 
-Scope: openhealth (open-source, self-hostable wellness app for adults 18+, used in the US, UK and EU including Portugal). Current as of 2 Oct 2026. Out of scope: which screenings are recommended, and supplements.
+Scope: OpenValens (open-source, self-hostable wellness app for adults 18+, used in the US, UK and EU including Portugal). Current as of 2 Oct 2026. Out of scope: which screenings are recommended, and supplements.
 
 Legend: **[TEXT]** means quoted or closely paraphrased from regulation, statute or guidance text. **[INTERP]** means interpretation by a law firm, a commentator or this researcher. Items marked "(not re-fetched this session)" are well-established primary texts that I cited from known content without re-opening them during this session. Verify them before relying on them.
 
@@ -117,7 +117,7 @@ There is high-quality evidence that patient reminder and recall increases vaccin
 
 ### Inferences
 
-- Most of this evidence comes from health-system "recall" (the system knows who is due). openhealth is a self-tracking app and is not linked to the screening register. Effects in self-selected, health-engaged users of a self-hosted app are probably smaller, because these users already have higher baseline uptake. That is plausible but not demonstrated.
+- Most of this evidence comes from health-system "recall" (the system knows who is due). OpenValens is a self-tracking app and is not linked to the screening register. Effects in self-selected, health-engaged users of a self-hosted app are probably smaller, because these users already have higher baseline uptake. That is plausible but not demonstrated.
 - Design features with support:
   - Personalisation (named test, due date, how to book).
   - A follow-up prompt after an initial reminder.

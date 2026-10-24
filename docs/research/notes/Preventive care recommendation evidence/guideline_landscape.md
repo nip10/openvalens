@@ -350,7 +350,7 @@ The safest pattern is to encode facts (ages, intervals, grades) with links, rath
   - Short paraphrased eligibility facts with a deep link are very likely lower-risk than embedding statement text.
   - **Not legal advice.** Facts like age ranges are generally not copyrightable, but this needs legal confirmation.
 - If an AI feature summarises NICE text, that likely falls outside the NICE open licence.
-- The USPSTF "no profit-making venture" clause matters if a hosted or commercial openhealth offering ever ships verbatim text.
+- The USPSTF "no profit-making venture" clause matters if a hosted or commercial OpenValens offering ever ships verbatim text.
 - Do not rely on the USPSTF API alone:
   - Its availability during the AHRQ staff cuts is unknown.
   - It is US-only.

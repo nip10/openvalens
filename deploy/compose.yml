@@ -235,7 +235,7 @@ services:
     environment:
       PGHOST: postgres
       PGUSER: postgres
-      PGDATABASE: openhealth
+      PGDATABASE: openvalens
       POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
       OPENVALENS_PRE_MIGRATE_BACKUP: ${OPENVALENS_PRE_MIGRATE_BACKUP:-pg_dump}
       OPENVALENS_BACKUP_RETAIN: ${OPENVALENS_BACKUP_RETAIN:-10}
@@ -256,7 +256,7 @@ services:
     <<: *hardening
     image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     environment:
-      POSTGRES_DB: openhealth
+      POSTGRES_DB: openvalens
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
     volumes:
@@ -266,7 +266,7 @@ services:
       - db
     # No `ports:` — never publish the health database.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d openhealth"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d openvalens"]
       interval: 10s
       timeout: 5s
       retries: 5

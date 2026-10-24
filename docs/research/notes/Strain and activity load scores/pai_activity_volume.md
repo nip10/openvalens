@@ -1,6 +1,6 @@
 # PAI and Weekly Activity-Volume Metrics: Evidence Review (as of Oct 2026)
 
-Scope: Personal Activity Intelligence (PAI) evidence, comparison with guideline MVPA-minute / MET-minute / step metrics, and what a self-hostable general-wellness app (openhealth, adults 18+, no diagnosis) can honestly claim. TRIMP/session-RPE/WHOOP Strain and ACWR/injury are out of scope.
+Scope: Personal Activity Intelligence (PAI) evidence, comparison with guideline MVPA-minute / MET-minute / step metrics, and what a self-hostable general-wellness app (OpenValens, adults 18+, no diagnosis) can honestly claim. TRIMP/session-RPE/WHOOP Strain and ACWR/injury are out of scope.
 
 Method note: Abstracts and DOIs were checked against Europe PMC (PubMed mirror). Full texts of most Elsevier PAI papers (Am J Med, Prog Cardiovasc Dis, Mayo Clin Proc) were paywalled or returned 403, so numbers below come from the published abstracts unless stated otherwise. Evidence type is tagged on each item: [COHORT], [RCT], [META], [GUIDELINE], [PATENT], [VENDOR/INSTITUTIONAL PR].
 
@@ -298,7 +298,7 @@ WHO 2020 MVPA minutes (with vigorous counted double) and MET-minutes rest on far
 | Accelerometer total PA / MVPA              | No                                                    | Device-dependent                       | Yes                         | IPD meta-analysis (Ekelund)                                              |
 | PAI-like HR-weighted score                 | Only via the cohort-style questionnaire approximation | No                                     | Yes, but requires RHR/HRmax | Single developer group; HR-device version never outcome-tested; patented |
 
-**Recommended default for openhealth:** weekly MVPA minutes with vigorous minutes counted double, shown against the WHO 150–300 band. This works from manual logs and from Health Connect exercise sessions or HR-zone minutes. Use steps/day as a secondary daily signal. Both are public-domain, guideline-anchored and explainable.
+**Recommended default for OpenValens:** weekly MVPA minutes with vigorous minutes counted double, shown against the WHO 150–300 band. This works from manual logs and from Health Connect exercise sessions or HR-zone minutes. Use steps/day as a secondary daily signal. Both are public-domain, guideline-anchored and explainable.
 
 ### Gaps
 
@@ -353,7 +353,7 @@ Guideline minutes logged with perceived intensity (RPE / talk test) degrade more
 
 ---
 
-## Synthesis for openhealth: what claims are defensible (input for report writer)
+## Synthesis for OpenValens: what claims are defensible (input for report writer)
 
 ### Takeaway
 

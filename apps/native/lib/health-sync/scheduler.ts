@@ -9,8 +9,7 @@ import { runHealthSync } from "./run-sync";
  * these overnight. Each run is bounded, and the cursors resume where the
  * last run stopped, so a short or interrupted run loses nothing.
  */
-// Pre-rename (openhealth) prefix kept so existing installs keep their sync state.
-export const HEALTH_SYNC_TASK = "openhealth-health-sync";
+export const HEALTH_SYNC_TASK = "openvalens-health-sync";
 const INTERVAL_MINUTES = 6 * 60;
 const BACKGROUND_BUDGET = { maxBatches: 10, windowMs: 20_000 };
 

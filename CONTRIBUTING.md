@@ -96,7 +96,7 @@ services:
 
 ```bash
 install -d -m 0700 ./secrets
-printf '%s\n' 'postgresql://user:pass@db:5432/openhealth' > ./secrets/database_url
+printf '%s\n' 'postgresql://user:pass@db:5432/openvalens' > ./secrets/database_url
 chmod 0600 ./secrets/database_url
 ```
 

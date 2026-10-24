@@ -1,4 +1,4 @@
-# Wearable / health data provider cloud APIs for a self-hosted AGPL health app (openhealth), as of October 2026
+# Wearable / health data provider cloud APIs for a self-hosted AGPL health app (OpenValens), as of October 2026
 
 Scope note: research done 2026-10-02. About 20 search/fetch calls. Primary sources are used where they could be fetched. Where only a vendor or aggregator blog (Terra, Open Wearables, Thryve, Sahha) was available, this is flagged. Those blogs come from companies that sell competing aggregation, so their framing may be biased.
 

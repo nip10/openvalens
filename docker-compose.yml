@@ -45,7 +45,7 @@ services:
         required: false
     environment:
       CORS_ORIGIN: http://localhost:3001
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/openhealth
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/openvalens
     healthcheck:
       test:
         [
@@ -67,9 +67,7 @@ services:
     image: postgres:18
     container_name: openvalens-postgres
     environment:
-      # Database and volume keep their pre-rename (openhealth) names so existing
-      # installs keep their data; they are internal identifiers only.
-      POSTGRES_DB: openhealth
+      POSTGRES_DB: openvalens
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     # Loopback only: Docker-published ports bypass host firewalls, so binding
@@ -89,7 +87,7 @@ services:
 
 volumes:
   postgres_data:
-    name: openhealth_openhealth_postgres_data
+    name: openvalens_postgres_data
 
 # BuildKit makes these available only while install/build commands run.
 secrets:

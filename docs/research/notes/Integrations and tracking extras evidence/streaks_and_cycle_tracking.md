@@ -1,6 +1,6 @@
 # Logging streaks/gamification and menstrual cycle tracking: evidence for tickets #90 and #91
 
-Research date: 2026-10-02. Scope: an AGPL, self-hostable wellness app (openhealth) with a neutral, non-judgemental nutrition diary. Evidence grades: **Strong** means meta-analysis, RCT or a large dataset. **Moderate** means one peer-reviewed study or several small ones. **Weak** means vendor or blog claims, or secondary reporting.
+Research date: 2026-10-02. Scope: an AGPL, self-hostable wellness app (OpenValens) with a neutral, non-judgemental nutrition diary. Evidence grades: **Strong** means meta-analysis, RCT or a large dataset. **Moderate** means one peer-reviewed study or several small ones. **Weak** means vendor or blog claims, or secondary reporting.
 
 ---
 
@@ -95,7 +95,7 @@ Fixed day ranges (1–5 / 6–14 / 15–17 / 18+) are not physiologically valid 
 
 ### Inferences
 
-- With a 95% follicular range of 10–30 days, a "day 15–17 = ovulatory" label is often wrong by a week or more. Any phase label in openhealth should be (a) counted back from the next period (luteal ≈ the last ~12–14 days), (b) shown only after the next period is logged, or (c) marked "estimated" with low confidence. That fits the repo rule to "prefer deterministic summaries and explicit confidence/readiness signals". Phases should never be described as ovulation detection.
+- With a 95% follicular range of 10–30 days, a "day 15–17 = ovulatory" label is often wrong by a week or more. Any phase label in OpenValens should be (a) counted back from the next period (luteal ≈ the last ~12–14 days), (b) shown only after the next period is logged, or (c) marked "estimated" with low confidence. That fits the repo rule to "prefer deterministic summaries and explicit confidence/readiness signals". Phases should never be described as ovulation detection.
 - Hormonal contraception, perimenopause, PCOS, postpartum status and breastfeeding all break phase logic. The ticket should let users set "no natural cycle / hormonal contraception" so that phase derivation is suppressed.
 
 ### Gaps
@@ -135,7 +135,7 @@ Resting metabolic rate (RMR) rises slightly in the luteal phase, roughly 30–12
 
 ### Takeaway
 
-Cycle logging and period prediction for wellness can stay unregulated. Claims about fertility status, contraception, or conception guidance make the software a medical device: FDA Class II (Natural Cycles De Novo; Clue Birth Control 510(k)) and very likely a device under EU MDR. openhealth should avoid any "fertile window" or "safe day" output.
+Cycle logging and period prediction for wellness can stay unregulated. Claims about fertility status, contraception, or conception guidance make the software a medical device: FDA Class II (Natural Cycles De Novo; Clue Birth Control 510(k)) and very likely a device under EU MDR. OpenValens should avoid any "fertile window" or "safe day" output.
 
 ### Cited Findings
 
@@ -189,7 +189,7 @@ Reproductive data is the most legally exposed category in this app. In the US th
 
 ---
 
-## Q8. Can openhealth import cycle data from HealthKit or Health Connect instead of asking users to re-enter it?
+## Q8. Can OpenValens import cycle data from HealthKit or Health Connect instead of asking users to re-enter it?
 
 ### Takeaway
 

@@ -1,6 +1,6 @@
-# Food Composition Databases, Barcode Lookup, Licensing and Quality (for openhealth)
+# Food Composition Databases, Barcode Lookup, Licensing and Quality (for OpenValens)
 
-Context: openhealth is an open-source (AGPLv3), self-hostable nutrition tracker with a planned maintainer-run hosted service; users in US, UK, EU (incl. Portugal). All sources retrieved 2026-10-02 unless noted. Items marked **[COUNSEL]** need legal review before shipping. Session note: the web-search budget ran out partway through, so some sub-questions (Edamam/Nutritionix full ToS, Braakhuis 2017, EuroFIR terms, per-country Open Food Facts counts) are listed as gaps, not answered from memory.
+Context: OpenValens is an open-source (AGPLv3), self-hostable nutrition tracker with a planned maintainer-run hosted service; users in US, UK, EU (incl. Portugal). All sources retrieved 2026-10-02 unless noted. Items marked **[COUNSEL]** need legal review before shipping. Session note: the web-search budget ran out partway through, so some sub-questions (Edamam/Nutritionix full ToS, Braakhuis 2017, EuroFIR terms, per-country Open Food Facts counts) are listed as gaps, not answered from memory.
 
 ## 1. USDA FoodData Central (FDC): datasets, license, API, bulk, cadence
 
@@ -19,7 +19,7 @@ FDC is public domain/CC0, can be bundled, cached and redistributed in an AGPL ap
 
 ### Inferences
 
-- Because the data is CC0, openhealth can ship a pre-built FDC-derived seed DB in the repo or as a release artifact, merge it with other sources, and expose it through the hosted service with no license tension against AGPL. An attribution line ("Source: USDA FoodData Central") is courteous and recommended.
+- Because the data is CC0, OpenValens can ship a pre-built FDC-derived seed DB in the repo or as a release artifact, merge it with other sources, and expose it through the hosted service with no license tension against AGPL. An attribution line ("Source: USDA FoodData Central") is courteous and recommended.
 - With an API key, a self-hosted instance stays well under 1,000 req/h. The hosted service should still sync from bulk files rather than proxying user lookups to the API, because the limit is per IP and the shared service would hit it.
 - Release dates on the download page suggest Foundation/Branded are refreshed about twice a year (April and, historically, October). Treat this as an inference, because the page does not state a cadence for Branded or Foundation.
 - Nutrient coverage differs by dataset. Foundation/SR Legacy carry broad micronutrient panels. Branded Foods mostly reflects US Nutrition Facts label nutrients, so expect sparse micronutrients for branded items. This comes from background knowledge and was not re-verified this session.
@@ -34,7 +34,7 @@ FDC is public domain/CC0, can be bundled, cached and redistributed in an AGPL ap
 
 ### Takeaway
 
-OFF is the only open, global, barcode-keyed source and the obvious choice for EU/UK/PT barcodes. Its ODbL share-alike is the main legal design constraint. Keep OFF data in a separate, unmodified-or-separately-published table ("Collective Database" posture) and show attribution. If openhealth publicly serves a database it modified or merged from OFF, it must offer that database (or a diff) under ODbL. Bulk dumps are nightly. The live API is strictly rate-limited and needs a custom User-Agent, so the hosted service should mirror dumps rather than proxy the API.
+OFF is the only open, global, barcode-keyed source and the obvious choice for EU/UK/PT barcodes. Its ODbL share-alike is the main legal design constraint. Keep OFF data in a separate, unmodified-or-separately-published table ("Collective Database" posture) and show attribution. If OpenValens publicly serves a database it modified or merged from OFF, it must offer that database (or a diff) under ODbL. Bulk dumps are nightly. The live API is strictly rate-limited and needs a custom User-Agent, so the hosted service should mirror dumps rather than proxy the API.
 
 ### Cited Findings
 
@@ -72,8 +72,8 @@ OFF is the only open, global, barcode-keyed source and the obvious choice for EU
 
 - **Recommended architecture (needs [COUNSEL] confirmation):**
   1. Import OFF dumps into a dedicated `off_products` table that mirrors OFF fields and is never edited in place. Keep the OFF code, last-modified timestamp and dump hash for provenance.
-  2. Keep FDC, CoFID, Ciqual and the user's private custom foods in separate tables, and resolve lookups at query time. This fits the "Collective Database" carve-out (§4.5) as closely as possible, so ODbL does not reach openhealth's other data.
-  3. If openhealth corrects or enriches OFF records (unit normalization, nutrient fixes, dedupe), treat the result as a Derivative Database. On the hosted service (a "public use"), it then has to be offered under ODbL, with the full DB or a machine-readable diff. Simplest compliant path: push fixes back to OFF via the write API so the local mirror needs no divergent changes.
+  2. Keep FDC, CoFID, Ciqual and the user's private custom foods in separate tables, and resolve lookups at query time. This fits the "Collective Database" carve-out (§4.5) as closely as possible, so ODbL does not reach OpenValens's other data.
+  3. If OpenValens corrects or enriches OFF records (unit normalization, nutrient fixes, dedupe), treat the result as a Derivative Database. On the hosted service (a "public use"), it then has to be offered under ODbL, with the full DB or a machine-readable diff. Simplest compliant path: push fixes back to OFF via the write API so the local mirror needs no divergent changes.
   4. Showing a user a nutrition panel or a daily total is most plausibly a Produced Work and only needs the attribution notice (§4.3), e.g. "Contains data from Open Food Facts (ODbL)" with a link, next to OFF-sourced items and in About/Settings.
 - AGPL vs ODbL: they govern different things (code vs database), so bundling OFF data does not relicense the code, and AGPL does not conflict with ODbL. Shipping an OFF-derived SQLite/Postgres seed in the repo makes that file an ODbL-licensed component, so it needs a clear LICENSE note. **[COUNSEL]**
 - Images are CC BY-SA 3.0 plus third-party packaging copyright/trademark. Hotlinking or caching OFF images with per-image attribution is the low-risk option. Avoid re-hosting images as part of the hosted product's own branding. **[COUNSEL]**
@@ -117,7 +117,7 @@ Ciqual (France, Etalab Licence Ouverte) and UK CoFID (Crown copyright, Open Gove
 
 ### Takeaway
 
-All four forbid or tightly limit persistent caching and redistribution, and require API keys bound to a contract. That conflicts with a self-hostable AGPL app (every self-hoster would need their own commercial agreement) and with building an openhealth database. Rule them out as core sources. At most, add an optional, off-by-default "bring your own key" adapter that never persists their nutrient data.
+All four forbid or tightly limit persistent caching and redistribution, and require API keys bound to a contract. That conflicts with a self-hostable AGPL app (every self-hoster would need their own commercial agreement) and with building an OpenValens database. Rule them out as core sources. At most, add an optional, off-by-default "bring your own key" adapter that never persists their nutrient data.
 
 ### Cited Findings
 
@@ -128,7 +128,7 @@ All four forbid or tightly limit persistent caching and redistribution, and requ
 
 ### Inferences
 
-- No commercial source permits the "download once, serve to everyone, let anyone self-host" model that openhealth needs. Their key-based terms also make it impossible to ship working defaults in an open-source repo.
+- No commercial source permits the "download once, serve to everyone, let anyone self-host" model that OpenValens needs. Their key-based terms also make it impossible to ship working defaults in an open-source repo.
 - If a BYO-key adapter is offered, it must store only permitted IDs and re-fetch nutrients on display, which complicates offline and longitudinal records. That is a strong reason to keep these out of the MVP.
 
 ### Gaps
@@ -140,7 +140,7 @@ All four forbid or tightly limit persistent caching and redistribution, and requ
 
 ### Takeaway
 
-Crowd-sourced databases (MyFitnessPal) are acceptable for energy and macronutrients, with errors of a few percent to about 15%, but unreliable for sodium and cholesterol, and they need outlier cleaning. openhealth should rank curated or label-derived sources above user entries, flag incomplete entries, and run plausibility checks.
+Crowd-sourced databases (MyFitnessPal) are acceptable for energy and macronutrients, with errors of a few percent to about 15%, but unreliable for sodium and cholesterol, and they need outlier cleaning. OpenValens should rank curated or label-derived sources above user entries, flag incomplete entries, and run plausibility checks.
 
 ### Cited Findings
 
@@ -191,7 +191,7 @@ Android ML Kit (via expo-camera) handles EAN-13/EAN-8/UPC-A/UPC-E well. Expo's i
   - UPC-E must be expanded to UPC-A before normalizing.
   - The mod-10 check digit should be validated.
   - Prefixes 978/979 (ISBN) and 977 (ISSN) are not food items.
-- Normalization approach: store `gtin14` as the canonical key in openhealth. Query OFF with the 13-digit form (OFF codes are mostly EAN-13, with some UPC-A stored as 12 digits). Match FDC Branded `gtin_upc` after zero-padding.
+- Normalization approach: store `gtin14` as the canonical key in OpenValens. Query OFF with the 13-digit form (OFF codes are mostly EAN-13, with some UPC-A stored as 12 digits). Match FDC Branded `gtin_upc` after zero-padding.
 - Variable-measure/in-store codes (02/20–29, and UPC "2" number-system codes in the US) encode a store-local item plus a price or weight, and the layout varies by country MO (Portugal, UK and US differ). Never send these to OFF/FDC as global keys. Treat them as user-private custom foods keyed by store + item segment, and optionally parse the weight when the local MO layout is known.
 - iOS through Expo: `CameraView` live scanning with `barcodeScannerSettings={{ barcodeTypes: ['ean13','ean8','upc_a','upc_e'] }}` is the expected path. The QR-only limitation applies to `scanFromURLAsync` on iOS, not to live scanning. That is inferred from the doc wording and should be tested on a device. On iOS, AVFoundation often reports UPC-A as EAN-13 with a leading 0, which normalization handles (background knowledge).
 - Web/PWA: feature-detect `BarcodeDetector` and check `getSupportedFormats()` for `ean_13`. Otherwise fall back to a ZXing-based decoder (`@zxing/browser`, or a ZXing-C++ WASM build such as `zxing-wasm`). Safari and Firefox users will always use the fallback.
@@ -206,7 +206,7 @@ Android ML Kit (via expo-camera) handles EAN-13/EAN-8/UPC-A/UPC-E well. Expo's i
 
 ### Takeaway
 
-Default user-created foods to private and per-tenant, which keeps them clear of ODbL and avoids PHI leakage. Offer an explicit opt-in "contribute to Open Food Facts" flow for barcoded products, using the OFF write API with the user's own OFF account (or an app account plus `app_name`/`app_uuid`), so shared corrections live upstream under ODbL rather than in a divergent openhealth database.
+Default user-created foods to private and per-tenant, which keeps them clear of ODbL and avoids PHI leakage. Offer an explicit opt-in "contribute to Open Food Facts" flow for barcoded products, using the OFF write API with the user's own OFF account (or an app account plus `app_name`/`app_uuid`), so shared corrections live upstream under ODbL rather than in a divergent OpenValens database.
 
 ### Cited Findings
 
@@ -218,7 +218,7 @@ Default user-created foods to private and per-tenant, which keeps them clear of 
 ### Inferences
 
 - Contribution terms: anything a user contributes to OFF goes in under ODbL/DbCL (and CC BY-SA for photos), which is irreversible. The UI needs an explicit, consent-gated confirmation, and photos must be scrubbed of faces, receipts and location EXIF. This matches the repo's consent and PHI-minimization rules.
-- Hosted-service question **[COUNSEL]**: if the maintainer-run service lets users share custom foods with each other (a "community" database), openhealth's terms need a contributor license, ideally ODbL/DbCL or CC0, so the shared DB can be published. If those shared foods were copied from OFF, the shared DB is ODbL anyway.
+- Hosted-service question **[COUNSEL]**: if the maintainer-run service lets users share custom foods with each other (a "community" database), OpenValens's terms need a contributor license, ideally ODbL/DbCL or CC0, so the shared DB can be published. If those shared foods were copied from OFF, the shared DB is ODbL anyway.
 - Moderation for any shared tier:
   - Run Atwater/plausibility checks at submit.
   - Require a label photo or source for promotion.

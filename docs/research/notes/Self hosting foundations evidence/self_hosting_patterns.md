@@ -1,8 +1,8 @@
-# Self-hosting patterns in comparable open-source apps (for openhealth v1)
+# Self-hosting patterns in comparable open-source apps (for OpenValens v1)
 
 Retrieved 2026-10-02 unless noted. Sources are official docs, GitHub repos/wikis, and maintainer blog posts. "Inference" bullets are my reasoning, not documented fact. Where a WebFetch summary was the only source, I quote what the page says; where I pulled raw files from GitHub (Paperless-ngx docs, Plausible CE wiki and compose, Immich env docs and compose, Umami source, Cal.diy README, Fasten README), the quotes are verbatim.
 
-Context: openhealth is a TypeScript monorepo (Bun + Hono/oRPC server, React web, Expo mobile, Postgres, Docker Compose, config via varlock `.env.schema`).
+Context: OpenValens is a TypeScript monorepo (Bun + Hono/oRPC server, React web, Expo mobile, Postgres, Docker Compose, config via varlock `.env.schema`).
 
 ## 1. Supported install paths, and which paths projects dropped
 
@@ -27,8 +27,8 @@ The successful projects treat one Docker Compose file (sometimes with a thin int
 
 ### Inferences
 
-- The consistent pattern is one supported path (Compose), optionally an interactive script that generates the Compose and `.env` files, and everything else labelled community. openhealth should do the same: an official `compose.yml` plus `.env`, a pinned image, and a "Community" label on any Coolify/Unraid/TrueNAS templates.
-- Dropped paths share a trait: they exposed internals (Kafka/ClickHouse topology for PostHog, the host OS for HA Supervised) that the project then had to debug on users' machines. A Helm chart for openhealth v1 would recreate the PostHog problem.
+- The consistent pattern is one supported path (Compose), optionally an interactive script that generates the Compose and `.env` files, and everything else labelled community. OpenValens should do the same: an official `compose.yml` plus `.env`, a pinned image, and a "Community" label on any Coolify/Unraid/TrueNAS templates.
+- Dropped paths share a trait: they exposed internals (Kafka/ClickHouse topology for PostHog, the host OS for HA Supervised) that the project then had to debug on users' machines. A Helm chart for OpenValens v1 would recreate the PostHog problem.
 - Fasten is a cautionary data point for health PHR self-hosting. The direct provider-integration value was kept in the commercial product, and the self-hosted app was archived. Inference: a health app whose self-hosted edition lacks automated data import has struggled to sustain itself.
 - The Nextcloud AIO model (a Docker-socket-mounting orchestrator) gives a good user experience but has a security and maintenance cost (docker.sock access). It is too heavy for v1.
 
@@ -60,7 +60,7 @@ Every project uses environment variables for infrastructure and secrets (DB URL,
 
 ### Inferences
 
-- A good split for openhealth: env (validated at boot by the varlock schema) for anything needed before the DB is reachable or anything secret, such as `DATABASE_URL`, `PUBLIC_URL`, `SECRET_KEY`/encryption keys and SMTP credentials. DB-backed admin UI for runtime product settings such as registration mode, OAuth providers and feature toggles. If both exist for a setting, make one authoritative and show it read-only in the other, as Immich does.
+- A good split for OpenValens: env (validated at boot by the varlock schema) for anything needed before the DB is reachable or anything secret, such as `DATABASE_URL`, `PUBLIC_URL`, `SECRET_KEY`/encryption keys and SMTP credentials. DB-backed admin UI for runtime product settings such as registration mode, OAuth providers and feature toggles. If both exist for a setting, make one authoritative and show it read-only in the other, as Immich does.
 - Supporting `_FILE` / `CREDENTIALS_DIRECTORY` for secrets is cheap and expected (Immich, Plausible). It is worth checking whether varlock supports this natively.
 - Supabase and Cal.com both had to warn loudly about shipping placeholder secrets. Boot-time validation should refuse known placeholder values and keys that are too short. That is a direct fit for varlock schema validation.
 - A single generated env reference page (like the tables from Immich and Paperless) is the norm. Generating it from `.env.schema` keeps it in sync.
@@ -92,7 +92,7 @@ The norm is automatic migrations on container start, an upgrade done with `docke
 
 ### Inferences
 
-- For openhealth: run forward-only migrations automatically on server start, behind a Postgres advisory lock so multiple replicas are safe. Pin images to an exact semver in the shipped compose and publish `vX` / `vX.Y` tags too. Document "no downgrades; restore from backup", and print the schema version at boot.
+- For OpenValens: run forward-only migrations automatically on server start, behind a Postgres advisory lock so multiple replicas are safe. Pin images to an exact semver in the shipped compose and publish `vX` / `vX.Y` tags too. Document "no downgrades; restore from backup", and print the schema version at boot.
 - The Nextcloud AIO pattern of "backup then update" is worth copying in lightweight form for PHI: a documented `pg_dump` step, or a `backup` service in the compose, before upgrade instructions.
 - Cal.com's explicit migration step is the outlier and adds friction. Apps targeting non-expert self-hosters (Immich, Plausible, Paperless, Umami) all auto-migrate.
 
@@ -119,7 +119,7 @@ Projects ship a narrow set of integrations configured by env vars. The usual set
 
 ### Inferences
 
-- A v1 adapter set for openhealth: email via SMTP only (any provider such as Resend, SES or Postmark offers SMTP, so no provider-specific adapters are needed). Auth via local password plus optionally one generic OIDC. Storage via a local volume, with S3-compatible as an optional later addition. One interface per capability with one or two implementations. More adapters can wait until there is usage evidence.
+- A v1 adapter set for OpenValens: email via SMTP only (any provider such as Resend, SES or Postmark offers SMTP, so no provider-specific adapters are needed). Auth via local password plus optionally one generic OIDC. Storage via a local volume, with S3-compatible as an optional later addition. One interface per capability with one or two implementations. More adapters can wait until there is usage evidence.
 - Plausible's five mail adapters are a legacy of the Elixir Bamboo library, not a deliberate expansion. SMTP-first covers all of them.
 - The health data source integrations (FHIR, wearables) are where cost concentrates. Fasten's history suggests scoping self-hosted v1 to file import and on-device/companion ingestion, not server-side provider OAuth that needs per-provider app registration.
 
@@ -173,7 +173,7 @@ Norms vary. Home Assistant is strictly opt-in with tiered, published aggregates.
 
 ### Inferences
 
-- openhealth should separate local observability (Prometheus/OTel, opt-in via env, like Immich) from phone-home usage telemetry. Phone-home should be off by default, opt-in in the admin UI, tiered and documented, with nothing PHI-adjacent. Version-update checks are best disclosed and given their own toggle.
+- OpenValens should separate local observability (Prometheus/OTel, opt-in via env, like Immich) from phone-home usage telemetry. Phone-home should be off by default, opt-in in the admin UI, tiered and documented, with nothing PHI-adjacent. Version-update checks are best disclosed and given their own toggle.
 
 ### Gaps
 
@@ -197,7 +197,7 @@ Mobile apps for self-hosted servers ask the user to enter a server URL at login 
 
 ### Inferences
 
-- If openhealth's Expo app is published by the project, self-hosted servers have three options: (a) call Expo's push API with device tokens, which works by default but conflicts with enabling enhanced security unless the project issues a token to every self-hoster, and sends notification content through Expo/FCM/APNs; (b) a project-operated relay like Nextcloud's that carries only encrypted payloads or IDs, as in ntfy's poll_request; (c) no remote push in v1, using local notifications scheduled on-device plus fetch-on-open or background fetch. For PHI, option (b)'s "ID-only / E2E-encrypted payload" is the established pattern. Option (c) is the narrowest v1.
+- If OpenValens's Expo app is published by the project, self-hosted servers have three options: (a) call Expo's push API with device tokens, which works by default but conflicts with enabling enhanced security unless the project issues a token to every self-hoster, and sends notification content through Expo/FCM/APNs; (b) a project-operated relay like Nextcloud's that carries only encrypted payloads or IDs, as in ntfy's poll_request; (c) no remote push in v1, using local notifications scheduled on-device plus fetch-on-open or background fetch. For PHI, option (b)'s "ID-only / E2E-encrypted payload" is the established pattern. Option (c) is the narrowest v1.
 - Never put health content in push payloads. Send an opaque ID or "you have a new item" and let the app fetch over its authenticated TLS connection. This follows the design of both Nextcloud and ntfy.
 - iOS ATS and Android cleartext defaults effectively require HTTPS with a publicly trusted cert for mobile. Fasten's self-signed-CA approach adds friction. Recommend reverse proxy plus Let's Encrypt (Caddy in compose, as in Nextcloud AIO), or Tailscale/Cloudflare Tunnel documentation. (ATS behaviour is from platform knowledge, not fetched here.)
 - The mobile app should validate the server on URL entry (a health/version endpoint that returns the API version), so the app can warn about version skew. This is an inference; Immich's server-version-mismatch banner is prior knowledge, unverified here.

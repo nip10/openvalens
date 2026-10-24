@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "openhealth",
+      "name": "openvalens",
       "dependencies": {
         "zod": "catalog:",
       },

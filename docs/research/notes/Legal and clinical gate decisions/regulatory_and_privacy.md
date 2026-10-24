@@ -1,4 +1,4 @@
-# Regulatory and privacy gate decisions for openhealth (GDPR, FTC HBNR, EU MDR / FDA, health claims, non-clinician governance)
+# Regulatory and privacy gate decisions for OpenValens (GDPR, FTC HBNR, EU MDR / FDA, health claims, non-clinician governance)
 
 Research date: 2026-10-02. Researcher: AI agent (no lawyer or clinician involved, by design).
 Status labels used below: **[BINDING]** = statute/regulation/CJEU judgment; **[GUIDANCE]** = official non-binding regulator/MDCG/Commission guidance; **[COMMENTARY]** = law-firm/vendor/secondary; **[NOT FETCHED]** = cited from prior knowledge, not re-verified in this session (verify before quoting verbatim).
@@ -40,7 +40,7 @@ D1 is plausibly out of GDPR under the household exemption. It has to be "purely"
 
 **Recommended decision (per deployment):**
 
-- **P (OSS project)**: not a controller or processor, because it never receives user data. Obligations are ethical and product-level: ship privacy-by-default code (Art. 25 is addressed to controllers, but D2/D3 operators need it). Ship templates: a privacy notice, an Art. 30 record template, a DPIA template pre-filled for the CNPD list items 1/2/4, and a breach runbook. The README must contain: "If you host openhealth for anyone outside your own household, you are a GDPR controller for their health data." The project must not run telemetry or crash reporting that carries health data. Any opt-in project telemetry must be non-personal, or the project becomes a controller.
+- **P (OSS project)**: not a controller or processor, because it never receives user data. Obligations are ethical and product-level: ship privacy-by-default code (Art. 25 is addressed to controllers, but D2/D3 operators need it). Ship templates: a privacy notice, an Art. 30 record template, a DPIA template pre-filled for the CNPD list items 1/2/4, and a breach runbook. The README must contain: "If you host OpenValens for anyone outside your own household, you are a GDPR controller for their health data." The project must not run telemetry or crash reporting that carries health data. Any opt-in project telemetry must be non-personal, or the project becomes a controller.
 - **D1 (household)**: treat as exempt only if (a) a natural person runs it, (b) users are the operator's own household or family, (c) no fee, no professional use, no public sign-up, and (d) data is not exposed to an indefinite audience. Ryneš paras 31 and 33 and Lindqvist para 47 support this test. Note that third-party processors used by the self-hoster (cloud VPS, AI API) are not exempt themselves (Recital 18, last sentence).
 - **D2 (self-hoster serving others)**: the exemption is lost the moment users include anyone outside the operator's private or family setting, any payment or professional context exists (a coach, trainer, clinic or employer), or sign-up is open. Conservative rule: anyone beyond the operator's own household equals controller. A small group of friends is ambiguous and, by inference, likely not "purely" household under the narrow-construction rule. The app should show a first-run "operator mode" question. If the instance serves others, it enables the consent flow, privacy-notice template, export and delete tooling, and an audit log.
 - **D3 (maintainer-hosted)**: the maintainer is the controller and must:
@@ -68,7 +68,7 @@ D1 is plausibly out of GDPR under the household exemption. It has to be "purely"
 
 ### Takeaway
 
-openhealth squarely fits the amended definition of a "personal health record". It tracks fitness, sleep, diet and labs and draws data from multiple sources (wearables, Health Connect, calendar). The rule by its terms "applies to foreign and domestic vendors ... irrespective of any jurisdictional tests in the FTC Act, that maintain information of U.S. citizens or residents". D3 with US users is therefore in scope on paper. Enforcement against an individual in Portugal is practically unlikely, but compliance by design costs little, so D3 should comply. P is not a vendor. D1 and D2 are technically ambiguous, and the FTC has never addressed them.
+OpenValens squarely fits the amended definition of a "personal health record". It tracks fitness, sleep, diet and labs and draws data from multiple sources (wearables, Health Connect, calendar). The rule by its terms "applies to foreign and domestic vendors ... irrespective of any jurisdictional tests in the FTC Act, that maintain information of U.S. citizens or residents". D3 with US users is therefore in scope on paper. Enforcement against an individual in Portugal is practically unlikely, but compliance by design costs little, so D3 should comply. P is not a vendor. D1 and D2 are technically ambiguous, and the FTC has never addressed them.
 
 ### Cited Findings
 
@@ -184,7 +184,7 @@ The FDA's January 6, 2026 General Wellness guidance explicitly covers tracking a
 
 **Recommended intended-purpose statement** (put identically in the README, landing page, in-app About, and app-store listings):
 
-> "openhealth is a personal record-keeping and general-wellness app. It helps you store, organise and view your own health-related records (such as lab results you enter or import, body measurements, workouts, nutrition, sleep and wearable data) and track healthy habits. It shows publicly available guidance published by recognised public-health authorities, attributed and unaltered, for your information. openhealth is not a medical device. It is not intended to diagnose, screen for, prevent, monitor, predict, treat or alleviate any disease or condition, and it does not provide medical advice. Talk to a qualified healthcare professional about your health."
+> "OpenValens is a personal record-keeping and general-wellness app. It helps you store, organise and view your own health-related records (such as lab results you enter or import, body measurements, workouts, nutrition, sleep and wearable data) and track healthy habits. It shows publicly available guidance published by recognised public-health authorities, attributed and unaltered, for your information. OpenValens is not a medical device. It is not intended to diagnose, screen for, prevent, monitor, predict, treat or alleviate any disease or condition, and it does not provide medical advice. Talk to a qualified healthcare professional about your health."
 
 **Never-add list.** Each item would change the intended purpose or put the app outside the FDA wellness policy:
 
@@ -199,7 +199,7 @@ The FDA's January 6, 2026 General Wellness guidance explicitly covers tracking a
 9. Features aimed at clinicians making decisions about patients (a D2 coach or clinic dashboard with interpretation).
 10. Marketing the app as a tool to "manage" a named chronic disease, rather than the FDA-permitted "may help living well with", which EU MDR does not explicitly endorse.
 
-**FDA posture:** With the statement above and the never-add list, openhealth fits FDA wellness category (1). It could use category (2) phrasing only verbatim ("may help reduce the risk of ..."). Do not rely on category (2) in EU copy, because the MDR's "prevention" purpose has no equivalent wellness safe harbour.
+**FDA posture:** With the statement above and the never-add list, OpenValens fits FDA wellness category (1). It could use category (2) phrasing only verbatim ("may help reduce the risk of ..."). Do not rely on category (2) in EU copy, because the MDR's "prevention" purpose has no equivalent wellness safe harbour.
 
 **Residual risk:** Age- and sex-filtered screening reminders are an unadjudicated grey zone under MDCG step 4. A regulator could view personalised "due now" prompts as individual prevention, so keep them as attributed, informational listings without urgency language.
 
@@ -269,7 +269,7 @@ In the US, any health-benefit claim needs "competent and reliable scientific evi
 
 ### Gaps
 
-- The EU Nutrition and Health Claims Regulation (1924/2006) applies to food claims, not apps. It is not relevant unless openhealth markets supplements (not researched).
+- The EU Nutrition and Health Claims Regulation (1924/2006) applies to food claims, not apps. It is not relevant unless OpenValens markets supplements (not researched).
 - No national (Portuguese DGC or ERS) guidance on health-app advertising was searched.
 - The 2024/825 "Empowering Consumers" amendments to the UCPD (applicable from 27 Sept 2026) were not checked for relevant new blacklist items.
 

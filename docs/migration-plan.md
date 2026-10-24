@@ -1,7 +1,7 @@
 # OpenValens migration plan
 
 Source: [`health/anchovy`](../) (private, sibling monorepo).
-Target: this monorepo (`openvalens`, formerly openhealth) — `create-better-t-stack` v3.44.2 scaffold
+Target: this monorepo (`openvalens`) — `create-better-t-stack` v3.44.2 scaffold
 (TanStack Router web + Expo/UniWind native + Hono + oRPC + Better Auth +
 Drizzle/Postgres + Turborepo).
 
