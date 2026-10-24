@@ -11,10 +11,11 @@ import {
   type MessageLocales,
 } from "@openvalens/i18n/server";
 import type { StructuredLogger } from "@openvalens/observability";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull } from "drizzle-orm";
 
 import type { TelegramClient } from "./client";
-import { reminderEmailOptedIn } from "./reminder-materialization";
+import { earliestDeliverableDate, reminderEmailOptedIn } from "./reminder-materialization";
+import { isReminderDeliverable, localClockIn } from "./reminder-schedule";
 
 /**
  * Daily reminder delivery (Issues #14, #125).
@@ -22,12 +23,16 @@ import { reminderEmailOptedIn } from "./reminder-materialization";
  * The rows are created first by `createDueDailyReminders`
  * (`reminder-materialization.ts`), which turns each opted-in member's due
  * supplements, medications and scheduled events into `daily_reminder` rows
- * for their local date. The `remindersDailyRun` cron runs both, per
- * organization: create, then deliver.
+ * for their local date once their local reminder hour has arrived. The
+ * `remindersDailyRun` cron runs hourly and does both, per organization:
+ * create, then deliver.
  *
  * For every `daily_reminder` row in {@link organizationId} that is still
- * `status = 'pending'` and has no recorded delivery (`telegram_message_id`
- * is `NULL`), the function delivers:
+ * `status = 'pending'`, has no recorded delivery (`telegram_message_id` is
+ * `NULL`), is dated the member's current local date (time zone from
+ * `insight_preference.time_zone`, UTC fallback) and whose local reminder hour
+ * (`insight_preference.daily_reminder_hour`, default 8) has arrived, the
+ * function delivers:
  *
  * - via Telegram to the user's active chat for {@link organizationId}, when
  *   a bot is configured and the user still has a chat, is a current member
@@ -35,6 +40,11 @@ import { reminderEmailOptedIn } from "./reminder-materialization";
  * - else by email, only when the user turned on "Daily reminders by email"
  *   (`insight_preference.daily_reminder_email`, off by default) and has an
  *   email on file. Otherwise the reminder is skipped and stays pending.
+ *
+ * Stale policy: rows dated before the member's local today are never sent
+ * (they stay `pending`, undelivered), so an outage or a long-unreachable
+ * channel cannot produce a burst of days-old reminders. A failed send is
+ * retried by the next hourly run, the same local day only.
  *
  * Recipient authorization (`is_member` + `not_banned`) and channel resolution
  * (`telegram_account.organization_id = ?` + email fallback) are tenant-safe
@@ -80,8 +90,8 @@ export type MaterializeDailyRemindersDeps = {
    * materializer once per active org to fan out across tenants.
    */
   organizationId: string;
-  /** Optional slot date (`YYYY-MM-DD`); accepted for forward compatibility. */
-  date?: string;
+  /** The run's clock (tests pin it); defaults to now. */
+  now?: Date;
   /** Config-bound email transport; required. */
   email: EmailService;
   /**
@@ -93,7 +103,6 @@ export type MaterializeDailyRemindersDeps = {
 
 export type MaterializeDailyRemindersResult = {
   organizationId: string;
-  date: string | null;
   /** Reminders that received at least one external send (Telegram or email). */
   sent: number;
   /**
@@ -125,13 +134,10 @@ function typedErrorCode(error: unknown): string {
   return "UNKNOWN_SEND";
 }
 
-function todayUtcDate(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10);
-}
-
 type PendingSelectionRow = {
   id: number;
   userId: string;
+  date: string;
   label: string;
 };
 
@@ -149,31 +155,61 @@ export async function materializeDailyReminders(
 ): Promise<MaterializeDailyRemindersResult> {
   const { db, client, logger, correlationId, organizationId, email } = deps;
   const locales = deps.locales ?? databaseMessageLocales(db);
-  const date = deps.date ?? todayUtcDate();
+  const now = deps.now ?? new Date();
 
   // Read-only prefetch. Every query is tenant-scoped to `organizationId`.
-  const pending = (await db
-    .select({ id: dailyReminder.id, userId: dailyReminder.userId, label: dailyReminder.label })
+  // Rows older than any member's local today are stale and never read.
+  const candidates = (await db
+    .select({
+      id: dailyReminder.id,
+      userId: dailyReminder.userId,
+      date: dailyReminder.date,
+      label: dailyReminder.label,
+    })
     .from(dailyReminder)
     .where(
       and(
         eq(dailyReminder.organizationId, organizationId),
         eq(dailyReminder.status, "pending"),
         isNull(dailyReminder.telegramMessageId),
+        gte(dailyReminder.date, earliestDeliverableDate(now)),
       ),
     )) as PendingSelectionRow[];
+
+  // Only the member's local today, and only from their reminder hour.
+  const candidateUserIds = [...new Set(candidates.map((row) => row.userId))];
+  const schedulePrefs =
+    candidateUserIds.length === 0
+      ? []
+      : await db
+          .select({
+            userId: insightPreference.userId,
+            timeZone: insightPreference.timeZone,
+            reminderHour: insightPreference.dailyReminderHour,
+          })
+          .from(insightPreference)
+          .where(
+            and(
+              eq(insightPreference.organizationId, organizationId),
+              inArray(insightPreference.userId, candidateUserIds),
+            ),
+          );
+  const prefsByUser = new Map(schedulePrefs.map((row) => [row.userId, row]));
+  const pending = candidates.filter((row) => {
+    const prefs = prefsByUser.get(row.userId);
+    return isReminderDeliverable(row.date, localClockIn(now, prefs?.timeZone), prefs?.reminderHour);
+  });
 
   if (pending.length === 0) {
     logger.info("telegram.materialize.completed", {
       correlationId,
       organizationId,
-      date,
       sent: 0,
       skipped: 0,
       failed: 0,
     });
 
-    return { organizationId, date, sent: 0, skipped: 0, failed: 0 };
+    return { organizationId, sent: 0, skipped: 0, failed: 0 };
   }
 
   const userIds = [...new Set(pending.map((row) => row.userId))];
@@ -247,7 +283,7 @@ export async function materializeDailyReminders(
       logger.info("telegram.materialize.skipped", {
         correlationId,
         organizationId,
-        date,
+        date: reminder.date,
         reminderId: reminder.id,
         reason: skipReason,
       });
@@ -290,7 +326,7 @@ export async function materializeDailyReminders(
       logger.warn("telegram.materialize.skipped", {
         correlationId,
         organizationId,
-        date,
+        date: reminder.date,
         reminderId: reminder.id,
         reason: chatId
           ? "telegram_client_unconfigured"
@@ -312,7 +348,7 @@ export async function materializeDailyReminders(
       logger.warn("telegram.materialize.delivery_failed", {
         correlationId,
         organizationId,
-        date,
+        date: reminder.date,
         reminderId: reminder.id,
         channel,
         errorCode: result.errorCode,
@@ -323,13 +359,12 @@ export async function materializeDailyReminders(
   logger.info("telegram.materialize.completed", {
     correlationId,
     organizationId,
-    date,
     sent,
     skipped,
     failed,
   });
 
-  return { organizationId, date, sent, skipped, failed };
+  return { organizationId, sent, skipped, failed };
 }
 
 type DeliverResult =

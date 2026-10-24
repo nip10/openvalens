@@ -39,6 +39,55 @@ import { orpc } from "@/utils/orpc";
  * by default and open to every member (they are the member's own items).
  * Same controls and copy as the native settings screen.
  */
+/**
+ * When the day's reminders go out: the member's own local hour, in the same
+ * time zone as the insight settings (shown, and switchable to this browser's
+ * zone the same way).
+ */
+function DailyReminderTime({
+  preferences,
+  browserZone,
+  onUpdate,
+}: {
+  preferences: InsightPreferences;
+  browserZone: string | undefined;
+  onUpdate: (patch: InsightPreferencesUpdate) => void;
+}) {
+  const { i18n } = useLingui();
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-2">
+          {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHour)}
+          <select
+            className="rounded-md border border-input bg-background px-2 py-1"
+            aria-describedby="daily-reminder-hour-note"
+            value={preferences.dailyReminders.hour}
+            onChange={(event) => onUpdate({ dailyReminders: { hour: Number(event.target.value) } })}
+          >
+            {Array.from({ length: 24 }, (_, hour) => (
+              <option key={hour} value={hour}>
+                {String(hour).padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+        </label>
+        <span>
+          {i18n._(INSIGHT_DELIVERY_COPY.timeZone)}: {preferences.timeZone}
+        </span>
+        {browserZone && browserZone !== preferences.timeZone ? (
+          <Button size="sm" variant="outline" onClick={() => onUpdate({ timeZone: browserZone })}>
+            <Trans>Use {browserZone}</Trans>
+          </Button>
+        ) : null}
+      </div>
+      <p className="text-sm text-muted-foreground" id="daily-reminder-hour-note">
+        {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHourNote)}
+      </p>
+    </div>
+  );
+}
+
 export function InsightNotificationsForm({
   preferences,
   pending,
@@ -185,6 +234,13 @@ export function InsightNotificationsForm({
           <p className="text-sm text-muted-foreground">
             {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}
           </p>
+          {preferences.dailyReminders.email || preferences.dailyReminders.telegramConnected ? (
+            <DailyReminderTime
+              preferences={preferences}
+              browserZone={browserZone}
+              onUpdate={onUpdate}
+            />
+          ) : null}
         </fieldset>
 
         <fieldset className="grid gap-2" disabled={pending}>

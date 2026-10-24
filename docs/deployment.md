@@ -260,7 +260,7 @@ Authenticated cron endpoints are exposed as oRPC procedures:
 
 | Endpoint                      | Schedule       | Job                 |
 | ----------------------------- | -------------- | ------------------- |
-| `/rpc/cron/remindersDailyRun` | `5 8 * * *`    | `reminders.daily`   |
+| `/rpc/cron/remindersDailyRun` | `5 * * * *`    | `reminders.daily`   |
 | `/rpc/cron/ingestionRun`      | `15 9 * * *`   | `ingestion.daily`   |
 | `/rpc/cron/insightsRun`       | `20 * * * *`   | `insights.delivery` |
 | `/rpc/cron/wearablesSync`     | `*/15 * * * *` | `wearables.sync`    |
@@ -289,14 +289,34 @@ curl -fsS -X POST "https://<your-domain>/rpc/cron/photoCleanupRun" \
   -d '{"json":{}}'
 ```
 
-`remindersDailyRun` works per workspace: it first creates the day's
-`daily_reminder` rows (active supplements and medications taken daily or with
-no frequency, and scheduled events that recur that day, dated in each member's
-notification time zone), then delivers pending ones by Telegram or, without a
-connected chat or without a configured bot, by email. Only members who
-connected Telegram, or turned on "Daily reminders by email" in their
-notification settings (`insight_preference.daily_reminder_email`, off by
-default), get reminders. Rerunning it creates and sends nothing twice.
+`remindersDailyRun` runs hourly and works per workspace. For each member whose
+local reminder hour (`insight_preference.daily_reminder_hour`, 0–23, default 8,
+in `insight_preference.time_zone`, UTC when unset) has arrived on their local
+date, it first creates that date's `daily_reminder` rows: active supplements and
+medications taken daily or with no frequency, weekly and training-day items on
+their chosen ISO weekdays (`days_of_week`), and scheduled events that recur that
+day. It then delivers those members' pending rows for their local date by
+Telegram or, without a connected chat or without a configured bot, by email.
+Only members who connected Telegram, or turned on "Daily reminders by email" in
+their notification settings (`insight_preference.daily_reminder_email`, off by
+default), get reminders.
+
+- **Once per day.** Each (member, date, item) slot is created once, so
+  rerunning the job, overlapping runs and a repeated DST hour create and send
+  nothing twice. "Hour reached" means local hour ≥ reminder hour, so a skipped
+  DST hour fires at the next run.
+- **Missed runs.** A member's reminders go out at the first run on or after
+  their hour, the same local day.
+- **Stale reminders.** Undelivered rows dated before the member's local today
+  are never sent and stay `pending`; an outage does not end in a burst of
+  old reminders. A failed send is retried at the next hourly run that day.
+- **Time zone changes.** A member who moves west after today's reminders went
+  out (so their local date steps back) gets nothing for the earlier date.
+
+Members in different zones within one workspace are each handled on their own
+clock. Keep the schedule hourly: with less frequent runs, a member whose hour
+falls between runs gets the day's reminders at the next run that is still on
+their local day, or not at all that day.
 
 `wearablesSync` claims at most 25 due connections per call and is a no-op when
 no wearable vendor is configured (see [wearables.md](wearables.md)). The photo

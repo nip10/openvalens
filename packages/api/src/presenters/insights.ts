@@ -616,6 +616,8 @@ export const INSIGHT_DELIVERY_COPY = {
     comment: "safety",
   }),
   dailyRemindersTelegram: msg`If you connect Telegram in Settings, the same reminders are sent there instead.`,
+  dailyRemindersHour: msg`Reminder time`,
+  dailyRemindersHourNote: msg`Reminders for each day are sent once, from this time in your time zone. If the server misses that hour, they are sent later the same day, never the next day.`,
   kindsTitle: msg`What to include`,
   kindsIntro: msg`Choose which kinds of insight appear in each channel.`,
   deliveryHour: msg`Earliest delivery time`,

@@ -397,6 +397,7 @@ export function supplementEntry(
   name: string,
   statuses: Array<"active" | "paused" | "stopped">,
 ): { supplement: SupplementListItem; schedules: SupplementSchedule[] } {
+  const scheduleId = (index: number) => id * 100 + index;
   return {
     supplement: {
       id,
@@ -407,15 +408,22 @@ export function supplementEntry(
       latestChangeReason: "SYNTHETIC_CHANGE_REASON",
       latestChangeDate: "2026-02-01",
       activeScheduleCount: statuses.filter((status) => status === "active").length,
+      schedules: statuses.map((status, index) => ({
+        id: scheduleId(index),
+        status,
+        frequency: "daily",
+        daysOfWeek: null,
+      })),
     },
     schedules: statuses.map((status, index) => ({
-      id: id * 100 + index,
+      id: scheduleId(index),
       organizationId: ORG_A,
       userId: USER_A,
       supplementId: id,
       timeOfDay: "morning",
       quantity: "1",
       frequency: "daily",
+      daysOfWeek: null,
       notes: "SYNTHETIC_SCHEDULE_NOTE",
       status,
     })),

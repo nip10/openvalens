@@ -1752,6 +1752,7 @@ msgstr "Canadá"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/plain-water.ts
+#: packages/api/src/presenters/supplements.ts
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1787,6 +1788,10 @@ msgstr "Cardíaco"
 #: apps/native/app/(drawer)/clinical.tsx
 msgid "Cardiac · {0}"
 msgstr "Cardíaco · {0}"
+
+#: packages/api/src/presenters/supplements.ts
+msgid "Change days"
+msgstr "Alterar dias"
 
 #: apps/native/components/plain-water-section.tsx
 msgid "Change discarded on this device."
@@ -1943,6 +1948,10 @@ msgstr "Escolha um exercício para ver os detalhes."
 msgid "Choose day"
 msgstr "Escolher dia"
 
+#: packages/api/src/presenters/supplements.ts
+msgid "Choose days to get reminders for this item."
+msgstr "Escolha os dias para receber lembretes deste item."
+
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Choose domains and a format, then download."
@@ -1951,6 +1960,10 @@ msgstr "Escolha os domínios e um formato e depois transfira."
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Choose how weight and distance are displayed."
 msgstr "Escolha como o peso e a distância são apresentados."
+
+#: packages/api/src/presenters/supplements.ts
+msgid "Choose the days you train. Reminders go out on those days."
+msgstr "Escolha os dias em que treina. Os lembretes são enviados nesses dias."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -7519,6 +7532,18 @@ msgstr "Lembrar-me nesta data (por push ou email, se estiverem ativados nas noti
 msgid "Reminder"
 msgstr "Lembrete"
 
+#: packages/api/src/presenters/supplements.ts
+msgid "Reminder days"
+msgstr "Dias dos lembretes"
+
+#: packages/api/src/presenters/insights.ts
+msgid "Reminder time"
+msgstr "Hora dos lembretes"
+
+#: packages/api/src/presenters/insights.ts
+msgid "Reminders for each day are sent once, from this time in your time zone. If the server misses that hour, they are sent later the same day, never the next day."
+msgstr "Os lembretes de cada dia são enviados uma vez, a partir desta hora no seu fuso horário. Se o servidor falhar essa hora, são enviados mais tarde no mesmo dia, nunca no dia seguinte."
+
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -7871,6 +7896,10 @@ msgstr "Gravação cancelada. A criação de um alimento já enviada ainda pode 
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Save changes"
 msgstr "Guardar alterações"
+
+#: packages/api/src/presenters/supplements.ts
+msgid "Save days"
+msgstr "Guardar dias"
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Save done date"

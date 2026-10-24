@@ -3,6 +3,7 @@ import { createHash, createHmac } from "node:crypto";
 import { listCanonicalDailyWeights } from "@openvalens/body";
 import { sql, type Database } from "@openvalens/db";
 import { insightFeedback, insightPreference, pushDevice } from "@openvalens/db/schema/insights";
+import { telegramAccount } from "@openvalens/db/schema/integrations";
 import { createGoalRepository } from "@openvalens/plans";
 import { listSleepDailySummaries } from "@openvalens/sleep";
 import { and, count, eq } from "drizzle-orm";
@@ -218,6 +219,7 @@ export const DEFAULT_PREFERENCE = {
   emailEnabled: false,
   emailAcknowledgedVersion: null as string | null,
   dailyReminderEmail: false,
+  dailyReminderHour: 8,
   deliveryHour: 9,
   timeZone: "UTC",
   disabledChannels: [] as string[],
@@ -325,10 +327,27 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
     return Number(row?.n ?? 0);
   }
 
+  /** Whether the member connected Telegram in this workspace (daily reminders go there). */
+  async function telegramConnected(scope: InsightScope): Promise<boolean> {
+    const [row] = await db
+      .select({ id: telegramAccount.id })
+      .from(telegramAccount)
+      .where(
+        and(
+          eq(telegramAccount.organizationId, scope.organizationId),
+          eq(telegramAccount.userId, scope.userId),
+          eq(telegramAccount.status, "active"),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
+  }
+
   function toPreferences(
     row: PreferenceRow | null,
     delivery: InsightDeliveryContext,
     devices: number,
+    telegram = false,
   ): InsightPreferences {
     const value = row ?? DEFAULT_PREFERENCE;
     return {
@@ -345,7 +364,11 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
         enabled: value.emailEnabled,
         acknowledgedVersion: value.emailAcknowledgedVersion,
       },
-      dailyReminders: { email: value.dailyReminderEmail },
+      dailyReminders: {
+        email: value.dailyReminderEmail,
+        hour: value.dailyReminderHour,
+        telegramConnected: telegram,
+      },
       deliveryHour: value.deliveryHour,
       timeZone: value.timeZone,
       channels: channelsFromDisabled(value.disabledChannels),
@@ -460,8 +483,12 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
     },
 
     async getPreferences(scope, delivery) {
-      const [row, devices] = await Promise.all([readRow(scope), deviceCount(scope.userId)]);
-      return toPreferences(row, delivery, devices);
+      const [row, devices, telegram] = await Promise.all([
+        readRow(scope),
+        deviceCount(scope.userId),
+        telegramConnected(scope),
+      ]);
+      return toPreferences(row, delivery, devices, telegram);
     },
 
     async updatePreferences(scope, delivery, patch) {
@@ -475,6 +502,7 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
         emailAcknowledgedVersion: base.emailAcknowledgedVersion,
         emailAcknowledgedAt: current?.emailAcknowledgedAt ?? null,
         dailyReminderEmail: base.dailyReminderEmail,
+        dailyReminderHour: base.dailyReminderHour,
         deliveryHour: base.deliveryHour,
         timeZone: base.timeZone,
         disabledChannels: [...base.disabledChannels],
@@ -520,12 +548,16 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
         next.emailEnabled = patch.email.enabled;
         changed.push("email.enabled");
       }
-      if (patch.dailyReminders) {
+      if (patch.dailyReminders?.email !== undefined) {
         // The member's own reminders: not owner-gated, but email must exist.
         if (patch.dailyReminders.email && !next.dailyReminderEmail && !delivery.emailAvailable)
           throw new InsightServiceError("INVALID_INPUT", "email_unavailable");
         next.dailyReminderEmail = patch.dailyReminders.email;
         changed.push("dailyReminders.email");
+      }
+      if (patch.dailyReminders?.hour !== undefined) {
+        next.dailyReminderHour = patch.dailyReminders.hour;
+        changed.push("dailyReminders.hour");
       }
       if (patch.deliveryHour !== undefined) {
         next.deliveryHour = patch.deliveryHour;
@@ -563,8 +595,12 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
           target: [insightPreference.organizationId, insightPreference.userId],
           set: { ...next, updatedAt: now() },
         });
-      const [row, devices] = await Promise.all([readRow(scope), deviceCount(scope.userId)]);
-      return { preferences: toPreferences(row, delivery, devices), changed };
+      const [row, devices, telegram] = await Promise.all([
+        readRow(scope),
+        deviceCount(scope.userId),
+        telegramConnected(scope),
+      ]);
+      return { preferences: toPreferences(row, delivery, devices, telegram), changed };
     },
 
     async registerPushDevice(userId, token, platform) {

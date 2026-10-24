@@ -123,3 +123,72 @@ const MEDICATION_STATUS_LABELS: Record<string, MessageDescriptor> = {
 export function medicationStatusLabel(value: string): MessageDescriptor {
   return MEDICATION_STATUS_LABELS[value.trim().toLowerCase()] ?? asEntered(sentenceCase(value));
 }
+
+// ─── Reminder days (weekly / training-day items) ────────────────
+
+/** ISO weekday numbers in display order: 1 = Monday … 7 = Sunday. */
+export const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+
+/**
+ * Whether reminders for this frequency need weekdays chosen. "Training days"
+ * are chosen like weekly days: the app has no per-member training calendar
+ * (logged workouts are after the fact and not per member), so the member
+ * says which days they train. Mirrors `frequencyNeedsDays` in
+ * `@openvalens/plans` (server code; this module is app-only).
+ */
+export function frequencyNeedsDays(frequency: string | null | undefined): boolean {
+  const normalized = (frequency ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "_");
+  return normalized === "weekly" || normalized === "training_days";
+}
+
+/**
+ * Locale-aware weekday name for an ISO weekday (1 = Monday … 7 = Sunday),
+ * e.g. "Mon" / "seg." — formatted by `Intl`, never hardcoded.
+ */
+export function weekdayLabel(
+  isoDay: number,
+  locale: string,
+  width: "short" | "long" = "short",
+): string {
+  // 2024-01-01 was a Monday, so day N of that week has ISO weekday N.
+  return new Intl.DateTimeFormat(locale, { weekday: width, timeZone: "UTC" }).format(
+    new Date(Date.UTC(2024, 0, isoDay)),
+  );
+}
+
+/** "Mon, Thu" in the member's locale, Monday first; empty when none. */
+export function daysOfWeekLabel(
+  days: ReadonlyArray<number> | null | undefined,
+  locale: string,
+): string {
+  return [...new Set(days ?? [])]
+    .filter((day) => Number.isInteger(day) && day >= 1 && day <= 7)
+    .sort((a, b) => a - b)
+    .map((day) => weekdayLabel(day, locale))
+    .join(", ");
+}
+
+export const REMINDER_DAYS_COPY = {
+  label: msg`Reminder days`,
+  needed: msg`Choose days to get reminders for this item.`,
+  trainingNote: msg`Choose the days you train. Reminders go out on those days.`,
+  edit: msg`Change days`,
+  save: msg`Save days`,
+  cancel: msg`Cancel`,
+} as const satisfies Record<string, MessageDescriptor>;
+
+/**
+ * The cadence line for a supplement schedule or medication: "Weekly · Mon,
+ * Thu", or "Weekly" plus `needsDays` when reminders are waiting on days.
+ */
+export function reminderCadence(
+  item: { frequency: string | null; daysOfWeek: ReadonlyArray<number> | null },
+  locale: string,
+): { frequency: MessageDescriptor; days: string; needsDays: boolean } {
+  const needs = frequencyNeedsDays(item.frequency);
+  const days = needs ? daysOfWeekLabel(item.daysOfWeek, locale) : "";
+  return { frequency: supplementFrequencyLabel(item.frequency), days, needsDays: needs && !days };
+}

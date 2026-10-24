@@ -631,7 +631,7 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       emailAvailable: true,
       push: { enabled: false, showTopic: false, offerState: "not_offered", registeredDevices: 0 },
       email: { enabled: false, acknowledgedVersion: null },
-      dailyReminders: { email: false },
+      dailyReminders: { email: false, hour: 8, telegramConnected: false },
     });
     const viewer = await call("insights/preferences/update", { push: { enabled: true } }, "user-v");
     expect(viewer.status).toBe(403);
@@ -643,9 +643,33 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       "user-v",
     );
     expect(reminders.status).toBe(200);
-    expect(reminders.body.dailyReminders).toEqual({ email: true });
+    expect(reminders.body.dailyReminders).toEqual({
+      email: true,
+      hour: 8,
+      telegramConnected: false,
+    });
     expect(reminders.body.email.enabled).toBe(false);
-    await call("insights/preferences/update", { dailyReminders: { email: false } }, "user-v");
+    // The reminder hour is the member's own too, and separate from the
+    // weekly-insight delivery hour.
+    const hour = await call<InsightPreferences>(
+      "insights/preferences/update",
+      { dailyReminders: { hour: 21 } },
+      "user-v",
+    );
+    expect(hour.status).toBe(200);
+    expect(hour.body.dailyReminders).toEqual({ email: true, hour: 21, telegramConnected: false });
+    expect(hour.body.deliveryHour).toBe(9);
+    const badHour = await call(
+      "insights/preferences/update",
+      { dailyReminders: { hour: 24 } },
+      "user-v",
+    );
+    expect(badHour.status).toBe(400);
+    await call(
+      "insights/preferences/update",
+      { dailyReminders: { email: false, hour: 8 } },
+      "user-v",
+    );
     const noAck = await call<{ data?: { reason?: string } }>("insights/preferences/update", {
       email: { enabled: true },
     });

@@ -8,14 +8,16 @@ import {
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { countActiveSchedules, deriveChangeHistory, reshapeSupplementList } from "./derived";
-import type {
-  Medication,
-  Supplement,
-  SupplementChange,
-  SupplementChangeType,
-  SupplementListItem,
-  SupplementSchedule,
-  SupplementScheduleStatus,
+import {
+  normalizeDaysOfWeek,
+  type Medication,
+  type Supplement,
+  type SupplementChange,
+  type SupplementChangeType,
+  type SupplementListItem,
+  type SupplementSchedule,
+  type SupplementScheduleStatus,
+  type SupplementScheduleSummary,
 } from "./types";
 
 /**
@@ -62,6 +64,7 @@ export type UpsertMedicationInput = {
   route?: string | null;
   protocol?: string | null;
   frequency?: string | null;
+  daysOfWeek?: number[] | null;
   status?: Medication["status"];
   interactions?: string | null;
   notes?: string | null;
@@ -79,6 +82,7 @@ export type UpsertScheduleInput = {
   supplementId: number;
   timeOfDay: string;
   frequency?: string | null;
+  daysOfWeek?: number[] | null;
   quantity?: string | null;
   notes?: string | null;
   status?: SupplementScheduleStatus;
@@ -104,8 +108,11 @@ export function createPlansRepository(db: Database) {
       // 1. Find every supplement that has at least one schedule in this org.
       const scheduleRows = await db
         .select({
+          id: supplementSchedule.id,
           supplementId: supplementSchedule.supplementId,
           status: supplementSchedule.status,
+          frequency: supplementSchedule.frequency,
+          daysOfWeek: supplementSchedule.daysOfWeek,
         })
         .from(supplementSchedule)
         .where(eq(supplementSchedule.organizationId, organizationId));
@@ -139,10 +146,15 @@ export function createPlansRepository(db: Database) {
       }
 
       // 3. Active-schedule count per supplement.
-      const schedulesBySupplementId = new Map<number, Array<Pick<SupplementSchedule, "status">>>();
+      const schedulesBySupplementId = new Map<number, SupplementScheduleSummary[]>();
       for (const row of scheduleRows) {
         const list = schedulesBySupplementId.get(row.supplementId) ?? [];
-        list.push({ status: row.status as SupplementScheduleStatus });
+        list.push({
+          id: row.id,
+          status: row.status as SupplementScheduleStatus,
+          frequency: row.frequency,
+          daysOfWeek: row.daysOfWeek,
+        });
         schedulesBySupplementId.set(row.supplementId, list);
       }
 
@@ -272,6 +284,8 @@ export function createPlansRepository(db: Database) {
         if (input.route !== undefined) update.route = input.route;
         if (input.protocol !== undefined) update.protocol = input.protocol;
         if (input.frequency !== undefined) update.frequency = input.frequency;
+        if (input.daysOfWeek !== undefined)
+          update.daysOfWeek = normalizeDaysOfWeek(input.daysOfWeek);
         if (input.status !== undefined) update.status = input.status;
         if (input.interactions !== undefined) update.interactions = input.interactions;
         if (input.notes !== undefined) update.notes = input.notes;
@@ -292,6 +306,7 @@ export function createPlansRepository(db: Database) {
         route: input.route ?? null,
         protocol: input.protocol ?? null,
         frequency: input.frequency ?? null,
+        daysOfWeek: normalizeDaysOfWeek(input.daysOfWeek),
         status: input.status ?? "active",
         interactions: input.interactions ?? null,
         notes: input.notes ?? null,
@@ -344,6 +359,8 @@ export function createPlansRepository(db: Database) {
         const update: Partial<SupplementSchedule> = {};
         if (input.timeOfDay !== undefined) update.timeOfDay = input.timeOfDay;
         if (input.frequency !== undefined) update.frequency = input.frequency;
+        if (input.daysOfWeek !== undefined)
+          update.daysOfWeek = normalizeDaysOfWeek(input.daysOfWeek);
         if (input.quantity !== undefined) update.quantity = input.quantity;
         if (input.notes !== undefined) update.notes = input.notes;
         if (input.status !== undefined) update.status = input.status;
@@ -368,6 +385,7 @@ export function createPlansRepository(db: Database) {
         timeOfDay: input.timeOfDay,
         quantity: input.quantity ?? null,
         frequency: input.frequency ?? null,
+        daysOfWeek: normalizeDaysOfWeek(input.daysOfWeek),
         notes: input.notes ?? null,
         status: input.status ?? "active",
       };

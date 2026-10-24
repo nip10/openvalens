@@ -1752,6 +1752,7 @@ msgstr "Canada"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/plain-water.ts
+#: packages/api/src/presenters/supplements.ts
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -1787,6 +1788,10 @@ msgstr "Cardiac"
 #: apps/native/app/(drawer)/clinical.tsx
 msgid "Cardiac · {0}"
 msgstr "Cardiac · {0}"
+
+#: packages/api/src/presenters/supplements.ts
+msgid "Change days"
+msgstr "Change days"
 
 #: apps/native/components/plain-water-section.tsx
 msgid "Change discarded on this device."
@@ -1943,6 +1948,10 @@ msgstr "Choose an exercise to read its details."
 msgid "Choose day"
 msgstr "Choose day"
 
+#: packages/api/src/presenters/supplements.ts
+msgid "Choose days to get reminders for this item."
+msgstr "Choose days to get reminders for this item."
+
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Choose domains and a format, then download."
@@ -1951,6 +1960,10 @@ msgstr "Choose domains and a format, then download."
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Choose how weight and distance are displayed."
 msgstr "Choose how weight and distance are displayed."
+
+#: packages/api/src/presenters/supplements.ts
+msgid "Choose the days you train. Reminders go out on those days."
+msgstr "Choose the days you train. Reminders go out on those days."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -7519,6 +7532,18 @@ msgstr "Remind me on this date (push or email, if turned on in insight notificat
 msgid "Reminder"
 msgstr "Reminder"
 
+#: packages/api/src/presenters/supplements.ts
+msgid "Reminder days"
+msgstr "Reminder days"
+
+#: packages/api/src/presenters/insights.ts
+msgid "Reminder time"
+msgstr "Reminder time"
+
+#: packages/api/src/presenters/insights.ts
+msgid "Reminders for each day are sent once, from this time in your time zone. If the server misses that hour, they are sent later the same day, never the next day."
+msgstr "Reminders for each day are sent once, from this time in your time zone. If the server misses that hour, they are sent later the same day, never the next day."
+
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -7871,6 +7896,10 @@ msgstr "Save cancelled. A food creation already sent may still complete."
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Save changes"
 msgstr "Save changes"
+
+#: packages/api/src/presenters/supplements.ts
+msgid "Save days"
+msgstr "Save days"
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Save done date"

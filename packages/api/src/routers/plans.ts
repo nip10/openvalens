@@ -66,7 +66,25 @@ const supplementShape: z.ZodType<SupplementListItem> = z.object({
   latestChangeReason: z.string().nullable(),
   latestChangeDate: z.string().nullable(),
   activeScheduleCount: z.number(),
+  schedules: z.array(
+    z.object({
+      id: z.number(),
+      status: z.enum(ALLOWED_SUPPLEMENT_SCHEDULE_STATUSES),
+      frequency: z.string().nullable(),
+      daysOfWeek: z.array(z.number()).nullable(),
+    }),
+  ),
 });
+
+/**
+ * ISO weekdays (1 = Monday … 7 = Sunday) a weekly or training-day item is
+ * taken; reminders go out on these days only. `null` or `[]` clears them.
+ */
+const daysOfWeekInput = z
+  .array(z.number().int().min(1).max(7))
+  .max(7)
+  .refine((days) => new Set(days).size === days.length, { message: "Duplicate weekday" })
+  .nullish();
 
 const medicationShape: z.ZodType<Medication> = z.object({
   id: z.number(),
@@ -77,6 +95,7 @@ const medicationShape: z.ZodType<Medication> = z.object({
   route: z.string().nullable(),
   protocol: z.string().nullable(),
   frequency: z.string().nullable(),
+  daysOfWeek: z.array(z.number()).nullable(),
   status: z.enum(ALLOWED_MEDICATION_STATUSES),
   interactions: z.string().nullable(),
   notes: z.string().nullable(),
@@ -90,6 +109,7 @@ const supplementScheduleShape: z.ZodType<SupplementSchedule> = z.object({
   timeOfDay: z.string(),
   quantity: z.string().nullable(),
   frequency: z.string().nullable(),
+  daysOfWeek: z.array(z.number()).nullable(),
   notes: z.string().nullable(),
   status: z.enum(ALLOWED_SUPPLEMENT_SCHEDULE_STATUSES),
 });
@@ -128,6 +148,7 @@ const medicationSchema = z.strictObject({
   route: z.string().trim().min(1).max(80).nullish(),
   protocol: z.string().trim().max(500).nullish(),
   frequency: z.string().trim().max(80).nullish(),
+  daysOfWeek: daysOfWeekInput,
   status: z.enum(ALLOWED_MEDICATION_STATUSES).optional(),
   interactions: z.string().trim().max(500).nullish(),
   notes: z.string().trim().max(2000).nullish(),
@@ -146,6 +167,7 @@ const scheduleUpsertCreateSchema = z.strictObject({
   supplementId: z.number().int().positive(),
   timeOfDay: z.enum(ALLOWED_TIME_OF_DAY),
   frequency: z.string().trim().min(1).max(80).nullish(),
+  daysOfWeek: daysOfWeekInput,
   quantity: z.string().trim().max(80).nullish(),
   notes: z.string().trim().max(2000).nullish(),
   status: z.enum(ALLOWED_SUPPLEMENT_SCHEDULE_STATUSES).optional(),
@@ -155,6 +177,7 @@ const scheduleUpsertUpdateSchema = z.strictObject({
   id: z.number().int().positive(),
   timeOfDay: z.enum(ALLOWED_TIME_OF_DAY).optional(),
   frequency: z.string().trim().max(80).nullish(),
+  daysOfWeek: daysOfWeekInput,
   quantity: z.string().trim().max(80).nullish(),
   notes: z.string().trim().max(2000).nullish(),
   status: z.enum(ALLOWED_SUPPLEMENT_SCHEDULE_STATUSES).optional(),
@@ -550,6 +573,8 @@ export const plansRouter = {
           route: input.route ?? null,
           protocol: input.protocol ?? null,
           frequency: input.frequency ?? null,
+          // Omitted on an update keeps the chosen days (e.g. a rename).
+          ...(input.daysOfWeek !== undefined ? { daysOfWeek: input.daysOfWeek } : {}),
           ...(input.status !== undefined ? { status: input.status } : {}),
           interactions: input.interactions ?? null,
           notes: input.notes ?? null,
@@ -626,6 +651,7 @@ export const plansRouter = {
           supplementId: existing.supplementId,
           timeOfDay: existing.timeOfDay,
           frequency: existing.frequency,
+          daysOfWeek: existing.daysOfWeek,
           quantity: existing.quantity,
           notes: existing.notes,
           status: existing.status,
@@ -634,6 +660,7 @@ export const plansRouter = {
         if (
           input.timeOfDay !== undefined ||
           input.frequency !== undefined ||
+          input.daysOfWeek !== undefined ||
           input.quantity !== undefined ||
           input.notes !== undefined ||
           input.status !== undefined
@@ -645,6 +672,7 @@ export const plansRouter = {
             supplementId: existing.supplementId,
             timeOfDay: input.timeOfDay ?? existing.timeOfDay,
             frequency: input.frequency !== undefined ? input.frequency : existing.frequency,
+            daysOfWeek: input.daysOfWeek !== undefined ? input.daysOfWeek : existing.daysOfWeek,
             quantity: input.quantity !== undefined ? input.quantity : existing.quantity,
             notes: input.notes !== undefined ? input.notes : existing.notes,
             status: input.status ?? existing.status,
@@ -658,6 +686,7 @@ export const plansRouter = {
           supplementId: input.supplementId,
           timeOfDay: input.timeOfDay,
           frequency: input.frequency ?? null,
+          daysOfWeek: input.daysOfWeek ?? null,
           quantity: input.quantity ?? null,
           notes: input.notes ?? null,
           status: input.status,

@@ -232,16 +232,24 @@ Telegram delivers the daily reminders. Members connect their own chat from
 **Settings → Telegram**, and react 👍 or 👎 to a reminder to mark it done or
 skipped.
 
-The `remindersDailyRun` job (see [Scheduled jobs](#scheduled-jobs)) creates the
-day's reminders, then sends them. A member gets one reminder per active
-supplement or medication taken daily (or with no frequency set) and per
-scheduled event that recurs that day, dated in the time zone of their
-notification settings (UTC when unset). Weekly and training-day items have no
-fixed day and are not reminded. Only members who chose a channel get
+The `remindersDailyRun` job (see [Scheduled jobs](#scheduled-jobs)) runs
+hourly. Each member's reminders for their local day are created and sent once,
+from the **Reminder time** they chose in their notification settings (08:00 by
+default), in the time zone of those settings (UTC when unset). A member gets
+one reminder per active supplement or medication taken daily (or with no
+frequency set), per weekly or training-day item on the weekdays the member
+chose for it, and per scheduled event that recurs that day. Weekly and
+training-day items with no days chosen are not reminded (the supplements page
+says so). Training days are chosen by hand because the app has no per-member
+training calendar to read them from. Only members who chose a channel get
 reminders: those who connected Telegram, or who turned on **Daily reminders by
 email** in their notification settings (off by default, and separate from the
 weekly insight email, because each email names the item). Without a Telegram
 bot, reminders still go out by email to the members who turned it on.
+
+If the job misses runs, a member's reminders go out at the next run on the same
+local day. Reminders for a day that has already ended are never sent, so an
+outage does not end in a burst of old reminders.
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`) and keep
    the token it gives you private.
@@ -347,7 +355,7 @@ from the host, authenticated with the generated `CRON_SECRET`:
 
 | Endpoint                      | Suggested schedule      | Job                                                        |
 | ----------------------------- | ----------------------- | ---------------------------------------------------------- |
-| `/rpc/cron/remindersDailyRun` | `5 8 * * *` (daily)     | Daily supplement, medication and event reminders           |
+| `/rpc/cron/remindersDailyRun` | `5 * * * *` (hourly)    | Daily supplement, medication and event reminders           |
 | `/rpc/cron/ingestionRun`      | `15 9 * * *` (daily)    | Retry and replay of queued ingestion work                  |
 | `/rpc/cron/insightsRun`       | `20 * * * *` (hourly)   | Opt-in insight and preventive-care reminder push and email |
 | `/rpc/cron/wearablesSync`     | `*/15 * * * *` (15 min) | Cloud wearable sync; a no-op without a wearable vendor     |
@@ -357,7 +365,7 @@ Add them to the crontab of the user who ran `deploy/setup.sh` (that user can
 read `deploy/secrets/`); replace both placeholders:
 
 ```bash
-5 8 * * *    curl -fsS -X POST https://<domain>/rpc/cron/remindersDailyRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+5 * * * *    curl -fsS -X POST https://<domain>/rpc/cron/remindersDailyRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 15 9 * * *   curl -fsS -X POST https://<domain>/rpc/cron/ingestionRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 20 * * * *   curl -fsS -X POST https://<domain>/rpc/cron/insightsRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 */15 * * * * curl -fsS -X POST https://<domain>/rpc/cron/wearablesSync -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null

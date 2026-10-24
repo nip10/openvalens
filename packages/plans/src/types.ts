@@ -38,6 +38,8 @@ export type SupplementSchedule = {
   timeOfDay: string;
   quantity: string | null;
   frequency: string | null;
+  /** ISO weekdays (1 = Monday … 7 = Sunday) for weekly / training-day items. */
+  daysOfWeek: number[] | null;
   notes: string | null;
   status: SupplementScheduleStatus;
 };
@@ -61,6 +63,8 @@ export type Medication = {
   route: string | null;
   protocol: string | null;
   frequency: string | null;
+  /** ISO weekdays (1 = Monday … 7 = Sunday) for weekly / training-day items. */
+  daysOfWeek: number[] | null;
   status: MedicationStatus;
   interactions: string | null;
   notes: string | null;
@@ -86,6 +90,36 @@ export const ALLOWED_SUPPLEMENT_CHANGE_TYPES: ReadonlyArray<SupplementChangeType
   "dose_changed",
 ];
 
+/** ISO weekday numbers: 1 = Monday … 7 = Sunday. */
+export const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+
+/**
+ * Frequencies whose reminder days the member picks (`days_of_week`). The
+ * app knows no planned training calendar per member (workouts are logged
+ * after the fact and are not per member), so "training days" are chosen the
+ * same way as weekly days. Case, spaces and `_` / `-` are ignored.
+ */
+export function frequencyNeedsDays(frequency: string | null | undefined): boolean {
+  const normalized = (frequency ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "_");
+  return normalized === "weekly" || normalized === "training_days";
+}
+
+/**
+ * Sorted, de-duplicated ISO weekdays, or `null` when none are left. Values
+ * outside 1–7 are dropped (the API schema already rejects them).
+ */
+export function normalizeDaysOfWeek(
+  days: ReadonlyArray<number> | null | undefined,
+): number[] | null {
+  if (!days) return null;
+  const unique = [...new Set(days)].filter((day) => Number.isInteger(day) && day >= 1 && day <= 7);
+  unique.sort((a, b) => a - b);
+  return unique.length > 0 ? unique : null;
+}
+
 export const ALLOWED_TIME_OF_DAY = ["morning", "lunch", "dinner", "pre-bed", "training"] as const;
 
 export type TimeOfDay = (typeof ALLOWED_TIME_OF_DAY)[number];
@@ -99,4 +133,14 @@ export type SupplementListItem = Supplement & {
   latestChangeReason: string | null;
   latestChangeDate: string | null;
   activeScheduleCount: number;
+  /** The supplement's schedules in this workspace: cadence and reminder days. */
+  schedules: SupplementScheduleSummary[];
+};
+
+/** What the supplement list needs to show (and edit) a schedule's reminder days. */
+export type SupplementScheduleSummary = {
+  id: number;
+  status: SupplementScheduleStatus;
+  frequency: string | null;
+  daysOfWeek: number[] | null;
 };

@@ -440,6 +440,32 @@ describe("plans medications — write boundary", () => {
     expect(JSON.stringify(auditInsert.payload)).not.toContain("500mg");
   });
 
+  test("upsertMedication stores weekly reminder days sorted; an update without days keeps them", async () => {
+    role = "owner";
+    const state = fakeDb({ supplements: [], schedules: [], changes: [], medications: [] });
+    const call = appRouter.plans.upsertMedication.callable({ context: context(state.db) });
+    await call({ name: "Methotrexate", frequency: "weekly", daysOfWeek: [4, 1] });
+    const medInsert = state.calls.find((c) => c.kind === "insert" && c.table === medication);
+    if (medInsert?.kind !== "insert") throw new Error("expected insert call");
+    expect(medInsert.payload).toMatchObject({ frequency: "weekly", daysOfWeek: [1, 4] });
+
+    await call({ id: 5, name: "Methotrexate", frequency: "weekly" });
+    const update = state.calls.find((c) => c.kind === "update" && c.table === medication);
+    if (update?.kind !== "update") throw new Error("expected update call");
+    expect(update.payload).not.toHaveProperty("daysOfWeek");
+  });
+
+  test("upsertMedication rejects weekdays outside 1-7 and repeated weekdays", async () => {
+    role = "owner";
+    const state = fakeDb({ supplements: [], schedules: [], changes: [], medications: [] });
+    const call = appRouter.plans.upsertMedication.callable({ context: context(state.db) });
+    for (const daysOfWeek of [[0], [8], [1, 1], [1.5]])
+      await expect(
+        call({ name: "Methotrexate", frequency: "weekly", daysOfWeek }),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT", status: 400 });
+    expect(state.calls.filter((c) => c.kind === "insert")).toEqual([]);
+  });
+
   test("deleteMedication returns null when the row is missing for this org", async () => {
     role = "owner";
     const state = fakeDb({ supplements: [], schedules: [], changes: [], medications: [] });
@@ -573,6 +599,41 @@ describe("plans schedules + changes", () => {
     const last = updates.at(-1);
     if (last?.kind !== "update") throw new Error("expected update call");
     expect(last.payload).toMatchObject({ quantity: "2 capsules" });
+  });
+
+  test("upsertSchedule sets and clears a schedule's reminder days", async () => {
+    role = "owner";
+    const state = fakeDb({
+      supplements: [],
+      schedules: [
+        {
+          id: 7,
+          organizationId: "org-1",
+          userId: "user-1",
+          supplementId: 1,
+          timeOfDay: "morning",
+          quantity: null,
+          frequency: "weekly",
+          daysOfWeek: null,
+          notes: null,
+          status: "active",
+        },
+      ],
+      changes: [],
+      medications: [],
+    });
+    const call = appRouter.plans.upsertSchedule.callable({ context: context(state.db) });
+    const lastUpdate = () => {
+      const last = state.calls
+        .filter((c) => c.kind === "update" && c.table === supplementSchedule)
+        .at(-1);
+      if (last?.kind !== "update") throw new Error("expected update call");
+      return last.payload;
+    };
+    await call({ id: 7, daysOfWeek: [7, 3] });
+    expect(lastUpdate()).toMatchObject({ daysOfWeek: [3, 7] });
+    await call({ id: 7, daysOfWeek: [] });
+    expect(lastUpdate()).toMatchObject({ daysOfWeek: null });
   });
 
   test("deleteSchedule returns null when missing and writes audit on success", async () => {

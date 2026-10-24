@@ -10,9 +10,14 @@ import {
   supplementSchedule,
 } from "@openvalens/db/schema/plans";
 import type { StructuredLogger } from "@openvalens/observability";
-import { and, eq, inArray, type SQL } from "drizzle-orm";
+import { and, eq, inArray, max, type SQL } from "drizzle-orm";
 
-import { isDailyItemDue, isScheduledEventDue, localDateIn } from "./reminder-schedule";
+import {
+  isPlanItemDue,
+  isScheduledEventDue,
+  localClockIn,
+  reminderHourOrDefault,
+} from "./reminder-schedule";
 
 /**
  * Daily reminder materialization: turns a member's due supplements,
@@ -35,8 +40,15 @@ import { isDailyItemDue, isScheduledEventDue, localDateIn } from "./reminder-sch
  * be banned.
  *
  * "Today" is the member's local date in the time zone of their notification
- * settings (`insight_preference.time_zone`, `UTC` when unset). What is due on
- * that date is decided by `reminder-schedule.ts`.
+ * settings (`insight_preference.time_zone`, `UTC` when unset). The cron runs
+ * hourly; a member's rows for today are created only once their local
+ * reminder hour (`insight_preference.daily_reminder_hour`, default 8) has
+ * arrived, so they never exist (or go out) earlier. What is due on that date
+ * is decided by `reminder-schedule.ts`.
+ *
+ * A member who already has rows dated after their local today (they moved
+ * west after today's reminders went out, so their date stepped back) gets no
+ * new rows until their date catches up: a day is never reminded twice.
  *
  * Idempotent: rows are inserted with `on conflict do nothing` on the
  * `(user_id, date, source_type, source_id)` slot, so reruns and overlapping
@@ -59,6 +71,8 @@ export type CreateDueDailyRemindersResult = {
   organizationId: string;
   /** Members who opted in to a reminder channel. */
   recipients: number;
+  /** Opted-in members whose local reminder hour has arrived (rows were considered). */
+  dueRecipients: number;
   /** New `daily_reminder` rows (existing slots are left alone). */
   created: number;
 };
@@ -84,7 +98,11 @@ export async function createDueDailyReminders(
     : sql`false`;
 
   const recipients = await db
-    .select({ userId: member.userId, timeZone: insightPreference.timeZone })
+    .select({
+      userId: member.userId,
+      timeZone: insightPreference.timeZone,
+      reminderHour: insightPreference.dailyReminderHour,
+    })
     .from(member)
     .innerJoin(user, eq(user.id, member.userId))
     .leftJoin(
@@ -102,17 +120,43 @@ export async function createDueDailyReminders(
       ),
     );
 
-  if (recipients.length === 0) {
+  // Members whose reminder hour has arrived on their local date.
+  const dateByUser = new Map<string, string>();
+  for (const row of recipients) {
+    const clock = localClockIn(now, row.timeZone);
+    if (clock.hour >= reminderHourOrDefault(row.reminderHour))
+      dateByUser.set(row.userId, clock.date);
+  }
+
+  if (dateByUser.size > 0) {
+    // Never re-remind an earlier day: skip members already holding a later row.
+    const latest = await db
+      .select({ userId: dailyReminder.userId, date: max(dailyReminder.date) })
+      .from(dailyReminder)
+      .where(
+        and(
+          eq(dailyReminder.organizationId, organizationId),
+          inArray(dailyReminder.userId, [...dateByUser.keys()]),
+        ),
+      )
+      .groupBy(dailyReminder.userId);
+    for (const row of latest) {
+      const date = dateByUser.get(row.userId);
+      if (date && row.date && row.date > date) dateByUser.delete(row.userId);
+    }
+  }
+
+  if (dateByUser.size === 0) {
     logger.info("reminders.materialize.completed", {
       correlationId,
       organizationId,
-      recipients: 0,
+      recipients: recipients.length,
+      dueRecipients: 0,
       created: 0,
     });
-    return { organizationId, recipients: 0, created: 0 };
+    return { organizationId, recipients: recipients.length, dueRecipients: 0, created: 0 };
   }
 
-  const dateByUser = new Map(recipients.map((row) => [row.userId, localDateIn(now, row.timeZone)]));
   const userIds = [...dateByUser.keys()];
 
   const [schedules, medications, events] = await Promise.all([
@@ -122,6 +166,7 @@ export async function createDueDailyReminders(
         userId: supplementSchedule.userId,
         status: supplementSchedule.status,
         frequency: supplementSchedule.frequency,
+        daysOfWeek: supplementSchedule.daysOfWeek,
         label: supplement.name,
       })
       .from(supplementSchedule)
@@ -138,6 +183,7 @@ export async function createDueDailyReminders(
         userId: medication.userId,
         status: medication.status,
         frequency: medication.frequency,
+        daysOfWeek: medication.daysOfWeek,
         label: medication.name,
       })
       .from(medication)
@@ -176,10 +222,14 @@ export async function createDueDailyReminders(
     rows.push({ organizationId, userId, date, sourceType, sourceId, label, createdAt });
   };
 
+  const dueOnMemberDate = (row: Parameters<typeof isPlanItemDue>[0] & { userId: string }) => {
+    const date = dateByUser.get(row.userId);
+    return date !== undefined && isPlanItemDue(row, date);
+  };
   for (const row of schedules)
-    if (isDailyItemDue(row)) add(row.userId, "supplement", row.id, row.label);
+    if (dueOnMemberDate(row)) add(row.userId, "supplement", row.id, row.label);
   for (const row of medications)
-    if (isDailyItemDue(row)) add(row.userId, "medication", row.id, row.label);
+    if (dueOnMemberDate(row)) add(row.userId, "medication", row.id, row.label);
   for (const row of events) {
     const date = dateByUser.get(row.userId);
     if (date && isScheduledEventDue(row, date)) add(row.userId, "activity", row.id, row.label);
@@ -200,22 +250,29 @@ export async function createDueDailyReminders(
     correlationId,
     organizationId,
     recipients: recipients.length,
+    dueRecipients: dateByUser.size,
     due: rows.length,
     created,
   });
 
-  return { organizationId, recipients: recipients.length, created };
+  return { organizationId, recipients: recipients.length, dueRecipients: dateByUser.size, created };
 }
 
 /**
- * The cron worklist: workspaces with undelivered reminders, plus workspaces
+ * The cron worklist: workspaces with undelivered reminders that can still go
+ * out (dated no earlier than yesterday in UTC — every member's local today is
+ * within a day of it; older rows are stale and never sent), plus workspaces
  * where a member has a reminder channel on and something that can be due.
  * Derived from the data, so empty workspaces cost nothing.
  */
-export async function listReminderOrganizations(db: Database): Promise<string[]> {
+export async function listReminderOrganizations(
+  db: Database,
+  now: Date = new Date(),
+): Promise<string[]> {
+  const earliest = earliestDeliverableDate(now);
   const result = await db.execute<{ organization_id: string }>(sql`
     select organization_id from daily_reminder
-     where status = 'pending' and telegram_message_id is null
+     where status = 'pending' and telegram_message_id is null and date >= ${earliest}
     union
     select m.organization_id
       from member m
@@ -235,4 +292,13 @@ export async function listReminderOrganizations(db: Database): Promise<string[]>
     order by organization_id asc
   `);
   return result.rows.map((row) => row.organization_id);
+}
+
+/**
+ * The earliest `daily_reminder.date` any member can still be on: the UTC date
+ * one day back covers every zone (UTC−12 … UTC+14). Rows older than this are
+ * stale for everyone.
+ */
+export function earliestDeliverableDate(now: Date): string {
+  return new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10);
 }

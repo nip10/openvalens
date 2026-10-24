@@ -58,6 +58,8 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/reminders_issue125" });
   const migrationsRoot = new URL("../../../db/src/migrations/", import.meta.url);
   const date = "2026-10-14";
+  // Midday UTC on that date: every member here is on UTC and past the default 08:00.
+  const now = new Date(`${date}T12:00:00.000Z`);
 
   beforeAll(async () => {
     const tables = await db.execute(
@@ -125,7 +127,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger,
       correlationId: "corr-fanout",
       organizationId: "org-a",
-      date,
+      now,
       email,
     });
 
@@ -164,7 +166,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger,
       correlationId: "corr-banned",
       organizationId: "org-a",
-      date,
+      now,
       email,
     });
 
@@ -198,7 +200,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger: capturingLogger().logger,
       correlationId: "corr-idem-1",
       organizationId: "org-a",
-      date,
+      now,
       email: first.email,
     });
     expect(first.calls.length).toBe(2);
@@ -210,7 +212,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger: capturingLogger().logger,
       correlationId: "corr-idem-2",
       organizationId: "org-a",
-      date,
+      now,
       email: second.email,
     });
 
@@ -228,7 +230,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger,
       correlationId: "corr-iso",
       organizationId: "org-a",
-      date,
+      now,
       email,
     });
 
@@ -258,7 +260,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
           logger: capturingLogger().logger,
           correlationId: `corr-concurrent-${idx}`,
           organizationId: "org-a",
-          date,
+          now,
           email,
         });
         sentPerRun.push(calls.map((c) => String(c.chatId)));
@@ -316,7 +318,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger: log.logger,
       correlationId: "corr-a",
       organizationId: "org-a",
-      date,
+      now,
       email,
     });
 
@@ -327,7 +329,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger: log.logger,
       correlationId: "corr-b",
       organizationId: "org-b",
-      date,
+      now,
       email,
     }).catch((error: unknown) => {
       runBerr = error;
@@ -377,7 +379,7 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
       logger: capturingLogger().logger,
       correlationId: "corr-locale",
       organizationId: "org-l",
-      date,
+      now,
       email: {
         sendEmail: async (input) => {
           sent.push(input);

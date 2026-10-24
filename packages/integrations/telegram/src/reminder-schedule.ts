@@ -1,13 +1,27 @@
 /**
- * Which daily reminders are due on a member's local date (pure, no I/O).
+ * Which daily reminders are due on a member's local date, and from which
+ * local hour they may go out (pure, no I/O).
  *
- * Supplement schedules and medications carry only a free-text `frequency`
- * from the app's closed list (`daily`, `training_days`, `weekly`) or none.
- * They have no start date or weekday, so only an every-day cadence can be
- * placed on a calendar: `daily`, or no frequency at all (the item is simply
- * "taken"), is due every day while the item is `active`. `training_days` and
- * `weekly` say nothing about *which* day, so they never produce a reminder
- * rather than produce one on the wrong day.
+ * Supplement schedules and medications carry a `frequency` from the app's
+ * closed list (`daily`, `training_days`, `weekly`; the web and native forms
+ * offer only these, for medications too) or none, plus `days_of_week` (ISO
+ * weekdays, 1 = Monday … 7 = Sunday):
+ *
+ * - `daily`, or no frequency at all (the item is simply "taken"), is due every
+ *   day while the item is `active`;
+ * - `weekly` and `training_days` are due on the chosen weekdays only. With no
+ *   day chosen they never produce a reminder, rather than one on the wrong
+ *   day. Training days are chosen like weekly days because the app has no
+ *   per-member training calendar: `workout` rows are logged sessions (after
+ *   the fact) and carry no member, and scheduled events have no workout type;
+ * - any other (free-text) frequency is not guessed at: no reminder.
+ *
+ * Delivery time: each member's reminders for their local date may go out
+ * from their reminder hour (`insight_preference.daily_reminder_hour`, default
+ * 8) in their notification time zone. "Reached" is `local hour >= reminder
+ * hour`, so a run that was missed catches up later the same local day, a
+ * skipped DST hour (02:00 → 03:00) still fires at the next hour, and a
+ * repeated DST hour cannot send twice (each day's slot is created once).
  *
  * Scheduled events (`scheduled_event`) do carry a recurrence: a start date,
  * an optional end date, a frequency (`once`, `daily`, `weekly`, `biweekly`,
@@ -33,15 +47,7 @@ function isValidTimeZone(timeZone: string): boolean {
  * zone falls back to UTC, the same default the insight delivery settings use.
  */
 export function localDateIn(now: Date, timeZone: string | null | undefined): string {
-  const zone = timeZone && isValidTimeZone(timeZone) ? timeZone : "UTC";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: zone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "00";
-  return `${part("year")}-${part("month")}-${part("day")}`;
+  return localClockIn(now, timeZone).date;
 }
 
 function parseDate(value: string): { year: number; month: number; day: number } | null {
@@ -64,16 +70,92 @@ function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-/** `daily`, or no frequency at all. Case, spaces and `_`/`-` are ignored. */
-function isEveryDay(frequency: string | null | undefined): boolean {
-  if (frequency === null || frequency === undefined) return true;
-  const normalized = frequency.trim().toLowerCase();
-  return normalized === "" || normalized === "daily";
+/** Reminder hour used when a member never chose one. */
+export const DEFAULT_REMINDER_HOUR = 8;
+
+export type LocalClock = {
+  /** `YYYY-MM-DD` in the zone. */
+  date: string;
+  /** 0–23 in the zone. */
+  hour: number;
+};
+
+/**
+ * The calendar date and hour at {@link now} in {@link timeZone} (UTC for an
+ * unknown or empty zone).
+ */
+export function localClockIn(now: Date, timeZone: string | null | undefined): LocalClock {
+  const zone = timeZone && isValidTimeZone(timeZone) ? timeZone : "UTC";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "00";
+  return {
+    date: `${part("year")}-${part("month")}-${part("day")}`,
+    hour: Number(part("hour")) % 24,
+  };
 }
 
-/** Supplement schedule or medication: active and taken every day. */
-export function isDailyItemDue(item: { status: string; frequency: string | null }): boolean {
-  return item.status.trim().toLowerCase() === "active" && isEveryDay(item.frequency);
+/** A stored reminder hour, or the default when missing or out of range. */
+export function reminderHourOrDefault(hour: number | null | undefined): number {
+  return typeof hour === "number" && Number.isInteger(hour) && hour >= 0 && hour <= 23
+    ? hour
+    : DEFAULT_REMINDER_HOUR;
+}
+
+/**
+ * Whether the member's reminders for {@link date} may go out at
+ * {@link clock}: only the member's current local date, and only once their
+ * reminder hour has arrived. Older dates are never sent (no burst of
+ * days-old reminders after an outage); a date ahead of the clock (the
+ * member moved west after it was created) waits for that day.
+ */
+export function isReminderDeliverable(
+  date: string,
+  clock: LocalClock,
+  reminderHour: number | null | undefined,
+): boolean {
+  return date === clock.date && clock.hour >= reminderHourOrDefault(reminderHour);
+}
+
+/** ISO weekday (1 = Monday … 7 = Sunday) of a `YYYY-MM-DD` date, or `null`. */
+export function isoWeekday(date: string): number | null {
+  const parsed = parseDate(date);
+  if (!parsed) return null;
+  const weekday = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day)).getUTCDay();
+  return weekday === 0 ? 7 : weekday;
+}
+
+function normalizedFrequency(frequency: string | null | undefined): string {
+  return (frequency ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "_");
+}
+
+export type PlanItem = {
+  status: string;
+  frequency: string | null;
+  daysOfWeek?: ReadonlyArray<number> | null;
+};
+
+/**
+ * Supplement schedule or medication: active, and due on {@link date} by its
+ * frequency — every day for `daily` / none, on the chosen weekdays for
+ * `weekly` / `training_days`, never for anything else.
+ */
+export function isPlanItemDue(item: PlanItem, date: string): boolean {
+  if (item.status.trim().toLowerCase() !== "active") return false;
+  const frequency = normalizedFrequency(item.frequency);
+  if (frequency === "" || frequency === "daily") return true;
+  if (frequency !== "weekly" && frequency !== "training_days") return false;
+  const weekday = isoWeekday(date);
+  return weekday !== null && (item.daysOfWeek ?? []).includes(weekday);
 }
 
 export type ScheduledEventRecurrence = {

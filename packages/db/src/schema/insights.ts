@@ -62,6 +62,12 @@ export const insightPreference = pgTable(
      * implies it.
      */
     dailyReminderEmail: boolean("daily_reminder_email").notNull().default(false),
+    /**
+     * Local hour (0-23, in `time_zone`) from which the day's daily reminders
+     * (Telegram or email) may go out. Separate from the weekly-insight
+     * `delivery_hour`.
+     */
+    dailyReminderHour: integer("daily_reminder_hour").notNull().default(8),
     deliveryHour: integer("delivery_hour").notNull().default(9),
     timeZone: text("time_zone").notNull().default("UTC"),
     disabledChannels: text("disabled_channels")
@@ -95,6 +101,10 @@ export const insightPreference = pgTable(
     insightPreferenceHourCheck: check(
       "insight_preference_delivery_hour_check",
       sql`${table.deliveryHour} between 0 and 23`,
+    ),
+    insightPreferenceDailyReminderHourCheck: check(
+      "insight_preference_daily_reminder_hour_check",
+      sql`${table.dailyReminderHour} between 0 and 23`,
     ),
     insightPreferenceChannelsCheck: check(
       "insight_preference_disabled_channels_check",
