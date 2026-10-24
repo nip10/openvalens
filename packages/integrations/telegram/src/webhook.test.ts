@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Database } from "@openvalens/db";
 import { createStructuredLogger } from "@openvalens/observability";
 
-import { handleWebhookUpdate } from "./webhook";
+import { extractStartCommand, handleWebhookUpdate } from "./webhook";
 
 type Queues = {
   select?: unknown[];
@@ -206,5 +206,33 @@ describe("handleWebhookUpdate", () => {
     });
 
     expect(result).toEqual({ status: "unknown" });
+  });
+});
+
+describe("extractStartCommand (Issue #14)", () => {
+  const update = (text: string, type = "private") => ({
+    update_id: 1,
+    message: { text, chat: { id: 42, type }, from: { id: 42, language_code: "pt-BR" } },
+  });
+
+  test("reads the deep-link token from a private /start", () => {
+    expect(extractStartCommand(update("/start abc_DEF-123"))).toEqual({
+      chatId: "42",
+      telegramUserId: "42",
+      token: "abc_DEF-123",
+      languageCode: "pt-BR",
+    });
+    expect(extractStartCommand(update("/start@openvalens_bot abc"))?.token).toBe("abc");
+  });
+
+  test("a bare /start has no token", () => {
+    expect(extractStartCommand(update("/start"))?.token).toBeNull();
+  });
+
+  test("ignores group chats and other text", () => {
+    expect(extractStartCommand(update("/start abc", "group"))).toBeNull();
+    expect(extractStartCommand(update("hello"))).toBeNull();
+    expect(extractStartCommand(update("/start a b"))).toBeNull();
+    expect(extractStartCommand({ update_id: 1, message_reaction: {} })).toBeNull();
   });
 });

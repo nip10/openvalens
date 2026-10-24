@@ -2,12 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { InMemoryRateLimiter } from "@openvalens/ai";
 import type { Session } from "@openvalens/auth";
 import type { Database } from "@openvalens/db";
-import { issueConnectToken, verifyConnectToken } from "@openvalens/telegram";
+import { hashConnectToken } from "@openvalens/telegram";
 
 import type { Context } from "../context";
 import { appRouter } from "./index";
 
-const WEBHOOK_SECRET = "test-webhook-secret-1234";
 const ORG_ID = "org-1";
 const USER_ID = "user-1";
 
@@ -56,18 +55,17 @@ function createFakeDb(queues: Queues): { db: Database; inserted: Record<string, 
     return node;
   };
 
-  return {
-    db: {
-      select: () => builder(take("select")),
-      insert: () => builder(take("insert"), inserted),
-      update: () => builder(take("update")),
-      delete: () => builder(take("delete")),
-    } as unknown as Database,
-    inserted,
+  const db = {
+    select: () => builder(take("select")),
+    insert: () => builder(take("insert"), inserted),
+    update: () => builder(take("update")),
+    delete: () => builder(take("delete")),
+    transaction: (run: (tx: unknown) => Promise<unknown>) => run(db),
   };
+  return { db: db as unknown as Database, inserted };
 }
 
-function createContext(db: Database): Context {
+function createContext(db: Database, telegramBotUsername?: () => Promise<string | null>): Context {
   const session = {
     user: { id: USER_ID, email: "user@example.com", name: null },
     session: { id: "session-1", userId: USER_ID, activeOrganizationId: ORG_ID },
@@ -80,8 +78,9 @@ function createContext(db: Database): Context {
     cronSecret: "test-cron-secret",
     betterAuthSecretConfigured: true,
     capabilities: { telegram: true, anthropic: false, resend: false, mobilePairing: true },
-    telegram: { webhookSecret: WEBHOOK_SECRET, connectTokenTtlSeconds: 600 },
+    telegram: { connectTokenTtlSeconds: 600 },
     telegramClient: null,
+    telegramBotUsername,
     aiConfig: {
       AI_PROVIDER: null,
       AI_API_KEY: null,
@@ -96,60 +95,29 @@ function createContext(db: Database): Context {
 }
 
 describe("telegram.issueConnectToken", () => {
-  test("issues a verifiable token bound to the active organization", async () => {
-    const { db } = createFakeDb({});
+  test("stores only the hash of a deep-link-safe token and links the bot", async () => {
+    const { db, inserted } = createFakeDb({});
     const result = await appRouter.telegram.issueConnectToken.callable({
-      context: createContext(db),
+      context: createContext(db, async () => "openvalens_bot"),
     })({});
 
-    expect(typeof result.token).toBe("string");
-    expect(typeof result.expiresAt).toBe("string");
-
-    const payload = await verifyConnectToken(result.token, WEBHOOK_SECRET);
-    expect(payload.userId).toBe(USER_ID);
-    expect(payload.organizationId).toBe(ORG_ID);
-    expect(payload.expiresAt).toBe(result.expiresAt);
-  });
-});
-
-describe("telegram.bindChat", () => {
-  test("binds a chat id and writes an audit entry", async () => {
-    const { db, inserted } = createFakeDb({
-      update: [[]],
-      insert: [[{ id: 7 }], [{ id: 99 }]],
-    });
-
-    const { token } = await issueConnectToken(
-      { userId: USER_ID, organizationId: ORG_ID, expiresInSeconds: 600 },
-      WEBHOOK_SECRET,
-    );
-
-    const result = await appRouter.telegram.bindChat.callable({
-      context: createContext(db),
-    })({ token, chatId: "555000111" });
-
-    expect(result).toEqual({ telegramAccountId: "7" });
+    // Telegram allows up to 64 characters of A-Z a-z 0-9 _ - in `start`.
+    expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(result.link).toBe(`https://t.me/openvalens_bot?start=${result.token}`);
     expect(inserted[0]).toMatchObject({
       userId: USER_ID,
       organizationId: ORG_ID,
-      telegramChatId: "555000111",
-      status: "active",
+      tokenHash: hashConnectToken(result.token),
+      expiresAt: result.expiresAt,
     });
-    expect(inserted[1]).toMatchObject({
-      eventType: "TELEGRAM_BIND_COMPLETED",
-      organizationId: ORG_ID,
-      targetId: "7",
-    });
+    expect(JSON.stringify(inserted)).not.toContain(result.token);
   });
 
-  test("rejects a tampered token with INVALID_INPUT", async () => {
+  test("returns no link when the bot username is unknown", async () => {
     const { db } = createFakeDb({});
-
-    await expect(
-      appRouter.telegram.bindChat.callable({ context: createContext(db) })({
-        token: "not-a-valid-token",
-        chatId: "555000111",
-      }),
-    ).rejects.toMatchObject({ code: "INVALID_INPUT", status: 400 });
+    const result = await appRouter.telegram.issueConnectToken.callable({
+      context: createContext(db, async () => null),
+    })({});
+    expect(result.link).toBeNull();
   });
 });

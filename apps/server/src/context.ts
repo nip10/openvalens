@@ -23,6 +23,7 @@ import {
   pushProvider,
   storageService,
   signInOptions,
+  telegramBotUsername,
   telegramClient,
   telegramConfig,
   wearablesService,
@@ -69,10 +70,10 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // Issue #57 — value-free per-family integration status for readiness.
     integrations,
     telegram: {
-      webhookSecret: telegramConfig.TELEGRAM_WEBHOOK_SECRET,
       connectTokenTtlSeconds: telegramConfig.TELEGRAM_CONNECT_TOKEN_TTL_SECONDS,
     },
     telegramClient,
+    telegramBotUsername,
     // Issue #58 — config-bound email service for the reminder cron fallback.
     email,
     // Issue #13 — AI config + process-local rate limiter.

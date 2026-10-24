@@ -2119,6 +2119,10 @@ msgstr "Ligado à API"
 msgid "Connected. You can sign in with {0}."
 msgstr "Ligado. Pode iniciar sessão com {0}."
 
+#: packages/integrations/telegram/src/webhook.ts
+msgid "Connected. Your OpenValens daily reminders will arrive here. React with 👍 when you've done one or 👎 to skip it."
+msgstr "Ligado. Os seus lembretes diários do OpenValens vão chegar aqui. Reaja com 👍 quando tiver cumprido um ou com 👎 para o saltar."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Connection lost. Check your network and try again."
 msgstr "A ligação perdeu-se. Verifique a rede e tente novamente."
@@ -3117,13 +3121,20 @@ msgstr "Descartar esta alteração? O seu registo guardado não é alterado."
 msgid "Discard this entry? It was saved on this device only."
 msgstr "Descartar este registo? Foi guardado apenas neste dispositivo."
 
+#: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/components/oidc-connect-section.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Disconnect"
 msgstr "Desligar"
 
 #: apps/web/src/routes/index.tsx
 msgid "Disconnected"
 msgstr "Desligado"
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Disconnecting…"
+msgstr "A desligar…"
 
 #: packages/api/src/presenters/energy-estimate.ts
 #: packages/api/src/presenters/insights.ts
@@ -3672,7 +3683,7 @@ msgid "Expires {0}"
 msgstr "Expira {0}"
 
 #. placeholder {0}: expiresAt.toLocaleString()
-#. placeholder {0}: new Date(connect.data?.expiresAt ?? "").toLocaleString()
+#. placeholder {0}: new Date(connect.data.expiresAt).toLocaleString()
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Expires {0}."
@@ -6350,6 +6361,11 @@ msgstr "Em aberto"
 msgid "Open {fileName}"
 msgstr "Abrir {fileName}"
 
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Open in Telegram"
+msgstr "Abrir no Telegram"
+
 #: apps/web/src/components/header.tsx
 msgid "Open navigation menu"
 msgstr "Abrir o menu de navegação"
@@ -6372,12 +6388,9 @@ msgid "Open source URL"
 msgstr "Abrir URL de origem"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-msgid "Open Telegram and send this token to the bot:"
-msgstr "Abra o Telegram e envie este token ao bot:"
-
 #: apps/web/src/routes/_auth/settings/telegram.tsx
-msgid "Open this link in Telegram and press Start:"
-msgstr "Abra esta ligação no Telegram e carregue em Start:"
+msgid "Open the link in Telegram and press Start. This page updates once the chat is connected."
+msgstr "Abra a ligação no Telegram e carregue em Start. Esta página atualiza-se quando a conversa estiver ligada."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Open your profile"
@@ -7029,11 +7042,6 @@ msgstr "Avaliar esforço"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Raw"
 msgstr "Cru"
-
-#: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/routes/_auth/settings/telegram.tsx
-msgid "Re-link"
-msgstr "Voltar a ligar"
 
 #: packages/api/src/presenters/score.ts
 msgid "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
@@ -7811,6 +7819,11 @@ msgstr "Enviar convite"
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Send invite"
 msgstr "Enviar convite"
+
+#: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Send this message to this server's Telegram bot:"
+msgstr "Envie esta mensagem ao bot de Telegram deste servidor:"
 
 #. safety
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -8895,6 +8908,10 @@ msgstr "Esta ação não pode ser anulada."
 msgid "This change remains on this device until you resolve it."
 msgstr "Esta alteração fica neste dispositivo até a resolver."
 
+#: packages/integrations/telegram/src/webhook.ts
+msgid "This connect link is invalid or has expired. Open Settings → Telegram in OpenValens and connect again."
+msgstr "Esta ligação é inválida ou expirou. Abra Definições → Telegram no OpenValens e volte a ligar."
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "This day may be partial. Totals cover logged entries only."
 msgstr "Este dia pode estar incompleto. Os totais abrangem apenas os registos feitos."
@@ -9140,6 +9157,10 @@ msgstr "Cronologia"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Title"
 msgstr "Título"
+
+#: packages/integrations/telegram/src/webhook.ts
+msgid "To connect this chat, open Settings → Telegram in OpenValens and use the connect link there."
+msgstr "Para ligar esta conversa, abra Definições → Telegram no OpenValens e use a ligação que lá encontra."
 
 #. placeholder {0}: oidc.displayName
 #: apps/web/src/routes/join.tsx

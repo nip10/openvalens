@@ -600,7 +600,7 @@ describe.skipIf(!url || !schemaReady)("product settings HTTP origin guard", () =
       cronSecret: "cron-secret-long-enough-value",
       betterAuthSecretConfigured: true,
       capabilities: { telegram: false, anthropic: false, resend: false, mobilePairing: true },
-      telegram: { webhookSecret: "webhook-secret-value", connectTokenTtlSeconds: 600 },
+      telegram: { connectTokenTtlSeconds: 600 },
       telegramClient: null,
       aiConfig: {
         AI_PROVIDER: null,

@@ -136,7 +136,7 @@ function context(db: Database, authenticated = true): Context {
       resend: false,
       mobilePairing: true,
     },
-    telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
+    telegram: { connectTokenTtlSeconds: 600 },
     telegramClient: null,
     aiConfig: {
       AI_PROVIDER: null,

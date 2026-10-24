@@ -115,6 +115,25 @@ export const telegramClient = telegramConfig.TELEGRAM_BOT_TOKEN
     })
   : null;
 
+let botUsername: Promise<string | null> | null = null;
+
+/**
+ * The bot's username from `getMe`, for `t.me` connect links. Looked up once on
+ * first use; a failed lookup is not cached, so the next request retries.
+ */
+export function telegramBotUsername(): Promise<string | null> {
+  if (!telegramClient) return Promise.resolve(null);
+  botUsername ??= telegramClient
+    .getMe()
+    .then((response) => response.result?.username ?? null)
+    .catch(() => null)
+    .then((username) => {
+      if (!username) botUsername = null;
+      return username;
+    });
+  return botUsername;
+}
+
 /** Webhook secret expected in `X-Telegram-Bot-Api-Secret-Token`. */
 export function telegramWebhookSecret(): string {
   return telegramConfig.TELEGRAM_WEBHOOK_SECRET;

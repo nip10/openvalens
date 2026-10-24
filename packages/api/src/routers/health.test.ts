@@ -22,7 +22,7 @@ function createTestContext(overrides: Partial<Context> = {}): Context {
     cronSecret: "test-cron-secret-long-enough",
     betterAuthSecretConfigured: true,
     capabilities: ALL_CAPABILITIES,
-    telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
+    telegram: { connectTokenTtlSeconds: 600 },
     telegramClient: null,
     aiConfig: {
       AI_PROVIDER: null,

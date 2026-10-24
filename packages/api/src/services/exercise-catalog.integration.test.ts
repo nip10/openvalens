@@ -87,7 +87,7 @@ describe.skipIf(!url)("exercise catalog localized RPC against disposable Postgre
       cronSecret: "cron-secret-long-enough-value",
       betterAuthSecretConfigured: true,
       capabilities: { telegram: false, anthropic: false, resend: false, mobilePairing: true },
-      telegram: { webhookSecret: "webhook-secret-value", connectTokenTtlSeconds: 600 },
+      telegram: { connectTokenTtlSeconds: 600 },
       telegramClient: null,
       aiConfig: {} as never,
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,

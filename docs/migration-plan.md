@@ -212,7 +212,8 @@ tenant-guard}.ts`.
 ### Issue 14 — Telegram bot: client + webhook + dedupe + connect
 
 - Port `anchovy/apps/web/src/lib/integrations/telegram/{client,config,
-connect-token,security,webhook}.ts`.
+connect-token,security,webhook}.ts`
+  (the connect token became a stored one-time token in `connect.ts`).
 - Webhook validates `X-Telegram-Bot-Api-Secret-Token` (`secret_token`).
 - Dedupes by `telegramUpdateId` with claim/stale logic.
 - Reaction → status (`mapReactionToReminderStatus` in

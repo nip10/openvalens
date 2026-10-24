@@ -59,7 +59,7 @@ function createContext(db: Database): Context {
     db,
     correlationId: "corr-1",
     cronSecret: "test-cron-secret",
-    telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
+    telegram: { connectTokenTtlSeconds: 600 },
     telegramClient: null,
     honoContext: { req: { raw: { headers: new Headers() } } },
   } as unknown as Context;

@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Spinner } from "heroui-native";
-import { Pressable, RefreshControl, Text, View } from "react-native";
+import { Linking, Pressable, RefreshControl, Text, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
@@ -12,14 +12,27 @@ export default function TelegramSettingsScreen() {
   const foreground = useThemeColor("foreground");
   const queryClient = useQueryClient();
   const { t } = useLingui();
-  const status = useQuery(orpc.telegram.status.queryOptions({ input: {} }));
   const connect = useMutation(
     orpc.telegram.issueConnectToken.mutationOptions({
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["telegram", "status"] });
+        void queryClient.invalidateQueries({ queryKey: orpc.telegram.status.key() });
       },
     }),
   );
+  const disconnect = useMutation(
+    orpc.telegram.disconnect.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: orpc.telegram.status.key() });
+      },
+    }),
+  );
+  // While a connect link is open, poll so the screen flips to Connected once
+  // the member presses Start in Telegram.
+  const waiting = connect.isSuccess;
+  const status = useQuery({
+    ...orpc.telegram.status.queryOptions({ input: {} }),
+    refetchInterval: (query) => (waiting && !query.state.data?.connected ? 3000 : false),
+  });
 
   if (status.isPending)
     return (
@@ -29,7 +42,8 @@ export default function TelegramSettingsScreen() {
     );
 
   const connected = status.data?.connected;
-  const token = connect.data?.token;
+  const token = connected ? null : connect.data?.token;
+  const link = connect.data?.link ?? null;
   const expiresAt = connect.data ? new Date(connect.data.expiresAt) : null;
 
   return (
@@ -77,9 +91,22 @@ export default function TelegramSettingsScreen() {
                       : t`Connect a Telegram chat to receive daily reminders.`}
                   </Text>
                 </View>
-                <Button onPress={() => connect.mutate({})} isDisabled={connect.isPending}>
-                  {connect.isPending ? t`Generating…` : connected ? t`Re-link` : t`Connect`}
-                </Button>
+                {connected ? (
+                  <Button
+                    variant="secondary"
+                    onPress={() => {
+                      connect.reset();
+                      disconnect.mutate({});
+                    }}
+                    isDisabled={disconnect.isPending}
+                  >
+                    {disconnect.isPending ? t`Disconnecting…` : t`Disconnect`}
+                  </Button>
+                ) : (
+                  <Button onPress={() => connect.mutate({})} isDisabled={connect.isPending}>
+                    {connect.isPending ? t`Generating…` : t`Connect`}
+                  </Button>
+                )}
               </View>
 
               {connect.isError ? (
@@ -90,16 +117,30 @@ export default function TelegramSettingsScreen() {
 
               {token ? (
                 <View className="gap-2 rounded-lg border border-border bg-muted/40 p-3">
-                  <Text className="text-xs text-muted-foreground">
-                    <Trans>Open Telegram and send this token to the bot:</Trans>
-                  </Text>
-                  <Text
-                    className="font-mono text-sm text-foreground"
-                    numberOfLines={3}
-                    ellipsizeMode="middle"
-                  >
-                    {token}
-                  </Text>
+                  {link ? (
+                    <>
+                      <Text className="text-xs text-muted-foreground">
+                        <Trans>
+                          Open the link in Telegram and press Start. This page updates once the chat
+                          is connected.
+                        </Trans>
+                      </Text>
+                      <Button onPress={() => void Linking.openURL(link)}>
+                        <Button.Label>
+                          <Trans>Open in Telegram</Trans>
+                        </Button.Label>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Text className="text-xs text-muted-foreground">
+                        <Trans>Send this message to this server's Telegram bot:</Trans>
+                      </Text>
+                      <Text className="font-mono text-sm text-foreground" selectable>
+                        /start {token}
+                      </Text>
+                    </>
+                  )}
                   {expiresAt ? (
                     <Text className="text-xs text-muted-foreground">
                       <Trans>Expires {expiresAt.toLocaleString()}.</Trans>
