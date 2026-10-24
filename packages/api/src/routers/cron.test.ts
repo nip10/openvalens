@@ -55,11 +55,22 @@ function createFakeEmailService() {
   return { service };
 }
 
-/** Stub DB whose `execute` returns the supplied row set — sufficient for the
- * cron unit tests, which never reach the materializer's transactions. */
+/** A Drizzle-shaped query chain that resolves to no rows. */
+function emptyQuery(): unknown {
+  const query: unknown = new Proxy(() => undefined, {
+    get: (_target, property) =>
+      property === "then" ? (resolve: (rows: unknown[]) => void) => resolve([]) : () => query,
+  });
+  return query;
+}
+
+/** Stub DB whose `execute` returns the supplied worklist and whose selects
+ * find nothing — sufficient for the cron unit tests, which never reach the
+ * materializer's transactions. */
 function createCronDb(worklist: string[] = []): Database {
   return {
     execute: async () => ({ rows: worklist.map((id) => ({ organization_id: id })) }),
+    select: () => emptyQuery(),
     transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
       return callback(undefined);
     },
@@ -83,6 +94,7 @@ describe("cron.remindersDailyRun", () => {
       startedAt: expect.any(String),
       finishedAt: expect.any(String),
       organizations: 0,
+      created: 0,
       organizationsSucceeded: 0,
       organizationsFailed: 0,
       sent: 0,
@@ -92,7 +104,7 @@ describe("cron.remindersDailyRun", () => {
     });
   });
 
-  test("returns the ok envelope with zero counts when the Telegram client is unconfigured", async () => {
+  test("still runs the worklist when the Telegram client is unconfigured (email fallback)", async () => {
     const { service: email } = createFakeEmailService();
     const result = await appRouter.cron.remindersDailyRun.callable({
       context: {
@@ -108,8 +120,9 @@ describe("cron.remindersDailyRun", () => {
       job: "reminders.daily",
       startedAt: expect.any(String),
       finishedAt: expect.any(String),
-      organizations: 0,
-      organizationsSucceeded: 0,
+      organizations: 1,
+      created: 0,
+      organizationsSucceeded: 1,
       organizationsFailed: 0,
       sent: 0,
       skipped: 0,

@@ -23,7 +23,8 @@ import { client, orpc } from "@/utils/orpc";
 /**
  * Issue #92 — insight notification settings on mobile, parity with the web
  * settings card: push (with "show topic"), the weekly email behind its
- * disclosure, the earliest delivery hour, and per-kind × per-channel switches.
+ * disclosure, daily reminders by email (its own opt-in, off by default), the
+ * earliest delivery hour, and per-kind × per-channel switches.
  * Push and email stay off until turned on, and only the workspace owner can.
  * Nutrition observations are excluded from the kind matrix: they are opted in
  * only through the dedicated observation card, not per delivery channel.
@@ -217,6 +218,29 @@ export default function InsightSettingsScreen() {
                 </Button>
               </>
             )}
+          </Card>
+        </CardStack>
+
+        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTitle)}>
+          <Card variant="secondary" className="gap-2 p-4">
+            {!prefs.emailAvailable ? (
+              <Text className="text-sm text-foreground">
+                {i18n._(INSIGHT_DELIVERY_COPY.emailUnavailable)}
+              </Text>
+            ) : (
+              <Toggle
+                label={i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersEmail)}
+                value={prefs.dailyReminders.email}
+                disabled={busy}
+                onChange={(email) => update.mutate({ dailyReminders: { email } })}
+              />
+            )}
+            <Text className="text-sm text-muted-foreground">
+              {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersEmailNote)}
+            </Text>
+            <Text className="text-sm text-muted-foreground">
+              {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}
+            </Text>
           </Card>
         </CardStack>
 

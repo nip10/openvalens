@@ -10,6 +10,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import {
   INSIGHT_CHANNEL_LABELS,
+  INSIGHT_DELIVERY_COPY,
   INSIGHT_KIND_LABELS,
   nutritionObservationView,
   observationPreferencePatch,
@@ -188,6 +189,7 @@ describe("insights panel (web)", () => {
       emailAvailable: true,
       push: { enabled: false, showTopic: false, offerState: "not_offered", registeredDevices: 0 },
       email: { enabled: false, acknowledgedVersion: null },
+      dailyReminders: { email: false },
       deliveryHour: 9,
       timeZone: "UTC",
       channels: defaultKindChannels(),
@@ -197,6 +199,8 @@ describe("insights panel (web)", () => {
     );
     expect(html).toContain("not end-to-end private");
     expect(html).toContain("Turn on the weekly email");
+    expect(html).toContain(inEnglish(INSIGHT_DELIVERY_COPY.dailyRemindersEmail));
+    expect(html).toContain(inEnglish(INSIGHT_DELIVERY_COPY.dailyRemindersEmailNote));
     expect(html).toContain("Goal milestones — Push notification");
     // Nutrition observations are opted in only through their dedicated card:
     // insight delivery never sends them, so no delivery/email/push switch may

@@ -34,8 +34,10 @@ import { orpc } from "@/utils/orpc";
  * email on requires ticking the disclosure that it contains values and that
  * email is not private. Per-kind × per-channel switches apply from the next
  * delivery run. Nutrition observations are deliberately not listed here: they
- * are opted in only through the dedicated observation card. Same controls and
- * copy as the native settings screen.
+ * are opted in only through the dedicated observation card. Daily
+ * supplement/medication/event reminders by email have their own switch, off
+ * by default and open to every member (they are the member's own items).
+ * Same controls and copy as the native settings screen.
  */
 export function InsightNotificationsForm({
   preferences,
@@ -156,6 +158,33 @@ export function InsightNotificationsForm({
               </div>
             </>
           )}
+        </fieldset>
+
+        <fieldset className="grid gap-2" disabled={pending}>
+          <legend className="font-medium">
+            {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTitle)}
+          </legend>
+          {!preferences.emailAvailable ? (
+            <p className="text-sm">{i18n._(INSIGHT_DELIVERY_COPY.emailUnavailable)}</p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Switch
+                id="daily-reminder-email"
+                checked={preferences.dailyReminders.email}
+                aria-describedby="daily-reminder-email-note"
+                onCheckedChange={(email) => onUpdate({ dailyReminders: { email } })}
+              />
+              <Label htmlFor="daily-reminder-email">
+                {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersEmail)}
+              </Label>
+            </div>
+          )}
+          <p className="text-sm text-muted-foreground" id="daily-reminder-email-note">
+            {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersEmailNote)}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}
+          </p>
         </fieldset>
 
         <fieldset className="grid gap-2" disabled={pending}>

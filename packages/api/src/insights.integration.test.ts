@@ -631,9 +631,21 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       emailAvailable: true,
       push: { enabled: false, showTopic: false, offerState: "not_offered", registeredDevices: 0 },
       email: { enabled: false, acknowledgedVersion: null },
+      dailyReminders: { email: false },
     });
     const viewer = await call("insights/preferences/update", { push: { enabled: true } }, "user-v");
     expect(viewer.status).toBe(403);
+    // Daily reminders by email cover the member's own items: any member may
+    // opt in, separately from the weekly email.
+    const reminders = await call<InsightPreferences>(
+      "insights/preferences/update",
+      { dailyReminders: { email: true } },
+      "user-v",
+    );
+    expect(reminders.status).toBe(200);
+    expect(reminders.body.dailyReminders).toEqual({ email: true });
+    expect(reminders.body.email.enabled).toBe(false);
+    await call("insights/preferences/update", { dailyReminders: { email: false } }, "user-v");
     const noAck = await call<{ data?: { reason?: string } }>("insights/preferences/update", {
       email: { enabled: true },
     });

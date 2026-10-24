@@ -55,6 +55,13 @@ export const insightPreference = pgTable(
     emailAcknowledgedAt: timestamp("email_acknowledged_at", { withTimezone: true, mode: "date" }),
     /** SHA-256 of the one-step unsubscribe token sent in each digest. */
     emailUnsubscribeTokenHash: text("email_unsubscribe_token_hash"),
+    /**
+     * Daily supplement / medication / event reminders by email. A separate,
+     * explicit opt-in (off by default): the email names the item, so neither
+     * the weekly digest nor the preventive-care `reminder:email` channel
+     * implies it.
+     */
+    dailyReminderEmail: boolean("daily_reminder_email").notNull().default(false),
     deliveryHour: integer("delivery_hour").notNull().default(9),
     timeZone: text("time_zone").notNull().default("UTC"),
     disabledChannels: text("disabled_channels")

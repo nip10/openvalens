@@ -5,6 +5,8 @@ export * from "./connect";
 export * from "./dedupe";
 export * from "./logging";
 export * from "./reactions";
+export * from "./reminder-materialization";
+export * from "./reminder-schedule";
 export * from "./reminders";
 export * from "./security";
 export * from "./webhook";

@@ -7,8 +7,8 @@ import { Text, View, Pressable } from "react-native";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
-import { prepareOfflineSignOut } from "@/lib/offline/sync";
-import { queryClient, orpc } from "@/utils/orpc";
+import { signOutOfThisPhone } from "@/lib/sign-out";
+import { orpc } from "@/utils/orpc";
 
 export default function Home() {
   const readiness = useQuery(orpc.health.readiness.queryOptions({ input: {} }));
@@ -40,11 +40,7 @@ export default function Home() {
           <Text className="text-muted text-sm mb-4">{session.user.email}</Text>
           <Pressable
             className="bg-danger py-3 px-4 rounded-lg self-start active:opacity-70"
-            onPress={async () => {
-              await prepareOfflineSignOut();
-              await authClient.signOut();
-              queryClient.invalidateQueries();
-            }}
+            onPress={() => void signOutOfThisPhone()}
           >
             <Text className="text-foreground font-medium">{t`Sign Out`}</Text>
           </Pressable>

@@ -393,6 +393,13 @@ export const insightPreferencesSchema = z.object({
     enabled: z.boolean(),
     acknowledgedVersion: z.string().nullable(),
   }),
+  /**
+   * Daily supplement / medication / event reminders by email. Off until the
+   * member turns it on; separate from the weekly email and from the
+   * preventive-care `reminder` kind, because each email names the item.
+   * These reminders are the member's own, so any member may turn this on.
+   */
+  dailyReminders: z.object({ email: z.boolean() }),
   /** Local hour (0–23) from which the day's push or the week's email may go out. */
   deliveryHour: z.number().int().min(0).max(23),
   /** IANA time zone used for the delivery hour and "one per day". */
@@ -420,6 +427,7 @@ export const insightPreferencesUpdateInput = z.strictObject({
       acknowledgement: z.string().max(40).optional(),
     })
     .optional(),
+  dailyReminders: z.strictObject({ email: z.boolean() }).optional(),
   deliveryHour: z.number().int().min(0).max(23).optional(),
   timeZone: z.string().min(1).max(64).optional(),
   channels: z
