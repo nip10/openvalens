@@ -1,7 +1,7 @@
 import * as React from "react";
 
 type Preference = { enabled: boolean; available: boolean };
-type EventName = "preferences_opened" | "appearance_control_used" | "preferences_load_failed";
+type EventName = "preferences_opened";
 export type AnalyticsConsentApi = {
   getPreference(input: Record<string, never>): Promise<Preference>;
   setPreference(input: { enabled: boolean }): Promise<Preference>;

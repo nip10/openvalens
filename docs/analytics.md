@@ -9,8 +9,8 @@ set it until IP capture has actually been disabled in that project. The endpoint
 is fixed to `https://eu.i.posthog.com/i/v0/e/`; no host override is supported.
 Use a project token, not a PostHog personal/admin API secret.
 
-The only accepted event names are `preferences_opened`,
-`appearance_control_used`, and `preferences_load_failed`. Payloads contain only
+The only accepted event name is `preferences_opened`, sent once when a
+consenting user opens the analytics preference. Payloads contain only
 the event name, a fresh random distinct ID generated for that single event, and
 `$process_person_profile: false`. That ID is never stored, reused, or linked to
 an account, device, organization, or session. There are no health values,

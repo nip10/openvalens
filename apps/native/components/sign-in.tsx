@@ -7,8 +7,10 @@ import z from "zod";
 import { cancelPendingMagicLink, requestMagicLink } from "@/lib/magic-link";
 
 /**
- * Passwordless sign-in. The server only supports magic links; the first
- * sign-in creates the account. Open the emailed link on this phone.
+ * Passwordless sign-in for an existing account. Accounts are invite-only and
+ * created on the web (`/setup` for the first administrator, `/join` for an
+ * invitation); a magic link never creates one. Open the emailed link on this
+ * phone.
  */
 export function SignIn() {
   const { toast } = useToast();

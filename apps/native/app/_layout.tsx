@@ -11,6 +11,10 @@ import { useEffect, useRef } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { LocaleSync } from "@/components/locale-sync";
+import {
+  installForegroundNotificationHandler,
+  PushNotificationLifecycle,
+} from "@/components/push-notification-lifecycle";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
@@ -22,6 +26,8 @@ import { queryClient } from "@/utils/orpc";
 
 // Issue #54 — optional, PHI-scrubbed error reporting; off without a DSN.
 initErrorReporting();
+// Show pushes that arrive while the app is open (quietly); taps are handled below.
+installForegroundNotificationHandler();
 
 export const unstable_settings = {
   initialRouteName: "(drawer)",
@@ -81,6 +87,7 @@ export default function Layout() {
                   <MagicLinkLifecycle />
                   <LocaleSync />
                   <StackLayout />
+                  <PushNotificationLifecycle />
                 </HeroUINativeProvider>
               </AppThemeProvider>
             </KeyboardProvider>

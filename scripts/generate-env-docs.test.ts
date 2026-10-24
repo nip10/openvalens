@@ -51,7 +51,7 @@ describe("real committed schemas", () => {
     expect(Object.fromEntries(model.map((entry) => [entry.id, entry.variables.length]))).toEqual({
       server: 66,
       web: 5,
-      native: 5,
+      native: 7,
       db: 2,
     });
     expect(section(model, "server").variables.filter((v) => v.sensitive)).toHaveLength(21);

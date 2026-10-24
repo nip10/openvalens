@@ -1,8 +1,11 @@
 # Object storage
 
-OpenValens keeps files — progress photos, lab PDF originals, clinical PDF
-exports, export bundles — in object storage (Issue #62). Two backends are
-supported and both are **private by default**:
+OpenValens keeps uploaded files in object storage (Issue #62). Today the only
+files stored are private progress photos (#85). The storage layer also reserves
+purposes for lab documents, clinical PDF exports and export bundles, but no
+feature writes them yet: the clinical PDF export is generated on request and
+downloaded directly, not stored. Two backends are supported and both are
+**private by default**:
 
 | `STORAGE_PROVIDER` | Where objects live                                         | Default |
 | ------------------ | ---------------------------------------------------------- | ------- |

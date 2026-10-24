@@ -4494,11 +4494,6 @@ msgstr "Imagiologia · {0}"
 msgid "Imperial"
 msgstr "Imperial"
 
-#: apps/native/app/(drawer)/records/labs.tsx
-#: apps/web/src/routes/_auth/records/labs.tsx
-msgid "Import a lab PDF to add markers."
-msgstr "Importe um PDF de análises para adicionar marcadores."
-
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "Import recipes from a web address"
 msgstr "Importar receitas a partir de um endereço web"
@@ -5359,6 +5354,11 @@ msgstr "Marcar dia como completo"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Marked complete"
 msgstr "Marcado como completo"
+
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet."
+msgstr "Os marcadores aparecem aqui quando for registada uma leitura de análises na sua conta. Ainda não é possível importar relatórios de análises."
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts

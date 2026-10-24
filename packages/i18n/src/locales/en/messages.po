@@ -4494,11 +4494,6 @@ msgstr "Imaging · {0}"
 msgid "Imperial"
 msgstr "Imperial"
 
-#: apps/native/app/(drawer)/records/labs.tsx
-#: apps/web/src/routes/_auth/records/labs.tsx
-msgid "Import a lab PDF to add markers."
-msgstr "Import a lab PDF to add markers."
-
 #: packages/api/src/presenters/recipe-draft.ts
 msgid "Import recipes from a web address"
 msgstr "Import recipes from a web address"
@@ -5359,6 +5354,11 @@ msgstr "Mark day complete"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Marked complete"
 msgstr "Marked complete"
+
+#: apps/native/app/(drawer)/records/labs.tsx
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet."
+msgstr "Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet."
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
