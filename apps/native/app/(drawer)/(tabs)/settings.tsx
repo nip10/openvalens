@@ -34,10 +34,8 @@ import { AnalyticsConsentSection } from "@/components/analytics-consent-section"
 import { AiSection } from "@/components/ai-section";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
-import { prepareOfflineSignOut } from "@/lib/offline/sync";
-import { disablePushOnThisPhone } from "@/lib/push-notifications";
-import { resetHealthSync } from "@/lib/health-sync";
-import { orpc, queryClient } from "@/utils/orpc";
+import { signOutOfThisPhone } from "@/lib/sign-out";
+import { orpc } from "@/utils/orpc";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
 
 export default function SettingsScreen() {
@@ -47,15 +45,6 @@ export default function SettingsScreen() {
 
   const foreground = useThemeColor("foreground");
   const { t } = useLingui();
-
-  const handleSignOut = async () => {
-    // Issue #92 — stop insight pushes to this phone for the signed-out account.
-    await disablePushOnThisPhone().catch(() => undefined);
-    await resetHealthSync();
-    await prepareOfflineSignOut();
-    await authClient.signOut();
-    queryClient.clear();
-  };
 
   return (
     <Container className="p-4">
@@ -161,7 +150,7 @@ export default function SettingsScreen() {
         </CardStack>
 
         <Pressable
-          onPress={() => void handleSignOut()}
+          onPress={() => void signOutOfThisPhone()}
           className="min-h-14 items-center justify-center rounded-lg bg-destructive active:opacity-70"
           accessibilityRole="button"
           accessibilityLabel={t`Sign out`}
@@ -171,7 +160,7 @@ export default function SettingsScreen() {
           </Text>
         </Pressable>
 
-        {session?.user && <DeleteAccountSection onSignOut={handleSignOut} />}
+        {session?.user && <DeleteAccountSection onSignOut={signOutOfThisPhone} />}
 
         <AboutSection />
       </View>
