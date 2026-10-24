@@ -359,6 +359,9 @@ describe.skipIf(!url)("materializeDailyReminders cross-tenant", () => {
         ('m-pt', 'org-l', 'user-pt', 'owner'),
         ('m-en', 'org-l', 'user-en', 'member');
       insert into "user_preference" (user_id, locale) values ('user-pt', 'pt-PT');
+      insert into "insight_preference" (organization_id, user_id, daily_reminder_email) values
+        ('org-l', 'user-pt', true),
+        ('org-l', 'user-en', true);
       insert into "daily_reminder"
         (organization_id, user_id, date, source_type, source_id, label, created_at)
       values

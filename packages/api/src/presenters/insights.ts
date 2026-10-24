@@ -608,6 +608,14 @@ export const INSIGHT_DELIVERY_COPY = {
     comment: "safety",
   }),
   emailUnavailable: msg`Email is not set up on this server.`,
+  dailyRemindersTitle: msg`Daily reminders`,
+  dailyRemindersEmail: msg`Daily reminders by email (supplements, medications, scheduled events)`,
+  dailyRemindersEmailNote: msg({
+    message:
+      "Off unless you turn it on. One email a day names each supplement, medication or scheduled event due that day. Email is not end-to-end private.",
+    comment: "safety",
+  }),
+  dailyRemindersTelegram: msg`If you connect Telegram in Settings, the same reminders are sent there instead.`,
   kindsTitle: msg`What to include`,
   kindsIntro: msg`Choose which kinds of insight appear in each channel.`,
   deliveryHour: msg`Earliest delivery time`,

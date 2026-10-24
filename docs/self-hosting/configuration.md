@@ -238,9 +238,10 @@ supplement or medication taken daily (or with no frequency set) and per
 scheduled event that recurs that day, dated in the time zone of their
 notification settings (UTC when unset). Weekly and training-day items have no
 fixed day and are not reminded. Only members who chose a channel get
-reminders: those who connected Telegram, or who turned on email in their
-notification settings without switching reminders off for email. Without a
-Telegram bot, reminders still go out by email to the members who turned it on.
+reminders: those who connected Telegram, or who turned on **Daily reminders by
+email** in their notification settings (off by default, and separate from the
+weekly insight email, because each email names the item). Without a Telegram
+bot, reminders still go out by email to the members who turned it on.
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`) and keep
    the token it gives you private.

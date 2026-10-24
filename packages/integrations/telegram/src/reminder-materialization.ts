@@ -25,9 +25,10 @@ import { isDailyItemDue, isScheduledEventDue, localDateIn } from "./reminder-sch
  *
  * - they connected Telegram here (an `active` `telegram_account`, and the
  *   instance has a bot configured) — the documented purpose of connecting; or
- * - they turned on email in their notification settings
- *   (`insight_preference.email_enabled`) and did not switch off reminders by
- *   email (`reminder:email` in `disabled_channels`).
+ * - they turned on "Daily reminders by email" in their notification settings
+ *   (`insight_preference.daily_reminder_email`). That switch is off by default
+ *   and separate from the weekly insight email and from the preventive-care
+ *   `reminder:email` channel, because each reminder email names the item.
  *
  * Everyone else gets no rows, so the email fallback never mails members who
  * did not ask for it. The member must still belong to the workspace and not
@@ -64,10 +65,9 @@ export type CreateDueDailyRemindersResult = {
 
 type NewReminder = typeof dailyReminder.$inferInsert;
 
-/** Email reminders are on for the member: email on, `reminder:email` not switched off. */
+/** The member turned on "Daily reminders by email" (off unless explicitly on). */
 export function reminderEmailOptedIn(): SQL {
-  return sql`(coalesce(${insightPreference.emailEnabled}, false)
-    and not ('reminder:email' = any(coalesce(${insightPreference.disabledChannels}, '{}'::text[]))))`;
+  return sql`coalesce(${insightPreference.dailyReminderEmail}, false)`;
 }
 
 export async function createDueDailyReminders(
@@ -223,7 +223,7 @@ export async function listReminderOrganizations(db: Database): Promise<string[]>
         on t.organization_id = m.organization_id and t.user_id = m.user_id and t.status = 'active'
       left join insight_preference p
         on p.organization_id = m.organization_id and p.user_id = m.user_id
-     where (t.id is not null or coalesce(p.email_enabled, false))
+     where (t.id is not null or coalesce(p.daily_reminder_email, false))
        and (
          exists (select 1 from supplement_schedule s
                   where s.organization_id = m.organization_id and s.user_id = m.user_id)

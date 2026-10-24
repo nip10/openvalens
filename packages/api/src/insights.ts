@@ -217,6 +217,7 @@ export const DEFAULT_PREFERENCE = {
   pushOfferState: "not_offered" as PushOfferState,
   emailEnabled: false,
   emailAcknowledgedVersion: null as string | null,
+  dailyReminderEmail: false,
   deliveryHour: 9,
   timeZone: "UTC",
   disabledChannels: [] as string[],
@@ -344,6 +345,7 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
         enabled: value.emailEnabled,
         acknowledgedVersion: value.emailAcknowledgedVersion,
       },
+      dailyReminders: { email: value.dailyReminderEmail },
       deliveryHour: value.deliveryHour,
       timeZone: value.timeZone,
       channels: channelsFromDisabled(value.disabledChannels),
@@ -472,6 +474,7 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
         emailEnabled: base.emailEnabled,
         emailAcknowledgedVersion: base.emailAcknowledgedVersion,
         emailAcknowledgedAt: current?.emailAcknowledgedAt ?? null,
+        dailyReminderEmail: base.dailyReminderEmail,
         deliveryHour: base.deliveryHour,
         timeZone: base.timeZone,
         disabledChannels: [...base.disabledChannels],
@@ -516,6 +519,13 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
         }
         next.emailEnabled = patch.email.enabled;
         changed.push("email.enabled");
+      }
+      if (patch.dailyReminders) {
+        // The member's own reminders: not owner-gated, but email must exist.
+        if (patch.dailyReminders.email && !next.dailyReminderEmail && !delivery.emailAvailable)
+          throw new InsightServiceError("INVALID_INPUT", "email_unavailable");
+        next.dailyReminderEmail = patch.dailyReminders.email;
+        changed.push("dailyReminders.email");
       }
       if (patch.deliveryHour !== undefined) {
         next.deliveryHour = patch.deliveryHour;

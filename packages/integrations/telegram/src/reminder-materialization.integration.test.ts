@@ -84,7 +84,7 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
         ('u-tg',     'tg@example.test',     false),
         ('u-mail',   'mail@example.test',   false),
         ('u-none',   'none@example.test',   false),
-        ('u-optout', 'optout@example.test', false),
+        ('u-weekly', 'weekly@example.test', false),
         ('u-banned', 'banned@example.test', true),
         ('u-b',      'b@example.test',      false),
         ('u-c',      'c@example.test',      false);
@@ -94,7 +94,7 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
         ('m-tg',     'org-a', 'u-tg',     'owner'),
         ('m-mail',   'org-a', 'u-mail',   'member'),
         ('m-none',   'org-a', 'u-none',   'member'),
-        ('m-optout', 'org-a', 'u-optout', 'member'),
+        ('m-weekly', 'org-a', 'u-weekly', 'member'),
         ('m-banned', 'org-a', 'u-banned', 'member'),
         ('m-b',      'org-b', 'u-b',      'owner'),
         ('m-c',      'org-c', 'u-c',      'owner');
@@ -104,12 +104,14 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
         ('org-a', 'u-tg',     'chat-tg',     'tg-1', '2026-10-01', '2026-10-01'),
         ('org-a', 'u-banned', 'chat-banned', 'tg-2', '2026-10-01', '2026-10-01'),
         ('org-b', 'u-b',      'chat-b',      'tg-3', '2026-10-01', '2026-10-01');
+      -- u-mail turned on daily reminders by email only. u-weekly has the weekly
+      -- insight email and preventive-care reminders on, but not daily reminders.
       insert into "insight_preference"
         (organization_id, user_id, email_enabled, email_acknowledged_version, time_zone,
-         disabled_channels)
+         disabled_channels, daily_reminder_email)
       values
-        ('org-a', 'u-mail',   true, 'v1', 'Pacific/Honolulu', '{}'),
-        ('org-a', 'u-optout', true, 'v1', 'UTC', '{reminder:email}');
+        ('org-a', 'u-mail',   false, null, 'Pacific/Honolulu', '{}', true),
+        ('org-a', 'u-weekly', true,  'v1', 'UTC',              '{}', false);
       insert into "supplement" (id, name) values (1, 'Vitamin D'), (2, 'Magnesium');
       insert into "supplement_schedule"
         (id, organization_id, user_id, supplement_id, time_of_day, frequency, status)
@@ -119,7 +121,7 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
         (13, 'org-a', 'u-tg',     2, 'dinner',  'daily',  'paused'),
         (14, 'org-a', 'u-mail',   1, 'morning', null,     'active'),
         (15, 'org-a', 'u-none',   1, 'morning', 'daily',  'active'),
-        (16, 'org-a', 'u-optout', 1, 'morning', 'daily',  'active'),
+        (16, 'org-a', 'u-weekly', 1, 'morning', 'daily',  'active'),
         (17, 'org-a', 'u-banned', 1, 'morning', 'daily',  'active'),
         (18, 'org-b', 'u-b',      1, 'morning', 'daily',  'active'),
         (19, 'org-c', 'u-c',      1, 'morning', 'daily',  'active');
@@ -256,11 +258,36 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
     expect(new Set((await reminders()).map((row) => row.user_id))).toEqual(new Set(["u-mail"]));
   });
 
+  test("the weekly email and preventive-care reminders do not opt in to daily reminder email", async () => {
+    await run("org-a");
+    expect(await reminders("org-a")).not.toContainEqual(
+      expect.objectContaining({ user_id: "u-weekly" }),
+    );
+    const sent: SendEmailInput[] = [];
+    await materializeDailyReminders({
+      db,
+      client: null,
+      logger: capturingLogger().logger,
+      correlationId: "corr-weekly",
+      organizationId: "org-a",
+      email: {
+        sendEmail: async (input) => {
+          sent.push(input);
+          return { id: "email-1", dryRun: false };
+        },
+        organizationName: "Health",
+      },
+    });
+    expect(sent.map((input) => input.to)).not.toContain("weekly@example.test");
+  });
+
   test("the email fallback delivers without a Telegram bot", async () => {
-    // A leftover reminder for a Telegram-only member must not be emailed.
+    // Leftover reminders for a Telegram-only member and for a member with only
+    // the weekly email on must not be emailed.
     await db.execute(sql`
       insert into daily_reminder (organization_id, user_id, date, source_type, source_id, label, created_at)
-      values ('org-a', 'u-tg', '2026-10-13', 'supplement', 11, 'Vitamin D', '2026-10-13')`);
+      values ('org-a', 'u-tg', '2026-10-13', 'supplement', 11, 'Vitamin D', '2026-10-13'),
+             ('org-a', 'u-weekly', '2026-10-13', 'supplement', 16, 'Vitamin D', '2026-10-13')`);
     await run("org-a", false);
 
     const sent: SendEmailInput[] = [];
@@ -281,15 +308,16 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
       email,
     });
 
-    expect(delivery).toMatchObject({ sent: 2, skipped: 1, failed: 0 });
+    expect(delivery).toMatchObject({ sent: 2, skipped: 2, failed: 0 });
     expect(sent.map((input) => input.to)).toEqual(["mail@example.test", "mail@example.test"]);
     expect(sent.map((input) => input.text).sort()).toEqual(["Stretch", "Vitamin D"]);
     expect(lines.join("\n")).toContain("telegram_client_unconfigured");
+    expect(lines.join("\n")).toContain("email_not_opted_in");
 
-    const telegramOnly = await db.execute<{ telegram_message_id: number | null }>(
-      sql`select telegram_message_id from daily_reminder where user_id = 'u-tg'`,
+    const notEmailed = await db.execute<{ telegram_message_id: number | null }>(
+      sql`select telegram_message_id from daily_reminder where user_id in ('u-tg', 'u-weekly')`,
     );
-    expect(telegramOnly.rows).toEqual([{ telegram_message_id: null }]);
+    expect(notEmailed.rows).toEqual([{ telegram_message_id: null }, { telegram_message_id: null }]);
   });
 
   test("the cron worklist has workspaces with opted-in members or pending reminders", async () => {

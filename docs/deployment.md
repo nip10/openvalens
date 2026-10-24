@@ -294,9 +294,9 @@ curl -fsS -X POST "https://<your-domain>/rpc/cron/photoCleanupRun" \
 no frequency, and scheduled events that recur that day, dated in each member's
 notification time zone), then delivers pending ones by Telegram or, without a
 connected chat or without a configured bot, by email. Only members who
-connected Telegram, or turned on email in their notification settings without
-switching reminders off for email, get reminders. Rerunning it creates and
-sends nothing twice.
+connected Telegram, or turned on "Daily reminders by email" in their
+notification settings (`insight_preference.daily_reminder_email`, off by
+default), get reminders. Rerunning it creates and sends nothing twice.
 
 `wearablesSync` claims at most 25 due connections per call and is a no-op when
 no wearable vendor is configured (see [wearables.md](wearables.md)). The photo
