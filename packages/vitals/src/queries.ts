@@ -6,7 +6,7 @@ import type { DailyVitalsSummary, VitalsSample } from "./types";
 
 const DAY_MS = 86_400_000;
 
-const CODES = ["heart_rate", "resting_heart_rate"] as const;
+const CODES = ["heart_rate", "resting_heart_rate", "hrv_rmssd"] as const;
 
 /**
  * Daily summaries for the most recent `days` UTC calendar days (inclusive of
@@ -14,7 +14,7 @@ const CODES = ["heart_rate", "resting_heart_rate"] as const;
  * superseded rows are aggregated.
  *
  * The query produces one row per (date, code) tuple so we can collapse the
- * two heart-rate codes into a single day shape on the JS side.
+ * heart-rate and HRV codes into a single day shape on the JS side.
  */
 export async function listDailyVitals(
   db: Database,
@@ -61,6 +61,7 @@ export async function listDailyVitals(
       date,
       heartRate: { avgBpm: null, minBpm: null, maxBpm: null, sampleCount: 0 },
       restingHeartRate: { avgBpm: null, sampleCount: 0 },
+      hrv: { avgMs: null, sampleCount: 0 },
     });
   }
 
@@ -74,6 +75,8 @@ export async function listDailyVitals(
         maxBpm: row.max,
         sampleCount: Number(row.count),
       };
+    } else if (row.code === "hrv_rmssd") {
+      bucket.hrv = { avgMs: row.avg, sampleCount: Number(row.count) };
     } else if (row.code === "resting_heart_rate") {
       bucket.restingHeartRate = {
         avgBpm: row.avg,

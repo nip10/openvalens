@@ -10,7 +10,8 @@ import { permissionedProcedure, validateInput } from "../index";
  *
  * - `vitals.daily`           — read; `permissionedProcedure` on `records`
  *   with `read` action. Returns per-day avg/min/max heart rate and avg
- *   resting heart rate for the last `days` calendar days (default 30).
+ *   resting heart rate (and avg overnight HRV, ms) for the last `days`
+ *   calendar days (default 30).
  * - `vitals.recentSamples`   — read; same permission. Returns the most
  *   recent `limit` heart-rate samples (default 20).
  *
@@ -37,6 +38,10 @@ const dailyOutput = z.array(
     }),
     restingHeartRate: z.object({
       avgBpm: z.number().nullable(),
+      sampleCount: z.number(),
+    }),
+    hrv: z.object({
+      avgMs: z.number().nullable(),
       sampleCount: z.number(),
     }),
   }),

@@ -79,6 +79,7 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/exercise-library": msg`Exercise library`,
   "/exports": msg`Clinical export`,
   "/settings": msg`Settings`,
+  "/settings/devices": msg`Devices`,
   "/scores": msg`Scores`,
   "/invitations": msg`Invitations`,
   "/preventive-care": msg`Preventive care`,
@@ -322,6 +323,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="profile"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="settings/devices"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },

@@ -7,6 +7,7 @@ import {
 } from "@openvalens/api/presenters/manual-entry";
 import {
   formatBpm,
+  formatMs,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
@@ -294,6 +295,14 @@ export default function VitalsScreen() {
                     value={vitalsSourceLabel(summary.latestSample?.source ?? null, i18n)}
                   />
                 </View>
+                {summary.latestHrv ? (
+                  <View className="mt-4 flex-row gap-4">
+                    <Stat
+                      label={t`Overnight HRV · ${summary.latestHrv.date}`}
+                      value={formatMs(summary.latestHrv.avgMs)}
+                    />
+                  </View>
+                ) : null}
               </Card>
             </CardStack>
 

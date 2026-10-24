@@ -30,16 +30,19 @@ function orgAData(): Partial<FakeOrgData> {
         date: "2026-03-09",
         heartRate: { avgBpm: 70, minBpm: 55, maxBpm: 120, sampleCount: 10 },
         restingHeartRate: { avgBpm: 58, sampleCount: 1 },
+        hrv: { avgMs: null, sampleCount: 0 },
       },
       {
         date: "2026-03-10",
         heartRate: { avgBpm: 74, minBpm: 56, maxBpm: 130, sampleCount: 12 },
         restingHeartRate: { avgBpm: 60, sampleCount: 1 },
+        hrv: { avgMs: null, sampleCount: 0 },
       },
       {
         date: "2026-03-08",
         heartRate: { avgBpm: null, minBpm: null, maxBpm: null, sampleCount: 0 },
         restingHeartRate: { avgBpm: null, sampleCount: 0 },
+        hrv: { avgMs: null, sampleCount: 0 },
       },
     ].sort((a, b) => a.date.localeCompare(b.date)),
     sleep: {
@@ -139,6 +142,7 @@ describe("buildHealthSnapshot", () => {
             date: "2026-03-10",
             heartRate: { avgBpm: null, minBpm: null, maxBpm: null, sampleCount: 0 },
             restingHeartRate: { avgBpm: null, sampleCount: 0 },
+            hrv: { avgMs: null, sampleCount: 0 },
           },
         ],
         sleep: emptySleepSummary(),
