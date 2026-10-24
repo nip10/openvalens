@@ -309,6 +309,18 @@ describe("deploy/setup.sh", () => {
     expect(`${result.stdout}${result.stderr}`).not.toContain("s3cr3t");
   });
 
+  test("manages a _FILE path for every optional secret the stack accepts", () => {
+    const script = readFileSync(join(deploy, "setup.sh"), "utf8");
+    const listed = /^SECRET_FILE_KEYS="([^"]*)"/m.exec(script)?.[1]?.split(/\s+/).filter(Boolean);
+    // Optional secrets reach the server only as `${KEY_FILE:-}`, set by setup.sh.
+    const optional = Object.entries(services.server!.environment ?? {})
+      .filter(([key, value]) => key.endsWith("_FILE") && value === `\${${key}:-}`)
+      .map(([key]) => key.slice(0, -"_FILE".length));
+    expect(optional).toContain("POSTHOG_PROJECT_TOKEN");
+    expect([...(listed ?? [])].sort()).toEqual([...optional].sort());
+    for (const key of listed ?? []) expect(FILE_SECRET_KEYS as readonly string[]).toContain(key);
+  });
+
   const hasDocker =
     Bun.which("docker") !== null &&
     Bun.spawnSync(["docker", "compose", "version"], { stdout: "ignore", stderr: "ignore" })
@@ -450,6 +462,24 @@ describe("deploy/setup.sh install re-runs (Issue #63)", () => {
 
       expect(box.run(install).exitCode).toBe(0);
       expect(box.readEnv()).toBe(env);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("points POSTHOG_PROJECT_TOKEN_FILE at a dropped secret file (#243)", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      expect(valuesOf(box.readEnv(), "POSTHOG_PROJECT_TOKEN_FILE")).toEqual([""]);
+      writeFileSync(box.secret("POSTHOG_PROJECT_TOKEN"), "phc_synthetic_token\n");
+      const result = box.run(install);
+      expect(result.exitCode).toBe(0);
+      const env = box.readEnv();
+      expect(valuesOf(env, "POSTHOG_PROJECT_TOKEN_FILE")).toEqual([
+        "/run/secrets/POSTHOG_PROJECT_TOKEN",
+      ]);
+      for (const text of [result.output, env]) expect(text).not.toContain("phc_synthetic_token");
     } finally {
       box.cleanup();
     }
