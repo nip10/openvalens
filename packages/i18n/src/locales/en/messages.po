@@ -2967,12 +2967,17 @@ msgstr "Daily"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
+#: packages/api/src/presenters/insights.ts
 msgid "Daily reminders"
 msgstr "Daily reminders"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 msgid "Daily reminders are sent to your Telegram chat."
 msgstr "Daily reminders are sent to your Telegram chat."
+
+#: packages/api/src/presenters/insights.ts
+msgid "Daily reminders by email (supplements, medications, scheduled events)"
+msgstr "Daily reminders by email (supplements, medications, scheduled events)"
 
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Daily reminders over Telegram"
@@ -4434,6 +4439,10 @@ msgstr "I'll enter things myself"
 #: packages/email/src/templates/magic-link.tsx
 msgid "If the button does not work, paste this link into your browser: {url}"
 msgstr "If the button does not work, paste this link into your browser: {url}"
+
+#: packages/api/src/presenters/insights.ts
+msgid "If you connect Telegram in Settings, the same reminders are sent there instead."
+msgstr "If you connect Telegram in Settings, the same reminders are sent there instead."
 
 #: packages/email/src/templates/magic-link.tsx
 msgid "If you did not request this email, you can safely ignore it."
@@ -6462,6 +6471,11 @@ msgstr "Off by default. When on, you can submit a recipe link and the server fet
 #: apps/web/src/components/ai-workspace-consent-card.tsx
 msgid "Off for this workspace"
 msgstr "Off for this workspace"
+
+#. safety
+#: packages/api/src/presenters/insights.ts
+msgid "Off unless you turn it on. One email a day names each supplement, medication or scheduled event due that day. Email is not end-to-end private."
+msgstr "Off unless you turn it on. One email a day names each supplement, medication or scheduled event due that day. Email is not end-to-end private."
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
