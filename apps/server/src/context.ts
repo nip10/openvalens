@@ -19,6 +19,7 @@ import {
   foodLookup,
   insightUnsubscribeKey,
   integrations,
+  invitationEmails,
   productSettingsService,
   pushProvider,
   storageService,
@@ -76,6 +77,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     telegramBotUsername,
     // Issue #58 — config-bound email service for the reminder cron fallback.
     email,
+    // Issue #243 — workspace-invitation email for the sharing router.
+    invitationEmails,
     // Issue #13 — AI config + process-local rate limiter.
     aiConfig,
     aiRateLimiter,

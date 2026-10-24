@@ -861,6 +861,7 @@ msgid "A reference you set yourself. Optional."
 msgstr "Uma referência definida por si. Opcional."
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "A workspace"
 msgstr "Um espaço de trabalho"
 
@@ -895,6 +896,7 @@ msgstr "Abdominais"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Accept"
 msgstr "Aceitar"
@@ -922,6 +924,7 @@ msgstr "Sugestão aceite"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "Accepting…"
 msgstr "A aceitar…"
 
@@ -1142,6 +1145,7 @@ msgstr "Ingestão adequada (AI)"
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "admin"
 msgstr "administrador"
@@ -2343,7 +2347,8 @@ msgid "Could not complete sign-in. Please try again."
 msgstr "Não foi possível concluir o início de sessão. Tente novamente."
 
 #: apps/native/app/(drawer)/invitations.tsx
-#: apps/native/utils/workspace-invitation.ts
+#: apps/web/src/components/my-invitations-card.tsx
+#: packages/api/src/presenters/workspace-invitation.ts
 msgid "Could not complete that action. Please try again."
 msgstr "Não foi possível concluir essa ação. Tente novamente."
 
@@ -2508,6 +2513,7 @@ msgstr "Não foi possível carregar o convite."
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "Could not load invitations."
 msgstr "Não foi possível carregar os convites."
 
@@ -3068,11 +3074,13 @@ msgstr "Decidido: sim"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "Decline"
 msgstr "Recusar"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "Declining…"
 msgstr "A recusar…"
 
@@ -4452,6 +4460,10 @@ msgstr "Se não pediu este email, pode ignorá-lo em segurança."
 msgid "If you missed a day, you can still add it until the end of {until}."
 msgstr "Se não registou um dia, ainda o pode adicionar até ao fim de {until}."
 
+#: packages/email/src/templates/invitation-revoked.tsx
+msgid "If you still need access, contact your administrator."
+msgstr "Se ainda precisar de acesso, contacte o seu administrador."
+
 #: packages/email/src/templates/invitation.tsx
 msgid "If you were not expecting this invitation, you can ignore this email."
 msgstr "Se não estava à espera deste convite, pode ignorar este email."
@@ -4675,6 +4687,7 @@ msgid "Invitation accepted"
 msgstr "Convite aceite"
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-card.tsx
 msgid "Invitation accepted. The workspace is now active."
 msgstr "Convite aceite. O espaço de trabalho está agora ativo."
 
@@ -4683,13 +4696,28 @@ msgid "Invitation declined"
 msgstr "Convite recusado"
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-card.tsx
 msgid "Invitation declined."
 msgstr "Convite recusado."
 
+#: packages/email/src/templates/invitation-revoked.tsx
+msgid "Invitation revoked"
+msgstr "Convite revogado"
+
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
-msgid "Invitation saved."
-msgstr "Convite guardado."
+msgid "Invitation saved, but email is not configured on this server, so no email was sent. Ask them to open Sharing (or Invitations in the mobile app) to accept it."
+msgstr "Convite guardado, mas o email não está configurado neste servidor, por isso não foi enviado nenhum email. Peça-lhe que abra Partilha (ou Convites na aplicação móvel) para o aceitar."
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Invitation saved, but the email could not be sent. Ask them to open Sharing (or Invitations in the mobile app) to accept it."
+msgstr "Convite guardado, mas não foi possível enviar o email. Peça-lhe que abra Partilha (ou Convites na aplicação móvel) para o aceitar."
+
+#: apps/native/app/(drawer)/sharing.tsx
+#: apps/web/src/routes/_auth/sharing.tsx
+msgid "Invitation sent by email."
+msgstr "Convite enviado por email."
 
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Invitation sent."
@@ -4729,6 +4757,7 @@ msgstr "Convide alguém para criar uma conta. Vai receber um token de convite po
 
 #. placeholder {0}: invitation.email
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "Invited email: {0}"
 msgstr "Email convidado: {0}"
 
@@ -5426,6 +5455,7 @@ msgstr "Medicamentos e suplementos"
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "member"
 msgstr "membro"
@@ -6755,6 +6785,7 @@ msgstr "Correção"
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "owner"
 msgstr "proprietário"
@@ -7585,6 +7616,7 @@ msgstr "Restaurar registo"
 #: apps/web/src/components/energy-estimate-card.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/insights-section.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
@@ -8314,8 +8346,8 @@ msgstr "Iniciar sessão"
 msgid "Sign In"
 msgstr "Iniciar sessão"
 
-#: apps/native/utils/workspace-invitation.ts
 #: apps/web/src/utils/session-bootstrap.ts
+#: packages/api/src/presenters/workspace-invitation.ts
 msgid "Sign in again to continue."
 msgstr "Inicie sessão novamente para continuar."
 
@@ -9249,6 +9281,7 @@ msgid "This instance has already been set up. If you have an account, sign in be
 msgstr "Esta instância já foi configurada. Se tiver uma conta, inicie sessão abaixo."
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "This invitation has expired."
 msgstr "Este convite expirou."
 
@@ -9256,11 +9289,12 @@ msgstr "Este convite expirou."
 msgid "This invitation is linked to an email address. Sign in to see the details and accept or decline."
 msgstr "Este convite está associado a um endereço de email. Inicie sessão para ver os detalhes e aceitar ou recusar."
 
-#: apps/native/utils/workspace-invitation.ts
+#: packages/api/src/presenters/workspace-invitation.ts
 msgid "This invitation is no longer available. It may have expired or already been used."
 msgstr "Este convite já não está disponível. Pode ter expirado ou já ter sido utilizado."
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "This invitation is no longer pending."
 msgstr "Este convite já não está pendente."
 
@@ -9278,10 +9312,11 @@ msgid "This invitation was sent to {0}, but you are signed in as {sessionEmail}.
 msgstr "Este convite foi enviado para {0}, mas tem sessão iniciada como {sessionEmail}. Inicie sessão com o email correspondente para aceitar."
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "This invitation was sent to a different email address."
 msgstr "Este convite foi enviado para outro endereço de email."
 
-#: apps/native/utils/workspace-invitation.ts
+#: packages/api/src/presenters/workspace-invitation.ts
 msgid "This invitation was sent to a different email address. Sign in with the invited account to use it."
 msgstr "Este convite foi enviado para outro endereço de email. Inicie sessão com a conta convidada para o utilizar."
 
@@ -9300,6 +9335,10 @@ msgstr "Esta é uma mensagem automática de {organizationName}."
 #: packages/email/src/templates/magic-link.tsx
 msgid "This is an automated security message from {appName}."
 msgstr "Esta é uma mensagem de segurança automática de {appName}."
+
+#: packages/email/src/templates/invitation-revoked.tsx
+msgid "This is an automated update from {appName}."
+msgstr "Esta é uma atualização automática de {appName}."
 
 #: apps/native/app/modal.tsx
 msgid "This is an example modal screen for dialogs and confirmations."
@@ -9457,6 +9496,10 @@ msgstr "Título"
 #: packages/integrations/telegram/src/webhook.ts
 msgid "To connect this chat, open Settings → Telegram in OpenValens and use the connect link there."
 msgstr "Para ligar esta conversa, abra Definições → Telegram no OpenValens e use a ligação que lá encontra."
+
+#: apps/server/src/admission-email.ts
+msgid "To create your account, open {url} and paste the token."
+msgstr "Para criar a sua conta, abra {url} e cole o token."
 
 #. placeholder {0}: oidc.displayName
 #: apps/web/src/routes/join.tsx
@@ -10317,7 +10360,7 @@ msgstr "Consegue falar, mas não cantar"
 msgid "You can view these settings but cannot edit them."
 msgstr "Pode ver estas definições, mas não as pode editar."
 
-#: apps/native/utils/workspace-invitation.ts
+#: packages/api/src/presenters/workspace-invitation.ts
 msgid "You cannot use this invitation. Ask the workspace owner for a new one."
 msgstr "Não pode usar este convite. Peça um novo ao proprietário do espaço de trabalho."
 
@@ -10394,6 +10437,7 @@ msgid "You have joined the workspace."
 msgstr "Aderiu ao espaço de trabalho."
 
 #: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/my-invitations-view.tsx
 msgid "You have no pending workspace invitations."
 msgstr "Não tem convites pendentes para espaços de trabalho."
 
@@ -10516,9 +10560,30 @@ msgstr "O seu lembrete diário"
 msgid "Your decision about {title}"
 msgstr "A sua decisão sobre {title}"
 
+#: packages/email/src/templates/invitation-revoked.tsx
+msgid "Your invitation from {inviterName} to join {organizationName} has been revoked and can no longer be used."
+msgstr "O convite de {inviterName} para se juntar a {organizationName} foi revogado e já não pode ser utilizado."
+
+#: packages/email/src/templates/invitation-revoked.tsx
+msgid "Your invitation to {organizationName} has been revoked"
+msgstr "O seu convite para {organizationName} foi revogado"
+
+#: packages/email/src/templates/invitation-revoked.tsx
+msgid "Your invitation to {organizationName} is no longer active."
+msgstr "O seu convite para {organizationName} já não está ativo."
+
 #: apps/server/src/admission-email.ts
 msgid "Your invitation token is {token}."
 msgstr "O seu token de convite é {token}."
+
+#: apps/web/src/components/my-invitations-view.tsx
+msgid "Your invitations"
+msgstr "Os seus convites"
+
+#. placeholder {0}: invitations.length
+#: apps/web/src/components/my-invitations-view.tsx
+msgid "Your invitations · {0}"
+msgstr "Os seus convites · {0}"
 
 #: packages/api/src/presenters/insights.ts
 msgid "Your latest check-in for “{goalTitle}” moved away from your target."

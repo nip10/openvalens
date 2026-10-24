@@ -1,4 +1,6 @@
-import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
+import { msg } from "@lingui/core/macro";
+
+import { emailI18n, renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
 const APP_NAME = "Health";
 
@@ -13,23 +15,33 @@ export type RenderedInvitationRevokedEmail = {
   text: string;
 };
 
+/**
+ * Workspace invitation revoked, in the recipient's language (#231). The
+ * inviter and workspace names are user values and are not translated.
+ */
 export function renderInvitationRevokedEmail(
   input: InvitationRevokedEmailInput,
   options: EmailRenderOptions = {},
 ): RenderedInvitationRevokedEmail {
-  const subject = `Your invitation to ${input.organizationName} has been revoked`;
+  const i18n = emailI18n(options);
+  const { inviterName, organizationName } = input;
+  const appName = APP_NAME;
+
+  const subject = i18n._(msg`Your invitation to ${organizationName} has been revoked`);
   const bodyLines = [
-    `Your invitation from ${input.inviterName} to join ${input.organizationName} has been revoked and can no longer be used.`,
-    "If you still need access, contact your administrator.",
+    i18n._(
+      msg`Your invitation from ${inviterName} to join ${organizationName} has been revoked and can no longer be used.`,
+    ),
+    i18n._(msg`If you still need access, contact your administrator.`),
   ];
 
   const layout = renderLayout(
     {
-      title: "Invitation revoked",
-      preheader: `Your invitation to ${input.organizationName} is no longer active.`,
+      title: i18n._(msg`Invitation revoked`),
+      preheader: i18n._(msg`Your invitation to ${organizationName} is no longer active.`),
       bodyHtml: renderParagraphs(bodyLines),
       bodyText: bodyLines.join("\n\n"),
-      footerText: `This is an automated update from ${APP_NAME}.`,
+      footerText: i18n._(msg`This is an automated update from ${appName}.`),
     },
     options,
   );

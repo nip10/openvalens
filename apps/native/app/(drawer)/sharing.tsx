@@ -122,9 +122,13 @@ export default function SharingScreen() {
 function InviteForm() {
   const [email, setEmail] = useState("");
   const { t } = useLingui();
+  const queryClient = useQueryClient();
   const invite = useMutation(
     orpc.sharing.createInvitation.mutationOptions({
-      onSuccess: () => setEmail(""),
+      onSuccess: () => {
+        setEmail("");
+        void queryClient.invalidateQueries({ queryKey: orpc.sharing.listInvitations.key() });
+      },
     }),
   );
 
@@ -157,9 +161,25 @@ function InviteForm() {
           </Button>
         </View>
         {invite.isSuccess ? (
-          <Text className="text-sm text-success">
-            <Trans>Invitation saved.</Trans>
-          </Text>
+          invite.data.emailDelivery === "sent" ? (
+            <Text className="text-sm text-success" accessibilityLiveRegion="polite">
+              <Trans>Invitation sent by email.</Trans>
+            </Text>
+          ) : invite.data.emailDelivery === "unavailable" ? (
+            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              <Trans>
+                Invitation saved, but email is not configured on this server, so no email was sent.
+                Ask them to open Sharing (or Invitations in the mobile app) to accept it.
+              </Trans>
+            </Text>
+          ) : (
+            <Text className="text-sm text-destructive" accessibilityLiveRegion="polite">
+              <Trans>
+                Invitation saved, but the email could not be sent. Ask them to open Sharing (or
+                Invitations in the mobile app) to accept it.
+              </Trans>
+            </Text>
+          )
         ) : invite.isError ? (
           <Text className="text-sm text-destructive">
             <Trans>Could not send invite. Email may already be pending.</Trans>

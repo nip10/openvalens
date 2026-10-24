@@ -1,5 +1,6 @@
 /**
- * Issue #133 — native workspace invitation acceptance.
+ * Issue #133 — workspace invitation acceptance, shared by native
+ * (`(drawer)/invitations`) and web (the sharing page's "Your invitations").
  *
  * A signed-in recipient lists the invitations addressed to their own session
  * email and then accepts or declines one through the protected Better Auth

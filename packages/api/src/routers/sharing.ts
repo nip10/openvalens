@@ -1,10 +1,15 @@
 import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
 import { hasExistingAccount } from "@openvalens/auth/authz/existing-account";
 import { AuthzHttpError, requireOrgMembership } from "@openvalens/auth/authz/guard";
-import { invitation, member, user } from "@openvalens/db/schema/auth";
+import {
+  INVITATION_EXPIRES_IN_SECONDS,
+  type InvitationEmailDelivery,
+} from "@openvalens/auth/invitation-email";
+import { invitation, member, organization, user } from "@openvalens/db/schema/auth";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
+import type { Context } from "../context";
 import { protectedProcedure, raiseApiError, validateInput } from "../index";
 
 /**
@@ -38,6 +43,24 @@ const invitationShape = z.object({
   inviterId: z.string().nullable(),
   createdAt: z.string(),
 });
+
+/**
+ * Issue #243 — what happened to the invitation email, so the inviter is told
+ * when nothing was sent. `unavailable`: email is not configured on this server
+ * (dry run); the invitee still sees the invitation under Invitations in the
+ * app. `failed`: the provider failed; the invitation row still stands.
+ */
+const emailDeliveryShape = z.enum(["sent", "unavailable", "failed"]);
+
+const createdInvitationShape = invitationShape.extend({ emailDelivery: emailDeliveryShape });
+
+async function organizationName(db: Context["db"], organizationId: string): Promise<string> {
+  const [row] = await db
+    .select({ name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, organizationId));
+  return row?.name ?? "";
+}
 
 async function resolveAuthz(honoContext: unknown) {
   try {
@@ -156,7 +179,7 @@ export const sharingRouter = {
   createInvitation: protectedProcedure
     .use(validateInput(createInvitationInput))
     .input(createInvitationInput)
-    .output(invitationShape)
+    .output(createdInvitationShape)
     .handler(async ({ input, context }) => {
       const { authz } = await resolveAuthz(context.honoContext);
       ensureOwner(authz.role);
@@ -171,8 +194,8 @@ export const sharingRouter = {
           "That email does not belong to an existing account.",
         );
       }
-      // Two-day invitation window (mirrors the Better Auth org plugin).
-      const expiresAt = new Date(Date.now() + 2 * 86_400_000);
+      // Two-day invitation window (shared with the Better Auth org plugin).
+      const expiresAt = new Date(Date.now() + INVITATION_EXPIRES_IN_SECONDS * 1000);
       const id = `${organizationId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
       const [row] = await context.db
         .insert(invitation)
@@ -203,6 +226,18 @@ export const sharingRouter = {
         targetId: id,
         metadata: { email: input.email, role: input.role },
       });
+      // Issue #243 — the row bypasses Better Auth, so send its invitation
+      // email here, through the same composer. Best-effort: the row stands
+      // whatever the outcome, and the inviter is told what happened.
+      const emailDelivery: InvitationEmailDelivery = context.invitationEmails
+        ? await context.invitationEmails.sendInvitation({
+            recipient: row.email,
+            invitationId: row.id,
+            role: row.role,
+            organizationName: await organizationName(context.db, organizationId),
+            inviter: { id: inviterId, name: authz.user.name, email: authz.user.email },
+          })
+        : "unavailable";
       return {
         id: row.id,
         email: row.email,
@@ -211,6 +246,7 @@ export const sharingRouter = {
         expiresAt: row.expiresAt.toISOString(),
         inviterId: row.inviterId,
         createdAt: row.createdAt.toISOString(),
+        emailDelivery,
       };
     }),
 
@@ -221,8 +257,13 @@ export const sharingRouter = {
     .handler(async ({ input, context }) => {
       const { authz } = await resolveAuthz(context.honoContext);
       ensureOwner(authz.role);
-      const existing = await context.db
-        .select({ id: invitation.id })
+      const [existing] = await context.db
+        .select({
+          id: invitation.id,
+          email: invitation.email,
+          status: invitation.status,
+          expiresAt: invitation.expiresAt,
+        })
         .from(invitation)
         .where(
           and(
@@ -230,7 +271,7 @@ export const sharingRouter = {
             eq(invitation.organizationId, authz.activeOrganizationId),
           ),
         );
-      if (existing.length === 0) return { revoked: false };
+      if (!existing) return { revoked: false };
       await context.db.delete(invitation).where(eq(invitation.id, input.id));
       await auditSharing({
         db: context.db,
@@ -240,6 +281,20 @@ export const sharingRouter = {
         targetId: input.id,
         metadata: {},
       });
+      // Issue #243 — tell the invitee only when the invitation they were sent
+      // was still usable; a canceled or expired one needs no follow-up.
+      if (
+        context.invitationEmails &&
+        existing.status === "pending" &&
+        existing.expiresAt.getTime() > Date.now()
+      ) {
+        await context.invitationEmails.sendRevoked({
+          recipient: existing.email,
+          invitationId: existing.id,
+          organizationName: await organizationName(context.db, authz.activeOrganizationId),
+          revokedBy: { id: authz.user.id, name: authz.user.name, email: authz.user.email },
+        });
+      }
       return { revoked: true };
     }),
 

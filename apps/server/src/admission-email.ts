@@ -22,7 +22,22 @@ import {
  *   English. The person may have no account yet.
  * - invitation: the recipient's saved language when they already have an
  *   account, else the issuing administrator's.
+ *
+ * Issue #243 — the invitation also links to this instance's web `/join` page
+ * (from `CORS_ORIGIN`), where the token is pasted. The token is deliberately
+ * not put in that link: a URL ends up in browser history, proxy and server
+ * logs and referrers, so the bearer stays in the body only.
  */
+
+/** `scheme://host[:port]` of the web app, or `null` when it cannot be parsed. */
+function joinUrlFrom(webOrigin: string | undefined): string | null {
+  if (!webOrigin) return null;
+  try {
+    return `${new URL(webOrigin).origin}/join`;
+  } catch {
+    return null;
+  }
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -36,8 +51,11 @@ function escapeHtml(value: string): string {
 export function createAdmissionEmailDelivery(deps: {
   email: Pick<EmailService, "sendEmail">;
   locales: MessageLocales;
+  /** The web app origin (`CORS_ORIGIN`); absent or unparseable omits the link. */
+  webOrigin?: string;
 }): { deliverVerification: DeliverVerification; deliverInvitation: DeliverInvitation } {
   const { email, locales } = deps;
+  const joinUrl = joinUrlFrom(deps.webOrigin);
 
   const deliverVerification: DeliverVerification = async ({
     email: recipient,
@@ -69,11 +87,17 @@ export function createAdmissionEmailDelivery(deps: {
     const i18n = serverI18n(await localeForInvitee(locales, recipient, inviterUserId));
     const invitedLine = i18n._(msg`You have been invited to OpenValens.`);
     const tokenLine = (token: string) => i18n._(msg`Your invitation token is ${token}.`);
+    const joinLine = (url: string) =>
+      i18n._(msg`To create your account, open ${url} and paste the token.`);
+    const joinText = joinUrl ? ` ${joinLine(joinUrl)}` : "";
+    const joinHtml = joinUrl
+      ? `<p>${joinLine(`<a href="${escapeHtml(joinUrl)}">${escapeHtml(joinUrl)}</a>`)}</p>`
+      : "";
     const result = await email.sendEmail({
       to: recipient,
       subject: i18n._(msg`You’re invited to OpenValens`),
-      text: `${invitedLine} ${tokenLine(invitationToken)}`,
-      html: `<p>${invitedLine}</p><p>${tokenLine(`<strong>${escapeHtml(invitationToken)}</strong>`)}</p>`,
+      text: `${invitedLine} ${tokenLine(invitationToken)}${joinText}`,
+      html: `<p>${invitedLine}</p><p>${tokenLine(`<strong>${escapeHtml(invitationToken)}</strong>`)}</p>${joinHtml}`,
       templateName: "admission-invitation",
       tags: ["admission-invitation"],
     });
