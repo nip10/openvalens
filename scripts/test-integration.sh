@@ -95,7 +95,9 @@ for suite in "${SUITES[@]}"; do
   if [ ! -f "$file" ]; then echo "missing suite $file" >&2; failed=1; continue; fi
   reset_db "$database"
   echo "::group::$file"
-  if ! env "$env_var=$PG_ADMIN_URL/$database" bun test "$file"; then failed=1; fi
+  # Each suite migrates a fresh database in beforeAll; with ~80 migrations that
+  # can pass bun's 5s hook default when Postgres is busy, so allow 30s.
+  if ! env "$env_var=$PG_ADMIN_URL/$database" bun test --timeout 30000 "$file"; then failed=1; fi
   echo "::endgroup::"
 done
 
