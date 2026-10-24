@@ -22,6 +22,7 @@ import { organization } from "better-auth/plugins/organization";
 
 import { ac, roles } from "./access/better-auth";
 import { maskEmailRecipient } from "./auth-logging";
+import { withActiveOrganization } from "./authz/auth-org";
 import { hasExistingAccount } from "./authz/existing-account";
 import { isInstanceAdmin } from "./authz/instance-admin";
 import { sendAuthMagicLink } from "./magic-link";
@@ -174,6 +175,21 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
           // Defence in depth behind `validateUserInfo`: never create a user row
           // from an SDK path.
           before: async () => false,
+        },
+      },
+      session: {
+        create: {
+          // Every session starts in a workspace, whichever client signed in
+          // (web, mobile app, OIDC). A failure is logged and sign-in goes on;
+          // the web bootstrap still repairs a session without one.
+          before: async (session) => {
+            try {
+              return { data: await withActiveOrganization(session, database) };
+            } catch (error) {
+              logger.error("auth.session.activate-workspace-failed", { error });
+              return;
+            }
+          },
         },
       },
     },

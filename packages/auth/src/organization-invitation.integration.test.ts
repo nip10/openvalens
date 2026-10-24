@@ -126,13 +126,6 @@ describe.skipIf(!url)("workspace invitation acceptance over HTTP", () => {
     );
   }
 
-  async function memberCount(userId: string): Promise<number> {
-    const rows = await db.execute(
-      sql`select count(*)::int as n from member where user_id = ${userId}`,
-    );
-    return Number((rows.rows[0] as { n: number }).n);
-  }
-
   beforeAll(async () => {
     const tables = await db.execute(
       sql`select tablename from pg_tables where schemaname = 'public'`,
@@ -205,7 +198,11 @@ describe.skipIf(!url)("workspace invitation acceptance over HTTP", () => {
       await db.execute(sql`select status from invitation where id = 'inv-decline'`)
     ).rows[0] as { status: string };
     expect(invitation.status).toBe("rejected");
-    expect(await memberCount("decliner-1")).toBe(0);
+    // Signing in gave the decliner their own workspace; they did not join org-1.
+    const joined = await db.execute(
+      sql`select 1 from member where user_id = 'decliner-1' and organization_id = 'org-1'`,
+    );
+    expect(joined.rows).toHaveLength(0);
   });
 
   test("a different account cannot accept the invitation", async () => {

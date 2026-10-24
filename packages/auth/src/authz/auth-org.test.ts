@@ -6,6 +6,7 @@ import {
   ensureActiveOrganization,
   personalWorkspaceSlug,
   slugifyUserId,
+  withActiveOrganization,
   type AuthOrgMember,
   type AuthOrgStore,
   type AuthOrgUser,
@@ -313,5 +314,42 @@ describe("createDrizzleAuthOrgStore", () => {
     expect(typeof store.createMember).toBe("function");
     expect(typeof store.createOnboardingState).toBe("function");
     expect(typeof store.writeAuditLog).toBe("function");
+  });
+});
+
+describe("withActiveOrganization", () => {
+  test("activates the user's existing workspace", async () => {
+    const store = createInMemoryAuthOrgStore();
+    store.seedUser({ id: "user-1", name: "Ana", email: "ana@example.test" });
+    await store.createMember({
+      id: "m-1",
+      organizationId: "org-1",
+      userId: "user-1",
+      role: "member",
+    });
+
+    const session = await withActiveOrganization({ id: "s-1", userId: "user-1" }, store);
+
+    expect(session).toEqual({ id: "s-1", userId: "user-1", activeOrganizationId: "org-1" });
+    expect(store.state().organizations.size).toBe(0);
+  });
+
+  test("creates the personal workspace for a user without one", async () => {
+    const store = createInMemoryAuthOrgStore();
+    store.seedUser({ id: "user-2", name: null, email: "bo@example.test" });
+
+    const session = await withActiveOrganization(
+      { id: "s-2", userId: "user-2", activeOrganizationId: null },
+      store,
+    );
+
+    expect(session.activeOrganizationId).toBe(store.state().memberships[0]!.organizationId);
+  });
+
+  test("keeps a workspace the session already names", async () => {
+    const store = createInMemoryAuthOrgStore();
+    const session = { id: "s-3", userId: "user-3", activeOrganizationId: "org-chosen" };
+    expect(await withActiveOrganization(session, store)).toEqual(session);
+    expect(store.state().memberships).toHaveLength(0);
   });
 });
