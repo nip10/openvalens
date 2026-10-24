@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { parseFdcFood } from "./fdc";
-import { readJsonLines } from "./jsonl";
+import { readJsonArrayItems, readJsonLines } from "./jsonl";
 import { parseOffProduct } from "./off";
 
 // Synthetic fixtures shaped like the upstream formats; no real records.
@@ -187,6 +187,50 @@ describe("readJsonLines", () => {
     const items: unknown[] = [];
     for await (const item of readJsonLines(chunks())) items.push(item);
     expect(items).toEqual([{ a: 1 }, { b: 2 }, null, { c: 3 }]);
+  });
+});
+
+describe("readJsonArrayItems", () => {
+  const collect = async (chunks: AsyncIterable<Uint8Array | string>) => {
+    const items: unknown[] = [];
+    for await (const item of readJsonArrayItems(chunks)) items.push(item);
+    return items;
+  };
+  async function* oneCharAtATime(text: string) {
+    for (const ch of text) yield new TextEncoder().encode(ch);
+  }
+
+  const document = `{"FoundationFoods": [
+{"fdcId":1,"description":"Bracket ] and brace } in \\"text\\"","foodNutrients":[{"amount":[1,2]}]},
+{"fdcId":2,"description":"Ünïcode ✓","inputFoods":[{"fdcId":3,"dataType":"Sample"}]},
+{"broken": },
+null
+]}`;
+  const expected = [
+    {
+      fdcId: 1,
+      description: 'Bracket ] and brace } in "text"',
+      foodNutrients: [{ amount: [1, 2] }],
+    },
+    { fdcId: 2, description: "Ünïcode ✓", inputFoods: [{ fdcId: 3, dataType: "Sample" }] },
+    null,
+    null,
+  ];
+
+  test("yields the items of the top-level object's array, keeping nested arrays inside", async () => {
+    expect(await collect(oneCharAtATime(document))).toEqual(expected);
+    async function* whole() {
+      yield document;
+    }
+    expect(await collect(whole())).toEqual(expected);
+  });
+
+  test("reads a top-level array and ignores anything after it", async () => {
+    async function* chunks() {
+      yield '[{"a":1}, "x", 2';
+      yield ', {"b":[3]}] {"ignored": true}';
+    }
+    expect(await collect(chunks())).toEqual([{ a: 1 }, "x", 2, { b: [3] }]);
   });
 });
 

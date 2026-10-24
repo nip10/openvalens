@@ -77,6 +77,7 @@ SUITES=(
   "ANALYTICS_TEST_DATABASE_URL|analytics_consent_test|apps/server/src/services/analytics.integration.test.ts"
   "EXERCISE_CATALOG_TEST_DATABASE_URL|exercise_catalog_test|apps/server/src/services/exercise-catalog.integration.test.ts"
   "EXERCISE_CATALOG_API_TEST_DATABASE_URL|exercise_catalog_api_test|packages/api/src/services/exercise-catalog.integration.test.ts"
+  "FOOD_CATALOG_CLI_TEST_DATABASE_URL|food_catalog_cli_test|scripts/food-catalog-import.integration.test.ts"
 )
 
 reset_db() {
@@ -100,7 +101,7 @@ done
 
 # Guard against suites added without being registered here.
 registered=$(printf '%s\n' "${SUITES[@]}" | cut -d'|' -f1 | sort -u)
-found=$(grep -rhoE 'process\.env\.[A-Z_]+_TEST_DATABASE_URL' packages apps --include='*.ts' | sed 's/process\.env\.//' | sort -u)
+found=$(grep -rhoE 'process\.env\.[A-Z_]+_TEST_DATABASE_URL' packages apps scripts --include='*.ts' | sed 's/process\.env\.//' | sort -u)
 missing=$(comm -13 <(echo "$registered") <(echo "$found"))
 if [ -n "$missing" ]; then echo "Unregistered integration suites: $missing" >&2; failed=1; fi
 

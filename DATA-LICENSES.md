@@ -36,7 +36,7 @@ every result carries its source, version, release and attribution.
   in the overlay table. On a hosted instance, offer these two tables under
   ODbL, or point to the method to regenerate them (§4.6b): run
   `scripts/food-catalog-import.ts` over the same OFF dump
-  (`openfoodfacts-products.jsonl`), then apply the overlay rows.
+  (`openfoodfacts-products.jsonl.gz`), then apply the overlay rows.
 - The notice above must appear on every OFF-backed product view and search
   result, in About/Settings and in export footers. Users' food logs are
   Produced Works; exports containing OFF-derived nutrient values carry the
@@ -50,8 +50,10 @@ every result carries its source, version, release and attribution.
 
 ### USDA FoodData Central (CC0)
 
-- Import a download (Foundation, SR Legacy, Survey or Branded) flattened to
-  JSON Lines, for example `jq -c '.FoundationFoods[]' <download>.json`.
+- Import a download (Foundation, SR Legacy, Survey or Branded) as published:
+  the importer streams the items of the JSON file or its `.zip`. Self-hosters
+  use `deploy/setup.sh catalogs` (see
+  [Food catalogs](docs/self-hosting/food-catalogs.md)).
 - No attribution is legally required under CC0; USDA requests it and the app
   always shows it.
 

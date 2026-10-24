@@ -1,6 +1,6 @@
 # Self-hosting OpenValens
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
 
 These pages describe how to run your own OpenValens instance with the one
 supported install: the Docker Compose stack in `deploy/`, driven by
@@ -24,6 +24,7 @@ so.
 | ------------------------------------------- | ------------------------------------------------------------------------ |
 | [Install](install.md)                       | Requirements, `deploy/setup.sh install`, first administrator, verifying. |
 | [Configuration](configuration.md)           | `deploy/.env`, optional providers, product settings, scheduled jobs.     |
+| [Food catalogs](food-catalogs.md)           | Importing USDA and Open Food Facts data for food search and barcodes.    |
 | [Upgrading](upgrading.md)                   | `deploy/setup.sh upgrade`, failures, rolling back.                       |
 | [Backups](backup.md)                        | The pre-migrate dump, its limits, an interim manual restore.             |
 | [Email](email.md)                           | Resend setup (the only email transport).                                 |

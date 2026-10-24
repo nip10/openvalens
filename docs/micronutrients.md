@@ -18,8 +18,10 @@ vitamin B12. It is general information from their own logs, not a diagnosis.
 
 ## Unknown is not zero
 
-Food values come from the catalog (FDC, Open Food Facts) and are stored per
-food and copied into the snapshot at logging time (part 1, PR #216). A food
+Food values come from the catalogs (FDC, Open Food Facts), once the operator
+has imported them ([Food catalogs](self-hosting/food-catalogs.md)), or from
+the member's custom foods. They are stored per food and copied into the
+snapshot at logging time (part 1, PR #216). A food
 that doesn't report a nutrient stores `NULL`. For each nutrient the summary
 shows:
 

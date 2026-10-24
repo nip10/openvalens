@@ -63,6 +63,8 @@ apps/web/security-headers/
 # Issue #63 — self-host install state written by deploy/setup.sh
 deploy/secrets/
 deploy/hooks/pre-migrate
+# Food catalog downloads written by deploy/setup.sh catalogs (multi-GB, never committed)
+deploy/catalogs/
 
 # Issue #62 — default local object storage directory (STORAGE_LOCAL_DIR)
 .data/
