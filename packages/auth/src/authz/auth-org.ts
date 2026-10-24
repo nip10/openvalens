@@ -273,8 +273,12 @@ export async function ensureActiveOrganization(
  */
 export async function withActiveOrganization<
   S extends { userId: string; activeOrganizationId?: string | null },
->(session: S, source: Database | AuthOrgStore): Promise<S> {
-  if (session.activeOrganizationId) return session;
+>(
+  session: S,
+  source: Database | AuthOrgStore,
+): Promise<Omit<S, "activeOrganizationId"> & { activeOrganizationId: string }> {
+  const current = session.activeOrganizationId;
+  if (current) return { ...session, activeOrganizationId: current };
   const { organizationId } = await ensureActiveOrganization(session.userId, source);
   return { ...session, activeOrganizationId: organizationId };
 }

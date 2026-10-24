@@ -349,6 +349,7 @@ describe("withActiveOrganization", () => {
   test("keeps a workspace the session already names", async () => {
     const store = createInMemoryAuthOrgStore();
     const session = { id: "s-3", userId: "user-3", activeOrganizationId: "org-chosen" };
-    expect(await withActiveOrganization(session, store)).toBe(session);
+    expect(await withActiveOrganization(session, store)).toEqual(session);
+    expect(store.state().memberships).toHaveLength(0);
   });
 });
