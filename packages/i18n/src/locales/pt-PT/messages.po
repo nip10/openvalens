@@ -844,6 +844,11 @@ msgstr "Uma referência definida por si. Opcional."
 msgid "A workspace"
 msgstr "Um espaço de trabalho"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/about-section.tsx
+msgid "About"
+msgstr "Sobre"
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "About 1 in 4 people in that group had a resting pulse above {upper} bpm."
 msgstr "Cerca de 1 em cada 4 pessoas desse grupo tinha uma pulsação em repouso acima de {upper} bpm."
@@ -6382,6 +6387,11 @@ msgstr "Abrir o seu perfil"
 msgid "Opens {sourceName} permissions"
 msgstr "Abre as permissões de {sourceName}"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/about-section.tsx
+msgid "OpenValens is free software under the GNU Affero General Public License, version 3 or later."
+msgstr "O OpenValens é software livre, distribuído sob a Licença Pública Geral GNU Affero, versão 3 ou posterior."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "OpenValens shows public information from these authorities. They have not reviewed or endorsed this app."
 msgstr "O OpenValens mostra informação pública destas autoridades. Estas não reviram nem aprovaram esta aplicação."
@@ -8210,6 +8220,15 @@ msgstr "Algo correu mal. Tente novamente."
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Source"
 msgstr "Fonte"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Source code for this app"
+msgstr "Código-fonte desta aplicação"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/about-section.tsx
+msgid "Source code for this server"
+msgstr "Código-fonte deste servidor"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx

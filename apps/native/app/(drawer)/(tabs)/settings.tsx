@@ -19,11 +19,12 @@ import {
   type CoachTemplateId,
   type CoachTone,
 } from "@openvalens/api/presenters/coach-settings";
+import { UPSTREAM_SOURCE_CODE_URL } from "@openvalens/api/source-code";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Chip, useThemeColor } from "heroui-native";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Linking, Pressable, Text, TextInput, View } from "react-native";
 
 import { CardStack, ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
@@ -163,6 +164,8 @@ export default function SettingsScreen() {
         </Pressable>
 
         {session?.user && <DeleteAccountSection onSignOut={handleSignOut} />}
+
+        <AboutSection />
       </View>
     </Container>
   );
@@ -258,6 +261,45 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
           </>
         )}
         {error && <Text className="text-sm text-destructive">{error}</Text>}
+      </Card>
+    </CardStack>
+  );
+}
+
+/**
+ * Licence notice and source links (Issue #56): the server's source, which
+ * AGPL-3.0 section 13 requires it to offer, and this app's own source, which
+ * LICENSE-APP-STORE requires an app-store build to point to.
+ */
+function AboutSection() {
+  const about = useQuery(orpc.about.info.queryOptions({ input: {} }));
+  const foreground = useThemeColor("foreground");
+  const { t } = useLingui();
+  const serverSource = about.data?.sourceCodeUrl;
+
+  return (
+    <CardStack title={t`About`}>
+      <Card variant="secondary" className="overflow-hidden p-0">
+        <Text className="px-4 pt-4 pb-2 text-sm text-muted-foreground">
+          <Trans>
+            OpenValens is free software under the GNU Affero General Public License, version 3 or
+            later.
+          </Trans>
+        </Text>
+        <ListRow
+          icon={<Ionicons name="phone-portrait-outline" size={20} color={foreground} />}
+          title={t`Source code for this app`}
+          subtitle={UPSTREAM_SOURCE_CODE_URL}
+          onPress={() => void Linking.openURL(UPSTREAM_SOURCE_CODE_URL)}
+        />
+        {serverSource ? (
+          <ListRow
+            icon={<Ionicons name="server-outline" size={20} color={foreground} />}
+            title={t`Source code for this server`}
+            subtitle={serverSource}
+            onPress={() => void Linking.openURL(serverSource)}
+          />
+        ) : null}
       </Card>
     </CardStack>
   );

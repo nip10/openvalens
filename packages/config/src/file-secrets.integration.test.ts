@@ -257,6 +257,7 @@ describe("actual server schema sensitive coverage", () => {
           "SENTRY_DSN",
           "SENTRY_ENVIRONMENT",
           "SENTRY_RELEASE",
+          "SOURCE_CODE_URL",
           "STORAGE_LOCAL_DIR",
           "STORAGE_MAX_OBJECT_BYTES",
           "STORAGE_PROVIDER",

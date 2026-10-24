@@ -42,6 +42,9 @@ x-server-env: &server-env
   # default; `report-only` is the operator rollback. Also passed to `web`.
   CSP_MODE: ${CSP_MODE:-enforce}
   API_MAX_BODY_BYTES: ${API_MAX_BODY_BYTES:-1048576}
+  # Source code link shown to users (AGPL-3.0 section 13). Point it at your
+  # fork's public repository if you run a modified version.
+  SOURCE_CODE_URL: ${SOURCE_CODE_URL:-https://github.com/nip10/openvalens}
   EMAIL_FROM: ${EMAIL_FROM:?run deploy/setup.sh first}
   EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
   EMAIL_AUDIT_BCC_FILE: ${EMAIL_AUDIT_BCC_FILE:-}

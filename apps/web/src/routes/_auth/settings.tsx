@@ -36,6 +36,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { AboutSection } from "@/components/about-section";
 import { AiConsentSection } from "@/components/ai-consent-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
@@ -66,6 +67,7 @@ function SettingsPage() {
         <CoachSection />
         <AiConsentSection />
         <DeleteAccountSection />
+        <AboutSection />
       </div>
     </div>
   );
