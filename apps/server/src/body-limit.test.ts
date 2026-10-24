@@ -8,7 +8,15 @@ import {
   type StructuredLogger,
 } from "@openvalens/observability";
 
-import { DEFAULT_MAX_BODY_BYTES, bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
+import { PHOTO_UPLOAD_MAX_BYTES } from "@openvalens/api/photo-upload";
+
+import {
+  DEFAULT_MAX_BODY_BYTES,
+  UPLOAD_MAX_BODY_BYTES,
+  UPLOAD_ROUTE_PATHS,
+  bodyLimitMiddleware,
+  resolveMaxBodyBytes,
+} from "./body-limit";
 
 /**
  * Bounded HTTP coverage for the body-size limit (Issue #126).
@@ -273,5 +281,178 @@ describe("bodyLimitMiddleware — PHI safety", () => {
     const serialized = JSON.stringify(logs);
     expect(serialized).not.toContain(secret);
     expect(serialized).not.toContain("PHI_TOKEN");
+  });
+});
+
+/**
+ * Route-specific upload cap (progress photos #85, meal photos #71). Uses the
+ * production numbers: 1 MiB everywhere, `UPLOAD_MAX_BODY_BYTES` for exactly
+ * the paths in `UPLOAD_ROUTE_PATHS`.
+ */
+describe("bodyLimitMiddleware — upload routes", () => {
+  const MiB = 1024 * 1024;
+  const UPLOAD = "/rpc/privateBody/uploadPhoto";
+
+  function buildRouteApp(logger: StructuredLogger, maxBytes = DEFAULT_MAX_BODY_BYTES): Hono {
+    const app = new Hono();
+    app.use(
+      bodyLimitMiddleware({
+        maxBytes,
+        logger,
+        routeLimits: { paths: UPLOAD_ROUTE_PATHS, maxBytes: UPLOAD_MAX_BODY_BYTES },
+      }),
+    );
+    // Echo the received byte count and the path the router saw.
+    app.all("*", async (c) => {
+      const bytes = (await c.req.arrayBuffer()).byteLength;
+      return c.json({ bytes, path: c.req.path });
+    });
+    return app;
+  }
+
+  function post(app: Hono, path: string, size: number, init: RequestInit = {}) {
+    return app.request(`http://localhost${path}`, {
+      method: "POST",
+      body: new Uint8Array(size),
+      ...init,
+    });
+  }
+
+  test("the upload cap covers a 10 MiB photo plus framing and nothing much more", () => {
+    expect(UPLOAD_MAX_BODY_BYTES).toBeGreaterThan(PHOTO_UPLOAD_MAX_BYTES);
+    expect(UPLOAD_MAX_BODY_BYTES).toBe(11 * MiB);
+    expect([...UPLOAD_ROUTE_PATHS].sort()).toEqual([
+      "/rpc/nutritionFoodDrafts/parsePhoto",
+      "/rpc/privateBody/uploadPhoto",
+    ]);
+  });
+
+  for (const path of UPLOAD_ROUTE_PATHS) {
+    test(`${path} accepts a 9 MB body`, async () => {
+      const { logger, logs } = capturingLogger();
+      const res = await post(buildRouteApp(logger), path, 9_000_000);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ bytes: 9_000_000, path });
+      expect(logs.filter((entry) => entry.event === "api.body.rejected")).toHaveLength(0);
+    });
+
+    test(`${path} accepts a body exactly at its cap and rejects one byte more`, async () => {
+      const { logger, logs } = capturingLogger();
+      const app = buildRouteApp(logger);
+      expect((await post(app, path, UPLOAD_MAX_BODY_BYTES)).status).toBe(200);
+      const res = await post(app, path, UPLOAD_MAX_BODY_BYTES + 1);
+      expect(res.status).toBe(413);
+      expect(await readJson(res)).toEqual({ error: "PAYLOAD_TOO_LARGE" });
+      const rejection = logs.find((entry) => entry.event === "api.body.rejected");
+      expect(rejection?.limitBytes).toBe(UPLOAD_MAX_BODY_BYTES);
+      expect(rejection?.route).toBe("upload");
+    });
+  }
+
+  test("an upload path rejects a chunked body over its cap", async () => {
+    const { logger } = capturingLogger();
+    const chunk = new Uint8Array(MiB);
+    let sent = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent >= 12) return controller.close();
+        sent += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const res = await buildRouteApp(logger).request(`http://localhost${UPLOAD}`, {
+      method: "POST",
+      body: stream,
+    });
+    expect(res.status).toBe(413);
+  });
+
+  test("other paths keep the 1 MiB cap", async () => {
+    const { logger, logs } = capturingLogger();
+    const app = buildRouteApp(logger);
+    expect((await post(app, "/rpc/privateBody/create", DEFAULT_MAX_BODY_BYTES)).status).toBe(200);
+    for (const path of ["/rpc/privateBody/create", "/api/auth/sign-in/email", "/"]) {
+      expect((await post(app, path, DEFAULT_MAX_BODY_BYTES + 1)).status).toBe(413);
+    }
+    const rejection = logs.find((entry) => entry.event === "api.body.rejected");
+    expect(rejection?.limitBytes).toBe(DEFAULT_MAX_BODY_BYTES);
+    expect(rejection?.route).toBe("default");
+  });
+
+  test("path tricks never get the upload cap", async () => {
+    const { logger } = capturingLogger();
+    const app = buildRouteApp(logger);
+    const tricks = [
+      // Trailing slash, case and prefix collisions.
+      `${UPLOAD}/`,
+      "/rpc/privatebody/uploadphoto",
+      "/RPC/privateBody/uploadPhoto",
+      `${UPLOAD}X`,
+      `${UPLOAD}/extra`,
+      "/rpc/privateBody/uploadPhot",
+      `/x${UPLOAD}`,
+      "/api-reference/privateBody/uploadPhoto",
+      // Dot segments that leave the upload path once resolved.
+      `${UPLOAD}/../create`,
+      `${UPLOAD}/./..`,
+      // Encoded separators and dots are not decoded into a match.
+      "/rpc/privateBody%2FuploadPhoto",
+      "/rpc/privateBody/upload%50hoto",
+      `${UPLOAD}%2F..%2Fcreate`,
+      // The upload path smuggled into the query string or fragment.
+      `/rpc/privateBody/create?path=${UPLOAD}`,
+      `/rpc/privateBody/create?${UPLOAD}`,
+      `/rpc/privateBody/create#${UPLOAD}`,
+      `/rpc/privateBody/create;${UPLOAD}`,
+    ];
+    for (const path of tricks) {
+      const res = await post(app, path, 2 * MiB);
+      expect({ path, status: res.status }).toEqual({ path, status: 413 });
+    }
+  });
+
+  test("only POST gets the upload cap", async () => {
+    const { logger } = capturingLogger();
+    const app = buildRouteApp(logger);
+    const res = await post(app, UPLOAD, 2 * MiB, { method: "PUT" });
+    expect(res.status).toBe(413);
+  });
+
+  test("a query string on the upload path itself does not change the cap", async () => {
+    // oRPC ignores the query when routing, so this is still the upload
+    // procedure; the cap follows the routed pathname.
+    const { logger } = capturingLogger();
+    const app = buildRouteApp(logger);
+    expect((await post(app, `${UPLOAD}?a=1`, 2 * MiB)).status).toBe(200);
+    expect((await post(app, `${UPLOAD}?a=1`, UPLOAD_MAX_BODY_BYTES + 1)).status).toBe(413);
+  });
+
+  test("a dot segment that resolves onto the upload path is treated as that path", async () => {
+    // `new URL` (and oRPC's router) resolve `..` first, so this request IS
+    // routed to the upload procedure; it gets that procedure's cap, no more.
+    const { logger } = capturingLogger();
+    const app = buildRouteApp(logger);
+    const path = "/rpc/privateBody/create/../uploadPhoto";
+    const ok = await post(app, path, 2 * MiB);
+    expect(ok.status).toBe(200);
+    expect(((await ok.json()) as { path: string }).path).toBe(UPLOAD);
+    expect((await post(app, path, UPLOAD_MAX_BODY_BYTES + 1)).status).toBe(413);
+  });
+
+  test("a global cap set above the upload cap still applies to upload paths", async () => {
+    const { logger } = capturingLogger();
+    const app = buildRouteApp(logger, 16 * MiB);
+    expect((await post(app, UPLOAD, 12 * MiB)).status).toBe(200);
+  });
+
+  test("rejects a non-positive route cap at construction", () => {
+    const { logger } = capturingLogger();
+    expect(() =>
+      bodyLimitMiddleware({
+        maxBytes: LIMIT,
+        logger,
+        routeLimits: { paths: [UPLOAD], maxBytes: 0 },
+      }),
+    ).toThrow(/routeLimits\.maxBytes/);
   });
 });

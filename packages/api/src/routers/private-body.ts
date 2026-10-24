@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { permissionedProcedure, raiseApiError, validateInput } from "../index";
+import { PHOTO_UPLOAD_MAX_BYTES } from "../photo-upload";
 import { requireProfileOwner } from "../wellness-profile";
 
 const empty = z.strictObject({});
@@ -44,7 +45,7 @@ const photoList = z.object({
   photos: z.array(photo),
 });
 /** Upload limit before decoding; the sanitizer enforces the same bound. */
-export const PROGRESS_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+export const PROGRESS_PHOTO_MAX_BYTES = PHOTO_UPLOAD_MAX_BYTES;
 const uploadPhotoInput = z.strictObject({
   photo: z
     .instanceof(Blob)

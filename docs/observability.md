@@ -110,8 +110,10 @@ requires a server restart.
 
 - **Request body-size enforcement** — done in #126: `bodyLimitMiddleware`
   (`apps/server/src/body-limit.ts`) rejects bodies over `API_MAX_BODY_BYTES`
-  (default 1 MiB) with `413`. The CSP sink keeps its tighter 16 KiB inline cap
-  from #127.
+  (default 1 MiB) with `413`. The photo upload procedures listed in
+  `UPLOAD_ROUTE_PATHS` get an 11 MiB cap instead; rejection log lines carry
+  `route: "default" | "upload"` and the `limitBytes` applied. The CSP sink keeps
+  its tighter 16 KiB inline cap from #127.
 - **Per-route header overrides** — headers are global for now.
 
 ## 6. Violation reporting

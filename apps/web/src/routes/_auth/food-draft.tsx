@@ -4,6 +4,7 @@ import {
   FOOD_DRAFT_FLAG_LABELS,
   PHOTO_DRAFT_COPY,
 } from "@openvalens/api/presenters/food-draft";
+import { isPayloadTooLarge, photoUploadProblem } from "@openvalens/api/photo-upload";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -38,6 +39,8 @@ function withFlags(flags: Flag[], cleared: Flag[], added: Flag | null): Flag[] {
  */
 const DRAFT_FAILED = msg`Could not make a draft. Nothing was saved.`;
 const DRAFT_DISCARDED = msg`Draft discarded. Nothing was saved.`;
+const PHOTO_TOO_LARGE = msg`This photo is larger than 10 MB. Choose a smaller JPEG or PNG.`;
+const PHOTO_WRONG_TYPE = msg`Use a JPEG or PNG photo up to 10 MB.`;
 
 function FoodDraftPage() {
   const [transcript, setTranscript] = useState("");
@@ -88,7 +91,7 @@ function FoodDraftPage() {
       setCandidates(result.status === "ready" ? result.candidates : null);
       setPhotoMessage(PHOTO_DRAFT_COPY.status[result.status]);
     },
-    onError: () => setPhotoMessage(DRAFT_FAILED),
+    onError: (error) => setPhotoMessage(isPayloadTooLarge(error) ? PHOTO_TOO_LARGE : DRAFT_FAILED),
   });
   const providerName = provider.data?.host
     ? `${provider.data.provider} (${provider.data.host})`
@@ -195,8 +198,16 @@ function FoodDraftPage() {
                 type="file"
                 accept="image/jpeg,image/png"
                 onChange={(event) => {
-                  setPhoto(event.target.files?.[0] ?? null);
+                  const file = event.target.files?.[0] ?? null;
+                  // Checked before sending so a large phone photo gets a clear
+                  // message instead of a failed upload; the server enforces
+                  // the same limits.
+                  const problem = file ? photoUploadProblem(file) : null;
+                  setPhoto(problem ? null : file);
                   setPhotoAgreed(false);
+                  setPhotoMessage(
+                    problem === "too_large" ? PHOTO_TOO_LARGE : problem ? PHOTO_WRONG_TYPE : null,
+                  );
                 }}
               />
             </div>

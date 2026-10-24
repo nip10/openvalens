@@ -27,7 +27,12 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
-import { bodyLimitMiddleware, resolveMaxBodyBytes } from "./body-limit";
+import {
+  UPLOAD_MAX_BODY_BYTES,
+  UPLOAD_ROUTE_PATHS,
+  bodyLimitMiddleware,
+  resolveMaxBodyBytes,
+} from "./body-limit";
 import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
 import { createContext } from "./context";
 import { reportError } from "./error-reporting";
@@ -98,10 +103,13 @@ app.use(
 // Better Auth catch-all, the Telegram webhook or any future handler sees
 // them. `API_MAX_BODY_BYTES` is schema-validated and falls back to
 // `DEFAULT_MAX_BODY_BYTES` (1 MiB) when the value is missing or invalid.
+// The photo upload procedures (`UPLOAD_ROUTE_PATHS`) alone get the larger
+// `UPLOAD_MAX_BODY_BYTES` cap (10 MiB photo + framing).
 app.use(
   bodyLimitMiddleware({
     maxBytes: resolveMaxBodyBytes(ENV.API_MAX_BODY_BYTES),
     logger,
+    routeLimits: { paths: UPLOAD_ROUTE_PATHS, maxBytes: UPLOAD_MAX_BODY_BYTES },
   }),
 );
 

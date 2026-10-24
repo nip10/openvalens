@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { isPayloadTooLarge, photoUploadProblem } from "@openvalens/api/photo-upload";
 import { Button } from "@openvalens/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Label } from "@openvalens/ui/components/label";
@@ -12,8 +13,6 @@ import { client } from "@/utils/orpc";
  * Photos are re-encoded on the server (metadata such as GPS is removed) and
  * are only ever loaded through the authenticated API, never a shareable link.
  */
-
-const MAX_BYTES = 10 * 1024 * 1024;
 
 type Subject = { userId: string; organizationId: string };
 
@@ -33,7 +32,12 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
       if (fileRef.current) fileRef.current.value = "";
       refresh();
     },
-    onError: () => setNotice(t`Could not save this photo. Use a JPEG or PNG up to 10 MB.`),
+    onError: (error) =>
+      setNotice(
+        isPayloadTooLarge(error)
+          ? t`This photo is larger than 10 MB. Choose a smaller JPEG or PNG.`
+          : t`Could not save this photo. Use a JPEG or PNG up to 10 MB.`,
+      ),
   });
   const remove = useMutation({
     mutationFn: (objectId: string) => client.storage.delete({ objectId }),
@@ -46,7 +50,14 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
 
   const choose = (file: File | undefined) => {
     if (!file) return;
-    if (file.size > MAX_BYTES || !["image/jpeg", "image/png"].includes(file.type)) {
+    // Checked before sending so a large phone photo gets a clear message
+    // instead of a failed upload; the server enforces the same limits.
+    const problem = photoUploadProblem(file);
+    if (problem === "too_large") {
+      setNotice(t`This photo is larger than 10 MB. Choose a smaller JPEG or PNG.`);
+      return;
+    }
+    if (problem) {
       setNotice(t`Use a JPEG or PNG photo up to 10 MB.`);
       return;
     }

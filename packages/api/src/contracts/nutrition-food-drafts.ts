@@ -1,9 +1,12 @@
 import { z } from "zod";
 
+import { PHOTO_UPLOAD_MAX_BYTES } from "../photo-upload";
+
 /**
  * `nutritionFoodDrafts.*` wire contract (Issue #73): turning a spoken or typed
  * meal description into unresolved food candidates. Shared by the server
- * router, `apps/web` and `apps/native`, so this file imports only `zod`.
+ * router, `apps/web` and `apps/native`, so this file imports only `zod` and
+ * the import-free `../photo-upload` limits.
  *
  * Audio never reaches the server: the device transcribes. A draft is never
  * stored and never carries nutrient values; the member matches each
@@ -64,7 +67,7 @@ export const parseFoodDraftOutput = z.object({
 export type ParseFoodDraftOutput = z.infer<typeof parseFoodDraftOutput>;
 
 /** Upload limit before decoding; the sanitizer enforces the same bound. */
-export const FOOD_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+export const FOOD_PHOTO_MAX_BYTES = PHOTO_UPLOAD_MAX_BYTES;
 
 /**
  * `nutritionFoodDrafts.parsePhoto` (Issue #71). The photo is decoded and

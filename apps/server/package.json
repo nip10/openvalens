@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@openvalens/data-rights": "workspace:*",
+    "@orpc/client": "catalog:",
     "@types/bun": "catalog:",
     "tsdown": "^0.23.0",
     "typescript": "^6.0.3"
