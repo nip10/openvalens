@@ -2,6 +2,11 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
 
 import { clearRegisteredAuth, setRegisteredAuth, type Auth } from "@openvalens/auth";
+import type {
+  WorkspaceInvitationEmailInput,
+  WorkspaceInvitationEmails,
+  WorkspaceInvitationRevokedEmailInput,
+} from "@openvalens/auth/invitation-email";
 import { createDb, sql, type Database } from "@openvalens/db";
 
 import type { Context } from "../context";
@@ -12,7 +17,27 @@ import { appRouter } from "./index";
  * disposable PostgreSQL with a fake registered auth session. Proves that an
  * unknown recipient is denied before any row/audit change and that an existing
  * recipient is invited with the two-day window.
+ *
+ * Issue #243 — creating an invitation sends the invitation email through the
+ * shared composer and reports the outcome; revoking a pending one sends the
+ * revoked email.
  */
+
+function fakeInvitationEmails(outcome: "sent" | "unavailable" | "failed" = "sent") {
+  const invites: WorkspaceInvitationEmailInput[] = [];
+  const revokes: WorkspaceInvitationRevokedEmailInput[] = [];
+  const emails: WorkspaceInvitationEmails = {
+    sendInvitation: async (input) => {
+      invites.push(input);
+      return outcome;
+    },
+    sendRevoked: async (input) => {
+      revokes.push(input);
+      return outcome;
+    },
+  };
+  return { emails, invites, revokes };
+}
 
 const url = process.env.ADMISSION_AUTH_TEST_DATABASE_URL;
 
@@ -59,8 +84,9 @@ const fakeAuth = {
 describe.skipIf(!url)("sharing.createInvitation against disposable PostgreSQL", () => {
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/admission_sharing_test" });
 
-  function context(): Context {
+  function context(invitationEmails?: WorkspaceInvitationEmails): Context {
     return {
+      ...(invitationEmails ? { invitationEmails } : {}),
       session: { user: OWNER, session: OWNER_SESSION },
       db,
       correlationId: "corr-1",
@@ -91,7 +117,9 @@ describe.skipIf(!url)("sharing.createInvitation against disposable PostgreSQL", 
     await db.execute(
       sql`insert into "user" (id, email, email_verified, role, banned) values
         ('owner-1', 'owner@example.test', true, 'user', false),
-        ('known-1', 'known@example.test', true, 'user', false)`,
+        ('known-1', 'known@example.test', true, 'user', false),
+        ('known-2', 'second@example.test', true, 'user', false),
+        ('known-3', 'third@example.test', true, 'user', false)`,
     );
     await db.execute(
       sql`insert into organization (id, name, slug) values ('org-1', 'Acme', 'acme')`,
@@ -119,7 +147,10 @@ describe.skipIf(!url)("sharing.createInvitation against disposable PostgreSQL", 
   });
 
   test("an existing recipient is invited with a two-day window", async () => {
-    const created = await appRouter.sharing.createInvitation.callable({ context: context() })({
+    const fake = fakeInvitationEmails();
+    const created = await appRouter.sharing.createInvitation.callable({
+      context: context(fake.emails),
+    })({
       email: "Known@Example.test",
       role: "member",
     });
@@ -132,5 +163,68 @@ describe.skipIf(!url)("sharing.createInvitation against disposable PostgreSQL", 
       sql`select email, status from invitation where organization_id = 'org-1' and email = 'known@example.test'`,
     );
     expect(rows.rows).toHaveLength(1);
+
+    // Issue #243 — the invitation email goes out for the stored row.
+    expect(created.emailDelivery).toBe("sent");
+    expect(fake.invites).toEqual([
+      {
+        recipient: "known@example.test",
+        invitationId: created.id,
+        role: "member",
+        organizationName: "Acme",
+        inviter: { id: "owner-1", name: null, email: "owner@example.test" },
+      },
+    ]);
+  });
+
+  test("an unknown recipient sends no email", async () => {
+    const fake = fakeInvitationEmails();
+    await appRouter.sharing.createInvitation
+      .callable({ context: context(fake.emails) })({ email: "nobody@example.test", role: "member" })
+      .catch(() => undefined);
+    expect(fake.invites).toHaveLength(0);
+  });
+
+  test("the inviter is told when email is not configured; the row still stands", async () => {
+    const dryRun = fakeInvitationEmails("unavailable");
+    const viaDryRun = await appRouter.sharing.createInvitation.callable({
+      context: context(dryRun.emails),
+    })({ email: "second@example.test", role: "owner" });
+    expect(viaDryRun.emailDelivery).toBe("unavailable");
+
+    const unwired = await appRouter.sharing.createInvitation.callable({ context: context() })({
+      email: "third@example.test",
+      role: "member",
+    });
+    expect(unwired.emailDelivery).toBe("unavailable");
+
+    const rows = await db.execute(
+      sql`select email from invitation where organization_id = 'org-1' and email in ('second@example.test', 'third@example.test')`,
+    );
+    expect(rows.rows).toHaveLength(2);
+  });
+
+  test("revoking a pending invitation emails the invitee; a canceled one does not", async () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+    await db.execute(
+      sql`insert into invitation (id, organization_id, email, role, status, expires_at, inviter_id) values
+        ('inv-pending', 'org-1', 'known@example.test', 'member', 'pending', ${future}, 'owner-1'),
+        ('inv-canceled', 'org-1', 'second@example.test', 'member', 'canceled', ${future}, 'owner-1')`,
+    );
+    const fake = fakeInvitationEmails();
+    const revoke = appRouter.sharing.revokeInvitation.callable({ context: context(fake.emails) });
+
+    expect(await revoke({ id: "inv-pending" })).toEqual({ revoked: true });
+    expect(await revoke({ id: "inv-canceled" })).toEqual({ revoked: true });
+    expect(await revoke({ id: "inv-missing" })).toEqual({ revoked: false });
+
+    expect(fake.revokes).toEqual([
+      {
+        recipient: "known@example.test",
+        invitationId: "inv-pending",
+        organizationName: "Acme",
+        revokedBy: { id: "owner-1", name: null, email: "owner@example.test" },
+      },
+    ]);
   });
 });

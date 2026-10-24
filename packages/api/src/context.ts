@@ -1,5 +1,6 @@
 import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
 import type { AdmissionService } from "@openvalens/auth/admission";
+import type { WorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import type { Session } from "@openvalens/auth";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
@@ -134,6 +135,13 @@ export type Context = {
    * need email (the daily-reminder cron) fail closed when it is absent.
    */
   email?: EmailService;
+  /**
+   * Issue #243 — workspace-invitation email (invite and revoke), the same
+   * composer Better Auth uses. Optional at the type level so unrelated context
+   * factories stay valid; absent means the sharing router reports the email
+   * as `unavailable` and sends nothing.
+   */
+  invitationEmails?: WorkspaceInvitationEmails;
   /** Issue #13 — parsed Anthropic AI config (owned by the server). */
   aiConfig: AiConfig;
   /**

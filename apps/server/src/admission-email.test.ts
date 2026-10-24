@@ -165,3 +165,61 @@ describe("admission invitation email", () => {
     expect(sent[0]?.subject).toBe("You’re invited to OpenValens");
   });
 });
+
+describe("admission invitation email: join link (Issue #243)", () => {
+  function withOrigin(webOrigin: string | undefined, locale: "en" | "pt-PT" = "en") {
+    const sent: SendEmailInput[] = [];
+    const { deliverInvitation } = createAdmissionEmailDelivery({
+      email: {
+        sendEmail: async (input) => {
+          sent.push(input);
+          return { id: "msg-1", dryRun: false };
+        },
+      },
+      locales: { forEmail: async () => locale, forUser: async () => locale },
+      webOrigin,
+    });
+    return { deliverInvitation, sent };
+  }
+
+  test("links to the instance's /join page and keeps the token out of the URL", async () => {
+    const { deliverInvitation, sent } = withOrigin("https://health.example/app/");
+    await deliverInvitation({
+      email: "n@example.test",
+      invitationToken: "tok",
+      inviterUserId: "a",
+    });
+
+    expect(sent[0]?.text).toBe(
+      "You have been invited to OpenValens. Your invitation token is tok. To create your account, open https://health.example/join and paste the token.",
+    );
+    expect(sent[0]?.html).toContain(
+      '<p>To create your account, open <a href="https://health.example/join">https://health.example/join</a> and paste the token.</p>',
+    );
+    expect(sent[0]?.html).not.toContain("join?");
+    expect(sent[0]?.text).not.toContain("join?");
+  });
+
+  test("the link line is translated", async () => {
+    const { deliverInvitation, sent } = withOrigin("https://health.example", "pt-PT");
+    await deliverInvitation({
+      email: "n@example.test",
+      invitationToken: "tok",
+      inviterUserId: "a",
+    });
+    expect(sent[0]?.text).toContain("https://health.example/join");
+    expect(sent[0]?.text).not.toContain("To create your account");
+  });
+
+  test("an unparseable origin omits the link rather than sending a broken one", async () => {
+    const { deliverInvitation, sent } = withOrigin("not a url");
+    await deliverInvitation({
+      email: "n@example.test",
+      invitationToken: "tok",
+      inviterUserId: "a",
+    });
+    expect(sent[0]?.text).toBe(
+      "You have been invited to OpenValens. Your invitation token is tok.",
+    );
+  });
+});

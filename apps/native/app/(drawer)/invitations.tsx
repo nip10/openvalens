@@ -19,7 +19,7 @@ import {
   WorkspaceInvitationError,
   type WorkspaceInvitation,
   type WorkspaceInvitationClient,
-} from "@/utils/workspace-invitation";
+} from "@openvalens/api/presenters/workspace-invitation";
 
 /**
  * Issue #133 — native workspace invitation acceptance.

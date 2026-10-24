@@ -237,6 +237,11 @@ to auth, keep these invariants:
   unbanned session is required at **acceptance** by the current auth SDK guard.
   Do not require the target to be logged in at issuance, and never let an
   invitation create an account.
+- Both workspace-invitation paths email the invitee through the one composer,
+  `createWorkspaceInvitationEmails` (`packages/auth/src/invitation-email.ts`),
+  in the invitee's language. It never throws: the sharing router reports
+  `emailDelivery` (`sent`/`unavailable`/`failed`) so the owner learns when no
+  email went out, and the invitee can still accept in the app.
 - A workspace `owner` has organization-scoped powers only; never grant
   instance-administrator authority through an organization role or invite.
 - This admission change leaves current instance configuration read-only startup

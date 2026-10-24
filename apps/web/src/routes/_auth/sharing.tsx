@@ -15,8 +15,10 @@ import {
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
+import { MyInvitationsCard } from "@/components/my-invitations-card";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/sharing")({
@@ -46,6 +48,18 @@ function useCodeLabel() {
 }
 
 function SharingPage() {
+  // Issue #243 — invitations addressed to the signed-in user, shown whatever
+  // the state of the workspace's own sharing data.
+  const session = authClient.useSession();
+  const sessionEmail = session.data?.user?.email?.toLowerCase() ?? null;
+  return (
+    <SharingContent
+      myInvitations={sessionEmail ? <MyInvitationsCard sessionEmail={sessionEmail} /> : null}
+    />
+  );
+}
+
+function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
   const members = useQuery(orpc.sharing.listMembers.queryOptions({ input: {} }));
   const invitations = useQuery(orpc.sharing.listInvitations.queryOptions({ input: {} }));
   const me = useQuery(orpc.sharing.me.queryOptions({ input: {} }));
@@ -58,6 +72,7 @@ function SharingPage() {
         <h1 className="mb-6 text-2xl font-semibold">
           <Trans>Sharing</Trans>
         </h1>
+        {myInvitations}
         <Skeleton className="h-32 w-full" />
       </div>
     );
@@ -76,6 +91,7 @@ function SharingPage() {
         <h1 className="mb-6 text-2xl font-semibold">
           <Trans>Sharing</Trans>
         </h1>
+        {myInvitations}
         <p className="text-sm text-muted-foreground">
           <Trans>Could not load sharing info.</Trans>{" "}
           <button
@@ -106,6 +122,8 @@ function SharingPage() {
         </p>
       </div>
 
+      {myInvitations}
+
       {!isOwner ? (
         <p className="text-sm text-muted-foreground">
           <Trans>Only org owners can invite or remove members.</Trans>
@@ -124,11 +142,13 @@ function InviteForm() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"owner" | "member">("member");
   const { t, i18n } = useLingui();
+  const queryClient = useQueryClient();
   const invite = useMutation(
     orpc.sharing.createInvitation.mutationOptions({
       onSuccess: () => {
         setEmail("");
         setRole("member");
+        void queryClient.invalidateQueries({ queryKey: orpc.sharing.listInvitations.key() });
       },
     }),
   );
@@ -178,9 +198,25 @@ function InviteForm() {
           </Button>
         </div>
         {invite.isSuccess ? (
-          <p className="text-sm text-success sm:col-span-3">
-            <Trans>Invitation saved.</Trans>
-          </p>
+          invite.data.emailDelivery === "sent" ? (
+            <p className="text-sm text-success sm:col-span-3" role="status">
+              <Trans>Invitation sent by email.</Trans>
+            </p>
+          ) : invite.data.emailDelivery === "unavailable" ? (
+            <p className="text-sm text-muted-foreground sm:col-span-3" role="status">
+              <Trans>
+                Invitation saved, but email is not configured on this server, so no email was sent.
+                Ask them to open Sharing (or Invitations in the mobile app) to accept it.
+              </Trans>
+            </p>
+          ) : (
+            <p className="text-sm text-destructive sm:col-span-3" role="status">
+              <Trans>
+                Invitation saved, but the email could not be sent. Ask them to open Sharing (or
+                Invitations in the mobile app) to accept it.
+              </Trans>
+            </p>
+          )
         ) : invite.isError ? (
           <p className="text-sm text-destructive sm:col-span-3">
             <Trans>Could not send invite. Email may already be pending.</Trans>

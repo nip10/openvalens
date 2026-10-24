@@ -3,6 +3,7 @@ import { deriveInsightUnsubscribeKey } from "@openvalens/api/insights";
 import { createProductSettingsService } from "@openvalens/api/product-settings";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
 import { createAdmissionService } from "@openvalens/auth/admission";
+import { createWorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import { describeOidcIntegration, oidcSignInOption, parseOidcConfig } from "@openvalens/auth/oidc";
 import { createDb } from "@openvalens/db";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
@@ -101,8 +102,16 @@ if (oidcConfig.missingKeys.length > 0) {
 /** Public "Continue with <name>" option for the sign-in screens, or `null`. */
 export const signInOptions = Object.freeze({ oidc: oidcSignInOption(oidcConfig) });
 
+// Issue #243 — one workspace-invitation email composer, shared by Better Auth
+// and the sharing router; links point at the web app (`CORS_ORIGIN`).
+export const invitationEmails = createWorkspaceInvitationEmails({
+  email,
+  locales: databaseMessageLocales(db),
+  webOrigin: ENV.CORS_ORIGIN,
+});
+
 // Issue #58 — auth must be constructed only after the email service exists.
-export const auth = createAuth(ENV, db, { email, oidc: oidcConfig.provider });
+export const auth = createAuth(ENV, db, { email, oidc: oidcConfig.provider, invitationEmails });
 
 // Issue #14 — server-side Telegram instantiation. The `@openvalens/telegram`
 // package stays pure; the server binds the validated `ENV` here. The client is
@@ -342,7 +351,12 @@ export const admissionService = createAdmissionService({
   // Admission needs an emailed code: refuse early, with a clear error, when
   // email is a dry run (no Resend key or EMAIL_DRY_RUN on).
   emailDeliveryAvailable: () => !emailConfig.EMAIL_DRY_RUN,
-  ...createAdmissionEmailDelivery({ email, locales: databaseMessageLocales(db) }),
+  ...createAdmissionEmailDelivery({
+    email,
+    locales: databaseMessageLocales(db),
+    // Issue #243 — the invitation email links to the web `/join` page.
+    webOrigin: ENV.CORS_ORIGIN,
+  }),
 });
 
 // Process-local admission limiter with fixed endpoint keys (see `@openvalens/api`).

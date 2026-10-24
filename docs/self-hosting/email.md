@@ -1,6 +1,6 @@
 # Email
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-16
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
 
 OpenValens sends email through **[Resend](https://resend.com) only**. There is
 no SMTP option and no other email provider (Issue #61); a test in
@@ -17,8 +17,15 @@ Email is how people get in. Without working email:
   verification code);
 - nobody can sign in, because sign-in uses an emailed magic link.
 
-OpenValens also emails workspace invitations, access-request updates and
-daily reminders (for people who choose email reminders).
+OpenValens also emails workspace invitations (and a notice when an owner
+revokes a pending one) and daily reminders (for people who choose email
+reminders). Links in these emails point at your web app (`CORS_ORIGIN`); the
+instance invitation links to `/join`, but the token itself stays in the email
+body, never in the link.
+
+Without email, a workspace invitation is still created: the owner is told
+that no email was sent, and the invitee accepts it from **Sharing → Your
+invitations** on the web or **Invitations** in the mobile app.
 
 ## Set up Resend
 

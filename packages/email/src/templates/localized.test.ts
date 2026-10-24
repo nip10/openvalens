@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { renderInsightsDigestEmail } from "./insights-digest";
 import { renderInvitationEmail } from "./invitation";
+import { renderInvitationRevokedEmail } from "./invitation-revoked";
 import { renderLayout } from "./layout";
 import { renderMagicLinkEmail } from "./magic-link";
 
@@ -99,5 +100,26 @@ describe("layout", () => {
     expect(renderInsightsDigestEmail(input, { locale: "pt-PT" }).html).toContain(
       '<html lang="pt-PT">',
     );
+  });
+});
+
+describe("workspace invitation revoked email (Issue #243)", () => {
+  const REVOKED = { inviterName: "Dr. <Ada>", organizationName: "Northwind & Co" };
+
+  test("English by default and for an explicit en", () => {
+    const fallback = renderInvitationRevokedEmail(REVOKED);
+    expect(renderInvitationRevokedEmail(REVOKED, { locale: "en" })).toEqual(fallback);
+    expect(fallback.subject).toBe("Your invitation to Northwind & Co has been revoked");
+  });
+
+  test("pt-PT subject and body; names are escaped, not translated", () => {
+    const pt = renderInvitationRevokedEmail(REVOKED, { locale: "pt-PT" });
+    expect(pt.subject).toBe("O seu convite para Northwind & Co foi revogado");
+    expect(pt.text).toContain(
+      "O convite de Dr. <Ada> para se juntar a Northwind & Co foi revogado e já não pode ser utilizado.",
+    );
+    expect(pt.html).toContain("Dr. &lt;Ada&gt;");
+    expect(pt.html).toContain('<html lang="pt-PT">');
+    expect(pt.html).not.toContain("revoked");
   });
 });

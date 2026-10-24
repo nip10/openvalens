@@ -2,15 +2,10 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { expo } from "@better-auth/expo";
 import type { Database } from "@openvalens/db";
 import * as schema from "@openvalens/db/schema/auth";
-import {
-  describeEmailDeliveryError,
-  type EmailService,
-  renderInvitationEmail,
-} from "@openvalens/email";
+import type { EmailService } from "@openvalens/email";
 import {
   databaseMessageLocales,
   localeForEmail,
-  localeForInvitee,
   type MessageLocales,
 } from "@openvalens/i18n/server";
 import { createStructuredLogger } from "@openvalens/observability";
@@ -21,10 +16,14 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 
 import { ac, roles } from "./access/better-auth";
-import { maskEmailRecipient } from "./auth-logging";
 import { withActiveOrganization } from "./authz/auth-org";
 import { hasExistingAccount } from "./authz/existing-account";
 import { isInstanceAdmin } from "./authz/instance-admin";
+import {
+  createWorkspaceInvitationEmails,
+  INVITATION_EXPIRES_IN_SECONDS,
+  type WorkspaceInvitationEmails,
+} from "./invitation-email";
 import { sendAuthMagicLink } from "./magic-link";
 import type { OidcProviderConfig } from "./oidc/config";
 import { createGenericOidcPlugin } from "./providers/generic-oidc";
@@ -32,7 +31,6 @@ import { createGenericOidcPlugin } from "./providers/generic-oidc";
 const logger = createStructuredLogger({ level: "info" });
 
 const MAGIC_LINK_EXPIRES_IN_SECONDS = 600;
-const INVITATION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 2;
 
 /** Exact admin path an impersonated user must still be able to reach. */
 const IMPERSONATION_EXIT_PATH = "/admin/stop-impersonating";
@@ -82,6 +80,12 @@ export type CreateAuthOptions = {
    * the saved preferences in `database`; tests inject a fake.
    */
   locales?: MessageLocales;
+  /**
+   * Issue #243 — the workspace-invitation email composer, shared with the
+   * sharing router so both paths send the same email. Defaults to one built
+   * from `email`, `locales` and `CORS_ORIGIN`.
+   */
+  invitationEmails?: WorkspaceInvitationEmails;
 };
 
 /**
@@ -124,6 +128,9 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
   const devLinkSink = devMagicLinkSink(env);
   const oidc = options.oidc ?? null;
   const locales = options.locales ?? databaseMessageLocales(database);
+  const invitationEmails =
+    options.invitationEmails ??
+    createWorkspaceInvitationEmails({ email, locales, webOrigin: env.CORS_ORIGIN, logger });
 
   return betterAuth({
     database: drizzleAdapter(database, {
@@ -349,49 +356,19 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
             }
           },
         },
+        // Issue #231 / #243 — shared with the sharing router: the invitee's
+        // language, else the inviter's; never throws.
         sendInvitationEmail: async ({ email: recipient, invitation, organization, inviter }) => {
-          // Issue #231 — the recipient's language, else the inviter's.
-          const locale = await localeForInvitee(locales, recipient, inviter.user.id);
-          const rendered = renderInvitationEmail(
-            {
-              inviterName: inviter.user.name || inviter.user.email,
-              organizationName: organization.name,
-              acceptUrl: `${env.CORS_ORIGIN.replace(/\/$/, "")}/accept-invitation/${invitation.id}`,
-              expiresInDays: Math.round(INVITATION_EXPIRES_IN_SECONDS / (60 * 60 * 24)),
-              role: invitation.role,
-            },
-            { organizationName: email.organizationName, locale },
-          );
-
-          try {
-            await email.sendEmail(
-              {
-                to: recipient,
-                subject: rendered.subject,
-                html: rendered.html,
-                text: rendered.text,
-                templateName: "invitation",
-                tags: ["invitation"],
-              },
-              { correlationId: undefined },
-            );
-          } catch (error) {
-            // Issue #61 — categorized and value-free; `code` keeps its name.
-            const { errorCode, errorCategory, retryable } = describeEmailDeliveryError(error);
-            logger.error("auth.invitation.send.failed", {
-              recipient: maskEmailRecipient(recipient),
-              invitationId: invitation.id,
-              code: errorCode,
-              errorCategory,
-              retryable,
-            });
-
-            return;
-          }
-
-          logger.info("auth.invitation.queued", {
-            recipient: maskEmailRecipient(recipient),
+          await invitationEmails.sendInvitation({
+            recipient,
             invitationId: invitation.id,
+            role: invitation.role,
+            organizationName: organization.name,
+            inviter: {
+              id: inviter.user.id,
+              name: inviter.user.name,
+              email: inviter.user.email,
+            },
           });
         },
       }),
