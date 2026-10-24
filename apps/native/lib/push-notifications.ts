@@ -33,6 +33,11 @@ async function ensureQuietChannel(): Promise<void> {
   });
 }
 
+/**
+ * The EAS project ID, set at build time by `app.config.ts` from
+ * `EXPO_PUBLIC_EAS_PROJECT_ID` (docs/self-hosting/mobile-app.md). Without it
+ * this build cannot get an Expo push token, so push is reported unsupported.
+ */
 function projectId(): string | null {
   const extra = Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined;
   return extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? null;
