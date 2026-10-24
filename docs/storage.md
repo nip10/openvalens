@@ -269,6 +269,16 @@ Check the purpose's resource with `requirePermission` before calling (see
 already do this for any stored object. A new purpose needs an entry in
 `PURPOSE_POLICIES` and a migration widening `stored_object_purpose_check`.
 
-Uploads larger than `API_MAX_BODY_BYTES` (1 MiB by default) are rejected by the
-global body limit, so an upload route for photos or PDFs needs its own
-route-specific limit; that belongs with the first feature that uploads (#85).
+Request bodies larger than `API_MAX_BODY_BYTES` (1 MiB by default) are rejected
+by the global body limit. The photo upload procedures are the only exception:
+`privateBody.uploadPhoto` (#85) and `nutritionFoodDrafts.parsePhoto` (#71), at
+`POST /rpc/privateBody/uploadPhoto` and `POST /rpc/nutritionFoodDrafts/parsePhoto`,
+accept bodies up to 11 MiB: the 10 MiB photo limit
+(`PHOTO_UPLOAD_MAX_BYTES` in `packages/api/src/photo-upload.ts`) plus room for
+the multipart framing. The procedures still reject a photo over 10 MiB, and the
+web app checks the size before sending. The allowlist and its cap are
+`UPLOAD_ROUTE_PATHS` and `UPLOAD_MAX_BODY_BYTES` in
+`apps/server/src/body-limit.ts`; the match is on the exact path, so a new
+upload procedure must be added there (with a test) to accept more than 1 MiB.
+If `API_MAX_BODY_BYTES` is set higher than 11 MiB, the upload paths get that
+value too.

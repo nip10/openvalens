@@ -9068,6 +9068,11 @@ msgstr "This permanently deletes your account and {rows} stored rows across your
 msgid "This photo could not be loaded."
 msgstr "This photo could not be loaded."
 
+#: apps/web/src/components/progress-photos.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
+msgid "This photo is larger than 10 MB. Choose a smaller JPEG or PNG."
+msgstr "This photo is larger than 10 MB. Choose a smaller JPEG or PNG."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "This programme invites people itself. OpenValens does not replace that invitation."
 msgstr "This programme invites people itself. OpenValens does not replace that invitation."
@@ -9591,6 +9596,7 @@ msgid "Use a different email"
 msgstr "Use a different email"
 
 #: apps/web/src/components/progress-photos.tsx
+#: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Use a JPEG or PNG photo up to 10 MB."
 msgstr "Use a JPEG or PNG photo up to 10 MB."
 

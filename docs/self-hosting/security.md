@@ -59,6 +59,8 @@ instance [up to date](upgrading.md).
   ([Configuration](configuration.md#content-security-policy),
   [docs/security-csp.md](../security-csp.md)).
 - Request bodies over 1 MiB (`API_MAX_BODY_BYTES`) are rejected before parsing.
+  The two photo upload procedures alone accept up to 11 MiB (a 10 MiB photo
+  plus framing).
 - Logs are structured JSON without health values, email bodies, tokens or
   provider keys; each line carries a correlation id. No error-reporting or
   analytics service is configured, so nothing is sent off the host by default.
