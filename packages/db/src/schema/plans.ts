@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   check,
   pgTable,
+  smallint,
   text,
   integer,
   real,
@@ -38,10 +39,16 @@ export const supplementSchedule = pgTable(
     timeOfDay: text("time_of_day").notNull(), // "morning", "lunch", "dinner", "pre-bed", "training"
     quantity: text("quantity"), // "1 capsule", "2 capsules", "4g"
     frequency: text("frequency"), // "daily", "training days", "weekly"
+    /** ISO weekdays (1 = Monday … 7 = Sunday) for weekly / training-day items; null = none chosen. */
+    daysOfWeek: smallint("days_of_week").array(),
     notes: text("notes"),
     status: text("status").notNull().default("active"), // "active", "paused", "stopped"
   },
   (table) => ({
+    supplementScheduleDaysOfWeekCheck: check(
+      "supplement_schedule_days_of_week_check",
+      sql`${table.daysOfWeek} is null or ${table.daysOfWeek} <@ array[1,2,3,4,5,6,7]::smallint[]`,
+    ),
     supplementScheduleUserStatusIdx: index("supplement_schedule_user_id_status_idx").on(
       table.userId,
       table.status,
@@ -86,11 +93,17 @@ export const medication = pgTable(
     route: text("route"), // "oral", "topical", "SC"
     protocol: text("protocol"), // Description of the schedule
     frequency: text("frequency"),
+    /** ISO weekdays (1 = Monday … 7 = Sunday) for weekly / training-day items; null = none chosen. */
+    daysOfWeek: smallint("days_of_week").array(),
     status: text("status").notNull().default("active"), // "active", "completed", "paused"
     interactions: text("interactions"),
     notes: text("notes"),
   },
   (table) => ({
+    medicationDaysOfWeekCheck: check(
+      "medication_days_of_week_check",
+      sql`${table.daysOfWeek} is null or ${table.daysOfWeek} <@ array[1,2,3,4,5,6,7]::smallint[]`,
+    ),
     medicationUserStatusIdx: index("medication_user_id_status_idx").on(table.userId, table.status),
     medicationOrgIdx: index("medication_organization_id_idx").on(table.organizationId),
     medicationMemberFk: foreignKey({

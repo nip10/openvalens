@@ -2,19 +2,21 @@ import { plural } from "@lingui/core/macro";
 import { useLingui as useLinguiRuntime } from "@lingui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  frequencyNeedsDays,
   medicationDoseLabel,
   medicationStatusLabel,
   SUPPLEMENT_FREQUENCIES,
   supplementDoseLabel,
   supplementFrequencyLabel,
 } from "@openvalens/api/presenters/supplements";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, Chip, Spinner } from "heroui-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
+import { ReminderDaysField, ReminderDaysRow } from "@/components/reminder-days";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -105,6 +107,8 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
   const [frequency, setFrequency] = useState<string>(SUPPLEMENT_FREQUENCIES[0]);
+  const [days, setDays] = useState<number[]>([]);
+  const needsDays = frequencyNeedsDays(frequency);
 
   const addSupplement = useMutation(orpc.plans.upsertSupplement.mutationOptions());
   const addSchedule = useMutation(orpc.plans.upsertSchedule.mutationOptions());
@@ -125,10 +129,12 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
       supplementId: created.id,
       timeOfDay: "morning",
       frequency,
+      daysOfWeek: needsDays ? days : null,
     });
     setName("");
     setDose("");
     setFrequency(SUPPLEMENT_FREQUENCIES[0]);
+    setDays([]);
     onSaved();
   };
 
@@ -169,6 +175,9 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
             labelFor={(option) => _(supplementFrequencyLabel(option))}
           />
         </Field>
+        {needsDays ? (
+          <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
+        ) : null}
         <View className="flex-row items-center gap-3">
           <Button onPress={() => void submit()} isDisabled={!valid || pending}>
             {pending ? t`Saving…` : t`Save`}
@@ -191,6 +200,8 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
   const [frequency, setFrequency] = useState<string>(SUPPLEMENT_FREQUENCIES[0]);
+  const [days, setDays] = useState<number[]>([]);
+  const needsDays = frequencyNeedsDays(frequency);
 
   const addMedication = useMutation(orpc.plans.upsertMedication.mutationOptions());
 
@@ -204,12 +215,14 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
         name: name.trim(),
         dose: medicationDoseLabel(numeric, unit),
         frequency,
+        daysOfWeek: needsDays ? days : null,
       },
       {
         onSuccess: () => {
           setName("");
           setDose("");
           setFrequency(SUPPLEMENT_FREQUENCIES[0]);
+          setDays([]);
           onSaved();
         },
       },
@@ -249,6 +262,9 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
             labelFor={(option) => _(supplementFrequencyLabel(option))}
           />
         </Field>
+        {needsDays ? (
+          <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
+        ) : null}
         <View className="flex-row items-center gap-3">
           <Button onPress={submit} isDisabled={!valid || addMedication.isPending}>
             {addMedication.isPending ? t`Saving…` : t`Save`}
@@ -268,8 +284,21 @@ export default function SupplementsScreen() {
   const { t } = useLingui();
   const { _ } = useLinguiRuntime();
   const foreground = useThemeColor("foreground");
+  const queryClient = useQueryClient();
   const supplements = useQuery(orpc.plans.listSupplements.queryOptions({ input: {} }));
   const medications = useQuery(orpc.plans.listMedications.queryOptions({ input: {} }));
+  const saveScheduleDays = useMutation(
+    orpc.plans.upsertSchedule.mutationOptions({
+      onSuccess: () =>
+        void queryClient.invalidateQueries({ queryKey: orpc.plans.listSupplements.key() }),
+    }),
+  );
+  const saveMedicationDays = useMutation(
+    orpc.plans.upsertMedication.mutationOptions({
+      onSuccess: () =>
+        void queryClient.invalidateQueries({ queryKey: orpc.plans.listMedications.key() }),
+    }),
+  );
 
   if (supplements.isPending || medications.isPending)
     return (
@@ -351,6 +380,21 @@ export default function SupplementsScreen() {
                       {supplementDoseLabel(supplement.dose, null)}
                       {supplement.category ? ` · ${supplement.category}` : ""}
                     </Text>
+                    {supplement.schedules
+                      .filter(
+                        (schedule) =>
+                          schedule.status === "active" && frequencyNeedsDays(schedule.frequency),
+                      )
+                      .map((schedule) => (
+                        <ReminderDaysRow
+                          key={schedule.id}
+                          item={schedule}
+                          pending={saveScheduleDays.isPending}
+                          onSave={(daysOfWeek) =>
+                            saveScheduleDays.mutate({ id: schedule.id, daysOfWeek })
+                          }
+                        />
+                      ))}
                   </View>
                   {supplement.activeScheduleCount > 0 ? (
                     <Chip size="sm" color="default">
@@ -387,10 +431,30 @@ export default function SupplementsScreen() {
                     <Text className="text-base text-foreground">{medication.name}</Text>
                     <Text className="text-xs text-muted-foreground">
                       {medicationDoseLabel(medication.dose, null)}
-                      {medication.frequency
+                      {medication.frequency && !frequencyNeedsDays(medication.frequency)
                         ? ` · ${_(supplementFrequencyLabel(medication.frequency))}`
                         : ""}
                     </Text>
+                    {frequencyNeedsDays(medication.frequency) ? (
+                      <ReminderDaysRow
+                        item={medication}
+                        pending={saveMedicationDays.isPending}
+                        onSave={(daysOfWeek) =>
+                          saveMedicationDays.mutate({
+                            id: medication.id,
+                            name: medication.name,
+                            dose: medication.dose,
+                            route: medication.route,
+                            protocol: medication.protocol,
+                            frequency: medication.frequency,
+                            status: medication.status,
+                            interactions: medication.interactions,
+                            notes: medication.notes,
+                            daysOfWeek,
+                          })
+                        }
+                      />
+                    ) : null}
                   </View>
                   <Chip size="sm" color="default">
                     <Chip.Label>{_(medicationStatusLabel(medication.status))}</Chip.Label>

@@ -3,6 +3,7 @@ import type {
   SupplementListItem,
   SupplementSchedule,
   SupplementScheduleStatus,
+  SupplementScheduleSummary,
 } from "./types";
 
 /**
@@ -67,7 +68,10 @@ export function reshapeSupplementList(
     category: string | null;
   }>,
   changesBySupplementId: ReadonlyMap<number, ReadonlyArray<SupplementChange>>,
-  schedulesBySupplementId: ReadonlyMap<number, ReadonlyArray<Pick<SupplementSchedule, "status">>>,
+  schedulesBySupplementId: ReadonlyMap<
+    number,
+    ReadonlyArray<Pick<SupplementSchedule, "status"> & Partial<SupplementScheduleSummary>>
+  >,
 ): SupplementListItem[] {
   return supplements.map((supplement) => {
     const changes = changesBySupplementId.get(supplement.id) ?? [];
@@ -82,6 +86,18 @@ export function reshapeSupplementList(
       latestChangeReason: latest?.reason ?? null,
       latestChangeDate: latest?.date ?? null,
       activeScheduleCount: countActiveSchedules(schedules),
+      schedules: schedules.flatMap((schedule) =>
+        schedule.id === undefined
+          ? []
+          : [
+              {
+                id: schedule.id,
+                status: schedule.status,
+                frequency: schedule.frequency ?? null,
+                daysOfWeek: schedule.daysOfWeek ?? null,
+              },
+            ],
+      ),
     };
   });
 }

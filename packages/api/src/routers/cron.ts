@@ -115,11 +115,14 @@ function safeErrorCategory(error: unknown): string {
  * Cron-only procedures (Issue #11, #125).
  *
  * Every endpoint is guarded by `cronProcedure` (`Authorization: Bearer
- * ${CRON_SECRET}`). `remindersDailyRun` derives its worklist from the data
- * (workspaces with pending reminders or with opted-in members who have
- * supplements, medications or scheduled events). Per organization it first
- * creates today's due `daily_reminder` rows, then delivers pending ones by
- * Telegram or the email fallback (which works without a Telegram bot). Each
+ * ${CRON_SECRET}`). `remindersDailyRun` runs hourly and derives its worklist
+ * from the data (workspaces with deliverable pending reminders or with
+ * opted-in members who have supplements, medications or scheduled events).
+ * Per organization it first creates today's due `daily_reminder` rows for
+ * members whose local reminder hour has arrived, then delivers those
+ * members' rows for their local today by Telegram or the email fallback
+ * (which works without a Telegram bot). Older undelivered rows are never
+ * sent. Each
  * pass is wrapped in a try/catch so one tenant's failure does not roll back
  * other tenants' sends (Telegram/Resend side effects are not transactional
  * with the DB).
@@ -210,7 +213,9 @@ export const cronRouter = {
       let failed = 0;
 
       const telegramClient = context.telegramClient ?? null;
-      const organizationIds = await listReminderOrganizations(context.db);
+      // One clock for the whole run, so every workspace sees the same hour.
+      const now = new Date();
+      const organizationIds = await listReminderOrganizations(context.db, now);
 
       for (const organizationId of organizationIds) {
         organizations += 1;
@@ -222,6 +227,7 @@ export const cronRouter = {
             correlationId: context.correlationId,
             organizationId,
             telegramAvailable: telegramClient !== null,
+            now,
           });
           created += due.created;
 
@@ -232,6 +238,7 @@ export const cronRouter = {
             correlationId: context.correlationId,
             organizationId,
             email: context.email,
+            now,
           });
 
           organizationsSucceeded += 1;

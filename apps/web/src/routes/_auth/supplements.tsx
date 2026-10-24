@@ -2,6 +2,7 @@ import { useLingui as useLinguiRuntime } from "@lingui/react";
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  frequencyNeedsDays,
   medicationDoseLabel,
   medicationStatusLabel,
   SUPPLEMENT_FREQUENCIES,
@@ -21,10 +22,11 @@ import {
   SelectValue,
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { ReminderDaysField, ReminderDaysRow } from "@/components/reminder-days";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/supplements")({
@@ -79,6 +81,8 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
   const [frequency, setFrequency] = useState<string>(SUPPLEMENT_FREQUENCIES[0]);
+  const [days, setDays] = useState<number[]>([]);
+  const needsDays = frequencyNeedsDays(frequency);
 
   const addSupplement = useMutation(orpc.plans.upsertSupplement.mutationOptions());
   const addSchedule = useMutation(orpc.plans.upsertSchedule.mutationOptions());
@@ -99,10 +103,12 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
       supplementId: created.id,
       timeOfDay: "morning",
       frequency,
+      daysOfWeek: needsDays ? days : null,
     });
     setName("");
     setDose("");
     setFrequency(SUPPLEMENT_FREQUENCIES[0]);
+    setDays([]);
     onSaved();
   };
 
@@ -159,6 +165,9 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
             </Select>
           </Field>
         </div>
+        {needsDays ? (
+          <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
+        ) : null}
         <div className="flex items-center gap-3">
           <Button onClick={() => void submit()} disabled={!valid || pending}>
             {pending ? t`Saving…` : t`Save`}
@@ -181,6 +190,8 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
   const [frequency, setFrequency] = useState<string>(SUPPLEMENT_FREQUENCIES[0]);
+  const [days, setDays] = useState<number[]>([]);
+  const needsDays = frequencyNeedsDays(frequency);
 
   const addMedication = useMutation(orpc.plans.upsertMedication.mutationOptions());
 
@@ -194,12 +205,14 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
         name: name.trim(),
         dose: medicationDoseLabel(numeric, unit),
         frequency,
+        daysOfWeek: needsDays ? days : null,
       },
       {
         onSuccess: () => {
           setName("");
           setDose("");
           setFrequency(SUPPLEMENT_FREQUENCIES[0]);
+          setDays([]);
           onSaved();
         },
       },
@@ -259,6 +272,9 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
             </Select>
           </Field>
         </div>
+        {needsDays ? (
+          <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
+        ) : null}
         <div className="flex items-center gap-3">
           <Button onClick={submit} disabled={!valid || addMedication.isPending}>
             {addMedication.isPending ? t`Saving…` : t`Save`}
@@ -277,8 +293,21 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
 function SupplementsPage() {
   const { t } = useLingui();
   const { _ } = useLinguiRuntime();
+  const queryClient = useQueryClient();
   const supplements = useQuery(orpc.plans.listSupplements.queryOptions({ input: {} }));
   const medications = useQuery(orpc.plans.listMedications.queryOptions({ input: {} }));
+  const saveScheduleDays = useMutation(
+    orpc.plans.upsertSchedule.mutationOptions({
+      onSuccess: () =>
+        void queryClient.invalidateQueries({ queryKey: orpc.plans.listSupplements.key() }),
+    }),
+  );
+  const saveMedicationDays = useMutation(
+    orpc.plans.upsertMedication.mutationOptions({
+      onSuccess: () =>
+        void queryClient.invalidateQueries({ queryKey: orpc.plans.listMedications.key() }),
+    }),
+  );
 
   if (supplements.isPending || medications.isPending) {
     return (
@@ -343,6 +372,21 @@ function SupplementsPage() {
                     {supplementDoseLabel(supplement.dose, null)}
                     {supplement.category ? ` · ${supplement.category}` : ""}
                   </div>
+                  {supplement.schedules
+                    .filter(
+                      (schedule) =>
+                        schedule.status === "active" && frequencyNeedsDays(schedule.frequency),
+                    )
+                    .map((schedule) => (
+                      <ReminderDaysRow
+                        key={schedule.id}
+                        item={schedule}
+                        pending={saveScheduleDays.isPending}
+                        onSave={(daysOfWeek) =>
+                          saveScheduleDays.mutate({ id: schedule.id, daysOfWeek })
+                        }
+                      />
+                    ))}
                 </div>
                 {supplement.activeScheduleCount > 0 ? (
                   <Badge variant="secondary">
@@ -374,10 +418,30 @@ function SupplementsPage() {
                   <div className="font-medium">{medication.name}</div>
                   <div className="text-sm text-muted-foreground">
                     {medicationDoseLabel(medication.dose, null)}
-                    {medication.frequency
+                    {medication.frequency && !frequencyNeedsDays(medication.frequency)
                       ? ` · ${_(supplementFrequencyLabel(medication.frequency))}`
                       : ""}
                   </div>
+                  {frequencyNeedsDays(medication.frequency) ? (
+                    <ReminderDaysRow
+                      item={medication}
+                      pending={saveMedicationDays.isPending}
+                      onSave={(daysOfWeek) =>
+                        saveMedicationDays.mutate({
+                          id: medication.id,
+                          name: medication.name,
+                          dose: medication.dose,
+                          route: medication.route,
+                          protocol: medication.protocol,
+                          frequency: medication.frequency,
+                          status: medication.status,
+                          interactions: medication.interactions,
+                          notes: medication.notes,
+                          daysOfWeek,
+                        })
+                      }
+                    />
+                  ) : null}
                 </div>
                 <Badge variant="outline">{_(medicationStatusLabel(medication.status))}</Badge>
               </li>

@@ -241,6 +241,61 @@ export default function InsightSettingsScreen() {
             <Text className="text-sm text-muted-foreground">
               {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}
             </Text>
+            {prefs.dailyReminders.email || prefs.dailyReminders.telegramConnected ? (
+              <View className="gap-2 border-t border-border pt-2">
+                <Text className="text-sm font-medium text-foreground">
+                  {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHour)}
+                </Text>
+                <View className="flex-row items-center justify-between">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    isDisabled={busy || prefs.dailyReminders.hour === 0}
+                    accessibilityLabel={t`Earlier`}
+                    onPress={() =>
+                      update.mutate({ dailyReminders: { hour: prefs.dailyReminders.hour - 1 } })
+                    }
+                  >
+                    <Button.Label>−</Button.Label>
+                  </Button>
+                  <Text
+                    className="font-mono text-lg text-foreground"
+                    accessibilityLabel={`${i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHour)} ${prefs.dailyReminders.hour}:00`}
+                  >
+                    {String(prefs.dailyReminders.hour).padStart(2, "0")}:00
+                  </Text>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    isDisabled={busy || prefs.dailyReminders.hour === 23}
+                    accessibilityLabel={t`Later`}
+                    onPress={() =>
+                      update.mutate({ dailyReminders: { hour: prefs.dailyReminders.hour + 1 } })
+                    }
+                  >
+                    <Button.Label>+</Button.Label>
+                  </Button>
+                </View>
+                <Text className="text-sm text-muted-foreground">
+                  {i18n._(INSIGHT_DELIVERY_COPY.timeZone)}: {prefs.timeZone}
+                </Text>
+                {zone && zone !== prefs.timeZone ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    isDisabled={busy}
+                    onPress={() => update.mutate({ timeZone: zone })}
+                  >
+                    <Button.Label>
+                      <Trans>Use {zone}</Trans>
+                    </Button.Label>
+                  </Button>
+                ) : null}
+                <Text className="text-sm text-muted-foreground">
+                  {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHourNote)}
+                </Text>
+              </View>
+            ) : null}
           </Card>
         </CardStack>
 

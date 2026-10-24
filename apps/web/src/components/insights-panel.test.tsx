@@ -179,6 +179,36 @@ describe("insights panel (web)", () => {
     expect(html).toContain("Add a goal with a target");
   });
 
+  test("the daily reminder time shows once Telegram or reminder email is on", () => {
+    const base: InsightPreferences = {
+      canConfigureDelivery: true,
+      pushAvailable: true,
+      emailAvailable: true,
+      push: { enabled: false, showTopic: false, offerState: "not_offered", registeredDevices: 0 },
+      email: { enabled: false, acknowledgedVersion: null },
+      dailyReminders: { email: false, hour: 7, telegramConnected: false },
+      deliveryHour: 9,
+      timeZone: "Europe/Lisbon",
+      channels: defaultKindChannels(),
+    };
+    const render = (preferences: InsightPreferences) =>
+      renderToStaticMarkup(
+        <InsightNotificationsForm preferences={preferences} pending={false} onUpdate={() => {}} />,
+      );
+    const hourLabel = inEnglish(INSIGHT_DELIVERY_COPY.dailyRemindersHour);
+    expect(render(base)).not.toContain(hourLabel);
+    for (const dailyReminders of [
+      { email: false, hour: 7, telegramConnected: true },
+      { email: true, hour: 7, telegramConnected: false },
+    ]) {
+      const html = render({ ...base, dailyReminders });
+      expect(html).toContain(hourLabel);
+      expect(html).toContain(inEnglish(INSIGHT_DELIVERY_COPY.dailyRemindersHourNote));
+      expect(html).toMatch(/<option value="7" selected="">07:00<\/option>/);
+      expect(html).toContain("Europe/Lisbon");
+    }
+  });
+
   test("push offer and settings: off by default, email needs the disclosure", () => {
     expect(renderToStaticMarkup(<PushOfferCard pending={false} onAnswer={() => {}} />)).toContain(
       "You have a new insight",
@@ -189,7 +219,7 @@ describe("insights panel (web)", () => {
       emailAvailable: true,
       push: { enabled: false, showTopic: false, offerState: "not_offered", registeredDevices: 0 },
       email: { enabled: false, acknowledgedVersion: null },
-      dailyReminders: { email: false },
+      dailyReminders: { email: false, hour: 8, telegramConnected: false },
       deliveryHour: 9,
       timeZone: "UTC",
       channels: defaultKindChannels(),

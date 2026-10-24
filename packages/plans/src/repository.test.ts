@@ -255,6 +255,10 @@ describe("createPlansRepository — supplements", () => {
         latestChangeReason: "Bump for sleep",
         latestChangeDate: "2026-03-05",
         activeScheduleCount: 1,
+        schedules: [
+          { id: 11, status: "active", frequency: null, daysOfWeek: null },
+          { id: 12, status: "paused", frequency: null, daysOfWeek: null },
+        ],
       },
     ]);
   });

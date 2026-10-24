@@ -398,8 +398,15 @@ export const insightPreferencesSchema = z.object({
    * member turns it on; separate from the weekly email and from the
    * preventive-care `reminder` kind, because each email names the item.
    * These reminders are the member's own, so any member may turn this on.
+   * `hour` is the local hour (0–23, in `timeZone`) from which each day's
+   * reminders go out, by Telegram or email. `telegramConnected` says whether
+   * the member connected Telegram in this workspace (reminders go there).
    */
-  dailyReminders: z.object({ email: z.boolean() }),
+  dailyReminders: z.object({
+    email: z.boolean(),
+    hour: z.number().int().min(0).max(23),
+    telegramConnected: z.boolean(),
+  }),
   /** Local hour (0–23) from which the day's push or the week's email may go out. */
   deliveryHour: z.number().int().min(0).max(23),
   /** IANA time zone used for the delivery hour and "one per day". */
@@ -427,7 +434,12 @@ export const insightPreferencesUpdateInput = z.strictObject({
       acknowledgement: z.string().max(40).optional(),
     })
     .optional(),
-  dailyReminders: z.strictObject({ email: z.boolean() }).optional(),
+  dailyReminders: z
+    .strictObject({
+      email: z.boolean().optional(),
+      hour: z.number().int().min(0).max(23).optional(),
+    })
+    .optional(),
   deliveryHour: z.number().int().min(0).max(23).optional(),
   timeZone: z.string().min(1).max(64).optional(),
   channels: z
