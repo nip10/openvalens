@@ -172,7 +172,10 @@ function LabsPage() {
               <Trans>No lab markers yet</Trans>
             </p>
             <p className="text-sm text-muted-foreground">
-              <Trans>Import a lab PDF to add markers.</Trans>
+              <Trans>
+                Markers appear here once a lab reading is recorded for your account. Importing lab
+                reports is not available yet.
+              </Trans>
             </p>
           </CardContent>
         </Card>

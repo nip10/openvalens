@@ -158,7 +158,7 @@ export default function LabsScreen() {
           <Card variant="secondary" className="items-center gap-1 p-8">
             <Text className="font-medium text-foreground">{t`No lab markers yet`}</Text>
             <Text className="text-center text-sm text-muted-foreground">
-              {t`Import a lab PDF to add markers.`}
+              {t`Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet.`}
             </Text>
           </Card>
         ) : (

@@ -31,9 +31,11 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
  * do not grant access to another member's photos. An object in another
  * organization or a non-owned photo is indistinguishable from a missing one.
  *
- * Uploads are not a generic endpoint: each feature (#85 progress photos, #132
- * clinical PDF export) calls `StorageService.putObject` from its own procedure
- * with its own validation.
+ * Uploads are not a generic endpoint: a feature writes through its own
+ * procedure with its own validation. Today the only writer is #85 progress
+ * photos (`privateBody.uploadPhoto` → `reservePhoto`/`writePhoto`); no
+ * procedure calls `StorageService.putObject`, and the clinical PDF export
+ * returns its file in the response instead of storing it.
  */
 
 const logger = createStructuredLogger({ level: "info" });

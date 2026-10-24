@@ -40,8 +40,8 @@ What this is **not**:
 - **Not a full backup.** It covers the database only — not `deploy/.env`,
   `deploy/secrets/`, the Caddy certificate volumes or the `storage` volume.
 
-With the default local object storage, uploaded files (progress photos, lab
-PDFs, export bundles) live in the `storage` volume
+With the default local object storage, uploaded files (today, progress photos)
+live in the `storage` volume
 (`/var/lib/openvalens/storage` in the server container). The database indexes
 those files, so back the volume up together with the database, from the same
 point in time. See [Object storage → Backups](../storage.md#backups).
