@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { approvedAnalyticsEventSchema } from "@openvalens/api/contracts/analytics";
 import type { Database } from "@openvalens/db";
 import { createAnalyticsService } from "./analytics";
 
@@ -129,6 +130,15 @@ describe("analytics service consent persistence", () => {
   });
 });
 
+describe("approved analytics events", () => {
+  test("only events with a real sender are accepted", () => {
+    expect(approvedAnalyticsEventSchema.options).toEqual(["preferences_opened"]);
+    for (const unsent of ["appearance_control_used", "preferences_load_failed"]) {
+      expect(approvedAnalyticsEventSchema.safeParse(unsent).success).toBe(false);
+    }
+  });
+});
+
 describe("analytics service provider boundary", () => {
   test("off and unconsented states never call provider; failures are best effort", async () => {
     const noConsent = fakeDatabase();
@@ -170,7 +180,7 @@ describe("analytics service provider boundary", () => {
     });
     const service = createAnalyticsService(fake.db, config, fetch);
     expect(await service.capture("sensitive-user-id", "preferences_opened")).toBe(true);
-    expect(await service.capture("sensitive-user-id", "appearance_control_used")).toBe(true);
+    expect(await service.capture("sensitive-user-id", "preferences_opened")).toBe(true);
     expect(requests).toHaveLength(2);
     expect(requests.map(({ url }) => url)).toEqual(
       Array(2).fill("https://eu.i.posthog.com/i/v0/e/"),

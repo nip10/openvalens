@@ -10,8 +10,6 @@ const MAX_ACK_BYTES = 128;
 
 const EVENT_NAMES: Record<ApprovedAnalyticsEvent, string> = {
   preferences_opened: "preferences_opened",
-  appearance_control_used: "appearance_control_used",
-  preferences_load_failed: "preferences_load_failed",
 };
 
 export type AnalyticsConfig = {

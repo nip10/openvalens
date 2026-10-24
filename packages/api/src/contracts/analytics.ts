@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-export const approvedAnalyticsEventSchema = z.enum([
-  "preferences_opened",
-  "appearance_control_used",
-  "preferences_load_failed",
-]);
+/**
+ * The only event the clients send. Event names are added here together with a
+ * real sender, never ahead of one: an approved name with no sender is a promise
+ * the product does not keep.
+ */
+export const approvedAnalyticsEventSchema = z.enum(["preferences_opened"]);
 
 export type ApprovedAnalyticsEvent = z.infer<typeof approvedAnalyticsEventSchema>;
 
