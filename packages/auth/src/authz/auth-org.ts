@@ -263,3 +263,18 @@ export async function ensureActiveOrganization(
     created: true,
   };
 }
+
+/**
+ * Body of the Better Auth `session.create.before` hook: every new session
+ * starts in a workspace. Without this only the web app selected one (through
+ * `/api/auth/ensure-active-organization`), so a session from the mobile app or
+ * an OIDC sign-in had no `activeOrganizationId` and every tenant-scoped call
+ * was refused. A session that already names a workspace is left alone.
+ */
+export async function withActiveOrganization<
+  S extends { userId: string; activeOrganizationId?: string | null },
+>(session: S, source: Database | AuthOrgStore): Promise<S> {
+  if (session.activeOrganizationId) return session;
+  const { organizationId } = await ensureActiveOrganization(session.userId, source);
+  return { ...session, activeOrganizationId: organizationId };
+}
