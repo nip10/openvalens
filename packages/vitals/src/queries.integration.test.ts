@@ -56,6 +56,15 @@ describe.skipIf(!url)("vitals queries against disposable PostgreSQL", () => {
       },
       {
         organizationId: ORG_A,
+        code: "hrv_rmssd",
+        displayName: "HRV (RMSSD)",
+        category: "vitals",
+        unit: "ms",
+        valueType: "number",
+        aggregationDefault: "avg",
+      },
+      {
+        organizationId: ORG_A,
         code: "steps",
         displayName: "Steps",
         category: "activity",
@@ -141,6 +150,32 @@ describe.skipIf(!url)("vitals queries against disposable PostgreSQL", () => {
     expect(yesterdayBucket?.restingHeartRate.avgBpm).toBe(58);
     expect(yesterdayBucket?.restingHeartRate.sampleCount).toBe(1);
     expect(yesterdayBucket?.heartRate.avgBpm).toBeNull();
+    expect(yesterdayBucket?.hrv).toEqual({ avgMs: null, sampleCount: 0 });
+  });
+
+  btest("averages overnight HRV (hrv_rmssd) per day in milliseconds", async () => {
+    const hrv = await defId("hrv_rmssd");
+    const today = new Date();
+    await db.insert(metricSample).values([
+      {
+        organizationId: ORG_A,
+        metricDefinitionId: hrv,
+        sampledAt: today,
+        numericValue: 40,
+        dedupeHash: "v-1",
+      },
+      {
+        organizationId: ORG_A,
+        metricDefinitionId: hrv,
+        sampledAt: today,
+        numericValue: 50,
+        dedupeHash: "v-2",
+      },
+    ]);
+
+    const days = await listDailyVitals(db, ORG_A, 1);
+    expect(days[0]?.hrv).toEqual({ avgMs: 45, sampleCount: 2 });
+    expect(days[0]?.heartRate.sampleCount).toBe(0);
   });
 
   btest("excludes superseded samples", async () => {

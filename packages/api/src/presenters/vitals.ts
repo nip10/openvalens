@@ -18,6 +18,11 @@ export type DailyVitalsLike = {
     avgBpm: number | null;
     sampleCount: number;
   };
+  /** Overnight HRV (RMSSD), ms. Optional: rows cached before it existed lack it. */
+  hrv?: {
+    avgMs: number | null;
+    sampleCount: number;
+  };
 };
 
 export type VitalsSampleLike = {
@@ -31,6 +36,8 @@ export type VitalsSummary = {
   today: DailyVitalsLike | null;
   sevenDayAverageBpm: number | null;
   latestSample: VitalsSampleLike | null;
+  /** Most recent day with an HRV value, or null (phone-only setups usually have none). */
+  latestHrv: { date: string; avgMs: number } | null;
 };
 
 /** Rounded mean across the days that actually have samples; null otherwise. */
@@ -52,7 +59,23 @@ export function summarizeVitals(
     today: days.at(-1) ?? null,
     sevenDayAverageBpm,
     latestSample: samples[0] ?? null,
+    latestHrv: latestHrv(days),
   };
+}
+
+function latestHrv(days: readonly DailyVitalsLike[]): { date: string; avgMs: number } | null {
+  for (let index = days.length - 1; index >= 0; index -= 1) {
+    const day = days[index];
+    const avgMs = day?.hrv?.avgMs;
+    if (day && avgMs !== null && avgMs !== undefined) return { date: day.date, avgMs };
+  }
+  return null;
+}
+
+/** "45 ms" / "—". */
+export function formatMs(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return `${Math.round(value)} ms`;
 }
 
 /** "72 bpm" / "—". */

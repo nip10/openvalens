@@ -20,7 +20,7 @@ msgstr "(você)"
 
 #. safety
 #. placeholder {0}: data.blockers.length
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "{0, plural, one {{blockerNames} also has another owner. Remove them or transfer the record before deleting.} other {{blockerNames} also have another owner. Remove them or transfer the record before deleting.}}"
 msgstr "{0, plural, one {{blockerNames} também tem outro proprietário. Remova-o ou transfira o registo antes de eliminar.} other {{blockerNames} também têm outro proprietário. Remova-os ou transfira os registos antes de eliminar.}}"
 
@@ -240,6 +240,10 @@ msgstr "{baselineDays} de {baselineMinDays} dias com dados até agora."
 msgid "{blockerNames} also has another owner. Remove them or transfer the record before deleting."
 msgstr "{blockerNames} também tem outro proprietário. Remova-o ou transfira o registo antes de eliminar."
 
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "{count, plural, one {{name} access was revoked. # record is hidden until you choose whether to keep it or delete it.} other {{name} access was revoked. # records are hidden until you choose whether to keep them or delete them.}}"
+msgstr "{count, plural, one {O acesso a {name} foi revogado. # registo está oculto até escolher se o quer manter ou eliminar.} other {O acesso a {name} foi revogado. # registos estão ocultos até escolher se os quer manter ou eliminar.}}"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "{count, plural, one {# exercise} other {# exercises}}"
 msgstr "{count, plural, one {# exercício} other {# exercícios}}"
@@ -291,6 +295,22 @@ msgstr "{days, plural, one {Este convite expira dentro de # dia.} other {Este co
 #: packages/api/src/presenters/insights.ts
 msgid "{direction, select, higher {Weight trending up} other {Weight trending down}}"
 msgstr "{direction, select, higher {Peso em tendência de subida} other {Peso em tendência de descida}}"
+
+#: packages/api/src/presenters/wearables.ts
+msgid "{displayName} could not be connected. Try again, or ask your server operator if it keeps failing."
+msgstr "Não foi possível ligar {displayName}. Tente novamente ou, se continuar a falhar, contacte o operador do servidor."
+
+#: packages/api/src/presenters/wearables.ts
+msgid "{displayName} is connected. The first sync runs shortly."
+msgstr "{displayName} está ligado. A primeira sincronização decorre em breve."
+
+#: packages/api/src/presenters/wearables.ts
+msgid "{displayName} was not connected because this browser is not signed in. Sign in here and connect again."
+msgstr "{displayName} não foi ligado porque este navegador não tem sessão iniciada. Inicie sessão aqui e ligue novamente."
+
+#: packages/api/src/presenters/wearables.ts
+msgid "{displayName} was not connected: access was not granted."
+msgstr "{displayName} não foi ligado: o acesso não foi concedido."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "{entered} of {total} values entered"
@@ -695,7 +715,7 @@ msgstr "{withIntensity} de {0, plural, one {# sessão tem} other {# sessões tê
 msgid "← All conversations"
 msgstr "← Todas as conversas"
 
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "<0>Download an export first</0>."
 msgstr "<0>Transfira primeiro uma exportação</0>."
 
@@ -720,7 +740,7 @@ msgid "1 · Very, very easy"
 msgstr "1 · Muito, muito fácil"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
 msgstr "1 = muito suave, 5 = muito enérgico. Atualmente {assertiveness} de 5."
 
@@ -911,6 +931,10 @@ msgstr "A aceitar…"
 msgid "Access denied"
 msgstr "Acesso negado"
 
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Access is revoked at the vendor and the stored tokens are deleted. Choose whether the records this connection already brought in are kept or deleted."
+msgstr "O acesso é revogado junto do fornecedor e os tokens guardados são eliminados. Escolha se os registos que esta ligação já trouxe são mantidos ou eliminados."
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Access requested for {granted} of {total} data types"
 msgstr "Acesso pedido para {granted} de {total} tipos de dados"
@@ -919,8 +943,20 @@ msgstr "Acesso pedido para {granted} de {total} tipos de dados"
 msgid "Access requested for {total} data types"
 msgstr "Acesso pedido para {total} tipos de dados"
 
+#: packages/api/src/presenters/wearables.ts
+msgid "Access revoked"
+msgstr "Acesso revogado"
+
+#: packages/api/src/presenters/wearables.ts
+msgid "Access was revoked from the vendor's side."
+msgstr "O acesso foi revogado do lado do fornecedor."
+
+#: apps/native/app/(drawer)/settings/devices.tsx
+msgid "Access was revoked. Choose whether to keep or delete its records in the web app."
+msgstr "O acesso foi revogado. Escolha na aplicação web se quer manter ou eliminar os respetivos registos."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Account"
 msgstr "Conta"
 
@@ -1342,7 +1378,7 @@ msgid "Asleep (min)"
 msgstr "Tempo a dormir (min)"
 
 #. placeholder {0}: assertivenessText(assertiveness)
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Assertiveness · {0}"
 msgstr "Assertividade · {0}"
 
@@ -1672,6 +1708,7 @@ msgstr "Canadá"
 #: apps/native/components/progress-photos.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/custom-foods.ts
@@ -1969,6 +2006,10 @@ msgstr "Fechado"
 msgid "Closer to your target: {goalTitle}"
 msgstr "Mais perto do seu alvo: {goalTitle}"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Cloud wearable connections"
+msgstr "Ligações de wearables na nuvem"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
@@ -1976,7 +2017,7 @@ msgstr "Mais perto do seu alvo: {goalTitle}"
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Coach"
 msgstr "Coach"
 
@@ -2081,6 +2122,7 @@ msgstr "Confirme que tem 18 anos ou mais antes de indicar a idade ou o sexo."
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/components/oidc-connect-section.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Connect"
 msgstr "Ligar"
@@ -2089,6 +2131,10 @@ msgstr "Ligar"
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Connect a Telegram chat to receive daily reminders."
 msgstr "Ligue uma conversa do Telegram para receber lembretes diários."
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Connect a wearable vendor account such as Oura or WHOOP"
+msgstr "Ligue uma conta de um fornecedor de wearables, como Oura ou WHOOP"
 
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 msgid "Connect Health Connect or Apple Health in Settings to sync your data."
@@ -2107,6 +2153,11 @@ msgstr "Ligue a sua conta {0} para iniciar sessão com ela. As ligações por em
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/index.tsx
+msgid "Connected"
+msgstr "Ligado"
+
+#: packages/api/src/presenters/wearables.ts
+msgctxt "wearable"
 msgid "Connected"
 msgstr "Ligado"
 
@@ -2333,6 +2384,10 @@ msgstr "Não foi possível eliminar este registo. Continua no seu histórico. Te
 msgid "Could not delete this photo. Try again."
 msgstr "Não foi possível eliminar esta fotografia. Tente novamente."
 
+#: apps/web/src/routes/_auth/settings/devices.tsx
+msgid "Could not disconnect this device."
+msgstr "Não foi possível desligar este dispositivo."
+
 #: apps/web/src/components/oidc-connect-section.tsx
 msgid "Could not disconnect. Sign in again and retry."
 msgstr "Não foi possível desligar. Inicie sessão novamente e tente outra vez."
@@ -2365,7 +2420,7 @@ msgid "Could not load clinical records."
 msgstr "Não foi possível carregar os registos clínicos."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Could not load coach settings."
 msgstr "Não foi possível carregar as definições do coach."
 
@@ -2543,6 +2598,11 @@ msgstr "Não foi possível carregar os treinos."
 msgid "Could not load your data. Pull to retry."
 msgstr "Não foi possível carregar os seus dados. Puxe para tentar novamente."
 
+#: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Could not load your devices."
+msgstr "Não foi possível carregar os seus dispositivos."
+
 #: apps/web/src/components/progress-photos.tsx
 msgid "Could not load your photos."
 msgstr "Não foi possível carregar as suas fotografias."
@@ -2609,6 +2669,11 @@ msgstr "Não foi possível ler as alterações guardadas neste dispositivo. Os r
 msgid "Could not read your health data. Check permissions."
 msgstr "Não foi possível ler os seus dados de saúde. Verifique as permissões."
 
+#: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/web/src/routes/_auth/settings/devices.tsx
+msgid "Could not request a sync."
+msgstr "Não foi possível pedir uma sincronização."
+
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Could not revoke invitation."
 msgstr "Não foi possível revogar o convite."
@@ -2651,7 +2716,7 @@ msgstr "Não foi possível guardar o seu comentário."
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not save."
@@ -2700,7 +2765,7 @@ msgstr "Não foi possível enviar a ligação de início de sessão."
 msgid "Could not send the email. Try again later."
 msgstr "Não foi possível enviar o email. Tente mais tarde."
 
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Could not send the sign-in link."
 msgstr "Não foi possível enviar a ligação de início de sessão."
 
@@ -2718,6 +2783,10 @@ msgstr "Não foi possível enviar. Verifique o consentimento para IA nas Defini�
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Could not start a conversation. Check that AI is enabled in Settings."
 msgstr "Não foi possível iniciar uma conversa. Verifique se a IA está ativada nas Definições."
+
+#: apps/web/src/routes/_auth/settings/devices.tsx
+msgid "Could not start connecting. Try again."
+msgstr "Não foi possível iniciar a ligação. Tente novamente."
 
 #: apps/web/src/components/oidc-sign-in-button.tsx
 msgid "Could not start sign-in with {displayName}. Please try again."
@@ -2752,6 +2821,10 @@ msgstr "Não foi possível atualizar as definições de observações. A escolha
 #: apps/web/src/components/reference-comparisons-card.tsx
 msgid "Could not update the comparison setting."
 msgstr "Não foi possível atualizar a definição de comparação."
+
+#: apps/web/src/routes/_auth/settings/devices.tsx
+msgid "Could not update these records."
+msgstr "Não foi possível atualizar estes registos."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -2846,6 +2919,7 @@ msgstr "Diariamente"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Daily reminders"
 msgstr "Lembretes diários"
 
@@ -2860,6 +2934,10 @@ msgstr "Lembretes diários pelo Telegram"
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Daily reminders will be sent to your Telegram chat."
 msgstr "Os lembretes diários serão enviados para a sua conversa do Telegram."
+
+#: packages/api/src/presenters/wearables.ts
+msgid "Daily steps, weight, resting heart rate, daily HRV and sleep sessions."
+msgstr "Passos diários, peso, frequência cardíaca em repouso, VFC diária e sessões de sono."
 
 #: apps/web/src/components/mode-toggle.tsx
 msgid "Dark"
@@ -2984,7 +3062,7 @@ msgstr "Eliminar <0>{foodName}</0>"
 msgid "Delete account"
 msgstr "Eliminar conta"
 
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Delete account and all data"
 msgstr "Eliminar a conta e todos os dados"
 
@@ -2997,7 +3075,7 @@ msgstr "Eliminar registo"
 #. safety
 #. safety
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Delete everything"
 msgstr "Eliminar tudo"
 
@@ -3009,6 +3087,14 @@ msgstr "Eliminar fotografia"
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Delete private measurement?"
 msgstr "Eliminar medição privada?"
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Delete records"
+msgstr "Eliminar registos"
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Delete the held-back {confirmName} records?"
+msgstr "Eliminar os registos retidos de {confirmName}?"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Delete this entry?"
@@ -3036,7 +3122,7 @@ msgid "Deletes every period and import you have logged, in every workspace, and 
 msgstr "Elimina todos os períodos e importações que registou, em todos os espaços de trabalho, e retira o seu consentimento. Esta ação não pode ser anulada."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Deleting…"
 msgstr "A eliminar…"
 
@@ -3058,6 +3144,14 @@ msgstr "Detalhes"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Details are unavailable. Refresh the library and try again."
 msgstr "Os detalhes não estão disponíveis. Atualize a biblioteca e tente novamente."
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/web/src/routes/_auth/settings/devices.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Devices"
+msgstr "Dispositivos"
 
 #: packages/api/src/presenters/clinical-export.ts
 msgid "DEXA"
@@ -3123,9 +3217,22 @@ msgstr "Descartar este registo? Foi guardado apenas neste dispositivo."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/components/oidc-connect-section.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Disconnect"
 msgstr "Desligar"
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Disconnect {confirmName}?"
+msgstr "Desligar {confirmName}?"
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Disconnect and delete records"
+msgstr "Desligar e eliminar registos"
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Disconnect, keep records"
+msgstr "Desligar e manter registos"
 
 #: apps/web/src/routes/index.tsx
 msgid "Disconnected"
@@ -3379,7 +3486,7 @@ msgstr "O email não está configurado neste servidor."
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Email me a sign-in link"
 msgstr "Enviar-me uma ligação de início de sessão"
 
@@ -3591,6 +3698,11 @@ msgstr "De poucas em poucas horas, quando o sistema permitir"
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "Every period and import is deleted and your consent is withdrawn. This cannot be undone."
 msgstr "Todos os períodos e importações são eliminados e o seu consentimento é retirado. Esta ação não pode ser anulada."
+
+#. safety
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Every record this connection brought in is permanently deleted. It can't be undone."
+msgstr "Todos os registos que esta ligação trouxe são eliminados permanentemente. Não é possível anular."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Evidence check"
@@ -3834,7 +3946,7 @@ msgstr "Por exemplo: caminhar na maioria dos dias"
 msgid "For your own reference only. This is not a contraception or fertility tool and does not change your nutrition targets."
 msgstr "Apenas para sua referência. Isto não é uma ferramenta de contraceção ou de fertilidade e não altera os seus objetivos nutricionais."
 
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "For your security, confirm it's you with a fresh sign-in."
 msgstr "Por segurança, confirme que é você com um novo início de sessão."
 
@@ -4473,6 +4585,8 @@ msgid "Instructions (optional)"
 msgstr "Instruções (opcional)"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Integrations"
 msgstr "Integrações"
 
@@ -4628,6 +4742,10 @@ msgstr "Manter a minha alteração"
 msgid "Keep my data"
 msgstr "Manter os meus dados"
 
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Keep records"
+msgstr "Manter registos"
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Keep review"
@@ -4732,6 +4850,11 @@ msgstr "A última sincronização falhou. Tente novamente."
 #: apps/native/components/health-sync-settings.tsx
 msgid "Last synced {0}"
 msgstr "Última sincronização: {0}"
+
+#: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Last synced {lastSynced}"
+msgstr "Última sincronização: {lastSynced}"
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Later"
@@ -5221,7 +5344,7 @@ msgstr "Tipo de medição"
 #. safety
 #. safety
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Medical disclaimer"
 msgstr "Aviso médico"
 
@@ -5514,6 +5637,10 @@ msgstr "Dia seguinte"
 msgid "Next unanswered: {0}"
 msgstr "Próxima por responder: {0}"
 
+#: packages/api/src/presenters/wearables.ts
+msgid "Nightly Recharge status, overnight HRV and sleep sessions."
+msgstr "Estado do Nightly Recharge, VFC noturna e sessões de sono."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgctxt "declaration answer"
 msgid "No"
@@ -5553,6 +5680,11 @@ msgstr "Sem alteração"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "No changes to save."
 msgstr "Não há alterações para guardar."
+
+#: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "No cloud devices are available on this server"
+msgstr "Não há dispositivos na nuvem disponíveis neste servidor"
 
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
@@ -5914,6 +6046,11 @@ msgstr "Não comparado: nem todos os alimentos indicaram este valor."
 msgid "Not connected"
 msgstr "Não ligado"
 
+#: packages/api/src/presenters/wearables.ts
+msgctxt "wearable"
+msgid "Not connected"
+msgstr "Não ligado"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Not counted (no catalog muscles)"
@@ -6042,7 +6179,9 @@ msgstr "Não é claro o que é"
 msgid "Not sure yet"
 msgstr "Ainda não sei"
 
+#: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
 msgid "Not synced yet"
 msgstr "Ainda não sincronizado"
 
@@ -6513,6 +6652,12 @@ msgstr "Fora da idade ou do sexo publicados para este item."
 #: packages/api/src/presenters/insights.ts
 msgid "Over the last {weeks, plural, one {# week} other {# weeks}} your weight trend moved about {change} {direction, select, higher {up} other {down}}, from about {start} to {end}."
 msgstr "{weeks, plural, one {Na última semana} other {Nas últimas # semanas}}, a tendência do seu peso {direction, select, higher {subiu} other {desceu}} cerca de {change}, de cerca de {start} para {end}."
+
+#. placeholder {0}: summary.latestHrv.date
+#: apps/native/app/(drawer)/records/vitals.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Overnight HRV · {0}"
+msgstr "VFC noturna · {0}"
 
 #: packages/api/src/presenters/body.ts
 msgctxt "weight source"
@@ -7067,6 +7212,10 @@ msgstr "Índice de prontidão"
 msgid "Readiness index not loaded."
 msgstr "Índice de prontidão não carregado."
 
+#: packages/api/src/presenters/wearables.ts
+msgid "Readiness score, overnight HRV, resting heart rate, sleep sessions and daily steps."
+msgstr "Pontuação de prontidão, VFC noturna, frequência cardíaca em repouso, sessões de sono e passos diários."
+
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: packages/api/src/presenters/insights.ts
 msgid "Ready"
@@ -7140,6 +7289,14 @@ msgstr "Recomendado (USPSTF {letter})"
 msgid "Recommended dietary allowance (RDA)"
 msgstr "Dose diária recomendada (RDA)"
 
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Reconnect"
+msgstr "Voltar a ligar"
+
+#: packages/api/src/presenters/wearables.ts
+msgid "Reconnect needed"
+msgstr "É necessário voltar a ligar"
+
 #: packages/api/src/presenters/insights.ts
 msgid "Recorded activity energy"
 msgstr "Energia de atividade registada"
@@ -7156,6 +7313,10 @@ msgstr "Registos"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Recovery"
 msgstr "Recuperação"
+
+#: packages/api/src/presenters/wearables.ts
+msgid "Recovery score, overnight HRV, resting heart rate and sleep sessions."
+msgstr "Pontuação de recuperação, VFC noturna, frequência cardíaca em repouso e sessões de sono."
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Redeem invitation"
@@ -7319,6 +7480,7 @@ msgstr "Restaurar registo"
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/scores.tsx
+#: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
@@ -7336,6 +7498,7 @@ msgstr "Restaurar registo"
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -7349,7 +7512,7 @@ msgstr "Restaurar registo"
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/route.tsx
 #: apps/web/src/routes/_auth/scores.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -7502,7 +7665,7 @@ msgid "Right upper back (back)"
 msgstr "Parte superior direita das costas (costas)"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Risk tolerance"
 msgstr "Tolerância ao risco"
 
@@ -7567,7 +7730,7 @@ msgstr "Ácidos gordos saturados"
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -7637,7 +7800,7 @@ msgstr "Guardar nos meus alimentos para a próxima vez"
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Saved"
@@ -7691,7 +7854,7 @@ msgstr "A guardar fotografia…"
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/custom-foods.ts
@@ -7916,7 +8079,8 @@ msgstr "Séries de {trainingFrom} a {trainingTo}"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/web/src/components/header.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/devices.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Settings"
 msgstr "Definições"
 
@@ -8105,7 +8269,7 @@ msgid "Sign in with the matching email first, then return and enter the token ag
 msgstr "Inicie primeiro sessão com o email correspondente; depois volte e introduza novamente o token."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Sign out"
 msgstr "Terminar sessão"
 
@@ -8122,7 +8286,7 @@ msgstr "Terminar sessão para confirmar que é você"
 msgid "Sign-in link sent"
 msgstr "Ligação de início de sessão enviada"
 
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Sign-in link sent — check your email"
 msgstr "Ligação de início de sessão enviada — verifique o seu email"
 
@@ -8564,7 +8728,9 @@ msgid "Sync Health Connect or Apple Health from the mobile app, or add an entry.
 msgstr "Sincronize o Health Connect ou o Apple Health a partir da aplicação móvel, ou adicione um registo."
 
 #: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Sync now"
 msgstr "Sincronizar agora"
@@ -8572,6 +8738,11 @@ msgstr "Sincronizar agora"
 #: apps/web/src/components/sync-status-badge.tsx
 msgid "Sync pending entries"
 msgstr "Sincronizar registos pendentes"
+
+#: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Sync requested. It runs on the next scheduled pass."
+msgstr "Sincronização pedida. Decorre na próxima execução agendada."
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Sync state: {label}"
@@ -8682,7 +8853,7 @@ msgid "Targets are yours to set, change or clear. They are shown next to what yo
 msgstr "Os objetivos são seus para definir, alterar ou limpar. São mostrados ao lado do que registou, sem comparação."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Template"
 msgstr "Modelo"
 
@@ -8751,6 +8922,10 @@ msgstr "Não foi possível contactar a fonte de alimentos. Tente a consulta mais
 msgid "The import failed. Nothing was saved."
 msgstr "A importação falhou. Nada foi guardado."
 
+#: packages/api/src/presenters/wearables.ts
+msgid "The last sync failed. It will retry automatically."
+msgstr "A última sincronização falhou. Será repetida automaticamente."
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "The library is empty for now."
 msgstr "Por agora, a biblioteca está vazia."
@@ -8766,6 +8941,10 @@ msgstr "O resumo de micronutrientes está desativado. Ative-o nas definições d
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "The minimum must not be more than the maximum."
 msgstr "O mínimo não pode ser superior ao máximo."
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "The mobile app already sends steps, heart rate, sleep, weight and workouts from Apple Health or Health Connect. Connect a vendor account here only for what the phone cannot carry, such as overnight HRV and the vendor's own scores."
+msgstr "A aplicação móvel já envia passos, frequência cardíaca, sono, peso e treinos do Apple Health ou do Health Connect. Ligue aqui uma conta de fornecedor apenas para o que o telemóvel não consegue trazer, como a VFC noturna e as pontuações próprias do fornecedor."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The NHS has not reviewed or endorsed this app."
@@ -8861,6 +9040,14 @@ msgstr "A tendência é claramente maior do que as suas subidas e descidas habit
 msgid "The trend is only a little larger than your usual day-to-day ups and downs."
 msgstr "A tendência é apenas um pouco maior do que as suas subidas e descidas habituais de um dia para o outro."
 
+#: packages/api/src/presenters/wearables.ts
+msgid "The vendor could not be reached on the last sync. It will retry automatically."
+msgstr "Não foi possível contactar o fornecedor na última sincronização. Será repetida automaticamente."
+
+#: packages/api/src/presenters/wearables.ts
+msgid "The vendor no longer accepts this connection. Connect again to resume syncing."
+msgstr "O fornecedor já não aceita esta ligação. Volte a ligar para retomar a sincronização."
+
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "The weekly insights email is off. You can turn it on again in Settings."
 msgstr "O email semanal de perspetivas está desligado. Pode voltar a ligá-lo nas Definições."
@@ -8898,6 +9085,10 @@ msgstr "Estas definições foram alteradas noutro local. Recarregue a versão ma
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Thigh"
 msgstr "Coxa"
+
+#: apps/native/app/(drawer)/settings/devices.tsx
+msgid "This app already syncs Apple Health or Health Connect. To connect, disconnect or remove a vendor account such as Oura or WHOOP, sign in to the web app and open Settings, then Devices."
+msgstr "Esta aplicação já sincroniza o Apple Health ou o Health Connect. Para ligar, desligar ou remover uma conta de fornecedor, como Oura ou WHOOP, inicie sessão na aplicação web e abra Definições e depois Dispositivos."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/progress-photos.tsx
@@ -9049,17 +9240,17 @@ msgid "This optional feature is off by default. Turning it on lets you record we
 msgstr "Esta funcionalidade opcional está desligada por predefinição. Ao ligá-la, pode registar medições de peso ou perímetros e ver fotografias de progresso nesta conta."
 
 #. safety
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "This permanently deletes your account and {rows} stored rows across {organizationCount} health records ({organizationNames}). It can't be undone."
 msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardadas em {organizationCount} registos de saúde ({organizationNames}). Não é possível anular."
 
 #. safety
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "This permanently deletes your account and {rows} stored rows across {organizationCount} health records. It can't be undone."
 msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardadas em {organizationCount} registos de saúde. Não é possível anular."
 
 #. safety
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "This permanently deletes your account and {rows} stored rows across your health record ({organizationNames}). It can't be undone."
 msgstr "Esta ação elimina permanentemente a sua conta e {rows} linhas guardadas no seu registo de saúde ({organizationNames}). Não é possível anular."
 
@@ -9207,7 +9398,7 @@ msgid "Tolerable upper intake level (UL)"
 msgstr "Nível máximo de ingestão tolerável (UL)"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Tone"
 msgstr "Tom"
 
@@ -9408,7 +9599,7 @@ msgid "Type {confirmationPhrase} to confirm"
 msgstr "Escreva {confirmationPhrase} para confirmar"
 
 #. safety
-#: apps/web/src/routes/_auth/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Type <0>{confirmationPhrase}</0> to confirm"
 msgstr "Escreva <0>{confirmationPhrase}</0> para confirmar"
 
@@ -9714,6 +9905,10 @@ msgstr "Valores por {per} · porção: {label}"
 msgid "Values per amount"
 msgstr "Quantidade de referência dos valores"
 
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Vendor terms"
+msgstr "Termos do fornecedor"
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Verification code"
 msgstr "Código de verificação"
@@ -9869,6 +10064,10 @@ msgstr "Peso ({unit})"
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Weight, BMI, body fat and waist: never compared with other people. You see your own trend only."
 msgstr "Peso, IMC, gordura corporal e cintura: nunca comparados com outras pessoas. Vê apenas a sua própria tendência."
+
+#: packages/api/src/presenters/wearables.ts
+msgid "Weight, body fat and sleep sessions."
+msgstr "Peso, gordura corporal e sessões de sono."
 
 #. placeholder {0}: session.user.name
 #: apps/native/app/(drawer)/index.tsx
@@ -10269,6 +10468,10 @@ msgstr "A quantidade guardada está oculta. Introduza uma nova quantidade para a
 #: packages/api/src/presenters/plain-water.ts
 msgid "Your saved goal is hidden. Enter a new goal to replace it, or clear it."
 msgstr "A meta guardada está oculta. Introduza uma nova meta para a substituir, ou limpe-a."
+
+#: apps/web/src/components/wearable-devices-view.tsx
+msgid "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
+msgstr "O operador do servidor não ativou nenhum fornecedor. A aplicação móvel continua a sincronizar o Apple Health e o Health Connect."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Your targets"

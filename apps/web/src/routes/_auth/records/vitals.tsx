@@ -8,6 +8,7 @@ import {
 } from "@openvalens/api/presenters/manual-entry";
 import {
   formatBpm,
+  formatMs,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
@@ -321,6 +322,12 @@ function VitalsPage() {
                 label={t`Source`}
                 value={vitalsSourceLabel(summary.latestSample?.source ?? null, i18n)}
               />
+              {summary.latestHrv ? (
+                <Stat
+                  label={t`Overnight HRV · ${summary.latestHrv.date}`}
+                  value={formatMs(summary.latestHrv.avgMs)}
+                />
+              ) : null}
             </CardContent>
           </Card>
 

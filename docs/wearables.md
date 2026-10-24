@@ -17,6 +17,38 @@ health-data path.
 - When a vendor _is_ configured, a day with both phone and cloud data for the
   same metric is **counted once** (the phone row wins; see below).
 
+## Connecting a device (for members)
+
+Connecting happens in the **web app**: **Settings → Integrations → Devices**
+(`/settings/devices`). The page lists only the vendors this server's operator
+has configured; with none configured it says so and nothing else changes.
+
+For each vendor it shows the connection state (not connected, connected,
+reconnect needed, access revoked), the last successful sync and, after a
+failure, a short value-free reason. The actions are:
+
+- **Connect** / **Reconnect** opens the vendor's consent page in the same
+  browser tab. The vendor sends the browser to this server's callback, which
+  binds the grant to the browser's signed-in session and returns to
+  `/settings/devices?provider=<id>&status=<connected|denied|failed|unauthenticated>`;
+  the page turns that into a notice. `unauthenticated` means the browser that
+  finished the consent was not signed in — sign in there and connect again.
+- **Sync now** asks for a sync on the next scheduled pass (or webhook run).
+- **Disconnect** asks whether to keep or delete the records the connection
+  already brought in, then revokes upstream and deletes the stored tokens.
+- After a vendor revokes access, **Keep records** or **Delete records**
+  resolves the held-back rows (deleting asks for confirmation). Reconnecting
+  the same vendor account instead restores them.
+
+The mobile app shows the same status under **Settings → Integrations →
+Devices** and can request a sync, but connecting, disconnecting and the
+keep-or-delete choice are web-only: the callback needs the session cookie of
+the browser that completes the consent, and the app keeps its session in
+secure storage the system browser cannot see.
+
+Days with overnight HRV (`hrv_rmssd`) show the latest value on the **Vitals**
+page. Vendor scores (`provider_score`) are stored but not yet displayed.
+
 ## Enabling a provider
 
 For each vendor: register a developer app, then set its client id and secret.
@@ -29,6 +61,9 @@ them to the `deploy/.env` table in
 WEARABLES_OURA_CLIENT_ID=...
 WEARABLES_OURA_CLIENT_SECRET=...            # or WEARABLES_OURA_CLIENT_SECRET_FILE
 ```
+
+The callback returns the browser to `CORS_ORIGIN` + `/settings/devices`, so
+`CORS_ORIGIN` must be the web app's public origin.
 
 Register this **redirect URI** with every vendor (replace the host):
 

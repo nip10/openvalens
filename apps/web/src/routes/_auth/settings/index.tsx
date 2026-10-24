@@ -47,7 +47,7 @@ import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
 import { orpc } from "@/utils/orpc";
 
-export const Route = createFileRoute("/_auth/settings")({
+export const Route = createFileRoute("/_auth/settings/")({
   component: SettingsPage,
 });
 
@@ -63,6 +63,7 @@ function SettingsPage() {
         <OidcConnectSection />
         <ProfileSummarySection />
         <InsightNotificationsSection />
+        <IntegrationsSection />
         <AnalyticsConsentSection />
         <CoachSection />
         <AiConsentSection />
@@ -70,6 +71,35 @@ function SettingsPage() {
         <AboutSection />
       </div>
     </div>
+  );
+}
+
+/** Links to the per-integration pages under /settings. */
+function IntegrationsSection() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Trans>Integrations</Trans>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3 text-sm">
+        <Link to="/settings/devices" className="flex flex-col">
+          <span className="font-medium underline">
+            <Trans>Devices</Trans>
+          </span>
+          <span className="text-muted-foreground">
+            <Trans>Connect a wearable vendor account such as Oura or WHOOP</Trans>
+          </span>
+        </Link>
+        <Link to="/settings/telegram" className="flex flex-col">
+          <span className="font-medium underline">Telegram</span>
+          <span className="text-muted-foreground">
+            <Trans>Daily reminders</Trans>
+          </span>
+        </Link>
+      </CardContent>
+    </Card>
   );
 }
 

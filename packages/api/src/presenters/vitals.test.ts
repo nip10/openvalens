@@ -4,6 +4,7 @@ import { englishI18n } from "@openvalens/i18n/testing";
 
 import {
   formatBpm,
+  formatMs,
   formatBpmRange,
   heartRateSeries,
   summarizeVitals,
@@ -51,6 +52,22 @@ describe("vitals presenter", () => {
       [{ sampledAt: "2026-10-01T08:00:00.000Z", heartRateBpm: 71, source: "health_connect" }],
     );
     expect(summary.latestSample?.heartRateBpm).toBe(71);
+  });
+
+  test("latestHrv: most recent day with HRV; null without any (or on old cached rows)", () => {
+    const withHrv = (date: string, avgMs: number | null) => ({
+      ...day(date, 70),
+      hrv: { avgMs, sampleCount: avgMs === null ? 0 : 1 },
+    });
+    expect(
+      summarizeVitals([withHrv("2026-09-29", 41), withHrv("2026-09-30", null)], []).latestHrv,
+    ).toEqual({ date: "2026-09-29", avgMs: 41 });
+    expect(summarizeVitals([day("2026-09-30", 70)], []).latestHrv).toBeNull();
+  });
+
+  test("formatMs: rounded integer + unit, '—' for null", () => {
+    expect(formatMs(null)).toBe("—");
+    expect(formatMs(44.6)).toBe("45 ms");
   });
 
   test("formatBpm: rounded integer + unit, '—' for null", () => {

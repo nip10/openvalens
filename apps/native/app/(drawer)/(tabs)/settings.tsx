@@ -104,6 +104,12 @@ export default function SettingsScreen() {
           <CardStack title={t`Integrations`}>
             <Card variant="secondary" className="overflow-hidden p-0">
               <ListRow
+                icon={<Ionicons name="watch-outline" size={20} color={foreground} />}
+                title={t`Devices`}
+                subtitle={t`Cloud wearable connections`}
+                onPress={() => router.push("/settings/devices")}
+              />
+              <ListRow
                 icon={<Text className="text-lg">✈</Text>}
                 title="Telegram"
                 subtitle={t`Daily reminders`}
