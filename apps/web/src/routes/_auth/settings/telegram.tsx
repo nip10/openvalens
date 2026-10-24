@@ -12,17 +12,30 @@ export const Route = createFileRoute("/_auth/settings/telegram")({
 });
 
 function TelegramSettingsPage() {
-  const status = useQuery(orpc.telegram.status.queryOptions({ input: {} }));
   const queryClient = useQueryClient();
   const { t } = useLingui();
 
   const connect = useMutation(
     orpc.telegram.issueConnectToken.mutationOptions({
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["telegram", "status"] });
+        void queryClient.invalidateQueries({ queryKey: orpc.telegram.status.key() });
       },
     }),
   );
+  const disconnect = useMutation(
+    orpc.telegram.disconnect.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: orpc.telegram.status.key() });
+      },
+    }),
+  );
+  // While a connect link is open, poll so the page flips to Connected once the
+  // member presses Start in Telegram.
+  const waiting = connect.isSuccess;
+  const status = useQuery({
+    ...orpc.telegram.status.queryOptions({ input: {} }),
+    refetchInterval: (query) => (waiting && !query.state.data?.connected ? 3000 : false),
+  });
 
   if (status.isPending) {
     return (
@@ -54,20 +67,51 @@ function TelegramSettingsPage() {
                 : t`Connect a Telegram chat to receive daily reminders.`}
             </div>
           </div>
-          <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
-            {connect.isPending ? t`Generating link…` : connected ? t`Re-link` : t`Connect`}
-          </Button>
+          {connected ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                connect.reset();
+                disconnect.mutate({});
+              }}
+              disabled={disconnect.isPending}
+            >
+              {disconnect.isPending ? t`Disconnecting…` : t`Disconnect`}
+            </Button>
+          ) : (
+            <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
+              {connect.isPending ? t`Generating link…` : t`Connect`}
+            </Button>
+          )}
         </CardContent>
-        {connect.isSuccess && connect.data ? (
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              <Trans>Open this link in Telegram and press Start:</Trans>
-            </p>
-            <p className="mt-2 break-all rounded-lg border border-border bg-muted/40 p-2 font-mono text-sm">
-              {connect.data?.token}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              <Trans>Expires {new Date(connect.data?.expiresAt ?? "").toLocaleString()}.</Trans>
+        {connect.isSuccess && connect.data && !connected ? (
+          <CardContent className="grid gap-2 text-sm">
+            {connect.data.link ? (
+              <>
+                <p className="text-muted-foreground">
+                  <Trans>
+                    Open the link in Telegram and press Start. This page updates once the chat is
+                    connected.
+                  </Trans>
+                </p>
+                <Button asChild className="w-fit">
+                  <a href={connect.data.link} target="_blank" rel="noreferrer">
+                    <Trans>Open in Telegram</Trans>
+                  </a>
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  <Trans>Send this message to this server's Telegram bot:</Trans>
+                </p>
+                <p className="break-all rounded-lg border border-border bg-muted/40 p-2 font-mono">
+                  /start {connect.data.token}
+                </p>
+              </>
+            )}
+            <p className="text-xs text-muted-foreground">
+              <Trans>Expires {new Date(connect.data.expiresAt).toLocaleString()}.</Trans>
             </p>
           </CardContent>
         ) : connect.isError ? (

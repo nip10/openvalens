@@ -105,11 +105,13 @@ AI (`ai=configured:anthropic`):
 
 Telegram (`messaging=configured:telegram`):
 
-- [ ] From Settings → Telegram, issue a connect token and bind the operator's
-      own test chat. Record success and time only.
+- [ ] Register the webhook ([configuration](self-hosting/configuration.md#telegram)).
+      From Settings → Telegram, press Connect, then Open in Telegram and Start
+      in the operator's own test chat. The bot confirms and the page shows
+      Connected. Record success and time only.
 - [ ] A webhook call without the secret header is rejected with 401
       (`telegram.webhook.rejected` in the logs).
-- [ ] Disconnect the test chat afterwards.
+- [ ] Press Disconnect in Settings → Telegram afterwards.
 
 ## 5. Native app: physical smoke waived
 

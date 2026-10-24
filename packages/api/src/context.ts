@@ -43,8 +43,6 @@ export type CapabilityFlags = {
 
 /** Telegram configuration the server owns and hands to the API package. */
 export type TelegramContextConfig = {
-  /** Expected `X-Telegram-Bot-Api-Secret-Token` value. */
-  webhookSecret: string;
   /** Connect-token TTL in seconds. */
   connectTokenTtlSeconds: number;
 };
@@ -118,13 +116,18 @@ export type Context = {
    * valid; readiness reports an empty object when it is absent.
    */
   integrations?: IntegrationStatuses;
-  /** Telegram config for connect-token issuance + webhook binding. */
+  /** Telegram config for connect-token issuance. */
   telegram: TelegramContextConfig;
   /**
    * Server-built Telegram client, or `null` when no bot token is configured.
    * Used by the daily-reminder cron to deliver via Telegram.
    */
   telegramClient: TelegramClient | null;
+  /**
+   * The bot's username for `t.me` connect links, or `null` when unknown.
+   * Optional at the type level so unrelated context factories stay valid.
+   */
+  telegramBotUsername?: () => Promise<string | null>;
   /**
    * Issue #58 — config-bound email service the server owns. Optional at the
    * type level so unrelated context factories stay valid; procedures that

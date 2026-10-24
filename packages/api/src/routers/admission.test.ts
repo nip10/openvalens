@@ -49,7 +49,7 @@ function context(overrides: Record<string, unknown> = {}, origin?: string): Cont
     cronSecret: "test-cron-secret-long-enough",
     betterAuthSecretConfigured: true,
     capabilities: { telegram: false, anthropic: false, resend: false, mobilePairing: true },
-    telegram: { webhookSecret: "test-webhook-secret-1234", connectTokenTtlSeconds: 600 },
+    telegram: { connectTokenTtlSeconds: 600 },
     telegramClient: null,
     aiConfig: {
       AI_PROVIDER: null,

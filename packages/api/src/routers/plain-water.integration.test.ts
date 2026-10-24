@@ -112,7 +112,7 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
       cronSecret: "synthetic-cron-secret-long-enough",
       betterAuthSecretConfigured: true,
       capabilities: { telegram: false, anthropic: false, resend: false, mobilePairing: true },
-      telegram: { webhookSecret: "synthetic", connectTokenTtlSeconds: 600 },
+      telegram: { connectTokenTtlSeconds: 600 },
       telegramClient: null,
       aiConfig: {} as never,
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,

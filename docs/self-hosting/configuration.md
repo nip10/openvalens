@@ -185,9 +185,7 @@ Instead of appending the `_FILE` line yourself, you can re-run
 present in `deploy/secrets/server/`.
 
 AI features send data to the provider only behind the in-app consent gate.
-Registering the Telegram webhook (`https://<domain>/api/integrations/telegram/webhook`,
-authenticated with `TELEGRAM_WEBHOOK_SECRET`) with Telegram is not automated and
-is not yet covered by these docs. Object storage defaults to private local
+Telegram also needs its webhook registered; see [Telegram](#telegram). Object storage defaults to private local
 disk on the `storage` volume; to use an S3-compatible bucket (S3, R2, MinIO) set
 `STORAGE_PROVIDER=s3` and the `STORAGE_S3_*` settings described in
 [Object storage](../storage.md). The adapter rules and the planned families
@@ -224,6 +222,49 @@ address. A misconfigured selection (for example `openai-compatible` without
 `AI_CONFIG_INVALID`; check `docker compose -f deploy/compose.yml logs server`.
 Model choice, tool-calling and structured-output behaviour are in
 [AI providers](../ai-providers.md).
+
+### Telegram
+
+Telegram delivers the daily reminders. Members connect their own chat from
+**Settings → Telegram**, and react 👍 or 👎 to a reminder to mark it done or
+skipped.
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`) and keep
+   the token it gives you private.
+2. Save the token as a secret and apply it:
+
+   ```bash
+   read -rs -p 'Telegram bot token: ' key && echo &&
+     printf '%s\n' "$key" >deploy/secrets/server/TELEGRAM_BOT_TOKEN && unset key
+   chmod 0444 deploy/secrets/server/TELEGRAM_BOT_TOKEN
+   echo 'TELEGRAM_BOT_TOKEN_FILE=/run/secrets/TELEGRAM_BOT_TOKEN' >>deploy/.env
+   deploy/setup.sh upgrade
+   ```
+
+3. Register the webhook with Telegram. Replace `<domain>` with your domain.
+   `curl` reads its settings from standard input, so the token and the webhook
+   secret never appear on a command line:
+
+   ```bash
+   curl -fsS -K - <<EOF
+   url = "https://api.telegram.org/bot$(cat deploy/secrets/server/TELEGRAM_BOT_TOKEN)/setWebhook"
+   data-urlencode = "url=https://<domain>/api/integrations/telegram/webhook"
+   data-urlencode = "secret_token=$(cat deploy/secrets/server/TELEGRAM_WEBHOOK_SECRET)"
+   data-urlencode = "allowed_updates=[\"message\",\"message_reaction\"]"
+   EOF
+   ```
+
+   Telegram answers `{"ok":true,"result":true,...}`. `allowed_updates` must
+   include `message` (for the `/start` that connects a chat) and
+   `message_reaction` (for reminder reactions); Telegram does not send
+   reactions unless they are listed.
+
+`checks.integrations.messaging.state` in the readiness response reads
+`configured` once the token is present. To connect, a member presses
+**Connect** under Settings → Telegram, then **Open in Telegram** and **Start**.
+The bot replies to confirm, and the settings page shows the chat as connected.
+A connect link works once and expires after
+`TELEGRAM_CONNECT_TOKEN_TTL_SECONDS` (10 minutes by default).
 
 ### Content Security Policy
 

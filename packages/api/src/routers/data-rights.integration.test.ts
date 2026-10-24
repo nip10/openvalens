@@ -94,7 +94,7 @@ async function contextFromDatabase(
     cronSecret: "synthetic-cron-secret-long-enough",
     betterAuthSecretConfigured: true,
     capabilities: { telegram: false, anthropic: false, resend: false, mobilePairing: false },
-    telegram: { webhookSecret: "synthetic-webhook-secret", connectTokenTtlSeconds: 600 },
+    telegram: { connectTokenTtlSeconds: 600 },
     telegramClient: null,
     aiConfig: {} as never,
     aiRateLimiter: { check: () => ({ allowed: true }) } as never,

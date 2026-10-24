@@ -1,10 +1,15 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import type { Database } from "@openvalens/db";
 import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
+import { resolveLocale, type Locale } from "@openvalens/i18n";
+import { readUserLocale, serverI18n } from "@openvalens/i18n/server";
 import type { StructuredLogger } from "@openvalens/observability";
 import { and, eq } from "drizzle-orm";
 
 import { writeTelegramAuditLog } from "./audit";
 import type { TelegramClient } from "./client";
+import { connectChatWithToken } from "./connect";
 import {
   claimWebhookUpdate,
   markWebhookUpdateProcessed,
@@ -16,9 +21,11 @@ import { mapReactionToReminderStatus } from "./reactions";
 /**
  * Telegram webhook processing (Issue #14).
  *
- * Handles `message_reaction` updates: maps the emoji to a reminder outcome and
- * persists it against the owning `daily_reminder` row (anchovy parity). Unknown
- * update types are acknowledged without side effects. Every update is deduped
+ * Handles `/start <token>` in a private chat, which binds the chat to the
+ * member who issued the token (see `./connect`), and `message_reaction`
+ * updates, which map the emoji to a reminder outcome and persist it against
+ * the owning `daily_reminder` row (anchovy parity). Unknown update types are
+ * acknowledged without side effects. Every update is deduped
  * by `telegramUpdateId` before any domain work runs.
  */
 
@@ -100,6 +107,91 @@ export function extractReactionTargetFromTelegramUpdate(
   return { chatId: String(chatIdRaw), messageId, emoji };
 }
 
+export type TelegramStartCommand = {
+  chatId: string;
+  telegramUserId: string;
+  /** The deep-link payload, or `null` for a bare `/start`. */
+  token: string | null;
+  /** The sender's Telegram app language (an IETF tag), if any. */
+  languageCode: string | null;
+};
+
+const START_COMMAND = /^\/start(?:@\w+)?(?:\s+(\S+))?\s*$/;
+
+/** A `/start` sent in a private chat, or `null` for anything else. */
+export function extractStartCommand(update: unknown): TelegramStartCommand | null {
+  if (!update || typeof update !== "object") return null;
+  const message = (update as { message?: unknown }).message;
+  if (!message || typeof message !== "object") return null;
+  const parsed = message as {
+    text?: unknown;
+    chat?: { id?: unknown; type?: unknown };
+    from?: { id?: unknown; language_code?: unknown };
+  };
+  if (parsed.chat?.type !== "private" || typeof parsed.text !== "string") return null;
+  const match = START_COMMAND.exec(parsed.text.trim());
+  const chatId = parsed.chat.id;
+  const fromId = parsed.from?.id;
+  if (!match || (typeof chatId !== "number" && typeof chatId !== "string")) return null;
+  if (typeof fromId !== "number" && typeof fromId !== "string") return null;
+  return {
+    chatId: String(chatId),
+    telegramUserId: String(fromId),
+    token: match[1] ?? null,
+    languageCode: typeof parsed.from?.language_code === "string" ? parsed.from.language_code : null,
+  };
+}
+
+const CONNECTED_REPLY = msg`Connected. Your OpenValens daily reminders will arrive here. React with 👍 when you've done one or 👎 to skip it.`;
+const INVALID_LINK_REPLY = msg`This connect link is invalid or has expired. Open Settings → Telegram in OpenValens and connect again.`;
+const MISSING_LINK_REPLY = msg`To connect this chat, open Settings → Telegram in OpenValens and use the connect link there.`;
+
+async function reply(
+  deps: HandleWebhookUpdateDeps,
+  chatId: string,
+  locale: Locale,
+  text: MessageDescriptor,
+): Promise<void> {
+  if (!deps.client) return;
+  try {
+    await deps.client.sendMessage(chatId, serverI18n(locale)._(text));
+  } catch (error) {
+    // The bind already happened; a failed confirmation must not undo it.
+    deps.logger.warn("telegram.webhook.reply_failed", {
+      correlationId: deps.correlationId,
+      errorCode: (error as { code?: string }).code ?? "UNKNOWN",
+    });
+  }
+}
+
+async function processStartCommand(
+  deps: HandleWebhookUpdateDeps,
+  command: TelegramStartCommand,
+): Promise<ProcessOutcome> {
+  const maskedChatId = maskChatId(command.chatId);
+  const senderLocale = resolveLocale([command.languageCode]);
+
+  if (!command.token) {
+    await reply(deps, command.chatId, senderLocale, MISSING_LINK_REPLY);
+    return { handled: false, maskedChatId, errorCode: "CONNECT_TOKEN_MISSING" };
+  }
+
+  const result = await connectChatWithToken(deps.db, {
+    token: command.token,
+    chatId: command.chatId,
+    telegramUserId: command.telegramUserId,
+    correlationId: deps.correlationId,
+  });
+  if (result.status === "invalid") {
+    await reply(deps, command.chatId, senderLocale, INVALID_LINK_REPLY);
+    return { handled: false, maskedChatId, errorCode: "CONNECT_TOKEN_INVALID" };
+  }
+
+  const locale = await readUserLocale(deps.db, result.userId).catch(() => senderLocale);
+  await reply(deps, command.chatId, locale, CONNECTED_REPLY);
+  return { handled: true, organizationId: result.organizationId, maskedChatId };
+}
+
 async function processReactionUpdate(
   deps: HandleWebhookUpdateDeps,
   target: TelegramReactionTarget,
@@ -178,6 +270,11 @@ async function processReactionUpdate(
 }
 
 async function processUpdate(deps: HandleWebhookUpdateDeps): Promise<ProcessOutcome> {
+  const start = extractStartCommand(deps.rawUpdate);
+  if (start) {
+    return processStartCommand(deps, start);
+  }
+
   const target = extractReactionTargetFromTelegramUpdate(deps.rawUpdate);
   if (target) {
     return processReactionUpdate(deps, target);
@@ -192,6 +289,7 @@ async function processUpdate(deps: HandleWebhookUpdateDeps): Promise<ProcessOutc
  * - missing `update_id` → `unknown`
  * - duplicate (already processed) → `replayed`
  * - duplicate older than the stale window → `stale`
+ * - chat connected via `/start <token>` → `processed`
  * - reaction update handled → `processed`
  * - anything else → `unknown`
  */

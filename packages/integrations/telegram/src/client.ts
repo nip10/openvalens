@@ -24,6 +24,9 @@ export type TelegramUpdate = Record<string, unknown>;
 
 export type TelegramSendMessageResult = { message_id: number };
 
+/** The subset of Telegram's `User` that `getMe` callers need. */
+export type TelegramBotIdentity = { id: number; username?: string };
+
 export type TelegramSendMessageOptions = {
   parseMode?: "HTML" | "MarkdownV2" | "Markdown";
   disableNotification?: boolean;
@@ -173,6 +176,11 @@ export class TelegramClient {
       ...(options.parseMode ? { parse_mode: options.parseMode } : {}),
       ...(options.disableNotification ? { disable_notification: true } : {}),
     });
+  }
+
+  /** The bot's own identity; its `username` builds `t.me` connect links. */
+  async getMe(): Promise<TelegramApiResponse<TelegramBotIdentity>> {
+    return this.request<TelegramBotIdentity>("getMe", {});
   }
 
   async setMessageReaction(

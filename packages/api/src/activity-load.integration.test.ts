@@ -122,7 +122,7 @@ describe.skipIf(!url)("activity load over HTTP against disposable PostgreSQL", (
       cronSecret: "cron-secret-long-enough-value",
       betterAuthSecretConfigured: true,
       capabilities: { telegram: false, anthropic: false, resend: false, mobilePairing: true },
-      telegram: { webhookSecret: "webhook-secret-value", connectTokenTtlSeconds: 600 },
+      telegram: { connectTokenTtlSeconds: 600 },
       telegramClient: null,
       aiConfig: {} as never,
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,

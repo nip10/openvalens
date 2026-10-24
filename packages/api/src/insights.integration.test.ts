@@ -152,7 +152,7 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       betterAuthSecretConfigured: true,
       capabilities: { telegram: false, anthropic: false, resend: true, mobilePairing: true },
       integrations: { email: { provider: "resend", state: "configured" } },
-      telegram: { webhookSecret: "webhook-secret-value", connectTokenTtlSeconds: 600 },
+      telegram: { connectTokenTtlSeconds: 600 },
       telegramClient: null,
       email: fakeEmail,
       push: pushAvailable ? fakePush : null,
