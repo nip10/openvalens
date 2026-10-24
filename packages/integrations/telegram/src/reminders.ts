@@ -1,6 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import type { Database } from "@openvalens/db";
 import { member, user } from "@openvalens/db/schema/auth";
+import { insightPreference } from "@openvalens/db/schema/insights";
 import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
 import type { EmailService } from "@openvalens/email";
 import {
@@ -13,17 +14,27 @@ import type { StructuredLogger } from "@openvalens/observability";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import type { TelegramClient } from "./client";
+import { reminderEmailOptedIn } from "./reminder-materialization";
 
 /**
- * Daily reminder materialization + delivery (Issues #14, #125).
+ * Daily reminder delivery (Issues #14, #125).
+ *
+ * The rows are created first by `createDueDailyReminders`
+ * (`reminder-materialization.ts`), which turns each opted-in member's due
+ * supplements, medications and scheduled events into `daily_reminder` rows
+ * for their local date. The `remindersDailyRun` cron runs both, per
+ * organization: create, then deliver.
  *
  * For every `daily_reminder` row in {@link organizationId} that is still
  * `status = 'pending'` and has no recorded delivery (`telegram_message_id`
  * is `NULL`), the function delivers:
  *
  * - via Telegram to the user's active chat for {@link organizationId}, when
- *   the user still has one and is a current member and is not banned; or
- * - else via the config-bound email fallback for the user's verified email.
+ *   a bot is configured and the user still has a chat, is a current member
+ *   and is not banned; or
+ * - else via the config-bound email fallback for the user's email. Without a
+ *   bot, a member who connected Telegram is emailed only when they turned on
+ *   reminders by email; otherwise their reminder stays pending.
  *
  * Recipient authorization (`is_member` + `not_banned`) and channel resolution
  * (`telegram_account.organization_id = ?` + email fallback) are tenant-safe
@@ -41,10 +52,6 @@ import type { TelegramClient } from "./client";
  * cycle. Concurrent crons cannot both claim the same row; replays of the
  * same cron skip rows whose `telegram_message_id` is already set. Crash
  * blast radius is therefore one row.
- *
- * Source-row materialization (supplements/medications/scheduled events →
- * `daily_reminder`) is a later issue; this function only delivers rows that
- * already exist.
  */
 
 /** Sentinel `telegram_message_id` marking an email-delivered reminder. */
@@ -143,17 +150,6 @@ export async function materializeDailyReminders(
   const locales = deps.locales ?? databaseMessageLocales(db);
   const date = deps.date ?? todayUtcDate();
 
-  if (!client) {
-    logger.warn("telegram.materialize.skipped", {
-      correlationId,
-      organizationId,
-      date,
-      reason: "telegram_client_unconfigured",
-    });
-
-    return { organizationId, date, sent: 0, skipped: 0, failed: 0 };
-  }
-
   // Read-only prefetch. Every query is tenant-scoped to `organizationId`.
   const pending = (await db
     .select({ id: dailyReminder.id, userId: dailyReminder.userId, label: dailyReminder.label })
@@ -205,6 +201,25 @@ export async function materializeDailyReminders(
     );
   const chatIdByUser = new Map(accounts.map((account) => [account.userId, account.chatId]));
 
+  // Without a bot, Telegram members fall back to email only if they turned
+  // on reminders by email.
+  const emailOptInUserIds = client
+    ? new Set<string>()
+    : new Set(
+        (
+          await db
+            .select({ userId: insightPreference.userId })
+            .from(insightPreference)
+            .where(
+              and(
+                eq(insightPreference.organizationId, organizationId),
+                inArray(insightPreference.userId, userIds),
+                reminderEmailOptedIn(),
+              ),
+            )
+        ).map((row) => row.userId),
+      );
+
   // Recipient profile: the banned flag applies to every channel; the email
   // is only a fallback channel when one is on file.
   const userRows = await db
@@ -245,7 +260,18 @@ export async function materializeDailyReminders(
     const recipientEmail = emailByUser.get(reminder.userId);
     let channel: "telegram" | "email";
     let send: () => Promise<number | null>;
-    if (chatId) {
+    if (chatId && !client && !emailOptInUserIds.has(reminder.userId)) {
+      skipped += 1;
+      logger.warn("telegram.materialize.skipped", {
+        correlationId,
+        organizationId,
+        date,
+        reminderId: reminder.id,
+        reason: "telegram_client_unconfigured",
+      });
+      continue;
+    }
+    if (chatId && client) {
       channel = "telegram";
       send = async () => {
         const response = await client.sendMessage(chatId, reminder.label);

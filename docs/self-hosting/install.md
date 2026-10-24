@@ -187,7 +187,7 @@ From **another machine**, confirm that only 80/443 answer, for example
 open).
 
 Then follow [Configuration](configuration.md#scheduled-jobs) to schedule the
-daily jobs: the stack does not run them by itself.
+recurring jobs: the stack does not run them by itself.
 
 ## Secrets layout
 

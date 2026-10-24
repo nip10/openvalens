@@ -232,6 +232,16 @@ Telegram delivers the daily reminders. Members connect their own chat from
 **Settings → Telegram**, and react 👍 or 👎 to a reminder to mark it done or
 skipped.
 
+The `remindersDailyRun` job (see [Scheduled jobs](#scheduled-jobs)) creates the
+day's reminders, then sends them. A member gets one reminder per active
+supplement or medication taken daily (or with no frequency set) and per
+scheduled event that recurs that day, dated in the time zone of their
+notification settings (UTC when unset). Weekly and training-day items have no
+fixed day and are not reminded. Only members who chose a channel get
+reminders: those who connected Telegram, or who turned on email in their
+notification settings without switching reminders off for email. Without a
+Telegram bot, reminders still go out by email to the members who turned it on.
+
 1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`) and keep
    the token it gives you private.
 2. Save the token as a secret and apply it:
@@ -331,22 +341,26 @@ change one.
 
 ## Scheduled jobs
 
-The Compose stack does **not** schedule anything. Two daily jobs must be
-triggered from the host, authenticated with the generated `CRON_SECRET`:
+The Compose stack does **not** schedule anything. Five jobs must be triggered
+from the host, authenticated with the generated `CRON_SECRET`:
 
-| Endpoint                      | Suggested schedule | Job                                                        |
-| ----------------------------- | ------------------ | ---------------------------------------------------------- |
-| `/rpc/cron/remindersDailyRun` | `5 8 * * *`        | Daily reminders                                            |
-| `/rpc/cron/ingestionRun`      | `15 9 * * *`       | Retry and replay of queued ingestion work                  |
-| `/rpc/cron/insightsRun`       | `20 * * * *`       | Opt-in insight and preventive-care reminder push and email |
+| Endpoint                      | Suggested schedule      | Job                                                        |
+| ----------------------------- | ----------------------- | ---------------------------------------------------------- |
+| `/rpc/cron/remindersDailyRun` | `5 8 * * *` (daily)     | Daily supplement, medication and event reminders           |
+| `/rpc/cron/ingestionRun`      | `15 9 * * *` (daily)    | Retry and replay of queued ingestion work                  |
+| `/rpc/cron/insightsRun`       | `20 * * * *` (hourly)   | Opt-in insight and preventive-care reminder push and email |
+| `/rpc/cron/wearablesSync`     | `*/15 * * * *` (15 min) | Cloud wearable sync; a no-op without a wearable vendor     |
+| `/rpc/cron/photoCleanupRun`   | `40 * * * *` (hourly)   | Finishes deleting removed progress photos (25 per run)     |
 
 Add them to the crontab of the user who ran `deploy/setup.sh` (that user can
 read `deploy/secrets/`); replace both placeholders:
 
 ```bash
-5 8 * * *  curl -fsS -X POST https://<domain>/rpc/cron/remindersDailyRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
-15 9 * * * curl -fsS -X POST https://<domain>/rpc/cron/ingestionRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
-20 * * * * curl -fsS -X POST https://<domain>/rpc/cron/insightsRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+5 8 * * *    curl -fsS -X POST https://<domain>/rpc/cron/remindersDailyRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+15 9 * * *   curl -fsS -X POST https://<domain>/rpc/cron/ingestionRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+20 * * * *   curl -fsS -X POST https://<domain>/rpc/cron/insightsRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+*/15 * * * * curl -fsS -X POST https://<domain>/rpc/cron/wearablesSync -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+40 * * * *   curl -fsS -X POST https://<domain>/rpc/cron/photoCleanupRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 ```
 
 A call without the bearer token is rejected with HTTP `401`. A successful call

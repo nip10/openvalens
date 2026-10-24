@@ -258,12 +258,17 @@ body and provider error message are never logged.
 
 Authenticated cron endpoints are exposed as oRPC procedures:
 
-| Endpoint                      | Schedule           | Job                 |
-| ----------------------------- | ------------------ | ------------------- |
-| `/rpc/cron/remindersDailyRun` | `5 8 * * *`        | `reminders.daily`   |
-| `/rpc/cron/ingestionRun`      | `15 9 * * *`       | `ingestion.daily`   |
-| `/rpc/cron/insightsRun`       | `20 * * * *`       | `insights.delivery` |
-| `/rpc/cron/photoCleanupRun`   | hourly (suggested) | `photo.cleanup`     |
+| Endpoint                      | Schedule       | Job                 |
+| ----------------------------- | -------------- | ------------------- |
+| `/rpc/cron/remindersDailyRun` | `5 8 * * *`    | `reminders.daily`   |
+| `/rpc/cron/ingestionRun`      | `15 9 * * *`   | `ingestion.daily`   |
+| `/rpc/cron/insightsRun`       | `20 * * * *`   | `insights.delivery` |
+| `/rpc/cron/wearablesSync`     | `*/15 * * * *` | `wearables.sync`    |
+| `/rpc/cron/photoCleanupRun`   | `40 * * * *`   | `photo.cleanup`     |
+
+The schedules are suggestions; nothing in the stack runs them (see
+[self-hosting configuration](self-hosting/configuration.md#scheduled-jobs) for
+a ready-made crontab).
 
 All require a bearer token equal to `CRON_SECRET`:
 
@@ -284,9 +289,19 @@ curl -fsS -X POST "https://<your-domain>/rpc/cron/photoCleanupRun" \
   -d '{"json":{}}'
 ```
 
-The photo cleanup schedule is a recommendation only; this change does not
-configure or activate any production scheduler. The worker is bounded to 25
-items per call and reports pending, blocked, skipped, and failed work.
+`remindersDailyRun` works per workspace: it first creates the day's
+`daily_reminder` rows (active supplements and medications taken daily or with
+no frequency, and scheduled events that recur that day, dated in each member's
+notification time zone), then delivers pending ones by Telegram or, without a
+connected chat or without a configured bot, by email. Only members who
+connected Telegram, or turned on email in their notification settings without
+switching reminders off for email, get reminders. Rerunning it creates and
+sends nothing twice.
+
+`wearablesSync` claims at most 25 due connections per call and is a no-op when
+no wearable vendor is configured (see [wearables.md](wearables.md)). The photo
+cleanup worker is bounded to 25 items per call and reports pending, blocked,
+skipped, and failed work (see [storage.md](storage.md)).
 
 - A missing or incorrect bearer token is rejected with `401 UNAUTHENTICATED`.
 - The other cron endpoints emit their lifecycle logs; photo cleanup emits one
@@ -299,7 +314,14 @@ items per call and reports pending, blocked, skipped, and failed work.
   "status": "ok",
   "job": "reminders.daily",
   "startedAt": "2026-09-29T08:05:00.000Z",
-  "finishedAt": "2026-09-29T08:05:00.000Z",
+  "finishedAt": "2026-09-29T08:05:01.000Z",
+  "organizations": 2,
+  "created": 5,
+  "organizationsSucceeded": 2,
+  "organizationsFailed": 0,
+  "sent": 5,
+  "skipped": 0,
+  "failed": 0,
   "correlationId": "..."
 }
 ```
@@ -308,11 +330,6 @@ items per call and reports pending, blocked, skipped, and failed work.
 the body in a `{"json": ...}` envelope, so a raw cron caller must send
 `{"json":{}}`. The `/api-reference/...` OpenAPI mount accepts raw JSON
 (`-d '{}'`) and is convenient for manual runs and smoke checks.
-
-**Deferred work.** Issue #11 ships the endpoint contract, the bearer-secret
-guard and the structured logs only. The real reminder delivery logic lands in
-Issues #14/#24 and the real ingestion logic in Issues #16/#17. Until then both
-jobs are no-op stubs.
 
 ## 8. Smoke checks
 
