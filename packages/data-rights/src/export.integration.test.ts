@@ -136,6 +136,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       insert into nutrition_energy_proposal (organization_id, user_id, kind, status, estimate_kcal, target_kcal, method_version, policy_version, window_from, window_to, estimate, expires_at)
         values ('org-a', 'user-a', 'maintenance', 'pending', 2401, 2400, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"owner_canary": 2401}', now() + interval '1 day'),
                ('org-a', 'user-a2', 'maintenance', 'pending', 2101, 2100, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"collaborator_canary": 2101}', now() + interval '1 day');
+      insert into chat_message (organization_id, user_id, conversation_id, role, content, created_at)
+        values ('org-a', 'user-a2', 'conv-a2', 'user', 'collaborator_chat_canary', '2026-09-02');
       `),
     );
 
@@ -278,6 +280,21 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "user-a2",
     ]);
     expect(exported.files.map((f) => f.content).join("\n")).not.toContain("collaborator_canary");
+  });
+
+  test("AI chats export only to the member who wrote them", () => {
+    const rows = (data: DataExport) =>
+      JSON.parse(data.files.find((f) => f.path === "entities/chat_message.json")!.content) as {
+        user_id: string;
+        content: string;
+      }[];
+    expect(rows(exported).map((r) => r.user_id)).toEqual(["user-a"]);
+    expect(rows(exportedA2).map((r) => [r.user_id, r.content])).toEqual([
+      ["user-a2", "collaborator_chat_canary"],
+    ]);
+    expect(exported.files.map((f) => f.content).join("\n")).not.toContain(
+      "collaborator_chat_canary",
+    );
   });
 
   test("credentials are redacted and listed in the manifest", () => {

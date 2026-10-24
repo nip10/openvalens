@@ -184,7 +184,10 @@ Instead of appending the `_FILE` line yourself, you can re-run
 `deploy/setup.sh install`: it sets the `_FILE` variable of every secret file
 present in `deploy/secrets/server/`.
 
-AI features send data to the provider only behind the in-app consent gate.
+AI features send data to the provider only behind the in-app consent gates:
+once a provider is configured, the workspace owner turns on **Settings → AI
+for this workspace**, and each person turns on **Settings → AI processing**
+for themselves. See [Turning AI on](../ai-providers.md#turning-ai-on).
 Telegram also needs its webhook registered; see [Telegram](#telegram). Object storage defaults to private local
 disk on the `storage` volume; to use an S3-compatible bucket (S3, R2, MinIO) set
 `STORAGE_PROVIDER=s3` and the `STORAGE_S3_*` settings described in

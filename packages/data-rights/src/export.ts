@@ -112,7 +112,9 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
       if (
         table === "nutrition_goal" ||
         table === "nutrition_energy_proposal" ||
-        table === "nutrition_target_settings"
+        table === "nutrition_target_settings" ||
+        // AI coach chats are private to the member who wrote them.
+        table === "chat_message"
       )
         return sql`user_id = ${subject.userId}`;
       return inList("organization_id", orgIds);
@@ -137,8 +139,8 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
 }
 
 /**
- * Erasure includes the subject's member-private plain-water rows and all
- * water rows inside containers being erased. Export intentionally continues
+ * Erasure includes the subject's member-private rows (plain water, nutrition
+ * targets, AI coach chats) and all such rows inside containers being erased. Export intentionally continues
  * to use {@link rowFilter}, so another member's rows are never exported.
  *
  * `stored_object` deletion/preview stays conservative and organization-only,
@@ -161,7 +163,8 @@ export function deletionRowFilter(table: string, subject: DataRightsSubject): SQ
   if (
     table === "nutrition_goal" ||
     table === "nutrition_energy_proposal" ||
-    table === "nutrition_target_settings"
+    table === "nutrition_target_settings" ||
+    table === "chat_message"
   )
     return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;
   return rowFilter(table, subject);

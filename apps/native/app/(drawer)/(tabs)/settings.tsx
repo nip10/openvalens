@@ -31,6 +31,7 @@ import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
 import { LanguageSection } from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
+import { AiSection } from "@/components/ai-section";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/lib/offline/sync";
@@ -99,6 +100,7 @@ export default function SettingsScreen() {
         {session?.user && <AnalyticsConsentSection />}
 
         {session?.user && <CoachSection />}
+        {session?.user && <AiSection />}
 
         {session?.user && (
           <CardStack title={t`Integrations`}>

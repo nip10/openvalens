@@ -1202,20 +1202,37 @@ msgid "Agree to store cycle data"
 msgstr "Aceitar guardar os dados do ciclo"
 
 #. safety
+#: apps/web/src/components/ai-workspace-consent-section.tsx
+msgid "AI allowed in this workspace"
+msgstr "IA permitida neste espaço de trabalho"
+
+#. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI features are opt-in and revocable. This setting applies only to you and is independent of your organization or owner role."
 msgstr "As funcionalidades de IA são opcionais e revogáveis. Esta definição aplica-se apenas a si e é independente da sua organização ou da função de proprietário."
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI features will stop processing your data until you turn consent back on. Your existing records are not deleted."
 msgstr "As funcionalidades de IA deixam de tratar os seus dados até voltar a dar consentimento. Os registos existentes não são eliminados."
 
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "AI for this workspace"
+msgstr "IA neste espaço de trabalho"
+
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI processing"
 msgstr "Tratamento por IA"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI processing consent"
 msgstr "Consentimento para tratamento por IA"
@@ -1229,6 +1246,11 @@ msgstr "Tratamento por IA desativado"
 #: apps/web/src/components/ai-consent-section.tsx
 msgid "AI processing enabled"
 msgstr "Tratamento por IA ativado"
+
+#. safety
+#: apps/web/src/components/ai-workspace-consent-section.tsx
+msgid "AI turned off for this workspace"
+msgstr "IA desligada neste espaço de trabalho"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "All {count, plural, one {# entry} other {# entries}}"
@@ -1247,6 +1269,13 @@ msgstr "Todos os músculos"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "All nutrients"
 msgstr "Todos os nutrientes"
+
+#. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Allow AI in this workspace"
+msgstr "Permitir IA neste espaço de trabalho"
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Allow notifications on this phone"
@@ -1349,6 +1378,11 @@ msgstr "Arquivar oculta um alimento da pesquisa e do registo. As refeições já
 #: apps/web/src/components/language-section.tsx
 msgid "As reported by the lab"
 msgstr "Como indicado pelo laboratório"
+
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "As the owner, you can change this."
+msgstr "Como proprietário, pode alterar esta definição."
 
 #: packages/api/src/presenters/energy-estimate.ts
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -1705,6 +1739,7 @@ msgstr "Canadá"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
@@ -2489,6 +2524,10 @@ msgstr "Não foi possível carregar as definições de notificações."
 msgid "Could not load observation setting. Retry"
 msgstr "Não foi possível carregar a definição de observações. Tentar novamente"
 
+#: apps/native/components/ai-section.tsx
+msgid "Could not load or update AI settings."
+msgstr "Não foi possível carregar ou atualizar as definições de IA."
+
 #: apps/native/components/progress-photos.tsx
 msgid "Could not load photos. Try again"
 msgstr "Não foi possível carregar as fotografias. Tente novamente"
@@ -2558,6 +2597,10 @@ msgstr "Não foi possível carregar o resumo."
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Could not load the timeline."
 msgstr "Não foi possível carregar a cronologia."
+
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Could not load the workspace AI setting."
+msgstr "Não foi possível carregar a definição de IA do espaço de trabalho."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -2821,6 +2864,10 @@ msgstr "Não foi possível atualizar as definições de observações. A escolha
 #: apps/web/src/components/reference-comparisons-card.tsx
 msgid "Could not update the comparison setting."
 msgstr "Não foi possível atualizar a definição de comparação."
+
+#: apps/web/src/components/ai-workspace-consent-section.tsx
+msgid "Could not update the workspace AI setting."
+msgstr "Não foi possível atualizar a definição de IA do espaço de trabalho."
 
 #: apps/web/src/routes/_auth/settings/devices.tsx
 msgid "Could not update these records."
@@ -4121,6 +4168,11 @@ msgid "Goals"
 msgstr "Objetivos"
 
 #. safety
+#: apps/native/components/ai-section.tsx
+msgid "Granted"
+msgstr "Concedido"
+
+#. safety
 #. placeholder {0}: formatGrantedAt(state.grantedAt)
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Granted on {0}"
@@ -5119,6 +5171,7 @@ msgid "Loading your workspace…"
 msgstr "A carregar o seu espaço de trabalho…"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/native/components/insights-section.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
@@ -6077,6 +6130,8 @@ msgid "Not Found"
 msgstr "Não encontrado"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Not granted"
 msgstr "Não concedido"
@@ -6402,6 +6457,13 @@ msgid "Off by default. When on, you can submit a recipe link and the server fetc
 msgstr "Desligado por predefinição. Quando ligado, pode enviar a ligação de uma receita e o servidor obtém essa única página para começar um rascunho não guardado. Mantém os ingredientes, as porções e os créditos, nunca os passos, as fotografias ou as histórias. Pode desligá-lo a qualquer momento."
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Off for this workspace"
+msgstr "Desligada neste espaço de trabalho"
+
+#. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Offered by a health-system programme"
 msgstr "Oferecido por um programa do sistema de saúde"
@@ -6457,6 +6519,13 @@ msgid "On — {pushTitle}"
 msgstr "Ligado — {pushTitle}"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "On for this workspace"
+msgstr "Ligada neste espaço de trabalho"
+
+#. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Once"
 msgstr "Uma vez"
@@ -6477,6 +6546,11 @@ msgstr "Só contam as sessões com intensidade registada; as sessões sem intens
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced."
 msgstr "Só são usados os dois valores publicados, como factos, com atribuição; não é reproduzido nenhum texto, tabela ou figura da OMS."
+
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Only the workspace owner can change this."
+msgstr "Só o proprietário do espaço de trabalho pode alterar esta definição."
 
 #. safety
 #: packages/api/src/presenters/coach-settings.ts
@@ -7485,12 +7559,14 @@ msgstr "Restaurar registo"
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -7585,6 +7661,7 @@ msgid "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source
 msgstr "Rever: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source}"
 
 #: apps/native/app/(drawer)/sharing.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -7592,6 +7669,8 @@ msgid "Revoke"
 msgstr "Revogar"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Revoke AI consent?"
 msgstr "Revogar o consentimento para IA?"
@@ -9051,6 +9130,13 @@ msgstr "O fornecedor já não aceita esta ligação. Volte a ligar para retomar 
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "The weekly insights email is off. You can turn it on again in Settings."
 msgstr "O email semanal de perspetivas está desligado. Pode voltar a ligá-lo nas Definições."
+
+#. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
+msgstr "O proprietário do espaço de trabalho decide se as funcionalidades de IA podem ser usadas neste espaço de trabalho. Quando está ligada, cada pessoa tem ainda de dar o seu próprio consentimento abaixo antes de a IA tratar os seus dados."
 
 #: packages/api/src/presenters/score.ts
 msgid "There is not enough recent data to compare with your usual pattern, so no number is shown."

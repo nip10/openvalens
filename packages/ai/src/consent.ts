@@ -9,6 +9,9 @@ import { eq } from "drizzle-orm";
  * this issue needs. Consent is read from `organization.metadata.aiConsent`
  * (the same setting path the anchovy `AiConsentState` reports). The key is
  * **absent by default**, so AI is disabled until an org explicitly opts in.
+ * The workspace owner turns it on or off from Settings
+ * (`ai.workspaceConsent.set` → {@link writeOrgAiConsent}); each member must
+ * still give their own consent as well.
  *
  * Accepted shapes for `organization.metadata.aiConsent`:
  *
@@ -132,6 +135,70 @@ export async function readAiConsent(db: Database, organizationId: string): Promi
     .limit(1);
 
   return parseAiConsent(rows[0]?.metadata);
+}
+
+/** A workspace-level AI change, for the audit trail. */
+export type OrgAiConsentChange = {
+  before: AiConsentState;
+  after: AiConsentState;
+};
+
+/**
+ * Normalises a stored `organization.metadata` value to a plain object so a
+ * write can preserve every other key. A JSON-encoded string (as some auth
+ * adapters store it) is decoded; anything else unusable becomes `{}`.
+ */
+function metadataRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      return metadataRecord(JSON.parse(value) as unknown);
+    } catch {
+      return {};
+    }
+  }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return { ...(value as Record<string, unknown>) };
+  }
+  return {};
+}
+
+/**
+ * Turns AI on or off for the whole workspace by writing
+ * `organization.metadata.aiConsent` (`{ enabled: true, scope: "full" }` or
+ * `{ enabled: false }`), keeping every other metadata key. The row is locked
+ * for the read-modify-write so concurrent metadata writers are not lost.
+ *
+ * Callers must have already checked that the actor owns the workspace. Each
+ * member still needs their own grant ({@link requireUserAiConsent}).
+ *
+ * @returns the before/after state, or `null` when the organization does not exist.
+ */
+export async function writeOrgAiConsent(
+  db: Database,
+  organizationId: string,
+  enabled: boolean,
+): Promise<OrgAiConsentChange | null> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ metadata: organization.metadata })
+      .from(organization)
+      .where(eq(organization.id, organizationId))
+      .for("update");
+    const row = rows[0];
+    if (!row) return null;
+
+    const before = parseAiConsent(row.metadata);
+    const metadata = {
+      ...metadataRecord(row.metadata),
+      aiConsent: enabled ? { enabled: true, scope: "full" } : { enabled: false },
+    };
+    await tx
+      .update(organization)
+      .set({ metadata, updatedAt: new Date() })
+      .where(eq(organization.id, organizationId));
+
+    return { before, after: parseAiConsent(metadata) };
+  });
 }
 
 /**

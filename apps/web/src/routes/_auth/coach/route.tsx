@@ -27,7 +27,7 @@ function CoachListPage() {
   const start = useMutation(
     orpc.ai.chat.mutationOptions({
       onSuccess: async (result) => {
-        await queryClient.invalidateQueries({ queryKey: ["ai", "listThreads"] });
+        await queryClient.invalidateQueries({ queryKey: orpc.ai.listThreads.key() });
         await navigate({
           to: "/coach/$conversationId",
           params: { conversationId: result.conversationId },
@@ -40,17 +40,12 @@ function CoachListPage() {
     setStarting(true);
     start.mutate({
       conversationId: crypto.randomUUID(),
-      messages: [
-        {
-          role: "user",
-          content: t({
-            message:
-              "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
-            comment:
-              "First message sent to the AI coach for a new conversation; shown as the person's own message",
-          }),
-        },
-      ],
+      message: t({
+        message:
+          "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+        comment:
+          "First message sent to the AI coach for a new conversation; shown as the person's own message",
+      }),
     });
   };
 

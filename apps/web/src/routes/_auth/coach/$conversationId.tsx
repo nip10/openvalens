@@ -36,8 +36,8 @@ function CoachThreadPage() {
     orpc.ai.chat.mutationOptions({
       onSuccess: async () => {
         setInput("");
-        await queryClient.invalidateQueries({ queryKey: ["ai", "listMessages"] });
-        await queryClient.invalidateQueries({ queryKey: ["ai", "listThreads"] });
+        await queryClient.invalidateQueries({ queryKey: orpc.ai.listMessages.key() });
+        await queryClient.invalidateQueries({ queryKey: orpc.ai.listThreads.key() });
       },
     }),
   );
@@ -45,14 +45,8 @@ function CoachThreadPage() {
   const submit = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
-    const history = (messages.data ?? []).map((m) => ({
-      role: m.role as "user" | "assistant" | "system",
-      content: m.content,
-    }));
-    send.mutate({
-      conversationId,
-      messages: [...history, { role: "user" as const, content: trimmed }],
-    });
+    // The server keeps the history; send only the new message.
+    send.mutate({ conversationId, message: trimmed });
   };
 
   if (messages.isPending) {

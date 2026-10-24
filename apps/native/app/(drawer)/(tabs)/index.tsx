@@ -115,7 +115,7 @@ export default function CockpitScreen() {
     );
 
   const onRefresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ["health", "readiness"] });
+    void queryClient.invalidateQueries({ queryKey: orpc.health.readiness.key() });
     void weight.refetch();
     void sleep.refetch();
     void activity.refetch();
