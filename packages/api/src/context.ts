@@ -189,6 +189,11 @@ export type Context = {
    */
   signInOptions?: SignInOptions;
   /**
+   * Issue #56 — the operator's `SOURCE_CODE_URL`, linked from the settings
+   * screens (AGPL-3.0 section 13). Absent means the upstream repository.
+   */
+  sourceCodeUrl?: string;
+  /**
    * Issue #62 — server-built, tenant-scoped object storage service, or `null`
    * when storage is off (S3 selected without credentials). Optional at the
    * type level so unrelated context factories stay valid; storage procedures

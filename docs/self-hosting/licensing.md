@@ -1,6 +1,6 @@
 # Licensing and trademark
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
 
 A summary for people who run OpenValens. The licence texts and the trademark
 policy are what count; this page does not replace them and is not legal
@@ -22,7 +22,8 @@ What that means for a self-hoster:
 - **Running a modified version that other people use over the network**
   triggers AGPL section 13: you must offer those users the corresponding
   source of your modified version, for example with a link to a public
-  repository of your fork.
+  repository of your fork. Set `SOURCE_CODE_URL` in `deploy/.env` to that
+  repository: the web and mobile apps show it under Settings → About.
 - **Distributing** the software or a modified version (including container
   images you publish) requires providing the source under the same licence.
 - **App-store builds** of the mobile app may be distributed through stores

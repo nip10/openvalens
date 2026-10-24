@@ -1,5 +1,6 @@
 import type { RouterClient } from "@orpc/server";
 
+import { aboutRouter } from "./about";
 import { activityRouter } from "./activity";
 import { adminSettingsRouter } from "./admin-settings";
 import { admissionRouter } from "./admission";
@@ -49,6 +50,7 @@ import { vitalsRouter } from "./vitals";
 import { wearablesRouter } from "./wearables";
 
 export const appRouter = {
+  about: aboutRouter,
   activity: activityRouter,
   adminSettings: adminSettingsRouter,
   admission: admissionRouter,
