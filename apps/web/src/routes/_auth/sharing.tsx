@@ -214,7 +214,7 @@ function MembersCard({
   const remove = useMutation(
     orpc.sharing.removeMember.mutationOptions({
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["sharing", "listMembers"] });
+        void queryClient.invalidateQueries({ queryKey: orpc.sharing.listMembers.key() });
       },
     }),
   );
@@ -289,7 +289,7 @@ function InvitationsCard({
   const revoke = useMutation(
     orpc.sharing.revokeInvitation.mutationOptions({
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["sharing", "listInvitations"] });
+        void queryClient.invalidateQueries({ queryKey: orpc.sharing.listInvitations.key() });
       },
     }),
   );

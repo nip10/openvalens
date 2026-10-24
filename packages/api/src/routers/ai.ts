@@ -5,9 +5,11 @@ import {
   createAiCoachTools,
   extractStructured,
   generateInsight,
+  readAiConsent,
   readUserAiConsent,
   requireAiConsent,
   streamChat,
+  writeOrgAiConsent,
   type AiChatMessage,
 } from "@openvalens/ai";
 import { writeAuditLog, type AuditEventType } from "@openvalens/audit-security";
@@ -15,7 +17,12 @@ import {
   AuthzHttpError,
   requireOrgMembership,
   requirePermission,
+  type OrgAuthContext,
 } from "@openvalens/auth/authz/guard";
+import {
+  requireTrustedIdentity,
+  resolveSessionIdentity,
+} from "@openvalens/auth/authz/trusted-session";
 import type { Database } from "@openvalens/db";
 import { userAiConsent } from "@openvalens/db/schema/auth";
 import { chatMessage } from "@openvalens/db/schema/coach";
@@ -28,15 +35,20 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
 /**
  * AI chat procedures (Issue #13).
  *
- * Three procedures today:
+ * Chat procedures:
  *
- * - `ai.chat`         — protected; rate-limited; consent-gated; turns a
- *   client-provided message array into one assistant reply and persists
- *   every message under a shared `conversationId`. The `conversationId`
- *   is supplied by the client so a multi-turn thread round-trips intact.
- * - `ai.listThreads`   — read; one entry per distinct `conversationId` for
- *   the active org, with the latest message preview + message count.
+ * - `ai.chat`         — protected; rate-limited; consent-gated; takes the
+ *   caller's one new message, loads the newest {@link CHAT_HISTORY_LIMIT}
+ *   earlier messages of that conversation from the database as model context,
+ *   and persists only the new message plus the assistant reply. The
+ *   `conversationId` is supplied by the client so a thread round-trips intact.
+ * - `ai.listThreads`   — read; one entry per distinct `conversationId`, with
+ *   the latest message preview + message count.
  * - `ai.listMessages`  — read; all messages for one thread, oldest-first.
+ *
+ * Chats are private to the member who wrote them: every read and write is
+ * scoped to the active org **and** the signed-in user, so other members of a
+ * shared workspace never see them.
  *
  * Cross-domain reads are bound through the {@link createCockpitFacades}
  * factory: each facade receives its own domain read function, never
@@ -50,17 +62,16 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
 
 const logger = createStructuredLogger({ level: "info" });
 
+/**
+ * Earlier messages of a conversation sent to the model with each new turn
+ * (newest first, then put back in order). Older turns stay stored and listed
+ * but are not resent, which bounds the prompt size.
+ */
+export const CHAT_HISTORY_LIMIT = 40;
+
 const chatInput = z.strictObject({
   conversationId: z.string().min(1).max(80).optional(),
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant", "system"]),
-        content: z.string().min(1).max(10000),
-      }),
-    )
-    .min(1)
-    .max(50),
+  message: z.string().trim().min(1).max(10000),
 });
 
 const chatOutput = z.object({
@@ -135,6 +146,56 @@ const userAiConsentStateShape = z.object({
 /** Consent procedures take no input. */
 const emptyInput = z.strictObject({});
 
+/** Workspace AI switch as the caller sees it. */
+const workspaceAiConsentShape = z.object({
+  enabled: z.boolean(),
+  /** Only the workspace owner, in their own (not impersonated) session. */
+  canManage: z.boolean(),
+});
+
+const workspaceAiConsentSetInput = z.strictObject({ enabled: z.boolean() });
+
+/**
+ * The newest {@link CHAT_HISTORY_LIMIT} messages of one of the caller's own
+ * conversations, oldest-first.
+ */
+async function loadChatHistory(
+  db: Database,
+  scope: { organizationId: string; userId: string; conversationId: string },
+): Promise<AiChatMessage[]> {
+  const rows = await db
+    .select({ role: chatMessage.role, content: chatMessage.content })
+    .from(chatMessage)
+    .where(
+      and(
+        eq(chatMessage.organizationId, scope.organizationId),
+        eq(chatMessage.userId, scope.userId),
+        eq(chatMessage.conversationId, scope.conversationId),
+      ),
+    )
+    .orderBy(desc(chatMessage.id))
+    .limit(CHAT_HISTORY_LIMIT);
+  return rows.reverse().map((row) => ({
+    role: row.role as AiChatMessage["role"],
+    content: row.content,
+  }));
+}
+
+async function resolveOrgAuthz(honoContext: unknown): Promise<OrgAuthContext> {
+  try {
+    return await requireOrgMembership(honoContext as Parameters<typeof requireOrgMembership>[0]);
+  } catch (error) {
+    if (error instanceof AuthzHttpError) throw raiseApiError(error.code, error.message);
+    throw raiseApiError("INTERNAL", "Authorization failed.");
+  }
+}
+
+/** Owner of the active workspace, signed in as themselves (not impersonated). */
+function canManageWorkspaceAi(authz: OrgAuthContext, session: unknown): boolean {
+  const identity = resolveSessionIdentity(session);
+  return authz.role === "owner" && identity !== null && !identity.impersonated;
+}
+
 export const aiRouter = {
   chat: protectedProcedure
     .use(validateInput(chatInput))
@@ -185,8 +246,13 @@ export const aiRouter = {
       }
 
       const model = context.aiConfig.AI_MODEL;
-      const messages: AiChatMessage[] = input.messages;
       const conversationId = input.conversationId ?? correlationId;
+      const history = await loadChatHistory(context.db, {
+        organizationId,
+        userId,
+        conversationId,
+      });
+      const messages: AiChatMessage[] = [...history, { role: "user", content: input.message }];
 
       logger.info("ai.chat.requested", {
         correlationId,
@@ -224,22 +290,12 @@ export const aiRouter = {
           logger,
         });
 
-        // Persist the turn under the shared conversationId.
-        const rows = [
-          ...messages.map((message) => ({
-            organizationId,
-            conversationId,
-            role: message.role,
-            content: message.content,
-          })),
-          {
-            organizationId,
-            conversationId,
-            role: "assistant" as const,
-            content: result.text,
-          },
-        ];
-        await context.db.insert(chatMessage).values(rows);
+        // Persist only this turn: the new message and the reply. Earlier
+        // messages are already stored.
+        await context.db.insert(chatMessage).values([
+          { organizationId, userId, conversationId, role: "user", content: input.message },
+          { organizationId, userId, conversationId, role: "assistant", content: result.text },
+        ]);
 
         logger.info("ai.chat.completed", {
           correlationId,
@@ -314,6 +370,7 @@ export const aiRouter = {
         throw error;
       }
       const organizationId = authz.activeOrganizationId;
+      const userId = authz.user.id;
       const safeLimit = input.limit ?? 50;
 
       const rows = await context.db
@@ -325,7 +382,7 @@ export const aiRouter = {
           id: chatMessage.id,
         })
         .from(chatMessage)
-        .where(eq(chatMessage.organizationId, organizationId))
+        .where(and(eq(chatMessage.organizationId, organizationId), eq(chatMessage.userId, userId)))
         .orderBy(desc(chatMessage.createdAt), desc(chatMessage.id))
         .limit(500);
 
@@ -389,6 +446,7 @@ export const aiRouter = {
         .where(
           and(
             eq(chatMessage.organizationId, organizationId),
+            eq(chatMessage.userId, authz.user.id),
             eq(chatMessage.conversationId, input.conversationId),
           ),
         )
@@ -503,6 +561,83 @@ export const aiRouter = {
         throw raiseApiError("INTERNAL", "AI insight failed.");
       }
     }),
+
+  /**
+   * Workspace-level AI switch (`organization.metadata.aiConsent`).
+   *
+   * `get` is readable by every member so the UI can explain why AI is off;
+   * `set` is for the workspace owner only (not an impersonating admin) and is
+   * audited. Turning it on lets AI run for the workspace; each member still
+   * needs their own consent (`ai.consent.*`) before any AI call runs for them.
+   */
+  workspaceConsent: {
+    get: protectedProcedure
+      .use(validateInput(emptyInput))
+      .input(emptyInput)
+      .output(workspaceAiConsentShape)
+      .handler(async ({ context }) => {
+        const authz = await resolveOrgAuthz(context.honoContext);
+        const consent = await readAiConsent(context.db, authz.activeOrganizationId);
+        return {
+          enabled: consent.enabled,
+          canManage: canManageWorkspaceAi(authz, context.session),
+        };
+      }),
+
+    set: protectedProcedure
+      .use(validateInput(workspaceAiConsentSetInput))
+      .input(workspaceAiConsentSetInput)
+      .output(workspaceAiConsentShape)
+      .handler(async ({ input, context }) => {
+        const authz = await resolveOrgAuthz(context.honoContext);
+        if (authz.role !== "owner") {
+          throw raiseApiError(
+            "PERMISSION_DENIED",
+            "Only the workspace owner can change AI for the workspace.",
+          );
+        }
+        let actorUserId: string;
+        try {
+          actorUserId = requireTrustedIdentity(context.session).userId;
+        } catch {
+          throw raiseApiError(
+            "PERMISSION_DENIED",
+            "You do not have permission to perform this action.",
+          );
+        }
+        const organizationId = authz.activeOrganizationId;
+
+        let change;
+        try {
+          change = await writeOrgAiConsent(context.db, organizationId, input.enabled);
+        } catch {
+          throw raiseApiError("INTERNAL", "Workspace AI update failed.");
+        }
+        if (change === null) {
+          throw raiseApiError("INTERNAL", "Workspace AI update failed.");
+        }
+
+        await writeAuditLog({
+          db: context.db,
+          organizationId,
+          actorUserId,
+          eventType: "AI_WORKSPACE_CONSENT_CHANGED" as unknown as AuditEventType,
+          targetType: "organization",
+          targetId: organizationId,
+          before: { enabled: change.before.enabled },
+          after: { enabled: change.after.enabled },
+          correlationId: context.correlationId,
+        });
+
+        logger.info("ai.workspace_consent.changed", {
+          correlationId: context.correlationId,
+          organizationId,
+          enabled: change.after.enabled,
+        });
+
+        return { enabled: change.after.enabled, canManage: true };
+      }),
+  },
 
   /**
    * Per-user AI consent (Issue #123).

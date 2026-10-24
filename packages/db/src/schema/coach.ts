@@ -9,7 +9,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { orgId } from "./auth";
+import { orgId, user } from "./auth";
 
 // ─── AI Feedback ──────────────────────────────────────────────
 
@@ -91,6 +91,11 @@ export const chatMessage = pgTable(
   {
     id: serial("id").primaryKey(),
     organizationId: orgId(),
+    // The member who owns the conversation: chats are private to them even in
+    // a shared workspace.
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     conversationId: text("conversation_id").notNull(),
     role: text("role").notNull(), // "user", "assistant", "system"
     content: text("content").notNull(),
@@ -100,6 +105,9 @@ export const chatMessage = pgTable(
   },
   (table) => ({
     chatMessageOrgIdx: index("chat_message_organization_id_idx").on(table.organizationId),
+    chatMessageOrgUserConversationIdx: index(
+      "chat_message_organization_id_user_id_conversation_id_idx",
+    ).on(table.organizationId, table.userId, table.conversationId),
     chatMessageOrgIdUnique: uniqueIndex("chat_message_org_id_key").on(
       table.organizationId,
       table.id,

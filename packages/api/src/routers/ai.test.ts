@@ -85,6 +85,7 @@ const createAiCoachTools = mock((context: Parameters<typeof realCreateAiCoachToo
 mock.module("@openvalens/ai", () => ({ ...actualAi, streamChat, createAiCoachTools }));
 
 const { appRouter } = await import("./index");
+const { CHAT_HISTORY_LIMIT } = await import("./ai");
 const { chatMessage } = await import("@openvalens/db/schema/coach");
 const { accessAuditLog, userAiConsent } = await import("@openvalens/db/schema/auth");
 
@@ -148,33 +149,67 @@ type WriteResult = Promise<unknown> & {
   onConflictDoUpdate: (config: { target?: unknown; set?: Record<string, unknown> }) => WriteResult;
 };
 
+type ChatHistoryRow = { role: string; content: string };
+
 /**
  * Stateful Drizzle-shaped fake. Organization reads yield `[{ metadata }]`;
  * `user_ai_consent` reads yield the current in-memory row (or none). Inserts on
  * `user_ai_consent` upsert into that row so grant/revoke round-trips are
  * observable. `initialConsent` defaults to a granted row so the pre-#123 chat
  * tests keep exercising the org gate; pass `null` for missing-consent cases.
+ * `chatHistory` is what a `chat_message` read returns (newest first, as the
+ * query orders it). `transaction` locks-and-updates the organization metadata
+ * so workspace consent writes are observable via `currentMetadata()`.
  */
 function createMockDb(
   metadata: unknown,
   initialConsent: UserConsentRow | null = grantedConsentRow(),
-): { db: Database; inserts: CapturedInsert[] } {
+  chatHistory: ChatHistoryRow[] = [],
+): {
+  db: Database;
+  inserts: CapturedInsert[];
+  historyLimits: number[];
+  currentMetadata: () => unknown;
+} {
   const inserts: CapturedInsert[] = [];
+  const historyLimits: number[] = [];
   let consent: UserConsentRow | null = initialConsent;
+  let orgMetadata = metadata;
 
-  const db = {
-    select: () => ({
-      from: (table: unknown) => ({
-        where: () => ({
-          limit: async () => {
-            if (table === userAiConsent) {
-              return consent === null ? [] : [consent];
-            }
-            return [{ metadata }];
+  const rowsFor = (table: unknown): unknown[] => {
+    if (table === userAiConsent) return consent === null ? [] : [consent];
+    if (table === chatMessage) return chatHistory;
+    return [{ metadata: orgMetadata }];
+  };
+
+  const select = () => ({
+    from: (table: unknown) => ({
+      where: () => ({
+        limit: async () => rowsFor(table),
+        for: async () => rowsFor(table),
+        orderBy: () => ({
+          limit: async (limit: number) => {
+            if (table === chatMessage) historyLimits.push(limit);
+            return rowsFor(table).slice(0, limit);
           },
         }),
       }),
     }),
+  });
+
+  const db = {
+    select,
+    transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        select,
+        update: () => ({
+          set: (values: { metadata?: unknown }) => ({
+            where: async () => {
+              orgMetadata = values.metadata;
+            },
+          }),
+        }),
+      }),
     insert: (table: unknown) => ({
       values: (payload: unknown) => {
         inserts.push({ table, payload });
@@ -196,12 +231,14 @@ function createMockDb(
       },
     }),
   } as unknown as Database;
-  return { db, inserts };
+  return { db, inserts, historyLimits, currentMetadata: () => orgMetadata };
 }
 
 function createContext(
   db: Database,
   options: {
+    /** Replaces the default (trusted, not impersonated) session. */
+    session?: unknown;
     limitPerMinute?: number;
     apiKey?: string | null;
     /** Issue #59 — raw AI env overriding the default Anthropic selection. */
@@ -215,7 +252,10 @@ function createContext(
     AI_RATE_LIMIT_PER_MINUTE: limitPerMinute,
   });
   return {
-    session: { user: { id: USER_ID } },
+    session: options.session ?? {
+      user: { id: USER_ID },
+      session: { id: "session-1", expiresAt: new Date(Date.now() + 3_600_000) },
+    },
     db,
     correlationId: CORRELATION_ID,
     cronSecret: "test-cron-secret",
@@ -234,10 +274,29 @@ function createContext(
   } as unknown as Context;
 }
 
-function callChat(context: Context, content = "hello") {
+function callChat(context: Context, content = "hello", conversationId?: string) {
   return appRouter.ai.chat.callable({ context })({
-    messages: [{ role: "user", content }],
+    message: content,
+    ...(conversationId === undefined ? {} : { conversationId }),
   });
+}
+
+function callWorkspaceGet(context: Context) {
+  return appRouter.ai.workspaceConsent.get.callable({ context })({});
+}
+
+function callWorkspaceSet(context: Context, enabled: boolean) {
+  return appRouter.ai.workspaceConsent.set.callable({ context })({ enabled });
+}
+
+function asMember(role: string) {
+  requireOrgMembership.mockImplementationOnce(async () => ({
+    user: { id: USER_ID, email: "user@example.com", name: null },
+    session: { id: "session-1", userId: USER_ID, activeOrganizationId: ORG_ID, expiresAt: null },
+    activeOrganizationId: ORG_ID,
+    member: { id: "member-1", userId: USER_ID, organizationId: ORG_ID, role },
+    role,
+  }));
 }
 
 function callConsentGet(context: Context) {
@@ -391,7 +450,7 @@ describe("ai.chat success", () => {
     expect(JSON.stringify(result)).not.toContain("MY_SECRET_QUESTION");
   });
 
-  test("persists the user + assistant turns to chatMessage (org-scoped)", async () => {
+  test("persists the user + assistant turns to chatMessage (org- and user-scoped)", async () => {
     const { db, inserts } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
 
     await callChat(createContext(db), "MY_SECRET_QUESTION");
@@ -403,12 +462,14 @@ describe("ai.chat success", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       organizationId: ORG_ID,
+      userId: USER_ID,
       conversationId: CORRELATION_ID,
       role: "user",
       content: "MY_SECRET_QUESTION",
     });
     expect(rows[1]).toMatchObject({
       organizationId: ORG_ID,
+      userId: USER_ID,
       conversationId: CORRELATION_ID,
       role: "assistant",
       content: "ASSISTANT_SECRET_REPLY",
@@ -432,6 +493,175 @@ describe("ai.chat success", () => {
       expect(payload.actorUserId).toBe(USER_ID);
       expect(payload.targetType).toBe("ai_chat");
     }
+  });
+});
+
+describe("ai.chat history", () => {
+  test("sends stored history plus the new message, but persists only the new turn", async () => {
+    // Newest first, as the bounded history query returns it.
+    const { db, inserts, historyLimits } = createMockDb(
+      { aiConsent: { enabled: true, scope: "chat" } },
+      grantedConsentRow(),
+      [
+        { role: "assistant", content: "second reply" },
+        { role: "user", content: "second question" },
+        { role: "assistant", content: "first reply" },
+        { role: "user", content: "first question" },
+      ],
+    );
+
+    await callChat(createContext(db), "third question", "conv-1");
+
+    const sent = (streamChat.mock.calls[0]![0] as unknown as { messages: ChatHistoryRow[] })
+      .messages;
+    expect(sent).toEqual([
+      { role: "user", content: "first question" },
+      { role: "assistant", content: "first reply" },
+      { role: "user", content: "second question" },
+      { role: "assistant", content: "second reply" },
+      { role: "user", content: "third question" },
+    ]);
+    expect(historyLimits).toEqual([CHAT_HISTORY_LIMIT]);
+
+    const rows = inserts.find((insert) => insert.table === chatMessage)?.payload as Array<
+      Record<string, unknown>
+    >;
+    expect(rows.map((row) => [row.role, row.content, row.conversationId])).toEqual([
+      ["user", "third question", "conv-1"],
+      ["assistant", "ASSISTANT_SECRET_REPLY", "conv-1"],
+    ]);
+  });
+
+  test("rejects the old client-supplied message array", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+    const call = appRouter.ai.chat.callable({ context: createContext(db) }) as unknown as (
+      input: unknown,
+    ) => Promise<unknown>;
+
+    await expect(call({ messages: [{ role: "user", content: "hi" }] })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    expect(streamChat).not.toHaveBeenCalled();
+  });
+
+  test("rejects a blank message", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+    await expect(callChat(createContext(db), "   ")).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+  });
+});
+
+describe("ai.workspaceConsent", () => {
+  test("get reports the workspace state and that the owner can manage it", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "full" } });
+    await expect(callWorkspaceGet(createContext(db))).resolves.toEqual({
+      enabled: true,
+      canManage: true,
+    });
+  });
+
+  test("get is readable by other members, who cannot manage it", async () => {
+    const { db } = createMockDb({ personal: true });
+    asMember("collaborator");
+    await expect(callWorkspaceGet(createContext(db))).resolves.toEqual({
+      enabled: false,
+      canManage: false,
+    });
+  });
+
+  test("the owner turns AI on in a shape the consent gate accepts, keeping other metadata", async () => {
+    const { db, inserts, currentMetadata } = createMockDb({ personal: true });
+
+    await expect(callWorkspaceSet(createContext(db), true)).resolves.toEqual({
+      enabled: true,
+      canManage: true,
+    });
+
+    expect(currentMetadata()).toEqual({
+      personal: true,
+      aiConsent: { enabled: true, scope: "full" },
+    });
+    expect(actualAi.parseAiConsent(currentMetadata())).toEqual({ enabled: true, scope: "full" });
+
+    const audit = inserts.find((insert) => insert.table === accessAuditLog)?.payload as Record<
+      string,
+      unknown
+    >;
+    expect(audit).toMatchObject({
+      organizationId: ORG_ID,
+      actorUserId: USER_ID,
+      eventType: "AI_WORKSPACE_CONSENT_CHANGED",
+      targetType: "organization",
+      targetId: ORG_ID,
+      beforeJson: { enabled: false },
+    });
+    expect(JSON.stringify(audit.afterJson)).toContain('"enabled":true');
+  });
+
+  test("turning it on makes chat pass the org gate", async () => {
+    const { db } = createMockDb({ personal: true });
+    const context = createContext(db);
+
+    await expect(callChat(context)).rejects.toMatchObject({ code: "AI_DISABLED" });
+    await callWorkspaceSet(context, true);
+    await expect(callChat(context)).resolves.toMatchObject({ status: "ok" });
+  });
+
+  test("the owner turns AI off again", async () => {
+    const { db, currentMetadata } = createMockDb({
+      personal: true,
+      aiConsent: { enabled: true, scope: "full" },
+    });
+
+    await expect(callWorkspaceSet(createContext(db), false)).resolves.toEqual({
+      enabled: false,
+      canManage: true,
+    });
+    expect(currentMetadata()).toEqual({ personal: true, aiConsent: { enabled: false } });
+  });
+
+  test("decodes JSON-string metadata instead of discarding its keys", async () => {
+    const { db, currentMetadata } = createMockDb(JSON.stringify({ personal: true }));
+    await callWorkspaceSet(createContext(db), true);
+    expect(currentMetadata()).toEqual({
+      personal: true,
+      aiConsent: { enabled: true, scope: "full" },
+    });
+  });
+
+  for (const role of ["admin", "collaborator", "viewer"]) {
+    test(`a ${role} cannot change it`, async () => {
+      const { db, inserts, currentMetadata } = createMockDb({ personal: true });
+      asMember(role);
+
+      await expect(callWorkspaceSet(createContext(db), true)).rejects.toMatchObject({
+        code: "PERMISSION_DENIED",
+        status: 403,
+      });
+      expect(currentMetadata()).toEqual({ personal: true });
+      expect(inserts).toHaveLength(0);
+    });
+  }
+
+  test("an impersonated owner session cannot change it", async () => {
+    const { db, currentMetadata } = createMockDb({ personal: true });
+    const context = createContext(db, {
+      session: {
+        user: { id: USER_ID },
+        session: {
+          id: "session-1",
+          impersonatedBy: "admin-1",
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+      },
+    });
+
+    await expect(callWorkspaceGet(context)).resolves.toMatchObject({ canManage: false });
+    await expect(callWorkspaceSet(context, true)).rejects.toMatchObject({
+      code: "PERMISSION_DENIED",
+    });
+    expect(currentMetadata()).toEqual({ personal: true });
   });
 });
 

@@ -6,6 +6,35 @@ LM Studio, or a hosted compatible API (Issue #59). AI is **off by default**,
 and every call stays behind the organization and per-user consent gates
 whichever provider is selected.
 
+## Turning AI on
+
+Three switches must all be on before any AI call runs:
+
+1. **Server** — configure a provider (below). Readiness then reports
+   `ai: configured`.
+2. **Workspace** — the workspace owner opens **Settings → AI for this
+   workspace** (web or mobile) and turns it on. Only the owner can change it,
+   and not from an impersonated session; other members see the state
+   read-only. This writes `organization.metadata.aiConsent` as
+   `{ "enabled": true, "scope": "full" }` (turning it off writes
+   `{ "enabled": false }`), keeps the other metadata keys, and records an
+   `AI_WORKSPACE_CONSENT_CHANGED` audit entry. API: `ai.workspaceConsent.get`
+   / `ai.workspaceConsent.set`.
+3. **Person** — each person, the owner included, turns on **Settings → AI
+   processing** for themselves (`ai.consent.grant`). Revoking it stops AI for
+   that person only.
+
+Until all three are on, AI calls fail with `403 AI_DISABLED`.
+
+## Coach chat history
+
+Coach chats are private to the person who wrote them, also in a shared
+workspace: every chat row carries `user_id`, and listing or continuing a
+conversation only ever reads the caller's own rows. A client sends only the
+new message (`ai.chat({ conversationId, message })`); the server loads the
+newest 40 earlier messages of that conversation as context and stores just the
+new message and the reply. Export and erasure treat chats as the author's data.
+
 ## Configuration
 
 | Key                              | Values / default                      | Notes                                                                                  |

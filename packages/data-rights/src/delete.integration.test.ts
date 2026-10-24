@@ -115,6 +115,8 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
         values ('org-b', 'user-a', 'maintenance', 'pending', 2301, 2300, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"subject_other_org": 2301}', now() + interval '1 day');
       insert into access_audit_log (organization_id, actor_user_id, event_type, created_at)
         values ('org-b', 'user-a', 'RECORD_VIEWED', '2026-10-01');
+      insert into chat_message (organization_id, user_id, conversation_id, role, content, created_at)
+        values ('org-b', 'user-a', 'conv-a-in-b', 'user', 'Subject chat in B', '2026-10-01');
     `),
     );
 
@@ -228,6 +230,13 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(
       await count("plain_water_preference", sql`organization_id = 'org-c' and user_id = 'user-a'`),
     ).toBe(0);
+  });
+
+  test("the subject's AI chats are erased in every workspace; the owner's are kept", async () => {
+    expect(await count("chat_message", sql`user_id = 'user-a'`)).toBe(0);
+    expect(await count("chat_message", sql`organization_id = 'org-b' and user_id = 'user-b'`)).toBe(
+      1,
+    );
   });
 
   test("quarantined legacy rows are erased for the subject only", async () => {

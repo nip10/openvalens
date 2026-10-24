@@ -38,6 +38,7 @@ import { toast } from "sonner";
 
 import { AboutSection } from "@/components/about-section";
 import { AiConsentSection } from "@/components/ai-consent-section";
+import { AiWorkspaceConsentSection } from "@/components/ai-workspace-consent-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
 import { LanguageSection } from "@/components/language-section";
@@ -66,6 +67,7 @@ function SettingsPage() {
         <IntegrationsSection />
         <AnalyticsConsentSection />
         <CoachSection />
+        <AiWorkspaceConsentSection />
         <AiConsentSection />
         <DeleteAccountSection />
         <AboutSection />

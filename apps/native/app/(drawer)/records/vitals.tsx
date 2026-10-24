@@ -220,7 +220,7 @@ export default function VitalsScreen() {
           onSaved={() => {
             void daily.refetch();
             void samples.refetch();
-            void queryClient.invalidateQueries({ queryKey: ["vitals"] });
+            void queryClient.invalidateQueries({ queryKey: orpc.vitals.key() });
           }}
         />
 

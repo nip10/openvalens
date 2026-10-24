@@ -99,9 +99,11 @@ AI (`ai=configured:anthropic`):
 
 - [ ] With a synthetic account that has **not** granted AI consent, the coach
       chat is refused (consent gate).
-- [ ] Grant consent, send one neutral prompt; a response streams back. Record
-      only success, the model id and the correlation id; do not copy the reply.
-- [ ] Revoke consent afterwards.
+- [ ] As the workspace owner, turn on Settings → AI for this workspace, then
+      grant your own consent (Settings → AI processing). Send one neutral
+      prompt; a response streams back. Record only success, the model id and
+      the correlation id; do not copy the reply.
+- [ ] Revoke consent and turn the workspace switch off afterwards.
 
 Telegram (`messaging=configured:telegram`):
 

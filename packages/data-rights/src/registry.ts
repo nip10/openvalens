@@ -111,6 +111,8 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   ai_feedback: organization,
   coach_profile: organization,
   insight: organization,
+  // Member-private (`user_id`): exported to its author only; erased with the
+  // author or with a workspace being erased (see export.ts row filters).
   chat_message: organization,
   coach_template: {
     kind: "reference",

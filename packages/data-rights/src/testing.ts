@@ -149,7 +149,7 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `insert into ai_feedback (organization_id, source, rating, created_at) values ('${org}', 'chat', 'up', '2026-09-01')`,
     `insert into coach_profile (organization_id, tone, assertiveness, risk_tolerance, medical_disclaimer_mode, selected_template_key, updated_at) values ('${org}', 'warm', 2, 'low', 'standard', 'default', '2026-09-01')`,
     `insert into insight (organization_id, type, title, created_at) values ('${org}', 'seed', 'Seeded insight', '2026-09-01')`,
-    `insert into chat_message (organization_id, conversation_id, role, content, created_at) values ('${org}', 'conv-${who}', 'user', 'Seeded message', '2026-09-01')`,
+    `insert into chat_message (organization_id, user_id, conversation_id, role, content, created_at) values ('${org}', '${user}', 'conv-${who}', 'user', 'Seeded message', '2026-09-01')`,
     `insert into nutrition_coach_consent (organization_id, user_id, granted) values ('${org}', '${user}', true)`,
     `insert into weekly_review (organization_id, week_start, created_at) values ('${org}', '2026-08-31', '2026-09-01')`,
     // Ingestion and integrations

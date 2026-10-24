@@ -22,7 +22,7 @@ export default function CoachListScreen() {
   const start = useMutation(
     orpc.ai.chat.mutationOptions({
       onSuccess: async (result) => {
-        await queryClient.invalidateQueries({ queryKey: ["ai", "listThreads"] });
+        await queryClient.invalidateQueries({ queryKey: orpc.ai.listThreads.key() });
         router.push(`/coach/${result.conversationId}`);
       },
     }),
@@ -33,17 +33,12 @@ export default function CoachListScreen() {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     start.mutate({
       conversationId: id,
-      messages: [
-        {
-          role: "user",
-          content: t({
-            message:
-              "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
-            comment:
-              "First message sent to the AI coach for a new conversation; shown as the person's own message",
-          }),
-        },
-      ],
+      message: t({
+        message:
+          "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+        comment:
+          "First message sent to the AI coach for a new conversation; shown as the person's own message",
+      }),
     });
   };
 
