@@ -1202,20 +1202,37 @@ msgid "Agree to store cycle data"
 msgstr "Agree to store cycle data"
 
 #. safety
+#: apps/web/src/components/ai-workspace-consent-section.tsx
+msgid "AI allowed in this workspace"
+msgstr "AI allowed in this workspace"
+
+#. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI features are opt-in and revocable. This setting applies only to you and is independent of your organization or owner role."
 msgstr "AI features are opt-in and revocable. This setting applies only to you and is independent of your organization or owner role."
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI features will stop processing your data until you turn consent back on. Your existing records are not deleted."
 msgstr "AI features will stop processing your data until you turn consent back on. Your existing records are not deleted."
 
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "AI for this workspace"
+msgstr "AI for this workspace"
+
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI processing"
 msgstr "AI processing"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "AI processing consent"
 msgstr "AI processing consent"
@@ -1229,6 +1246,11 @@ msgstr "AI processing disabled"
 #: apps/web/src/components/ai-consent-section.tsx
 msgid "AI processing enabled"
 msgstr "AI processing enabled"
+
+#. safety
+#: apps/web/src/components/ai-workspace-consent-section.tsx
+msgid "AI turned off for this workspace"
+msgstr "AI turned off for this workspace"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "All {count, plural, one {# entry} other {# entries}}"
@@ -1247,6 +1269,13 @@ msgstr "All muscles"
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "All nutrients"
 msgstr "All nutrients"
+
+#. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Allow AI in this workspace"
+msgstr "Allow AI in this workspace"
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Allow notifications on this phone"
@@ -1349,6 +1378,11 @@ msgstr "Archiving hides a food from search and logging. Meals you already logged
 #: apps/web/src/components/language-section.tsx
 msgid "As reported by the lab"
 msgstr "As reported by the lab"
+
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "As the owner, you can change this."
+msgstr "As the owner, you can change this."
 
 #: packages/api/src/presenters/energy-estimate.ts
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -1705,6 +1739,7 @@ msgstr "Canada"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
@@ -2489,6 +2524,10 @@ msgstr "Could not load notification settings."
 msgid "Could not load observation setting. Retry"
 msgstr "Could not load observation setting. Retry"
 
+#: apps/native/components/ai-section.tsx
+msgid "Could not load or update AI settings."
+msgstr "Could not load or update AI settings."
+
 #: apps/native/components/progress-photos.tsx
 msgid "Could not load photos. Try again"
 msgstr "Could not load photos. Try again"
@@ -2558,6 +2597,10 @@ msgstr "Could not load the summary."
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Could not load the timeline."
 msgstr "Could not load the timeline."
+
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Could not load the workspace AI setting."
+msgstr "Could not load the workspace AI setting."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -2821,6 +2864,10 @@ msgstr "Could not update observation settings. Your saved choice is unchanged; r
 #: apps/web/src/components/reference-comparisons-card.tsx
 msgid "Could not update the comparison setting."
 msgstr "Could not update the comparison setting."
+
+#: apps/web/src/components/ai-workspace-consent-section.tsx
+msgid "Could not update the workspace AI setting."
+msgstr "Could not update the workspace AI setting."
 
 #: apps/web/src/routes/_auth/settings/devices.tsx
 msgid "Could not update these records."
@@ -4121,6 +4168,11 @@ msgid "Goals"
 msgstr "Goals"
 
 #. safety
+#: apps/native/components/ai-section.tsx
+msgid "Granted"
+msgstr "Granted"
+
+#. safety
 #. placeholder {0}: formatGrantedAt(state.grantedAt)
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Granted on {0}"
@@ -5119,6 +5171,7 @@ msgid "Loading your workspace…"
 msgstr "Loading your workspace…"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/native/components/insights-section.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
@@ -6077,6 +6130,8 @@ msgid "Not Found"
 msgstr "Not Found"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Not granted"
 msgstr "Not granted"
@@ -6402,6 +6457,13 @@ msgid "Off by default. When on, you can submit a recipe link and the server fetc
 msgstr "Off by default. When on, you can submit a recipe link and the server fetches that one page to start an unsaved draft. It keeps ingredients, servings and credit, never the steps, photos or stories. Turn it off at any time."
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Off for this workspace"
+msgstr "Off for this workspace"
+
+#. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Offered by a health-system programme"
 msgstr "Offered by a health-system programme"
@@ -6457,6 +6519,13 @@ msgid "On — {pushTitle}"
 msgstr "On — {pushTitle}"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "On for this workspace"
+msgstr "On for this workspace"
+
+#. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Once"
 msgstr "Once"
@@ -6477,6 +6546,11 @@ msgstr "Only sessions with a recorded intensity count; sessions without one are 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced."
 msgstr "Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced."
+
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "Only the workspace owner can change this."
+msgstr "Only the workspace owner can change this."
 
 #. safety
 #: packages/api/src/presenters/coach-settings.ts
@@ -7485,12 +7559,14 @@ msgstr "Restore entry"
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -7585,6 +7661,7 @@ msgid "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source
 msgstr "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source}"
 
 #: apps/native/app/(drawer)/sharing.tsx
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -7592,6 +7669,8 @@ msgid "Revoke"
 msgstr "Revoke"
 
 #. safety
+#. safety
+#: apps/native/components/ai-section.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Revoke AI consent?"
 msgstr "Revoke AI consent?"
@@ -9051,6 +9130,13 @@ msgstr "The vendor no longer accepts this connection. Connect again to resume sy
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "The weekly insights email is off. You can turn it on again in Settings."
 msgstr "The weekly insights email is off. You can turn it on again in Settings."
+
+#. safety
+#. safety
+#: apps/native/components/ai-section.tsx
+#: apps/web/src/components/ai-workspace-consent-card.tsx
+msgid "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
+msgstr "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
 
 #: packages/api/src/presenters/score.ts
 msgid "There is not enough recent data to compare with your usual pattern, so no number is shown."
