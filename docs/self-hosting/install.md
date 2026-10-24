@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-23
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -217,6 +217,10 @@ settings and secrets. Treat that copy like the secrets themselves.
 
 ## Next steps
 
+- [Food catalogs](food-catalogs.md) — **the food catalogs start empty.** Until
+  you import them, food search finds only members' custom foods and barcode
+  scans miss. `deploy/setup.sh catalogs --source fdc` (~14 MB) adds generic
+  foods; `--source off` (~13 GB) adds product barcodes.
 - [Configuration](configuration.md) — optional providers, scheduled jobs,
   product settings.
 - [Backups](backup.md) — what is and is not protected today.

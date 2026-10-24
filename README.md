@@ -21,9 +21,10 @@ never from a real person's records (see [Landing site](#landing-site))._
 - **Body and vitals:** weight, body measurements and vitals over time.
 - **Workouts and activity:** sessions with an effort rating; weekly active
   minutes next to the WHO adult range ([activity load](docs/activity-load.md)).
-- **Meal diary:** log meals from imported public food catalogs (USDA FoodData
-  Central, Open Food Facts) or your own foods; daily totals show which entries
-  had a value.
+- **Meal diary:** log meals from public food catalogs (USDA FoodData Central,
+  Open Food Facts) that the operator imports
+  ([food catalogs](docs/self-hosting/food-catalogs.md)), or from your own
+  foods; daily totals show which entries had a value.
 - **Sleep, supplements and a timeline** of everything you recorded.
 - **Export and delete:** download your record (JSON, CSV or PDF), or delete
   your account and everything you own ([privacy](docs/self-hosting/privacy.md)).
@@ -90,6 +91,8 @@ apply to OpenValens 0.1.0 (pre-release; no release is tagged yet):
 - [Overview](docs/self-hosting/README.md) — start here; lists what is not covered yet
 - [Install](docs/self-hosting/install.md)
 - [Configuration](docs/self-hosting/configuration.md) and the generated [environment reference](docs/reference/env.md)
+- [Food catalogs](docs/self-hosting/food-catalogs.md) — empty on a new install;
+  `deploy/setup.sh catalogs` imports USDA and Open Food Facts data
 - [Upgrading](docs/self-hosting/upgrading.md)
 - [Backups](docs/self-hosting/backup.md) — **incomplete:** plain, unencrypted pre-migrate dumps only; encrypted backup and restore are pending (#64)
 - [Email](docs/self-hosting/email.md) (Resend only)

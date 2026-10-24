@@ -27,7 +27,10 @@ no-tool-calling guarantees, [Object storage](storage.md) for storage, and
 redirect URI, scopes and webhook.
 
 `foodLookup` is only asked for a barcode that the member's private foods and
-the imported FDC/Open Food Facts catalogs all miss. It sends the product code
+the FDC/Open Food Facts catalogs all miss. The catalogs are empty until the
+operator imports them with `deploy/setup.sh catalogs` (see
+[Food catalogs](self-hosting/food-catalogs.md)); on an instance without them,
+every barcode that is not a custom food goes to `foodLookup` when it is on. It sends the product code
 and `FOOD_LOOKUP_USER_AGENT` (an app name and operator contact, as Open Food
 Facts requires) and nothing else; `FOOD_LOOKUP_BASE_URL` can point it at a
 privacy proxy. Store and variable-measure codes are never sent. A timeout or

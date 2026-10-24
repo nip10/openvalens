@@ -35,3 +35,6 @@ local.db-*
 # Issue #63 — never copy self-host secrets/state into an image layer
 deploy/secrets
 deploy/hooks
+
+# Food catalog downloads written by deploy/setup.sh catalogs (multi-GB)
+deploy/catalogs

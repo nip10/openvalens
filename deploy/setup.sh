@@ -5,6 +5,7 @@
 #   deploy/setup.sh install    [--dry-run] [--non-interactive] [--reconfigure]
 #   deploy/setup.sh upgrade    [--dry-run]
 #   deploy/setup.sh mint-token [--dry-run]
+#   deploy/setup.sh catalogs   --source fdc|fdc-branded|off|all [--dry-run] [--non-interactive]
 #
 # install     Asks for the domain and email settings, generates every secret
 #             into deploy/secrets/ (never prints one), writes deploy/.env, builds
@@ -19,6 +20,16 @@
 # mint-token  Re-mints the setup token (it expires after 24 hours). Minting
 #             again invalidates the previous token. Refused once an
 #             administrator exists.
+# catalogs    Downloads public food catalogs into deploy/catalogs/ and imports
+#             them in a one-off server container on the internal db network.
+#             Opt-in, as the downloads are large. Re-run it to update: unchanged
+#             files are neither downloaded nor imported again.
+#             --source takes a comma-separated list:
+#               fdc          USDA Foundation + SR Legacy (~14 MB), generic foods
+#               fdc-branded  USDA Branded (~200 MB), US packaged foods, barcodes
+#               off          Open Food Facts (~13 GB), worldwide products, barcodes
+#               all          all of the above
+#             Sizes, time and licences: docs/self-hosting/food-catalogs.md.
 #
 # --dry-run          Change nothing: generate config and throwaway secrets in a
 #                    private temp directory, validate the compose file, print the
@@ -29,6 +40,7 @@
 #                    OPENVALENS_DOMAIN, ACME_EMAIL, EMAIL_FROM and, optionally,
 #                    RESEND_API_KEY_SOURCE (path to a private file holding the
 #                    Resend key). Secrets are never accepted as arguments.
+#                    catalogs: start without asking to confirm the downloads.
 # --reconfigure      install only: ask for (or, with --non-interactive, read) the
 #                    domain and email settings again instead of reusing the ones
 #                    in deploy/.env. Secrets and every other key are kept.
@@ -45,9 +57,18 @@ command="${1:-}"
 DRY_RUN=0
 INTERACTIVE=1
 RECONFIGURE=0
+CATALOG_SOURCES=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
+    --source)
+      [ "$command" = catalogs ] && [ $# -gt 1 ] || {
+        echo "setup: --source needs a value and applies to catalogs only (see deploy/setup.sh --help)" >&2
+        exit 2
+      }
+      CATALOG_SOURCES="$2"
+      shift
+      ;;
     --non-interactive) INTERACTIVE=0 ;;
     --reconfigure) RECONFIGURE=1 ;;
     -h | --help) command=help ;;
@@ -67,7 +88,7 @@ die() {
   exit 1
 }
 
-usage() { sed -n '3,37p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,49p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 # In dry-run mode everything is staged in a private temp directory.
 if [ "$DRY_RUN" -eq 1 ]; then
@@ -425,6 +446,11 @@ OpenValens is starting at: https://$DOMAIN
      registration closes: everyone else joins by administrator invitation.
   3. Pre-migrate backups are plain, UNENCRYPTED pg_dump files in the
      'backups' volume. Encrypted backup/restore is pending (Issue #64).
+  4. The food catalogs start EMPTY: food search finds only members' own
+     foods and barcode scans miss. Import the public catalogs (large,
+     opt-in downloads; see docs/self-hosting/food-catalogs.md):
+       deploy/setup.sh catalogs --source fdc     # ~14 MB, generic foods
+       deploy/setup.sh catalogs --source off     # ~13 GB, product barcodes
 EOF
   if [ "$DRY_RUN" -eq 1 ]; then log "[dry-run] nothing was changed"; fi
 }
@@ -466,10 +492,186 @@ cmd_mint_token() {
   mint_token
 }
 
+# --- food catalogs -------------------------------------------------------------
+
+# Downloaded artifacts stay here, so a re-run skips unchanged files and the
+# OFF-derived tables can be regenerated from the same dump (ODbL 4.6b).
+# Git-ignored and excluded from the image build context.
+CATALOG_DIR="$DEPLOY_DIR/catalogs"
+# USDA FoodData Central releases are immutable, dated files; bump deliberately.
+FDC_BASE_URL="https://fdc.nal.usda.gov/fdc-datasets"
+FDC_RELEASE="2026-04-30"
+FDC_SR_LEGACY_RELEASE="2018-04"
+# Open Food Facts publishes a new full dump every day under one URL.
+OFF_URL="https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz"
+OFF_FILE="openfoodfacts-products.jsonl.gz"
+
+parse_catalog_sources() {
+  CATALOG_FDC=0
+  CATALOG_FDC_BRANDED=0
+  CATALOG_OFF=0
+  if [ -z "$CATALOG_SOURCES" ]; then
+    echo "setup: catalogs needs --source fdc, fdc-branded, off or all (comma-separated)" >&2
+    exit 2
+  fi
+  local item items
+  IFS=, read -r -a items <<<"$CATALOG_SOURCES"
+  for item in "${items[@]}"; do
+    case "$item" in
+      fdc) CATALOG_FDC=1 ;;
+      fdc-branded) CATALOG_FDC_BRANDED=1 ;;
+      off) CATALOG_OFF=1 ;;
+      all) CATALOG_FDC=1 CATALOG_FDC_BRANDED=1 CATALOG_OFF=1 ;;
+      *)
+        # Never echo the rejected value.
+        echo "setup: unknown catalog source (use fdc, fdc-branded, off or all)" >&2
+        exit 2
+        ;;
+    esac
+  done
+}
+
+catalog_notice() {
+  echo
+  echo "Food catalogs are imported into this instance's database and shown with"
+  echo "their attribution. Sizes and times are approximate."
+  if [ "$CATALOG_FDC" -eq 1 ] || [ "$CATALOG_FDC_BRANDED" -eq 1 ]; then
+    cat <<EOF
+  USDA FoodData Central: CC0 1.0 (public domain). Shown as "Source: U.S.
+    Department of Agriculture, Agricultural Research Service. FoodData
+    Central. fdc.nal.usda.gov".
+EOF
+  fi
+  if [ "$CATALOG_FDC" -eq 1 ]; then
+    echo "    fdc: Foundation $FDC_RELEASE + SR Legacy, ~14 MB, ~8,000 foods, about a minute."
+  fi
+  if [ "$CATALOG_FDC_BRANDED" -eq 1 ]; then
+    echo "    fdc-branded: Branded $FDC_RELEASE, ~200 MB, US packaged foods with barcodes."
+  fi
+  if [ "$CATALOG_OFF" -eq 1 ]; then
+    cat <<EOF
+  Open Food Facts: database under the Open Database License (ODbL 1.0),
+    contents under the Database Contents License (DbCL 1.0). The tables
+    imported from it are ODbL too: if others use this instance, offer them
+    under ODbL or point to how to regenerate them (DATA-LICENSES.md).
+    off: ~13 GB download kept in deploy/catalogs/, millions of products.
+    Importing takes tens of minutes to hours and grows the database by
+    several GB: plan for at least 25 GB of free disk.
+EOF
+  fi
+  echo
+}
+
+confirm_catalogs() {
+  if [ "$INTERACTIVE" -eq 0 ] || [ "$DRY_RUN" -eq 1 ]; then return 0; fi
+  local answer=""
+  printf 'Download and import these catalogs now? [y/N] ' >&2
+  IFS= read -r answer || true
+  case "$answer" in
+    y | Y | yes | YES) ;;
+    *) die "cancelled; nothing was downloaded" ;;
+  esac
+}
+
+# UTC date (YYYY-MM-DD) of a file's modification time: the upstream
+# Last-Modified time, which curl --remote-time copies onto the download.
+file_date() {
+  date -u -r "$1" +%Y-%m-%d 2>/dev/null || date -u -d "@$(stat -c %Y "$1")" +%Y-%m-%d
+}
+
+# fetch_catalog <url> <file name> immutable|conditional
+# Downloads into <file>.part, then renames it; an interrupted download resumes
+# on the next run. An immutable (dated) release is never downloaded twice; a
+# conditional one only when upstream is newer than the file already here.
+fetch_catalog() {
+  local url="$1" name="$2" mode="$3"
+  local dest="$CATALOG_DIR/$2" part="$CATALOG_DIR/$2.part"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf 'setup: [dry-run] would download %s to deploy/catalogs/%s\n' "$url" "$name"
+    return 0
+  fi
+  if [ -s "$part" ]; then
+    log "resuming the download of $name"
+    curl -fL --retry 5 --progress-bar --remote-time -C - -o "$part" "$url" ||
+      die "downloading $name failed; re-run to resume (or delete deploy/catalogs/$name.part)"
+  elif [ -s "$dest" ] && [ "$mode" = immutable ]; then
+    log "$name is already downloaded"
+    return 0
+  elif [ -s "$dest" ]; then
+    log "checking for a newer $name"
+    curl -fL --retry 5 --progress-bar --remote-time -z "$dest" -o "$part" "$url" ||
+      die "downloading $name failed; re-run to resume"
+  else
+    log "downloading $name"
+    curl -fL --retry 5 --progress-bar --remote-time -o "$part" "$url" ||
+      die "downloading $name failed; re-run to resume"
+  fi
+  if [ -s "$part" ]; then
+    mv -f "$part" "$dest"
+  else
+    rm -f "$part"
+    log "$name is up to date"
+  fi
+}
+
+# import_catalog <fdc|off> <file name> <dataset> <version> <url>
+# Runs the importer from the server image as a one-off `migrate` container: the
+# same image and read-only DATABASE_URL secret file, on the internal db network
+# only. The artifact directory is mounted read-only.
+import_catalog() {
+  log "importing $2 ($1 $3 $4)"
+  run compose run --rm --no-deps -T --workdir /app \
+    -v "$CATALOG_DIR:/catalogs:ro" migrate \
+    bun --no-env-file scripts/food-catalog-import.ts --source "$1" \
+    --file "/catalogs/$2" --dataset "$3" --version "$4" --source-url "$5" --allow-remote ||
+    die "importing $2 failed; no rows were changed. Fix the cause and re-run."
+}
+
+cmd_catalogs() {
+  parse_catalog_sources
+  preflight
+  command -v curl >/dev/null 2>&1 || die "curl is required to download the catalogs"
+  if [ "$DRY_RUN" -eq 0 ]; then require_installed; fi
+  catalog_notice
+  confirm_catalogs
+
+  # <dataset>:<release> for each FDC download.
+  local fdc=() item name version
+  if [ "$CATALOG_FDC" -eq 1 ]; then fdc+=("foundation:$FDC_RELEASE" "sr_legacy:$FDC_SR_LEGACY_RELEASE"); fi
+  if [ "$CATALOG_FDC_BRANDED" -eq 1 ]; then fdc+=("branded:$FDC_RELEASE"); fi
+  fdc_name() { printf 'FoodData_Central_%s_food_json_%s.zip' "${1%%:*}" "${1#*:}"; }
+
+  if [ "$DRY_RUN" -eq 0 ]; then install -d -m 0755 "$CATALOG_DIR"; fi
+  for item in ${fdc[@]+"${fdc[@]}"}; do
+    name="$(fdc_name "$item")"
+    fetch_catalog "$FDC_BASE_URL/$name" "$name" immutable
+  done
+  if [ "$CATALOG_OFF" -eq 1 ]; then fetch_catalog "$OFF_URL" "$OFF_FILE" conditional; fi
+
+  log "starting postgres"
+  run compose up -d --wait postgres
+  for item in ${fdc[@]+"${fdc[@]}"}; do
+    name="$(fdc_name "$item")"
+    import_catalog fdc "$name" "${item%%:*}" "${item#*:}" "$FDC_BASE_URL/$name"
+  done
+  if [ "$CATALOG_OFF" -eq 1 ]; then
+    version="<dump date>"
+    if [ "$DRY_RUN" -eq 0 ]; then version="$(file_date "$CATALOG_DIR/$OFF_FILE")"; fi
+    import_catalog off "$OFF_FILE" products "$version" "$OFF_URL"
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "[dry-run] nothing was downloaded or imported"
+    return 0
+  fi
+  log "food catalogs are ready: search and barcode lookup use them right away"
+}
+
 case "$command" in
   install) cmd_install ;;
   upgrade) cmd_upgrade ;;
   mint-token) cmd_mint_token ;;
+  catalogs) cmd_catalogs ;;
   help | -h | --help | "") usage ;;
   *)
     echo "setup: unknown command (see deploy/setup.sh --help)" >&2

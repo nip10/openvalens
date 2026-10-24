@@ -229,6 +229,8 @@ describe("image build context", () => {
     const dockerignore = await Bun.file(join(repo, ".dockerignore")).text();
     expect(dockerignore.split("\n")).toContain("deploy/secrets");
     expect(dockerignore.split("\n")).toContain("**/.env");
+    // Multi-GB food catalog downloads must never reach the build context.
+    expect(dockerignore.split("\n")).toContain("deploy/catalogs");
   });
 });
 
@@ -524,6 +526,151 @@ describe("deploy/setup.sh install re-runs (Issue #63)", () => {
       expect(readdirSync(join(box.dir, "secrets"), { recursive: true }).sort()).toEqual(
         secretsBefore,
       );
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+});
+
+/**
+ * A fake `curl` for the sandbox: records each call and, for `-o <file>`,
+ * writes a tiny placeholder stamped with a fixed upstream time — unless the
+ * call is conditional (`-z`), which it answers as "not modified" (no body).
+ */
+function fakeCurl(dir: string) {
+  const root = join(dir, "..");
+  writeFileSync(
+    join(root, "bin", "curl"),
+    `#!/bin/sh
+printf '%s\\n' "$*" >>"${root}/curl.log"
+out=""; conditional=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out="$2"; shift ;;
+    -z) conditional=1; shift ;;
+  esac
+  shift
+done
+[ "$conditional" -eq 1 ] && exit 0
+printf 'placeholder\\n' >"$out"
+TZ=UTC touch -t 202610241218 "$out"
+`,
+  );
+  chmodSync(join(root, "bin", "curl"), 0o755);
+  const log = (name: string) => {
+    const path = join(root, name);
+    return existsSync(path) ? readFileSync(path, "utf8") : "";
+  };
+  return {
+    curlLog: () => log("curl.log"),
+    dockerLog: () => log("docker.log"),
+    reset: () => {
+      rmSync(join(root, "curl.log"), { force: true });
+      rmSync(join(root, "docker.log"), { force: true });
+    },
+  };
+}
+
+describe("deploy/setup.sh catalogs", () => {
+  const catalogs = ["catalogs", "--non-interactive"];
+
+  test("requires a known --source and never echoes a rejected value", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(catalogs).exitCode).toBe(2);
+      const unknown = box.run([...catalogs, "--source", "fdc,s3cr3t"]);
+      expect(unknown.exitCode).toBe(2);
+      expect(unknown.output).not.toContain("s3cr3t");
+      expect(box.run([...catalogs, "--source"]).exitCode).toBe(2);
+      // --source belongs to catalogs only.
+      expect(box.run(["install", "--non-interactive", "--source", "fdc"]).exitCode).toBe(2);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("refuses to run before install, and a dry run downloads nothing", () => {
+    const box = installSandbox();
+    try {
+      const tools = fakeCurl(box.dir);
+      const refused = box.run([...catalogs, "--source", "fdc"]);
+      expect(refused.exitCode).toBe(1);
+      expect(refused.output).toContain("run 'deploy/setup.sh install' first");
+
+      const dry = box.run([...catalogs, "--source", "all", "--dry-run"]);
+      expect(dry.exitCode).toBe(0);
+      expect(dry.output).toContain("Open Database License");
+      expect(dry.output).toContain("CC0 1.0");
+      expect(dry.output).toContain(
+        "would download https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz",
+      );
+      expect(dry.output).toContain("FoodData_Central_branded_food_json_");
+      expect(dry.output).toContain("[dry-run] nothing was downloaded or imported");
+      expect(tools.curlLog()).toBe("");
+      expect(tools.dockerLog()).not.toContain(" run ");
+      expect(existsSync(join(box.dir, "catalogs"))).toBe(false);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("asks before downloading unless --non-interactive", () => {
+    const box = installSandbox();
+    try {
+      const tools = fakeCurl(box.dir);
+      expect(box.run(["install", "--non-interactive"]).exitCode).toBe(0);
+      const cancelled = box.run(["catalogs", "--source", "fdc"]);
+      expect(cancelled.exitCode).toBe(1);
+      expect(cancelled.output).toContain("cancelled; nothing was downloaded");
+      expect(tools.curlLog()).toBe("");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("downloads, imports in a one-off server container, and re-runs as an update", () => {
+    const box = installSandbox();
+    try {
+      const tools = fakeCurl(box.dir);
+      expect(box.run(["install", "--non-interactive"]).exitCode).toBe(0);
+      tools.reset();
+
+      const first = box.run([...catalogs, "--source", "fdc,off"]);
+      expect({ exitCode: first.exitCode, output: first.output }).toMatchObject({ exitCode: 0 });
+      expect(first.output).toContain("food catalogs are ready");
+      const downloads = tools.curlLog();
+      expect(downloads).toContain("FoodData_Central_foundation_food_json_");
+      expect(downloads).toContain("FoodData_Central_sr_legacy_food_json_2018-04.zip");
+      expect(downloads).toContain("openfoodfacts-products.jsonl.gz");
+      expect(downloads).not.toContain("branded");
+      expect(existsSync(join(box.dir, "catalogs", "openfoodfacts-products.jsonl.gz"))).toBe(true);
+      expect(readdirSync(join(box.dir, "catalogs")).some((n) => n.endsWith(".part"))).toBe(false);
+
+      const imports = tools
+        .dockerLog()
+        .split("\n")
+        .filter((line) => line.includes("food-catalog-import.ts"));
+      expect(imports).toHaveLength(3);
+      for (const line of imports) {
+        // The server image's one-off `migrate` service: db network only, no deps.
+        expect(line).toContain(" run --rm --no-deps -T --workdir /app ");
+        expect(line).toContain(`${join(box.dir, "catalogs")}:/catalogs:ro migrate bun`);
+        expect(line).toContain("--allow-remote");
+      }
+      expect(imports[2]).toContain(
+        "--source off --file /catalogs/openfoodfacts-products.jsonl.gz --dataset products --version 2026-10-24",
+      );
+      expect(tools.dockerLog()).toContain("up -d --wait postgres");
+
+      // Re-run: dated FDC releases are not fetched again; OFF is conditional.
+      tools.reset();
+      const again = box.run([...catalogs, "--source", "fdc,off"]);
+      expect(again.exitCode).toBe(0);
+      expect(again.output).toContain("is already downloaded");
+      expect(again.output).toContain("openfoodfacts-products.jsonl.gz is up to date");
+      const refetches = tools.curlLog().trim().split("\n");
+      expect(refetches).toHaveLength(1);
+      expect(refetches[0]).toContain(" -z ");
     } finally {
       box.cleanup();
     }
