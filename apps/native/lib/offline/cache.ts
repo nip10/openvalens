@@ -24,8 +24,7 @@ import { OFFLINE_SCHEMA_SQL } from "./schema";
  * before scoping existed have a NULL scope and are never sent.
  */
 
-// Pre-rename (openhealth) file name kept so existing installs keep their data.
-const DB_NAME = "openhealth-offline.db";
+const DB_NAME = "openvalens-offline.db";
 
 let database: SQLite.SQLiteDatabase | null = null;
 

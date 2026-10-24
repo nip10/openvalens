@@ -1,4 +1,4 @@
-# Population reference datasets for "people your age/sex" benchmarks (openhealth)
+# Population reference datasets for "people your age/sex" benchmarks (OpenValens)
 
 Scope: which reference distributions could honestly back age×sex percentile comparisons for adults (18+) using wearable or manually entered values. Covers dataset, method, population, year, license, and comparability. It does not cover the psychology of comparisons or community aggregation privacy, which another researcher owns.
 
@@ -62,7 +62,7 @@ Only a few sources publish real age×sex percentile tables for adults. They are 
 - The strongest ready-made sources are the NCHS Series 3 anthropometric reports (BMI, waist, weight) and NHSR 41 (resting pulse). They are nationally representative, have published percentiles, and are public domain.
 - FRIEND is the only credible adult VO2max percentile source I found. It is a lab registry, not a population sample, so it probably skews toward people referred for or seeking testing.
 - I found no peer-reviewed, population-sampled, age×sex percentile table for nocturnal wearable RMSSD with a clear license. HRV is the weakest benchmark candidate.
-- Sleep has wearable means by age and sex but no reusable percentile tables in the sources I checked. NHANES self-reported sleep (questionnaire) microdata could be used to compute percentiles, but that means openhealth would derive the table itself (survey-weighted) rather than citing a published one.
+- Sleep has wearable means by age and sex but no reusable percentile tables in the sources I checked. NHANES self-reported sleep (questionnaire) microdata could be used to compute percentiles, but that means OpenValens would derive the table itself (survey-weighted) rather than citing a published one.
 - Blood pressure and lab values have NHANES public microdata. The project could compute weighted percentiles from it (feasible, but it is derived work). I did not find a ready-made adult BP or lab percentile publication in this pass.
 
 ### Gaps
@@ -149,7 +149,7 @@ I found no open-source project that publishes a curated, licensed set of adult a
 
 ### Inferences
 
-- A viable approach for openhealth: ship a versioned `reference_distributions` dataset derived from NHANES public microdata, with reproducible, survey-weighted code (nhanesA/nhanesdata plus the `survey` package). Each table would record its source cycle, method, population and license. For VO2max and HRV, cite external sources rather than embed them.
+- A viable approach for OpenValens: ship a versioned `reference_distributions` dataset derived from NHANES public microdata, with reproducible, survey-weighted code (nhanesA/nhanesdata plus the `survey` package). Each table would record its source cycle, method, population and license. For VO2max and HRV, cite external sources rather than embed them.
 
 ### Gaps
 

@@ -302,7 +302,7 @@ generate_secrets() {
   write_secret "$SECRETS_DIR/postgres" POSTGRES_PASSWORD "$(random_hex)"
   local pw
   pw="$(head -n 1 "$SECRETS_DIR/postgres/POSTGRES_PASSWORD")"
-  write_secret "$SECRETS_DIR/server" DATABASE_URL "postgresql://postgres:$pw@postgres:5432/openhealth"
+  write_secret "$SECRETS_DIR/server" DATABASE_URL "postgresql://postgres:$pw@postgres:5432/openvalens"
   write_secret "$SECRETS_DIR/server" BETTER_AUTH_SECRET "$(random_hex)"
   write_secret "$SECRETS_DIR/server" CRON_SECRET "$(random_hex)"
   write_secret "$SECRETS_DIR/server" TELEGRAM_WEBHOOK_SECRET "$(random_hex)"

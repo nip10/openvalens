@@ -10,8 +10,8 @@ import { OUTBOX_MAX_ENTRIES, type OutboxEntry } from "@openvalens/api/presenters
  * another's health data. `clearOfflineData` wipes everything on sign-out.
  */
 
-const CACHE_PREFIX = "openhealth.cache.";
-const OUTBOX_KEY = "openhealth.outbox";
+const CACHE_PREFIX = "openvalens.cache.";
+const OUTBOX_KEY = "openvalens.outbox";
 
 /** A cached query result plus when it was written. */
 export type CacheEntry<T> = {

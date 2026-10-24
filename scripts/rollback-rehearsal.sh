@@ -173,7 +173,7 @@ install -d -m 0700 "$STATE/secrets"
 install -d -m 0755 "$STATE/secrets/server" "$STATE/secrets/postgres"
 pg_password="$(random_hex)"
 write_secret "$STATE/secrets/postgres" POSTGRES_PASSWORD "$pg_password"
-write_secret "$STATE/secrets/server" DATABASE_URL "postgresql://postgres:$pg_password@postgres:5432/openhealth"
+write_secret "$STATE/secrets/server" DATABASE_URL "postgresql://postgres:$pg_password@postgres:5432/openvalens"
 unset pg_password
 write_secret "$STATE/secrets/server" BETTER_AUTH_SECRET "$(random_hex)"
 write_secret "$STATE/secrets/server" CRON_SECRET "$(random_hex)"
@@ -244,7 +244,7 @@ wait_for_server() {
 }
 
 # psql inside the postgres container; output is counts/marker labels only.
-sql() { compose exec -T postgres psql -U postgres -d "${2:-openhealth}" -XAtq -v ON_ERROR_STOP=1 -c "$1"; }
+sql() { compose exec -T postgres psql -U postgres -d "${2:-openvalens}" -XAtq -v ON_ERROR_STOP=1 -c "$1"; }
 
 migration_count() { sql "select count(*) from drizzle.__drizzle_migrations"; }
 
@@ -302,18 +302,18 @@ log "pre-migrate dump taken by the upgrade: $(basename "$DUMP")"
 step "3. ROLLBACK to $FROM_TAG: stop app, keep upgraded DB, restore pre-migrate dump"
 compose stop caddy web server >/dev/null 2>&1
 log "app stopped (caddy, web, server); postgres keeps running"
-KEPT_DB="openhealth_failed_$RUN_ID"
-sql "select count(pg_terminate_backend(pid)) from pg_stat_activity where datname = 'openhealth' and pid <> pg_backend_pid()" postgres >/dev/null
-sql "alter database openhealth rename to $KEPT_DB" postgres
-sql "create database openhealth" postgres
-log "upgraded database kept as $KEPT_DB for forensics; fresh empty openhealth created"
+KEPT_DB="openvalens_failed_$RUN_ID"
+sql "select count(pg_terminate_backend(pid)) from pg_stat_activity where datname = 'openvalens' and pid <> pg_backend_pid()" postgres >/dev/null
+sql "alter database openvalens rename to $KEPT_DB" postgres
+sql "create database openvalens" postgres
+log "upgraded database kept as $KEPT_DB for forensics; fresh empty openvalens created"
 if ! restore_output="$(compose run --rm --no-deps -T --entrypoint sh backup -c \
-  'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" pg_restore --exit-on-error --no-password -d openhealth "$1"' \
+  'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" pg_restore --exit-on-error --no-password -d openvalens "$1"' \
   restore "$DUMP" 2>&1)"; then
   printf '%s\n' "$restore_output" | grep -v '^ Container ' | tail -n 20
   die "pg_restore failed; the upgraded database is still available as $KEPT_DB"
 fi
-log "restored $(basename "$DUMP") into openhealth"
+log "restored $(basename "$DUMP") into openvalens"
 log "restored migrations: $(migration_count) (expected $FROM_MIGRATIONS)"
 set_version "$FROM_TAG"
 start_chain

@@ -6,11 +6,11 @@ Method: GitHub repo metadata, LICENSE/NOTICE/README text, and issue threads were
 
 ### Takeaway
 
-Ticket #93 gets the license of `hasaneyldrm/exercises-dataset` wrong. The dataset is not public domain and not CC/CC-BY. The code and text are MIT, but every GIF and thumbnail is © Gym visual. The repo has permission to redistribute them, and that permission does not pass to anyone who clones it. Gym visual's own terms forbid further redistribution. Shipping or hotlinking those GIFs in openhealth would be copyright infringement.
+Ticket #93 gets the license of `hasaneyldrm/exercises-dataset` wrong. The dataset is not public domain and not CC/CC-BY. The code and text are MIT, but every GIF and thumbnail is © Gym visual. The repo has permission to redistribute them, and that permission does not pass to anyone who clones it. Gym visual's own terms forbid further redistribution. Shipping or hotlinking those GIFs in OpenValens would be copyright infringement.
 
 The images in yuhonas/free-exercise-db and wrkout/exercises.json are also not clean. Their maintainers say the images were scraped, and reverse image search points to bodybuilding.com and ExRx. Only their JSON text is plausibly public domain (Unlicense).
 
-wger is the only source where the data and images are openly licensed (CC-BY-SA 3/4 and CC0). Its code is also AGPL, which matches openhealth's license. It is the best fit.
+wger is the only source where the data and images are openly licensed (CC-BY-SA 3/4 and CC0). Its code is also AGPL, which matches OpenValens's license. It is the best fit.
 
 ### Cited findings
 
@@ -59,7 +59,7 @@ wger is the only source where the data and images are openly licensed (CC-BY-SA 
 - Both datasets have 1,324 exercises at 180×180, and both have 4-digit IDs with a 7-character media id (e.g. `0025-EIeI8Vf`). This strongly suggests hasaneyldrm is a repackaged ExerciseDB v1 corpus, and ExerciseDB's GIFs are Gym visual animations. This is not verified, but it is consistent with both projects being 180-px Gym visual media.
 - For an AGPL app that others self-host, **none** of the GIF/JPG sets from hasaneyldrm, yuhonas, wrkout or ExerciseDB can safely be bundled or hotlinked. The MIT/Unlicense JSON text (names, muscles, equipment, instructions) from hasaneyldrm and yuhonas is usable with attribution, though the same provenance doubt about scraped text applies with less force.
 - Recommended stack:
-  1. Use wger data as the canonical exercise catalog (CC-BY-SA; keep the per-entry `license_author` for attribution; the CC-BY-SA share-alike obligation covers the data only, not openhealth's code).
+  1. Use wger data as the canonical exercise catalog (CC-BY-SA; keep the per-entry `license_author` for attribution; the CC-BY-SA share-alike obligation covers the data only, not OpenValens's code).
   2. Use yuhonas JSON (Unlicense) to fill gaps in the muscle/equipment taxonomy, without the images.
   3. Show media only where the license is clear (wger CC images, or the app's own SVG muscle highlight instead of GIFs).
 - Correct ticket #93's alternatives list: "RepDB" could not be found or verified in this pass.
@@ -75,7 +75,7 @@ wger is the only source where the data and images are openly licensed (CC-BY-SA 
 
 ### Takeaway
 
-Do not hotlink. raw.githubusercontent.com is not a CDN. GitHub tightened unauthenticated rate limits on it in May 2025, and it does not accept auth tokens. Bandwidth abuse can get the source repo throttled. Hotlinking would also send every user's IP address and the exercise they are viewing to GitHub, a third party, which conflicts with openhealth's PHI-minimizing posture. Bundle or self-host only the assets that are licensed for it.
+Do not hotlink. raw.githubusercontent.com is not a CDN. GitHub tightened unauthenticated rate limits on it in May 2025, and it does not accept auth tokens. Bandwidth abuse can get the source repo throttled. Hotlinking would also send every user's IP address and the exercise they are viewing to GitHub, a third party, which conflicts with OpenValens's PHI-minimizing posture. Bundle or self-host only the assets that are licensed for it.
 
 ### Cited findings
 
@@ -88,7 +88,7 @@ Do not hotlink. raw.githubusercontent.com is not a CDN. GitHub tightened unauthe
 ### Inferences
 
 - The "about 83 requests/min down to 1/min" figure in search snippets is a third-party claim, not GitHub's documentation. Treat it as unverified.
-- For self-hosters, the right pattern is a one-time import job. It pulls the wger JSON and CC images into openhealth's own object storage or static directory, records license and author per asset, and serves them from the openhealth origin. The mobile app can cache them. This keeps the IP/exercise-view signal inside the user's own deployment.
+- For self-hosters, the right pattern is a one-time import job. It pulls the wger JSON and CC images into OpenValens's own object storage or static directory, records license and author per asset, and serves them from the OpenValens origin. The mobile app can cache them. This keeps the IP/exercise-view signal inside the user's own deployment.
 
 ### Gaps
 
@@ -148,7 +148,7 @@ Defensible visualizations are (a) measured values by site (DXA regional results,
 
 - The fixed 30/70 split contradicts the DXA evidence above, where trunk loss typically leads, and ignores sex and individual differences. Persisting "per-region intensity snapshots" made from that model would put fabricated data into a PHI record. It breaks the repo rule "prefer deterministic summaries and explicit confidence/readiness signals" and gets in the way of later clinical export.
 - A "muscle balance" insight cannot come from weight data. It can only come legitimately from logged training volume (sets per muscle group, push/pull or anterior/posterior ratios) or from measured left/right circumferences.
-- Defensible body-map uses for openhealth:
+- Defensible body-map uses for OpenValens:
   1. Training-volume heatmap: weekly sets per muscle group from logged workouts mapped through the exercise catalog's primary/secondary muscles, e.g. 1.0 for primary and 0.5 for secondary.
   2. Recovery/recency map: time since each muscle group was last trained.
   3. Measured-site overlay: tape-measure circumference changes (waist, hips, arm, thigh, chest) or DXA regional values (arms, legs, trunk, android, gynoid) colored only where real measurements exist, with dates and source provenance.
@@ -162,7 +162,7 @@ Defensible visualizations are (a) measured values by site (DXA regional results,
 
 ### Takeaway
 
-They all use the body map for training stimulus: which muscles you worked, how much, and how recovered they are. None uses it to estimate where fat or weight changed. That is the pattern openhealth should copy.
+They all use the body map for training stimulus: which muscles you worked, how much, and how recovered they are. None uses it to estimate where fat or weight changed. That is the pattern OpenValens should copy.
 
 ### Cited findings
 

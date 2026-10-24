@@ -74,8 +74,8 @@ describe("offline-cache", () => {
   });
 
   test("readCache and readOutbox tolerate corrupt JSON", () => {
-    globalThis.localStorage.setItem(`openhealth.cache.${A}:broken`, "{not json");
-    globalThis.localStorage.setItem("openhealth.outbox", "also not json");
+    globalThis.localStorage.setItem(`openvalens.cache.${A}:broken`, "{not json");
+    globalThis.localStorage.setItem("openvalens.outbox", "also not json");
     expect(readCache(A, "broken")).toBeNull();
     expect(readOutbox(A)).toEqual([]);
   });
@@ -112,7 +112,7 @@ describe("offline-cache", () => {
 
   test("entries without a scope (pre-fix format) are never sent", () => {
     globalThis.localStorage.setItem(
-      "openhealth.outbox",
+      "openvalens.outbox",
       JSON.stringify([
         { dedupeHash: "old", payload: { metricCode: "weight" }, savedAt: 1, lastError: null },
       ]),

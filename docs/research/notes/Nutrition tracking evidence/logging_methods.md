@@ -1,4 +1,4 @@
-# Diet Self-Monitoring Methods: Evidence for openhealth Logging Features
+# Diet Self-Monitoring Methods: Evidence for OpenValens Logging Features
 
 Scope: manual logging, barcode, AI photo recognition, voice/natural-language logging, quick-add, recipes. Adults 18+, wellness context. Current as of October 2026. Evidence-type labels used: [SR] systematic review, [RCT], [Obs] observational/secondary analysis, [Val] validation study, [Lab] controlled lab/benchmark, [Pilot], [Preprint] not peer reviewed, [Abstract] conference abstract only, [Reg] regulatory/standards text.
 
@@ -50,13 +50,13 @@ Under lab conditions, manual logging in a large app (MyFitnessPal) can come with
 - [Val] MyFitnessPal database vs the Belgian Nubel database (JMIR 2020, DOI 10.2196/18237): accurate for energy, macronutrients, sugar and fibre, but not for cholesterol and sodium. A search summary also reported percent errors vs weighed measures of −18.8% for fat, +5.8% for protein and +11.3% for carbohydrate. Those figures were not verified against the full text — [JMIR](https://doi.org/10.2196/18237)
 - [Lab, researcher-entered standard menus] Li et al. 2024 (Nutrients; 16 manual-logging apps). Mean energy error varied with diet type: Western diet +1040 kJ, Asian diet −1520 kJ, recommended (Australian guideline) diet −944 kJ — [PMC11314244](https://pmc.ncbi.nlm.nih.gov/articles/PMC11314244/)
 - [Val vs DLW] Remote Food Photography Method in adolescents (Höchsmann et al., AJCN 2026, DOI 10.1016/j.ajcnut.2026.101452). Free-living intake was underestimated by a mean (SD) of −887.9 (554.8) kcal/d in study 1 and −782.8 (947.0) kcal/d in study 2. A summary described this as roughly 25–30%; the percentage is a summary figure, not a quoted one — [Europe PMC](<https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=(%22portion%20size%22%20AND%20estimation%20AND%20error%20AND%20(app%20OR%20smartphone)%20AND%20(%22doubly%20labeled%20water%22%20OR%20%22doubly%20labelled%20water%22))&resultType=core&format=json&pageSize=8>)
-- [Val] PortionSize app in children (Saha et al., Pediatric Obesity 2026): mean percent error 9.1% in a controlled setting and 16.5% in free-living conditions, with systematic underestimation in free-living use. The population is children, so this is outside openhealth's scope; it is cited only for the controlled vs free-living gap — [same Europe PMC query](<https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=(%22portion%20size%22%20AND%20estimation%20AND%20error%20AND%20(app%20OR%20smartphone)%20AND%20(%22doubly%20labeled%20water%22%20OR%20%22doubly%20labelled%20water%22))&resultType=core&format=json&pageSize=8>)
+- [Val] PortionSize app in children (Saha et al., Pediatric Obesity 2026): mean percent error 9.1% in a controlled setting and 16.5% in free-living conditions, with systematic underestimation in free-living use. The population is children, so this is outside OpenValens's scope; it is cited only for the controlled vs free-living gap — [same Europe PMC query](<https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=(%22portion%20size%22%20AND%20estimation%20AND%20error%20AND%20(app%20OR%20smartphone)%20AND%20(%22doubly%20labeled%20water%22%20OR%20%22doubly%20labelled%20water%22))&resultType=core&format=json&pageSize=8>)
 - [Obs, DLW] Professional male soccer players (Eur J Sport Sci 2026): photo-method intake was 10.95 MJ/d against DLW energy expenditure of 13.25 MJ/d, about 17% lower. This is a niche population — [same query](<https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=(%22portion%20size%22%20AND%20estimation%20AND%20error%20AND%20(app%20OR%20smartphone)%20AND%20(%22doubly%20labeled%20water%22%20OR%20%22doubly%20labelled%20water%22))&resultType=core&format=json&pageSize=8>)
 - [Background] DLW studies indicate that self-report generally estimates energy intake poorly, with weighed multi-day records as a possible exception — [nutritionalassessment.org](https://nutritionalassessment.org/validity/index.html)
 
 ### Inferences
 
-- Lab equivalence (±7%) is the best case: trained or attentive users with known portions. Free-living underreporting of 15–30% is the realistic floor for any self-report method, including manual logging. openhealth should present logged intake as an "estimate" and avoid kcal precision beyond about 10 kcal.
+- Lab equivalence (±7%) is the best case: trained or attentive users with known portions. Free-living underreporting of 15–30% is the realistic floor for any self-report method, including manual logging. OpenValens should present logged intake as an "estimate" and avoid kcal precision beyond about 10 kcal.
 - Database quality is a separate error source from portion error. Crowd-sourced entries are a known risk, and sodium and cholesterol are weak. Prefer verified sources (USDA FDC, national databases) and show the data source for each food (this fits the repo's provenance rules).
 - An optional kitchen-scale/grams input should be easy to reach, because weighed records are the most accurate self-report approach.
 
@@ -204,7 +204,7 @@ I found no direct trials isolating favourites, recents, meal copy or quick-add. 
 
 - Build recents, favourites, saved meals and copy-yesterday as table stakes. They are low cost and consistent with the burden evidence, but say they are "evidence-consistent", not "evidence-proven".
 - Quick-add kcal (and optional macros) supports the simplified-tracking pattern. Label quick-add entries as lower-detail so nutrient summaries can report completeness, e.g. "X% of kcal has full nutrient data".
-- Instrument time-to-log and days-logged per method (privately, aggregate-only) so openhealth can produce its own evidence.
+- Instrument time-to-log and days-logged per method (privately, aggregate-only) so OpenValens can produce its own evidence.
 
 ### Gaps
 

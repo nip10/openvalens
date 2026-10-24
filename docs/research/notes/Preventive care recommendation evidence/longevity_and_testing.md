@@ -1,4 +1,4 @@
-# Evidence behind popular "longevity" recommendations and routine extra testing (for openhealth)
+# Evidence behind popular "longevity" recommendations and routine extra testing (for OpenValens)
 
 Scope: healthy/asymptomatic adults 18+, wellness context, no diagnosis. Excludes jurisdictional screening schedules and app regulatory status (owned by other researchers). Current as of 2 Oct 2026. Evidence type and population are stated per finding; where only a secondary source (news/summary) was reached, that is flagged.
 
@@ -197,7 +197,7 @@ GRADE provides tested plain-language wording to convey certainty ("will / probab
 - Web-based parallel-group RCT on communicating uncertainty in written consumer health information (JMIR 2020), using GRADE categories of uncertainty (risk of bias, inconsistency, indirectness, imprecision). — [PMC](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7445603/)
 - Cochrane health-check evidence explicitly names unnecessary tests and treatments as the expected harm of untargeted checking. — [Cochrane](https://www.cochranelibrary.com/cdsr/doi/10.1002/14651858.CD009009.pub3/full)
 
-### Inferences (proposed framing for openhealth)
+### Inferences (proposed framing for OpenValens)
 
 - Tiering: (A) **Guideline-backed** (WHO activity incl. strength; Lp(a) once — EAS/ESC; guideline screening owned elsewhere). (B) **Conditional / clinician decision** (CAC if intermediate risk; ApoB displayed as risk marker). (C) **Low-certainty optional** (creatine with training; magnesium for sleep onset; RDA-level vitamin D) — show "may" language, effect size, harms, interaction gates. (D) **Not recommended for people without symptoms** (WB-MRI, routine full panels, routine 25(OH)D, routine high-dose fish oil/multivitamin for longevity, beta-carotene/vitamin E — USPSTF D). (E) **Investigational** (Galleri/MCED pending FDA, off-label longevity drugs) — informational only, no nudges.
 - Never default-on reminders for tiers C–E; require user opt-in; show contraindication checks (anticoagulants, kidney disease, pregnancy) before any supplement plan item.

@@ -1,4 +1,4 @@
-# Delivering Health Insights via Push Notifications and Email (openhealth)
+# Delivering Health Insights via Push Notifications and Email (OpenValens)
 
 Scope: evidence on push/email insight delivery for a general-wellness, adults-18+, non-diagnostic open-source health app. Statistical change-detection methods are out of scope (another researcher). Research conducted 2026-10-02. Evidence type and population are stated for each claim. Where a page could not be fetched directly, this is flagged.
 
@@ -97,7 +97,7 @@ Feedback on behavior and outcomes is a recognized behavior change technique, and
 
 ### Inferences
 
-- Insight notifications that state what changed in the user's own data are a form of BCT 2.2/2.7 feedback. This supports neutral, descriptive "here is what changed" content as the core, with optional gain-framed suggestions. That also fits openhealth's no-diagnosis, deterministic-summary posture.
+- Insight notifications that state what changed in the user's own data are a form of BCT 2.2/2.7 feedback. This supports neutral, descriptive "here is what changed" content as the core, with optional gain-framed suggestions. That also fits OpenValens's no-diagnosis, deterministic-summary posture.
 - Avoid loss-framed or alarm framing for wellness insights. There is no behavioral benefit for prevention behaviors, and it raises the risk of anxiety and of implying a diagnosis (an inference, not directly tested).
 - Harkin's moderator ("physically recorded") suggests insights should link to a persistent, reviewable record in the app rather than being ephemeral.
 
@@ -174,7 +174,7 @@ Both mobile platforms let the app control what shows on the lock screen. Android
 
 ### Gaps
 
-- Whether HIPAA applies to openhealth depends on its covered-entity or business-associate status. A self-hosted consumer wellness app is likely outside HIPAA, but the US FTC Health Breach Notification Rule (amended 2024) may apply to non-HIPAA health apps. This was not verified in this research and needs a separate check.
+- Whether HIPAA applies to OpenValens depends on its covered-entity or business-associate status. A self-hosted consumer wellness app is likely outside HIPAA, but the US FTC Health Breach Notification Rule (amended 2024) may apply to non-HIPAA health apps. This was not verified in this research and needs a separate check.
 - No EDPB guideline found that specifically addresses the content of health push notifications or emails.
 - I did not find whether the EU ePrivacy Directive treats in-app push notifications as "electronic mail" for marketing purposes, or how the push equivalent of the ICO service/marketing split works.
 - No empirical study found on how often lock-screen health notifications are actually exposed (shoulder-surfing) or how users perceive that.

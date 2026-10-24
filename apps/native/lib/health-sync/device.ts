@@ -6,9 +6,8 @@ import { Platform } from "react-native";
 import { client } from "@/utils/orpc";
 
 /** Random per-install id; never an account or org id. */
-// Pre-rename (openhealth) prefix kept so existing installs keep their sync state.
-const DEVICE_ID_KEY = "openhealth.health-sync.device-id";
-const REGISTERED_KEY = "openhealth.health-sync.device-registered";
+const DEVICE_ID_KEY = "openvalens.health-sync.device-id";
+const REGISTERED_KEY = "openvalens.health-sync.device-registered";
 
 export async function getDeviceId(): Promise<string> {
   const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);

@@ -1,4 +1,4 @@
-# Nutrition safety parameters for openhealth (adaptive TDEE + weekly calorie proposals)
+# Nutrition safety parameters for OpenValens (adaptive TDEE + weekly calorie proposals)
 
 Research date: 2026-10-02. Scope: general-wellness, non-medical tracker; app proposes weekly calorie targets that the user must accept. Every number below either has a verbatim quote from a source fetched in this pass, or is explicitly marked "NOT VERIFIED THIS PASS". Clinical-population guidance (written for clinicians treating people with overweight/obesity) is labelled [CLINICAL]; athlete/healthy-population evidence is labelled [ATHLETE/GENERAL].
 

@@ -188,7 +188,7 @@ export function createSmokeComposeConfig(config: SmokeConfiguration): string {
     volumes:
       - smoke_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d openhealth"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d openvalens"]
       interval: 3s
       timeout: 3s
       retries: 40
@@ -782,7 +782,7 @@ export function makeEnvFiles(
     ].join("\n");
   }
   const web = `NODE_ENV=production\nVITE_SERVER_URL=${config.apiOrigin}\n`;
-  const postgres = `POSTGRES_DB=openhealth\nPOSTGRES_USER=postgres\nPOSTGRES_PASSWORD=${config.postgresPassword}\n`;
+  const postgres = `POSTGRES_DB=openvalens\nPOSTGRES_USER=postgres\nPOSTGRES_PASSWORD=${config.postgresPassword}\n`;
   return { server: `${server}\n`, web, postgres, secretFiles };
 }
 
@@ -905,7 +905,7 @@ async function performSmoke(options: { fileSecrets: boolean }): Promise<void> {
       {
         apiOrigin,
         webOrigin,
-        databaseUrl: `postgresql://postgres:${password}@db:5432/openhealth`,
+        databaseUrl: `postgresql://postgres:${password}@db:5432/openvalens`,
         authSecret: randomBytes(48).toString("hex"),
         cronSecret: randomBytes(24).toString("hex"),
         webhookSecret: randomBytes(24).toString("hex"),
@@ -1031,7 +1031,7 @@ async function performSmoke(options: { fileSecrets: boolean }): Promise<void> {
         "-U",
         "postgres",
         "-d",
-        "openhealth",
+        "openvalens",
         "-Atqc",
         "SELECT schemaname FROM pg_tables WHERE tablename = '__drizzle_migrations' LIMIT 1",
       ],
@@ -1051,7 +1051,7 @@ async function performSmoke(options: { fileSecrets: boolean }): Promise<void> {
         "-U",
         "postgres",
         "-d",
-        "openhealth",
+        "openvalens",
         "-Atqc",
         `SELECT count(*) FROM "${migrationSchema}"."__drizzle_migrations"`,
       ],

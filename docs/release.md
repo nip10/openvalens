@@ -212,11 +212,11 @@ $C stop caddy web server
 $C run --rm --no-deps --entrypoint ls backup -l /backups        # pick pre-migrate-<stamp>.dump
 STAMP=$(date -u +%Y%m%d%H%M%S)
 $C exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
-  -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'openhealth' and pid <> pg_backend_pid()" \
-  -c "alter database openhealth rename to openhealth_failed_$STAMP" \
-  -c "create database openhealth"
+  -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = 'openvalens' and pid <> pg_backend_pid()" \
+  -c "alter database openvalens rename to openvalens_failed_$STAMP" \
+  -c "create database openvalens"
 $C run --rm --no-deps -T --entrypoint sh backup -c \
-  'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" pg_restore --exit-on-error --no-password -d openhealth "$1"' \
+  'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" pg_restore --exit-on-error --no-password -d openvalens "$1"' \
   restore /backups/pre-migrate-<stamp>.dump
 git checkout <previous approved commit>
 # set OPENVALENS_VERSION in deploy/.env to the previous version, then:
@@ -235,7 +235,7 @@ replay is Issue #64). Record both in the release issue.
 
 Use `$C up -d`, not `deploy/setup.sh upgrade`, so the retained previous images
 start without a rebuild. **Image-only rollback** is the same without the
-`psql` and `pg_restore` steps. Drop `openhealth_failed_<stamp>` only after the
+`psql` and `pg_restore` steps. Drop `openvalens_failed_<stamp>` only after the
 incident is closed and its data is reconciled.
 
 ### Platform rollback

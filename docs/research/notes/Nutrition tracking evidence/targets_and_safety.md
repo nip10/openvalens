@@ -1,4 +1,4 @@
-# Nutrient targets and safety safeguards for a calorie/macro/micronutrient tracker (openhealth)
+# Nutrient targets and safety safeguards for a calorie/macro/micronutrient tracker (OpenValens)
 
 Scope: adults 18+, wellness (no diagnosis), users in US, UK, EU incl. Portugal. Research as of 2 Oct 2026.
 

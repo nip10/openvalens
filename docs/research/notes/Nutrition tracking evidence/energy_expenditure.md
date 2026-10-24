@@ -1,4 +1,4 @@
-# Energy expenditure estimation and calorie targets (adaptive TDEE) for openhealth
+# Energy expenditure estimation and calorie targets (adaptive TDEE) for OpenValens
 
 Scope: adults 18+, wellness (no diagnosis). Researched 2026-10-02. Evidence-type tags used below: [Primary-trial], [Primary-model], [Systematic review], [Guideline], [Consensus report], [Vendor] (commercial material, not peer-reviewed), [Secondary] (non-authoritative web summary, lower confidence).
 
@@ -72,7 +72,7 @@ It does not disclose its smoothing algorithm, its priors or Bayesian machinery, 
 ### Inferences
 
 - The validation measures predictive validity: does the estimate predict subsequent weight change? It does not measure agreement with doubly labelled water (DLW). That is the right metric for a self-consistent adaptive target, but it is not evidence that the number equals true TEE (see section 4).
-- openhealth can openly implement equivalent behaviour: an energy-balance back-calculation, a recency-weighted trend, adherence-neutral weekly check-ins, a pause rule on missing-data density, and explicit handling of partial days. Being transparent about the method, unlike the vendor's "secret sauce", is a differentiator that fits the repo's "deterministic summaries and explicit confidence" rule.
+- OpenValens can openly implement equivalent behaviour: an energy-balance back-calculation, a recency-weighted trend, adherence-neutral weekly check-ins, a pause rule on missing-data density, and explicit handling of partial days. Being transparent about the method, unlike the vendor's "secret sauce", is a differentiator that fits the repo's "deterministic summaries and explicit confidence" rule.
 
 ### Gaps
 
