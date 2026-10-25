@@ -146,6 +146,11 @@ teardown() {
     docker network disconnect "${A}_offsite" "$MINIO" >/dev/null 2>&1 || true
     docker network disconnect "${B}_offsite" "$MINIO" >/dev/null 2>&1 || true
   fi
+  # rclone writes the downloads as root on Linux; remove them from a container
+  # while the image still exists, or the host rm below cannot.
+  if [ -d "$WORK/download" ]; then
+    docker run --rm -v "$WORK:/work" --entrypoint rm "openvalens-backup:$TAG" -rf /work/download >/dev/null 2>&1 || true
+  fi
   docker image rm "openvalens-backup:$TAG" >/dev/null 2>&1 || true
   rm -rf "$WORK"
   log "removed projects $A and $B, their volumes, the test bucket and temp state"
