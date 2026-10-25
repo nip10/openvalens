@@ -52,7 +52,7 @@ function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideR
       aria-label={
         side === "front" ? t`front view muscle illustration` : t`back view muscle illustration`
       }
-      className="h-36 w-28 text-muted-foreground"
+      className="h-36 w-28 text-ink-3"
     >
       <circle cx="50" cy="10" r="7" fill="currentColor" opacity=".16" />
       <path
@@ -73,8 +73,8 @@ function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideR
               width={w}
               height={h}
               rx="5"
-              className="fill-primary"
-              opacity=".8"
+              className="fill-signal"
+              opacity=".85"
             />
           )),
         )}
@@ -101,59 +101,56 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
   const unresolvedNames = unresolved.map((x) => x.muscle.name).join(", ");
   if (!front.size && !back.size)
     return (
-      <section
-        className="grid gap-2 rounded-lg border bg-muted/20 p-3"
-        aria-label={t`Muscle guide`}
-      >
-        <h3 className="text-sm font-medium">
+      <section className="grid gap-2 border-t border-rule pt-3" aria-label={t`Muscle guide`}>
+        <h3 className="text-base text-ink">
           <Trans>Muscle guide</Trans>
         </h3>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-ink-3">
           <Trans>Illustration of muscles listed by the source</Trans>
         </p>
-        <p className="text-xs">
+        <p className="text-sm text-ink-2">
           <Trans>
             <strong>Source-listed muscles:</strong> {listedNames}
           </Trans>
         </p>
-        <p className="text-xs">
+        <p className="text-sm text-ink-2">
           <Trans>
             <strong>Primary:</strong> {primaryNames}
           </Trans>
         </p>
-        <p className="text-xs">
+        <p className="text-sm text-ink-2">
           <Trans>
             <strong>Secondary:</strong> {secondaryNames}
           </Trans>
         </p>
-        <p role="note" className="text-xs text-muted-foreground">
+        <p role="note" className="max-w-[60ch] text-sm text-ink-3">
           <Trans>No matching diagram mapping is available; no anatomy is highlighted.</Trans>
         </p>
       </section>
     );
   return (
-    <section className="grid gap-2 rounded-lg border bg-muted/20 p-3" aria-label={t`Muscle guide`}>
-      <h3 className="text-sm font-medium">
+    <section className="grid gap-3 border-t border-rule pt-3" aria-label={t`Muscle guide`}>
+      <h3 className="text-base text-ink">
         <Trans>Muscle guide</Trans>
       </h3>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm text-ink-3">
         <Trans>Illustration of muscles listed by the source</Trans>
       </p>
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <div className="text-center">
+      <div className="flex flex-wrap items-center justify-start gap-6">
+        <div className="grid justify-items-center gap-1">
           <Figure side="front" regions={front} />
-          <span className="text-xs">
+          <span className="text-sm text-ink-3">
             <Trans>Front</Trans>
           </span>
         </div>
-        <div className="text-center">
+        <div className="grid justify-items-center gap-1">
           <Figure side="back" regions={back} />
-          <span className="text-xs">
+          <span className="text-sm text-ink-3">
             <Trans>Back</Trans>
           </span>
         </div>
       </div>
-      <div className="grid gap-1 text-xs">
+      <div className="grid gap-1 text-sm text-ink-2">
         <p>
           <Trans>
             <strong>Primary:</strong> {primaryNames}
@@ -166,7 +163,7 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
         </p>
       </div>
       {unresolved.length ? (
-        <p role="note" className="text-xs text-muted-foreground">
+        <p role="note" className="max-w-[60ch] text-sm text-ink-3">
           <Trans>
             No matching diagram mapping for: {unresolvedNames}. Names are shown without
             highlighting.

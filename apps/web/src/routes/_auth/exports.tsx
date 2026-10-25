@@ -9,15 +9,15 @@ import {
   type ExportArtifact,
   type ExportDomain,
 } from "@openvalens/api/presenters/clinical-export";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { cn } from "@openvalens/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Page, PageHeader, Section } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/exports")({
@@ -40,11 +40,16 @@ function ArtifactList({ artifacts }: { artifacts: ExportArtifact[] }) {
   if (artifacts.length === 0) return null;
 
   return (
-    <ul className="grid gap-2">
+    <ul className="divide-y divide-rule border-t border-rule">
       {artifacts.map((artifact) => (
-        <li key={artifact.fileName} className="flex items-center justify-between gap-3 text-sm">
-          <span className="min-w-0 truncate font-mono">{artifact.fileName}</span>
-          <Badge variant="outline">{formatBytes(utf8ByteLength(artifact.content))}</Badge>
+        <li
+          key={artifact.fileName}
+          className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 py-2 text-sm"
+        >
+          <span className="min-w-0 truncate font-mono text-ink-2">{artifact.fileName}</span>
+          <span className="num text-right text-ink-3">
+            {formatBytes(utf8ByteLength(artifact.content))}
+          </span>
         </li>
       ))}
     </ul>
@@ -64,18 +69,14 @@ function BundleCard() {
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Download a bundle</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">
-          <Trans>Download your clinical record as a single JSON bundle.</Trans>
-        </p>
+    <Section
+      title={<Trans>Download a bundle</Trans>}
+      description={<Trans>Download your clinical record as a single JSON bundle.</Trans>}
+    >
+      <div className="well grid gap-4 px-5 py-4">
         <div className="flex items-center gap-3">
           <Button
+            variant="outline"
             onClick={() => {
               setArtifacts([]);
               bundle.mutate({ limit: 200 });
@@ -84,17 +85,17 @@ function BundleCard() {
           >
             {bundle.isPending ? <Trans>Downloading…</Trans> : <Trans>Download bundle</Trans>}
           </Button>
-          <Badge variant="secondary">JSON</Badge>
+          <span className="text-sm text-ink-3">JSON</span>
         </div>
         {bundle.isPending ? <Skeleton className="h-4 w-48" /> : null}
         {bundle.isError ? (
-          <p className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive">
             <Trans>Could not export. Try again.</Trans>
           </p>
         ) : null}
         <ArtifactList artifacts={artifacts} />
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -147,21 +148,16 @@ function DomainCard() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Download by domain</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">
-          <Trans>Choose domains and a format, then download.</Trans>
-        </p>
-
-        <div className="grid gap-2">
-          <span className="text-sm font-medium">
+    <Section
+      title={<Trans>Download by domain</Trans>}
+      description={<Trans>Choose domains and a format, then download.</Trans>}
+      sheet
+    >
+      <div className="grid gap-6 py-1">
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-sm font-medium text-ink-3">
             <Trans>Domains</Trans>
-          </span>
+          </legend>
           <div className="flex flex-wrap gap-2">
             {options.map((option) => {
               const isSelected = selected.has(option.domain);
@@ -170,18 +166,21 @@ function DomainCard() {
                   key={option.domain}
                   type="button"
                   size="sm"
-                  variant={isSelected ? "default" : "outline"}
+                  variant="outline"
                   aria-pressed={isSelected}
+                  className={cn(
+                    isSelected ? "bg-paper-3 hover:bg-paper-3" : "border-rule text-ink-2",
+                  )}
                   onClick={() => toggle(option.domain)}
                 >
                   <span
                     aria-hidden
                     className={cn(
-                      "flex size-3.5 items-center justify-center rounded-sm border text-[10px] leading-none",
-                      isSelected ? "border-primary-foreground" : "border-muted-foreground",
+                      "flex size-3.5 items-center justify-center rounded-sm border",
+                      isSelected ? "border-ink bg-ink text-sheet" : "border-ink-3",
                     )}
                   >
-                    {isSelected ? "✓" : ""}
+                    {isSelected ? <Check className="size-3" strokeWidth={3} /> : null}
                   </span>
                   {i18n._(option.label)}
                 </Button>
@@ -193,55 +192,63 @@ function DomainCard() {
               <Trans>Select at least one domain.</Trans>
             </span>
           ) : null}
-        </div>
+        </fieldset>
 
-        <div className="grid gap-2">
-          <span className="text-sm font-medium">
+        <fieldset className="grid gap-2">
+          <legend className="mb-2 text-sm font-medium text-ink-3">
             <Trans>Format</Trans>
-          </span>
-          <div className="flex flex-wrap gap-2">
+          </legend>
+          <div className="flex w-fit">
             {(["csv", "pdf"] as const).map((value) => (
               <Button
                 key={value}
                 type="button"
                 size="sm"
-                variant={format === value ? "default" : "outline"}
+                variant="outline"
                 aria-pressed={format === value}
+                className={cn(
+                  "not-first:-ml-px",
+                  format === value ? "z-10 bg-paper-3 hover:bg-paper-3" : "text-ink-2",
+                )}
                 onClick={() => setFormat(value)}
               >
                 {value.toUpperCase()}
               </Button>
             ))}
           </div>
-        </div>
+        </fieldset>
 
-        <div className="flex items-center gap-3">
-          <Button onClick={submit} disabled={selected.size === 0 || active.isPending}>
+        <div className="flex items-center gap-3 border-t border-rule pt-4">
+          <Button
+            onClick={submit}
+            disabled={selected.size === 0 || active.isPending}
+            className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             {active.isPending ? <Trans>Downloading…</Trans> : <Trans>Download</Trans>}
           </Button>
-          <Badge variant="secondary">{format.toUpperCase()}</Badge>
+          <span className="text-sm text-ink-3">{format.toUpperCase()}</span>
         </div>
 
         {active.isPending ? <Skeleton className="h-4 w-48" /> : null}
         {active.isError ? (
-          <p className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive">
             <Trans>Could not export. Try again.</Trans>
           </p>
         ) : null}
         <ArtifactList artifacts={artifacts} />
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
 function ExportsPage() {
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">
-        <Trans>Clinical export</Trans>
-      </h1>
-      <BundleCard />
-      <DomainCard />
-    </div>
+    <Page>
+      <PageHeader title={<Trans>Clinical export</Trans>} />
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <DomainCard />
+        <BundleCard />
+      </div>
+    </Page>
   );
 }

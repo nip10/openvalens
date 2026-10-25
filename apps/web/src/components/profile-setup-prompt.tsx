@@ -9,13 +9,6 @@ import {
 } from "@openvalens/api/presenters/wellness-profile";
 import type { WellnessProfileSnapshot } from "@openvalens/api/wellness-profile-contract";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -49,14 +42,17 @@ export function ProfileSetupPromptCard({
   const started = snapshot.setupStatus === "in_progress";
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>
+    <section
+      aria-labelledby="profile-setup-title"
+      className="well grid gap-4 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-x-8"
+    >
+      <div className="grid min-w-0 gap-1">
+        <h2 id="profile-setup-title" className="text-lg leading-tight text-ink">
           {started ? t`Continue setting up (optional)` : t`Set up your profile (optional)`}
-        </CardTitle>
-        <CardDescription>
+        </h2>
+        <p className="max-w-[65ch] text-sm text-ink-3">
           <Trans>
-            A few optional questions so the app can show what matters to you. Skip any of them —
+            A few optional questions so the app can show what matters to you. Skip any of them;
             everything else works without them.
           </Trans>
           {started ? (
@@ -67,16 +63,19 @@ export function ProfileSetupPromptCard({
               </Trans>
             </>
           ) : null}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-center gap-3">
-        <Link to="/profile" search={{ section: next ?? undefined }}>
-          <Button>
-            {started && next ? t`Continue: ${i18n._(SECTION_TITLES[next])}` : t`Start`}
-          </Button>
-        </Link>
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
         <Button
-          variant="outline"
+          asChild
+          className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <Link to="/profile" search={{ section: next ?? undefined }}>
+            {started && next ? t`Continue: ${i18n._(SECTION_TITLES[next])}` : t`Start`}
+          </Link>
+        </Button>
+        <Button
+          variant="ghost"
           disabled={update.isPending}
           onClick={() => {
             setError(null);
@@ -88,12 +87,12 @@ export function ProfileSetupPromptCard({
         >
           <Trans>Not now</Trans>
         </Button>
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {i18n._(error)}
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
+      </div>
+      {error ? (
+        <p role="alert" className="text-sm text-destructive md:col-span-2">
+          {i18n._(error)}
+        </p>
+      ) : null}
+    </section>
   );
 }
