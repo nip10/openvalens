@@ -14,7 +14,6 @@ import {
   type ManualEntryMetric,
 } from "@openvalens/api/presenters/manual-entry";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -31,11 +30,20 @@ import {
   SelectValue,
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@openvalens/ui/components/table";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+import { EmptyState, ErrorState, Figure, Page, PageHeader, Section } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { client, orpc } from "@/utils/orpc";
@@ -45,15 +53,6 @@ import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 export const Route = createFileRoute("/_auth/records/activity")({
   component: ActivityPage,
 });
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="font-mono text-lg">{value}</div>
-    </div>
-  );
-}
 
 const MANUAL_METRICS: ManualEntryMetric[] = ["steps", "active_calories", "distance"];
 
@@ -90,13 +89,8 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Add reading</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-3">
+    <Section title={<Trans>Add reading</Trans>} className="well px-5 pt-4 pb-5">
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
             <Trans>Metric</Trans>
@@ -142,7 +136,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             onChange={(event) => setObservedAt(event.target.value)}
           />
         </div>
-        <div className="flex items-center gap-3 sm:col-span-3">
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-3 lg:col-span-1">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
             {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
@@ -162,8 +156,8 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
             </span>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -178,36 +172,33 @@ function ActivityPage() {
     steps: { label: t`Steps`, color: "var(--chart-1)" },
   } satisfies ChartConfig;
 
+  const header = <PageHeader title={<Trans>Activity</Trans>} actions={<SyncStatusBadge />} />;
+
   if (totals.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">
-            <Trans>Activity</Trans>
-          </h1>
-          <SyncStatusBadge />
+      <Page>
+        {header}
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
         </div>
-        <Skeleton className="h-64 w-full" />
-      </div>
+      </Page>
     );
   }
 
   if (totals.isError || !totals.data) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">
-            <Trans>Activity</Trans>
-          </h1>
-          <SyncStatusBadge />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load activity.</Trans>{" "}
-          <button className="underline" onClick={() => void totals.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
+      <Page>
+        {header}
+        <ErrorState
+          title={<Trans>Could not load activity.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void totals.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Page>
     );
   }
 
@@ -215,118 +206,118 @@ function ActivityPage() {
   const series = stepsSeries(summary.days);
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Activity</Trans>
-        </h1>
-        <SyncStatusBadge />
-      </div>
+    <Page>
+      {header}
 
       <ProductSettingsStatus />
 
-      <AddReadingForm onSaved={() => void totals.refetch()} />
-
-      {!summary.today ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No activity yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+        {!summary.today ? (
+          <EmptyState
+            title={<Trans>No activity yet</Trans>}
+            description={
               <Trans>
                 Sync Health Connect or Apple Health from the mobile app, or add an entry.
               </Trans>
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>{t`Today · ${summary.today.date}`}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-              <Stat label={t`Steps`} value={formatSteps(summary.today.steps)} />
-              <Stat label={t`Calories`} value={formatKcalories(summary.today.activeCaloriesKcal)} />
-              <Stat
-                label={t`Distance`}
-                value={formatDistanceMeters(summary.today.distanceMeters, settings)}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>30-day trend</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={trendConfig} className="h-56 w-full">
-                <BarChart data={series}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            }
+          />
+        ) : (
+          <Section title={<Trans>30-day trend</Trans>}>
+            <div className="sheet grid gap-5 px-5 pt-4 pb-5">
+              <dl className="grid grid-cols-3 divide-x divide-rule">
+                <Figure
+                  className="pr-4"
+                  label={t`Steps / active day`}
+                  value={formatSteps(summary.sevenDayAverageSteps)}
+                />
+                <Figure
+                  className="px-4"
+                  label={t`Calories / day`}
+                  value={formatKcalories(summary.sevenDayAverageCalories)}
+                />
+                <Figure
+                  className="pl-4"
+                  label={t`Distance / day`}
+                  value={formatDistanceMeters(summary.sevenDayAverageDistance, settings)}
+                />
+              </dl>
+              <ChartContainer config={trendConfig} className="aspect-auto h-72 w-full">
+                <BarChart data={series} margin={{ left: 0, right: 4, top: 8, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--rule)" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
                   <YAxis
+                    domain={[0, "auto"]}
                     tickLine={false}
                     axisLine={false}
-                    width={36}
+                    width={48}
+                    tickCount={5}
                     tickFormatter={(value: number) => formatSteps(value)}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="steps" fill="var(--color-steps)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="steps" fill="var(--color-steps)" isAnimationActive={false} />
                 </BarChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
+            </div>
+          </Section>
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>This week</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-              <Stat
-                label={t`Steps / active day`}
-                value={formatSteps(summary.sevenDayAverageSteps)}
-              />
-              <Stat
-                label={t`Calories / day`}
-                value={formatKcalories(summary.sevenDayAverageCalories)}
-              />
-              <Stat
-                label={t`Distance / day`}
-                value={formatDistanceMeters(summary.sevenDayAverageDistance, settings)}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid content-start gap-10">
+          {summary.today ? (
+            <Section title={<Trans>Today</Trans>} description={summary.today.date}>
+              <dl className="grid grid-cols-3 gap-4 border-t border-rule pt-4 lg:grid-cols-1">
+                <Figure label={t`Steps`} value={formatSteps(summary.today.steps)} />
+                <Figure
+                  label={t`Calories`}
+                  value={formatKcalories(summary.today.activeCaloriesKcal)}
+                />
+                <Figure
+                  label={t`Distance`}
+                  value={formatDistanceMeters(summary.today.distanceMeters, settings)}
+                />
+              </dl>
+            </Section>
+          ) : null}
+          <AddReadingForm onSaved={() => void totals.refetch()} />
+        </div>
+      </div>
 
-          <Card className="py-0">
-            <ul className="divide-y divide-border">
+      {summary.today ? (
+        <div className="sheet min-w-0 px-2 pt-2 pb-1">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <Trans>Date</Trans>
+                </TableHead>
+                <TableHead className="num">
+                  <Trans>Steps</Trans>
+                </TableHead>
+                <TableHead className="num">
+                  <Trans>Calories</Trans>
+                </TableHead>
+                <TableHead className="num">
+                  <Trans>Distance</Trans>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {[...summary.days]
                 .reverse()
                 .slice(0, 14)
                 .map((day) => (
-                  <li key={day.date} className="flex items-center justify-between px-4 py-3">
-                    <span className="font-mono text-sm text-muted-foreground">{day.date}</span>
-                    <span className="flex items-center gap-6 text-sm">
-                      <span className="font-mono">
-                        {t({ message: `${formatSteps(day.steps)} steps`, comment: "safety" })}
-                      </span>
-                      <span className="font-mono text-muted-foreground">
-                        {formatKcalories(day.activeCaloriesKcal)}
-                      </span>
-                      <span className="font-mono text-muted-foreground">
-                        {formatDistanceMeters(day.distanceMeters, settings)}
-                      </span>
-                    </span>
-                  </li>
+                  <TableRow key={day.date}>
+                    <TableCell className="num text-ink-3">{day.date}</TableCell>
+                    <TableCell className="num text-ink">{formatSteps(day.steps)}</TableCell>
+                    <TableCell className="num">{formatKcalories(day.activeCaloriesKcal)}</TableCell>
+                    <TableCell className="num">
+                      {formatDistanceMeters(day.distanceMeters, settings)}
+                    </TableCell>
+                  </TableRow>
                 ))}
-            </ul>
-          </Card>
-        </>
-      )}
-    </div>
+            </TableBody>
+          </Table>
+        </div>
+      ) : null}
+    </Page>
   );
 }

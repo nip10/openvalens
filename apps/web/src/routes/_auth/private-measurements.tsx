@@ -2,13 +2,14 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
 import { ProgressPhotos } from "@/components/progress-photos";
 import { authClient } from "@/lib/auth-client";
 import { client } from "@/utils/orpc";
@@ -56,15 +57,16 @@ export function PrivateMeasurements() {
       : null;
   if (isPending || !subject) {
     return (
-      <main className="container mx-auto max-w-3xl px-4 py-6">
-        <p role="status" className="text-sm text-muted-foreground">
+      <Page width="narrow">
+        <PageHeader title={<Trans>Private measurements</Trans>} />
+        <p role="status" className="text-sm text-ink-3">
           {isPending ? (
             <Trans>Checking your account and workspace…</Trans>
           ) : (
             <Trans>Choose a workspace to continue.</Trans>
           )}
         </p>
-      </main>
+      </Page>
     );
   }
   return (
@@ -176,60 +178,46 @@ function PrivateMeasurementsForSubject({
   });
   const canDisplayStoredValues = mayShowStoredMeasurementValue(undefined);
   return (
-    <main className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <header>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Your records</Trans>
-        </p>
-        <h1 className="text-2xl font-semibold">
-          <Trans>Private measurements</Trans>
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+    <Page width="narrow">
+      <PageHeader
+        title={<Trans>Private measurements</Trans>}
+        description={
           <Trans>
             These manual entries are private to your account. Workspace owners and other members
             cannot view them. They are separate from shared workspace body records.
           </Trans>
-        </p>
-      </header>
+        }
+      />
       {accessState === "identity-pending" ? (
-        <Card>
-          <CardContent className="py-6" role="status">
+        <div className="grid gap-3" role="status">
+          <p className="text-sm text-ink-3">
             <Trans>Checking your private measurement setting…</Trans>
-          </CardContent>
-        </Card>
+          </p>
+          <Skeleton className="h-40 w-full" />
+        </div>
       ) : accessState === "preference-error" ? (
-        <Card>
-          <CardContent className="py-6">
-            <p role="alert">
-              <Trans>
-                Could not check this setting. Measurements stay unavailable until it can be
-                confirmed.
-              </Trans>
-            </p>
-            <Button className="mt-3" variant="outline" onClick={() => void preference.refetch()}>
+        <ErrorState
+          title={
+            <Trans>
+              Could not check this setting. Measurements stay unavailable until it can be confirmed.
+            </Trans>
+          }
+          action={
+            <Button variant="outline" onClick={() => void preference.refetch()}>
               <Trans>Try again</Trans>
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : accessState === "disabled" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Private measurements are off</Trans>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="text-sm text-muted-foreground">
+        <Section title={<Trans>Private measurements are off</Trans>} sheet>
+          <div className="grid justify-items-start gap-4">
+            <p className="max-w-[65ch] text-ink-2">
               <Trans comment="safety">
                 Turn this on to record weight or circumference measurements and progress photos for
                 your own reference. It is off by default.
               </Trans>
             </p>
-            <Button
-              className="w-fit"
-              onClick={() => toggle.mutate(true)}
-              disabled={toggle.isPending}
-            >
+            <Button onClick={() => toggle.mutate(true)} disabled={toggle.isPending}>
               {toggle.isPending ? (
                 <Trans>Saving…</Trans>
               ) : (
@@ -241,12 +229,12 @@ function PrivateMeasurementsForSubject({
                 <Trans>Could not update this setting. Try again.</Trans>
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 p-4">
-            <span className="text-sm">
+          <div className="well flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+            <span className="text-ink-2">
               <Trans>Private measurements are on</Trans>
             </span>
             <Button
@@ -262,20 +250,15 @@ function PrivateMeasurementsForSubject({
               <Trans>Could not update this setting. Try again.</Trans>
             </p>
           )}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {editing ? <Trans>Edit entry</Trans> : <Trans>Add an entry</Trans>}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
+          <Section title={editing ? <Trans>Edit entry</Trans> : <Trans>Add an entry</Trans>} sheet>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="measurement-kind">
                   <Trans>Measurement</Trans>
                 </Label>
                 <select
                   id="measurement-kind"
-                  className="h-10 rounded-md border bg-background px-3"
+                  className="h-9 rounded-sm border border-input bg-sheet px-3 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
                   value={kind}
                   onChange={(e) => {
                     const next = e.target.value as Kind;
@@ -309,7 +292,7 @@ function PrivateMeasurementsForSubject({
                   />
                   <select
                     aria-label={t`Unit`}
-                    className="h-10 rounded-md border bg-background px-3"
+                    className="h-9 rounded-sm border border-input bg-sheet px-3 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
                     value={unit}
                     onChange={(e) => {
                       const draft = nextUnitDraft(e.target.value);
@@ -365,50 +348,55 @@ function PrivateMeasurementsForSubject({
                   </span>
                 )}
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle ref={historyHeadingRef} tabIndex={-1}>
+            </div>
+          </Section>
+          <section className="grid min-w-0 content-start gap-4">
+            <div className="grid gap-1">
+              <h2
+                ref={historyHeadingRef}
+                tabIndex={-1}
+                className="text-xl leading-tight text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
                 <Trans>History</Trans>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
+              </h2>
+              <p className="text-sm text-ink-3">
                 <Trans>Values are hidden until your hide-numbers setting can be checked.</Trans>
               </p>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div>
               {historyState === "loading" ? (
-                <p role="status" className="text-sm text-muted-foreground">
-                  <Trans>Loading your entries…</Trans>
-                </p>
-              ) : historyState === "error" ? (
-                <div>
-                  <p role="alert" className="text-sm">
-                    <Trans>Could not load entries.</Trans>
+                <div className="grid gap-3">
+                  <p role="status" className="text-sm text-ink-3">
+                    <Trans>Loading your entries…</Trans>
                   </p>
-                  <Button variant="outline" className="mt-2" onClick={() => void history.refetch()}>
-                    <Trans>Try again</Trans>
-                  </Button>
+                  <Skeleton className="h-24 w-full" />
                 </div>
+              ) : historyState === "error" ? (
+                <ErrorState
+                  title={<Trans>Could not load entries.</Trans>}
+                  action={
+                    <Button variant="outline" onClick={() => void history.refetch()}>
+                      <Trans>Try again</Trans>
+                    </Button>
+                  }
+                />
               ) : historyState === "empty" ? (
-                <p className="text-sm text-muted-foreground">
-                  <Trans>No private entries yet.</Trans>
-                </p>
+                <EmptyState title={<Trans>No private entries yet.</Trans>} />
               ) : (
-                <ul className="divide-y">
+                <ul className="sheet divide-y divide-rule">
                   {(history.data ?? []).map((row) => {
                     const label = labelOf(row.kind);
                     const when = new Date(row.measuredAt).toLocaleString();
                     return (
                       <li
                         key={row.id}
-                        className="flex flex-wrap items-center justify-between gap-3 py-3"
+                        className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
                       >
                         <div>
-                          <p className="font-medium">{label}</p>
-                          <p className="text-sm text-muted-foreground">{when}</p>
+                          <p className="font-display font-medium text-ink">{label}</p>
+                          <p className="text-sm text-ink-3">{when}</p>
                           {canDisplayStoredValues && (
-                            <p>
+                            <p className="num text-ink">
                               {row.value} {row.unit}
                             </p>
                           )}
@@ -435,7 +423,7 @@ function PrivateMeasurementsForSubject({
                             <Trans>Edit</Trans>
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="destructive"
                             aria-label={t`Delete ${label} entry from ${when}`}
                             onClick={() => deleteEntry(row.id)}
                             disabled={remove.isPending}
@@ -474,11 +462,11 @@ function PrivateMeasurementsForSubject({
                   {notice}
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
           <ProgressPhotos subject={subject} />
         </>
       )}
-    </main>
+    </Page>
   );
 }

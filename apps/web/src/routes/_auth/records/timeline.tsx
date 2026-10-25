@@ -5,14 +5,13 @@ import {
   severityTone,
   sourceLabel,
 } from "@openvalens/api/presenters/timeline";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { cn } from "@openvalens/ui/lib/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { EmptyState, ErrorState, Page, PageHeader } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/records/timeline")({
@@ -21,8 +20,8 @@ export const Route = createFileRoute("/_auth/records/timeline")({
 
 const PAGE_SIZE = 50;
 const TONE_CLASS = {
-  destructive: "border-destructive/40 bg-destructive/10 text-destructive",
-  warning: "border-warning/40 bg-warning/10 text-warning",
+  destructive: "text-destructive",
+  warning: "text-warning",
 } as const;
 
 function TimelinePage() {
@@ -39,70 +38,72 @@ function TimelinePage() {
   const groups = groupTimelineByDay(items, timeZone);
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-6 text-2xl font-semibold">
-        <Trans>Timeline</Trans>
-      </h1>
+    <Page>
+      <PageHeader title={<Trans>Timeline</Trans>} />
 
       {query.isPending ? (
-        <div className="grid gap-3">
+        <div className="sheet divide-y divide-rule">
           {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <div key={i} className="grid gap-4 px-5 py-4 md:grid-cols-[9rem_minmax(0,1fr)]">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
           ))}
         </div>
       ) : query.isError ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load the timeline.</Trans>{" "}
-          <button className="underline" onClick={() => void query.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
+        <ErrorState
+          title={<Trans>Could not load the timeline.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void query.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
       ) : groups.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No records yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>
-                Sync Health Connect or Apple Health from the mobile app, or add an entry.
-              </Trans>
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={<Trans>No records yet</Trans>}
+          description={
+            <Trans>Sync Health Connect or Apple Health from the mobile app, or add an entry.</Trans>
+          }
+        />
       ) : (
-        <div className="grid gap-6">
-          {groups.map((group) => (
-            <section key={group.day} aria-label={group.day}>
-              <h2 className="mb-2 font-mono text-sm text-muted-foreground">{group.day}</h2>
-              <Card className="py-0">
-                <ul className="divide-y divide-border">
+        <div className="grid justify-items-start gap-6">
+          <div className="sheet w-full divide-y divide-rule">
+            {groups.map((group) => (
+              <section
+                key={group.day}
+                aria-label={group.day}
+                className="grid gap-x-6 gap-y-1 px-5 pt-4 pb-2 md:grid-cols-[9rem_minmax(0,1fr)]"
+              >
+                <h2 className="num pt-2.5 text-sm font-normal text-ink-3">{group.day}</h2>
+                <ul className="divide-y divide-rule">
                   {group.items.map((item) => {
                     const tone = severityTone(item.severity);
                     const source = sourceLabel(item);
                     return (
-                      <li key={item.id} className="flex items-start gap-4 px-4 py-3">
-                        <span className="w-12 shrink-0 pt-0.5 font-mono text-sm text-muted-foreground">
-                          {item.time}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{item.title}</span>
+                      <li
+                        key={item.id}
+                        className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-4 gap-y-1 py-2.5 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto]"
+                      >
+                        <span className="num pt-0.5 text-sm text-ink-3">{item.time}</span>
+                        <div className="min-w-0">
+                          <p className="flex flex-wrap items-baseline gap-x-3">
+                            <span className="font-display font-medium text-ink">{item.title}</span>
                             {tone ? (
-                              <Badge variant="outline" className={cn(TONE_CLASS[tone])}>
+                              <span className={cn("text-sm font-medium", TONE_CLASS[tone])}>
                                 {item.severity === "critical" ? (
                                   <Trans>Needs attention</Trans>
                                 ) : (
                                   <Trans>Check</Trans>
                                 )}
-                              </Badge>
+                              </span>
                             ) : null}
-                          </div>
+                          </p>
                           {item.summary ? (
-                            <p className="truncate text-sm text-muted-foreground">{item.summary}</p>
+                            <p className="truncate text-sm text-ink-2">{item.summary}</p>
                           ) : null}
                         </div>
-                        <div className="shrink-0 text-right text-xs text-muted-foreground">
+                        <div className="col-start-2 text-sm text-ink-3 sm:col-start-3 sm:text-right">
                           <div>{i18n._(domainLabel(item.domain))}</div>
                           {source ? <div>{source}</div> : null}
                         </div>
@@ -110,12 +111,14 @@ function TimelinePage() {
                     );
                   })}
                 </ul>
-              </Card>
-            </section>
-          ))}
+              </section>
+            ))}
+          </div>
           {query.hasNextPage ? (
             <Button
               variant="outline"
+              // The Button primitive carries these; restated so the screen's states read here.
+              className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55"
               onClick={() => void query.fetchNextPage()}
               disabled={query.isFetchingNextPage}
             >
@@ -124,6 +127,6 @@ function TimelinePage() {
           ) : null}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

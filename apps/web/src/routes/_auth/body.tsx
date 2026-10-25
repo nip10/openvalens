@@ -13,7 +13,6 @@ import {
   parseManualEntryValue,
 } from "@openvalens/api/presenters/manual-entry";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -23,11 +22,20 @@ import {
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@openvalens/ui/components/table";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Line, LineChart, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
+import { EmptyState, ErrorState, Figure, Page, PageHeader, Section } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { client, orpc } from "@/utils/orpc";
@@ -56,15 +64,6 @@ function weightAxisFormatter(
     return Math.round(kgToLb(value)).toString();
   }
   return value.toFixed(0);
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="font-mono text-lg">{value}</div>
-    </div>
-  );
 }
 
 function AddWeightForm({ onSaved }: { onSaved: () => void }) {
@@ -99,13 +98,8 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Add weight</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
+    <Section title={<Trans>Add weight</Trans>} className="well px-5 pt-4 pb-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
             <Trans>Weight ({unit})</Trans>
@@ -127,7 +121,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
             onChange={(event) => setObservedAt(event.target.value)}
           />
         </div>
-        <div className="flex items-center gap-3 sm:col-span-2">
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
             {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
@@ -147,8 +141,8 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
             </span>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -161,130 +155,143 @@ function BodyPage() {
   const unit = weightUnit(settings);
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Body</Trans>
-        </h1>
-        <SyncStatusBadge />
-      </div>
+    <Page>
+      <PageHeader title={<Trans>Body</Trans>} actions={<SyncStatusBadge />} />
 
       <ProductSettingsStatus />
 
-      <AddWeightForm onSaved={() => void daily.refetch()} />
-
-      {daily.isPending ? (
-        <Skeleton className="h-64 w-full" />
-      ) : daily.isError ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load weight.</Trans>{" "}
-          <button className="underline" onClick={() => void daily.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      ) : !summary.latest ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No weight yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>Sync a scale through Health Connect or Apple Health, or add a weight.</Trans>
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>Weight</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-              <Stat
-                label={summary.latest.date}
-                value={formatKg(summary.latest.weightKg, settings)}
-              />
-              <Stat
-                label={t`7 days`}
-                value={
-                  summary.change7d === null ? "—" : formatKgDelta(i18n, summary.change7d, settings)
-                }
-              />
-              <Stat
-                label={t`30 days`}
-                value={
-                  summary.change30d === null
-                    ? "—"
-                    : formatKgDelta(i18n, summary.change30d, settings)
-                }
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>Last 90 days</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer
-                config={weightChartConfig(t`Weight (${unit})`)}
-                className="h-56 w-full"
-              >
-                <LineChart data={summary.series}>
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={32} />
-                  <YAxis
-                    domain={["dataMin - 1", "dataMax + 1"]}
-                    tickLine={false}
-                    axisLine={false}
-                    width={40}
-                    tickFormatter={(value: number) => weightAxisFormatter(value, settings)}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value) => [formatKg(value as number, settings), t`Weight`]}
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+        <div className="grid min-w-0 content-start gap-10">
+          {daily.isPending ? (
+            <div className="grid gap-4">
+              <Skeleton className="h-96 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          ) : daily.isError ? (
+            <ErrorState
+              title={<Trans>Could not load weight.</Trans>}
+              action={
+                <Button variant="outline" onClick={() => void daily.refetch()}>
+                  <Trans>Retry</Trans>
+                </Button>
+              }
+            />
+          ) : !summary.latest ? (
+            <EmptyState
+              title={<Trans>No weight yet</Trans>}
+              description={
+                <Trans>Sync a scale through Health Connect or Apple Health, or add a weight.</Trans>
+              }
+            />
+          ) : (
+            <>
+              <Section title={<Trans>Weight</Trans>} description={<Trans>Last 90 days</Trans>}>
+                <div className="sheet grid gap-5 px-5 pt-4 pb-5">
+                  <dl className="grid grid-cols-3 divide-x divide-rule">
+                    <Figure
+                      className="pr-4"
+                      label={summary.latest.date}
+                      value={formatKg(summary.latest.weightKg, settings)}
+                    />
+                    <Figure
+                      className="px-4"
+                      label={t`7 days`}
+                      value={
+                        summary.change7d === null
+                          ? "—"
+                          : formatKgDelta(i18n, summary.change7d, settings)
+                      }
+                    />
+                    <Figure
+                      className="pl-4"
+                      label={t`30 days`}
+                      value={
+                        summary.change30d === null
+                          ? "—"
+                          : formatKgDelta(i18n, summary.change30d, settings)
+                      }
+                    />
+                  </dl>
+                  <ChartContainer
+                    config={weightChartConfig(t`Weight (${unit})`)}
+                    className="aspect-auto h-80 w-full"
+                  >
+                    <LineChart
+                      data={summary.series}
+                      margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
+                    >
+                      <CartesianGrid vertical={false} stroke="var(--rule)" />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={48} />
+                      <YAxis
+                        domain={["dataMin - 1", "dataMax + 1"]}
+                        tickLine={false}
+                        axisLine={false}
+                        width={40}
+                        tickCount={5}
+                        tickFormatter={(value: number) => weightAxisFormatter(value, settings)}
                       />
-                    }
-                  />
-                  <Line
-                    dataKey="weightKg"
-                    stroke="var(--color-weightKg)"
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value) => [formatKg(value as number, settings), t`Weight`]}
+                          />
+                        }
+                      />
+                      <Line
+                        dataKey="weightKg"
+                        stroke="var(--color-weightKg)"
+                        strokeWidth={2}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                </div>
+              </Section>
 
-          <Card className="py-0">
-            <ul className="divide-y divide-border">
-              {[...summary.series]
-                .reverse()
-                .slice(0, 14)
-                .map((point) => {
-                  const source = daily.data?.find((row) => row.date === point.date)?.source ?? "";
-                  return (
-                    <li key={point.date} className="flex items-center justify-between px-4 py-3">
-                      <span className="font-mono text-sm text-muted-foreground">{point.date}</span>
-                      <span className="flex items-center gap-4">
-                        <span className="text-xs text-muted-foreground">
-                          {i18n._(weightSourceLabel(source))}
-                        </span>
-                        <span className="font-mono">{formatKg(point.weightKg, settings)}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-            </ul>
-          </Card>
-        </>
-      )}
-    </div>
+              <div className="sheet min-w-0 px-2 pt-2 pb-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <Trans>Date</Trans>
+                      </TableHead>
+                      <TableHead>
+                        <Trans>Source</Trans>
+                      </TableHead>
+                      <TableHead className="num">
+                        <Trans>Weight</Trans>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...summary.series]
+                      .reverse()
+                      .slice(0, 14)
+                      .map((point) => {
+                        const source =
+                          daily.data?.find((row) => row.date === point.date)?.source ?? "";
+                        return (
+                          <TableRow key={point.date}>
+                            <TableCell className="num text-ink-3">{point.date}</TableCell>
+                            <TableCell className="text-ink-3">
+                              {i18n._(weightSourceLabel(source))}
+                            </TableCell>
+                            <TableCell className="num text-ink">
+                              {formatKg(point.weightKg, settings)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </div>
+
+        <AddWeightForm onSaved={() => void daily.refetch()} />
+      </div>
+    </Page>
   );
 }
