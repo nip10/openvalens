@@ -223,7 +223,13 @@ function SleepPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={32}
+                    tickFormatter={(value: string) => friendlyDate(i18n, value)}
+                  />
                   <YAxis
                     domain={[0, Math.ceil(maxAsleep / 120) * 120]}
                     ticks={Array.from(

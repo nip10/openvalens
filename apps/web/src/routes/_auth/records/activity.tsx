@@ -265,7 +265,13 @@ function ActivityPage() {
               <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
                 <BarChart data={series} margin={{ left: 0, right: 4, top: 8, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={32}
+                    tickFormatter={(value: string) => friendlyDate(i18n, value)}
+                  />
                   <YAxis
                     domain={[0, "auto"]}
                     tickLine={false}
@@ -292,7 +298,8 @@ function ActivityPage() {
         </>
       )}
 
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <AddReadingForm onSaved={() => void totals.refetch()} />
         {summary.today ? (
           <Details summary={<Trans>Recent days</Trans>}>
             <div className="sheet min-w-0 px-2 pt-2 pb-1">
@@ -335,10 +342,7 @@ function ActivityPage() {
               </Table>
             </div>
           </Details>
-        ) : (
-          <div />
-        )}
-        <AddReadingForm onSaved={() => void totals.refetch()} />
+        ) : null}
       </div>
     </Page>
   );
