@@ -8,10 +8,21 @@ import { Label } from "@openvalens/ui/components/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { History, Lock, Plus, Ruler, Scale, ShieldCheck } from "lucide-react";
 
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import {
+  EmptyState,
+  ErrorState,
+  InfoTip,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { ProgressPhotos } from "@/components/progress-photos";
 import { authClient } from "@/lib/auth-client";
+import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 import {
   PRIVATE_MEASUREMENT_KINDS,
@@ -43,6 +54,8 @@ const KIND_LABELS: Record<Kind, MessageDescriptor> = {
   upper_arm: msg`Upper arm`,
   thigh: msg`Thigh`,
 };
+const NATIVE_SELECT =
+  "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
 const nowLocal = () => {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -181,7 +194,7 @@ function PrivateMeasurementsForSubject({
     <Page width="narrow">
       <PageHeader
         title={<Trans>Private measurements</Trans>}
-        description={
+        info={
           <Trans>
             These manual entries are private to your account. Workspace owners and other members
             cannot view them. They are separate from shared workspace body records.
@@ -209,7 +222,12 @@ function PrivateMeasurementsForSubject({
           }
         />
       ) : accessState === "disabled" ? (
-        <Section title={<Trans>Private measurements are off</Trans>} sheet>
+        <Section
+          icon={Lock}
+          tone="weight"
+          title={<Trans>Private measurements are off</Trans>}
+          sheet
+        >
           <div className="grid justify-items-start gap-4">
             <p className="max-w-[65ch] text-ink-2">
               <Trans comment="safety">
@@ -233,8 +251,9 @@ function PrivateMeasurementsForSubject({
         </Section>
       ) : (
         <>
-          <div className="well flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-            <span className="text-ink-2">
+          <div className="sheet flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <span className="flex items-center gap-3 font-semibold text-ink-2">
+              <ToneIcon icon={ShieldCheck} tone="weight" />
               <Trans>Private measurements are on</Trans>
             </span>
             <Button
@@ -250,7 +269,12 @@ function PrivateMeasurementsForSubject({
               <Trans>Could not update this setting. Try again.</Trans>
             </p>
           )}
-          <Section title={editing ? <Trans>Edit entry</Trans> : <Trans>Add an entry</Trans>} sheet>
+          <Section
+            icon={Plus}
+            tone="weight"
+            title={editing ? <Trans>Edit entry</Trans> : <Trans>Add an entry</Trans>}
+            sheet
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="measurement-kind">
@@ -258,7 +282,7 @@ function PrivateMeasurementsForSubject({
                 </Label>
                 <select
                   id="measurement-kind"
-                  className="h-9 rounded-sm border border-input bg-sheet px-3 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+                  className={NATIVE_SELECT}
                   value={kind}
                   onChange={(e) => {
                     const next = e.target.value as Kind;
@@ -292,7 +316,7 @@ function PrivateMeasurementsForSubject({
                   />
                   <select
                     aria-label={t`Unit`}
-                    className="h-9 rounded-sm border border-input bg-sheet px-3 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+                    className={NATIVE_SELECT}
                     value={unit}
                     onChange={(e) => {
                       const draft = nextUnitDraft(e.target.value);
@@ -350,8 +374,9 @@ function PrivateMeasurementsForSubject({
               </div>
             </div>
           </Section>
-          <section className="grid min-w-0 content-start gap-4">
-            <div className="grid gap-1">
+          <section className="grid min-w-0 content-start gap-3">
+            <div className="flex items-center gap-2">
+              <ToneIcon icon={History} tone="weight" size="sm" />
               <h2
                 ref={historyHeadingRef}
                 tabIndex={-1}
@@ -359,9 +384,9 @@ function PrivateMeasurementsForSubject({
               >
                 <Trans>History</Trans>
               </h2>
-              <p className="text-sm text-ink-3">
+              <InfoTip>
                 <Trans>Values are hidden until your hide-numbers setting can be checked.</Trans>
-              </p>
+              </InfoTip>
             </div>
             <div>
               {historyState === "loading" ? (
@@ -381,28 +406,42 @@ function PrivateMeasurementsForSubject({
                   }
                 />
               ) : historyState === "empty" ? (
-                <EmptyState title={<Trans>No private entries yet.</Trans>} />
+                <EmptyState icon={Ruler} title={<Trans>No private entries yet.</Trans>} />
               ) : (
-                <ul className="sheet divide-y divide-rule">
+                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
                   {(history.data ?? []).map((row) => {
                     const label = labelOf(row.kind);
                     const when = new Date(row.measuredAt).toLocaleString();
+                    const measured = new Date(row.measuredAt);
+                    const localIso = new Date(
+                      measured.getTime() - measured.getTimezoneOffset() * 60000,
+                    ).toISOString();
                     return (
-                      <li
-                        key={row.id}
-                        className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-                      >
-                        <div>
-                          <p className="font-display font-medium text-ink">{label}</p>
-                          <p className="text-sm text-ink-3">{when}</p>
-                          {canDisplayStoredValues && (
-                            <p className="num text-ink">
+                      <li key={row.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                        <div className="flex items-start gap-3">
+                          <ToneIcon icon={row.kind === "weight" ? Scale : Ruler} tone="weight" />
+                          <div className="grid min-w-0 flex-1 gap-0.5">
+                            <span className="font-semibold text-ink">{label}</span>
+                            <span className="text-sm text-ink-3">
+                              <time dateTime={row.measuredAt} title={when}>
+                                {`${friendlyDate(i18n, localIso)} ${localIso.slice(11, 16)}`}
+                              </time>
+                            </span>
+                          </div>
+                          {canDisplayStoredValues ? (
+                            <span className="num shrink-0 rounded-full bg-weight-soft px-2.5 py-1 text-sm font-semibold text-ink">
                               {row.value} {row.unit}
-                            </p>
+                            </span>
+                          ) : (
+                            <StatusPill tone="neutral">
+                              <Lock className="mr-1 size-3" aria-hidden="true" />
+                              <Trans>Hidden</Trans>
+                            </StatusPill>
                           )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Button
+                            size="sm"
                             variant="outline"
                             aria-label={t`Edit ${label} entry from ${when}`}
                             onClick={() => {
@@ -423,6 +462,7 @@ function PrivateMeasurementsForSubject({
                             <Trans>Edit</Trans>
                           </Button>
                           <Button
+                            size="sm"
                             variant="destructive"
                             aria-label={t`Delete ${label} entry from ${when}`}
                             onClick={() => deleteEntry(row.id)}
@@ -436,13 +476,14 @@ function PrivateMeasurementsForSubject({
                           failedRowId: deleteErrorId,
                           isError: remove.isError,
                         }) && (
-                          <div className="w-full" role="alert">
+                          <div role="alert">
                             <p className="text-sm text-destructive">
                               <Trans>
                                 Could not delete this entry. It is still in your history.
                               </Trans>
                             </p>
                             <Button
+                              size="sm"
                               variant="outline"
                               className="mt-2"
                               onClick={() => remove.mutate(row.id)}

@@ -9,9 +9,21 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { CalendarHeart, Droplet, History, Lock, Plus, Settings2 } from "lucide-react";
 
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  InfoTip,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { authClient } from "@/lib/auth-client";
+import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/cycle")({ component: CyclePage });
@@ -34,6 +46,32 @@ function localToday(): string {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   return now.toISOString().slice(0, 10);
+}
+
+const NATIVE_SELECT =
+  "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
+
+const DAY_MS = 86_400_000;
+const dayNumber = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / DAY_MS);
+const isoFromDayNumber = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * The next period as a plain estimate: the current cycle's start plus the
+ * average length of the completed cycles on record. Null when there is no
+ * current cycle or no completed cycle to average. It says nothing about
+ * ovulation or fertility.
+ */
+function nextPeriodEstimate(
+  current: { startDate: string } | null,
+  cycles: readonly { lengthDays: number | null }[],
+): string | null {
+  if (!current) return null;
+  const lengths = cycles
+    .map((cycle) => cycle.lengthDays)
+    .filter((length): length is number => length !== null && length > 0);
+  if (lengths.length === 0) return null;
+  const average = Math.round(lengths.reduce((sum, length) => sum + length, 0) / lengths.length);
+  return isoFromDayNumber(dayNumber(current.startDate) + average);
 }
 
 function CyclePage() {
@@ -97,13 +135,13 @@ function CycleForMember({ scope }: { scope: string }) {
           }
         />
       ) : !settings.data.enabled ? (
-        <Section title={<Trans>Cycle logging is off</Trans>} sheet>
+        <Section icon={Lock} tone="heart" title={<Trans>Cycle logging is off</Trans>} sheet>
           <div className="grid justify-items-start gap-4">
             <p className="max-w-[65ch] text-ink-2">{i18n._(CYCLE_COPY.consentText)}</p>
             <label className="flex items-start gap-2 text-ink-2">
               <input
                 type="checkbox"
-                className="mt-1 size-4 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+                className="mt-1 size-4 rounded-xs accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
                 checked={agreed}
                 onChange={(event) => setAgreed(event.target.checked)}
               />
@@ -204,148 +242,90 @@ function CycleEnabled({
     onSuccess: refresh,
   });
 
+  const estimated = estimates.data?.state === "estimated" ? estimates.data : null;
+  const current = estimated?.current ?? null;
+  const nextPeriod = estimated ? nextPeriodEstimate(current, estimated.cycles) : null;
+  const daysToNext = nextPeriod ? dayNumber(nextPeriod) - dayNumber(today) : null;
+  const pastCycles = estimated?.cycles.filter((cycle) => cycle.nextStartDate) ?? [];
+
   return (
     <>
-      <Section title={<Trans>Estimates</Trans>}>
-        <div className="sheet grid gap-4 px-5 py-4">
+      <section aria-labelledby="cycle-now" className="sheet grid gap-6 p-6 md:grid-cols-2 md:p-7">
+        <div className="grid content-start gap-3">
+          <h2
+            id="cycle-now"
+            className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2"
+          >
+            <ToneIcon icon={CalendarHeart} tone="heart" />
+            <Trans>Estimates</Trans>
+          </h2>
           {estimates.isPending ? (
             <div className="grid gap-2">
               <p role="status" className="text-sm text-ink-3">
                 <Trans>Loading…</Trans>
               </p>
-              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-14 w-40 rounded-xl" />
             </div>
           ) : estimates.isError ? (
             <p role="alert" className="text-destructive">
               <Trans>Could not load estimates.</Trans>
             </p>
           ) : estimates.data.state === "off" ? (
-            <p className="text-ink-2">{i18n._(CYCLE_COPY.noNaturalCycle)}</p>
+            <p className="max-w-[48ch] text-ink-2">{i18n._(CYCLE_COPY.noNaturalCycle)}</p>
           ) : estimates.data.state === "no_data" ? (
             <p className="text-ink-3">
               <Trans>Log a period to see your cycle history.</Trans>
             </p>
-          ) : (
+          ) : current ? (
             <>
-              {estimates.data.current ? (
-                <p className="text-ink-2">
-                  {t`Day ${estimates.data.current.dayOfCycle} of the current cycle (started ${estimates.data.current.startDate}).`}{" "}
-                  {i18n._(CYCLE_COPY.currentLowConfidence)}
-                </p>
-              ) : null}
-              <ul className="divide-y divide-rule border-t border-rule">
-                {estimates.data.cycles
-                  .filter((cycle) => cycle.nextStartDate)
-                  .map((cycle) => {
-                    const luteal = i18n._(CYCLE_COPY.lutealLabel);
-                    return (
-                      <li
-                        key={cycle.startDate}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-0.5 py-2.5"
-                      >
-                        <span className="num text-sm text-ink">
-                          {t`${cycle.startDate} to ${cycle.nextStartDate}`}
-                        </span>
-                        <span className="num text-right text-sm text-ink">
-                          {t`${plural(cycle.lengthDays ?? 0, { one: "# day", other: "# days" })}`}
-                        </span>
-                        {cycle.lutealEstimate ? (
-                          <span className="col-span-2 text-sm text-ink-3">
-                            {t`${luteal}: ${cycle.lutealEstimate.from} to ${cycle.lutealEstimate.to}`}
-                          </span>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-              </ul>
+              <p className="num font-display text-[3.25rem] leading-none font-medium tracking-[-0.02em] text-ink">
+                <Trans>Day {current.dayOfCycle}</Trans>
+              </p>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+                <StatusPill tone="neutral">{i18n._(CYCLE_COPY.estimateLabel)}</StatusPill>
+                <span>
+                  <Trans>Started {friendlyDate(i18n, current.startDate)}</Trans>
+                </span>
+                <InfoTip>
+                  <p>
+                    {t`Day ${current.dayOfCycle} of the current cycle (started ${current.startDate}).`}
+                  </p>
+                  <p>{i18n._(CYCLE_COPY.currentLowConfidence)}</p>
+                </InfoTip>
+              </div>
             </>
+          ) : (
+            <p className="text-ink-3">
+              <Trans>Log a period to see your cycle history.</Trans>
+            </p>
           )}
-          <label className="flex items-start gap-2 border-t border-rule pt-4 text-sm text-ink-2">
-            <input
-              type="checkbox"
-              className="mt-1 size-4 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
-              checked={noNaturalCycle}
-              disabled={updateSettings.isPending}
-              onChange={(event) => updateSettings.mutate(event.target.checked)}
-            />
-            <Trans comment="safety">
-              I use hormonal contraception or have no natural cycle (turns estimates off)
-            </Trans>
-          </label>
         </div>
-      </Section>
-
-      <Section title={<Trans>History</Trans>}>
-        {periods.data?.length ? (
-          <ul className="sheet divide-y divide-rule">
-            {periods.data.map((period) => (
-              <li
-                key={period.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-5 py-2.5 sm:grid-cols-[minmax(0,1fr)_7rem_6rem_auto]"
-              >
-                <span className="num text-sm text-ink">
-                  {period.endDate ? t`${period.startDate} to ${period.endDate}` : period.startDate}
-                </span>
-                <span className="text-sm text-ink-2 max-sm:col-start-1">
-                  {period.flow ? i18n._(FLOW_LABELS[period.flow]) : ""}
-                </span>
-                <span className="text-sm text-ink-3 max-sm:col-start-1">
-                  {period.source !== "manual" ? t`imported` : ""}
-                </span>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="max-sm:col-start-2 max-sm:row-span-3 max-sm:row-start-1"
-                  disabled={remove.isPending}
-                  onClick={() => {
-                    if (window.confirm(t`Delete this period?`)) remove.mutate(period.id);
-                  }}
-                >
-                  <Trans>Delete</Trans>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <EmptyState title={<Trans>No periods logged yet.</Trans>} />
-        )}
-        {imports.data?.length ? (
-          <div className="grid gap-2 pt-4">
-            <h3 className="text-base text-ink">
-              <Trans>Imports</Trans>
+        {nextPeriod && daysToNext !== null ? (
+          <div className="grid content-start gap-3 md:border-l md:border-rule md:pl-6">
+            <h3 className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2">
+              <ToneIcon icon={Droplet} tone="heart" />
+              <Trans>Next period</Trans>
             </h3>
-            <ul className="divide-y divide-rule border-t border-rule">
-              {imports.data.map((run) => (
-                <li
-                  key={run.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-2.5 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_auto]"
-                >
-                  <span className="text-sm text-ink">
-                    {run.source === "health_connect" ? "Health Connect" : "Apple Health"}
-                  </span>
-                  <span className="num text-sm text-ink-2 max-sm:col-start-1">
-                    {t`${plural(run.periodCount, { one: "# period", other: "# periods" })}`}
-                  </span>
-                  <span className="num text-sm text-ink-3 max-sm:col-start-1">
-                    {new Date(run.importedAt).toLocaleDateString()}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="max-sm:col-start-2 max-sm:row-span-3 max-sm:row-start-1"
-                    disabled={undo.isPending}
-                    onClick={() => undo.mutate(run.id)}
-                  >
-                    <Trans>Undo import</Trans>
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            <p className="num font-display text-[2.5rem] leading-none font-medium tracking-[-0.02em] text-ink">
+              <time dateTime={nextPeriod}>{friendlyDate(i18n, nextPeriod)}</time>
+            </p>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+              <StatusPill tone="neutral">{i18n._(CYCLE_COPY.estimateLabel)}</StatusPill>
+              {daysToNext > 0 ? (
+                <span>{t`${plural(daysToNext, { one: "In # day", other: "In # days" })}`}</span>
+              ) : null}
+              <InfoTip align="end">
+                <Trans>
+                  Your current cycle’s start plus the average length of the cycles you have logged.
+                  A rough guide only.
+                </Trans>
+              </InfoTip>
+            </div>
           </div>
         ) : null}
-      </Section>
+      </section>
 
-      <Section title={<Trans>Log a period</Trans>} className="well px-5 pt-4 pb-5">
+      <Section icon={Plus} tone="heart" title={<Trans>Log a period</Trans>} sheet>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label htmlFor="cycle-start">
@@ -377,7 +357,7 @@ function CycleEnabled({
             </Label>
             <select
               id="cycle-flow"
-              className="h-9 rounded-sm border border-input bg-sheet px-3 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+              className={NATIVE_SELECT}
               value={flow}
               onChange={(event) => setFlow(event.target.value as typeof flow)}
             >
@@ -410,34 +390,160 @@ function CycleEnabled({
         </div>
       </Section>
 
-      <Section title={<Trans>Turn off and erase</Trans>} className="border-t border-rule pt-6">
-        <div className="grid justify-items-start gap-3">
-          <p className="max-w-[65ch] text-ink-2">
-            <Trans comment="safety">
-              Deletes every period and import you have logged, in every workspace, and withdraws
-              your consent. This cannot be undone.
-            </Trans>
-          </p>
-          {confirmErase ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="destructive"
-                disabled={erase.isPending}
-                onClick={() => erase.mutate()}
-              >
-                {erase.isPending ? <Trans>Erasing…</Trans> : <Trans>Erase all cycle data</Trans>}
-              </Button>
-              <Button variant="outline" onClick={() => setConfirmErase(false)}>
-                <Trans>Keep my data</Trans>
-              </Button>
-            </div>
+      <Details summary={<Trans>History</Trans>}>
+        <div className="grid gap-6">
+          {pastCycles.length ? (
+            <ul className="sheet grid divide-y divide-rule px-5 py-1">
+              {pastCycles.map((cycle) => {
+                const luteal = i18n._(CYCLE_COPY.lutealLabel);
+                return (
+                  <li
+                    key={cycle.startDate}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-0.5 py-3"
+                  >
+                    <span className="num text-ink">
+                      {t`${cycle.startDate} to ${cycle.nextStartDate}`}
+                    </span>
+                    <span className="num rounded-full bg-heart-soft px-2.5 py-0.5 text-right text-sm font-semibold text-ink">
+                      {t`${plural(cycle.lengthDays ?? 0, { one: "# day", other: "# days" })}`}
+                    </span>
+                    {cycle.lutealEstimate ? (
+                      <span className="col-span-2 text-sm text-ink-3">
+                        {t`${luteal}: ${cycle.lutealEstimate.from} to ${cycle.lutealEstimate.to}`}
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          {periods.data?.length ? (
+            <ul className="sheet grid divide-y divide-rule px-5 py-1">
+              {periods.data.map((period) => (
+                <li
+                  key={period.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_6rem_auto]"
+                >
+                  <span className="flex items-center gap-3 text-ink">
+                    <ToneIcon icon={Droplet} tone="heart" size="sm" />
+                    <span className="num">
+                      {period.endDate
+                        ? t`${period.startDate} to ${period.endDate}`
+                        : period.startDate}
+                    </span>
+                  </span>
+                  <span className="text-sm text-ink-2 max-sm:col-start-1">
+                    {period.flow ? i18n._(FLOW_LABELS[period.flow]) : ""}
+                  </span>
+                  <span className="text-sm text-ink-3 max-sm:col-start-1">
+                    {period.source !== "manual" ? t`imported` : ""}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="max-sm:col-start-2 max-sm:row-span-3 max-sm:row-start-1"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      if (window.confirm(t`Delete this period?`)) remove.mutate(period.id);
+                    }}
+                  >
+                    <Trans>Delete</Trans>
+                  </Button>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <Button variant="destructive" onClick={() => setConfirmErase(true)}>
-              <Trans>Turn off and erase</Trans>
-            </Button>
+            <EmptyState icon={History} title={<Trans>No periods logged yet.</Trans>} />
           )}
+          {imports.data?.length ? (
+            <div className="grid gap-2">
+              <h3 className="text-base text-ink">
+                <Trans>Imports</Trans>
+              </h3>
+              <ul className="sheet grid divide-y divide-rule px-5 py-1">
+                {imports.data.map((run) => (
+                  <li
+                    key={run.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_auto]"
+                  >
+                    <span className="text-sm text-ink">
+                      {run.source === "health_connect" ? "Health Connect" : "Apple Health"}
+                    </span>
+                    <span className="num text-sm text-ink-2 max-sm:col-start-1">
+                      {t`${plural(run.periodCount, { one: "# period", other: "# periods" })}`}
+                    </span>
+                    <span className="num text-sm text-ink-3 max-sm:col-start-1">
+                      {friendlyDate(i18n, run.importedAt)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="max-sm:col-start-2 max-sm:row-span-3 max-sm:row-start-1"
+                      disabled={undo.isPending}
+                      onClick={() => undo.mutate(run.id)}
+                    >
+                      <Trans>Undo import</Trans>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
-      </Section>
+      </Details>
+
+      <Details
+        summary={
+          <span className="flex items-center gap-1.5">
+            <Settings2 className="size-4" aria-hidden="true" />
+            <Trans>Settings</Trans>
+          </span>
+        }
+      >
+        <div className="sheet grid justify-items-start gap-5 p-5">
+          <label className="flex items-start gap-2 text-sm text-ink-2">
+            <input
+              type="checkbox"
+              className="mt-1 size-4 rounded-xs accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+              checked={noNaturalCycle}
+              disabled={updateSettings.isPending}
+              onChange={(event) => updateSettings.mutate(event.target.checked)}
+            />
+            <Trans comment="safety">
+              I use hormonal contraception or have no natural cycle (turns estimates off)
+            </Trans>
+          </label>
+          <div className="grid justify-items-start gap-3 border-t border-rule pt-5">
+            <h3 className="text-base text-ink">
+              <Trans>Turn off and erase</Trans>
+            </h3>
+            <p className="max-w-[65ch] text-sm text-ink-2">
+              <Trans comment="safety">
+                Deletes every period and import you have logged, in every workspace, and withdraws
+                your consent. This cannot be undone.
+              </Trans>
+            </p>
+            {confirmErase ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="destructive"
+                  disabled={erase.isPending}
+                  onClick={() => erase.mutate()}
+                >
+                  {erase.isPending ? <Trans>Erasing…</Trans> : <Trans>Erase all cycle data</Trans>}
+                </Button>
+                <Button variant="outline" onClick={() => setConfirmErase(false)}>
+                  <Trans>Keep my data</Trans>
+                </Button>
+              </div>
+            ) : (
+              <Button variant="destructive" onClick={() => setConfirmErase(true)}>
+                <Trans>Turn off and erase</Trans>
+              </Button>
+            )}
+          </div>
+        </div>
+      </Details>
       {notice ? (
         <p role="status" aria-live="polite" className="text-sm text-ink-3">
           {notice}

@@ -42,10 +42,21 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Activity, HeartPulse, Plus, Waves } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { EmptyState, ErrorState, Figure, Page, PageHeader, Section } from "@/components/page";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Figure,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+} from "@/components/page";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
 
@@ -88,7 +99,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <Section title={<Trans>Add reading</Trans>} className="well px-5 pt-4 pb-5">
+    <Section icon={Plus} tone="heart" title={<Trans>Add reading</Trans>} sheet>
       <div className="grid gap-4">
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
@@ -167,7 +178,7 @@ function VitalsPage() {
   );
   const { t, i18n } = useLingui();
   const trendConfig = {
-    avgBpm: { label: t`Avg bpm`, color: "var(--chart-1)" },
+    avgBpm: { label: t`Avg bpm`, color: "var(--tone-heart)" },
   } satisfies ChartConfig;
 
   const header = <PageHeader title={<Trans>Vitals</Trans>} actions={<SyncStatusBadge />} />;
@@ -176,10 +187,12 @@ function VitalsPage() {
     return (
       <Page>
         {header}
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-          <Skeleton className="h-96 w-full" />
-          <Skeleton className="h-96 w-full" />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Skeleton className="h-36 w-full rounded-3xl" />
+          <Skeleton className="h-36 w-full rounded-3xl" />
+          <Skeleton className="h-36 w-full rounded-3xl" />
         </div>
+        <Skeleton className="h-72 w-full rounded-3xl" />
       </Page>
     );
   }
@@ -208,57 +221,71 @@ function VitalsPage() {
 
   const summary = summarizeVitals(daily.data, samples.data ?? []);
   const series = heartRateSeries(summary.days);
+  const today = summary.today;
 
   return (
     <Page>
       {header}
 
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-        {!summary.today ? (
-          <EmptyState
-            title={<Trans>No vitals yet</Trans>}
-            description={
-              <Trans>
-                Sync Health Connect or Apple Health from the mobile app, or add a reading.
-              </Trans>
+      {!today ? (
+        <EmptyState
+          icon={HeartPulse}
+          title={<Trans>No vitals yet</Trans>}
+          description={
+            <Trans>
+              Sync Health Connect or Apple Health from the mobile app, or add a reading.
+            </Trans>
+          }
+        />
+      ) : (
+        <>
+          <div
+            className={
+              summary.latestHrv ? "grid gap-4 sm:grid-cols-3" : "grid gap-4 sm:grid-cols-2"
             }
-          />
-        ) : (
-          <Section title={<Trans>30-day trend</Trans>}>
-            <div className="sheet grid gap-5 px-5 pt-4 pb-5">
-              <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-4 sm:divide-x sm:divide-rule">
-                <Figure
-                  className="pr-4"
-                  label={t`7-day average`}
-                  value={formatBpm(summary.sevenDayAverageBpm)}
-                />
-                <Figure
-                  className="sm:px-4"
-                  label={t`Latest reading`}
-                  value={formatBpm(summary.latestSample?.heartRateBpm ?? null)}
-                />
-                <Figure
-                  className="pr-4 sm:px-4"
-                  label={t`Source`}
-                  value={
-                    <span className="font-body text-base tracking-normal">
-                      {vitalsSourceLabel(summary.latestSample?.source ?? null, i18n)}
-                    </span>
-                  }
-                />
-                {summary.latestHrv ? (
-                  <Figure
-                    className="sm:pl-4"
-                    label={t`Overnight HRV`}
-                    value={formatMs(summary.latestHrv.avgMs)}
-                    note={summary.latestHrv.date}
+          >
+            <StatTile
+              icon={HeartPulse}
+              tone="heart"
+              label={t`Avg heart rate`}
+              value={formatBpm(today.heartRate.avgBpm)}
+              note={t`Your usual: ${formatBpm(summary.sevenDayAverageBpm)}`}
+            />
+            <StatTile
+              icon={Activity}
+              tone="heart"
+              label={i18n._(MANUAL_ENTRY_FIELDS.resting_heart_rate.label)}
+              value={formatBpm(today.restingHeartRate.avgBpm)}
+            />
+            {summary.latestHrv ? (
+              <StatTile
+                icon={Waves}
+                tone="heart"
+                label={t`Overnight HRV`}
+                value={formatMs(summary.latestHrv.avgMs)}
+                note={friendlyDate(i18n, summary.latestHrv.date)}
+              />
+            ) : null}
+          </div>
+
+          <Section icon={HeartPulse} tone="heart" title={<Trans>30-day trend</Trans>}>
+            <div className="sheet p-5">
+              <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
+                <AreaChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="vitals-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--tone-heart)" stopOpacity={0.28} />
+                      <stop offset="100%" stopColor="var(--tone-heart)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
+                  <XAxis
+                    dataKey="date"
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={32}
+                    tickFormatter={(value: string) => friendlyDate(i18n, value)}
                   />
-                ) : null}
-              </dl>
-              <ChartContainer config={trendConfig} className="aspect-auto h-72 w-full">
-                <LineChart data={series} margin={{ left: 0, right: 4, top: 8, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="var(--rule)" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
@@ -272,85 +299,101 @@ function VitalsPage() {
                       <ChartTooltipContent formatter={(value) => formatBpm(Number(value))} />
                     }
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="avgBpm"
                     stroke="var(--color-avgBpm)"
-                    strokeWidth={2}
+                    strokeWidth={3}
+                    fill="url(#vitals-fill)"
                     dot={false}
                     isAnimationActive={false}
                     connectNulls
                   />
-                </LineChart>
+                </AreaChart>
               </ChartContainer>
             </div>
           </Section>
-        )}
+        </>
+      )}
 
-        <div className="grid content-start gap-10">
-          {summary.today ? (
-            <Section title={<Trans>Today</Trans>} description={summary.today.date}>
-              <dl className="grid grid-cols-3 gap-4 border-t border-rule pt-4 lg:grid-cols-1">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <AddReadingForm
+          onSaved={() => {
+            void daily.refetch();
+            void samples.refetch();
+          }}
+        />
+        {today ? (
+          <Details summary={<Trans>Recent readings</Trans>}>
+            <div className="grid gap-4">
+              <dl className="sheet grid grid-cols-2 gap-4 p-5 sm:grid-cols-3">
+                <Figure label={t`7-day average`} value={formatBpm(summary.sevenDayAverageBpm)} />
                 <Figure
-                  label={t`Avg heart rate`}
-                  value={formatBpm(summary.today.heartRate.avgBpm)}
+                  label={t`Latest reading`}
+                  value={formatBpm(summary.latestSample?.heartRateBpm ?? null)}
                 />
                 <Figure
+                  label={t`Source`}
+                  value={
+                    <span className="font-body text-base tracking-normal">
+                      {vitalsSourceLabel(summary.latestSample?.source ?? null, i18n)}
+                    </span>
+                  }
+                />
+                <Figure
+                  className="col-span-2"
                   label={t`Range`}
                   value={formatBpmRange(
-                    summary.today.heartRate.avgBpm,
-                    summary.today.heartRate.minBpm,
-                    summary.today.heartRate.maxBpm,
+                    today.heartRate.avgBpm,
+                    today.heartRate.minBpm,
+                    today.heartRate.maxBpm,
                   )}
+                  note={<Trans>Today</Trans>}
                 />
                 <Figure
                   label={t`Samples`}
-                  value={summary.today.heartRate.sampleCount.toLocaleString("en-US")}
+                  value={today.heartRate.sampleCount.toLocaleString("en-US")}
                 />
               </dl>
-            </Section>
-          ) : null}
-          <AddReadingForm
-            onSaved={() => {
-              void daily.refetch();
-              void samples.refetch();
-            }}
-          />
-        </div>
+              <div className="sheet min-w-0 px-2 pt-2 pb-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <Trans>Time</Trans>
+                      </TableHead>
+                      <TableHead className="num">
+                        <Trans>Heart rate</Trans>
+                      </TableHead>
+                      <TableHead>
+                        <Trans>Source</Trans>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(samples.data ?? []).map((sample) => {
+                      const iso = new Date(sample.sampledAt).toISOString();
+                      return (
+                        <TableRow key={sample.sampledAt}>
+                          <TableCell className="num text-left text-ink-3">
+                            {`${friendlyDate(i18n, iso)} ${iso.slice(11, 16)}`}
+                          </TableCell>
+                          <TableCell className="num text-ink">
+                            {formatBpm(sample.heartRateBpm)}
+                          </TableCell>
+                          <TableCell className="text-ink-3">
+                            {vitalsSourceLabel(sample.source, i18n)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </Details>
+        ) : null}
       </div>
-
-      {summary.today ? (
-        <div className="sheet min-w-0 px-2 pt-2 pb-1">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Trans>Time</Trans>
-                </TableHead>
-                <TableHead className="num">
-                  <Trans>Heart rate</Trans>
-                </TableHead>
-                <TableHead>
-                  <Trans>Source</Trans>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(samples.data ?? []).map((sample) => (
-                <TableRow key={sample.sampledAt}>
-                  <TableCell className="num text-left text-ink-3">
-                    {new Date(sample.sampledAt).toISOString().slice(0, 16).replace("T", " ")}
-                  </TableCell>
-                  <TableCell className="num text-ink">{formatBpm(sample.heartRateBpm)}</TableCell>
-                  <TableCell className="text-ink-3">
-                    {vitalsSourceLabel(sample.source, i18n)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      ) : null}
     </Page>
   );
 }
