@@ -409,13 +409,21 @@ export function PreventiveCareView({
   /** Link to the profile screen (router-specific, so passed in). */
   profileLink?: ReactNode;
 } & Handlers) {
-  const { i18n } = useLingui();
+  const { t, i18n } = useLingui();
   const page = preventivePageNotes(i18n, result);
   const dueCount = result.items.filter((item) => item.dateReached).length;
   return (
     <>
       <PageHeader
         title={i18n._(PREVENTIVE_COPY.pageTitle)}
+        description={
+          <span className="text-sm">
+            {t({
+              message: "General public-health information, not personal medical advice.",
+              comment: "safety",
+            })}
+          </span>
+        }
         info={
           <>
             <p>{i18n._(PREVENTIVE_COPY.pageIntro)}</p>

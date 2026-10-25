@@ -739,6 +739,7 @@ function WorkoutsPage() {
                           rating !== null && workout.duration !== null && workout.duration > 0
                             ? rating * workout.duration
                             : null;
+                        const canRate = rating === null && canRateEffortToday(workout.date, today);
                         return (
                           <TableRow key={workout.id} className="align-top">
                             <TableCell className="text-left whitespace-nowrap text-ink-3">
@@ -764,6 +765,10 @@ function WorkoutsPage() {
                             <TableCell className="num">
                               {rating !== null ? (
                                 `${rating}/10`
+                              ) : canRate ? (
+                                <div className="flex justify-end font-body">
+                                  <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                                </div>
                               ) : (
                                 <span className="font-body text-ink-3">
                                   <Trans>Not rated</Trans>
