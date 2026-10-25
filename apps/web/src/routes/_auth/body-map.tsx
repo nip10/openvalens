@@ -1,8 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  BODY_MAP_BASE,
   BODY_MAP_COPY,
   BODY_MAP_REGIONS,
   BODY_MAP_VIEWBOX,
+  bodyMapArtwork,
   DEXA_MEASUREMENT_LABELS,
   compositionLayer,
   dexaMeasurementTypes,
@@ -32,6 +34,12 @@ export const Route = createFileRoute("/_auth/body-map")({ component: BodyMapPage
  */
 
 type Layer = "composition" | "training";
+
+/**
+ * The male figure for everyone for now: the member's consented sex lives in
+ * the wellness profile, which this page does not load.
+ */
+const ARTWORK = bodyMapArtwork("male");
 
 const NATIVE_SELECT =
   "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
@@ -108,39 +116,47 @@ function BodyFigure({
   return (
     <svg
       viewBox={BODY_MAP_VIEWBOX}
-      className="mx-auto h-[28rem] w-auto max-w-full text-ink"
+      className="mx-auto h-[34rem] w-auto max-w-full text-ink"
       role="group"
       aria-label={view === "front" ? t`Body map, front view` : t`Body map, back view`}
     >
-      {BODY_MAP_REGIONS.filter((region) => region.view === view).map((region) => {
-        const fill = fills[region.id]!;
-        const label = i18n._(region.label);
-        const value = fill.valueText ?? t`no value`;
-        const description = t`${label}: ${value}`;
-        return (
-          <path
-            key={region.id}
-            d={region.path}
-            fill={fill.colour}
-            stroke={selected === region.id ? "var(--ink)" : "var(--ink-3)"}
-            strokeWidth={selected === region.id ? 2.5 : 1}
-            tabIndex={0}
-            role="button"
-            aria-pressed={selected === region.id}
-            aria-label={description}
-            className="cursor-pointer outline-none focus-visible:stroke-signal focus-visible:stroke-[3]"
-            onClick={() => onSelect(region.id)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelect(region.id);
-              }
-            }}
-          >
-            <title>{description}</title>
-          </path>
-        );
-      })}
+      <g aria-hidden fill={BODY_MAP_BASE} stroke="var(--ink-3)" strokeWidth={0.75}>
+        <path d={ARTWORK.outline[view]} vectorEffect="non-scaling-stroke" />
+        <path d={ARTWORK.base[view]} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
+      </g>
+      {ARTWORK.regions
+        .filter((region) => region.view === view)
+        .map((region) => {
+          const fill = fills[region.id]!;
+          const label = i18n._(region.label);
+          const value = fill.valueText ?? t`no value`;
+          const description = t`${label}: ${value}`;
+          return (
+            <path
+              key={region.id}
+              d={region.path}
+              fill={fill.colour}
+              stroke={selected === region.id ? "var(--ink)" : "var(--ink-3)"}
+              strokeWidth={selected === region.id ? 2 : 0.75}
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              tabIndex={0}
+              role="button"
+              aria-pressed={selected === region.id}
+              aria-label={description}
+              className="cursor-pointer outline-none focus-visible:stroke-signal focus-visible:stroke-[3]"
+              onClick={() => onSelect(region.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(region.id);
+                }
+              }}
+            >
+              <title>{description}</title>
+            </path>
+          );
+        })}
     </svg>
   );
 }
@@ -249,7 +265,7 @@ function BodyMapPage() {
 
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         {result || figurePending ? (
-          <div className="sheet grid min-h-[30rem] place-items-center gap-5 px-5 py-6">
+          <div className="sheet grid min-h-[36rem] place-items-center gap-5 px-5 py-6">
             {result ? (
               <BodyFigure
                 view={view}
@@ -258,7 +274,7 @@ function BodyMapPage() {
                 onSelect={setSelected}
               />
             ) : (
-              <Skeleton className="h-[28rem] w-full max-w-56" />
+              <Skeleton className="h-[34rem] w-full max-w-64" />
             )}
           </div>
         ) : null}

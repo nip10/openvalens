@@ -2,11 +2,15 @@ import { describe, expect, test } from "bun:test";
 
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 
+import { fitViewBox, normalizePath } from "./body-map-geometry";
+
 import {
   BODY_MAP_DIVERGING,
   BODY_MAP_NEUTRAL,
   BODY_MAP_REGIONS,
   BODY_MAP_SEQUENTIAL,
+  BODY_MAP_VIEWBOX,
+  bodyMapArtwork,
   compositionLayer,
   dexaMeasurementTypes,
   normalizeDexaRegion,
@@ -46,6 +50,46 @@ describe("body map regions", () => {
     expect(label("front.pelvis")).toBe("Hips (front)");
     expect(label("back.traps")).toBe("Upper back and neck (back)");
     expect(label("back.hamstrings_right")).toBe("Right back of thigh (back)");
+  });
+});
+
+describe("body map artwork", () => {
+  test("both figures share region ids, and every path stays inside the view box", () => {
+    expect(BODY_MAP_VIEWBOX).toBe("0 0 200 400");
+    const male = bodyMapArtwork("male");
+    const female = bodyMapArtwork("female");
+    expect(male.regions).toBe(BODY_MAP_REGIONS);
+    expect(female.regions.map((region) => region.id)).toEqual(
+      BODY_MAP_REGIONS.map((region) => region.id),
+    );
+    for (const artwork of [male, female]) {
+      for (const view of ["front", "back"] as const) {
+        expect(artwork.base[view]).toMatch(/^M[\d .A-Z-]+Z$/);
+        expect(artwork.outline[view]).toMatch(/^M[\d .A-Z-]+$/);
+      }
+      for (const region of artwork.regions) {
+        expect(region.path).toMatch(/^M[\d .A-Z-]+Z$/);
+        const xs = [...region.path.matchAll(/[MLCSQT]([\d.-]+)/g)].map((match) => Number(match[1]));
+        expect(Math.min(...xs)).toBeGreaterThanOrEqual(0);
+        expect(Math.max(...xs)).toBeLessThanOrEqual(200);
+      }
+    }
+    const x = (id: string) =>
+      Number(/^M([\d.]+)/.exec(female.regions.find((region) => region.id === id)!.path)![1]);
+    expect(x("front.biceps_left")).toBeGreaterThan(100);
+    expect(x("back.triceps_left")).toBeLessThan(100);
+  });
+
+  test("normalizePath makes commands absolute, scales them, and reads packed arc flags", () => {
+    const transform = { scale: 0.5, dx: 10, dy: 0 };
+    expect(normalizePath("m10 20h10v10l-10 0z", transform)).toEqual({
+      d: "M15 10H20V15L15 15Z",
+      minX: 15,
+      maxX: 20,
+    });
+    // "012.5" is large-arc 0, sweep 1, then x = 2.5.
+    expect(normalizePath("M0 0a2 2 0 012.5 1z", transform).d).toBe("M10 0A1 1 0 0 1 11.25 0.5Z");
+    expect(fitViewBox("724 0 724 1448")).toEqual({ scale: 200 / 724, dx: -200, dy: 0 });
   });
 });
 
