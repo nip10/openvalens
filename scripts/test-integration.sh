@@ -49,6 +49,7 @@ SUITES=(
   "AI_REMAINING_TOOLS_TEST_DATABASE_URL|ai_remaining_tools_test|packages/ai/src/tools/remaining-tools.integration.test.ts"
   "DATA_RIGHTS_TEST_DATABASE_URL|data_rights_test|packages/data-rights/src/export.integration.test.ts"
   "DATA_RIGHTS_DELETE_TEST_DATABASE_URL|data_rights_delete_test|packages/data-rights/src/delete.integration.test.ts"
+  "ERASURE_REPLAY_TEST_DATABASE_URL|erasure_replay_test|packages/data-rights/src/replay.integration.test.ts"
   "INSTANCE_ADMIN_TEST_DATABASE_URL|instance_admin_test|packages/auth/src/authz/instance-admin.integration.test.ts"
   "ADMISSION_TEST_DATABASE_URL|admission_test|packages/auth/src/admission/admission.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_auth_test|packages/auth/src/admission-auth.integration.test.ts"

@@ -4,17 +4,18 @@
 # exit stops the chain: migrations do not run and `server` does not start.
 #
 # OPENVALENS_PRE_MIGRATE_BACKUP selects the hook:
-#   pg_dump (default)  plain pg_dump (custom format) into the `backups` volume,
-#                      verified with `pg_restore --list` before it counts.
+#   pg_dump (default)  encrypted backup of the database AND the stored files
+#                      into the `backups` volume (Issue #64, see
+#                      deploy/backup/openvalens-backup.sh), verified (decrypt,
+#                      checksums, `pg_restore --list`) before it counts.
 #   hook               run the operator's executable deploy/hooks/pre-migrate
 #                      (mounted at /opt/openvalens/hooks/pre-migrate). It must
 #                      exit 0 only after a backup it trusts has been written.
 #   none               take no backup. Refused unless
 #                      OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP=I_HAVE_A_BACKUP.
 #
-# NOT the encrypted backup/restore of Issue #64: the default dump is
-# UNENCRYPTED and protected only by the Docker volume's host permissions. Treat
-# the `backups` volume as health data.
+# A `hook` writes whatever the operator's hook writes: if it is unencrypted,
+# treat the `backups` volume as health data.
 #
 # Never prints database contents, connection strings or passwords.
 set -eu
@@ -69,40 +70,11 @@ if [ "$tables" = "0" ]; then
   exit 0
 fi
 
-umask 077
-[ -d "$backup_dir" ] || fail "backup directory is missing"
-stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-final="$backup_dir/pre-migrate-$stamp.dump"
-partial="$backup_dir/.partial-pre-migrate-$stamp.dump"
-[ -e "$final" ] && fail "a backup named for this second already exists; retry"
-
-log "dumping database to the backups volume"
-if ! pg_dump --format=custom --no-password --file="$partial"; then
-  rm -f "$partial"
-  fail "pg_dump failed; refusing to migrate"
-fi
-if ! pg_restore --list "$partial" >/dev/null; then
-  rm -f "$partial"
-  fail "the dump could not be read back; refusing to migrate"
-fi
-mv "$partial" "$final"
-chmod 0600 "$final"
-log "backup written: pre-migrate-$stamp.dump ($(wc -c <"$final" | tr -d ' ') bytes)"
-
-# Retention: keep the newest $retain pre-migrate dumps (0 keeps everything).
-# The dump just written is always the newest, so it is never pruned.
-if [ "$retain" -gt 0 ]; then
-  # Timestamped names glob in chronological order; delete the oldest surplus.
-  total=0
-  for old in "$backup_dir"/pre-migrate-*.dump; do
-    [ -f "$old" ] && total=$((total + 1))
-  done
-  surplus=$((total - retain))
-  for old in "$backup_dir"/pre-migrate-*.dump; do
-    [ "$surplus" -gt 0 ] || break
-    [ -f "$old" ] || continue
-    rm -f "$old"
-    surplus=$((surplus - 1))
-    log "pruned old backup $(basename "$old")"
-  done
-fi
+# The encrypted backup (database + stored files), verified before it counts:
+# deploy/backup/openvalens-backup.sh. Its retention keeps the newest
+# OPENVALENS_BACKUP_RETAIN pre-migrate backups.
+tool="${OPENVALENS_BACKUP_TOOL:-/opt/openvalens/openvalens-backup.sh}"
+[ -r "$tool" ] || fail "the backup tool is missing; refusing to migrate"
+id="$(OPENVALENS_BACKUP_DIR="$backup_dir" bash "$tool" create pre-migrate)" ||
+  fail "the encrypted pre-migrate backup failed; refusing to migrate"
+log "encrypted backup written: $id"

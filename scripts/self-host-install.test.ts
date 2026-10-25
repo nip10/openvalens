@@ -14,6 +14,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -35,6 +36,9 @@ type Service = {
   restart?: string;
   volumes?: string[];
   build?: unknown;
+  profiles?: string[];
+  entrypoint?: string[];
+  command?: string[];
 };
 type Compose = {
   services: Record<string, Service>;
@@ -125,11 +129,18 @@ describe("deploy/compose.yml", () => {
   });
 
   test("third-party images are pinned by version and digest; app images by version", () => {
-    for (const name of ["caddy", "postgres", "backup"]) {
+    for (const name of ["caddy", "postgres"]) {
       expect(services[name]!.image).toMatch(/^[a-z]+:\d+\.\d+(\.\d+)?@sha256:[0-9a-f]{64}$/);
     }
     for (const name of ["server", "migrate", "web"]) {
       expect(services[name]!.image).toMatch(/:\$\{OPENVALENS_VERSION:\?/);
+    }
+    // Issue #64 — the backup image is built locally FROM the exact pinned
+    // Postgres image the stack runs, so pg_dump always matches the server.
+    const dockerfile = readFileSync(join(deploy, "backup", "Dockerfile"), "utf8");
+    expect(/^FROM (\S+)$/m.exec(dockerfile)?.[1]).toBe(services.postgres!.image!);
+    for (const name of ["backup", "backup-scheduler", "backup-tools"]) {
+      expect(services[name]!.image).toMatch(/^openvalens-backup:\$\{OPENVALENS_VERSION:\?/);
     }
   });
 
@@ -147,6 +158,39 @@ describe("deploy/compose.yml", () => {
     expect(services.postgres!.environment?.POSTGRES_PASSWORD_FILE).toBe(
       "/run/secrets/POSTGRES_PASSWORD",
     );
+  });
+
+  test("backups (Issue #64): db network only, key and password as files, storage writable only by tools", () => {
+    for (const name of ["backup", "backup-scheduler", "backup-tools"]) {
+      const service = services[name]!;
+      expect(service.networks).toEqual(["db"]);
+      expect(service.ports).toBeUndefined();
+      expect(service.volumes).toContain("./secrets/backup:/run/backup-secrets:ro");
+      expect(service.volumes).toContain("./secrets/postgres:/run/secrets:ro");
+      expect(service.volumes).toContain(
+        "./backup/openvalens-backup.sh:/opt/openvalens/openvalens-backup.sh:ro",
+      );
+      expect(service.environment?.OPENVALENS_BACKUP_IDENTITY_FILE).toBe(
+        "/run/backup-secrets/age-identity",
+      );
+      for (const value of Object.values(service.environment ?? {}))
+        expect(value).not.toMatch(/AGE-SECRET-KEY/);
+    }
+    expect(services.backup!.volumes).toContain("storage:/storage:ro");
+    expect(services["backup-scheduler"]!.volumes).toContain("storage:/storage:ro");
+    expect(services["backup-tools"]!.volumes).toContain("storage:/storage");
+    // The scheduler starts after migrations and keeps running; tools never start on `up`.
+    expect(services["backup-scheduler"]!.depends_on).toEqual({
+      migrate: { condition: "service_completed_successfully" },
+    });
+    expect(services["backup-scheduler"]!.restart).toBe("unless-stopped");
+    expect(services["backup-scheduler"]!.command).toEqual(["schedule"]);
+    expect(services["backup-tools"]!.profiles).toEqual(["tools"]);
+    // Defaults: daily at 03:00 UTC, keep 14 daily and 10 pre-migrate backups.
+    const env = services["backup-scheduler"]!.environment!;
+    expect(env.OPENVALENS_BACKUP_HOUR).toBe("${OPENVALENS_BACKUP_HOUR:-3}");
+    expect(env.OPENVALENS_BACKUP_DAILY_RETAIN).toBe("${OPENVALENS_BACKUP_DAILY_RETAIN:-14}");
+    expect(env.OPENVALENS_BACKUP_RETAIN).toBe("${OPENVALENS_BACKUP_RETAIN:-10}");
   });
 
   test("startup is gated: postgres -> backup -> migrate -> server", () => {
@@ -386,6 +430,8 @@ case " $* " in
   *" ps -q "*) echo fake-container ;;
   " inspect "*) echo healthy ;;
   *" admission.sh mint "*) echo fake-setup-token ;;
+  *" --entrypoint age-keygen "*) echo AGE-SECRET-KEY-1FAKESYNTHETICKEYFORTESTS ;;
+  *" backup-tools import "*) cat >/dev/null ;;
 esac
 exit 0
 `,
@@ -730,6 +776,194 @@ describe("deploy/setup.sh catalogs", () => {
       box.cleanup();
     }
   }, 30_000);
+});
+
+describe("deploy/setup.sh backup and restore (Issue #64)", () => {
+  const install = ["install", "--non-interactive"];
+  const ID = "20261025T030000Z-daily";
+  const dockerLog = (box: ReturnType<typeof installSandbox>) =>
+    readFileSync(join(box.dir, "..", "docker.log"), "utf8");
+
+  test("install generates the backup key once, as a file, and never prints it", () => {
+    const box = installSandbox();
+    try {
+      const first = box.run(install);
+      expect(first.exitCode).toBe(0);
+      const key = join(box.dir, "secrets", "backup", "age-identity");
+      const value = readFileSync(key, "utf8");
+      expect(value).toStartWith("AGE-SECRET-KEY-");
+      expect(statSync(key).mode & 0o777).toBe(0o444);
+      expect(statSync(join(box.dir, "secrets")).mode & 0o777).toBe(0o700);
+      expect(first.output).toContain("Copy that file OFF this server");
+      expect(first.output).not.toContain(value.trim());
+      expect(box.readEnv()).not.toContain("AGE-SECRET-KEY");
+      expect(valuesOf(box.readEnv(), "OPENVALENS_BACKUP_HOUR")).toEqual(["3"]);
+      expect(valuesOf(box.readEnv(), "OPENVALENS_BACKUP_DAILY_RETAIN")).toEqual(["14"]);
+
+      // A re-run keeps the key: replacing it would orphan every backup.
+      writeFileSync(join(box.dir, "..", "docker.log"), "");
+      expect(box.run(install).exitCode).toBe(0);
+      expect(readFileSync(key, "utf8")).toBe(value);
+      expect(dockerLog(box)).not.toContain("age-keygen");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("rejects bad ids and stray arguments without echoing them", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      const bad = box.run(["restore", "../../s3cr3t", "--force"]);
+      expect(bad.exitCode).not.toBe(0);
+      expect(bad.output).not.toContain("s3cr3t");
+      expect(box.run(["restore"]).exitCode).not.toBe(0);
+      expect(box.run(["restore", ID, ID]).exitCode).not.toBe(0);
+      expect(box.run(["install", "s3cr3t"]).exitCode).toBe(2);
+      expect(box.run(["backup", "frobnicate"]).exitCode).not.toBe(0);
+      expect(dockerLog(box)).not.toContain("restore-db");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("refuses without the backup key and points at the escrowed copy", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      rmSync(join(box.dir, "secrets", "backup", "age-identity"));
+      const result = box.run(["restore", ID, "--force"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("escrowed copy");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("a non-interactive restore needs --force and changes nothing without it", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      const result = box.run(["restore", ID, "--non-interactive"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("needs --force");
+      const log = dockerLog(box);
+      // It verified first, then stopped before touching anything.
+      expect(log).toContain(`backup-tools verify ${ID}`);
+      expect(log).not.toContain("restore-db");
+      expect(log).not.toContain("stop caddy");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("restore: verify, stop, keep + restore, migrate, merge and replay the ledger, start", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      writeFileSync(join(box.dir, "..", "docker.log"), "");
+      const result = box.run(["restore", ID, "--non-interactive", "--force"]);
+      expect({ exitCode: result.exitCode, output: result.output }).toMatchObject({ exitCode: 0 });
+      const lines = dockerLog(box).split("\n");
+      const at = (needle: string) => {
+        const index = lines.findIndex((line) =>
+          needle === "up -d" || needle === "build"
+            ? line.endsWith(` ${needle}`)
+            : line.includes(needle),
+        );
+        expect({ needle, found: index >= 0 }).toEqual({ needle, found: true });
+        return index;
+      };
+      const steps = [
+        "build",
+        `backup-tools verify ${ID}`,
+        "stop caddy web server backup-scheduler",
+        `backup-tools restore-db ${ID} `,
+        "run --rm --no-deps -T migrate",
+        "backup-tools ledger-merge ",
+        "server bun --no-env-file scripts/erasure-replay.ts --allow-remote",
+        `backup-tools record restore manual ok ${ID}`,
+        "up -d",
+      ].map(at);
+      expect([...steps].sort((a, b) => a - b)).toEqual(steps);
+      expect(result.output).toContain("openvalens_pre_restore_");
+      expect(result.output).toContain("deploy/setup.sh backup undo-restore");
+
+      // --no-build (the rollback rehearsal) keeps the pre-built images.
+      writeFileSync(join(box.dir, "..", "docker.log"), "");
+      expect(box.run(["restore", ID, "--force", "--no-build"]).exitCode).toBe(0);
+      expect(
+        dockerLog(box)
+          .split("\n")
+          .some((line) => line.endsWith(" build")),
+      ).toBe(false);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("backup export and import move encrypted copies through stdin/stdout only", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      const src = join(box.dir, "..", "offsite", ID);
+      mkdirSync(src, { recursive: true });
+      writeFileSync(join(src, "SHA256SUMS"), "");
+      const imported = box.run(["backup", "import", src]);
+      expect({ exitCode: imported.exitCode, output: imported.output }).toMatchObject({
+        exitCode: 0,
+      });
+      expect(dockerLog(box)).toContain(`backup-tools import ${ID}`);
+      const notBackup = join(box.dir, "..", "offsite", "random");
+      mkdirSync(notBackup);
+      expect(box.run(["backup", "import", notBackup]).exitCode).not.toBe(0);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+});
+
+describe("deploy/backup/openvalens-backup.sh (Issue #64)", () => {
+  const tool = join(deploy, "backup", "openvalens-backup.sh");
+  const runTool = (args: string[], env: Record<string, string> = {}) => {
+    const result = Bun.spawnSync(["bash", tool, ...args], {
+      env: { PATH: process.env.PATH ?? "/usr/bin:/bin", ...env },
+    });
+    return { exitCode: result.exitCode, output: `${result.stdout}${result.stderr}` };
+  };
+
+  test("parses as bash", () => {
+    expect(Bun.spawnSync(["bash", "-n", tool]).exitCode).toBe(0);
+    expect(Bun.spawnSync(["sh", "-n", join(deploy, "pre-migrate-backup.sh")]).exitCode).toBe(0);
+  });
+
+  test("refuses unknown commands and bad ids, and fails clearly without a key", () => {
+    expect(runTool(["frobnicate"]).exitCode).toBe(1);
+    const dir = mkdtempSync(join(tmpdir(), "ov-backup-tool-"));
+    try {
+      const noKey = runTool(["create", "manual"], {
+        OPENVALENS_BACKUP_DIR: dir,
+        OPENVALENS_BACKUP_IDENTITY_FILE: join(dir, "missing"),
+      });
+      expect(noKey.exitCode).toBe(1);
+      expect(noKey.output).toContain("no backup key");
+      expect(runTool(["create", "hourly"], { OPENVALENS_BACKUP_DIR: dir }).exitCode).toBe(1);
+      const badId = runTool(["restore-db", "../etc", "20261025000000"], {
+        OPENVALENS_BACKUP_DIR: dir,
+      });
+      expect(badId.exitCode).toBe(1);
+      expect(badId.output).not.toContain("../etc");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("records only value-free status: no path, key or connection string in backup_run", () => {
+    const script = readFileSync(tool, "utf8");
+    const records = [...script.matchAll(/record (backup|verify|restore) [^\n]*/g)].map((m) => m[0]);
+    expect(records.length).toBeGreaterThan(5);
+    for (const line of records) expect(line).not.toMatch(/IDENTITY|PGPASSWORD|\$work|\$dir/);
+  });
 });
 
 describe("scripts/rollback-rehearsal.sh (Issue #129)", () => {

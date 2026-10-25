@@ -191,6 +191,9 @@ export function parseComposeImages(composeYaml: string): PinnedImage[] {
     }));
 }
 
+/** Built by `deploy/setup.sh` on the host, not part of the release images. */
+export const BACKUP_DOCKERFILE = "deploy/backup/Dockerfile";
+
 /** External `FROM` and `COPY --from=<image>` references in a Dockerfile. */
 export function parseDockerfileBases(dockerfile: string, content: string): BaseImage[] {
   const stages = new Set<string>();
@@ -399,9 +402,11 @@ export function createManifest(
     serverUrl: options.serverUrl,
     images,
     thirdPartyImages: parseComposeImages(readFileSync(join(root, "deploy/compose.yml"), "utf8")),
-    baseImages: images
-      .flatMap((image) =>
-        parseDockerfileBases(image.dockerfile, readFileSync(join(root, image.dockerfile), "utf8")),
+    // The backup image (Issue #64) is built on each host from a pinned base
+    // plus age/jq from the Debian archive; the manifest pins that base.
+    baseImages: [...images.map((image) => image.dockerfile), BACKUP_DOCKERFILE]
+      .flatMap((dockerfile) =>
+        parseDockerfileBases(dockerfile, readFileSync(join(root, dockerfile), "utf8")),
       )
       .map((base) => ({
         ...base,

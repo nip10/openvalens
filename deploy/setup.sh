@@ -6,6 +6,9 @@
 #   deploy/setup.sh upgrade    [--dry-run]
 #   deploy/setup.sh mint-token [--dry-run]
 #   deploy/setup.sh catalogs   --source fdc|fdc-branded|off|all [--dry-run] [--non-interactive]
+#   deploy/setup.sh backup     now|list|verify [<id>] [--quick]|export <id> <dir>|import <dir>
+#                              |cleanup [--force]|undo-restore <stamp>
+#   deploy/setup.sh restore    <id> [--force] [--non-interactive] [--no-build]
 #
 # install     Asks for the domain and email settings, generates every secret
 #             into deploy/secrets/ (never prints one), writes deploy/.env, builds
@@ -30,6 +33,29 @@
 #               off          Open Food Facts (~13 GB), worldwide products, barcodes
 #               all          all of the above
 #             Sizes, time and licences: docs/self-hosting/food-catalogs.md.
+# backup      Encrypted backups of the database and stored files (Issue #64).
+#             A daily backup runs on its own (OPENVALENS_BACKUP_HOUR, UTC) and
+#             one is taken before every migration. Every backup is encrypted
+#             to deploy/secrets/backup/age-identity: keep a copy of that file
+#             off this server, or the backups cannot be restored.
+#               now           take a backup now (also verified)
+#               list          list the backups in the 'backups' volume
+#               verify [id]   decrypt, check every checksum and restore into a
+#                             scratch database (default: the newest backup);
+#                             --quick skips the scratch restore
+#               export <id> <dir>  copy a backup (still encrypted) to <dir>
+#               import <dir>  copy a backup directory into the volume
+#               cleanup       list what restores kept (and legacy unencrypted
+#                             dumps); --force deletes them
+#               undo-restore <stamp>  put back the database and files a
+#                             restore kept (the server stays stopped)
+# restore     Builds the checked-out version (for a rollback: check out the
+#             previous version first), verifies the backup, stops the app,
+#             keeps the current database (renamed openvalens_pre_restore_<stamp>)
+#             and stored files, restores both, runs migrations, re-applies the
+#             erasure ledger so people who deleted their data stay deleted,
+#             then starts the stack. Asks for confirmation; --non-interactive
+#             needs --force.
 #
 # --dry-run          Change nothing: generate config and throwaway secrets in a
 #                    private temp directory, validate the compose file, print the
@@ -46,6 +72,12 @@
 # --reconfigure      install only: ask for (or, with --non-interactive, read) the
 #                    domain and email settings again instead of reusing the ones
 #                    in deploy/.env. Secrets and every other key are kept.
+# --force            restore: skip the confirmation prompt (required with
+#                    --non-interactive). backup cleanup: delete what it lists.
+# --quick            backup verify: skip the scratch-database restore.
+# --no-build         restore: use the images OPENVALENS_VERSION in deploy/.env
+#                    names as they are, instead of building the checked-out
+#                    version (the rollback rehearsal uses pre-built images).
 #
 # Secrets are written only to files on this host. Never paste a secret, the
 # setup token or deploy/.env into chat, tickets or logs.
@@ -59,10 +91,17 @@ command="${1:-}"
 DRY_RUN=0
 INTERACTIVE=1
 RECONFIGURE=0
+FORCE=0
+QUICK=0
+NO_BUILD=0
 CATALOG_SOURCES=""
+ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
+    --force) FORCE=1 ;;
+    --quick) QUICK=1 ;;
+    --no-build) NO_BUILD=1 ;;
     --source)
       [ "$command" = catalogs ] && [ $# -gt 1 ] || {
         echo "setup: --source needs a value and applies to catalogs only (see deploy/setup.sh --help)" >&2
@@ -74,10 +113,19 @@ while [ $# -gt 0 ]; do
     --non-interactive) INTERACTIVE=0 ;;
     --reconfigure) RECONFIGURE=1 ;;
     -h | --help) command=help ;;
-    *)
+    -*)
       # Never echo the rejected value: it may be a pasted secret.
       echo "setup: unknown option (see deploy/setup.sh --help)" >&2
       exit 2
+      ;;
+    *)
+      case "$command" in
+        backup | restore) ARGS+=("$1") ;;
+        *)
+          echo "setup: unexpected argument (see deploy/setup.sh --help)" >&2
+          exit 2
+          ;;
+      esac
       ;;
   esac
   shift
@@ -90,7 +138,7 @@ die() {
   exit 1
 }
 
-usage() { sed -n '3,49p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '3,/^set -euo pipefail/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'; }
 
 # In dry-run mode everything is staged in a private temp directory.
 if [ "$DRY_RUN" -eq 1 ]; then
@@ -200,7 +248,8 @@ gather_config() {
 # deploy/.env (only the domain and email settings are re-asked, and only with
 # --reconfigure). Every other line is the operator's and is copied through.
 MANAGED_KEYS="OPENVALENS_DOMAIN OPENVALENS_SITE_SCHEME ACME_EMAIL EMAIL_FROM OPENVALENS_VERSION
-  OPENVALENS_PRE_MIGRATE_BACKUP OPENVALENS_BACKUP_RETAIN STORAGE_PROVIDER
+  OPENVALENS_PRE_MIGRATE_BACKUP OPENVALENS_BACKUP_RETAIN OPENVALENS_BACKUP_DAILY_RETAIN
+  OPENVALENS_BACKUP_HOUR STORAGE_PROVIDER
   STORAGE_S3_ENDPOINT STORAGE_S3_REGION STORAGE_S3_BUCKET
   STORAGE_S3_FORCE_PATH_STYLE STORAGE_S3_SSE"
 # Optional secrets: `<KEY>_FILE` is set exactly when deploy/secrets/server/<KEY>
@@ -270,9 +319,13 @@ ACME_EMAIL=$ACME
 EMAIL_FROM=$FROM
 # Image tag for the locally built server/web images (the checked-out version).
 OPENVALENS_VERSION=$(image_version)
-# Pre-migrate backup hook: pg_dump (default) | hook | none. See docs/self-hosting/backup.md.
+# Backups (docs/self-hosting/backup.md), encrypted to deploy/secrets/backup/age-identity:
+# keep a copy of that file off this server. Pre-migrate backup: pg_dump (default,
+# encrypted database + files) | hook | none. Daily backup at OPENVALENS_BACKUP_HOUR (UTC).
 OPENVALENS_PRE_MIGRATE_BACKUP=$(env_get OPENVALENS_PRE_MIGRATE_BACKUP | grep . || echo pg_dump)
 OPENVALENS_BACKUP_RETAIN=$(env_get OPENVALENS_BACKUP_RETAIN | grep . || echo 10)
+OPENVALENS_BACKUP_DAILY_RETAIN=$(env_get OPENVALENS_BACKUP_DAILY_RETAIN | grep . || echo 14)
+OPENVALENS_BACKUP_HOUR=$(env_get OPENVALENS_BACKUP_HOUR | grep . || echo 3)
 # Object storage: local (default, the "storage" volume) | s3. See docs/storage.md.
 STORAGE_PROVIDER=$(env_get STORAGE_PROVIDER | grep . || echo local)
 STORAGE_S3_ENDPOINT=$(env_get STORAGE_S3_ENDPOINT)
@@ -352,6 +405,49 @@ generate_secrets() {
     warn "add it later to deploy/secrets/server/RESEND_API_KEY (mode 0444) and re-run install."
   fi
   unset key
+}
+
+# --- backup key (Issue #64) ---------------------------------------------------
+
+BACKUP_KEY="$SECRETS_DIR/backup/age-identity"
+BACKUP_KEY_CREATED=0
+
+# Generates the age identity that encrypts every backup, once, with age-keygen
+# from the backup image (the host needs no age install). Never printed. Losing
+# it makes every backup unreadable, so the operator must copy it off the host.
+ensure_backup_key() {
+  install -d -m 0700 "$SECRETS_DIR"
+  install -d -m 0755 "$SECRETS_DIR/backup"
+  if [ -s "$BACKUP_KEY" ]; then return 0; fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "[dry-run] would generate the backup key into deploy/secrets/backup/age-identity"
+    return 0
+  fi
+  local tmp="$BACKUP_KEY.tmp.$$"
+  (
+    umask 022
+    : >"$tmp"
+  )
+  if ! compose run --rm --no-deps -T --entrypoint age-keygen backup-tools >"$tmp" 2>/dev/null ||
+    ! grep -q '^AGE-SECRET-KEY-' "$tmp"; then
+    rm -f "$tmp"
+    die "could not generate the backup key"
+  fi
+  chmod 0444 "$tmp"
+  mv "$tmp" "$BACKUP_KEY"
+  BACKUP_KEY_CREATED=1
+  log "backup key generated: deploy/secrets/backup/age-identity (never printed)"
+}
+
+backup_key_notice() {
+  cat <<EOF
+
+IMPORTANT: every backup is encrypted with deploy/secrets/backup/age-identity.
+  Copy that file OFF this server now (password manager, encrypted USB drive,
+  another machine) and guard it like the data itself. If this server is lost
+  together with that file, no backup can ever be restored. Read it locally
+  only; never paste it into chat, tickets or logs.
+EOF
 }
 
 # --- steps -------------------------------------------------------------------
@@ -439,6 +535,7 @@ cmd_install() {
   validate_compose
   log "building images (this can take several minutes)"
   run compose build
+  ensure_backup_key
   start_chain
   if [ -s "$TOKEN_FILE" ] && [ "$DRY_RUN" -eq 0 ]; then
     log "setup token already exists; run 'deploy/setup.sh mint-token' to replace it"
@@ -453,14 +550,17 @@ OpenValens is starting at: https://$DOMAIN
   2. Open https://$DOMAIN/setup, enter the token and your email, then the
      emailed code. That account becomes the instance administrator and
      registration closes: everyone else joins by administrator invitation.
-  3. Pre-migrate backups are plain, UNENCRYPTED pg_dump files in the
-     'backups' volume. Encrypted backup/restore is pending (Issue #64).
+  3. Encrypted backups of the database and stored files run daily and
+     before every upgrade ('deploy/setup.sh backup list'). Copy the backup
+     key deploy/secrets/backup/age-identity OFF this server: without it no
+     backup can be restored (docs/self-hosting/backup.md).
   4. The food catalogs start EMPTY: food search finds only members' own
      foods and barcode scans miss. Import the public catalogs (large,
      opt-in downloads; see docs/self-hosting/food-catalogs.md):
        deploy/setup.sh catalogs --source fdc     # ~14 MB, generic foods
        deploy/setup.sh catalogs --source off     # ~13 GB, product barcodes
 EOF
+  if [ "$BACKUP_KEY_CREATED" -eq 1 ]; then backup_key_notice; fi
   if [ "$DRY_RUN" -eq 1 ]; then log "[dry-run] nothing was changed"; fi
 }
 
@@ -486,11 +586,13 @@ cmd_upgrade() {
   validate_compose
   log "building images for $(image_version)"
   run compose build
+  ensure_backup_key
   # Stop the old server first so it never serves a half-migrated database.
   run compose stop caddy web server
   start_chain
   [ "$DRY_RUN" -eq 1 ] && log "[dry-run] nothing was changed" && return 0
   log "upgrade complete: https://$(env_get OPENVALENS_DOMAIN)"
+  if [ "$BACKUP_KEY_CREATED" -eq 1 ]; then backup_key_notice; fi
 }
 
 cmd_mint_token() {
@@ -676,11 +778,170 @@ cmd_catalogs() {
   log "food catalogs are ready: search and barcode lookup use them right away"
 }
 
+# --- backups and restore (Issue #64) ------------------------------------------
+
+BACKUP_ID_PATTERN='^[0-9]{8}T[0-9]{6}Z-(daily|pre-migrate|manual)$'
+valid_backup_id() { printf '%s' "$1" | grep -Eq "$BACKUP_ID_PATTERN"; }
+
+# The backup tool (deploy/backup/openvalens-backup.sh) in a one-off container on
+# the internal db network. Its output is ids, sizes and counts only.
+tools() { compose run --rm --no-deps -T backup-tools "$@"; }
+
+require_backup_key() {
+  [ -s "$BACKUP_KEY" ] ||
+    die "no backup key at deploy/secrets/backup/age-identity: run 'deploy/setup.sh upgrade' to create one, or (to restore) put your escrowed copy there (mode 0444)"
+}
+
+start_postgres() { compose up -d --wait postgres >/dev/null 2>&1 || die "postgres did not start"; }
+
+cmd_backup() {
+  local sub="${ARGS[0]:-}" id dir stamp
+  preflight
+  [ "$DRY_RUN" -eq 0 ] || die "backup has no --dry-run"
+  require_installed
+  require_backup_key
+  case "$sub" in
+    now)
+      [ ${#ARGS[@]} -eq 1 ] || die "usage: deploy/setup.sh backup now"
+      start_postgres
+      id="$(tools create manual)" || die "the backup failed; see the messages above"
+      tools verify "$id" || die "the new backup did not verify"
+      log "backup $id written and verified (kept until you delete it; daily backups rotate)"
+      ;;
+    list)
+      [ ${#ARGS[@]} -eq 1 ] || die "usage: deploy/setup.sh backup list"
+      tools list
+      ;;
+    verify)
+      [ ${#ARGS[@]} -le 2 ] || die "usage: deploy/setup.sh backup verify [<id>] [--quick]"
+      id="${ARGS[1]:-latest}"
+      [ "$id" = latest ] || valid_backup_id "$id" || die "not a backup id (see deploy/setup.sh backup list)"
+      start_postgres
+      if [ "$QUICK" -eq 1 ]; then tools verify "$id" --quick; else tools verify "$id"; fi
+      ;;
+    export)
+      [ ${#ARGS[@]} -eq 3 ] || die "usage: deploy/setup.sh backup export <id> <directory>"
+      id="${ARGS[1]}"
+      dir="${ARGS[2]}"
+      valid_backup_id "$id" || die "not a backup id (see deploy/setup.sh backup list)"
+      [ ! -e "$dir/$id" ] || die "the destination already holds this backup"
+      install -d -m 0700 "$dir"
+      tools export "$id" | tar -x -C "$dir" || die "the export failed"
+      log "copied backup $id (still encrypted) to $dir/$id"
+      log "store it off this server; the key is NOT in it (deploy/secrets/backup/age-identity)"
+      ;;
+    import)
+      [ ${#ARGS[@]} -eq 2 ] || die "usage: deploy/setup.sh backup import <backup directory>"
+      dir="${ARGS[1]%/}"
+      id="$(basename "$dir")"
+      valid_backup_id "$id" || die "the directory must be named like a backup id (<YYYYMMDDTHHMMSSZ>-<trigger>)"
+      [ -f "$dir/SHA256SUMS" ] || die "not a backup directory (no SHA256SUMS)"
+      COPYFILE_DISABLE=1 tar -C "$(dirname "$dir")" --no-xattrs -cf - "$id" | tools import "$id" ||
+        die "the import failed"
+      ;;
+    cleanup)
+      [ ${#ARGS[@]} -eq 1 ] || die "usage: deploy/setup.sh backup cleanup [--force]"
+      start_postgres
+      if [ "$FORCE" -eq 1 ]; then tools cleanup --force; else tools cleanup; fi
+      ;;
+    undo-restore)
+      [ ${#ARGS[@]} -eq 2 ] || die "usage: deploy/setup.sh backup undo-restore <stamp>"
+      stamp="${ARGS[1]}"
+      printf '%s' "$stamp" | grep -Eq '^[0-9]{14}$' || die "the stamp is the 14 digits printed by restore"
+      compose stop caddy web server backup-scheduler >/dev/null 2>&1 || true
+      start_postgres
+      tools undo-restore "$stamp" || die "undo failed; the server is stopped"
+      log "start the stack again with: deploy/setup.sh upgrade"
+      ;;
+    *) die "usage: deploy/setup.sh backup now|list|verify|export|import|cleanup|undo-restore (see --help)" ;;
+  esac
+}
+
+confirm_restore() {
+  if [ "$FORCE" -eq 1 ]; then return 0; fi
+  [ "$INTERACTIVE" -eq 1 ] || die "a --non-interactive restore needs --force"
+  local answer=""
+  cat >&2 <<EOF
+
+Restore replaces the database and the stored files with backup $1.
+Everything written after that backup is lost from the live instance (the
+current database and files are KEPT, renamed, until you run
+'deploy/setup.sh backup cleanup --force'). People who deleted their data
+after the backup stay deleted: the erasure ledger is re-applied.
+EOF
+  printf 'Type RESTORE to continue: ' >&2
+  IFS= read -r answer || true
+  [ "$answer" = RESTORE ] || die "cancelled; nothing was changed"
+}
+
+restore_halted() {
+  echo >&2
+  warn "$1"
+  warn "the server is NOT running. The database and stored files from before the"
+  warn "restore are kept (stamp $RESTORE_STAMP). Fix the cause and run the restore again,"
+  warn "or put everything back: deploy/setup.sh backup undo-restore $RESTORE_STAMP"
+  exit 1
+}
+
+cmd_restore() {
+  [ ${#ARGS[@]} -eq 1 ] || die "usage: deploy/setup.sh restore <backup id> (see deploy/setup.sh backup list)"
+  local id="${ARGS[0]}"
+  valid_backup_id "$id" || die "not a backup id (see deploy/setup.sh backup list)"
+  preflight
+  [ "$DRY_RUN" -eq 0 ] ||
+    die "restore has no --dry-run; 'deploy/setup.sh backup verify <id>' checks a backup without changing anything"
+  require_installed
+  require_backup_key
+  if [ "$NO_BUILD" -eq 0 ]; then
+    # The restored database is migrated, and the ledger replayed, by the
+    # checked-out version: for a rollback that is the previous release.
+    set_image_version
+    validate_compose
+    log "building images for $(image_version)"
+    compose build || die "building the images failed; nothing was changed"
+  fi
+  start_postgres
+  log "verifying $id before changing anything (decrypt, checksums, scratch restore)"
+  tools verify "$id" || die "backup $id did not verify; nothing was changed"
+  confirm_restore "$id"
+
+  RESTORE_STAMP="$(date -u +%Y%m%d%H%M%S)"
+  log "stopping the app (caddy, web, server, backup-scheduler)"
+  compose stop caddy web server backup-scheduler >/dev/null 2>&1 || true
+  if ! tools restore-db "$id" "$RESTORE_STAMP"; then
+    warn "the restore failed and the previous database and files were put back."
+    warn "the server is stopped; start it again with: deploy/setup.sh upgrade"
+    exit 1
+  fi
+  log "applying migrations to the restored database"
+  compose run --rm --no-deps -T migrate || restore_halted "migrations failed on the restored database"
+  log "merging the erasure ledgers"
+  tools ledger-merge "$RESTORE_STAMP" || restore_halted "merging the erasure ledger failed"
+  log "re-applying the erasure ledger"
+  compose run --rm --no-deps -T --workdir /app server \
+    bun --no-env-file scripts/erasure-replay.ts --allow-remote ||
+    restore_halted "re-applying the erasure ledger failed"
+  tools record restore manual ok "$id"
+  log "starting the stack (it takes a fresh pre-migrate backup of the restored data)"
+  start_chain
+  cat <<EOF
+
+Restored backup $id at https://$(env_get OPENVALENS_DOMAIN)
+  Kept from before the restore (stamp $RESTORE_STAMP):
+    database  openvalens_pre_restore_$RESTORE_STAMP
+    files     .pre-restore-$RESTORE_STAMP in the 'storage' volume
+  Check the instance, then delete them: deploy/setup.sh backup cleanup --force
+  Or go back to them: deploy/setup.sh backup undo-restore $RESTORE_STAMP
+EOF
+}
+
 case "$command" in
   install) cmd_install ;;
   upgrade) cmd_upgrade ;;
   mint-token) cmd_mint_token ;;
   catalogs) cmd_catalogs ;;
+  backup) cmd_backup ;;
+  restore) cmd_restore ;;
   help | -h | --help | "") usage ;;
   *)
     echo "setup: unknown command (see deploy/setup.sh --help)" >&2

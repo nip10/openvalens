@@ -13,10 +13,10 @@ so.
 > `version` field of the root `package.json`; CI checks that every page here
 > states it.
 
-> **Backups are not finished.** 0.1.0 takes a plain, unencrypted `pg_dump`
-> before each migration and nothing else. Encrypted, scheduled, off-host
-> backups and a tested restore are Issue #64. Read [Backups](backup.md) before
-> you store real health data.
+> **Keep the backup key off the server.** The stack takes encrypted backups of
+> the database and stored files daily and before every upgrade, but they are
+> encrypted with `deploy/secrets/backup/age-identity` and kept on the same
+> host. Read [Backups](backup.md) before you store real health data.
 
 ## Guides
 
@@ -26,7 +26,7 @@ so.
 | [Configuration](configuration.md)           | `deploy/.env`, optional providers, product settings, scheduled jobs.     |
 | [Food catalogs](food-catalogs.md)           | Importing USDA and Open Food Facts data for food search and barcodes.    |
 | [Upgrading](upgrading.md)                   | `deploy/setup.sh upgrade`, failures, rolling back.                       |
-| [Backups](backup.md)                        | The pre-migrate dump, its limits, an interim manual restore.             |
+| [Backups](backup.md)                        | Encrypted daily backups, the backup key, verify, restore, new host.      |
 | [Email](email.md)                           | Resend setup (the only email transport).                                 |
 | [Single sign-on (OIDC)](oidc.md)            | One optional OIDC provider: invite-only, explicit account connection.    |
 | [Security model and reporting](security.md) | What the stack protects, what you must, how to report a vulnerability.   |
@@ -48,7 +48,7 @@ so.
 
 ## Not covered yet
 
-- Encrypted, scheduled backups and a tested restore (#64).
+- Automatic off-site copies of backups (export and copy them yourself).
 - File storage on local disk or S3-compatible services (#62).
 - Signed, published container images; installs build from source (#129).
 - Sign-in with an external identity provider (#65).

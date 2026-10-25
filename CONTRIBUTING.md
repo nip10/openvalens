@@ -255,7 +255,7 @@ to auth, keep these invariants:
   **Related:** #63 and describe remaining work explicitly.
 
 Related: #63 — the self-host installer (`deploy/setup.sh`, see
-`docs/self-hosting/install.md`) mints the setup token; encrypted backup/restore remains
-deferred to #64 and reference-VPS resource measurement is outstanding; editable product
+`docs/self-hosting/install.md`) mints the setup token; encrypted backup/restore landed
+with #64 and reference-VPS resource measurement is outstanding; editable product
 settings and settings-change auditing remain separate Issue #58 work. The admission
 web UI has passed its independent security gate; deployment is separately authorized.

@@ -3,6 +3,7 @@ import { sql, type Database } from "@openvalens/db";
 import { createStructuredLogger } from "@openvalens/observability";
 import { z } from "zod";
 
+import { backupStateSchema, readBackupStatus, type BackupState } from "../backup-status";
 import { publicProcedure } from "../index";
 
 /** Hard ceiling for the readiness DB ping. */
@@ -41,6 +42,13 @@ export const readinessOutput = z.object({
      * Which storage is in use is `integrations.storage.provider`.
      */
     storage: z.enum(["ok", "unwritable", "off"]),
+    /**
+     * Issue #64 — the self-host backups: `failing` when the newest backup or
+     * verify failed, `stale` when no good backup is under 48 hours old or the
+     * scheduler is overdue, `off` when no backup service ever reported,
+     * `unknown` when the status could not be read. Details: /admin/settings.
+     */
+    backups: backupStateSchema,
     integrations: z.record(z.string(), integrationStatusOutput),
   }),
   timestamp: z.string(),
@@ -76,6 +84,21 @@ async function pingDatabase(db: Database): Promise<"ok" | "unreachable"> {
   }
 }
 
+/** Backup state, bounded like the DB ping; a timeout is `unknown`. */
+async function backupState(db: Database): Promise<BackupState> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      readBackupStatus(db).then((status) => status.state),
+      new Promise<BackupState>((resolve) => {
+        timer = setTimeout(() => resolve("unknown"), DB_PING_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 /**
  * Public readiness probe (no auth) for monitoring.
  *
@@ -92,6 +115,7 @@ export const healthRouter = {
       const database = await pingDatabase(context.db);
       // The probe result is cached by the service, so polling stays cheap.
       const storage = context.storage ? await context.storage.probe() : "off";
+      const backups = database === "ok" ? await backupState(context.db) : "unknown";
 
       const betterAuthSecret = context.betterAuthSecretConfigured ? "ok" : "missing";
       const cronSecret =
@@ -125,7 +149,10 @@ export const healthRouter = {
       const status =
         database === "unreachable"
           ? "unready"
-          : missingSecrets.length > 0 || storage === "unwritable"
+          : missingSecrets.length > 0 ||
+              storage === "unwritable" ||
+              backups === "failing" ||
+              backups === "stale"
             ? "degraded"
             : "ok";
 
@@ -135,6 +162,7 @@ export const healthRouter = {
         databaseStatus: database,
         missingSecrets,
         storageStatus: storage,
+        backupStatus: backups,
       });
 
       return {
@@ -147,6 +175,7 @@ export const healthRouter = {
           },
           capabilities,
           storage,
+          backups,
           integrations,
         },
         timestamp: new Date().toISOString(),

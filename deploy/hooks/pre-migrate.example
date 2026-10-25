@@ -3,7 +3,7 @@
 #
 # To use it: copy to deploy/hooks/pre-migrate, make it executable, and set
 # OPENVALENS_PRE_MIGRATE_BACKUP=hook in deploy/.env. It runs inside the
-# `backup` service (postgres image) with PGHOST/PGUSER/PGDATABASE/PGPASSWORD
+# `backup` service (the pinned Postgres image plus age) with PGHOST/PGUSER/PGDATABASE/PGPASSWORD
 # set and the `backups` volume at /backups. Exit 0 ONLY after a backup you
 # trust exists; any other exit code stops the upgrade before migrations run.
 #

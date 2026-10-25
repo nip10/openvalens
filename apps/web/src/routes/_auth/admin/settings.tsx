@@ -3,12 +3,17 @@ import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-quer
 import { createFileRoute } from "@tanstack/react-router";
 import { useLayoutEffect, useRef } from "react";
 
+import { AdminBackupStatus } from "@/components/admin-backup-status";
 import { AdminSettingsView } from "@/components/admin-settings-view";
 import { ProductSettingsForm } from "@/components/product-settings-form";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { authClient } from "@/lib/auth-client";
 import { isConfigPermissionDenied } from "@/utils/admin-settings-error";
-import { adminAccessQueryOptions, adminConfigurationQueryOptions } from "@/utils/admin-settings";
+import {
+  adminAccessQueryOptions,
+  adminBackupStatusQueryOptions,
+  adminConfigurationQueryOptions,
+} from "@/utils/admin-settings";
 import { orpc, queryClient } from "@/utils/orpc";
 import {
   isProductSettingsConflictError,
@@ -67,6 +72,8 @@ function AuthenticatedAdminPage({ userId }: { userId: string }) {
       <ProductSettingsSection userId={userId} />
 
       {isAdmin ? <ConfigurationSection userId={userId} access={access} /> : null}
+
+      {isAdmin ? <BackupSection userId={userId} /> : null}
     </div>
   );
 }
@@ -253,6 +260,14 @@ function ConfigurationInventory({ userId }: { userId: string }) {
   }
 
   return <AdminSettingsView accessState="granted" configState="loading" />;
+}
+
+function BackupSection({ userId }: { userId: string }) {
+  const backups = useQuery({ ...adminBackupStatusQueryOptions(userId), enabled: !!userId });
+  if (backups.data) return <AdminBackupStatus status="ready" backups={backups.data} />;
+  if (backups.isError)
+    return <AdminBackupStatus status="error" onRetry={() => void backups.refetch()} />;
+  return <AdminBackupStatus status="loading" />;
 }
 
 function AdminNav() {

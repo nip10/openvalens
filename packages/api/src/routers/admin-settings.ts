@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { requireAdmissionOrigin, safeAdmissionInput } from "../admission";
+import { backupStatusSchema, readBackupStatus } from "../backup-status";
 import {
   instanceAdminProcedure,
   o,
@@ -76,6 +77,15 @@ export const adminSettingsRouter = {
 
       return { entries };
     }),
+
+  /**
+   * Issue #64 — self-host backup status (last backup, last verify, last
+   * failure step, next planned run). Value-free; instance administrators only.
+   */
+  backupStatus: instanceAdminProcedure
+    .input(z.object({}))
+    .output(backupStatusSchema)
+    .handler(({ context }) => readBackupStatus(context.db)),
 
   productSettings: protectedProcedure
     .input(z.object({}))

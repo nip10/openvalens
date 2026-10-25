@@ -16,10 +16,16 @@ export type AdminConfigurationOutput = AdminSettingsOutputs["configuration"];
 
 export type AdminConfigurationEntry = AdminConfigurationOutput["entries"][number];
 
+export type AdminBackupStatusOutput = AdminSettingsOutputs["backupStatus"];
+
 export function adminAccessQueryKey(userId: string) {
   return ["admin-settings", "access", userId] as const;
 }
 
 export function adminConfigurationQueryKey(userId: string) {
   return ["admin-settings", "configuration", userId] as const;
+}
+
+export function adminBackupStatusQueryKey(userId: string) {
+  return ["admin-settings", "backup-status", userId] as const;
 }

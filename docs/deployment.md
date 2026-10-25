@@ -635,9 +635,9 @@ CI/production provider credentials and live email delivery are outside this
 document's scope.
 
 Related: #63. The setup-token minting path and the self-host installer
-(`deploy/setup.sh`, [self-hosting/](self-hosting/README.md)) are implemented. Full
-encrypted backup/restore remains deferred to #64 (the installer's pre-migrate
-backup is a plain `pg_dump`), and resource minimums still need measuring on a
+(`deploy/setup.sh`, [self-hosting/](self-hosting/README.md)) are implemented. The
+self-host stack takes encrypted daily and pre-migrate backups and restores them
+with `deploy/setup.sh restore` ([Backups](self-hosting/backup.md)), and resource minimums still need measuring on a
 reference VPS. Editable product settings and settings-change
 auditing remain separate Issue #58 work. The admission web UI has passed its
 independent security gate; production activation requires separate authorization.

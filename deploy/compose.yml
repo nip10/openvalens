@@ -19,7 +19,12 @@
 #
 # Startup / upgrade order (each step must succeed before the next starts):
 #   postgres (healthy) -> backup (pre-migrate hook) -> migrate -> server -> web -> caddy
+#                                                             -> backup-scheduler
 # A failed backup or migration leaves `server` stopped and never deletes a backup.
+#
+# Backups (Issue #64): every backup is encrypted with age to the key in
+# deploy/secrets/backup/age-identity. Keep a copy of that file OFF this server:
+# without it no backup can be restored. See docs/self-hosting/backup.md.
 
 name: openvalens-selfhost
 
@@ -119,6 +124,23 @@ x-server-env: &server-env
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
   SENTRY_RELEASE: ${SENTRY_RELEASE:-}
 
+# Backup services (Issue #64): connection settings and backup options. The
+# database password and the age key arrive as files, never as values.
+x-backup-env: &backup-env
+  PGHOST: postgres
+  PGUSER: postgres
+  PGDATABASE: openvalens
+  POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+  OPENVALENS_BACKUP_IDENTITY_FILE: /run/backup-secrets/age-identity
+  OPENVALENS_VERSION: ${OPENVALENS_VERSION:?run deploy/setup.sh first}
+  OPENVALENS_BACKUP_RETAIN: ${OPENVALENS_BACKUP_RETAIN:-10}
+  OPENVALENS_BACKUP_DAILY_RETAIN: ${OPENVALENS_BACKUP_DAILY_RETAIN:-14}
+  OPENVALENS_BACKUP_HOUR: ${OPENVALENS_BACKUP_HOUR:-3}
+  STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+x-backup-tool-volume: &backup-tool-volume ./backup/openvalens-backup.sh:/opt/openvalens/openvalens-backup.sh:ro
+x-backup-secrets-volume: &backup-secrets-volume ./secrets/postgres:/run/secrets:ro
+x-backup-key-volume: &backup-key-volume ./secrets/backup:/run/backup-secrets:ro
+
 services:
   caddy:
     <<: *hardening
@@ -186,8 +208,8 @@ services:
     environment: *server-env
     volumes:
       - ./secrets/server:/run/secrets:ro
-      # Stored objects (photos, lab PDFs, exports). Back it up together with the
-      # database: see docs/storage.md.
+      # Stored objects (photos, lab PDFs, exports). Every backup archives it
+      # with the database (docs/self-hosting/backup.md).
       - storage:/var/lib/openvalens/storage
     networks:
       - app
@@ -227,30 +249,76 @@ services:
     restart: "no"
 
   # One-shot: the pluggable pre-migrate backup hook (see pre-migrate-backup.sh).
-  # Default: a plain, UNENCRYPTED pg_dump into the `backups` volume. Encrypted
-  # backup/restore is pending Issue #64.
+  # Default: an encrypted, verified backup of the database and the stored files
+  # into the `backups` volume (Issue #64, deploy/backup/openvalens-backup.sh).
   backup:
     <<: *hardening
-    image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+    # Built from deploy/backup/Dockerfile: the pinned Postgres image (same as
+    # `postgres` below) plus age and jq from the Debian archive.
+    image: openvalens-backup:${OPENVALENS_VERSION:?run deploy/setup.sh first}
+    build:
+      context: ./backup
     entrypoint: ["/bin/sh", "/opt/openvalens/pre-migrate-backup.sh"]
     environment:
-      PGHOST: postgres
-      PGUSER: postgres
-      PGDATABASE: openvalens
-      POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+      <<: *backup-env
       OPENVALENS_PRE_MIGRATE_BACKUP: ${OPENVALENS_PRE_MIGRATE_BACKUP:-pg_dump}
-      OPENVALENS_BACKUP_RETAIN: ${OPENVALENS_BACKUP_RETAIN:-10}
       OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP: ${OPENVALENS_ALLOW_MIGRATE_WITHOUT_BACKUP:-}
     volumes:
       - ./pre-migrate-backup.sh:/opt/openvalens/pre-migrate-backup.sh:ro
       - ./hooks:/opt/openvalens/hooks:ro
-      - ./secrets/postgres:/run/secrets:ro
+      - *backup-tool-volume
+      - *backup-secrets-volume
+      - *backup-key-volume
       - backups:/backups
+      - storage:/storage:ro
     networks:
       - db
     depends_on:
       postgres:
         condition: service_healthy
+    restart: "no"
+
+  # Daily encrypted backup + full verify (Issue #64). Sleeps until
+  # OPENVALENS_BACKUP_HOUR (UTC), takes a backup, verifies it by restoring it
+  # into a scratch database, and prunes to OPENVALENS_BACKUP_DAILY_RETAIN. When
+  # the newest backup is more than a day old it takes one right away. Results
+  # go to the `backup_run` table: readiness and /admin/settings show them.
+  backup-scheduler:
+    <<: *hardening
+    image: openvalens-backup:${OPENVALENS_VERSION:?run deploy/setup.sh first}
+    init: true
+    entrypoint: ["/bin/bash", "/opt/openvalens/openvalens-backup.sh"]
+    command: ["schedule"]
+    environment: *backup-env
+    volumes:
+      - *backup-tool-volume
+      - *backup-secrets-volume
+      - *backup-key-volume
+      - backups:/backups
+      - storage:/storage:ro
+    networks:
+      - db
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Operator tooling for `deploy/setup.sh backup ...` and `restore`; never
+  # started by `up`. The only backup service that may write to `storage`.
+  backup-tools:
+    <<: *hardening
+    image: openvalens-backup:${OPENVALENS_VERSION:?run deploy/setup.sh first}
+    profiles: ["tools"]
+    entrypoint: ["/bin/bash", "/opt/openvalens/openvalens-backup.sh"]
+    environment: *backup-env
+    volumes:
+      - *backup-tool-volume
+      - *backup-secrets-volume
+      - *backup-key-volume
+      - backups:/backups
+      - storage:/storage
+    networks:
+      - db
     restart: "no"
 
   postgres:

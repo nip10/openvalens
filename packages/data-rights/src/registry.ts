@@ -211,6 +211,18 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
       "Erasure records (ids and row counts only) that must outlive deleted data so restores can be re-erased.",
   },
 
+  // Backups (#64): written by the self-host backup service, read by readiness
+  // and the admin panel.
+  backup_run: {
+    kind: "system",
+    reason:
+      "Backup, verify and restore run log (backup id, size, times, value-free failure step); no personal data.",
+  },
+  backup_schedule: {
+    kind: "system",
+    reason: "Instance-wide singleton with the next planned backup time; no personal data.",
+  },
+
   // Instance admission (#63)
   instance_admission: {
     kind: "system",

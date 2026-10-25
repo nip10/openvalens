@@ -11,11 +11,12 @@
 #
 #   1. install   start <from> on an empty database, verify readiness, record the
 #                applied migrations and write a synthetic marker row.
-#   2. upgrade   stop the app, start <to>: the gated chain takes the pre-migrate
-#                pg_dump, applies the new migrations and starts the server.
-#                Verify readiness and write a second synthetic marker.
-#   3. rollback  stop the app, keep the upgraded database under a new name,
-#                restore the pre-migrate dump into a fresh database, start
+#   2. upgrade   stop the app, start <to>: the gated chain takes the encrypted
+#                pre-migrate backup, applies the new migrations and starts the
+#                server. Verify readiness and write a second synthetic marker.
+#   3. rollback  `deploy/setup.sh restore <pre-migrate backup> --no-build` with
+#                <from>'s images: verify the backup, keep the upgraded database
+#                under a new name, restore, re-apply the erasure ledger, start
 #                <from> again and verify readiness, the migration count and the
 #                markers (the pre-upgrade marker is back; the post-upgrade write
 #                is gone, which is the expected cost of a restore rollback).
@@ -29,6 +30,9 @@
 # EMAIL_DRY_RUN=true with no Resend, Anthropic or Telegram key, so no provider
 # is ever called. Images are built locally from `git archive <ref>` and tagged
 # `openvalens-{server,web}:rehearsal-<sha>`; nothing is pushed or tagged in git.
+# The backup image and deploy/ scripts are this checkout's. Both refs must
+# include encrypted backups (Issue #64): the restore runs <from>'s
+# scripts/erasure-replay.ts.
 #
 # This is NOT a production procedure and needs no deploy authorization. It
 # refuses a remote Docker daemon. Requires: git, docker (Compose v2), bun.
@@ -131,7 +135,8 @@ teardown() {
     log "removed project $PROJECT (containers, networks, volumes) and temp state"
     if [ "$KEEP_IMAGES" -eq 0 ]; then
       docker image rm "openvalens-server:$FROM_TAG" "openvalens-web:$FROM_TAG" \
-        "openvalens-server:$TO_TAG" "openvalens-web:$TO_TAG" >/dev/null 2>&1 || true
+        "openvalens-server:$TO_TAG" "openvalens-web:$TO_TAG" \
+        "openvalens-backup:$FROM_TAG" "openvalens-backup:$TO_TAG" >/dev/null 2>&1 || true
       log "removed rehearsal image tags"
     fi
   fi
@@ -149,8 +154,9 @@ log "docker $(docker version --format '{{.Server.Version}}') context $(docker co
 
 mkdir -p "$STATE"
 cp "$REPO_DIR/deploy/compose.yml" "$REPO_DIR/deploy/Caddyfile" \
-  "$REPO_DIR/deploy/pre-migrate-backup.sh" "$STATE/"
-mkdir -p "$STATE/hooks"
+  "$REPO_DIR/deploy/pre-migrate-backup.sh" "$REPO_DIR/deploy/setup.sh" "$STATE/"
+mkdir -p "$STATE/hooks" "$STATE/backup"
+cp "$REPO_DIR/deploy/backup/Dockerfile" "$REPO_DIR/deploy/backup/openvalens-backup.sh" "$STATE/backup/"
 # Images are pre-built per ref below, so compose must never build or pull them.
 cat >"$STATE/compose.rehearsal.yml" <<'EOF'
 services:
@@ -162,6 +168,13 @@ services:
     pull_policy: never
   migrate:
     pull_policy: never
+  backup:
+    build: !reset null
+    pull_policy: never
+  backup-scheduler:
+    pull_policy: never
+  backup-tools:
+    pull_policy: never
 EOF
 
 random_hex() { od -An -tx1 -N32 /dev/urandom | tr -d ' \n'; }
@@ -170,7 +183,7 @@ write_secret() {
   chmod 0444 "$1/$2"
 }
 install -d -m 0700 "$STATE/secrets"
-install -d -m 0755 "$STATE/secrets/server" "$STATE/secrets/postgres"
+install -d -m 0755 "$STATE/secrets/server" "$STATE/secrets/postgres" "$STATE/secrets/backup"
 pg_password="$(random_hex)"
 write_secret "$STATE/secrets/postgres" POSTGRES_PASSWORD "$pg_password"
 write_secret "$STATE/secrets/server" DATABASE_URL "postgresql://postgres:$pg_password@postgres:5432/openvalens"
@@ -192,6 +205,8 @@ OPENVALENS_HTTPS_PORT=127.0.0.1:$HTTPS_PORT
 OPENVALENS_VERSION=$1
 OPENVALENS_PRE_MIGRATE_BACKUP=pg_dump
 OPENVALENS_BACKUP_RETAIN=10
+OPENVALENS_BACKUP_DAILY_RETAIN=14
+OPENVALENS_BACKUP_HOUR=3
 EOF
   )
 }
@@ -221,9 +236,22 @@ build_ref() {
   rm -rf "$src"
 }
 
+# The backup image (pinned Postgres + age) is this checkout's, tagged per ref
+# so OPENVALENS_VERSION names it for either release.
+build_backup_image() {
+  docker build --quiet --tag "openvalens-backup:$1" --label com.openvalens.rehearsal=1 \
+    "$STATE/backup" >/dev/null
+}
+
 step "build release artifacts (local only, never pushed)"
 build_ref "$FROM_SHA" "$FROM_TAG"
 build_ref "$TO_SHA" "$TO_TAG"
+build_backup_image "$FROM_TAG"
+build_backup_image "$TO_TAG"
+# Throwaway backup key, generated like setup.sh does; never printed.
+docker run --rm --entrypoint age-keygen "openvalens-backup:$FROM_TAG" \
+  >"$STATE/secrets/backup/age-identity" 2>/dev/null
+chmod 0444 "$STATE/secrets/backup/age-identity"
 for tag in "$FROM_TAG" "$TO_TAG"; do
   for app in server web; do
     log "image openvalens-$app:$tag $(docker image inspect --format '{{.Id}}' "openvalens-$app:$tag")"
@@ -293,29 +321,22 @@ log "applied migrations: $TO_MIGRATIONS (was $FROM_MIGRATIONS)"
 [ "$TO_IMAGE" != "$FROM_IMAGE" ] || die "the candidate image is not running"
 sql "insert into rehearsal.marker (label) values ('after-upgrade')"
 log "synthetic marker written: after-upgrade (simulates a write made after the upgrade)"
-DUMP="$(compose run --rm --no-deps -T --entrypoint sh backup -c 'ls -1 /backups/pre-migrate-*.dump | tail -n 1' 2>/dev/null | tr -d '\r')"
-[ -n "$DUMP" ] || die "no pre-migrate dump was taken during the upgrade"
-log "pre-migrate dump taken by the upgrade: $(basename "$DUMP")"
+BACKUP_ID="$(compose run --rm --no-deps -T backup-tools list 2>/dev/null | cut -f1 | grep -- '-pre-migrate$' | tail -n 1 | tr -d '\r')"
+[ -n "$BACKUP_ID" ] || die "no pre-migrate backup was taken during the upgrade"
+log "encrypted pre-migrate backup taken by the upgrade: $BACKUP_ID"
 
 # --- 3. roll back ------------------------------------------------------------
 
-step "3. ROLLBACK to $FROM_TAG: stop app, keep upgraded DB, restore pre-migrate dump"
-compose stop caddy web server >/dev/null 2>&1
-log "app stopped (caddy, web, server); postgres keeps running"
-KEPT_DB="openvalens_failed_$RUN_ID"
-sql "select count(pg_terminate_backend(pid)) from pg_stat_activity where datname = 'openvalens' and pid <> pg_backend_pid()" postgres >/dev/null
-sql "alter database openvalens rename to $KEPT_DB" postgres
-sql "create database openvalens" postgres
-log "upgraded database kept as $KEPT_DB for forensics; fresh empty openvalens created"
-if ! restore_output="$(compose run --rm --no-deps -T --entrypoint sh backup -c \
-  'PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")" pg_restore --exit-on-error --no-password -d openvalens "$1"' \
-  restore "$DUMP" 2>&1)"; then
-  printf '%s\n' "$restore_output" | grep -v '^ Container ' | tail -n 20
-  die "pg_restore failed; the upgraded database is still available as $KEPT_DB"
-fi
-log "restored $(basename "$DUMP") into openvalens"
-log "restored migrations: $(migration_count) (expected $FROM_MIGRATIONS)"
+step "3. ROLLBACK to $FROM_TAG: deploy/setup.sh restore $BACKUP_ID (keeps the upgraded DB)"
 set_version "$FROM_TAG"
+if ! restore_output="$(COMPOSE_PROJECT_NAME="$PROJECT" bash "$STATE/setup.sh" restore "$BACKUP_ID" \
+  --non-interactive --force --no-build 2>&1)"; then
+  printf '%s\n' "$restore_output" | grep -v -E '^ ?(Container|Network|Volume) ' | tail -n 20
+  die "the restore failed; the upgraded database is kept (see the messages above)"
+fi
+printf '%s\n' "$restore_output" | grep -E '^(setup|openvalens-backup): |^Erasure ledger' | sed 's/^/  /'
+KEPT_DB="$(sql "select datname from pg_database where datname like 'openvalens_pre_restore_%' order by 1 desc limit 1" postgres)"
+log "upgraded database kept as $KEPT_DB for forensics"
 start_chain
 verify
 ROLLBACK_IMAGE="$(running_image)"

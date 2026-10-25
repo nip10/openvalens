@@ -148,6 +148,27 @@ msgstr "{0} · {1, plural, one {# leitura} other {# leituras}}"
 msgid "{0} · status: {1}"
 msgstr "{0} · estado: {1}"
 
+#. placeholder {0}: when(backups.lastBackup.at)
+#. placeholder {1}: trigger(backups.lastBackup.trigger)
+#. placeholder {2}: bytes(backups.lastBackup.sizeBytes)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "{0} ({1}, {2} encrypted)"
+msgstr "{0} ({1}, {2} encriptados)"
+
+#. placeholder {0}: operation(backups.lastFailure.operation)
+#. placeholder {1}: trigger(backups.lastFailure.trigger)
+#. placeholder {2}: backups.lastFailure.step ?? "-"
+#. placeholder {3}: when(backups.lastFailure.at)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "{0} ({1}) at step \"{2}\", {3}"
+msgstr "{0} ({1}) no passo \"{2}\", {3}"
+
+#. placeholder {0}: when(backups.schedule.nextRunAt)
+#. placeholder {1}: backups.schedule.dailyRetain
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "{0} (keeping {1} daily backups)"
+msgstr "{0} (a manter {1} cópias diárias)"
+
 #. placeholder {0}: result.name
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1525,6 +1546,26 @@ msgstr "Sincronização em segundo plano"
 msgid "Background tasks are restricted for this app."
 msgstr "As tarefas em segundo plano estão restritas para esta aplicação."
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Backup"
+msgstr "Cópia de segurança"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Backups"
+msgstr "Cópias de segurança"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Backups are encrypted with the key in deploy/secrets/backup/age-identity on the server. Keep a copy of that file somewhere else: without it no backup can be restored."
+msgstr "As cópias de segurança são encriptadas com a chave em deploy/secrets/backup/age-identity no servidor. Guarde uma cópia desse ficheiro noutro local: sem ela, nenhuma cópia de segurança pode ser restaurada."
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Backups failing"
+msgstr "Cópias de segurança a falhar"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Backups healthy"
+msgstr "Cópias de segurança em dia"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Balanced"
 msgstr "Equilibrado"
@@ -1578,6 +1619,10 @@ msgstr "Com base em {recentDays} dos últimos {recentWindowDays} dias, em compar
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Bedtime → wake"
 msgstr "Deitar → acordar"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "before an upgrade"
+msgstr "antes de uma atualização"
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "Below the WHO range of 150–300 minutes a week."
@@ -2595,6 +2640,10 @@ msgstr "Não foi possível carregar os suplementos."
 msgid "Could not load Telegram status."
 msgstr "Não foi possível carregar o estado do Telegram."
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Could not load the backup status."
+msgstr "Não foi possível carregar o estado das cópias de segurança."
+
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Could not load the estimate. Try again."
 msgstr "Não foi possível carregar a estimativa. Tente novamente."
@@ -2977,6 +3026,10 @@ msgstr "O registo do ciclo é opcional e separado de tudo o resto. Os seus dados
 #: packages/api/src/presenters/workouts.ts
 msgid "Cycling"
 msgstr "Ciclismo"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "daily"
+msgstr "diária"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -3878,6 +3931,11 @@ msgstr "Expira {0}."
 #: apps/web/src/components/sync-status-badge.tsx
 msgid "Failed ({pending})"
 msgstr "Falhou ({pending})"
+
+#. placeholder {0}: when(backups.lastVerify.at)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Failed {0}"
+msgstr "Falhou {0}"
 
 #: apps/web/src/routes/_auth/clinical.tsx
 #: packages/api/src/presenters/clinical-export.ts
@@ -4916,6 +4974,10 @@ msgstr "Últimos 7 dias: {start} – {end}"
 msgid "Last 90 days"
 msgstr "Últimos 90 dias"
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Last backup"
+msgstr "Última cópia de segurança"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Last done"
 msgstr "Feito pela última vez"
@@ -4923,6 +4985,10 @@ msgstr "Feito pela última vez"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Last done: {date}"
 msgstr "Feito pela última vez: {date}"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Last failure"
+msgstr "Última falha"
 
 #: apps/native/app/(drawer)/records/sleep.tsx
 msgid "Last night"
@@ -4953,6 +5019,10 @@ msgstr "Última sincronização: {0}"
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Last synced {lastSynced}"
 msgstr "Última sincronização: {lastSynced}"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Last verify"
+msgstr "Última verificação"
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Later"
@@ -5347,6 +5417,10 @@ msgstr "Masculino"
 msgid "Manage my foods"
 msgstr "Gerir os meus alimentos"
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "manual"
+msgstr "manual"
+
 #: packages/api/src/presenters/body.ts
 msgctxt "weight source"
 msgid "Manual"
@@ -5735,6 +5809,10 @@ msgstr "Próxima data que definiu: {date} (lembrete ativado)"
 msgid "Next day"
 msgstr "Dia seguinte"
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Next scheduled backup"
+msgstr "Próxima cópia de segurança agendada"
+
 #. placeholder {0}: i18n._(SECTION_TITLES[next])
 #. placeholder {0}: i18n._(SECTION_TITLES[resume])
 #: apps/native/app/(drawer)/profile.tsx
@@ -5772,6 +5850,10 @@ msgstr "Sem atividade registada"
 #: apps/web/src/routes/_auth/records/activity.tsx
 msgid "No activity yet"
 msgstr "Ainda sem atividade"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "No backup has been reported. The self-host stack backs up daily and before every upgrade; see docs/self-hosting/backup.md."
+msgstr "Nenhuma cópia de segurança foi comunicada. A instalação própria faz cópias diárias e antes de cada atualização; consulte docs/self-hosting/backup.md."
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
@@ -6002,6 +6084,10 @@ msgstr "Ainda sem leituras"
 msgid "No readings yet"
 msgstr "Ainda sem leituras"
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "No recent backup"
+msgstr "Sem cópia de segurança recente"
+
 #: packages/api/src/presenters/score.ts
 msgid "No recent data"
 msgstr "Sem dados recentes"
@@ -6107,6 +6193,7 @@ msgid "No, I'm under 18"
 msgstr "Não, tenho menos de 18 anos"
 
 #: apps/native/app/(drawer)/nutrition-targets.tsx
+#: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "None"
 msgstr "Nenhum"
@@ -6123,6 +6210,10 @@ msgstr "Nenhuma das sessões dos últimos 7 dias tem intensidade e duração, po
 #: packages/api/src/presenters/score.ts
 msgid "None of your goals has a numeric target, current value and direction yet, so no number is shown. A focus area alone does not produce a number."
 msgstr "Nenhum dos seus objetivos tem ainda um alvo numérico, um valor atual e uma direção, por isso não é mostrado nenhum número. Uma área de foco por si só não produz um número."
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "None yet"
+msgstr "Ainda nenhuma"
 
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
@@ -6246,6 +6337,10 @@ msgstr "Não registado"
 msgid "Not recorded by OpenValens yet"
 msgstr "Ainda não registado pela OpenValens"
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Not reported"
+msgstr "Não comunicado"
+
 #: packages/api/src/presenters/body-map.ts
 msgid "Not reported by this scan"
 msgstr "Não reportado por este exame"
@@ -6262,6 +6357,10 @@ msgstr "Não guardado. Descarte o rascunho para o limpar; ao recarregar pode per
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Not saved. Try again."
 msgstr "Não guardado. Tente novamente."
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Not scheduled"
+msgstr "Não agendada"
 
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
@@ -6811,6 +6910,11 @@ msgstr "Página não encontrada"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Parsing again will replace your edited review. Continue?"
 msgstr "Analisar novamente substitui a revisão que editou. Continuar?"
+
+#. placeholder {0}: when(backups.lastVerify.at)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Passed {0}"
+msgstr "Aprovada {0}"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -7594,6 +7698,7 @@ msgstr "Repor"
 msgid "Resting heart rate"
 msgstr "Frequência cardíaca em repouso"
 
+#: apps/web/src/components/admin-backup-status.tsx
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Restore"
 msgstr "Restaurar"
@@ -7633,6 +7738,7 @@ msgstr "Restaurar registo"
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
@@ -9043,6 +9149,10 @@ msgstr "Essa hora não existe nesta data no seu fuso horário. Escolha outra hor
 msgid "The AI provider is not set up on this server. Use the on-server draft instead."
 msgstr "O fornecedor de IA não está configurado neste servidor. Use o rascunho feito no servidor."
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "The backup status could not be read."
+msgstr "Não foi possível ler o estado das cópias de segurança."
+
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The camera could not start. Type the barcode digits instead."
 msgstr "Não foi possível iniciar a câmara. Escreva os dígitos do código de barras."
@@ -9869,6 +9979,7 @@ msgid "unknown"
 msgstr "desconhecido"
 
 #: apps/native/components/recipe-draft-editor.tsx
+#: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Unknown"
@@ -10084,6 +10195,10 @@ msgstr "Termos do fornecedor"
 #: apps/web/src/components/admission-form.tsx
 msgid "Verification code"
 msgstr "Código de verificação"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Verify"
+msgstr "Verificação"
 
 #: apps/server/src/admission-email.ts
 msgid "Verify your email for OpenValens"
