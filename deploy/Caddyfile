@@ -1,12 +1,13 @@
 # OpenValens edge proxy (Issue #63). Caddy is the only published service and
-# obtains/renews TLS certificates automatically for OPENVALENS_DOMAIN.
+# obtains/renews TLS certificates automatically for OPENVALENS_DOMAIN, unless
+# OPENVALENS_SITE_SCHEME=http says a proxy in front already terminates TLS.
 # Web and API share one origin: API paths go to `server`, everything else to
 # the static `web` app. Values come from deploy/.env (written by setup.sh).
 {
 	email {$ACME_EMAIL}
 }
 
-{$OPENVALENS_DOMAIN} {
+{$OPENVALENS_SITE_SCHEME:https}://{$OPENVALENS_DOMAIN} {
 	encode zstd gzip
 
 	header Strict-Transport-Security "max-age=31536000"
