@@ -330,8 +330,9 @@ describe.skipIf(!url)("plainWater authenticated HTTP/PG API", () => {
         (entry) => entry.quantityMl === null,
       ),
     ).toBe(true);
-    expect(JSON.stringify(hiddenDay.body)).not.toContain("999");
-    expect(JSON.stringify(hiddenDay.body)).not.toContain("1400");
+    // Match the value as a JSON number so a timestamp ending in .999Z cannot trip it.
+    expect(JSON.stringify(hiddenDay.body)).not.toMatch(/:999[,}]/);
+    expect(JSON.stringify(hiddenDay.body)).not.toMatch(/:1400[,}]/);
     expect(
       await call("add", {
         quantity: 999,

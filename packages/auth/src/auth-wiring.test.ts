@@ -124,7 +124,7 @@ describe("createAuth email wiring", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.input.to).toBe("user@example.com");
-    expect(calls[0]?.input.subject).toBe("Sign in to Health");
+    expect(calls[0]?.input.subject).toBe("Sign in to OpenValens");
     expect(calls[0]?.input.tags).toEqual(["magic-link"]);
     expect(calls[0]?.options?.correlationId).toBe("corr-1");
     expect(calls[0]?.input.html).toContain(url);
@@ -209,9 +209,9 @@ describe("createAuth email language (Issue #231)", () => {
     await sendMagicLink(auth, "nobody@example.com");
 
     expect(calls.map((call) => call.input.subject)).toEqual([
-      "Iniciar sessão em Health",
-      "Sign in to Health",
-      "Sign in to Health",
+      "Iniciar sessão em OpenValens",
+      "Sign in to OpenValens",
+      "Sign in to OpenValens",
     ]);
     expect(calls[0]?.input.text).toContain("Por segurança, esta ligação expira");
     expect(calls[1]?.input.text).toContain("For your security, this link expires");
@@ -227,7 +227,7 @@ describe("createAuth email language (Issue #231)", () => {
     });
 
     await sendMagicLink(auth, "user@example.com");
-    expect(calls[0]?.input.subject).toBe("Sign in to Health");
+    expect(calls[0]?.input.subject).toBe("Sign in to OpenValens");
   });
 
   test("a workspace invitation uses the recipient's language", async () => {
@@ -242,7 +242,7 @@ describe("createAuth email language (Issue #231)", () => {
       inviter: { user: { id: "inviter-1", name: "Dr. Who", email: "inviter@example.com" } },
     });
 
-    expect(calls[0]?.input.subject).toBe("Dr. Who convidou-o para Acme Health em Health");
+    expect(calls[0]?.input.subject).toBe("Dr. Who convidou-o para Acme Health em OpenValens");
     expect(calls[0]?.input.html).toContain("Este convite expira dentro de 2 dias.");
     expect(calls[0]?.input.html).toContain("http://localhost:3000/accept-invitation/inv-1");
   });
@@ -255,7 +255,7 @@ describe("createAuth email language (Issue #231)", () => {
       ...INVITATION_ARGS,
       inviter: { user: { id: "inviter-1", name: "Dr. Who", email: "inviter@example.com" } },
     });
-    expect(calls[0]?.input.subject).toBe("Dr. Who convidou-o para Acme Health em Health");
+    expect(calls[0]?.input.subject).toBe("Dr. Who convidou-o para Acme Health em OpenValens");
   });
 
   test("a recipient with an English account gets English even from a pt-PT inviter", async () => {
@@ -269,7 +269,7 @@ describe("createAuth email language (Issue #231)", () => {
       ...INVITATION_ARGS,
       inviter: { user: { id: "inviter-1", name: "Dr. Who", email: "inviter@example.com" } },
     });
-    expect(calls[0]?.input.subject).toBe("Dr. Who invited you to Acme Health on Health");
+    expect(calls[0]?.input.subject).toBe("Dr. Who invited you to Acme Health on OpenValens");
   });
 });
 
