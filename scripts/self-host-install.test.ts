@@ -461,6 +461,7 @@ case " $* " in
   *" admission.sh mint "*) echo fake-setup-token ;;
   *" --entrypoint age-keygen "*) echo AGE-SECRET-KEY-1FAKESYNTHETICKEYFORTESTS ;;
   *" backup-tools import "*) cat >/dev/null ;;
+  *" backup-tools verify-key "*) cat >"${root}/verify-key.stdin" ;;
   *" backup-tools has-backups"*) exit \${FAKE_HAS_BACKUPS:-1} ;;
 esac
 exit 0
@@ -627,13 +628,175 @@ describe("deploy/setup.sh install re-runs (Issue #63)", () => {
       expect(box.run(install).exitCode).toBe(0);
       expect(valuesOf(box.readEnv(), "OPENVALENS_SITE_SCHEME")).toEqual(["https"]);
 
-      expect(box.run(install, { OPENVALENS_SITE_SCHEME: "http" }).exitCode).toBe(0);
+      const http = { OPENVALENS_SITE_SCHEME: "http", OPENVALENS_HTTPS_PORT: "127.0.0.1:8443" };
+      expect(box.run(install, http).exitCode).toBe(0);
       expect(box.run(install).exitCode).toBe(0);
       expect(valuesOf(box.readEnv(), "OPENVALENS_SITE_SCHEME")).toEqual(["http"]);
 
       const bad = box.run(install, { OPENVALENS_SITE_SCHEME: "ftp" });
       expect(bad.exitCode).not.toBe(0);
       expect(bad.output).toContain("OPENVALENS_SITE_SCHEME must be https (default) or http");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("persists OPENVALENS_HTTP_PORT and OPENVALENS_HTTPS_PORT from the environment (#4)", () => {
+    const box = installSandbox();
+    try {
+      const ports = {
+        OPENVALENS_HTTP_PORT: "10.0.0.1:18080",
+        OPENVALENS_HTTPS_PORT: "127.0.0.1:18443",
+      };
+      expect(box.run(install, ports).exitCode).toBe(0);
+      const env = box.readEnv();
+      expect(valuesOf(env, "OPENVALENS_HTTP_PORT")).toEqual(["10.0.0.1:18080"]);
+      expect(valuesOf(env, "OPENVALENS_HTTPS_PORT")).toEqual(["127.0.0.1:18443"]);
+      // Managed keys: above the marker, kept by a re-run and by upgrade.
+      expect(env.split(MARKER)[0]).toContain("OPENVALENS_HTTP_PORT=10.0.0.1:18080");
+      expect(box.run(install).exitCode).toBe(0);
+      expect(box.run(["upgrade"]).exitCode).toBe(0);
+      expect(valuesOf(box.readEnv(), "OPENVALENS_HTTP_PORT")).toEqual(["10.0.0.1:18080"]);
+      expect(valuesOf(box.readEnv(), "OPENVALENS_HTTPS_PORT")).toEqual(["127.0.0.1:18443"]);
+
+      // A key added below the marker before the first install (the drill's
+      // workaround) is kept too, and moves into the managed section.
+      const pre = installSandbox();
+      try {
+        writeFileSync(pre.envFile, `${MARKER}\nOPENVALENS_HTTP_PORT=127.0.0.1:8080\n`);
+        expect(pre.run(install).exitCode).toBe(0);
+        expect(valuesOf(pre.readEnv(), "OPENVALENS_HTTP_PORT")).toEqual(["127.0.0.1:8080"]);
+        expect(valuesOf(pre.readEnv(), "OPENVALENS_HTTPS_PORT")).toEqual(["443"]);
+      } finally {
+        pre.cleanup();
+      }
+
+      const bad = box.run(install, { OPENVALENS_HTTP_PORT: "localhost:s3cr3t" });
+      expect(bad.exitCode).not.toBe(0);
+      expect(bad.output).toContain("OPENVALENS_HTTP_PORT must be <port> or <IP>:<port>");
+      expect(bad.output).not.toContain("s3cr3t");
+      expect(valuesOf(box.readEnv(), "OPENVALENS_HTTP_PORT")).toEqual(["10.0.0.1:18080"]);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("http mode refuses to publish the HTTPS port on every interface (#2)", () => {
+    const box = installSandbox();
+    try {
+      const refused = box.run(install, { OPENVALENS_SITE_SCHEME: "http" });
+      expect(refused.exitCode).toBe(1);
+      expect(refused.output).toContain("OPENVALENS_HTTPS_PORT=127.0.0.1:<free port>");
+      expect(readFileSync(join(box.dir, "..", "docker.log"), "utf8")).not.toContain(" up -d");
+
+      const all = box.run(install, {
+        OPENVALENS_SITE_SCHEME: "http",
+        OPENVALENS_HTTPS_PORT: "0.0.0.0:8443",
+      });
+      expect(all.exitCode).toBe(1);
+
+      // Bound to loopback it starts, with a warning about the HTTP port.
+      const ok = box.run(install, {
+        OPENVALENS_SITE_SCHEME: "http",
+        OPENVALENS_HTTPS_PORT: "127.0.0.1:8443",
+      });
+      expect({ exitCode: ok.exitCode, output: ok.output }).toMatchObject({ exitCode: 0 });
+      expect(ok.output).toContain("bypasses the proxy");
+      // https mode keeps the default ports without complaint.
+      const https = installSandbox();
+      try {
+        const result = https.run(install);
+        expect(result.exitCode).toBe(0);
+        expect(result.output).not.toContain("bypasses the proxy");
+      } finally {
+        https.cleanup();
+      }
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("a dry run prints the resolved published port bindings (#5)", () => {
+    const box = installSandbox();
+    try {
+      const result = box.run([...install, "--dry-run"], {
+        OPENVALENS_SITE_SCHEME: "http",
+        OPENVALENS_HTTP_PORT: "10.0.0.1:18080",
+        OPENVALENS_HTTPS_PORT: "127.0.0.1:18443",
+      });
+      expect({ exitCode: result.exitCode, output: result.output }).toMatchObject({ exitCode: 0 });
+      expect(result.output).toContain(
+        "caddy publishes HTTP on 10.0.0.1:18080 (to :80/tcp) and HTTPS on 127.0.0.1:18443 (to :443/tcp+udp)",
+      );
+      expect(existsSync(box.envFile)).toBe(false);
+      const plain = box.run([...install, "--dry-run"]);
+      expect(plain.output).toContain(
+        "caddy publishes HTTP on port 80 on all interfaces (to :80/tcp) and HTTPS on port 443 on all interfaces",
+      );
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("upgrade adds the managed keys deploy/.env lacks, and changes nothing else (#11)", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      // A deploy/.env from before the backup settings existed, with an
+      // operator section.
+      const old = box
+        .readEnv()
+        .split("\n")
+        .filter(
+          (line) =>
+            !/^(OPENVALENS_BACKUP_(SCHEDULE|HOUR|DAILY_RETAIN|HOST_ID)|OPENVALENS_HTTPS?_PORT|POSTHOG_PROJECT_TOKEN_FILE)=/.test(
+              line,
+            ),
+        )
+        .join("\n")
+        .replace(/^OPENVALENS_BACKUP_RETAIN=.*$/m, "OPENVALENS_BACKUP_RETAIN=3");
+      const operator = "CSP_MODE=report-only\n# my note\nOPENVALENS_HTTP_PORT=127.0.0.1:8080\n";
+      writeFileSync(box.envFile, `${old}${operator}`);
+
+      const preview = box.run(["upgrade", "--dry-run"]);
+      expect(preview.exitCode).toBe(0);
+      expect(preview.output).toContain("[dry-run] would add to deploy/.env");
+      expect(box.readEnv()).toBe(`${old}${operator}`);
+
+      const result = box.run(["upgrade"]);
+      expect({ exitCode: result.exitCode, output: result.output }).toMatchObject({ exitCode: 0 });
+      const added = /added to deploy\/\.env, with their defaults: (.*)/.exec(result.output)?.[1];
+      expect(added?.split(" ").sort()).toEqual(
+        [
+          "OPENVALENS_BACKUP_DAILY_RETAIN",
+          "OPENVALENS_BACKUP_HOST_ID",
+          "OPENVALENS_BACKUP_HOUR",
+          "OPENVALENS_BACKUP_SCHEDULE",
+          "OPENVALENS_HTTPS_PORT",
+          "POSTHOG_PROJECT_TOKEN_FILE",
+        ].sort(),
+      );
+      const env = box.readEnv();
+      expect(valuesOf(env, "OPENVALENS_BACKUP_SCHEDULE")).toEqual(["on"]);
+      expect(valuesOf(env, "OPENVALENS_BACKUP_HOUR")).toEqual(["3"]);
+      expect(valuesOf(env, "OPENVALENS_BACKUP_DAILY_RETAIN")).toEqual(["14"]);
+      expect(valuesOf(env, "OPENVALENS_BACKUP_HOST_ID")[0]).toMatch(/^[0-9a-f]{16}$/);
+      expect(valuesOf(env, "OPENVALENS_HTTPS_PORT")).toEqual(["443"]);
+      // Existing values and the operator section are untouched; the operator's
+      // OPENVALENS_HTTP_PORT counts as present.
+      expect(valuesOf(env, "OPENVALENS_BACKUP_RETAIN")).toEqual(["3"]);
+      expect(valuesOf(env, "OPENVALENS_HTTP_PORT")).toEqual(["127.0.0.1:8080"]);
+      expect(env.split(`${MARKER}\n`)[1]).toBe(operator);
+      expect(statSync(box.envFile).mode & 0o777).toBe(0o600);
+
+      // Nothing left to add: a second upgrade leaves the file as it is
+      // (apart from OPENVALENS_VERSION) and says nothing about added keys.
+      const again = box.run(["upgrade"]);
+      expect(again.exitCode).toBe(0);
+      expect(again.output).not.toContain("added to deploy/.env");
+      expect(valuesOf(box.readEnv(), "OPENVALENS_BACKUP_HOST_ID")).toEqual(
+        valuesOf(env, "OPENVALENS_BACKUP_HOST_ID"),
+      );
     } finally {
       box.cleanup();
     }
@@ -1045,6 +1208,43 @@ describe("deploy/setup.sh backup and restore (Issue #64)", () => {
     }
   }, 30_000);
 
+  test("backup verify --key-file checks an escrowed key on stdin, never printed (#14)", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      const escrow = join(box.dir, "..", "escrow-age-identity");
+      const value = "AGE-SECRET-KEY-1ESCROWEDSYNTHETICKEYFORTESTS\n";
+      writeFileSync(escrow, value, { mode: 0o400 });
+      writeFileSync(join(box.dir, "..", "docker.log"), "");
+
+      const result = box.run(["backup", "verify", ID, "--key-file", escrow]);
+      expect({ exitCode: result.exitCode, output: result.output }).toMatchObject({ exitCode: 0 });
+      expect(result.output).toContain("the key file decrypts the backup");
+      const log = dockerLog(box);
+      expect(log).toContain(`backup-tools verify-key ${ID}`);
+      // The key reaches the tool on stdin only: not as an argument, a mount or output.
+      expect(readFileSync(join(box.dir, "..", "verify-key.stdin"), "utf8")).toBe(value);
+      for (const text of [log, result.output]) {
+        expect(text).not.toContain("ESCROWEDSYNTHETIC");
+        expect(text).not.toContain(escrow);
+      }
+      // Not a recorded verify, and no live key needed (it may be the one to put back).
+      expect(log).not.toContain("backup-tools verify ");
+      rmSync(join(box.dir, "secrets", "backup", "age-identity"));
+      expect(box.run(["backup", "verify", "--key-file", escrow]).exitCode).toBe(0);
+      expect(dockerLog(box)).toContain("backup-tools verify-key latest");
+
+      const missing = box.run(["backup", "verify", "--key-file", join(box.dir, "nope")]);
+      expect(missing.exitCode).toBe(1);
+      expect(missing.output).toContain("--key-file is not a readable file");
+      expect(box.run(["backup", "list", "--key-file", escrow]).exitCode).toBe(1);
+      expect(box.run(["restore", ID, "--key-file", escrow]).exitCode).toBe(2);
+      expect(box.run(["backup", "verify", "--key-file"]).exitCode).toBe(2);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
   test("backup export and import move encrypted copies through stdin/stdout only", () => {
     const box = installSandbox();
     try {
@@ -1099,6 +1299,82 @@ describe("deploy/backup/openvalens-backup.sh (Issue #64)", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("verify-key rejects input that is not an age key without echoing it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "ov-backup-tool-"));
+    try {
+      const result = Bun.spawnSync(["bash", tool, "verify-key", "latest"], {
+        env: { PATH: process.env.PATH ?? "/usr/bin:/bin", OPENVALENS_BACKUP_DIR: dir },
+        stdin: new TextEncoder().encode("postgresql://user:s3cr3t@host/db\n"),
+      });
+      const output = `${result.stdout}${result.stderr}`;
+      expect(result.exitCode).toBe(1);
+      expect(output).toContain("holds no age identity");
+      expect(output).not.toContain("s3cr3t");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // The tool runs on Debian (GNU find); BSD find has no -printf.
+  const gnuFind =
+    Bun.spawnSync(["find", tmpdir(), "-maxdepth", "0", "-printf", ""], {
+      stdout: "ignore",
+      stderr: "ignore",
+    }).exitCode === 0;
+
+  test.skipIf(!gnuFind)(
+    "record-newest records the newest backup that backup_run lacks, dated by its id (#9)",
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "ov-backup-tool-"));
+      try {
+        const backups = join(root, "backups");
+        const bin = join(root, "bin");
+        mkdirSync(bin);
+        for (const id of ["20261024T030000Z-daily", "20261025T124655Z-pre-migrate"]) {
+          mkdirSync(join(backups, id), { recursive: true });
+          writeFileSync(join(backups, id, "SHA256SUMS"), "");
+        }
+        // A fake psql that records its arguments and the SQL it was given.
+        writeFileSync(
+          join(bin, "psql"),
+          `#!/bin/sh\nprintf '%s\\n' "$*" >>"${root}/psql.log"\ncat >>"${root}/psql.log"\n`,
+        );
+        chmodSync(join(bin, "psql"), 0o755);
+        const run = () =>
+          runTool(["record-newest"], {
+            PATH: `${bin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
+            OPENVALENS_BACKUP_DIR: backups,
+          });
+        expect(run().exitCode).toBe(0);
+        const log = readFileSync(join(root, "psql.log"), "utf8");
+        expect(log).toContain("id=20261025T124655Z-pre-migrate");
+        expect(log).toContain("trig=pre-migrate");
+        expect(log).toContain("stamp=20261025T124655Z");
+        expect(log).toContain("insert into backup_run");
+        // Idempotent: only inserted when no ok backup row has this id.
+        expect(log).toContain("where not exists");
+        expect(log).not.toContain("20261024T030000Z-daily");
+
+        // An empty volume records nothing.
+        rmSync(backups, { recursive: true });
+        mkdirSync(backups);
+        rmSync(join(root, "psql.log"));
+        expect(run().exitCode).toBe(0);
+        expect(existsSync(join(root, "psql.log"))).toBe(false);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  test("the scheduler records the newest backup before it decides whether one is due", () => {
+    const script = readFileSync(tool, "utf8");
+    const schedule = script.slice(script.indexOf("cmd_schedule() {"));
+    const recordAt = schedule.indexOf("cmd_record_newest");
+    expect(recordAt).toBeGreaterThan(-1);
+    expect(recordAt).toBeLessThan(schedule.indexOf("latest_epoch"));
   });
 
   test("records only value-free status: no path, key or connection string in backup_run", () => {

@@ -538,6 +538,16 @@ covers this path.
 A fresh installation starts `pending`: no account can sign in until the first
 global instance administrator is bootstrapped with a one-time setup token.
 
+`/setup` is a web-app route, so it loads either way. To check whether setup is
+still open, call the public status procedure. It is an oRPC procedure: `POST`
+with the input wrapped in `json` (a `GET` answers 405, an empty body 400):
+
+```bash
+curl -sS -X POST https://<domain>/rpc/admission/status \
+  -H 'Content-Type: application/json' -d '{"json":{}}'
+# {"json":{"setupAvailable":true,"emailDeliveryAvailable":true}}
+```
+
 ### 1. Mint the setup token (operator)
 
 The setup token is an operator secret and is minted only from a host with

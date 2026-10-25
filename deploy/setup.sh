@@ -6,7 +6,8 @@
 #   deploy/setup.sh upgrade    [--dry-run]
 #   deploy/setup.sh mint-token [--dry-run]
 #   deploy/setup.sh catalogs   --source fdc|fdc-branded|off|all [--dry-run] [--non-interactive]
-#   deploy/setup.sh backup     now|list|verify [<id>] [--quick]|export <id> <dir>|import <dir>
+#   deploy/setup.sh backup     now|list|verify [<id>] [--quick] [--key-file <path>]
+#                              |export <id> <dir>|import <dir>
 #                              |pull [<id>|latest]|cleanup [--force]|undo-restore <stamp>
 #   deploy/setup.sh restore    <id> [--force] [--non-interactive] [--no-build]
 #
@@ -16,10 +17,13 @@
 #             the one-time setup token into deploy/secrets/setup-token.
 #             Re-running it keeps existing secrets, the settings already in
 #             deploy/.env and every key you added there by hand.
-# upgrade     Run after `git checkout <new tag>`: rebuilds the images, stops the
-#             server, then starts the chain postgres -> pre-migrate backup ->
-#             migrate -> server. A failed backup or migration leaves the server
-#             stopped and keeps every backup.
+# upgrade     Run after `git checkout <new tag>`: refreshes OPENVALENS_VERSION,
+#             adds every setting install manages that deploy/.env lacks (with
+#             its default; existing values and your own lines are never
+#             changed), rebuilds the images, stops the server, then starts the
+#             chain postgres -> pre-migrate backup -> migrate -> server. A
+#             failed backup or migration leaves the server stopped and keeps
+#             every backup.
 # mint-token  Re-mints the setup token (it expires after 24 hours). Minting
 #             again invalidates the previous token. Refused once an
 #             administrator exists.
@@ -43,6 +47,12 @@
 #               verify [id]   decrypt, check every checksum and restore into a
 #                             scratch database (default: the newest backup);
 #                             --quick skips the scratch restore
+#               verify [id] --key-file <path>
+#                             check another copy of the backup key (your
+#                             escrowed one) against a backup: it must decrypt
+#                             every file. The key is read by this script,
+#                             never printed, and the check is not recorded as
+#                             a verify of the backup
 #               export <id> <dir>  copy a backup (still encrypted) to <dir>
 #               import <dir>  copy a backup directory into the volume
 #               pull [id]     list the off-site backups, or copy one (or
@@ -72,6 +82,9 @@
 #                    Resend key). Secrets are never accepted as arguments.
 #                    OPENVALENS_SITE_SCHEME=http (any mode) serves plain HTTP
 #                    for a proxy in front that terminates TLS.
+#                    OPENVALENS_HTTP_PORT and OPENVALENS_HTTPS_PORT (any mode)
+#                    set the ports Caddy publishes, as <port> or <IP>:<port>
+#                    (default 80 and 443); install keeps them in deploy/.env.
 #                    catalogs: start without asking to confirm the downloads.
 # --reconfigure      install only: ask for (or, with --non-interactive, read) the
 #                    domain and email settings again instead of reusing the ones
@@ -79,6 +92,8 @@
 # --force            restore: skip the confirmation prompt (required with
 #                    --non-interactive). backup cleanup: delete what it lists.
 # --quick            backup verify: skip the scratch-database restore.
+# --key-file <path>  backup verify: check this copy of the backup key instead
+#                    of deploy/secrets/backup/age-identity.
 # --new-backup-key   install/upgrade: generate a new backup key although the
 #                    'backups' volume holds backups and the key file is missing.
 #                    Those backups then stay unreadable until the old key is put
@@ -104,6 +119,7 @@ QUICK=0
 NO_BUILD=0
 NEW_BACKUP_KEY=0
 CATALOG_SOURCES=""
+KEY_FILE=""
 ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -118,6 +134,14 @@ while [ $# -gt 0 ]; do
         exit 2
       }
       CATALOG_SOURCES="$2"
+      shift
+      ;;
+    --key-file)
+      [ "$command" = backup ] && [ $# -gt 1 ] || {
+        echo "setup: --key-file needs a path and applies to 'backup verify' only" >&2
+        exit 2
+      }
+      KEY_FILE="$2"
       shift
       ;;
     --non-interactive) INTERACTIVE=0 ;;
@@ -258,6 +282,7 @@ gather_config() {
 # deploy/.env (only the domain and email settings are re-asked, and only with
 # --reconfigure). Every other line is the operator's and is copied through.
 MANAGED_KEYS="OPENVALENS_DOMAIN OPENVALENS_SITE_SCHEME ACME_EMAIL EMAIL_FROM OPENVALENS_VERSION
+  OPENVALENS_HTTP_PORT OPENVALENS_HTTPS_PORT
   OPENVALENS_PRE_MIGRATE_BACKUP OPENVALENS_BACKUP_RETAIN OPENVALENS_BACKUP_DAILY_RETAIN
   OPENVALENS_BACKUP_HOUR OPENVALENS_BACKUP_SCHEDULE OPENVALENS_BACKUP_HOST_ID STORAGE_PROVIDER
   STORAGE_S3_ENDPOINT STORAGE_S3_REGION STORAGE_S3_BUCKET
@@ -273,6 +298,57 @@ SECRET_FILE_KEYS="RESEND_API_KEY EMAIL_AUDIT_BCC AI_API_KEY ANTHROPIC_API_KEY
   WEARABLES_WITHINGS_CLIENT_SECRET WEARABLES_GOOGLE_HEALTH_CLIENT_SECRET
   POSTHOG_PROJECT_TOKEN"
 OPERATOR_MARKER="# --- Your settings: deploy/setup.sh install keeps everything below ---"
+
+# Default of a managed key that deploy/.env does not set yet. The domain and
+# email settings have none (install asks for them), and OPENVALENS_VERSION is
+# the checkout's.
+managed_default() {
+  case "$1" in
+    OPENVALENS_SITE_SCHEME) echo https ;;
+    OPENVALENS_HTTP_PORT) echo 80 ;;
+    OPENVALENS_HTTPS_PORT) echo 443 ;;
+    OPENVALENS_PRE_MIGRATE_BACKUP) echo pg_dump ;;
+    OPENVALENS_BACKUP_RETAIN) echo 10 ;;
+    OPENVALENS_BACKUP_DAILY_RETAIN) echo 14 ;;
+    OPENVALENS_BACKUP_HOUR) echo 3 ;;
+    OPENVALENS_BACKUP_SCHEDULE) echo on ;;
+    OPENVALENS_BACKUP_HOST_ID) od -An -tx1 -N8 /dev/urandom | tr -d ' \n' ;;
+    STORAGE_PROVIDER) echo local ;;
+    STORAGE_S3_FORCE_PATH_STYLE | BACKUP_OFFSITE_S3_FORCE_PATH_STYLE) echo false ;;
+    STORAGE_S3_SSE) echo AES256 ;;
+    BACKUP_OFFSITE_S3_PREFIX) echo openvalens ;;
+    COMPOSE_PROFILES) offsite_profile ;;
+  esac
+}
+
+# The value deploy/.env sets for a managed key, or its default.
+managed_value() { env_get "$1" | grep . || managed_default "$1"; }
+
+# A setting as Compose resolves it: the environment first, then deploy/.env,
+# then the default.
+effective_setting() {
+  local value="${!1:-}"
+  [ -n "$value" ] || value="$(env_get "$1")"
+  printf '%s' "${value:-$2}"
+}
+
+# A published port: <port>, or <IPv4>:<port> / [<IPv6>]:<port> to bind one
+# address (for a proxy on this host: a private or loopback address).
+valid_port_binding() {
+  printf '%s' "$1" | grep -Eq '^((([0-9]{1,3}\.){3}[0-9]{1,3}|\[[0-9A-Fa-f:.]+\]):)?[0-9]{1,5}$'
+}
+
+# True when the binding listens on every interface of the host.
+binds_all_interfaces() {
+  case "$1" in
+    *:*) case "$1" in 0.0.0.0:* | "[::]:"*) return 0 ;; *) return 1 ;; esac ;;
+    *) return 0 ;;
+  esac
+}
+
+describe_binding() {
+  if binds_all_interfaces "$1"; then printf 'port %s on all interfaces' "${1##*:}"; else printf '%s' "$1"; fi
+}
 
 # has_secret <KEY>: the optional secret file exists and is non-empty. A dry run
 # also checks the real deploy/secrets (existence only, never the contents).
@@ -324,6 +400,7 @@ offsite_profile() {
 
 write_env() {
   local key value file_lines="" operator tmp
+  check_port_settings
   for key in $SECRET_FILE_KEYS; do
     value=""
     if has_secret "$key"; then
@@ -346,7 +423,12 @@ write_env() {
 # deploy/secrets/ and are referenced through *_FILE paths.
 OPENVALENS_DOMAIN=$DOMAIN
 # https (default): Caddy gets the certificate. http: a proxy in front terminates TLS.
-OPENVALENS_SITE_SCHEME=${OPENVALENS_SITE_SCHEME:-$(env_get OPENVALENS_SITE_SCHEME | grep . || echo https)}
+OPENVALENS_SITE_SCHEME=${OPENVALENS_SITE_SCHEME:-$(managed_value OPENVALENS_SITE_SCHEME)}
+# Ports Caddy publishes: <port> (every interface) or <IP>:<port>. Behind a proxy
+# on this host, bind a private address, e.g. 127.0.0.1:8080
+# (docs/self-hosting/install.md#behind-a-tls-terminating-proxy).
+OPENVALENS_HTTP_PORT=${OPENVALENS_HTTP_PORT:-$(managed_value OPENVALENS_HTTP_PORT)}
+OPENVALENS_HTTPS_PORT=${OPENVALENS_HTTPS_PORT:-$(managed_value OPENVALENS_HTTPS_PORT)}
 ACME_EMAIL=$ACME
 EMAIL_FROM=$FROM
 # Image tag for the locally built server/web images (the checked-out version).
@@ -354,31 +436,31 @@ OPENVALENS_VERSION=$(image_version)
 # Backups (docs/self-hosting/backup.md), encrypted to deploy/secrets/backup/age-identity:
 # keep a copy of that file off this server. Pre-migrate backup: pg_dump (default,
 # encrypted database + files) | hook | none. Daily backup at OPENVALENS_BACKUP_HOUR (UTC).
-OPENVALENS_PRE_MIGRATE_BACKUP=$(env_get OPENVALENS_PRE_MIGRATE_BACKUP | grep . || echo pg_dump)
-OPENVALENS_BACKUP_RETAIN=$(env_get OPENVALENS_BACKUP_RETAIN | grep . || echo 10)
-OPENVALENS_BACKUP_DAILY_RETAIN=$(env_get OPENVALENS_BACKUP_DAILY_RETAIN | grep . || echo 14)
-OPENVALENS_BACKUP_HOUR=$(env_get OPENVALENS_BACKUP_HOUR | grep . || echo 3)
+OPENVALENS_PRE_MIGRATE_BACKUP=$(managed_value OPENVALENS_PRE_MIGRATE_BACKUP)
+OPENVALENS_BACKUP_RETAIN=$(managed_value OPENVALENS_BACKUP_RETAIN)
+OPENVALENS_BACKUP_DAILY_RETAIN=$(managed_value OPENVALENS_BACKUP_DAILY_RETAIN)
+OPENVALENS_BACKUP_HOUR=$(managed_value OPENVALENS_BACKUP_HOUR)
 # off: no daily backups (you back up yourself, e.g. with a hook); readiness then
 # never reports them stale. Pre-migrate backups follow OPENVALENS_PRE_MIGRATE_BACKUP.
-OPENVALENS_BACKUP_SCHEDULE=$(env_get OPENVALENS_BACKUP_SCHEDULE | grep . || echo on)
+OPENVALENS_BACKUP_SCHEDULE=$(managed_value OPENVALENS_BACKUP_SCHEDULE)
 # This host's folder in the off-site bucket; generated once. Delete this line
 # when you copy deploy/.env to a NEW host, so it gets its own folder.
-OPENVALENS_BACKUP_HOST_ID=$(env_get OPENVALENS_BACKUP_HOST_ID | grep . || od -An -tx1 -N8 /dev/urandom | tr -d ' \n')
+OPENVALENS_BACKUP_HOST_ID=$(managed_value OPENVALENS_BACKUP_HOST_ID)
 # Object storage: local (default, the "storage" volume) | s3. See docs/storage.md.
-STORAGE_PROVIDER=$(env_get STORAGE_PROVIDER | grep . || echo local)
+STORAGE_PROVIDER=$(managed_value STORAGE_PROVIDER)
 STORAGE_S3_ENDPOINT=$(env_get STORAGE_S3_ENDPOINT)
 STORAGE_S3_REGION=$(env_get STORAGE_S3_REGION)
 STORAGE_S3_BUCKET=$(env_get STORAGE_S3_BUCKET)
-STORAGE_S3_FORCE_PATH_STYLE=$(env_get STORAGE_S3_FORCE_PATH_STYLE | grep . || echo false)
-STORAGE_S3_SSE=$(env_get STORAGE_S3_SSE | grep . || echo AES256)
+STORAGE_S3_FORCE_PATH_STYLE=$(managed_value STORAGE_S3_FORCE_PATH_STYLE)
+STORAGE_S3_SSE=$(managed_value STORAGE_S3_SSE)
 # Optional off-site copy of the encrypted backups to an S3-compatible bucket
 # (docs/self-hosting/backup.md#off-site-copy). The keys are files:
 # deploy/secrets/backup/BACKUP_OFFSITE_S3_ACCESS_KEY_ID and ..._SECRET_ACCESS_KEY.
 BACKUP_OFFSITE_S3_ENDPOINT=$(env_get BACKUP_OFFSITE_S3_ENDPOINT)
 BACKUP_OFFSITE_S3_REGION=$(env_get BACKUP_OFFSITE_S3_REGION)
 BACKUP_OFFSITE_S3_BUCKET=$(env_get BACKUP_OFFSITE_S3_BUCKET)
-BACKUP_OFFSITE_S3_PREFIX=$(env_get BACKUP_OFFSITE_S3_PREFIX | grep . || echo openvalens)
-BACKUP_OFFSITE_S3_FORCE_PATH_STYLE=$(env_get BACKUP_OFFSITE_S3_FORCE_PATH_STYLE | grep . || echo false)
+BACKUP_OFFSITE_S3_PREFIX=$(managed_value BACKUP_OFFSITE_S3_PREFIX)
+BACKUP_OFFSITE_S3_FORCE_PATH_STYLE=$(managed_value BACKUP_OFFSITE_S3_FORCE_PATH_STYLE)
 # Compose profiles: "offsite" exactly when the off-site copy is configured.
 COMPOSE_PROFILES=$(offsite_profile)
 # Optional secrets: set when deploy/secrets/server/<KEY> exists, empty otherwise.
@@ -392,14 +474,70 @@ EOF
   chmod 0600 "$ENV_FILE"
 }
 
+# Replaces OPENVALENS_VERSION where it is (above the operator marker in a file
+# install wrote), so the operator's section is never touched.
 set_image_version() {
   local tmp="$ENV_FILE.tmp.$$"
   (
     umask 077
-    grep -v '^OPENVALENS_VERSION=' "$ENV_FILE" >"$tmp" || true
-    printf 'OPENVALENS_VERSION=%s\n' "$(image_version)" >>"$tmp"
+    awk -v line="OPENVALENS_VERSION=$(image_version)" -v marker="$OPERATOR_MARKER" '
+      /^OPENVALENS_VERSION=/ { if (!done) print line; done = 1; next }
+      $0 == marker && !done { print line; done = 1 }
+      { print }
+      END { if (!done) print line }
+    ' "$ENV_FILE" >"$tmp"
   )
   mv "$tmp" "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+}
+
+# upgrade: writes every managed key deploy/.env lacks (a key a newer version
+# added, such as the backup settings), with its default, just above the
+# operator marker. Existing lines, including the operator's, are untouched.
+add_missing_managed_keys() {
+  local key value added="" tmp="$ENV_FILE.tmp.$$"
+  (
+    umask 077
+    : >"$tmp.add"
+  )
+  for key in $MANAGED_KEYS; do
+    case "$key" in
+      # Asked by install, or refreshed by upgrade itself.
+      OPENVALENS_DOMAIN | ACME_EMAIL | EMAIL_FROM | OPENVALENS_VERSION) continue ;;
+    esac
+    grep -q "^$key=" "$ENV_FILE" && continue
+    printf '%s=%s\n' "$key" "$(managed_default "$key")" >>"$tmp.add"
+    added="$added $key"
+  done
+  for key in $SECRET_FILE_KEYS; do
+    grep -q "^${key}_FILE=" "$ENV_FILE" && continue
+    value=""
+    if has_secret "$key"; then value="/run/secrets/$key"; fi
+    printf '%s_FILE=%s\n' "$key" "$value" >>"$tmp.add"
+    added="$added ${key}_FILE"
+  done
+  if [ -z "$added" ]; then
+    rm -f "$tmp.add"
+    return 0
+  fi
+  (
+    umask 077
+    awk -v marker="$OPERATOR_MARKER" -v add="$tmp.add" '
+      function insert(  line) { while ((getline line < add) > 0) print line; done = 1 }
+      $0 == marker && !done { insert() }
+      { print }
+      END { if (!done) insert() }
+    ' "$ENV_FILE" >"$tmp"
+  )
+  rm -f "$tmp.add"
+  mv "$tmp" "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
+  # Key names only, never values.
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "[dry-run] would add to deploy/.env, with their defaults:$added"
+  else
+    log "added to deploy/.env, with their defaults:$added"
+  fi
 }
 
 # --- secrets -----------------------------------------------------------------
@@ -498,19 +636,50 @@ backup_key_notice() {
 IMPORTANT: every backup is encrypted with deploy/secrets/backup/age-identity.
   Copy that file OFF this server now (password manager, encrypted USB drive,
   another machine) and guard it like the data itself. If this server is lost
-  together with that file, no backup can ever be restored. Read it locally
-  only; never paste it into chat, tickets or logs.
+  together with that file, no backup can ever be restored. Copy the file
+  (scp, install -m 0400) instead of printing it; never paste it into chat,
+  tickets or logs. Once a backup exists ('deploy/setup.sh backup list'),
+  check that the copy decrypts it:
+    deploy/setup.sh backup verify --key-file <path to the copy>
 EOF
 }
 
 # --- steps -------------------------------------------------------------------
 
+# Port settings from the environment or deploy/.env. Never echoes a value.
+check_port_settings() {
+  local key
+  for key in OPENVALENS_HTTP_PORT OPENVALENS_HTTPS_PORT; do
+    valid_port_binding "$(effective_setting "$key" 0)" ||
+      die "$key must be <port> or <IP>:<port> (for example 8080 or 127.0.0.1:8080)"
+  done
+}
+
+# Prints the host addresses Caddy will publish, and refuses an http-mode
+# install whose unused HTTPS port would still be published on every interface.
+check_published_ports() {
+  local http https scheme
+  check_port_settings
+  http="$(effective_setting OPENVALENS_HTTP_PORT 80)"
+  https="$(effective_setting OPENVALENS_HTTPS_PORT 443)"
+  scheme="$(effective_setting OPENVALENS_SITE_SCHEME https)"
+  log "caddy publishes HTTP on $(describe_binding "$http") (to :80/tcp) and HTTPS on $(describe_binding "$https") (to :443/tcp+udp)"
+  [ "$scheme" = http ] || return 0
+  if binds_all_interfaces "$https"; then
+    die "OPENVALENS_SITE_SCHEME=http, but Caddy's HTTPS port is still published, on every interface ($(describe_binding "$https")). It serves nothing in http mode and collides with a proxy on this host that owns 443. Set OPENVALENS_HTTPS_PORT=127.0.0.1:<free port> in deploy/.env (or in the environment for install), and bind OPENVALENS_HTTP_PORT to the address your proxy forwards to; see docs/self-hosting/install.md#behind-a-tls-terminating-proxy"
+  fi
+  if binds_all_interfaces "$http"; then
+    warn "OPENVALENS_SITE_SCHEME=http and HTTP is published on every interface: anyone who reaches $(describe_binding "$http") bypasses the proxy and talks to OpenValens without TLS. Prefer OPENVALENS_HTTP_PORT=<private IP>:<port>."
+  fi
+}
+
 validate_compose() {
   log "validating deploy/compose.yml"
-  case "$(env_get OPENVALENS_SITE_SCHEME)" in
-    "" | https | http) ;;
+  case "$(effective_setting OPENVALENS_SITE_SCHEME https)" in
+    https | http) ;;
     *) die "OPENVALENS_SITE_SCHEME must be https (default) or http" ;;
   esac
+  check_published_ports
   compose config --quiet || die "compose configuration is invalid"
   # Only Caddy may publish ports: Docker-published ports bypass host firewalls.
   local publishers
@@ -598,15 +767,20 @@ cmd_install() {
   cat <<EOF
 
 OpenValens is starting at: https://$DOMAIN
-  1. Read the one-time setup token locally:  cat deploy/secrets/setup-token
-     (never paste it into chat, tickets or logs)
+  1. The one-time setup token is in deploy/secrets/setup-token. Copy the
+     file to your own computer (scp) or open it in a private session
+     (less deploy/secrets/setup-token); never paste it into chat, tickets
+     or logs.
   2. Open https://$DOMAIN/setup, enter the token and your email, then the
      emailed code. That account becomes the instance administrator and
      registration closes: everyone else joins by administrator invitation.
   3. Encrypted backups of the database and stored files run daily and
      before every upgrade ('deploy/setup.sh backup list'). Copy the backup
-     key deploy/secrets/backup/age-identity OFF this server: without it no
-     backup can be restored (docs/self-hosting/backup.md).
+     key file deploy/secrets/backup/age-identity OFF this server (scp, or
+     install -m 0400 onto removable media; never print it): without it no
+     backup can be restored. Check the copy with
+     'deploy/setup.sh backup verify --key-file <copy>' once a backup exists
+     (docs/self-hosting/backup.md#the-backup-key).
   4. The food catalogs start EMPTY: food search finds only members' own
      foods and barcode scans miss. Import the public catalogs (large,
      opt-in downloads; see docs/self-hosting/food-catalogs.md):
@@ -625,17 +799,22 @@ require_installed() {
 cmd_upgrade() {
   preflight
   if [ "$DRY_RUN" -eq 1 ]; then
-    # Stage a throwaway install so the compose file can be validated.
+    # Stage throwaway secrets (and, without an install, a throwaway
+    # deploy/.env) so the compose file can be validated. An existing
+    # deploy/.env is previewed as it is, so the keys upgrade would add show.
     INTERACTIVE=0
-    OPENVALENS_DOMAIN="${OPENVALENS_DOMAIN:-health.example.org}"
-    ACME_EMAIL="${ACME_EMAIL:-ops@example.org}"
-    EMAIL_FROM="${EMAIL_FROM:-OpenValens <noreply@example.org>}"
-    gather_config
     generate_secrets 2>/dev/null
-    write_env
+    if [ ! -f "$ENV_FILE" ]; then
+      OPENVALENS_DOMAIN="${OPENVALENS_DOMAIN:-health.example.org}"
+      ACME_EMAIL="${ACME_EMAIL:-ops@example.org}"
+      EMAIL_FROM="${EMAIL_FROM:-OpenValens <noreply@example.org>}"
+      gather_config
+      write_env
+    fi
   fi
   require_installed
   set_image_version
+  add_missing_managed_keys
   validate_compose
   log "building images for $(image_version)"
   run compose build
@@ -866,7 +1045,9 @@ cmd_backup() {
   preflight
   [ "$DRY_RUN" -eq 0 ] || die "backup has no --dry-run"
   require_installed
-  require_backup_key
+  [ -z "$KEY_FILE" ] || [ "$sub" = verify ] || die "--key-file applies to 'backup verify' only"
+  # Checking an escrowed copy needs no live key (it may be the one to put back).
+  [ -n "$KEY_FILE" ] || require_backup_key
   case "$sub" in
     now)
       [ ${#ARGS[@]} -eq 1 ] || die "usage: deploy/setup.sh backup now"
@@ -906,6 +1087,17 @@ cmd_backup() {
       [ ${#ARGS[@]} -le 2 ] || die "usage: deploy/setup.sh backup verify [<id>] [--quick]"
       id="${ARGS[1]:-latest}"
       [ "$id" = latest ] || valid_backup_id "$id" || die "not a backup id (see deploy/setup.sh backup list)"
+      if [ -n "$KEY_FILE" ]; then
+        # The key travels on stdin into a private temp file in a one-off
+        # container: it is never an argument, a mount or printed. Checksums
+        # and decrypting every file prove it; nothing is recorded, so a wrong
+        # key never marks the backups as failing.
+        [ -f "$KEY_FILE" ] && [ -r "$KEY_FILE" ] || die "--key-file is not a readable file"
+        tools verify-key "$id" <"$KEY_FILE" ||
+          die "the key file did not decrypt the backup; see the step above (nothing was changed)"
+        log "the key file decrypts the backup: it is a working copy of the backup key"
+        return 0
+      fi
       start_postgres
       if [ "$QUICK" -eq 1 ]; then tools verify "$id" --quick; else tools verify "$id"; fi
       ;;

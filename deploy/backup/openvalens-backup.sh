@@ -10,8 +10,14 @@
 #                                       file checksums; without --quick also a
 #                                       full restore into a scratch database
 #                                       with per-table row counts compared
+#   verify-key [<id>|latest]            check the key on stdin (an escrowed
+#                                       copy) against a backup: checksums and
+#                                       decrypting every file; records nothing
 #   list                                backups in the volume, newest last
 #   schedule                            long-running daily loop (scheduler)
+#   record-newest                       record the newest backup in the
+#                                       volume in backup_run if it is missing
+#                                       (the scheduler runs it on start)
 #   restore-db <id> <stamp>             keep the current database and files
 #                                       under a pre-restore name, restore both
 #   undo-restore <stamp> <new stamp>    put the kept database and files back,
@@ -57,6 +63,8 @@ SELF="${BASH_SOURCE[0]}"
 BACKUP_DIR="${OPENVALENS_BACKUP_DIR:-/backups}"
 STORAGE_DIR="${OPENVALENS_STORAGE_DIR:-/storage}"
 IDENTITY="${OPENVALENS_BACKUP_IDENTITY_FILE:-/run/backup-secrets/age-identity}"
+# How messages name the key: verify-key checks another copy of it.
+KEY_NAME="deploy/secrets/backup/age-identity"
 DB="${PGDATABASE:-openvalens}"
 SCRATCH_DB="${DB}_verify"
 STORAGE_PROVIDER="${STORAGE_PROVIDER:-local}"
@@ -86,7 +94,7 @@ require_key() {
   [ -s "$IDENTITY" ] ||
     fail "no backup key: deploy/secrets/backup/age-identity is missing (run deploy/setup.sh install or upgrade, or restore your escrowed copy there)"
   RECIPIENT="$(age-keygen -y "$IDENTITY" 2>/dev/null)" ||
-    fail "deploy/secrets/backup/age-identity is not a valid age identity"
+    fail "$KEY_NAME is not a valid age identity"
 }
 
 encrypt() { age --encrypt --recipient "$RECIPIENT" --output "$1"; }
@@ -322,7 +330,7 @@ verify_dir() {
   }
   VERIFY_STEP=key
   manifest="$(decrypt "$dir/manifest.json.age" 2>/dev/null)" || {
-    log "cannot decrypt this backup with deploy/secrets/backup/age-identity: it was encrypted for a different key (the files themselves are intact)"
+    log "cannot decrypt this backup with $KEY_NAME: it was encrypted for a different key (the files themselves are intact)"
     return 1
   }
   VERIFY_STEP=manifest
@@ -408,6 +416,30 @@ cmd_verify() {
   fi
 }
 
+# verify-key [<id>|latest]: is the key on stdin (the operator's escrowed copy,
+# piped in by setup.sh) a working copy of the backup key? The quick verify
+# decrypts every file of the backup with it. The key lives only in a private
+# temp file of this one-off container. Nothing is recorded: a wrong copy says
+# nothing about the backup, so it must not make readiness report `failing`.
+cmd_verify_key() {
+  local id="${1:-latest}" key
+  umask 077
+  key="$(mktemp /tmp/openvalens-key-check.XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -f '$key'" EXIT
+  cat >"$key"
+  grep -q '^AGE-SECRET-KEY-1' "$key" ||
+    fail "the key file holds no age identity (a line starting AGE-SECRET-KEY-1); is it the right file?"
+  IDENTITY="$key"
+  KEY_NAME="the key file you gave"
+  require_key
+  id="$(resolve_id "$id")"
+  lock 600
+  log "checking the key file against $id (checksums, decrypt every file)"
+  verify_dir "$BACKUP_DIR/$id" quick || fail "key check FAILED for $id (step: $VERIFY_STEP)"
+  log "key check passed: the key file decrypts $id"
+}
+
 # --- list ----------------------------------------------------------------------
 
 cmd_list() {
@@ -428,13 +460,43 @@ cmd_list() {
 
 # --- schedule ------------------------------------------------------------------
 
+newest_id() {
+  find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
+    grep -E "$ID_PATTERN" | LC_ALL=C sort -t- -k1,1 | tail -n 1 || true
+}
+
 latest_epoch() {
   local id stamp
-  id="$(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
-    grep -E "$ID_PATTERN" | LC_ALL=C sort -t- -k1,1 | tail -n 1 || true)"
+  id="$(newest_id)"
   [ -n "$id" ] || { echo 0; return; }
   stamp="${id%%-*}"
   date -u -d "${stamp:0:4}-${stamp:4:2}-${stamp:6:2} ${stamp:9:2}:${stamp:11:2}:${stamp:13:2}" +%s
+}
+
+# Records the newest backup in the volume in backup_run when no row has it,
+# dated by its id. The scheduler decides from the volume whether a backup is
+# due, while readiness reads backup_run: they must agree. The one backup that
+# can be missing is the pre-migrate backup of the upgrade whose migration
+# creates backup_run (it runs before the table exists). Without this, readiness
+# said `stale` after that upgrade while the scheduler, seeing a backup minutes
+# old, waited for the next scheduled hour. Every backup in the volume read
+# back (or matched its checksums, if imported) before it got its final name.
+cmd_record_newest() {
+  local id size
+  id="$(newest_id)"
+  [ -n "$id" ] && [ -f "$BACKUP_DIR/$id/SHA256SUMS" ] || return 0
+  size=$(($(du -sk "$BACKUP_DIR/$id" | cut -f1) * 1024))
+  psql_db -v id="$id" -v trig="${id#*-}" -v stamp="${id%%-*}" -v size="$size" >/dev/null 2>&1 <<'SQL' || true
+select to_regclass('public.backup_run') is not null as ready \gset
+\if :ready
+set time zone 'UTC';
+insert into backup_run (operation, trigger, outcome, backup_id, detail, size_bytes, started_at, finished_at)
+select 'backup', :'trig', 'ok', :'id', 'recorded-on-start', :'size'::bigint, t, t
+from (select to_timestamp(:'stamp', 'YYYYMMDD"T"HH24MISS"Z"') as t) s
+where not exists (select 1 from backup_run
+  where operation = 'backup' and outcome = 'ok' and backup_id = :'id');
+\endif
+SQL
 }
 
 run_cycle() {
@@ -469,6 +531,7 @@ cmd_schedule() {
     *) fail "OPENVALENS_BACKUP_SCHEDULE must be on or off" ;;
   esac
   log "daily encrypted backups at $(printf '%02d' "$hour"):00 UTC, keeping $retain"
+  cmd_record_newest
   while :; do
     now="$(date -u +%s)"
     # Catch up when the last backup is more than a day old (fresh install,
@@ -1022,8 +1085,10 @@ command="${1:-}"
 case "$command" in
   create) cmd_create "$@" ;;
   verify) cmd_verify "$@" ;;
+  verify-key) cmd_verify_key "$@" ;;
   list) cmd_list ;;
   schedule) cmd_schedule ;;
+  record-newest) cmd_record_newest ;;
   restore-db) cmd_restore_db "$@" ;;
   undo-restore) cmd_undo_restore "$@" ;;
   ledger-merge) cmd_ledger_merge ;;
