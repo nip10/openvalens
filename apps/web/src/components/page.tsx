@@ -57,7 +57,9 @@ export function PageHeader({
         </div>
         {description ? <p className="max-w-[60ch] text-ink-3">{description}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">{actions}</div>
+      ) : null}
     </header>
   );
 }
