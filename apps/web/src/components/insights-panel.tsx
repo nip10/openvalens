@@ -9,9 +9,11 @@ import {
 import type { ProductDisplaySettings } from "@openvalens/api/presenters/product-formatting";
 import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
 import type { GoalProgressResult, ReadinessResult } from "@openvalens/api/score-contract";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
+import { Gauge, Lightbulb, Target, X } from "lucide-react";
 import type { ReactNode } from "react";
+
+import { Details, InfoTip, StatusPill } from "./page";
 
 /**
  * Issue #92 — the dashboard's core loop: the two #95 summaries, then the
@@ -34,46 +36,49 @@ export function SummaryCards({
   const { t, i18n } = useLingui();
   const ready = readiness ? readinessView(readiness, i18n) : null;
   const progress = goals ? goalProgressView(goals, i18n) : null;
+  const readyNote = ready?.withheldExplanation ?? ready?.coverageText ?? t`Could not load.`;
+  const progressNote =
+    progress?.withheldExplanation ?? progress?.coverageText ?? t`Could not load.`;
   return (
-    <section aria-labelledby="summaries-title" className="grid min-w-0 content-start gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-        <h2 id="summaries-title" className="text-xl leading-tight text-ink">
+    <section aria-labelledby="summaries-title" className="grid min-w-0 content-start gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 id="summaries-title" className="text-lg leading-tight text-ink">
           {i18n._(INSIGHT_COPY.summariesTitle)}
         </h2>
         {scoresLink ?? null}
       </div>
-      <dl className="sheet grid divide-y divide-rule sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <div className="grid min-w-0 content-start gap-1 px-5 py-4">
-          <dt className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink-3">
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <div className="sheet grid min-w-0 content-start gap-3 px-5 py-4">
+          <dt className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink-2">
+            <Gauge className="size-4 shrink-0 text-signal" aria-hidden="true" />
             {ready?.title ?? t`Readiness index`}
-            {ready ? <Badge variant="outline">{ready.badge}</Badge> : null}
+            {ready ? <StatusPill tone="neutral">{ready.badge}</StatusPill> : null}
+            <InfoTip>{readyNote}</InfoTip>
           </dt>
-          <dd className="m-0">
+          <dd className="m-0 flex items-baseline gap-1.5">
             <span
-              className="num text-3xl font-medium tracking-[-0.03em] text-ink"
+              className="num text-[1.875rem] leading-none font-semibold tracking-[-0.03em] text-ink"
               role="img"
               aria-label={ready?.accessibilityLabel ?? t`Readiness index not loaded.`}
             >
               {ready?.scoreText ?? "—"}
             </span>
           </dd>
-          <dd className="m-0 text-sm text-ink-3">
-            {ready?.withheldExplanation ?? ready?.coverageText ?? t`Could not load.`}
-          </dd>
         </div>
-        <div className="grid min-w-0 content-start gap-1 px-5 py-4">
-          <dt className="text-sm font-medium text-ink-3">{progress?.title ?? t`Goal progress`}</dt>
+        <div className="sheet grid min-w-0 content-start gap-3 px-5 py-4">
+          <dt className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink-2">
+            <Target className="size-4 shrink-0 text-signal" aria-hidden="true" />
+            {progress?.title ?? t`Goal progress`}
+            <InfoTip>{progressNote}</InfoTip>
+          </dt>
           <dd className="m-0">
             <span
-              className="num text-3xl font-medium tracking-[-0.03em] text-ink"
+              className="num text-[1.875rem] leading-none font-semibold tracking-[-0.03em] text-ink"
               role="img"
               aria-label={progress?.accessibilityLabel ?? t`Goal progress not loaded.`}
             >
               {progress?.scoreText ?? "—"}
             </span>
-          </dd>
-          <dd className="m-0 text-sm text-ink-3">
-            {progress?.withheldExplanation ?? progress?.coverageText ?? t`Could not load.`}
           </dd>
           {progress?.flaggedText ? (
             <dd className="m-0 text-sm text-ink-2">{progress.flaggedText}</dd>
@@ -97,26 +102,33 @@ function InsightItem({
 }) {
   const { i18n } = useLingui();
   return (
-    <li className="grid gap-3 px-5 py-4">
-      <article aria-label={view.accessibilityLabel} className="grid gap-1">
-        <h3 className="text-base leading-snug text-ink">{view.title}</h3>
+    <li className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 px-5 py-4">
+      <Lightbulb className="mt-0.5 size-[18px] text-signal" aria-hidden="true" />
+      <article aria-label={view.accessibilityLabel} className="grid min-w-0 gap-1">
+        <div className="flex items-start gap-1">
+          <h3 className="pt-0.5 text-base leading-snug text-ink">{view.title}</h3>
+          <InfoTip align="end" className="ml-auto">
+            {view.certaintyText ? <p>{view.certaintyText}</p> : null}
+            {view.coverageText ? <p>{view.coverageText}</p> : null}
+            {view.factorsText ? <p>{view.factorsText}</p> : null}
+            <p className="text-ink-3">
+              {view.kindLabel}
+              <span className="block">{view.ruleText}</span>
+            </p>
+          </InfoTip>
+        </div>
         <p className="max-w-[65ch] text-ink-2">{view.body}</p>
-        {view.certaintyText ? <p className="text-sm text-ink-3">{view.certaintyText}</p> : null}
-        {view.coverageText ? <p className="text-sm text-ink-3">{view.coverageText}</p> : null}
-        {view.factorsText ? <p className="text-sm text-ink-3">{view.factorsText}</p> : null}
-        <p className="text-sm text-ink-3">
-          {view.kindLabel}
-          <span className="block">{view.ruleText}</span>
-        </p>
       </article>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="col-start-2 flex flex-wrap items-center gap-1">
         <Button
           size="sm"
-          variant="outline"
+          variant="ghost"
           disabled={pending}
           onClick={() => onFeedback("dismiss")}
           aria-label={i18n._(INSIGHT_COPY.dismissLabel(view.title))}
+          className="-ml-2 text-ink-3"
         >
+          <X aria-hidden="true" />
           {i18n._(INSIGHT_COPY.dismiss)}
         </Button>
         <Button
@@ -126,6 +138,7 @@ function InsightItem({
           onClick={() => onFeedback("not_useful")}
           aria-label={i18n._(INSIGHT_COPY.notUsefulLabel(view.title))}
           title={i18n._(INSIGHT_COPY.notUsefulHint)}
+          className="text-ink-3"
         >
           {i18n._(INSIGHT_COPY.notUseful)}
         </Button>
@@ -183,12 +196,20 @@ export function InsightsCard({
   const { i18n } = useLingui();
   const view = insightsListView(i18n, result, settings);
   return (
-    <section aria-labelledby="insights-title" className="grid min-w-0 content-start gap-4">
-      <div className="grid min-w-0 gap-1">
-        <h2 id="insights-title" className="text-xl leading-tight text-ink">
+    <section aria-labelledby="insights-title" className="grid min-w-0 content-start gap-3">
+      <div className="flex items-center gap-2">
+        <h2 id="insights-title" className="text-lg leading-tight text-ink">
           {i18n._(INSIGHT_COPY.sectionTitle)}
         </h2>
-        <p className="max-w-[65ch] text-sm text-ink-3">{i18n._(INSIGHT_COPY.sectionIntro)}</p>
+        <InfoTip>
+          <p>{i18n._(INSIGHT_COPY.sectionIntro)}</p>
+          <p>{i18n._(INSIGHT_COPY.methodText)}</p>
+          <p>{i18n._(INSIGHT_COPY.limits)}</p>
+          {view.footnotes.map((note) => (
+            <p key={note}>{note}</p>
+          ))}
+          <p className="text-ink-3">{view.versionText}</p>
+        </InfoTip>
       </div>
       <div className="sheet grid min-w-0">
         {view.withheld || view.emptyText ? (
@@ -211,36 +232,24 @@ export function InsightsCard({
           </ul>
         ) : null}
         {view.notReady.length > 0 ? (
-          <div className="grid gap-2 border-t border-rule px-5 py-4">
-            <h3 className="text-sm font-medium text-ink">{i18n._(INSIGHT_COPY.notReadyTitle)}</h3>
-            <ul className="divide-y divide-rule text-sm">
-              {view.notReady.map((row) => (
-                <li
-                  key={row.key}
-                  className="grid gap-x-4 gap-y-0.5 py-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]"
-                >
-                  <span className="font-medium text-ink">{row.label}:</span>
-                  <span className="text-ink-2">
-                    {row.stateLabel}. <span className="text-ink-3">{row.detail}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <div className="border-t border-rule px-5 py-3">
+            <Details summary={i18n._(INSIGHT_COPY.notReadyTitle)}>
+              <ul className="divide-y divide-rule text-sm">
+                {view.notReady.map((row) => (
+                  <li
+                    key={row.key}
+                    className="grid gap-x-4 gap-y-0.5 py-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]"
+                  >
+                    <span className="font-medium text-ink">{row.label}:</span>
+                    <span className="text-ink-2">
+                      {row.stateLabel}. <span className="text-ink-3">{row.detail}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Details>
           </div>
         ) : null}
-        <div className="grid gap-2 border-t border-rule px-5 py-4 text-sm text-ink-3">
-          {view.footnotes.map((note) => (
-            <p key={note}>{note}</p>
-          ))}
-          <details>
-            <summary className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer font-medium text-ink">
-              {i18n._(INSIGHT_COPY.method)}
-            </summary>
-            <p className="mt-2 max-w-[65ch]">{i18n._(INSIGHT_COPY.methodText)}</p>
-          </details>
-          <p className="max-w-[65ch]">{i18n._(INSIGHT_COPY.limits)}</p>
-          <p>{view.versionText}</p>
-        </div>
       </div>
     </section>
   );

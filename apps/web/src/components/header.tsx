@@ -4,7 +4,33 @@ import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
+import {
+  CalendarHeart,
+  ChefHat,
+  Dumbbell,
+  FileDown,
+  FlaskConical,
+  Footprints,
+  Gauge,
+  HeartPulse,
+  History,
+  KeyRound,
+  LayoutDashboard,
+  Leaf,
+  Lock,
+  type LucideIcon,
+  Menu,
+  MessageCircle,
+  MessageSquareText,
+  Moon,
+  PersonStanding,
+  Pill,
+  Scale,
+  Settings,
+  ShieldCheck,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openvalens/ui/components/button";
@@ -23,7 +49,7 @@ import { adminAccessQueryOptions } from "@/utils/admin-settings";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
-type NavLink = { to: string; label: MessageDescriptor };
+type NavLink = { to: string; label: MessageDescriptor; icon: LucideIcon };
 type NavGroup = { label: MessageDescriptor; links: readonly NavLink[] };
 
 // Twenty-odd destinations read as one undifferentiated row; grouped by what
@@ -32,51 +58,51 @@ const NAV_GROUPS: readonly NavGroup[] = [
   {
     label: msg`Today`,
     links: [
-      { to: "/dashboard", label: msg`Dashboard` },
-      { to: "/scores", label: msg`Scores` },
-      { to: "/coach", label: msg`Coach` },
-      { to: "/preventive-care", label: msg`Preventive care` },
+      { to: "/dashboard", label: msg`Dashboard`, icon: LayoutDashboard },
+      { to: "/scores", label: msg`Scores`, icon: Gauge },
+      { to: "/coach", label: msg`Coach`, icon: MessageCircle },
+      { to: "/preventive-care", label: msg`Preventive care`, icon: ShieldCheck },
     ],
   },
   {
     label: msg`Records`,
     links: [
-      { to: "/records/timeline", label: msg`Timeline` },
-      { to: "/body", label: msg`Body` },
-      { to: "/body-map", label: msg`Body map` },
-      { to: "/private-measurements", label: msg`Private measurements` },
-      { to: "/cycle", label: msg`Cycle` },
-      { to: "/records/sleep", label: msg`Sleep` },
-      { to: "/records/activity", label: msg`Activity` },
-      { to: "/records/vitals", label: msg`Vitals` },
-      { to: "/records/labs", label: msg`Labs` },
-      { to: "/workouts", label: msg`Workouts` },
+      { to: "/records/timeline", label: msg`Timeline`, icon: History },
+      { to: "/body", label: msg`Body`, icon: Scale },
+      { to: "/body-map", label: msg`Body map`, icon: PersonStanding },
+      { to: "/private-measurements", label: msg`Private measurements`, icon: Lock },
+      { to: "/cycle", label: msg`Cycle`, icon: CalendarHeart },
+      { to: "/records/sleep", label: msg`Sleep`, icon: Moon },
+      { to: "/records/activity", label: msg`Activity`, icon: Footprints },
+      { to: "/records/vitals", label: msg`Vitals`, icon: HeartPulse },
+      { to: "/records/labs", label: msg`Labs`, icon: FlaskConical },
+      { to: "/workouts", label: msg`Workouts`, icon: Dumbbell },
     ],
   },
   {
     label: msg`Food`,
     links: [
-      { to: "/nutrition", label: msg`Meal diary` },
-      { to: "/food-draft", label: msg`Describe a meal` },
-      { to: "/recipe-drafts", label: msg`Recipe draft` },
-      { to: "/micronutrients", label: msg`Micronutrients` },
-      { to: "/supplements", label: msg`Supplements` },
+      { to: "/nutrition", label: msg`Meal diary`, icon: UtensilsCrossed },
+      { to: "/food-draft", label: msg`Describe a meal`, icon: MessageSquareText },
+      { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
+      { to: "/micronutrients", label: msg`Micronutrients`, icon: Leaf },
+      { to: "/supplements", label: msg`Supplements`, icon: Pill },
     ],
   },
   {
     label: msg`Export and share`,
     links: [
-      { to: "/exports", label: msg`Clinical export` },
-      { to: "/sharing", label: msg`Sharing` },
+      { to: "/exports", label: msg`Clinical export`, icon: FileDown },
+      { to: "/sharing", label: msg`Sharing`, icon: Users },
     ],
   },
 ];
 
-const ADMIN_LINK: NavLink = { to: "/admin/settings", label: msg`Administration` };
-const SETTINGS_LINK: NavLink = { to: "/settings", label: msg`Settings` };
+const ADMIN_LINK: NavLink = { to: "/admin/settings", label: msg`Administration`, icon: KeyRound };
+const SETTINGS_LINK: NavLink = { to: "/settings", label: msg`Settings`, icon: Settings };
 
 const linkClasses =
-  "relative flex min-h-8 items-center rounded-sm px-3 py-1 font-display text-sm text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-sidebar-accent hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-ink aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-1 aria-[current=page]:before:left-0 aria-[current=page]:before:w-0.5 aria-[current=page]:before:bg-signal";
+  "flex min-h-9 items-center gap-3 rounded-lg px-3 py-1.5 font-display text-[0.9375rem] text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-3 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-signal-2 [&>svg]:size-[18px] [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-signal";
 
 function useNavGroups() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
@@ -135,14 +161,15 @@ function NavGroups({
         <div key={group.label.id} className="grid gap-0.5">
           <p
             id={`nav-${label.length}-${group.label.id}`}
-            className="px-3 pb-1 font-body text-sm font-medium text-ink-3"
+            className="px-3 pb-1 text-[0.8125rem] font-medium text-ink-3"
           >
             {_(group.label)}
           </p>
           <ul aria-labelledby={`nav-${label.length}-${group.label.id}`} className="grid gap-px">
-            {group.links.map(({ to, label: linkLabel }) => (
+            {group.links.map(({ to, label: linkLabel, icon: Icon }) => (
               <li key={to}>
                 <Link to={to} className={linkClasses} onClick={onNavigate}>
+                  <Icon aria-hidden="true" />
                   {_(linkLabel)}
                 </Link>
               </li>

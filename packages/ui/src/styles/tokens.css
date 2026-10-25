@@ -3,10 +3,10 @@
  * Keep this file free of web-only imports, fonts, and base styles so uniwind can
  * compile it for React Native.
  *
- * The system is Hallmark's Almanac: cool slate paper, a pale printed sheet for
- * records and tables, blue-black ink, two rule weights, square surfaces, and one
- * deep magenta kept for the primary action, the current place and the one chart
- * series that argues. Every colour is OKLCH and tinted toward hue 245; the
+ * The system is Hallmark's Almanac, softened for everyday use: light slate
+ * paper, white cards with soft corners, blue-black ink, one sans family, and
+ * one deep magenta kept for the primary action, the current place and the one
+ * chart series that argues. Every colour is OKLCH and tinted toward hue 245; the
  * magenta holds at hue 350. Values are literal (not var() chains) so uniwind can
  * read each token on its own.
  */
@@ -66,62 +66,63 @@
   --radius-sm: var(--radius);
   --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
-  --radius-4xl: 0px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+  --radius-3xl: 18px;
+  --radius-4xl: 22px;
 }
 
 :root {
-  --font-face-body: "Newsreader Variable", "Newsreader", ui-serif, Georgia, serif;
+  --font-face-body: "Hanken Grotesk Variable", "Hanken Grotesk", ui-sans-serif, system-ui,
+    sans-serif;
   --font-face-display:
     "Hanken Grotesk Variable", "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-face-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --radius: 2px;
+  --font-face-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 6px;
 
-  --paper: oklch(0.84 0.012 245);
-  --paper-2: oklch(0.81 0.012 245);
-  --paper-3: oklch(0.77 0.012 245);
-  --sheet: oklch(0.935 0.008 245);
+  --paper: oklch(0.955 0.006 245);
+  --paper-2: oklch(0.93 0.008 245);
+  --paper-3: oklch(0.9 0.01 245);
+  --sheet: oklch(0.995 0.002 245);
   --ink: oklch(0.16 0.02 245);
   --ink-2: oklch(0.24 0.018 245);
-  --ink-3: oklch(0.38 0.016 245);
-  --rule: oklch(0.73 0.013 240);
-  --rule-2: oklch(0.32 0.018 240);
+  --ink-3: oklch(0.47 0.016 245);
+  --rule: oklch(0.9 0.008 240);
+  --rule-2: oklch(0.8 0.012 240);
   --signal: oklch(0.45 0.18 350);
   --signal-2: oklch(0.37 0.16 350);
   --signal-ink: oklch(0.97 0.006 245);
 
-  --background: oklch(0.84 0.012 245);
+  --background: oklch(0.955 0.006 245);
   --foreground: oklch(0.16 0.02 245);
-  --card: oklch(0.935 0.008 245);
+  --card: oklch(0.995 0.002 245);
   --card-foreground: oklch(0.16 0.02 245);
-  --popover: oklch(0.935 0.008 245);
+  --popover: oklch(0.995 0.002 245);
   --popover-foreground: oklch(0.16 0.02 245);
   --primary: oklch(0.45 0.18 350);
   --primary-foreground: oklch(0.97 0.006 245);
-  --secondary: oklch(0.81 0.012 245);
+  --secondary: oklch(0.93 0.008 245);
   --secondary-foreground: oklch(0.16 0.02 245);
-  --muted: oklch(0.89 0.01 245);
-  --muted-foreground: oklch(0.38 0.016 245);
-  --accent: oklch(0.89 0.01 245);
+  --muted: oklch(0.95 0.006 245);
+  --muted-foreground: oklch(0.47 0.016 245);
+  --accent: oklch(0.95 0.006 245);
   --accent-foreground: oklch(0.16 0.02 245);
   --destructive: oklch(0.5 0.19 27);
-  --border: oklch(0.73 0.013 240);
-  --input: oklch(0.45 0.016 245);
+  --border: oklch(0.9 0.008 240);
+  --input: oklch(0.78 0.012 245);
   --ring: oklch(0.46 0.19 350);
   --chart-1: oklch(0.45 0.18 350);
   --chart-2: oklch(0.32 0.018 240);
   --chart-3: oklch(0.6 0.13 350);
   --chart-4: oklch(0.5 0.016 245);
-  --chart-5: oklch(0.73 0.013 240);
-  --sidebar: oklch(0.81 0.012 245);
+  --chart-5: oklch(0.85 0.01 240);
+  --sidebar: oklch(0.995 0.002 245);
   --sidebar-foreground: oklch(0.16 0.02 245);
   --sidebar-primary: oklch(0.45 0.18 350);
   --sidebar-primary-foreground: oklch(0.97 0.006 245);
-  --sidebar-accent: oklch(0.77 0.012 245);
+  --sidebar-accent: oklch(0.95 0.01 350);
   --sidebar-accent-foreground: oklch(0.16 0.02 245);
-  --sidebar-border: oklch(0.73 0.013 240);
+  --sidebar-border: oklch(0.9 0.008 240);
   --sidebar-ring: oklch(0.46 0.19 350);
 }
 
@@ -168,7 +169,7 @@
   --sidebar-foreground: oklch(0.94 0.01 245);
   --sidebar-primary: oklch(0.68 0.15 350);
   --sidebar-primary-foreground: oklch(0.16 0.02 245);
-  --sidebar-accent: oklch(0.26 0.012 245);
+  --sidebar-accent: oklch(0.27 0.03 350);
   --sidebar-accent-foreground: oklch(0.94 0.01 245);
   --sidebar-border: oklch(0.32 0.014 240);
   --sidebar-ring: oklch(0.7 0.15 350);

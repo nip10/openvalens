@@ -9,10 +9,6 @@
 @import "shadcn/tailwind.css";
 /* Self-hosted fonts (CSP allows font-src 'self' only). */
 @import "@fontsource-variable/hanken-grotesk";
-@import "@fontsource-variable/newsreader/opsz.css";
-@import "@fontsource-variable/newsreader/opsz-italic.css";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
 @import "./tokens.css";
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
@@ -66,9 +62,6 @@
     font-optical-sizing: auto;
     caret-color: var(--signal);
   }
-  .dark body {
-    font-weight: 350;
-  }
   ::selection {
     background: color-mix(in oklab, var(--signal) 22%, transparent);
     color: var(--ink);
@@ -107,7 +100,6 @@
   /* Figures that compare: mono, tabular, lined up. */
   .num,
   td.num {
-    font-family: var(--font-face-mono);
     font-variant-numeric: tabular-nums;
   }
   td.num,
@@ -142,16 +134,16 @@
 }
 
 @layer components {
-  /* The printed sheet: the pale stock records and tables sit on, a 2px ink
-     rule at its head and hairlines inside. Never a shadow, never a radius. */
+  /* The sheet: a white card on the paper, a hairline edge, soft corners. */
   .sheet {
     background: var(--sheet);
-    border-top: 2px solid var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-xl);
   }
-  /* A well: a paper step under a firm rule, for a quieter grouping. */
+  /* A well: a paper step, for a quieter grouping inside or beside a sheet. */
   .well {
     background: var(--paper-2);
-    border-top: 2px solid var(--rule-2);
+    border-radius: var(--radius-xl);
   }
   .rule-firm {
     border-bottom: 2px solid var(--rule-2);

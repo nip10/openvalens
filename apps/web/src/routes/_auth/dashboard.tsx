@@ -1,16 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  formatDistanceMeters,
-  formatKcalories,
-  formatSteps,
-} from "@openvalens/api/presenters/activity";
+import { formatSteps } from "@openvalens/api/presenters/activity";
 import { formatKg, formatKgDelta, summarizeDailyWeights } from "@openvalens/api/presenters/body";
 import { kgToLb } from "@openvalens/api/presenters/product-formatting";
 import { COCKPIT_SLEEP_WINDOW_DAYS } from "@openvalens/api/presenters/cockpit";
 import {
-  formatClockTime,
   formatSleepDuration,
   sleepStatusLabel,
+  sleepStatusTone,
 } from "@openvalens/api/presenters/sleep";
 import { formatBpm } from "@openvalens/api/presenters/vitals";
 import {
@@ -22,27 +18,20 @@ import {
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { Footprints, HeartPulse, Moon, Scale, TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import { InsightsSection } from "@/components/insights-section";
-import { ErrorState, Figure, Page, PageHeader, Section } from "@/components/page";
+import { ErrorState, Figure, Page, PageHeader, Section, StatTile } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
 import { orpc } from "@/utils/orpc";
+import { friendlyDate, pillTone } from "@/utils/friendly";
 import { useProductSettings } from "@/utils/product-settings";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   component: DashboardPage,
 });
-
-type CockpitBlock = {
-  key: "weight" | "sleep" | "activity" | "vitals";
-  title: string;
-  to: "/body" | "/records/sleep" | "/records/activity" | "/records/vitals";
-  primary: string;
-  secondary: string;
-  tertiary: string | null;
-};
 
 // The dashboard's chart reads the same 90-day window the Body screen does.
 const WEIGHT_TREND_DAYS = 90;
@@ -59,7 +48,6 @@ function DashboardPage() {
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
   const { t, i18n } = useLingui();
-  const windowDays = COCKPIT_SLEEP_WINDOW_DAYS;
 
   const isPending = weight.isPending || sleep.isPending || activity.isPending || vitals.isPending;
   const isError = weight.isError || sleep.isError || activity.isError || vitals.isError;
@@ -69,58 +57,10 @@ function DashboardPage() {
   const activityRow = activity.data?.at(-1);
   const vitalsRow = vitals.data?.at(-1);
 
-  const blocks: CockpitBlock[] = [
-    {
-      key: "weight",
-      title: t`Weight`,
-      to: "/body",
-      primary: weightRow ? formatKg(weightRow.weightKg, settings) : "—",
-      secondary: weightRow ? t`Last reading, ${weightRow.date}` : t`No reading yet`,
-      tertiary: null,
-    },
-    {
-      key: "sleep",
-      title: t`Sleep`,
-      to: "/records/sleep",
-      primary: sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—",
-      secondary: sleepRow
-        ? t`Latest night, ${sleepRow.date}: ${i18n._(sleepStatusLabel(sleepRow.status))}`
-        : t`No sleep logged in the last ${windowDays} days`,
-      tertiary:
-        sleepRow && sleepRow.mainSleepStart && sleepRow.mainSleepEnd
-          ? `${formatClockTime(sleepRow.mainSleepStart, settings)} to ${formatClockTime(sleepRow.mainSleepEnd, settings)}`
-          : null,
-    },
-    {
-      key: "activity",
-      title: t`Activity`,
-      to: "/records/activity",
-      primary: activityRow ? formatSteps(activityRow.steps ?? 0) : "—",
-      secondary: activityRow
-        ? `${activityRow.date}: ${formatKcalories(activityRow.activeCaloriesKcal ?? 0)}, ${formatDistanceMeters(activityRow.distanceMeters ?? 0, settings)}`
-        : t`No activity logged`,
-      tertiary: null,
-    },
-    {
-      key: "vitals",
-      title: t`Heart rate`,
-      to: "/records/vitals",
-      primary:
-        vitalsRow && vitalsRow.heartRate.avgBpm !== null
-          ? formatBpm(vitalsRow.heartRate.avgBpm)
-          : "—",
-      secondary: vitalsRow ? t`Average, ${vitalsRow.date}` : t`No reading yet`,
-      tertiary: null,
-    },
-  ];
-
   return (
     <Page>
       <PageHeader
         title={<Trans>Dashboard</Trans>}
-        description={
-          <Trans>The latest reading of each measure, and how your weight has moved.</Trans>
-        }
         actions={
           <Link
             to="/records/timeline"
@@ -136,9 +76,10 @@ function DashboardPage() {
       <ProfileSetupPrompt />
 
       {isPending ? (
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          <Skeleton className="h-72 w-full" />
-          <Skeleton className="h-72 w-full" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((key) => (
+            <Skeleton key={key} className="h-32 w-full rounded-xl" />
+          ))}
         </div>
       ) : isError ? (
         <ErrorState
@@ -146,47 +87,63 @@ function DashboardPage() {
           description={<Trans>Check your connection, then reload the page.</Trans>}
         />
       ) : (
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          <DaySheet blocks={blocks} />
+        <>
+          <Section title={<Trans>Latest readings</Trans>}>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatTile
+                icon={Scale}
+                label={<Trans>Weight</Trans>}
+                to="/body"
+                value={weightRow ? formatKg(weightRow.weightKg, settings) : "—"}
+                note={weightRow ? friendlyDate(i18n, weightRow.date) : t`No reading yet`}
+              />
+              <StatTile
+                icon={Moon}
+                label={<Trans>Sleep</Trans>}
+                to="/records/sleep"
+                value={sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—"}
+                status={
+                  sleepRow
+                    ? {
+                        label: i18n._(sleepStatusLabel(sleepRow.status)),
+                        tone: pillTone(sleepStatusTone(sleepRow.status)),
+                      }
+                    : undefined
+                }
+                note={sleepRow ? undefined : t`No reading yet`}
+              />
+              <StatTile
+                icon={Footprints}
+                label={<Trans>Steps</Trans>}
+                to="/records/activity"
+                value={activityRow ? formatSteps(activityRow.steps ?? 0) : "—"}
+                note={activityRow ? friendlyDate(i18n, activityRow.date) : t`No activity logged`}
+              />
+              <StatTile
+                icon={HeartPulse}
+                label={<Trans>Heart rate</Trans>}
+                to="/records/vitals"
+                value={
+                  vitalsRow && vitalsRow.heartRate.avgBpm !== null
+                    ? formatBpm(vitalsRow.heartRate.avgBpm)
+                    : "—"
+                }
+                note={
+                  vitalsRow ? t`Average, ${friendlyDate(i18n, vitalsRow.date)}` : t`No reading yet`
+                }
+              />
+            </div>
+          </Section>
           <WeightTrend
             rows={weight.data ?? []}
             settings={settings}
             emptyLabel={t`No weight logged in the last ${WEIGHT_TREND_DAYS} days.`}
           />
-        </div>
+        </>
       )}
 
       <InsightsSection />
     </Page>
-  );
-}
-
-/** Today's figures, printed on one sheet: a measure per row, its figure in mono. */
-function DaySheet({ blocks }: { blocks: CockpitBlock[] }) {
-  return (
-    <Section title={<Trans>Latest readings</Trans>}>
-      <div className="sheet">
-        <ul className="divide-y divide-rule">
-          {blocks.map((block) => (
-            <li key={block.key}>
-              <Link
-                to={block.to}
-                className="group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 px-5 py-4 no-underline transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-              >
-                <span className="font-display text-base font-medium text-ink">{block.title}</span>
-                <span className="num row-span-2 self-center text-right text-2xl font-medium tracking-[-0.03em] text-ink">
-                  {block.primary}
-                </span>
-                <span className="text-sm text-ink-3">
-                  {block.secondary}
-                  {block.tertiary ? <span className="block">{block.tertiary}</span> : null}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Section>
   );
 }
 
@@ -214,14 +171,14 @@ function WeightTrend({
   const config: ChartConfig = { weightKg: { label: t`Weight (${unit})`, color: "var(--chart-1)" } };
 
   return (
-    <Section title={<Trans>Weight, last {WEIGHT_TREND_DAYS} days</Trans>}>
+    <Section icon={TrendingUp} title={<Trans>Weight, last {WEIGHT_TREND_DAYS} days</Trans>}>
       <div className="sheet grid gap-5 px-5 pt-4 pb-5">
         {summary.latest ? (
           <>
             <dl className="grid grid-cols-3 divide-x divide-rule">
               <Figure
                 className="pr-4"
-                label={summary.latest.date}
+                label={friendlyDate(i18n, summary.latest.date)}
                 value={formatKg(summary.latest.weightKg, settings)}
               />
               <Figure
@@ -241,7 +198,7 @@ function WeightTrend({
                 }
               />
             </dl>
-            <ChartContainer config={config} className="aspect-auto h-60 w-full">
+            <ChartContainer config={config} className="aspect-auto h-56 w-full">
               <LineChart data={summary.series} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
                 <CartesianGrid vertical={false} stroke="var(--rule)" />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={48} />

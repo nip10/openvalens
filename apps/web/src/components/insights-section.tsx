@@ -14,7 +14,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { ErrorState } from "@/components/page";
+import { ErrorState, InfoTip } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { authClient } from "@/lib/auth-client";
@@ -160,7 +160,7 @@ function SubjectInsightsSection({
   };
 
   return (
-    <div className="grid gap-10">
+    <div className="grid gap-8">
       {readiness.isPending || goals.isPending ? (
         <div className="grid gap-4">
           <Skeleton className="h-6 w-48" />
@@ -195,7 +195,7 @@ function SubjectInsightsSection({
           }
         />
       ) : (
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           <InsightsCard
             result={insights.data}
             settings={settings}
@@ -212,25 +212,27 @@ function SubjectInsightsSection({
             }
             onFeedback={onFeedback}
           />
-          <div className="grid min-w-0 content-start gap-10">
+          <div className="grid min-w-0 content-start gap-8">
             <section
               aria-labelledby="observation-title"
-              className="grid min-w-0 content-start gap-4"
+              className="grid min-w-0 content-start gap-3"
             >
-              <div className="grid gap-1">
-                <h2 id="observation-title" className="text-xl leading-tight text-ink">
+              <div className="flex items-center gap-2">
+                <h2 id="observation-title" className="text-lg leading-tight text-ink">
                   <Trans>Nutrition observations</Trans>
                 </h2>
-                <p className="max-w-[65ch] text-sm text-ink-3">
-                  <Trans comment="safety">
-                    Optional descriptions of how your recorded meals line up in time with recorded
-                    sleep and workouts. This reads across those logs only when you turn it on. It
-                    does not establish a cause or provide health advice. You can turn it off here
-                    without changing either log.
-                  </Trans>
-                </p>
+                <InfoTip align="end">
+                  <p>
+                    <Trans comment="safety">
+                      Optional descriptions of how your recorded meals line up in time with recorded
+                      sleep and workouts. This reads across those logs only when you turn it on. It
+                      does not establish a cause or provide health advice. You can turn it off here
+                      without changing either log.
+                    </Trans>
+                  </p>
+                </InfoTip>
               </div>
-              <div className="well grid gap-3 px-5 py-4">
+              <div className="sheet grid gap-3 px-5 py-4">
                 {observationPrefs.isPending ? (
                   <p role="status" className="text-sm text-ink-3">
                     <Trans>Loading observation setting…</Trans>
