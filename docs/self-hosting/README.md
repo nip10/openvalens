@@ -1,6 +1,6 @@
 # Self-hosting OpenValens
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-25
 
 These pages describe how to run your own OpenValens instance with the one
 supported install: the Docker Compose stack in `deploy/`, driven by
@@ -48,9 +48,6 @@ so.
 
 ## Not covered yet
 
-- File storage on local disk or S3-compatible services (#62).
 - Signed, published container images; installs build from source (#129).
-- Sign-in with an external identity provider (#65).
-- Resource minimums measured on a reference VPS.
 - A docs website. These Markdown pages come first; a site follows once they
   have been verified on a real install.

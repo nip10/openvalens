@@ -1,6 +1,6 @@
 # Configuration
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-25
 
 A self-hosted instance is configured in three places:
 
@@ -27,7 +27,7 @@ the value already in `deploy/.env`; add any other key by hand
 | Variable                                     | Written by `install` | Default             | Purpose                                                                                                                                                                                                                                                                                                                                        |
 | -------------------------------------------- | -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `OPENVALENS_DOMAIN`                          | yes                  | —                   | Bare domain served over HTTPS; also sets `BETTER_AUTH_URL`, `CORS_ORIGIN` and the web build's API origin.                                                                                                                                                                                                                                      |
-| `ACME_EMAIL`                                 | yes                  | —                   | Contact address for Let's Encrypt certificate notices.                                                                                                                                                                                                                                                                                         |
+| `ACME_EMAIL`                                 | yes                  | —                   | Contact address for Let's Encrypt certificate notices. Required by `install` in every mode; with `OPENVALENS_SITE_SCHEME=http` no certificate is requested and it is unused.                                                                                                                                                                   |
 | `EMAIL_FROM`                                 | yes                  | —                   | Sender of app email, e.g. `OpenValens <noreply@example.org>`. See [Email](email.md).                                                                                                                                                                                                                                                           |
 | `OPENVALENS_VERSION`                         | yes (every run)      | —                   | Tag of the locally built images; `upgrade` refreshes it from `git describe`.                                                                                                                                                                                                                                                                   |
 | `OPENVALENS_PRE_MIGRATE_BACKUP`              | yes                  | `pg_dump`           | Pre-migrate backup mode: `pg_dump` (an encrypted backup of the database and stored files), `hook` or `none`. See [Backups](backup.md).                                                                                                                                                                                                         |
@@ -99,9 +99,9 @@ the value already in `deploy/.env`; add any other key by hand
 | `WEARABLES_WITHINGS_CLIENT_ID`               | no                   | empty (off)         | Your Withings developer app client id; with its secret file it enables Withings.                                                                                                                                                                                                                                                               |
 | `WEARABLES_GOOGLE_HEALTH_ENABLED`            | no                   | `false`             | `true` allows the Google Health adapter (public preview). See [Wearables](../wearables.md).                                                                                                                                                                                                                                                    |
 | `WEARABLES_GOOGLE_HEALTH_CLIENT_ID`          | no                   | empty (off)         | Your Google Cloud OAuth client id for the Google Health API.                                                                                                                                                                                                                                                                                   |
-| `OPENVALENS_HTTP_PORT`                       | no                   | `80`                | Host port Caddy publishes for HTTP. Let's Encrypt needs the public port 80; change only behind another NAT.                                                                                                                                                                                                                                    |
-| `OPENVALENS_HTTPS_PORT`                      | no                   | `443`               | Host port Caddy publishes for HTTPS (TCP and UDP).                                                                                                                                                                                                                                                                                             |
-| `OPENVALENS_SITE_SCHEME`                     | no                   | `https`             | `http` makes Caddy serve plain HTTP and skip certificates, for when a proxy in front (a load balancer, a tunnel) terminates TLS and forwards to port 80. See [Behind a TLS-terminating proxy](install.md#behind-a-tls-terminating-proxy).                                                                                                      |
+| `OPENVALENS_HTTP_PORT`                       | yes                  | `80`                | Where Caddy publishes HTTP: `<port>` on every interface, or `<IP>:<port>` on one address (behind a proxy on this host, a private or loopback address). In https mode Let's Encrypt needs the public port 80. `install` also reads it from the environment. See [Behind a TLS-terminating proxy](install.md#behind-a-tls-terminating-proxy).    |
+| `OPENVALENS_HTTPS_PORT`                      | yes                  | `443`               | Where Caddy publishes HTTPS (TCP and UDP), as `<port>` or `<IP>:<port>`. Still published in http mode, so bind it to `127.0.0.1:<free port>` there: `setup.sh` refuses http mode while it is on every interface. `install` also reads it from the environment.                                                                                 |
+| `OPENVALENS_SITE_SCHEME`                     | yes                  | `https`             | `http` makes Caddy serve plain HTTP and skip certificates, for when a proxy in front (a load balancer, a tunnel, a reverse proxy on this host) terminates TLS and forwards to `OPENVALENS_HTTP_PORT`. `install` also reads it from the environment. See [Behind a TLS-terminating proxy](install.md#behind-a-tls-terminating-proxy).           |
 
 `install` also writes `COMPOSE_PROFILES`: `offsite` when the off-site copy is
 configured (a bucket and both key files), empty otherwise. It starts the
@@ -127,9 +127,12 @@ then run:
 deploy/setup.sh upgrade
 ```
 
-`upgrade` keeps every key in `deploy/.env` and only refreshes
-`OPENVALENS_VERSION`. Like every start of the stack, it takes a pre-migrate
-backup first ([Upgrading](upgrading.md)).
+`upgrade` keeps every key in `deploy/.env` and every value in it. It refreshes
+`OPENVALENS_VERSION`, and adds any key marked "yes" above that the file does
+not have yet (a key a newer version introduced, such as the backup settings),
+with its default, just above the marker line. It prints the names of the keys
+it added; `upgrade --dry-run` lists them first. Like every start of the stack,
+it takes a pre-migrate backup first ([Upgrading](upgrading.md)).
 
 Re-running `deploy/setup.sh install` is also safe. It rewrites the keys marked
 "yes" above, keeping their current values (the secret-file keys follow
@@ -139,6 +142,26 @@ unchanged. It never regenerates a secret. To change the domain or the email
 settings through the installer's questions, run
 `deploy/setup.sh install --reconfigure`; to preview the result first, add
 `--dry-run`, which works on a private copy of `deploy/.env`.
+
+### Before the first install
+
+`install` reads `OPENVALENS_SITE_SCHEME`, `OPENVALENS_HTTP_PORT` and
+`OPENVALENS_HTTPS_PORT` from the environment and writes them to `deploy/.env`
+([Headless install](install.md#headless-install)). For any other key that must
+be in place for the very first start, create `deploy/.env` yourself with the
+marker line and your keys below it; `install` keeps them and writes its own
+keys above:
+
+```bash
+umask 077
+printf '%s\n' '# --- Your settings: deploy/setup.sh install keeps everything below ---' \
+  'EMAIL_REPLY_TO=support@example.org' >deploy/.env
+deploy/setup.sh install
+```
+
+Do not set such a key only in your shell for `install`: Compose prefers the
+shell's value, so it applies once, and the next `upgrade` or `restore`, run
+without it, falls back to the default.
 
 ### What the stack does not expose
 

@@ -25,10 +25,15 @@ Preview what it would do without changing anything:
 deploy/setup.sh upgrade --dry-run
 ```
 
-`upgrade` refreshes `OPENVALENS_VERSION` in `deploy/.env` (all other keys are
-kept), rebuilds the images, **stops the running `caddy`, `web` and `server`**
-(so the server never serves a half-migrated database), then starts the gated
-chain:
+`upgrade` refreshes `OPENVALENS_VERSION` in `deploy/.env` and adds any setting
+the new version manages that the file lacks, with its default (for example
+`OPENVALENS_BACKUP_SCHEDULE`, `OPENVALENS_BACKUP_HOUR`,
+`OPENVALENS_BACKUP_DAILY_RETAIN` and `OPENVALENS_BACKUP_HOST_ID` on an install
+from before encrypted backups). It prints the names of the keys it added and
+never changes a value already there or your lines below the marker
+([Applying a change](configuration.md#applying-a-change)). It then rebuilds the
+images, **stops the running `caddy`, `web` and `server`** (so the server never
+serves a half-migrated database), and starts the gated chain:
 
 1. `backup` — takes the pre-migrate backup ([Backups](backup.md)) and reads
    it back. If it fails, nothing else runs.
@@ -37,29 +42,80 @@ chain:
 3. `server`, `web`, `caddy` and `backup-scheduler` — start only if `migrate`
    exited `0`.
 
-An install from before encrypted backups gets its backup key during the first
-`upgrade` that includes them; `upgrade` then reminds you to copy it off the
-server.
-
 The site is unavailable from the moment the old server stops until the new one
-is healthy. On the reference VM (2 vCPU, 8 GB; see
-[Resources](install.md#resources)), an upgrade that rebuilt the images took
-about 5 minutes, and one with a warm build cache took 48 seconds.
+is healthy. The images are built before the old server stops, so with a small
+database that is 10–20 seconds; the pre-migrate backup and the migrations run
+in that window, so a large database takes longer. The whole `upgrade` took
+about 5 minutes on the reference VM (2 vCPU, 8 GB; see
+[Resources](install.md#resources)), 48 seconds with a warm build cache, and
+9 minutes on a busy 2 vCPU / 4 GB host.
+
+After the upgrade:
+
+1. **Escrow the backup key, if the upgrade created it.** An install from
+   before encrypted backups gets its key,
+   `deploy/secrets/backup/age-identity`, during the first `upgrade` that
+   includes them, and `upgrade` ends with an `IMPORTANT` notice saying so.
+   Copy the key off the server now, before you rely on any backup, and check
+   the copy against the pre-migrate backup the upgrade just took
+   ([The backup key](backup.md#the-backup-key)):
+
+   ```bash
+   deploy/setup.sh backup verify --key-file /path/to/your/copy
+   ```
+
+2. [Verify the install](install.md#verify-the-install). The readiness status
+   should be `ok`. The pre-migrate backup counts as the newest backup, so
+   `checks.backups` is `ok` right away.
+3. [Reclaim disk space](#disk-space).
 
 ### Disk space
 
-Every upgrade rebuilds the images, and Docker keeps the old build cache. On the
-reference VM it grew from about 12 GB to about 23 GB over two upgrades. After a
-successful upgrade, reclaim it with:
+Every upgrade builds a new set of images (about 3.6 GB: server, web and
+backup), keeps the previous version's images and adds to Docker's build cache.
+On the reference VM the build cache grew from about 12 GB to about 23 GB over
+two upgrades; on the 4 GB host, one install and one upgrade used 16 GB. Reclaim
+the space once the new version works.
+
+**Old OpenValens images.** Keep the previous version's images until you are
+sure you will not roll back to it (an image-only rollback,
+[below](#rolling-back-past-the-release-that-introduced-encrypted-backups),
+uses them; `restore` rebuilds whatever you check out). Then remove the
+versions you no longer need. This lists only OpenValens's images, never
+another project's:
 
 ```bash
-docker builder prune --filter until=24h
+current="$(grep '^OPENVALENS_VERSION=' deploy/.env | cut -d= -f2)"
+docker image ls --format '{{.Repository}}:{{.Tag}}' --filter reference='openvalens-*' |
+  grep -E '^openvalens-(server|web|backup):' | grep -v ":$current\$"
+# check the list, then remove those images:
+docker image ls --format '{{.Repository}}:{{.Tag}}' --filter reference='openvalens-*' |
+  grep -E '^openvalens-(server|web|backup):' | grep -v ":$current\$" | xargs -r docker image rm
 ```
 
-This removes only cached build layers, never the database, storage or
-`backups` volumes.
+`docker image rm` refuses an image a container still uses, and never touches
+a volume.
 
-Afterwards, [verify the install](install.md#verify-the-install).
+**Build cache.** `docker builder prune` is **host-wide**: it removes the build
+cache of every project on the host, not only OpenValens's. Run it only on a
+host that runs nothing else, or with its administrator's agreement:
+
+```bash
+docker builder prune --filter until=24h     # host-wide: every project's build cache
+```
+
+On a shared host, give OpenValens a builder of its own and prune only that.
+Create it once, and build with it from then on:
+
+```bash
+docker buildx create --name openvalens --driver docker-container
+echo 'export BUILDX_BUILDER=openvalens' >>~/.profile && export BUILDX_BUILDER=openvalens
+deploy/setup.sh upgrade                                        # builds with it
+docker buildx prune --builder openvalens --filter until=24h -f # only OpenValens's cache
+```
+
+Neither command touches the database, storage or `backups` volumes. The cache
+already in the default builder stays until whoever owns the host prunes it.
 
 ## When an upgrade fails
 

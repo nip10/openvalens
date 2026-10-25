@@ -32,15 +32,42 @@ prints it. Re-running `install` never replaces it.
 > OpenValens maintainers, can decrypt a backup without it. Copy the file off
 > the server as soon as it exists, and keep the copy as safe as the health data
 > itself: a password manager entry, an encrypted USB drive in a safe, a second
-> trusted machine. Check the copy by restoring once
-> ([Restoring onto a new host](#restoring-onto-a-new-host)).
+> trusted machine. Check the copy against a backup (below), and practise a
+> restore with it once ([Restoring onto a new host](#restoring-onto-a-new-host)).
 
-Read the key only on the server's own terminal, never through chat, a ticket
-or a log:
+Copy the key as a **file**; never print it. `cat` would put it in the
+terminal's scrollback, in session recordings and in any log of the session,
+and it must never go through chat, a ticket or a log. Pick one:
 
 ```bash
-cat deploy/secrets/backup/age-identity     # AGE-SECRET-KEY-1...; copy it somewhere safe
+# From your own computer, into a private file there:
+scp <user>@<host>:openvalens/deploy/secrets/backup/age-identity ./openvalens-age-identity
+chmod 600 ./openvalens-age-identity
+
+# On the server, onto removable media you then store safely:
+install -m 0400 deploy/secrets/backup/age-identity /media/<usb>/openvalens-age-identity
 ```
+
+A password manager that stores file attachments can hold the copied file; if
+it takes only text, open the file in a private session and paste it there,
+nowhere else.
+
+Then check that the copy works, on the same host: it must decrypt a backup.
+Wait for the first backup on a fresh install (`deploy/setup.sh backup list`).
+
+```bash
+deploy/setup.sh backup verify --key-file /media/<usb>/openvalens-age-identity          # newest backup
+deploy/setup.sh backup verify <id> --key-file /media/<usb>/openvalens-age-identity     # one backup
+```
+
+`setup.sh` reads the file and passes it on standard input to a one-off backup
+container, which decrypts every file of the backup with it and checks every
+checksum. The key is never printed, put on a command line or kept, and the
+check is not recorded as a verify of the backup, so a wrong copy cannot make
+readiness report the backups as `failing`. A copy of another key fails at the
+`key` step; a file that is not an age key is refused before anything runs.
+`deploy/secrets/backup/age-identity` itself does not need to exist, so you can
+also check a copy before you put it back.
 
 For a move to a new host, also keep `deploy/secrets/server/BETTER_AUTH_SECRET`
 (or the whole `deploy/secrets/` directory) and `deploy/.env`. The database
@@ -76,8 +103,31 @@ Every run is recorded in the database. The **readiness probe** reports
 `checks.backups` (`ok`, `failing` when the newest backup or verify failed,
 `stale` when no good backup is under 48 hours old or the scheduler is overdue,
 `off` when no backup service ever reported) and reports `degraded` when
-backups are `failing` or `stale`. **`/admin/settings`** shows the last backup,
+backups are `failing` or `stale`. Any good backup counts, whatever took it:
+daily, pre-migrate or `backup now`. **`/admin/settings`** shows the last backup,
 the last verify, the next scheduled backup and the step of the last failure.
+
+The pre-migrate backup of the upgrade that introduces encrypted backups runs
+before the migration that creates their status table, so it cannot be
+recorded at that moment. The scheduler records it when it starts, right after
+that migration, so readiness reports `ok` after the upgrade instead of
+`stale` until the next daily backup.
+
+To confirm the schedule from the command line, before any administrator
+exists to open `/admin/settings`:
+
+```bash
+docker compose -f deploy/compose.yml logs backup-scheduler | grep 'daily encrypted backups'
+# openvalens-backup: daily encrypted backups at 03:00 UTC, keeping 14
+deploy/setup.sh backup list                       # what is in the backups volume
+curl -sS -X POST https://<domain>/api-reference/health/readiness \
+  -H 'Content-Type: application/json' -d '{}' | grep -o '"backups":"[a-z]*"'
+```
+
+With `OPENVALENS_BACKUP_SCHEDULE=off` the log says so instead. The schedule
+settings are in `deploy/.env` (`OPENVALENS_BACKUP_*`). On an install from
+before encrypted backups, `upgrade` adds them with their defaults
+([Upgrading](upgrading.md#upgrade)).
 
 ### Using your own backups instead
 
@@ -262,6 +312,12 @@ deploy/setup.sh restore <id> --non-interactive --force
 
 Everything written after the backup is lost from the live instance (it is
 still in the kept database).
+
+The state of first-administrator setup is in the database too. If no
+administrator existed yet and the backup predates the setup token in
+`deploy/secrets/setup-token`, that token no longer works: run
+`deploy/setup.sh mint-token` for a new one
+([First administrator](install.md#first-administrator-and-invitations)).
 
 > **The kept copies hold live data.** `openvalens_pre_restore_<stamp>` and
 > `storage/.pre-restore-<stamp>/` are full copies of the instance as it was

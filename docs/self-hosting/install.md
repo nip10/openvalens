@@ -1,6 +1,6 @@
 # Install
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-25
 
 This is the **one supported self-host install** (Issue #63): a pinned Docker
 Compose stack (`deploy/compose.yml`) driven by an interactive setup script
@@ -16,19 +16,30 @@ it for a real installation.
 
 ## What you get
 
-| Service    | Image                                       | Network     | Published ports |
-| ---------- | ------------------------------------------- | ----------- | --------------- |
-| `caddy`    | `caddy:2.11.7@sha256:…` (pinned)            | `app`       | 80, 443 (+UDP)  |
-| `web`      | `openvalens-web:<version>` (built locally)  | `app`       | none            |
-| `server`   | `openvalens-server:<version>` (built)       | `app`, `db` | none            |
-| `migrate`  | same image as `server`, one-shot            | `db`        | none            |
-| `backup`   | `postgres:18.6@sha256:…` (pinned), one-shot | `db`        | none            |
-| `postgres` | `postgres:18.6@sha256:…` (pinned)           | `db` only   | none            |
+| Service            | Image                                                      | Network     | Published ports           |
+| ------------------ | ---------------------------------------------------------- | ----------- | ------------------------- |
+| `caddy`            | `caddy:2.11.7@sha256:…` (pinned)                           | `app`       | 80, 443 (+UDP); see below |
+| `web`              | `openvalens-web:<version>` (built locally)                 | `app`       | none                      |
+| `server`           | `openvalens-server:<version>` (built locally)              | `app`, `db` | none                      |
+| `migrate`          | same image as `server`, one-shot                           | `db`        | none                      |
+| `backup`           | `openvalens-backup:<version>` (built locally), one-shot    | `db`        | none                      |
+| `backup-scheduler` | `openvalens-backup:<version>`, long-running                | `db`        | none                      |
+| `backup-tools`     | `openvalens-backup:<version>`, run by `setup.sh` only      | `db`        | none                      |
+| `backup-offsite`   | `openvalens-backup:<version>`, only with the off-site copy | `offsite`   | none                      |
+| `postgres`         | `postgres:18.6@sha256:…` (pinned)                          | `db` only   | none                      |
 
 - **Caddy is the only service that publishes ports.** Docker-published ports
   bypass host firewalls such as ufw, so nothing else may publish one. Caddy
   obtains and renews the TLS certificate automatically and redirects HTTP to
-  HTTPS.
+  HTTPS. `OPENVALENS_HTTP_PORT` and `OPENVALENS_HTTPS_PORT` change the host
+  side, and can bind one address
+  ([Behind a TLS-terminating proxy](#behind-a-tls-terminating-proxy)).
+- The backup services ([Backups](backup.md)) run the `openvalens-backup` image:
+  the pinned Postgres image plus `age`, `jq` and `rclone`. `backup` takes the
+  pre-migrate backup, `backup-scheduler` the daily one, `backup-tools` runs
+  `deploy/setup.sh backup …` and `restore`, and `backup-offsite` uploads to a
+  bucket when you turn on the off-site copy. Only `backup-offsite` has
+  internet access.
 - The `db` network is `internal: true`: Postgres has no published port and no
   route to the internet. The server also joins `app` because it needs outbound
   access to email/AI providers.
@@ -41,14 +52,31 @@ it for a real installation.
 - Named volumes: `postgres_data`, `backups`, `storage`, `caddy_data`,
   `caddy_config`. `storage` holds uploaded objects (today, progress photos) at `/var/lib/openvalens/storage` in the server container; see
   [Object storage](../storage.md).
+- Docker names everything with the Compose project name,
+  `openvalens-selfhost` (set in `deploy/compose.yml`): the volumes are
+  `openvalens-selfhost_postgres_data`, `openvalens-selfhost_backups` and so on,
+  the containers `openvalens-selfhost-<service>-1`, the networks
+  `openvalens-selfhost_<network>`. The images are `openvalens-server`,
+  `openvalens-web` and `openvalens-backup`, tagged with `<version>`. On a host
+  you share, these names tell you which resources are yours:
+
+  ```bash
+  docker volume ls --filter label=com.docker.compose.project=openvalens-selfhost
+  docker image ls --filter reference='openvalens-*'
+  ```
 
 ## Requirements
 
 - A Linux host (Ubuntu 24.04 LTS is the reference) with Docker Engine, the
   Compose v2 plugin (`docker compose`) and `git`.
+- A user that may use Docker. Root is not required: a user in the `docker`
+  group runs every command on these pages, with the checkout in its home
+  directory. Membership of the `docker` group is equivalent to root on the
+  host, so give it only to the people who administer the instance.
 - A domain whose DNS A/AAAA record points at the host, and inbound TCP 80/443
   (plus UDP 443 for HTTP/3) open. Port 80 is needed for the certificate
-  challenge.
+  challenge. With a proxy in front that terminates TLS, the proxy needs these
+  instead ([Behind a TLS-terminating proxy](#behind-a-tls-terminating-proxy)).
 - A [Resend](https://resend.com) API key and a verified sender. Account setup
   and invitations deliver a one-time code **by email**; without a key, email is
   dry-run only and the first administrator cannot complete setup. See
@@ -73,15 +101,35 @@ recovering from a failed migration.
 | Fresh database volume              | ~72 MB                                                                  |
 | Pre-migrate dump, fresh database   | ~0.5 MB each                                                            |
 
+A second run, on 2026-10-25, used the recommended minimum on a busier host: a
+shared Ubuntu 24.04 VM with 2 vCPU, 3.9 GB RAM and 4 GB swap (about 1.7 GB of
+RAM free at the start, other tenants' containers running), Docker 29.6.0 with
+Compose 5.1.4, behind an existing reverse proxy. It installed one commit of
+`main`, upgraded to a newer one (which added encrypted backups), then backed
+up and restored.
+
+| Item                                     | Measured                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- |
+| First install (build + start)            | 18 min, cold build cache                                                              |
+| Upgrade (full rebuild, backup, migrate)  | 9 min; the site was down for about 10–20 s of it                                      |
+| `backup now` / `backup verify` / restore | 5.8 s / 3.2 s / 32 s (a new instance: ~0.6 MB per backup)                             |
+| Images on disk                           | server 2.75 GB, backup 0.74 GB, web 0.1 GB, **per version**                           |
+| Disk used, install + one upgrade         | +16 GB: two versions of the images (2.85 GB of the old ones left) and the build cache |
+
 Plan for:
 
 - **2 vCPU and 4 GB RAM.** Running the stack needs well under 1 GB, but
-  building the images peaks around 3.5 GB. On a 2 GB host, add at least 2 GB
-  of swap before `install` or `upgrade`, or the build may be killed. (A 2 GB
+  building the images peaks around 3.5 GB. On a 4 GB host that runs other
+  things, add swap (the second run had 4 GB) and expect an install to take
+  15–20 minutes and an upgrade about 10. On a 2 GB host, add at least 2 GB of
+  swap before `install` or `upgrade`, or the build may be killed. (A 2 GB
   host was not tested.)
-- **40 GB free disk.** That covers the images, the build cache (which grows
-  with every upgrade; see [Upgrading](upgrading.md#disk-space)) and at least
-  three database-sized dumps in the `backups` volume.
+- **40 GB free disk.** That covers the images, the build cache and at least
+  three database-sized backups in the `backups` volume, but not for long:
+  every upgrade adds a new set of images (about 3.6 GB) and more build cache,
+  and the old images stay until you remove them. The second run went from
+  40 GB free to 24 GB free after one install and one upgrade. Reclaim space
+  after each upgrade ([Upgrading](upgrading.md#disk-space)).
 
 ## Install
 
@@ -129,31 +177,62 @@ local prompt.
 OPENVALENS_DOMAIN=health.example.org \
 ACME_EMAIL=ops@example.org \
 EMAIL_FROM='OpenValens <noreply@example.org>' \
-RESEND_API_KEY_SOURCE=/root/resend-key \
+RESEND_API_KEY_SOURCE=$HOME/resend-key \
   deploy/setup.sh install --non-interactive
 ```
 
-`RESEND_API_KEY_SOURCE` is the path to a private file containing the key; the
-key is never accepted as an argument or environment value.
+`RESEND_API_KEY_SOURCE` is the path to a private file containing the key
+(`chmod 600` it, and delete it once the install has copied it into
+`deploy/secrets/`); the key is never accepted as an argument or environment
+value. Any user that may use Docker can run this; it does not need root.
+
+`ACME_EMAIL` is always required. Caddy gives it to Let's Encrypt for
+certificate expiry notices. With `OPENVALENS_SITE_SCHEME=http` (below) Caddy
+requests no certificate and never uses it, so any address of yours will do.
 
 ### Behind a TLS-terminating proxy
 
 By default Caddy obtains the certificate itself, which needs ports 80 and 443
-to reach the host directly. If a load balancer, tunnel or hosting edge in front
-of the host already terminates HTTPS and forwards plain HTTP to port 80, set
-`OPENVALENS_SITE_SCHEME=http` when you run `install` (or add it to
-`deploy/.env` and run `deploy/setup.sh upgrade`):
+to reach the host directly. If a load balancer, tunnel, hosting edge or a
+reverse proxy already running on the host terminates HTTPS and forwards plain
+HTTP to OpenValens, set `OPENVALENS_SITE_SCHEME=http`. Caddy then serves plain
+HTTP for `OPENVALENS_DOMAIN`, asks for no certificate and does not redirect.
+The public URL stays `https://<domain>`, so the proxy must serve HTTPS for that
+name.
+
+In this mode, choose where Caddy listens with `OPENVALENS_HTTP_PORT` and
+`OPENVALENS_HTTPS_PORT`. Each takes `<port>` (every interface) or
+`<IP>:<port>` (one address). Two rules:
+
+- **Bind the HTTP port to the address the proxy forwards to**, never to every
+  interface: anyone who reaches it talks to OpenValens without TLS. A firewall
+  does not help here: Docker-published ports bypass host firewalls such as ufw
+  ([What you get](#what-you-get)), so binding the address is the control. For
+  a proxy on the same host, use `127.0.0.1:<port>` or the address of the Docker
+  bridge the proxy runs on (for example `10.0.0.1:18080` on `docker0`). For a
+  proxy on another machine, use this host's private-network address.
+- **Move the HTTPS port off every interface.** Caddy's HTTPS port is still
+  published in http mode, although nothing uses it, and on a host where the
+  proxy already owns 443 it would collide. Bind it to loopback on a free port,
+  for example `127.0.0.1:18443`. `setup.sh` refuses to start http mode while
+  the HTTPS port is published on every interface.
+
+Pass all three to `install`; it writes them to `deploy/.env`, so every later
+`upgrade` and `restore` keeps them:
 
 ```bash
-OPENVALENS_SITE_SCHEME=http deploy/setup.sh install
+OPENVALENS_SITE_SCHEME=http \
+OPENVALENS_HTTP_PORT=10.0.0.1:18080 \
+OPENVALENS_HTTPS_PORT=127.0.0.1:18443 \
+  deploy/setup.sh install
 ```
 
-Caddy then serves plain HTTP on port 80 for `OPENVALENS_DOMAIN`, asks for no
-certificate and does not redirect. The public URL stays
-`https://<domain>`, so the proxy must serve HTTPS for that name. Only use this
-when the proxy is the sole route to port 80: anyone who reaches port 80
-directly talks to OpenValens without TLS. Firewall the host so only the proxy
-can connect.
+Then point the proxy at `http://10.0.0.1:18080` (your address), passing the
+original `Host` header. On an existing install, set the same keys in
+`deploy/.env` and run `deploy/setup.sh upgrade`
+([Applying a change](configuration.md#applying-a-change)). To set any other
+key before the very first install, create `deploy/.env` with the marker line
+first ([Before the first install](configuration.md#before-the-first-install)).
 
 ### Dry run
 
@@ -165,15 +244,33 @@ deploy/setup.sh mint-token --dry-run
 
 A dry run generates the configuration and throwaway secrets in a private
 temporary directory, validates `deploy/compose.yml` with `docker compose
-config`, checks that only Caddy publishes ports, prints the Docker commands it
-would run, and deletes the temporary directory. On an existing install it
+config`, checks that only Caddy publishes ports and prints where it will
+publish them, prints the Docker commands it would run, and deletes the
+temporary directory. Check the ports line before you go live:
+
+```text
+setup: caddy publishes HTTP on 10.0.0.1:18080 (to :80/tcp) and HTTPS on 127.0.0.1:18443 (to :443/tcp+udp)
+```
+
+`port 80 on all interfaces` means every address of the host. `upgrade --dry-run`
+also lists the settings an upgrade would add to `deploy/.env`. On an existing install it
 starts from a private copy of `deploy/.env`, so the validation covers your
 settings. It changes nothing in `deploy/` and does not start containers. `deploy/setup.sh --help` prints the full usage.
 
 ## First administrator and invitations
 
-1. Read the token locally: `cat deploy/secrets/setup-token`. It is valid for
-   **24 hours** and works once.
+1. Get the token from `deploy/secrets/setup-token` without printing it into a
+   shared or recorded terminal. It is valid for **24 hours** and works once.
+   Either copy the file to your own computer and read it there:
+
+   ```bash
+   scp <user>@<host>:openvalens/deploy/secrets/setup-token ./setup-token   # on your computer
+   ```
+
+   or open it on the server in your own private session with
+   `less deploy/secrets/setup-token`, which leaves nothing in the scrollback
+   when you quit. Delete any copy once the administrator exists.
+
 2. Open `https://<domain>/setup`, enter the token and your email address, then
    the code emailed to you. That account becomes the global instance
    administrator. Sign in afterwards through the normal email sign-in.
@@ -189,21 +286,66 @@ it is refused once an administrator exists):
 deploy/setup.sh mint-token
 ```
 
+`/setup` is part of the web app, so it loads whether or not setup is still
+open. To check from the command line, ask the server; this is the call the
+page makes:
+
+```bash
+curl -sS -X POST https://<domain>/rpc/admission/status \
+  -H 'Content-Type: application/json' -d '{"json":{}}'
+# {"json":{"setupAvailable":true,"emailDeliveryAvailable":true}}
+```
+
+`setupAvailable: false` means an administrator already exists.
+`emailDeliveryAvailable: false` means email is in dry-run (no Resend key), so
+the emailed code cannot arrive ([Email](email.md)). The call takes `POST` with
+that exact body: a `GET` answers 405 and an empty body 400.
+
+**After a restore.** The token is checked against the database, so a restore
+also restores the state of setup. If you restore a backup taken **before** the
+token was minted (or before the newest `mint-token`), the token on disk no
+longer matches: run `deploy/setup.sh mint-token` again. If the backup already
+has an administrator, setup stays closed and that administrator signs in as
+usual. Check with the call above.
+
 ## Verify the install
 
 ```bash
 curl -fsS -X POST https://<domain>/api-reference/health/readiness \
-  -H 'Content-Type: application/json' -d '{}'          # "status":"ok"
+  -H 'Content-Type: application/json' -d '{}' | tee /dev/stderr |
+  grep -q '"status":"ok"' && echo READY || echo 'NOT READY: read the checks above'
 docker compose -f deploy/compose.yml ps                 # only caddy lists host ports
 ```
 
+Readiness answers HTTP 200 whatever the status, so `curl -f` alone passes a
+degraded instance: the check above looks at the body. `status` is one of:
+
+- `ok`: everything required works.
+- `degraded`: the site works, but something needs you. The `checks` say what:
+  a required secret missing or too short, `storage` not writable, `backups`
+  `failing` or `stale` ([Backups](backup.md#what-runs-automatically)), or
+  `backupOffsite` `failing`.
+- `unready`: the database is unreachable.
+
 The readiness body also reports each optional integration (`email`, `ai`,
 `messaging`) as `configured`, `dry-run` or `off`; see
-[Configuration](configuration.md#optional-providers).
+[Configuration](configuration.md#optional-providers). Those never degrade the
+status.
 
 From **another machine**, confirm that only 80/443 answer, for example
 `nmap -Pn -p 80,443,3000,3001,5432 <host>` (3000, 3001 and 5432 must not be
 open).
+
+**Behind a proxy** ([above](#behind-a-tls-terminating-proxy)), check the
+bindings on the host instead: Caddy's ports must listen only on the addresses
+you chose, and nothing on 3000, 3001 or 5432.
+
+```bash
+ss -ltnu | grep -E ':(18080|18443|3000|3001|5432)\b'   # your ports
+# 10.0.0.1:18080 and 127.0.0.1:18443 only; no 0.0.0.0, [::] or *, and no 3000/3001/5432
+```
+
+Then load `https://<domain>/` through the proxy.
 
 Then follow [Configuration](configuration.md#scheduled-jobs) to schedule the
 recurring jobs: the stack does not run them by itself.
@@ -218,8 +360,10 @@ deploy/secrets/            0700  host-private
     CRON_SECRET            0444
     TELEGRAM_WEBHOOK_SECRET 0444
     RESEND_API_KEY         0444  (optional)
-  postgres/                0755  mounted read-only in postgres/backup
+  postgres/                0755  mounted read-only in postgres and the backup services
     POSTGRES_PASSWORD      0444
+  backup/                  0755  mounted read-only in the backup services
+    age-identity           0444  the backup key: keep a copy off the server
   setup-token              0600  operator only, never mounted
 ```
 
