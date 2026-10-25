@@ -5,6 +5,7 @@ import {
 } from "@openvalens/api/presenters/wearables";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
@@ -81,15 +82,26 @@ function DevicesSettingsPage() {
   const settingsLink = (
     <Link
       to="/settings"
-      className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+      className="inline-flex items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
     >
+      <ChevronLeft className="size-4" aria-hidden="true" />
       <Trans>Settings</Trans>
     </Link>
   );
 
   return (
-    <Page width="narrow">
-      <PageHeader title={<Trans>Devices</Trans>} actions={settingsLink} />
+    <Page>
+      <PageHeader
+        title={<Trans>Devices</Trans>}
+        info={
+          <Trans>
+            The mobile app already sends steps, heart rate, sleep, weight and workouts from Apple
+            Health or Health Connect. Connect a vendor account here only for what the phone cannot
+            carry, such as overnight HRV and the vendor's own scores.
+          </Trans>
+        }
+        actions={settingsLink}
+      />
       <WearableDevicesView
         status={list.isPending ? "pending" : list.isError ? "error" : "ready"}
         providers={providers}

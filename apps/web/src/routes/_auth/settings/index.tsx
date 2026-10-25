@@ -33,6 +33,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Bot, ChevronRight, Plug, Send, Trash2, UserRound, Watch } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -43,8 +44,9 @@ import { AnalyticsConsentSection } from "@/components/analytics-consent-section"
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
 import { LanguageSection } from "@/components/language-section";
 import { OidcConnectSection } from "@/components/oidc-connect-section";
-import { ErrorState, Page, PageHeader, Section } from "@/components/page";
+import { ErrorState, InfoTip, Page, PageHeader, Section } from "@/components/page";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
+import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
 import { orpc } from "@/utils/orpc";
@@ -78,12 +80,12 @@ function SettingsPage() {
       <PageHeader title={<Trans>Settings</Trans>} />
       <div className="grid gap-10 lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-14">
         <nav aria-label={t`Settings`} className="hidden lg:block">
-          <ul className="sticky top-10 grid border-l border-rule">
+          <ul className="sticky top-10 grid gap-0.5">
             {index.map((item) => (
               <li key={item.id}>
                 <a
                   href={`#${item.id}`}
-                  className="-ml-px block border-l-2 border-transparent py-1.5 pl-4 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:border-rule-2 hover:text-ink"
+                  className="block rounded-full px-3 py-1.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-paper-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {item.label}
                 </a>
@@ -91,8 +93,8 @@ function SettingsPage() {
             ))}
           </ul>
         </nav>
-        <div className="grid min-w-0 max-w-3xl content-start gap-14">
-          <div id="account" className="grid scroll-mt-10 gap-14">
+        <div className="grid min-w-0 max-w-3xl content-start gap-10">
+          <div id="account" className="grid scroll-mt-10 gap-10">
             <AccountSection />
             <OidcConnectSection />
           </div>
@@ -114,7 +116,7 @@ function SettingsPage() {
           <div id="coach" className="scroll-mt-10">
             <CoachSection />
           </div>
-          <div id="ai" className="grid scroll-mt-10 gap-14">
+          <div id="ai" className="grid scroll-mt-10 gap-10">
             <AiWorkspaceConsentSection />
             <AiConsentSection />
           </div>
@@ -133,32 +135,48 @@ function SettingsPage() {
 /** Links to the per-integration pages under /settings. */
 function IntegrationsSection() {
   return (
-    <Section title={<Trans>Integrations</Trans>}>
-      <ul className="divide-y divide-rule border-y border-rule">
-        <li className="grid gap-0.5 py-3">
-          <Link
-            to="/settings/devices"
-            className={`w-fit font-display font-medium text-ink ${LINK}`}
-          >
-            <Trans>Devices</Trans>
-          </Link>
-          <span className="text-sm text-ink-3">
-            <Trans>Connect a wearable vendor account such as Oura or WHOOP</Trans>
-          </span>
-        </li>
-        <li className="grid gap-0.5 py-3">
-          <Link
-            to="/settings/telegram"
-            className={`w-fit font-display font-medium text-ink ${LINK}`}
-          >
-            Telegram
-          </Link>
-          <span className="text-sm text-ink-3">
-            <Trans>Daily reminders</Trans>
-          </span>
-        </li>
-      </ul>
+    <Section title={<Trans>Integrations</Trans>} icon={Plug} tone="signal">
+      <SettingsGroup className="px-0">
+        <IntegrationLink
+          to="/settings/devices"
+          icon={Watch}
+          label={<Trans>Devices</Trans>}
+          description={<Trans>Connect a wearable vendor account such as Oura or WHOOP</Trans>}
+        />
+        <IntegrationLink
+          to="/settings/telegram"
+          icon={Send}
+          label="Telegram"
+          description={<Trans>Daily reminders</Trans>}
+        />
+      </SettingsGroup>
     </Section>
+  );
+}
+
+function IntegrationLink({
+  to,
+  icon,
+  label,
+  description,
+}: {
+  to: "/settings/devices" | "/settings/telegram";
+  icon: typeof Watch;
+  label: React.ReactNode;
+  description: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex min-h-16 items-center gap-4 px-5 py-3 no-underline transition-colors duration-[var(--dur-short)] first:rounded-t-3xl last:rounded-b-3xl hover:bg-paper-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+    >
+      <SettingsIcon icon={icon} />
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className="font-medium text-ink">{label}</span>
+        <span className="text-sm text-ink-3">{description}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
+    </Link>
   );
 }
 
@@ -166,34 +184,41 @@ function AccountSection() {
   const navigate = useNavigate();
   const { data: session, isPending } = authClient.useSession();
 
-  if (isPending) return <Skeleton className="h-24 w-full" />;
+  if (isPending) return <Skeleton className="h-24 w-full rounded-3xl" />;
   if (!session) return null;
+  const displayName = session.user.name ?? session.user.email;
 
   return (
-    <Section title={<Trans>Account</Trans>}>
-      <div className="flex flex-wrap items-center justify-between gap-4 border-y border-rule py-4">
-        <div className="grid min-w-0 gap-0.5">
-          <span className="font-display font-medium text-ink">
-            {session.user.name ?? session.user.email}
+    <Section title={<Trans>Account</Trans>} icon={UserRound} tone="signal">
+      <SettingsGroup>
+        <div className="flex flex-wrap items-center gap-4 py-4">
+          <span
+            className="grid size-12 shrink-0 place-items-center rounded-full bg-sidebar-accent font-display text-xl font-medium text-signal"
+            aria-hidden="true"
+          >
+            {(displayName ?? "?").trim().charAt(0).toUpperCase()}
           </span>
-          {session.user.email && (
-            <span className="text-sm break-all text-ink-3">{session.user.email}</span>
-          )}
+          <div className="grid min-w-0 flex-1 basis-40 gap-0.5">
+            <span className="font-display text-lg font-medium text-ink">{displayName}</span>
+            {session.user.email && (
+              <span className="text-sm break-all text-ink-3">{session.user.email}</span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              await prepareOfflineSignOut();
+              await authClient.signOut({
+                fetchOptions: {
+                  onSuccess: () => navigate({ to: "/" }),
+                },
+              });
+            }}
+          >
+            <Trans>Sign out</Trans>
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          onClick={async () => {
-            await prepareOfflineSignOut();
-            await authClient.signOut({
-              fetchOptions: {
-                onSuccess: () => navigate({ to: "/" }),
-              },
-            });
-          }}
-        >
-          <Trans>Sign out</Trans>
-        </Button>
-      </div>
+      </SettingsGroup>
     </Section>
   );
 }
@@ -202,10 +227,10 @@ function CoachSection() {
   const queryClient = useQueryClient();
   const config = useQuery(orpc.coach.getConfig.queryOptions({ input: undefined }));
 
-  if (config.isPending) return <Skeleton className="h-64 w-full" />;
+  if (config.isPending) return <Skeleton className="h-64 w-full rounded-3xl" />;
   if (config.isError || !config.data) {
     return (
-      <Section title={<Trans>Coach</Trans>}>
+      <Section title={<Trans>Coach</Trans>} icon={Bot} tone="signal">
         <ErrorState
           title={<Trans>Could not load coach settings.</Trans>}
           action={
@@ -263,7 +288,7 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
   };
 
   return (
-    <Section title={<Trans>Coach</Trans>} sheet>
+    <Section title={<Trans>Coach</Trans>} icon={Bot} tone="signal" sheet>
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label={t`Tone`} hint={hint(toneDescription(tone))}>
           <Select value={tone} onValueChange={(Value) => setTone(Value as CoachTone)}>
@@ -351,7 +376,7 @@ function CoachForm({ initial, onSaved }: { initial: CoachProfileLike; onSaved: (
           </Select>
         </Field>
       </div>
-      <div className="mt-5 flex items-center gap-3 border-t border-rule pt-4">
+      <div className="mt-5 flex items-center gap-3">
         <Button onClick={handleSave} disabled={!dirty || save.isPending}>
           {save.isPending ? t`Saving…` : t`Save`}
         </Button>
@@ -380,9 +405,11 @@ function Field({
 }) {
   return (
     <div className="grid gap-2">
-      <Label className="text-ink-3">{label}</Label>
+      <div className="flex min-h-7 items-center gap-1">
+        <Label className="text-sm font-medium text-ink-3">{label}</Label>
+        {hint ? <InfoTip>{hint}</InfoTip> : null}
+      </div>
       {children}
-      {hint ? <p className="text-sm text-ink-3">{hint}</p> : null}
     </div>
   );
 }
@@ -412,7 +439,7 @@ function DeleteAccountSection() {
     }),
   );
 
-  if (preview.isPending) return <Skeleton className="h-40 w-full" />;
+  if (preview.isPending) return <Skeleton className="h-40 w-full rounded-3xl" />;
   if (preview.isError || !preview.data) return null;
   const data = preview.data;
   const rows = data.totalRows.toLocaleString();
@@ -433,9 +460,9 @@ function DeleteAccountSection() {
   };
 
   return (
-    <Section title={<Trans>Delete account and all data</Trans>}>
-      <div className="grid gap-4 border-t-2 border-destructive pt-4">
-        <p className="max-w-[65ch]">
+    <Section title={<Trans>Delete account and all data</Trans>} icon={Trash2}>
+      <div className="sheet grid gap-4 p-5">
+        <p className="max-w-[65ch] text-ink-2">
           {organizationCount === 1 ? (
             <Trans comment="safety">
               This permanently deletes your account and {rows} stored rows across your health record
@@ -461,7 +488,7 @@ function DeleteAccountSection() {
         </p>
 
         {data.blockers.length > 0 ? (
-          <p className="text-destructive">
+          <p className="text-sm text-destructive">
             <Plural
               comment="safety"
               value={data.blockers.length}
@@ -489,8 +516,7 @@ function DeleteAccountSection() {
           <div className="grid gap-2">
             <label htmlFor="delete-confirmation" className="text-sm text-ink-3">
               <Trans comment="safety">
-                Type <span className="font-mono font-medium text-ink">{confirmationPhrase}</span> to
-                confirm
+                Type <span className="font-semibold text-ink">{confirmationPhrase}</span> to confirm
               </Trans>
             </label>
             <div className="flex flex-wrap gap-2">

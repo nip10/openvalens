@@ -1,7 +1,9 @@
 import { Trans } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
+import { Code2, Info, Scale } from "lucide-react";
 
 import { Section } from "@/components/page";
+import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -16,25 +18,33 @@ export function AboutSection() {
 
 export function AboutCard({ sourceCodeUrl }: { sourceCodeUrl: string | null }) {
   return (
-    <Section title={<Trans>About</Trans>}>
-      <div className="grid gap-2 border-t border-rule pt-4">
-        <p className="max-w-[65ch]">
-          <Trans>
-            OpenValens is free software under the GNU Affero General Public License, version 3 or
-            later.
-          </Trans>
-        </p>
+    <Section title={<Trans>About</Trans>} icon={Info} tone="signal">
+      <SettingsGroup>
+        <SettingsRow
+          icon={Scale}
+          label={
+            <Trans>
+              OpenValens is free software under the GNU Affero General Public License, version 3 or
+              later.
+            </Trans>
+          }
+        />
         {sourceCodeUrl ? (
-          <a
-            href={sourceCodeUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="w-fit underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
-          >
-            <Trans>Source code for this server</Trans>
-          </a>
+          <SettingsRow
+            icon={Code2}
+            label={
+              <a
+                href={sourceCodeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+              >
+                <Trans>Source code for this server</Trans>
+              </a>
+            }
+          />
         ) : null}
-      </div>
+      </SettingsGroup>
     </Section>
   );
 }

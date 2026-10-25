@@ -8,8 +8,9 @@ import {
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Button } from "@openvalens/ui/components/button";
 import { Link } from "@tanstack/react-router";
+import { UserRound } from "lucide-react";
 
-import { ErrorState, Section } from "@/components/page";
+import { Details, ErrorState, Section } from "@/components/page";
 import { useWellnessProfile } from "@/utils/wellness-profile";
 
 /** Issue #98 — read-only profile overview in Settings with a link to edit. */
@@ -18,7 +19,7 @@ export function ProfileSummarySection() {
   if (profile.isPending) return <Skeleton className="h-40 w-full" />;
   if (profile.isError || !profile.data) {
     return (
-      <Section title={<Trans>Profile</Trans>}>
+      <Section title={<Trans>Profile</Trans>} icon={UserRound} tone="signal">
         <ErrorState
           title={<Trans>Could not load your profile.</Trans>}
           action={
@@ -37,7 +38,9 @@ export function ProfileSummaryCard({ snapshot }: { snapshot: WellnessProfileSnap
   return (
     <Section
       title={<Trans>Profile</Trans>}
-      description={<Trans>Optional answers only you can see.</Trans>}
+      icon={UserRound}
+      tone="signal"
+      info={<Trans>Optional answers only you can see.</Trans>}
       actions={
         <Button variant="outline" size="sm" asChild>
           <Link to="/profile">
@@ -46,21 +49,23 @@ export function ProfileSummaryCard({ snapshot }: { snapshot: WellnessProfileSnap
         </Button>
       }
     >
-      <ProfileSummaryList snapshot={snapshot} />
+      <Details summary={<Trans>Your answers</Trans>} className="sheet px-5 py-3">
+        <ProfileSummaryList snapshot={snapshot} />
+      </Details>
     </Section>
   );
 }
 
 export function ProfileSummaryList({ snapshot }: { snapshot: WellnessProfileSnapshot }) {
   return (
-    <dl className="grid border-t border-rule text-sm">
+    <dl className="grid divide-y divide-rule text-sm">
       {WELLNESS_PROFILE_FIELDS.map((field) => (
         <div
           key={field}
-          className="grid gap-x-6 gap-y-0.5 border-b border-rule py-2.5 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]"
+          className="grid gap-x-6 gap-y-0.5 py-2.5 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]"
         >
           <dt className="text-ink-3">{WELLNESS_FIELD_COPY[field].title}</dt>
-          <dd className="m-0 text-ink">{describeAnswer(field, snapshot[field])}</dd>
+          <dd className="m-0 font-medium text-ink">{describeAnswer(field, snapshot[field])}</dd>
         </div>
       ))}
     </dl>

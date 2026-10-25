@@ -2,9 +2,11 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { BellRing, ChevronLeft, Send, Timer } from "lucide-react";
 
-import { Page, PageHeader, Section } from "@/components/page";
+import { Page, PageHeader, Section, StatusPill } from "@/components/page";
+import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/settings/telegram")({
@@ -41,87 +43,98 @@ function TelegramSettingsPage() {
     return (
       <Page width="narrow">
         <PageHeader title="Telegram" />
-        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-32 w-full rounded-3xl" />
       </Page>
     );
   }
 
   const connected = status.data?.connected;
+  const pendingLink = connect.isSuccess && connect.data && !connected ? connect.data : null;
 
   return (
     <Page width="narrow">
-      <PageHeader title="Telegram" />
+      <PageHeader
+        title="Telegram"
+        actions={
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            <Trans>Settings</Trans>
+          </Link>
+        }
+      />
 
-      <Section title={<Trans>Daily reminders over Telegram</Trans>} sheet>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="grid gap-0.5">
-            <span
-              className={
-                connected
-                  ? "font-display font-medium text-success"
-                  : "font-display font-medium text-ink-3"
-              }
-            >
-              {connected ? t`Connected` : t`Not connected`}
-            </span>
-            <span className="text-sm text-ink-3">
-              {connected
+      <Section title={<Trans>Daily reminders over Telegram</Trans>} icon={BellRing} tone="signal">
+        <SettingsGroup>
+          <SettingsRow
+            icon={Send}
+            label={
+              <StatusPill tone={connected ? "good" : "neutral"}>
+                {connected ? t`Connected` : t`Not connected`}
+              </StatusPill>
+            }
+            description={
+              connected
                 ? t`Daily reminders will be sent to your Telegram chat.`
-                : t`Connect a Telegram chat to receive daily reminders.`}
-            </span>
-          </div>
-          {connected ? (
-            <Button
-              variant="outline"
-              onClick={() => {
-                connect.reset();
-                disconnect.mutate({});
-              }}
-              disabled={disconnect.isPending}
-            >
-              {disconnect.isPending ? t`Disconnecting…` : t`Disconnect`}
-            </Button>
-          ) : (
-            <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
-              {connect.isPending ? t`Generating link…` : t`Connect`}
-            </Button>
-          )}
-        </div>
-        {connect.isSuccess && connect.data && !connected ? (
-          <div className="mt-4 grid gap-3 border-t border-rule pt-4 text-sm">
-            {connect.data.link ? (
-              <>
-                <p className="max-w-[65ch] text-ink-2">
-                  <Trans>
-                    Open the link in Telegram and press Start. This page updates once the chat is
-                    connected.
-                  </Trans>
-                </p>
-                <Button asChild variant="outline" className="w-fit">
-                  <a href={connect.data.link} target="_blank" rel="noreferrer">
-                    <Trans>Open in Telegram</Trans>
-                  </a>
-                </Button>
-              </>
+                : t`Connect a Telegram chat to receive daily reminders.`
+            }
+          >
+            {connected ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  connect.reset();
+                  disconnect.mutate({});
+                }}
+                disabled={disconnect.isPending}
+              >
+                {disconnect.isPending ? t`Disconnecting…` : t`Disconnect`}
+              </Button>
             ) : (
-              <>
-                <p className="text-ink-2">
-                  <Trans>Send this message to this server's Telegram bot:</Trans>
-                </p>
-                <p className="bg-paper-2 px-3 py-2 font-mono break-all text-ink">
-                  /start {connect.data.token}
-                </p>
-              </>
+              <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
+                {connect.isPending ? t`Generating link…` : t`Connect`}
+              </Button>
             )}
-            <p className="text-ink-3">
-              <Trans>Expires {new Date(connect.data.expiresAt).toLocaleString()}.</Trans>
+          </SettingsRow>
+          {pendingLink ? (
+            <div className="grid gap-3 py-4 text-sm">
+              {pendingLink.link ? (
+                <>
+                  <p className="max-w-[60ch] text-ink-2">
+                    <Trans>
+                      Open the link in Telegram and press Start. This page updates once the chat is
+                      connected.
+                    </Trans>
+                  </p>
+                  <Button asChild variant="outline" className="w-fit">
+                    <a href={pendingLink.link} target="_blank" rel="noreferrer">
+                      <Trans>Open in Telegram</Trans>
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-ink-2">
+                    <Trans>Send this message to this server's Telegram bot:</Trans>
+                  </p>
+                  <p className="num rounded-xl bg-paper-2 px-3 py-2 break-all text-ink">
+                    /start {pendingLink.token}
+                  </p>
+                </>
+              )}
+              <p className="flex items-center gap-1.5 text-ink-3">
+                <Timer className="size-4" aria-hidden="true" />
+                <Trans>Expires {new Date(pendingLink.expiresAt).toLocaleString()}.</Trans>
+              </p>
+            </div>
+          ) : connect.isError ? (
+            <p role="alert" className="py-4 text-sm text-destructive">
+              <Trans>Could not generate a connect link.</Trans>
             </p>
-          </div>
-        ) : connect.isError ? (
-          <p role="alert" className="mt-4 border-t border-rule pt-4 text-sm text-destructive">
-            <Trans>Could not generate a connect link.</Trans>
-          </p>
-        ) : null}
+          ) : null}
+        </SettingsGroup>
       </Section>
     </Page>
   );

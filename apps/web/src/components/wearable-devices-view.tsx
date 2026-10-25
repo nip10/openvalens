@@ -20,9 +20,9 @@ import {
 } from "@openvalens/ui/components/alert-dialog";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { cn } from "@openvalens/ui/lib/utils";
+import { CircleCheck, Watch } from "lucide-react";
 
-import { EmptyState, ErrorState } from "@/components/page";
+import { EmptyState, ErrorState, StatusPill, type StatusTone, ToneIcon } from "@/components/page";
 
 /** A destructive choice waiting for confirmation. */
 export type WearableConfirm =
@@ -49,12 +49,12 @@ export type WearableDevicesViewProps = {
   onResolveQuarantine: (provider: WearableProviderId, action: "keep" | "delete") => void;
 };
 
-/** The state word's colour; the word itself always carries the meaning. */
-const STATUS_TONE: Record<WearableConnectionLike["status"], string> = {
-  active: "text-success",
-  not_connected: "text-ink-3",
-  reconnect_needed: "text-warning",
-  quarantined: "text-destructive",
+/** The state pill's tint; the word itself always carries the meaning. */
+const STATUS_TONE: Record<WearableConnectionLike["status"], StatusTone> = {
+  active: "good",
+  not_connected: "neutral",
+  reconnect_needed: "warn",
+  quarantined: "bad",
 };
 
 function formatInstant(iso: string): string {
@@ -74,23 +74,18 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
 
   return (
     <div className="grid gap-6">
-      <p className="max-w-[65ch] text-ink-2">
-        <Trans>
-          The mobile app already sends steps, heart rate, sleep, weight and workouts from Apple
-          Health or Health Connect. Connect a vendor account here only for what the phone cannot
-          carry, such as overnight HRV and the vendor's own scores.
-        </Trans>
-      </p>
-
       {notice ? (
         <p
           role="status"
           className={
             notice.tone === "success"
-              ? "well px-4 py-3 text-sm text-ink"
-              : "border-t-2 border-destructive py-3 text-sm text-destructive"
+              ? "flex items-center gap-2 rounded-2xl bg-success/10 px-4 py-3 text-sm text-ink"
+              : "rounded-2xl border border-destructive/40 bg-destructive/6 px-4 py-3 text-sm text-destructive"
           }
         >
+          {notice.tone === "success" ? (
+            <CircleCheck className="size-4 shrink-0 text-success" aria-hidden="true" />
+          ) : null}
           {i18n._(notice.message)}
         </p>
       ) : null}
@@ -102,10 +97,9 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
       ) : null}
 
       {status === "pending" ? (
-        <div className="sheet grid gap-4 px-5 py-5">
-          <Skeleton className="h-5 w-1/3" />
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-9 w-40" />
+        <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+          <Skeleton className="h-44 w-full rounded-3xl" />
+          <Skeleton className="h-44 w-full rounded-3xl" />
         </div>
       ) : status === "error" ? (
         <ErrorState
@@ -118,6 +112,7 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
         />
       ) : providers.length === 0 ? (
         <EmptyState
+          icon={Watch}
           title={<Trans>No cloud devices are available on this server</Trans>}
           description={
             <Trans>
@@ -127,7 +122,7 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
           }
         />
       ) : (
-        <ul className="sheet divide-y divide-rule px-5">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {providers.map((row) => (
             <ProviderCard key={row.provider} row={row} {...props} />
           ))}
@@ -224,25 +219,28 @@ function ProviderCard({
   const name = row.displayName;
 
   return (
-    <li data-provider={row.provider} className="grid gap-4 py-5">
-      <div className="grid gap-1">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h3 className="text-lg text-ink">{name}</h3>
-          <span className={cn("text-sm font-medium", STATUS_TONE[row.status])}>
-            {i18n._(wearableStatusLabel(row.status))}
-          </span>
+    <li data-provider={row.provider} className="sheet grid min-w-0 content-start gap-4 p-5">
+      <div className="flex items-start gap-3">
+        <ToneIcon icon={Watch} tone="signal" />
+        <div className="grid min-w-0 flex-1 gap-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h3 className="text-lg text-ink">{name}</h3>
+            <StatusPill tone={STATUS_TONE[row.status]}>
+              {i18n._(wearableStatusLabel(row.status))}
+            </StatusPill>
+          </div>
+          <p className="text-sm text-ink-3">
+            {i18n._(wearableSendsLabel(row.provider))}{" "}
+            <a
+              href={row.termsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+            >
+              <Trans>Vendor terms</Trans>
+            </a>
+          </p>
         </div>
-        <p className="max-w-[65ch] text-sm text-ink-3">
-          {i18n._(wearableSendsLabel(row.provider))}{" "}
-          <a
-            href={row.termsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
-          >
-            <Trans>Vendor terms</Trans>
-          </a>
-        </p>
       </div>
 
       {row.status !== "not_connected" || error || syncRequestedFor === row.provider ? (
@@ -264,7 +262,7 @@ function ProviderCard({
       ) : null}
 
       {actions.resolveQuarantine ? (
-        <div className="well grid gap-3 px-4 py-3 text-sm">
+        <div className="grid gap-3 rounded-2xl bg-paper-2 px-4 py-3 text-sm">
           <p className="text-ink">
             <Plural
               value={count}
@@ -294,7 +292,11 @@ function ProviderCard({
       {actions.connect || actions.syncNow || actions.disconnect ? (
         <div className="flex flex-wrap gap-2">
           {actions.connect ? (
-            <Button variant="outline" disabled={busy} onClick={() => onConnect(row.provider)}>
+            <Button
+              variant={row.status === "not_connected" ? "default" : "outline"}
+              disabled={busy}
+              onClick={() => onConnect(row.provider)}
+            >
               {row.status === "not_connected" ? t`Connect` : t`Reconnect`}
             </Button>
           ) : null}

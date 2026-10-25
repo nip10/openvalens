@@ -1,5 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
+import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -30,6 +31,7 @@ export default function OidcSignInButton({
     <Button
       type="button"
       variant="outline"
+      size="lg"
       className="w-full"
       disabled={busy}
       onClick={async () => {
@@ -50,6 +52,7 @@ export default function OidcSignInButton({
         }
       }}
     >
+      <ShieldCheck aria-hidden="true" />
       {busy ? t`Redirecting…` : t`Continue with ${displayName}`}
     </Button>
   );

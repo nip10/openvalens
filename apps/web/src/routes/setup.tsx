@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { TriangleAlert } from "lucide-react";
 
 import ConnectedAdmissionForm from "@/components/admission-form-connected";
 import { admissionStatusQueryOptions } from "@/utils/admission";
@@ -14,17 +15,20 @@ function SetupPage() {
   const { t } = useLingui();
 
   return (
-    <main className="mx-auto grid w-full max-w-3xl gap-4 px-4 pt-16 pb-16">
+    <main className="mx-auto grid w-full max-w-3xl gap-5 px-4 pt-16 pb-16">
       {status.data?.setupAvailable && status.data.emailDeliveryAvailable === false ? (
         <p
           role="alert"
-          className="mx-auto w-full max-w-md border-t-2 border-warning bg-paper-2 px-4 py-3 text-sm text-ink"
+          className="mx-auto flex w-full max-w-md items-start gap-3 rounded-2xl bg-warning/12 px-4 py-3 text-sm text-ink"
         >
-          <Trans>
-            This server can't send email yet, so setup can't finish: the verification code is sent
-            by email. Add a Resend key with <code>deploy/setup.sh install --reconfigure</code>, then
-            reload this page.
-          </Trans>
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+          <span>
+            <Trans>
+              This server can't send email yet, so setup can't finish: the verification code is sent
+              by email. Add a Resend key with <code>deploy/setup.sh install --reconfigure</code>,
+              then reload this page.
+            </Trans>
+          </span>
         </p>
       ) : null}
       <ConnectedAdmissionForm

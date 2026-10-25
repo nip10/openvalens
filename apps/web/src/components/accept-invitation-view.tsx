@@ -10,8 +10,10 @@ import {
   CardTitle,
 } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { Mail, MailX, PartyPopper, Users } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 
+import { ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 
 type InvitationSummary = {
@@ -107,12 +109,13 @@ export function AcceptInvitationView({
 
   if (summaryLoading) {
     return (
-      <Card className="mx-auto w-full max-w-md">
-        <CardHeader>
+      <Card className="mx-auto w-full max-w-md sm:py-7">
+        <CardHeader className="gap-2 sm:px-7">
+          <Skeleton className="size-12 rounded-full" />
           <Skeleton className="h-6 w-1/2" />
           <Skeleton className="h-4 w-full" />
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-4 sm:px-7">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-10 w-full" />
         </CardContent>
@@ -122,16 +125,17 @@ export function AcceptInvitationView({
 
   if (summaryError || !summary) {
     return (
-      <Card className="mx-auto w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
+      <Card className="mx-auto w-full max-w-md sm:py-7">
+        <CardHeader className="gap-2 sm:px-7">
+          <ToneIcon icon={MailX} tone="signal" size="lg" />
+          <CardTitle className="pt-1 text-2xl">
             <Trans>Invitation unavailable</Trans>
           </CardTitle>
           <CardDescription>
             <Trans>We could not load this invitation. It may have expired or been revoked.</Trans>
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="sm:px-7">
           <Button variant="outline" onClick={onRetry}>
             <Trans>Retry</Trans>
           </Button>
@@ -142,9 +146,10 @@ export function AcceptInvitationView({
 
   if (summary.status !== "pending" || isExpired(summary.expiresAt)) {
     return (
-      <Card className="mx-auto w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
+      <Card className="mx-auto w-full max-w-md sm:py-7">
+        <CardHeader className="gap-2 sm:px-7">
+          <ToneIcon icon={MailX} tone="signal" size="lg" />
+          <CardTitle className="pt-1 text-2xl">
             <Trans>Invitation unavailable</Trans>
           </CardTitle>
           <CardDescription>
@@ -164,16 +169,17 @@ export function AcceptInvitationView({
 
   if (ownedAction.kind === "accepted") {
     return (
-      <Card className="mx-auto w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
+      <Card className="mx-auto w-full max-w-md sm:py-7">
+        <CardHeader className="gap-2 sm:px-7">
+          <ToneIcon icon={PartyPopper} tone="signal" size="lg" />
+          <CardTitle className="pt-1 text-2xl">
             <Trans>Invitation accepted</Trans>
           </CardTitle>
           <CardDescription>
             <Trans>You have joined the workspace.</Trans>
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="sm:px-7">
           <Button asChild>
             <a href="/dashboard">
               <Trans>Go to dashboard</Trans>
@@ -186,9 +192,10 @@ export function AcceptInvitationView({
 
   if (ownedAction.kind === "rejected") {
     return (
-      <Card className="mx-auto w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
+      <Card className="mx-auto w-full max-w-md sm:py-7">
+        <CardHeader className="gap-2 sm:px-7">
+          <ToneIcon icon={MailX} tone="signal" size="lg" />
+          <CardTitle className="pt-1 text-2xl">
             <Trans>Invitation declined</Trans>
           </CardTitle>
           <CardDescription>
@@ -290,9 +297,10 @@ export function AcceptInvitationView({
   }
 
   return (
-    <Card className="mx-auto w-full max-w-md">
-      <CardHeader>
-        <CardTitle>
+    <Card className="mx-auto w-full max-w-md sm:py-7">
+      <CardHeader className="gap-2 sm:px-7">
+        <ToneIcon icon={Users} tone="signal" size="lg" />
+        <CardTitle className="pt-1 text-2xl">
           <Trans>Workspace invitation</Trans>
         </CardTitle>
         <CardDescription>
@@ -310,7 +318,7 @@ export function AcceptInvitationView({
           )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-4 sm:px-7">
         <p className="text-sm text-ink-3">
           <Trans>
             Invited email:{" "}
@@ -359,9 +367,10 @@ function isExpired(expiresAt: Date | string | null): boolean {
 function SignInCard({ invitationId }: { invitationId: string }) {
   const returnUrl = `/accept-invitation/${encodeURIComponent(invitationId)}`;
   return (
-    <Card className="mx-auto w-full max-w-md">
-      <CardHeader>
-        <CardTitle>
+    <Card className="mx-auto w-full max-w-md sm:py-7">
+      <CardHeader className="gap-2 sm:px-7">
+        <ToneIcon icon={Mail} tone="signal" size="lg" />
+        <CardTitle className="pt-1 text-2xl">
           <Trans>Sign in to view</Trans>
         </CardTitle>
         <CardDescription>
@@ -371,7 +380,7 @@ function SignInCard({ invitationId }: { invitationId: string }) {
           </Trans>
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-4 sm:px-7">
         <Button asChild>
           <a href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}>
             <Trans>Sign in with email</Trans>

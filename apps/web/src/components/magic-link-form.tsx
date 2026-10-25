@@ -7,7 +7,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
+import { Mail, MailCheck } from "lucide-react";
+
 import OidcSignInButton from "@/components/oidc-sign-in-button";
+import { ErrorState, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { validateReturnUrl } from "@/utils/return-url";
 import { oidcSignInErrorMessage } from "@/utils/sign-in-options";
@@ -66,119 +69,130 @@ export default function MagicLinkForm({
 
   if (sentTo) {
     return (
-      <div className="mx-auto mt-16 grid w-full max-w-md gap-4 px-4">
-        <h1 className="text-3xl">
-          <Trans>Check your email</Trans>
-        </h1>
-        <p className="text-ink-2">
-          <Trans>
-            We sent a sign-in link to{" "}
-            <span className="font-medium text-ink wrap-anywhere">{sentTo}</span>. It expires in 10
-            minutes.
-          </Trans>
-        </p>
-        <Button variant="link" className="justify-self-start" onClick={() => setSentTo(null)}>
-          <Trans>Use a different email</Trans>
-        </Button>
+      <div className="mx-auto grid w-full max-w-md px-4 pt-16 pb-16">
+        <div className="sheet grid justify-items-center gap-4 p-6 text-center sm:p-8">
+          <ToneIcon icon={MailCheck} tone="signal" size="lg" />
+          <h1 className="text-3xl">
+            <Trans>Check your email</Trans>
+          </h1>
+          <p className="text-ink-2">
+            <Trans>
+              We sent a sign-in link to{" "}
+              <span className="font-medium text-ink wrap-anywhere">{sentTo}</span>. It expires in 10
+              minutes.
+            </Trans>
+          </p>
+          <Button variant="link" onClick={() => setSentTo(null)}>
+            <Trans>Use a different email</Trans>
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto mt-16 w-full max-w-md px-4 pb-16">
-      <h1 className="mb-2 text-3xl">
-        <Trans>Sign in</Trans>
-      </h1>
-      <p className="mb-8 text-ink-3">
-        <Trans>We'll email you a link to sign in. No password needed.</Trans>
-      </p>
-      {oidcError !== null && (
-        <p role="alert" className="mb-4 border-t-2 border-destructive pt-2 text-sm text-ink">
-          {i18n._(
-            oidcSignInErrorMessage(oidcError || undefined, oidc?.displayName ?? t`single sign-on`),
-          )}
-        </p>
-      )}
-      {linkError && (
-        <p role="alert" className="mb-4 border-t-2 border-destructive pt-2 text-sm text-ink">
-          <Trans>That sign-in link is invalid or has expired. Request a new one.</Trans>
-        </p>
-      )}
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          form.handleSubmit();
-        }}
-        className="sheet grid gap-5 px-5 pt-5 pb-6"
-      >
-        <form.Field name="email">
-          {(field) => (
-            <div className="grid gap-2">
-              <Label htmlFor={field.name}>
-                <Trans>Email</Trans>
-              </Label>
-              <Input
-                id={field.name}
-                name={field.name}
-                type="email"
-                autoComplete="email"
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(e) => field.handleChange(e.target.value)}
-              />
-              {field.state.meta.errors.map((error) => (
-                <p key={error?.message} className="text-sm text-destructive">
-                  {error?.message}
-                </p>
-              ))}
-            </div>
-          )}
-        </form.Field>
-
-        <form.Subscribe
-          selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
-        >
-          {({ canSubmit, isSubmitting }) => (
-            <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? t`Sending…` : t`Email me a sign-in link`}
-            </Button>
-          )}
-        </form.Subscribe>
-      </form>
-
-      {oidc ? (
-        <div className="mt-4 space-y-4">
-          <div className="flex items-center gap-3 text-sm text-ink-3">
-            <span className="h-px flex-1 bg-rule" />
-            <Trans>or</Trans>
-            <span className="h-px flex-1 bg-rule" />
-          </div>
-          <OidcSignInButton
-            providerId={oidc.providerId}
-            displayName={oidc.displayName}
-            callbackURL={callbackURL}
-          />
+    <div className="mx-auto grid w-full max-w-md gap-6 px-4 pt-16 pb-16">
+      <div className="sheet grid gap-6 p-6 sm:p-8">
+        <div className="grid justify-items-center gap-3 text-center">
+          <ToneIcon icon={Mail} tone="signal" size="lg" />
+          <h1 className="text-3xl">
+            <Trans>Sign in</Trans>
+          </h1>
+          <p className="text-ink-3">
+            <Trans>We'll email you a link to sign in. No password needed.</Trans>
+          </p>
         </div>
-      ) : null}
+        {oidcError !== null && (
+          <ErrorState
+            title={i18n._(
+              oidcSignInErrorMessage(
+                oidcError || undefined,
+                oidc?.displayName ?? t`single sign-on`,
+              ),
+            )}
+          />
+        )}
+        {linkError && (
+          <ErrorState
+            title={<Trans>That sign-in link is invalid or has expired. Request a new one.</Trans>}
+          />
+        )}
 
-      <div className="mt-8 grid gap-2 text-sm text-ink-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            form.handleSubmit();
+          }}
+          className="grid gap-5"
+        >
+          <form.Field name="email">
+            {(field) => (
+              <div className="grid gap-2">
+                <Label htmlFor={field.name}>
+                  <Trans>Email</Trans>
+                </Label>
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  type="email"
+                  autoComplete="email"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                {field.state.meta.errors.map((error) => (
+                  <p key={error?.message} className="text-sm text-destructive">
+                    {error?.message}
+                  </p>
+                ))}
+              </div>
+            )}
+          </form.Field>
+
+          <form.Subscribe
+            selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
+          >
+            {({ canSubmit, isSubmitting }) => (
+              <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
+                {isSubmitting ? t`Sending…` : t`Email me a sign-in link`}
+              </Button>
+            )}
+          </form.Subscribe>
+        </form>
+
+        {oidc ? (
+          <div className="grid gap-4">
+            <div className="flex items-center gap-3 text-sm text-ink-3">
+              <span className="h-px flex-1 bg-rule" />
+              <Trans>or</Trans>
+              <span className="h-px flex-1 bg-rule" />
+            </div>
+            <OidcSignInButton
+              providerId={oidc.providerId}
+              displayName={oidc.displayName}
+              callbackURL={callbackURL}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="grid justify-items-center gap-2 text-center text-sm text-ink-3">
         <p>
           <Trans>New accounts require an invitation.</Trans>
         </p>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-4">
           {setupAvailable ? (
             <a
               href="/setup"
-              className="font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
+              className="rounded font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <Trans>First setup</Trans>
             </a>
           ) : null}
           <a
             href="/join"
-            className="font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
+            className="rounded font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <Trans>Redeem invitation</Trans>
           </a>

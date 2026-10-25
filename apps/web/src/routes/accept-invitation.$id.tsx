@@ -47,7 +47,7 @@ function AcceptInvitationPage() {
   });
 
   return (
-    <main className="mx-auto grid w-full max-w-3xl gap-4 px-4 pt-16 pb-16">
+    <main className="mx-auto grid w-full max-w-3xl gap-5 px-4 pt-16 pb-16">
       <AcceptInvitationView
         invitationId={invitationId}
         userId={userId}
