@@ -1,7 +1,6 @@
 import type { LoggingStreakOutput } from "@openvalens/api/contracts/nutrition-targets";
 import { presentLoggingStreak, STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
 import { useLingui } from "@lingui/react/macro";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 
 /**
  * The opt-in logging streak (Issue #90). Renders nothing unless the server
@@ -12,19 +11,17 @@ export function LoggingStreakCard({ streak }: { streak: LoggingStreakOutput | un
   const view = presentLoggingStreak(streak);
   if (!view) return null;
   return (
-    <Card aria-label={i18n._(STREAK_COPY.title)}>
-      <CardHeader>
-        <CardTitle className="text-base">{i18n._(view.headline)}</CardTitle>
-      </CardHeader>
-      {view.lines.length ? (
-        <CardContent className="grid gap-1 text-sm text-muted-foreground">
-          {view.lines
+    <section aria-label={i18n._(STREAK_COPY.title)} className="well grid gap-1 px-4 py-3">
+      <p className="font-display text-base font-medium text-ink">{i18n._(view.headline)}</p>
+      {view.lines.length
+        ? view.lines
             .map((line) => i18n._(line))
             .map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-        </CardContent>
-      ) : null}
-    </Card>
+              <p key={line} className="text-sm text-ink-3">
+                {line}
+              </p>
+            ))
+        : null}
+    </section>
   );
 }

@@ -55,9 +55,7 @@ import {
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -67,8 +65,15 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import {
+  controlLinkClass,
+  inlineButtonClass,
+  nativeSelectClass,
+  textLinkClass,
+} from "@/components/food-classes";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
+import { ErrorState, Page, PageHeader } from "@/components/page";
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { orpc } from "@/utils/orpc";
 
@@ -87,14 +92,11 @@ export const Route = createFileRoute("/_auth/nutrition")({
       : {},
 });
 
-const selectClass =
-  "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
 function Field({ label, children }: { label: string; children: (id: string) => React.ReactNode }) {
   const id = useId();
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id} className="text-sm font-medium">
+      <Label htmlFor={id} className="text-sm font-medium text-ink-3">
         {label}
       </Label>
       {children(id)}
@@ -179,60 +181,94 @@ function NutritionPage() {
     });
   };
 
+  const favoriteSnapshot = (entry: DiaryEntry) =>
+    foodsQuery.data?.favorites.some(
+      (food) => food.ref.kind === "snapshot" && food.ref.snapshotId === entry.food.snapshotId,
+    ) ?? false;
+
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
+    <Page>
       {region}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{i18n._(DIARY_COPY.title)}</h1>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <Link to="/foods" className="underline">
+      <PageHeader
+        title={i18n._(DIARY_COPY.title)}
+        description={
+          <span className="flex flex-wrap gap-x-5 gap-y-1">
+            <Link to="/foods" className={controlLinkClass}>
               {i18n._(CUSTOM_FOOD_COPY.manageLink)}
             </Link>
-            <Link to="/nutrition-targets" className="underline">
+            <Link to="/nutrition-targets" className={controlLinkClass}>
               {i18n._(TARGET_COPY.settingsLink)}
             </Link>
-          </div>
-        </div>
-        <nav
-          className="flex w-full flex-wrap items-center gap-2 sm:w-auto"
-          aria-label={t`Choose day`}
-        >
-          <Button variant="outline" size="sm" onClick={() => go(shiftLocalDate(localDate, -1))}>
-            <Trans>Previous day</Trans>
-          </Button>
-          <Input
-            type="date"
-            aria-label={t`Diary date`}
-            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
-            value={localDate}
-            onChange={(event) => event.target.value && go(event.target.value)}
-          />
-          <Button variant="outline" size="sm" onClick={() => go(shiftLocalDate(localDate, 1))}>
-            <Trans>Next day</Trans>
-          </Button>
-        </nav>
-      </div>
+          </span>
+        }
+        actions={
+          <nav
+            className="flex w-full flex-wrap items-center gap-2 sm:w-auto"
+            aria-label={t`Choose day`}
+          >
+            <Button variant="outline" onClick={() => go(shiftLocalDate(localDate, -1))}>
+              <Trans>Previous day</Trans>
+            </Button>
+            <Input
+              type="date"
+              aria-label={t`Diary date`}
+              className="num min-w-0 flex-1 sm:w-40 sm:flex-none"
+              value={localDate}
+              onChange={(event) => event.target.value && go(event.target.value)}
+            />
+            <Button variant="outline" onClick={() => go(shiftLocalDate(localDate, 1))}>
+              <Trans>Next day</Trans>
+            </Button>
+          </nav>
+        }
+      />
 
       {dayQuery.isPending ? (
-        <Skeleton className="h-48 w-full" />
+        <div className="grid gap-10" aria-hidden="true">
+          <div className="sheet grid gap-4 px-5 py-4">
+            <Skeleton className="h-6 w-40" />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+              {SUMMARY_SKELETON.map((key) => (
+                <Skeleton key={key} className="h-14 w-full" />
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+            <div className="grid gap-2">
+              {SUMMARY_SKELETON.map((key) => (
+                <Skeleton key={key} className="h-10 w-full" />
+              ))}
+            </div>
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </div>
       ) : dayQuery.isError ? (
-        <p className="text-sm text-muted-foreground" role="alert">
-          {i18n._(DIARY_COPY.networkError)}{" "}
-          <button className="underline" onClick={() => void dayQuery.refetch()}>
-            {i18n._(DIARY_COPY.retry)}
-          </button>
-        </p>
+        <ErrorState
+          title={i18n._(DIARY_COPY.networkError)}
+          action={
+            <Button variant="outline" onClick={() => void dayQuery.refetch()}>
+              {i18n._(DIARY_COPY.retry)}
+            </Button>
+          }
+        />
       ) : (
         <>
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <section className="sheet grid gap-5 px-5 pt-4 pb-5" aria-labelledby="diary-day">
+            <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
               <div className="grid gap-1">
-                <CardTitle>{localDate}</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  <Badge variant={day?.status === "complete" ? "secondary" : "outline"}>
+                <h2 id="diary-day" className="num text-xl font-medium text-ink">
+                  {localDate}
+                </h2>
+                <p className="text-sm text-ink-3">
+                  <span
+                    className={
+                      day?.status === "complete"
+                        ? "font-medium text-success"
+                        : "font-medium text-ink-2"
+                    }
+                  >
                     {i18n._(status.label)}
-                  </Badge>{" "}
+                  </span>{" "}
                   {i18n._(status.description)}
                 </p>
               </div>
@@ -246,92 +282,126 @@ function NutritionPage() {
                   day?.status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete,
                 )}
               </Button>
-            </CardHeader>
-            <CardContent>
-              {day ? (
-                <NutritionDayTotals
-                  totals={day.summary.totals}
-                  sources={day.summary.sources}
-                  hideNumbers={hideNumbers}
-                />
-              ) : null}
-            </CardContent>
-          </Card>
+            </div>
+            {day ? (
+              <NutritionDayTotals
+                totals={day.summary.totals}
+                sources={day.summary.sources}
+                hideNumbers={hideNumbers}
+              />
+            ) : null}
+            <TargetsOnDay
+              targets={targetsQuery.data?.targetsOn.targets ?? []}
+              hideNumbers={hideNumbers}
+            />
+          </section>
 
           <LoggingStreakCard streak={streakQuery.isSuccess ? streakQuery.data : undefined} />
 
-          <TargetsOnDay
-            targets={targetsQuery.data?.targetsOn.targets ?? []}
-            hideNumbers={hideNumbers}
-          />
+          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+            <div className="grid min-w-0 content-start gap-8">
+              {groupBySlot(day?.entries ?? []).map((group) => (
+                <section
+                  key={group.slot}
+                  aria-labelledby={`slot-${group.slot}`}
+                  className="grid min-w-0 gap-2"
+                >
+                  <h2 id={`slot-${group.slot}`} className="text-xl leading-tight text-ink">
+                    {i18n._(group.label)}
+                  </h2>
+                  {group.entries.length === 0 ? (
+                    <p className="border-t border-rule pt-3 text-sm text-ink-3">
+                      {i18n._(DIARY_COPY.emptySlot)}
+                    </p>
+                  ) : (
+                    <table className="w-full table-fixed text-left text-sm text-ink-2">
+                      <thead>
+                        <tr className="border-b-2 border-rule-2">
+                          <th scope="col" className="pb-2 font-medium text-ink-3">
+                            <Trans>Food</Trans>
+                          </th>
+                          <th scope="col" className="w-20 pb-2 text-right font-medium text-ink-3">
+                            <Trans>Amount</Trans>
+                          </th>
+                          <th scope="col" className="w-20 pb-2 text-right font-medium text-ink-3">
+                            {i18n._(NUTRIENT_LABELS.energyKcal.label)}
+                          </th>
+                          {LEDGER_MACROS.map((key) => (
+                            <th
+                              key={key}
+                              scope="col"
+                              className="hidden w-[5.5rem] truncate pb-2 text-right font-medium text-ink-3 md:table-cell"
+                            >
+                              {i18n._(NUTRIENT_LABELS[key].label)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.entries.map((entry) => (
+                          <EntryRow
+                            key={entry.id}
+                            entry={entry}
+                            favorite={favoriteSnapshot(entry)}
+                            onChanged={() => void refresh()}
+                            announce={announce}
+                            hideNumbers={hideNumbers}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </section>
+              ))}
 
-          <PlainWaterSection
-            key={`${scope ?? "signed-out"}:${localDate}:${timeZone}`}
-            localDate={localDate}
-            timeZone={timeZone}
-            hideNumbers={hideNumbers}
-            announce={announce}
-            trustedScope={scope}
-          />
+              <CopyDay
+                localDate={localDate}
+                timeZone={timeZone}
+                onCopied={() => void refresh()}
+                announce={announce}
+              />
+            </div>
 
-          <AddFood
-            key={draftFood ?? ""}
-            initialQuery={draftFood ?? ""}
-            localDate={localDate}
-            timeZone={timeZone}
-            foods={foodsQuery.data}
-            hideNumbers={hideNumbers}
-            onSaved={(name, slot) => {
-              const meal = i18n._(SLOT_LABELS[slot]);
-              announce(t`Saved ${name} to ${meal} on ${localDate}`);
-              void refresh();
-            }}
-            announce={announce}
-          />
+            <div className="grid min-w-0 content-start gap-10">
+              <AddFood
+                key={draftFood ?? ""}
+                initialQuery={draftFood ?? ""}
+                localDate={localDate}
+                timeZone={timeZone}
+                foods={foodsQuery.data}
+                hideNumbers={hideNumbers}
+                onSaved={(name, slot) => {
+                  const meal = i18n._(SLOT_LABELS[slot]);
+                  announce(t`Saved ${name} to ${meal} on ${localDate}`);
+                  void refresh();
+                }}
+                announce={announce}
+              />
 
-          {groupBySlot(day?.entries ?? []).map((group) => (
-            <section key={group.slot} aria-labelledby={`slot-${group.slot}`}>
-              <h2 id={`slot-${group.slot}`} className="mb-2 text-lg font-medium">
-                {i18n._(group.label)}
-              </h2>
-              {group.entries.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{i18n._(DIARY_COPY.emptySlot)}</p>
-              ) : (
-                <Card className="py-0">
-                  <ul className="divide-y divide-border">
-                    {group.entries.map((entry) => (
-                      <EntryRow
-                        key={entry.id}
-                        entry={entry}
-                        favorite={
-                          foodsQuery.data?.favorites.some(
-                            (food) =>
-                              food.ref.kind === "snapshot" &&
-                              food.ref.snapshotId === entry.food.snapshotId,
-                          ) ?? false
-                        }
-                        onChanged={() => void refresh()}
-                        announce={announce}
-                        hideNumbers={hideNumbers}
-                      />
-                    ))}
-                  </ul>
-                </Card>
-              )}
-            </section>
-          ))}
-
-          <CopyDay
-            localDate={localDate}
-            timeZone={timeZone}
-            onCopied={() => void refresh()}
-            announce={announce}
-          />
+              <PlainWaterSection
+                key={`${scope ?? "signed-out"}:${localDate}:${timeZone}`}
+                localDate={localDate}
+                timeZone={timeZone}
+                hideNumbers={hideNumbers}
+                announce={announce}
+                trustedScope={scope}
+              />
+            </div>
+          </div>
         </>
       )}
-    </div>
+    </Page>
   );
 }
+
+/** Macros printed beside energy in the meal ledger (from `md:` up). */
+const LEDGER_MACROS = [
+  "proteinG",
+  "carbohydrateG",
+  "fatG",
+] as const satisfies readonly NutrientKey[];
+const LEDGER_COLUMNS = 3 + LEDGER_MACROS.length;
+const SUMMARY_SKELETON = ["a", "b", "c", "d", "e"] as const;
 
 function EntryRow({
   entry,
@@ -433,148 +503,169 @@ function EntryRow({
     unit,
   );
 
+  const figure = (key: NutrientKey) =>
+    hideNumbers ? i18n._(HIDDEN_VALUE) : formatNutrientValue(key, entry.nutrients[key], i18n);
+
   return (
-    <li className="grid gap-2 px-4 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="grid">
-          <span className="font-medium">{entry.food.name}</span>
-          <span className="text-xs text-muted-foreground">
-            {formatAmount(entry.amount, entry.unit, i18n)} ·{" "}
+    <>
+      <tr className="border-b border-rule align-top transition-colors duration-[var(--dur-short)] hover:bg-muted/70">
+        <td className="py-2.5 pr-3">
+          <span className="block font-display font-medium break-words text-ink">
+            {entry.food.name}
+          </span>
+          <span className="block text-sm text-ink-3">
             {i18n._(foodSourceLabel(entry.food.source))}
-            {entry.food.brand ? ` · ${entry.food.brand}` : ""}
+            {entry.food.brand ? `, ${entry.food.brand}` : ""}
           </span>
           {entry.food.source === "off" && entry.food.attribution ? (
-            <span className="text-xs text-muted-foreground">{entry.food.attribution}</span>
+            <span className="block text-sm text-ink-3">{entry.food.attribution}</span>
           ) : null}
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-          <span className="font-mono text-sm">
-            {hideNumbers
-              ? i18n._(HIDDEN_VALUE)
-              : formatNutrientValue("energyKcal", entry.nutrients.energyKcal, i18n)}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing((value) => !value)}
-            aria-expanded={editing}
-          >
-            <Trans>
-              Edit <span className="sr-only">{foodName}</span>
-            </Trans>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-pressed={favorite}
-            onClick={() =>
-              favoriteMutation.mutate(
-                { snapshotId: entry.food.snapshotId, favorite: !favorite },
-                {
-                  onSuccess: () => {
-                    announce(favorite ? t`Removed from favourites` : t`Added to favourites`);
-                    onChanged();
-                  },
-                  onError: () => announce(i18n._(DIARY_COPY.networkError)),
-                },
-              )
-            }
-          >
-            {favorite ? (
-              <Trans>
-                Unfavourite <span className="sr-only">{foodName}</span>
-              </Trans>
-            ) : (
-              <Trans>
-                Favourite <span className="sr-only">{foodName}</span>
-              </Trans>
-            )}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={del} disabled={remove.isPending}>
-            <Trans>
-              Delete <span className="sr-only">{foodName}</span>
-            </Trans>
-          </Button>
-        </div>
-      </div>
-      {conflict ? (
-        <div className="grid gap-2 rounded-md border p-3 text-sm" role="alert">
-          <p className="font-medium">{i18n._(DIARY_COPY.conflictTitle)}</p>
-          <p>
-            {conflict.deleted
-              ? t`Other version: deleted. Your change: ${mineAmount}, ${mineSlot}.`
-              : t`Other version: ${otherAmount}, ${otherSlot}. Your change: ${mineAmount}, ${mineSlot}.`}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {conflict.deleted ? null : (
-              <Button size="sm" onClick={() => save(conflict.revision)}>
-                {i18n._(DIARY_COPY.keepMine)}
-              </Button>
-            )}
+          <span className="-ml-2 mt-1 flex flex-wrap gap-x-1">
             <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setConflict(null);
-                setEditing(false);
-                onChanged();
-              }}
+              variant="ghost"
+              size="xs"
+              onClick={() => setEditing((value) => !value)}
+              aria-expanded={editing}
             >
-              {i18n._(DIARY_COPY.keepServer)}
+              <Trans>
+                Edit <span className="sr-only">{foodName}</span>
+              </Trans>
             </Button>
-          </div>
-        </div>
+            <Button
+              variant="ghost"
+              size="xs"
+              aria-pressed={favorite}
+              onClick={() =>
+                favoriteMutation.mutate(
+                  { snapshotId: entry.food.snapshotId, favorite: !favorite },
+                  {
+                    onSuccess: () => {
+                      announce(favorite ? t`Removed from favourites` : t`Added to favourites`);
+                      onChanged();
+                    },
+                    onError: () => announce(i18n._(DIARY_COPY.networkError)),
+                  },
+                )
+              }
+            >
+              {favorite ? (
+                <Trans>
+                  Unfavourite <span className="sr-only">{foodName}</span>
+                </Trans>
+              ) : (
+                <Trans>
+                  Favourite <span className="sr-only">{foodName}</span>
+                </Trans>
+              )}
+            </Button>
+            <Button variant="ghost" size="xs" onClick={del} disabled={remove.isPending}>
+              <Trans>
+                Delete <span className="sr-only">{foodName}</span>
+              </Trans>
+            </Button>
+          </span>
+        </td>
+        <td className="num py-2.5 text-ink-2">{formatAmount(entry.amount, entry.unit, i18n)}</td>
+        <td className="num py-2.5 font-medium text-ink">{figure("energyKcal")}</td>
+        {LEDGER_MACROS.map((key) => (
+          <td key={key} className="num hidden py-2.5 text-ink-2 md:table-cell">
+            {figure(key)}
+          </td>
+        ))}
+      </tr>
+      {conflict ? (
+        <tr className="border-b border-rule">
+          <td colSpan={LEDGER_COLUMNS} className="py-3">
+            <div className="grid gap-2 border-l-2 border-warning pl-3 text-sm" role="alert">
+              <p className="font-display font-medium text-ink">
+                {i18n._(DIARY_COPY.conflictTitle)}
+              </p>
+              <p className="text-ink-2">
+                {conflict.deleted
+                  ? t`Other version: deleted. Your change: ${mineAmount}, ${mineSlot}.`
+                  : t`Other version: ${otherAmount}, ${otherSlot}. Your change: ${mineAmount}, ${mineSlot}.`}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {conflict.deleted ? null : (
+                  <Button size="sm" variant="outline" onClick={() => save(conflict.revision)}>
+                    {i18n._(DIARY_COPY.keepMine)}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setConflict(null);
+                    setEditing(false);
+                    onChanged();
+                  }}
+                >
+                  {i18n._(DIARY_COPY.keepServer)}
+                </Button>
+              </div>
+            </div>
+          </td>
+        </tr>
       ) : null}
       {editing ? (
-        <div className="grid gap-3 sm:grid-cols-4 sm:items-end">
-          <Field label={t`Amount`}>
-            {(id) => (
-              <Input
-                id={id}
-                inputMode="decimal"
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-              />
-            )}
-          </Field>
-          <Field label={t`Unit`}>
-            {(id) => (
-              <select
-                id={id}
-                className={selectClass}
-                value={unit}
-                onChange={(event) => setUnit(event.target.value as AmountUnit)}
+        <tr className="border-b border-rule bg-paper-2">
+          <td colSpan={LEDGER_COLUMNS} className="px-3 py-3">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+              <Field label={t`Amount`}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    inputMode="decimal"
+                    className="num"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label={t`Unit`}>
+                {(id) => (
+                  <select
+                    id={id}
+                    className={nativeSelectClass}
+                    value={unit}
+                    onChange={(event) => setUnit(event.target.value as AmountUnit)}
+                  >
+                    {units.map((option) => (
+                      <option key={option} value={option}>
+                        {i18n._(UNIT_LABELS[option])}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+              <Field label={t`Meal`}>
+                {(id) => (
+                  <select
+                    id={id}
+                    className={nativeSelectClass}
+                    value={slot}
+                    onChange={(event) => setSlot(event.target.value as MealSlot)}
+                  >
+                    {MEAL_SLOTS.map((option) => (
+                      <option key={option} value={option}>
+                        {i18n._(SLOT_LABELS[option])}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+              <Button
+                variant="outline"
+                onClick={() => save()}
+                disabled={preview === null || update.isPending}
               >
-                {units.map((option) => (
-                  <option key={option} value={option}>
-                    {i18n._(UNIT_LABELS[option])}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          <Field label={t`Meal`}>
-            {(id) => (
-              <select
-                id={id}
-                className={selectClass}
-                value={slot}
-                onChange={(event) => setSlot(event.target.value as MealSlot)}
-              >
-                {MEAL_SLOTS.map((option) => (
-                  <option key={option} value={option}>
-                    {i18n._(SLOT_LABELS[option])}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-          <Button onClick={() => save()} disabled={preview === null || update.isPending}>
-            {update.isPending ? t`Saving…` : t`Save`}
-          </Button>
-        </div>
+                {update.isPending ? t`Saving…` : t`Save`}
+              </Button>
+            </div>
+          </td>
+        </tr>
       ) : null}
-    </li>
+    </>
   );
 }
 
@@ -594,30 +685,33 @@ function TargetsOnDay({
   const { i18n } = useLingui();
   if (targets.length === 0) return null;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18n._(TARGET_COPY.yourTargets)}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-2">
-        <ul className="grid gap-1 text-sm" aria-label={i18n._(TARGET_COPY.yourTargets)}>
-          {targets.map((target) => (
-            <li key={target.id} className="flex flex-wrap items-baseline justify-between gap-2">
-              <span>
-                {i18n._(NUTRIENT_LABELS[target.nutrient].label)}:{" "}
-                {formatTarget(target, hideNumbers, i18n)}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {i18n._(describeTargetSource(target))}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-xs text-muted-foreground">{i18n._(TARGET_COPY.targetsNote)}</p>
-        <Link to="/nutrition-targets" className="text-sm underline">
+    <div className="grid gap-2 border-t border-rule pt-4">
+      <h3 className="font-display text-base font-medium text-ink">
+        {i18n._(TARGET_COPY.yourTargets)}
+      </h3>
+      <ul className="divide-y divide-rule text-sm" aria-label={i18n._(TARGET_COPY.yourTargets)}>
+        {targets.map((target) => (
+          <li
+            key={target.id}
+            className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 py-1.5 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_auto]"
+          >
+            <span className="text-ink">{i18n._(NUTRIENT_LABELS[target.nutrient].label)}</span>
+            <span className="num text-right text-ink sm:text-left">
+              {formatTarget(target, hideNumbers, i18n)}
+            </span>
+            <span className="col-span-2 text-ink-3 sm:col-span-1 sm:text-right">
+              {i18n._(describeTargetSource(target))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-sm text-ink-3">
+        {i18n._(TARGET_COPY.targetsNote)}{" "}
+        <Link to="/nutrition-targets" className={textLinkClass}>
           {i18n._(TARGET_COPY.settingsLink)}
         </Link>
-      </CardContent>
-    </Card>
+      </p>
+    </div>
   );
 }
 
@@ -655,16 +749,14 @@ function CandidateButton({
       <button
         type="button"
         aria-pressed={selected}
-        className={`flex w-full justify-between gap-3 px-3 py-2 text-left text-sm ${selected ? "bg-accent" : ""}`}
+        className={`flex w-full cursor-pointer justify-between gap-3 px-3 py-2 text-left text-sm transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring aria-pressed:bg-accent aria-pressed:text-ink ${selected ? "font-medium text-ink" : "text-ink-2"}`}
         onClick={onSelect}
       >
-        <span>
+        <span className="min-w-0 break-words">
           {candidate.name}
-          {candidate.brand ? ` · ${candidate.brand}` : ""}
+          {candidate.brand ? <span className="text-ink-3">, {candidate.brand}</span> : null}
         </span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {i18n._(candidate.sourceLabel)}
-        </span>
+        <span className="shrink-0 text-ink-3">{i18n._(candidate.sourceLabel)}</span>
       </button>
     </li>
   );
@@ -677,7 +769,7 @@ function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[]
   return (
     <div className="grid gap-1">
       {notices.map((notice) => (
-        <p key={notice} className="text-xs text-muted-foreground">
+        <p key={notice} className="text-sm text-ink-3">
           {notice}
         </p>
       ))}
@@ -823,8 +915,8 @@ function AddFood({
         : t`Quick add`;
   const reviewName = mode !== "quick" && chosen ? chosen.name : null;
   const reviewLine = reviewName
-    ? t`Review: ${reviewName}, ${reviewAmount} on ${localDate} · ${reviewSource}`
-    : t`Review: ${reviewAmount} on ${localDate} · ${reviewSource}`;
+    ? t`Review: ${reviewName}, ${reviewAmount} on ${localDate} (${reviewSource})`
+    : t`Review: ${reviewAmount} on ${localDate} (${reviewSource})`;
 
   const submit = async () => {
     if (!preview) return;
@@ -882,17 +974,22 @@ function AddFood({
   ] as const;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18n._(DIARY_COPY.addFood)}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t`How to add`}>
+    <section className="grid min-w-0 gap-4" aria-labelledby="add-food-heading">
+      <h2 id="add-food-heading" className="text-xl leading-tight text-ink">
+        {i18n._(DIARY_COPY.addFood)}
+      </h2>
+      <div className="sheet grid gap-4 px-5 pt-4 pb-5">
+        <div
+          className="flex flex-wrap gap-x-1 gap-y-1 border-b border-rule pb-2"
+          role="group"
+          aria-label={t`How to add`}
+        >
           {modes.map(([value, label]) => (
             <Button
               key={value}
               size="sm"
-              variant={mode === value ? "default" : "outline"}
+              variant="ghost"
+              className="aria-pressed:bg-accent aria-pressed:text-ink"
               aria-pressed={mode === value}
               onClick={() => switchMode(value)}
             >
@@ -918,16 +1015,16 @@ function AddFood({
               {i18n._(BARCODE_COPY.searchHint)}
             </p>
             <section className="grid gap-1" aria-label={i18n._(BARCODE_COPY.savedFoods)}>
-              <h3 className="text-sm font-medium">{i18n._(BARCODE_COPY.savedFoods)}</h3>
+              <h3 className="text-sm font-medium text-ink-3">{i18n._(BARCODE_COPY.savedFoods)}</h3>
               {saved.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-ink-3">
                   {query.trim()
                     ? i18n._(BARCODE_COPY.searchEmpty)
                     : t`No saved or recent foods yet. Search, scan a barcode or use quick add.`}
                 </p>
               ) : (
                 <ul
-                  className="max-h-56 overflow-y-auto rounded-md border"
+                  className="max-h-56 divide-y divide-rule overflow-y-auto border-y border-rule"
                   aria-label={t`Saved foods`}
                 >
                   {saved.map((candidate) => (
@@ -942,22 +1039,24 @@ function AddFood({
               )}
             </section>
             <section className="grid gap-1" aria-label={i18n._(BARCODE_COPY.searchResults)}>
-              <h3 className="text-sm font-medium">{i18n._(BARCODE_COPY.searchResults)}</h3>
+              <h3 className="text-sm font-medium text-ink-3">
+                {i18n._(BARCODE_COPY.searchResults)}
+              </h3>
               {!isSearchable(debounced) ? (
-                <p className="text-sm text-muted-foreground">{i18n._(BARCODE_COPY.searchHint)}</p>
+                <p className="text-sm text-ink-3">{i18n._(BARCODE_COPY.searchHint)}</p>
               ) : search.isPending ? (
-                <p className="text-sm text-muted-foreground" role="status">
+                <p className="text-sm text-ink-3" role="status">
                   <Trans>Searching…</Trans>
                 </p>
               ) : search.isError ? (
-                <p className="text-sm text-muted-foreground" role="alert">
+                <p className="text-sm text-ink-2" role="alert">
                   {i18n._(BARCODE_COPY.searchFailed)}{" "}
-                  <button className="underline" onClick={() => void search.refetch()}>
+                  <button className={inlineButtonClass} onClick={() => void search.refetch()}>
                     {i18n._(DIARY_COPY.retry)}
                   </button>
                 </p>
               ) : found.length === 0 ? (
-                <p className="text-sm text-muted-foreground" role="status">
+                <p className="text-sm text-ink-3" role="status">
                   {i18n._(BARCODE_COPY.searchEmpty)}
                 </p>
               ) : (
@@ -966,7 +1065,7 @@ function AddFood({
                     {t`${plural(found.length, { one: "# food found", other: "# foods found" })}`}
                   </p>
                   <ul
-                    className="max-h-72 overflow-y-auto rounded-md border"
+                    className="max-h-72 divide-y divide-rule overflow-y-auto border-y border-rule"
                     aria-label={t`Food database results`}
                   >
                     {found.map((candidate) => (
@@ -992,11 +1091,11 @@ function AddFood({
             announce={announce}
           />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {draftNote ? (
-              <div className="grid gap-1 rounded-md border p-3 text-sm sm:col-span-3">
-                <p>{draftNote}</p>
-                <p className="text-muted-foreground">{i18n._(BARCODE_COPY.manualNote)}</p>
+              <div className="well grid gap-1 px-3 py-2 text-sm sm:col-span-2">
+                <p className="text-ink">{draftNote}</p>
+                <p className="text-ink-3">{i18n._(BARCODE_COPY.manualNote)}</p>
               </div>
             ) : null}
             <Field label={t`Food name`}>
@@ -1022,7 +1121,7 @@ function AddFood({
               {(id) => (
                 <select
                   id={id}
-                  className={selectClass}
+                  className={nativeSelectClass}
                   value={quick.basisUnit}
                   onChange={(event) => {
                     const next = event.target.value as AmountUnit;
@@ -1068,7 +1167,7 @@ function AddFood({
                 )}
               </Field>
             ) : null}
-            <label className="flex items-center gap-2 text-sm sm:col-span-3">
+            <label className="flex items-center gap-2 text-sm text-ink-2 sm:col-span-2">
               <input
                 type="checkbox"
                 checked={saveAsFood}
@@ -1077,19 +1176,19 @@ function AddFood({
               <Trans>Save to my foods for next time</Trans>
             </label>
             {!parsedQuick.ok && quick.name ? (
-              <p className="text-sm text-muted-foreground sm:col-span-3" role="alert">
+              <p className="text-sm text-destructive sm:col-span-2" role="alert">
                 {i18n._(parsedQuick.error)}
               </p>
             ) : null}
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-4 sm:items-end">
+        <div className="grid gap-3 border-t border-rule pt-4 sm:grid-cols-3 sm:items-end">
           <Field label={t`Meal`}>
             {(id) => (
               <select
                 id={id}
-                className={selectClass}
+                className={nativeSelectClass}
                 value={slot}
                 onChange={(event) => setSlot(event.target.value as MealSlot)}
               >
@@ -1115,7 +1214,7 @@ function AddFood({
             {(id) => (
               <select
                 id={id}
-                className={selectClass}
+                className={nativeSelectClass}
                 value={unit}
                 onChange={(event) => setUnit(event.target.value as AmountUnit)}
               >
@@ -1127,7 +1226,7 @@ function AddFood({
               </select>
             )}
           </Field>
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap gap-2 sm:col-span-3">
             <Button
               className="w-full sm:w-auto"
               onClick={() => void submit()}
@@ -1151,22 +1250,22 @@ function AddFood({
         </div>
 
         {preview ? (
-          <div className="rounded-md border p-3 text-sm" aria-label={t`Review before saving`}>
-            <p className="mb-1 font-medium">{reviewLine}</p>
-            <p className="text-muted-foreground">
+          <div className="well grid gap-1 px-3 py-2 text-sm" aria-label={t`Review before saving`}>
+            <p className="font-medium text-ink">{reviewLine}</p>
+            <p className="text-ink-2 tabular-nums">
               {formatNutrientSummaryLine(preview, hideNumbers, i18n)}
             </p>
-            {missingNote ? <p className="mt-1 text-muted-foreground">{missingNote}</p> : null}
+            {missingNote ? <p className="text-ink-3">{missingNote}</p> : null}
             {mode !== "quick" && chosen?.attribution ? (
-              <p className="mt-1 text-xs text-muted-foreground">{chosen.attribution}</p>
+              <p className="text-ink-3">{chosen.attribution}</p>
             ) : null}
             {mode === "barcode" ? (
-              <p className="mt-1 text-xs text-muted-foreground">{i18n._(BARCODE_COPY.verify)}</p>
+              <p className="text-ink-3">{i18n._(BARCODE_COPY.verify)}</p>
             ) : null}
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -1241,7 +1340,7 @@ function BarcodeLookupPanel({
               id={id}
               inputMode="numeric"
               autoComplete="off"
-              className="w-56"
+              className="num w-56"
               value={digits}
               aria-invalid={error === BARCODE_COPY.invalid}
               aria-describedby="barcode-help"
@@ -1249,17 +1348,17 @@ function BarcodeLookupPanel({
             />
           )}
         </Field>
-        <Button type="submit" disabled={lookup.isPending}>
+        <Button type="submit" variant="outline" disabled={lookup.isPending}>
           {i18n._(lookup.isPending ? BARCODE_COPY.lookingUp : BARCODE_COPY.lookUp)}
         </Button>
       </form>
-      <p id="barcode-help" className="text-xs text-muted-foreground">
+      <p id="barcode-help" className="text-sm text-ink-3">
         {i18n._(BARCODE_COPY.webNoCamera)}
       </p>
 
       {error ? (
         <div className="grid gap-2 text-sm" role="alert">
-          <p>{i18n._(error)}</p>
+          <p className="text-destructive">{i18n._(error)}</p>
           {error === DIARY_COPY.networkError ? (
             <div className="flex flex-wrap gap-2">
               {lastBarcode ? (
@@ -1281,8 +1380,8 @@ function BarcodeLookupPanel({
 
       {outcome?.kind === "matches" ? (
         <div className="grid gap-2">
-          <p className="text-sm">{i18n._(outcome.message)}</p>
-          <ul className="rounded-md border" aria-label={t`Barcode matches`}>
+          <p className="text-sm text-ink-2">{i18n._(outcome.message)}</p>
+          <ul className="divide-y divide-rule border-y border-rule" aria-label={t`Barcode matches`}>
             {outcome.candidates.map((candidate) => (
               <CandidateButton
                 key={candidate.key}
@@ -1305,10 +1404,11 @@ function BarcodeLookupPanel({
         </div>
       ) : outcome?.kind === "manual" ? (
         <div className="grid gap-2 text-sm">
-          <p>{i18n._(outcome.message)}</p>
+          <p className="text-ink-2">{i18n._(outcome.message)}</p>
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
+              variant="outline"
               onClick={() => onManualDraft(outcome.barcode, i18n._(outcome.message))}
             >
               {i18n._(BARCODE_COPY.enterManually)}
@@ -1348,7 +1448,7 @@ function CopyDay({
 
   if (!open)
     return (
-      <div>
+      <div className="border-t border-rule pt-4">
         <Button variant="outline" onClick={() => setOpen(true)}>
           {i18n._(DIARY_COPY.copyFrom)}
         </Button>
@@ -1380,17 +1480,17 @@ function CopyDay({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18n._(DIARY_COPY.copyFrom)}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3">
+    <section className="grid gap-3 border-t border-rule pt-4" aria-labelledby="copy-day-heading">
+      <h2 id="copy-day-heading" className="text-xl leading-tight text-ink">
+        {i18n._(DIARY_COPY.copyFrom)}
+      </h2>
+      <div className="well grid gap-3 px-4 py-3">
         <Field label={t`Copy from`}>
           {(id) => (
             <Input
               id={id}
               type="date"
-              className="w-44"
+              className="num w-44"
               value={fromDate}
               onChange={(event) => {
                 setFromDate(event.target.value);
@@ -1400,20 +1500,23 @@ function CopyDay({
           )}
         </Field>
         {fromDate === localDate ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-3">
             <Trans>Choose a different day.</Trans>
           </p>
+        ) : source.isPending ? (
+          <Skeleton className="h-16 w-full" />
         ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{i18n._(DIARY_COPY.empty)}</p>
+          <p className="text-sm text-ink-3">{i18n._(DIARY_COPY.empty)}</p>
         ) : (
           <fieldset className="grid gap-1">
-            <legend className="text-sm font-medium">
+            <legend className="mb-1 text-sm font-medium text-ink-3">
               <Trans>Items to copy</Trans>
             </legend>
             {entries.map((entry) => (
-              <label key={entry.id} className="flex items-center gap-2 text-sm">
+              <label key={entry.id} className="flex items-center gap-2 text-sm text-ink-2">
                 <input
                   type="checkbox"
+
                   checked={selected.has(entry.id)}
                   onChange={(event) => {
                     const next = new Set(selected);
@@ -1429,14 +1532,18 @@ function CopyDay({
           </fieldset>
         )}
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-          <Button onClick={submit} disabled={selected.size === 0 || copy.isPending}>
+          <Button
+            variant="outline"
+            onClick={submit}
+            disabled={selected.size === 0 || copy.isPending}
+          >
             {t`Copy ${plural(selected.size, { one: "# item", other: "# items" })} to ${localDate}`}
           </Button>
-          <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
+          <Button className="w-full sm:w-auto" variant="ghost" onClick={() => setOpen(false)}>
             <Trans>Cancel</Trans>
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
