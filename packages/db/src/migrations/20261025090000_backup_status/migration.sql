@@ -1,8 +1,8 @@
 -- Issue #64 — backup status, written by the self-host backup service.
 --
--- `backup_run` is an append-only log of backup, verify and restore runs
--- (deploy/backup/openvalens-backup.sh writes it with psql). The server only
--- reads it, for the readiness probe and the admin backup panel. `detail` is a
+-- `backup_run` is an append-only log of backup, verify, restore and off-site
+-- upload runs (deploy/backup/openvalens-backup.sh writes it with psql). The
+-- server only reads it, for the readiness probe and the admin backup panel. `detail` is a
 -- short, value-free failure reason (a step name such as "pg_dump" or
 -- "checksum"), never a path, key or database content.
 --
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS "backup_run" (
 	"detail" text,
 	"started_at" timestamp with time zone NOT NULL,
 	"finished_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "backup_run_operation_check" CHECK ("operation" in ('backup', 'verify', 'restore')),
+	CONSTRAINT "backup_run_operation_check" CHECK ("operation" in ('backup', 'verify', 'restore', 'offsite')),
 	CONSTRAINT "backup_run_trigger_check" CHECK ("trigger" in ('daily', 'pre-migrate', 'manual')),
 	CONSTRAINT "backup_run_outcome_check" CHECK ("outcome" in ('ok', 'failed')),
 	CONSTRAINT "backup_run_detail_length_check" CHECK ("detail" is null or char_length("detail") <= 200)

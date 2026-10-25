@@ -321,6 +321,42 @@ services:
       - db
     restart: "no"
 
+  # Optional off-site copy (Issue #64), started only with the `offsite` compose
+  # profile, which deploy/setup.sh enables (COMPOSE_PROFILES in deploy/.env)
+  # once BACKUP_OFFSITE_S3_BUCKET and both credential files exist. A separate
+  # service, because it is the ONE backup service with internet access, so it
+  # gets the least: no database network or password, no age key, only the
+  # already-encrypted backups and two S3 credential files. It uploads every
+  # finished, verified backup and applies the same retention in the bucket;
+  # results go to /backups/.offsite/events for the scheduler to record. It
+  # never gates a migration: an upload that fails is retried and reported.
+  backup-offsite:
+    <<: *hardening
+    image: openvalens-backup:${OPENVALENS_VERSION:?run deploy/setup.sh first}
+    profiles: ["offsite"]
+    init: true
+    entrypoint: ["/bin/bash", "/opt/openvalens/openvalens-backup.sh"]
+    command: ["offsite-daemon"]
+    environment:
+      BACKUP_OFFSITE_S3_ENDPOINT: ${BACKUP_OFFSITE_S3_ENDPOINT:-}
+      BACKUP_OFFSITE_S3_REGION: ${BACKUP_OFFSITE_S3_REGION:-}
+      BACKUP_OFFSITE_S3_BUCKET: ${BACKUP_OFFSITE_S3_BUCKET:-}
+      BACKUP_OFFSITE_S3_PREFIX: ${BACKUP_OFFSITE_S3_PREFIX:-openvalens}
+      BACKUP_OFFSITE_S3_FORCE_PATH_STYLE: ${BACKUP_OFFSITE_S3_FORCE_PATH_STYLE:-false}
+      BACKUP_OFFSITE_S3_ACCESS_KEY_ID_FILE: /run/offsite-secrets/access-key-id
+      BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY_FILE: /run/offsite-secrets/secret-access-key
+      OPENVALENS_BACKUP_RETAIN: ${OPENVALENS_BACKUP_RETAIN:-10}
+      OPENVALENS_BACKUP_DAILY_RETAIN: ${OPENVALENS_BACKUP_DAILY_RETAIN:-14}
+      OPENVALENS_OFFSITE_POLL_SECONDS: ${OPENVALENS_OFFSITE_POLL_SECONDS:-30}
+    volumes:
+      - *backup-tool-volume
+      - ./secrets/backup/BACKUP_OFFSITE_S3_ACCESS_KEY_ID:/run/offsite-secrets/access-key-id:ro
+      - ./secrets/backup/BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY:/run/offsite-secrets/secret-access-key:ro
+      - backups:/backups
+    networks:
+      - offsite
+    restart: unless-stopped
+
   postgres:
     <<: *hardening
     image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
@@ -345,6 +381,8 @@ networks:
   app: {}
   db:
     internal: true
+  # Egress for the optional off-site uploader only (profile `offsite`).
+  offsite: {}
 
 volumes:
   postgres_data: {}

@@ -14,9 +14,10 @@ What you must do yourself:
 
 1. **Keep a copy of the backup key off the server**
    ([The backup key](#the-backup-key)). Without it no backup can be restored.
-2. **Copy backups off the server** ([Copying backups off the host](#copying-backups-off-the-host)).
-   Backups are kept in a Docker volume on the same disk as the database:
-   losing the host loses them too.
+2. **Get backups off the server**: turn on the [off-site copy](#off-site-copy)
+   to any S3-compatible bucket, or [export them](#copying-backups-off-the-host)
+   yourself. Backups are kept in a Docker volume on the same disk as the
+   database: losing the host loses them too.
 3. **Practise a restore** on a spare machine once, so you know the steps
    before you need them ([Restoring onto a new host](#restoring-onto-a-new-host)).
 
@@ -139,10 +140,71 @@ A verify with the wrong key fails at the `key` step with a message that says
 the files are intact but were encrypted for a different key; a damaged copy
 fails at the `checksum` step. Neither changes anything.
 
+## Off-site copy
+
+Optional, off by default. When configured, every backup that has been
+written **and verified** (daily, pre-migrate and `backup now`) is copied to an
+S3-compatible bucket: AWS S3, MinIO, Backblaze B2, Hetzner Object Storage,
+Cloudflare R2 and others. The bucket only ever receives what is already in
+the backup directory: the `.age` files and `SHA256SUMS`. It never sees a
+plaintext byte or the key.
+
+1. Create a **private** bucket and an access key that can list, read, write
+   and delete objects in it (it does not need to create buckets). Bucket
+   versioning or object lock on the provider side adds protection against a
+   stolen key.
+2. Put the key in two files (they are never put in `deploy/.env` or printed):
+
+   ```bash
+   install -m 0444 /dev/stdin deploy/secrets/backup/BACKUP_OFFSITE_S3_ACCESS_KEY_ID      # paste, then Ctrl-D
+   install -m 0444 /dev/stdin deploy/secrets/backup/BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY  # paste, then Ctrl-D
+   ```
+
+3. Set the bucket in `deploy/.env` ([Configuration](configuration.md#deployenv)):
+
+   ```bash
+   BACKUP_OFFSITE_S3_BUCKET=my-openvalens-backups
+   BACKUP_OFFSITE_S3_ENDPOINT=https://s3.eu-central-003.backblazeb2.com   # empty for AWS S3
+   BACKUP_OFFSITE_S3_REGION=eu-central-003
+   BACKUP_OFFSITE_S3_PREFIX=openvalens                                    # folder in the bucket
+   BACKUP_OFFSITE_S3_FORCE_PATH_STYLE=false                               # true for MinIO
+   ```
+
+4. Run `deploy/setup.sh install` (it keeps everything else). It sets
+   `COMPOSE_PROFILES=offsite`, which starts the `backup-offsite` service.
+
+How it works and why it is a separate service: the backup services have no
+internet access, and that stays true. `backup-offsite` is the only one with
+a network that reaches the internet, and it gets the least: no database
+network or password, no backup key, only the encrypted backups and the two
+credential files. It checks the backups volume every 30 seconds
+(`OPENVALENS_OFFSITE_POLL_SECONDS`), uploads each finished backup (data files
+first, `SHA256SUMS` last, then a size and checksum comparison) and applies the
+same retention in the bucket as on the host: the newest
+`OPENVALENS_BACKUP_DAILY_RETAIN` daily and `OPENVALENS_BACKUP_RETAIN`
+pre-migrate backups; manual backups stay until you delete them there.
+`backup now` uploads right away.
+
+An upload never blocks anything: the pre-migrate backup only has to exist and
+verify on the host before a migration runs. A failed upload is retried every
+15 minutes and recorded: readiness reports `checks.backupOffsite: failing`
+(status `degraded`; `checks.backups` stays `ok` because the local backup is
+good) and `/admin/settings` shows the failing step.
+
+```bash
+deploy/setup.sh backup pull                 # list the backups in the bucket
+deploy/setup.sh backup pull <id|latest>     # copy one into the volume and verify it
+```
+
+`pull` downloads a backup, checks every file against its `SHA256SUMS`, and
+verifies it with the key; then `deploy/setup.sh restore <id>` restores it.
+That is how a new host gets its backups ([Restoring onto a new host](#restoring-onto-a-new-host)).
+
 ## Copying backups off the host
 
-The backups volume sits on the same disk as the database. Follow the 3-2-1
-rule: three copies, on two kinds of storage, one of them off site.
+Without the off-site copy, or in addition to it, copy backups yourself.
+Follow the 3-2-1 rule: three copies, on two kinds of storage, one of them
+off site.
 
 ```bash
 deploy/setup.sh backup export <id> /path/to/dir    # copies <id>/ (still encrypted) to the host
@@ -151,11 +213,10 @@ deploy/setup.sh backup export <id> /path/to/dir    # copies <id>/ (still encrypt
 The exported directory is encrypted, so it is safe to send to any storage you
 trust to keep it: `rsync` or `rclone` to another machine, an S3-compatible
 bucket, removable media. The key is not in it. Schedule the export and the
-copy with your own `cron` job, for example nightly after the backup hour;
-OpenValens does not upload anything itself (the backup services have no
-internet access). Copy the newest backups, not only old ones: the erasure
-ledger in the newest backup is what keeps deleted people deleted when you
-restore an older one elsewhere.
+copy with your own `cron` job, for example nightly after the backup hour.
+Copy the newest backups, not only old ones: the erasure ledger in the newest
+backup is what keeps deleted people deleted when you restore an older one
+elsewhere.
 
 ## Restoring
 
@@ -216,12 +277,16 @@ For a rollback to the previous release after a failed upgrade, see
    Also restore `deploy/secrets/server/BETTER_AUTH_SECRET` and `deploy/.env` if
    you kept them ([The backup key](#the-backup-key)).
 
-3. Install: `deploy/setup.sh install`.
-4. Copy the backup directories you exported in, the one to restore and the
-   newest one you have:
+3. Install: `deploy/setup.sh install`. With the off-site copy, put its two
+   credential files in `deploy/secrets/backup/` and its settings in
+   `deploy/.env` first.
+4. Bring in the backup to restore and the newest one you have, either from
+   the bucket or from copies you exported:
 
    ```bash
-   deploy/setup.sh backup import /path/to/<id>
+   deploy/setup.sh backup pull <id>              # from the off-site bucket
+   deploy/setup.sh backup pull latest
+   deploy/setup.sh backup import /path/to/<id>   # from an exported copy
    ```
 
 5. `deploy/setup.sh restore <id>`, then [verify the install](install.md#verify-the-install).
@@ -230,8 +295,10 @@ This was rehearsed on 2026-10-25 on a disposable local install: the stack and
 all its volumes and secrets were destroyed, a fresh install could not read the
 old backups with its own new key (a clear `key` failure), and with the
 escrowed key and the imported backups the restore brought back the database
-and the stored files, with a person erased after the backup still erased. It
-has not yet been rehearsed on a VPS or with a large database.
+and the stored files, with a person erased after the backup still erased.
+`bun run test:offsite` (also a CI job) pulls a backup from a disposable MinIO
+onto an empty stack and restores it. Neither has been rehearsed on a VPS or
+with a large database.
 
 ## Deleted accounts and the erasure ledger
 
@@ -263,8 +330,9 @@ still be restored by hand with `pg_restore` if you need one.
 - **No point-in-time recovery.** A restore goes back to the last backup;
   anything written after it is lost from the live instance. For continuous
   archiving use Postgres tools such as pgBackRest or WAL-G yourself.
-- **No built-in off-site upload.** Export and copy the encrypted backups with
-  your own job.
+- **The off-site copy is a mirror, not an archive.** Retention deletes old
+  backups in the bucket too; use the provider's versioning or object lock if
+  you need copies that the host cannot delete.
 - **S3 objects are not in the backup.** Use bucket versioning and replication.
 - Backups, verifies and restores never overlap: a backup or verify waits for
   the one running, and a restore refuses to start while one runs.

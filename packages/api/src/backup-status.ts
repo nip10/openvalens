@@ -19,6 +19,11 @@ import { z } from "zod";
  * - `ok`: otherwise.
  * - `unknown`: the status could not be read (readiness already reports the
  *   database).
+ *
+ * The optional off-site copy has its own state (`offsite.state`): `off` when no
+ * upload was ever recorded, `failing` when the newest upload failed, `ok`
+ * otherwise. It degrades readiness on its own and never makes the local
+ * backups `failing`: the backup itself exists and verified.
  */
 
 /** Two missed daily runs. */
@@ -28,6 +33,9 @@ export const OVERDUE_AFTER_MS = 2 * 60 * 60 * 1000;
 
 export const backupStateSchema = z.enum(["ok", "failing", "stale", "off", "unknown"]);
 export type BackupState = z.infer<typeof backupStateSchema>;
+
+export const offsiteStateSchema = z.enum(["ok", "failing", "off", "unknown"]);
+export type OffsiteState = z.infer<typeof offsiteStateSchema>;
 
 export const backupStatusSchema = z.object({
   state: backupStateSchema,
@@ -61,6 +69,13 @@ export const backupStatusSchema = z.object({
       dailyRetain: z.number(),
     })
     .nullable(),
+  offsite: z.object({
+    state: offsiteStateSchema,
+    lastUpload: z.object({ id: z.string().nullable(), at: z.string() }).nullable(),
+    lastFailure: z
+      .object({ id: z.string().nullable(), step: z.string().nullable(), at: z.string() })
+      .nullable(),
+  }),
 });
 export type BackupStatus = z.infer<typeof backupStatusSchema>;
 
@@ -69,6 +84,13 @@ const EMPTY: Omit<BackupStatus, "state"> = {
   lastVerify: null,
   lastFailure: null,
   schedule: null,
+  offsite: { state: "off", lastUpload: null, lastFailure: null },
+};
+
+const UNKNOWN: BackupStatus = {
+  state: "unknown",
+  ...EMPTY,
+  offsite: { state: "unknown", lastUpload: null, lastFailure: null },
 };
 
 type Row = Record<string, unknown>;
@@ -98,7 +120,7 @@ function num(value: unknown): number | null {
 
 /** Pure state rule; exported for tests. */
 export function backupState(
-  status: Omit<BackupStatus, "state">,
+  status: Pick<BackupStatus, "lastBackup" | "lastVerify" | "lastFailure" | "schedule">,
   latestBackupFailed: boolean,
   now: Date,
 ): BackupState {
@@ -128,7 +150,7 @@ export async function readBackupStatus(
       await db.execute(sql`select to_regclass('public.backup_run') is not null
         and to_regclass('public.backup_schedule') is not null as ready`),
     )[0];
-    if (!ready) return { state: "unknown", ...EMPTY };
+    if (!ready) return UNKNOWN;
     if (ready.ready !== true) return { state: "off", ...EMPTY };
 
     const row = rowsOf(
@@ -140,19 +162,29 @@ export async function readBackupStatus(
           from backup_run where operation = 'verify'
           order by finished_at desc, id desc limit 1) v) as last_verify,
         (select row_to_json(f) from (select operation, trigger, detail, finished_at
-          from backup_run where outcome = 'failed'
+          from backup_run where outcome = 'failed' and operation <> 'offsite'
           order by finished_at desc, id desc limit 1) f) as last_failure,
+        (select row_to_json(o) from (select backup_id, finished_at
+          from backup_run where operation = 'offsite' and outcome = 'ok'
+          order by finished_at desc, id desc limit 1) o) as last_offsite,
+        (select row_to_json(x) from (select backup_id, detail, finished_at
+          from backup_run where operation = 'offsite' and outcome = 'failed'
+          order by finished_at desc, id desc limit 1) x) as last_offsite_failure,
+        (select outcome from backup_run where operation = 'offsite'
+          order by finished_at desc, id desc limit 1) as latest_offsite_outcome,
         (select outcome from backup_run where operation = 'backup'
           order by finished_at desc, id desc limit 1) as latest_backup_outcome,
         (select row_to_json(s) from (select next_run_at, hour_utc, daily_retain
           from backup_schedule where id = 'instance') s) as schedule`),
     )[0];
-    if (!row) return { state: "unknown", ...EMPTY };
+    if (!row) return UNKNOWN;
 
     const backup = json(row.last_backup);
     const verify = json(row.last_verify);
     const failure = json(row.last_failure);
     const schedule = json(row.schedule);
+    const upload = json(row.last_offsite);
+    const uploadFailure = json(row.last_offsite_failure);
     const status: Omit<BackupStatus, "state"> = {
       lastBackup:
         backup && iso(backup.finished_at)
@@ -187,12 +219,35 @@ export async function readBackupStatus(
             dailyRetain: num(schedule.daily_retain) ?? 0,
           }
         : null,
+      offsite: {
+        state:
+          row.latest_offsite_outcome === "failed"
+            ? "failing"
+            : row.latest_offsite_outcome === "ok"
+              ? "ok"
+              : "off",
+        lastUpload:
+          upload && iso(upload.finished_at)
+            ? {
+                id: upload.backup_id === null ? null : String(upload.backup_id),
+                at: iso(upload.finished_at)!,
+              }
+            : null,
+        lastFailure:
+          uploadFailure && iso(uploadFailure.finished_at)
+            ? {
+                id: uploadFailure.backup_id === null ? null : String(uploadFailure.backup_id),
+                step: uploadFailure.detail === null ? null : String(uploadFailure.detail),
+                at: iso(uploadFailure.finished_at)!,
+              }
+            : null,
+      },
     };
     return {
       state: backupState(status, row.latest_backup_outcome === "failed", now),
       ...status,
     };
   } catch {
-    return { state: "unknown", ...EMPTY };
+    return UNKNOWN;
   }
 }

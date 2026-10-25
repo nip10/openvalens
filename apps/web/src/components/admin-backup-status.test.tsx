@@ -23,6 +23,11 @@ const healthy: AdminBackupStatusOutput = {
   lastVerify: { id: "20261025T030000Z-daily", outcome: "ok", at: "2026-10-25T03:00:20.000Z" },
   lastFailure: null,
   schedule: { nextRunAt: "2026-10-26T03:00:00.000Z", hourUtc: 3, dailyRetain: 14 },
+  offsite: {
+    state: "ok",
+    lastUpload: { id: "20261025T030000Z-daily", at: "2026-10-25T03:01:00.000Z" },
+    lastFailure: null,
+  },
 };
 
 describe("AdminBackupStatus (Issue #64)", () => {
@@ -58,6 +63,28 @@ describe("AdminBackupStatus (Issue #64)", () => {
     expect(html).toContain("row-counts");
   });
 
+  test("shows the off-site copy, and flags a failed upload without failing backups", () => {
+    expect(render(<AdminBackupStatus status="ready" backups={healthy} />)).toContain(
+      `Last upload ${new Date("2026-10-25T03:01:00.000Z").toLocaleString()}`,
+    );
+    const html = render(
+      <AdminBackupStatus
+        status="ready"
+        backups={{
+          ...healthy,
+          offsite: {
+            state: "failing",
+            lastUpload: null,
+            lastFailure: { id: null, step: "upload", at: "2026-10-25T03:01:00.000Z" },
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Backups healthy");
+    expect(html).toContain("Off-site copy failing");
+    expect(html).toContain("upload");
+  });
+
   test("says so when no backup service ever reported", () => {
     const html = render(
       <AdminBackupStatus
@@ -68,6 +95,7 @@ describe("AdminBackupStatus (Issue #64)", () => {
           lastVerify: null,
           lastFailure: null,
           schedule: null,
+          offsite: { state: "off", lastUpload: null, lastFailure: null },
         }}
       />,
     );

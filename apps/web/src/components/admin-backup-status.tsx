@@ -95,7 +95,14 @@ function BackupDetails({ backups }: { backups: AdminBackupStatusOutput }) {
 
   return (
     <>
-      <StateBadge state={backups.state} />
+      <div className="flex flex-wrap gap-2">
+        <StateBadge state={backups.state} />
+        {backups.offsite.state === "failing" ? (
+          <Badge variant="destructive">
+            <Trans>Off-site copy failing</Trans>
+          </Badge>
+        ) : null}
+      </div>
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <Item label={t`Last backup`}>
           {backups.lastBackup ? (
@@ -136,6 +143,20 @@ function BackupDetails({ backups }: { backups: AdminBackupStatusOutput }) {
             </Trans>
           ) : (
             <Trans>None</Trans>
+          )}
+        </Item>
+        <Item label={t`Off-site copy`}>
+          {backups.offsite.state === "failing" && backups.offsite.lastFailure ? (
+            <span className="text-destructive">
+              <Trans>
+                Upload failed at step "{backups.offsite.lastFailure.step ?? "-"}",{" "}
+                {when(backups.offsite.lastFailure.at)}; retrying
+              </Trans>
+            </span>
+          ) : backups.offsite.lastUpload ? (
+            <Trans>Last upload {when(backups.offsite.lastUpload.at)}</Trans>
+          ) : (
+            <Trans>Not configured</Trans>
           )}
         </Item>
       </dl>

@@ -48,7 +48,6 @@ so.
 
 ## Not covered yet
 
-- Automatic off-site copies of backups (export and copy them yourself).
 - File storage on local disk or S3-compatible services (#62).
 - Signed, published container images; installs build from source (#129).
 - Sign-in with an external identity provider (#65).

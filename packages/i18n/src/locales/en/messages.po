@@ -5020,6 +5020,11 @@ msgstr "Last synced {0}"
 msgid "Last synced {lastSynced}"
 msgstr "Last synced {lastSynced}"
 
+#. placeholder {0}: when(backups.offsite.lastUpload.at)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Last upload {0}"
+msgstr "Last upload {0}"
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Last verify"
 msgstr "Last verify"
@@ -6236,6 +6241,10 @@ msgstr "Not compared with other people"
 msgid "Not compared: not every food reported this."
 msgstr "Not compared: not every food reported this."
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Not configured"
+msgstr "Not configured"
+
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
@@ -6618,6 +6627,14 @@ msgstr "Off for this workspace"
 #: packages/api/src/presenters/insights.ts
 msgid "Off unless you turn it on. One email a day names each supplement, medication or scheduled event due that day. Email is not end-to-end private."
 msgstr "Off unless you turn it on. One email a day names each supplement, medication or scheduled event due that day. Email is not end-to-end private."
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Off-site copy"
+msgstr "Off-site copy"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Off-site copy failing"
+msgstr "Off-site copy failing"
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -10025,6 +10042,12 @@ msgstr "Updated {name}"
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Updating your setting…"
 msgstr "Updating your setting…"
+
+#. placeholder {0}: backups.offsite.lastFailure.step ?? "-"
+#. placeholder {1}: when(backups.offsite.lastFailure.at)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Upload failed at step \"{0}\", {1}; retrying"
+msgstr "Upload failed at step \"{0}\", {1}; retrying"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx

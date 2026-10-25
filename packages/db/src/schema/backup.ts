@@ -16,7 +16,7 @@ import {
 // The server reads these tables for the readiness probe and the admin backup
 // panel. No personal data: ids, sizes, times and value-free failure reasons.
 
-/** One backup, verify or restore run. Append-only; the scheduler prunes old rows. */
+/** One backup, verify, restore or off-site upload run. Append-only; the scheduler prunes old rows. */
 export const backupRun = pgTable(
   "backup_run",
   {
@@ -36,7 +36,7 @@ export const backupRun = pgTable(
   (table) => ({
     backupRunOperationCheck: check(
       "backup_run_operation_check",
-      sql`${table.operation} in ('backup', 'verify', 'restore')`,
+      sql`${table.operation} in ('backup', 'verify', 'restore', 'offsite')`,
     ),
     backupRunTriggerCheck: check(
       "backup_run_trigger_check",

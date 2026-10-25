@@ -7,7 +7,7 @@
 #   deploy/setup.sh mint-token [--dry-run]
 #   deploy/setup.sh catalogs   --source fdc|fdc-branded|off|all [--dry-run] [--non-interactive]
 #   deploy/setup.sh backup     now|list|verify [<id>] [--quick]|export <id> <dir>|import <dir>
-#                              |cleanup [--force]|undo-restore <stamp>
+#                              |pull [<id>|latest]|cleanup [--force]|undo-restore <stamp>
 #   deploy/setup.sh restore    <id> [--force] [--non-interactive] [--no-build]
 #
 # install     Asks for the domain and email settings, generates every secret
@@ -45,6 +45,8 @@
 #                             --quick skips the scratch restore
 #               export <id> <dir>  copy a backup (still encrypted) to <dir>
 #               import <dir>  copy a backup directory into the volume
+#               pull [id]     list the off-site backups, or copy one (or
+#                             "latest") from the off-site bucket into the volume
 #               cleanup       list what restores kept (and legacy unencrypted
 #                             dumps); --force deletes them
 #               undo-restore <stamp>  put back the database and files a
@@ -251,7 +253,9 @@ MANAGED_KEYS="OPENVALENS_DOMAIN OPENVALENS_SITE_SCHEME ACME_EMAIL EMAIL_FROM OPE
   OPENVALENS_PRE_MIGRATE_BACKUP OPENVALENS_BACKUP_RETAIN OPENVALENS_BACKUP_DAILY_RETAIN
   OPENVALENS_BACKUP_HOUR STORAGE_PROVIDER
   STORAGE_S3_ENDPOINT STORAGE_S3_REGION STORAGE_S3_BUCKET
-  STORAGE_S3_FORCE_PATH_STYLE STORAGE_S3_SSE"
+  STORAGE_S3_FORCE_PATH_STYLE STORAGE_S3_SSE BACKUP_OFFSITE_S3_ENDPOINT
+  BACKUP_OFFSITE_S3_REGION BACKUP_OFFSITE_S3_BUCKET BACKUP_OFFSITE_S3_PREFIX
+  BACKUP_OFFSITE_S3_FORCE_PATH_STYLE COMPOSE_PROFILES"
 # Optional secrets: `<KEY>_FILE` is set exactly when deploy/secrets/server/<KEY>
 # exists, so the stack never points at a missing file.
 SECRET_FILE_KEYS="RESEND_API_KEY EMAIL_AUDIT_BCC AI_API_KEY ANTHROPIC_API_KEY
@@ -288,6 +292,26 @@ operator_lines() {
       if (below || assignment) print
     }
   ' "$ENV_FILE"
+}
+
+# Off-site copy (Issue #64): configured when a bucket is set and both credential
+# files exist. Checked by name and size only; the values are never read here.
+offsite_configured() {
+  [ -n "$(env_get BACKUP_OFFSITE_S3_BUCKET)" ] || return 1
+  local key
+  for key in BACKUP_OFFSITE_S3_ACCESS_KEY_ID BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY; do
+    [ -s "$SECRETS_DIR/backup/$key" ] && continue
+    [ "$DRY_RUN" -eq 1 ] && [ -s "$DEPLOY_DIR/secrets/backup/$key" ] && continue
+    return 1
+  done
+}
+
+offsite_profile() {
+  if offsite_configured; then
+    printf 'offsite'
+  elif [ -n "$(env_get BACKUP_OFFSITE_S3_BUCKET)" ]; then
+    warn "BACKUP_OFFSITE_S3_BUCKET is set but deploy/secrets/backup/BACKUP_OFFSITE_S3_ACCESS_KEY_ID or ..._SECRET_ACCESS_KEY is missing: off-site copy stays off"
+  fi
 }
 
 write_env() {
@@ -333,6 +357,16 @@ STORAGE_S3_REGION=$(env_get STORAGE_S3_REGION)
 STORAGE_S3_BUCKET=$(env_get STORAGE_S3_BUCKET)
 STORAGE_S3_FORCE_PATH_STYLE=$(env_get STORAGE_S3_FORCE_PATH_STYLE | grep . || echo false)
 STORAGE_S3_SSE=$(env_get STORAGE_S3_SSE | grep . || echo AES256)
+# Optional off-site copy of the encrypted backups to an S3-compatible bucket
+# (docs/self-hosting/backup.md#off-site-copy). The keys are files:
+# deploy/secrets/backup/BACKUP_OFFSITE_S3_ACCESS_KEY_ID and ..._SECRET_ACCESS_KEY.
+BACKUP_OFFSITE_S3_ENDPOINT=$(env_get BACKUP_OFFSITE_S3_ENDPOINT)
+BACKUP_OFFSITE_S3_REGION=$(env_get BACKUP_OFFSITE_S3_REGION)
+BACKUP_OFFSITE_S3_BUCKET=$(env_get BACKUP_OFFSITE_S3_BUCKET)
+BACKUP_OFFSITE_S3_PREFIX=$(env_get BACKUP_OFFSITE_S3_PREFIX | grep . || echo openvalens)
+BACKUP_OFFSITE_S3_FORCE_PATH_STYLE=$(env_get BACKUP_OFFSITE_S3_FORCE_PATH_STYLE | grep . || echo false)
+# Compose profiles: "offsite" exactly when the off-site copy is configured.
+COMPOSE_PROFILES=$(offsite_profile)
 # Optional secrets: set when deploy/secrets/server/<KEY> exists, empty otherwise.
 ${file_lines}# Add other settings (AI_PROVIDER, CSP_MODE, EMAIL_DRY_RUN, ...; see
 # docs/self-hosting/configuration.md) below this line.
@@ -807,6 +841,29 @@ cmd_backup() {
       id="$(tools create manual)" || die "the backup failed; see the messages above"
       tools verify "$id" || die "the new backup did not verify"
       log "backup $id written and verified (kept until you delete it; daily backups rotate)"
+      if offsite_configured; then
+        if compose run --rm --no-deps -T backup-offsite offsite-upload "$id"; then
+          log "off-site copy of $id written"
+        else
+          warn "the off-site copy of $id failed; the backup-offsite service retries it"
+        fi
+        tools offsite-sync || true
+      fi
+      ;;
+    pull)
+      [ ${#ARGS[@]} -le 2 ] || die "usage: deploy/setup.sh backup pull [<id>|latest]"
+      offsite_configured ||
+        die "the off-site copy is not configured (BACKUP_OFFSITE_S3_* in deploy/.env and the two credential files)"
+      if [ ${#ARGS[@]} -eq 1 ]; then
+        compose run --rm --no-deps -T backup-offsite offsite-list
+      else
+        id="${ARGS[1]}"
+        [ "$id" = latest ] || valid_backup_id "$id" || die "not a backup id (see deploy/setup.sh backup pull)"
+        id="$(compose run --rm --no-deps -T backup-offsite offsite-pull "$id")" || die "the pull failed"
+        start_postgres
+        tools verify "$id" --quick || die "the pulled backup did not verify (wrong key?)"
+        log "pulled $id; restore it with: deploy/setup.sh restore $id"
+      fi
       ;;
     list)
       [ ${#ARGS[@]} -eq 1 ] || die "usage: deploy/setup.sh backup list"
@@ -853,7 +910,7 @@ cmd_backup() {
       tools undo-restore "$stamp" || die "undo failed; the server is stopped"
       log "start the stack again with: deploy/setup.sh upgrade"
       ;;
-    *) die "usage: deploy/setup.sh backup now|list|verify|export|import|cleanup|undo-restore (see --help)" ;;
+    *) die "usage: deploy/setup.sh backup now|list|verify|export|import|pull|cleanup|undo-restore (see --help)" ;;
   esac
 }
 

@@ -180,7 +180,12 @@ describe("health.readiness", () => {
 
   test("reports backups and degrades when they fail or go stale (Issue #64)", async () => {
     const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
-    const db = (lastBackupHours: number, latest: "ok" | "failed", verify: "ok" | "failed") => {
+    const db = (
+      lastBackupHours: number,
+      latest: "ok" | "failed",
+      verify: "ok" | "failed",
+      offsite: "ok" | "failed" | null = null,
+    ) => {
       let call = 0;
       return {
         execute: async () => {
@@ -199,6 +204,7 @@ describe("health.readiness", () => {
                 last_verify: { backup_id: null, outcome: verify, finished_at: hoursAgo(1) },
                 last_failure: null,
                 latest_backup_outcome: latest,
+                latest_offsite_outcome: offsite,
                 schedule: { next_run_at: hoursAgo(-12), hour_utc: 3, daily_retain: 14 },
               },
             ],
@@ -217,6 +223,16 @@ describe("health.readiness", () => {
 
     const failedBackup = await callReadiness(createTestContext({ db: db(2, "failed", "ok") }));
     expect(failedBackup.checks.backups).toBe("failing");
+
+    // A failed off-site upload degrades readiness without making backups failing.
+    const offsiteDown = await callReadiness(createTestContext({ db: db(2, "ok", "ok", "failed") }));
+    expect(offsiteDown.checks.backups).toBe("ok");
+    expect(offsiteDown.checks.backupOffsite).toBe("failing");
+    expect(offsiteDown.status).toBe("degraded");
+    const offsiteUp = await callReadiness(createTestContext({ db: db(2, "ok", "ok", "ok") }));
+    expect(offsiteUp.checks.backupOffsite).toBe("ok");
+    expect(offsiteUp.status).toBe("ok");
+    expect(ok.checks.backupOffsite).toBe("off");
 
     const stale = await callReadiness(createTestContext({ db: db(72, "ok", "ok") }));
     expect(stale.checks.backups).toBe("stale");

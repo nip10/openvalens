@@ -40,6 +40,38 @@ describe("backup status (Issue #64)", () => {
       lastVerify: null,
       lastFailure: null,
       schedule: null,
+      offsite: { state: "off", lastUpload: null, lastFailure: null },
+    });
+  });
+
+  test("a failed off-site upload is its own state; the local backups stay ok", async () => {
+    const status = await readBackupStatus(
+      fakeBackupDb({
+        last_backup: {
+          backup_id: "20261025T030000Z-daily",
+          trigger: "daily",
+          size_bytes: 1,
+          finished_at: hoursAgo(9),
+        },
+        last_verify: { backup_id: null, outcome: "ok", finished_at: hoursAgo(9) },
+        last_failure: null,
+        last_offsite: { backup_id: "20261024T030000Z-daily", finished_at: hoursAgo(33) },
+        last_offsite_failure: {
+          backup_id: "20261025T030000Z-daily",
+          detail: "upload",
+          finished_at: hoursAgo(9),
+        },
+        latest_backup_outcome: "ok",
+        latest_offsite_outcome: "failed",
+        schedule: schedule(15),
+      }),
+      NOW,
+    );
+    expect(status.state).toBe("ok");
+    expect(status.offsite).toEqual({
+      state: "failing",
+      lastUpload: { id: "20261024T030000Z-daily", at: hoursAgo(33) },
+      lastFailure: { id: "20261025T030000Z-daily", step: "upload", at: hoursAgo(9) },
     });
   });
 

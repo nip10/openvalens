@@ -196,6 +196,7 @@ Response shape:
     },
     "storage": "ok",
     "backups": "ok",
+    "backupOffsite": "off",
     "integrations": {
       "email": { "provider": "resend", "state": "dry-run" },
       "ai": { "provider": null, "state": "off" },
@@ -212,7 +213,8 @@ Status semantics:
 
 - `ok` — database reachable and all required secrets present.
 - `degraded` — database reachable but a required secret is missing or too
-  short, object storage is not writable, or backups are `failing` or `stale`.
+  short, object storage is not writable, backups are `failing` or `stale`, or
+  the off-site backup copy is `failing`.
 - `unready` — database unreachable.
 
 Each check emits a structured `health.readiness.checked` log line carrying the
@@ -236,7 +238,10 @@ newest backup or verify failed, `stale` when no good backup is under 48 hours
 old or the scheduled run is overdue, `ok` otherwise, `off` when no backup
 service ever reported (a platform deployment, or development) and `unknown`
 when the status could not be read. Only `failing` and `stale` degrade the
-status. See [Backups](self-hosting/backup.md).
+status. `checks.backupOffsite` reports the optional off-site copy: `failing`
+when the newest upload failed (degrades the status; the local backups stay
+`ok`), `ok`, or `off` when no upload was ever recorded. See
+[Backups](self-hosting/backup.md).
 
 `capabilities.resend` is `true` only when email is actually delivered: a
 `RESEND_API_KEY` is configured **and** `EMAIL_DRY_RUN=false`. With the default

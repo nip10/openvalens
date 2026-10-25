@@ -92,8 +92,8 @@ instance [up to date](upgrading.md).
 
 ## Known limitations at 0.1.0
 
-- Backups are encrypted and scheduled, but stay on the same host until you
-  copy them off; there is no built-in off-site upload.
+- Backups are encrypted and scheduled; they stay on the same host unless you
+  configure the optional off-site copy to an S3-compatible bucket.
 - Images are built from source on your host; signed, published images are
   #129.
 - Reads of installation-wide settings are not audited yet; the existing access

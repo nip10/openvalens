@@ -54,7 +54,8 @@ migrations; record "no migrations" otherwise)
       (additive, quarantine over `DELETE`, `NOT VALID` → `VALIDATE`).
 - [ ] A verified pre-migrate backup exists or will be taken by the gated chain
       (`OPENVALENS_PRE_MIGRATE_BACKUP=pg_dump`, never `none`) and is copied off
-      the host (`deploy/setup.sh backup export`) before the window closes.
+      the host (off-site copy, or `deploy/setup.sh backup export`) before the
+      window closes.
 - [ ] The backup key (`deploy/secrets/backup/age-identity`) is escrowed off the
       host and a restore with it was rehearsed.
 - [ ] The rollback for this migration set is a restore of that backup and the

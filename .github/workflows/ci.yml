@@ -128,3 +128,33 @@ jobs:
         run: |
           scripts/test-integration.sh
           bun test packages/storage/src/providers/s3.minio.test.ts
+
+  offsite-backup:
+    name: Off-site backup copy to MinIO (#64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Disposable S3-compatible target. Synthetic credentials; the test attaches
+      # this container to the backup stack's off-site network, so no port is
+      # published and nothing leaves the runner.
+      minio:
+        image: bitnamilegacy/minio:2025.5.24-debian-12-r5@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c
+        env:
+          MINIO_ROOT_USER: ci-offsite-synthetic
+          MINIO_ROOT_PASSWORD: ci-offsite-synthetic-secret
+        options: >-
+          --health-cmd "curl -sf http://127.0.0.1:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Encrypted backups land off site, retention applies, a fresh host pulls and restores
+        env:
+          OFFSITE_TEST_MINIO_CONTAINER: ${{ job.services.minio.id }}
+          OFFSITE_TEST_S3_ACCESS_KEY_ID: ci-offsite-synthetic
+          OFFSITE_TEST_S3_SECRET_ACCESS_KEY: ci-offsite-synthetic-secret
+        run: bun run test:offsite

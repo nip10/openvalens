@@ -215,6 +215,7 @@ describe("adminSettings.backupStatus (Issue #64)", () => {
         at: "2026-10-20T10:00:00.000Z",
       },
       schedule: { nextRunAt: "2099-01-01T03:00:00.000Z", hourUtc: 3, dailyRetain: 14 },
+      offsite: { state: "off", lastUpload: null, lastFailure: null },
     });
   });
 });

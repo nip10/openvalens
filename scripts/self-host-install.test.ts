@@ -193,6 +193,30 @@ describe("deploy/compose.yml", () => {
     expect(env.OPENVALENS_BACKUP_RETAIN).toBe("${OPENVALENS_BACKUP_RETAIN:-10}");
   });
 
+  test("the off-site uploader is opt-in, alone on an egress network, without DB or key", () => {
+    const offsite = services["backup-offsite"]!;
+    expect(offsite.profiles).toEqual(["offsite"]);
+    expect(offsite.networks).toEqual(["offsite"]);
+    expect(compose.networks.offsite?.internal).toBeUndefined();
+    expect(offsite.ports).toBeUndefined();
+    expect(offsite.depends_on).toBeUndefined();
+    expect(offsite.command).toEqual(["offsite-daemon"]);
+    // No database password, no age key: it only ever sees ciphertext.
+    expect(Object.keys(offsite.environment ?? {}).filter((k) => k.startsWith("PG"))).toEqual([]);
+    expect(offsite.environment?.POSTGRES_PASSWORD_FILE).toBeUndefined();
+    expect(offsite.volumes).not.toContain("./secrets/backup:/run/backup-secrets:ro");
+    expect(offsite.volumes).not.toContain("./secrets/postgres:/run/secrets:ro");
+    expect(offsite.volumes).not.toContain("storage:/storage:ro");
+    expect(offsite.volumes).toContain(
+      "./secrets/backup/BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY:/run/offsite-secrets/secret-access-key:ro",
+    );
+    for (const value of Object.values(offsite.environment ?? {}))
+      expect(value).not.toMatch(/SECRET_ACCESS_KEY:-|ACCESS_KEY_ID:-/);
+    // Every other service stays off the egress network.
+    for (const [name, service] of Object.entries(services))
+      if (name !== "backup-offsite") expect(service.networks ?? []).not.toContain("offsite");
+  });
+
   test("startup is gated: postgres -> backup -> migrate -> server", () => {
     expect(services.backup!.depends_on).toEqual({ postgres: { condition: "service_healthy" } });
     expect(services.migrate!.depends_on).toEqual({
@@ -897,6 +921,45 @@ describe("deploy/setup.sh backup and restore (Issue #64)", () => {
           .split("\n")
           .some((line) => line.endsWith(" build")),
       ).toBe(false);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("the off-site profile turns on only with a bucket and both credential files", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      expect(valuesOf(box.readEnv(), "COMPOSE_PROFILES")).toEqual([""]);
+      expect(valuesOf(box.readEnv(), "BACKUP_OFFSITE_S3_PREFIX")).toEqual(["openvalens"]);
+
+      writeFileSync(box.envFile, `${box.readEnv()}BACKUP_OFFSITE_S3_BUCKET=ov-backups\n`);
+      const missing = box.run(install);
+      expect(missing.exitCode).toBe(0);
+      expect(missing.output).toContain("off-site copy stays off");
+      expect(valuesOf(box.readEnv(), "COMPOSE_PROFILES")).toEqual([""]);
+      expect(valuesOf(box.readEnv(), "BACKUP_OFFSITE_S3_BUCKET")).toEqual(["ov-backups"]);
+
+      const dir = join(box.dir, "secrets", "backup");
+      writeFileSync(join(dir, "BACKUP_OFFSITE_S3_ACCESS_KEY_ID"), "AKIASYNTHETIC\n");
+      writeFileSync(join(dir, "BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY"), "synthetic-offsite-secret\n");
+      const on = box.run(install);
+      expect(on.exitCode).toBe(0);
+      const env = box.readEnv();
+      expect(valuesOf(env, "COMPOSE_PROFILES")).toEqual(["offsite"]);
+      for (const text of [on.output, env]) {
+        expect(text).not.toContain("synthetic-offsite-secret");
+        expect(text).not.toContain("AKIASYNTHETIC");
+      }
+
+      // `backup now` uploads right away and records the result.
+      writeFileSync(join(box.dir, "..", "docker.log"), "");
+      expect(box.run(["backup", "now"]).exitCode).toBe(0);
+      const log = dockerLog(box);
+      expect(log).toContain("backup-offsite offsite-upload");
+      expect(log).toContain("backup-tools offsite-sync");
+      expect(box.run(["backup", "pull"]).exitCode).toBe(0);
+      expect(dockerLog(box)).toContain("backup-offsite offsite-list");
     } finally {
       box.cleanup();
     }

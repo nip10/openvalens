@@ -37,10 +37,11 @@ never from a real person's records (see [Landing site](#landing-site))._
 
 ## What it does not do (yet)
 
-- **Backups stay on the host.** The stack takes encrypted, verified backups
+- **Off-site backups are opt-in.** The stack takes encrypted, verified backups
   of the database and stored files daily and before every upgrade, and
-  `deploy/setup.sh restore` restores one (deleted accounts stay deleted), but
-  copying backups and the backup key off the server is up to you
+  `deploy/setup.sh restore` restores one (deleted accounts stay deleted). They
+  stay on the host unless you configure the off-site copy to an S3-compatible
+  bucket, and keeping the backup key off the server is up to you
   ([Backups](docs/self-hosting/backup.md)).
 - No hosted service and no public sign-up: you run your own instance.
 - No published container images; the install builds from source (#129).

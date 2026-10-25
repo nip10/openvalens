@@ -5020,6 +5020,11 @@ msgstr "Última sincronização: {0}"
 msgid "Last synced {lastSynced}"
 msgstr "Última sincronização: {lastSynced}"
 
+#. placeholder {0}: when(backups.offsite.lastUpload.at)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Last upload {0}"
+msgstr "Último envio {0}"
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Last verify"
 msgstr "Última verificação"
@@ -6236,6 +6241,10 @@ msgstr "Não comparado com outras pessoas"
 msgid "Not compared: not every food reported this."
 msgstr "Não comparado: nem todos os alimentos indicaram este valor."
 
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Not configured"
+msgstr "Não configurada"
+
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
@@ -6618,6 +6627,14 @@ msgstr "Desligada neste espaço de trabalho"
 #: packages/api/src/presenters/insights.ts
 msgid "Off unless you turn it on. One email a day names each supplement, medication or scheduled event due that day. Email is not end-to-end private."
 msgstr "Desligado até o ligar. Um email por dia indica o nome de cada suplemento, medicamento ou evento agendado para esse dia. O email não é privado de ponta a ponta."
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Off-site copy"
+msgstr "Cópia externa"
+
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Off-site copy failing"
+msgstr "Cópia externa a falhar"
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -10025,6 +10042,12 @@ msgstr "{name} atualizado"
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Updating your setting…"
 msgstr "A atualizar a sua definição…"
+
+#. placeholder {0}: backups.offsite.lastFailure.step ?? "-"
+#. placeholder {1}: when(backups.offsite.lastFailure.at)
+#: apps/web/src/components/admin-backup-status.tsx
+msgid "Upload failed at step \"{0}\", {1}; retrying"
+msgstr "O envio falhou no passo \"{0}\", {1}; a tentar de novo"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx

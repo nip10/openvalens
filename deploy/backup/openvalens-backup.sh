@@ -23,6 +23,12 @@
 #   import <id>                         read a backup tar from stdin
 #   cleanup [--force]                   list (or drop) pre-restore databases,
 #                                       pre-restore files and legacy plain dumps
+#   offsite-daemon                      upload finished backups off site (the
+#                                       `backup-offsite` service, profile offsite)
+#   offsite-upload [<id>|latest]        upload one backup off site now
+#   offsite-list                        backups in the off-site bucket
+#   offsite-pull [<id>|latest]          copy one off-site backup into the volume
+#   offsite-sync                        record off-site results in backup_run
 #
 # Layout of one backup, /backups/<UTC stamp>-<trigger>/:
 #   database.dump.age       pg_dump --format=custom, age-encrypted
@@ -448,9 +454,233 @@ cmd_schedule() {
     next="$(date -u -d "today $hour:00" +%s)"
     [ "$next" -gt "$now" ] || next="$(date -u -d "tomorrow $hour:00" +%s)"
     record_schedule "$next" "$hour" "$retain"
-    sleep $((next - now)) &
-    wait $! || true
+    # Wake every minute to record off-site upload results (Issue #64).
+    while [ "$now" -lt "$next" ]; do
+      offsite_sync
+      sleep $(((next - now) < 60 ? (next - now) : 60)) &
+      wait $! || true
+      now="$(date -u +%s)"
+    done
     run_cycle
+    offsite_sync
+  done
+}
+
+# --- off-site copy (Issue #64) ------------------------------------------------
+#
+# Optional. The `backup-offsite` service (compose profile `offsite`) is the only
+# backup service with internet access, and it has neither the database password
+# nor the age key: it copies finished, verified backup directories (ciphertext
+# and SHA256SUMS only) to an S3-compatible bucket with rclone, applies the same
+# retention there, and drops one result file per upload into
+# /backups/.offsite/events. The scheduler (database access, no internet) turns
+# those into `backup_run` rows, so readiness and /admin/settings show them.
+
+OFFSITE_DIR="$BACKUP_DIR/.offsite"
+OFFSITE_RETRY_SECONDS="${OPENVALENS_OFFSITE_RETRY_SECONDS:-900}"
+
+# Configures rclone's `offsite:` remote from the environment and two secret
+# files. Never prints a key.
+offsite_env() {
+  OFFSITE_BUCKET="${BACKUP_OFFSITE_S3_BUCKET:-}"
+  [ -n "$OFFSITE_BUCKET" ] || fail "off-site copy is not configured (BACKUP_OFFSITE_S3_BUCKET is empty)"
+  printf '%s' "$OFFSITE_BUCKET" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{1,62}$' ||
+    fail "BACKUP_OFFSITE_S3_BUCKET is not a valid bucket name"
+  OFFSITE_PREFIX="${BACKUP_OFFSITE_S3_PREFIX:-openvalens}"
+  OFFSITE_PREFIX="${OFFSITE_PREFIX#/}"
+  OFFSITE_PREFIX="${OFFSITE_PREFIX%/}"
+  printf '%s' "$OFFSITE_PREFIX" | grep -Eq '^[A-Za-z0-9._/-]*$' ||
+    fail "BACKUP_OFFSITE_S3_PREFIX may contain letters, digits, '.', '_', '-' and '/' only"
+  local id_file="${BACKUP_OFFSITE_S3_ACCESS_KEY_ID_FILE:-/run/offsite-secrets/access-key-id}"
+  local secret_file="${BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY_FILE:-/run/offsite-secrets/secret-access-key}"
+  [ -s "$id_file" ] && [ -s "$secret_file" ] ||
+    fail "off-site credentials missing: deploy/secrets/backup/BACKUP_OFFSITE_S3_ACCESS_KEY_ID and ..._SECRET_ACCESS_KEY"
+  export RCLONE_CONFIG_OFFSITE_TYPE=s3
+  if [ -n "${BACKUP_OFFSITE_S3_ENDPOINT:-}" ]; then
+    export RCLONE_CONFIG_OFFSITE_PROVIDER=Other
+    export RCLONE_CONFIG_OFFSITE_ENDPOINT="$BACKUP_OFFSITE_S3_ENDPOINT"
+  else
+    export RCLONE_CONFIG_OFFSITE_PROVIDER=AWS
+  fi
+  export RCLONE_CONFIG_OFFSITE_REGION="${BACKUP_OFFSITE_S3_REGION:-us-east-1}"
+  case "${BACKUP_OFFSITE_S3_FORCE_PATH_STYLE:-false}" in
+    true) export RCLONE_CONFIG_OFFSITE_FORCE_PATH_STYLE=true ;;
+    false) export RCLONE_CONFIG_OFFSITE_FORCE_PATH_STYLE=false ;;
+    *) fail "BACKUP_OFFSITE_S3_FORCE_PATH_STYLE must be true or false" ;;
+  esac
+  export RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID
+  RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID="$(head -n 1 "$id_file")"
+  export RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY
+  RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY="$(head -n 1 "$secret_file")"
+  # The bucket must exist; the key needs no permission to create buckets.
+  export RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET=true
+  export RCLONE_CONFIG_DIR=/tmp RCLONE_CONFIG=/dev/null
+  OFFSITE_ROOT="offsite:$OFFSITE_BUCKET${OFFSITE_PREFIX:+/$OFFSITE_PREFIX}"
+  mkdir -p "$OFFSITE_DIR/events"
+}
+
+# rclone with its output kept to a short, value-free tail on failure.
+rc() {
+  local out
+  if ! out="$(rclone --retries 3 --low-level-retries 3 --contimeout 30s --timeout 5m "$@" 2>&1)"; then
+    printf '%s\n' "$out" | grep -vi 'secret\|access.key' | tail -n 2 | sed 's/^/  rclone: /' >&2
+    return 1
+  fi
+  [ -z "$out" ] || printf '%s\n' "$out"
+}
+
+offsite_event() { : >"$OFFSITE_DIR/events/$(date -u +%s)_${1}_${2}_${3:-}"; }
+
+offsite_ids() {
+  rc lsf --dirs-only "$OFFSITE_ROOT/" | sed 's#/$##' | grep -E "$ID_PATTERN" | LC_ALL=C sort -t- -k1,1 || true
+}
+
+# offsite_upload_one <id>: data files first, SHA256SUMS last (a remote backup
+# without SHA256SUMS is incomplete and never pulled), then a size + hash check.
+offsite_upload_one() {
+  local id="$1" dir="$BACKUP_DIR/$1" step
+  step=upload
+  if rc copy "$dir" "$OFFSITE_ROOT/$id" --exclude SHA256SUMS >/dev/null &&
+    rc copyto "$dir/SHA256SUMS" "$OFFSITE_ROOT/$id/SHA256SUMS" >/dev/null; then
+    step=check
+    if rc check --one-way "$dir" "$OFFSITE_ROOT/$id" >/dev/null; then
+      rm -f "$OFFSITE_DIR/$id.failed"
+      : >"$OFFSITE_DIR/$id.done"
+      offsite_event "$id" ok ""
+      log "off-site copy written: $id"
+      offsite_prune
+      return 0
+    fi
+  fi
+  : >"$OFFSITE_DIR/$id.failed"
+  offsite_event "$id" failed "$step"
+  log "off-site copy FAILED for $id (step: $step); retrying in $((OFFSITE_RETRY_SECONDS / 60)) minutes"
+  return 1
+}
+
+# Same retention as the local volume: daily and pre-migrate backups are pruned
+# per trigger, manual backups are kept.
+offsite_prune() {
+  local trigger retain ids surplus old
+  for trigger in daily pre-migrate; do
+    if [ "$trigger" = daily ]; then retain="${OPENVALENS_BACKUP_DAILY_RETAIN:-14}"; else retain="${OPENVALENS_BACKUP_RETAIN:-10}"; fi
+    [ "$retain" -gt 0 ] 2>/dev/null || continue
+    mapfile -t ids < <(offsite_ids | grep -- "-$trigger\$" || true)
+    surplus=$((${#ids[@]} - retain))
+    for old in "${ids[@]}"; do
+      [ "$surplus" -gt 0 ] || break
+      valid_id "$old" || continue
+      if rc purge "$OFFSITE_ROOT/$old" >/dev/null; then log "pruned off-site copy $old"; fi
+      surplus=$((surplus - 1))
+    done
+  done
+}
+
+offsite_lock() {
+  exec 8>"$OFFSITE_DIR/.lock"
+  flock -w 3600 8 || fail "another off-site upload is running"
+}
+
+# One pass: upload every finished local backup without an off-site copy.
+offsite_pass() {
+  local id now
+  offsite_lock
+  now="$(date -u +%s)"
+  while IFS= read -r id; do
+    valid_id "$id" || continue
+    [ -f "$OFFSITE_DIR/$id.done" ] && continue
+    if [ -f "$OFFSITE_DIR/$id.failed" ] &&
+      [ $((now - $(stat -c %Y "$OFFSITE_DIR/$id.failed"))) -lt "$OFFSITE_RETRY_SECONDS" ]; then
+      continue
+    fi
+    offsite_upload_one "$id" || true
+  done < <(find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | LC_ALL=C sort -t- -k1,1)
+  # Forget markers of backups that local retention removed.
+  for marker in "$OFFSITE_DIR"/*.done "$OFFSITE_DIR"/*.failed; do
+    [ -e "$marker" ] || continue
+    id="$(basename "$marker")"
+    id="${id%.*}"
+    [ -d "$BACKUP_DIR/$id" ] || rm -f "$marker"
+  done
+  flock -u 8
+}
+
+cmd_offsite_daemon() {
+  local poll="${OPENVALENS_OFFSITE_POLL_SECONDS:-30}"
+  offsite_env
+  trap 'log "off-site uploader stopping"; exit 0' TERM INT
+  log "off-site copy enabled: uploading encrypted backups (prefix '${OFFSITE_PREFIX}'), checking every ${poll}s"
+  while :; do
+    offsite_pass
+    sleep "$poll" &
+    wait $! || true
+  done
+}
+
+cmd_offsite_upload() {
+  local id
+  id="$(resolve_id "${1:-latest}")"
+  offsite_env
+  offsite_lock
+  offsite_upload_one "$id"
+}
+
+cmd_offsite_list() {
+  local id complete
+  offsite_env
+  rc lsf "$OFFSITE_ROOT/" >/dev/null || fail "cannot list the off-site bucket"
+  while IFS= read -r id; do
+    complete=complete
+    rc lsf "$OFFSITE_ROOT/$id/SHA256SUMS" | grep -q . || complete="INCOMPLETE (no SHA256SUMS)"
+    printf '%s\t%s\n' "$id" "$complete"
+  done < <(offsite_ids)
+}
+
+# offsite-pull <id|latest>: copy one backup (still encrypted) into the volume
+# and check every file against its SHA256SUMS. Marked as already off site.
+cmd_offsite_pull() {
+  local id="${1:-latest}" tmp
+  offsite_env
+  if [ "$id" = latest ]; then
+    id="$(offsite_ids | tail -n 1)"
+    [ -n "$id" ] || fail "there are no off-site backups"
+  fi
+  valid_id "$id" || fail "not a backup id"
+  [ ! -e "$BACKUP_DIR/$id" ] || fail "backup $id is already in the backups volume"
+  rc lsf "$OFFSITE_ROOT/$id/SHA256SUMS" | grep -q . ||
+    fail "off-site backup $id is missing or incomplete (no SHA256SUMS)"
+  umask 077
+  tmp="$BACKUP_DIR/.pull-$id"
+  rm -rf "$tmp"
+  mkdir -p "$tmp/$id"
+  rc copy "$OFFSITE_ROOT/$id" "$tmp/$id" >/dev/null || { rm -rf "$tmp"; fail "downloading $id failed"; }
+  (cd "$tmp/$id" && sha256sum --quiet --strict -c SHA256SUMS >/dev/null 2>&1) ||
+    { rm -rf "$tmp"; fail "checksum mismatch: the off-site copy of $id is damaged or incomplete"; }
+  chmod -R go-rwx "$tmp/$id"
+  mv "$tmp/$id" "$BACKUP_DIR/$id"
+  rm -rf "$tmp"
+  : >"$OFFSITE_DIR/$id.done"
+  log "pulled $id from off site; run deploy/setup.sh backup verify $id"
+  printf '%s\n' "$id"
+}
+
+# Scheduler side (database access): record upload results, then delete them.
+offsite_sync() {
+  local events="$OFFSITE_DIR/events" file name epoch rest id outcome step
+  [ -d "$events" ] || return 0
+  for file in "$events"/*; do
+    [ -f "$file" ] || continue
+    name="$(basename "$file")"
+    epoch="${name%%_*}"
+    rest="${name#*_}"
+    id="${rest%%_*}"
+    rest="${rest#*_}"
+    outcome="${rest%%_*}"
+    step="${rest#*_}"
+    if valid_id "$id" && { [ "$outcome" = ok ] || [ "$outcome" = failed ]; }; then
+      record offsite "${id#*-}" "$outcome" "$id" "$step" "" "$epoch"
+    fi
+    rm -f "$file"
   done
 }
 
@@ -659,6 +889,11 @@ case "$command" in
   export) cmd_export "$@" ;;
   import) cmd_import "$@" ;;
   cleanup) cmd_cleanup "$@" ;;
+  offsite-daemon) cmd_offsite_daemon ;;
+  offsite-upload) cmd_offsite_upload "$@" ;;
+  offsite-list) cmd_offsite_list ;;
+  offsite-pull) cmd_offsite_pull "$@" ;;
+  offsite-sync) mkdir -p "$OFFSITE_DIR/events" && offsite_sync ;;
   _dump) cmd__dump "$@" ;;
   _filesum) cmd__filesum ;;
   *) fail "unknown command (see deploy/setup.sh backup --help)" ;;
