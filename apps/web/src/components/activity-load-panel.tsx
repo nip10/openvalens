@@ -3,7 +3,6 @@ import type { ActivityLoadResult } from "@openvalens/api/activity-load-contract"
 import {
   ACTIVITY_LOAD_COPY,
   activityLoadView,
-  formatDay,
   type ActivityNumberView,
 } from "@openvalens/api/presenters/activity-load";
 import {
@@ -12,8 +11,11 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@openvalens/ui/components/chart";
-import { cn } from "@openvalens/ui/lib/utils";
+import { Flame, Footprints, type LucideIcon, Timer, TrendingUp, Zap } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+
+import { Details, InfoTip, StatTile, ToneIcon } from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 
 /**
  * Issue #99 — weekly activity: WHO active minutes and session effort points.
@@ -23,64 +25,70 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
  * carries meaning; each number has a screen-reader label.
  */
 
-function NumberBlock({ part, className }: { part: ActivityNumberView; className?: string }) {
+/** A headline tile for one weekly number; the method, sources and coverage sit behind its ⓘ. */
+function NumberTile({
+  part,
+  icon,
+  meter,
+}: {
+  part: ActivityNumberView;
+  icon: LucideIcon;
+  meter?: { value: number };
+}) {
   const titleId = `${part.key}-title`;
   return (
-    <section className={cn("grid content-start gap-2", className)} aria-labelledby={titleId}>
-      <h3 id={titleId} className="font-body text-sm font-medium text-ink-3">
-        {part.title}
-      </h3>
-      <div className="flex items-baseline gap-1.5">
-        <span
-          className="num text-3xl font-medium tracking-[-0.03em] text-ink"
-          role="img"
-          aria-label={part.accessibilityLabel}
-        >
+    <StatTile
+      icon={icon}
+      tone="steps"
+      label={<span id={titleId}>{part.title}</span>}
+      value={
+        <span role="img" aria-label={part.accessibilityLabel}>
           {part.valueText}
         </span>
-        {part.available ? (
-          <span className="text-sm text-ink-3" aria-hidden="true">
-            {part.unitText}
-          </span>
-        ) : null}
-      </div>
-      <p className="max-w-[60ch] text-sm text-ink-2">{part.statusText}</p>
-      {part.breakdown.length > 0 ? (
-        <ul className="text-sm text-ink-3">
-          {part.breakdown.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      ) : null}
-      {part.coverage.map((line) => (
-        <p key={line} className="text-sm text-ink-3">
-          {line}
-        </p>
-      ))}
-      <details className="text-sm">
-        <summary className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer font-display font-medium text-ink">
-          <Trans>How this is calculated</Trans>
-        </summary>
-        <p className="mt-2 max-w-[65ch] text-ink-2">{part.formula}</p>
-        {part.sources.map((line) => (
-          <p key={line} className="mt-2 max-w-[65ch] text-ink-3">
-            {line}
-          </p>
-        ))}
-        {part.key === "active_minutes" ? (
-          <p className="mt-2">
-            <a
-              className="underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
-              href={ACTIVITY_LOAD_COPY.whoUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              <Trans>WHO 2020 guidelines (opens the paper)</Trans>
-            </a>
-          </p>
-        ) : null}
-      </details>
-    </section>
+      }
+      unit={part.available ? <span aria-hidden="true">{part.unitText}</span> : undefined}
+      meter={meter}
+      note={
+        <span className="inline-flex items-center gap-1">
+          {part.statusText}
+          <InfoTip>
+            {part.breakdown.length > 0 ? (
+              <ul>
+                {part.breakdown.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            ) : null}
+            {part.coverage.map((line) => (
+              <p key={line} className="text-ink-3">
+                {line}
+              </p>
+            ))}
+            <p className="font-semibold text-ink">
+              <Trans>How this is calculated</Trans>
+            </p>
+            <p>{part.formula}</p>
+            {part.sources.map((line) => (
+              <p key={line} className="text-ink-3">
+                {line}
+              </p>
+            ))}
+            {part.key === "active_minutes" ? (
+              <p>
+                <a
+                  className="underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
+                  href={ACTIVITY_LOAD_COPY.whoUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <Trans>WHO 2020 guidelines (opens the paper)</Trans>
+                </a>
+              </p>
+            ) : null}
+          </InfoTip>
+        </span>
+      }
+    />
   );
 }
 
@@ -88,18 +96,34 @@ function NumberBlock({ part, className }: { part: ActivityNumberView; className?
 function EffortChart({ result }: { result: ActivityLoadResult }) {
   const { i18n } = useLingui();
   const days = result.load?.effort.days ?? [];
-  const data = days.map((day) => ({ label: formatDay(day.date), points: day.points ?? 0 }));
+  const data = days.map((day) => ({ date: day.date, points: day.points ?? 0 }));
   const config: ChartConfig = {
-    points: { label: i18n._(ACTIVITY_LOAD_COPY.effortTitle), color: "var(--chart-1)" },
+    points: { label: i18n._(ACTIVITY_LOAD_COPY.effortTitle), color: "var(--tone-steps)" },
   };
   return (
-    <ChartContainer config={config} className="aspect-auto h-64 w-full" aria-hidden="true">
+    <ChartContainer config={config} className="aspect-auto h-56 w-full" aria-hidden="true">
       <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
-        <CartesianGrid vertical={false} stroke="var(--rule)" />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={16} />
+        <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
+        <XAxis
+          dataKey="date"
+          tickLine={false}
+          axisLine={false}
+          minTickGap={16}
+          tickFormatter={(value: string) => friendlyDate(i18n, value)}
+        />
         <YAxis tickLine={false} axisLine={false} width={40} tickCount={4} allowDecimals={false} />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="points" fill="var(--color-points)" isAnimationActive={false} />
+        <ChartTooltip
+          content={
+            <ChartTooltipContent labelFormatter={(value) => friendlyDate(i18n, String(value))} />
+          }
+        />
+        <Bar
+          dataKey="points"
+          fill="var(--color-points)"
+          radius={[8, 8, 8, 8]}
+          maxBarSize={18}
+          isAnimationActive={false}
+        />
       </BarChart>
     </ChartContainer>
   );
@@ -108,38 +132,50 @@ function EffortChart({ result }: { result: ActivityLoadResult }) {
 export function ActivityLoadCard({ result }: { result: ActivityLoadResult }) {
   const { i18n } = useLingui();
   const view = activityLoadView(result, i18n);
+  const active = result.load?.activeMinutes;
+  const activeMeter =
+    active && active.activeMinutes !== null && active.whoRange.lower > 0
+      ? { value: active.activeMinutes / active.whoRange.lower }
+      : undefined;
   return (
     <section
       role="region"
       aria-labelledby="activity-load-title"
       className="grid min-w-0 content-start gap-4"
     >
-      <div className="grid gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <ToneIcon icon={Flame} tone="steps" size="sm" />
         <h2 id="activity-load-title" className="text-xl leading-tight text-ink">
           {view.title}
         </h2>
-        <p className="max-w-[65ch] text-sm text-ink-3">{view.intro}</p>
-        {view.windowText ? <p className="text-sm text-ink-3">{view.windowText}</p> : null}
+        {view.windowText ? <span className="text-sm text-ink-3">{view.windowText}</span> : null}
+        <InfoTip>
+          <p>{view.intro}</p>
+          {view.notes.map((line) => (
+            <p key={line} className="text-ink-3">
+              {line}
+            </p>
+          ))}
+          {view.versionText ? <p className="text-ink-3">{view.versionText}</p> : null}
+        </InfoTip>
       </div>
-      <div className="sheet grid gap-6 px-5 pt-4 pb-5">
-        {view.withheldExplanation ? (
-          <p className="max-w-[65ch] text-ink-2">{view.withheldExplanation}</p>
-        ) : null}
-        {view.activeMinutes && view.effort ? (
-          <div className="grid gap-6 sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-rule">
-            <NumberBlock part={view.activeMinutes} className="sm:pr-6" />
-            <NumberBlock part={view.effort} className="sm:pl-6" />
-          </div>
-        ) : null}
-        {view.effortDays.length > 0 ? (
-          <div className="grid gap-6 border-t border-rule pt-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <div className="grid content-start gap-2">
-              <h3 className="font-body text-sm font-medium text-ink-3">
-                <Trans>Effort points by day</Trans>
-              </h3>
-              <EffortChart result={result} />
-            </div>
-            <ul className="divide-y divide-rule self-start text-sm">
+      {view.withheldExplanation ? (
+        <p className="sheet p-5 text-ink-2">{view.withheldExplanation}</p>
+      ) : null}
+      {view.activeMinutes && view.effort ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <NumberTile part={view.activeMinutes} icon={Timer} meter={activeMeter} />
+          <NumberTile part={view.effort} icon={Zap} />
+        </div>
+      ) : null}
+      {view.effortDays.length > 0 ? (
+        <div className="sheet grid min-w-0 gap-3 p-5">
+          <h3 className="font-body text-base font-semibold text-ink-2">
+            <Trans>Effort points by day</Trans>
+          </h3>
+          <EffortChart result={result} />
+          <Details summary={<Trans>By day</Trans>}>
+            <ul className="grid gap-x-6 text-sm sm:grid-cols-2">
               {view.effortDays.map((day) => (
                 <li
                   key={day.date}
@@ -155,51 +191,55 @@ export function ActivityLoadCard({ result }: { result: ActivityLoadResult }) {
                 </li>
               ))}
             </ul>
-          </div>
-        ) : null}
-        {view.comparison || view.context.length > 0 ? (
-          <div className="grid gap-6 border-t border-rule pt-4 sm:grid-cols-2">
-            {view.comparison ? (
-              <section
-                className="grid content-start gap-1 text-sm"
-                aria-labelledby="effort-comparison-title"
-              >
-                <h3 id="effort-comparison-title" className="text-base text-ink">
+          </Details>
+        </div>
+      ) : null}
+      {view.comparison || view.context.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {view.comparison ? (
+            <section
+              className="sheet flex items-start gap-3 p-5 text-sm"
+              aria-labelledby="effort-comparison-title"
+            >
+              <ToneIcon icon={TrendingUp} tone="steps" size="sm" />
+              <div className="grid min-w-0 gap-1">
+                <h3
+                  id="effort-comparison-title"
+                  className="flex items-center gap-1 font-body text-base font-semibold text-ink"
+                >
                   {view.comparison.title}
+                  <InfoTip>
+                    {view.comparison.detail ? <p>{view.comparison.detail}</p> : null}
+                    <p className="text-ink-3">{view.comparison.limits}</p>
+                  </InfoTip>
                 </h3>
                 <p className="text-ink-2">{view.comparison.text}</p>
-                {view.comparison.detail ? (
-                  <p className="text-ink-3">{view.comparison.detail}</p>
-                ) : null}
-                <p className="text-ink-3">{view.comparison.limits}</p>
-              </section>
-            ) : null}
-            {view.context.length > 0 ? (
-              <section
-                className="grid content-start gap-1 text-sm"
-                aria-labelledby="activity-context-title"
-              >
-                <h3 id="activity-context-title" className="text-base text-ink">
+              </div>
+            </section>
+          ) : null}
+          {view.context.length > 0 ? (
+            <section
+              className="sheet flex items-start gap-3 p-5 text-sm"
+              aria-labelledby="activity-context-title"
+            >
+              <ToneIcon icon={Footprints} tone="steps" size="sm" />
+              <div className="grid min-w-0 gap-1">
+                <h3
+                  id="activity-context-title"
+                  className="font-body text-base font-semibold text-ink"
+                >
                   {i18n._(ACTIVITY_LOAD_COPY.contextTitle)}
                 </h3>
                 {view.context.map((line) => (
-                  <p key={line} className="text-ink-3">
+                  <p key={line} className="text-ink-2">
                     {line}
                   </p>
                 ))}
-              </section>
-            ) : null}
-          </div>
-        ) : null}
-        {view.notes.length > 0 || view.versionText ? (
-          <div className="grid gap-1 border-t border-rule pt-3 text-sm text-ink-3">
-            {view.notes.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-            {view.versionText ? <p>{view.versionText}</p> : null}
-          </div>
-        ) : null}
-      </div>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

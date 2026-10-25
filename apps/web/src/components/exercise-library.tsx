@@ -9,10 +9,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ArrowLeft, Dumbbell, Plus, Scale, Search } from "lucide-react";
+
 import { MuscleGuide } from "@/components/muscle-guide";
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import { EmptyState, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { ENV } from "@/env";
 import { authClient } from "@/lib/auth-client";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 type PreviewAsset = {
@@ -136,8 +139,14 @@ function Attribution({
   const licenseHref = safeHttpUrl(licenseUrl);
   const sourceHref = safeHttpUrl(sourceUrl);
   return (
-    <section className="grid gap-1 border-t border-rule pt-3 text-sm text-ink-3" aria-label={title}>
-      <h3 className="text-base text-ink">{title}</h3>
+    <section
+      className="grid content-start gap-1 rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-3"
+      aria-label={title}
+    >
+      <h3 className="flex items-center gap-1.5 font-body text-sm font-semibold text-ink">
+        <Scale className="size-4 text-ink-3" aria-hidden="true" />
+        {title}
+      </h3>
       {license ? (
         <p>{author ? t`License: ${license} · ${author}` : t`License: ${license}`}</p>
       ) : (
@@ -222,7 +231,7 @@ export function ExerciseMediaGallery({
   if (assets.length === 0)
     return (
       <div className="grid gap-3">
-        <p className="bg-paper-2 px-4 py-3 text-sm text-ink-3">
+        <p className="rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-3">
           {Array.isArray(media) && media.length > 0
             ? t`Preview unavailable because image license details are incomplete.`
             : t`No preview image is provided.`}
@@ -232,7 +241,7 @@ export function ExerciseMediaGallery({
     );
   if (!browserOrigin)
     return (
-      <p role="status" className="bg-paper-2 px-4 py-3 text-sm text-ink-3">
+      <p role="status" className="rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-3">
         <Trans>Preparing preview…</Trans>
       </p>
     );
@@ -245,7 +254,7 @@ export function ExerciseMediaGallery({
       {urls.map(({ asset, url }, index) => (
         <figure key={asset.assetId} className="grid gap-2">
           <div
-            className="relative overflow-hidden bg-paper-2"
+            className="relative overflow-hidden rounded-2xl bg-paper-2"
             style={{ aspectRatio: `${asset.width} / ${asset.height}`, maxHeight: "20rem" }}
           >
             {!url || states[asset.assetId] === "failed" ? (
@@ -320,7 +329,7 @@ export function ExerciseMediaGallery({
 }
 
 export function ExerciseLibraryPage() {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const [query, setQuery] = useState("");
@@ -535,18 +544,19 @@ export function ExerciseLibraryPage() {
   const empty = !catalog.isPending && !catalog.isError && (catalog.data?.length ?? 0) === 0;
   const fieldDisabled = uncertain || isDispatching || scopeChanging;
   const selectClass =
-    "h-9 min-w-0 rounded-sm border border-input bg-card px-3 text-sm text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
+    "h-9 min-w-0 rounded-xl border border-input bg-card px-3 text-sm text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
   const header = (
     <PageHeader
       title={<Trans>Exercise library</Trans>}
-      description={
+      info={
         <Trans>Browse licensed library entries and exercises created for your workspace.</Trans>
       }
       actions={
         <Link
           to="/workouts"
-          className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-ink no-underline transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
+          <ArrowLeft className="size-4" aria-hidden="true" />
           <Trans>Back to workouts</Trans>
         </Link>
       }
@@ -597,7 +607,7 @@ export function ExerciseLibraryPage() {
             </Button>
           ) : null}
           {uncertain ? (
-            <div className="well flex flex-wrap items-center gap-3 px-4 py-3">
+            <div className="sheet flex flex-wrap items-center gap-3 px-5 py-4">
               <p className="flex-1 text-sm text-ink-2">
                 <Trans>Could not confirm. Refresh and review before trying again.</Trans>
               </p>
@@ -621,8 +631,8 @@ export function ExerciseLibraryPage() {
           ) : null}
         </div>
       ) : null}
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <Section title={<Trans>Browse exercises</Trans>}>
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <Section icon={Search} tone="steps" title={<Trans>Browse exercises</Trans>}>
           <div className="grid gap-4">
             <div className="grid gap-1.5">
               <Label htmlFor="exercise-search" className="text-sm text-ink-3">
@@ -705,7 +715,7 @@ export function ExerciseLibraryPage() {
               </div>
             )}
             {catalog.isPending ? (
-              <p role="status" className="border-t border-rule py-4 text-sm text-ink-3">
+              <p role="status" className="py-4 text-sm text-ink-3">
                 <Trans>Loading library…</Trans>
               </p>
             ) : catalog.isError ? (
@@ -720,10 +730,12 @@ export function ExerciseLibraryPage() {
             ) : empty ? (
               query.trim() ? (
                 <EmptyState
+                  icon={Search}
                   title={<Trans>No exercises match this search. Try another name.</Trans>}
                 />
               ) : (
                 <EmptyState
+                  icon={Dumbbell}
                   title={<Trans>The library is empty for now.</Trans>}
                   description={
                     <Trans>
@@ -735,7 +747,7 @@ export function ExerciseLibraryPage() {
               )
             ) : (
               <ul
-                className="sheet max-h-[32rem] divide-y divide-rule overflow-y-auto"
+                className="grid max-h-[36rem] gap-2 overflow-y-auto p-1"
                 aria-label={t`Exercises`}
               >
                 {catalog.data?.map((exercise) => (
@@ -745,18 +757,21 @@ export function ExerciseLibraryPage() {
                       disabled={fieldDisabled}
                       onClick={() => setSelectedId(exercise.id)}
                       aria-pressed={selectedId === exercise.id}
-                      className={`w-full px-4 py-3 text-left transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 ${selectedId === exercise.id ? "bg-paper-2" : ""}`}
+                      className={`sheet flex w-full items-start gap-3 p-3.5 text-left transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 ${selectedId === exercise.id ? "ring-2 ring-steps/50" : ""}`}
                     >
-                      <span className="font-display font-medium text-ink">{exercise.name}</span>
-                      <span className="mt-1 block text-sm text-ink-3">
-                        {exercise.muscles.map((m) => m.name).join(", ") ||
-                          exercise.category ||
-                          t`Exercise`}
-                      </span>
-                      <span className="mt-0.5 block text-sm text-ink-3">
-                        {exercise.source === "wger"
-                          ? sourceLine(exercise.license, exercise.author)
-                          : t`Workspace exercise`}
+                      <ToneIcon icon={Dumbbell} tone="steps" size="sm" />
+                      <span className="grid min-w-0 flex-1 gap-0.5">
+                        <span className="font-semibold text-ink">{exercise.name}</span>
+                        <span className="block text-sm text-ink-3">
+                          {exercise.muscles.map((m) => m.name).join(", ") ||
+                            exercise.category ||
+                            t`Exercise`}
+                        </span>
+                        <span className="block text-xs text-ink-3">
+                          {exercise.source === "wger"
+                            ? sourceLine(exercise.license, exercise.author)
+                            : t`Workspace exercise`}
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -765,9 +780,9 @@ export function ExerciseLibraryPage() {
             )}
           </div>
         </Section>
-        <div className="grid gap-10">
-          <Section title={<Trans>Exercise details</Trans>}>
-            <div className="sheet grid gap-4 px-5 pt-4 pb-5">
+        <div className="grid gap-8">
+          <Section icon={Dumbbell} tone="steps" title={<Trans>Exercise details</Trans>}>
+            <div className="sheet grid gap-4 p-5">
               {!selectedId ? (
                 <p className="text-ink-3">
                   <Trans>Choose an exercise to read its details.</Trans>
@@ -782,13 +797,13 @@ export function ExerciseLibraryPage() {
                 </p>
               ) : (
                 <>
-                  <h3 className="text-lg text-ink">{detail.data.name}</h3>
+                  <h3 className="text-2xl text-ink">{detail.data.name}</h3>
                   {detail.data.muscles.length > 0 || detail.data.equipment.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {detail.data.muscles.map((muscle) => (
                         <span
                           key={muscle.externalMuscleId}
-                          className="rounded-sm border border-rule px-2 py-0.5 text-sm text-ink-2"
+                          className="rounded-full bg-steps-soft px-2.5 py-0.5 text-sm font-medium text-ink"
                         >
                           {muscle.name}
                         </span>
@@ -796,7 +811,7 @@ export function ExerciseLibraryPage() {
                       {detail.data.equipment.map((equipment) => (
                         <span
                           key={equipment.externalEquipmentId}
-                          className="rounded-sm border border-rule px-2 py-0.5 text-sm text-ink-2"
+                          className="rounded-full bg-paper-2 px-2.5 py-0.5 text-sm font-medium text-ink-2"
                         >
                           {equipment.name}
                         </span>
@@ -841,7 +856,7 @@ export function ExerciseLibraryPage() {
                       />
                     ) : null}
                   </div>
-                  <div className="grid gap-2 border-t border-rule pt-4">
+                  <div className="grid gap-2 pt-2">
                     <Label htmlFor="target-workout" className="text-sm text-ink-3">
                       <Trans>Add to workout</Trans>
                     </Label>
@@ -879,7 +894,7 @@ export function ExerciseLibraryPage() {
                         <option value="">{t`Choose a workout`}</option>
                         {workouts.data?.map((workout) => (
                           <option key={workout.id} value={workout.id}>
-                            {workout.date}, {workout.type}
+                            {friendlyDate(i18n, workout.date)}, {workout.type}
                           </option>
                         ))}
                       </select>
@@ -898,10 +913,13 @@ export function ExerciseLibraryPage() {
             </div>
           </Section>
           <Section
+            sheet
+            icon={Plus}
+            tone="steps"
             title={<Trans>Create workspace exercise</Trans>}
-            description={<Trans>Visible to members of this workspace.</Trans>}
+            info={<Trans>Visible to members of this workspace.</Trans>}
           >
-            <div className="well grid gap-4 px-5 pt-4 pb-5">
+            <div className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <div className="grid gap-1.5">
                   <Label htmlFor="custom-exercise-name" className="text-sm text-ink-3">

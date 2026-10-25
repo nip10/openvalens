@@ -51,7 +51,33 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ActivityLoadCard } from "@/components/activity-load-panel";
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import {
+  Activity,
+  Bike,
+  BookOpen,
+  Dumbbell,
+  Footprints,
+  type LucideIcon,
+  Plus,
+  Target,
+  Trophy,
+  Waves,
+} from "lucide-react";
+
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  InfoTip,
+  Meter,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  type StatusTone,
+  ToneIcon,
+} from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/workouts")({
@@ -198,7 +224,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <div className="well grid gap-4 px-5 pt-4 pb-5 sm:grid-cols-2 lg:grid-cols-1">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
       <div className="grid gap-2">
         <Label className="text-sm font-medium text-ink-3">
           <Trans>Type</Trans>
@@ -277,7 +303,10 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
         </Label>
         <EffortSelect id="workout-effort" value={effort} onChange={setEffort} />
         <span className="text-sm text-ink-3">
-          {_(EFFORT_QUESTION)} <Trans>You can also add it later today.</Trans>
+          <Trans>You can also add it later today.</Trans>
+          <InfoTip>
+            <p>{_(EFFORT_QUESTION)}</p>
+          </InfoTip>
         </span>
       </div>
       <div className="grid gap-2 sm:col-span-2 lg:col-span-1">
@@ -360,7 +389,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <div className="well grid gap-4 px-5 pt-4 pb-5 sm:grid-cols-2 lg:grid-cols-1">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
       <div className="grid gap-2 sm:col-span-2 lg:col-span-1">
         <Label className="text-sm font-medium text-ink-3">
           <Trans>Title</Trans>
@@ -521,7 +550,7 @@ function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void
     >
       <Input
         aria-label={t`Today's value`}
-        className="h-8 w-28"
+        className="h-9 w-28"
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder={t`Today`}
@@ -564,6 +593,7 @@ function WorkoutsPage() {
   const workoutSummary = summarizeWorkouts(workouts.data ?? []);
   const goalSummary = summarizeGoals(goals.data ?? []);
   const today = todayIso();
+  const recent = (workouts.data ?? []).slice(0, 6);
 
   return (
     <Page>
@@ -572,135 +602,18 @@ function WorkoutsPage() {
         actions={
           <Link
             to="/exercise-library"
-            className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-ink no-underline transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
+            <BookOpen className="size-4" aria-hidden="true" />
             <Trans>Exercise library</Trans>
           </Link>
         }
       />
 
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-        <Section
-          title={<Trans>Session log</Trans>}
-          description={
-            workoutSummary.count > 0
-              ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })}, ${workoutSummary.totalDurationLabel}`
-              : undefined
-          }
-        >
-          {workouts.isPending ? (
-            <div className="sheet grid gap-3 px-5 py-4">
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-2/3" />
-            </div>
-          ) : workouts.isError || !workouts.data ? (
-            <ErrorState
-              title={<Trans>Could not load workouts.</Trans>}
-              action={
-                <Button variant="outline" size="sm" onClick={() => void workouts.refetch()}>
-                  <Trans>Retry</Trans>
-                </Button>
-              }
-            />
-          ) : workouts.data.length === 0 ? (
-            <EmptyState
-              title={<Trans>No workouts yet</Trans>}
-              description={<Trans>Add a session to start tracking.</Trans>}
-            />
-          ) : (
-            <div className="sheet px-2">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <Trans>Date</Trans>
-                    </TableHead>
-                    <TableHead>
-                      <Trans>Type</Trans>
-                    </TableHead>
-                    <TableHead>
-                      <Trans>Intensity</Trans>
-                    </TableHead>
-                    <TableHead className="num">
-                      <Trans>Effort</Trans>
-                    </TableHead>
-                    <TableHead className="num">
-                      <Trans>Effort points</Trans>
-                    </TableHead>
-                    <TableHead className="num">
-                      <Trans>Duration</Trans>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {workouts.data.map((workout) => {
-                    const rating = workout.effortRating;
-                    const points =
-                      rating !== null && workout.duration !== null && workout.duration > 0
-                        ? rating * workout.duration
-                        : null;
-                    const canRate = rating === null && canRateEffortToday(workout.date, today);
-                    return (
-                      <TableRow key={workout.id} className="align-top">
-                        <TableCell className="num text-left whitespace-nowrap text-ink-3">
-                          {workout.date}
-                        </TableCell>
-                        <TableCell className="min-w-40 whitespace-normal">
-                          <span className="block font-medium text-ink">
-                            {_(workoutTypeLabel(workout.type))}
-                          </span>
-                          {workout.notes ? (
-                            <span className="block text-ink-3">{workout.notes}</span>
-                          ) : null}
-                        </TableCell>
-                        <TableCell className="text-ink-2">
-                          {workout.intensity ? (
-                            _(INTENSITY_LABELS[workout.intensity])
-                          ) : (
-                            <span className="text-ink-3">
-                              <Trans>No intensity</Trans>
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="num">
-                          {rating !== null ? (
-                            `${rating}/10`
-                          ) : canRate ? (
-                            <div className="flex justify-end font-body">
-                              <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
-                            </div>
-                          ) : (
-                            <span className="font-body text-ink-3">
-                              <Trans>Not rated</Trans>
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="num">
-                          {points !== null ? points.toLocaleString(i18n.locale) : "—"}
-                        </TableCell>
-                        <TableCell className="num">
-                          {workoutDurationLabel(workout.duration)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </Section>
-
-        <Section title={<Trans>Add a session</Trans>}>
-          <AddWorkoutForm onSaved={reloadWorkouts} />
-        </Section>
-      </div>
-
       {load.isPending ? (
-        <div className="grid gap-4">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-80 w-full" />
+        <div className="grid gap-4 sm:grid-cols-2" aria-hidden="true">
+          <Skeleton className="h-40 w-full rounded-3xl" />
+          <Skeleton className="h-40 w-full rounded-3xl" />
         </div>
       ) : load.isError || !load.data ? (
         <ErrorState
@@ -715,8 +628,179 @@ function WorkoutsPage() {
         <ActivityLoadCard result={load.data} />
       )}
 
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <Section
+          icon={Dumbbell}
+          tone="steps"
+          title={<Trans>Session log</Trans>}
+          description={
+            workoutSummary.count > 0
+              ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })}, ${workoutSummary.totalDurationLabel}`
+              : undefined
+          }
+        >
+          {workouts.isPending ? (
+            <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+              {["a", "b", "c", "d"].map((key) => (
+                <Skeleton key={key} className="h-28 w-full rounded-3xl" />
+              ))}
+            </div>
+          ) : workouts.isError || !workouts.data ? (
+            <ErrorState
+              title={<Trans>Could not load workouts.</Trans>}
+              action={
+                <Button variant="outline" size="sm" onClick={() => void workouts.refetch()}>
+                  <Trans>Retry</Trans>
+                </Button>
+              }
+            />
+          ) : workouts.data.length === 0 ? (
+            <EmptyState
+              icon={Dumbbell}
+              title={<Trans>No workouts yet</Trans>}
+              description={<Trans>Add a session to start tracking.</Trans>}
+            />
+          ) : (
+            <div className="grid gap-4">
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {recent.map((workout) => {
+                  const rating = workout.effortRating;
+                  const canRate = rating === null && canRateEffortToday(workout.date, today);
+                  return (
+                    <li key={workout.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                      <div className="flex items-start gap-3">
+                        <ToneIcon icon={workoutIcon(workout.type)} tone="steps" />
+                        <div className="grid min-w-0 flex-1 gap-0.5">
+                          <span className="font-semibold break-words text-ink">
+                            {_(workoutTypeLabel(workout.type))}
+                          </span>
+                          <span className="text-sm text-ink-3">
+                            {friendlyDate(i18n, workout.date)}
+                            {workout.intensity ? `, ${_(INTENSITY_LABELS[workout.intensity])}` : ""}
+                          </span>
+                        </div>
+                        <span className="num shrink-0 rounded-full bg-steps-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                          <span className="sr-only">{t`Duration`}: </span>
+                          {workoutDurationLabel(workout.duration)}
+                        </span>
+                      </div>
+                      {workout.notes ? (
+                        <p className="text-sm break-words text-ink-2">{workout.notes}</p>
+                      ) : null}
+                      {rating !== null ? (
+                        <span>
+                          <StatusPill tone="neutral">
+                            <span className="sr-only">{t`Effort`}: </span>
+                            {`${rating}/10`}
+                          </StatusPill>
+                        </span>
+                      ) : canRate ? (
+                        <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                      ) : (
+                        <span>
+                          <StatusPill tone="neutral">
+                            <Trans>Not rated</Trans>
+                          </StatusPill>
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <Details summary={<Trans>Full log</Trans>}>
+                <div className="sheet min-w-0 px-2 pt-2 pb-1">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>
+                          <Trans>Date</Trans>
+                        </TableHead>
+                        <TableHead>
+                          <Trans>Type</Trans>
+                        </TableHead>
+                        <TableHead>
+                          <Trans>Intensity</Trans>
+                        </TableHead>
+                        <TableHead className="num">
+                          <Trans>Effort</Trans>
+                        </TableHead>
+                        <TableHead className="num">
+                          <Trans>Effort points</Trans>
+                        </TableHead>
+                        <TableHead className="num">
+                          <Trans>Duration</Trans>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {workouts.data.map((workout) => {
+                        const rating = workout.effortRating;
+                        const points =
+                          rating !== null && workout.duration !== null && workout.duration > 0
+                            ? rating * workout.duration
+                            : null;
+                        const canRate = rating === null && canRateEffortToday(workout.date, today);
+                        return (
+                          <TableRow key={workout.id} className="align-top">
+                            <TableCell className="text-left whitespace-nowrap text-ink-3">
+                              {friendlyDate(i18n, workout.date)}
+                            </TableCell>
+                            <TableCell className="min-w-40 whitespace-normal">
+                              <span className="block font-medium text-ink">
+                                {_(workoutTypeLabel(workout.type))}
+                              </span>
+                              {workout.notes ? (
+                                <span className="block text-ink-3">{workout.notes}</span>
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="text-ink-2">
+                              {workout.intensity ? (
+                                _(INTENSITY_LABELS[workout.intensity])
+                              ) : (
+                                <span className="text-ink-3">
+                                  <Trans>No intensity</Trans>
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="num">
+                              {rating !== null ? (
+                                `${rating}/10`
+                              ) : canRate ? (
+                                <div className="flex justify-end font-body">
+                                  <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
+                                </div>
+                              ) : (
+                                <span className="font-body text-ink-3">
+                                  <Trans>Not rated</Trans>
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="num">
+                              {points !== null ? points.toLocaleString(i18n.locale) : "—"}
+                            </TableCell>
+                            <TableCell className="num">
+                              {workoutDurationLabel(workout.duration)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Details>
+            </div>
+          )}
+        </Section>
+
+        <Section sheet icon={Plus} tone="steps" title={<Trans>Add a session</Trans>}>
+          <AddWorkoutForm onSaved={reloadWorkouts} />
+        </Section>
+      </div>
+
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <Section
+          icon={Target}
+          tone="weight"
           title={<Trans>Goals</Trans>}
           description={
             goalSummary.total > 0 ? (
@@ -727,10 +811,10 @@ function WorkoutsPage() {
           }
         >
           {goals.isPending ? (
-            <div className="sheet grid gap-3 px-5 py-4">
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-full" />
-              <Skeleton className="h-5 w-2/3" />
+            <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+              {["a", "b"].map((key) => (
+                <Skeleton key={key} className="h-32 w-full rounded-3xl" />
+              ))}
             </div>
           ) : goals.isError || !goals.data ? (
             <ErrorState
@@ -743,69 +827,77 @@ function WorkoutsPage() {
             />
           ) : goals.data.length === 0 ? (
             <EmptyState
+              icon={Target}
               title={<Trans>No goals yet</Trans>}
               description={<Trans>Add a goal to start tracking.</Trans>}
             />
           ) : (
-            <div className="sheet px-2">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <Trans>Goal</Trans>
-                    </TableHead>
-                    <TableHead>
-                      <Trans>Due date</Trans>
-                    </TableHead>
-                    <TableHead className="num">
-                      <Trans>Target</Trans>
-                    </TableHead>
-                    <TableHead className="num">
-                      <Trans>Now</Trans>
-                    </TableHead>
-                    <TableHead>
-                      <Trans>Status</Trans>
-                    </TableHead>
-                    <TableHead>
-                      <span className="sr-only">
-                        <Trans>Today's value</Trans>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {goals.data.map((goal) => {
+                const progress = goalShare(goal.baselineValue, goal.currentValue, goal.targetValue);
+                return (
+                  <li key={goal.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                    <div className="flex items-start gap-3">
+                      <ToneIcon icon={Target} tone="weight" />
+                      <div className="grid min-w-0 flex-1 gap-1">
+                        <span className="font-semibold break-words text-ink">{goal.title}</span>
+                        <span className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+                          <StatusPill tone={goalTone(goal.status)}>
+                            <span className="sr-only">{t`Status`}: </span>
+                            {_(goalStatusLabel(goal.status))}
+                          </StatusPill>
+                          {goal.targetDate ? friendlyDate(i18n, goal.targetDate) : t`No due date`}
+                        </span>
+                      </div>
+                      <span className="num shrink-0 rounded-full bg-weight-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                        <span className="sr-only">{t`Now`}: </span>
+                        {goal.currentValue ?? "—"}
+                        <span className="font-normal text-ink-3">
+                          {" / "}
+                          <span className="sr-only">{t`Target`}: </span>
+                          {goal.targetValue ?? "—"}
+                        </span>
                       </span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {goals.data.map((goal) => (
-                    <TableRow key={goal.id}>
-                      <TableCell className="min-w-36 whitespace-normal font-medium text-ink">
-                        {goal.title}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-ink-3">
-                        {goal.targetDate ? (
-                          <span className="num">{goal.targetDate}</span>
-                        ) : (
-                          t`No due date`
-                        )}
-                      </TableCell>
-                      <TableCell className="num">{goal.targetValue ?? "—"}</TableCell>
-                      <TableCell className="num">{goal.currentValue ?? "—"}</TableCell>
-                      <TableCell className="text-ink-2">
-                        {_(goalStatusLabel(goal.status))}
-                      </TableCell>
-                      <TableCell>
-                        <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                    </div>
+                    {progress !== null ? <Meter value={progress} tone="weight" /> : null}
+                    <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </Section>
 
-        <Section title={<Trans>Add a goal</Trans>}>
+        <Section sheet icon={Plus} tone="weight" title={<Trans>Add a goal</Trans>}>
           <AddGoalForm onSaved={reloadGoals} />
         </Section>
       </div>
     </Page>
   );
+}
+
+const WORKOUT_ICONS: Record<string, LucideIcon> = {
+  weights: Dumbbell,
+  running: Footprints,
+  cycling: Bike,
+  swimming: Waves,
+  tennis: Trophy,
+};
+
+function workoutIcon(type: string): LucideIcon {
+  return WORKOUT_ICONS[type] ?? Activity;
+}
+
+function goalTone(status: string): StatusTone {
+  if (status === "achieved") return "good";
+  return "neutral";
+}
+
+/** How far a goal has come from its start toward its target, 0 to 1; null without three numbers. */
+function goalShare(start: string | null, now: string | null, target: string | null): number | null {
+  const a = Number.parseFloat(start ?? "");
+  const b = Number.parseFloat(now ?? "");
+  const c = Number.parseFloat(target ?? "");
+  if (![a, b, c].every(Number.isFinite) || a === c) return null;
+  return (b - a) / (c - a);
 }
