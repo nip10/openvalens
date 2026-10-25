@@ -12,11 +12,21 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import {
+  ArrowLeft,
+  Carrot,
+  ChefHat,
+  ClipboardPaste,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { offlineScope } from "@openvalens/api/presenters/offline";
 import { controlLinkClass, nativeSelectClass, textLinkClass } from "@/components/food-classes";
-import { Page, PageHeader, Section } from "@/components/page";
+import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
@@ -204,8 +214,8 @@ export function RecipeDraftEditor() {
           <span className="sr-only">
             <Trans>Loading your workspace…</Trans>
           </span>
-          <Skeleton className="h-12 w-64" />
-          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-12 w-64 rounded-full" />
+          <Skeleton className="h-64 w-full rounded-3xl" />
         </div>
       </Page>
     );
@@ -230,49 +240,56 @@ export function RecipeDraftEditor() {
     <Page width="narrow">
       <PageHeader
         title={<Trans>Recipe draft</Trans>}
+        info={
+          <Trans>
+            Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on in
+            nutrition settings. Nothing is saved.
+          </Trans>
+        }
         description={
-          <>
-            <Trans>
-              Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on
-              in nutrition settings. Nothing is saved.
-            </Trans>{" "}
-            <Trans>Not saved. Discard the draft to clear it; reloading may lose it.</Trans>
-          </>
+          <Trans>Not saved. Discard the draft to clear it; reloading may lose it.</Trans>
         }
         actions={
-          <Link to="/nutrition" className={`min-h-11 content-center ${controlLinkClass}`}>
+          <Link
+            to="/nutrition"
+            className={`inline-flex min-h-11 items-center gap-1.5 ${controlLinkClass}`}
+          >
+            <ArrowLeft className="size-4 text-food" aria-hidden="true" />
             <Trans>Back to meal diary</Trans>
           </Link>
         }
       />
       {!draft || showPaste ? (
-        <Section title={<Trans>Paste recipe text</Trans>}>
-          <div className="sheet grid gap-4 px-5 pt-4 pb-5">
-            <fieldset className="grid gap-0">
-              <legend className="mb-1 text-sm font-medium text-ink-3">
+        <Section icon={ClipboardPaste} tone="food" sheet title={<Trans>Paste recipe text</Trans>}>
+          <div className="grid gap-4">
+            <fieldset className="flex flex-wrap gap-2">
+              <legend className="mb-2 text-sm font-medium text-ink-3">
                 <Trans>Paste format</Trans>
               </legend>
-              <label className="flex min-h-11 items-center gap-2">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
                 <input
                   type="radio"
+                  className="size-4 accent-primary"
                   name="format"
                   checked={format === "ingredients"}
                   onChange={() => setFormat("ingredients")}
                 />
                 <Trans>Ingredients</Trans>
               </label>
-              <label className="flex min-h-11 items-center gap-2">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
                 <input
                   type="radio"
+                  className="size-4 accent-primary"
                   name="format"
                   checked={format === "json-ld"}
                   onChange={() => setFormat("json-ld")}
                 />
                 <Trans>Recipe JSON-LD</Trans>
               </label>
-              <label className="flex min-h-11 items-center gap-2">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
                 <input
                   type="radio"
+                  className="size-4 accent-primary"
                   name="format"
                   checked={format === "url"}
                   onChange={() => setFormat("url")}
@@ -331,6 +348,7 @@ export function RecipeDraftEditor() {
                   replacePending
                 }
               >
+                <Sparkles aria-hidden="true" />
                 {importUrl.isPending ? i18n._(RECIPE_IMPORT_COPY.importing) : t`Create draft`}
               </Button>
               <Button variant="ghost" onClick={clear}>
@@ -338,7 +356,7 @@ export function RecipeDraftEditor() {
               </Button>
             </div>
             {replacePending ? (
-              <div role="alert" className="grid gap-2 border-l-2 border-warning pl-3">
+              <div role="alert" className="grid gap-2 rounded-2xl bg-warning/10 px-4 py-3">
                 <p className="text-sm text-ink">
                   <Trans>Parsing again will replace your edited review. Continue?</Trans>
                 </p>
@@ -391,9 +409,10 @@ export function RecipeDraftEditor() {
         </Section>
       ) : null}
       {draft && !showPaste ? (
-        <Section title={<Trans>Review draft</Trans>}>
-          <div className="sheet grid gap-4 px-5 pt-4 pb-5">
-            <p className="border-l-2 border-info pl-3 text-sm text-ink-2">
+        <Section icon={ChefHat} tone="food" sheet title={<Trans>Review draft</Trans>}>
+          <div className="grid gap-4">
+            <p className="flex items-start gap-2 rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-2">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-ink-3" aria-hidden="true" />
               <Trans comment="safety">
                 Ingredients remain unmatched and unverified. No nutrition values are calculated.
                 This is not clinical advice.
@@ -428,20 +447,18 @@ export function RecipeDraftEditor() {
                 }
               />
             </div>
-            <section
-              className="grid gap-0 border-t border-rule pt-4"
-              aria-labelledby="draft-ingredients-title"
-            >
+            <section className="grid gap-3 pt-2" aria-labelledby="draft-ingredients-title">
               <h3
                 id="draft-ingredients-title"
-                className="font-display text-lg font-medium text-ink"
+                className="flex items-center gap-2.5 font-display text-lg font-medium text-ink"
               >
+                <ToneIcon icon={Carrot} tone="food" size="sm" />
                 {t`Ingredients (${ingredientCount}/${MAX_INGREDIENTS})`}
               </h3>
               {draft.ingredients.map((item, index) => (
                 <fieldset
                   key={item.id}
-                  className="grid gap-3 border-b border-rule py-4 sm:grid-cols-2"
+                  className="grid min-w-0 gap-3 rounded-2xl bg-paper-2 p-4 sm:grid-cols-2"
                 >
                   <legend className="float-left mb-1 font-display text-sm font-medium text-ink sm:col-span-2">
                     {t`Ingredient ${index + 1}: unmatched, unverified`}
@@ -500,7 +517,7 @@ export function RecipeDraftEditor() {
                   </div>
                   <Button
                     variant="ghost"
-                    className="min-h-11 w-fit self-end"
+                    className="min-h-11 w-fit self-end text-ink-3 hover:text-destructive"
                     onClick={() =>
                       updateDraft((current) => ({
                         ...current,
@@ -510,6 +527,7 @@ export function RecipeDraftEditor() {
                       }))
                     }
                   >
+                    <Trash2 aria-hidden="true" />
                     {t`Remove ingredient ${index + 1}`}
                   </Button>
                 </fieldset>
@@ -521,27 +539,36 @@ export function RecipeDraftEditor() {
               disabled={draft.ingredients.length >= MAX_INGREDIENTS}
               onClick={addIngredient}
             >
+              <Plus aria-hidden="true" />
               <Trans>Add ingredient</Trans>
             </Button>
-            <section className="well grid gap-1 px-4 py-3" aria-label={t`Source metadata`}>
-              <h3 className="font-display text-base font-medium text-ink">
-                <Trans>Source details (provenance only)</Trans>
-              </h3>
-              <p className="text-sm text-ink-2">{t`Site: ${site}`}</p>
-              <p className="text-sm text-ink-2">{t`Author: ${author}`}</p>
-              <p className="text-sm text-ink-2">{t`Imported: ${importedAt}`}</p>
-              <p className="text-sm break-all text-ink-2">{t`Source URL: ${sourceLink}`}</p>
-              {safeSourceUrl(draft.source.url) ? (
-                <a
-                  className={`min-h-11 w-fit content-center text-sm ${textLinkClass}`}
-                  href={safeSourceUrl(draft.source.url)!}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Trans>Open source URL</Trans>
-                </a>
-              ) : null}
-            </section>
+            <Details
+              summary={
+                <h3 className="text-sm">
+                  <Trans>Source details (provenance only)</Trans>
+                </h3>
+              }
+            >
+              <section
+                className="grid gap-1 rounded-2xl bg-paper-2 px-4 py-3"
+                aria-label={t`Source metadata`}
+              >
+                <p className="text-sm text-ink-2">{t`Site: ${site}`}</p>
+                <p className="text-sm text-ink-2">{t`Author: ${author}`}</p>
+                <p className="text-sm text-ink-2">{t`Imported: ${importedAt}`}</p>
+                <p className="text-sm break-all text-ink-2">{t`Source URL: ${sourceLink}`}</p>
+                {safeSourceUrl(draft.source.url) ? (
+                  <a
+                    className={`min-h-11 w-fit content-center text-sm ${textLinkClass}`}
+                    href={safeSourceUrl(draft.source.url)!}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Trans>Open source URL</Trans>
+                  </a>
+                ) : null}
+              </section>
+            </Details>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"

@@ -9,7 +9,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
 import { inlineButtonClass } from "@/components/food-classes";
-import { Section } from "@/components/page";
+import { Gauge, Sparkles } from "lucide-react";
+import { InfoTip, Section } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 export function EnergyEstimateCard({
@@ -88,17 +89,20 @@ export function EnergyEstimateCard({
 
   return (
     <Section
+      icon={Gauge}
+      tone="food"
+      sheet
       title={i18n._(ENERGY_ESTIMATE_COPY.title)}
       description={i18n._(ENERGY_ESTIMATE_COPY.subtitle)}
+      info={<p>{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>}
     >
-      <div className="sheet grid gap-3 px-5 pt-4 pb-5 text-sm text-ink-2">
-        <p className="text-ink-3">{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>
+      <div className="grid gap-3 text-sm text-ink-2">
         {hideNumbers ? (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.hidden)}</p>
         ) : !authorized ? (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.unavailable)}</p>
         ) : estimate.isError ? (
-          <p role="alert" className="border-t-2 border-destructive pt-3">
+          <p role="alert" className="rounded-2xl bg-destructive/6 px-4 py-3">
             {i18n._(ENERGY_ESTIMATE_COPY.error)}{" "}
             <button className={inlineButtonClass} onClick={() => void estimate.refetch()}>
               <Trans>Retry</Trans>
@@ -109,26 +113,27 @@ export function EnergyEstimateCard({
             <Trans>Loading estimate…</Trans>
           </p>
         ) : presented ? (
-          <div className="grid gap-1 border-t border-rule pt-3">
-            <p className="num text-2xl font-medium tracking-[-0.03em] text-ink">
+          <div className="grid gap-1">
+            <p className="num font-display text-[2.125rem] leading-none font-medium tracking-[-0.02em] text-ink">
               {presented.value}
             </p>
-            <p className="text-ink-2">
+            <div className="flex flex-wrap items-center gap-1 text-ink-3">
               {t`${range} (arithmetic range, not a confidence interval)`}
-            </p>
-            <p className="text-ink-3">{presented.window}</p>
-            {presented.notes.map((n, i) => (
-              <p className="text-ink-3" key={i}>
-                {n}
-              </p>
-            ))}
+              <InfoTip label={t`How this is estimated`}>
+                <p>{presented.window}</p>
+                {presented.notes.map((n, i) => (
+                  <p key={i}>{n}</p>
+                ))}
+              </InfoTip>
+            </div>
           </div>
         ) : (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.unavailable)}</p>
         )}
         {authorized && pending ? (
-          <div className="well grid gap-2 px-4 py-3">
-            <p className="font-display font-medium text-ink">
+          <div className="grid gap-2 rounded-2xl bg-food-soft px-4 py-3">
+            <p className="flex items-center gap-2 font-display font-medium text-ink">
+              <Sparkles className="size-4 text-food" aria-hidden="true" />
               {i18n._(ENERGY_ESTIMATE_COPY.pending)}
             </p>
             {pendingPresentation && (
@@ -143,10 +148,11 @@ export function EnergyEstimateCard({
               </p>
             )}
             {pending.needsConfirmation && (
-              <label className="flex gap-2">
+              <label className="flex cursor-pointer gap-2">
                 <input
                   id={id}
                   type="checkbox"
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
                   checked={confirm}
                   onChange={(e) => setConfirm(e.target.checked)}
                 />
@@ -228,6 +234,7 @@ export function EnergyEstimateCard({
               )
             }
           >
+            <Sparkles aria-hidden="true" />
             {i18n._(ENERGY_ESTIMATE_COPY.ask)}
           </Button>
         )}

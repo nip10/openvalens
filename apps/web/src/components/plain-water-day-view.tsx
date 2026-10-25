@@ -18,15 +18,16 @@ import {
   type WaterUnit,
 } from "@openvalens/api/presenters/plain-water";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
 import { plural } from "@lingui/core/macro";
+import { ChevronRight, GlassWater, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { inlineButtonClass } from "./food-classes";
+import { InfoTip, Section, StatusPill } from "./page";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "./plain-water-form";
 import {
   isResolvedFormGeneration,
@@ -38,7 +39,8 @@ import {
  * targets and the meal add flow. It records plain water only and never adds to
  * meal totals. Quantities arrive already redacted by `buildWaterDayView`, so
  * this view has no raw amount to leak into text, placeholders or labels while
- * numbers are hidden. There is no progress, streak, default goal or advice.
+ * numbers are hidden. There is no streak, default goal or advice; a soft bar
+ * toward the member's own goal shows only when they set one and numbers show.
  */
 export type PlainWaterDayViewProps = {
   view: WaterDayView | null;
@@ -106,7 +108,7 @@ function UnitChoice({
           type="button"
           size="sm"
           variant="outline"
-          className="aria-pressed:border-ink aria-pressed:bg-accent aria-pressed:text-ink"
+          className="aria-pressed:border-transparent aria-pressed:bg-water-soft aria-pressed:text-ink"
           aria-pressed={value === unit}
           onClick={() => onChange(unit)}
         >
@@ -266,37 +268,35 @@ function PlainWaterDayViewState({
     await onSaveGoal(parsed.personalGoalMl);
   };
 
+  const errorLine = (
+    <p className="rounded-2xl bg-destructive/6 px-4 py-3 text-sm text-ink-2" role="alert">
+      {i18n._(WATER_COPY.readError)}{" "}
+      <button type="button" className={inlineButtonClass} onClick={onRetry}>
+        {i18n._(WATER_COPY.retry)}
+      </button>
+    </p>
+  );
+
   return (
-    <section className="grid min-w-0 gap-4" aria-labelledby="plain-water-heading">
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-        <div className="grid min-w-0 gap-1">
-          <h2 id="plain-water-heading" className="text-xl leading-tight text-ink">
-            {i18n._(WATER_COPY.title)}
-          </h2>
-          <p className="max-w-[65ch] text-sm text-ink-3">{i18n._(WATER_COPY.scopeNote)}</p>
-        </div>
-        {enabled === false ? <Badge variant="outline">{i18n._(WATER_COPY.optional)}</Badge> : null}
-      </div>
-      <div className="sheet grid gap-4 px-5 pt-4 pb-5">
-        {load === "loading" ? <Skeleton className="h-20 w-full" /> : null}
+    <Section
+      icon={GlassWater}
+      tone="water"
+      sheet
+      aria-labelledby="plain-water-heading"
+      title={<span id="plain-water-heading">{i18n._(WATER_COPY.title)}</span>}
+      info={i18n._(WATER_COPY.scopeNote)}
+      actions={
+        enabled === false ? (
+          <StatusPill tone="neutral">{i18n._(WATER_COPY.optional)}</StatusPill>
+        ) : null
+      }
+    >
+      <div className="grid min-w-0 gap-4">
+        {load === "loading" ? <Skeleton className="h-20 w-full rounded-2xl" /> : null}
 
-        {load === "error" ? (
-          <p className="border-t-2 border-destructive pt-3 text-sm text-ink-2" role="alert">
-            {i18n._(WATER_COPY.readError)}{" "}
-            <button type="button" className={inlineButtonClass} onClick={onRetry}>
-              {i18n._(WATER_COPY.retry)}
-            </button>
-          </p>
-        ) : null}
+        {load === "error" ? errorLine : null}
 
-        {load === "ready" && enabled === null ? (
-          <p className="border-t-2 border-destructive pt-3 text-sm text-ink-2" role="alert">
-            {i18n._(WATER_COPY.readError)}{" "}
-            <button type="button" className={inlineButtonClass} onClick={onRetry}>
-              {i18n._(WATER_COPY.retry)}
-            </button>
-          </p>
-        ) : null}
+        {load === "ready" && enabled === null ? errorLine : null}
 
         {enabled === false ? (
           <div className="grid gap-2">
@@ -318,27 +318,25 @@ function PlainWaterDayViewState({
         {enabled && view ? (
           <>
             <div
-              className="grid gap-1.5"
+              className="grid gap-3"
               aria-label={describeWaterSubtotal(view, unit, hideNumbers, i18n)}
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm font-medium text-ink-3">
-                  {i18n._(WATER_COPY.subtotalLabel)}
-                </span>
-                <span className="num text-2xl font-medium tracking-[-0.03em] text-ink">
+              <div className="grid gap-1">
+                <span className="text-sm text-ink-3">{i18n._(WATER_COPY.subtotalLabel)}</span>
+                <span className="num font-display text-[2.125rem] leading-none font-medium tracking-[-0.02em] text-ink">
                   {formatWaterSubtotal(view, unit, hideNumbers, i18n)}
                 </span>
               </div>
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="text-sm text-ink-2">
+              <div className="flex flex-wrap items-center gap-1 text-sm text-ink-2">
+                <span>
                   <Trans>
                     Personal goal:{" "}
-                    <span className="num text-ink">
+                    <span className="num font-semibold text-ink">
                       {formatWaterGoal(view.personalGoalMl, unit, hideNumbers, i18n)}
                     </span>
                   </Trans>
                 </span>
-                <span className="text-sm text-ink-3">{i18n._(WATER_COPY.goalNote)}</span>
+                <InfoTip>{i18n._(WATER_COPY.goalNote)}</InfoTip>
               </div>
               {hideNumbers ? (
                 <p className="text-sm text-ink-3">{i18n._(WATER_COPY.hiddenNote)}</p>
@@ -367,16 +365,13 @@ function PlainWaterDayViewState({
             ) : null}
 
             {view.rows.length === 0 ? (
-              <p className="border-t border-rule pt-3 text-sm text-ink-3">
+              <p className="text-sm text-ink-3">
                 {i18n._(
                   view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty,
                 )}
               </p>
             ) : (
-              <ul
-                className="divide-y divide-rule border-y border-rule"
-                aria-label={i18n._(WATER_COPY.entriesLabel)}
-              >
+              <ul className="divide-y divide-rule" aria-label={i18n._(WATER_COPY.entriesLabel)}>
                 {view.rows.map((row) => (
                   <WaterRow
                     key={row.key}
@@ -441,7 +436,7 @@ function PlainWaterDayViewState({
             )}
 
             {addOpen ? (
-              <div className="well grid gap-3 px-3 py-3">
+              <div className="grid gap-3 rounded-2xl bg-paper-2 p-4">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                   <WaterField label={i18n._(WATER_COPY.amountLabel)}>
                     {(id) => (
@@ -505,21 +500,27 @@ function PlainWaterDayViewState({
             ) : (
               <div>
                 <Button size="sm" variant="outline" onClick={openAdd}>
+                  <Plus aria-hidden="true" />
                   {i18n._(WATER_COPY.add)}
                 </Button>
               </div>
             )}
 
             <details
-              className="border-t border-rule pt-3 text-sm"
+              className="group text-sm"
               open={settingsOpen}
               onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
             >
-              <summary className="cursor-pointer font-display font-medium text-ink-2 transition-colors duration-[var(--dur-short)] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+              <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md px-1 py-1 font-display font-medium text-ink-2 transition-colors duration-[var(--dur-short)] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                <ChevronRight
+                  className="size-4 transition-transform duration-[var(--dur-short)] group-open:rotate-90 motion-reduce:transition-none"
+                  aria-hidden="true"
+                />
+                <Settings2 className="size-4 text-ink-3" aria-hidden="true" />
                 {i18n._(WATER_COPY.settingsTitle)}
               </summary>
               <div className="mt-3 grid gap-3">
-                <label className="flex items-center gap-2 text-ink-2">
+                <label className="flex cursor-pointer items-center gap-2 text-ink-2">
                   <Switch
                     checked={enabled === true}
                     onCheckedChange={(checked) => onToggleEnabled(checked)}
@@ -531,7 +532,7 @@ function PlainWaterDayViewState({
                 <p id="plain-water-switch-note" className="text-sm text-ink-3">
                   {i18n._(WATER_COPY.offBody)}
                 </p>
-                <div className="well grid gap-2 px-3 py-3">
+                <div className="grid gap-2 rounded-2xl bg-paper-2 p-4">
                   <p className="font-display text-sm font-medium text-ink">
                     {i18n._(WATER_COPY.goalLabel)}
                   </p>
@@ -583,7 +584,7 @@ function PlainWaterDayViewState({
           </>
         ) : null}
       </div>
-    </section>
+    </Section>
   );
 }
 
@@ -640,28 +641,44 @@ function WaterRow({
         : WATER_COPY.rowQueued,
   );
   return (
-    <li className="grid gap-2 py-2">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="flex flex-wrap items-baseline gap-4">
-          <span className="num text-sm text-ink-3">{time}</span>
-          <span className="num text-sm text-ink">
+    <li className="grid gap-2 py-2.5 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="num rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
             {formatWaterAmount(row.quantityMl, unit, hideNumbers, i18n)}
           </span>
-          {row.state === "synced" ? null : <Badge variant="outline">{stateLabel}</Badge>}
+          <span className="num text-sm text-ink-3">{time}</span>
+          {row.state === "synced" ? null : (
+            <StatusPill tone={row.state === "needs_attention" ? "warn" : "neutral"}>
+              {stateLabel}
+            </StatusPill>
+          )}
         </div>
-        <div className="-mr-2 flex flex-wrap gap-1">
+        <div className="-mr-1 flex flex-wrap items-center">
           {row.state === "synced" && !row.local ? (
             <>
               <Button
                 variant="ghost"
-                size="xs"
+                size="icon-sm"
+                className="text-ink-3 hover:text-ink"
                 aria-expanded={editing}
                 onClick={editing ? onCancelEdit : onStartEdit}
               >
-                {i18n._(WATER_COPY.edit)} <span className="sr-only">{t`entry at ${time}`}</span>
+                <Pencil aria-hidden="true" />
+                <span className="sr-only">
+                  {i18n._(WATER_COPY.edit)} <span className="sr-only">{t`entry at ${time}`}</span>
+                </span>
               </Button>
-              <Button variant="ghost" size="xs" onClick={onAskDelete}>
-                {i18n._(WATER_COPY.delete)} <span className="sr-only">{t`entry at ${time}`}</span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-ink-3 hover:text-destructive"
+                onClick={onAskDelete}
+              >
+                <Trash2 aria-hidden="true" />
+                <span className="sr-only">
+                  {i18n._(WATER_COPY.delete)} <span className="sr-only">{t`entry at ${time}`}</span>
+                </span>
               </Button>
             </>
           ) : null}
@@ -669,7 +686,7 @@ function WaterRow({
       </div>
 
       {confirming ? (
-        <div className="grid gap-2 border-l-2 border-destructive pl-3" role="alert">
+        <div className="grid gap-2 rounded-2xl bg-destructive/6 px-4 py-3" role="alert">
           <p className="text-sm text-ink">{i18n._(WATER_COPY.deleteConfirm)}</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="destructive" onClick={onDelete} disabled={busy !== null}>
@@ -683,7 +700,7 @@ function WaterRow({
       ) : null}
 
       {editing ? (
-        <div className="well grid gap-3 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <div className="grid gap-3 rounded-2xl bg-paper-2 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           {hideNumbers ? (
             <p className="text-sm text-ink-3 sm:col-span-2">{i18n._(WATER_COPY.editHiddenNote)}</p>
           ) : null}

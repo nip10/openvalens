@@ -62,6 +62,28 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useState } from "react";
+import {
+  Apple,
+  Bookmark,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  Coffee,
+  Copy,
+  type LucideIcon,
+  Pencil,
+  Plus,
+  Sandwich,
+  ScanBarcode,
+  Search,
+  SlidersHorizontal,
+  Soup,
+  Star,
+  Trash2,
+  Utensils,
+  UtensilsCrossed,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -73,8 +95,18 @@ import {
 } from "@/components/food-classes";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
-import { ErrorState, Page, PageHeader } from "@/components/page";
+import {
+  Details,
+  ErrorState,
+  InfoTip,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { PlainWaterSection } from "@/components/plain-water-section";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -193,10 +225,15 @@ function NutritionPage() {
         title={i18n._(DIARY_COPY.title)}
         description={
           <span className="flex flex-wrap gap-x-5 gap-y-1">
-            <Link to="/foods" className={controlLinkClass}>
+            <Link to="/foods" className={`inline-flex items-center gap-1.5 ${controlLinkClass}`}>
+              <Bookmark className="size-4 text-food" aria-hidden="true" />
               {i18n._(CUSTOM_FOOD_COPY.manageLink)}
             </Link>
-            <Link to="/nutrition-targets" className={controlLinkClass}>
+            <Link
+              to="/nutrition-targets"
+              className={`inline-flex items-center gap-1.5 ${controlLinkClass}`}
+            >
+              <SlidersHorizontal className="size-4 text-food" aria-hidden="true" />
               {i18n._(TARGET_COPY.settingsLink)}
             </Link>
           </span>
@@ -206,8 +243,11 @@ function NutritionPage() {
             className="flex w-full flex-wrap items-center gap-2 sm:w-auto"
             aria-label={t`Choose day`}
           >
-            <Button variant="outline" onClick={() => go(shiftLocalDate(localDate, -1))}>
-              <Trans>Previous day</Trans>
+            <Button variant="outline" size="icon" onClick={() => go(shiftLocalDate(localDate, -1))}>
+              <ChevronLeft aria-hidden="true" />
+              <span className="sr-only">
+                <Trans>Previous day</Trans>
+              </span>
             </Button>
             <Input
               type="date"
@@ -216,30 +256,31 @@ function NutritionPage() {
               value={localDate}
               onChange={(event) => event.target.value && go(event.target.value)}
             />
-            <Button variant="outline" onClick={() => go(shiftLocalDate(localDate, 1))}>
-              <Trans>Next day</Trans>
+            <Button variant="outline" size="icon" onClick={() => go(shiftLocalDate(localDate, 1))}>
+              <ChevronRight aria-hidden="true" />
+              <span className="sr-only">
+                <Trans>Next day</Trans>
+              </span>
             </Button>
           </nav>
         }
       />
 
       {dayQuery.isPending ? (
-        <div className="grid gap-10" aria-hidden="true">
-          <div className="sheet grid gap-4 px-5 py-4">
-            <Skeleton className="h-6 w-40" />
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-              {SUMMARY_SKELETON.map((key) => (
-                <Skeleton key={key} className="h-14 w-full" />
-              ))}
-            </div>
+        <div className="grid gap-8" aria-hidden="true">
+          <Skeleton className="h-10 w-56 rounded-full" />
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+            {SUMMARY_SKELETON.map((key) => (
+              <Skeleton key={key} className="h-36 w-full rounded-3xl" />
+            ))}
           </div>
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-            <div className="grid gap-2">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+            <div className="grid gap-4">
               {SUMMARY_SKELETON.map((key) => (
-                <Skeleton key={key} className="h-10 w-full" />
+                <Skeleton key={key} className="h-24 w-full rounded-3xl" />
               ))}
             </div>
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-80 w-full rounded-3xl" />
           </div>
         </div>
       ) : dayQuery.isError ? (
@@ -253,24 +294,21 @@ function NutritionPage() {
         />
       ) : (
         <>
-          <section className="sheet grid gap-5 px-5 pt-4 pb-5" aria-labelledby="diary-day">
-            <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-              <div className="grid gap-1">
-                <h2 id="diary-day" className="num text-xl font-medium text-ink">
-                  {localDate}
-                </h2>
-                <p className="text-sm text-ink-3">
-                  <span
-                    className={
-                      day?.status === "complete"
-                        ? "font-medium text-success"
-                        : "font-medium text-ink-2"
-                    }
-                  >
-                    {i18n._(status.label)}
-                  </span>{" "}
-                  {i18n._(status.description)}
-                </p>
+          <section className="grid min-w-0 gap-4" aria-labelledby="diary-day">
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <ToneIcon icon={UtensilsCrossed} tone="food" size="lg" />
+                <div className="grid min-w-0 gap-1">
+                  <h2 id="diary-day" className="text-2xl leading-tight text-ink">
+                    {friendlyDate(i18n, localDate)}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                    <StatusPill tone={day?.status === "complete" ? "good" : "neutral"}>
+                      {i18n._(status.label)}
+                    </StatusPill>
+                    <InfoTip>{i18n._(status.description)}</InfoTip>
+                  </div>
+                </div>
               </div>
               <Button
                 variant="outline"
@@ -278,6 +316,7 @@ function NutritionPage() {
                 onClick={toggleStatus}
                 disabled={setStatus.isPending}
               >
+                <CircleCheck aria-hidden="true" />
                 {i18n._(
                   day?.status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete,
                 )}
@@ -288,6 +327,7 @@ function NutritionPage() {
                 totals={day.summary.totals}
                 sources={day.summary.sources}
                 hideNumbers={hideNumbers}
+                targets={targetsQuery.data?.targetsOn.targets ?? []}
               />
             ) : null}
             <TargetsOnDay
@@ -298,58 +338,35 @@ function NutritionPage() {
 
           <LoggingStreakCard streak={streakQuery.isSuccess ? streakQuery.data : undefined} />
 
-          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-            <div className="grid min-w-0 content-start gap-8">
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+            <div className="grid min-w-0 content-start gap-4">
               {groupBySlot(day?.entries ?? []).map((group) => (
                 <section
                   key={group.slot}
                   aria-labelledby={`slot-${group.slot}`}
-                  className="grid min-w-0 gap-2"
+                  className="sheet grid min-w-0 gap-3 p-5"
                 >
-                  <h2 id={`slot-${group.slot}`} className="text-xl leading-tight text-ink">
-                    {i18n._(group.label)}
-                  </h2>
+                  <div className="flex items-center gap-3">
+                    <ToneIcon icon={SLOT_ICONS[group.slot]} tone="food" size="sm" />
+                    <h2 id={`slot-${group.slot}`} className="text-xl leading-tight text-ink">
+                      {i18n._(group.label)}
+                    </h2>
+                  </div>
                   {group.entries.length === 0 ? (
-                    <p className="border-t border-rule pt-3 text-sm text-ink-3">
-                      {i18n._(DIARY_COPY.emptySlot)}
-                    </p>
+                    <p className="text-sm text-ink-3">{i18n._(DIARY_COPY.emptySlot)}</p>
                   ) : (
-                    <table className="w-full table-fixed text-left text-sm text-ink-2">
-                      <thead>
-                        <tr className="border-b-2 border-rule-2">
-                          <th scope="col" className="pb-2 font-medium text-ink-3">
-                            <Trans>Food</Trans>
-                          </th>
-                          <th scope="col" className="w-20 pb-2 text-right font-medium text-ink-3">
-                            <Trans>Amount</Trans>
-                          </th>
-                          <th scope="col" className="w-20 pb-2 text-right font-medium text-ink-3">
-                            {i18n._(NUTRIENT_LABELS.energyKcal.label)}
-                          </th>
-                          {LEDGER_MACROS.map((key) => (
-                            <th
-                              key={key}
-                              scope="col"
-                              className="hidden w-28 pb-2 pl-3 text-right font-medium whitespace-nowrap text-ink-3 md:table-cell"
-                            >
-                              {i18n._(NUTRIENT_LABELS[key].label)}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.entries.map((entry) => (
-                          <EntryRow
-                            key={entry.id}
-                            entry={entry}
-                            favorite={favoriteSnapshot(entry)}
-                            onChanged={() => void refresh()}
-                            announce={announce}
-                            hideNumbers={hideNumbers}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
+                    <ul className="grid divide-y divide-rule" aria-label={i18n._(group.label)}>
+                      {group.entries.map((entry) => (
+                        <EntryRow
+                          key={entry.id}
+                          entry={entry}
+                          favorite={favoriteSnapshot(entry)}
+                          onChanged={() => void refresh()}
+                          announce={announce}
+                          hideNumbers={hideNumbers}
+                        />
+                      ))}
+                    </ul>
                   )}
                 </section>
               ))}
@@ -362,7 +379,7 @@ function NutritionPage() {
               />
             </div>
 
-            <div className="grid min-w-0 content-start gap-10">
+            <div className="grid min-w-0 content-start gap-8">
               <AddFood
                 key={draftFood ?? ""}
                 initialQuery={draftFood ?? ""}
@@ -394,14 +411,20 @@ function NutritionPage() {
   );
 }
 
-/** Macros printed beside energy in the meal ledger (from `md:` up). */
+/** Macros listed beside energy in each food's detail. */
 const LEDGER_MACROS = [
   "proteinG",
   "carbohydrateG",
   "fatG",
 ] as const satisfies readonly NutrientKey[];
-const LEDGER_COLUMNS = 3 + LEDGER_MACROS.length;
 const SUMMARY_SKELETON = ["a", "b", "c", "d", "e"] as const;
+const SLOT_ICONS: Record<MealSlot, LucideIcon> = {
+  breakfast: Coffee,
+  lunch: Sandwich,
+  dinner: Soup,
+  snack: Apple,
+  other: Utensils,
+};
 
 function EntryRow({
   entry,
@@ -507,47 +530,75 @@ function EntryRow({
     hideNumbers ? i18n._(HIDDEN_VALUE) : formatNutrientValue(key, entry.nutrients[key], i18n);
 
   return (
-    <>
-      <tr className="border-b border-rule align-top transition-colors duration-[var(--dur-short)] hover:bg-muted/70">
-        <td className="py-2.5 pr-3">
-          <span className="block font-display font-medium break-words text-ink">
-            {entry.food.name}
+    <li className="grid min-w-0 gap-3 py-3 first:pt-0 last:pb-0">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="grid min-w-0 flex-1 basis-40 gap-0.5">
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="font-semibold break-words text-ink">{entry.food.name}</span>
+            <InfoTip label={t`Nutrients and source`}>
+              <ul className="grid gap-0.5">
+                {LEDGER_MACROS.map((key) => (
+                  <li key={key} className="flex justify-between gap-4">
+                    <span>{i18n._(NUTRIENT_LABELS[key].label)}</span>
+                    <span className="text-ink tabular-nums">{figure(key)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-ink-3">
+                {i18n._(foodSourceLabel(entry.food.source))}
+                {entry.food.brand ? `, ${entry.food.brand}` : ""}
+              </p>
+              {entry.food.source === "off" && entry.food.attribution ? (
+                <p className="text-ink-3">{entry.food.attribution}</p>
+              ) : null}
+            </InfoTip>
+          </div>
+          <span className="text-sm text-ink-3 tabular-nums">
+            <span className="sr-only">
+              <Trans>Amount</Trans>:{" "}
+            </span>
+            {formatAmount(entry.amount, entry.unit, i18n)}
           </span>
-          <span className="block text-sm text-ink-3">
-            {i18n._(foodSourceLabel(entry.food.source))}
-            {entry.food.brand ? `, ${entry.food.brand}` : ""}
-          </span>
-          {entry.food.source === "off" && entry.food.attribution ? (
-            <span className="block text-sm text-ink-3">{entry.food.attribution}</span>
-          ) : null}
-          <span className="-ml-2 mt-1 flex flex-wrap gap-x-1">
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => setEditing((value) => !value)}
-              aria-expanded={editing}
-            >
+        </div>
+        <span className="shrink-0 rounded-full bg-food-soft px-2.5 py-1 text-sm font-semibold text-ink tabular-nums">
+          <span className="sr-only">{i18n._(NUTRIENT_LABELS.energyKcal.label)}: </span>
+          {figure("energyKcal")}
+        </span>
+        <span className="-mr-1 flex shrink-0 items-center">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-ink-3 hover:text-ink"
+            onClick={() => setEditing((value) => !value)}
+            aria-expanded={editing}
+          >
+            <Pencil aria-hidden="true" />
+            <span className="sr-only">
               <Trans>
                 Edit <span className="sr-only">{foodName}</span>
               </Trans>
-            </Button>
-            <Button
-              variant="ghost"
-              size="xs"
-              aria-pressed={favorite}
-              onClick={() =>
-                favoriteMutation.mutate(
-                  { snapshotId: entry.food.snapshotId, favorite: !favorite },
-                  {
-                    onSuccess: () => {
-                      announce(favorite ? t`Removed from favourites` : t`Added to favourites`);
-                      onChanged();
-                    },
-                    onError: () => announce(i18n._(DIARY_COPY.networkError)),
+            </span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-ink-3 hover:text-ink aria-pressed:text-food"
+            aria-pressed={favorite}
+            onClick={() =>
+              favoriteMutation.mutate(
+                { snapshotId: entry.food.snapshotId, favorite: !favorite },
+                {
+                  onSuccess: () => {
+                    announce(favorite ? t`Removed from favourites` : t`Added to favourites`);
+                    onChanged();
                   },
-                )
-              }
-            >
+                  onError: () => announce(i18n._(DIARY_COPY.networkError)),
+                },
+              )
+            }
+          >
+            <Star className={favorite ? "fill-current" : undefined} aria-hidden="true" />
+            <span className="sr-only">
               {favorite ? (
                 <Trans>
                   Unfavourite <span className="sr-only">{foodName}</span>
@@ -557,115 +608,109 @@ function EntryRow({
                   Favourite <span className="sr-only">{foodName}</span>
                 </Trans>
               )}
-            </Button>
-            <Button variant="ghost" size="xs" onClick={del} disabled={remove.isPending}>
+            </span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-ink-3 hover:text-destructive"
+            onClick={del}
+            disabled={remove.isPending}
+          >
+            <Trash2 aria-hidden="true" />
+            <span className="sr-only">
               <Trans>
                 Delete <span className="sr-only">{foodName}</span>
               </Trans>
-            </Button>
-          </span>
-        </td>
-        <td className="num py-2.5 text-ink-2">{formatAmount(entry.amount, entry.unit, i18n)}</td>
-        <td className="num py-2.5 font-medium text-ink">{figure("energyKcal")}</td>
-        {LEDGER_MACROS.map((key) => (
-          <td key={key} className="num hidden py-2.5 text-ink-2 md:table-cell">
-            {figure(key)}
-          </td>
-        ))}
-      </tr>
+            </span>
+          </Button>
+        </span>
+      </div>
       {conflict ? (
-        <tr className="border-b border-rule">
-          <td colSpan={LEDGER_COLUMNS} className="py-3">
-            <div className="grid gap-2 border-l-2 border-warning pl-3 text-sm" role="alert">
-              <p className="font-display font-medium text-ink">
-                {i18n._(DIARY_COPY.conflictTitle)}
-              </p>
-              <p className="text-ink-2">
-                {conflict.deleted
-                  ? t`Other version: deleted. Your change: ${mineAmount}, ${mineSlot}.`
-                  : t`Other version: ${otherAmount}, ${otherSlot}. Your change: ${mineAmount}, ${mineSlot}.`}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {conflict.deleted ? null : (
-                  <Button size="sm" variant="outline" onClick={() => save(conflict.revision)}>
-                    {i18n._(DIARY_COPY.keepMine)}
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setConflict(null);
-                    setEditing(false);
-                    onChanged();
-                  }}
-                >
-                  {i18n._(DIARY_COPY.keepServer)}
-                </Button>
-              </div>
-            </div>
-          </td>
-        </tr>
+        <div className="grid gap-2 rounded-2xl bg-warning/10 px-4 py-3 text-sm" role="alert">
+          <p className="font-display font-medium text-ink">{i18n._(DIARY_COPY.conflictTitle)}</p>
+          <p className="text-ink-2">
+            {conflict.deleted
+              ? t`Other version: deleted. Your change: ${mineAmount}, ${mineSlot}.`
+              : t`Other version: ${otherAmount}, ${otherSlot}. Your change: ${mineAmount}, ${mineSlot}.`}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {conflict.deleted ? null : (
+              <Button size="sm" variant="outline" onClick={() => save(conflict.revision)}>
+                {i18n._(DIARY_COPY.keepMine)}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setConflict(null);
+                setEditing(false);
+                onChanged();
+              }}
+            >
+              {i18n._(DIARY_COPY.keepServer)}
+            </Button>
+          </div>
+        </div>
       ) : null}
       {editing ? (
-        <tr className="border-b border-rule bg-paper-2">
-          <td colSpan={LEDGER_COLUMNS} className="px-3 py-3">
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-              <Field label={t`Amount`}>
-                {(id) => (
-                  <Input
-                    id={id}
-                    inputMode="decimal"
-                    className="num"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label={t`Unit`}>
-                {(id) => (
-                  <select
-                    id={id}
-                    className={nativeSelectClass}
-                    value={unit}
-                    onChange={(event) => setUnit(event.target.value as AmountUnit)}
-                  >
-                    {units.map((option) => (
-                      <option key={option} value={option}>
-                        {i18n._(UNIT_LABELS[option])}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Field>
-              <Field label={t`Meal`}>
-                {(id) => (
-                  <select
-                    id={id}
-                    className={nativeSelectClass}
-                    value={slot}
-                    onChange={(event) => setSlot(event.target.value as MealSlot)}
-                  >
-                    {MEAL_SLOTS.map((option) => (
-                      <option key={option} value={option}>
-                        {i18n._(SLOT_LABELS[option])}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Field>
-              <Button
-                variant="outline"
-                onClick={() => save()}
-                disabled={preview === null || update.isPending}
-              >
-                {update.isPending ? t`Saving…` : t`Save`}
-              </Button>
-            </div>
-          </td>
-        </tr>
+        <div className="rounded-2xl bg-paper-2 p-4">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+            <Field label={t`Amount`}>
+              {(id) => (
+                <Input
+                  id={id}
+                  inputMode="decimal"
+                  className="num"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                />
+              )}
+            </Field>
+            <Field label={t`Unit`}>
+              {(id) => (
+                <select
+                  id={id}
+                  className={nativeSelectClass}
+                  value={unit}
+                  onChange={(event) => setUnit(event.target.value as AmountUnit)}
+                >
+                  {units.map((option) => (
+                    <option key={option} value={option}>
+                      {i18n._(UNIT_LABELS[option])}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Field label={t`Meal`}>
+              {(id) => (
+                <select
+                  id={id}
+                  className={nativeSelectClass}
+                  value={slot}
+                  onChange={(event) => setSlot(event.target.value as MealSlot)}
+                >
+                  {MEAL_SLOTS.map((option) => (
+                    <option key={option} value={option}>
+                      {i18n._(SLOT_LABELS[option])}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <Button
+              variant="outline"
+              onClick={() => save()}
+              disabled={preview === null || update.isPending}
+            >
+              {update.isPending ? t`Saving…` : t`Save`}
+            </Button>
+          </div>
+        </div>
       ) : null}
-    </>
+    </li>
   );
 }
 
@@ -685,33 +730,34 @@ function TargetsOnDay({
   const { i18n } = useLingui();
   if (targets.length === 0) return null;
   return (
-    <div className="grid gap-2 border-t border-rule pt-4">
-      <h3 className="font-display text-base font-medium text-ink">
-        {i18n._(TARGET_COPY.yourTargets)}
-      </h3>
-      <ul className="divide-y divide-rule text-sm" aria-label={i18n._(TARGET_COPY.yourTargets)}>
-        {targets.map((target) => (
-          <li
-            key={target.id}
-            className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 py-1.5 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_auto]"
-          >
-            <span className="text-ink">{i18n._(NUTRIENT_LABELS[target.nutrient].label)}</span>
-            <span className="num text-right text-ink sm:text-left">
-              {formatTarget(target, hideNumbers, i18n)}
-            </span>
-            <span className="col-span-2 text-ink-3 sm:col-span-1 sm:text-right">
-              {i18n._(describeTargetSource(target))}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="text-sm text-ink-3">
-        {i18n._(TARGET_COPY.targetsNote)}{" "}
-        <Link to="/nutrition-targets" className={textLinkClass}>
-          {i18n._(TARGET_COPY.settingsLink)}
-        </Link>
-      </p>
-    </div>
+    <Details summary={<h3 className="text-sm">{i18n._(TARGET_COPY.yourTargets)}</h3>}>
+      <div className="sheet grid min-w-0 gap-3 px-5 py-4">
+        <ul className="divide-y divide-rule text-sm" aria-label={i18n._(TARGET_COPY.yourTargets)}>
+          {targets.map((target) => (
+            <li
+              key={target.id}
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 py-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_auto]"
+            >
+              <span className="font-semibold text-ink">
+                {i18n._(NUTRIENT_LABELS[target.nutrient].label)}
+              </span>
+              <span className="text-right text-ink tabular-nums sm:text-left">
+                {formatTarget(target, hideNumbers, i18n)}
+              </span>
+              <span className="col-span-2 text-ink-3 sm:col-span-1 sm:text-right">
+                {i18n._(describeTargetSource(target))}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-sm text-ink-3">
+          {i18n._(TARGET_COPY.targetsNote)}{" "}
+          <Link to="/nutrition-targets" className={textLinkClass}>
+            {i18n._(TARGET_COPY.settingsLink)}
+          </Link>
+        </p>
+      </div>
+    </Details>
   );
 }
 
@@ -749,7 +795,7 @@ function CandidateButton({
       <button
         type="button"
         aria-pressed={selected}
-        className={`flex w-full cursor-pointer justify-between gap-3 px-3 py-2 text-left text-sm transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring aria-pressed:bg-accent aria-pressed:text-ink ${selected ? "font-medium text-ink" : "text-ink-2"}`}
+        className={`flex w-full cursor-pointer justify-between gap-3 px-4 py-2.5 text-left text-sm transition-colors duration-[var(--dur-short)] hover:bg-paper-2 active:bg-paper-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring aria-pressed:bg-food-soft aria-pressed:text-ink ${selected ? "font-semibold text-ink" : "text-ink-2"}`}
         onClick={onSelect}
       >
         <span className="min-w-0 break-words">
@@ -769,7 +815,7 @@ function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[]
   return (
     <div className="grid gap-1">
       {notices.map((notice) => (
-        <p key={notice} className="text-sm text-ink-3">
+        <p key={notice} className="text-xs text-ink-3">
           {notice}
         </p>
       ))}
@@ -968,31 +1014,35 @@ function AddFood({
   };
 
   const modes = [
-    ["choose", t`Search and recents`],
-    ["barcode", i18n._(BARCODE_COPY.mode)],
-    ["quick", t`Quick add`],
+    ["choose", t`Search and recents`, Search],
+    ["barcode", i18n._(BARCODE_COPY.mode), ScanBarcode],
+    ["quick", t`Quick add`, Zap],
   ] as const;
 
   return (
-    <section className="grid min-w-0 gap-4" aria-labelledby="add-food-heading">
-      <h2 id="add-food-heading" className="text-xl leading-tight text-ink">
-        {i18n._(DIARY_COPY.addFood)}
-      </h2>
-      <div className="sheet grid gap-4 px-5 pt-4 pb-5">
+    <Section
+      icon={Plus}
+      tone="food"
+      sheet
+      aria-labelledby="add-food-heading"
+      title={<span id="add-food-heading">{i18n._(DIARY_COPY.addFood)}</span>}
+    >
+      <div className="grid min-w-0 gap-4">
         <div
-          className="flex flex-wrap gap-x-1 gap-y-1 border-b border-rule pb-2"
+          className="flex flex-wrap gap-1 rounded-3xl bg-paper-2 p-1"
           role="group"
           aria-label={t`How to add`}
         >
-          {modes.map(([value, label]) => (
+          {modes.map(([value, label, Icon]) => (
             <Button
               key={value}
               size="sm"
               variant="ghost"
-              className="aria-pressed:bg-accent aria-pressed:text-ink"
+              className="text-ink-3 aria-pressed:bg-card aria-pressed:text-ink aria-pressed:shadow-sm"
               aria-pressed={mode === value}
               onClick={() => switchMode(value)}
             >
+              <Icon aria-hidden="true" />
               {label}
             </Button>
           ))}
@@ -1015,7 +1065,9 @@ function AddFood({
               {i18n._(BARCODE_COPY.searchHint)}
             </p>
             <section className="grid gap-1" aria-label={i18n._(BARCODE_COPY.savedFoods)}>
-              <h3 className="text-sm font-medium text-ink-3">{i18n._(BARCODE_COPY.savedFoods)}</h3>
+              <h3 className="text-sm font-semibold text-ink-3">
+                {i18n._(BARCODE_COPY.savedFoods)}
+              </h3>
               {saved.length === 0 ? (
                 <p className="text-sm text-ink-3">
                   {query.trim()
@@ -1024,7 +1076,7 @@ function AddFood({
                 </p>
               ) : (
                 <ul
-                  className="max-h-56 divide-y divide-rule overflow-y-auto border-y border-rule"
+                  className="max-h-56 divide-y divide-rule overflow-y-auto rounded-2xl border border-rule"
                   aria-label={t`Saved foods`}
                 >
                   {saved.map((candidate) => (
@@ -1039,7 +1091,7 @@ function AddFood({
               )}
             </section>
             <section className="grid gap-1" aria-label={i18n._(BARCODE_COPY.searchResults)}>
-              <h3 className="text-sm font-medium text-ink-3">
+              <h3 className="text-sm font-semibold text-ink-3">
                 {i18n._(BARCODE_COPY.searchResults)}
               </h3>
               {!isSearchable(debounced) ? (
@@ -1065,7 +1117,7 @@ function AddFood({
                     {t`${plural(found.length, { one: "# food found", other: "# foods found" })}`}
                   </p>
                   <ul
-                    className="max-h-72 divide-y divide-rule overflow-y-auto border-y border-rule"
+                    className="max-h-72 divide-y divide-rule overflow-y-auto rounded-2xl border border-rule"
                     aria-label={t`Food database results`}
                   >
                     {found.map((candidate) => (
@@ -1093,7 +1145,7 @@ function AddFood({
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {draftNote ? (
-              <div className="well grid gap-1 px-3 py-2 text-sm sm:col-span-2">
+              <div className="grid gap-1 rounded-2xl bg-paper-2 px-4 py-3 text-sm sm:col-span-2">
                 <p className="text-ink">{draftNote}</p>
                 <p className="text-ink-3">{i18n._(BARCODE_COPY.manualNote)}</p>
               </div>
@@ -1167,9 +1219,10 @@ function AddFood({
                 )}
               </Field>
             ) : null}
-            <label className="flex items-center gap-2 text-sm text-ink-2 sm:col-span-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-2 sm:col-span-2">
               <input
                 type="checkbox"
+                className="size-4 accent-primary"
                 checked={saveAsFood}
                 onChange={(event) => setSaveAsFood(event.target.checked)}
               />
@@ -1183,7 +1236,7 @@ function AddFood({
           </div>
         )}
 
-        <div className="grid gap-3 border-t border-rule pt-4 sm:grid-cols-3 sm:items-end">
+        <div className="grid gap-3 border-t border-rule pt-4 sm:grid-cols-3 sm:items-end lg:grid-cols-1 xl:grid-cols-3">
           <Field label={t`Meal`}>
             {(id) => (
               <select
@@ -1226,7 +1279,7 @@ function AddFood({
               </select>
             )}
           </Field>
-          <div className="flex w-full flex-wrap gap-2 sm:col-span-3">
+          <div className="flex w-full flex-wrap gap-2 sm:col-span-3 lg:col-span-1 xl:col-span-3">
             <Button
               className="w-full sm:w-auto"
               onClick={() => void submit()}
@@ -1250,8 +1303,11 @@ function AddFood({
         </div>
 
         {preview ? (
-          <div className="well grid gap-1 px-3 py-2 text-sm" aria-label={t`Review before saving`}>
-            <p className="font-medium text-ink">{reviewLine}</p>
+          <div
+            className="grid gap-1 rounded-2xl bg-food-soft px-4 py-3 text-sm"
+            aria-label={t`Review before saving`}
+          >
+            <p className="font-semibold text-ink">{reviewLine}</p>
             <p className="text-ink-2 tabular-nums">
               {formatNutrientSummaryLine(preview, hideNumbers, i18n)}
             </p>
@@ -1265,7 +1321,7 @@ function AddFood({
           </div>
         ) : null}
       </div>
-    </section>
+    </Section>
   );
 }
 
@@ -1381,7 +1437,10 @@ function BarcodeLookupPanel({
       {outcome?.kind === "matches" ? (
         <div className="grid gap-2">
           <p className="text-sm text-ink-2">{i18n._(outcome.message)}</p>
-          <ul className="divide-y divide-rule border-y border-rule" aria-label={t`Barcode matches`}>
+          <ul
+            className="divide-y divide-rule overflow-hidden rounded-2xl border border-rule"
+            aria-label={t`Barcode matches`}
+          >
             {outcome.candidates.map((candidate) => (
               <CandidateButton
                 key={candidate.key}
@@ -1448,8 +1507,9 @@ function CopyDay({
 
   if (!open)
     return (
-      <div className="border-t border-rule pt-4">
+      <div>
         <Button variant="outline" onClick={() => setOpen(true)}>
+          <Copy aria-hidden="true" />
           {i18n._(DIARY_COPY.copyFrom)}
         </Button>
       </div>
@@ -1480,11 +1540,14 @@ function CopyDay({
   };
 
   return (
-    <section className="grid gap-3 border-t border-rule pt-4" aria-labelledby="copy-day-heading">
-      <h2 id="copy-day-heading" className="text-xl leading-tight text-ink">
-        {i18n._(DIARY_COPY.copyFrom)}
-      </h2>
-      <div className="well grid gap-3 px-4 py-3">
+    <Section
+      icon={Copy}
+      tone="food"
+      sheet
+      aria-labelledby="copy-day-heading"
+      title={<span id="copy-day-heading">{i18n._(DIARY_COPY.copyFrom)}</span>}
+    >
+      <div className="grid gap-3">
         <Field label={t`Copy from`}>
           {(id) => (
             <Input
@@ -1504,19 +1567,22 @@ function CopyDay({
             <Trans>Choose a different day.</Trans>
           </p>
         ) : source.isPending ? (
-          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full rounded-2xl" />
         ) : entries.length === 0 ? (
           <p className="text-sm text-ink-3">{i18n._(DIARY_COPY.empty)}</p>
         ) : (
           <fieldset className="grid gap-1">
-            <legend className="mb-1 text-sm font-medium text-ink-3">
+            <legend className="mb-1 text-sm font-semibold text-ink-3">
               <Trans>Items to copy</Trans>
             </legend>
             {entries.map((entry) => (
-              <label key={entry.id} className="flex items-center gap-2 text-sm text-ink-2">
+              <label
+                key={entry.id}
+                className="flex cursor-pointer items-center gap-2 text-sm text-ink-2"
+              >
                 <input
                   type="checkbox"
-
+                  className="size-4 accent-primary"
                   checked={selected.has(entry.id)}
                   onChange={(event) => {
                     const next = new Set(selected);
@@ -1544,6 +1610,6 @@ function CopyDay({
           </Button>
         </div>
       </div>
-    </section>
+    </Section>
   );
 }

@@ -14,10 +14,19 @@ import { Label } from "@openvalens/ui/components/label";
 import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import {
+  ArrowLeft,
+  Camera,
+  ListChecks,
+  MessageSquareText,
+  Mic,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { useState } from "react";
 
 import { controlLinkClass, textLinkClass } from "@/components/food-classes";
-import { Page, PageHeader, Section } from "@/components/page";
+import { Page, PageHeader, Section, StatusPill, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/food-draft")({ component: FoodDraftPage });
@@ -108,17 +117,22 @@ function FoodDraftPage() {
     <Page width="narrow">
       <PageHeader
         title={<Trans>Describe a meal</Trans>}
-        description={i18n._(FOOD_DRAFT_COPY.intro)}
+        info={i18n._(FOOD_DRAFT_COPY.intro)}
         actions={
-          <Link to="/nutrition" className={controlLinkClass}>
+          <Link to="/nutrition" className={`inline-flex items-center gap-1.5 ${controlLinkClass}`}>
+            <ArrowLeft className="size-4 text-food" aria-hidden="true" />
             <Trans>Back to meal diary</Trans>
           </Link>
         }
       />
       <Section sheet>
         <div className="grid gap-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="food-draft-text" className="text-sm font-medium text-ink-3">
+          <div className="grid gap-2">
+            <Label
+              htmlFor="food-draft-text"
+              className="flex items-center gap-2.5 font-display text-lg font-medium text-ink"
+            >
+              <ToneIcon icon={MessageSquareText} tone="food" size="sm" />
               <Trans>What did you have?</Trans>
             </Label>
             <Textarea
@@ -128,13 +142,17 @@ function FoodDraftPage() {
               placeholder={t`Two eggs, a slice of toast and a coffee`}
               onChange={(event) => setTranscript(event.target.value)}
             />
-            <p className="text-sm text-ink-3">{i18n._(FOOD_DRAFT_COPY.dictation)}</p>
+            <p className="flex items-start gap-1.5 text-sm text-ink-3">
+              <Mic className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              {i18n._(FOOD_DRAFT_COPY.dictation)}
+            </p>
           </div>
           {provider.data?.available ? (
-            <div className="well grid gap-2 px-3 py-3 text-sm text-ink-2">
-              <label className="flex items-center gap-2">
+            <div className="grid gap-2 rounded-2xl bg-paper-2 p-4 text-sm text-ink-2">
+              <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
+                  className="size-4 accent-primary"
                   checked={useAi}
                   onChange={(event) => {
                     setUseAi(event.target.checked);
@@ -144,10 +162,10 @@ function FoodDraftPage() {
                 <Trans>Use the AI provider for this draft</Trans>
               </label>
               {useAi ? (
-                <label className="flex items-start gap-2">
+                <label className="flex cursor-pointer items-start gap-2">
                   <input
                     type="checkbox"
-                    className="mt-1"
+                    className="mt-0.5 size-4 shrink-0 accent-primary"
                     checked={aiAgreed}
                     onChange={(event) => setAiAgreed(event.target.checked)}
                   />
@@ -166,6 +184,7 @@ function FoodDraftPage() {
             disabled={!transcript.trim() || (useAi && !aiAgreed) || parse.isPending}
             onClick={() => parse.mutate()}
           >
+            <Sparkles aria-hidden="true" />
             {parse.isPending ? t`Working…` : t`Make a draft`}
           </Button>
           {message ? (
@@ -182,8 +201,14 @@ function FoodDraftPage() {
       </Section>
 
       {provider.data?.available ? (
-        <Section title={<Trans>From a photo</Trans>} description={i18n._(PHOTO_DRAFT_COPY.intro)}>
-          <div className="well grid gap-4 px-4 py-4">
+        <Section
+          icon={Camera}
+          tone="food"
+          sheet
+          title={<Trans>From a photo</Trans>}
+          info={i18n._(PHOTO_DRAFT_COPY.intro)}
+        >
+          <div className="grid gap-4">
             <div className="grid gap-1.5">
               <Label htmlFor="food-draft-photo" className="text-sm font-medium text-ink-3">
                 <Trans>Meal photo (JPEG or PNG, up to 10 MB)</Trans>
@@ -206,10 +231,10 @@ function FoodDraftPage() {
                 }}
               />
             </div>
-            <label className="flex items-start gap-2 text-sm text-ink-2">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-ink-2">
               <input
                 type="checkbox"
-                className="mt-1"
+                className="mt-0.5 size-4 shrink-0 accent-primary disabled:cursor-not-allowed"
                 checked={photoAgreed}
                 disabled={!photo}
                 onChange={(event) => setPhotoAgreed(event.target.checked)}
@@ -225,6 +250,7 @@ function FoodDraftPage() {
               disabled={!photo || !photoAgreed || parsePhoto.isPending}
               onClick={() => photo && parsePhoto.mutate(photo)}
             >
+              <Camera aria-hidden="true" />
               {parsePhoto.isPending ? t`Working…` : t`Make a draft from this photo`}
             </Button>
             {photoMessage ? (
@@ -243,15 +269,15 @@ function FoodDraftPage() {
 
       {candidates ? (
         <Section
+          icon={ListChecks}
+          tone="food"
           title={<Trans>Review the draft</Trans>}
-          description={i18n._(
-            source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review,
-          )}
+          info={i18n._(source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review)}
         >
-          <div className="sheet grid gap-0 px-5 pt-2 pb-5">
+          <div className="grid gap-3">
             {candidates.map((item, index) => (
-              <fieldset key={item.id} className="grid gap-3 border-b border-rule py-4">
-                <legend className="float-left mb-1 font-display text-sm font-medium text-ink">
+              <fieldset key={item.id} className="sheet grid min-w-0 gap-3 p-5">
+                <legend className="float-left mb-1 font-display font-medium text-ink">
                   {itemLegend(index + 1, source === "photo" ? null : item.sourceText)}
                 </legend>
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -317,8 +343,12 @@ function FoodDraftPage() {
                   </div>
                 </div>
                 {item.flags.length ? (
-                  <p className="text-sm text-warning">
-                    {item.flags.map((flag) => i18n._(FOOD_DRAFT_FLAG_LABELS[flag])).join(", ")}
+                  <p className="flex flex-wrap gap-1.5">
+                    {item.flags.map((flag) => (
+                      <StatusPill key={flag} tone="warn">
+                        {i18n._(FOOD_DRAFT_FLAG_LABELS[flag])}
+                      </StatusPill>
+                    ))}
                   </p>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
@@ -327,6 +357,7 @@ function FoodDraftPage() {
                     search={{ food: item.foodText }}
                     className={buttonVariants({ variant: "outline", size: "sm" })}
                   >
+                    <Search aria-hidden="true" />
                     <Trans>Find and log this food</Trans>
                   </Link>
                   <Button
@@ -345,7 +376,7 @@ function FoodDraftPage() {
             ))}
             <Button
               variant="destructive"
-              className="mt-4 w-fit"
+              className="mt-1 w-fit"
               onClick={() => {
                 setCandidates(null);
                 setMessage(DRAFT_DISCARDED);

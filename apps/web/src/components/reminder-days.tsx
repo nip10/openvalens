@@ -6,7 +6,10 @@ import {
   weekdayLabel,
 } from "@openvalens/api/presenters/supplements";
 import { Button } from "@openvalens/ui/components/button";
+import { CalendarDays } from "lucide-react";
 import { useState } from "react";
+
+import { StatusPill } from "@/components/page";
 
 /**
  * Reminder days for weekly and training-day supplements and medications.
@@ -45,8 +48,10 @@ export function WeekdayPicker({
                   : [...value, day].sort((a, b) => a - b),
               )
             }
-            className={`h-8 min-w-11 cursor-pointer rounded-sm border px-2.5 font-display text-sm transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 ${
-              selected ? "border-ink bg-accent font-medium text-ink" : "border-input text-ink-3"
+            className={`h-9 min-w-11 cursor-pointer rounded-full border px-3 text-sm transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-paper-3 disabled:cursor-not-allowed disabled:opacity-55 ${
+              selected
+                ? "border-transparent bg-sidebar-accent font-semibold text-signal hover:bg-sidebar-accent"
+                : "border-input bg-card text-ink-3"
             }`}
           >
             {weekdayLabel(day, i18n.locale)}
@@ -100,12 +105,13 @@ export function ReminderDaysRow({
   return (
     <div className="grid gap-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
+        <CalendarDays className="size-4 shrink-0 text-ink-3" aria-hidden="true" />
         <span className="text-ink-2">
           {i18n._(cadence.frequency)}
           {cadence.days ? ` · ${cadence.days}` : ""}
         </span>
         {cadence.needsDays ? (
-          <span className="text-warning">{i18n._(REMINDER_DAYS_COPY.needed)}</span>
+          <StatusPill tone="warn">{i18n._(REMINDER_DAYS_COPY.needed)}</StatusPill>
         ) : null}
         {!editing ? (
           <Button
@@ -121,7 +127,7 @@ export function ReminderDaysRow({
         ) : null}
       </div>
       {editing ? (
-        <div className="grid gap-2">
+        <div className="grid gap-3 rounded-2xl bg-paper-2 p-3">
           <WeekdayPicker value={draft} onChange={setDraft} disabled={pending} />
           <div className="flex gap-2">
             <Button
