@@ -18,3 +18,4 @@ These documents inform product decisions. They are not clinical guidance and not
 | [Nutrition tracking evidence synthesis](reports/Nutrition%20tracking%20evidence%20synthesis.md)           | #69–#88                                                     |
 | [Integrations and tracking extras evidence](reports/Integrations%20and%20tracking%20extras%20evidence.md) | #59, #60, #65, #66, #67, #90, #91, #93, #94                 |
 | [Legal and clinical gate decisions](reports/Legal%20and%20clinical%20gate%20decisions.md)                 | #56, #66, #70, #72, #76, #78, #80, #82, #89, #97, #99, #102 |
+| [Trademark knockout search, 2026-10-25](trademark-knockout-2026-10-25.md)                                 | #102                                                        |
