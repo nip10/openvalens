@@ -10,6 +10,7 @@ const TINT: Record<Tone, string> = {
   water: "bg-water-soft text-water",
   food: "bg-food-soft text-food",
   signal: "bg-sidebar-accent text-signal",
+  neutral: "bg-paper-2 text-ink-2",
 };
 
 const ROTATION: Tone[] = ["sleep", "steps", "heart", "weight", "water", "food"];
