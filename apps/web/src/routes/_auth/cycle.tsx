@@ -51,29 +51,6 @@ function localToday(): string {
 const NATIVE_SELECT =
   "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
 
-const DAY_MS = 86_400_000;
-const dayNumber = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / DAY_MS);
-const isoFromDayNumber = (day: number) => new Date(day * DAY_MS).toISOString().slice(0, 10);
-
-/**
- * The next period as a plain estimate: the current cycle's start plus the
- * average length of the completed cycles on record. Null when there is no
- * current cycle or no completed cycle to average. It says nothing about
- * ovulation or fertility.
- */
-function nextPeriodEstimate(
-  current: { startDate: string } | null,
-  cycles: readonly { lengthDays: number | null }[],
-): string | null {
-  if (!current) return null;
-  const lengths = cycles
-    .map((cycle) => cycle.lengthDays)
-    .filter((length): length is number => length !== null && length > 0);
-  if (lengths.length === 0) return null;
-  const average = Math.round(lengths.reduce((sum, length) => sum + length, 0) / lengths.length);
-  return isoFromDayNumber(dayNumber(current.startDate) + average);
-}
-
 function CyclePage() {
   const { data: auth, isPending } = authClient.useSession();
   const scope =
@@ -244,13 +221,11 @@ function CycleEnabled({
 
   const estimated = estimates.data?.state === "estimated" ? estimates.data : null;
   const current = estimated?.current ?? null;
-  const nextPeriod = estimated ? nextPeriodEstimate(current, estimated.cycles) : null;
-  const daysToNext = nextPeriod ? dayNumber(nextPeriod) - dayNumber(today) : null;
   const pastCycles = estimated?.cycles.filter((cycle) => cycle.nextStartDate) ?? [];
 
   return (
     <>
-      <section aria-labelledby="cycle-now" className="sheet grid gap-6 p-6 md:grid-cols-2 md:p-7">
+      <section aria-labelledby="cycle-now" className="sheet grid gap-6 p-6 md:p-7">
         <div className="grid content-start gap-3">
           <h2
             id="cycle-now"
@@ -300,29 +275,6 @@ function CycleEnabled({
             </p>
           )}
         </div>
-        {nextPeriod && daysToNext !== null ? (
-          <div className="grid content-start gap-3 md:border-l md:border-rule md:pl-6">
-            <h3 className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2">
-              <ToneIcon icon={Droplet} tone="heart" />
-              <Trans>Next period</Trans>
-            </h3>
-            <p className="num font-display text-[2.5rem] leading-none font-medium tracking-[-0.02em] text-ink">
-              <time dateTime={nextPeriod}>{friendlyDate(i18n, nextPeriod)}</time>
-            </p>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
-              <StatusPill tone="neutral">{i18n._(CYCLE_COPY.estimateLabel)}</StatusPill>
-              {daysToNext > 0 ? (
-                <span>{t`${plural(daysToNext, { one: "In # day", other: "In # days" })}`}</span>
-              ) : null}
-              <InfoTip align="end">
-                <Trans>
-                  Your current cycle’s start plus the average length of the cycles you have logged.
-                  A rough guide only.
-                </Trans>
-              </InfoTip>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       <Section icon={Plus} tone="heart" title={<Trans>Log a period</Trans>} sheet>
