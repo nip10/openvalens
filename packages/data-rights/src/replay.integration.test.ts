@@ -4,8 +4,20 @@ import { createDb, sql } from "@openvalens/db";
 import { deleteSubjectData } from "./delete";
 import { rowFilter } from "./export";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
-import { readErasureLedger, replayErasureLedger } from "./replay";
-import { assertDisposable, migrateEmptyDatabase, seedAccount, seedEveryModule } from "./testing";
+import {
+  mergeErasureLedger,
+  readErasureLedger,
+  readErasureLedgerRows,
+  replayErasureLedger,
+  type ErasureLedgerRow,
+} from "./replay";
+import {
+  applyMigration,
+  assertDisposable,
+  migrateEmptyDatabase,
+  seedAccount,
+  seedEveryModule,
+} from "./testing";
 
 /**
  * Issue #64 — a restore must not bring erased people back. Simulates the
@@ -65,12 +77,7 @@ describe.skipIf(!url)("erasure-ledger replay after a restore", () => {
 
   let bBefore: number;
   let aInBackup: number;
-  let keptLedger: {
-    subject_user_id: string;
-    organization_ids: unknown;
-    row_counts: unknown;
-    erased_at: string;
-  }[];
+  let keptLedger: ErasureLedgerRow[];
 
   beforeAll(async () => {
     await migrateEmptyDatabase(db);
@@ -91,10 +98,7 @@ describe.skipIf(!url)("erasure-ledger replay after a restore", () => {
     await db.execute(sql`delete from stored_object where organization_id = 'org-a'`);
     await db.execute(sql`delete from photo_cleanup_intent where org_id = 'org-a'`);
     await deleteSubjectData(db, A);
-    keptLedger = (
-      await db.execute(sql`select subject_user_id, organization_ids, row_counts, erased_at::text
-        from erasure_ledger`)
-    ).rows as typeof keptLedger;
+    keptLedger = await readErasureLedgerRows(db);
   });
 
   test("restoring the older backup brings the erased person back", async () => {
@@ -106,13 +110,10 @@ describe.skipIf(!url)("erasure-ledger replay after a restore", () => {
 
   test("merging the replaced database's ledger and replaying it erases them again", async () => {
     expect(keptLedger).toHaveLength(1);
-    // Same merge as deploy/backup/openvalens-backup.sh `ledger-merge`.
-    for (const row of keptLedger)
-      await db.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts, erased_at)
-        select ${row.subject_user_id}, ${JSON.stringify(row.organization_ids)}::jsonb,
-          ${JSON.stringify(row.row_counts)}::jsonb, ${row.erased_at}::timestamptz
-        where not exists (select 1 from erasure_ledger e
-          where e.subject_user_id = ${row.subject_user_id} and e.erased_at = ${row.erased_at}::timestamptz)`);
+    // The same merge `scripts/erasure-replay.ts --merge-from-env` runs on a
+    // platform restore (the shell `ledger-merge` does it with psql).
+    expect(await mergeErasureLedger(db, keptLedger)).toBe(1);
+    expect(await mergeErasureLedger(db, keptLedger)).toBe(0);
     const ledger = await readErasureLedger(db);
     expect(ledger.map((entry) => entry.userId)).toEqual(["user-a"]);
 
@@ -151,5 +152,51 @@ describe.skipIf(!url)("erasure-ledger replay after a restore", () => {
     const report = await replayErasureLedger(db, null);
     expect(report.objects.failed).toBeGreaterThan(0);
     expect(await subjectRows(A)).toBe(0);
+  });
+
+  test("platform restore: the CLI merges the replaced database's ledger, then replays", async () => {
+    // The "replaced" database of a platform restore: a second database on the
+    // same disposable server with one erasure the restored database lacks.
+    const source = "erasure_replay_test_src";
+    await db.execute(sql.raw(`drop database if exists ${source} with (force)`));
+    await db.execute(sql.raw(`create database ${source}`));
+    const sourceUrl = new URL(url!);
+    sourceUrl.pathname = `/${source}`;
+    const sourceDb = createDb({ DATABASE_URL: sourceUrl.toString() });
+    try {
+      await applyMigration(sourceDb, "20261004120000_erasure_ledger");
+      await sourceDb.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts)
+        values ('user-platform', '["org-platform"]', '{}')`);
+      const run = Bun.spawnSync(
+        [
+          "bun",
+          "--no-env-file",
+          `${import.meta.dir}/../../../scripts/erasure-replay.ts`,
+          "--merge-from-env",
+          "OLD_DATABASE_URL",
+        ],
+        {
+          env: {
+            PATH: process.env.PATH ?? "/usr/bin:/bin",
+            DATABASE_URL: url!,
+            OLD_DATABASE_URL: sourceUrl.toString(),
+            STORAGE_PROVIDER: "local",
+            STORAGE_LOCAL_DIR: `${process.env.TMPDIR ?? "/tmp"}/erasure-replay-cli-test`,
+          },
+        },
+      );
+      const output = `${run.stdout}${run.stderr}`;
+      expect({ exitCode: run.exitCode, output }).toMatchObject({ exitCode: 0 });
+      expect(output).toContain("Merged 1 erasure-ledger rows from the replaced database.");
+      expect(output).not.toContain(sourceUrl.password);
+      const merged = await db.execute(
+        sql`select count(*)::int as n from erasure_ledger where subject_user_id = 'user-platform'`,
+      );
+      expect((merged.rows[0] as { n: number }).n).toBe(1);
+    } finally {
+      const client = (sourceDb as unknown as { $client?: { end: () => Promise<void> } }).$client;
+      if (client) await client.end();
+      await db.execute(sql.raw(`drop database if exists ${source} with (force)`));
+    }
   });
 });

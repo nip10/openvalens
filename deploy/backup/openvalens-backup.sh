@@ -14,10 +14,13 @@
 #   schedule                            long-running daily loop (scheduler)
 #   restore-db <id> <stamp>             keep the current database and files
 #                                       under a pre-restore name, restore both
-#   undo-restore <stamp>                put the kept database and files back
-#   ledger-merge <stamp>                merge the erasure ledgers of the kept
+#   undo-restore <stamp> <new stamp>    put the kept database and files back,
+#                                       keeping the current ones under <new stamp>
+#   ledger-merge                        merge the erasure ledgers of every kept
 #                                       database and every backup into the
-#                                       restored database
+#                                       live database
+#   wait-idle                           wait for a running backup or verify
+#   has-backups                         exit 0 if the volume holds a backup
 #   record <operation> <trigger> <outcome> [<id>] [<detail>]
 #   export <id>                         write a backup as a tar to stdout
 #   import <id>                         read a backup tar from stdin
@@ -109,6 +112,15 @@ select to_regclass('public.backup_run') is not null as ready \gset
 insert into backup_run (operation, trigger, outcome, backup_id, detail, size_bytes, started_at)
 values (:'op', :'trig', :'outcome', nullif(:'id', ''), nullif(left(:'detail', 200), ''),
   nullif(:'size', '')::bigint, to_timestamp(:'started'::double precision));
+\endif
+SQL
+}
+
+clear_schedule() {
+  psql_db >/dev/null 2>&1 <<'SQL' || true
+select to_regclass('public.backup_schedule') is not null as ready \gset
+\if :ready
+delete from backup_schedule;
 \endif
 SQL
 }
@@ -441,6 +453,21 @@ cmd_schedule() {
   case "$retain" in '' | *[!0-9]*) fail "OPENVALENS_BACKUP_DAILY_RETAIN must be a non-negative integer" ;; esac
   require_key
   trap 'log "scheduler stopping"; exit 0' TERM INT
+  case "${OPENVALENS_BACKUP_SCHEDULE:-on}" in
+    on) ;;
+    off)
+      # Backups are the operator's own (a hook, snapshots): no daily backup,
+      # and no schedule row, so readiness never reports them stale.
+      clear_schedule
+      log "OPENVALENS_BACKUP_SCHEDULE=off: no daily backups; only off-site results are recorded"
+      while :; do
+        offsite_sync
+        sleep 60 &
+        wait $! || true
+      done
+      ;;
+    *) fail "OPENVALENS_BACKUP_SCHEDULE must be on or off" ;;
+  esac
   log "daily encrypted backups at $(printf '%02d' "$hour"):00 UTC, keeping $retain"
   while :; do
     now="$(date -u +%s)"
@@ -515,7 +542,14 @@ offsite_env() {
   # The bucket must exist; the key needs no permission to create buckets.
   export RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET=true
   export RCLONE_CONFIG_DIR=/tmp RCLONE_CONFIG=/dev/null
-  OFFSITE_ROOT="offsite:$OFFSITE_BUCKET${OFFSITE_PREFIX:+/$OFFSITE_PREFIX}"
+  # Each host uploads into its own folder (OPENVALENS_BACKUP_HOST_ID, written
+  # once into deploy/.env by setup.sh), and retention only ever prunes that
+  # folder: a new host never deletes the old host's backups. Pull searches all.
+  OFFSITE_HOST="${OPENVALENS_BACKUP_HOST_ID:-}"
+  printf '%s' "$OFFSITE_HOST" | grep -Eq '^[A-Za-z0-9-]{8,64}$' ||
+    fail "OPENVALENS_BACKUP_HOST_ID is missing or invalid (run deploy/setup.sh install)"
+  OFFSITE_ALL="offsite:$OFFSITE_BUCKET${OFFSITE_PREFIX:+/$OFFSITE_PREFIX}"
+  OFFSITE_ROOT="$OFFSITE_ALL/$OFFSITE_HOST"
   mkdir -p "$OFFSITE_DIR/events"
 }
 
@@ -625,15 +659,25 @@ cmd_offsite_upload() {
   offsite_upload_one "$id"
 }
 
+# Every "<host>/<backup id>" in the bucket, oldest first by backup id.
+offsite_all_ids() {
+  rc lsf -R --dirs-only --max-depth 2 "$OFFSITE_ALL/" | sed 's#/$##' |
+    awk -F/ 'NF == 2' | while IFS=/ read -r host id; do
+      printf '%s' "$id" | grep -Eq "$ID_PATTERN" && printf '%s/%s\n' "$host" "$id"
+    done | LC_ALL=C sort -t/ -k2,2 || true
+}
+
 cmd_offsite_list() {
-  local id complete
+  local entry complete mine
   offsite_env
-  rc lsf "$OFFSITE_ROOT/" >/dev/null || fail "cannot list the off-site bucket"
-  while IFS= read -r id; do
+  rc lsf "$OFFSITE_ALL/" >/dev/null || fail "cannot list the off-site bucket"
+  while IFS= read -r entry; do
     complete=complete
-    rc lsf "$OFFSITE_ROOT/$id/SHA256SUMS" | grep -q . || complete="INCOMPLETE (no SHA256SUMS)"
-    printf '%s\t%s\n' "$id" "$complete"
-  done < <(offsite_ids)
+    rc lsf "$OFFSITE_ALL/$entry/SHA256SUMS" | grep -q . || complete="INCOMPLETE (no SHA256SUMS)"
+    mine=""
+    [ "${entry%%/*}" = "$OFFSITE_HOST" ] && mine=" (this host)"
+    printf '%s\t%s\t%s%s\n' "${entry#*/}" "$complete" "host ${entry%%/*}" "$mine"
+  done < <(offsite_all_ids)
 }
 
 # offsite-pull <id|latest>: copy one backup (still encrypted) into the volume
@@ -641,19 +685,23 @@ cmd_offsite_list() {
 cmd_offsite_pull() {
   local id="${1:-latest}" tmp
   offsite_env
+  local entry
   if [ "$id" = latest ]; then
-    id="$(offsite_ids | tail -n 1)"
-    [ -n "$id" ] || fail "there are no off-site backups"
+    entry="$(offsite_all_ids | tail -n 1)"
+  else
+    valid_id "$id" || fail "not a backup id"
+    entry="$(offsite_all_ids | grep -- "/$id\$" | tail -n 1)"
   fi
-  valid_id "$id" || fail "not a backup id"
+  [ -n "$entry" ] || fail "no such off-site backup"
+  id="${entry#*/}"
   [ ! -e "$BACKUP_DIR/$id" ] || fail "backup $id is already in the backups volume"
-  rc lsf "$OFFSITE_ROOT/$id/SHA256SUMS" | grep -q . ||
-    fail "off-site backup $id is missing or incomplete (no SHA256SUMS)"
+  rc lsf "$OFFSITE_ALL/$entry/SHA256SUMS" | grep -q . ||
+    fail "off-site backup $id is incomplete (no SHA256SUMS)"
   umask 077
   tmp="$BACKUP_DIR/.pull-$id"
   rm -rf "$tmp"
   mkdir -p "$tmp/$id"
-  rc copy "$OFFSITE_ROOT/$id" "$tmp/$id" >/dev/null || { rm -rf "$tmp"; fail "downloading $id failed"; }
+  rc copy "$OFFSITE_ALL/$entry" "$tmp/$id" >/dev/null || { rm -rf "$tmp"; fail "downloading $id failed"; }
   (cd "$tmp/$id" && sha256sum --quiet --strict -c SHA256SUMS >/dev/null 2>&1) ||
     { rm -rf "$tmp"; fail "checksum mismatch: the off-site copy of $id is damaged or incomplete"; }
   chmod -R go-rwx "$tmp/$id"
@@ -694,12 +742,27 @@ db_exists() {
   [ "$(psql_db -d postgres -v name="$1" <<<"select count(*) from pg_database where datname = :'name';")" = 1 ]
 }
 
-swap_back_db() {
-  local kept="$1"
-  psql_db -d postgres -c "drop database if exists \"$DB\" with (force)" >/dev/null
-  psql_db -d postgres -c "alter database \"$kept\" rename to \"$DB\"" >/dev/null
+rename_db() { psql_db -d postgres -c "alter database \"$1\" rename to \"$2\"" >/dev/null; }
+
+terminate_db() {
+  psql_db -d postgres -v db="$1" >/dev/null <<'SQL'
+select count(pg_terminate_backend(pid)) from pg_stat_activity where datname = :'db' and pid <> pg_backend_pid();
+SQL
 }
 
+# Every database a restore or an undo kept (openvalens_pre_restore_<stamp>).
+kept_dbs() {
+  psql_db -d postgres -v pat="${DB}_pre_restore_%" <<<"select datname from pg_database where datname like :'pat' order by 1;"
+}
+
+# Moves the current stored files (except kept copies) into .pre-restore-<stamp>.
+keep_files() {
+  local keep="$STORAGE_DIR/.pre-restore-$1"
+  mkdir -m 0700 "$keep"
+  find "$STORAGE_DIR" -mindepth 1 -maxdepth 1 ! -name '.pre-restore-*' -exec mv -t "$keep" {} +
+}
+
+# Puts .pre-restore-<stamp> back, discarding the current files (a failed restore).
 swap_back_files() {
   local keep="$STORAGE_DIR/.pre-restore-$1"
   [ -d "$keep" ] || return 0
@@ -708,83 +771,145 @@ swap_back_files() {
   rmdir "$keep"
 }
 
+# Rollback state of a running restore-db. The EXIT trap puts the previous
+# database and files back on ANY failure (including `set -e` exits), says
+# exactly what it could and could not put back, and records the failure.
+RB_ID=""
+RB_STAMP=""
+RB_KEPT=""
+RB_STEP=""
+RB_STARTED=""
+RB_DB_MOVED=0
+RB_FILES_MOVED=0
+RB_DONE=0
+
+restore_rollback() {
+  local status=$? db_back=untouched files_back=untouched
+  [ "$RB_DONE" -eq 0 ] || return 0
+  trap - EXIT
+  set +e
+  if [ "$RB_DB_MOVED" -eq 1 ]; then
+    db_back=no
+    if db_exists "$RB_KEPT"; then
+      terminate_db "$DB"
+      psql_db -d postgres -c "drop database if exists \"$DB\" with (force)" >/dev/null 2>&1 &&
+        rename_db "$RB_KEPT" "$DB" && db_back=yes
+    fi
+  fi
+  if [ "$RB_FILES_MOVED" -eq 1 ]; then
+    files_back=no
+    swap_back_files "$RB_STAMP" && files_back=yes
+  fi
+  if [ "$db_back" != no ] && [ "$files_back" != no ]; then
+    record restore manual failed "$RB_ID" "$RB_STEP" "" "$RB_STARTED"
+    log "RESTORE FAILED at step '$RB_STEP' (stamp $RB_STAMP); rolled back: database $db_back, stored files $files_back"
+    exit 2
+  fi
+  log "RESTORE FAILED at step '$RB_STEP' (stamp $RB_STAMP) and the ROLLBACK IS INCOMPLETE:"
+  log "  database put back: $db_back (the previous one is $RB_KEPT if it still exists)"
+  log "  stored files put back: $files_back (the previous ones are in .pre-restore-$RB_STAMP in the storage volume)"
+  exit 3
+  # shellcheck disable=SC2317
+  return "$status"
+}
+
 cmd_restore_db() {
-  local id stamp kept manifest started
+  local id stamp kept manifest
   id="$(resolve_id "${1:-}")"
   stamp="${2:-}"
   valid_stamp "$stamp"
   require_key
   lock 0
-  started="$(date -u +%s)"
   kept="$(kept_db "$stamp")"
   db_exists "$kept" && fail "a kept database for this stamp already exists"
   manifest="$(decrypt "$BACKUP_DIR/$id/manifest.json.age" 2>/dev/null)" ||
     fail "cannot decrypt this backup with deploy/secrets/backup/age-identity"
 
+  RB_ID="$id" RB_STAMP="$stamp" RB_KEPT="$kept" RB_STARTED="$(date -u +%s)"
+  trap restore_rollback EXIT
+  RB_STEP=keep-database
   log "keeping the current database as $kept"
-  psql_db -d postgres -v db="$DB" >/dev/null <<'SQL'
-select count(pg_terminate_backend(pid)) from pg_stat_activity where datname = :'db' and pid <> pg_backend_pid();
-SQL
+  terminate_db "$DB"
   if db_exists "$DB"; then
-    psql_db -d postgres -c "alter database \"$DB\" rename to \"$kept\"" >/dev/null
+    rename_db "$DB" "$kept"
+    RB_DB_MOVED=1
   fi
+  RB_STEP=createdb
   createdb --no-password "$DB"
+  RB_STEP=pg_restore
   log "restoring the database from $id"
-  if ! decrypt "$BACKUP_DIR/$id/database.dump.age" |
-    pg_restore --no-password --exit-on-error --no-owner --dbname="$DB" >/dev/null; then
-    if db_exists "$kept"; then swap_back_db "$kept"; fi
-    record restore manual failed "$id" "pg_restore" "" "$started"
-    fail "pg_restore failed; the previous database was put back"
-  fi
+  decrypt "$BACKUP_DIR/$id/database.dump.age" |
+    pg_restore --no-password --exit-on-error --no-owner --dbname="$DB" >/dev/null ||
+    fail "pg_restore failed"
 
   if [ "$(jq -r .files.included <<<"$manifest")" = true ]; then
+    RB_STEP=keep-files
     [ -d "$STORAGE_DIR" ] || fail "the storage volume is not mounted"
-    local keep="$STORAGE_DIR/.pre-restore-$stamp"
     log "keeping the current stored files under .pre-restore-$stamp in the storage volume"
-    mkdir -m 0700 "$keep"
-    find "$STORAGE_DIR" -mindepth 1 -maxdepth 1 ! -name '.pre-restore-*' -exec mv -t "$keep" {} +
+    RB_FILES_MOVED=1
+    keep_files "$stamp"
+    RB_STEP=files
     log "restoring stored files"
     local sums
-    sums="$(decrypt "$BACKUP_DIR/$id/files.sha256.age")" || sums="unreadable"
-    if [ "$sums" = unreadable ] ||
-      ! decrypt "$BACKUP_DIR/$id/files.tar.age" | tar -C "$STORAGE_DIR" --same-owner -xpf - ||
-      { [ -n "$sums" ] && ! (cd "$STORAGE_DIR" && sha256sum --quiet --strict -c - <<<"$sums" >/dev/null 2>&1); }; then
-      swap_back_files "$stamp"
-      if db_exists "$kept"; then swap_back_db "$kept"; fi
-      record restore manual failed "$id" "files" "" "$started"
-      fail "restoring the stored files failed; the previous database and files were put back"
+    sums="$(decrypt "$BACKUP_DIR/$id/files.sha256.age")" || fail "the file checksums cannot be read"
+    decrypt "$BACKUP_DIR/$id/files.tar.age" | tar -C "$STORAGE_DIR" --same-owner -xpf - ||
+      fail "the stored files cannot be extracted"
+    if [ -n "$sums" ]; then
+      (cd "$STORAGE_DIR" && sha256sum --quiet --strict -c - <<<"$sums" >/dev/null 2>&1) ||
+        fail "the restored files do not match their checksums"
     fi
   else
     log "this backup holds no stored files (STORAGE_PROVIDER was $(jq -r .files.provider <<<"$manifest")); the storage volume is unchanged"
   fi
+  RB_DONE=1
+  trap - EXIT
   log "restored $id; previous database kept as $kept"
 }
 
+# undo-restore <stamp> <new stamp>: the database and files a restore kept
+# become live again; the current ones are KEPT (never dropped) as
+# openvalens_pre_restore_<new stamp> and .pre-restore-<new stamp>, so an undo
+# can itself be undone. setup.sh then migrates, merges every kept ledger and
+# replays it, so nobody erased after the restore comes back.
 cmd_undo_restore() {
-  local stamp="${1:-}" kept
+  local stamp="${1:-}" new="${2:-}" kept newkept
   valid_stamp "$stamp"
+  valid_stamp "$new"
   lock 0
   kept="$(kept_db "$stamp")"
-  db_exists "$kept" || fail "no kept database for this stamp"
-  psql_db -d postgres -v db="$DB" >/dev/null <<'SQL'
-select count(pg_terminate_backend(pid)) from pg_stat_activity where datname = :'db' and pid <> pg_backend_pid();
-SQL
-  swap_back_db "$kept"
-  swap_back_files "$stamp"
+  newkept="$(kept_db "$new")"
+  db_exists "$kept" || fail "no kept database for stamp $stamp"
+  db_exists "$newkept" && fail "a kept database for stamp $new already exists"
+  terminate_db "$DB"
+  if db_exists "$DB"; then rename_db "$DB" "$newkept"; fi
+  if ! rename_db "$kept" "$DB"; then
+    db_exists "$newkept" && rename_db "$newkept" "$DB"
+    fail "could not bring back $kept; nothing was changed"
+  fi
+  if [ -d "$STORAGE_DIR/.pre-restore-$stamp" ]; then
+    keep_files "$new"
+    find "$STORAGE_DIR/.pre-restore-$stamp" -mindepth 1 -maxdepth 1 -exec mv -t "$STORAGE_DIR" {} +
+    rmdir "$STORAGE_DIR/.pre-restore-$stamp"
+  fi
   log "the database and stored files from before restore $stamp are back"
+  log "the ones they replaced are kept as $newkept and .pre-restore-$new (undo again with stamp $new)"
 }
 
+# Merges into the live database the erasure ledgers of EVERY database a restore
+# or undo kept (a restore that halted and was re-run leaves more than one) and
+# of every backup in the volume, then carries their backup history over.
 cmd_ledger_merge() {
-  local stamp="${1:-}" kept dir n
-  valid_stamp "$stamp"
+  local dir n kept
   require_key
-  kept="$(kept_db "$stamp")"
   {
     echo "create temp table incoming (subject_user_id text, organization_ids jsonb, row_counts jsonb, erased_at timestamptz);"
     echo "\\copy incoming from stdin csv"
-    if db_exists "$kept" && [ "$(psql_db -d "$kept" -c "select to_regclass('public.erasure_ledger') is not null")" = t ]; then
-      psql_db -d "$kept" -c "\\copy (select $LEDGER_COLUMNS from erasure_ledger) to stdout csv"
-    fi
+    while IFS= read -r kept; do
+      [ -n "$kept" ] || continue
+      if [ "$(psql_db -d "$kept" -c "select to_regclass('public.erasure_ledger') is not null")" = t ]; then
+        psql_db -d "$kept" -c "\\copy (select $LEDGER_COLUMNS from erasure_ledger) to stdout csv"
+      fi
+    done < <(kept_dbs)
     for dir in "$BACKUP_DIR"/*/; do
       dir="${dir%/}"
       valid_id "$(basename "$dir")" || continue
@@ -802,11 +927,13 @@ cmd_ledger_merge() {
   } | psql_db -d "$DB" >"/tmp/ledger-merge.$$" || fail "merging the erasure ledger failed"
   n="$(tail -n 1 "/tmp/ledger-merge.$$")"
   rm -f "/tmp/ledger-merge.$$"
-  log "erasure ledger merged: $n erasures recorded in the restored database"
+  log "erasure ledger merged from $(kept_dbs | grep -c . || true) kept database(s) and the backups: $n erasures recorded"
 
   # Keep the backup history (shown in readiness and /admin/settings) across
   # the restore. Best effort: it is status, not data.
-  if db_exists "$kept" && [ "$(psql_db -d "$kept" -c "select to_regclass('public.backup_run') is not null")" = t ]; then
+  while IFS= read -r kept; do
+    [ -n "$kept" ] || continue
+    [ "$(psql_db -d "$kept" -c "select to_regclass('public.backup_run') is not null")" = t ] || continue
     {
       echo "create temp table runs (operation text, trigger text, outcome text, backup_id text, size_bytes bigint, detail text, started_at timestamptz, finished_at timestamptz);"
       echo "\\copy runs from stdin csv"
@@ -815,8 +942,23 @@ cmd_ledger_merge() {
       echo "insert into backup_run ($RUN_COLUMNS) select $RUN_COLUMNS from runs r
         where not exists (select 1 from backup_run b where b.operation = r.operation
           and b.started_at = r.started_at and b.backup_id is not distinct from r.backup_id);"
-    } | psql_db -d "$DB" >/dev/null 2>&1 || log "could not carry the backup history over (status only)"
+    } | psql_db -d "$DB" >/dev/null 2>&1 || log "could not carry the backup history of $kept over (status only)"
+  done < <(kept_dbs)
+}
+
+# Waits until no backup, verify or restore holds the lock (upgrade/restore call
+# it before stopping the scheduler, so a running verify is never cut short).
+cmd_wait_idle() {
+  exec 9>"$BACKUP_DIR/.lock"
+  if ! flock -n 9; then
+    log "a backup or verify is running; waiting for it to finish (up to 30 minutes)"
+    flock -w 1800 9 || fail "a backup or verify is still running after 30 minutes"
   fi
+}
+
+# Exit 0 when the volume holds at least one encrypted backup.
+cmd_has_backups() {
+  find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep -Eq "$ID_PATTERN"
 }
 
 RUN_COLUMNS="operation, trigger, outcome, backup_id, size_bytes, detail, started_at, finished_at"
@@ -884,7 +1026,9 @@ case "$command" in
   schedule) cmd_schedule ;;
   restore-db) cmd_restore_db "$@" ;;
   undo-restore) cmd_undo_restore "$@" ;;
-  ledger-merge) cmd_ledger_merge "$@" ;;
+  ledger-merge) cmd_ledger_merge ;;
+  wait-idle) cmd_wait_idle ;;
+  has-backups) cmd_has_backups ;;
   record) record "$@" ;;
   export) cmd_export "$@" ;;
   import) cmd_import "$@" ;;

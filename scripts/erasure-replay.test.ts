@@ -4,9 +4,16 @@ import { describeReport, parseArgs } from "./erasure-replay";
 
 describe("scripts/erasure-replay.ts (Issue #64)", () => {
   test("accepts only --allow-remote", () => {
-    expect(parseArgs([])).toEqual({ allowRemote: false });
-    expect(parseArgs(["--allow-remote"])).toEqual({ allowRemote: true });
+    expect(parseArgs([])).toEqual({ allowRemote: false, mergeFromEnv: null });
+    expect(parseArgs(["--allow-remote"])).toEqual({ allowRemote: true, mergeFromEnv: null });
     expect(parseArgs(["--allow-remote", "user-1"])).toBeNull();
+    expect(parseArgs(["--merge-from-env", "OLD_DATABASE_URL", "--allow-remote"])).toEqual({
+      allowRemote: true,
+      mergeFromEnv: "OLD_DATABASE_URL",
+    });
+    // A URL on the command line is refused: it must come from the environment.
+    expect(parseArgs(["--merge-from-env", "postgres://u:p@db/old"])).toBeNull();
+    expect(parseArgs(["--merge-from-env"])).toBeNull();
   });
 
   test("reports counts only", () => {

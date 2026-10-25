@@ -138,6 +138,30 @@ describe("backup status (Issue #64)", () => {
     expect(backupState(status(1, { ...sched, nextRunAt: hoursAgo(3) }), false, NOW)).toBe("stale");
   });
 
+  test("a schedule row nobody refreshed for days is ignored, so readiness is not stuck stale", async () => {
+    const row = (updatedHours: number) => ({
+      last_backup: {
+        backup_id: "20261015T030000Z-daily",
+        trigger: "daily",
+        size_bytes: 1,
+        finished_at: hoursAgo(240),
+      },
+      last_verify: null,
+      last_failure: null,
+      latest_backup_outcome: "ok",
+      schedule: {
+        next_run_at: hoursAgo(230),
+        hour_utc: 3,
+        daily_retain: 14,
+        updated_at: hoursAgo(updatedHours),
+      },
+    });
+    expect((await readBackupStatus(fakeBackupDb(row(20)), NOW)).state).toBe("stale");
+    const moved = await readBackupStatus(fakeBackupDb(row(240)), NOW);
+    expect(moved.state).toBe("ok");
+    expect(moved.schedule).toBeNull();
+  });
+
   test("unknown when the status cannot be read; never throws", async () => {
     const broken = {
       execute: async () => {

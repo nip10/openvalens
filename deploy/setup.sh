@@ -50,7 +50,9 @@
 #               cleanup       list what restores kept (and legacy unencrypted
 #                             dumps); --force deletes them
 #               undo-restore <stamp>  put back the database and files a
-#                             restore kept (the server stays stopped)
+#                             restore kept; the current ones are kept in turn,
+#                             the erasure ledger is re-applied (asks to
+#                             confirm; --force skips)
 # restore     Builds the checked-out version (for a rollback: check out the
 #             previous version first), verifies the backup, stops the app,
 #             keeps the current database (renamed openvalens_pre_restore_<stamp>)
@@ -77,6 +79,10 @@
 # --force            restore: skip the confirmation prompt (required with
 #                    --non-interactive). backup cleanup: delete what it lists.
 # --quick            backup verify: skip the scratch-database restore.
+# --new-backup-key   install/upgrade: generate a new backup key although the
+#                    'backups' volume holds backups and the key file is missing.
+#                    Those backups then stay unreadable until the old key is put
+#                    back; normally restore your escrowed key instead.
 # --no-build         restore: use the images OPENVALENS_VERSION in deploy/.env
 #                    names as they are, instead of building the checked-out
 #                    version (the rollback rehearsal uses pre-built images).
@@ -96,6 +102,7 @@ RECONFIGURE=0
 FORCE=0
 QUICK=0
 NO_BUILD=0
+NEW_BACKUP_KEY=0
 CATALOG_SOURCES=""
 ARGS=()
 while [ $# -gt 0 ]; do
@@ -104,6 +111,7 @@ while [ $# -gt 0 ]; do
     --force) FORCE=1 ;;
     --quick) QUICK=1 ;;
     --no-build) NO_BUILD=1 ;;
+    --new-backup-key) NEW_BACKUP_KEY=1 ;;
     --source)
       [ "$command" = catalogs ] && [ $# -gt 1 ] || {
         echo "setup: --source needs a value and applies to catalogs only (see deploy/setup.sh --help)" >&2
@@ -251,7 +259,7 @@ gather_config() {
 # --reconfigure). Every other line is the operator's and is copied through.
 MANAGED_KEYS="OPENVALENS_DOMAIN OPENVALENS_SITE_SCHEME ACME_EMAIL EMAIL_FROM OPENVALENS_VERSION
   OPENVALENS_PRE_MIGRATE_BACKUP OPENVALENS_BACKUP_RETAIN OPENVALENS_BACKUP_DAILY_RETAIN
-  OPENVALENS_BACKUP_HOUR STORAGE_PROVIDER
+  OPENVALENS_BACKUP_HOUR OPENVALENS_BACKUP_SCHEDULE OPENVALENS_BACKUP_HOST_ID STORAGE_PROVIDER
   STORAGE_S3_ENDPOINT STORAGE_S3_REGION STORAGE_S3_BUCKET
   STORAGE_S3_FORCE_PATH_STYLE STORAGE_S3_SSE BACKUP_OFFSITE_S3_ENDPOINT
   BACKUP_OFFSITE_S3_REGION BACKUP_OFFSITE_S3_BUCKET BACKUP_OFFSITE_S3_PREFIX
@@ -350,6 +358,12 @@ OPENVALENS_PRE_MIGRATE_BACKUP=$(env_get OPENVALENS_PRE_MIGRATE_BACKUP | grep . |
 OPENVALENS_BACKUP_RETAIN=$(env_get OPENVALENS_BACKUP_RETAIN | grep . || echo 10)
 OPENVALENS_BACKUP_DAILY_RETAIN=$(env_get OPENVALENS_BACKUP_DAILY_RETAIN | grep . || echo 14)
 OPENVALENS_BACKUP_HOUR=$(env_get OPENVALENS_BACKUP_HOUR | grep . || echo 3)
+# off: no daily backups (you back up yourself, e.g. with a hook); readiness then
+# never reports them stale. Pre-migrate backups follow OPENVALENS_PRE_MIGRATE_BACKUP.
+OPENVALENS_BACKUP_SCHEDULE=$(env_get OPENVALENS_BACKUP_SCHEDULE | grep . || echo on)
+# This host's folder in the off-site bucket; generated once. Delete this line
+# when you copy deploy/.env to a NEW host, so it gets its own folder.
+OPENVALENS_BACKUP_HOST_ID=$(env_get OPENVALENS_BACKUP_HOST_ID | grep . || od -An -tx1 -N8 /dev/urandom | tr -d ' \n')
 # Object storage: local (default, the "storage" volume) | s3. See docs/storage.md.
 STORAGE_PROVIDER=$(env_get STORAGE_PROVIDER | grep . || echo local)
 STORAGE_S3_ENDPOINT=$(env_get STORAGE_S3_ENDPOINT)
@@ -456,6 +470,11 @@ ensure_backup_key() {
   if [ "$DRY_RUN" -eq 1 ]; then
     log "[dry-run] would generate the backup key into deploy/secrets/backup/age-identity"
     return 0
+  fi
+  # A missing key next to existing backups is almost always a lost or not yet
+  # restored key: a new one would silently leave every backup unreadable.
+  if [ "$NEW_BACKUP_KEY" -eq 0 ] && compose run --rm --no-deps -T backup-tools has-backups >/dev/null 2>&1; then
+    die "deploy/secrets/backup/age-identity is missing but the 'backups' volume holds encrypted backups. Put your escrowed key back there (mode 0444) and re-run; only if that key is lost for good, re-run with --new-backup-key (the old backups stay unreadable)."
   fi
   local tmp="$BACKUP_KEY.tmp.$$"
   (
@@ -622,6 +641,7 @@ cmd_upgrade() {
   run compose build
   ensure_backup_key
   # Stop the old server first so it never serves a half-migrated database.
+  stop_scheduler
   run compose stop caddy web server
   start_chain
   [ "$DRY_RUN" -eq 1 ] && log "[dry-run] nothing was changed" && return 0
@@ -826,6 +846,19 @@ require_backup_key() {
     die "no backup key at deploy/secrets/backup/age-identity: run 'deploy/setup.sh upgrade' to create one, or (to restore) put your escrowed copy there (mode 0444)"
 }
 
+# Waits for a running backup or verify (it holds the lock), then stops the
+# scheduler, so an upgrade or restore never races or cuts one short.
+stop_scheduler() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    run compose stop backup-scheduler
+    return 0
+  fi
+  if [ -s "$BACKUP_KEY" ]; then
+    tools wait-idle || die "a backup or verify is still running; try again later"
+  fi
+  compose stop backup-scheduler >/dev/null 2>&1 || true
+}
+
 start_postgres() { compose up -d --wait postgres >/dev/null 2>&1 || die "postgres did not start"; }
 
 cmd_backup() {
@@ -905,10 +938,15 @@ cmd_backup() {
       [ ${#ARGS[@]} -eq 2 ] || die "usage: deploy/setup.sh backup undo-restore <stamp>"
       stamp="${ARGS[1]}"
       printf '%s' "$stamp" | grep -Eq '^[0-9]{14}$' || die "the stamp is the 14 digits printed by restore"
-      compose stop caddy web server backup-scheduler >/dev/null 2>&1 || true
+      confirm_undo "$stamp"
+      RESTORE_STAMP="$(date -u +%Y%m%d%H%M%S)"
       start_postgres
-      tools undo-restore "$stamp" || die "undo failed; the server is stopped"
-      log "start the stack again with: deploy/setup.sh upgrade"
+      log "stopping the app (caddy, web, server, backup-scheduler)"
+      stop_scheduler
+      compose stop caddy web server >/dev/null 2>&1 || true
+      tools undo-restore "$stamp" "$RESTORE_STAMP" ||
+        die "undo failed; nothing was swapped (stamp $RESTORE_STAMP). The server is stopped: deploy/setup.sh upgrade starts it"
+      finish_restore "undo of restore $stamp"
       ;;
     *) die "usage: deploy/setup.sh backup now|list|verify|export|import|pull|cleanup|undo-restore (see --help)" ;;
   esac
@@ -929,6 +967,49 @@ EOF
   printf 'Type RESTORE to continue: ' >&2
   IFS= read -r answer || true
   [ "$answer" = RESTORE ] || die "cancelled; nothing was changed"
+}
+
+confirm_undo() {
+  if [ "$FORCE" -eq 1 ]; then return 0; fi
+  [ "$INTERACTIVE" -eq 1 ] || die "a --non-interactive undo-restore needs --force"
+  local answer=""
+  cat >&2 <<EOF
+
+Undo puts back the database and stored files that restore $1 kept. Everything
+written since that restore leaves the live instance (it is KEPT, renamed, and
+can be brought back with another undo-restore). People who deleted their data
+in the meantime stay deleted: the erasure ledger is re-applied.
+EOF
+  printf 'Type UNDO to continue: ' >&2
+  IFS= read -r answer || true
+  [ "$answer" = UNDO ] || die "cancelled; nothing was changed"
+}
+
+# After the database and files are swapped (restore or undo): migrate, merge
+# the erasure ledgers of every kept database and backup, replay them, start.
+finish_restore() {
+  log "applying migrations"
+  compose run --rm --no-deps -T migrate || restore_halted "migrations failed"
+  echo # drizzle-kit ends its progress line without a newline
+  log "merging the erasure ledgers"
+  tools ledger-merge || restore_halted "merging the erasure ledger failed"
+  log "re-applying the erasure ledger"
+  compose run --rm --no-deps -T --workdir /app server \
+    bun --no-env-file scripts/erasure-replay.ts --allow-remote ||
+    restore_halted "re-applying the erasure ledger failed"
+  tools record restore manual ok "${RESTORED_ID:-}" "$1" || true
+  log "starting the stack (it takes a fresh pre-migrate backup)"
+  start_chain
+  cat <<EOF
+
+Done: $1, at https://$(env_get OPENVALENS_DOMAIN)
+  Kept from before (stamp $RESTORE_STAMP):
+    database  openvalens_pre_restore_$RESTORE_STAMP
+    files     .pre-restore-$RESTORE_STAMP in the 'storage' volume
+  These copies hold live data and later erasures do NOT reach them: check the
+  instance, then delete them with: deploy/setup.sh backup cleanup --force
+  Or go back to them: deploy/setup.sh backup undo-restore $RESTORE_STAMP
+EOF
 }
 
 restore_halted() {
@@ -963,34 +1044,32 @@ cmd_restore() {
   confirm_restore "$id"
 
   RESTORE_STAMP="$(date -u +%Y%m%d%H%M%S)"
-  log "stopping the app (caddy, web, server, backup-scheduler)"
-  compose stop caddy web server backup-scheduler >/dev/null 2>&1 || true
-  if ! tools restore-db "$id" "$RESTORE_STAMP"; then
-    warn "the restore failed and the previous database and files were put back."
-    warn "the server is stopped; start it again with: deploy/setup.sh upgrade"
-    exit 1
-  fi
-  log "applying migrations to the restored database"
-  compose run --rm --no-deps -T migrate || restore_halted "migrations failed on the restored database"
-  echo # drizzle-kit ends its progress line without a newline
-  log "merging the erasure ledgers"
-  tools ledger-merge "$RESTORE_STAMP" || restore_halted "merging the erasure ledger failed"
-  log "re-applying the erasure ledger"
-  compose run --rm --no-deps -T --workdir /app server \
-    bun --no-env-file scripts/erasure-replay.ts --allow-remote ||
-    restore_halted "re-applying the erasure ledger failed"
-  tools record restore manual ok "$id"
-  log "starting the stack (it takes a fresh pre-migrate backup of the restored data)"
-  start_chain
-  cat <<EOF
-
-Restored backup $id at https://$(env_get OPENVALENS_DOMAIN)
-  Kept from before the restore (stamp $RESTORE_STAMP):
-    database  openvalens_pre_restore_$RESTORE_STAMP
-    files     .pre-restore-$RESTORE_STAMP in the 'storage' volume
-  Check the instance, then delete them: deploy/setup.sh backup cleanup --force
-  Or go back to them: deploy/setup.sh backup undo-restore $RESTORE_STAMP
-EOF
+  RESTORED_ID="$id"
+  log "stopping the app (caddy, web, server, backup-scheduler); restore stamp $RESTORE_STAMP"
+  stop_scheduler
+  compose stop caddy web server >/dev/null 2>&1 || true
+  local status=0
+  tools restore-db "$id" "$RESTORE_STAMP" || status=$?
+  case "$status" in
+    0) ;;
+    2)
+      warn "the restore failed (stamp $RESTORE_STAMP) and was rolled back: see the lines above for what was put back."
+      warn "the server is stopped; start it again with: deploy/setup.sh upgrade"
+      exit 1
+      ;;
+    3)
+      warn "the restore failed (stamp $RESTORE_STAMP) and the rollback is INCOMPLETE: see the lines above."
+      warn "do not start the server; the previous database is openvalens_pre_restore_$RESTORE_STAMP,"
+      warn "the previous files are .pre-restore-$RESTORE_STAMP in the storage volume."
+      exit 1
+      ;;
+    *)
+      warn "the restore did not start (stamp $RESTORE_STAMP); nothing was swapped. See the lines above."
+      warn "the server is stopped; start it again with: deploy/setup.sh upgrade"
+      exit 1
+      ;;
+  esac
+  finish_restore "restored backup $id"
 }
 
 case "$command" in

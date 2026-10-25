@@ -79,6 +79,15 @@ Every run is recorded in the database. The **readiness probe** reports
 backups are `failing` or `stale`. **`/admin/settings`** shows the last backup,
 the last verify, the next scheduled backup and the step of the last failure.
 
+### Using your own backups instead
+
+If you back up some other way (a `hook`, volume snapshots), set
+`OPENVALENS_BACKUP_SCHEDULE=off` in `deploy/.env` and run
+`deploy/setup.sh install`. The scheduler then takes no daily backups and
+removes its schedule, so readiness does not report backups as `stale`.
+Readiness also ignores a schedule nobody has refreshed for three days (for
+example after the database moved off the self-host stack).
+
 ### The pre-migrate backup mode
 
 Select it in `deploy/.env` ([Configuration](configuration.md#deployenv)):
@@ -185,6 +194,12 @@ same retention in the bucket as on the host: the newest
 pre-migrate backups; manual backups stay until you delete them there.
 `backup now` uploads right away.
 
+Each host uploads into its own folder, `<prefix>/<OPENVALENS_BACKUP_HOST_ID>/`
+(a random id `install` writes once into `deploy/.env`), and retention only
+ever prunes that folder. A new host restoring from the bucket therefore never
+deletes the old host's backups, however many daily backups of its own it
+takes. `backup pull` lists and fetches from every folder.
+
 An upload never blocks anything: the pre-migrate backup only has to exist and
 verify on the host before a migration runs. A failed upload is retried every
 15 minutes and recorded: readiness reports `checks.backupOffsite: failing`
@@ -246,19 +261,36 @@ deploy/setup.sh restore <id> --non-interactive --force
    data.
 
 Everything written after the backup is lost from the live instance (it is
-still in the kept database). When the instance looks right, delete what the
-restore kept; to go back instead, undo it:
+still in the kept database).
+
+> **The kept copies hold live data.** `openvalens_pre_restore_<stamp>` and
+> `storage/.pre-restore-<stamp>/` are full copies of the instance as it was
+> before the restore. Later "Delete everything" requests do **not** reach
+> them, and they are not in any backup. Delete them with
+> `deploy/setup.sh backup cleanup --force` as soon as you accept the restore.
+
+When the instance looks right, delete what the restore kept; to go back
+instead, undo it:
 
 ```bash
 deploy/setup.sh backup cleanup            # lists kept databases, files and legacy dumps
 deploy/setup.sh backup cleanup --force    # deletes them
-deploy/setup.sh backup undo-restore <stamp>   # puts the kept database and files back
-deploy/setup.sh upgrade                   # then start the stack again
+deploy/setup.sh backup undo-restore <stamp>   # asks you to type UNDO (--force skips)
 ```
 
-If a step after the restore fails (a migration or the ledger replay), the
+`undo-restore` never drops anything: the database and files it replaces are
+kept in turn under a new stamp (so an undo can be undone), then it migrates,
+merges the erasure ledgers of **every** kept database and backup, re-applies
+them and starts the stack. Anyone who deleted their data after the restore
+stays deleted.
+
+If the restore itself fails, the previous database and files are put back
+automatically, and the message says exactly what was put back and gives the
+stamp. If a step after it fails (a migration or the ledger replay), the
 server stays stopped and the message names the stamp: fix the cause and run
-the restore again, or undo it.
+the restore again (the ledger merge reads every kept database, so erasures
+recorded only in a database kept by the first attempt still apply), or undo
+it.
 
 For a rollback to the previous release after a failed upgrade, see
 [Upgrading](upgrading.md#rolling-back) and the
@@ -267,7 +299,13 @@ For a rollback to the previous release after a failed upgrade, see
 ## Restoring onto a new host
 
 1. On the new host, check out the same OpenValens version (or a newer one).
-2. Put the escrowed key in place **before** installing, so `install` keeps it:
+   If you copy the old `deploy/.env` over, delete its
+   `OPENVALENS_BACKUP_HOST_ID` line first so the new host gets its own folder
+   in the off-site bucket (or set a new `BACKUP_OFFSITE_S3_PREFIX`).
+2. Put the escrowed key in place **before** installing, so `install` keeps it
+   (`install` refuses to generate a new key while the `backups` volume holds
+   encrypted backups; `--new-backup-key` overrides that, leaving those backups
+   unreadable):
 
    ```bash
    install -d -m 0700 deploy/secrets && install -d -m 0755 deploy/secrets/backup

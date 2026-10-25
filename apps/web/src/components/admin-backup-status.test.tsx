@@ -100,7 +100,8 @@ describe("AdminBackupStatus (Issue #64)", () => {
       />,
     );
     expect(html).toContain("Not reported");
-    expect(html).toContain("No backup has been reported");
+    expect(html).toContain("No backup service has reported");
+    expect(html).toContain("docs/deployment.md, section 5");
   });
 
   test("loading and error states", () => {

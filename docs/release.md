@@ -225,6 +225,11 @@ deploy/setup.sh restore <stamp>-pre-migrate --no-build   # verify -> keep -> res
 bun scripts/verify-readiness.ts --base-url https://<domain> --expect <same as before>
 ```
 
+The previous release must include encrypted backups (Issue #64). For the first
+rollback past that release, which is image-only because its migration is
+additive, and for decrypting a backup by hand, see
+[Upgrading → Rolling back past the release that introduced encrypted backups](self-hosting/upgrading.md#rolling-back-past-the-release-that-introduced-encrypted-backups).
+
 `--no-build` starts the retained, manifest-verified previous images instead of
 rebuilding them; without it `restore` builds the checked-out version. Writes
 made after the upgrade are lost from the live instance (they remain in the
@@ -240,7 +245,10 @@ incident is closed and its data is reconciled.
 
 See [deployment.md §11](deployment.md#11-rollback-runbook): point the service
 at the previous approved image, and for a restore rollback restore the
-pre-migration dump to a side database and switch `DATABASE_URL`.
+pre-migration dump to a side database, **re-apply the erasure ledger to it**
+(`scripts/erasure-replay.ts --merge-from-env`, see
+[Database rollback](deployment.md#database-rollback)), and only then switch
+`DATABASE_URL`.
 
 ## 7. Rollback rehearsal (local, disposable)
 

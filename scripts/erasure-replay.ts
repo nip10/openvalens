@@ -13,6 +13,14 @@
  * Their stored objects are deleted from the configured storage (the same
  * `STORAGE_*` settings as the server).
  *
+ * Platform deployments (Coolify/Dokploy, docs/deployment.md) restore a dump
+ * into a side database instead. Run this against the restored database before
+ * it takes traffic, with the replaced database's URL in an environment
+ * variable (never on the command line), to copy that database's ledger first:
+ *
+ *   OLD_DATABASE_URL=... DATABASE_URL=<restored> \
+ *     bun --no-env-file scripts/erasure-replay.ts --merge-from-env OLD_DATABASE_URL --allow-remote
+ *
  * Operator tool, never a request path. It needs an explicit `DATABASE_URL` (or
  * `DATABASE_URL_FILE`), refuses a non-loopback database without
  * `--allow-remote`, and prints counts only — never ids or record contents.
@@ -20,21 +28,34 @@
  */
 
 import { resolveFileSecrets } from "../packages/config/src/file-secrets.ts";
-import { replayErasureLedger } from "../packages/data-rights/src/replay.ts";
+import {
+  mergeErasureLedger,
+  readErasureLedgerRows,
+  replayErasureLedger,
+} from "../packages/data-rights/src/replay.ts";
 import { createDb } from "../packages/db/src/index.ts";
 import { createObjectStorage } from "../packages/storage/src/adapter.ts";
 import { parseStorageConfig } from "../packages/storage/src/config.ts";
 import { isLoopbackDatabaseUrl } from "./admission.ts";
 
-const USAGE = "Usage: erasure-replay [--allow-remote]";
+const USAGE = "Usage: erasure-replay [--merge-from-env <VARIABLE>] [--allow-remote]";
 
-export function parseArgs(argv: readonly string[]): { allowRemote: boolean } | null {
+export type ReplayArgs = { allowRemote: boolean; mergeFromEnv: string | null };
+
+export function parseArgs(argv: readonly string[]): ReplayArgs | null {
   let allowRemote = false;
-  for (const arg of argv) {
+  let mergeFromEnv: string | null = null;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]!;
     if (arg === "--allow-remote") allowRemote = true;
-    else return null;
+    else if (arg === "--merge-from-env" && mergeFromEnv === null) {
+      const name = argv[i + 1];
+      if (!name || !/^[A-Z][A-Z0-9_]*$/.test(name)) return null;
+      mergeFromEnv = name;
+      i += 1;
+    } else return null;
   }
-  return { allowRemote };
+  return { allowRemote, mergeFromEnv };
 }
 
 export function describeReport(report: Awaited<ReturnType<typeof replayErasureLedger>>): string {
@@ -97,8 +118,35 @@ async function main(): Promise<void> {
       }
     : null;
 
+  let sourceUrl: string | null = null;
+  if (args.mergeFromEnv) {
+    sourceUrl = process.env[args.mergeFromEnv] ?? null;
+    if (!sourceUrl) {
+      process.stderr.write(
+        `${args.mergeFromEnv} is empty; it must hold the replaced database's URL.\n`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    if (!isLoopbackDatabaseUrl(sourceUrl) && !args.allowRemote) {
+      process.stderr.write("Refusing a remote database without --allow-remote.\n");
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   const db = createDb({ DATABASE_URL: url });
   try {
+    if (sourceUrl) {
+      const source = createDb({ DATABASE_URL: sourceUrl });
+      try {
+        const added = await mergeErasureLedger(db, await readErasureLedgerRows(source));
+        process.stdout.write(`Merged ${added} erasure-ledger rows from the replaced database.\n`);
+      } finally {
+        const client = (source as unknown as { $client?: { end: () => Promise<void> } }).$client;
+        if (client) await client.end();
+      }
+    }
     const report = await replayErasureLedger(db, storage);
     process.stdout.write(`${describeReport(report)}\n`);
     if (report.objects.failed > 0) {

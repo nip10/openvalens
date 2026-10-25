@@ -147,8 +147,10 @@ See `CONTRIBUTING.md` ("File-based secrets") for examples.
   Never reuse the smoke test's generated project or database for real data.
 - Use an internal/private `DATABASE_URL` when the app and database are on the
   same platform/network.
-- Before storing real PHI, configure encrypted Postgres backups and complete a
-  restore drill.
+- Before storing real PHI, configure encrypted Postgres backups (your
+  platform's or provider's database backups; OpenValens's own backup service
+  is part of the self-host stack only) and complete a restore drill, including
+  the erasure-ledger replay below ([Database rollback](#database-rollback)).
 - Before production migrations, take a volume/server snapshot or a `pg_dump`
   backup and store it outside the app container.
 - Run migrations during a quiet/maintenance window as a one-off command:
@@ -478,10 +480,33 @@ When you do need to revert a schema change:
 1. Restore the most recent pre-migration snapshot/pg_dump to a side database.
 2. Run the application's `bun run db:migrate` against that side DB until it
    catches up to the prior schema.
-3. Swap `DATABASE_URL` to the restored DB and roll the server image back as
+3. Re-apply the erasure ledger to the side database (below).
+4. Swap `DATABASE_URL` to the restored DB and roll the server image back as
    above.
-4. If the rollback affects retention or supersession, run the dedupe
+5. If the rollback affects retention or supersession, run the dedupe
    procedures manually before re-enabling cron.
+
+Before the restored database takes traffic, re-apply the erasure ledger, or
+people who used "Delete everything" after the dump come back. The server
+image has the tool; run it once, as a one-off command in the server's
+environment, with the replaced database's URL in an environment variable
+(never on the command line):
+
+```bash
+# DATABASE_URL = the restored side database; OLD_DATABASE_URL = the one it replaces
+OLD_DATABASE_URL=postgres://... DATABASE_URL=postgres://... \
+  bun --no-env-file scripts/erasure-replay.ts --merge-from-env OLD_DATABASE_URL --allow-remote
+```
+
+It copies the replaced database's `erasure_ledger` rows into the restored
+database (skipping rows it already has), then erases every person in the
+ledger again, including their stored objects (it uses the server's `STORAGE_*`
+settings). It prints counts only. If the replaced database is gone, run it
+without `--merge-from-env`: it then replays only the ledger the dump contains,
+so deletions made after the dump must be repeated by hand.
+
+The same applies to any restore of a platform database from a backup, not
+only rollbacks.
 
 Never run destructive SQL against production without a verified backup and
 the rollback image tag pinned in the platform.

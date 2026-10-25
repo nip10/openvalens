@@ -5857,8 +5857,8 @@ msgid "No activity yet"
 msgstr "Ainda sem atividade"
 
 #: apps/web/src/components/admin-backup-status.tsx
-msgid "No backup has been reported. The self-host stack backs up daily and before every upgrade; see docs/self-hosting/backup.md."
-msgstr "Nenhuma cópia de segurança foi comunicada. A instalação própria faz cópias diárias e antes de cada atualização; consulte docs/self-hosting/backup.md."
+msgid "No backup service has reported to this instance. On a platform deployment (Coolify, Dokploy, a managed database), backups are your provider's database backups: see docs/deployment.md, section 5. On the self-host stack, backups run daily and before every upgrade: see docs/self-hosting/backup.md."
+msgstr "Nenhum serviço de cópias de segurança comunicou com esta instância. Numa implementação em plataforma (Coolify, Dokploy, uma base de dados gerida), as cópias de segurança são as cópias da base de dados do seu fornecedor: consulte docs/deployment.md, secção 5. Na instalação própria, as cópias de segurança são feitas diariamente e antes de cada atualização: consulte docs/self-hosting/backup.md."
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx

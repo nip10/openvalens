@@ -82,8 +82,10 @@ function BackupDetails({ backups }: { backups: AdminBackupStatusOutput }) {
         <p className="text-sm text-muted-foreground">
           {backups.state === "off" ? (
             <Trans>
-              No backup has been reported. The self-host stack backs up daily and before every
-              upgrade; see docs/self-hosting/backup.md.
+              No backup service has reported to this instance. On a platform deployment (Coolify,
+              Dokploy, a managed database), backups are your provider's database backups: see
+              docs/deployment.md, section 5. On the self-host stack, backups run daily and before
+              every upgrade: see docs/self-hosting/backup.md.
             </Trans>
           ) : (
             <Trans>The backup status could not be read.</Trans>

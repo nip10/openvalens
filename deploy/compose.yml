@@ -136,6 +136,7 @@ x-backup-env: &backup-env
   OPENVALENS_BACKUP_RETAIN: ${OPENVALENS_BACKUP_RETAIN:-10}
   OPENVALENS_BACKUP_DAILY_RETAIN: ${OPENVALENS_BACKUP_DAILY_RETAIN:-14}
   OPENVALENS_BACKUP_HOUR: ${OPENVALENS_BACKUP_HOUR:-3}
+  OPENVALENS_BACKUP_SCHEDULE: ${OPENVALENS_BACKUP_SCHEDULE:-on}
   STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
 x-backup-tool-volume: &backup-tool-volume ./backup/openvalens-backup.sh:/opt/openvalens/openvalens-backup.sh:ro
 x-backup-secrets-volume: &backup-secrets-volume ./secrets/postgres:/run/secrets:ro
@@ -342,6 +343,8 @@ services:
       BACKUP_OFFSITE_S3_REGION: ${BACKUP_OFFSITE_S3_REGION:-}
       BACKUP_OFFSITE_S3_BUCKET: ${BACKUP_OFFSITE_S3_BUCKET:-}
       BACKUP_OFFSITE_S3_PREFIX: ${BACKUP_OFFSITE_S3_PREFIX:-openvalens}
+      # This host's folder in the bucket; retention never touches other folders.
+      OPENVALENS_BACKUP_HOST_ID: ${OPENVALENS_BACKUP_HOST_ID:-}
       BACKUP_OFFSITE_S3_FORCE_PATH_STYLE: ${BACKUP_OFFSITE_S3_FORCE_PATH_STYLE:-false}
       BACKUP_OFFSITE_S3_ACCESS_KEY_ID_FILE: /run/offsite-secrets/access-key-id
       BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY_FILE: /run/offsite-secrets/secret-access-key

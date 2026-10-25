@@ -98,7 +98,48 @@ database (`openvalens_pre_restore_<stamp>`) and files, restores the backup,
 re-applies the erasure ledger so deletions made after the upgrade stay
 deleted, and starts the previous version ([Restoring](backup.md#restoring)).
 Writes made after the upgrade are lost from the live instance. Practise on a
-copy first.
+copy first. This needs a previous version that has encrypted backups; for the
+first rollback past it, see below.
+
+### Rolling back past the release that introduced encrypted backups
+
+Versions before encrypted backups (Issue #64) have no `deploy/setup.sh
+restore`, and the pre-migrate backup is now encrypted. That release's only
+migration (`20261025090000_backup_status`) is additive (two new tables the
+older server ignores), so **rolling back past it is image-only**: check out the
+previous version, set `OPENVALENS_VERSION` in `deploy/.env` to it, and run
+`docker compose -f deploy/compose.yml up -d --remove-orphans` (it removes the
+backup services the older version does not have). No data is lost.
+
+If a migration of a later release must also be undone, restore the encrypted
+backup **while the newer checkout is still in place** (its tools can decrypt),
+then check out the older version:
+
+```bash
+C="docker compose -f deploy/compose.yml"
+$C stop caddy web server backup-scheduler
+$C run --rm --no-deps -T backup-tools verify <id>                      # decrypt + checksums + scratch restore
+$C run --rm --no-deps -T backup-tools restore-db <id> "$(date -u +%Y%m%d%H%M%S)"   # keeps the current DB and files
+git checkout <previous version>     # set OPENVALENS_VERSION in deploy/.env to it
+$C up -d --remove-orphans
+```
+
+To decrypt a backup by hand with the escrowed key, for example on a machine
+without OpenValens, use [age](https://age-encryption.org) and `pg_restore`
+directly (the plaintext never touches the disk):
+
+```bash
+age --decrypt --identity /path/to/age-identity <id>/database.dump.age |
+  pg_restore --no-owner --exit-on-error --dbname=<empty database>
+age --decrypt --identity /path/to/age-identity <id>/files.tar.age | tar -C <storage dir> -xpf -
+```
+
+The erasure-ledger replay needs the version that took the backup or a newer
+one: an older server's code may not match the backup's schema. After a manual
+restore to an older version, list the erasures the restored database is
+missing from the kept database
+(`select subject_user_id, erased_at from erasure_ledger`) and repeat those
+deletions once you are on a version with `restore` again.
 
 For an approved release, the [release runbook](../release.md#6-rollback) has
 the rollback commands that keep the upgraded database for forensics and start

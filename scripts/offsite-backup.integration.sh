@@ -19,6 +19,13 @@
 #   4. B: an empty stack with the escrowed key pulls a backup with
 #      `deploy/setup.sh backup pull <id>`, verifies it and restores it; the rows
 #      and the stored file match A.
+#   5. B's own daily backups (retention 2) never prune A's folder in the bucket.
+#   6. Restore safety on B: a restore re-run after a halt still merges the
+#      ledger of the database the FIRST attempt kept; undo-restore keeps the
+#      database it replaces and its erasures are merged back; a restore that
+#      fails half-way rolls back and says so.
+#   7. A: OPENVALENS_BACKUP_SCHEDULE=off takes no daily backup and removes the
+#      schedule row, so readiness cannot report backups stale.
 #
 # It does not build the server or web images, so it stops short of
 # `deploy/setup.sh restore` (migrations and erasure-ledger replay need the
@@ -99,6 +106,7 @@ BACKUP_OFFSITE_S3_ENDPOINT=http://minio:9000
 BACKUP_OFFSITE_S3_REGION=us-east-1
 BACKUP_OFFSITE_S3_BUCKET=$BUCKET
 BACKUP_OFFSITE_S3_PREFIX=hosts/test
+OPENVALENS_BACKUP_HOST_ID=host-$name-$RUN_ID
 BACKUP_OFFSITE_S3_FORCE_PATH_STYLE=true
 COMPOSE_PROFILES=offsite
 EOF
@@ -113,6 +121,7 @@ setup_a() { COMPOSE_PROJECT_NAME="$A" bash "$WORK/a/deploy/setup.sh" "$@"; }
 setup_b() { COMPOSE_PROJECT_NAME="$B" bash "$WORK/b/deploy/setup.sh" "$@"; }
 psql_a() { ca exec -T postgres psql -U postgres -d openvalens -XAtq -v ON_ERROR_STOP=1 "$@"; }
 psql_b() { cb exec -T postgres psql -U postgres -d openvalens -XAtq -v ON_ERROR_STOP=1 "$@"; }
+pgadmin_b() { cb exec -T postgres psql -U postgres -d postgres -XAtq -v ON_ERROR_STOP=1 "$@"; }
 
 # rclone against the test bucket from inside the A off-site network.
 s3() {
@@ -201,13 +210,13 @@ PRE="$(ca run --rm --no-deps -T backup-tools list 2>/dev/null | cut -f1 | grep -
 [ -n "$PRE" ] || die "no pre-migrate backup was written"
 ca up -d backup-offsite 2>&1 | quiet
 for _ in $(seq 1 60); do
-  s3 lsf "m:$BUCKET/hosts/test/$PRE/SHA256SUMS" 2>/dev/null | grep -q . && break
+  s3 lsf "m:$BUCKET/hosts/test/host-a-$RUN_ID/$PRE/SHA256SUMS" 2>/dev/null | grep -q . && break
   sleep 1
 done
 ca stop backup-offsite 2>&1 | quiet
 
 step "the bucket: retention applied, ciphertext only, no canary"
-REMOTE="$(s3 lsf --dirs-only "m:$BUCKET/hosts/test/" | sed 's#/$##' | sort)"
+REMOTE="$(s3 lsf --dirs-only "m:$BUCKET/hosts/test/host-a-$RUN_ID/" | sed 's#/$##' | sort)"
 printf '%s\n' "$REMOTE" | sed 's/^/  remote: /'
 check "daily backups kept off site (retention 2 of 3)" \
   "$(printf '%s\n' "$REMOTE" | grep -c -- '-daily$')" 2
@@ -216,7 +225,7 @@ check "oldest daily backup pruned off site" \
 check "backup now uploaded" "$(printf '%s\n' "$REMOTE" | grep -c -- "^$MANUAL$")" 1
 check "pre-migrate backup uploaded by the uploader service" "$(printf '%s\n' "$REMOTE" | grep -c -- "^$PRE$")" 1
 mkdir -p "$WORK/download"
-s3 copy "m:$BUCKET/hosts/test" /download >/dev/null
+s3 copy "m:$BUCKET/hosts/test/host-a-$RUN_ID" /download >/dev/null
 check "objects other than *.age and SHA256SUMS" \
   "$(find "$WORK/download" -type f ! -name '*.age' ! -name SHA256SUMS | wc -l | tr -d ' ')" 0
 NOT_AGE=0
@@ -247,6 +256,14 @@ log "PASS pre-migrate backup (the migration gate) succeeds while the off-site co
 printf '%s\n' "$SECRET_KEY" >"$WORK/a/deploy/secrets/backup/BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY"
 chmod 0444 "$WORK/a/deploy/secrets/backup/BACKUP_OFFSITE_S3_SECRET_ACCESS_KEY"
 
+step "A: OPENVALENS_BACKUP_SCHEDULE=off takes no daily backup and clears the schedule"
+psql_a -c "insert into backup_schedule (id, next_run_at, hour_utc, daily_retain) values ('instance', now(), 3, 14) on conflict (id) do nothing" >/dev/null
+BEFORE="$(ca run --rm --no-deps -T backup-tools list 2>/dev/null | grep -c -- '-daily' || true)"
+ca run --rm --no-deps -T -e OPENVALENS_BACKUP_SCHEDULE=off --entrypoint bash backup-scheduler -c \
+  'timeout -s TERM 8 bash /opt/openvalens/openvalens-backup.sh schedule' 2>&1 | quiet | grep -E 'SCHEDULE=off' || true
+check "schedule row removed (readiness cannot go stale)" "$(psql_a -c "select count(*) from backup_schedule")" 0
+check "no daily backup taken" "$(ca run --rm --no-deps -T backup-tools list 2>/dev/null | grep -c -- '-daily' || true)" "$BEFORE"
+
 step "B: a fresh host with the escrowed key pulls $MANUAL from off site and restores it"
 cb up -d --wait postgres 2>&1 | quiet
 cb up --no-start backup-offsite 2>&1 | quiet
@@ -262,6 +279,57 @@ check "stored file restored on B" \
   "$(cb run --rm --no-deps -T --entrypoint sha256sum backup-tools /storage/org/org-a/11111111-1111-4111-8111-111111111111 2>/dev/null | cut -d' ' -f1)" "$FILE_SUM"
 check "pulled backup marked as already off site (not re-uploaded)" \
   "$(cb run --rm --no-deps -T --entrypoint test backup-tools -f "/backups/.offsite/$MANUAL.done" >/dev/null 2>&1 && echo yes || echo no)" yes
+
+step "B: its own daily backups never prune A's folder in the bucket"
+for _ in 1 2 3; do
+  id="$(cb run --rm --no-deps -T backup-tools create daily 2>/dev/null | tr -d '\r' | tail -n 1)"
+  cb run --rm --no-deps -T backup-offsite offsite-upload "$id" 2>&1 | quiet
+  sleep 1
+done
+check "A's daily backups still off site" \
+  "$(s3 lsf --dirs-only "m:$BUCKET/hosts/test/host-a-$RUN_ID/" | grep -c -- '-daily/$')" 2
+check "B's daily backups pruned to 2 in its own folder" \
+  "$(s3 lsf --dirs-only "m:$BUCKET/hosts/test/host-b-$RUN_ID/" | grep -c -- '-daily/$')" 2
+
+step "B: a re-run after a halted restore still sees the first attempt's kept ledger"
+ledger_has() { psql_b -c "select count(*) from erasure_ledger where subject_user_id = '$1'"; }
+psql_b -c "insert into erasure_ledger (subject_user_id, organization_ids, row_counts) values ('user-late', '[]', '{}')" >/dev/null
+cb run --rm --no-deps -T backup-tools restore-db "$MANUAL" 20991231000001 2>&1 | quiet | grep -E 'kept|restored' || true
+# The first attempt "halted" before its ledger merge; the operator re-runs.
+cb run --rm --no-deps -T backup-tools restore-db "$MANUAL" 20991231000002 2>&1 | quiet | grep -E 'kept|restored' || true
+check "erasure only in the first kept database, before the merge" "$(ledger_has user-late)" 0
+cb run --rm --no-deps -T backup-tools ledger-merge 2>&1 | quiet
+check "erasure merged from the first attempt's kept database" "$(ledger_has user-late)" 1
+
+step "B: undo-restore keeps the database it replaces and merges its erasures"
+psql_b -c "insert into erasure_ledger (subject_user_id, organization_ids, row_counts) values ('user-after-restore', '[]', '{}')" >/dev/null
+cb run --rm --no-deps -T backup-tools undo-restore 20991231000002 20991231000003 2>&1 | quiet
+check "the replaced database is kept, not dropped" \
+  "$(pgadmin_b -c "select count(*) from pg_database where datname = 'openvalens_pre_restore_20991231000003'")" 1
+check "erasure made after the restore is not yet in the undone database" "$(ledger_has user-after-restore)" 0
+cb run --rm --no-deps -T backup-tools ledger-merge 2>&1 | quiet
+check "erasure made after the restore merged back after the undo" "$(ledger_has user-after-restore)" 1
+
+step "B: a restore that fails half-way rolls back and says so"
+ROWS_BEFORE="$(psql_b -c "select count(*) from erasure_ledger")"
+BAD="20200101T000000Z-manual"
+cb run --rm --no-deps -T --entrypoint bash backup-tools -c \
+  "cp -a /backups/$MANUAL /backups/$BAD && head -c 600 /backups/$MANUAL/files.tar.age >/backups/$BAD/files.tar.age" 2>&1 | quiet
+set +e
+OUT="$(cb run --rm --no-deps -T backup-tools restore-db "$BAD" 20991231000004 2>&1)"
+STATUS=$?
+set -e
+printf '%s\n' "$OUT" | quiet | grep -E 'RESTORE FAILED|rolled back' | sed 's/^/  /'
+check "restore-db exit status (2 = rolled back)" "$STATUS" 2
+check "failure message names the step and the stamp" \
+  "$(printf '%s\n' "$OUT" | grep -c "RESTORE FAILED at step 'files' (stamp 20991231000004); rolled back: database yes, stored files yes")" 1
+check "live database unchanged after the rollback" "$(psql_b -c "select count(*) from erasure_ledger")" "$ROWS_BEFORE"
+check "kept database of the failed attempt renamed back (none left)" \
+  "$(pgadmin_b -c "select count(*) from pg_database where datname = 'openvalens_pre_restore_20991231000004'")" 0
+check "stored file intact after the rollback" \
+  "$(cb run --rm --no-deps -T --entrypoint sha256sum backup-tools /storage/org/org-a/11111111-1111-4111-8111-111111111111 2>/dev/null | cut -d' ' -f1)" "$FILE_SUM"
+check "failed restore recorded with its step" \
+  "$(psql_b -c "select outcome || ':' || detail from backup_run where operation = 'restore' order by id desc limit 1")" "failed:files"
 
 step "result"
 log "off-site backup test PASSED (local, disposable)"

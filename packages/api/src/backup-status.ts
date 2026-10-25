@@ -30,6 +30,12 @@ import { z } from "zod";
 export const STALE_AFTER_MS = 48 * 60 * 60 * 1000;
 /** A planned run this late means the scheduler is not running. */
 export const OVERDUE_AFTER_MS = 2 * 60 * 60 * 1000;
+/**
+ * A schedule row nobody has refreshed for this long is ignored: the scheduler
+ * is gone for good (the database moved off the self-host stack, or backups were
+ * switched to the operator's own). It refreshes the row at least daily.
+ */
+export const SCHEDULE_ABANDONED_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 
 export const backupStateSchema = z.enum(["ok", "failing", "stale", "off", "unknown"]);
 export type BackupState = z.infer<typeof backupStateSchema>;
@@ -174,7 +180,7 @@ export async function readBackupStatus(
           order by finished_at desc, id desc limit 1) as latest_offsite_outcome,
         (select outcome from backup_run where operation = 'backup'
           order by finished_at desc, id desc limit 1) as latest_backup_outcome,
-        (select row_to_json(s) from (select next_run_at, hour_utc, daily_retain
+        (select row_to_json(s) from (select next_run_at, hour_utc, daily_retain, updated_at
           from backup_schedule where id = 'instance') s) as schedule`),
     )[0];
     if (!row) return UNKNOWN;
@@ -182,7 +188,18 @@ export async function readBackupStatus(
     const backup = json(row.last_backup);
     const verify = json(row.last_verify);
     const failure = json(row.last_failure);
-    const schedule = json(row.schedule);
+    const scheduleRow = json(row.schedule);
+    const scheduleUpdated = scheduleRow
+      ? Date.parse(String(iso(scheduleRow.updated_at)))
+      : Number.NaN;
+    const schedule =
+      scheduleRow &&
+      !(
+        Number.isFinite(scheduleUpdated) &&
+        now.getTime() - scheduleUpdated > SCHEDULE_ABANDONED_AFTER_MS
+      )
+        ? scheduleRow
+        : null;
     const upload = json(row.last_offsite);
     const uploadFailure = json(row.last_offsite_failure);
     const status: Omit<BackupStatus, "state"> = {

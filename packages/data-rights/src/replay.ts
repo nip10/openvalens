@@ -64,6 +64,59 @@ export async function readErasureLedger(
   return [...bySubject.values()];
 }
 
+/** One erasure-ledger row as copied between databases (ids and counts only). */
+export type ErasureLedgerRow = {
+  subjectUserId: string;
+  organizationIds: unknown;
+  rowCounts: unknown;
+  erasedAt: string;
+};
+
+/** Every ledger row of a database (for example the one a restore replaced). */
+export async function readErasureLedgerRows(
+  db: Pick<Database, "execute">,
+): Promise<ErasureLedgerRow[]> {
+  const result = await db.execute(sql`select subject_user_id, organization_ids, row_counts,
+      to_char(erased_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as erased_at
+    from erasure_ledger order by erased_at, id`);
+  return (
+    result.rows as {
+      subject_user_id: string;
+      organization_ids: unknown;
+      row_counts: unknown;
+      erased_at: string;
+    }[]
+  ).map((row) => ({
+    subjectUserId: row.subject_user_id,
+    organizationIds: row.organization_ids,
+    rowCounts: row.row_counts,
+    erasedAt: row.erased_at,
+  }));
+}
+
+/**
+ * Adds the rows the target does not have yet (same subject and erasure time).
+ * Run before {@link replayErasureLedger} when a restore replaces a database, so
+ * erasures made after the backup are replayed too. Returns how many were added.
+ */
+export async function mergeErasureLedger(
+  db: Pick<Database, "execute">,
+  rows: readonly ErasureLedgerRow[],
+): Promise<number> {
+  let added = 0;
+  for (const row of rows) {
+    const result =
+      await db.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts, erased_at)
+      select ${row.subjectUserId}, ${JSON.stringify(row.organizationIds)}::jsonb,
+        ${JSON.stringify(row.rowCounts)}::jsonb, ${row.erasedAt}::timestamptz
+      where not exists (select 1 from erasure_ledger e
+        where e.subject_user_id = ${row.subjectUserId} and e.erased_at = ${row.erasedAt}::timestamptz)
+      returning 1`);
+    added += result.rows.length;
+  }
+  return added;
+}
+
 export async function replayErasureLedger(
   db: Database,
   storage: SelfErasureStorage | null,

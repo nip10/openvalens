@@ -191,6 +191,11 @@ describe("deploy/compose.yml", () => {
     expect(env.OPENVALENS_BACKUP_HOUR).toBe("${OPENVALENS_BACKUP_HOUR:-3}");
     expect(env.OPENVALENS_BACKUP_DAILY_RETAIN).toBe("${OPENVALENS_BACKUP_DAILY_RETAIN:-14}");
     expect(env.OPENVALENS_BACKUP_RETAIN).toBe("${OPENVALENS_BACKUP_RETAIN:-10}");
+    expect(env.OPENVALENS_BACKUP_SCHEDULE).toBe("${OPENVALENS_BACKUP_SCHEDULE:-on}");
+    // Each host prunes only its own folder in the off-site bucket.
+    expect(services["backup-offsite"]!.environment?.OPENVALENS_BACKUP_HOST_ID).toBe(
+      "${OPENVALENS_BACKUP_HOST_ID:-}",
+    );
   });
 
   test("the off-site uploader is opt-in, alone on an egress network, without DB or key", () => {
@@ -456,6 +461,7 @@ case " $* " in
   *" admission.sh mint "*) echo fake-setup-token ;;
   *" --entrypoint age-keygen "*) echo AGE-SECRET-KEY-1FAKESYNTHETICKEYFORTESTS ;;
   *" backup-tools import "*) cat >/dev/null ;;
+  *" backup-tools has-backups"*) exit \${FAKE_HAS_BACKUPS:-1} ;;
 esac
 exit 0
 `,
@@ -901,10 +907,12 @@ describe("deploy/setup.sh backup and restore (Issue #64)", () => {
       const steps = [
         "build",
         `backup-tools verify ${ID}`,
-        "stop caddy web server backup-scheduler",
+        "backup-tools wait-idle",
+        "stop backup-scheduler",
+        "stop caddy web server",
         `backup-tools restore-db ${ID} `,
         "run --rm --no-deps -T migrate",
-        "backup-tools ledger-merge ",
+        "backup-tools ledger-merge",
         "server bun --no-env-file scripts/erasure-replay.ts --allow-remote",
         `backup-tools record restore manual ok ${ID}`,
         "up -d",
@@ -960,6 +968,78 @@ describe("deploy/setup.sh backup and restore (Issue #64)", () => {
       expect(log).toContain("backup-tools offsite-sync");
       expect(box.run(["backup", "pull"]).exitCode).toBe(0);
       expect(dockerLog(box)).toContain("backup-offsite offsite-list");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("refuses to replace a missing key while encrypted backups exist (--new-backup-key overrides)", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      const key = join(box.dir, "secrets", "backup", "age-identity");
+      const original = readFileSync(key, "utf8");
+      rmSync(key);
+      const refused = box.run(install, { FAKE_HAS_BACKUPS: "0" });
+      expect(refused.exitCode).toBe(1);
+      expect(refused.output).toContain("Put your escrowed key back");
+      expect(existsSync(key)).toBe(false);
+      const forced = box.run([...install, "--new-backup-key"], { FAKE_HAS_BACKUPS: "0" });
+      expect(forced.exitCode).toBe(0);
+      expect(readFileSync(key, "utf8")).not.toBe("");
+      expect(original).toStartWith("AGE-SECRET-KEY-");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("undo-restore asks to confirm, keeps the current data and replays the ledger", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      writeFileSync(join(box.dir, "..", "docker.log"), "");
+      const refused = box.run(["backup", "undo-restore", "20261025110000", "--non-interactive"]);
+      expect(refused.exitCode).toBe(1);
+      expect(refused.output).toContain("needs --force");
+      expect(dockerLog(box)).not.toContain("undo-restore");
+
+      const done = box.run(["backup", "undo-restore", "20261025110000", "--force"]);
+      expect({ exitCode: done.exitCode, output: done.output }).toMatchObject({ exitCode: 0 });
+      const lines = dockerLog(box).split("\n");
+      const undo = lines.findIndex((l) =>
+        /backup-tools undo-restore 20261025110000 \d{14}$/.test(l),
+      );
+      const merge = lines.findIndex((l) => l.includes("backup-tools ledger-merge"));
+      const replay = lines.findIndex((l) => l.includes("scripts/erasure-replay.ts"));
+      expect(undo).toBeGreaterThan(-1);
+      expect(merge).toBeGreaterThan(undo);
+      expect(replay).toBeGreaterThan(merge);
+      expect(done.output).toContain("later erasures do NOT reach them");
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("upgrade waits for a running backup before stopping the scheduler", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      writeFileSync(join(box.dir, "..", "docker.log"), "");
+      expect(box.run(["upgrade"]).exitCode).toBe(0);
+      const lines = dockerLog(box).split("\n");
+      const wait = lines.findIndex((l) => l.includes("backup-tools wait-idle"));
+      const stop = lines.findIndex((l) => l.endsWith("stop backup-scheduler"));
+      const up = lines.findIndex((l) => l.endsWith(" up -d"));
+      expect(wait).toBeGreaterThan(-1);
+      expect(stop).toBeGreaterThan(wait);
+      expect(up).toBeGreaterThan(stop);
+      const env = box.readEnv();
+      expect(valuesOf(env, "OPENVALENS_BACKUP_SCHEDULE")).toEqual(["on"]);
+      expect(valuesOf(env, "OPENVALENS_BACKUP_HOST_ID")[0]).toMatch(/^[0-9a-f]{16}$/);
+      // The host id is generated once and kept.
+      const hostId = valuesOf(env, "OPENVALENS_BACKUP_HOST_ID")[0];
+      expect(box.run(install).exitCode).toBe(0);
+      expect(valuesOf(box.readEnv(), "OPENVALENS_BACKUP_HOST_ID")).toEqual([hostId]);
     } finally {
       box.cleanup();
     }
