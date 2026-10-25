@@ -410,7 +410,7 @@ export function PlainWaterSection({
 
   const conflictCard =
     conflict === null ? null : (
-      <div className="grid gap-2 border-l-2 border-warning pl-3 text-sm" role="alert">
+      <div className="grid gap-2 rounded-2xl bg-warning/10 px-4 py-3 text-sm" role="alert">
         <p className="font-display font-medium text-ink">{i18n._(WATER_COPY.conflictTitle)}</p>
         <p className="text-ink-2">{otherText(conflict)}</p>
         <p className="text-ink-2">{mineText(conflict)}</p>
