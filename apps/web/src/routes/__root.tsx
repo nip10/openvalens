@@ -4,7 +4,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-import Header from "@/components/header";
+import AppShell from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { orpc } from "@/utils/orpc";
 
@@ -42,17 +42,16 @@ function RootComponent() {
       <HeadContent />
       <ThemeProvider
         attribute="class"
-        defaultTheme="dark"
+        defaultTheme="system"
         disableTransitionOnChange
         storageKey="vite-ui-theme"
       >
-        {/* minmax(0,1fr) keeps wide page content (tables, <pre>) scrolling inside
-            its own box instead of widening the document and the header. */}
-        <div className="grid h-svh grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr]">
-          <Header />
+        {/* The shell's tracks are minmax(0,1fr) so wide page content (tables,
+            <pre>) scrolls inside its own box instead of widening the document. */}
+        <AppShell>
           <Outlet />
-        </div>
-        <Toaster richColors />
+        </AppShell>
+        <Toaster />
       </ThemeProvider>
       <TanStackRouterDevtools position="bottom-left" />
       <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />

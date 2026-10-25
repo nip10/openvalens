@@ -1,24 +1,140 @@
+/* Hallmark · shape: app screen · genre: editorial · theme: Almanac (deal 2/3, seed self-hosted-personal-health-record-9d6f·a53f3d9a·2026-10-25·r0) · redesign: full
+ * nav: a grouped sidebar (Today, Records, Sharing, Account), a menu under 60rem · signature: the day sheet, today's figures printed on the sheet beside one trend set large · states: loading, empty, error, full
+ * axes: mid/grotesk-sans/chromatic-magenta · posture: restrained · modes: light+dark · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: H, fourteen links of equal weight; grouped into four and the dashboard leads with one sheet instead of four cards */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* Self-hosted fonts (anchovy used next/font; CSP allows font-src 'self' only). */
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
-@import "@fontsource/cormorant-garamond/400.css";
-@import "@fontsource/cormorant-garamond/500.css";
-@import "@fontsource/cormorant-garamond/600.css";
-@import "@fontsource/cormorant-garamond/700.css";
+/* Self-hosted fonts (CSP allows font-src 'self' only). */
+@import "@fontsource-variable/hanken-grotesk";
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/newsreader/opsz-italic.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
 @import "./tokens.css";
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
+/* The web-only part of the scale: spacing steps, motion and stacking. */
+:root {
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+  --z-sticky-nav: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+  html,
+  body {
+    overflow-x: clip;
+  }
+  html {
+    scrollbar-color: var(--ink-3) var(--paper);
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background font-body antialiased;
+    color: var(--ink-2);
+    font-size: 1rem;
+    line-height: 1.55;
+    font-synthesis: none;
+    font-optical-sizing: auto;
+    caret-color: var(--signal);
+  }
+  .dark body {
+    font-weight: 350;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--signal) 22%, transparent);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-face-display);
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    overflow-wrap: break-word;
+    min-width: 0;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  a {
+    text-decoration-color: var(--signal);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+  }
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+  /* Figures that compare: mono, tabular, lined up. */
+  .num,
+  td.num {
+    font-family: var(--font-face-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  td.num,
+  th.num {
+    text-align: right;
+  }
+}
+
+@layer components {
+  /* The printed sheet: the pale stock records and tables sit on, a 2px ink
+     rule at its head and hairlines inside. Never a shadow, never a radius. */
+  .sheet {
+    background: var(--sheet);
+    border-top: 2px solid var(--ink);
+  }
+  /* A well: a paper step under a firm rule, for a quieter grouping. */
+  .well {
+    background: var(--paper-2);
+    border-top: 2px solid var(--rule-2);
+  }
+  .rule-firm {
+    border-bottom: 2px solid var(--rule-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *:not(.keep-motion),
+  *:not(.keep-motion)::before,
+  *:not(.keep-motion)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
