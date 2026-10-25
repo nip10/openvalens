@@ -35,7 +35,7 @@
 # scripts/erasure-replay.ts.
 #
 # This is NOT a production procedure and needs no deploy authorization. It
-# refuses a remote Docker daemon. Requires: git, docker (Compose v2), bun.
+# refuses a remote Docker daemon. Requires: git, docker (Compose v2), bun, curl.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -277,6 +277,12 @@ sql() { compose exec -T postgres psql -U postgres -d "${2:-openvalens}" -XAtq -v
 migration_count() { sql "select count(*) from drizzle.__drizzle_migrations"; }
 
 verify() {
+  # The server is healthy before Caddy has its internal certificate and accepts
+  # connections, so wait for Caddy (up to 60s) before the value-checking run.
+  for _ in $(seq 1 30); do
+    curl -sk -o /dev/null --max-time 2 "https://localhost:$HTTPS_PORT/" && break
+    sleep 2
+  done
   bun "$REPO_DIR/scripts/verify-readiness.ts" --base-url "https://localhost:$HTTPS_PORT" \
     --insecure --expect email=dry-run:resend,ai=off,messaging=off
 }
