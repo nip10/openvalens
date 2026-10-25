@@ -500,7 +500,7 @@ report_chain_failure() {
   echo >&2
   warn "the stack did not start. The server is NOT running; existing backups are kept."
   warn "inspect: docker compose -f deploy/compose.yml logs backup migrate server"
-  warn "list backups: docker compose -f deploy/compose.yml run --rm --no-deps --entrypoint ls backup -l /backups"
+  warn "list backups: deploy/setup.sh backup list"
   warn "fix the cause, then re-run: deploy/setup.sh upgrade (it takes a fresh backup first)"
 }
 
