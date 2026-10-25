@@ -129,6 +129,8 @@ export function InfoTip({
   const { _ } = useLingui();
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
+    // Non-browser renderers (react-test-renderer, SSR) have no document.
+    if (typeof document === "undefined") return;
     const close = (event: Event) => {
       const el = ref.current;
       if (!el?.open) return;
