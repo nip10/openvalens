@@ -197,7 +197,7 @@ export function Details({
 }
 
 /** One soft colour per measure; the same tone marks its icon, its bar and its chart. */
-export type Tone = "sleep" | "steps" | "heart" | "weight" | "water" | "food" | "signal";
+export type Tone = "sleep" | "steps" | "heart" | "weight" | "water" | "food" | "signal" | "neutral";
 
 const TONE_ICON: Record<Tone, string> = {
   sleep: "bg-sleep-soft text-sleep",
@@ -207,6 +207,7 @@ const TONE_ICON: Record<Tone, string> = {
   water: "bg-water-soft text-water",
   food: "bg-food-soft text-food",
   signal: "bg-sidebar-accent text-signal",
+  neutral: "bg-paper-2 text-ink-2",
 };
 const TONE_FILL: Record<Tone, string> = {
   sleep: "bg-sleep",
@@ -216,6 +217,7 @@ const TONE_FILL: Record<Tone, string> = {
   water: "bg-water",
   food: "bg-food",
   signal: "bg-signal",
+  neutral: "bg-ink-3",
 };
 const TONE_TRACK: Record<Tone, string> = {
   sleep: "bg-sleep-soft",
@@ -225,6 +227,7 @@ const TONE_TRACK: Record<Tone, string> = {
   water: "bg-water-soft",
   food: "bg-food-soft",
   signal: "bg-paper-2",
+  neutral: "bg-paper-2",
 };
 const TONE_TEXT: Record<Tone, string> = {
   sleep: "text-sleep",
@@ -234,6 +237,7 @@ const TONE_TEXT: Record<Tone, string> = {
   water: "text-water",
   food: "text-food",
   signal: "text-signal",
+  neutral: "text-ink-3",
 };
 
 /** A measure's icon in its soft round tint. */

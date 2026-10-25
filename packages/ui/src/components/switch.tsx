@@ -8,7 +8,7 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input data-[state=unchecked]:bg-paper-3 inline-flex h-5 w-9 shrink-0 items-center rounded-sm border border-input p-px transition-colors duration-[var(--dur-short)] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55",
+        "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-rule-2 inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-transparent p-0.5 transition-colors duration-[var(--dur-short)] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55",
         className,
       )}
       {...props}
@@ -16,7 +16,7 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         className={cn(
-          "bg-sheet data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-[1px] transition-transform duration-[var(--dur-short)] ease-[var(--ease-out)] data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0",
+          "bg-sheet data-[state=checked]:bg-primary-foreground pointer-events-none block size-5 rounded-full shadow-sm transition-transform duration-[var(--dur-short)] ease-[var(--ease-out)] data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0",
         )}
       />
     </SwitchPrimitive.Root>
