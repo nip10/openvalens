@@ -18,8 +18,9 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { Dumbbell, MousePointerClick, PersonStanding, ScanLine } from "lucide-react";
 
-import { Page, PageHeader, Section } from "@/components/page";
+import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/body-map")({ component: BodyMapPage });
@@ -31,6 +32,9 @@ export const Route = createFileRoute("/_auth/body-map")({ component: BodyMapPage
  */
 
 type Layer = "composition" | "training";
+
+const NATIVE_SELECT =
+  "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
 
 function localToday(): string {
   const now = new Date();
@@ -50,7 +54,11 @@ function Toggle<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="flex flex-wrap gap-1 rounded-full bg-paper-2 p-1"
+    >
       {options.map((option) => (
         <button
           key={option.value}
@@ -58,7 +66,7 @@ function Toggle<T extends string>({
           role="radio"
           aria-checked={value === option.value}
           onClick={() => onChange(option.value)}
-          className={`-ml-px h-9 border px-3 font-display text-sm font-medium transition-colors duration-[var(--dur-short)] first:ml-0 first:rounded-l-sm last:rounded-r-sm focus-visible:relative focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-paper-3 ${value === option.value ? "relative border-primary bg-primary text-primary-foreground" : "border-rule-2 bg-sheet text-ink-2 hover:bg-muted"}`}
+          className={`h-8 cursor-pointer rounded-full px-3.5 text-sm font-medium transition-colors duration-[var(--dur-short)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:bg-paper-3 ${value === option.value ? "bg-card text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}
         >
           {option.label}
         </button>
@@ -70,12 +78,12 @@ function Toggle<T extends string>({
 function Legend({ steps }: { steps: LegendStep[] }) {
   const { t } = useLingui();
   return (
-    <ul className="grid gap-1.5 text-sm text-ink-2" aria-label={t`Legend`}>
+    <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-ink-2" aria-label={t`Legend`}>
       {steps.map((step) => (
         <li key={step.label} className="flex items-center gap-2">
           <span
             aria-hidden
-            className="inline-block size-4 border border-rule-2"
+            className="inline-block size-3.5 rounded-full border border-rule"
             style={{ backgroundColor: step.colour }}
           />
           {step.label}
@@ -208,7 +216,7 @@ function BodyMapPage() {
     <Page>
       <PageHeader
         title={<Trans>Body map</Trans>}
-        description={i18n._(BODY_MAP_COPY.intro)}
+        info={i18n._(BODY_MAP_COPY.intro)}
         actions={
           <>
             <Toggle
@@ -239,9 +247,9 @@ function BodyMapPage() {
         }
       />
 
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         {result || figurePending ? (
-          <div className="sheet grid min-h-[30rem] place-items-center px-5 py-6">
+          <div className="sheet grid min-h-[30rem] place-items-center gap-5 px-5 py-6">
             {result ? (
               <BodyFigure
                 view={view}
@@ -257,11 +265,14 @@ function BodyMapPage() {
 
         <div className="grid min-w-0 content-start gap-8">
           {layer === "composition" ? (
-            <Section title={<Trans>Scan</Trans>}>
-              <div className="grid gap-3 border-t border-rule pt-4 text-sm">
-                <p className="text-ink-3">
-                  {i18n._(compareScanId ? BODY_MAP_COPY.compare : BODY_MAP_COPY.composition)}
-                </p>
+            <Section
+              icon={ScanLine}
+              tone="weight"
+              title={<Trans>Scan</Trans>}
+              info={i18n._(compareScanId ? BODY_MAP_COPY.compare : BODY_MAP_COPY.composition)}
+              sheet
+            >
+              <div className="grid gap-3 text-sm">
                 {scans.isPending ? (
                   <p role="status" className="text-ink-3">
                     <Trans>Loading scans…</Trans>
@@ -279,7 +290,7 @@ function BodyMapPage() {
                     <label className="grid gap-1.5 text-ink-3">
                       <Trans>Scan</Trans>
                       <select
-                        className="h-9 rounded-sm border border-input bg-sheet px-2 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+                        className={NATIVE_SELECT}
                         value={activeScanId ?? ""}
                         onChange={(event) => {
                           setScanId(Number(event.target.value));
@@ -296,7 +307,7 @@ function BodyMapPage() {
                     <label className="grid gap-1.5 text-ink-3">
                       <Trans>Compare with</Trans>
                       <select
-                        className="h-9 rounded-sm border border-input bg-sheet px-2 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+                        className={NATIVE_SELECT}
                         value={compareScanId ?? ""}
                         onChange={(event) =>
                           setCompareScanId(event.target.value ? Number(event.target.value) : null)
@@ -316,7 +327,7 @@ function BodyMapPage() {
                       <label className="grid gap-1.5 text-ink-3 sm:col-span-2">
                         <Trans>Measurement</Trans>
                         <select
-                          className="h-9 rounded-sm border border-input bg-sheet px-2 text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+                          className={NATIVE_SELECT}
                           value={activeType}
                           onChange={(event) => setMeasurementType(event.target.value)}
                         >
@@ -349,46 +360,56 @@ function BodyMapPage() {
             </Section>
           ) : (
             <Section
+              icon={Dumbbell}
+              tone="weight"
               title={
                 <Trans>
                   Sets from {trainingFrom} to {trainingTo}
                 </Trans>
               }
+              info={i18n._(BODY_MAP_COPY.training)}
             >
-              <div className="grid gap-2 border-t border-rule pt-4 text-sm">
-                <p className="text-ink-3">{i18n._(BODY_MAP_COPY.training)}</p>
-                {training.isError ? (
-                  <p role="alert" className="text-destructive">
-                    <Trans>Could not load your workouts.</Trans>
-                  </p>
-                ) : null}
-              </div>
+              {training.isError ? (
+                <p role="alert" className="text-sm text-destructive">
+                  <Trans>Could not load your workouts.</Trans>
+                </p>
+              ) : null}
             </Section>
           )}
 
           {result ? (
             <>
-              <div role="status" aria-live="polite" className="well px-5 py-4 text-sm">
-                {selectedRegion && selectedFill ? (
-                  <>
-                    <p className="font-display text-base font-medium text-ink">
-                      {i18n._(selectedRegion.label)}
-                    </p>
-                    <p className="num text-lg text-ink">{selectedFill.valueText ?? t`No value`}</p>
-                    {selectedFill.sourceText ? (
-                      <p className="text-ink-3">{selectedFill.sourceText}</p>
-                    ) : null}
-                    {layer === "composition" && composition.data ? (
-                      <p className="text-ink-3">
-                        <Trans>Scan {scanDate}</Trans>
+              <div
+                role="status"
+                aria-live="polite"
+                className="sheet flex items-start gap-3 p-5 text-sm"
+              >
+                <ToneIcon
+                  icon={selectedRegion && selectedFill ? PersonStanding : MousePointerClick}
+                  tone="weight"
+                />
+                <div className="grid min-w-0 gap-0.5">
+                  {selectedRegion && selectedFill ? (
+                    <>
+                      <p className="font-semibold text-ink-2">{i18n._(selectedRegion.label)}</p>
+                      <p className="num font-display text-[1.75rem] leading-tight font-medium text-ink">
+                        {selectedFill.valueText ?? t`No value`}
                       </p>
-                    ) : null}
-                  </>
-                ) : (
-                  <p className="text-ink-3">
-                    <Trans>Select a region to see its value.</Trans>
-                  </p>
-                )}
+                      {selectedFill.sourceText ? (
+                        <p className="text-ink-3">{selectedFill.sourceText}</p>
+                      ) : null}
+                      {layer === "composition" && composition.data ? (
+                        <p className="text-ink-3">
+                          <Trans>Scan {scanDate}</Trans>
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="pt-2 text-ink-3">
+                      <Trans>Select a region to see its value.</Trans>
+                    </p>
+                  )}
+                </div>
               </div>
               <Legend steps={result.legend} />
             </>
@@ -397,35 +418,36 @@ function BodyMapPage() {
       </div>
 
       {layer === "training" && trainingResult && training.data ? (
-        <Section title={<Trans>By muscle group</Trans>}>
+        <Section icon={Dumbbell} tone="weight" title={<Trans>By muscle group</Trans>}>
           <div className="grid gap-4 text-sm">
-            <ul className="sheet grid divide-y divide-rule px-5 sm:grid-cols-2 sm:gap-x-10 sm:divide-y-0">
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {TRAINING_GROUPS.map((group) => {
                 const count = formatSets(trainingResult.setsByGroup[group]);
                 return (
                   <li
                     key={group}
-                    className="flex items-baseline justify-between gap-2 py-2 sm:border-b sm:border-rule"
+                    className="sheet flex items-center justify-between gap-3 px-4 py-3"
                   >
-                    <span className="text-ink-2">{i18n._(TRAINING_GROUP_LABELS[group])}</span>
-                    <span className="num text-ink">{t`${count} sets`}</span>
+                    <span className="font-semibold text-ink-2">
+                      {i18n._(TRAINING_GROUP_LABELS[group])}
+                    </span>
+                    <span className="num shrink-0 rounded-full bg-weight-soft px-2.5 py-1 font-semibold text-ink">
+                      {t`${count} sets`}
+                    </span>
                   </li>
                 );
               })}
             </ul>
             {training.data.unmapped.length ? (
-              <div className="grid gap-1">
-                <p className="font-display font-medium text-ink">
-                  <Trans>Not counted (no catalog muscles)</Trans>
-                </p>
-                <ul className="grid gap-0.5 text-ink-2">
+              <Details summary={<Trans>Not counted (no catalog muscles)</Trans>}>
+                <ul className="sheet grid gap-1 p-5 text-ink-2">
                   {training.data.unmapped.map((item) => {
                     const name = item.name;
                     const count = item.sets;
                     return <li key={name}>{t`${name}: ${count} sets`}</li>;
                   })}
                 </ul>
-              </div>
+              </Details>
             ) : null}
             {trainingResult.unmappedMuscles.length ? (
               <p className="text-ink-3">

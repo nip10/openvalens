@@ -10,21 +10,23 @@ import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@openvalens/ui/components/table";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { FlaskConical, Plus, TestTube } from "lucide-react";
 
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
+import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useProductSettings } from "@/utils/product-settings";
@@ -63,7 +65,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   };
 
   return (
-    <Section title={<Trans>Add reading</Trans>} className="well px-5 pt-4 pb-5">
+    <Section icon={Plus} tone="water" title={<Trans>Add reading</Trans>} sheet>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
@@ -109,6 +111,92 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   );
 }
 
+type MarkerRow = {
+  code: string;
+  displayName: string;
+  unit: string | null;
+  latestValue: number | null;
+  latestSampledAt: string | null;
+  sampleCount: number;
+};
+
+function MarkerCard({
+  marker,
+  display,
+  settings,
+}: {
+  marker: MarkerRow;
+  display: { value: number | null; unit: string | null; converted: boolean };
+  settings: Parameters<typeof formatLabDate>[1];
+}) {
+  const { t, i18n } = useLingui();
+  const hasValue = marker.latestValue !== null;
+  return (
+    <li className="sheet grid min-w-0 content-start gap-3 p-4">
+      <div className="flex items-start gap-3">
+        <ToneIcon icon={TestTube} tone="water" />
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <span className="font-semibold break-words text-ink">
+            <span className="sr-only">
+              <Trans>Name</Trans>:{" "}
+            </span>
+            {marker.displayName}
+          </span>
+          <span className="text-sm text-ink-3">
+            <span className="sr-only">
+              <Trans>Date</Trans>:{" "}
+            </span>
+            {hasValue && marker.latestSampledAt ? (
+              <time
+                dateTime={marker.latestSampledAt}
+                title={formatLabDate(marker.latestSampledAt, settings)}
+              >
+                {friendlyDate(i18n, marker.latestSampledAt)}
+              </time>
+            ) : (
+              t`No readings yet`
+            )}
+          </span>
+        </div>
+        {hasValue ? (
+          <span className="num shrink-0 rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
+            <span className="sr-only">
+              <Trans>Value</Trans>:{" "}
+            </span>
+            {formatLabValue(display.value, null)}
+            {display.unit ? (
+              <span className="font-normal text-ink-2">
+                <span className="sr-only">
+                  {" "}
+                  <Trans>Unit</Trans>:
+                </span>{" "}
+                {display.unit}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+      </div>
+      {display.converted || marker.sampleCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {marker.sampleCount > 0 ? (
+            <StatusPill tone="neutral">
+              <Trans>Samples</Trans> <span className="num">{marker.sampleCount}</span>
+            </StatusPill>
+          ) : null}
+          {display.converted ? (
+            <span className="text-ink-3">
+              {t({
+                message: `Converted from ${marker.unit ?? ""}`,
+                comment: "safety",
+              })}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 function LabsPage() {
   const markers = useCacheFirst("labs.latest", () => client.labs.latest({ recentLimit: 10 }));
   const settingsQuery = useProductSettings();
@@ -127,9 +215,9 @@ function LabsPage() {
     return (
       <Page>
         {header}
-        <div className="sheet grid gap-3 px-5 py-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-6 w-full" />
+            <Skeleton key={i} className="h-24 w-full rounded-3xl" />
           ))}
         </div>
       </Page>
@@ -153,6 +241,8 @@ function LabsPage() {
   }
 
   const list = markers.data;
+  const withResults = list.filter((marker) => marker.latestValue !== null);
+  const waiting = list.filter((marker) => marker.latestValue === null);
 
   return (
     <Page>
@@ -162,6 +252,7 @@ function LabsPage() {
 
       {list.length === 0 ? (
         <EmptyState
+          icon={FlaskConical}
           title={<Trans>No lab markers yet</Trans>}
           description={
             <Trans>
@@ -171,61 +262,46 @@ function LabsPage() {
           }
         />
       ) : (
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-          <div className="sheet min-w-0 px-2 pt-2 pb-1">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <Trans>Name</Trans>
-                  </TableHead>
-                  <TableHead className="num">
-                    <Trans>Value</Trans>
-                  </TableHead>
-                  <TableHead>
-                    <Trans>Unit</Trans>
-                  </TableHead>
-                  <TableHead>
-                    <Trans>Date</Trans>
-                  </TableHead>
-                  <TableHead className="num">
-                    <Trans>Samples</Trans>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {list.map((marker) => {
-                  const display = shown(marker);
-                  return (
-                    <TableRow key={marker.code}>
-                      <TableCell className="font-display font-medium whitespace-normal text-ink">
-                        {marker.displayName}
-                      </TableCell>
-                      <TableCell className="num text-base text-ink">
-                        {formatLabValue(display.value, null)}
-                      </TableCell>
-                      <TableCell className="whitespace-normal text-ink-3">
-                        {display.unit ?? ""}
-                        {display.converted ? (
-                          <span className="block text-xs">
-                            {t({
-                              message: `Converted from ${marker.unit ?? ""}`,
-                              comment: "safety",
-                            })}
-                          </span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-ink-3">
-                        {marker.latestValue === null
-                          ? t`No readings yet`
-                          : formatLabDate(marker.latestSampledAt, settings)}
-                      </TableCell>
-                      <TableCell className="num text-ink-2">{marker.sampleCount}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+          <div className="grid min-w-0 content-start gap-8">
+            {withResults.length > 0 ? (
+              <Section icon={FlaskConical} tone="water" title={<Trans>Your results</Trans>}>
+                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
+                  {withResults.map((marker) => (
+                    <MarkerCard
+                      key={marker.code}
+                      marker={marker}
+                      display={shown(marker)}
+                      settings={settings}
+                    />
+                  ))}
+                </ul>
+              </Section>
+            ) : null}
+            {waiting.length > 0 ? (
+              <Section
+                icon={TestTube}
+                tone="water"
+                title={t`No readings yet`}
+                info={
+                  <Trans>
+                    Markers appear here once a lab reading is recorded for your account. Importing
+                    lab reports is not available yet.
+                  </Trans>
+                }
+              >
+                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
+                  {waiting.map((marker) => (
+                    <MarkerCard
+                      key={marker.code}
+                      marker={marker}
+                      display={shown(marker)}
+                      settings={settings}
+                    />
+                  ))}
+                </ul>
+              </Section>
+            ) : null}
           </div>
           <AddReadingForm markerCode={list[0]?.code ?? ""} onSaved={() => void markers.refetch()} />
         </div>
