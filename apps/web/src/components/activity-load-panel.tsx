@@ -3,15 +3,17 @@ import type { ActivityLoadResult } from "@openvalens/api/activity-load-contract"
 import {
   ACTIVITY_LOAD_COPY,
   activityLoadView,
+  formatDay,
   type ActivityNumberView,
 } from "@openvalens/api/presenters/activity-load";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@openvalens/ui/components/chart";
+import { cn } from "@openvalens/ui/lib/utils";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 /**
  * Issue #99 — weekly activity: WHO active minutes and session effort points.
@@ -21,50 +23,54 @@ import {
  * carries meaning; each number has a screen-reader label.
  */
 
-function NumberBlock({ part }: { part: ActivityNumberView }) {
+function NumberBlock({ part, className }: { part: ActivityNumberView; className?: string }) {
   const titleId = `${part.key}-title`;
   return (
-    <section className="grid gap-2 rounded-lg border border-border p-4" aria-labelledby={titleId}>
-      <h3 id={titleId} className="text-sm font-medium">
+    <section className={cn("grid content-start gap-2", className)} aria-labelledby={titleId}>
+      <h3 id={titleId} className="font-body text-sm font-medium text-ink-3">
         {part.title}
       </h3>
-      <div className="flex items-baseline gap-2">
-        <span className="font-mono text-3xl" role="img" aria-label={part.accessibilityLabel}>
+      <div className="flex items-baseline gap-1.5">
+        <span
+          className="num text-3xl font-medium tracking-[-0.03em] text-ink"
+          role="img"
+          aria-label={part.accessibilityLabel}
+        >
           {part.valueText}
         </span>
         {part.available ? (
-          <span className="text-sm text-muted-foreground" aria-hidden="true">
+          <span className="text-sm text-ink-3" aria-hidden="true">
             {part.unitText}
           </span>
         ) : null}
       </div>
-      <p className="text-sm">{part.statusText}</p>
+      <p className="max-w-[60ch] text-sm text-ink-2">{part.statusText}</p>
       {part.breakdown.length > 0 ? (
-        <ul className="text-sm text-muted-foreground">
+        <ul className="text-sm text-ink-3">
           {part.breakdown.map((line) => (
             <li key={line}>{line}</li>
           ))}
         </ul>
       ) : null}
       {part.coverage.map((line) => (
-        <p key={line} className="text-sm text-muted-foreground">
+        <p key={line} className="text-sm text-ink-3">
           {line}
         </p>
       ))}
       <details className="text-sm">
-        <summary className="cursor-pointer font-medium">
+        <summary className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring cursor-pointer font-display font-medium text-ink">
           <Trans>How this is calculated</Trans>
         </summary>
-        <p className="mt-2">{part.formula}</p>
+        <p className="mt-2 max-w-[65ch] text-ink-2">{part.formula}</p>
         {part.sources.map((line) => (
-          <p key={line} className="mt-2 text-muted-foreground">
+          <p key={line} className="mt-2 max-w-[65ch] text-ink-3">
             {line}
           </p>
         ))}
         {part.key === "active_minutes" ? (
           <p className="mt-2">
             <a
-              className="underline"
+              className="underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
               href={ACTIVITY_LOAD_COPY.whoUrl}
               target="_blank"
               rel="noreferrer noopener"
@@ -78,40 +84,72 @@ function NumberBlock({ part }: { part: ActivityNumberView }) {
   );
 }
 
+/** The one chart: effort points for each day of the window, bars from zero. */
+function EffortChart({ result }: { result: ActivityLoadResult }) {
+  const { i18n } = useLingui();
+  const days = result.load?.effort.days ?? [];
+  const data = days.map((day) => ({ label: formatDay(day.date), points: day.points ?? 0 }));
+  const config: ChartConfig = {
+    points: { label: i18n._(ACTIVITY_LOAD_COPY.effortTitle), color: "var(--chart-1)" },
+  };
+  return (
+    <ChartContainer config={config} className="aspect-auto h-64 w-full" aria-hidden="true">
+      <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+        <CartesianGrid vertical={false} stroke="var(--rule)" />
+        <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={16} />
+        <YAxis tickLine={false} axisLine={false} width={40} tickCount={4} allowDecimals={false} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="points" fill="var(--color-points)" isAnimationActive={false} />
+      </BarChart>
+    </ChartContainer>
+  );
+}
+
 export function ActivityLoadCard({ result }: { result: ActivityLoadResult }) {
   const { i18n } = useLingui();
   const view = activityLoadView(result, i18n);
   return (
-    <Card role="region" aria-labelledby="activity-load-title">
-      <CardHeader>
-        <CardTitle id="activity-load-title">{view.title}</CardTitle>
-        <CardDescription>{view.intro}</CardDescription>
-        {view.windowText ? (
-          <p className="text-xs text-muted-foreground">{view.windowText}</p>
+    <section
+      role="region"
+      aria-labelledby="activity-load-title"
+      className="grid min-w-0 content-start gap-4"
+    >
+      <div className="grid gap-1">
+        <h2 id="activity-load-title" className="text-xl leading-tight text-ink">
+          {view.title}
+        </h2>
+        <p className="max-w-[65ch] text-sm text-ink-3">{view.intro}</p>
+        {view.windowText ? <p className="text-sm text-ink-3">{view.windowText}</p> : null}
+      </div>
+      <div className="sheet grid gap-6 px-5 pt-4 pb-5">
+        {view.withheldExplanation ? (
+          <p className="max-w-[65ch] text-ink-2">{view.withheldExplanation}</p>
         ) : null}
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {view.withheldExplanation ? <p className="text-sm">{view.withheldExplanation}</p> : null}
         {view.activeMinutes && view.effort ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <NumberBlock part={view.activeMinutes} />
-            <NumberBlock part={view.effort} />
+          <div className="grid gap-6 sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-rule">
+            <NumberBlock part={view.activeMinutes} className="sm:pr-6" />
+            <NumberBlock part={view.effort} className="sm:pl-6" />
           </div>
         ) : null}
         {view.effortDays.length > 0 ? (
-          <div>
-            <h3 className="mb-2 text-sm font-medium">
-              <Trans>Effort points by day</Trans>
-            </h3>
-            <ul className="divide-y divide-border">
+          <div className="grid gap-6 border-t border-rule pt-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="grid content-start gap-2">
+              <h3 className="font-body text-sm font-medium text-ink-3">
+                <Trans>Effort points by day</Trans>
+              </h3>
+              <EffortChart result={result} />
+            </div>
+            <ul className="divide-y divide-rule self-start text-sm">
               {view.effortDays.map((day) => (
                 <li
                   key={day.date}
-                  className="flex justify-between gap-4 py-1.5 text-sm"
+                  className="flex justify-between gap-4 py-1.5"
                   aria-label={day.accessibilityLabel}
                 >
-                  <span aria-hidden="true">{day.label}</span>
-                  <span className="font-mono" aria-hidden="true">
+                  <span className="text-ink-3" aria-hidden="true">
+                    {day.label}
+                  </span>
+                  <span className="num text-ink" aria-hidden="true">
                     {day.valueText}
                   </span>
                 </li>
@@ -119,39 +157,49 @@ export function ActivityLoadCard({ result }: { result: ActivityLoadResult }) {
             </ul>
           </div>
         ) : null}
-        {view.comparison ? (
-          <section className="grid gap-1 text-sm" aria-labelledby="effort-comparison-title">
-            <h3 id="effort-comparison-title" className="font-medium">
-              {view.comparison.title}
-            </h3>
-            <p>{view.comparison.text}</p>
-            {view.comparison.detail ? (
-              <p className="text-muted-foreground">{view.comparison.detail}</p>
+        {view.comparison || view.context.length > 0 ? (
+          <div className="grid gap-6 border-t border-rule pt-4 sm:grid-cols-2">
+            {view.comparison ? (
+              <section
+                className="grid content-start gap-1 text-sm"
+                aria-labelledby="effort-comparison-title"
+              >
+                <h3 id="effort-comparison-title" className="text-base text-ink">
+                  {view.comparison.title}
+                </h3>
+                <p className="text-ink-2">{view.comparison.text}</p>
+                {view.comparison.detail ? (
+                  <p className="text-ink-3">{view.comparison.detail}</p>
+                ) : null}
+                <p className="text-ink-3">{view.comparison.limits}</p>
+              </section>
             ) : null}
-            <p className="text-muted-foreground">{view.comparison.limits}</p>
-          </section>
+            {view.context.length > 0 ? (
+              <section
+                className="grid content-start gap-1 text-sm"
+                aria-labelledby="activity-context-title"
+              >
+                <h3 id="activity-context-title" className="text-base text-ink">
+                  {i18n._(ACTIVITY_LOAD_COPY.contextTitle)}
+                </h3>
+                {view.context.map((line) => (
+                  <p key={line} className="text-ink-3">
+                    {line}
+                  </p>
+                ))}
+              </section>
+            ) : null}
+          </div>
         ) : null}
-        {view.context.length > 0 ? (
-          <section className="grid gap-1 text-sm" aria-labelledby="activity-context-title">
-            <h3 id="activity-context-title" className="font-medium">
-              {i18n._(ACTIVITY_LOAD_COPY.contextTitle)}
-            </h3>
-            {view.context.map((line) => (
-              <p key={line} className="text-muted-foreground">
-                {line}
-              </p>
+        {view.notes.length > 0 || view.versionText ? (
+          <div className="grid gap-1 border-t border-rule pt-3 text-sm text-ink-3">
+            {view.notes.map((line) => (
+              <p key={line}>{line}</p>
             ))}
-          </section>
+            {view.versionText ? <p>{view.versionText}</p> : null}
+          </div>
         ) : null}
-        {view.notes.map((line) => (
-          <p key={line} className="text-xs text-muted-foreground">
-            {line}
-          </p>
-        ))}
-        {view.versionText ? (
-          <p className="text-xs text-muted-foreground">{view.versionText}</p>
-        ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
