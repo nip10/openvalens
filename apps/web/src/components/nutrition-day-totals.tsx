@@ -55,12 +55,7 @@ export function NutritionDayTotals({
         {SUMMARY_NUTRIENTS.map((key) => {
           const total = totals[key];
           const target = targets.find((item) => item.nutrient === key);
-          const reference = target ? (target.maxAmount ?? target.minAmount) : null;
           const targetText = target ? formatTarget(target, hideNumbers, i18n) : null;
-          const meter =
-            !hideNumbers && reference && reference > 0 && total.known !== null
-              ? { value: total.known / reference, label: t`Target: ${targetText}` }
-              : undefined;
           return (
             <div
               key={key}
@@ -77,7 +72,6 @@ export function NutritionDayTotals({
                     {displayTotalValue(key, total, hideNumbers, i18n)}
                   </span>
                 }
-                meter={meter}
                 note={
                   <>
                     {i18n._(formatCoverage(total))}

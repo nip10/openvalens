@@ -27,7 +27,7 @@ import { plural } from "@lingui/core/macro";
 import { ChevronRight, GlassWater, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { inlineButtonClass } from "./food-classes";
-import { InfoTip, Meter, Section, StatusPill } from "./page";
+import { InfoTip, Section, StatusPill } from "./page";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "./plain-water-form";
 import {
   isResolvedFormGeneration,
@@ -276,10 +276,6 @@ function PlainWaterDayViewState({
       </button>
     </p>
   );
-  const goalShare =
-    view && !hideNumbers && view.subtotalMl !== null && view.personalGoalMl
-      ? view.subtotalMl / view.personalGoalMl
-      : null;
 
   return (
     <Section
@@ -331,9 +327,6 @@ function PlainWaterDayViewState({
                   {formatWaterSubtotal(view, unit, hideNumbers, i18n)}
                 </span>
               </div>
-              {goalShare !== null ? (
-                <Meter value={goalShare} tone="water" label={t`Toward your personal goal`} />
-              ) : null}
               <div className="flex flex-wrap items-center gap-1 text-sm text-ink-2">
                 <span>
                   <Trans>
