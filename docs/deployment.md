@@ -147,8 +147,10 @@ See `CONTRIBUTING.md` ("File-based secrets") for examples.
   Never reuse the smoke test's generated project or database for real data.
 - Use an internal/private `DATABASE_URL` when the app and database are on the
   same platform/network.
-- Before storing real PHI, configure encrypted Postgres backups and complete a
-  restore drill.
+- Before storing real PHI, configure encrypted Postgres backups (your
+  platform's or provider's database backups; OpenValens's own backup service
+  is part of the self-host stack only) and complete a restore drill, including
+  the erasure-ledger replay below ([Database rollback](#database-rollback)).
 - Before production migrations, take a volume/server snapshot or a `pg_dump`
   backup and store it outside the app container.
 - Run migrations during a quiet/maintenance window as a one-off command:
@@ -195,6 +197,8 @@ Response shape:
       "sentry": false
     },
     "storage": "ok",
+    "backups": "ok",
+    "backupOffsite": "off",
     "integrations": {
       "email": { "provider": "resend", "state": "dry-run" },
       "ai": { "provider": null, "state": "off" },
@@ -211,7 +215,8 @@ Status semantics:
 
 - `ok` — database reachable and all required secrets present.
 - `degraded` — database reachable but a required secret is missing or too
-  short, or object storage is not writable.
+  short, object storage is not writable, backups are `failing` or `stale`, or
+  the off-site backup copy is `failing`.
 - `unready` — database unreachable.
 
 Each check emits a structured `health.readiness.checked` log line carrying the
@@ -229,6 +234,16 @@ write/read/delete round trip on a reserved key (cached for 30 seconds),
 `unwritable` when it did not, and `off` when S3 is selected without a bucket or
 credentials. Which storage is in use is `checks.integrations.storage.provider`.
 See [docs/storage.md](storage.md).
+
+`checks.backups` reports the self-host backups (Issue #64): `failing` when the
+newest backup or verify failed, `stale` when no good backup is under 48 hours
+old or the scheduled run is overdue, `ok` otherwise, `off` when no backup
+service ever reported (a platform deployment, or development) and `unknown`
+when the status could not be read. Only `failing` and `stale` degrade the
+status. `checks.backupOffsite` reports the optional off-site copy: `failing`
+when the newest upload failed (degrades the status; the local backups stay
+`ok`), `ok`, or `off` when no upload was ever recorded. See
+[Backups](self-hosting/backup.md).
 
 `capabilities.resend` is `true` only when email is actually delivered: a
 `RESEND_API_KEY` is configured **and** `EMAIL_DRY_RUN=false`. With the default
@@ -465,10 +480,33 @@ When you do need to revert a schema change:
 1. Restore the most recent pre-migration snapshot/pg_dump to a side database.
 2. Run the application's `bun run db:migrate` against that side DB until it
    catches up to the prior schema.
-3. Swap `DATABASE_URL` to the restored DB and roll the server image back as
+3. Re-apply the erasure ledger to the side database (below).
+4. Swap `DATABASE_URL` to the restored DB and roll the server image back as
    above.
-4. If the rollback affects retention or supersession, run the dedupe
+5. If the rollback affects retention or supersession, run the dedupe
    procedures manually before re-enabling cron.
+
+Before the restored database takes traffic, re-apply the erasure ledger, or
+people who used "Delete everything" after the dump come back. The server
+image has the tool; run it once, as a one-off command in the server's
+environment, with the replaced database's URL in an environment variable
+(never on the command line):
+
+```bash
+# DATABASE_URL = the restored side database; OLD_DATABASE_URL = the one it replaces
+OLD_DATABASE_URL=postgres://... DATABASE_URL=postgres://... \
+  bun --no-env-file scripts/erasure-replay.ts --merge-from-env OLD_DATABASE_URL --allow-remote
+```
+
+It copies the replaced database's `erasure_ledger` rows into the restored
+database (skipping rows it already has), then erases every person in the
+ledger again, including their stored objects (it uses the server's `STORAGE_*`
+settings). It prints counts only. If the replaced database is gone, run it
+without `--merge-from-env`: it then replays only the ledger the dump contains,
+so deletions made after the dump must be repeated by hand.
+
+The same applies to any restore of a platform database from a backup, not
+only rollbacks.
 
 Never run destructive SQL against production without a verified backup and
 the rollback image tag pinned in the platform.
@@ -635,9 +673,9 @@ CI/production provider credentials and live email delivery are outside this
 document's scope.
 
 Related: #63. The setup-token minting path and the self-host installer
-(`deploy/setup.sh`, [self-hosting/](self-hosting/README.md)) are implemented. Full
-encrypted backup/restore remains deferred to #64 (the installer's pre-migrate
-backup is a plain `pg_dump`), and resource minimums still need measuring on a
+(`deploy/setup.sh`, [self-hosting/](self-hosting/README.md)) are implemented. The
+self-host stack takes encrypted daily and pre-migrate backups and restores them
+with `deploy/setup.sh restore` ([Backups](self-hosting/backup.md)), and resource minimums still need measuring on a
 reference VPS. Editable product settings and settings-change
 auditing remain separate Issue #58 work. The admission web UI has passed its
 independent security gate; production activation requires separate authorization.

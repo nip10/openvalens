@@ -156,12 +156,27 @@ export async function deleteSubjectData(
   });
 }
 
+/**
+ * Erasure-ledger replay body (Issue #64, see `replay.ts`): the same deletion as
+ * the original erasure, inside the caller's transaction, without writing a new
+ * ledger row.
+ */
+export function eraseSubjectRowsForReplay(
+  tx: DbTransaction,
+  subject: DataRightsSubject,
+  erasedAt: Date,
+  order = deletionOrder(),
+): Promise<DeletionReport> {
+  return eraseInTransaction(tx, subject, erasedAt, order, { recordLedger: false });
+}
+
 /** Caller-authorized legacy deletion transaction body; never used by the self-service router. */
 async function eraseInTransaction(
   tx: DbTransaction,
   subject: DataRightsSubject,
   now: Date,
   order = deletionOrder(),
+  options: { recordLedger: boolean } = { recordLedger: true },
 ): Promise<DeletionReport> {
   const orgIds = [...subject.organizationIds];
   const rowCounts: Record<string, number> = {};
@@ -202,7 +217,8 @@ async function eraseInTransaction(
 
   record("organization", await deleteCount(tx, "organization", inList("id", orgIds)));
   record("user", await deleteCount(tx, "user", sql`id = ${subject.userId}`));
-  await tx.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts, erased_at)
+  if (options.recordLedger)
+    await tx.execute(sql`insert into erasure_ledger (subject_user_id, organization_ids, row_counts, erased_at)
     values (${subject.userId}, ${JSON.stringify(orgIds)}::jsonb, ${JSON.stringify(rowCounts)}::jsonb, ${now.toISOString()})`);
   return {
     erasedAt: now.toISOString(),

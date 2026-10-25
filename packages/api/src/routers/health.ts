@@ -3,6 +3,12 @@ import { sql, type Database } from "@openvalens/db";
 import { createStructuredLogger } from "@openvalens/observability";
 import { z } from "zod";
 
+import {
+  backupStateSchema,
+  offsiteStateSchema,
+  readBackupStatus,
+  type BackupStatus,
+} from "../backup-status";
 import { publicProcedure } from "../index";
 
 /** Hard ceiling for the readiness DB ping. */
@@ -41,6 +47,19 @@ export const readinessOutput = z.object({
      * Which storage is in use is `integrations.storage.provider`.
      */
     storage: z.enum(["ok", "unwritable", "off"]),
+    /**
+     * Issue #64 — the self-host backups: `failing` when the newest backup or
+     * verify failed, `stale` when no good backup is under 48 hours old or the
+     * scheduler is overdue, `off` when no backup service ever reported,
+     * `unknown` when the status could not be read. Details: /admin/settings.
+     */
+    backups: backupStateSchema,
+    /**
+     * The optional off-site copy of the backups: `failing` when the newest
+     * upload failed (degrades readiness; the local backup is still good),
+     * `off` when none was ever recorded.
+     */
+    backupOffsite: offsiteStateSchema,
     integrations: z.record(z.string(), integrationStatusOutput),
   }),
   timestamp: z.string(),
@@ -76,6 +95,27 @@ async function pingDatabase(db: Database): Promise<"ok" | "unreachable"> {
   }
 }
 
+type BackupChecks = { backups: BackupStatus["state"]; offsite: BackupStatus["offsite"]["state"] };
+const UNKNOWN_BACKUPS: BackupChecks = { backups: "unknown", offsite: "unknown" };
+
+/** Backup states, bounded like the DB ping; a timeout is `unknown`. */
+async function backupStates(db: Database): Promise<BackupChecks> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      readBackupStatus(db).then((status) => ({
+        backups: status.state,
+        offsite: status.offsite.state,
+      })),
+      new Promise<BackupChecks>((resolve) => {
+        timer = setTimeout(() => resolve(UNKNOWN_BACKUPS), DB_PING_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 /**
  * Public readiness probe (no auth) for monitoring.
  *
@@ -92,6 +132,8 @@ export const healthRouter = {
       const database = await pingDatabase(context.db);
       // The probe result is cached by the service, so polling stays cheap.
       const storage = context.storage ? await context.storage.probe() : "off";
+      const { backups, offsite: backupOffsite } =
+        database === "ok" ? await backupStates(context.db) : UNKNOWN_BACKUPS;
 
       const betterAuthSecret = context.betterAuthSecretConfigured ? "ok" : "missing";
       const cronSecret =
@@ -125,7 +167,11 @@ export const healthRouter = {
       const status =
         database === "unreachable"
           ? "unready"
-          : missingSecrets.length > 0 || storage === "unwritable"
+          : missingSecrets.length > 0 ||
+              storage === "unwritable" ||
+              backups === "failing" ||
+              backups === "stale" ||
+              backupOffsite === "failing"
             ? "degraded"
             : "ok";
 
@@ -135,6 +181,8 @@ export const healthRouter = {
         databaseStatus: database,
         missingSecrets,
         storageStatus: storage,
+        backupStatus: backups,
+        backupOffsiteStatus: backupOffsite,
       });
 
       return {
@@ -147,6 +195,8 @@ export const healthRouter = {
           },
           capabilities,
           storage,
+          backups,
+          backupOffsite,
           integrations,
         },
         timestamp: new Date().toISOString(),

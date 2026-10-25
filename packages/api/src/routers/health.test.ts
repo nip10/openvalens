@@ -178,6 +178,75 @@ describe("health.readiness", () => {
     expect(result.checks.integrations).toEqual({});
   });
 
+  test("reports backups and degrades when they fail or go stale (Issue #64)", async () => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+    const db = (
+      lastBackupHours: number,
+      latest: "ok" | "failed",
+      verify: "ok" | "failed",
+      offsite: "ok" | "failed" | null = null,
+    ) => {
+      let call = 0;
+      return {
+        execute: async () => {
+          call += 1;
+          if (call === 1) return { rows: [{ "?column?": 1 }] }; // SELECT 1 ping
+          if (call === 2) return { rows: [{ ready: true }] };
+          return {
+            rows: [
+              {
+                last_backup: {
+                  backup_id: "20261025T030000Z-daily",
+                  trigger: "daily",
+                  size_bytes: 1,
+                  finished_at: hoursAgo(lastBackupHours),
+                },
+                last_verify: { backup_id: null, outcome: verify, finished_at: hoursAgo(1) },
+                last_failure: null,
+                latest_backup_outcome: latest,
+                latest_offsite_outcome: offsite,
+                schedule: { next_run_at: hoursAgo(-12), hour_utc: 3, daily_retain: 14 },
+              },
+            ],
+          };
+        },
+      } as unknown as Database;
+    };
+
+    const ok = await callReadiness(createTestContext({ db: db(2, "ok", "ok") }));
+    expect(ok.checks.backups).toBe("ok");
+    expect(ok.status).toBe("ok");
+
+    const failedVerify = await callReadiness(createTestContext({ db: db(2, "ok", "failed") }));
+    expect(failedVerify.checks.backups).toBe("failing");
+    expect(failedVerify.status).toBe("degraded");
+
+    const failedBackup = await callReadiness(createTestContext({ db: db(2, "failed", "ok") }));
+    expect(failedBackup.checks.backups).toBe("failing");
+
+    // A failed off-site upload degrades readiness without making backups failing.
+    const offsiteDown = await callReadiness(createTestContext({ db: db(2, "ok", "ok", "failed") }));
+    expect(offsiteDown.checks.backups).toBe("ok");
+    expect(offsiteDown.checks.backupOffsite).toBe("failing");
+    expect(offsiteDown.status).toBe("degraded");
+    const offsiteUp = await callReadiness(createTestContext({ db: db(2, "ok", "ok", "ok") }));
+    expect(offsiteUp.checks.backupOffsite).toBe("ok");
+    expect(offsiteUp.status).toBe("ok");
+    expect(ok.checks.backupOffsite).toBe("off");
+
+    const stale = await callReadiness(createTestContext({ db: db(72, "ok", "ok") }));
+    expect(stale.checks.backups).toBe("stale");
+    expect(stale.status).toBe("degraded");
+
+    // No backup service (development) is not a readiness problem.
+    const none = await callReadiness(createTestContext());
+    expect(["off", "unknown"]).toContain(none.checks.backups);
+    expect(none.status).toBe("ok");
+
+    const down = await callReadiness(createTestContext({ db: unreachableDb() }));
+    expect(down.checks.backups).toBe("unknown");
+  });
+
   test("reports storage writability (Issue #62)", async () => {
     const storage = (result: "ok" | "unwritable") =>
       ({ probe: async () => result }) as unknown as NonNullable<Context["storage"]>;

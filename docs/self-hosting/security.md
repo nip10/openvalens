@@ -74,9 +74,10 @@ instance [up to date](upgrading.md).
 - **The host.** Anyone with root or Docker access on the host can read every
   record, secret and backup. Keep the OS and Docker updated, restrict SSH
   (keys only), and limit who can use Docker.
-- **Backups.** The only backups are plain, **unencrypted** dumps on the same
-  host ([Backups](backup.md)). Encrypt and copy them off the host yourself
-  until Issue #64 lands.
+- **Backups.** Backups are encrypted, but they and the key that decrypts them
+  (`deploy/secrets/backup/age-identity`) live on the same host: anyone with
+  root or Docker access can read both. Escrow the key off the host and copy
+  backups off it ([Backups](backup.md)).
 - **Secrets.** Never paste the setup token, `deploy/.env` or anything under
   `deploy/secrets/` into chat, tickets or logs. If you suspect a leak, rotate
   the affected secret: replace the file (mode `0444`) and run
@@ -91,7 +92,8 @@ instance [up to date](upgrading.md).
 
 ## Known limitations at 0.1.0
 
-- Backups are unencrypted, unscheduled and on the same host (#64).
+- Backups are encrypted and scheduled; they stay on the same host unless you
+  configure the optional off-site copy to an S3-compatible bucket.
 - Images are built from source on your host; signed, published images are
   #129.
 - Reads of installation-wide settings are not audited yet; the existing access

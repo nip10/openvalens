@@ -19,7 +19,7 @@ responsible for their health data; take advice where it matters.
 | Data                                     | Where                                            |
 | ---------------------------------------- | ------------------------------------------------ |
 | Accounts, workspaces and health data     | Postgres, in the `postgres_data` volume          |
-| Pre-migrate backups (unencrypted)        | `backups` volume ([Backups](backup.md))          |
+| Encrypted backups (database and files)   | `backups` volume ([Backups](backup.md))          |
 | Server and proxy logs (no health values) | Docker's `json-file` logs, 3 × 10 MB per service |
 | Secrets                                  | `deploy/secrets/` on the host                    |
 
@@ -71,9 +71,12 @@ records:
   deleted ids and row counts, without the data itself, so the deletion can be
   repeated after a restore.
 
-Deletion removes data from the live database only. **Earlier backups still
-contain it** until they are pruned or deleted, and restoring one brings the
-data back; see [Backups](backup.md#deleted-accounts-and-old-backups).
+Deletion removes data from the live database and object storage. **Earlier
+backups still contain it** until they age out of retention (14 daily backups
+by default) or you delete them, including copies you made. Restoring a backup
+does not bring it back: `deploy/setup.sh restore` re-applies the erasure ledger
+and erases the person again; see
+[Backups](backup.md#deleted-accounts-and-the-erasure-ledger).
 Application logs do not contain health values, so they hold nothing to delete
 beyond identifiers.
 
@@ -82,4 +85,3 @@ beyond identifiers.
 - A complete export in the app (#89).
 - Export and deletion coverage for every module: each new module adds its own
   coverage (#89).
-- Replaying the erasure ledger after a restore (#64).

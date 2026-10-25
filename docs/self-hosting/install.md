@@ -8,10 +8,11 @@ Compose stack (`deploy/compose.yml`) driven by an interactive setup script
 supported. The root `docker-compose.yml` is the **development** stack; never use
 it for a real installation.
 
-> **Backup status.** The install takes a **plain, unencrypted `pg_dump`** before
-> every migration and nothing else. Encrypted backups, off-host copies and a
-> tested restore procedure are **not** part of this release; they are tracked
-> in Issue #64. Read [Backups](backup.md) before you store real health data.
+> **Backups.** The install takes an encrypted backup of the database and
+> stored files every day and before every migration, and generates the backup
+> key `deploy/secrets/backup/age-identity`. **Copy that key off the server**:
+> without it no backup can be restored. Backups stay on the host until you copy
+> them off. Read [Backups](backup.md) before you store real health data.
 
 ## What you get
 

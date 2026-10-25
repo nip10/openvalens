@@ -37,9 +37,12 @@ never from a real person's records (see [Landing site](#landing-site))._
 
 ## What it does not do (yet)
 
-- **Backups are not finished.** 0.1.0 takes a plain, unencrypted `pg_dump`
-  before each migration and nothing else. Encrypted, scheduled, off-host
-  backups and a tested restore are pending (#64).
+- **Off-site backups are opt-in.** The stack takes encrypted, verified backups
+  of the database and stored files daily and before every upgrade, and
+  `deploy/setup.sh restore` restores one (deleted accounts stay deleted). They
+  stay on the host unless you configure the off-site copy to an S3-compatible
+  bucket, and keeping the backup key off the server is up to you
+  ([Backups](docs/self-hosting/backup.md)).
 - No hosted service and no public sign-up: you run your own instance.
 - No published container images; the install builds from source (#129).
 - No store build of the mobile app, and no direct wearable-vendor connections
@@ -94,7 +97,7 @@ apply to OpenValens 0.1.0 (pre-release; no release is tagged yet):
 - [Food catalogs](docs/self-hosting/food-catalogs.md) — empty on a new install;
   `deploy/setup.sh catalogs` imports USDA and Open Food Facts data
 - [Upgrading](docs/self-hosting/upgrading.md)
-- [Backups](docs/self-hosting/backup.md) — **incomplete:** plain, unencrypted pre-migrate dumps only; encrypted backup and restore are pending (#64)
+- [Backups](docs/self-hosting/backup.md) — encrypted daily and pre-upgrade backups of the database and files, verify, restore; keep the backup key off the server
 - [Email](docs/self-hosting/email.md) (Resend only)
 - [Single sign-on (OIDC)](docs/self-hosting/oidc.md) — one optional provider, invite-only
 - [Security model and reporting](docs/self-hosting/security.md)

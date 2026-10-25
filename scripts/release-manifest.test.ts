@@ -95,10 +95,17 @@ describe("createManifest", () => {
     expect(manifest.migrations.names).toEqual(listMigrations(repo));
     expect(manifest.migrations.count).toBeGreaterThan(40);
     expect(manifest.thirdPartyImages.map((image) => image.service).sort()).toEqual([
-      "backup",
       "caddy",
       "postgres",
     ]);
+    // The locally built backup image's base is the pinned Postgres image.
+    const backupBase = manifest.baseImages.find(
+      (base) => base.dockerfile === "deploy/backup/Dockerfile",
+    );
+    expect(backupBase?.pinnedByDigest).toBe(true);
+    expect(backupBase?.reference).toBe(
+      manifest.thirdPartyImages.find((image) => image.service === "postgres")?.reference,
+    );
     expect(manifest.thirdPartyImages.every((image) => image.pinnedByDigest)).toBe(true);
     for (const base of manifest.baseImages) {
       expect(base.resolvedDigest).toMatch(/@sha256:/);

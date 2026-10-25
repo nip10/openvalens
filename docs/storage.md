@@ -104,10 +104,11 @@ reports no failures.
 The `stored_object` table is the index of every object; the bytes live in the
 storage backend. Back up both from the same point in time:
 
-- **Local disk:** back up the `storage` volume (or `STORAGE_LOCAL_DIR`) with
-  the database. The pre-migrate `pg_dump` hook covers the database only (see
-  [Backups](self-hosting/backup.md)).
-  Encrypted, automated backups that include this volume are Issue #64.
+- **Local disk:** the self-host backups ([Backups](self-hosting/backup.md))
+  archive the `storage` volume together with the database, from the same
+  moment, encrypted, with a SHA-256 for every file; `deploy/setup.sh restore`
+  puts both back. Outside the self-host stack, back up `STORAGE_LOCAL_DIR`
+  with the database yourself.
 - **S3:** use bucket versioning or replication on the provider side.
 
 ## Data rights

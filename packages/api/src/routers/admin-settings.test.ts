@@ -147,6 +147,79 @@ describe("adminSettings.access", () => {
   });
 });
 
+describe("adminSettings.backupStatus (Issue #64)", () => {
+  /** First query: the admin lookup; then the two backup status queries. */
+  function backupDb(role: string) {
+    const answers: unknown[][] = [
+      [{ role, banned: false }],
+      [{ ready: true }],
+      [
+        {
+          last_backup: {
+            backup_id: "20261025T030000Z-daily",
+            trigger: "daily",
+            size_bytes: 4096,
+            finished_at: "2026-10-25T03:00:09+00:00",
+          },
+          last_verify: {
+            backup_id: "20261025T030000Z-daily",
+            outcome: "ok",
+            finished_at: "2026-10-25T03:00:20+00:00",
+          },
+          last_failure: {
+            operation: "backup",
+            trigger: "pre-migrate",
+            detail: "pg_dump",
+            finished_at: "2026-10-20T10:00:00+00:00",
+          },
+          latest_backup_outcome: "ok",
+          schedule: { next_run_at: "2099-01-01T03:00:00+00:00", hour_utc: 3, daily_retain: 14 },
+        },
+      ],
+    ];
+    return {
+      execute: async () => ({ rows: answers.shift() ?? [] }),
+    } as unknown as Database;
+  }
+
+  test("is for instance administrators only", async () => {
+    await expect(
+      appRouter.adminSettings.backupStatus.callable({ context: baseContext({ session: null }) })(
+        {},
+      ),
+    ).rejects.toMatchObject({ code: "UNAUTHENTICATED", status: 401 });
+    await expect(
+      appRouter.adminSettings.backupStatus.callable({
+        context: contextWith(ACTOR_SESSION, backupDb("user")),
+      })({}),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+  });
+
+  test("returns the last backup, verify, failure step and next run", async () => {
+    const result = await appRouter.adminSettings.backupStatus.callable({
+      context: contextWith(ACTOR_SESSION, backupDb("admin")),
+    })({});
+    expect(result).toEqual({
+      state: expect.any(String),
+      lastBackup: {
+        id: "20261025T030000Z-daily",
+        trigger: "daily",
+        sizeBytes: 4096,
+        at: "2026-10-25T03:00:09.000Z",
+      },
+      lastVerify: { id: "20261025T030000Z-daily", outcome: "ok", at: "2026-10-25T03:00:20.000Z" },
+      lastFailure: {
+        operation: "backup",
+        trigger: "pre-migrate",
+        step: "pg_dump",
+        at: "2026-10-20T10:00:00.000Z",
+      },
+      schedule: { nextRunAt: "2099-01-01T03:00:00.000Z", hourUtc: 3, dailyRetain: 14 },
+      offsite: { state: "off", lastUpload: null, lastFailure: null },
+    });
+  });
+});
+
 describe("adminSettings.configuration", () => {
   const INVENTORY = [
     { key: "BETTER_AUTH_SECRET", configured: true, sensitive: true },

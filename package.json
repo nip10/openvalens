@@ -65,6 +65,7 @@
     "docs:check": "bun run docs:generate && git ls-files --error-unmatch docs/reference/env.md && git diff --exit-code -- docs/reference/env.md",
     "licenses:check": "bun scripts/license-audit.ts",
     "check": "oxlint && oxfmt --write",
+    "test:offsite": "bash scripts/offsite-backup.integration.sh",
     "i18n:extract": "lingui extract --clean && bun scripts/i18n-safety-ids.ts && oxfmt packages/i18n/src/safety-ids.ts",
     "i18n:compile": "lingui compile --typescript --strict && oxfmt packages/i18n/src/locales",
     "i18n:check": "bun run i18n:extract && bun run i18n:compile && git diff --exit-code -- packages/i18n/src"
