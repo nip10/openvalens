@@ -76,7 +76,7 @@ describe("sendInvitation", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]?.to).toBe("invitee@example.test");
     expect(sent[0]?.templateName).toBe("invitation");
-    expect(sent[0]?.subject).toBe("Dr. Who invited you to Acme Health on Health");
+    expect(sent[0]?.subject).toBe("Dr. Who invited you to Acme Health on OpenValens");
     expect(sent[0]?.text).toContain("https://health.example/accept-invitation/org-1-abc");
     expect(sent[0]?.text).toContain("This invitation expires in 2 days.");
     expect(logs.map((line) => line.event)).toEqual(["auth.invitation.queued"]);
@@ -86,17 +86,17 @@ describe("sendInvitation", () => {
   test("renders in the invitee's language, else the inviter's", async () => {
     const own = setup({ byEmail: { "invitee@example.test": "pt-PT" } });
     await own.emails.sendInvitation(INVITE);
-    expect(own.sent[0]?.subject).toBe("Dr. Who convidou-o para Acme Health em Health");
+    expect(own.sent[0]?.subject).toBe("Dr. Who convidou-o para Acme Health em OpenValens");
 
     const inviters = setup({ byUser: { "owner-1": "pt-PT" } });
     await inviters.emails.sendInvitation(INVITE);
-    expect(inviters.sent[0]?.subject).toBe("Dr. Who convidou-o para Acme Health em Health");
+    expect(inviters.sent[0]?.subject).toBe("Dr. Who convidou-o para Acme Health em OpenValens");
   });
 
   test("falls back to the inviter's email when they have no name", async () => {
     const { emails, sent } = setup();
     await emails.sendInvitation({ ...INVITE, inviter: { ...INVITE.inviter, name: "" } });
-    expect(sent[0]?.subject).toBe("owner@example.test invited you to Acme Health on Health");
+    expect(sent[0]?.subject).toBe("owner@example.test invited you to Acme Health on OpenValens");
   });
 
   test("a dry run is reported as unavailable, never as sent", async () => {

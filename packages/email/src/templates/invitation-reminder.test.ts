@@ -13,7 +13,7 @@ const INPUT = {
 describe("renderInvitationReminderEmail", () => {
   test("uses the exact subject", () => {
     expect(renderInvitationReminderEmail(INPUT).subject).toBe(
-      "Reminder: join Northwind Clinic on Health",
+      "Reminder: join Northwind Clinic on OpenValens",
     );
   });
 

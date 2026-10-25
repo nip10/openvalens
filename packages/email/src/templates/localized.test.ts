@@ -28,14 +28,14 @@ describe("magic-link email", () => {
       { locale: "en" },
     );
     expect(english).toEqual(fallback);
-    expect(fallback.subject).toBe("Sign in to Health");
+    expect(fallback.subject).toBe("Sign in to OpenValens");
     expect(fallback.text).toContain("For your security, this link expires in 10 minutes.");
     expect(fallback.html).toContain('<html lang="en">');
   });
 
   test("pt-PT subject, body, button and footer; the link and brand are unchanged", () => {
     const pt = renderMagicLinkEmail({ url: MAGIC_URL, expiresInMinutes: 10 }, { locale: "pt-PT" });
-    expect(pt.subject).toBe("Iniciar sessão em Health");
+    expect(pt.subject).toBe("Iniciar sessão em OpenValens");
     expect(pt.text).toContain("Por segurança, esta ligação expira dentro de 10 minutos.");
     expect(pt.text).toContain(`cole esta ligação no seu navegador: ${MAGIC_URL}`);
     expect(pt.html).toContain('<html lang="pt-PT">');
@@ -54,14 +54,14 @@ describe("magic-link email", () => {
 describe("workspace invitation email", () => {
   test("English stays as before", () => {
     const en = renderInvitationEmail(INVITATION);
-    expect(en.subject).toBe("Dr. <Ada> invited you to Northwind & Co on Health");
+    expect(en.subject).toBe("Dr. <Ada> invited you to Northwind & Co on OpenValens");
     expect(en.text).toContain("You have been invited with the member role.");
     expect(en.text).toContain("This invitation expires in 2 days.");
   });
 
   test("pt-PT, with user values escaped in HTML and kept as written", () => {
     const pt = renderInvitationEmail(INVITATION, { locale: "pt-PT" });
-    expect(pt.subject).toBe("Dr. <Ada> convidou-o para Northwind & Co em Health");
+    expect(pt.subject).toBe("Dr. <Ada> convidou-o para Northwind & Co em OpenValens");
     expect(pt.text).toContain("Foi convidado com a função member.");
     expect(pt.text).toContain("Este convite expira dentro de 2 dias.");
     expect(pt.html).toContain("Dr. &lt;Ada&gt; convidou-o para aderir a Northwind &amp; Co");
@@ -77,7 +77,7 @@ describe("layout", () => {
   const base = { title: "Title", bodyHtml: "<p>body</p>", bodyText: "body" };
 
   test("the default footer follows the locale", () => {
-    expect(renderLayout(base).text).toContain("This is an automated message from Health.");
+    expect(renderLayout(base).text).toContain("This is an automated message from OpenValens.");
     const pt = renderLayout(base, { locale: "pt-PT", organizationName: "Alpha" });
     expect(pt.text).toContain("Esta é uma mensagem automática de Alpha.");
     expect(pt.html).toContain('<html lang="pt-PT">');

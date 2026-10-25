@@ -9,7 +9,7 @@ describe("renderMagicLinkEmail", () => {
   test("uses the exact subject", () => {
     const email = renderMagicLinkEmail({ url: URL, expiresInMinutes: 10 });
 
-    expect(email.subject).toBe("Sign in to Health");
+    expect(email.subject).toBe("Sign in to OpenValens");
   });
 
   test("html contains the sign-in link and expiry copy", () => {

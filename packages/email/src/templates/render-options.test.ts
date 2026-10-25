@@ -67,9 +67,9 @@ const CASES: Array<{ name: string; render: Renderer; input: unknown }> = [
 
 describe("template render options (organizationName)", () => {
   for (const { name, render, input } of CASES) {
-    test(`${name}: default options render byte-identically to explicit Health`, () => {
+    test(`${name}: default options render byte-identically to explicit OpenValens`, () => {
       const fallback = render(input as never);
-      const explicit = render(input as never, { organizationName: "Health" });
+      const explicit = render(input as never, { organizationName: "OpenValens" });
 
       expect(explicit.html).toBe(fallback.html);
       expect(explicit.text).toBe(fallback.text);
@@ -82,8 +82,8 @@ describe("template render options (organizationName)", () => {
       const beta = render(input as never, { organizationName: "Beta" });
 
       expect(alpha.html).not.toBe(beta.html);
-      expect(alpha.html.split("Alpha").join("Health")).toBe(fallback.html);
-      expect(beta.html.split("Beta").join("Health")).toBe(fallback.html);
+      expect(alpha.html.split("Alpha").join("OpenValens")).toBe(fallback.html);
+      expect(beta.html.split("Beta").join("OpenValens")).toBe(fallback.html);
       // Subject and text body carry the input organization, not the branding.
       expect(alpha.subject).toBe(fallback.subject);
       expect(alpha.text).toBe(fallback.text);
@@ -99,7 +99,7 @@ describe("template render options (organizationName)", () => {
     expect(rendered.html).not.toContain("<Alpha & Co>");
   });
 
-  test("renderLayout defaults its footer copy to Health and honours an explicit name", () => {
+  test("renderLayout defaults its footer copy to OpenValens and honours an explicit name", () => {
     const base = {
       title: "Title",
       bodyHtml: "<p>body</p>",
@@ -107,7 +107,7 @@ describe("template render options (organizationName)", () => {
     };
 
     const fallback = renderLayout(base);
-    expect(fallback.text).toContain("This is an automated message from Health.");
+    expect(fallback.text).toContain("This is an automated message from OpenValens.");
 
     const custom = renderLayout(base, { organizationName: "Alpha" });
     expect(custom.text).toContain("This is an automated message from Alpha.");

@@ -3,7 +3,7 @@ import { msg } from "@lingui/core/macro";
 import { SOURCE_LOCALE, type Locale } from "@openvalens/i18n";
 import { serverI18n } from "@openvalens/i18n/server";
 
-const FALLBACK_ORGANIZATION_NAME = "Health";
+const FALLBACK_ORGANIZATION_NAME = "OpenValens";
 
 /**
  * Branding options threaded from a bound `EmailService` (which structurally

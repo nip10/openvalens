@@ -47,7 +47,7 @@ describe("sendAuthMagicLink", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.input.to).toBe("user@example.com");
-    expect(calls[0]?.input.subject).toBe("Sign in to Health");
+    expect(calls[0]?.input.subject).toBe("Sign in to OpenValens");
     expect(calls[0]?.input.templateName).toBe("magic-link");
     expect(calls[0]?.input.tags).toEqual(["magic-link"]);
     expect(calls[0]?.options?.correlationId).toBe("corr-1");
@@ -206,11 +206,11 @@ describe("sendAuthMagicLink", () => {
       locale: "pt-PT",
     });
 
-    expect(calls[0]?.input.subject).toBe("Iniciar sessão em Health");
+    expect(calls[0]?.input.subject).toBe("Iniciar sessão em OpenValens");
     expect(calls[0]?.input.text).toContain("Pediu uma ligação segura de início de sessão");
     expect(calls[0]?.input.html).toContain(">Iniciar sessão</a>");
     const success = lines.map(parseLine).find((line) => line.event === "auth.magic-link.sent");
-    expect(success?.subject).toBe("Sign in to Health");
+    expect(success?.subject).toBe("Sign in to OpenValens");
     expect(lines.join("\n")).not.toMatch(/pt-PT|Iniciar/);
   });
 
@@ -223,6 +223,6 @@ describe("sendAuthMagicLink", () => {
       },
       logger: createCapturingLogger().logger,
     });
-    expect(calls[0]?.input.text).toContain("You requested a secure sign-in link for Health.");
+    expect(calls[0]?.input.text).toContain("You requested a secure sign-in link for OpenValens.");
   });
 });

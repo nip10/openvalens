@@ -4,7 +4,7 @@ import { msg, plural } from "@lingui/core/macro";
 
 import { emailI18n, renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
-const APP_NAME = "Health";
+const APP_NAME = "OpenValens";
 
 export type MagicLinkEmailInput = {
   url: string;

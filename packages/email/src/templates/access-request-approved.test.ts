@@ -11,7 +11,7 @@ const INPUT = {
 describe("renderAccessRequestApprovedEmail", () => {
   test("uses the exact subject", () => {
     expect(renderAccessRequestApprovedEmail(INPUT).subject).toBe(
-      "Access approved for Northwind Clinic on Health",
+      "Access approved for Northwind Clinic on OpenValens",
     );
   });
 
