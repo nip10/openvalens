@@ -34,64 +34,66 @@ export function NutritionDayTotals({
   const { i18n } = useLingui();
   const sourceLine = sources ? formatSources(sources, i18n) : null;
   return (
-    <section aria-label={i18n._(DIARY_COPY.totalsTitle)} className="grid gap-3">
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <section aria-label={i18n._(DIARY_COPY.totalsTitle)} className="grid gap-4">
+      <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-5 sm:divide-x sm:divide-rule">
         {SUMMARY_NUTRIENTS.map((key) => (
-          <div key={key} aria-label={describeDisplayedTotal(key, totals[key], hideNumbers, i18n)}>
-            <dt className="text-xs text-muted-foreground">{i18n._(NUTRIENT_LABELS[key].label)}</dt>
-            <dd className="font-mono text-sm">
+          <div
+            key={key}
+            className="grid min-w-0 content-start gap-1 pr-4 sm:px-4 sm:first:pl-0"
+            aria-label={describeDisplayedTotal(key, totals[key], hideNumbers, i18n)}
+          >
+            <dt className="text-sm font-medium text-ink-3">{i18n._(NUTRIENT_LABELS[key].label)}</dt>
+            <dd className="num m-0 text-xl font-medium tracking-[-0.02em] text-ink">
               {displayTotalValue(key, totals[key], hideNumbers, i18n)}
             </dd>
-            <dd className="text-xs text-muted-foreground">{i18n._(formatCoverage(totals[key]))}</dd>
+            <dd className="m-0 text-sm text-ink-3">{i18n._(formatCoverage(totals[key]))}</dd>
           </div>
         ))}
       </dl>
-      <details className="text-sm">
-        <summary className="cursor-pointer text-muted-foreground">
+      <details className="group border-t border-rule pt-3 text-sm">
+        <summary className="cursor-pointer font-display font-medium text-ink-2 transition-colors duration-[var(--dur-short)] hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
           {i18n._(DIARY_COPY.allNutrients)}
         </summary>
-        <table className="mt-2 w-full text-left">
-          <thead className="text-xs text-muted-foreground">
-            <tr>
-              <th scope="col" className="py-1 font-normal">
+        <table className="mt-3 w-full text-left text-sm text-ink-2">
+          <thead>
+            <tr className="border-b-2 border-rule-2">
+              <th scope="col" className="pb-2 font-medium text-ink-3">
                 <Trans>Nutrient</Trans>
               </th>
-              <th scope="col" className="py-1 font-normal">
+              <th scope="col" className="pb-2 text-right font-medium text-ink-3">
                 <Trans>Total</Trans>
               </th>
-              <th scope="col" className="py-1 font-normal">
+              <th scope="col" className="pb-2 pl-4 font-medium text-ink-3">
                 <Trans>Coverage</Trans>
               </th>
             </tr>
           </thead>
           <tbody>
             {ALL_NUTRIENTS.map((key) => (
-              <tr key={key} className="border-t border-border">
-                <th scope="row" className="py-1 font-normal">
+              <tr key={key} className="border-b border-rule last:border-0">
+                <th scope="row" className="py-1.5 font-normal text-ink">
                   {i18n._(NUTRIENT_LABELS[key].label)} ({i18n._(NUTRIENT_LABELS[key].unit)})
                 </th>
-                <td className="py-1 font-mono">
+                <td className="num py-1.5 text-ink">
                   {displayTotalValue(key, totals[key], hideNumbers, i18n)}
                 </td>
-                <td className="py-1 text-muted-foreground">
-                  {i18n._(formatCoverage(totals[key]))}
-                </td>
+                <td className="py-1.5 pl-4 text-ink-3">{i18n._(formatCoverage(totals[key]))}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </details>
-      {sourceLine ? (
-        <p className="text-xs text-muted-foreground">
-          {i18n._(DIARY_COPY.sourcesLabel)}: {sourceLine}
+      <div className="grid gap-1 text-sm text-ink-3">
+        {sourceLine ? (
+          <p>
+            {i18n._(DIARY_COPY.sourcesLabel)}: {sourceLine}
+          </p>
+        ) : null}
+        {hideNumbers ? <p>{i18n._(TARGET_COPY.numbersHidden)}</p> : null}
+        <p className="max-w-[70ch]">
+          {i18n._(DIARY_COPY.totalsNote)} {i18n._(DIARY_COPY.unknownNote)}
         </p>
-      ) : null}
-      {hideNumbers ? (
-        <p className="text-xs text-muted-foreground">{i18n._(TARGET_COPY.numbersHidden)}</p>
-      ) : null}
-      <p className="text-xs text-muted-foreground">
-        {i18n._(DIARY_COPY.totalsNote)} {i18n._(DIARY_COPY.unknownNote)}
-      </p>
+      </div>
     </section>
   );
 }

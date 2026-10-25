@@ -5,10 +5,11 @@ import {
 } from "@openvalens/api/presenters/energy-estimate";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
+import { inlineButtonClass } from "@/components/food-classes";
+import { Section } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 export function EnergyEstimateCard({
@@ -86,35 +87,38 @@ export function EnergyEstimateCard({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18n._(ENERGY_ESTIMATE_COPY.title)}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
-        <p className="font-medium">{i18n._(ENERGY_ESTIMATE_COPY.subtitle)}</p>
-        <p className="text-muted-foreground">{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>
+    <Section
+      title={i18n._(ENERGY_ESTIMATE_COPY.title)}
+      description={i18n._(ENERGY_ESTIMATE_COPY.subtitle)}
+    >
+      <div className="sheet grid gap-3 px-5 pt-4 pb-5 text-sm text-ink-2">
+        <p className="text-ink-3">{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>
         {hideNumbers ? (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.hidden)}</p>
         ) : !authorized ? (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.unavailable)}</p>
         ) : estimate.isError ? (
-          <p role="alert">
+          <p role="alert" className="border-t-2 border-destructive pt-3">
             {i18n._(ENERGY_ESTIMATE_COPY.error)}{" "}
-            <button className="underline" onClick={() => void estimate.refetch()}>
+            <button className={inlineButtonClass} onClick={() => void estimate.refetch()}>
               <Trans>Retry</Trans>
             </button>
           </p>
         ) : estimate.isPending ? (
-          <p>
+          <p role="status" className="text-ink-3">
             <Trans>Loading estimate…</Trans>
           </p>
         ) : presented ? (
-          <div className="rounded-md border p-3">
-            <p className="text-xl font-semibold">{presented.value}</p>
-            <p>{t`${range} (arithmetic range, not a confidence interval)`}</p>
-            <p className="text-xs text-muted-foreground">{presented.window}</p>
+          <div className="grid gap-1 border-t border-rule pt-3">
+            <p className="num text-2xl font-medium tracking-[-0.03em] text-ink">
+              {presented.value}
+            </p>
+            <p className="text-ink-2">
+              {t`${range} (arithmetic range, not a confidence interval)`}
+            </p>
+            <p className="text-ink-3">{presented.window}</p>
             {presented.notes.map((n, i) => (
-              <p className="mt-1 text-xs text-muted-foreground" key={i}>
+              <p className="text-ink-3" key={i}>
                 {n}
               </p>
             ))}
@@ -123,12 +127,14 @@ export function EnergyEstimateCard({
           <p>{i18n._(ENERGY_ESTIMATE_COPY.unavailable)}</p>
         )}
         {authorized && pending ? (
-          <div className="grid gap-2 rounded-md border p-3">
-            <p className="font-medium">{i18n._(ENERGY_ESTIMATE_COPY.pending)}</p>
+          <div className="well grid gap-2 px-4 py-3">
+            <p className="font-display font-medium text-ink">
+              {i18n._(ENERGY_ESTIMATE_COPY.pending)}
+            </p>
             {pendingPresentation && (
               <>
-                <p>{t`Suggested: ${suggestion}`}</p>
-                <p>{t`Current target: ${currentTarget}`}</p>
+                <p className="text-ink">{t`Suggested: ${suggestion}`}</p>
+                <p className="text-ink-2">{t`Current target: ${currentTarget}`}</p>
               </>
             )}
             {expired && (
@@ -149,6 +155,7 @@ export function EnergyEstimateCard({
             )}
             <div className="flex flex-wrap gap-2">
               <Button
+                variant="outline"
                 disabled={
                   !allowed ||
                   !presented ||
@@ -177,7 +184,7 @@ export function EnergyEstimateCard({
                 {i18n._(ENERGY_ESTIMATE_COPY.accept)}
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 disabled={!allowed || dismiss.isPending}
                 onClick={() =>
                   dismiss.mutate(
@@ -201,6 +208,7 @@ export function EnergyEstimateCard({
         {authorized && proposals.isSuccess && !pending && !hideNumbers && (
           <Button
             variant="outline"
+            className="w-fit"
             disabled={!presented || ask.isPending}
             onClick={() =>
               ask.mutate(
@@ -224,11 +232,11 @@ export function EnergyEstimateCard({
           </Button>
         )}
         {message && (
-          <p role="status" aria-live="polite">
+          <p role="status" aria-live="polite" className="text-ink-2">
             {message}
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

@@ -8,8 +8,7 @@ import { isPayloadTooLarge, photoUploadProblem } from "@openvalens/api/photo-upl
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Button, buttonVariants } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Textarea } from "@openvalens/ui/components/textarea";
@@ -17,6 +16,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { controlLinkClass, textLinkClass } from "@/components/food-classes";
+import { Page, PageHeader, Section } from "@/components/page";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/food-draft")({ component: FoodDraftPage });
@@ -97,27 +98,27 @@ function FoodDraftPage() {
     ? `${provider.data.provider} (${provider.data.host})`
     : (provider.data?.provider ?? "");
   const itemLegend = (number: number, heard: string | null) =>
-    heard === null ? t`Item ${number} · from the photo` : t`Item ${number} · heard “${heard}”`;
+    heard === null ? t`Item ${number}, from the photo` : t`Item ${number}, heard “${heard}”`;
   const edit = (id: string, patch: Partial<FoodDraftCandidateWire>) =>
     setCandidates((current) =>
       current ? current.map((item) => (item.id === id ? { ...item, ...patch } : item)) : current,
     );
 
   return (
-    <main className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Describe a meal</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.intro)}</p>
-        <Link to="/nutrition" className="w-fit text-sm underline">
-          <Trans>Back to meal diary</Trans>
-        </Link>
-      </header>
-      <Card>
-        <CardContent className="grid gap-4 pt-6">
+    <Page width="narrow">
+      <PageHeader
+        title={<Trans>Describe a meal</Trans>}
+        description={i18n._(FOOD_DRAFT_COPY.intro)}
+        actions={
+          <Link to="/nutrition" className={controlLinkClass}>
+            <Trans>Back to meal diary</Trans>
+          </Link>
+        }
+      />
+      <Section sheet>
+        <div className="grid gap-4">
           <div className="grid gap-1.5">
-            <Label htmlFor="food-draft-text">
+            <Label htmlFor="food-draft-text" className="text-sm font-medium text-ink-3">
               <Trans>What did you have?</Trans>
             </Label>
             <Textarea
@@ -127,10 +128,10 @@ function FoodDraftPage() {
               placeholder={t`Two eggs, a slice of toast and a coffee`}
               onChange={(event) => setTranscript(event.target.value)}
             />
-            <p className="text-xs text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.dictation)}</p>
+            <p className="text-sm text-ink-3">{i18n._(FOOD_DRAFT_COPY.dictation)}</p>
           </div>
           {provider.data?.available ? (
-            <div className="grid gap-2 rounded-md border p-3 text-sm">
+            <div className="well grid gap-2 px-3 py-3 text-sm text-ink-2">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -168,29 +169,23 @@ function FoodDraftPage() {
             {parse.isPending ? t`Working…` : t`Make a draft`}
           </Button>
           {message ? (
-            <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+            <p role="status" aria-live="polite" className="text-sm text-ink-2">
               {i18n._(message)}{" "}
               {message === FOOD_DRAFT_COPY.status.disabled ? (
-                <Link to="/nutrition-targets" className="underline">
+                <Link to="/nutrition-targets" className={textLinkClass}>
                   <Trans>Nutrition settings</Trans>
                 </Link>
               ) : null}
             </p>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
 
       {provider.data?.available ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>From a photo</Trans>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="text-sm text-muted-foreground">{i18n._(PHOTO_DRAFT_COPY.intro)}</p>
+        <Section title={<Trans>From a photo</Trans>} description={i18n._(PHOTO_DRAFT_COPY.intro)}>
+          <div className="well grid gap-4 px-4 py-4">
             <div className="grid gap-1.5">
-              <Label htmlFor="food-draft-photo">
+              <Label htmlFor="food-draft-photo" className="text-sm font-medium text-ink-3">
                 <Trans>Meal photo (JPEG or PNG, up to 10 MB)</Trans>
               </Label>
               <Input
@@ -211,7 +206,7 @@ function FoodDraftPage() {
                 }}
               />
             </div>
-            <label className="flex items-start gap-2 text-sm">
+            <label className="flex items-start gap-2 text-sm text-ink-2">
               <input
                 type="checkbox"
                 className="mt-1"
@@ -226,44 +221,42 @@ function FoodDraftPage() {
             </label>
             <Button
               className="w-fit"
+              variant="outline"
               disabled={!photo || !photoAgreed || parsePhoto.isPending}
               onClick={() => photo && parsePhoto.mutate(photo)}
             >
               {parsePhoto.isPending ? t`Working…` : t`Make a draft from this photo`}
             </Button>
             {photoMessage ? (
-              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+              <p role="status" aria-live="polite" className="text-sm text-ink-2">
                 {i18n._(photoMessage)}{" "}
                 {photoMessage === PHOTO_DRAFT_COPY.status.disabled ? (
-                  <Link to="/nutrition-targets" className="underline">
+                  <Link to="/nutrition-targets" className={textLinkClass}>
                     <Trans>Nutrition settings</Trans>
                   </Link>
                 ) : null}
               </p>
             ) : null}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       ) : null}
 
       {candidates ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Review the draft</Trans>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="text-sm text-muted-foreground">
-              {i18n._(source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review)}
-            </p>
+        <Section
+          title={<Trans>Review the draft</Trans>}
+          description={i18n._(
+            source === "photo" ? PHOTO_DRAFT_COPY.review : FOOD_DRAFT_COPY.review,
+          )}
+        >
+          <div className="sheet grid gap-0 px-5 pt-2 pb-5">
             {candidates.map((item, index) => (
-              <fieldset key={item.id} className="grid gap-3 rounded-lg border p-3">
-                <legend className="px-1 text-sm font-medium">
+              <fieldset key={item.id} className="grid gap-3 border-b border-rule py-4">
+                <legend className="float-left mb-1 font-display text-sm font-medium text-ink">
                   {itemLegend(index + 1, source === "photo" ? null : item.sourceText)}
                 </legend>
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-food`}>
+                    <Label htmlFor={`${item.id}-food`} className="text-sm font-medium text-ink-3">
                       <Trans>Food</Trans>
                     </Label>
                     <Input
@@ -274,7 +267,10 @@ function FoodDraftPage() {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-quantity`}>
+                    <Label
+                      htmlFor={`${item.id}-quantity`}
+                      className="text-sm font-medium text-ink-3"
+                    >
                       <Trans>Quantity</Trans>
                     </Label>
                     <Input
@@ -299,7 +295,7 @@ function FoodDraftPage() {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-unit`}>
+                    <Label htmlFor={`${item.id}-unit`} className="text-sm font-medium text-ink-3">
                       <Trans>Unit</Trans>
                     </Label>
                     <Input
@@ -321,20 +317,20 @@ function FoodDraftPage() {
                   </div>
                 </div>
                 {item.flags.length ? (
-                  <p className="text-sm text-amber-700 dark:text-amber-400">
-                    {item.flags.map((flag) => i18n._(FOOD_DRAFT_FLAG_LABELS[flag])).join(" · ")}
+                  <p className="text-sm text-warning">
+                    {item.flags.map((flag) => i18n._(FOOD_DRAFT_FLAG_LABELS[flag])).join(", ")}
                   </p>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
                   <Link
                     to="/nutrition"
                     search={{ food: item.foodText }}
-                    className="inline-flex min-h-9 items-center rounded-md border px-3 text-sm"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
                   >
                     <Trans>Find and log this food</Trans>
                   </Link>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() =>
                       setCandidates((current) =>
@@ -349,7 +345,7 @@ function FoodDraftPage() {
             ))}
             <Button
               variant="destructive"
-              className="w-fit"
+              className="mt-4 w-fit"
               onClick={() => {
                 setCandidates(null);
                 setMessage(DRAFT_DISCARDED);
@@ -357,9 +353,9 @@ function FoodDraftPage() {
             >
               <Trans>Discard draft</Trans>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       ) : null}
-    </main>
+    </Page>
   );
 }

@@ -7,13 +7,15 @@ import {
 } from "@openvalens/api/presenters/micronutrients";
 import type { MicronutrientSummaryWire } from "@openvalens/api/contracts/nutrition-micronutrients";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { controlLinkClass, textLinkClass } from "@/components/food-classes";
+import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/micronutrients")({ component: MicronutrientsPage });
@@ -54,116 +56,156 @@ function MicronutrientsPage() {
   };
 
   return (
-    <main className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Micronutrients</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">{i18n._(MICRONUTRIENT_COPY.intro)}</p>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="micronutrient-date">
-              <Trans>Day</Trans>
-            </Label>
-            <Input
-              id="micronutrient-date"
-              type="date"
-              value={localDate}
-              onChange={(event) => event.target.value && setLocalDate(event.target.value)}
-            />
+    <Page>
+      <PageHeader
+        title={<Trans>Micronutrients</Trans>}
+        description={i18n._(MICRONUTRIENT_COPY.intro)}
+        actions={
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="micronutrient-date" className="text-sm font-medium text-ink-3">
+                <Trans>Day</Trans>
+              </Label>
+              <Input
+                id="micronutrient-date"
+                type="date"
+                className="num"
+                value={localDate}
+                onChange={(event) => event.target.value && setLocalDate(event.target.value)}
+              />
+            </div>
+            <Link to="/nutrition-targets" className={`pb-2 ${controlLinkClass}`}>
+              <Trans>Nutrition settings</Trans>
+            </Link>
           </div>
-          <Link to="/nutrition-targets" className="text-sm underline">
-            <Trans>Nutrition settings</Trans>
-          </Link>
-        </div>
-      </header>
+        }
+      />
 
       {summary.isPending ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          <Trans>Loading…</Trans>
-        </p>
+        <div className="grid gap-2" role="status">
+          <span className="sr-only">
+            <Trans>Loading…</Trans>
+          </span>
+          {SKELETON_ROWS.map((key) => (
+            <Skeleton key={key} className="h-10 w-full" />
+          ))}
+        </div>
       ) : summary.isError || !data ? (
-        <p role="alert" className="text-sm">
-          <Trans>Could not load the summary.</Trans>
-        </p>
+        <ErrorState title={<Trans>Could not load the summary.</Trans>} />
       ) : data.status === "off" ? (
-        <p className="text-sm">{i18n._(MICRONUTRIENT_COPY.off)}</p>
+        <EmptyState title={i18n._(MICRONUTRIENT_COPY.off)} />
       ) : data.status === "hidden" ? (
-        <p className="text-sm">{i18n._(MICRONUTRIENT_COPY.hidden)}</p>
+        <EmptyState title={i18n._(MICRONUTRIENT_COPY.hidden)} />
       ) : (
-        <>
-          <Card>
-            <CardContent className="grid gap-1 pt-6 text-sm">
-              {data.reference ? (
-                <p>
-                  <Trans>
-                    Reference: {sourceOrg}, {populationLabel}.{" "}
-                    <a
-                      className="underline"
-                      href={data.reference.sourceUrl}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Source
-                    </a>
-                    . {licenceNote}
-                  </Trans>
-                </p>
-              ) : (
-                <p>
-                  {i18n._(
-                    data.referenceNote === "adults_only"
-                      ? MICRONUTRIENT_COPY.adultsOnly
-                      : MICRONUTRIENT_COPY.noReference,
-                  )}
-                </p>
-              )}
-              <p className="text-muted-foreground">{i18n._(MICRONUTRIENT_COPY.intakeExplainer)}</p>
-              <p className="text-xs text-muted-foreground">
-                <Trans>Dataset {datasetVersion}.</Trans> {i18n._(MICRONUTRIENT_COPY.notAdvice)}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+          <Section title={<span className="num">{localDate}</span>}>
+            {data.totalEntries === 0 ? (
+              <EmptyState
+                title={<Trans>Nothing logged on this day.</Trans>}
+                action={
+                  <Link to="/nutrition" className={controlLinkClass}>
+                    <Trans>Back to meal diary</Trans>
+                  </Link>
+                }
+              />
+            ) : (
+              <div className="sheet px-5 pt-3 pb-4">
+                <table className="w-full text-left text-sm text-ink-2">
+                  <thead>
+                    <tr className="border-b-2 border-rule-2">
+                      <th scope="col" className="pb-2 font-medium text-ink-3">
+                        <Trans>Nutrient</Trans>
+                      </th>
+                      <th scope="col" className="w-28 pb-2 text-right font-medium text-ink-3">
+                        <Trans>Amount</Trans>
+                      </th>
+                      <th scope="col" className="w-28 pb-2 text-right font-medium text-ink-3">
+                        <Trans>% of reference</Trans>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.rows.map((row) => (
+                      <tr
+                        key={row.nutrient}
+                        className="border-b border-rule align-top last:border-0"
+                      >
+                        <th scope="row" className="py-2.5 pr-4 font-normal">
+                          <span className="block font-display font-medium text-ink">
+                            {i18n._(MICRONUTRIENT_LABELS[row.nutrient])}
+                          </span>
+                          <span className="sr-only">{rowTitle(row, data.hideNumbers)}</span>
+                          <span className="block text-ink-3">{i18n._(coverageText(row))}</span>
+                          {row.atLeast ? (
+                            <span className="block text-ink-3">
+                              {i18n._(MICRONUTRIENT_COPY.incomplete)}
+                            </span>
+                          ) : null}
+                          {row.percentOfReference === null &&
+                          row.references.length &&
+                          row.knownEntries < row.totalEntries ? (
+                            <span className="block text-warning">
+                              {i18n._(MICRONUTRIENT_COPY.notCompared)}
+                            </span>
+                          ) : null}
+                          {row.references.map((reference) => (
+                            <span key={reference.type} className="block text-ink-3">
+                              {describeReference(row.nutrient, reference, i18n)}
+                            </span>
+                          ))}
+                        </th>
+                        <td className="num py-2.5 font-medium text-ink" aria-hidden="true">
+                          {row.amount === null
+                            ? data.hideNumbers
+                              ? t`Hidden`
+                              : t`Unknown`
+                            : `${row.atLeast ? "\u2265 " : ""}${formatMicronutrientAmount(row.nutrient, row.amount)}`}
+                        </td>
+                        <td className="num py-2.5 text-ink">
+                          {row.percentOfReference !== null ? `${row.percentOfReference}%` : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Section>
 
-          {data.totalEntries === 0 ? (
-            <p className="text-sm">
-              <Trans>Nothing logged on this day.</Trans>
+          <aside className="well grid gap-2 px-4 py-4 text-sm text-ink-2">
+            {data.reference ? (
+              <p>
+                <Trans>
+                  Reference: {sourceOrg}, {populationLabel}.{" "}
+                  <a
+                    className={textLinkClass}
+                    href={data.reference.sourceUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Source
+                  </a>
+                  . {licenceNote}
+                </Trans>
+              </p>
+            ) : (
+              <p>
+                {i18n._(
+                  data.referenceNote === "adults_only"
+                    ? MICRONUTRIENT_COPY.adultsOnly
+                    : MICRONUTRIENT_COPY.noReference,
+                )}
+              </p>
+            )}
+            <p className="text-ink-3">{i18n._(MICRONUTRIENT_COPY.intakeExplainer)}</p>
+            <p className="text-ink-3">
+              <Trans>Dataset {datasetVersion}.</Trans> {i18n._(MICRONUTRIENT_COPY.notAdvice)}
             </p>
-          ) : (
-            <ul className="grid gap-3">
-              {data.rows.map((row) => (
-                <li key={row.nutrient}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">{rowTitle(row, data.hideNumbers)}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-1 text-sm">
-                      <p>{i18n._(coverageText(row))}</p>
-                      {row.atLeast ? (
-                        <p className="text-muted-foreground">
-                          {i18n._(MICRONUTRIENT_COPY.incomplete)}
-                        </p>
-                      ) : null}
-                      {row.percentOfReference !== null ? (
-                        <p>{t`${row.percentOfReference}% of the intake reference below.`}</p>
-                      ) : row.references.length && row.knownEntries < row.totalEntries ? (
-                        <p className="text-muted-foreground">
-                          {i18n._(MICRONUTRIENT_COPY.notCompared)}
-                        </p>
-                      ) : null}
-                      {row.references.map((reference) => (
-                        <p key={reference.type} className="text-muted-foreground">
-                          {describeReference(row.nutrient, reference, i18n)}
-                        </p>
-                      ))}
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+          </aside>
+        </div>
       )}
-    </main>
+    </Page>
   );
 }
+
+const SKELETON_ROWS = ["a", "b", "c", "d", "e", "f"] as const;
