@@ -108,19 +108,19 @@ export function AdmissionForm({
       </CardHeader>
       <CardContent className="grid gap-6">
         {sessionEmail ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-3">
             <Trans>
               Signed in as{" "}
-              <span className="font-medium text-foreground wrap-anywhere">{sessionEmail}</span>.
+              <span className="font-medium text-ink wrap-anywhere">{sessionEmail}</span>.
             </Trans>
           </p>
         ) : null}
 
         {isSessionMatch && state.step === "token" ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-3">
             <Trans>
               Enter the token again to continue enrollment as{" "}
-              <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>.
+              <span className="font-medium text-ink wrap-anywhere">{state.email}</span>.
             </Trans>
           </p>
         ) : null}
@@ -165,14 +165,14 @@ export function AdmissionForm({
                 <button
                   type="button"
                   onClick={() => flow.toggleCredentialVisible()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink"
                   aria-label={state.credentialVisible ? t`Hide token` : t`Show token`}
                   tabIndex={-1}
                 >
                   {state.credentialVisible ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">{tokenHelp}</p>
+              <p className="text-sm text-ink-3">{tokenHelp}</p>
             </div>
 
             <ErrorMessage code={state.errorCode} />
@@ -204,11 +204,11 @@ export function AdmissionForm({
                 disabled={state.isBusy}
                 placeholder={t`Paste the code from your email`}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-ink-3">
                 <Trans>
                   We emailed a one-time code to{" "}
-                  <span className="font-medium text-foreground wrap-anywhere">{state.email}</span>.
-                  It expires in 10 minutes.
+                  <span className="font-medium text-ink wrap-anywhere">{state.email}</span>. It
+                  expires in 10 minutes.
                 </Trans>
               </p>
             </div>
@@ -291,12 +291,12 @@ function SessionMismatchHelp({
   }
 
   return (
-    <div className="rounded-lg border border-border p-4">
-      <p className="text-sm text-muted-foreground">
+    <div className="well px-4 py-3">
+      <p className="text-sm text-ink-3">
         <Trans>
           This email may already belong to an account. Send a sign-in link to{" "}
-          <span className="font-medium text-foreground wrap-anywhere">{email}</span>, then return to
-          this tab and enter the token again.
+          <span className="font-medium text-ink wrap-anywhere">{email}</span>, then return to this
+          tab and enter the token again.
         </Trans>
       </p>
       <Button
@@ -351,10 +351,10 @@ function SuccessCard({
       <CardContent className="grid gap-4">
         {hasMatchingSession ? (
           <>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-ink-3">
               <Trans>
                 Continue to OpenValens as{" "}
-                <span className="font-medium text-foreground wrap-anywhere">{email}</span>.
+                <span className="font-medium text-ink wrap-anywhere">{email}</span>.
               </Trans>
             </p>
             <Button asChild>
@@ -365,11 +365,10 @@ function SuccessCard({
           </>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-ink-3">
               <Trans>
-                Sign in with{" "}
-                <span className="font-medium text-foreground wrap-anywhere">{email}</span> to start
-                using OpenValens.
+                Sign in with <span className="font-medium text-ink wrap-anywhere">{email}</span> to
+                start using OpenValens.
               </Trans>
             </p>
             <Button onClick={() => void onSignIn()} disabled={linkDelivery === "sending"}>

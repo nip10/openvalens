@@ -299,24 +299,22 @@ export function AcceptInvitationView({
           {summary.organizationName ? (
             <Trans>
               You have been invited to join{" "}
-              <span className="font-medium text-foreground wrap-anywhere">
-                {summary.organizationName}
-              </span>{" "}
-              as <span className="font-medium text-foreground">{role}</span>.
+              <span className="font-medium text-ink wrap-anywhere">{summary.organizationName}</span>{" "}
+              as <span className="font-medium text-ink">{role}</span>.
             </Trans>
           ) : (
             <Trans>
               You have been invited to join a workspace as{" "}
-              <span className="font-medium text-foreground">{role}</span>.
+              <span className="font-medium text-ink">{role}</span>.
             </Trans>
           )}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-ink-3">
           <Trans>
             Invited email:{" "}
-            <span className="font-medium text-foreground wrap-anywhere">{summary.email}</span>
+            <span className="font-medium text-ink wrap-anywhere">{summary.email}</span>
           </Trans>
         </p>
         {mismatch ? (
