@@ -201,20 +201,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-svh grid-cols-[minmax(0,1fr)] lg:grid-cols-[15rem_minmax(0,1fr)]">
       {skipLink}
-      <aside className="sticky top-0 hidden h-svh flex-col border-r border-sidebar-border bg-sidebar lg:flex">
-        <div className="flex h-14 shrink-0 items-center px-5">
-          <Wordmark />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-6">
-          <NavGroups groups={groups} label={_(msg`Main navigation`)} />
-        </div>
-        <div className="flex shrink-0 items-center gap-2 border-t border-sidebar-border px-3 py-3">
-          <div className="min-w-0 flex-1">
-            <UserMenu />
+      <div className="hidden border-r border-sidebar-border bg-sidebar lg:block">
+        <aside className="sticky top-0 flex h-svh flex-col">
+          <div className="flex h-14 shrink-0 items-center px-5">
+            <Wordmark />
           </div>
-          <ModeToggle />
-        </div>
-      </aside>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-6">
+            <NavGroups groups={groups} label={_(msg`Main navigation`)} />
+          </div>
+          <div className="flex shrink-0 items-center gap-2 border-t border-sidebar-border px-3 py-3">
+            <div className="min-w-0 flex-1">
+              <UserMenu />
+            </div>
+            <ModeToggle />
+          </div>
+        </aside>
+      </div>
 
       <div className="grid min-w-0 grid-rows-[auto_1fr] lg:grid-rows-[1fr]">
         <header className="sticky top-0 z-[var(--z-sticky-nav)] flex h-14 items-center justify-between gap-2 border-b border-rule bg-paper px-4 lg:hidden">

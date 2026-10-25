@@ -234,7 +234,7 @@ function InvitationsList({
                 <TableCell className="py-2.5">
                   <StatusBadge status={invitation.status} />
                 </TableCell>
-                <TableCell className="num py-2.5 text-ink-3">
+                <TableCell className="num text-left py-2.5 text-ink-3">
                   {invitation.expiresAt ? invitation.expiresAt.toLocaleString() : null}
                 </TableCell>
                 <TableCell className="py-2 pr-5 text-right">

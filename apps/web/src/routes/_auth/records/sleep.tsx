@@ -1,7 +1,6 @@
 import {
   formatClockTime,
   formatSleepDuration,
-  formatSleepDurationWithHours,
   formatSleepEfficiency,
   lastNightStages,
   sleepSeries,
@@ -138,12 +137,15 @@ function SleepPage() {
                     <CartesianGrid vertical={false} stroke="var(--rule)" />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
                     <YAxis
-                      domain={[0, Math.ceil(maxAsleep / 60) * 60]}
+                      domain={[0, Math.ceil(maxAsleep / 120) * 120]}
+                      ticks={Array.from(
+                        { length: Math.ceil(maxAsleep / 120) + 1 },
+                        (_, index) => index * 120,
+                      )}
                       tickLine={false}
                       axisLine={false}
-                      width={40}
-                      tickCount={5}
-                      tickFormatter={(value: number) => formatSleepDurationWithHours(value)}
+                      width={32}
+                      tickFormatter={(value: number) => `${Math.round(value / 60)}h`}
                     />
                     <ChartTooltip
                       content={
@@ -231,7 +233,7 @@ function SleepPage() {
               <TableBody>
                 {nights.map((night) => (
                   <TableRow key={night.date}>
-                    <TableCell className="num text-ink-3">{night.date}</TableCell>
+                    <TableCell className="num text-left text-ink-3">{night.date}</TableCell>
                     <TableCell className="num text-ink">
                       {formatSleepDuration(night.asleepMinutes)}
                     </TableCell>

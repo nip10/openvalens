@@ -273,7 +273,7 @@ function BodyPage() {
                           daily.data?.find((row) => row.date === point.date)?.source ?? "";
                         return (
                           <TableRow key={point.date}>
-                            <TableCell className="num text-ink-3">{point.date}</TableCell>
+                            <TableCell className="num text-left text-ink-3">{point.date}</TableCell>
                             <TableCell className="text-ink-3">
                               {i18n._(weightSourceLabel(source))}
                             </TableCell>

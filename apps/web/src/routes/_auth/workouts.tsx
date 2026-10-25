@@ -644,7 +644,7 @@ function WorkoutsPage() {
                     const canRate = rating === null && canRateEffortToday(workout.date, today);
                     return (
                       <TableRow key={workout.id} className="align-top">
-                        <TableCell className="num whitespace-nowrap text-ink-3">
+                        <TableCell className="num text-left whitespace-nowrap text-ink-3">
                           {workout.date}
                         </TableCell>
                         <TableCell className="min-w-40 whitespace-normal">

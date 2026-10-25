@@ -112,7 +112,9 @@ export function Figure({
     <div className={cn("grid min-w-0 content-start gap-1", className)}>
       <dt className="text-sm font-medium text-ink-3">{label}</dt>
       <dd className="m-0 flex items-baseline gap-1.5">
-        <span className="num text-2xl font-medium tracking-[-0.03em] text-ink">{value}</span>
+        <span className="num text-xl font-medium tracking-[-0.03em] whitespace-nowrap text-ink sm:text-2xl">
+          {value}
+        </span>
         {unit ? <span className="text-sm text-ink-3">{unit}</span> : null}
       </dd>
       {note ? <dd className="m-0 text-sm text-ink-3">{note}</dd> : null}

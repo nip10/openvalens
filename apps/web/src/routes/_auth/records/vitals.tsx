@@ -338,7 +338,7 @@ function VitalsPage() {
             <TableBody>
               {(samples.data ?? []).map((sample) => (
                 <TableRow key={sample.sampledAt}>
-                  <TableCell className="num text-ink-3">
+                  <TableCell className="num text-left text-ink-3">
                     {new Date(sample.sampledAt).toISOString().slice(0, 16).replace("T", " ")}
                   </TableCell>
                   <TableCell className="num text-ink">{formatBpm(sample.heartRateBpm)}</TableCell>

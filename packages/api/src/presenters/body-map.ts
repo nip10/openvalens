@@ -371,22 +371,28 @@ export const BODY_MAP_REGIONS: readonly BodyMapRegion[] = Object.freeze([
 // ─── Colours ──────────────────────────────────────────────────────
 
 /** Fill for a region with no measured or logged value. */
-export const BODY_MAP_NEUTRAL = "#d4d4d8";
-/** Low to high. Neutral blues: no good/bad reading is implied. */
+export const BODY_MAP_NEUTRAL = "#babec3";
+/**
+ * Low to high. One ink-blue ramp (the Almanac slate hue, OKLCH 245): no
+ * good/bad reading is implied. Hex because react-native-svg reads these too.
+ */
 export const BODY_MAP_SEQUENTIAL = Object.freeze([
-  "#dbeafe",
-  "#93c5fd",
-  "#60a5fa",
-  "#2563eb",
-  "#1e3a8a",
+  "#cee1f1",
+  "#92b6d5",
+  "#5c8bb3",
+  "#295f8a",
+  "#0c3654",
 ]);
-/** Lower, slightly lower, about the same, slightly higher, higher. Not red/green. */
+/**
+ * Lower, slightly lower, about the same, slightly higher, higher: ink blue to
+ * the Almanac magenta through the sheet. Not red/green.
+ */
 export const BODY_MAP_DIVERGING = Object.freeze([
-  "#6d28d9",
-  "#c4b5fd",
-  "#f4f4f5",
-  "#fdba74",
-  "#c2410c",
+  "#114b75",
+  "#85a9c8",
+  "#e4e8ed",
+  "#d48aad",
+  "#970d63",
 ]);
 
 export type LegendStep = { colour: string; label: string };

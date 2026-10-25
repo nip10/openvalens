@@ -306,7 +306,7 @@ function ActivityPage() {
                 .slice(0, 14)
                 .map((day) => (
                   <TableRow key={day.date}>
-                    <TableCell className="num text-ink-3">{day.date}</TableCell>
+                    <TableCell className="num text-left text-ink-3">{day.date}</TableCell>
                     <TableCell className="num text-ink">{formatSteps(day.steps)}</TableCell>
                     <TableCell className="num">{formatKcalories(day.activeCaloriesKcal)}</TableCell>
                     <TableCell className="num">

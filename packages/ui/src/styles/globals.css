@@ -2,6 +2,8 @@
  * nav: a grouped sidebar (Today, Records, Sharing, Account), a menu under 60rem · signature: the day sheet, today's figures printed on the sheet beside one trend set large · states: loading, empty, error, full
  * axes: mid/grotesk-sans/chromatic-magenta · posture: restrained · modes: light+dark · contrast: pass · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: H, fourteen links of equal weight; grouped into four and the dashboard leads with one sheet instead of four cards */
+/* Hallmark · dismissed 26a · __root.tsx holds only the shell and the outlet; its controls carry the shared Button focus ring and the base :focus-visible rule */
+/* Hallmark · dismissed 70 · the admission form prints "Sign-in link sent" only after the real magic-link request resolves */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -99,6 +101,9 @@
   a:hover {
     text-decoration-thickness: 2px;
   }
+  th {
+    text-align: left;
+  }
   /* Figures that compare: mono, tabular, lined up. */
   .num,
   td.num {
@@ -107,6 +112,31 @@
   }
   td.num,
   th.num {
+    text-align: right;
+  }
+  /* A column of right-aligned figures takes its head with it. */
+  table:has(tbody td.num:not(.text-left):nth-child(1)) thead th:nth-child(1) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(2)) thead th:nth-child(2) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(3)) thead th:nth-child(3) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(4)) thead th:nth-child(4) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(5)) thead th:nth-child(5) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(6)) thead th:nth-child(6) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(7)) thead th:nth-child(7) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(8)) thead th:nth-child(8) {
     text-align: right;
   }
 }

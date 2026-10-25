@@ -330,7 +330,7 @@ function NutritionPage() {
                             <th
                               key={key}
                               scope="col"
-                              className="hidden w-[5.5rem] truncate pb-2 text-right font-medium text-ink-3 md:table-cell"
+                              className="hidden w-28 pb-2 pl-3 text-right font-medium whitespace-nowrap text-ink-3 md:table-cell"
                             >
                               {i18n._(NUTRIENT_LABELS[key].label)}
                             </th>
