@@ -72,16 +72,19 @@ function ScoreRow({
 
 /** Method, limits and version: behind an ⓘ next to the title. */
 function MethodNote({
+  intro,
   method,
   limits,
   version,
 }: {
+  intro: string;
   method: string;
   limits: string;
   version: string;
 }) {
   return (
     <InfoTip>
+      <p>{intro}</p>
       <p className="font-semibold text-ink">
         <Trans>How this is calculated</Trans>
       </p>
@@ -140,10 +143,8 @@ export function ReadinessCard({ result }: { result: ReadinessResult }) {
           {view.title}
         </h2>
         <StatusPill tone="neutral">{view.badge}</StatusPill>
-        <InfoTip>
-          <p>{i18n._(SCORE_COPY.readinessIntro)}</p>
-        </InfoTip>
         <MethodNote
+          intro={i18n._(SCORE_COPY.readinessIntro)}
           method={i18n._(SCORE_COPY.readinessMethod)}
           limits={i18n._(SCORE_COPY.readinessLimits)}
           version={view.versionText}
@@ -209,10 +210,8 @@ export function GoalProgressCard({ result }: { result: GoalProgressResult }) {
         <h2 id="goal-progress-title" className="text-xl leading-tight text-ink">
           {view.title}
         </h2>
-        <InfoTip>
-          <p>{i18n._(SCORE_COPY.goalProgressIntro)}</p>
-        </InfoTip>
         <MethodNote
+          intro={i18n._(SCORE_COPY.goalProgressIntro)}
           method={i18n._(SCORE_COPY.goalProgressMethod)}
           limits={i18n._(SCORE_COPY.goalProgressLimits)}
           version={view.versionText}

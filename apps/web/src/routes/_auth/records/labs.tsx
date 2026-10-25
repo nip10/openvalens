@@ -180,7 +180,7 @@ function MarkerCard({
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {marker.sampleCount > 0 ? (
             <StatusPill tone="neutral">
-              <Trans>Samples</Trans> <span className="num">{marker.sampleCount}</span>
+              <Trans>Samples</Trans>&nbsp;<span className="num">{marker.sampleCount}</span>
             </StatusPill>
           ) : null}
           {display.converted ? (
