@@ -8,13 +8,6 @@ import { formatDistanceMeters } from "@openvalens/api/presenters/activity";
 import { formatKg } from "@openvalens/api/presenters/body";
 import { formatProductDate } from "@openvalens/api/presenters/product-formatting";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Label } from "@openvalens/ui/components/label";
 import {
   Select,
@@ -25,6 +18,7 @@ import {
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 
+import { ErrorState, Section } from "@/components/page";
 import {
   useProductSettingsForm,
   type ProductSettingsSnapshot,
@@ -133,97 +127,95 @@ function ReadyForm({
   const localeLabel = localeOption ? i18n._(localeOption.label) : undefined;
 
   return (
-    <Card className="mx-auto w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle>
-          <Trans>Display defaults</Trans>
-        </CardTitle>
-        <CardDescription>
-          <Trans>
-            Instance-wide defaults affect how weight, distance, dates, and times appear. Stored
-            values stay in canonical kilograms and meters; manual entry stays unchanged.
-          </Trans>
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.save();
-          }}
-          className="grid gap-6"
-          aria-busy={isBusy}
-        >
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor={unitsId}>
-                <Trans>Units</Trans>
-              </Label>
-              <Select
-                value={form.draft.units}
-                onValueChange={(value) => form.setUnits(value as ProductUnits)}
-                disabled={isReadOnly || isBusy}
-              >
-                <SelectTrigger id={unitsId} aria-describedby={unitsHintId}>
-                  <SelectValue aria-label={unitLabel}>{unitLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {UNIT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {i18n._(option.label)}{" "}
-                      <span className="text-muted-foreground">({i18n._(option.hint)})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p id={unitsHintId} className="text-xs text-muted-foreground">
-                <Trans>Choose how weight and distance are displayed.</Trans>
-              </p>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor={localeId}>
-                <Trans>Locale</Trans>
-              </Label>
-              <Select
-                value={form.draft.locale}
-                onValueChange={(value) => form.setLocale(value as ProductLocale)}
-                disabled={isReadOnly || isBusy}
-              >
-                <SelectTrigger id={localeId} aria-describedby={localeHintId}>
-                  <SelectValue aria-label={localeLabel}>{localeLabel}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {LOCALE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {i18n._(option.label)}{" "}
-                      <span className="text-muted-foreground">({option.hint})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p id={localeHintId} className="text-xs text-muted-foreground">
-                <Trans>Affects number, date, and time formatting. Language stays English.</Trans>
-              </p>
-            </div>
+    <Section
+      title={<Trans>Display defaults</Trans>}
+      description={
+        <Trans>
+          Instance-wide defaults affect how weight, distance, dates, and times appear. Stored values
+          stay in canonical kilograms and meters; manual entry stays unchanged.
+        </Trans>
+      }
+      sheet
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void form.save();
+        }}
+        className="grid gap-6"
+        aria-busy={isBusy}
+      >
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor={unitsId} className="text-ink-3">
+              <Trans>Units</Trans>
+            </Label>
+            <Select
+              value={form.draft.units}
+              onValueChange={(value) => form.setUnits(value as ProductUnits)}
+              disabled={isReadOnly || isBusy}
+            >
+              <SelectTrigger id={unitsId} aria-describedby={unitsHintId}>
+                <SelectValue aria-label={unitLabel}>{unitLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {UNIT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {i18n._(option.label)}{" "}
+                    <span className="text-ink-3">({i18n._(option.hint)})</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p id={unitsHintId} className="text-sm text-ink-3">
+              <Trans>Choose how weight and distance are displayed.</Trans>
+            </p>
           </div>
 
-          <div className="rounded-lg border p-4">
-            <p className="text-sm font-medium">
-              <Trans>Preview</Trans>
+          <div className="grid gap-2">
+            <Label htmlFor={localeId} className="text-ink-3">
+              <Trans>Locale</Trans>
+            </Label>
+            <Select
+              value={form.draft.locale}
+              onValueChange={(value) => form.setLocale(value as ProductLocale)}
+              disabled={isReadOnly || isBusy}
+            >
+              <SelectTrigger id={localeId} aria-describedby={localeHintId}>
+                <SelectValue aria-label={localeLabel}>{localeLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {LOCALE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {i18n._(option.label)} <span className="text-ink-3">({option.hint})</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p id={localeHintId} className="text-sm text-ink-3">
+              <Trans>Affects number, date, and time formatting. Language stays English.</Trans>
             </p>
-            <p className="text-sm text-muted-foreground">
+          </div>
+        </div>
+
+        <div className="grid gap-1.5 border-t border-rule pt-4">
+          <p className="text-sm font-medium text-ink-3">
+            <Trans>Preview</Trans>
+          </p>
+          <p className="flex flex-wrap gap-x-6 gap-y-1 text-ink">
+            <span className="num">
               {formatKg(PREVIEW_WEIGHT_KG, {
                 units: form.draft.units,
                 locale: form.draft.locale,
               })}
-              {" · "}
+            </span>
+            <span className="num">
               {formatDistanceMeters(PREVIEW_DISTANCE_METERS, {
                 units: form.draft.units,
                 locale: form.draft.locale,
               })}
-              {" · "}
+            </span>
+            <span>
               {formatProductDate(
                 PREVIEW_DATE,
                 form.draft.locale,
@@ -234,33 +226,33 @@ function ReadyForm({
                 },
                 "UTC",
               )}
-            </p>
+            </span>
+          </p>
+        </div>
+
+        {isReadOnly ? (
+          <p className="text-sm text-ink-3">
+            <Trans>You can view these settings but cannot edit them.</Trans>
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={!form.canSave}>
+              {form.status.tag === "saving" ? t`Saving…` : t`Save`}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={form.reset}
+              disabled={isBusy || !form.isChanged}
+            >
+              <Trans>Reset</Trans>
+            </Button>
           </div>
+        )}
 
-          {isReadOnly ? (
-            <p className="text-sm text-muted-foreground">
-              <Trans>You can view these settings but cannot edit them.</Trans>
-            </p>
-          ) : (
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" disabled={!form.canSave}>
-                {form.status.tag === "saving" ? t`Saving…` : t`Save`}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={form.reset}
-                disabled={isBusy || !form.isChanged}
-              >
-                <Trans>Reset</Trans>
-              </Button>
-            </div>
-          )}
-
-          <FormStatus status={form.status} isBusy={isBusy} onReloadLatest={form.reloadLatest} />
-        </form>
-      </CardContent>
-    </Card>
+        <FormStatus status={form.status} isBusy={isBusy} onReloadLatest={form.reloadLatest} />
+      </form>
+    </Section>
   );
 }
 
@@ -295,7 +287,7 @@ function FormStatus({
 
   if (status.tag === "conflict" || status.tag === "stale") {
     return (
-      <div role="alert" aria-live="polite" className="rounded-lg border border-destructive/50 p-3">
+      <div role="alert" aria-live="polite" className="border-t-2 border-destructive pt-3">
         <p className="text-sm text-destructive">{message}</p>
         <Button
           type="button"
@@ -316,44 +308,37 @@ function FormStatus({
 
 function LoadingCard() {
   return (
-    <Card className="mx-auto w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle>
-          <Trans>Display defaults</Trans>
-        </CardTitle>
-        <CardDescription>
-          <Trans>
-            Instance-wide defaults affect how weight, distance, dates, and times appear.
-          </Trans>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
+    <Section
+      title={<Trans>Display defaults</Trans>}
+      description={
+        <Trans>Instance-wide defaults affect how weight, distance, dates, and times appear.</Trans>
+      }
+      sheet
+    >
+      <div className="grid gap-4">
         <Skeleton className="h-4 w-2/3" />
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-9 w-full" />
+        <div className="grid gap-6 md:grid-cols-2">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
         <Skeleton className="h-9 w-1/3" />
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
 function ErrorCard({ message, onRetry }: { message?: string; onRetry: () => void }) {
   const { t } = useLingui();
   return (
-    <Card className="mx-auto w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle>
-          <Trans>Display defaults</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          {message ?? t`Could not load display defaults.`}{" "}
-          <button type="button" className="underline" onClick={onRetry}>
+    <Section title={<Trans>Display defaults</Trans>}>
+      <ErrorState
+        title={message ?? t`Could not load display defaults.`}
+        action={
+          <Button type="button" variant="outline" onClick={onRetry}>
             <Trans>Retry</Trans>
-          </button>
-        </p>
-      </CardContent>
-    </Card>
+          </Button>
+        }
+      />
+    </Section>
   );
 }

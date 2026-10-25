@@ -5,16 +5,11 @@ import {
   WELLNESS_PROFILE_FIELDS,
   type WellnessProfileSnapshot,
 } from "@openvalens/api/wellness-profile-contract";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { Button } from "@openvalens/ui/components/button";
 import { Link } from "@tanstack/react-router";
 
+import { ErrorState, Section } from "@/components/page";
 import { useWellnessProfile } from "@/utils/wellness-profile";
 
 /** Issue #98 — read-only profile overview in Settings with a link to edit. */
@@ -23,19 +18,16 @@ export function ProfileSummarySection() {
   if (profile.isPending) return <Skeleton className="h-40 w-full" />;
   if (profile.isError || !profile.data) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Profile</Trans>
-          </CardTitle>
-          <CardDescription>
-            <Trans>Could not load your profile.</Trans>{" "}
-            <button className="underline" onClick={() => void profile.refetch()}>
+      <Section title={<Trans>Profile</Trans>}>
+        <ErrorState
+          title={<Trans>Could not load your profile.</Trans>}
+          action={
+            <Button variant="outline" size="sm" onClick={() => void profile.refetch()}>
               <Trans>Retry</Trans>
-            </button>
-          </CardDescription>
-        </CardHeader>
-      </Card>
+            </Button>
+          }
+        />
+      </Section>
     );
   }
   return <ProfileSummaryCard snapshot={profile.data} />;
@@ -43,32 +35,32 @@ export function ProfileSummarySection() {
 
 export function ProfileSummaryCard({ snapshot }: { snapshot: WellnessProfileSnapshot }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Profile</Trans>
-        </CardTitle>
-        <CardDescription>
-          <Trans>Optional answers only you can see.</Trans>{" "}
-          <Link to="/profile" className="underline">
+    <Section
+      title={<Trans>Profile</Trans>}
+      description={<Trans>Optional answers only you can see.</Trans>}
+      actions={
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/profile">
             <Trans>Edit profile</Trans>
           </Link>
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ProfileSummaryList snapshot={snapshot} />
-      </CardContent>
-    </Card>
+        </Button>
+      }
+    >
+      <ProfileSummaryList snapshot={snapshot} />
+    </Section>
   );
 }
 
 export function ProfileSummaryList({ snapshot }: { snapshot: WellnessProfileSnapshot }) {
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+    <dl className="grid border-t border-rule text-sm">
       {WELLNESS_PROFILE_FIELDS.map((field) => (
-        <div key={field} className="contents">
-          <dt className="text-muted-foreground">{WELLNESS_FIELD_COPY[field].title}</dt>
-          <dd>{describeAnswer(field, snapshot[field])}</dd>
+        <div
+          key={field}
+          className="grid gap-x-6 gap-y-0.5 border-b border-rule py-2.5 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]"
+        >
+          <dt className="text-ink-3">{WELLNESS_FIELD_COPY[field].title}</dt>
+          <dd className="m-0 text-ink">{describeAnswer(field, snapshot[field])}</dd>
         </div>
       ))}
     </dl>

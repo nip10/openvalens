@@ -36,17 +36,20 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="max-w-[10rem] sm:max-w-[14rem]">
+        <Button
+          variant="ghost"
+          className="max-w-[10rem] justify-start px-2 sm:max-w-[14rem] lg:w-full lg:max-w-none"
+        >
           <span className="truncate">{session.user.name}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="bg-card">
+      <DropdownMenuContent align="end" className="min-w-56 bg-card">
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             <Trans>My Account</Trans>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="max-w-[min(20rem,85vw)]">
+          <DropdownMenuItem className="max-w-[min(20rem,85vw)] text-ink-3">
             <span className="truncate">{session.user.email}</span>
           </DropdownMenuItem>
           <DropdownMenuItem

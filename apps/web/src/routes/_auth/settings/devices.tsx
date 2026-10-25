@@ -8,6 +8,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 
+import { Page, PageHeader } from "@/components/page";
 import { WearableDevicesView, type WearableConfirm } from "@/components/wearable-devices-view";
 import { orpc } from "@/utils/orpc";
 
@@ -77,16 +78,18 @@ function DevicesSettingsPage() {
     providers.find((row) => row.provider === search.provider)?.displayName ?? search.provider ?? "";
   const notice = search.provider ? wearableCallbackNotice(search.status, returnedName) : null;
 
+  const settingsLink = (
+    <Link
+      to="/settings"
+      className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+    >
+      <Trans>Settings</Trans>
+    </Link>
+  );
+
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-2 text-sm">
-        <Link to="/settings" className="text-muted-foreground underline">
-          <Trans>Settings</Trans>
-        </Link>
-      </div>
-      <h1 className="mb-6 text-2xl font-semibold">
-        <Trans>Devices</Trans>
-      </h1>
+    <Page width="narrow">
+      <PageHeader title={<Trans>Devices</Trans>} actions={settingsLink} />
       <WearableDevicesView
         status={list.isPending ? "pending" : list.isError ? "error" : "ready"}
         providers={providers}
@@ -108,6 +111,6 @@ function DevicesSettingsPage() {
           resolve.mutate({ provider, action });
         }}
       />
-    </div>
+    </Page>
   );
 }
