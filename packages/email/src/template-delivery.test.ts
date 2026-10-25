@@ -68,7 +68,7 @@ describe("invitation delivery", () => {
       to: "invitee@example.com",
       replyTo: "support@health.example",
       bcc: "audit@health.example",
-      subject: "Dr. Ada invited you to Northwind Clinic on Health",
+      subject: "Dr. Ada invited you to Northwind Clinic on OpenValens",
       tags: [{ name: "tag", value: "invitation" }],
     });
     expect(calls[0]?.html).toContain('href="https://app.example/accept-invitation/inv_1"');
@@ -102,7 +102,7 @@ describe("magic-link delivery", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
-      subject: "Sign in to Health",
+      subject: "Sign in to OpenValens",
       tags: [{ name: "tag", value: "magic-link" }],
     });
     // A sign-in credential must never be copied to the compliance mailbox.

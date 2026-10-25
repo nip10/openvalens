@@ -52,7 +52,7 @@ class FakeProvider implements EmailProvider {
 
 const INPUT = {
   to: "patient@example.com",
-  subject: "Sign in to Health",
+  subject: "Sign in to OpenValens",
   html: "<p>hello</p>",
   text: "hello",
   templateName: "magic-link",
@@ -71,11 +71,11 @@ describe("createEmailService", () => {
     expect(JSON.stringify(service)).not.toContain(ALPHA_CONFIG.RESEND_API_KEY);
   });
 
-  test("derives organizationName from the sender display name, falling back to Health", () => {
+  test("derives organizationName from the sender display name, falling back to OpenValens", () => {
     expect(createEmailService(ALPHA_CONFIG).organizationName).toBe("Alpha");
     expect(
       createEmailService({ ...ALPHA_CONFIG, EMAIL_FROM: "noreply@alpha.example" }).organizationName,
-    ).toBe("Health");
+    ).toBe("OpenValens");
   });
 
   test("two services in one process keep distinct sender/reply/bcc and name", async () => {

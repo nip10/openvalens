@@ -1,6 +1,6 @@
 import { renderLayout, renderParagraphs, type EmailRenderOptions } from "./layout";
 
-const APP_NAME = "Health";
+const APP_NAME = "OpenValens";
 
 export type AccessRequestDeniedEmailInput = {
   requesterName: string;

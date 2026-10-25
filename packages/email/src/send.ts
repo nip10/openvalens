@@ -87,7 +87,7 @@ export function createEmailService(
 
   return Object.freeze({
     sendEmail: boundSend,
-    organizationName: extractDisplayName(snapshot.EMAIL_FROM) ?? "Health",
+    organizationName: extractDisplayName(snapshot.EMAIL_FROM) ?? "OpenValens",
   });
 }
 

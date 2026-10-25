@@ -56,7 +56,7 @@ class FakeProvider implements EmailProvider {
 
 const BASE_INPUT = {
   to: "patient@example.com",
-  subject: "Sign in to Health",
+  subject: "Sign in to OpenValens",
   html: "<p>hello</p>",
   text: "hello",
   templateName: "magic-link",
@@ -84,7 +84,7 @@ describe("sendEmail", () => {
     expect(record.correlationId).toBe("corr-1");
     expect(record.templateName).toBe("magic-link");
     expect(record.recipients).toEqual(["p***@example.com"]);
-    expect(record.subject).toBe("Sign in to Health");
+    expect(record.subject).toBe("Sign in to OpenValens");
     // PHI safety — the raw recipient must never appear in the log line.
     expect(lines.join("\n")).not.toContain("patient@example.com");
   });
@@ -311,7 +311,7 @@ describe("ResendProvider", () => {
   const sendInput: ResendSendInput = {
     from: "Health <noreply@health.example>",
     to: "patient@example.com",
-    subject: "Sign in to Health",
+    subject: "Sign in to OpenValens",
     html: "<p>secret body</p>",
     text: "secret text",
   };

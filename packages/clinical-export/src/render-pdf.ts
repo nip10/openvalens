@@ -68,7 +68,7 @@ function renderDocument(payload: ExportPayload): string {
     "<head>",
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
-    "<title>Health Export Report</title>",
+    "<title>OpenValens Export Report</title>",
     "<style>",
     "*{box-sizing:border-box}",
     "body{margin:0;padding:24px;font-family:Helvetica,Arial,sans-serif;color:#111827;line-height:1.4}",

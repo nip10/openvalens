@@ -13,7 +13,7 @@ const INPUT = {
 describe("renderInvitationEmail", () => {
   test("uses the exact subject", () => {
     expect(renderInvitationEmail(INPUT).subject).toBe(
-      "Dr. Ada invited you to Northwind Clinic on Health",
+      "Dr. Ada invited you to Northwind Clinic on OpenValens",
     );
   });
 
