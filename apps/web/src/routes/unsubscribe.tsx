@@ -22,8 +22,8 @@ function UnsubscribePage() {
   const status = unsubscribe.data?.status;
 
   return (
-    <main className="container mx-auto grid max-w-md gap-4 px-4 py-10">
-      <h1 className="text-2xl font-semibold">
+    <main className="mx-auto grid w-full max-w-md content-start gap-4 px-4 pt-16 pb-16">
+      <h1 className="text-3xl">
         <Trans>Weekly insights email</Trans>
       </h1>
       {status === "unsubscribed" ? (
@@ -47,7 +47,7 @@ function UnsubscribePage() {
             </Button>
           </div>
           {unsubscribe.isError ? (
-            <p role="alert" className="text-sm">
+            <p role="alert" className="border-t-2 border-destructive pt-2 text-sm text-ink">
               <Trans>Something went wrong. Try again.</Trans>
             </p>
           ) : null}

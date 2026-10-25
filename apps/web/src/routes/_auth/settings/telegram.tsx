@@ -1,10 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { Page, PageHeader, Section } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/settings/telegram")({
@@ -39,33 +39,36 @@ function TelegramSettingsPage() {
 
   if (status.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Telegram</h1>
+      <Page width="narrow">
+        <PageHeader title="Telegram" />
         <Skeleton className="h-32 w-full" />
-      </div>
+      </Page>
     );
   }
 
   const connected = status.data?.connected;
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-6 text-2xl font-semibold">Telegram</h1>
+    <Page width="narrow">
+      <PageHeader title="Telegram" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Daily reminders over Telegram</Trans>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between">
-          <div>
-            <div className="font-medium">{connected ? t`Connected` : t`Not connected`}</div>
-            <div className="text-sm text-muted-foreground">
+      <Section title={<Trans>Daily reminders over Telegram</Trans>} sheet>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="grid gap-0.5">
+            <span
+              className={
+                connected
+                  ? "font-display font-medium text-success"
+                  : "font-display font-medium text-ink-3"
+              }
+            >
+              {connected ? t`Connected` : t`Not connected`}
+            </span>
+            <span className="text-sm text-ink-3">
               {connected
                 ? t`Daily reminders will be sent to your Telegram chat.`
                 : t`Connect a Telegram chat to receive daily reminders.`}
-            </div>
+            </span>
           </div>
           {connected ? (
             <Button
@@ -83,18 +86,18 @@ function TelegramSettingsPage() {
               {connect.isPending ? t`Generating link…` : t`Connect`}
             </Button>
           )}
-        </CardContent>
+        </div>
         {connect.isSuccess && connect.data && !connected ? (
-          <CardContent className="grid gap-2 text-sm">
+          <div className="mt-4 grid gap-3 border-t border-rule pt-4 text-sm">
             {connect.data.link ? (
               <>
-                <p className="text-muted-foreground">
+                <p className="max-w-[65ch] text-ink-2">
                   <Trans>
                     Open the link in Telegram and press Start. This page updates once the chat is
                     connected.
                   </Trans>
                 </p>
-                <Button asChild className="w-fit">
+                <Button asChild variant="outline" className="w-fit">
                   <a href={connect.data.link} target="_blank" rel="noreferrer">
                     <Trans>Open in Telegram</Trans>
                   </a>
@@ -102,26 +105,24 @@ function TelegramSettingsPage() {
               </>
             ) : (
               <>
-                <p className="text-muted-foreground">
+                <p className="text-ink-2">
                   <Trans>Send this message to this server's Telegram bot:</Trans>
                 </p>
-                <p className="break-all rounded-lg border border-border bg-muted/40 p-2 font-mono">
+                <p className="bg-paper-2 px-3 py-2 font-mono break-all text-ink">
                   /start {connect.data.token}
                 </p>
               </>
             )}
-            <p className="text-xs text-muted-foreground">
+            <p className="text-ink-3">
               <Trans>Expires {new Date(connect.data.expiresAt).toLocaleString()}.</Trans>
             </p>
-          </CardContent>
+          </div>
         ) : connect.isError ? (
-          <CardContent>
-            <p className="text-sm text-destructive">
-              <Trans>Could not generate a connect link.</Trans>
-            </p>
-          </CardContent>
+          <p role="alert" className="mt-4 border-t border-rule pt-4 text-sm text-destructive">
+            <Trans>Could not generate a connect link.</Trans>
+          </p>
         ) : null}
-      </Card>
-    </div>
+      </Section>
+    </Page>
   );
 }

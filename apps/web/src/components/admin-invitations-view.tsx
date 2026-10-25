@@ -1,18 +1,20 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@openvalens/ui/components/table";
+import { cn } from "@openvalens/ui/lib/utils";
 import { useEffect, useState } from "react";
 
+import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
 import type { AdmissionInvitationSummary } from "@/utils/admission-keys";
 
 export type AdminInvitationsViewProps = {
@@ -40,15 +42,11 @@ export function AdminInvitationsView({
 }: AdminInvitationsViewProps) {
   const { t } = useLingui();
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Instance invitations</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Administration</Trans>
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title={<Trans>Instance invitations</Trans>}
+        description={<Trans>Administration</Trans>}
+      />
 
       {accessState === "loading" ? (
         <LoadingCard />
@@ -67,7 +65,7 @@ export function AdminInvitationsView({
           onRevoke={onRevoke}
         />
       )}
-    </main>
+    </Page>
   );
 }
 
@@ -114,44 +112,58 @@ function GrantedView({
   }
 
   return (
-    <div className="grid gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Invite a user</Trans>
-          </CardTitle>
-          <CardDescription>
-            <Trans>
-              Invite someone to create an account. They will receive an invitation token by email.
-            </Trans>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-            <div className="grid gap-2">
-              <Label htmlFor="admin-invite-email">
-                <Trans>Email</Trans>
-              </Label>
-              <Input
-                id="admin-invite-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitIssue();
-                }}
-                placeholder="name@example.com"
-                disabled={issueState === "loading"}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={submitIssue} disabled={!valid || issueState === "loading"}>
-                {issueState === "loading" ? t`Sending…` : t`Send invitation`}
-              </Button>
-            </div>
+    <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+        {listState === "loading" ? (
+          <LoadingCard />
+        ) : listState === "error" ? (
+          <ErrorCard message={t`Could not load invitations.`} onRetry={onRetryList} />
+        ) : (
+          <InvitationsList
+            invitations={invitations ?? []}
+            confirmRevoke={confirmRevoke}
+            revokingId={revokingId}
+            revokeError={revokeError}
+            onRequestRevoke={setConfirmRevoke}
+            onRevoke={handleRevoke}
+          />
+        )}
+      </div>
+
+      <Section
+        className="lg:col-start-2 lg:row-start-1"
+        title={<Trans>Invite a user</Trans>}
+        description={
+          <Trans>
+            Invite someone to create an account. They will receive an invitation token by email.
+          </Trans>
+        }
+        sheet
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="admin-invite-email" className="text-ink-3">
+              <Trans>Email</Trans>
+            </Label>
+            <Input
+              id="admin-invite-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitIssue();
+              }}
+              placeholder="name@example.com"
+              disabled={issueState === "loading"}
+            />
+          </div>
+          <div>
+            <Button onClick={submitIssue} disabled={!valid || issueState === "loading"}>
+              {issueState === "loading" ? t`Sending…` : t`Send invitation`}
+            </Button>
           </div>
           {issueState === "success" ? (
-            <p className="text-sm text-success">
+            <p className="text-sm text-success" role="status">
               <Trans>Invitation sent.</Trans>
             </p>
           ) : issueState === "error" ? (
@@ -159,23 +171,8 @@ function GrantedView({
               {issueError ?? t`Could not send invitation.`}
             </p>
           ) : null}
-        </CardContent>
-      </Card>
-
-      {listState === "loading" ? (
-        <LoadingCard />
-      ) : listState === "error" ? (
-        <ErrorCard message={t`Could not load invitations.`} onRetry={onRetryList} />
-      ) : (
-        <InvitationsList
-          invitations={invitations ?? []}
-          confirmRevoke={confirmRevoke}
-          revokingId={revokingId}
-          revokeError={revokeError}
-          onRequestRevoke={setConfirmRevoke}
-          onRevoke={handleRevoke}
-        />
-      )}
+        </div>
+      </Section>
     </div>
   );
 }
@@ -197,151 +194,148 @@ function InvitationsList({
 }) {
   const { t } = useLingui();
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Invitations · {invitations.length}</Trans>
-        </CardTitle>
-      </CardHeader>
+    <Section
+      title={
+        <span className="flex items-baseline gap-3">
+          <Trans>Invitations</Trans>
+          <span className="num text-base font-medium text-ink-3">{invitations.length}</span>
+        </span>
+      }
+    >
       {revokeError ? (
-        <CardContent>
-          <p className="text-sm text-destructive" role="alert" aria-live="polite">
-            {revokeError}
-          </p>
-        </CardContent>
+        <p className="text-sm text-destructive" role="alert" aria-live="polite">
+          {revokeError}
+        </p>
       ) : null}
       {invitations.length === 0 ? (
-        <CardContent className="text-sm text-muted-foreground">
-          <Trans>No invitations yet.</Trans>
-        </CardContent>
+        <EmptyState title={<Trans>No invitations yet.</Trans>} />
       ) : (
-        <ul className="divide-y divide-border">
-          {invitations.map((invitation) => (
-            <li key={invitation.id} className="px-4 py-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="font-medium">{invitation.email}</div>
-                  <div className="text-sm text-muted-foreground">
-                    <StatusBadge status={invitation.status} />{" "}
-                    {invitation.expiresAt
-                      ? t`Expires ${invitation.expiresAt.toLocaleString()}`
-                      : null}
-                  </div>
-                </div>
-                {invitation.status === "pending" ? (
-                  <div className="flex items-center gap-2">
-                    {confirmRevoke === invitation.id ? (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onRequestRevoke(null)}
-                          disabled={revokingId === invitation.id}
-                        >
-                          <Trans>Cancel</Trans>
-                        </Button>
+        <Table className="sheet">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-5">
+                <Trans>Email</Trans>
+              </TableHead>
+              <TableHead>
+                <Trans>Status</Trans>
+              </TableHead>
+              <TableHead>
+                <Trans>Expires</Trans>
+              </TableHead>
+              <TableHead className="pr-5" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invitations.map((invitation) => (
+              <TableRow key={invitation.id}>
+                <TableCell className="py-2.5 pl-5 font-medium break-all whitespace-normal text-ink">
+                  {invitation.email}
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <StatusBadge status={invitation.status} />
+                </TableCell>
+                <TableCell className="num py-2.5 text-ink-3">
+                  {invitation.expiresAt ? invitation.expiresAt.toLocaleString() : null}
+                </TableCell>
+                <TableCell className="py-2 pr-5 text-right">
+                  {invitation.status === "pending" ? (
+                    <div className="flex items-center justify-end gap-2">
+                      {confirmRevoke === invitation.id ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onRequestRevoke(null)}
+                            disabled={revokingId === invitation.id}
+                          >
+                            <Trans>Cancel</Trans>
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => onRevoke(invitation.id)}
+                            disabled={revokingId === invitation.id}
+                          >
+                            {revokingId === invitation.id ? t`Revoking…` : t`Revoke`}
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => onRevoke(invitation.id)}
+                          onClick={() => onRequestRevoke(invitation.id)}
                           disabled={revokingId === invitation.id}
                         >
-                          {revokingId === invitation.id ? t`Revoking…` : t`Revoke`}
+                          <Trans>Revoke</Trans>
                         </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onRequestRevoke(invitation.id)}
-                        disabled={revokingId === invitation.id}
-                      >
-                        <Trans>Revoke</Trans>
-                      </Button>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
+                      )}
+                    </div>
+                  ) : null}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
-    </Card>
+    </Section>
   );
 }
 
 function StatusBadge({ status }: { status: AdmissionInvitationSummary["status"] }) {
+  const word = "text-sm font-medium";
   if (status === "consumed") {
     return (
-      <Badge variant="default">
+      <span className={cn(word, "text-success")}>
         <Trans>Consumed</Trans>
-      </Badge>
+      </span>
     );
   }
   if (status === "expired") {
     return (
-      <Badge variant="secondary">
+      <span className={cn(word, "text-ink-3")}>
         <Trans>Expired</Trans>
-      </Badge>
+      </span>
     );
   }
   return (
-    <Badge variant="outline">
+    <span className={cn(word, "text-ink-2")}>
       <Trans>Pending</Trans>
-    </Badge>
+    </span>
   );
 }
 
 function LoadingCard() {
   return (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-6 w-1/3" />
-        <Skeleton className="h-4 w-2/3" />
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </CardContent>
-    </Card>
+    <div className="sheet grid gap-3 px-5 py-4">
+      <Skeleton className="h-5 w-1/3" />
+      <Skeleton className="h-8 w-full" />
+      <Skeleton className="h-8 w-full" />
+      <Skeleton className="h-8 w-full" />
+    </div>
   );
 }
 
 function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Something went wrong</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          {message}{" "}
-          {onRetry ? (
-            <button className="underline" onClick={onRetry}>
-              <Trans>Retry</Trans>
-            </button>
-          ) : null}
-        </p>
-      </CardContent>
-    </Card>
+    <ErrorState
+      title={<Trans>Something went wrong</Trans>}
+      description={message}
+      action={
+        onRetry ? (
+          <Button variant="outline" onClick={onRetry}>
+            <Trans>Retry</Trans>
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 
 function DeniedCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Access denied</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          <Trans>You do not have access to instance administration.</Trans>
-        </p>
-      </CardContent>
-    </Card>
+    <EmptyState
+      title={<Trans>Access denied</Trans>}
+      description={<Trans>You do not have access to instance administration.</Trans>}
+    />
   );
 }

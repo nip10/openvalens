@@ -58,7 +58,7 @@ function AuthBootstrapError({ error }: { error: unknown }) {
       : t`Could not prepare your workspace. Please try again.`;
 
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-6">
+    <main className="mx-auto grid w-full max-w-3xl gap-4 px-4 pt-16 pb-16">
       <Card className="mx-auto w-full max-w-md">
         <CardHeader>
           <CardTitle>

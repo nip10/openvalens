@@ -66,18 +66,18 @@ export default function MagicLinkForm({
 
   if (sentTo) {
     return (
-      <div className="mx-auto mt-10 w-full max-w-md space-y-4 p-6 text-center">
-        <h1 className="text-3xl font-bold">
+      <div className="mx-auto mt-16 grid w-full max-w-md gap-4 px-4">
+        <h1 className="text-3xl">
           <Trans>Check your email</Trans>
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-ink-2">
           <Trans>
             We sent a sign-in link to{" "}
-            <span className="font-medium text-foreground wrap-anywhere">{sentTo}</span>. It expires
-            in 10 minutes.
+            <span className="font-medium text-ink wrap-anywhere">{sentTo}</span>. It expires in 10
+            minutes.
           </Trans>
         </p>
-        <Button variant="link" onClick={() => setSentTo(null)}>
+        <Button variant="link" className="justify-self-start" onClick={() => setSentTo(null)}>
           <Trans>Use a different email</Trans>
         </Button>
       </div>
@@ -85,22 +85,22 @@ export default function MagicLinkForm({
   }
 
   return (
-    <div className="mx-auto mt-10 w-full max-w-md p-6">
-      <h1 className="mb-2 text-center text-3xl font-bold">
+    <div className="mx-auto mt-16 w-full max-w-md px-4 pb-16">
+      <h1 className="mb-2 text-3xl">
         <Trans>Sign in</Trans>
       </h1>
-      <p className="mb-6 text-center text-sm text-muted-foreground">
+      <p className="mb-8 text-ink-3">
         <Trans>We'll email you a link to sign in. No password needed.</Trans>
       </p>
       {oidcError !== null && (
-        <p className="mb-4 text-center text-sm text-destructive">
+        <p role="alert" className="mb-4 border-t-2 border-destructive pt-2 text-sm text-ink">
           {i18n._(
             oidcSignInErrorMessage(oidcError || undefined, oidc?.displayName ?? t`single sign-on`),
           )}
         </p>
       )}
       {linkError && (
-        <p className="mb-4 text-center text-sm text-destructive">
+        <p role="alert" className="mb-4 border-t-2 border-destructive pt-2 text-sm text-ink">
           <Trans>That sign-in link is invalid or has expired. Request a new one.</Trans>
         </p>
       )}
@@ -111,11 +111,11 @@ export default function MagicLinkForm({
           e.stopPropagation();
           form.handleSubmit();
         }}
-        className="space-y-4"
+        className="sheet grid gap-5 px-5 pt-5 pb-6"
       >
         <form.Field name="email">
           {(field) => (
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label htmlFor={field.name}>
                 <Trans>Email</Trans>
               </Label>
@@ -150,10 +150,10 @@ export default function MagicLinkForm({
 
       {oidc ? (
         <div className="mt-4 space-y-4">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
+          <div className="flex items-center gap-3 text-sm text-ink-3">
+            <span className="h-px flex-1 bg-rule" />
             <Trans>or</Trans>
-            <span className="h-px flex-1 bg-border" />
+            <span className="h-px flex-1 bg-rule" />
           </div>
           <OidcSignInButton
             providerId={oidc.providerId}
@@ -163,17 +163,23 @@ export default function MagicLinkForm({
         </div>
       ) : null}
 
-      <div className="mt-6 space-y-2 border-t pt-6 text-center text-sm text-muted-foreground">
+      <div className="mt-8 grid gap-2 text-sm text-ink-3">
         <p>
           <Trans>New accounts require an invitation.</Trans>
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center gap-4">
           {setupAvailable ? (
-            <a href="/setup" className="text-primary underline underline-offset-4">
+            <a
+              href="/setup"
+              className="font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
+            >
               <Trans>First setup</Trans>
             </a>
           ) : null}
-          <a href="/join" className="text-primary underline underline-offset-4">
+          <a
+            href="/join"
+            className="font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
+          >
             <Trans>Redeem invitation</Trans>
           </a>
         </div>

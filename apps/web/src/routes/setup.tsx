@@ -14,11 +14,11 @@ function SetupPage() {
   const { t } = useLingui();
 
   return (
-    <main className="container mx-auto grid max-w-3xl gap-4 px-4 py-6">
+    <main className="mx-auto grid w-full max-w-3xl gap-4 px-4 pt-16 pb-16">
       {status.data?.setupAvailable && status.data.emailDeliveryAvailable === false ? (
         <p
           role="alert"
-          className="mx-auto w-full max-w-md rounded-md border border-amber-500/50 p-3 text-sm"
+          className="mx-auto w-full max-w-md border-t-2 border-warning bg-paper-2 px-4 py-3 text-sm text-ink"
         >
           <Trans>
             This server can't send email yet, so setup can't finish: the verification code is sent

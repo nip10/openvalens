@@ -1,10 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
+import { Section } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { oidcConnectErrorMessage, signInOptionsQueryOptions } from "@/utils/sign-in-options";
 
@@ -69,20 +69,15 @@ export function OidcConnectSection() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Sign-in methods</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex items-center justify-between gap-4">
-        <div className="text-sm">
-          <div className="font-medium">{oidc.displayName}</div>
-          <div className="text-muted-foreground">
+    <Section title={<Trans>Sign-in methods</Trans>}>
+      <div className="flex flex-wrap items-center justify-between gap-4 border-y border-rule py-4">
+        <div className="grid min-w-0 gap-0.5">
+          <span className="font-display font-medium text-ink">{oidc.displayName}</span>
+          <span className="max-w-[60ch] text-sm text-ink-3">
             {linked
               ? t`Connected. You can sign in with ${oidc.displayName}.`
               : t`Connect your ${oidc.displayName} account to sign in with it. Email links keep working.`}
-          </div>
+          </span>
         </div>
         {linked ? (
           <Button
@@ -93,11 +88,11 @@ export function OidcConnectSection() {
             <Trans>Disconnect</Trans>
           </Button>
         ) : (
-          <Button disabled={accounts.isPending} onClick={connect}>
+          <Button variant="outline" disabled={accounts.isPending} onClick={connect}>
             <Trans>Connect</Trans>
           </Button>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

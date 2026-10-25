@@ -1,57 +1,64 @@
 import { Trans } from "@lingui/react/macro";
+import { buttonVariants } from "@openvalens/ui/components/button";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { Page } from "@/components/page";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
 });
 
-const TITLE_TEXT = `
- ██████╗ ███████╗████████╗████████╗███████╗██████╗
- ██╔══██╗██╔════╝╚══██╔══╝╚══██╔══╝██╔════╝██╔══██╗
- ██████╔╝█████╗     ██║      ██║   █████╗  ██████╔╝
- ██╔══██╗██╔══╝     ██║      ██║   ██╔══╝  ██╔══██╗
- ██████╔╝███████╗   ██║      ██║   ███████╗██║  ██║
- ╚═════╝ ╚══════╝   ╚═╝      ╚═╝   ╚══════╝╚═╝  ╚═╝
-
- ████████╗    ███████╗████████╗ █████╗  ██████╗██╗  ██╗
- ╚══██╔══╝    ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝
-    ██║       ███████╗   ██║   ███████║██║     █████╔╝
-    ██║       ╚════██║   ██║   ██╔══██║██║     ██╔═██╗
-    ██║       ███████║   ██║   ██║  ██║╚██████╗██║  ██╗
-    ╚═╝       ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
- `;
-
 function HomeComponent() {
   const readiness = useQuery(orpc.health.readiness.queryOptions({ input: {} }));
   const isConnected = readiness.data?.status === "ok";
+  const { data: session } = authClient.useSession();
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-2">
-      <pre className="overflow-x-auto font-mono text-sm">{TITLE_TEXT}</pre>
-      <div className="grid gap-6">
-        <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-medium">
-            <Trans>API Status</Trans>
-          </h2>
-          <div className="flex items-center gap-2">
-            <div
-              className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
-            />
-            <span className="text-sm text-muted-foreground">
-              {readiness.isLoading ? (
-                <Trans>Checking...</Trans>
-              ) : isConnected ? (
-                <Trans>Connected</Trans>
-              ) : (
-                <Trans>Disconnected</Trans>
-              )}
-            </span>
-          </div>
-        </section>
+    <Page width="narrow" className="content-center gap-12 py-16 lg:py-24">
+      <div className="grid gap-5">
+        <h1 className="text-[2.75rem] leading-[0.98] tracking-[-0.035em] md:text-[4rem]">
+          OpenValens
+        </h1>
+        <p className="max-w-[40ch] text-xl leading-snug text-ink-2">
+          <Trans>An open-source, private health record.</Trans>
+        </p>
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          {session ? (
+            <Link to="/dashboard" className={buttonVariants()}>
+              <Trans>Open your dashboard</Trans>
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className={buttonVariants()}>
+                <Trans>Sign in</Trans>
+              </Link>
+              <Link to="/join" className={buttonVariants({ variant: "outline" })}>
+                <Trans>Redeem invitation</Trans>
+              </Link>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+
+      <dl className="grid max-w-sm grid-cols-[auto_1fr] items-baseline gap-x-6 border-t-2 border-rule-2 pt-3 text-sm">
+        <dt className="font-medium text-ink-3">
+          <Trans>API Status</Trans>
+        </dt>
+        <dd role="status" className={isConnected ? "text-success" : "text-ink-2"}>
+          {readiness.isLoading ? (
+            <Trans>Checking...</Trans>
+          ) : isConnected ? (
+            <Trans>Connected</Trans>
+          ) : (
+            <span className="text-destructive">
+              <Trans>Disconnected</Trans>
+            </span>
+          )}
+        </dd>
+      </dl>
+    </Page>
   );
 }

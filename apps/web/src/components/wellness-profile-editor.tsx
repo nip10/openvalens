@@ -24,13 +24,6 @@ import {
   type WellnessProfileSnapshot,
 } from "@openvalens/api/wellness-profile-contract";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { useId, type ReactNode } from "react";
 
@@ -79,7 +72,7 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
   const { t, i18n } = useLingui();
 
   return (
-    <div className="grid gap-6">
+    <div className="sheet grid divide-y divide-rule px-5 md:px-6">
       <Section {...props} section="eligibility" field="eligibility">
         <RadioGroup
           name="eligibility"
@@ -203,17 +196,13 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
       {adult ? (
         <AgeAndSexSection {...props} />
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{i18n._(SECTION_TITLES.ageAndSex)}</CardTitle>
-            <CardDescription>
-              {unavailableExplanation("adult_confirmation_required")}{" "}
-              <Trans>
-                Age and sex are only used by adult features, so they are not asked here.
-              </Trans>
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <section className="grid gap-1 py-6">
+          <h2 className="text-xl leading-tight text-ink">{i18n._(SECTION_TITLES.ageAndSex)}</h2>
+          <p className="max-w-[65ch] text-sm text-ink-3">
+            {unavailableExplanation("adult_confirmation_required")}{" "}
+            <Trans>Age and sex are only used by adult features, so they are not asked here.</Trans>
+          </p>
+        </section>
       )}
     </div>
   );
@@ -245,19 +234,19 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
 
   return (
     <Section {...props} section="ageAndSex" field="birthYear" extraField="sex">
-      <fieldset className="grid gap-3 rounded-md border p-3">
-        <legend className="px-1 text-sm font-medium">
+      <fieldset className="grid min-w-0 gap-3">
+        <legend className="mb-1 font-display font-medium text-ink">
           {WELLNESS_FIELD_COPY.birthYear.question}
         </legend>
-        <p className="text-xs text-muted-foreground">{WELLNESS_FIELD_COPY.birthYear.purpose}</p>
-        <p className="text-xs text-muted-foreground">{WELLNESS_FIELD_COPY.birthYear.limits}</p>
+        <p className="max-w-[65ch] text-sm text-ink-3">{WELLNESS_FIELD_COPY.birthYear.purpose}</p>
+        <p className="max-w-[65ch] text-sm text-ink-3">{WELLNESS_FIELD_COPY.birthYear.limits}</p>
         <CheckboxRow
           label={CONSENT_COPY.age_band}
           checked={draft.consents.age_band}
           onChange={(checked) => setConsent("age_band", checked)}
         />
         <div className="grid gap-1">
-          <label htmlFor={birthYearId} className="text-sm">
+          <label htmlFor={birthYearId} className="text-sm text-ink-3">
             <Trans>Birth year</Trans>
           </label>
           <Input
@@ -265,7 +254,7 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
             inputMode="numeric"
             autoComplete="bday-year"
             maxLength={4}
-            className="max-w-32"
+            className="num max-w-32"
             value={birthYearText}
             disabled={!draft.consents.age_band || ageDeclined}
             aria-invalid={!parsed.ok}
@@ -288,7 +277,7 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
             }}
           />
           {!parsed.ok ? (
-            <p id={`${birthYearId}-error`} role="alert" className="text-xs text-destructive">
+            <p id={`${birthYearId}-error`} role="alert" className="text-sm text-destructive">
               {i18n._(rejectionMessage(parsed.reason))}
             </p>
           ) : null}
@@ -305,10 +294,14 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
         />
       </fieldset>
 
-      <fieldset className="grid gap-3 rounded-md border p-3">
-        <legend className="px-1 text-sm font-medium">{WELLNESS_FIELD_COPY.sex.question}</legend>
-        <p className="text-xs text-muted-foreground">{WELLNESS_FIELD_COPY.sex.purpose}</p>
-        <p className="text-xs text-muted-foreground">{WELLNESS_FIELD_COPY.sex.limits}</p>
+      <hr className="border-rule" />
+
+      <fieldset className="grid min-w-0 gap-3">
+        <legend className="mb-1 font-display font-medium text-ink">
+          {WELLNESS_FIELD_COPY.sex.question}
+        </legend>
+        <p className="max-w-[65ch] text-sm text-ink-3">{WELLNESS_FIELD_COPY.sex.purpose}</p>
+        <p className="max-w-[65ch] text-sm text-ink-3">{WELLNESS_FIELD_COPY.sex.limits}</p>
         <CheckboxRow
           label={CONSENT_COPY.sex}
           checked={draft.consents.sex}
@@ -377,64 +370,73 @@ function Section({
   const { t, i18n } = useLingui();
 
   return (
-    <Card id={`section-${section}`} aria-labelledby={titleId} role="region">
-      <CardHeader>
-        <CardTitle id={titleId} className="text-lg">
+    <section
+      id={`section-${section}`}
+      aria-labelledby={titleId}
+      role="region"
+      className="grid scroll-mt-10 gap-5 py-6"
+    >
+      <div className="grid gap-1">
+        <h2 id={titleId} className="text-xl leading-tight text-ink">
           {i18n._(SECTION_TITLES[section])}
-        </CardTitle>
-        {section !== "ageAndSex" ? <CardDescription>{copy.purpose}</CardDescription> : null}
-      </CardHeader>
-      <CardContent className="grid gap-4">
+        </h2>
         {section !== "ageAndSex" ? (
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">{copy.question}</legend>
-            {children}
-            <p className="text-xs text-muted-foreground">{copy.limits}</p>
-          </fieldset>
-        ) : (
-          children
-        )}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => onSave(section)} disabled={!dirty || state.status === "saving"}>
-            {state.status === "saving" ? t`Saving…` : t`Save`}
-          </Button>
-          {dirty ? (
-            <Button variant="ghost" onClick={() => onUndo(section)}>
-              <Trans>Undo changes</Trans>
-            </Button>
-          ) : null}
-          {hasAnswer ? (
-            <Button
-              variant="outline"
-              onClick={() => {
-                let next = draft;
-                for (const f of fields) next = setAnswer(next, f, { state: "unknown" });
-                if (fields.includes("birthYear")) onBirthYearTextChange("");
-                onDraftChange(next);
-              }}
-            >
-              <Trans>Clear answer</Trans>
-            </Button>
-          ) : null}
-          <span role="status" aria-live="polite" className="text-sm">
-            {state.status === "error" ? null : dirty ? (
-              <span className="text-muted-foreground">
-                <Trans>Unsaved changes</Trans>
-              </span>
-            ) : state.status === "saved" ? (
-              <span className="text-success">
-                <Trans>Saved</Trans>
-              </span>
-            ) : null}
-          </span>
-        </div>
-        {state.status === "error" ? (
-          <p role="alert" className="text-sm text-destructive">
-            {i18n._(state.message)}
-          </p>
+          <p className="max-w-[65ch] text-sm text-ink-3">{copy.purpose}</p>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+      {section !== "ageAndSex" ? (
+        <fieldset className="grid min-w-0 gap-2">
+          <legend className="mb-2 font-display font-medium text-ink">{copy.question}</legend>
+          {children}
+          <p className="mt-1 max-w-[65ch] text-sm text-ink-3">{copy.limits}</p>
+        </fieldset>
+      ) : (
+        children
+      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant={dirty ? "default" : "outline"}
+          onClick={() => onSave(section)}
+          disabled={!dirty || state.status === "saving"}
+        >
+          {state.status === "saving" ? t`Saving…` : t`Save`}
+        </Button>
+        {dirty ? (
+          <Button variant="ghost" onClick={() => onUndo(section)}>
+            <Trans>Undo changes</Trans>
+          </Button>
+        ) : null}
+        {hasAnswer ? (
+          <Button
+            variant="outline"
+            onClick={() => {
+              let next = draft;
+              for (const f of fields) next = setAnswer(next, f, { state: "unknown" });
+              if (fields.includes("birthYear")) onBirthYearTextChange("");
+              onDraftChange(next);
+            }}
+          >
+            <Trans>Clear answer</Trans>
+          </Button>
+        ) : null}
+        <span role="status" aria-live="polite" className="text-sm">
+          {state.status === "error" ? null : dirty ? (
+            <span className="text-ink-3">
+              <Trans>Unsaved changes</Trans>
+            </span>
+          ) : state.status === "saved" ? (
+            <span className="text-success">
+              <Trans>Saved</Trans>
+            </span>
+          ) : null}
+        </span>
+      </div>
+      {state.status === "error" ? (
+        <p role="alert" className="text-sm text-destructive">
+          {i18n._(state.message)}
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -455,7 +457,7 @@ function RadioGroup({
       {options.map((option) => {
         const optionId = `${id}-${option.value}`;
         return (
-          <div key={option.value} className="flex items-center gap-2">
+          <div key={option.value} className="flex min-h-8 items-center gap-2.5">
             <input
               type="radio"
               id={optionId}
@@ -464,9 +466,9 @@ function RadioGroup({
               checked={value === option.value}
               disabled={option.disabled}
               onChange={() => onChange(option.value)}
-              className="h-4 w-4"
+              className="size-4 shrink-0 accent-primary disabled:cursor-not-allowed disabled:opacity-55"
             />
-            <label htmlFor={optionId} className={option.disabled ? "text-muted-foreground" : ""}>
+            <label htmlFor={optionId} className={option.disabled ? "text-ink-3" : "text-ink-2"}>
               {option.label}
             </label>
           </div>
@@ -487,15 +489,15 @@ function CheckboxRow({
 }) {
   const id = useId();
   return (
-    <div className="flex items-start gap-2">
+    <div className="flex min-h-8 items-start gap-2.5 py-1">
       <input
         type="checkbox"
         id={id}
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4"
+        className="mt-1 size-4 shrink-0 accent-primary"
       />
-      <label htmlFor={id} className="text-sm">
+      <label htmlFor={id} className="text-ink-2">
         {label}
       </label>
     </div>

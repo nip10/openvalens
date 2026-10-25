@@ -7,11 +7,15 @@ import {
 import { PRODUCT_LOCALES, type ProductLocale } from "@openvalens/api/product-settings-contract";
 import { LOCALE_NAMES, LOCALES, isLocale, reviewStatusOf } from "@openvalens/i18n";
 import { Badge } from "@openvalens/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { useId } from "react";
+
+import { Section } from "@/components/page";
 
 import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useAppLocale } from "@/lib/i18n";
+
+const SELECT =
+  "h-9 w-fit max-w-full rounded-sm border border-input bg-card px-2 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring";
 
 /**
  * Interface language (#67). Applies immediately, without a reload. A
@@ -38,20 +42,15 @@ export function LanguageSection() {
     mmol_l: t({ message: "mmol/L (µmol/L for creatinine)", comment: "safety" }),
   };
   const sample = (value: ProductLocale) =>
-    `${formatProductDate(new Date(Date.UTC(2026, 0, 15)), value, undefined, "UTC")} · ${formatProductNumber(1234.5, value)}`;
+    `${formatProductDate(new Date(Date.UTC(2026, 0, 15)), value, undefined, "UTC")}; ${formatProductNumber(1234.5, value)}`;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Language</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
-        <label htmlFor={id} className="grid gap-1">
+    <Section title={<Trans>Language</Trans>} sheet>
+      <div className="grid gap-5 text-sm">
+        <label htmlFor={id} className="grid gap-1.5 text-ink-3">
           <Trans>Interface language</Trans>
           <select
             id={id}
-            className="min-h-9 w-fit rounded-md border bg-background px-2"
+            className={SELECT}
             value={locale}
             onChange={(event) => {
               if (isLocale(event.target.value)) setLocale(event.target.value);
@@ -65,11 +64,11 @@ export function LanguageSection() {
           </select>
         </label>
         {reviewStatusOf(locale) === "community" ? (
-          <p className="flex flex-wrap items-center gap-2">
+          <p className="flex flex-wrap items-baseline gap-2">
             <Badge variant="outline">
               <Trans>Community translation</Trans>
             </Badge>
-            <span className="text-muted-foreground">
+            <span className="text-ink-3">
               <Trans>
                 Not yet reviewed. Units, reference ranges, medication and consent text stay in
                 English until a reviewer approves them.
@@ -77,11 +76,11 @@ export function LanguageSection() {
             </span>
           </p>
         ) : null}
-        <label htmlFor={formatId} className="grid gap-1">
+        <label htmlFor={formatId} className="grid gap-1.5 border-t border-rule pt-4 text-ink-3">
           <Trans>Date and number format</Trans>
           <select
             id={formatId}
-            className="min-h-9 w-fit rounded-md border bg-background px-2"
+            className={SELECT}
             value={formatLocale ?? ""}
             onChange={(event) => {
               const value = event.target.value;
@@ -100,11 +99,11 @@ export function LanguageSection() {
             ))}
           </select>
         </label>
-        <label htmlFor={unitsId} className="grid gap-1">
+        <label htmlFor={unitsId} className="grid gap-1.5 border-t border-rule pt-4 text-ink-3">
           <Trans>Lab concentration units</Trans>
           <select
             id={unitsId}
-            className="min-h-9 w-fit rounded-md border bg-background px-2"
+            className={SELECT}
             value={labUnits}
             onChange={(event) => {
               const value = event.target.value;
@@ -118,14 +117,14 @@ export function LanguageSection() {
               </option>
             ))}
           </select>
-          <span className="text-muted-foreground">
+          <span className="max-w-[65ch]">
             <Trans comment="safety">
               Changes only how glucose, cholesterol, triglycerides and creatinine are shown. Your
               stored results and the lab&apos;s units are never changed.
             </Trans>
           </span>
         </label>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
