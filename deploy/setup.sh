@@ -915,6 +915,7 @@ cmd_restore() {
   fi
   log "applying migrations to the restored database"
   compose run --rm --no-deps -T migrate || restore_halted "migrations failed on the restored database"
+  echo # drizzle-kit ends its progress line without a newline
   log "merging the erasure ledgers"
   tools ledger-merge "$RESTORE_STAMP" || restore_halted "merging the erasure ledger failed"
   log "re-applying the erasure ledger"
