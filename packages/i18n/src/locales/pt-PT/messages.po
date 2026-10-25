@@ -184,6 +184,11 @@ msgstr "{0} adicionado a este espaço de trabalho."
 msgid "{0} configured"
 msgstr "{0} configurada"
 
+#. placeholder {0}: formatKgDelta(i18n, weightSummary.change30d, settings)
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "{0} in 30 days"
+msgstr "{0} em 30 dias"
+
 #. placeholder {0}: entry.key
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "{0} not set"
@@ -909,6 +914,10 @@ msgstr "Cerca de 1 em cada 4 pessoas desse grupo tinha uma pulsação em repouso
 msgid "About 5 in 10 people in that group had a resting pulse between {lower} and {upper} bpm."
 msgstr "Cerca de 5 em cada 10 pessoas desse grupo tinham uma pulsação em repouso entre {lower} e {upper} bpm."
 
+#: apps/web/src/components/nutrition-day-totals.tsx
+msgid "About these totals"
+msgstr "Sobre estes totais"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "About you"
 msgstr "Sobre si"
@@ -986,7 +995,6 @@ msgid "Access was revoked. Choose whether to keep or delete its records in the w
 msgstr "O acesso foi revogado. Escolha na aplicação web se quer manter ou eliminar os respetivos registos."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
-#: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Account"
 msgstr "Conta"
@@ -1031,7 +1039,6 @@ msgstr "atividade"
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/web/src/components/header.tsx
-#: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: packages/api/src/presenters/cockpit.ts
 #: packages/api/src/presenters/timeline.ts
@@ -1302,6 +1309,10 @@ msgstr "IA desligada neste espaço de trabalho"
 msgid "All {count, plural, one {# entry} other {# entries}}"
 msgstr "{count, plural, one {O # registo} other {Todos os # registos}}"
 
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "All clear"
+msgstr "Tudo em dia"
+
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "All conversations"
 msgstr "Todas as conversas"
@@ -1311,14 +1322,30 @@ msgstr "Todas as conversas"
 msgid "All equipment"
 msgstr "Todo o equipamento"
 
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "All keys"
+msgstr "Todas as chaves"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "All muscles"
 msgstr "Todos os músculos"
 
+#: apps/web/src/routes/_auth/records/sleep.tsx
+msgid "All nights"
+msgstr "Todas as noites"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "All nutrients"
 msgstr "Todos os nutrientes"
+
+#: apps/web/src/routes/_auth/profile.tsx
+msgid "All optional. Answer what helps you."
+msgstr "Tudo opcional. Responda ao que lhe for útil."
+
+#: apps/web/src/routes/_auth/body.tsx
+msgid "All readings"
+msgstr "Todas as leituras"
 
 #. safety
 #. safety
@@ -1341,7 +1368,6 @@ msgid "Always"
 msgstr "Sempre"
 
 #: apps/native/app/(drawer)/nutrition.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Amount"
@@ -1386,6 +1412,10 @@ msgstr "Um registo de saúde privado e de código aberto."
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Analytics are unavailable on this server. You can still turn off sharing."
 msgstr "As estatísticas não estão disponíveis neste servidor. Pode ainda assim desligar a partilha."
+
+#: apps/web/src/components/wellness-profile-editor.tsx
+msgid "Answered"
+msgstr "Respondido"
 
 #: apps/native/app/(drawer)/index.tsx
 msgid "API Disconnected"
@@ -1506,7 +1536,7 @@ msgstr "Grau da autoridade ou consenso (sem classificação de certeza)"
 msgid "Available, not part of this profile"
 msgstr "Disponível, não faz parte deste perfil"
 
-#. placeholder {0}: vitalsRow.date
+#. placeholder {0}: friendlyDate(i18n, vitalsRow.date)
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Average, {0}"
 msgstr "Média, {0}"
@@ -1646,10 +1676,6 @@ msgstr "Com base em {days, plural, one {# pesagem} other {# pesagens}} nos últi
 msgid "Based on {recentDays} of the last {recentWindowDays} days, compared with {baselineDays, plural, one {# day} other {# days}} in the {baselineWindowDays} days before."
 msgstr "Com base em {recentDays} dos últimos {recentWindowDays} dias, em comparação com {baselineDays, plural, one {# dia} other {# dias}} nos {baselineWindowDays} dias anteriores."
 
-#: apps/web/src/routes/_auth/records/sleep.tsx
-msgid "Bedtime → wake"
-msgstr "Deitar → acordar"
-
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "before an upgrade"
 msgstr "antes de uma atualização"
@@ -1754,6 +1780,10 @@ msgstr "Explore entradas licenciadas da biblioteca e exercícios criados para o 
 msgid "Building your usual"
 msgstr "A estabelecer o seu habitual"
 
+#: apps/web/src/components/activity-load-panel.tsx
+msgid "By day"
+msgstr "Por dia"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "By muscle group"
@@ -1794,7 +1824,6 @@ msgid "Calories"
 msgstr "Calorias"
 
 #: apps/native/app/(drawer)/records/activity.tsx
-#: apps/web/src/routes/_auth/records/activity.tsx
 msgid "Calories / day"
 msgstr "Calorias / dia"
 
@@ -2286,6 +2315,7 @@ msgstr "Ligue a sua conta {0} para iniciar sessão com ela. As ligações por em
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: apps/web/src/components/oidc-connect-section.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/index.tsx
 msgid "Connected"
@@ -3111,7 +3141,6 @@ msgid "Dark mode"
 msgstr "Modo escuro"
 
 #: apps/web/src/components/header.tsx
-#: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Dashboard"
 msgstr "Painel de controlo"
 
@@ -3142,12 +3171,21 @@ msgstr "Data"
 msgid "Date and number format"
 msgstr "Formato de data e número"
 
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Date reached"
+msgstr "Data atingida"
+
 #: apps/web/src/routes/_auth/micronutrients.tsx
 msgid "Day"
 msgstr "Dia"
 
-#. placeholder {0}: estimates.data.current.dayOfCycle
-#. placeholder {1}: estimates.data.current.startDate
+#. placeholder {0}: current.dayOfCycle
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Day {0}"
+msgstr "Dia {0}"
+
+#. placeholder {0}: current.dayOfCycle
+#. placeholder {1}: current.startDate
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Day {0} of the current cycle (started {1})."
 msgstr "Dia {0} do ciclo atual (iniciado a {1})."
@@ -3445,7 +3483,6 @@ msgid "Distance"
 msgstr "Distância"
 
 #: apps/native/app/(drawer)/records/activity.tsx
-#: apps/web/src/routes/_auth/records/activity.tsx
 msgid "Distance / day"
 msgstr "Distância / dia"
 
@@ -3458,6 +3495,10 @@ msgstr "Domínios"
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Done"
 msgstr "Concluído"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Done: {doneDay}"
+msgstr "Feito: {doneDay}"
 
 #. safety
 #. safety
@@ -3979,15 +4020,11 @@ msgid "Expires"
 msgstr "Expira"
 
 #. placeholder {0}: expiresAt.toLocaleString()
-#. placeholder {0}: new Date(connect.data.expiresAt).toLocaleString()
+#. placeholder {0}: new Date(pendingLink.expiresAt).toLocaleString()
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Expires {0}."
 msgstr "Expira {0}."
-
-#: apps/web/src/components/header.tsx
-msgid "Export and share"
-msgstr "Exportar e partilhar"
 
 #: apps/native/components/sync-status-badge.tsx
 #: apps/web/src/components/sync-status-badge.tsx
@@ -4069,10 +4106,7 @@ msgid "Flow (optional)"
 msgstr "Fluxo (opcional)"
 
 #: apps/native/app/(drawer)/nutrition.tsx
-#: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
-#: apps/web/src/routes/_auth/foods.tsx
-#: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Food"
 msgstr "Alimento"
 
@@ -4136,6 +4170,10 @@ msgstr "Para {sex, select, female {mulheres} male {homens} other {adultos}} dos 
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "For example: walk most days"
 msgstr "Por exemplo: caminhar na maioria dos dias"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "For you"
+msgstr "Para si"
 
 #. safety
 #: packages/api/src/presenters/cycle.ts
@@ -4224,6 +4262,10 @@ msgstr "Frente"
 msgid "front view muscle illustration"
 msgstr "ilustração muscular, vista de frente"
 
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Full log"
+msgstr "Registo completo"
+
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Full timeline"
 msgstr "Cronologia completa"
@@ -4236,6 +4278,11 @@ msgstr "Mais longe do seu alvo: {goalTitle}"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "General information from your own logs, not a diagnosis or medical advice. Ask a health professional before changing your diet or taking supplements."
 msgstr "Informação geral com base nos seus próprios registos, não um diagnóstico nem aconselhamento médico. Consulte um profissional de saúde antes de alterar a sua alimentação ou tomar suplementos."
+
+#. safety
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "General public-health information, not personal medical advice."
+msgstr "Informação geral de saúde pública, não aconselhamento médico pessoal."
 
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Generating link…"
@@ -4276,7 +4323,6 @@ msgstr "Subir"
 
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/routes/_auth/profile.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Goal"
 msgstr "Objetivo"
 
@@ -4323,6 +4369,18 @@ msgstr "objetivos"
 msgid "Goals"
 msgstr "Objetivos"
 
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "Good afternoon"
+msgstr "Boa tarde"
+
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "Good evening"
+msgstr "Boa noite"
+
+#: apps/web/src/routes/_auth/dashboard.tsx
+msgid "Good morning"
+msgstr "Bom dia"
+
 #. safety
 #: apps/native/components/ai-section.tsx
 msgid "Granted"
@@ -4354,6 +4412,10 @@ msgstr "Pacote de orientações {packVersion}, à data de {asOf}."
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Guideline-backed"
 msgstr "Apoiado por diretrizes"
+
+#: apps/web/src/components/header.tsx
+msgid "Habits"
+msgstr "Hábitos"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Hamstrings"
@@ -4429,6 +4491,7 @@ msgid "Hi coach, give me a one-line summary of where I am today and one concrete
 msgstr "Olá coach, dê-me um resumo numa linha de como estou hoje e uma sugestão concreta."
 
 #: apps/web/src/routes/_auth/micronutrients.tsx
+#: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Hidden"
 msgstr "Oculto"
@@ -4538,6 +4601,10 @@ msgstr "Como se comportam práticas e testes populares de longevidade em ensaios
 #: apps/web/src/components/score-panels.tsx
 msgid "How this is calculated"
 msgstr "Como é calculado"
+
+#: apps/web/src/components/energy-estimate-card.tsx
+msgid "How this is estimated"
+msgstr "Como isto é estimado"
 
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "How to add"
@@ -4991,6 +5058,10 @@ msgstr "Manter revisão"
 msgid "Keep the other version"
 msgstr "Manter a outra versão"
 
+#: apps/web/src/components/admin-settings-view.tsx
+msgid "Keys"
+msgstr "Chaves"
+
 #: packages/api/src/presenters/manual-entry.ts
 msgid "kg"
 msgstr "kg"
@@ -5079,11 +5150,6 @@ msgstr "Última noite"
 msgid "Last reading · {0}"
 msgstr "Última leitura · {0}"
 
-#. placeholder {0}: weightRow.date
-#: apps/web/src/routes/_auth/dashboard.tsx
-msgid "Last reading, {0}"
-msgstr "Última leitura, {0}"
-
 #: apps/native/components/health-sync-settings.tsx
 msgid "Last sync failed. Try again."
 msgstr "A última sincronização falhou. Tente novamente."
@@ -5124,19 +5190,9 @@ msgstr "Mais recente ({date}): {recent}."
 msgid "Latest markers"
 msgstr "Marcadores mais recentes"
 
-#. placeholder {0}: sleepRow.date
-#. placeholder {1}: i18n._(sleepStatusLabel(sleepRow.status))
-#: apps/web/src/routes/_auth/dashboard.tsx
-msgid "Latest night, {0}: {1}"
-msgstr "Última noite, {0}: {1}"
-
 #: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Latest reading"
 msgstr "Leitura mais recente"
-
-#: apps/web/src/routes/_auth/dashboard.tsx
-msgid "Latest readings"
-msgstr "Últimas leituras"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Lats"
@@ -5590,10 +5646,6 @@ msgstr "Refeições e horário do sono registado"
 msgid "Meals and recorded workouts"
 msgstr "Refeições e treinos registados"
 
-#: apps/web/src/components/reference-comparisons-card.tsx
-msgid "Measure"
-msgstr "Medida"
-
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Measured composition"
@@ -5749,9 +5801,21 @@ msgstr "Moderado: {moderate} min"
 msgid "Monthly"
 msgstr "Mensalmente"
 
+#: apps/web/src/components/header.tsx
+msgid "More"
+msgstr "Mais"
+
 #: packages/api/src/presenters/score.ts
 msgid "More data for {helpList} would help."
 msgstr "Mais dados de {helpList} ajudariam."
+
+#: apps/web/src/components/page.tsx
+msgid "More information"
+msgstr "Mais informação"
+
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "More options"
+msgstr "Mais opções"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -5782,6 +5846,10 @@ msgstr "Músculos não mostrados no mapa: {0}"
 msgid "My Account"
 msgstr "A minha conta"
 
+#: apps/web/src/components/header.tsx
+msgid "My body"
+msgstr "O meu corpo"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "My food"
 msgstr "O meu alimento"
@@ -5796,7 +5864,6 @@ msgstr "Os meus alimentos"
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
-#: apps/web/src/routes/_auth/sharing.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Name"
 msgstr "Nome"
@@ -5913,6 +5980,10 @@ msgstr "Próxima cópia de segurança agendada"
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Next unanswered: {0}"
 msgstr "Próxima por responder: {0}"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Next: {nextDay}"
+msgstr "Próxima: {nextDay}"
 
 #: packages/api/src/presenters/wearables.ts
 msgid "Nightly Recharge status, overnight HRV and sleep sessions."
@@ -6224,10 +6295,6 @@ msgstr "Sem sessões registadas nos últimos 7 dias, por isso não há número (
 msgid "No sleep logged"
 msgstr "Sem sono registado"
 
-#: apps/web/src/routes/_auth/dashboard.tsx
-msgid "No sleep logged in the last {windowDays} days"
-msgstr "Sem sono registado nos últimos {windowDays} dias"
-
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "No sleep yet"
@@ -6329,6 +6396,10 @@ msgstr "Não disponível neste dispositivo. É atualizado após a sincronizaçã
 #: packages/api/src/presenters/insights.ts
 msgid "Not available with your workspace role"
 msgstr "Não disponível com a sua função no espaço de trabalho"
+
+#: apps/web/src/routes/_auth/micronutrients.tsx
+msgid "Not compared"
+msgstr "Não comparado"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Not compared with other people"
@@ -6615,7 +6686,6 @@ msgstr "Os números estão ocultos. Pode continuar a registar água."
 
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/web/src/components/nutrition-day-totals.tsx
-#: apps/web/src/routes/_auth/micronutrients.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "Nutrient"
 msgstr "Nutriente"
@@ -6624,6 +6694,10 @@ msgstr "Nutriente"
 #: apps/web/src/routes/_auth/foods.tsx
 msgid "Nutrients"
 msgstr "Nutrientes"
+
+#: apps/web/src/routes/_auth/nutrition.tsx
+msgid "Nutrients and source"
+msgstr "Nutrientes e origem"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Nutrition"
@@ -7610,6 +7684,14 @@ msgstr "Atividade recente"
 msgid "Recent activity load"
 msgstr "Carga de atividade recente"
 
+#: apps/web/src/routes/_auth/records/activity.tsx
+msgid "Recent days"
+msgstr "Dias recentes"
+
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Recent readings"
+msgstr "Leituras recentes"
+
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "Recent samples"
 msgstr "Amostras recentes"
@@ -7667,7 +7749,6 @@ msgstr "Sequências de registos"
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/native/app/(drawer)/exports.tsx
-#: apps/web/src/components/header.tsx
 msgid "Records"
 msgstr "Registos"
 
@@ -8206,6 +8287,7 @@ msgstr "Guardados e recentes"
 msgid "Saved entries are kept but not shown while it's off. Turn it on to see or remove them."
 msgstr "Os registos guardados são mantidos, mas não são mostrados enquanto estiver desativado. Ative para os ver ou remover."
 
+#: apps/web/src/routes/_auth/foods.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Saved foods"
 msgstr "Alimentos guardados"
@@ -8449,6 +8531,10 @@ msgstr "As sessões sem avaliação ficam de fora, não são estimadas."
 msgid "Set a goal"
 msgstr "Definir uma meta"
 
+#: apps/web/src/routes/_auth/nutrition-targets.tsx
+msgid "Set a target"
+msgstr "Definir uma meta"
+
 #: apps/web/src/routes/_auth/scores.tsx
 msgid "Set targets, directions and priorities for your goals under <0>Workouts</0>."
 msgstr "Defina alvos, direções e prioridades para os seus objetivos em <0>Treinos</0>."
@@ -8470,8 +8556,10 @@ msgstr "Séries de {trainingFrom} a {trainingTo}"
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/_layout.tsx
 #: apps/web/src/components/header.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Settings"
 msgstr "Definições"
 
@@ -8845,6 +8933,7 @@ msgstr "Fonte: {citation}"
 msgid "Source: {shortLabel}"
 msgstr "Fonte: {shortLabel}"
 
+#: apps/web/src/components/preventive-care-view.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Sources"
 msgstr "Fontes"
@@ -8855,7 +8944,6 @@ msgid "Spotting"
 msgstr "Perdas ligeiras"
 
 #: apps/native/app/(drawer)/records/sleep.tsx
-#: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Stages"
 msgstr "Fases"
 
@@ -8897,6 +8985,11 @@ msgstr "Início: {start} (sem valor inicial, medido a partir de 0)."
 msgid "Start: {start}."
 msgstr "Início: {start}."
 
+#. placeholder {0}: friendlyDate(i18n, current.startDate)
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Started {0}"
+msgstr "Começou {0}"
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Starting value (optional)"
@@ -8922,7 +9015,6 @@ msgstr "A configuração de arranque é só de leitura. Os valores estão oculto
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -8942,6 +9034,7 @@ msgid "steps"
 msgstr "passos"
 
 #: apps/native/app/(drawer)/records/activity.tsx
+#: apps/web/src/routes/_auth/dashboard.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/manual-entry.ts
@@ -8949,7 +9042,6 @@ msgid "Steps"
 msgstr "Passos"
 
 #: apps/native/app/(drawer)/records/activity.tsx
-#: apps/web/src/routes/_auth/records/activity.tsx
 msgid "Steps / active day"
 msgstr "Passos / dia ativo"
 
@@ -9243,6 +9335,10 @@ msgstr "Alvo: {target} (para cima)."
 msgid "Target: {target}."
 msgstr "Alvo: {target}."
 
+#: apps/web/src/components/nutrition-day-totals.tsx
+msgid "Target: {targetText}"
+msgstr "Meta: {targetText}"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Targets and display"
 msgstr "Objetivos e apresentação"
@@ -9329,10 +9425,6 @@ msgstr "A importação falhou. Nada foi guardado."
 msgid "The last sync failed. It will retry automatically."
 msgstr "A última sincronização falhou. Será repetida automaticamente."
 
-#: apps/web/src/routes/_auth/dashboard.tsx
-msgid "The latest reading of each measure, and how your weight has moved."
-msgstr "A leitura mais recente de cada medida e a evolução do seu peso."
-
 #: apps/web/src/components/exercise-library.tsx
 msgid "The library is empty for now."
 msgstr "Por agora, a biblioteca está vazia."
@@ -9349,7 +9441,7 @@ msgstr "O resumo de micronutrientes está desativado. Ative-o nas definições d
 msgid "The minimum must not be more than the maximum."
 msgstr "O mínimo não pode ser superior ao máximo."
 
-#: apps/web/src/components/wearable-devices-view.tsx
+#: apps/web/src/routes/_auth/settings/devices.tsx
 msgid "The mobile app already sends steps, heart rate, sleep, weight and workouts from Apple Health or Health Connect. Connect a vendor account here only for what the phone cannot carry, such as overnight HRV and the vendor's own scores."
 msgstr "A aplicação móvel já envia passos, frequência cardíaca, sono, peso e treinos do Apple Health ou do Health Connect. Ligue aqui uma conta de fornecedor apenas para o que o telemóvel não consegue trazer, como a VFC noturna e as pontuações próprias do fornecedor."
 
@@ -9796,9 +9888,9 @@ msgstr "Para falar, use a tecla de ditado (microfone) do teclado. Esta aplicaç�
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/header.tsx
-#: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
+#: apps/web/src/utils/friendly.ts
 msgid "Today"
 msgstr "Hoje"
 
@@ -10152,6 +10244,10 @@ msgstr "Não registado"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Up to {value} {unit}"
 msgstr "Até {value} {unit}"
+
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Update your record"
+msgstr "Atualizar o seu registo"
 
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Updated {foodName}"
@@ -10597,6 +10693,10 @@ msgstr "Exercício do espaço de trabalho"
 msgid "Workspace invitation"
 msgstr "Convite para espaço de trabalho"
 
+#: apps/web/src/components/preventive-care-view.tsx
+msgid "Worth a look"
+msgstr "Vale a pena ver"
+
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "Y-axis: avg bpm"
 msgstr "Eixo Y: média de bpm"
@@ -10613,6 +10713,10 @@ msgstr "Sim"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Yes, I'm 18 or older"
 msgstr "Sim, tenho 18 anos ou mais"
+
+#: apps/web/src/utils/friendly.ts
+msgid "Yesterday"
+msgstr "Ontem"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -10806,6 +10910,10 @@ msgstr "A sua faixa etária não cabe num único grupo etário desta referência
 msgid "Your age range is not available: {reason, select, not_provided {You haven't added this yet.} declined {You chose not to share this.} not_applicable {You said neither option fits you.} adult_confirmation_required {This is only available after you confirm you are 18 or older.} consent_required {This needs your consent for this purpose.} other {Your birth year falls on the edge of two age bands.}} Add your birth year (age band) in your profile to see which items apply to you. Nothing is guessed."
 msgstr "A sua faixa etária não está disponível: {reason, select, not_provided {Ainda não adicionou isto.} declined {Optou por não partilhar isto.} not_applicable {Indicou que nenhuma opção se aplica a si.} adult_confirmation_required {Isto só está disponível depois de confirmar que tem 18 anos ou mais.} consent_required {Isto precisa do seu consentimento para esta finalidade.} other {O seu ano de nascimento fica no limite entre dois grupos etários.}} Adicione o seu ano de nascimento (grupo etário) no seu perfil para ver que itens se aplicam a si. Nada é adivinhado."
 
+#: apps/web/src/components/profile-summary-card.tsx
+msgid "Your answers"
+msgstr "As suas respostas"
+
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Your answers do not match this item."
@@ -10915,6 +11023,10 @@ msgstr "O seu registo de {title}"
 msgid "Your records"
 msgstr "Os seus registos"
 
+#: apps/web/src/routes/_auth/records/labs.tsx
+msgid "Your results"
+msgstr "Os seus resultados"
+
 #. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Your role: <0>{0}</0>"
@@ -10951,6 +11063,15 @@ msgstr "O seu sono habitual, {sleep} por noite, está {position, select, within 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your usual value is close to the edge of the middle range, so a small change could move it to the other side."
 msgstr "O seu valor habitual está perto do limite da faixa central, por isso uma pequena alteração pode passá-lo para o outro lado."
+
+#. placeholder {0}: formatBpm(summary.sevenDayAverageBpm)
+#. placeholder {0}: formatDistanceMeters(summary.sevenDayAverageDistance, settings)
+#. placeholder {0}: formatKcalories(summary.sevenDayAverageCalories)
+#: apps/web/src/routes/_auth/dashboard.tsx
+#: apps/web/src/routes/_auth/records/activity.tsx
+#: apps/web/src/routes/_auth/records/vitals.tsx
+msgid "Your usual: {0}"
+msgstr "O habitual: {0}"
 
 #. placeholder {0}: ownTrend.usualDays
 #: packages/api/src/presenters/reference-comparison.ts
