@@ -14,7 +14,7 @@ export function ProductSettingsStatus() {
 
   if (isPending && !data) {
     return (
-      <p className="text-xs text-muted-foreground" role="status">
+      <p className="text-sm text-ink-3" role="status">
         <Trans>Loading display defaults…</Trans>
       </p>
     );
@@ -22,7 +22,7 @@ export function ProductSettingsStatus() {
 
   if (isError && !data) {
     return (
-      <p className="text-xs text-destructive" role="alert">
+      <p className="text-sm text-destructive" role="alert">
         <Trans>Display defaults unavailable · showing metric fallback</Trans>
       </p>
     );
@@ -30,7 +30,7 @@ export function ProductSettingsStatus() {
 
   if (isError && data) {
     return (
-      <p className="text-xs text-muted-foreground" role="status">
+      <p className="text-sm text-ink-3" role="status">
         <Trans>Display defaults refresh failed · showing last loaded defaults</Trans>
       </p>
     );
