@@ -10,10 +10,10 @@ import type { ProductDisplaySettings } from "@openvalens/api/presenters/product-
 import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
 import type { GoalProgressResult, ReadinessResult } from "@openvalens/api/score-contract";
 import { Button } from "@openvalens/ui/components/button";
-import { Gauge, Lightbulb, Target, X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Details, InfoTip, StatusPill } from "./page";
+import { Details, InfoTip, Ring, StatusPill, ToneIcon } from "./page";
 
 /**
  * Issue #92 — the dashboard's core loop: the two #95 summaries, then the
@@ -42,22 +42,26 @@ export function SummaryCards({
   return (
     <section aria-labelledby="summaries-title" className="grid min-w-0 content-start gap-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h2 id="summaries-title" className="text-lg leading-tight text-ink">
+        <h2 id="summaries-title" className="text-xl leading-tight text-ink">
           {i18n._(INSIGHT_COPY.summariesTitle)}
         </h2>
         {scoresLink ?? null}
       </div>
       <dl className="grid gap-4 sm:grid-cols-2">
-        <div className="sheet grid min-w-0 content-start gap-3 px-5 py-4">
-          <dt className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink-2">
-            <Gauge className="size-4 shrink-0 text-signal" aria-hidden="true" />
+        <div className="sheet grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 p-5">
+          <Ring
+            className="row-span-2"
+            tone="sleep"
+            value={(Number.parseFloat(ready?.scoreText ?? "") || 0) / 100}
+          />
+          <dt className="flex flex-wrap items-center gap-2 font-semibold text-ink-2">
             {ready?.title ?? t`Readiness index`}
             {ready ? <StatusPill tone="neutral">{ready.badge}</StatusPill> : null}
             <InfoTip>{readyNote}</InfoTip>
           </dt>
           <dd className="m-0 flex items-baseline gap-1.5">
             <span
-              className="num text-[1.875rem] leading-none font-semibold tracking-[-0.03em] text-ink"
+              className="num font-display text-[2rem] leading-none font-medium tracking-[-0.02em] text-ink"
               role="img"
               aria-label={ready?.accessibilityLabel ?? t`Readiness index not loaded.`}
             >
@@ -65,15 +69,19 @@ export function SummaryCards({
             </span>
           </dd>
         </div>
-        <div className="sheet grid min-w-0 content-start gap-3 px-5 py-4">
-          <dt className="flex flex-wrap items-center gap-2 text-sm font-medium text-ink-2">
-            <Target className="size-4 shrink-0 text-signal" aria-hidden="true" />
+        <div className="sheet grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 p-5">
+          <Ring
+            className="row-span-2"
+            tone="weight"
+            value={(Number.parseFloat(progress?.scoreText ?? "") || 0) / 100}
+          />
+          <dt className="flex flex-wrap items-center gap-2 font-semibold text-ink-2">
             {progress?.title ?? t`Goal progress`}
             <InfoTip>{progressNote}</InfoTip>
           </dt>
           <dd className="m-0">
             <span
-              className="num text-[1.875rem] leading-none font-semibold tracking-[-0.03em] text-ink"
+              className="num font-display text-[2rem] leading-none font-medium tracking-[-0.02em] text-ink"
               role="img"
               aria-label={progress?.accessibilityLabel ?? t`Goal progress not loaded.`}
             >
@@ -81,7 +89,7 @@ export function SummaryCards({
             </span>
           </dd>
           {progress?.flaggedText ? (
-            <dd className="m-0 text-sm text-ink-2">{progress.flaggedText}</dd>
+            <dd className="col-span-2 m-0 text-sm text-ink-2">{progress.flaggedText}</dd>
           ) : null}
         </div>
       </dl>
@@ -102,8 +110,8 @@ function InsightItem({
 }) {
   const { i18n } = useLingui();
   return (
-    <li className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 px-5 py-4">
-      <Lightbulb className="mt-0.5 size-[18px] text-signal" aria-hidden="true" />
+    <li className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-2xl bg-paper-2/60 p-4">
+      <ToneIcon icon={Sparkles} tone="signal" size="sm" />
       <article aria-label={view.accessibilityLabel} className="grid min-w-0 gap-1">
         <div className="flex items-start gap-1">
           <h3 className="pt-0.5 text-base leading-snug text-ink">{view.title}</h3>
@@ -198,7 +206,7 @@ export function InsightsCard({
   return (
     <section aria-labelledby="insights-title" className="grid min-w-0 content-start gap-3">
       <div className="flex items-center gap-2">
-        <h2 id="insights-title" className="text-lg leading-tight text-ink">
+        <h2 id="insights-title" className="text-xl leading-tight text-ink">
           {i18n._(INSIGHT_COPY.sectionTitle)}
         </h2>
         <InfoTip>
@@ -219,7 +227,7 @@ export function InsightsCard({
           </div>
         ) : null}
         {view.insights.length > 0 ? (
-          <ul aria-label={i18n._(INSIGHT_COPY.sectionTitle)} className="divide-y divide-rule">
+          <ul aria-label={i18n._(INSIGHT_COPY.sectionTitle)} className="grid gap-2.5 p-3">
             {view.insights.map((insight) => (
               <InsightItem
                 key={insight.key}

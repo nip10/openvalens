@@ -33,11 +33,21 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { CalendarDays, Plus, Scale, TrendingDown, TrendingUp } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import { EmptyState, ErrorState, Figure, Page, PageHeader, Section } from "@/components/page";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+} from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
+import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
@@ -52,7 +62,7 @@ function weightUnit(settings: { units: "metric" | "imperial" } | null | undefine
 
 function weightChartConfig(label: string): ChartConfig {
   return {
-    weightKg: { label, color: "var(--chart-1)" },
+    weightKg: { label, color: "var(--tone-weight)" },
   };
 }
 
@@ -98,7 +108,7 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <Section title={<Trans>Add weight</Trans>} className="well px-5 pt-4 pb-5">
+    <Section icon={Plus} tone="weight" title={<Trans>Add weight</Trans>} sheet>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
@@ -160,8 +170,8 @@ function BodyPage() {
 
       <ProductSettingsStatus />
 
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-        <div className="grid min-w-0 content-start gap-10">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+        <div className="grid min-w-0 content-start gap-8">
           {daily.isPending ? (
             <div className="grid gap-4">
               <Skeleton className="h-96 w-full" />
@@ -185,43 +195,59 @@ function BodyPage() {
             />
           ) : (
             <>
-              <Section title={<Trans>Weight</Trans>} description={<Trans>Last 90 days</Trans>}>
-                <div className="sheet grid gap-5 px-5 pt-4 pb-5">
-                  <dl className="grid grid-cols-3 divide-x divide-rule">
-                    <Figure
-                      className="pr-4"
-                      label={summary.latest.date}
-                      value={formatKg(summary.latest.weightKg, settings)}
-                    />
-                    <Figure
-                      className="px-4"
-                      label={t`7 days`}
-                      value={
-                        summary.change7d === null
-                          ? "—"
-                          : formatKgDelta(i18n, summary.change7d, settings)
-                      }
-                    />
-                    <Figure
-                      className="pl-4"
-                      label={t`30 days`}
-                      value={
-                        summary.change30d === null
-                          ? "—"
-                          : formatKgDelta(i18n, summary.change30d, settings)
-                      }
-                    />
-                  </dl>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <StatTile
+                  icon={Scale}
+                  tone="weight"
+                  label={<Trans>Weight</Trans>}
+                  value={formatKg(summary.latest.weightKg, settings)}
+                  note={friendlyDate(i18n, summary.latest.date)}
+                />
+                <StatTile
+                  icon={CalendarDays}
+                  tone="weight"
+                  label={<Trans>7 days</Trans>}
+                  value={
+                    summary.change7d === null
+                      ? "—"
+                      : formatKgDelta(i18n, summary.change7d, settings)
+                  }
+                />
+                <StatTile
+                  icon={TrendingDown}
+                  tone="weight"
+                  label={<Trans>30 days</Trans>}
+                  value={
+                    summary.change30d === null
+                      ? "—"
+                      : formatKgDelta(i18n, summary.change30d, settings)
+                  }
+                />
+              </div>
+              <Section icon={TrendingUp} tone="weight" title={<Trans>Last 90 days</Trans>}>
+                <div className="sheet p-5">
                   <ChartContainer
                     config={weightChartConfig(t`Weight (${unit})`)}
-                    className="aspect-auto h-80 w-full"
+                    className="aspect-auto h-72 w-full"
                   >
-                    <LineChart
+                    <AreaChart
                       data={summary.series}
                       margin={{ top: 8, right: 4, bottom: 0, left: 0 }}
                     >
-                      <CartesianGrid vertical={false} stroke="var(--rule)" />
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={48} />
+                      <defs>
+                        <linearGradient id="body-weight-fill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--tone-weight)" stopOpacity={0.28} />
+                          <stop offset="100%" stopColor="var(--tone-weight)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        minTickGap={48}
+                        tickFormatter={(value: string) => friendlyDate(i18n, value)}
+                      />
                       <YAxis
                         domain={["dataMin - 1", "dataMax + 1"]}
                         tickLine={false}
@@ -237,55 +263,61 @@ function BodyPage() {
                           />
                         }
                       />
-                      <Line
+                      <Area
+                        type="monotone"
                         dataKey="weightKg"
                         stroke="var(--color-weightKg)"
-                        strokeWidth={2}
+                        strokeWidth={3}
+                        fill="url(#body-weight-fill)"
                         dot={false}
                         isAnimationActive={false}
                       />
-                    </LineChart>
+                    </AreaChart>
                   </ChartContainer>
                 </div>
               </Section>
 
-              <div className="sheet min-w-0 px-2 pt-2 pb-1">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        <Trans>Date</Trans>
-                      </TableHead>
-                      <TableHead>
-                        <Trans>Source</Trans>
-                      </TableHead>
-                      <TableHead className="num">
-                        <Trans>Weight</Trans>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...summary.series]
-                      .reverse()
-                      .slice(0, 14)
-                      .map((point) => {
-                        const source =
-                          daily.data?.find((row) => row.date === point.date)?.source ?? "";
-                        return (
-                          <TableRow key={point.date}>
-                            <TableCell className="num text-left text-ink-3">{point.date}</TableCell>
-                            <TableCell className="text-ink-3">
-                              {i18n._(weightSourceLabel(source))}
-                            </TableCell>
-                            <TableCell className="num text-ink">
-                              {formatKg(point.weightKg, settings)}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
-              </div>
+              <Details summary={<Trans>All readings</Trans>}>
+                <div className="sheet min-w-0 px-2 pt-2 pb-1">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>
+                          <Trans>Date</Trans>
+                        </TableHead>
+                        <TableHead>
+                          <Trans>Source</Trans>
+                        </TableHead>
+                        <TableHead className="num">
+                          <Trans>Weight</Trans>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...summary.series]
+                        .reverse()
+                        .slice(0, 14)
+                        .map((point) => {
+                          const source =
+                            daily.data?.find((row) => row.date === point.date)?.source ?? "";
+                          return (
+                            <TableRow key={point.date}>
+                              <TableCell className="num text-left text-ink-3">
+                                {friendlyDate(i18n, point.date)}
+                              </TableCell>
+                              <TableCell className="text-ink-3">
+                                {i18n._(weightSourceLabel(source))}
+                              </TableCell>
+                              <TableCell className="num text-ink">
+                                {formatKg(point.weightKg, settings)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Details>
             </>
           )}
         </div>

@@ -25,7 +25,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { ReminderDaysField, ReminderDaysRow } from "@/components/reminder-days";
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import { Pill, Plus, Tablets } from "lucide-react";
+
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/supplements")({
@@ -112,11 +122,9 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <section
-      className="well grid min-w-0 gap-4 px-4 pt-3 pb-4"
-      aria-labelledby="add-supplement-heading"
-    >
-      <h3 id="add-supplement-heading" className="font-display text-base font-medium text-ink">
+    <section className="sheet grid min-w-0 gap-4 p-5" aria-labelledby="add-supplement-heading">
+      <h3 id="add-supplement-heading" className="flex items-center gap-2.5 text-lg text-ink">
+        <ToneIcon icon={Plus} tone="food" size="sm" />
         <Trans>Add supplement</Trans>
       </h3>
       <Field label={t`Name`}>
@@ -219,11 +227,9 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <section
-      className="well grid min-w-0 gap-4 px-4 pt-3 pb-4"
-      aria-labelledby="add-medication-heading"
-    >
-      <h3 id="add-medication-heading" className="font-display text-base font-medium text-ink">
+    <section className="sheet grid min-w-0 gap-4 p-5" aria-labelledby="add-medication-heading">
+      <h3 id="add-medication-heading" className="flex items-center gap-2.5 text-lg text-ink">
+        <ToneIcon icon={Plus} tone="heart" size="sm" />
         <Trans>Add medication</Trans>
       </h3>
       <Field label={t`Name`}>
@@ -350,147 +356,117 @@ function SupplementsPage() {
 
   const supplementList = supplements.data;
   const medicationList = medications.data;
-  const headCell = "pb-2 font-medium text-ink-3";
 
   return (
     <Page>
       {header}
 
       <section
-        className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]"
+        className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]"
         aria-label={t`Supplements`}
       >
         {supplementList.length === 0 ? (
-          <EmptyState title={<Trans>No supplements logged. Add one to get reminders.</Trans>} />
+          <EmptyState
+            icon={Pill}
+            title={<Trans>No supplements logged. Add one to get reminders.</Trans>}
+          />
         ) : (
-          <div className="sheet min-w-0 px-5 pt-3 pb-2">
-            <table className="w-full text-left text-sm text-ink-2">
-              <thead>
-                <tr className="border-b-2 border-rule-2">
-                  <th scope="col" className={headCell}>
-                    {t`Name`}
-                  </th>
-                  <th scope="col" className={`${headCell} w-32 text-right`}>
-                    {t({ message: "Dose", comment: "safety" })}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {supplementList.map((supplement) => (
-                  <tr key={supplement.id} className="border-b border-rule align-top last:border-0">
-                    <th scope="row" className="py-2.5 pr-3 font-normal">
-                      <span className="block font-display font-medium break-words text-ink">
-                        {supplement.name}
+          <ul className="grid min-w-0 gap-3 sm:grid-cols-2" aria-label={t`Supplements`}>
+            {supplementList.map((supplement) => (
+              <li key={supplement.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                <div className="flex items-start gap-3">
+                  <ToneIcon icon={Pill} tone="food" />
+                  <div className="grid min-w-0 flex-1 gap-0.5">
+                    <span className="font-semibold break-words text-ink">{supplement.name}</span>
+                    {supplement.category || supplement.activeScheduleCount > 0 ? (
+                      <span className="text-sm text-ink-3">
+                        {supplement.category}
+                        {supplement.category && supplement.activeScheduleCount > 0 ? ", " : ""}
+                        {supplement.activeScheduleCount > 0
+                          ? t`${plural(supplement.activeScheduleCount, { one: "# scheduled", other: "# scheduled" })}`
+                          : ""}
                       </span>
-                      {supplement.category || supplement.activeScheduleCount > 0 ? (
-                        <span className="block text-ink-3">
-                          {supplement.category}
-                          {supplement.category && supplement.activeScheduleCount > 0 ? ", " : ""}
-                          {supplement.activeScheduleCount > 0
-                            ? t`${plural(supplement.activeScheduleCount, { one: "# scheduled", other: "# scheduled" })}`
-                            : ""}
-                        </span>
-                      ) : null}
-                      {supplement.schedules
-                        .filter(
-                          (schedule) =>
-                            schedule.status === "active" && frequencyNeedsDays(schedule.frequency),
-                        )
-                        .map((schedule) => (
-                          <div key={schedule.id} className="mt-1">
-                            <ReminderDaysRow
-                              item={schedule}
-                              pending={saveScheduleDays.isPending}
-                              onSave={(daysOfWeek) =>
-                                saveScheduleDays.mutate({ id: schedule.id, daysOfWeek })
-                              }
-                            />
-                          </div>
-                        ))}
-                    </th>
-                    <td className="num py-2.5 text-ink">
-                      {supplementDoseLabel(supplement.dose, null)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ) : null}
+                  </div>
+                  <span className="num shrink-0 rounded-full bg-food-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                    <span className="sr-only">{t({ message: "Dose", comment: "safety" })}: </span>
+                    {supplementDoseLabel(supplement.dose, null)}
+                  </span>
+                </div>
+                {supplement.schedules
+                  .filter(
+                    (schedule) =>
+                      schedule.status === "active" && frequencyNeedsDays(schedule.frequency),
+                  )
+                  .map((schedule) => (
+                    <ReminderDaysRow
+                      key={schedule.id}
+                      item={schedule}
+                      pending={saveScheduleDays.isPending}
+                      onSave={(daysOfWeek) =>
+                        saveScheduleDays.mutate({ id: schedule.id, daysOfWeek })
+                      }
+                    />
+                  ))}
+              </li>
+            ))}
+          </ul>
         )}
         <AddSupplementForm onSaved={() => void supplements.refetch()} />
       </section>
 
-      <Section title={<Trans>Medications</Trans>}>
+      <Section icon={Tablets} tone="heart" title={<Trans>Medications</Trans>}>
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           {medicationList.length === 0 ? (
             <EmptyState
               title={<Trans>No medications logged. Add one to track your protocol.</Trans>}
             />
           ) : (
-            <div className="sheet min-w-0 px-5 pt-3 pb-2">
-              <table className="w-full text-left text-sm text-ink-2">
-                <thead>
-                  <tr className="border-b-2 border-rule-2">
-                    <th scope="col" className={headCell}>
-                      {t`Name`}
-                    </th>
-                    <th scope="col" className={`${headCell} w-28 text-right`}>
-                      {t({ message: "Dose", comment: "safety" })}
-                    </th>
-                    <th scope="col" className={`${headCell} w-28 pl-4`}>
-                      {t`Status`}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {medicationList.map((medication) => (
-                    <tr
-                      key={medication.id}
-                      className="border-b border-rule align-top last:border-0"
-                    >
-                      <th scope="row" className="py-2.5 pr-3 font-normal">
-                        <span className="block font-display font-medium break-words text-ink">
-                          {medication.name}
-                        </span>
-                        {medication.frequency && !frequencyNeedsDays(medication.frequency) ? (
-                          <span className="block text-ink-3">
-                            {_(supplementFrequencyLabel(medication.frequency))}
-                          </span>
-                        ) : null}
-                        {frequencyNeedsDays(medication.frequency) ? (
-                          <div className="mt-1">
-                            <ReminderDaysRow
-                              item={medication}
-                              pending={saveMedicationDays.isPending}
-                              onSave={(daysOfWeek) =>
-                                saveMedicationDays.mutate({
-                                  id: medication.id,
-                                  name: medication.name,
-                                  dose: medication.dose,
-                                  route: medication.route,
-                                  protocol: medication.protocol,
-                                  frequency: medication.frequency,
-                                  status: medication.status,
-                                  interactions: medication.interactions,
-                                  notes: medication.notes,
-                                  daysOfWeek,
-                                })
-                              }
-                            />
-                          </div>
-                        ) : null}
-                      </th>
-                      <td className="num py-2.5 text-ink">
-                        {medicationDoseLabel(medication.dose, null)}
-                      </td>
-                      <td className="py-2.5 pl-4 text-ink-2">
-                        {_(medicationStatusLabel(medication.status))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className="grid min-w-0 gap-3 sm:grid-cols-2" aria-label={t`Medications`}>
+              {medicationList.map((medication) => (
+                <li key={medication.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <ToneIcon icon={Tablets} tone="heart" />
+                    <div className="grid min-w-0 flex-1 gap-1">
+                      <span className="font-semibold break-words text-ink">{medication.name}</span>
+                      <span className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+                        <StatusPill tone={medication.status === "active" ? "good" : "neutral"}>
+                          <span className="sr-only">{t`Status`}: </span>
+                          {_(medicationStatusLabel(medication.status))}
+                        </StatusPill>
+                        {medication.frequency && !frequencyNeedsDays(medication.frequency)
+                          ? _(supplementFrequencyLabel(medication.frequency))
+                          : null}
+                      </span>
+                    </div>
+                    <span className="num shrink-0 rounded-full bg-heart-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                      <span className="sr-only">{t({ message: "Dose", comment: "safety" })}: </span>
+                      {medicationDoseLabel(medication.dose, null)}
+                    </span>
+                  </div>
+                  {frequencyNeedsDays(medication.frequency) ? (
+                    <ReminderDaysRow
+                      item={medication}
+                      pending={saveMedicationDays.isPending}
+                      onSave={(daysOfWeek) =>
+                        saveMedicationDays.mutate({
+                          id: medication.id,
+                          name: medication.name,
+                          dose: medication.dose,
+                          route: medication.route,
+                          protocol: medication.protocol,
+                          frequency: medication.frequency,
+                          status: medication.status,
+                          interactions: medication.interactions,
+                          notes: medication.notes,
+                          daysOfWeek,
+                        })
+                      }
+                    />
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           )}
           <AddMedicationForm onSaved={() => void medications.refetch()} />
         </div>

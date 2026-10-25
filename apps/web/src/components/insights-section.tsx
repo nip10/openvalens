@@ -218,7 +218,7 @@ function SubjectInsightsSection({
               className="grid min-w-0 content-start gap-3"
             >
               <div className="flex items-center gap-2">
-                <h2 id="observation-title" className="text-lg leading-tight text-ink">
+                <h2 id="observation-title" className="text-xl leading-tight text-ink">
                   <Trans>Nutrition observations</Trans>
                 </h2>
                 <InfoTip align="end">

@@ -1,5 +1,6 @@
+import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { formatSteps } from "@openvalens/api/presenters/activity";
+import { formatSteps, summarizeDailyActivity } from "@openvalens/api/presenters/activity";
 import { formatKg, formatKgDelta, summarizeDailyWeights } from "@openvalens/api/presenters/body";
 import { kgToLb } from "@openvalens/api/presenters/product-formatting";
 import { COCKPIT_SLEEP_WINDOW_DAYS } from "@openvalens/api/presenters/cockpit";
@@ -15,16 +16,18 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@openvalens/ui/components/chart";
+import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { Footprints, HeartPulse, Moon, Scale, TrendingUp } from "lucide-react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Footprints, HeartPulse, History, Moon, Scale, TrendingUp } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { InsightsSection } from "@/components/insights-section";
 import { ErrorState, Figure, Page, PageHeader, Section, StatTile } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
+import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { useProductSettings } from "@/utils/product-settings";
@@ -36,6 +39,12 @@ export const Route = createFileRoute("/_auth/dashboard")({
 // The dashboard's chart reads the same 90-day window the Body screen does.
 const WEIGHT_TREND_DAYS = 90;
 
+function greeting(hour: number) {
+  if (hour < 12) return msg`Good morning`;
+  if (hour < 18) return msg`Good afternoon`;
+  return msg`Good evening`;
+}
+
 function DashboardPage() {
   const weight = useQuery(
     orpc.body.dailyWeights.queryOptions({ input: { limit: WEIGHT_TREND_DAYS } }),
@@ -43,31 +52,47 @@ function DashboardPage() {
   const sleep = useQuery(
     orpc.sleep.summary.queryOptions({ input: { days: COCKPIT_SLEEP_WINDOW_DAYS } }),
   );
-  const activity = useQuery(orpc.activity.dailyTotals.queryOptions({ input: { days: 1 } }));
+  const activity = useQuery(orpc.activity.dailyTotals.queryOptions({ input: { days: 30 } }));
   const vitals = useQuery(orpc.vitals.daily.queryOptions({ input: { days: 1 } }));
   const settingsQuery = useProductSettings();
   const settings = settingsQuery.data;
+  const { data: session } = authClient.useSession();
   const { t, i18n } = useLingui();
 
   const isPending = weight.isPending || sleep.isPending || activity.isPending || vitals.isPending;
   const isError = weight.isError || sleep.isError || activity.isError || vitals.isError;
 
   const weightRow = weight.data?.[0];
+  const weightSummary = summarizeDailyWeights(weight.data ?? []);
   const sleepRow = sleep.data?.lastNight;
   const activityRow = activity.data?.at(-1);
+  // "Usual" steps: the same seven-day average the Activity screen shows.
+  const usualSteps = activity.data
+    ? summarizeDailyActivity(activity.data).sevenDayAverageSteps || null
+    : null;
   const vitalsRow = vitals.data?.at(-1);
+
+  const now = new Date();
+  const firstName = session?.user?.name?.trim().split(/\s+/)[0];
+  const hello = i18n._(greeting(now.getHours()));
+  const today = new Intl.DateTimeFormat(i18n.locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(now);
 
   return (
     <Page>
       <PageHeader
-        title={<Trans>Dashboard</Trans>}
+        title={firstName ? `${hello}, ${firstName}` : hello}
+        description={today}
         actions={
-          <Link
-            to="/records/timeline"
-            className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
-          >
-            <Trans>Full timeline</Trans>
-          </Link>
+          <Button variant="outline" asChild>
+            <Link to="/records/timeline">
+              <History aria-hidden="true" />
+              <Trans>Full timeline</Trans>
+            </Link>
+          </Button>
         }
       />
 
@@ -78,7 +103,7 @@ function DashboardPage() {
       {isPending ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[0, 1, 2, 3].map((key) => (
-            <Skeleton key={key} className="h-32 w-full rounded-xl" />
+            <Skeleton key={key} className="h-40 w-full rounded-3xl" />
           ))}
         </div>
       ) : isError ? (
@@ -88,52 +113,76 @@ function DashboardPage() {
         />
       ) : (
         <>
-          <Section title={<Trans>Latest readings</Trans>}>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatTile
-                icon={Scale}
-                label={<Trans>Weight</Trans>}
-                to="/body"
-                value={weightRow ? formatKg(weightRow.weightKg, settings) : "—"}
-                note={weightRow ? friendlyDate(i18n, weightRow.date) : t`No reading yet`}
-              />
-              <StatTile
-                icon={Moon}
-                label={<Trans>Sleep</Trans>}
-                to="/records/sleep"
-                value={sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—"}
-                status={
-                  sleepRow
-                    ? {
-                        label: i18n._(sleepStatusLabel(sleepRow.status)),
-                        tone: pillTone(sleepStatusTone(sleepRow.status)),
-                      }
-                    : undefined
-                }
-                note={sleepRow ? undefined : t`No reading yet`}
-              />
-              <StatTile
-                icon={Footprints}
-                label={<Trans>Steps</Trans>}
-                to="/records/activity"
-                value={activityRow ? formatSteps(activityRow.steps ?? 0) : "—"}
-                note={activityRow ? friendlyDate(i18n, activityRow.date) : t`No activity logged`}
-              />
-              <StatTile
-                icon={HeartPulse}
-                label={<Trans>Heart rate</Trans>}
-                to="/records/vitals"
-                value={
-                  vitalsRow && vitalsRow.heartRate.avgBpm !== null
-                    ? formatBpm(vitalsRow.heartRate.avgBpm)
-                    : "—"
-                }
-                note={
-                  vitalsRow ? t`Average, ${friendlyDate(i18n, vitalsRow.date)}` : t`No reading yet`
-                }
-              />
-            </div>
-          </Section>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatTile
+              icon={Moon}
+              tone="sleep"
+              label={<Trans>Sleep</Trans>}
+              to="/records/sleep"
+              value={sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—"}
+              meter={
+                sleepRow && sleepRow.targetMinutes
+                  ? { value: sleepRow.asleepMinutes / sleepRow.targetMinutes }
+                  : undefined
+              }
+              status={
+                sleepRow
+                  ? {
+                      label: i18n._(sleepStatusLabel(sleepRow.status)),
+                      tone: pillTone(sleepStatusTone(sleepRow.status)),
+                    }
+                  : undefined
+              }
+              note={sleepRow ? undefined : t`No reading yet`}
+            />
+            <StatTile
+              icon={Footprints}
+              tone="steps"
+              label={<Trans>Steps</Trans>}
+              to="/records/activity"
+              value={activityRow ? formatSteps(activityRow.steps ?? 0) : "—"}
+              meter={
+                activityRow && usualSteps
+                  ? { value: (activityRow.steps ?? 0) / usualSteps }
+                  : undefined
+              }
+              note={
+                activityRow
+                  ? usualSteps
+                    ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
+                    : friendlyDate(i18n, activityRow.date)
+                  : t`No activity logged`
+              }
+            />
+            <StatTile
+              icon={HeartPulse}
+              tone="heart"
+              label={<Trans>Heart rate</Trans>}
+              to="/records/vitals"
+              value={
+                vitalsRow && vitalsRow.heartRate.avgBpm !== null
+                  ? formatBpm(vitalsRow.heartRate.avgBpm)
+                  : "—"
+              }
+              note={
+                vitalsRow ? t`Average, ${friendlyDate(i18n, vitalsRow.date)}` : t`No reading yet`
+              }
+            />
+            <StatTile
+              icon={Scale}
+              tone="weight"
+              label={<Trans>Weight</Trans>}
+              to="/body"
+              value={weightRow ? formatKg(weightRow.weightKg, settings) : "—"}
+              note={
+                weightSummary.change30d !== null
+                  ? t`${formatKgDelta(i18n, weightSummary.change30d, settings)} in 30 days`
+                  : weightRow
+                    ? friendlyDate(i18n, weightRow.date)
+                    : t`No reading yet`
+              }
+            />
+          </div>
           <WeightTrend
             rows={weight.data ?? []}
             settings={settings}
@@ -168,11 +217,17 @@ function WeightTrend({
   const { t, i18n } = useLingui();
   const summary = summarizeDailyWeights(rows);
   const unit = settings?.units === "imperial" ? "lb" : "kg";
-  const config: ChartConfig = { weightKg: { label: t`Weight (${unit})`, color: "var(--chart-1)" } };
+  const config: ChartConfig = {
+    weightKg: { label: t`Weight (${unit})`, color: "var(--tone-weight)" },
+  };
 
   return (
-    <Section icon={TrendingUp} title={<Trans>Weight, last {WEIGHT_TREND_DAYS} days</Trans>}>
-      <div className="sheet grid gap-5 px-5 pt-4 pb-5">
+    <Section
+      icon={TrendingUp}
+      tone="weight"
+      title={<Trans>Weight, last {WEIGHT_TREND_DAYS} days</Trans>}
+    >
+      <div className="sheet grid gap-5 p-5">
         {summary.latest ? (
           <>
             <dl className="grid grid-cols-3 divide-x divide-rule">
@@ -199,9 +254,21 @@ function WeightTrend({
               />
             </dl>
             <ChartContainer config={config} className="aspect-auto h-56 w-full">
-              <LineChart data={summary.series} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
-                <CartesianGrid vertical={false} stroke="var(--rule)" />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={48} />
+              <AreaChart data={summary.series} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="weight-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--tone-weight)" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="var(--tone-weight)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={48}
+                  tickFormatter={(value: string) => friendlyDate(i18n, value)}
+                />
                 <YAxis
                   domain={["dataMin - 1", "dataMax + 1"]}
                   tickLine={false}
@@ -217,14 +284,16 @@ function WeightTrend({
                     />
                   }
                 />
-                <Line
+                <Area
+                  type="monotone"
                   dataKey="weightKg"
                   stroke="var(--color-weightKg)"
-                  strokeWidth={2}
+                  strokeWidth={3}
+                  fill="url(#weight-fill)"
                   dot={false}
                   isAnimationActive={false}
                 />
-              </LineChart>
+              </AreaChart>
             </ChartContainer>
           </>
         ) : (

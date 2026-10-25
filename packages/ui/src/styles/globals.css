@@ -1,14 +1,15 @@
-/* Hallmark · shape: app screen · genre: editorial · theme: Almanac (deal 2/3, seed self-hosted-personal-health-record-9d6f·a53f3d9a·2026-10-25·r0) · redesign: full
- * nav: a grouped sidebar (Today, Records, Sharing, Account), a menu under 60rem · signature: the day sheet, today's figures printed on the sheet beside one trend set large · states: loading, empty, error, full
- * axes: mid/grotesk-sans/chromatic-magenta · posture: restrained · modes: light+dark · contrast: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: H, fourteen links of equal weight; grouped into four and the dashboard leads with one sheet instead of four cards */
+/* Hallmark · shape: app screen · genre: playful · theme: Bloom (custom from the Bloom deal: user picked it from three mock-ups) · redesign: full
+ * nav: a grouped sidebar with an icon per link (Today, My body, Habits, More), a menu under 60rem · signature: the day at a glance, one soft colour per measure with its ring or bar · states: loading, empty, error, full
+ * axes: light/serif-display/warm-terracotta · posture: committed (one tone per measure, terracotta for actions) · modes: light+dark · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R4 V5 · weakest: S, a wellness palette can read generic; tied each tone to one measure everywhere and kept the copy to a greeting, the figure and one line */
 /* Hallmark · dismissed 26a · __root.tsx holds only the shell and the outlet; its controls carry the shared Button focus ring and the base :focus-visible rule */
 /* Hallmark · dismissed 70 · the admission form prints "Sign-in link sent" only after the real magic-link request resolves */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 /* Self-hosted fonts (CSP allows font-src 'self' only). */
-@import "@fontsource-variable/hanken-grotesk";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/figtree";
 @import "./tokens.css";
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
@@ -54,7 +55,11 @@
     scrollbar-color: var(--ink-3) var(--paper);
   }
   body {
-    @apply bg-background font-body antialiased;
+    @apply font-body antialiased;
+    background:
+      radial-gradient(60rem 40rem at 100% 0%, var(--tone-steps-soft), transparent 70%),
+      radial-gradient(50rem 36rem at 0% 100%, var(--tone-sleep-soft), transparent 70%), var(--paper);
+    background-attachment: fixed;
     color: var(--ink-2);
     font-size: 1rem;
     line-height: 1.55;
@@ -76,9 +81,10 @@
   h4 {
     font-family: var(--font-face-display);
     font-weight: 600;
+    font-optical-sizing: auto;
     color: var(--ink);
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
     overflow-wrap: break-word;
     min-width: 0;
     text-wrap: balance;
@@ -134,11 +140,12 @@
 }
 
 @layer components {
-  /* The sheet: a white card on the paper, a hairline edge, soft corners. */
+  /* The card: soft white on the warm paper, generous corners, one warm shadow. */
   .sheet {
-    background: var(--sheet);
-    border: 1px solid var(--rule);
+    background: color-mix(in oklab, var(--sheet) 88%, transparent);
+    border: 1px solid color-mix(in oklab, var(--sheet) 70%, var(--rule));
     border-radius: var(--radius-xl);
+    box-shadow: 0 10px 30px color-mix(in oklab, var(--signal) 9%, transparent);
   }
   /* A well: a paper step, for a quieter grouping inside or beside a sheet. */
   .well {

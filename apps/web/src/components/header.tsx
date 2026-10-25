@@ -59,50 +59,45 @@ const NAV_GROUPS: readonly NavGroup[] = [
     label: msg`Today`,
     links: [
       { to: "/dashboard", label: msg`Dashboard`, icon: LayoutDashboard },
-      { to: "/scores", label: msg`Scores`, icon: Gauge },
       { to: "/coach", label: msg`Coach`, icon: MessageCircle },
+      { to: "/scores", label: msg`Scores`, icon: Gauge },
       { to: "/preventive-care", label: msg`Preventive care`, icon: ShieldCheck },
     ],
   },
   {
-    label: msg`Records`,
+    label: msg`My body`,
     links: [
-      { to: "/records/timeline", label: msg`Timeline`, icon: History },
-      { to: "/body", label: msg`Body`, icon: Scale },
-      { to: "/body-map", label: msg`Body map`, icon: PersonStanding },
-      { to: "/private-measurements", label: msg`Private measurements`, icon: Lock },
-      { to: "/cycle", label: msg`Cycle`, icon: CalendarHeart },
       { to: "/records/sleep", label: msg`Sleep`, icon: Moon },
       { to: "/records/activity", label: msg`Activity`, icon: Footprints },
       { to: "/records/vitals", label: msg`Vitals`, icon: HeartPulse },
+      { to: "/body", label: msg`Body`, icon: Scale },
       { to: "/records/labs", label: msg`Labs`, icon: FlaskConical },
-      { to: "/workouts", label: msg`Workouts`, icon: Dumbbell },
+      { to: "/cycle", label: msg`Cycle`, icon: CalendarHeart },
+      { to: "/body-map", label: msg`Body map`, icon: PersonStanding },
+      { to: "/private-measurements", label: msg`Private measurements`, icon: Lock },
+      { to: "/records/timeline", label: msg`Timeline`, icon: History },
     ],
   },
   {
-    label: msg`Food`,
+    label: msg`Habits`,
     links: [
       { to: "/nutrition", label: msg`Meal diary`, icon: UtensilsCrossed },
       { to: "/food-draft", label: msg`Describe a meal`, icon: MessageSquareText },
       { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
       { to: "/micronutrients", label: msg`Micronutrients`, icon: Leaf },
+      { to: "/workouts", label: msg`Workouts`, icon: Dumbbell },
       { to: "/supplements", label: msg`Supplements`, icon: Pill },
-    ],
-  },
-  {
-    label: msg`Export and share`,
-    links: [
-      { to: "/exports", label: msg`Clinical export`, icon: FileDown },
-      { to: "/sharing", label: msg`Sharing`, icon: Users },
     ],
   },
 ];
 
 const ADMIN_LINK: NavLink = { to: "/admin/settings", label: msg`Administration`, icon: KeyRound };
 const SETTINGS_LINK: NavLink = { to: "/settings", label: msg`Settings`, icon: Settings };
+const EXPORT_LINK: NavLink = { to: "/exports", label: msg`Clinical export`, icon: FileDown };
+const SHARING_LINK: NavLink = { to: "/sharing", label: msg`Sharing`, icon: Users };
 
 const linkClasses =
-  "flex min-h-9 items-center gap-3 rounded-lg px-3 py-1.5 font-display text-[0.9375rem] text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-3 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-signal-2 [&>svg]:size-[18px] [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-signal";
+  "flex min-h-10 items-center gap-3 rounded-2xl px-3 py-2 font-body text-[0.9375rem] font-medium text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-2 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-semibold aria-[current=page]:text-sidebar-accent-foreground [&>svg]:size-[19px] [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-signal";
 
 function useNavGroups() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
@@ -122,12 +117,12 @@ function useNavGroups() {
     !access.isError &&
     access.data?.isInstanceAdmin === true;
 
-  const account: NavGroup = {
-    label: msg`Account`,
-    links: showAdministration ? [SETTINGS_LINK, ADMIN_LINK] : [SETTINGS_LINK],
+  const more: NavGroup = {
+    label: msg`More`,
+    links: [EXPORT_LINK, SHARING_LINK, SETTINGS_LINK, ...(showAdministration ? [ADMIN_LINK] : [])],
   };
 
-  return { groups: [...NAV_GROUPS, account], signedIn: hasUserId, sessionPending };
+  return { groups: [...NAV_GROUPS, more], signedIn: hasUserId, sessionPending };
 }
 
 function Wordmark() {
@@ -136,8 +131,12 @@ function Wordmark() {
     <Link
       to="/"
       aria-label={_(msg`OpenValens home`)}
-      className="rounded-sm font-display text-lg font-semibold tracking-[-0.02em] text-ink no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="flex items-center gap-2 rounded-full font-display text-xl font-semibold tracking-[-0.01em] text-ink no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
+      <span
+        className="size-7 rounded-[10px] bg-[radial-gradient(circle_at_35%_35%,var(--tone-steps-soft),var(--signal))]"
+        aria-hidden="true"
+      />
       OpenValens
     </Link>
   );
@@ -161,7 +160,7 @@ function NavGroups({
         <div key={group.label.id} className="grid gap-0.5">
           <p
             id={`nav-${label.length}-${group.label.id}`}
-            className="px-3 pb-1 text-[0.8125rem] font-medium text-ink-3"
+            className="px-3 pb-1 text-[0.8125rem] font-semibold text-ink-3"
           >
             {_(group.label)}
           </p>
@@ -228,9 +227,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-svh grid-cols-[minmax(0,1fr)] lg:grid-cols-[15rem_minmax(0,1fr)]">
       {skipLink}
-      <div className="hidden border-r border-sidebar-border bg-sidebar lg:block">
+      <div className="hidden border-r border-sidebar-border bg-sidebar/80 backdrop-blur-sm lg:block">
         <aside className="sticky top-0 flex h-svh flex-col">
-          <div className="flex h-14 shrink-0 items-center px-5">
+          <div className="flex h-16 shrink-0 items-center px-5">
             <Wordmark />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-6">

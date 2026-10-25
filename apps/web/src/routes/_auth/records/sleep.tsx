@@ -27,7 +27,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarDays, Hourglass, Moon, Target } from "lucide-react";
-import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import {
   Details,
@@ -38,6 +38,7 @@ import {
   Section,
   StatTile,
   StatusPill,
+  ToneIcon,
 } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { friendlyDate, pillTone } from "@/utils/friendly";
@@ -58,10 +59,10 @@ function StatusText({ status }: { status: string }) {
 
 // Stage colours: the deeper the sleep, the stronger the ink.
 const STAGE_COLOUR: Record<string, string> = {
-  deep: "var(--chart-1)",
-  rem: "var(--chart-3)",
-  light: "var(--chart-4)",
-  awake: "var(--chart-5)",
+  deep: "var(--tone-sleep)",
+  rem: "color-mix(in oklab, var(--tone-sleep) 60%, var(--sheet))",
+  light: "color-mix(in oklab, var(--tone-sleep) 30%, var(--sheet))",
+  awake: "var(--tone-steps)",
   unknown: "var(--paper-3)",
 };
 
@@ -71,7 +72,7 @@ function SleepPage() {
   const settings = settingsQuery.data;
   const { t, i18n } = useLingui();
   const trendConfig = {
-    asleepMinutes: { label: t`Asleep (min)`, color: "var(--chart-1)" },
+    asleepMinutes: { label: t`Asleep (min)`, color: "var(--tone-sleep)" },
   } satisfies ChartConfig;
 
   if (summary.isPending) {
@@ -128,18 +129,18 @@ function SleepPage() {
         <>
           <section
             aria-labelledby="last-night"
-            className="sheet grid gap-6 px-5 py-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:px-6"
+            className="sheet grid gap-6 p-6 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:p-7"
           >
             <div className="grid content-start gap-3">
               <h2
                 id="last-night"
-                className="flex items-center gap-2 text-sm font-medium tracking-normal text-ink-2"
+                className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2"
               >
-                <Moon className="size-4 text-signal" aria-hidden="true" />
+                <ToneIcon icon={Moon} tone="sleep" />
                 <Trans>Last night</Trans>
                 <span className="font-normal text-ink-3">{friendlyDate(i18n, last.date)}</span>
               </h2>
-              <p className="num text-[2.75rem] leading-none font-semibold tracking-[-0.035em] text-ink">
+              <p className="num font-display text-[3.25rem] leading-none font-medium tracking-[-0.02em] text-ink">
                 {formatSleepDuration(last.asleepMinutes)}
               </p>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-3">
@@ -152,7 +153,7 @@ function SleepPage() {
             {stageTotal > 0 ? (
               <div className="grid content-center gap-3">
                 <div
-                  className="flex h-3 w-full overflow-hidden rounded-full bg-paper-2"
+                  className="flex h-4 w-full gap-1 overflow-hidden rounded-full"
                   role="img"
                   aria-label={stages
                     .map((entry) => `${i18n._(entry.label)} ${formatSleepDuration(entry.minutes)}`)
@@ -161,7 +162,7 @@ function SleepPage() {
                   {stages.map((entry) => (
                     <span
                       key={entry.stage}
-                      className="h-full"
+                      className="h-full rounded-full"
                       style={{
                         width: `${(entry.minutes / stageTotal) * 100}%`,
                         background: STAGE_COLOUR[entry.stage] ?? "var(--paper-3)",
@@ -192,16 +193,19 @@ function SleepPage() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <StatTile
+              tone="sleep"
               icon={CalendarDays}
               label={t`7-day average`}
               value={formatSleepDuration(summary.data.sevenDayAverageMinutes)}
             />
             <StatTile
+              tone="steps"
               icon={Hourglass}
               label={t`Avg debt`}
               value={formatSleepDuration(summary.data.averageSleepDebtMinutes)}
             />
             <StatTile
+              tone="weight"
               icon={Target}
               label={t`Target`}
               value={formatSleepDuration(last.targetMinutes)}
@@ -209,10 +213,16 @@ function SleepPage() {
           </div>
 
           <Section title={<Trans>30-day trend</Trans>}>
-            <div className="sheet px-4 pt-4 pb-3">
+            <div className="sheet p-5">
               <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
-                <LineChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="var(--rule)" />
+                <AreaChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="sleep-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--tone-sleep)" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="var(--tone-sleep)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={32} />
                   <YAxis
                     domain={[0, Math.ceil(maxAsleep / 120) * 120]}
@@ -240,15 +250,16 @@ function SleepPage() {
                       />
                     }
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="asleepMinutes"
                     stroke="var(--color-asleepMinutes)"
-                    strokeWidth={2.5}
+                    strokeWidth={3}
+                    fill="url(#sleep-fill)"
                     dot={false}
                     isAnimationActive={false}
                   />
-                </LineChart>
+                </AreaChart>
               </ChartContainer>
             </div>
           </Section>
