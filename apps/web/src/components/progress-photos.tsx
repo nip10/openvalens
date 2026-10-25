@@ -1,11 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isPayloadTooLarge, photoUploadProblem } from "@openvalens/api/photo-upload";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Label } from "@openvalens/ui/components/label";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
+import { EmptyState, ErrorState, Section } from "@/components/page";
 import { client } from "@/utils/orpc";
 
 /**
@@ -65,39 +66,45 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Progress photos</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">
-          <Trans>
-            Only you can see these photos. Workspace owners and other members cannot. Location,
-            camera and other hidden details are removed before a photo is stored.
-          </Trans>
-        </p>
+    <Section
+      title={<Trans>Progress photos</Trans>}
+      description={
+        <Trans>
+          Only you can see these photos. Workspace owners and other members cannot. Location, camera
+          and other hidden details are removed before a photo is stored.
+        </Trans>
+      }
+    >
+      <div className="grid gap-4">
         {photos.isPending ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            <Trans>Loading photos…</Trans>
-          </p>
-        ) : photos.isError ? (
-          <div className="grid gap-2">
-            <p role="alert">
-              <Trans>Could not load your photos.</Trans>
+          <div className="grid gap-3">
+            <p role="status" className="text-sm text-ink-3">
+              <Trans>Loading photos…</Trans>
             </p>
-            <Button className="w-fit" variant="outline" onClick={() => void photos.refetch()}>
-              <Trans>Try again</Trans>
-            </Button>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Skeleton className="aspect-square w-full" />
+              <Skeleton className="aspect-square w-full" />
+              <Skeleton className="aspect-square w-full" />
+            </div>
           </div>
+        ) : photos.isError ? (
+          <ErrorState
+            title={<Trans>Could not load your photos.</Trans>}
+            action={
+              <Button variant="outline" onClick={() => void photos.refetch()}>
+                <Trans>Try again</Trans>
+              </Button>
+            }
+          />
         ) : !photos.data.storage ? (
-          <p className="text-sm text-muted-foreground">
-            <Trans>Photo storage is not set up on this server, so photos cannot be added.</Trans>
-          </p>
+          <EmptyState
+            title={
+              <Trans>Photo storage is not set up on this server, so photos cannot be added.</Trans>
+            }
+          />
         ) : (
           <>
-            <div className="grid gap-1.5">
+            <div className="well grid gap-1.5 px-5 py-4">
               <Label htmlFor="progress-photo">
                 <Trans>Add a photo (JPEG or PNG, up to 10 MB)</Trans>
               </Label>
@@ -108,25 +115,23 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
                 accept="image/jpeg,image/png"
                 disabled={upload.isPending}
                 onChange={(event) => choose(event.target.files?.[0])}
-                className="text-sm"
+                className="text-sm text-ink-2 file:mr-3 file:h-9 file:cursor-pointer file:rounded-sm file:border file:border-rule-2 file:bg-sheet file:px-3 file:font-display file:text-sm file:font-medium file:text-ink hover:file:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
               />
             </div>
             {upload.isPending ? (
-              <p role="status" className="text-sm text-muted-foreground">
+              <p role="status" className="text-sm text-ink-3">
                 <Trans>Saving photo…</Trans>
               </p>
             ) : null}
             {photos.data.photos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                <Trans>No photos yet.</Trans>
-              </p>
+              <EmptyState title={<Trans>No photos yet.</Trans>} />
             ) : (
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {photos.data.photos.map((photo) => (
                   <li key={photo.id} className="grid gap-2">
                     <PhotoImage id={photo.id} createdAt={photo.createdAt} />
                     <Button
-                      variant="outline"
+                      variant="destructive"
                       size="sm"
                       disabled={remove.isPending}
                       onClick={() => {
@@ -143,12 +148,12 @@ export function ProgressPhotos({ subject }: { subject: Subject }) {
           </>
         )}
         {notice ? (
-          <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+          <p role="status" aria-live="polite" className="text-sm text-ink-3">
             {notice}
           </p>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -169,7 +174,7 @@ function PhotoImage({ id, createdAt }: { id: string; createdAt: string }) {
   const date = new Date(createdAt).toLocaleDateString();
   if (file.isError)
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-ink-3">
         <Trans>This photo could not be loaded.</Trans>
       </p>
     );
@@ -177,13 +182,13 @@ function PhotoImage({ id, createdAt }: { id: string; createdAt: string }) {
     <img
       src={src}
       alt={t`Progress photo from ${date}`}
-      className="aspect-square w-full rounded-md object-cover"
+      className="aspect-square w-full bg-paper-3 object-cover"
     />
   ) : (
-    <div
+    <Skeleton
       role="status"
       aria-label={t`Loading progress photo from ${date}`}
-      className="aspect-square w-full animate-pulse rounded-md bg-muted"
+      className="aspect-square w-full"
     />
   );
 }

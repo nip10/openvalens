@@ -1,4 +1,3 @@
-import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { displayLabValue } from "@openvalens/api/presenters/clinical-units";
 import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
@@ -8,14 +7,22 @@ import {
   parseManualEntryValue,
 } from "@openvalens/api/presenters/manual-entry";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@openvalens/ui/components/table";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { client, orpc } from "@/utils/orpc";
@@ -56,13 +63,8 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Add reading</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
+    <Section title={<Trans>Add reading</Trans>} className="well px-5 pt-4 pb-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
             <Trans>Value</Trans>
@@ -84,7 +86,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
             onChange={(event) => setObservedAt(event.target.value)}
           />
         </div>
-        <div className="flex items-center gap-3 sm:col-span-2">
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
             {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
@@ -102,8 +104,8 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
             </span>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -119,97 +121,115 @@ function LabsPage() {
       ? { value: null, unit: marker.unit, converted: false }
       : displayLabValue(marker, marker.latestValue, labUnits);
 
+  const header = <PageHeader title={<Trans>Labs</Trans>} actions={<SyncStatusBadge />} />;
+
   if (markers.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">
-            <Trans>Labs</Trans>
-          </h1>
-          <SyncStatusBadge />
+      <Page>
+        {header}
+        <div className="sheet grid gap-3 px-5 py-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-6 w-full" />
+          ))}
         </div>
-        <Skeleton className="h-64 w-full" />
-      </div>
+      </Page>
     );
   }
 
   if (markers.isError || !markers.data) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">
-            <Trans>Labs</Trans>
-          </h1>
-          <SyncStatusBadge />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load labs.</Trans>{" "}
-          <button className="underline" onClick={() => void markers.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
+      <Page>
+        {header}
+        <ErrorState
+          title={<Trans>Could not load labs.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void markers.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Page>
     );
   }
 
   const list = markers.data;
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Labs</Trans>
-        </h1>
-        <SyncStatusBadge />
-      </div>
+    <Page>
+      {header}
 
       <ProductSettingsStatus />
 
       {list.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No lab markers yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>
-                Markers appear here once a lab reading is recorded for your account. Importing lab
-                reports is not available yet.
-              </Trans>
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={<Trans>No lab markers yet</Trans>}
+          description={
+            <Trans>
+              Markers appear here once a lab reading is recorded for your account. Importing lab
+              reports is not available yet.
+            </Trans>
+          }
+        />
       ) : (
-        <>
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+          <div className="sheet min-w-0 px-2 pt-2 pb-1">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Trans>Name</Trans>
+                  </TableHead>
+                  <TableHead className="num">
+                    <Trans>Value</Trans>
+                  </TableHead>
+                  <TableHead>
+                    <Trans>Unit</Trans>
+                  </TableHead>
+                  <TableHead>
+                    <Trans>Date</Trans>
+                  </TableHead>
+                  <TableHead className="num">
+                    <Trans>Samples</Trans>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {list.map((marker) => {
+                  const display = shown(marker);
+                  return (
+                    <TableRow key={marker.code}>
+                      <TableCell className="font-display font-medium whitespace-normal text-ink">
+                        {marker.displayName}
+                      </TableCell>
+                      <TableCell className="num text-base text-ink">
+                        {formatLabValue(display.value, null)}
+                      </TableCell>
+                      <TableCell className="whitespace-normal text-ink-3">
+                        {display.unit ?? ""}
+                        {display.converted ? (
+                          <span className="block text-xs">
+                            {t({
+                              message: `Converted from ${marker.unit ?? ""}`,
+                              comment: "safety",
+                            })}
+                          </span>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="text-ink-3">
+                        {marker.latestValue === null
+                          ? t`No readings yet`
+                          : formatLabDate(marker.latestSampledAt, settings)}
+                      </TableCell>
+                      <TableCell className="num text-ink-2">{marker.sampleCount}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
           <AddReadingForm markerCode={list[0]?.code ?? ""} onSaved={() => void markers.refetch()} />
-          <Card className="py-0">
-            <ul className="divide-y divide-border">
-              {list.map((marker) => (
-                <li key={marker.code} className="flex items-center justify-between gap-4 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{marker.displayName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {marker.latestValue === null
-                        ? t`No readings yet`
-                        : t`${formatLabDate(marker.latestSampledAt, settings)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="font-mono text-lg">
-                      {formatLabValue(shown(marker).value, shown(marker).unit)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {shown(marker).converted
-                        ? t({ message: `Converted from ${marker.unit ?? ""}`, comment: "safety" })
-                        : (marker.unit ?? "")}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }
