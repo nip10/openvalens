@@ -1,24 +1,169 @@
+/* Hallmark · shape: app screen · genre: playful · theme: Bloom (custom from the Bloom deal: user picked it from three mock-ups) · redesign: full
+ * nav: a grouped sidebar with an icon per link (Today, My body, Habits, More), a menu under 60rem · signature: the day at a glance, one soft colour per measure with its ring or bar · states: loading, empty, error, full
+ * axes: light/serif-display/warm-terracotta · posture: committed (one tone per measure, terracotta for actions) · modes: light+dark · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R4 V5 · weakest: S, a wellness palette can read generic; tied each tone to one measure everywhere and kept the copy to a greeting, the figure and one line */
+/* Hallmark · dismissed 26a · __root.tsx holds only the shell and the outlet; its controls carry the shared Button focus ring and the base :focus-visible rule */
+/* Hallmark · dismissed 70 · the admission form prints "Sign-in link sent" only after the real magic-link request resolves */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* Self-hosted fonts (anchovy used next/font; CSP allows font-src 'self' only). */
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
-@import "@fontsource/cormorant-garamond/400.css";
-@import "@fontsource/cormorant-garamond/500.css";
-@import "@fontsource/cormorant-garamond/600.css";
-@import "@fontsource/cormorant-garamond/700.css";
+/* Self-hosted fonts (CSP allows font-src 'self' only). */
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/figtree";
 @import "./tokens.css";
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
+/* The web-only part of the scale: spacing steps, motion and stacking. */
+:root {
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+  --z-sticky-nav: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+  html,
+  body {
+    overflow-x: clip;
+  }
+  html {
+    scrollbar-color: var(--ink-3) var(--paper);
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply font-body antialiased;
+    background:
+      radial-gradient(60rem 40rem at 100% 0%, var(--tone-steps-soft), transparent 70%),
+      radial-gradient(50rem 36rem at 0% 100%, var(--tone-sleep-soft), transparent 70%), var(--paper);
+    background-attachment: fixed;
+    color: var(--ink-2);
+    font-size: 1rem;
+    line-height: 1.55;
+    font-synthesis: none;
+    font-optical-sizing: auto;
+    caret-color: var(--signal);
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--signal) 22%, transparent);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-face-display);
+    font-weight: 600;
+    font-optical-sizing: auto;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    overflow-wrap: break-word;
+    min-width: 0;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  a {
+    text-decoration-color: var(--signal);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.15em;
+  }
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+  th {
+    text-align: left;
+  }
+  /* Figures that compare: mono, tabular, lined up. */
+  .num,
+  td.num {
+    font-variant-numeric: tabular-nums;
+  }
+  td.num,
+  th.num {
+    text-align: right;
+  }
+  /* A column of right-aligned figures takes its head with it. */
+  table:has(tbody td.num:not(.text-left):nth-child(1)) thead th:nth-child(1) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(2)) thead th:nth-child(2) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(3)) thead th:nth-child(3) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(4)) thead th:nth-child(4) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(5)) thead th:nth-child(5) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(6)) thead th:nth-child(6) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(7)) thead th:nth-child(7) {
+    text-align: right;
+  }
+  table:has(tbody td.num:not(.text-left):nth-child(8)) thead th:nth-child(8) {
+    text-align: right;
+  }
+}
+
+@layer components {
+  /* The card: soft white on the warm paper, generous corners, one warm shadow. */
+  .sheet {
+    background: color-mix(in oklab, var(--sheet) 88%, transparent);
+    border: 1px solid color-mix(in oklab, var(--sheet) 70%, var(--rule));
+    border-radius: var(--radius-xl);
+    box-shadow: 0 10px 30px color-mix(in oklab, var(--signal) 9%, transparent);
+  }
+  /* A well: a paper step, for a quieter grouping inside or beside a sheet. */
+  .well {
+    background: var(--paper-2);
+    border-radius: var(--radius-xl);
+  }
+  .rule-firm {
+    border-bottom: 2px solid var(--rule-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *:not(.keep-motion),
+  *:not(.keep-motion)::before,
+  *:not(.keep-motion)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

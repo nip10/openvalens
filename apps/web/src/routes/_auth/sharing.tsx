@@ -2,7 +2,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import {
@@ -17,7 +16,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
+import { Mail, ShieldCheck, UserPlus, Users } from "lucide-react";
+
 import { MyInvitationsCard } from "@/components/my-invitations-card";
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+  StatusPill,
+  type StatusTone,
+  ToneIcon,
+} from "@/components/page";
+import { SharingAvatar } from "@/components/sharing-avatar";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
@@ -68,13 +81,15 @@ function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
 
   if (members.isPending || invitations.isPending || me.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Sharing</Trans>
-        </h1>
+      <Page>
+        <PageHeader title={<Trans>Sharing</Trans>} />
         {myInvitations}
-        <Skeleton className="h-32 w-full" />
-      </div>
+        <div className="grid gap-4 sm:grid-cols-3" aria-hidden="true">
+          {["a", "b", "c"].map((key) => (
+            <Skeleton key={key} className="h-32 w-full rounded-3xl" />
+          ))}
+        </div>
+      </Page>
     );
   }
 
@@ -87,54 +102,78 @@ function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
     !me.data
   ) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Sharing</Trans>
-        </h1>
+      <Page>
+        <PageHeader title={<Trans>Sharing</Trans>} />
         {myInvitations}
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load sharing info.</Trans>{" "}
-          <button
-            className="underline"
-            onClick={() => {
-              void members.refetch();
-              void invitations.refetch();
-              void me.refetch();
-            }}
-          >
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
+        <ErrorState
+          title={<Trans>Could not load sharing info.</Trans>}
+          action={
+            <Button
+              variant="outline"
+              onClick={() => {
+                void members.refetch();
+                void invitations.refetch();
+                void me.refetch();
+              }}
+            >
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Page>
     );
   }
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Sharing</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
+    <Page>
+      <PageHeader
+        title={<Trans>Sharing</Trans>}
+        description={
           <Trans>
-            Your role: <span className="font-mono">{codeLabel(ROLE_LABELS, me.data.role)}</span>
+            Your role:{" "}
+            <span className="font-medium text-ink">{codeLabel(ROLE_LABELS, me.data.role)}</span>
           </Trans>
-        </p>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          icon={Users}
+          tone="signal"
+          label={<Trans>Members</Trans>}
+          value={members.data.length}
+        />
+        <StatTile
+          icon={Mail}
+          tone="signal"
+          label={<Trans>Pending invitations</Trans>}
+          value={invitations.data.length}
+        />
+        <StatTile
+          icon={ShieldCheck}
+          tone="signal"
+          label={<Trans>Role</Trans>}
+          value={<span className="text-[1.75rem]">{codeLabel(ROLE_LABELS, me.data.role)}</span>}
+        />
       </div>
 
       {myInvitations}
 
-      {!isOwner ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>Only org owners can invite or remove members.</Trans>
-        </p>
-      ) : (
-        <InviteForm />
-      )}
-
-      <MembersCard members={members.data} isOwner={isOwner} currentUserId={me.data.userId} />
-      <InvitationsCard invitations={invitations.data} isOwner={isOwner} />
-    </div>
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="grid min-w-0 gap-8">
+          <MembersCard members={members.data} isOwner={isOwner} currentUserId={me.data.userId} />
+          <InvitationsCard invitations={invitations.data} isOwner={isOwner} />
+        </div>
+        {!isOwner ? (
+          <p className="sheet flex items-center gap-3 p-5 text-sm text-ink-3">
+            <ToneIcon icon={ShieldCheck} tone="signal" size="sm" />
+            <Trans>Only org owners can invite or remove members.</Trans>
+          </p>
+        ) : (
+          <InviteForm />
+        )}
+      </div>
+    </Page>
   );
 }
 
@@ -160,15 +199,10 @@ function InviteForm() {
   };
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>
-          <Trans>Invite a member</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
+    <Section icon={UserPlus} tone="signal" title={<Trans>Invite a member</Trans>} sheet>
+      <div className="grid gap-4">
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">
+          <Label className="text-sm font-medium text-ink-3">
             <Trans>Email</Trans>
           </Label>
           <Input
@@ -179,7 +213,7 @@ function InviteForm() {
           />
         </div>
         <div className="grid gap-2">
-          <Label className="text-sm font-medium">
+          <Label className="text-sm font-medium text-ink-3">
             <Trans>Role</Trans>
           </Label>
           <Select value={role} onValueChange={(next) => setRole(next as "owner" | "member")}>
@@ -192,25 +226,29 @@ function InviteForm() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-end">
-          <Button onClick={submit} disabled={!valid || invite.isPending} className="min-h-11">
+        <div>
+          <Button
+            onClick={submit}
+            disabled={!valid || invite.isPending}
+            className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             {invite.isPending ? t`Inviting…` : t`Send invite`}
           </Button>
         </div>
         {invite.isSuccess ? (
           invite.data.emailDelivery === "sent" ? (
-            <p className="text-sm text-success sm:col-span-3" role="status">
+            <p className="text-sm text-success" role="status">
               <Trans>Invitation sent by email.</Trans>
             </p>
           ) : invite.data.emailDelivery === "unavailable" ? (
-            <p className="text-sm text-muted-foreground sm:col-span-3" role="status">
+            <p className="text-sm text-ink-3" role="status">
               <Trans>
                 Invitation saved, but email is not configured on this server, so no email was sent.
                 Ask them to open Sharing (or Invitations in the mobile app) to accept it.
               </Trans>
             </p>
           ) : (
-            <p className="text-sm text-destructive sm:col-span-3" role="status">
+            <p className="text-sm text-destructive" role="status">
               <Trans>
                 Invitation saved, but the email could not be sent. Ask them to open Sharing (or
                 Invitations in the mobile app) to accept it.
@@ -218,12 +256,12 @@ function InviteForm() {
             </p>
           )
         ) : invite.isError ? (
-          <p className="text-sm text-destructive sm:col-span-3">
+          <p className="text-sm text-destructive">
             <Trans>Could not send invite. Email may already be pending.</Trans>
           </p>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
 
@@ -247,6 +285,7 @@ function MembersCard({
 }) {
   const queryClient = useQueryClient();
   const codeLabel = useCodeLabel();
+  const { t } = useLingui();
   const remove = useMutation(
     orpc.sharing.removeMember.mutationOptions({
       onSuccess: () => {
@@ -256,50 +295,61 @@ function MembersCard({
   );
 
   return (
-    <Card className="mb-6 py-0">
-      <CardHeader className="border-b border-border">
-        <CardTitle>
-          <Trans>Members · {members.length}</Trans>
-        </CardTitle>
-      </CardHeader>
+    <Section
+      icon={Users}
+      tone="signal"
+      title={
+        <>
+          <Trans>Members</Trans> <span className="num text-ink-3">({members.length})</span>
+        </>
+      }
+    >
       {members.length === 0 ? (
-        <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          <Trans>No members yet.</Trans>
-        </CardContent>
+        <EmptyState icon={Users} title={<Trans>No members yet.</Trans>} />
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {members.map((member) => {
             const isMe = member.userId === currentUserId;
+            const display = member.name ?? member.email ?? member.userId;
             return (
-              <li key={member.id} className="flex items-center justify-between px-4 py-3">
-                <div className="min-w-0">
-                  <div className="font-medium">
-                    {member.name ?? member.email ?? member.userId}
+              <li key={member.id} className="sheet flex min-w-0 items-start gap-3 p-4">
+                <SharingAvatar name={display} />
+                <div className="grid min-w-0 flex-1 gap-1">
+                  <span className="font-semibold break-words text-ink">
+                    {display}
                     {isMe ? (
-                      <span className="ml-2 text-xs text-muted-foreground">
+                      <span className="ml-2 font-normal text-ink-3">
                         <Trans>(you)</Trans>
                       </span>
                     ) : null}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {member.email ?? "—"} · {codeLabel(ROLE_LABELS, member.role)}
-                  </div>
+                  </span>
+                  <span className="text-sm break-all text-ink-3">
+                    <span className="sr-only">{t`Email`}: </span>
+                    {member.email ?? "—"}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 pt-0.5">
+                    <StatusPill tone={member.role === "owner" ? "good" : "neutral"}>
+                      <span className="sr-only">{t`Role`}: </span>
+                      {codeLabel(ROLE_LABELS, member.role)}
+                    </StatusPill>
+                    {isOwner && !isMe ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => remove.mutate({ userId: member.userId })}
+                        disabled={remove.isPending}
+                      >
+                        <Trans>Remove</Trans>
+                      </Button>
+                    ) : null}
+                  </span>
                 </div>
-                {isOwner && !isMe ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => remove.mutate({ userId: member.userId })}
-                    disabled={remove.isPending}
-                  >
-                    <Trans>Remove</Trans>
-                  </Button>
-                ) : null}
               </li>
             );
           })}
         </ul>
       )}
-    </Card>
+    </Section>
   );
 }
 
@@ -322,6 +372,7 @@ function InvitationsCard({
 }) {
   const queryClient = useQueryClient();
   const codeLabel = useCodeLabel();
+  const { t } = useLingui();
   const revoke = useMutation(
     orpc.sharing.revokeInvitation.mutationOptions({
       onSuccess: () => {
@@ -331,42 +382,56 @@ function InvitationsCard({
   );
 
   return (
-    <Card className="py-0">
-      <CardHeader className="border-b border-border">
-        <CardTitle>
-          <Trans>Pending invitations · {invitations.length}</Trans>
-        </CardTitle>
-      </CardHeader>
+    <Section
+      icon={Mail}
+      tone="signal"
+      title={
+        <>
+          <Trans>Pending invitations</Trans>{" "}
+          <span className="num text-ink-3">({invitations.length})</span>
+        </>
+      }
+    >
       {invitations.length === 0 ? (
-        <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          <Trans>No pending invitations.</Trans>
-        </CardContent>
+        <EmptyState icon={Mail} title={<Trans>No pending invitations.</Trans>} />
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {invitations.map((invite) => (
-            <li key={invite.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <div className="font-medium">{invite.email}</div>
-                <div className="text-sm text-muted-foreground">
-                  <Trans>
-                    {codeLabel(ROLE_LABELS, invite.role)} · status:{" "}
+            <li key={invite.id} className="sheet flex min-w-0 items-start gap-3 p-4">
+              <SharingAvatar name={invite.email} />
+              <div className="grid min-w-0 flex-1 gap-1">
+                <span className="font-semibold break-all text-ink">{invite.email}</span>
+                <span className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <StatusPill tone="neutral">
+                    <span className="sr-only">{t`Role`}: </span>
+                    {codeLabel(ROLE_LABELS, invite.role)}
+                  </StatusPill>
+                  <StatusPill tone={statusTone(invite.status)}>
+                    <span className="sr-only">{t`Status`}: </span>
                     {codeLabel(INVITATION_STATUS_LABELS, invite.status)}
-                  </Trans>
-                </div>
+                  </StatusPill>
+                  {isOwner ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => revoke.mutate({ id: invite.id })}
+                      disabled={revoke.isPending}
+                    >
+                      <Trans>Revoke</Trans>
+                    </Button>
+                  ) : null}
+                </span>
               </div>
-              {isOwner ? (
-                <Button
-                  variant="outline"
-                  onClick={() => revoke.mutate({ id: invite.id })}
-                  disabled={revoke.isPending}
-                >
-                  <Trans>Revoke</Trans>
-                </Button>
-              ) : null}
             </li>
           ))}
         </ul>
       )}
-    </Card>
+    </Section>
   );
+}
+
+function statusTone(status: string): StatusTone {
+  if (status === "accepted") return "good";
+  if (status === "pending") return "warn";
+  return "neutral";
 }

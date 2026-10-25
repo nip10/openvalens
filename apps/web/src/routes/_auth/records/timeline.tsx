@@ -5,14 +5,36 @@ import {
   severityTone,
   sourceLabel,
 } from "@openvalens/api/presenters/timeline";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { cn } from "@openvalens/ui/lib/utils";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  Activity,
+  CalendarDays,
+  Footprints,
+  FlaskConical,
+  HeartPulse,
+  History,
+  type LucideIcon,
+  Moon,
+  Pill,
+  RefreshCw,
+  Scale,
+  ScanLine,
+  Sparkles,
+} from "lucide-react";
 
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  StatusPill,
+  ToneIcon,
+  type Tone,
+} from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/records/timeline")({
@@ -20,10 +42,19 @@ export const Route = createFileRoute("/_auth/records/timeline")({
 });
 
 const PAGE_SIZE = 50;
-const TONE_CLASS = {
-  destructive: "border-destructive/40 bg-destructive/10 text-destructive",
-  warning: "border-warning/40 bg-warning/10 text-warning",
-} as const;
+const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
+  sleep: { icon: Moon, tone: "sleep" },
+  activity: { icon: Footprints, tone: "steps" },
+  body: { icon: Scale, tone: "weight" },
+  vitals: { icon: HeartPulse, tone: "heart" },
+  labs: { icon: FlaskConical, tone: "water" },
+  meds_supplements: { icon: Pill, tone: "food" },
+  calendar: { icon: CalendarDays, tone: "signal" },
+  sync: { icon: RefreshCw, tone: "signal" },
+  imaging: { icon: ScanLine, tone: "water" },
+  cardiac: { icon: Activity, tone: "heart" },
+};
+const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 
 function TimelinePage() {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -39,83 +70,83 @@ function TimelinePage() {
   const groups = groupTimelineByDay(items, timeZone);
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-6 text-2xl font-semibold">
-        <Trans>Timeline</Trans>
-      </h1>
+    <Page>
+      <PageHeader title={<Trans>Timeline</Trans>} />
 
       {query.isPending ? (
-        <div className="grid gap-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+        <div className="grid gap-6">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="grid gap-3">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-36 w-full rounded-3xl" />
+            </div>
           ))}
         </div>
       ) : query.isError ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load the timeline.</Trans>{" "}
-          <button className="underline" onClick={() => void query.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
+        <ErrorState
+          title={<Trans>Could not load the timeline.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void query.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
       ) : groups.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No records yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>
-                Sync Health Connect or Apple Health from the mobile app, or add an entry.
-              </Trans>
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={History}
+          title={<Trans>No records yet</Trans>}
+          description={
+            <Trans>Sync Health Connect or Apple Health from the mobile app, or add an entry.</Trans>
+          }
+        />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid justify-items-start gap-8">
           {groups.map((group) => (
-            <section key={group.day} aria-label={group.day}>
-              <h2 className="mb-2 font-mono text-sm text-muted-foreground">{group.day}</h2>
-              <Card className="py-0">
-                <ul className="divide-y divide-border">
-                  {group.items.map((item) => {
-                    const tone = severityTone(item.severity);
-                    const source = sourceLabel(item);
-                    return (
-                      <li key={item.id} className="flex items-start gap-4 px-4 py-3">
-                        <span className="w-12 shrink-0 pt-0.5 font-mono text-sm text-muted-foreground">
-                          {item.time}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{item.title}</span>
-                            {tone ? (
-                              <Badge variant="outline" className={cn(TONE_CLASS[tone])}>
-                                {item.severity === "critical" ? (
-                                  <Trans>Needs attention</Trans>
-                                ) : (
-                                  <Trans>Check</Trans>
-                                )}
-                              </Badge>
-                            ) : null}
-                          </div>
-                          {item.summary ? (
-                            <p className="truncate text-sm text-muted-foreground">{item.summary}</p>
+            <section key={group.day} aria-label={group.day} className="grid w-full gap-3">
+              <h2 className="text-xl leading-tight text-ink">
+                <time dateTime={group.day}>{friendlyDate(i18n, group.day)}</time>
+              </h2>
+              <ul className="sheet grid divide-y divide-rule px-4 py-1">
+                {group.items.map((item) => {
+                  const tone = severityTone(item.severity);
+                  const source = sourceLabel(item);
+                  const look = DOMAIN_ICON[item.domain] ?? OTHER_DOMAIN;
+                  return (
+                    <li key={item.id} className="flex items-start gap-3 py-3">
+                      <ToneIcon icon={look.icon} tone={look.tone} />
+                      <div className="grid min-w-0 flex-1 gap-0.5">
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-semibold text-ink">{item.title}</span>
+                          {tone ? (
+                            <StatusPill tone={tone === "destructive" ? "bad" : "warn"}>
+                              {item.severity === "critical" ? (
+                                <Trans>Needs attention</Trans>
+                              ) : (
+                                <Trans>Check</Trans>
+                              )}
+                            </StatusPill>
                           ) : null}
-                        </div>
-                        <div className="shrink-0 text-right text-xs text-muted-foreground">
-                          <div>{i18n._(domainLabel(item.domain))}</div>
-                          {source ? <div>{source}</div> : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Card>
+                        </p>
+                        {item.summary ? (
+                          <p className="truncate text-ink-2">{item.summary}</p>
+                        ) : null}
+                        <p className="text-sm text-ink-3">
+                          {i18n._(domainLabel(item.domain))}
+                          {source ? ` · ${source}` : ""}
+                        </p>
+                      </div>
+                      <span className="num shrink-0 pt-0.5 text-sm text-ink-3">{item.time}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
           ))}
           {query.hasNextPage ? (
             <Button
               variant="outline"
+              // The Button primitive carries these; restated so the screen's states read here.
+              className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px disabled:cursor-not-allowed disabled:opacity-55"
               onClick={() => void query.fetchNextPage()}
               disabled={query.isFetchingNextPage}
             >
@@ -124,6 +155,6 @@ function TimelinePage() {
           ) : null}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

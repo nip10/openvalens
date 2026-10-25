@@ -1,15 +1,9 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 
 import { LocaleSync } from "@/components/locale-sync";
+import { ErrorState, Page } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { BootstrapError, bootstrapSession } from "@/utils/session-bootstrap";
 
@@ -58,20 +52,17 @@ function AuthBootstrapError({ error }: { error: unknown }) {
       : t`Could not prepare your workspace. Please try again.`;
 
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-6">
-      <Card className="mx-auto w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
-            <Trans>Account setup failed</Trans>
-          </CardTitle>
-          <CardDescription>{message}</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <Page width="narrow" className="pt-16">
+      <ErrorState
+        className="mx-auto w-full max-w-md"
+        title={<Trans>Account setup failed</Trans>}
+        description={message}
+        action={
           <Button onClick={() => router.invalidate()}>
             <Trans>Retry</Trans>
           </Button>
-        </CardContent>
-      </Card>
-    </main>
+        }
+      />
+    </Page>
   );
 }

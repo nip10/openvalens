@@ -1,10 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { BellRing, ChevronLeft, Send, Timer } from "lucide-react";
 
+import { Page, PageHeader, Section, StatusPill } from "@/components/page";
+import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/settings/telegram")({
@@ -39,89 +41,101 @@ function TelegramSettingsPage() {
 
   if (status.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">Telegram</h1>
-        <Skeleton className="h-32 w-full" />
-      </div>
+      <Page width="narrow">
+        <PageHeader title="Telegram" />
+        <Skeleton className="h-32 w-full rounded-3xl" />
+      </Page>
     );
   }
 
   const connected = status.data?.connected;
+  const pendingLink = connect.isSuccess && connect.data && !connected ? connect.data : null;
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-6 text-2xl font-semibold">Telegram</h1>
+    <Page width="narrow">
+      <PageHeader
+        title="Telegram"
+        actions={
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            <Trans>Settings</Trans>
+          </Link>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Daily reminders over Telegram</Trans>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between">
-          <div>
-            <div className="font-medium">{connected ? t`Connected` : t`Not connected`}</div>
-            <div className="text-sm text-muted-foreground">
-              {connected
+      <Section title={<Trans>Daily reminders over Telegram</Trans>} icon={BellRing} tone="signal">
+        <SettingsGroup>
+          <SettingsRow
+            icon={Send}
+            label={
+              <StatusPill tone={connected ? "good" : "neutral"}>
+                {connected ? t`Connected` : t`Not connected`}
+              </StatusPill>
+            }
+            description={
+              connected
                 ? t`Daily reminders will be sent to your Telegram chat.`
-                : t`Connect a Telegram chat to receive daily reminders.`}
-            </div>
-          </div>
-          {connected ? (
-            <Button
-              variant="outline"
-              onClick={() => {
-                connect.reset();
-                disconnect.mutate({});
-              }}
-              disabled={disconnect.isPending}
-            >
-              {disconnect.isPending ? t`Disconnecting…` : t`Disconnect`}
-            </Button>
-          ) : (
-            <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
-              {connect.isPending ? t`Generating link…` : t`Connect`}
-            </Button>
-          )}
-        </CardContent>
-        {connect.isSuccess && connect.data && !connected ? (
-          <CardContent className="grid gap-2 text-sm">
-            {connect.data.link ? (
-              <>
-                <p className="text-muted-foreground">
-                  <Trans>
-                    Open the link in Telegram and press Start. This page updates once the chat is
-                    connected.
-                  </Trans>
-                </p>
-                <Button asChild className="w-fit">
-                  <a href={connect.data.link} target="_blank" rel="noreferrer">
-                    <Trans>Open in Telegram</Trans>
-                  </a>
-                </Button>
-              </>
+                : t`Connect a Telegram chat to receive daily reminders.`
+            }
+          >
+            {connected ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  connect.reset();
+                  disconnect.mutate({});
+                }}
+                disabled={disconnect.isPending}
+              >
+                {disconnect.isPending ? t`Disconnecting…` : t`Disconnect`}
+              </Button>
             ) : (
-              <>
-                <p className="text-muted-foreground">
-                  <Trans>Send this message to this server's Telegram bot:</Trans>
-                </p>
-                <p className="break-all rounded-lg border border-border bg-muted/40 p-2 font-mono">
-                  /start {connect.data.token}
-                </p>
-              </>
+              <Button onClick={() => connect.mutate({})} disabled={connect.isPending}>
+                {connect.isPending ? t`Generating link…` : t`Connect`}
+              </Button>
             )}
-            <p className="text-xs text-muted-foreground">
-              <Trans>Expires {new Date(connect.data.expiresAt).toLocaleString()}.</Trans>
-            </p>
-          </CardContent>
-        ) : connect.isError ? (
-          <CardContent>
-            <p className="text-sm text-destructive">
+          </SettingsRow>
+          {pendingLink ? (
+            <div className="grid gap-3 py-4 text-sm">
+              {pendingLink.link ? (
+                <>
+                  <p className="max-w-[60ch] text-ink-2">
+                    <Trans>
+                      Open the link in Telegram and press Start. This page updates once the chat is
+                      connected.
+                    </Trans>
+                  </p>
+                  <Button asChild variant="outline" className="w-fit">
+                    <a href={pendingLink.link} target="_blank" rel="noreferrer">
+                      <Trans>Open in Telegram</Trans>
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-ink-2">
+                    <Trans>Send this message to this server's Telegram bot:</Trans>
+                  </p>
+                  <p className="num rounded-xl bg-paper-2 px-3 py-2 break-all text-ink">
+                    /start {pendingLink.token}
+                  </p>
+                </>
+              )}
+              <p className="flex items-center gap-1.5 text-ink-3">
+                <Timer className="size-4" aria-hidden="true" />
+                <Trans>Expires {new Date(pendingLink.expiresAt).toLocaleString()}.</Trans>
+              </p>
+            </div>
+          ) : connect.isError ? (
+            <p role="alert" className="py-4 text-sm text-destructive">
               <Trans>Could not generate a connect link.</Trans>
             </p>
-          </CardContent>
-        ) : null}
-      </Card>
-    </div>
+          ) : null}
+        </SettingsGroup>
+      </Section>
+    </Page>
   );
 }

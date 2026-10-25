@@ -13,26 +13,35 @@ import {
 } from "@openvalens/api/presenters/custom-foods";
 import {
   DIARY_COPY,
+  NUTRIENT_LABELS,
   UNIT_LABELS,
+  formatNutrientValue,
   localDateIn,
   newClientMutationId,
 } from "@openvalens/api/presenters/nutrition-diary";
-import {
-  formatNutrientSummaryLine,
-  resolveHideNumbers,
-} from "@openvalens/api/presenters/nutrition-targets";
+import { HIDDEN_VALUE, resolveHideNumbers } from "@openvalens/api/presenters/nutrition-targets";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useId, useState } from "react";
+import { Archive, ArchiveRestore, ArrowLeft, Bookmark, Check, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { controlLinkClass, nativeSelectClass } from "@/components/food-classes";
+import {
+  EmptyState,
+  ErrorState,
+  InfoTip,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -45,14 +54,11 @@ export const Route = createFileRoute("/_auth/foods")({
   component: FoodsPage,
 });
 
-const selectClass =
-  "h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
 function Field({ label, children }: { label: string; children: (id: string) => React.ReactNode }) {
   const id = useId();
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id} className="text-sm font-medium">
+      <Label htmlFor={id} className="text-sm font-medium text-ink-3">
         {label}
       </Label>
       {children(id)}
@@ -115,118 +121,204 @@ function FoodsPage() {
     send();
   };
 
+  const figure = (food: CustomFood, key: (typeof FOOD_TABLE_NUTRIENTS)[number]) =>
+    hideNumbers
+      ? i18n._(HIDDEN_VALUE)
+      : formatNutrientValue(key, food.nutrientsPerBasis[key], i18n);
+
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
+    <Page>
       <p className="sr-only" role="status" aria-live="polite">
         {message}
       </p>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold">{i18n._(CUSTOM_FOOD_COPY.title)}</h1>
-          <Link to="/nutrition" className="text-sm underline">
-            <Trans>Back to meal diary</Trans>
-          </Link>
-        </div>
-        <Button onClick={() => setEditing("new")} disabled={editing === "new"}>
-          {i18n._(CUSTOM_FOOD_COPY.create)}
-        </Button>
-      </div>
-      <p className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.privacy)}</p>
+      <PageHeader
+        title={i18n._(CUSTOM_FOOD_COPY.title)}
+        info={i18n._(CUSTOM_FOOD_COPY.privacy)}
+        actions={
+          <>
+            <Link
+              to="/nutrition"
+              className={`mr-2 inline-flex items-center gap-1.5 ${controlLinkClass}`}
+            >
+              <ArrowLeft className="size-4 text-food" aria-hidden="true" />
+              <Trans>Back to meal diary</Trans>
+            </Link>
+            <Button onClick={() => setEditing("new")} disabled={editing === "new"}>
+              <Plus aria-hidden="true" />
+              {i18n._(CUSTOM_FOOD_COPY.create)}
+            </Button>
+          </>
+        }
+      />
 
-      {editing ? (
-        <FoodForm
-          key={editing === "new" ? "new" : `${editing.id}:${editing.revision}`}
-          food={editing === "new" ? null : editing}
-          onDone={(text) => {
-            setEditing(null);
-            if (text) setMessage(text);
-            void refresh();
-          }}
-          announce={setMessage}
-        />
-      ) : null}
-
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={showArchived}
-          onChange={(event) => setShowArchived(event.target.checked)}
-        />
-        {i18n._(CUSTOM_FOOD_COPY.showArchived)}
-      </label>
-
-      {foods.isPending ? (
-        <Skeleton className="h-32 w-full" />
-      ) : foods.isError ? (
-        <p className="text-sm text-muted-foreground" role="alert">
-          {i18n._(CUSTOM_FOOD_COPY.networkError)}{" "}
-          <button className="underline" onClick={() => void foods.refetch()}>
-            {i18n._(CUSTOM_FOOD_COPY.retry)}
-          </button>
-        </p>
-      ) : foods.data.foods.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.empty)}</p>
-      ) : (
-        <Card className="py-0">
-          <ul className="divide-y divide-border" aria-label={i18n._(CUSTOM_FOOD_COPY.title)}>
-            {foods.data.foods.map((food) => (
-              <li key={food.id} className="grid gap-1 px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="grid">
-                    <span className="font-medium">
-                      {food.name}
-                      {food.brand ? ` · ${food.brand}` : ""}{" "}
-                      {food.archived ? (
-                        <Badge variant="outline">{i18n._(CUSTOM_FOOD_COPY.archivedBadge)}</Badge>
-                      ) : null}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {describeBasis(food.basis, i18n)} · {i18n._(describeCoverage(food))} ·{" "}
-                      {i18n._(CUSTOM_FOOD_COPY.provenance)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers, i18n)}
+      <div
+        className={
+          editing
+            ? "grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]"
+            : "grid items-start gap-8"
+        }
+      >
+        <Section
+          aria-label={i18n._(CUSTOM_FOOD_COPY.title)}
+          icon={Bookmark}
+          tone="food"
+          title={<Trans>Saved foods</Trans>}
+          info={
+            <>
+              <p>{i18n._(CUSTOM_FOOD_COPY.provenance)}</p>
+              <p>{i18n._(CUSTOM_FOOD_COPY.archiveNote)}</p>
+            </>
+          }
+          actions={
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-2">
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={showArchived}
+                onChange={(event) => setShowArchived(event.target.checked)}
+              />
+              {i18n._(CUSTOM_FOOD_COPY.showArchived)}
+            </label>
+          }
+        >
+          {foods.isPending ? (
+            <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+              {["a", "b", "c", "d"].map((key) => (
+                <Skeleton key={key} className="h-28 w-full rounded-3xl" />
+              ))}
+            </div>
+          ) : foods.isError ? (
+            <ErrorState
+              title={i18n._(CUSTOM_FOOD_COPY.networkError)}
+              action={
+                <Button variant="outline" onClick={() => void foods.refetch()}>
+                  {i18n._(CUSTOM_FOOD_COPY.retry)}
+                </Button>
+              }
+            />
+          ) : foods.data.foods.length === 0 ? (
+            <EmptyState
+              icon={Bookmark}
+              title={i18n._(CUSTOM_FOOD_COPY.empty)}
+              action={
+                <Button variant="outline" onClick={() => setEditing("new")}>
+                  {i18n._(CUSTOM_FOOD_COPY.create)}
+                </Button>
+              }
+            />
+          ) : (
+            <ul
+              className={`grid min-w-0 gap-3 ${editing ? "sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}
+              aria-label={i18n._(CUSTOM_FOOD_COPY.title)}
+            >
+              {foods.data.foods.map((food) => (
+                <li key={food.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <ToneIcon icon={food.archived ? Archive : Bookmark} tone="food" />
+                    <div className="grid min-w-0 flex-1 gap-0.5">
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="font-semibold break-words text-ink">{food.name}</span>
+                        {food.archived ? (
+                          <StatusPill tone="neutral">
+                            {i18n._(CUSTOM_FOOD_COPY.archivedBadge)}
+                          </StatusPill>
+                        ) : null}
+                      </span>
+                      {food.brand ? <span className="text-sm text-ink-3">{food.brand}</span> : null}
+                      <span className="text-sm text-ink-3">
+                        <span className="sr-only">
+                          <Trans>Values per</Trans>:{" "}
+                        </span>
+                        {describeBasis(food.basis, i18n)}
+                      </span>
+                    </div>
+                    <span className="num shrink-0 rounded-full bg-food-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                      <span className="sr-only">{i18n._(NUTRIENT_LABELS.energyKcal.label)}: </span>
+                      {figure(food, "energyKcal")}
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {food.archived ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setArchived(food, false)}
-                        disabled={restore.isPending}
-                      >
-                        {i18n._(CUSTOM_FOOD_COPY.restore)}{" "}
-                        <span className="sr-only">{food.name}</span>
-                      </Button>
-                    ) : (
-                      <>
-                        <Button variant="ghost" size="sm" onClick={() => setEditing(food)}>
-                          {i18n._(CUSTOM_FOOD_COPY.edit)}{" "}
-                          <span className="sr-only">{food.name}</span>
-                        </Button>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 text-sm text-ink-3">
+                      {i18n._(describeCoverage(food))}
+                      <InfoTip label={t`Nutrients`}>
+                        <ul className="grid gap-0.5">
+                          {FOOD_TABLE_NUTRIENTS.filter((key) => key !== "energyKcal").map((key) => (
+                            <li key={key} className="flex justify-between gap-4">
+                              <span>{i18n._(NUTRIENT_LABELS[key].label)}</span>
+                              <span className="text-ink tabular-nums">{figure(food, key)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </InfoTip>
+                    </div>
+                    <span className="-mr-1 flex items-center">
+                      {food.archived ? (
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setArchived(food, true)}
-                          disabled={archive.isPending}
+                          onClick={() => setArchived(food, false)}
+                          disabled={restore.isPending}
                         >
-                          {i18n._(CUSTOM_FOOD_COPY.archive)}{" "}
+                          <ArchiveRestore aria-hidden="true" />
+                          {i18n._(CUSTOM_FOOD_COPY.restore)}{" "}
                           <span className="sr-only">{food.name}</span>
                         </Button>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-ink-3 hover:text-ink"
+                            onClick={() => setEditing(food)}
+                          >
+                            <Pencil aria-hidden="true" />
+                            <span className="sr-only">
+                              {i18n._(CUSTOM_FOOD_COPY.edit)}{" "}
+                              <span className="sr-only">{food.name}</span>
+                            </span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-ink-3 hover:text-ink"
+                            onClick={() => setArchived(food, true)}
+                            disabled={archive.isPending}
+                          >
+                            <Archive aria-hidden="true" />
+                            <span className="sr-only">
+                              {i18n._(CUSTOM_FOOD_COPY.archive)}{" "}
+                              <span className="sr-only">{food.name}</span>
+                            </span>
+                          </Button>
+                        </>
+                      )}
+                    </span>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-      <p className="text-xs text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.archiveNote)}</p>
-    </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        {editing ? (
+          <FoodForm
+            key={editing === "new" ? "new" : `${editing.id}:${editing.revision}`}
+            food={editing === "new" ? null : editing}
+            onDone={(text) => {
+              setEditing(null);
+              if (text) setMessage(text);
+              void refresh();
+            }}
+            announce={setMessage}
+          />
+        ) : null}
+      </div>
+    </Page>
   );
 }
+
+/** Per-basis figures on each food card (energy on the chip, macros behind the ⓘ). */
+const FOOD_TABLE_NUTRIENTS = ["energyKcal", "proteinG", "carbohydrateG", "fatG"] as const;
 
 function FoodForm({
   food,
@@ -294,17 +386,17 @@ function FoodForm({
   const foodName = food?.name ?? "";
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{food ? t`Edit ${foodName}` : i18n._(CUSTOM_FOOD_COPY.create)}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {food ? (
-          <p className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.editNote)}</p>
-        ) : null}
+    <Section
+      icon={food ? Pencil : Plus}
+      tone="food"
+      sheet
+      title={food ? t`Edit ${foodName}` : i18n._(CUSTOM_FOOD_COPY.create)}
+      info={food ? i18n._(CUSTOM_FOOD_COPY.editNote) : undefined}
+    >
+      <div className="grid min-w-0 gap-4">
         {conflict ? (
-          <div className="grid gap-2 rounded-md border p-3 text-sm" role="alert">
-            <p className="font-medium">
+          <div className="grid gap-2 rounded-2xl bg-warning/10 px-4 py-3 text-sm" role="alert">
+            <p className="font-display font-medium text-ink">
               {i18n._(
                 conflict.archived
                   ? CUSTOM_FOOD_COPY.conflictArchived
@@ -312,15 +404,16 @@ function FoodForm({
               )}
             </p>
             {conflict.archived ? null : (
-              <p>
-                <Trans>Other version:</Trans> {conflict.name} ·{" "}
-                {describeBasis(conflict.basis, i18n)} · {i18n._(describeCoverage(conflict))}
+              <p className="text-ink-2">
+                <Trans>Other version:</Trans> {conflict.name}, {describeBasis(conflict.basis, i18n)}
+                , {i18n._(describeCoverage(conflict))}
               </p>
             )}
             <div className="flex flex-wrap gap-2">
               {conflict.archived ? null : (
                 <Button
                   size="sm"
+                  variant="outline"
                   onClick={() => {
                     setRevision(conflict.revision);
                     setConflict(null);
@@ -365,7 +458,7 @@ function FoodForm({
             {(id) => (
               <select
                 id={id}
-                className={selectClass}
+                className={nativeSelectClass}
                 value={fields.basisUnit}
                 onChange={(e) => set({ basisUnit: e.target.value as AmountUnit })}
               >
@@ -401,7 +494,7 @@ function FoodForm({
               {(id) => (
                 <select
                   id={id}
-                  className={selectClass}
+                  className={nativeSelectClass}
                   value={fields.servingSizeUnit}
                   onChange={(e) => set({ servingSizeUnit: e.target.value as "g" | "ml" })}
                 >
@@ -423,8 +516,8 @@ function FoodForm({
             )}
           </Field>
         </div>
-        <fieldset className="grid gap-3 sm:grid-cols-3">
-          <legend className="mb-2 text-sm font-medium">
+        <fieldset className="grid gap-3 border-t border-rule pt-4 sm:grid-cols-2">
+          <legend className="float-left mb-1 font-display font-medium text-ink sm:col-span-2">
             <Trans>Nutrients</Trans>
           </legend>
           {CUSTOM_FOOD_NUTRIENTS.map((key) => (
@@ -442,21 +535,22 @@ function FoodForm({
             </Field>
           ))}
         </fieldset>
-        <p className="text-xs text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.blankNote)}</p>
+        <p className="text-sm text-ink-3">{i18n._(CUSTOM_FOOD_COPY.blankNote)}</p>
         {!parsed.ok && fields.name ? (
-          <p className="text-sm text-muted-foreground" role="alert">
+          <p className="text-sm text-destructive" role="alert">
             {i18n._(parsed.error)}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => save()} disabled={!parsed.ok || pending}>
+          <Button variant="outline" onClick={() => save()} disabled={!parsed.ok || pending}>
+            <Check aria-hidden="true" />
             {i18n._(pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save)}
           </Button>
-          <Button variant="outline" onClick={() => onDone(null)}>
+          <Button variant="ghost" onClick={() => onDone(null)}>
             {i18n._(CUSTOM_FOOD_COPY.cancel)}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

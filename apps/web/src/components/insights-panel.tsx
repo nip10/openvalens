@@ -9,16 +9,11 @@ import {
 import type { ProductDisplaySettings } from "@openvalens/api/presenters/product-formatting";
 import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
 import type { GoalProgressResult, ReadinessResult } from "@openvalens/api/score-contract";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
+import { Sparkles, X } from "lucide-react";
 import type { ReactNode } from "react";
+
+import { Details, InfoTip, Ring, StatusPill, ToneIcon } from "./page";
 
 /**
  * Issue #92 — the dashboard's core loop: the two #95 summaries, then the
@@ -41,58 +36,63 @@ export function SummaryCards({
   const { t, i18n } = useLingui();
   const ready = readiness ? readinessView(readiness, i18n) : null;
   const progress = goals ? goalProgressView(goals, i18n) : null;
+  const readyNote = ready?.withheldExplanation ?? ready?.coverageText ?? t`Could not load.`;
+  const progressNote =
+    progress?.withheldExplanation ?? progress?.coverageText ?? t`Could not load.`;
   return (
-    <section aria-labelledby="summaries-title" className="grid gap-3">
-      <div className="flex items-baseline justify-between">
-        <h2 id="summaries-title" className="text-lg font-semibold">
+    <section aria-labelledby="summaries-title" className="grid min-w-0 content-start gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 id="summaries-title" className="text-xl leading-tight text-ink">
           {i18n._(INSIGHT_COPY.summariesTitle)}
         </h2>
         {scoresLink ?? null}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-sm font-medium">
-                {ready?.title ?? t`Readiness index`}
-              </CardTitle>
-              {ready ? <Badge variant="outline">{ready.badge}</Badge> : null}
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-1">
+      <dl className="grid gap-4 sm:grid-cols-2">
+        <div className="sheet grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 p-5">
+          <Ring
+            className="row-span-2"
+            tone="sleep"
+            value={(Number.parseFloat(ready?.scoreText ?? "") || 0) / 100}
+          />
+          <dt className="flex flex-wrap items-center gap-2 font-semibold text-ink-2">
+            {ready?.title ?? t`Readiness index`}
+            {ready ? <StatusPill tone="neutral">{ready.badge}</StatusPill> : null}
+            <InfoTip>{readyNote}</InfoTip>
+          </dt>
+          <dd className="m-0 flex items-baseline gap-1.5">
             <span
-              className="font-mono text-3xl"
+              className="num font-display text-[2rem] leading-none font-medium tracking-[-0.02em] text-ink"
               role="img"
               aria-label={ready?.accessibilityLabel ?? t`Readiness index not loaded.`}
             >
               {ready?.scoreText ?? "—"}
             </span>
-            <p className="text-sm text-muted-foreground">
-              {ready?.withheldExplanation ?? ready?.coverageText ?? t`Could not load.`}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">
-              {progress?.title ?? t`Goal progress`}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-1">
+          </dd>
+        </div>
+        <div className="sheet grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 p-5">
+          <Ring
+            className="row-span-2"
+            tone="weight"
+            value={(Number.parseFloat(progress?.scoreText ?? "") || 0) / 100}
+          />
+          <dt className="flex flex-wrap items-center gap-2 font-semibold text-ink-2">
+            {progress?.title ?? t`Goal progress`}
+            <InfoTip>{progressNote}</InfoTip>
+          </dt>
+          <dd className="m-0">
             <span
-              className="font-mono text-3xl"
+              className="num font-display text-[2rem] leading-none font-medium tracking-[-0.02em] text-ink"
               role="img"
               aria-label={progress?.accessibilityLabel ?? t`Goal progress not loaded.`}
             >
               {progress?.scoreText ?? "—"}
             </span>
-            <p className="text-sm text-muted-foreground">
-              {progress?.withheldExplanation ?? progress?.coverageText ?? t`Could not load.`}
-            </p>
-            {progress?.flaggedText ? <p className="text-sm">{progress.flaggedText}</p> : null}
-          </CardContent>
-        </Card>
-      </div>
+          </dd>
+          {progress?.flaggedText ? (
+            <dd className="col-span-2 m-0 text-sm text-ink-2">{progress.flaggedText}</dd>
+          ) : null}
+        </div>
+      </dl>
     </section>
   );
 }
@@ -110,30 +110,33 @@ function InsightItem({
 }) {
   const { i18n } = useLingui();
   return (
-    <li className="grid gap-2 border-t border-border py-3 first:border-t-0">
-      <article aria-label={view.accessibilityLabel} className="grid gap-1">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{view.kindLabel}</p>
-        <h3 className="font-medium">{view.title}</h3>
-        <p className="text-sm">{view.body}</p>
-        {view.certaintyText ? (
-          <p className="text-sm text-muted-foreground">{view.certaintyText}</p>
-        ) : null}
-        {view.coverageText ? (
-          <p className="text-sm text-muted-foreground">{view.coverageText}</p>
-        ) : null}
-        {view.factorsText ? (
-          <p className="text-sm text-muted-foreground">{view.factorsText}</p>
-        ) : null}
-        <p className="text-xs text-muted-foreground">{view.ruleText}</p>
+    <li className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-2xl bg-paper-2/60 p-4">
+      <ToneIcon icon={Sparkles} tone="signal" size="sm" />
+      <article aria-label={view.accessibilityLabel} className="grid min-w-0 gap-1">
+        <div className="flex items-start gap-1">
+          <h3 className="pt-0.5 text-base leading-snug text-ink">{view.title}</h3>
+          <InfoTip align="end" className="ml-auto">
+            {view.certaintyText ? <p>{view.certaintyText}</p> : null}
+            {view.coverageText ? <p>{view.coverageText}</p> : null}
+            {view.factorsText ? <p>{view.factorsText}</p> : null}
+            <p className="text-ink-3">
+              {view.kindLabel}
+              <span className="block">{view.ruleText}</span>
+            </p>
+          </InfoTip>
+        </div>
+        <p className="max-w-[65ch] text-ink-2">{view.body}</p>
       </article>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="col-start-2 flex flex-wrap items-center gap-1">
         <Button
           size="sm"
-          variant="outline"
+          variant="ghost"
           disabled={pending}
           onClick={() => onFeedback("dismiss")}
           aria-label={i18n._(INSIGHT_COPY.dismissLabel(view.title))}
+          className="-ml-2 text-ink-3"
         >
+          <X aria-hidden="true" />
           {i18n._(INSIGHT_COPY.dismiss)}
         </Button>
         <Button
@@ -143,6 +146,7 @@ function InsightItem({
           onClick={() => onFeedback("not_useful")}
           aria-label={i18n._(INSIGHT_COPY.notUsefulLabel(view.title))}
           title={i18n._(INSIGHT_COPY.notUsefulHint)}
+          className="text-ink-3"
         >
           {i18n._(INSIGHT_COPY.notUseful)}
         </Button>
@@ -161,25 +165,25 @@ export function PushOfferCard({
 }) {
   const { i18n } = useLingui();
   return (
-    <Card role="region" aria-labelledby="push-offer-title">
-      <CardHeader>
-        <CardTitle id="push-offer-title" className="text-base">
+    <div role="region" aria-labelledby="push-offer-title" className="well grid gap-3 px-5 py-4">
+      <div className="grid gap-1">
+        <h3 id="push-offer-title" className="text-base leading-snug text-ink">
           {i18n._(INSIGHT_DELIVERY_COPY.pushOfferTitle)}
-        </CardTitle>
-        <CardDescription>{i18n._(INSIGHT_DELIVERY_COPY.pushOfferBody)}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
-        <Button size="sm" disabled={pending} onClick={() => onAnswer("accepted")}>
+        </h3>
+        <p className="text-sm text-ink-3">{i18n._(INSIGHT_DELIVERY_COPY.pushOfferBody)}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" disabled={pending} onClick={() => onAnswer("accepted")}>
           {i18n._(INSIGHT_DELIVERY_COPY.pushOfferAccept)}
         </Button>
-        <Button size="sm" variant="outline" disabled={pending} onClick={() => onAnswer("declined")}>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => onAnswer("declined")}>
           {i18n._(INSIGHT_DELIVERY_COPY.pushOfferDecline)}
         </Button>
-        <p className="w-full text-xs text-muted-foreground">
-          <Trans>Notifications arrive on phones where you allow them in the mobile app.</Trans>
-        </p>
-      </CardContent>
-    </Card>
+      </div>
+      <p className="text-sm text-ink-3">
+        <Trans>Notifications arrive on phones where you allow them in the mobile app.</Trans>
+      </p>
+    </div>
   );
 }
 
@@ -200,16 +204,30 @@ export function InsightsCard({
   const { i18n } = useLingui();
   const view = insightsListView(i18n, result, settings);
   return (
-    <Card role="region" aria-labelledby="insights-title">
-      <CardHeader>
-        <CardTitle id="insights-title">{i18n._(INSIGHT_COPY.sectionTitle)}</CardTitle>
-        <CardDescription>{i18n._(INSIGHT_COPY.sectionIntro)}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {view.withheld ? <p className="text-sm">{view.withheld}</p> : null}
-        {view.emptyText ? <p className="text-sm">{view.emptyText}</p> : null}
+    <section aria-labelledby="insights-title" className="grid min-w-0 content-start gap-3">
+      <div className="flex items-center gap-2">
+        <h2 id="insights-title" className="text-xl leading-tight text-ink">
+          {i18n._(INSIGHT_COPY.sectionTitle)}
+        </h2>
+        <InfoTip>
+          <p>{i18n._(INSIGHT_COPY.sectionIntro)}</p>
+          <p>{i18n._(INSIGHT_COPY.methodText)}</p>
+          <p>{i18n._(INSIGHT_COPY.limits)}</p>
+          {view.footnotes.map((note) => (
+            <p key={note}>{note}</p>
+          ))}
+          <p className="text-ink-3">{view.versionText}</p>
+        </InfoTip>
+      </div>
+      <div className="sheet grid min-w-0">
+        {view.withheld || view.emptyText ? (
+          <div className="grid gap-1 px-5 py-4">
+            {view.withheld ? <p className="text-ink-2">{view.withheld}</p> : null}
+            {view.emptyText ? <p className="text-ink-2">{view.emptyText}</p> : null}
+          </div>
+        ) : null}
         {view.insights.length > 0 ? (
-          <ul aria-label={i18n._(INSIGHT_COPY.sectionTitle)}>
+          <ul aria-label={i18n._(INSIGHT_COPY.sectionTitle)} className="grid gap-2.5 p-3">
             {view.insights.map((insight) => (
               <InsightItem
                 key={insight.key}
@@ -221,31 +239,26 @@ export function InsightsCard({
             ))}
           </ul>
         ) : null}
-        {view.footnotes.map((note) => (
-          <p key={note} className="text-sm text-muted-foreground">
-            {note}
-          </p>
-        ))}
         {view.notReady.length > 0 ? (
-          <div>
-            <h3 className="mb-1 text-sm font-medium">{i18n._(INSIGHT_COPY.notReadyTitle)}</h3>
-            <ul className="grid gap-1 text-sm">
-              {view.notReady.map((row) => (
-                <li key={row.key}>
-                  <span className="font-medium">{row.label}:</span> {row.stateLabel}.{" "}
-                  <span className="text-muted-foreground">{row.detail}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="border-t border-rule px-5 py-3">
+            <Details summary={i18n._(INSIGHT_COPY.notReadyTitle)}>
+              <ul className="divide-y divide-rule text-sm">
+                {view.notReady.map((row) => (
+                  <li
+                    key={row.key}
+                    className="grid gap-x-4 gap-y-0.5 py-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]"
+                  >
+                    <span className="font-medium text-ink">{row.label}:</span>
+                    <span className="text-ink-2">
+                      {row.stateLabel}. <span className="text-ink-3">{row.detail}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Details>
           </div>
         ) : null}
-        <details className="text-sm">
-          <summary className="cursor-pointer font-medium">{i18n._(INSIGHT_COPY.method)}</summary>
-          <p className="mt-2 text-muted-foreground">{i18n._(INSIGHT_COPY.methodText)}</p>
-        </details>
-        <p className="text-sm text-muted-foreground">{i18n._(INSIGHT_COPY.limits)}</p>
-        <p className="text-xs text-muted-foreground">{view.versionText}</p>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

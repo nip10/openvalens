@@ -1,4 +1,3 @@
-import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { displayLabValue } from "@openvalens/api/presenters/clinical-units";
 import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
@@ -8,16 +7,26 @@ import {
   parseManualEntryValue,
 } from "@openvalens/api/presenters/manual-entry";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { FlaskConical, Plus, TestTube } from "lucide-react";
 
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
+import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useProductSettings } from "@/utils/product-settings";
@@ -56,13 +65,8 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Add reading</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
+    <Section icon={Plus} tone="water" title={<Trans>Add reading</Trans>} sheet>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="grid gap-2">
           <Label className="text-sm font-medium">
             <Trans>Value</Trans>
@@ -84,7 +88,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
             onChange={(event) => setObservedAt(event.target.value)}
           />
         </div>
-        <div className="flex items-center gap-3 sm:col-span-2">
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-1">
           <Button onClick={submit} disabled={numeric === null || save.isPending}>
             {save.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
@@ -102,8 +106,94 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
             </span>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
+  );
+}
+
+type MarkerRow = {
+  code: string;
+  displayName: string;
+  unit: string | null;
+  latestValue: number | null;
+  latestSampledAt: string | null;
+  sampleCount: number;
+};
+
+function MarkerCard({
+  marker,
+  display,
+  settings,
+}: {
+  marker: MarkerRow;
+  display: { value: number | null; unit: string | null; converted: boolean };
+  settings: Parameters<typeof formatLabDate>[1];
+}) {
+  const { t, i18n } = useLingui();
+  const hasValue = marker.latestValue !== null;
+  return (
+    <li className="sheet grid min-w-0 content-start gap-3 p-4">
+      <div className="flex items-start gap-3">
+        <ToneIcon icon={TestTube} tone="water" />
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <span className="font-semibold break-words text-ink">
+            <span className="sr-only">
+              <Trans>Name</Trans>:{" "}
+            </span>
+            {marker.displayName}
+          </span>
+          <span className="text-sm text-ink-3">
+            <span className="sr-only">
+              <Trans>Date</Trans>:{" "}
+            </span>
+            {hasValue && marker.latestSampledAt ? (
+              <time
+                dateTime={marker.latestSampledAt}
+                title={formatLabDate(marker.latestSampledAt, settings)}
+              >
+                {friendlyDate(i18n, marker.latestSampledAt)}
+              </time>
+            ) : (
+              t`No readings yet`
+            )}
+          </span>
+        </div>
+        {hasValue ? (
+          <span className="num shrink-0 rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
+            <span className="sr-only">
+              <Trans>Value</Trans>:{" "}
+            </span>
+            {formatLabValue(display.value, null)}
+            {display.unit ? (
+              <span className="font-normal text-ink-2">
+                <span className="sr-only">
+                  {" "}
+                  <Trans>Unit</Trans>:
+                </span>{" "}
+                {display.unit}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+      </div>
+      {display.converted || marker.sampleCount > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {marker.sampleCount > 0 ? (
+            <StatusPill tone="neutral">
+              <Trans>Samples</Trans>&nbsp;<span className="num">{marker.sampleCount}</span>
+            </StatusPill>
+          ) : null}
+          {display.converted ? (
+            <span className="text-ink-3">
+              {t({
+                message: `Converted from ${marker.unit ?? ""}`,
+                comment: "safety",
+              })}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -119,97 +209,103 @@ function LabsPage() {
       ? { value: null, unit: marker.unit, converted: false }
       : displayLabValue(marker, marker.latestValue, labUnits);
 
+  const header = <PageHeader title={<Trans>Labs</Trans>} actions={<SyncStatusBadge />} />;
+
   if (markers.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">
-            <Trans>Labs</Trans>
-          </h1>
-          <SyncStatusBadge />
+      <Page>
+        {header}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-3xl" />
+          ))}
         </div>
-        <Skeleton className="h-64 w-full" />
-      </div>
+      </Page>
     );
   }
 
   if (markers.isError || !markers.data) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold">
-            <Trans>Labs</Trans>
-          </h1>
-          <SyncStatusBadge />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load labs.</Trans>{" "}
-          <button className="underline" onClick={() => void markers.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
+      <Page>
+        {header}
+        <ErrorState
+          title={<Trans>Could not load labs.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void markers.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Page>
     );
   }
 
   const list = markers.data;
+  const withResults = list.filter((marker) => marker.latestValue !== null);
+  const waiting = list.filter((marker) => marker.latestValue === null);
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Labs</Trans>
-        </h1>
-        <SyncStatusBadge />
-      </div>
+    <Page>
+      {header}
 
       <ProductSettingsStatus />
 
       {list.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No lab markers yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>
-                Markers appear here once a lab reading is recorded for your account. Importing lab
-                reports is not available yet.
-              </Trans>
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={FlaskConical}
+          title={<Trans>No lab markers yet</Trans>}
+          description={
+            <Trans>
+              Markers appear here once a lab reading is recorded for your account. Importing lab
+              reports is not available yet.
+            </Trans>
+          }
+        />
       ) : (
-        <>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+          <div className="grid min-w-0 content-start gap-8">
+            {withResults.length > 0 ? (
+              <Section icon={FlaskConical} tone="water" title={<Trans>Your results</Trans>}>
+                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
+                  {withResults.map((marker) => (
+                    <MarkerCard
+                      key={marker.code}
+                      marker={marker}
+                      display={shown(marker)}
+                      settings={settings}
+                    />
+                  ))}
+                </ul>
+              </Section>
+            ) : null}
+            {waiting.length > 0 ? (
+              <Section
+                icon={TestTube}
+                tone="water"
+                title={t`No readings yet`}
+                info={
+                  <Trans>
+                    Markers appear here once a lab reading is recorded for your account. Importing
+                    lab reports is not available yet.
+                  </Trans>
+                }
+              >
+                <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
+                  {waiting.map((marker) => (
+                    <MarkerCard
+                      key={marker.code}
+                      marker={marker}
+                      display={shown(marker)}
+                      settings={settings}
+                    />
+                  ))}
+                </ul>
+              </Section>
+            ) : null}
+          </div>
           <AddReadingForm markerCode={list[0]?.code ?? ""} onSaved={() => void markers.refetch()} />
-          <Card className="py-0">
-            <ul className="divide-y divide-border">
-              {list.map((marker) => (
-                <li key={marker.code} className="flex items-center justify-between gap-4 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{marker.displayName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {marker.latestValue === null
-                        ? t`No readings yet`
-                        : t`${formatLabDate(marker.latestSampledAt, settings)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="font-mono text-lg">
-                      {formatLabValue(shown(marker).value, shown(marker).unit)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {shown(marker).converted
-                        ? t({ message: `Converted from ${marker.unit ?? ""}`, comment: "safety" })
-                        : (marker.unit ?? "")}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }

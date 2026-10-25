@@ -1,12 +1,20 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { previewLine, relativeTime, truncate } from "@openvalens/api/presenters/cochat";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  useChildMatches,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useState } from "react";
 
+import { MessageCircle, Plus } from "lucide-react";
+
+import { EmptyState, ErrorState, Page, PageHeader, ToneIcon } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
@@ -42,97 +50,113 @@ function CoachListPage() {
       conversationId: crypto.randomUUID(),
       message: t({
         message:
-          "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+          "Hi coach, give me a one-line summary of where I am today and one concrete suggestion.",
         comment:
           "First message sent to the AI coach for a new conversation; shown as the person's own message",
       }),
     });
   };
 
-  if (threads.isPending) {
-    return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-6 flex items-baseline justify-between">
-          <h1 className="text-2xl font-semibold">
-            <Trans>Coach</Trans>
-          </h1>
-        </div>
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
-  }
-
-  if (threads.isError || !threads.data) {
-    return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Coach</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load threads.</Trans>{" "}
-          <button className="underline" onClick={() => void threads.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
-    );
-  }
-
-  const list = threads.data;
+  // The list is the layout's quiet left column; a conversation opens beside it.
+  const hasThread = useChildMatches().length > 0;
+  const list = threads.data ?? [];
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Coach</Trans>
-        </h1>
-        <Button onClick={onNew} disabled={starting || start.isPending}>
-          {start.isPending ? t`Starting…` : t`New conversation`}
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title={<Trans>Coach</Trans>}
+        actions={
+          <Button onClick={onNew} disabled={starting || start.isPending}>
+            <Plus aria-hidden="true" />
+            {start.isPending ? t`Starting…` : t`New conversation`}
+          </Button>
+        }
+      />
 
       <ProductSettingsStatus />
 
       {start.isError ? (
-        <p className="mb-4 text-sm text-destructive">
-          <Trans>Could not start a conversation. Check that AI is enabled in Settings.</Trans>
-        </p>
+        <ErrorState
+          title={
+            <Trans>Could not start a conversation. Check that AI is enabled in Settings.</Trans>
+          }
+        />
       ) : null}
 
-      {list.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No conversations yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>Start a new conversation to ask the AI coach for guidance.</Trans>
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="py-0">
-          <ul className="divide-y divide-border">
-            {list.map((thread) => (
-              <li key={thread.conversationId}>
-                <Link
-                  to="/coach/$conversationId"
-                  params={{ conversationId: thread.conversationId }}
-                  className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-accent/40"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm text-muted-foreground">
-                      {i18n._(relativeTime(thread.lastMessageAt, new Date(), settings))} ·{" "}
-                      <Plural value={thread.messageCount} one="# message" other="# messages" />
-                    </div>
-                    <div className="truncate font-medium">{truncate(previewLine(thread), 80)}</div>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-    </div>
+      <div
+        className={
+          hasThread
+            ? "grid items-start gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]"
+            : "grid max-w-3xl items-start"
+        }
+      >
+        <nav
+          aria-label={t`Conversations`}
+          className={hasThread ? "order-last lg:order-none" : undefined}
+        >
+          {threads.isPending ? (
+            <div className="grid gap-3" aria-hidden="true">
+              <Skeleton className="h-20 w-full rounded-3xl" />
+              <Skeleton className="h-20 w-full rounded-3xl" />
+              <Skeleton className="h-20 w-full rounded-3xl" />
+            </div>
+          ) : threads.isError || !threads.data ? (
+            <ErrorState
+              title={<Trans>Could not load threads.</Trans>}
+              action={
+                <Button variant="outline" size="sm" onClick={() => void threads.refetch()}>
+                  <Trans>Retry</Trans>
+                </Button>
+              }
+            />
+          ) : list.length === 0 ? (
+            <EmptyState
+              icon={MessageCircle}
+              title={<Trans>No conversations yet</Trans>}
+              description={
+                <Trans>Start a new conversation to ask the AI coach for guidance.</Trans>
+              }
+            />
+          ) : (
+            <ul className="grid gap-2.5">
+              {list.map((thread) => (
+                <li key={thread.conversationId}>
+                  <Link
+                    to="/coach/$conversationId"
+                    params={{ conversationId: thread.conversationId }}
+                    className="sheet flex items-start gap-3 p-4 text-ink-2 no-underline transition-transform duration-[var(--dur-short)] ease-[var(--ease-out)] hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-0 motion-reduce:transition-none"
+                    activeProps={{
+                      className: "ring-2 ring-signal/40 text-ink",
+                      "aria-current": "page",
+                    }}
+                  >
+                    <ToneIcon icon={MessageCircle} tone="signal" size="sm" />
+                    <span className="grid min-w-0 flex-1 gap-1">
+                      <span className="truncate text-sm font-semibold text-ink">
+                        {truncate(previewLine(thread), 80)}
+                      </span>
+                      <span className="flex flex-wrap justify-between gap-x-3 text-sm text-ink-3">
+                        <span>
+                          {i18n._(relativeTime(thread.lastMessageAt, new Date(), settings))}
+                        </span>
+                        <span>
+                          <Plural value={thread.messageCount} one="# message" other="# messages" />
+                        </span>
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </nav>
+
+        {hasThread ? (
+          <div className="min-w-0">
+            <Outlet />
+          </div>
+        ) : null}
+      </div>
+    </Page>
   );
 }

@@ -2,17 +2,20 @@ import { ph } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { offlineScope } from "@openvalens/api/presenters/offline";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MuscleGuide } from "@/components/muscle-guide";
 
+import { ArrowLeft, Dumbbell, Plus, Scale, Search } from "lucide-react";
+
+import { MuscleGuide } from "@/components/muscle-guide";
+import { EmptyState, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { ENV } from "@/env";
 import { authClient } from "@/lib/auth-client";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 type PreviewAsset = {
@@ -137,10 +140,13 @@ function Attribution({
   const sourceHref = safeHttpUrl(sourceUrl);
   return (
     <section
-      className="grid gap-1 rounded-md border p-3 text-xs text-muted-foreground"
+      className="grid content-start gap-1 rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-3"
       aria-label={title}
     >
-      <h3 className="font-medium text-foreground">{title}</h3>
+      <h3 className="flex items-center gap-1.5 font-body text-sm font-semibold text-ink">
+        <Scale className="size-4 text-ink-3" aria-hidden="true" />
+        {title}
+      </h3>
       {license ? (
         <p>{author ? t`License: ${license} · ${author}` : t`License: ${license}`}</p>
       ) : (
@@ -152,7 +158,7 @@ function Attribution({
       <div className="flex flex-wrap gap-x-3">
         {licenseHref ? (
           <a
-            className="min-h-11 inline-flex items-center underline"
+            className="inline-flex min-h-11 items-center text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
             href={licenseHref}
             target="_blank"
             rel="noreferrer"
@@ -162,7 +168,7 @@ function Attribution({
         ) : null}
         {sourceHref ? (
           <a
-            className="min-h-11 inline-flex items-center underline"
+            className="inline-flex min-h-11 items-center text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
             href={sourceHref}
             target="_blank"
             rel="noreferrer"
@@ -225,7 +231,7 @@ export function ExerciseMediaGallery({
   if (assets.length === 0)
     return (
       <div className="grid gap-3">
-        <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+        <p className="rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-3">
           {Array.isArray(media) && media.length > 0
             ? t`Preview unavailable because image license details are incomplete.`
             : t`No preview image is provided.`}
@@ -235,10 +241,7 @@ export function ExerciseMediaGallery({
     );
   if (!browserOrigin)
     return (
-      <p
-        role="status"
-        className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground"
-      >
+      <p role="status" className="rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-3">
         <Trans>Preparing preview…</Trans>
       </p>
     );
@@ -251,13 +254,13 @@ export function ExerciseMediaGallery({
       {urls.map(({ asset, url }, index) => (
         <figure key={asset.assetId} className="grid gap-2">
           <div
-            className="relative overflow-hidden rounded-lg border bg-muted"
+            className="relative overflow-hidden rounded-2xl bg-paper-2"
             style={{ aspectRatio: `${asset.width} / ${asset.height}`, maxHeight: "20rem" }}
           >
             {!url || states[asset.assetId] === "failed" ? (
               <div
                 role="status"
-                className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground"
+                className="flex h-full items-center justify-center p-4 text-center text-sm text-ink-3"
               >
                 {!url ? t`Preview unavailable on this connection.` : t`Preview unavailable.`}
               </div>
@@ -265,7 +268,7 @@ export function ExerciseMediaGallery({
               <>
                 <div
                   role="status"
-                  className={`absolute inset-0 flex items-center justify-center p-4 text-center text-xs text-muted-foreground ${states[asset.assetId] === "loaded" ? "sr-only" : ""}`}
+                  className={`absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-ink-3 ${states[asset.assetId] === "loaded" ? "sr-only" : ""}`}
                 >
                   {states[asset.assetId] === "loaded" ? "" : t`Loading preview…`}
                 </div>
@@ -285,7 +288,7 @@ export function ExerciseMediaGallery({
               </>
             )}
           </div>
-          <figcaption className="grid gap-1 text-xs text-muted-foreground">
+          <figcaption className="grid gap-1 text-sm text-ink-3">
             <span>
               {asset.author
                 ? t`License: ${ph({ license: asset.license })} · ${ph({ author: asset.author })}`
@@ -296,7 +299,7 @@ export function ExerciseMediaGallery({
             <span className="flex flex-wrap gap-x-3">
               {safeHttpUrl(asset.licenseUrl) ? (
                 <a
-                  className="underline"
+                  className="text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
                   href={safeHttpUrl(asset.licenseUrl) ?? undefined}
                   target="_blank"
                   rel="noreferrer"
@@ -306,7 +309,7 @@ export function ExerciseMediaGallery({
               ) : null}
               {safeHttpUrl(asset.sourceUrl) ? (
                 <a
-                  className="underline"
+                  className="text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2"
                   href={safeHttpUrl(asset.sourceUrl) ?? undefined}
                   target="_blank"
                   rel="noreferrer"
@@ -326,7 +329,7 @@ export function ExerciseMediaGallery({
 }
 
 export function ExerciseLibraryPage() {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const [query, setQuery] = useState("");
@@ -530,7 +533,7 @@ export function ExerciseLibraryPage() {
   // License names and authors come from the source records (wger).
   const sourceLine = (license: string | null | undefined, author: string | null | undefined) => {
     const licenseText = license ?? t`License not listed`;
-    return author ? t`From wger · ${licenseText} · ${author}` : t`From wger · ${licenseText}`;
+    return author ? t`From wger, ${licenseText}, ${author}` : t`From wger, ${licenseText}`;
   };
   const translationTitle = (language: string | null | undefined) =>
     language?.toLowerCase() === "en" && CATALOG_LANGUAGE.toLowerCase() !== "en"
@@ -539,109 +542,117 @@ export function ExerciseLibraryPage() {
         ? t`Selected translation (${language})`
         : t`Selected translation`;
   const empty = !catalog.isPending && !catalog.isError && (catalog.data?.length ?? 0) === 0;
+  const fieldDisabled = uncertain || isDispatching || scopeChanging;
+  const selectClass =
+    "h-9 min-w-0 rounded-xl border border-input bg-card px-3 text-sm text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
+  const header = (
+    <PageHeader
+      title={<Trans>Exercise library</Trans>}
+      info={
+        <Trans>Browse licensed library entries and exercises created for your workspace.</Trans>
+      }
+      actions={
+        <Link
+          to="/workouts"
+          className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-medium text-ink no-underline transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          <Trans>Back to workouts</Trans>
+        </Link>
+      }
+    />
+  );
   if (sessionPending || scopeChanging)
     return (
-      <main className="container mx-auto max-w-4xl px-4 py-6">
-        <p role="status">
+      <Page>
+        <p role="status" className="text-ink-3">
           <Trans>Loading your workspace…</Trans>
         </p>
-      </main>
+      </Page>
     );
   if (!scope)
     return (
-      <main className="container mx-auto max-w-4xl px-4 py-6">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Exercise library</Trans>
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+      <Page width="narrow">
+        <PageHeader title={<Trans>Exercise library</Trans>} />
+        <p className="text-ink-2">
           <Trans>Sign in to browse exercises for your workspace.</Trans>
         </p>
-      </main>
+      </Page>
     );
 
   return (
-    <main className="container mx-auto grid max-w-4xl gap-5 px-4 py-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            <Trans>Exercise library</Trans>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            <Trans>Browse licensed library entries and exercises created for your workspace.</Trans>
-          </p>
-        </div>
-        <Link to="/workouts" className="text-sm underline">
-          <Trans>Back to workouts</Trans>
-        </Link>
-      </header>
-      {notice ? (
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-          {notice}
-        </p>
-      ) : null}
-      {isDispatching ? (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            intentRef.current = null;
-            dispatchingIntentRef.current = null;
-            setIsDispatching(false);
-            setUncertain(false);
-            setRefreshedAfterUncertain(false);
-            setNotice(t`Stopped waiting. The request may still complete on the server.`);
-          }}
-        >
-          <Trans>Cancel request</Trans>
-        </Button>
-      ) : null}
-      {uncertain ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
-          <p className="flex-1 text-sm">
-            <Trans>Could not confirm. Refresh and review before trying again.</Trans>
-          </p>
-          {!refreshedAfterUncertain ? (
-            <Button variant="outline" disabled={isDispatching} onClick={() => void reconcile()}>
-              <Trans>Refresh and review</Trans>
-            </Button>
-          ) : (
+    <Page>
+      {header}
+      {notice || isDispatching || uncertain ? (
+        <div className="grid gap-3">
+          {notice ? (
+            <p role="status" aria-live="polite" className="text-sm text-ink-2">
+              {notice}
+            </p>
+          ) : null}
+          {isDispatching ? (
             <Button
-              variant="outline"
-              disabled={isDispatching}
+              className="justify-self-start"
+              variant="ghost"
               onClick={() => {
-                const intent = intentRef.current;
-                if (intent) void dispatchIntent(intent);
+                intentRef.current = null;
+                dispatchingIntentRef.current = null;
+                setIsDispatching(false);
+                setUncertain(false);
+                setRefreshedAfterUncertain(false);
+                setNotice(t`Stopped waiting. The request may still complete on the server.`);
               }}
             >
-              <Trans>Retry same request</Trans>
+              <Trans>Cancel request</Trans>
             </Button>
-          )}
+          ) : null}
+          {uncertain ? (
+            <div className="sheet flex flex-wrap items-center gap-3 px-5 py-4">
+              <p className="flex-1 text-sm text-ink-2">
+                <Trans>Could not confirm. Refresh and review before trying again.</Trans>
+              </p>
+              {!refreshedAfterUncertain ? (
+                <Button variant="outline" disabled={isDispatching} onClick={() => void reconcile()}>
+                  <Trans>Refresh and review</Trans>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled={isDispatching}
+                  onClick={() => {
+                    const intent = intentRef.current;
+                    if (intent) void dispatchIntent(intent);
+                  }}
+                >
+                  <Trans>Retry same request</Trans>
+                </Button>
+              )}
+            </div>
+          ) : null}
         </div>
       ) : null}
-      <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.2fr)_minmax(18rem,.8fr)]">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Browse exercises</Trans>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <Label htmlFor="exercise-search">
-              <Trans>Search by name</Trans>
-            </Label>
-            <Input
-              id="exercise-search"
-              disabled={uncertain || isDispatching || scopeChanging}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t`Search exercises`}
-            />
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <Section icon={Search} tone="steps" title={<Trans>Browse exercises</Trans>}>
+          <div className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="exercise-search" className="text-sm text-ink-3">
+                <Trans>Search by name</Trans>
+              </Label>
+              <Input
+                id="exercise-search"
+                disabled={fieldDisabled}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t`Search exercises`}
+              />
+            </div>
             {filters.isPending ? (
-              <p role="status" className="text-xs text-muted-foreground">
+              <p role="status" className="text-sm text-ink-3">
                 <Trans>Loading muscle and equipment filters…</Trans>
               </p>
             ) : filters.isError ? (
               <div className="flex flex-wrap items-center gap-2" role="alert">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-ink-3">
                   <Trans>Filters are unavailable; name search still works.</Trans>
                 </p>
                 <Button size="sm" variant="outline" onClick={() => void filters.refetch()}>
@@ -651,15 +662,15 @@ export function ExerciseLibraryPage() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="muscle-filter">
+                  <Label htmlFor="muscle-filter" className="text-sm text-ink-3">
                     <Trans>Muscle</Trans>
                   </Label>
                   <select
                     id="muscle-filter"
-                    disabled={uncertain || isDispatching || scopeChanging}
+                    disabled={fieldDisabled}
                     value={muscleExternalId}
                     onChange={(event) => setMuscleExternalId(event.target.value)}
-                    className="h-11 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                    className={selectClass}
                   >
                     <option value="">{t`All muscles`}</option>
                     {filters.data?.muscles.map((muscle) => (
@@ -670,15 +681,15 @@ export function ExerciseLibraryPage() {
                   </select>
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="equipment-filter">
+                  <Label htmlFor="equipment-filter" className="text-sm text-ink-3">
                     <Trans>Equipment</Trans>
                   </Label>
                   <select
                     id="equipment-filter"
-                    disabled={uncertain || isDispatching || scopeChanging}
+                    disabled={fieldDisabled}
                     value={equipmentExternalId}
                     onChange={(event) => setEquipmentExternalId(event.target.value)}
-                    className="h-11 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
+                    className={selectClass}
                   >
                     <option value="">{t`All equipment`}</option>
                     {filters.data?.equipment.map((equipment) => (
@@ -692,7 +703,7 @@ export function ExerciseLibraryPage() {
                   <Button
                     className="sm:col-span-2 sm:justify-self-start"
                     variant="ghost"
-                    disabled={uncertain || isDispatching || scopeChanging}
+                    disabled={fieldDisabled}
                     onClick={() => {
                       setMuscleExternalId("");
                       setEquipmentExternalId("");
@@ -703,114 +714,110 @@ export function ExerciseLibraryPage() {
                 ) : null}
               </div>
             )}
-            {!scope ? (
-              <p className="text-sm text-muted-foreground">
-                <Trans>Sign in to browse exercises for your workspace.</Trans>
-              </p>
-            ) : catalog.isPending ? (
-              <p role="status" className="text-sm text-muted-foreground">
+            {catalog.isPending ? (
+              <p role="status" className="py-4 text-sm text-ink-3">
                 <Trans>Loading library…</Trans>
               </p>
             ) : catalog.isError ? (
-              <div role="alert" className="grid gap-2 text-sm">
-                <p>
-                  <Trans>Could not load the exercise library.</Trans>
-                </p>
-                <Button variant="outline" onClick={() => void catalog.refetch()}>
-                  <Trans>Try again</Trans>
-                </Button>
-              </div>
+              <ErrorState
+                title={<Trans>Could not load the exercise library.</Trans>}
+                action={
+                  <Button variant="outline" onClick={() => void catalog.refetch()}>
+                    <Trans>Try again</Trans>
+                  </Button>
+                }
+              />
             ) : empty ? (
               query.trim() ? (
-                <p className="text-sm text-muted-foreground">
-                  <Trans>No exercises match this search. Try another name.</Trans>
-                </p>
+                <EmptyState
+                  icon={Search}
+                  title={<Trans>No exercises match this search. Try another name.</Trans>}
+                />
               ) : (
-                <div className="grid gap-2 rounded-lg border border-dashed p-5">
-                  <p className="font-medium">
-                    <Trans>The library is empty for now.</Trans>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
+                <EmptyState
+                  icon={Dumbbell}
+                  title={<Trans>The library is empty for now.</Trans>}
+                  description={
                     <Trans>
                       An administrator can import licensed exercises, or create a workspace exercise
                       here.
                     </Trans>
-                  </p>
-                </div>
+                  }
+                />
               )
             ) : (
               <ul
-                className="max-h-[32rem] divide-y overflow-y-auto rounded-md border"
+                className="grid max-h-[36rem] gap-2 overflow-y-auto p-1"
                 aria-label={t`Exercises`}
               >
                 {catalog.data?.map((exercise) => (
                   <li key={exercise.id}>
                     <button
                       type="button"
-                      disabled={uncertain || isDispatching || scopeChanging}
+                      disabled={fieldDisabled}
                       onClick={() => setSelectedId(exercise.id)}
                       aria-pressed={selectedId === exercise.id}
-                      className={`w-full px-3 py-3 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedId === exercise.id ? "bg-accent" : ""}`}
+                      className={`sheet flex w-full items-start gap-3 p-3.5 text-left transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 ${selectedId === exercise.id ? "ring-2 ring-steps/50" : ""}`}
                     >
-                      <span className="font-medium">{exercise.name}</span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {exercise.muscles.map((m) => m.name).join(" · ") ||
-                          exercise.category ||
-                          t`Exercise`}
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {exercise.source === "wger"
-                          ? sourceLine(exercise.license, exercise.author)
-                          : t`Workspace exercise`}
+                      <ToneIcon icon={Dumbbell} tone="steps" size="sm" />
+                      <span className="grid min-w-0 flex-1 gap-0.5">
+                        <span className="font-semibold text-ink">{exercise.name}</span>
+                        <span className="block text-sm text-ink-3">
+                          {exercise.muscles.map((m) => m.name).join(", ") ||
+                            exercise.category ||
+                            t`Exercise`}
+                        </span>
+                        <span className="block text-xs text-ink-3">
+                          {exercise.source === "wger"
+                            ? sourceLine(exercise.license, exercise.author)
+                            : t`Workspace exercise`}
+                        </span>
                       </span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-          </CardContent>
-        </Card>
-        <div className="grid gap-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>Exercise details</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3">
+          </div>
+        </Section>
+        <div className="grid gap-8">
+          <Section icon={Dumbbell} tone="steps" title={<Trans>Exercise details</Trans>}>
+            <div className="sheet grid gap-4 p-5">
               {!selectedId ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-ink-3">
                   <Trans>Choose an exercise to read its details.</Trans>
                 </p>
               ) : detail.isPending ? (
-                <p role="status" className="text-sm text-muted-foreground">
+                <p role="status" className="text-ink-3">
                   <Trans>Loading details…</Trans>
                 </p>
               ) : detail.isError || !detail.data ? (
-                <p role="alert" className="text-sm text-muted-foreground">
+                <p role="alert" className="text-ink-2">
                   <Trans>Details are unavailable. Refresh the library and try again.</Trans>
                 </p>
               ) : (
                 <>
-                  <h2 className="font-medium">{detail.data.name}</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {detail.data.muscles.map((muscle) => (
-                      <span
-                        key={muscle.externalMuscleId}
-                        className="rounded-full border px-2 py-1 text-xs"
-                      >
-                        {muscle.name}
-                      </span>
-                    ))}
-                    {detail.data.equipment.map((equipment) => (
-                      <span
-                        key={equipment.externalEquipmentId}
-                        className="rounded-full border px-2 py-1 text-xs"
-                      >
-                        {equipment.name}
-                      </span>
-                    ))}
-                  </div>
+                  <h3 className="text-2xl text-ink">{detail.data.name}</h3>
+                  {detail.data.muscles.length > 0 || detail.data.equipment.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {detail.data.muscles.map((muscle) => (
+                        <span
+                          key={muscle.externalMuscleId}
+                          className="rounded-full bg-steps-soft px-2.5 py-0.5 text-sm font-medium text-ink"
+                        >
+                          {muscle.name}
+                        </span>
+                      ))}
+                      {detail.data.equipment.map((equipment) => (
+                        <span
+                          key={equipment.externalEquipmentId}
+                          className="rounded-full bg-paper-2 px-2.5 py-0.5 text-sm font-medium text-ink-2"
+                        >
+                          {equipment.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <ExerciseMediaGallery
                     key={`${scope}:${detail.data.id}:${JSON.stringify(previewAssets(detail.data.media))}`}
                     exerciseName={detail.data.name}
@@ -818,44 +825,48 @@ export function ExerciseLibraryPage() {
                     muscles={detail.data.muscles}
                   />
                   {detail.data.instructions ? (
-                    <p className="whitespace-pre-wrap text-sm">{detail.data.instructions}</p>
+                    <p className="max-w-[65ch] whitespace-pre-wrap text-ink-2">
+                      {detail.data.instructions}
+                    </p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-ink-3">
                       <Trans>No instructions provided.</Trans>
                     </p>
                   )}
-                  <Attribution
-                    title={t`Exercise record`}
-                    license={detail.data.license}
-                    author={detail.data.author}
-                    attribution={detail.data.attribution}
-                    sourceUrl={detail.data.sourceRecordUrl}
-                    licenseUrl={detail.data.licenseUrl}
-                  />
-                  {detail.data.translationAttribution ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <Attribution
-                      title={translationTitle(detail.data.language)}
-                      license={detail.data.translationAttribution.license}
-                      author={detail.data.translationAttribution.author}
-                      attribution={detail.data.translationAttribution.rawAttribution}
-                      sourceUrl={detail.data.translationAttribution.sourceUrl}
-                      licenseUrl={canonicalTranslationLicenseUrl(
-                        detail.data.translationAttribution.license,
-                      )}
-                      licenseLinkLabel={t`Selected translation license details`}
+                      title={t`Exercise record`}
+                      license={detail.data.license}
+                      author={detail.data.author}
+                      attribution={detail.data.attribution}
+                      sourceUrl={detail.data.sourceRecordUrl}
+                      licenseUrl={detail.data.licenseUrl}
                     />
-                  ) : null}
-                  <div className="grid gap-2">
-                    <Label htmlFor="target-workout">
+                    {detail.data.translationAttribution ? (
+                      <Attribution
+                        title={translationTitle(detail.data.language)}
+                        license={detail.data.translationAttribution.license}
+                        author={detail.data.translationAttribution.author}
+                        attribution={detail.data.translationAttribution.rawAttribution}
+                        sourceUrl={detail.data.translationAttribution.sourceUrl}
+                        licenseUrl={canonicalTranslationLicenseUrl(
+                          detail.data.translationAttribution.license,
+                        )}
+                        licenseLinkLabel={t`Selected translation license details`}
+                      />
+                    ) : null}
+                  </div>
+                  <div className="grid gap-2 pt-2">
+                    <Label htmlFor="target-workout" className="text-sm text-ink-3">
                       <Trans>Add to workout</Trans>
                     </Label>
                     {workouts.isPending ? (
-                      <p role="status" className="text-sm text-muted-foreground">
+                      <p role="status" className="text-sm text-ink-3">
                         <Trans>Loading workouts…</Trans>
                       </p>
                     ) : workouts.isError ? (
                       <div role="alert" className="flex flex-wrap items-center gap-2 text-sm">
-                        <span>
+                        <span className="text-ink-2">
                           <Trans>Could not load workouts.</Trans>
                         </span>
                         <Button size="sm" variant="outline" onClick={() => void workouts.refetch()}>
@@ -863,85 +874,93 @@ export function ExerciseLibraryPage() {
                         </Button>
                       </div>
                     ) : !workouts.data?.length ? (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-ink-3">
                         <Trans>Create a workout first, then return here to add an exercise.</Trans>
                       </p>
                     ) : null}
-                    <select
-                      id="target-workout"
-                      disabled={
-                        uncertain ||
-                        isDispatching ||
-                        scopeChanging ||
-                        workouts.isPending ||
-                        workouts.isError ||
-                        !workouts.data?.length
-                      }
-                      value={workoutId}
-                      onChange={(event) => setWorkoutId(event.target.value)}
-                      className="h-10 rounded-md border bg-background px-3 text-sm"
-                    >
-                      <option value="">{t`Choose a workout`}</option>
-                      {workouts.data?.map((workout) => (
-                        <option key={workout.id} value={workout.id}>
-                          {workout.date} · {workout.type}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      disabled={
-                        !workoutId || !selectedId || isDispatching || uncertain || scopeChanging
-                      }
-                      onClick={startAdd}
-                    >
-                      {isDispatching ? t`Adding…` : t`Add exercise`}
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        id="target-workout"
+                        disabled={
+                          fieldDisabled ||
+                          workouts.isPending ||
+                          workouts.isError ||
+                          !workouts.data?.length
+                        }
+                        value={workoutId}
+                        onChange={(event) => setWorkoutId(event.target.value)}
+                        className={`${selectClass} flex-1`}
+                      >
+                        <option value="">{t`Choose a workout`}</option>
+                        {workouts.data?.map((workout) => (
+                          <option key={workout.id} value={workout.id}>
+                            {friendlyDate(i18n, workout.date)}, {workout.type}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        disabled={
+                          !workoutId || !selectedId || isDispatching || uncertain || scopeChanging
+                        }
+                        onClick={startAdd}
+                      >
+                        {isDispatching ? t`Adding…` : t`Add exercise`}
+                      </Button>
+                    </div>
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>Create workspace exercise</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <p className="text-xs text-muted-foreground">
-                <Trans>Visible to members of this workspace.</Trans>
-              </p>
-              <Label htmlFor="custom-exercise-name">
-                <Trans>Name</Trans>
-              </Label>
-              <Input
-                id="custom-exercise-name"
-                disabled={uncertain || isDispatching || scopeChanging}
-                value={name}
-                maxLength={200}
-                onChange={(event) => setName(event.target.value)}
-              />
-              <Label htmlFor="custom-exercise-language">
-                <Trans>Language code</Trans>
-              </Label>
-              <Input
-                id="custom-exercise-language"
-                disabled={uncertain || isDispatching || scopeChanging}
-                value={language}
-                maxLength={16}
-                onChange={(event) => setLanguage(event.target.value)}
-              />
-              <Label htmlFor="custom-exercise-instructions">
-                <Trans>Instructions (optional)</Trans>
-              </Label>
-              <Textarea
-                id="custom-exercise-instructions"
-                disabled={uncertain || isDispatching || scopeChanging}
-                value={instructions}
-                maxLength={5000}
-                onChange={(event) => setInstructions(event.target.value)}
-              />
+            </div>
+          </Section>
+          <Section
+            sheet
+            icon={Plus}
+            tone="steps"
+            title={<Trans>Create workspace exercise</Trans>}
+            info={<Trans>Visible to members of this workspace.</Trans>}
+          >
+            <div className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="custom-exercise-name" className="text-sm text-ink-3">
+                    <Trans>Name</Trans>
+                  </Label>
+                  <Input
+                    id="custom-exercise-name"
+                    disabled={fieldDisabled}
+                    value={name}
+                    maxLength={200}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="custom-exercise-language" className="text-sm text-ink-3">
+                    <Trans>Language code</Trans>
+                  </Label>
+                  <Input
+                    id="custom-exercise-language"
+                    disabled={fieldDisabled}
+                    value={language}
+                    maxLength={16}
+                    onChange={(event) => setLanguage(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="custom-exercise-instructions" className="text-sm text-ink-3">
+                  <Trans>Instructions (optional)</Trans>
+                </Label>
+                <Textarea
+                  id="custom-exercise-instructions"
+                  disabled={fieldDisabled}
+                  value={instructions}
+                  maxLength={5000}
+                  onChange={(event) => setInstructions(event.target.value)}
+                />
+              </div>
               <Button
+                className="justify-self-start"
+                variant="outline"
                 disabled={
                   !scope ||
                   !name.trim() ||
@@ -954,10 +973,10 @@ export function ExerciseLibraryPage() {
               >
                 {isDispatching ? t`Creating…` : t`Create exercise`}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </Section>
         </div>
       </div>
-    </main>
+    </Page>
   );
 }

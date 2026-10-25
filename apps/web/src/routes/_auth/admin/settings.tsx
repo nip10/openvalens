@@ -1,11 +1,13 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { MailPlus, Settings2 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
 import { AdminBackupStatus } from "@/components/admin-backup-status";
 import { AdminSettingsView } from "@/components/admin-settings-view";
 import { ProductSettingsForm } from "@/components/product-settings-form";
+import { Page, PageHeader } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { authClient } from "@/lib/auth-client";
 import { isConfigPermissionDenied } from "@/utils/admin-settings-error";
@@ -51,8 +53,18 @@ function AdminSettingsPage() {
 
   // Wait for the auth session to settle first. If the user is not signed in,
   // deny rather than spinning on a disabled query.
-  if (sessionPending) return <AdminSettingsView accessState="loading" />;
-  if (!hasUserId) return <AdminSettingsView accessState="denied" />;
+  if (sessionPending)
+    return (
+      <Page>
+        <AdminSettingsView accessState="loading" />
+      </Page>
+    );
+  if (!hasUserId)
+    return (
+      <Page>
+        <AdminSettingsView accessState="denied" />
+      </Page>
+    );
 
   return <AuthenticatedAdminPage userId={userId} />;
 }
@@ -66,15 +78,24 @@ function AuthenticatedAdminPage({ userId }: { userId: string }) {
   const isAdmin = access.data?.isInstanceAdmin === true;
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
+    <Page>
       {isAdmin ? <AdminNav /> : null}
 
-      <ProductSettingsSection userId={userId} />
+      {isAdmin ? (
+        <ConfigurationSection userId={userId} access={access} />
+      ) : (
+        <PageHeader
+          title={<Trans>Instance configuration</Trans>}
+          description={<Trans>Administration</Trans>}
+        />
+      )}
 
-      {isAdmin ? <ConfigurationSection userId={userId} access={access} /> : null}
+      <div className="grid max-w-3xl gap-4">
+        <ProductSettingsSection userId={userId} />
+      </div>
 
       {isAdmin ? <BackupSection userId={userId} /> : null}
-    </div>
+    </Page>
   );
 }
 
@@ -273,18 +294,21 @@ function BackupSection({ userId }: { userId: string }) {
 function AdminNav() {
   const { t } = useLingui();
   return (
-    <nav className="container mx-auto max-w-3xl px-4 pt-4" aria-label={t`Instance administration`}>
-      <div className="flex gap-2">
+    <nav aria-label={t`Instance administration`} className="-mb-4">
+      <div className="inline-flex flex-wrap gap-1 rounded-full bg-paper-2 p-1">
         <a
           href="/admin/settings"
-          className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground"
+          aria-current="page"
+          className="sheet inline-flex items-center gap-2 rounded-full px-4 py-2 font-display text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
+          <Settings2 className="size-4 shrink-0 text-signal" aria-hidden="true" />
           <Trans>Configuration</Trans>
         </a>
         <a
           href="/admin/invitations"
-          className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          className="inline-flex items-center gap-2 rounded-full px-4 py-2 font-display text-sm font-medium text-ink-3 transition-colors duration-[var(--dur-short)] hover:bg-paper-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:text-ink"
         >
+          <MailPlus className="size-4 shrink-0" aria-hidden="true" />
           <Trans>Invitations</Trans>
         </a>
       </div>

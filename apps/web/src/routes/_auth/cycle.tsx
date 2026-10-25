@@ -3,14 +3,27 @@ import { msg, plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { CYCLE_COPY } from "@openvalens/api/presenters/cycle";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { CalendarHeart, Droplet, History, Lock, Plus, Settings2 } from "lucide-react";
 
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  InfoTip,
+  Page,
+  PageHeader,
+  Section,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { authClient } from "@/lib/auth-client";
+import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/cycle")({ component: CyclePage });
@@ -35,6 +48,9 @@ function localToday(): string {
   return now.toISOString().slice(0, 10);
 }
 
+const NATIVE_SELECT =
+  "h-9 rounded-md border border-input bg-card px-3 text-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55";
+
 function CyclePage() {
   const { data: auth, isPending } = authClient.useSession();
   const scope =
@@ -43,15 +59,16 @@ function CyclePage() {
       : null;
   if (isPending || !scope)
     return (
-      <main className="container mx-auto max-w-3xl px-4 py-6">
-        <p role="status" className="text-sm text-muted-foreground">
+      <Page width="narrow">
+        <PageHeader title={<Trans>Cycle</Trans>} />
+        <p role="status" className="text-sm text-ink-3">
           {isPending ? (
             <Trans>Checking your account…</Trans>
           ) : (
             <Trans>Choose a workspace to continue.</Trans>
           )}
         </p>
-      </main>
+      </Page>
     );
   return <CycleForMember key={scope} scope={scope} />;
 }
@@ -73,44 +90,35 @@ function CycleForMember({ scope }: { scope: string }) {
   });
 
   return (
-    <main className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <header>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Your records</Trans>
-        </p>
-        <h1 className="text-2xl font-semibold">
-          <Trans>Cycle</Trans>
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {i18n._(CYCLE_COPY.notForContraception)}
-        </p>
-      </header>
+    <Page width="narrow">
+      <PageHeader
+        title={<Trans>Cycle</Trans>}
+        description={i18n._(CYCLE_COPY.notForContraception)}
+      />
       {settings.isPending ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          <Trans>Checking your cycle setting…</Trans>
-        </p>
-      ) : settings.isError ? (
-        <div className="grid gap-2">
-          <p role="alert">
-            <Trans>Could not check this setting.</Trans>
+        <div className="grid gap-3">
+          <p role="status" className="text-sm text-ink-3">
+            <Trans>Checking your cycle setting…</Trans>
           </p>
-          <Button className="w-fit" variant="outline" onClick={() => void settings.refetch()}>
-            <Trans>Try again</Trans>
-          </Button>
+          <Skeleton className="h-40 w-full" />
         </div>
+      ) : settings.isError ? (
+        <ErrorState
+          title={<Trans>Could not check this setting.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void settings.refetch()}>
+              <Trans>Try again</Trans>
+            </Button>
+          }
+        />
       ) : !settings.data.enabled ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Cycle logging is off</Trans>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="text-sm">{i18n._(CYCLE_COPY.consentText)}</p>
-            <label className="flex items-start gap-2 text-sm">
+        <Section icon={Lock} tone="heart" title={<Trans>Cycle logging is off</Trans>} sheet>
+          <div className="grid justify-items-start gap-4">
+            <p className="max-w-[65ch] text-ink-2">{i18n._(CYCLE_COPY.consentText)}</p>
+            <label className="flex items-start gap-2 text-ink-2">
               <input
                 type="checkbox"
-                className="mt-1"
+                className="mt-1 size-4 rounded-xs accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
                 checked={agreed}
                 onChange={(event) => setAgreed(event.target.checked)}
               />
@@ -118,11 +126,7 @@ function CycleForMember({ scope }: { scope: string }) {
                 I agree to store my cycle data on this server for my own reference.
               </Trans>
             </label>
-            <Button
-              className="w-fit"
-              disabled={!agreed || enable.isPending}
-              onClick={() => enable.mutate()}
-            >
+            <Button disabled={!agreed || enable.isPending} onClick={() => enable.mutate()}>
               {enable.isPending ? <Trans>Turning on…</Trans> : <Trans>Turn on cycle logging</Trans>}
             </Button>
             {enable.isError ? (
@@ -130,8 +134,8 @@ function CycleForMember({ scope }: { scope: string }) {
                 <Trans>Could not turn this on. Try again.</Trans>
               </p>
             ) : null}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       ) : (
         <CycleEnabled
           noNaturalCycle={settings.data.noNaturalCycle}
@@ -139,7 +143,7 @@ function CycleForMember({ scope }: { scope: string }) {
           refresh={refresh}
         />
       )}
-    </main>
+    </Page>
   );
 }
 
@@ -215,82 +219,66 @@ function CycleEnabled({
     onSuccess: refresh,
   });
 
+  const estimated = estimates.data?.state === "estimated" ? estimates.data : null;
+  const current = estimated?.current ?? null;
+  const pastCycles = estimated?.cycles.filter((cycle) => cycle.nextStartDate) ?? [];
+
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>
+      <section aria-labelledby="cycle-now" className="sheet grid gap-6 p-6 md:p-7">
+        <div className="grid content-start gap-3">
+          <h2
+            id="cycle-now"
+            className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2"
+          >
+            <ToneIcon icon={CalendarHeart} tone="heart" />
             <Trans>Estimates</Trans>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm">
+          </h2>
           {estimates.isPending ? (
-            <p role="status">
-              <Trans>Loading…</Trans>
-            </p>
+            <div className="grid gap-2">
+              <p role="status" className="text-sm text-ink-3">
+                <Trans>Loading…</Trans>
+              </p>
+              <Skeleton className="h-14 w-40 rounded-xl" />
+            </div>
           ) : estimates.isError ? (
-            <p role="alert">
+            <p role="alert" className="text-destructive">
               <Trans>Could not load estimates.</Trans>
             </p>
           ) : estimates.data.state === "off" ? (
-            <p>{i18n._(CYCLE_COPY.noNaturalCycle)}</p>
+            <p className="max-w-[48ch] text-ink-2">{i18n._(CYCLE_COPY.noNaturalCycle)}</p>
           ) : estimates.data.state === "no_data" ? (
-            <p className="text-muted-foreground">
+            <p className="text-ink-3">
               <Trans>Log a period to see your cycle history.</Trans>
             </p>
-          ) : (
+          ) : current ? (
             <>
-              {estimates.data.current ? (
-                <p>
-                  {t`Day ${estimates.data.current.dayOfCycle} of the current cycle (started ${estimates.data.current.startDate}).`}{" "}
-                  {i18n._(CYCLE_COPY.currentLowConfidence)}
-                </p>
-              ) : null}
-              <ul className="grid gap-2">
-                {estimates.data.cycles
-                  .filter((cycle) => cycle.nextStartDate)
-                  .map((cycle) => {
-                    const start = cycle.startDate;
-                    const next = cycle.nextStartDate;
-                    const luteal = i18n._(CYCLE_COPY.lutealLabel);
-                    return (
-                      <li key={start} className="rounded-md border p-3">
-                        <p>
-                          {t`${start} to ${next} · ${plural(cycle.lengthDays ?? 0, { one: "# day", other: "# days" })}`}
-                        </p>
-                        {cycle.lutealEstimate ? (
-                          <p className="text-muted-foreground">
-                            {t`${luteal}: ${cycle.lutealEstimate.from} to ${cycle.lutealEstimate.to}`}
-                          </p>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-              </ul>
+              <p className="num font-display text-[3.25rem] leading-none font-medium tracking-[-0.02em] text-ink">
+                <Trans>Day {current.dayOfCycle}</Trans>
+              </p>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+                <StatusPill tone="neutral">{i18n._(CYCLE_COPY.estimateLabel)}</StatusPill>
+                <span>
+                  <Trans>Started {friendlyDate(i18n, current.startDate)}</Trans>
+                </span>
+                <InfoTip>
+                  <p>
+                    {t`Day ${current.dayOfCycle} of the current cycle (started ${current.startDate}).`}
+                  </p>
+                  <p>{i18n._(CYCLE_COPY.currentLowConfidence)}</p>
+                </InfoTip>
+              </div>
             </>
+          ) : (
+            <p className="text-ink-3">
+              <Trans>Log a period to see your cycle history.</Trans>
+            </p>
           )}
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={noNaturalCycle}
-              disabled={updateSettings.isPending}
-              onChange={(event) => updateSettings.mutate(event.target.checked)}
-            />
-            <Trans comment="safety">
-              I use hormonal contraception or have no natural cycle (turns estimates off)
-            </Trans>
-          </label>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Log a period</Trans>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+      <Section icon={Plus} tone="heart" title={<Trans>Log a period</Trans>} sheet>
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label htmlFor="cycle-start">
               <Trans>Start date</Trans>
@@ -321,7 +309,7 @@ function CycleEnabled({
             </Label>
             <select
               id="cycle-flow"
-              className="h-10 rounded-md border bg-background px-3"
+              className={NATIVE_SELECT}
               value={flow}
               onChange={(event) => setFlow(event.target.value as typeof flow)}
             >
@@ -351,33 +339,61 @@ function CycleEnabled({
           >
             {log.isPending ? <Trans>Saving…</Trans> : <Trans>Save period</Trans>}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>History</Trans>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm">
+      <Details summary={<Trans>History</Trans>}>
+        <div className="grid gap-6">
+          {pastCycles.length ? (
+            <ul className="sheet grid divide-y divide-rule px-5 py-1">
+              {pastCycles.map((cycle) => {
+                const luteal = i18n._(CYCLE_COPY.lutealLabel);
+                return (
+                  <li
+                    key={cycle.startDate}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-0.5 py-3"
+                  >
+                    <span className="num text-ink">
+                      {t`${cycle.startDate} to ${cycle.nextStartDate}`}
+                    </span>
+                    <span className="num rounded-full bg-heart-soft px-2.5 py-0.5 text-right text-sm font-semibold text-ink">
+                      {t`${plural(cycle.lengthDays ?? 0, { one: "# day", other: "# days" })}`}
+                    </span>
+                    {cycle.lutealEstimate ? (
+                      <span className="col-span-2 text-sm text-ink-3">
+                        {t`${luteal}: ${cycle.lutealEstimate.from} to ${cycle.lutealEstimate.to}`}
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
           {periods.data?.length ? (
-            <ul className="grid gap-2">
+            <ul className="sheet grid divide-y divide-rule px-5 py-1">
               {periods.data.map((period) => (
                 <li
                   key={period.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_6rem_auto]"
                 >
-                  <span>
-                    {period.endDate
-                      ? t`${period.startDate} to ${period.endDate}`
-                      : period.startDate}
-                    {period.flow ? ` · ${i18n._(FLOW_LABELS[period.flow])}` : ""}
-                    {period.source !== "manual" ? ` · ${t`imported`}` : ""}
+                  <span className="flex items-center gap-3 text-ink">
+                    <ToneIcon icon={Droplet} tone="heart" size="sm" />
+                    <span className="num">
+                      {period.endDate
+                        ? t`${period.startDate} to ${period.endDate}`
+                        : period.startDate}
+                    </span>
+                  </span>
+                  <span className="text-sm text-ink-2 max-sm:col-start-1">
+                    {period.flow ? i18n._(FLOW_LABELS[period.flow]) : ""}
+                  </span>
+                  <span className="text-sm text-ink-3 max-sm:col-start-1">
+                    {period.source !== "manual" ? t`imported` : ""}
                   </span>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="destructive"
+                    className="max-sm:col-start-2 max-sm:row-span-3 max-sm:row-start-1"
                     disabled={remove.isPending}
                     onClick={() => {
                       if (window.confirm(t`Delete this period?`)) remove.mutate(period.id);
@@ -389,75 +405,99 @@ function CycleEnabled({
               ))}
             </ul>
           ) : (
-            <p className="text-muted-foreground">
-              <Trans>No periods logged yet.</Trans>
-            </p>
+            <EmptyState icon={History} title={<Trans>No periods logged yet.</Trans>} />
           )}
           {imports.data?.length ? (
             <div className="grid gap-2">
-              <h2 className="font-medium">
+              <h3 className="text-base text-ink">
                 <Trans>Imports</Trans>
-              </h2>
-              {imports.data.map((run) => (
-                <div
-                  key={run.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
-                >
-                  <span>
-                    {run.source === "health_connect" ? "Health Connect" : "Apple Health"} ·{" "}
-                    {t`${plural(run.periodCount, { one: "# period", other: "# periods" })}`} ·{" "}
-                    {new Date(run.importedAt).toLocaleDateString()}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={undo.isPending}
-                    onClick={() => undo.mutate(run.id)}
+              </h3>
+              <ul className="sheet grid divide-y divide-rule px-5 py-1">
+                {imports.data.map((run) => (
+                  <li
+                    key={run.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem_auto]"
                   >
-                    <Trans>Undo import</Trans>
-                  </Button>
-                </div>
-              ))}
+                    <span className="text-sm text-ink">
+                      {run.source === "health_connect" ? "Health Connect" : "Apple Health"}
+                    </span>
+                    <span className="num text-sm text-ink-2 max-sm:col-start-1">
+                      {t`${plural(run.periodCount, { one: "# period", other: "# periods" })}`}
+                    </span>
+                    <span className="num text-sm text-ink-3 max-sm:col-start-1">
+                      {friendlyDate(i18n, run.importedAt)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="max-sm:col-start-2 max-sm:row-span-3 max-sm:row-start-1"
+                      disabled={undo.isPending}
+                      onClick={() => undo.mutate(run.id)}
+                    >
+                      <Trans>Undo import</Trans>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </Details>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Turn off and erase</Trans>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm">
-          <p>
+      <Details
+        summary={
+          <span className="flex items-center gap-1.5">
+            <Settings2 className="size-4" aria-hidden="true" />
+            <Trans>Settings</Trans>
+          </span>
+        }
+      >
+        <div className="sheet grid justify-items-start gap-5 p-5">
+          <label className="flex items-start gap-2 text-sm text-ink-2">
+            <input
+              type="checkbox"
+              className="mt-1 size-4 rounded-xs accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+              checked={noNaturalCycle}
+              disabled={updateSettings.isPending}
+              onChange={(event) => updateSettings.mutate(event.target.checked)}
+            />
             <Trans comment="safety">
-              Deletes every period and import you have logged, in every workspace, and withdraws
-              your consent. This cannot be undone.
+              I use hormonal contraception or have no natural cycle (turns estimates off)
             </Trans>
-          </p>
-          {confirmErase ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="destructive"
-                disabled={erase.isPending}
-                onClick={() => erase.mutate()}
-              >
-                {erase.isPending ? <Trans>Erasing…</Trans> : <Trans>Erase all cycle data</Trans>}
-              </Button>
-              <Button variant="outline" onClick={() => setConfirmErase(false)}>
-                <Trans>Keep my data</Trans>
-              </Button>
-            </div>
-          ) : (
-            <Button className="w-fit" variant="outline" onClick={() => setConfirmErase(true)}>
+          </label>
+          <div className="grid justify-items-start gap-3 border-t border-rule pt-5">
+            <h3 className="text-base text-ink">
               <Trans>Turn off and erase</Trans>
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+            </h3>
+            <p className="max-w-[65ch] text-sm text-ink-2">
+              <Trans comment="safety">
+                Deletes every period and import you have logged, in every workspace, and withdraws
+                your consent. This cannot be undone.
+              </Trans>
+            </p>
+            {confirmErase ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="destructive"
+                  disabled={erase.isPending}
+                  onClick={() => erase.mutate()}
+                >
+                  {erase.isPending ? <Trans>Erasing…</Trans> : <Trans>Erase all cycle data</Trans>}
+                </Button>
+                <Button variant="outline" onClick={() => setConfirmErase(false)}>
+                  <Trans>Keep my data</Trans>
+                </Button>
+              </div>
+            ) : (
+              <Button variant="destructive" onClick={() => setConfirmErase(true)}>
+                <Trans>Turn off and erase</Trans>
+              </Button>
+            )}
+          </div>
+        </div>
+      </Details>
       {notice ? (
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+        <p role="status" aria-live="polite" className="text-sm text-ink-3">
           {notice}
         </p>
       ) : null}

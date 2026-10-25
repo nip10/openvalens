@@ -18,16 +18,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@openvalens/ui/components/alert-dialog";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { CircleCheck, Watch } from "lucide-react";
+
+import { EmptyState, ErrorState, StatusPill, type StatusTone, ToneIcon } from "@/components/page";
 
 /** A destructive choice waiting for confirmation. */
 export type WearableConfirm =
@@ -54,6 +49,14 @@ export type WearableDevicesViewProps = {
   onResolveQuarantine: (provider: WearableProviderId, action: "keep" | "delete") => void;
 };
 
+/** The state pill's tint; the word itself always carries the meaning. */
+const STATUS_TONE: Record<WearableConnectionLike["status"], StatusTone> = {
+  active: "good",
+  not_connected: "neutral",
+  reconnect_needed: "warn",
+  quarantined: "bad",
+};
+
 function formatInstant(iso: string): string {
   return new Date(iso).toLocaleString();
 }
@@ -71,23 +74,18 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
 
   return (
     <div className="grid gap-6">
-      <p className="text-sm text-muted-foreground">
-        <Trans>
-          The mobile app already sends steps, heart rate, sleep, weight and workouts from Apple
-          Health or Health Connect. Connect a vendor account here only for what the phone cannot
-          carry, such as overnight HRV and the vendor's own scores.
-        </Trans>
-      </p>
-
       {notice ? (
         <p
           role="status"
           className={
             notice.tone === "success"
-              ? "rounded-lg border border-border bg-muted/40 p-3 text-sm"
-              : "rounded-lg border border-destructive/40 p-3 text-sm text-destructive"
+              ? "flex items-center gap-2 rounded-2xl bg-success/10 px-4 py-3 text-sm text-ink"
+              : "rounded-2xl border border-destructive/40 bg-destructive/6 px-4 py-3 text-sm text-destructive"
           }
         >
+          {notice.tone === "success" ? (
+            <CircleCheck className="size-4 shrink-0 text-success" aria-hidden="true" />
+          ) : null}
           {i18n._(notice.message)}
         </p>
       ) : null}
@@ -99,30 +97,36 @@ export function WearableDevicesView(props: WearableDevicesViewProps) {
       ) : null}
 
       {status === "pending" ? (
-        <Skeleton className="h-32 w-full" />
+        <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+          <Skeleton className="h-44 w-full rounded-3xl" />
+          <Skeleton className="h-44 w-full rounded-3xl" />
+        </div>
       ) : status === "error" ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load your devices.</Trans>{" "}
-          <button className="underline" onClick={props.onRetry}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
+        <ErrorState
+          title={<Trans>Could not load your devices.</Trans>}
+          action={
+            <Button variant="outline" onClick={props.onRetry}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
       ) : providers.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No cloud devices are available on this server</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>
-                Your server operator has not enabled any vendor. The mobile app still syncs Apple
-                Health and Health Connect.
-              </Trans>
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Watch}
+          title={<Trans>No cloud devices are available on this server</Trans>}
+          description={
+            <Trans>
+              Your server operator has not enabled any vendor. The mobile app still syncs Apple
+              Health and Health Connect.
+            </Trans>
+          }
+        />
       ) : (
-        providers.map((row) => <ProviderCard key={row.provider} row={row} {...props} />)
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {providers.map((row) => (
+            <ProviderCard key={row.provider} row={row} {...props} />
+          ))}
+        </ul>
       )}
 
       <AlertDialog
@@ -215,69 +219,84 @@ function ProviderCard({
   const name = row.displayName;
 
   return (
-    <Card data-provider={row.provider}>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-3">
-          <span>{name}</span>
-          <Badge variant={row.status === "active" ? "default" : "outline"}>
-            {i18n._(wearableStatusLabel(row.status))}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          {i18n._(wearableSendsLabel(row.provider))}{" "}
-          <a href={row.termsUrl} target="_blank" rel="noreferrer" className="underline">
-            <Trans>Vendor terms</Trans>
-          </a>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
-        {row.status !== "not_connected" ? (
-          <p className="text-muted-foreground">
-            {lastSynced ? t`Last synced ${lastSynced}` : t`Not synced yet`}
-          </p>
-        ) : null}
-        {error && row.status !== "quarantined" ? (
-          <p className="text-destructive">{i18n._(error)}</p>
-        ) : null}
-        {syncRequestedFor === row.provider ? (
-          <p className="text-muted-foreground">
-            <Trans>Sync requested. It runs on the next scheduled pass.</Trans>
-          </p>
-        ) : null}
-
-        {actions.resolveQuarantine ? (
-          <div className="grid gap-2 rounded-lg border border-border bg-muted/40 p-3">
-            <p>
-              <Plural
-                value={count}
-                one={`${name} access was revoked. # record is hidden until you choose whether to keep it or delete it.`}
-                other={`${name} access was revoked. # records are hidden until you choose whether to keep them or delete them.`}
-              />
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => onResolveQuarantine(row.provider, "keep")}
-              >
-                <Trans>Keep records</Trans>
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={busy}
-                onClick={() =>
-                  onConfirmChange({ kind: "deleteQuarantined", provider: row.provider })
-                }
-              >
-                <Trans>Delete records</Trans>
-              </Button>
-            </div>
+    <li data-provider={row.provider} className="sheet grid min-w-0 content-start gap-4 p-5">
+      <div className="flex items-start gap-3">
+        <ToneIcon icon={Watch} tone="signal" />
+        <div className="grid min-w-0 flex-1 gap-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h3 className="text-lg text-ink">{name}</h3>
+            <StatusPill tone={STATUS_TONE[row.status]}>
+              {i18n._(wearableStatusLabel(row.status))}
+            </StatusPill>
           </div>
-        ) : null}
+          <p className="text-sm text-ink-3">
+            {i18n._(wearableSendsLabel(row.provider))}{" "}
+            <a
+              href={row.termsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+            >
+              <Trans>Vendor terms</Trans>
+            </a>
+          </p>
+        </div>
+      </div>
 
+      {row.status !== "not_connected" || error || syncRequestedFor === row.provider ? (
+        <div className="grid gap-1 text-sm">
+          {row.status !== "not_connected" ? (
+            <p className="text-ink-3">
+              {lastSynced ? t`Last synced ${lastSynced}` : t`Not synced yet`}
+            </p>
+          ) : null}
+          {error && row.status !== "quarantined" ? (
+            <p className="text-destructive">{i18n._(error)}</p>
+          ) : null}
+          {syncRequestedFor === row.provider ? (
+            <p className="text-ink-3">
+              <Trans>Sync requested. It runs on the next scheduled pass.</Trans>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {actions.resolveQuarantine ? (
+        <div className="grid gap-3 rounded-2xl bg-paper-2 px-4 py-3 text-sm">
+          <p className="text-ink">
+            <Plural
+              value={count}
+              one={`${name} access was revoked. # record is hidden until you choose whether to keep it or delete it.`}
+              other={`${name} access was revoked. # records are hidden until you choose whether to keep them or delete them.`}
+            />
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => onResolveQuarantine(row.provider, "keep")}
+            >
+              <Trans>Keep records</Trans>
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busy}
+              onClick={() => onConfirmChange({ kind: "deleteQuarantined", provider: row.provider })}
+            >
+              <Trans>Delete records</Trans>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {actions.connect || actions.syncNow || actions.disconnect ? (
         <div className="flex flex-wrap gap-2">
           {actions.connect ? (
-            <Button disabled={busy} onClick={() => onConnect(row.provider)}>
+            <Button
+              variant={row.status === "not_connected" ? "default" : "outline"}
+              disabled={busy}
+              onClick={() => onConnect(row.provider)}
+            >
               {row.status === "not_connected" ? t`Connect` : t`Reconnect`}
             </Button>
           ) : null}
@@ -296,7 +315,7 @@ function ProviderCard({
             </Button>
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      ) : null}
+    </li>
   );
 }

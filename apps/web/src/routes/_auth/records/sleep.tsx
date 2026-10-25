@@ -1,7 +1,6 @@
 import {
   formatClockTime,
   formatSleepDuration,
-  formatSleepDurationWithHours,
   formatSleepEfficiency,
   lastNightStages,
   sleepSeries,
@@ -9,8 +8,7 @@ import {
   sleepStatusTone,
 } from "@openvalens/api/presenters/sleep";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Badge } from "@openvalens/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Button } from "@openvalens/ui/components/button";
 import {
   ChartContainer,
   ChartTooltip,
@@ -18,12 +16,32 @@ import {
   type ChartConfig,
 } from "@openvalens/ui/components/chart";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import { cn } from "@openvalens/ui/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@openvalens/ui/components/table";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bar, BarChart, Cell, Line, LineChart, XAxis, YAxis } from "recharts";
+import { CalendarDays, Hourglass, Moon, Target } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
+import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 
@@ -31,38 +49,22 @@ export const Route = createFileRoute("/_auth/records/sleep")({
   component: SleepPage,
 });
 
-const TONE_CLASS = {
-  destructive: "border-destructive/40 bg-destructive/10 text-destructive",
-  warning: "border-warning/40 bg-warning/10 text-warning",
-  success: "border-success/40 bg-success/10 text-success",
-} as const;
-
-const STAGE_COLORS: Record<string, string> = {
-  awake: "var(--chart-4)",
-  light: "var(--chart-1)",
-  deep: "var(--chart-3)",
-  rem: "var(--chart-2)",
-  unknown: "var(--muted)",
-};
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="font-mono text-lg">{value}</div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
+function StatusText({ status }: { status: string }) {
   const { i18n } = useLingui();
-  const tone = sleepStatusTone(status as Parameters<typeof sleepStatusTone>[0]);
+  const key = status as Parameters<typeof sleepStatusTone>[0];
   return (
-    <Badge variant="outline" className={cn(tone && TONE_CLASS[tone])}>
-      {i18n._(sleepStatusLabel(status as Parameters<typeof sleepStatusLabel>[0]))}
-    </Badge>
+    <StatusPill tone={pillTone(sleepStatusTone(key))}>{i18n._(sleepStatusLabel(key))}</StatusPill>
   );
 }
+
+// Stage colours: the deeper the sleep, the stronger the ink.
+const STAGE_COLOUR: Record<string, string> = {
+  deep: "var(--tone-sleep)",
+  rem: "color-mix(in oklab, var(--tone-sleep) 60%, var(--sheet))",
+  light: "color-mix(in oklab, var(--tone-sleep) 30%, var(--sheet))",
+  awake: "var(--tone-steps)",
+  unknown: "var(--paper-3)",
+};
 
 function SleepPage() {
   const summary = useQuery(orpc.sleep.summary.queryOptions({ input: { days: 30 } }));
@@ -70,33 +72,34 @@ function SleepPage() {
   const settings = settingsQuery.data;
   const { t, i18n } = useLingui();
   const trendConfig = {
-    asleepMinutes: { label: t`Asleep (min)`, color: "var(--chart-1)" },
+    asleepMinutes: { label: t`Asleep (min)`, color: "var(--tone-sleep)" },
   } satisfies ChartConfig;
 
   if (summary.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Sleep</Trans>
-        </h1>
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <Page>
+        <PageHeader title={<Trans>Sleep</Trans>} />
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </Page>
     );
   }
 
   if (summary.isError || !summary.data) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Sleep</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load sleep.</Trans>{" "}
-          <button className="underline" onClick={() => void summary.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
+      <Page>
+        <PageHeader title={<Trans>Sleep</Trans>} />
+        <ErrorState
+          title={<Trans>Could not load sleep.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void summary.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Page>
     );
   }
 
@@ -104,112 +107,148 @@ function SleepPage() {
   const stages = lastNightStages(last);
   const series = sleepSeries(summary.data);
   const maxAsleep = Math.max(60, ...series.map((p) => p.asleepMinutes));
+  const nights = [...summary.data.days].sort((a, b) => b.date.localeCompare(a.date));
+
+  const stageTotal = stages.reduce((sum, entry) => sum + entry.minutes, 0);
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">
-        <Trans>Sleep</Trans>
-      </h1>
+    <Page>
+      <PageHeader title={<Trans>Sleep</Trans>} />
 
       <ProductSettingsStatus />
 
       {!last ? (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="font-medium">
-              <Trans>No sleep yet</Trans>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <Trans>Track sleep through Health Connect or Apple Health, or add a session.</Trans>
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Moon}
+          title={<Trans>No sleep yet</Trans>}
+          description={
+            <Trans>Track sleep through Health Connect or Apple Health, or add a session.</Trans>
+          }
+        />
       ) : (
         <>
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle>{t`Last night · ${last.date}`}</CardTitle>
-              <StatusBadge status={last.status} />
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Stat label={t`Asleep`} value={formatSleepDuration(last.asleepMinutes)} />
-              <Stat label={t`In bed`} value={formatSleepDuration(last.timeInBedMinutes)} />
-              <Stat label={t`Efficiency`} value={formatSleepEfficiency(last.sleepEfficiencyPct)} />
-              <Stat
-                label={t`Bedtime → wake`}
-                value={`${formatClockTime(last.mainSleepStart, settings)} → ${formatClockTime(last.mainSleepEnd, settings)}`}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>Stages</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-                <ChartContainer
-                  config={{
-                    minutes: { label: t`Minutes` },
-                  }}
-                  className="h-32 w-full"
+          <section
+            aria-labelledby="last-night"
+            className="sheet grid gap-6 p-6 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:p-7"
+          >
+            <div className="grid content-start gap-3">
+              <h2
+                id="last-night"
+                className="flex items-center gap-2.5 font-body text-base font-semibold tracking-normal text-ink-2"
+              >
+                <ToneIcon icon={Moon} tone="sleep" />
+                <Trans>Last night</Trans>
+                <span className="font-normal text-ink-3">{friendlyDate(i18n, last.date)}</span>
+              </h2>
+              <p className="num font-display text-[3.25rem] leading-none font-medium tracking-[-0.02em] text-ink">
+                {formatSleepDuration(last.asleepMinutes)}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-3">
+                <StatusText status={last.status} />
+                <span className="num">
+                  {`${formatClockTime(last.mainSleepStart, settings)} – ${formatClockTime(last.mainSleepEnd, settings)}`}
+                </span>
+              </div>
+            </div>
+            {stageTotal > 0 ? (
+              <div className="grid content-center gap-3">
+                <div
+                  className="flex h-4 w-full gap-1 overflow-hidden rounded-full"
+                  role="img"
+                  aria-label={stages
+                    .map((entry) => `${i18n._(entry.label)} ${formatSleepDuration(entry.minutes)}`)
+                    .join(", ")}
                 >
-                  <BarChart
-                    data={stages}
-                    layout="vertical"
-                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                  >
-                    <XAxis type="number" hide domain={[0, "dataMax"]} />
-                    <YAxis type="category" dataKey="stage" hide />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="minutes" radius={[0, 4, 4, 0]} stackId="stages">
-                      {stages.map((entry) => (
-                        <Cell
-                          key={entry.stage}
-                          fill={STAGE_COLORS[entry.stage] ?? "var(--muted)"}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-                <ul className="grid gap-1 text-sm">
                   {stages.map((entry) => (
-                    <li key={entry.stage} className="flex items-center justify-between gap-6">
-                      <span className="flex items-center gap-2 text-muted-foreground">
+                    <span
+                      key={entry.stage}
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${(entry.minutes / stageTotal) * 100}%`,
+                        background: STAGE_COLOUR[entry.stage] ?? "var(--paper-3)",
+                      }}
+                    />
+                  ))}
+                </div>
+                <ul className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+                  {stages.map((entry) => (
+                    <li key={entry.stage} className="grid gap-0.5">
+                      <span className="flex items-center gap-1.5 text-sm text-ink-3">
                         <span
-                          aria-hidden
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: STAGE_COLORS[entry.stage] ?? "var(--muted)" }}
+                          className="size-2.5 rounded-full"
+                          style={{ background: STAGE_COLOUR[entry.stage] ?? "var(--paper-3)" }}
+                          aria-hidden="true"
                         />
                         {i18n._(entry.label)}
                       </span>
-                      <span className="font-mono">{formatSleepDuration(entry.minutes)}</span>
+                      <span className="num font-semibold text-ink">
+                        {formatSleepDuration(entry.minutes)}
+                      </span>
                     </li>
                   ))}
                 </ul>
               </div>
-            </CardContent>
-          </Card>
+            ) : null}
+          </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>30-day trend</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={trendConfig} className="h-48 w-full">
-                <LineChart data={series} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-                  <YAxis
-                    domain={[0, Math.ceil(maxAsleep / 60) * 60]}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatTile
+              tone="sleep"
+              icon={CalendarDays}
+              label={t`7-day average`}
+              value={formatSleepDuration(summary.data.sevenDayAverageMinutes)}
+            />
+            <StatTile
+              tone="steps"
+              icon={Hourglass}
+              label={t`Avg debt`}
+              value={formatSleepDuration(summary.data.averageSleepDebtMinutes)}
+            />
+            <StatTile
+              tone="weight"
+              icon={Target}
+              label={t`Target`}
+              value={formatSleepDuration(last.targetMinutes)}
+            />
+          </div>
+
+          <Section title={<Trans>30-day trend</Trans>}>
+            <div className="sheet p-5">
+              <ChartContainer config={trendConfig} className="aspect-auto h-64 w-full">
+                <AreaChart data={series} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="sleep-fill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--tone-sleep)" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="var(--tone-sleep)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="var(--rule)" strokeDasharray="4 6" />
+                  <XAxis
+                    dataKey="date"
                     tickLine={false}
                     axisLine={false}
-                    width={36}
-                    tickFormatter={(value: number) => formatSleepDurationWithHours(value)}
+                    minTickGap={32}
+                    tickFormatter={(value: string) => friendlyDate(i18n, value)}
                   />
+                  <YAxis
+                    domain={[0, Math.ceil(maxAsleep / 120) * 120]}
+                    ticks={Array.from(
+                      { length: Math.ceil(maxAsleep / 120) + 1 },
+                      (_, index) => index * 120,
+                    )}
+                    tickLine={false}
+                    axisLine={false}
+                    width={32}
+                    tickFormatter={(value: number) => `${Math.round(value / 60)}h`}
+                  />
+                  {last.targetMinutes ? (
+                    <ReferenceLine
+                      y={last.targetMinutes}
+                      stroke="var(--ink-3)"
+                      strokeDasharray="4 4"
+                      ifOverflow="extendDomain"
+                    />
+                  ) : null}
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
@@ -217,39 +256,66 @@ function SleepPage() {
                       />
                     }
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="asleepMinutes"
                     stroke="var(--color-asleepMinutes)"
-                    strokeWidth={2}
+                    strokeWidth={3}
+                    fill="url(#sleep-fill)"
                     dot={false}
                     isAnimationActive={false}
                   />
-                </LineChart>
+                </AreaChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
+            </div>
+          </Section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <Trans>This week</Trans>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4">
-              <Stat
-                label={t`7-day average`}
-                value={formatSleepDuration(summary.data.sevenDayAverageMinutes)}
-              />
-              <Stat
-                label={t`Avg debt`}
-                value={formatSleepDuration(summary.data.averageSleepDebtMinutes)}
-              />
-              <Stat label={t`Target`} value={formatSleepDuration(last.targetMinutes)} />
-            </CardContent>
-          </Card>
+          <Details summary={<Trans>All nights</Trans>}>
+            <div className="sheet min-w-0 px-2 pt-2 pb-1">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <Trans>Date</Trans>
+                    </TableHead>
+                    <TableHead className="num">
+                      <Trans>Asleep</Trans>
+                    </TableHead>
+                    <TableHead className="num">
+                      <Trans>In bed</Trans>
+                    </TableHead>
+                    <TableHead className="num">
+                      <Trans>Efficiency</Trans>
+                    </TableHead>
+                    <TableHead>
+                      <Trans>Status</Trans>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {nights.map((night) => (
+                    <TableRow key={night.date}>
+                      <TableCell className="num text-left text-ink-3">{night.date}</TableCell>
+                      <TableCell className="num text-ink">
+                        {formatSleepDuration(night.asleepMinutes)}
+                      </TableCell>
+                      <TableCell className="num">
+                        {formatSleepDuration(night.timeInBedMinutes)}
+                      </TableCell>
+                      <TableCell className="num">
+                        {formatSleepEfficiency(night.sleepEfficiencyPct)}
+                      </TableCell>
+                      <TableCell>
+                        <StatusText status={night.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Details>
         </>
       )}
-    </div>
+    </Page>
   );
 }

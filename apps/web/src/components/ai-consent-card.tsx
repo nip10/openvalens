@@ -10,15 +10,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@openvalens/ui/components/alert-dialog";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
+import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
+
+import { Sparkles, UserCheck } from "lucide-react";
+
+import { ErrorState, Section } from "@/components/page";
+import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 
 /**
  * Per-user AI consent state (Issue #123), derived from the oRPC output type
@@ -67,48 +66,49 @@ export function AiConsentCard({
   const { t } = useLingui();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>AI processing</Trans>
-        </CardTitle>
-        <CardDescription>
-          <Trans comment="safety">
-            AI features are opt-in and revocable. This setting applies only to you and is
-            independent of your organization or owner role.
-          </Trans>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {status === "pending" ? (
-          <Skeleton className="h-12 w-full" />
-        ) : status === "error" ? (
-          <p className="text-sm text-muted-foreground">
-            <Trans>Could not load AI consent.</Trans>{" "}
-            <button className="underline" onClick={onRetry}>
+    <Section
+      title={<Trans>AI processing</Trans>}
+      icon={Sparkles}
+      tone="signal"
+      info={
+        <Trans comment="safety">
+          AI features are opt-in and revocable. This setting applies only to you and is independent
+          of your organization or owner role.
+        </Trans>
+      }
+    >
+      {status === "pending" ? (
+        <Skeleton className="h-12 w-full" />
+      ) : status === "error" ? (
+        <ErrorState
+          title={<Trans>Could not load AI consent.</Trans>}
+          action={
+            <Button variant="outline" size="sm" onClick={onRetry}>
               <Trans>Retry</Trans>
-            </button>
-          </p>
-        ) : (
-          <div className="flex items-center justify-between gap-4">
-            <div className="grid gap-1">
-              <span className="text-sm font-medium">
-                {granted && state
-                  ? t({
-                      message: `Granted on ${formatGrantedAt(state.grantedAt)}`,
-                      comment: "safety",
-                    })
-                  : t({ message: "Not granted", comment: "safety" })}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {granted && state
-                  ? t({ message: `Consent version ${state.consentVersion}`, comment: "safety" })
-                  : t({
-                      message: "Turn on to let AI features process your data.",
-                      comment: "safety",
-                    })}
-              </span>
-            </div>
+            </Button>
+          }
+        />
+      ) : (
+        <SettingsGroup>
+          <SettingsRow
+            icon={UserCheck}
+            label={
+              granted && state
+                ? t({
+                    message: `Granted on ${formatGrantedAt(state.grantedAt)}`,
+                    comment: "safety",
+                  })
+                : t({ message: "Not granted", comment: "safety" })
+            }
+            description={
+              granted && state
+                ? t({ message: `Consent version ${state.consentVersion}`, comment: "safety" })
+                : t({
+                    message: "Turn on to let AI features process your data.",
+                    comment: "safety",
+                  })
+            }
+          >
             <Switch
               aria-label={t({ message: "AI processing consent", comment: "safety" })}
               checked={granted}
@@ -118,9 +118,9 @@ export function AiConsentCard({
                 else onRequestRevoke();
               }}
             />
-          </div>
-        )}
-      </CardContent>
+          </SettingsRow>
+        </SettingsGroup>
+      )}
       <AlertDialog open={confirmOpen} onOpenChange={onConfirmOpenChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -144,6 +144,6 @@ export function AiConsentCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </Section>
   );
 }

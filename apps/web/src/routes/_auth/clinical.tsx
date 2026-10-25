@@ -7,11 +7,23 @@ import {
   imagingTypeLabel,
   summaryText,
 } from "@openvalens/api/presenters/clinical-records";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { HeartPulse, type LucideIcon, ScanLine, Users } from "lucide-react";
+
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+  ToneIcon,
+} from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/clinical")({
@@ -26,102 +38,141 @@ function ClinicalPage() {
 
   if (cardiac.isPending || imaging.isPending || family.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Clinical</Trans>
-        </h1>
-        <Skeleton className="h-32 w-full" />
-      </div>
+      <Page>
+        <PageHeader title={<Trans>Clinical</Trans>} />
+        <div className="grid gap-4 sm:grid-cols-3" aria-hidden="true">
+          {[0, 1, 2].map((key) => (
+            <Skeleton key={key} className="h-32 w-full rounded-3xl" />
+          ))}
+        </div>
+      </Page>
     );
   }
 
   if (cardiac.isError || imaging.isError || family.isError) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Clinical</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load clinical records.</Trans>{" "}
-          <button
-            className="underline"
-            onClick={() => {
-              void cardiac.refetch();
-              void imaging.refetch();
-              void family.refetch();
-            }}
-          >
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
+      <Page>
+        <PageHeader title={<Trans>Clinical</Trans>} />
+        <ErrorState
+          title={<Trans>Could not load clinical records.</Trans>}
+          action={
+            <Button
+              variant="outline"
+              onClick={() => {
+                void cardiac.refetch();
+                void imaging.refetch();
+                void family.refetch();
+              }}
+            >
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Page>
     );
   }
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <h1 className="text-2xl font-semibold">
-        <Trans>Clinical</Trans>
-      </h1>
+    <Page>
+      <PageHeader title={<Trans>Clinical</Trans>} />
 
-      <Section
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile icon={HeartPulse} tone="water" label={t`Cardiac`} value={cardiac.data.length} />
+        <StatTile icon={ScanLine} tone="water" label={t`Imaging`} value={imaging.data.length} />
+        <StatTile icon={Users} tone="water" label={t`Family history`} value={family.data.length} />
+      </div>
+
+      <RecordSection
+        icon={HeartPulse}
         title={t`Cardiac`}
         rows={cardiac.data}
         renderItem={(row) => renderCardiac(row, i18n)}
         emptyText={t`No cardiac exams recorded.`}
       />
-      <Section
+      <RecordSection
+        icon={ScanLine}
         title={t`Imaging`}
         rows={imaging.data}
         renderItem={(row) => renderImaging(row, i18n)}
         emptyText={t`No imaging studies recorded.`}
       />
-      <Section
+      <RecordSection
+        icon={Users}
         title={t`Family history`}
         rows={family.data}
         renderItem={(row) => renderFamily(row, i18n)}
         emptyText={t`No family history entries.`}
       />
-    </div>
+    </Page>
   );
 }
 
-type CardProps<T> = {
+type RecordItem = {
+  /** What the record is, then any qualifier (body part, condition). */
+  headline: readonly string[];
+  date: string;
+  /** True when `date` is an ISO day (shown as people say it); false for an age or year. */
+  isDate: boolean;
+  /** Where it was done, if anywhere, and what it concluded. */
+  secondary: readonly string[];
+};
+
+type RecordSectionProps<T> = {
+  icon: LucideIcon;
   title: string;
   rows: readonly T[];
-  renderItem: (row: T) => { headline: string; date: string; secondary: string };
+  renderItem: (row: T) => RecordItem;
   emptyText: string;
 };
 
-function Section<T>({ title, rows, renderItem, emptyText }: CardProps<T>) {
+/** One kind of clinical record, as cards: what and where, with when in a chip. */
+function RecordSection<T>({ icon, title, rows, renderItem, emptyText }: RecordSectionProps<T>) {
+  const { i18n } = useLingui();
   return (
-    <Card className="py-0">
-      <CardHeader className="border-b border-border">
-        <CardTitle>
-          {title} · {rows.length}
-        </CardTitle>
-      </CardHeader>
+    <Section
+      icon={icon}
+      tone="water"
+      title={
+        <>
+          {title} <span className="num text-ink-3">({rows.length})</span>
+        </>
+      }
+    >
       {rows.length === 0 ? (
-        <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          {emptyText}
-        </CardContent>
+        <EmptyState icon={icon} title={emptyText} />
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {rows.map((row, index) => {
             const item = renderItem(row);
             return (
-              <li key={index} className="flex items-start justify-between gap-4 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium">{item.headline}</div>
-                  <div className="text-sm text-muted-foreground">{item.secondary}</div>
+              <li key={index} className="sheet flex min-w-0 items-start gap-3 p-4">
+                <ToneIcon icon={icon} tone="water" />
+                <div className="grid min-w-0 flex-1 gap-0.5">
+                  <span className="font-semibold break-words text-ink">
+                    {item.headline.map((part, partIndex) => (
+                      <span
+                        key={partIndex}
+                        className={partIndex > 0 ? "block text-sm font-normal text-ink-2" : ""}
+                      >
+                        {part}
+                      </span>
+                    ))}
+                  </span>
+                  {item.secondary.map((part, partIndex) => (
+                    <span key={partIndex} className="block text-sm break-words text-ink-3">
+                      {part}
+                    </span>
+                  ))}
                 </div>
-                <div className="shrink-0 font-mono text-sm text-muted-foreground">{item.date}</div>
+                <span className="num shrink-0 rounded-full bg-water-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                  {item.isDate ? friendlyDate(i18n, item.date) : item.date}
+                </span>
               </li>
             );
           })}
         </ul>
       )}
-    </Card>
+    </Section>
   );
 }
 
@@ -131,14 +182,12 @@ type CardiacRow = {
   facility: string | null;
   conclusion: string | null;
 };
-function renderCardiac(
-  row: CardiacRow,
-  i18n: I18n,
-): { headline: string; date: string; secondary: string } {
+function renderCardiac(row: CardiacRow, i18n: I18n): RecordItem {
   return {
-    headline: cardiacExamTypeLabel(row.type, i18n),
+    headline: [cardiacExamTypeLabel(row.type, i18n)],
     date: row.date,
-    secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
+    isDate: true,
+    secondary: [row.facility ?? "—", summaryText(row.conclusion)],
   };
 }
 
@@ -149,14 +198,12 @@ type ImagingRow = {
   facility: string | null;
   conclusion: string | null;
 };
-function renderImaging(
-  row: ImagingRow,
-  i18n: I18n,
-): { headline: string; date: string; secondary: string } {
+function renderImaging(row: ImagingRow, i18n: I18n): RecordItem {
   return {
-    headline: `${imagingTypeLabel(row.type, i18n)} · ${row.bodyPart}`,
+    headline: [imagingTypeLabel(row.type, i18n), row.bodyPart],
     date: row.date,
-    secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
+    isDate: true,
+    secondary: [row.facility ?? "—", summaryText(row.conclusion)],
   };
 }
 
@@ -166,13 +213,11 @@ type FamilyRow = {
   ageOfOnset: number | null;
   notes: string | null;
 };
-function renderFamily(
-  row: FamilyRow,
-  i18n: I18n,
-): { headline: string; date: string; secondary: string } {
+function renderFamily(row: FamilyRow, i18n: I18n): RecordItem {
   return {
-    headline: `${familyRelationLabel(row.relation, i18n)} · ${row.condition}`,
+    headline: [familyRelationLabel(row.relation, i18n), row.condition],
     date: formatYear(row.ageOfOnset),
-    secondary: summaryText(row.notes),
+    isDate: false,
+    secondary: [summaryText(row.notes)],
   };
 }

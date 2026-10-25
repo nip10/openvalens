@@ -6,8 +6,12 @@ import {
   type WorkspaceInvitation,
 } from "@openvalens/api/presenters/workspace-invitation";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+
+import { MailOpen } from "lucide-react";
+
+import { EmptyState, ErrorState, Section, StatusPill } from "./page";
+import { SharingAvatar } from "./sharing-avatar";
 
 /**
  * Issue #243 — the signed-in user's own pending workspace invitations on web,
@@ -49,69 +53,75 @@ export function MyInvitationsView({
   const { t, i18n } = useLingui();
 
   return (
-    <Card className="mb-6 py-0">
-      <CardHeader className="border-b border-border">
-        <CardTitle>
-          {listState === "ready" && invitations.length > 0 ? (
-            <Trans>Your invitations · {invitations.length}</Trans>
-          ) : (
-            <Trans>Your invitations</Trans>
-          )}
-        </CardTitle>
-      </CardHeader>
+    <Section
+      icon={MailOpen}
+      tone="signal"
+      title={
+        listState === "ready" && invitations.length > 0 ? (
+          <Trans>Your invitations · {invitations.length}</Trans>
+        ) : (
+          <Trans>Your invitations</Trans>
+        )
+      }
+    >
       {message ? (
-        <p className="px-4 pt-3 text-sm" role="status" aria-live="polite">
+        <p className="text-sm text-ink-2" role="status" aria-live="polite">
           {message}
         </p>
       ) : null}
       {listState === "loading" ? (
-        <CardContent className="py-4">
-          <Skeleton className="h-10 w-full" />
-        </CardContent>
+        <Skeleton className="h-24 w-full rounded-3xl" />
       ) : listState === "error" ? (
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          <Trans>Could not load invitations.</Trans>{" "}
-          <button className="underline" onClick={onRetry}>
-            <Trans>Retry</Trans>
-          </button>
-        </CardContent>
+        <ErrorState
+          title={<Trans>Could not load invitations.</Trans>}
+          action={
+            <Button variant="outline" onClick={onRetry}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
       ) : invitations.length === 0 ? (
-        <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          <Trans>You have no pending workspace invitations.</Trans>
-        </CardContent>
+        <EmptyState
+          icon={MailOpen}
+          title={<Trans>You have no pending workspace invitations.</Trans>}
+        />
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="grid gap-3 md:grid-cols-2">
           {invitations.map((invitation) => {
             const state = invitationState(invitation, { sessionEmail, now });
             const roleLabel = ROLE_LABELS[invitation.role];
             const accepting = busy?.id === invitation.id && busy.action === "accept";
             const declining = busy?.id === invitation.id && busy.action === "decline";
             return (
-              <li
-                key={invitation.id}
-                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium wrap-anywhere">
-                    {invitation.organizationName ?? t`A workspace`}
-                  </div>
-                  <div className="text-sm text-muted-foreground wrap-anywhere">
-                    {roleLabel ? i18n._(roleLabel) : invitation.role} ·{" "}
-                    <Trans>Invited email: {invitation.email}</Trans>
+              <li key={invitation.id} className="sheet grid min-w-0 content-start gap-4 p-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <SharingAvatar name={invitation.organizationName ?? invitation.email} />
+                  <div className="grid min-w-0 gap-1">
+                    <span className="font-semibold text-ink wrap-break-word">
+                      {invitation.organizationName ?? t`A workspace`}
+                    </span>
+                    <span>
+                      <StatusPill tone="neutral">
+                        {roleLabel ? i18n._(roleLabel) : invitation.role}
+                      </StatusPill>
+                    </span>
+                    <span className="text-sm text-ink-3 wrap-anywhere">
+                      <Trans>Invited email: {invitation.email}</Trans>
+                    </span>
                   </div>
                 </div>
                 {state === "pending" ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
-                      className="min-h-11"
+                      variant="outline"
+                      className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       onClick={() => onAccept(invitation.id)}
                       disabled={busy !== null}
                     >
                       {accepting ? t`Accepting…` : t`Accept`}
                     </Button>
                     <Button
-                      className="min-h-11"
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => onDecline(invitation.id)}
                       disabled={busy !== null}
                     >
@@ -119,7 +129,7 @@ export function MyInvitationsView({
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
                     {state === "expired"
                       ? t`This invitation has expired.`
                       : state === "wrong_account"
@@ -132,6 +142,6 @@ export function MyInvitationsView({
           })}
         </ul>
       )}
-    </Card>
+    </Section>
   );
 }

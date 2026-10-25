@@ -1,9 +1,13 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { SCORE_COPY } from "@openvalens/api/presenters/score";
+import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+import { Target } from "lucide-react";
+
+import { ErrorState, Page, PageHeader, ToneIcon } from "@/components/page";
 import { ReferenceComparisonsSection } from "@/components/reference-comparisons-card";
 import { GoalProgressCard, ReadinessCard } from "@/components/score-panels";
 import { orpc } from "@/utils/orpc";
@@ -30,50 +34,68 @@ function ScoresPage() {
   });
 
   return (
-    <div className="container mx-auto grid max-w-3xl gap-6 px-4 py-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{i18n._(SCORE_COPY.pageTitle)}</h1>
-        <p className="text-sm text-muted-foreground">{i18n._(SCORE_COPY.pageIntro)}</p>
-        <p className="text-xs text-muted-foreground">{i18n._(SCORE_COPY.noStorage)}</p>
+    <Page>
+      <PageHeader
+        title={i18n._(SCORE_COPY.pageTitle)}
+        info={
+          <>
+            <p>{i18n._(SCORE_COPY.pageIntro)}</p>
+            <p>{i18n._(SCORE_COPY.noStorage)}</p>
+          </>
+        }
+      />
+
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {readiness.isPending ? (
+          <ScoreSkeleton />
+        ) : readiness.isError || !readiness.data ? (
+          <ErrorState
+            title={<Trans>Could not load the readiness index.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onClick={() => void readiness.refetch()}>
+                <Trans>Retry</Trans>
+              </Button>
+            }
+          />
+        ) : (
+          <ReadinessCard result={readiness.data} />
+        )}
+
+        {goals.isPending ? (
+          <ScoreSkeleton />
+        ) : goals.isError || !goals.data ? (
+          <ErrorState
+            title={<Trans>Could not load goal progress.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onClick={() => void goals.refetch()}>
+                <Trans>Retry</Trans>
+              </Button>
+            }
+          />
+        ) : (
+          <GoalProgressCard result={goals.data} />
+        )}
       </div>
-
-      {readiness.isPending ? (
-        <Skeleton className="h-64 w-full" />
-      ) : readiness.isError || !readiness.data ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load the readiness index.</Trans>{" "}
-          <button className="underline" onClick={() => void readiness.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      ) : (
-        <ReadinessCard result={readiness.data} />
-      )}
-
-      {goals.isPending ? (
-        <Skeleton className="h-64 w-full" />
-      ) : goals.isError || !goals.data ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load goal progress.</Trans>{" "}
-          <button className="underline" onClick={() => void goals.refetch()}>
-            <Trans>Retry</Trans>
-          </button>
-        </p>
-      ) : (
-        <GoalProgressCard result={goals.data} />
-      )}
 
       <ReferenceComparisonsSection />
 
-      <p className="text-sm text-muted-foreground">
+      <p className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+        <ToneIcon icon={Target} tone="weight" size="sm" />
         <Trans>
           Set targets, directions and priorities for your goals under{" "}
-          <Link to="/workouts" className="underline">
+          <Link
+            to="/workouts"
+            className="text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             Workouts
           </Link>
           .
         </Trans>
       </p>
-    </div>
+    </Page>
   );
+}
+
+function ScoreSkeleton() {
+  return <Skeleton className="h-80 w-full rounded-3xl" />;
 }

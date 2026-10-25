@@ -1,18 +1,22 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Badge } from "@openvalens/ui/components/badge";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+import { CalendarX, CircleCheck, Clock, Mail, MailPlus, ShieldX } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import type { AdmissionInvitationSummary } from "@/utils/admission-keys";
 
 export type AdminInvitationsViewProps = {
@@ -40,15 +44,11 @@ export function AdminInvitationsView({
 }: AdminInvitationsViewProps) {
   const { t } = useLingui();
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Instance invitations</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Administration</Trans>
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title={<Trans>Instance invitations</Trans>}
+        description={<Trans>Administration</Trans>}
+      />
 
       {accessState === "loading" ? (
         <LoadingCard />
@@ -67,7 +67,7 @@ export function AdminInvitationsView({
           onRevoke={onRevoke}
         />
       )}
-    </main>
+    </Page>
   );
 }
 
@@ -114,44 +114,60 @@ function GrantedView({
   }
 
   return (
-    <div className="grid gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <Trans>Invite a user</Trans>
-          </CardTitle>
-          <CardDescription>
-            <Trans>
-              Invite someone to create an account. They will receive an invitation token by email.
-            </Trans>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-            <div className="grid gap-2">
-              <Label htmlFor="admin-invite-email">
-                <Trans>Email</Trans>
-              </Label>
-              <Input
-                id="admin-invite-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitIssue();
-                }}
-                placeholder="name@example.com"
-                disabled={issueState === "loading"}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={submitIssue} disabled={!valid || issueState === "loading"}>
-                {issueState === "loading" ? t`Sending…` : t`Send invitation`}
-              </Button>
-            </div>
+    <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+        {listState === "loading" ? (
+          <LoadingCard />
+        ) : listState === "error" ? (
+          <ErrorCard message={t`Could not load invitations.`} onRetry={onRetryList} />
+        ) : (
+          <InvitationsList
+            invitations={invitations ?? []}
+            confirmRevoke={confirmRevoke}
+            revokingId={revokingId}
+            revokeError={revokeError}
+            onRequestRevoke={setConfirmRevoke}
+            onRevoke={handleRevoke}
+          />
+        )}
+      </div>
+
+      <Section
+        className="lg:col-start-2 lg:row-start-1"
+        icon={MailPlus}
+        tone="signal"
+        title={<Trans>Invite a user</Trans>}
+        info={
+          <Trans>
+            Invite someone to create an account. They will receive an invitation token by email.
+          </Trans>
+        }
+        sheet
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="admin-invite-email" className="text-ink-3">
+              <Trans>Email</Trans>
+            </Label>
+            <Input
+              id="admin-invite-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitIssue();
+              }}
+              placeholder="name@example.com"
+              disabled={issueState === "loading"}
+            />
+          </div>
+          <div>
+            <Button onClick={submitIssue} disabled={!valid || issueState === "loading"}>
+              {issueState === "loading" ? t`Sending…` : t`Send invitation`}
+            </Button>
           </div>
           {issueState === "success" ? (
-            <p className="text-sm text-success">
+            <p className="text-sm text-success" role="status">
               <Trans>Invitation sent.</Trans>
             </p>
           ) : issueState === "error" ? (
@@ -159,25 +175,18 @@ function GrantedView({
               {issueError ?? t`Could not send invitation.`}
             </p>
           ) : null}
-        </CardContent>
-      </Card>
-
-      {listState === "loading" ? (
-        <LoadingCard />
-      ) : listState === "error" ? (
-        <ErrorCard message={t`Could not load invitations.`} onRetry={onRetryList} />
-      ) : (
-        <InvitationsList
-          invitations={invitations ?? []}
-          confirmRevoke={confirmRevoke}
-          revokingId={revokingId}
-          revokeError={revokeError}
-          onRequestRevoke={setConfirmRevoke}
-          onRevoke={handleRevoke}
-        />
-      )}
+        </div>
+      </Section>
     </div>
   );
+}
+
+/** Local calendar day as YYYY-MM-DD, for friendlyDate. */
+function localDay(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function InvitationsList({
@@ -195,41 +204,59 @@ function InvitationsList({
   onRequestRevoke: (id: string | null) => void;
   onRevoke: (id: string) => void | Promise<void>;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
+  const count = (status: AdmissionInvitationSummary["status"]) =>
+    invitations.filter((invitation) => invitation.status === status).length;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Invitations · {invitations.length}</Trans>
-        </CardTitle>
-      </CardHeader>
-      {revokeError ? (
-        <CardContent>
+    <div className="grid gap-8">
+      {invitations.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatTile icon={Clock} label={<Trans>Pending</Trans>} value={count("pending")} />
+          <StatTile icon={CircleCheck} label={<Trans>Consumed</Trans>} value={count("consumed")} />
+          <StatTile icon={CalendarX} label={<Trans>Expired</Trans>} value={count("expired")} />
+        </div>
+      ) : null}
+      <Section
+        icon={Mail}
+        tone="signal"
+        title={
+          <span className="flex items-baseline gap-3">
+            <Trans>Invitations</Trans>
+            <span className="num text-base font-medium text-ink-3">{invitations.length}</span>
+          </span>
+        }
+      >
+        {revokeError ? (
           <p className="text-sm text-destructive" role="alert" aria-live="polite">
             {revokeError}
           </p>
-        </CardContent>
-      ) : null}
-      {invitations.length === 0 ? (
-        <CardContent className="text-sm text-muted-foreground">
-          <Trans>No invitations yet.</Trans>
-        </CardContent>
-      ) : (
-        <ul className="divide-y divide-border">
-          {invitations.map((invitation) => (
-            <li key={invitation.id} className="px-4 py-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="font-medium">{invitation.email}</div>
-                  <div className="text-sm text-muted-foreground">
-                    <StatusBadge status={invitation.status} />{" "}
-                    {invitation.expiresAt
-                      ? t`Expires ${invitation.expiresAt.toLocaleString()}`
-                      : null}
+        ) : null}
+        {invitations.length === 0 ? (
+          <EmptyState icon={MailPlus} title={<Trans>No invitations yet.</Trans>} />
+        ) : (
+          <ul className="grid min-w-0 gap-3 sm:grid-cols-2" aria-label={t`Invitations`}>
+            {invitations.map((invitation) => (
+              <li key={invitation.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                <div className="flex items-start gap-3">
+                  <ToneIcon icon={Mail} tone="signal" />
+                  <div className="grid min-w-0 flex-1 gap-1">
+                    <span className="font-semibold break-all text-ink">{invitation.email}</span>
+                    {invitation.expiresAt ? (
+                      <span className="text-sm text-ink-3">
+                        <Trans>Expires</Trans>{" "}
+                        <time
+                          dateTime={invitation.expiresAt.toISOString()}
+                          title={invitation.expiresAt.toLocaleString()}
+                        >
+                          {friendlyDate(i18n, localDay(invitation.expiresAt))}
+                        </time>
+                      </span>
+                    ) : null}
                   </div>
+                  <StatusBadge status={invitation.status} />
                 </div>
                 {invitation.status === "pending" ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end gap-2">
                     {confirmRevoke === invitation.id ? (
                       <>
                         <Button
@@ -251,7 +278,7 @@ function InvitationsList({
                       </>
                     ) : (
                       <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
                         onClick={() => onRequestRevoke(invitation.id)}
                         disabled={revokingId === invitation.id}
@@ -261,87 +288,70 @@ function InvitationsList({
                     )}
                   </div>
                 ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+    </div>
   );
 }
 
 function StatusBadge({ status }: { status: AdmissionInvitationSummary["status"] }) {
   if (status === "consumed") {
     return (
-      <Badge variant="default">
+      <StatusPill tone="good">
         <Trans>Consumed</Trans>
-      </Badge>
+      </StatusPill>
     );
   }
   if (status === "expired") {
     return (
-      <Badge variant="secondary">
+      <StatusPill tone="neutral">
         <Trans>Expired</Trans>
-      </Badge>
+      </StatusPill>
     );
   }
   return (
-    <Badge variant="outline">
+    <StatusPill tone="warn">
       <Trans>Pending</Trans>
-    </Badge>
+    </StatusPill>
   );
 }
 
 function LoadingCard() {
   return (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-6 w-1/3" />
-        <Skeleton className="h-4 w-2/3" />
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </CardContent>
-    </Card>
+    <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+      <Skeleton className="h-28 w-full rounded-3xl" />
+      <Skeleton className="h-28 w-full rounded-3xl" />
+      <Skeleton className="h-28 w-full rounded-3xl" />
+      <Skeleton className="h-28 w-full rounded-3xl" />
+    </div>
   );
 }
 
 function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Something went wrong</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          {message}{" "}
-          {onRetry ? (
-            <button className="underline" onClick={onRetry}>
-              <Trans>Retry</Trans>
-            </button>
-          ) : null}
-        </p>
-      </CardContent>
-    </Card>
+    <ErrorState
+      title={<Trans>Something went wrong</Trans>}
+      description={message}
+      action={
+        onRetry ? (
+          <Button variant="outline" onClick={onRetry}>
+            <Trans>Retry</Trans>
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 
 function DeniedCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Access denied</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          <Trans>You do not have access to instance administration.</Trans>
-        </p>
-      </CardContent>
-    </Card>
+    <EmptyState
+      icon={ShieldX}
+      title={<Trans>Access denied</Trans>}
+      description={<Trans>You do not have access to instance administration.</Trans>}
+    />
   );
 }

@@ -24,20 +24,20 @@ import {
   type WellnessProfileUpdateInput,
 } from "@openvalens/api/wellness-profile-contract";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { WellnessProfileEditor, type SectionSaveState } from "@/components/wellness-profile-editor";
+import { ArrowRight, ListChecks, WifiOff } from "lucide-react";
+
+import { ErrorState, Meter, Page, PageHeader, ToneIcon } from "@/components/page";
+import {
+  StepHead,
+  WellnessProfileEditor,
+  type SectionSaveState,
+} from "@/components/wellness-profile-editor";
 import { orpc } from "@/utils/orpc";
 import { useUpdateWellnessProfile, useWellnessProfile } from "@/utils/wellness-profile";
 
@@ -71,30 +71,28 @@ function ProfilePage() {
 
   if (profile.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <Page>
+        <PageHeader title={<Trans>Your profile</Trans>} />
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+          <Skeleton className="h-96 w-full rounded-3xl" />
+          <Skeleton className="hidden h-40 w-full rounded-3xl lg:block" />
+        </div>
+      </Page>
     );
   }
   if (profile.isError || !profile.data) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Your profile</Trans>
-            </CardTitle>
-            <CardDescription role="alert">
-              <Trans>Could not load your profile. Nothing has changed.</Trans>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      <Page width="narrow">
+        <PageHeader title={<Trans>Your profile</Trans>} />
+        <ErrorState
+          title={<Trans>Could not load your profile. Nothing has changed.</Trans>}
+          action={
             <Button onClick={() => void profile.refetch()}>
               <Trans>Retry</Trans>
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          }
+        />
+      </Page>
     );
   }
   return (
@@ -192,84 +190,111 @@ function ProfileEditorPage({
   const inSetup = snapshot.setupStatus !== "completed";
 
   return (
-    <div className="container mx-auto max-w-3xl px-4 py-6">
-      <h1 className="mb-2 text-2xl font-semibold">
-        <Trans>Your profile</Trans>
-      </h1>
-      <p className="mb-2 text-sm text-muted-foreground">{PROFILE_INTRO}</p>
-      <p className="mb-4 text-xs text-muted-foreground">{PROFILE_STORAGE_NOTE}</p>
-      {!online ? (
-        <p role="status" className="mb-4 rounded-md border p-3 text-sm">
-          <Trans>You are offline.</Trans> {PROFILE_OFFLINE_NOTE}
-        </p>
-      ) : null}
+    <Page>
+      <PageHeader
+        title={<Trans>Your profile</Trans>}
+        description={<Trans>All optional. Answer what helps you.</Trans>}
+        info={
+          <>
+            <p>{PROFILE_INTRO}</p>
+            <p>{PROFILE_STORAGE_NOTE}</p>
+          </>
+        }
+        actions={
+          inSetup ? (
+            <>
+              <Button variant="outline" onClick={() => void finish("skipped")}>
+                <Trans>Skip for now</Trans>
+              </Button>
+              <Button onClick={() => void finish("completed")} disabled={dirty.length > 0}>
+                <Trans>Done</Trans>
+              </Button>
+            </>
+          ) : (
+            <Link
+              to="/settings"
+              className="font-display text-sm font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+            >
+              <Trans>Back to settings</Trans>
+            </Link>
+          )
+        }
+      />
 
-      <Card className="mb-6">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-          <div className="text-sm">
-            <div>
-              <Trans>
-                {progress.answered} of {progress.available} sections answered
-              </Trans>
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+        <aside className="grid gap-3 text-sm lg:sticky lg:top-10 lg:col-start-2 lg:row-start-1">
+          <div className="sheet grid gap-3 p-5">
+            <div className="flex items-center gap-3">
+              <ToneIcon icon={ListChecks} tone="signal" />
+              <p className="font-display font-medium text-ink">
+                <Trans>
+                  {progress.answered} of {progress.available} sections answered
+                </Trans>
+              </p>
             </div>
+            <Meter
+              value={progress.available > 0 ? progress.answered / progress.available : 0}
+              tone="signal"
+            />
             {resume ? (
-              <a href={`#section-${resume}`} className="text-muted-foreground underline">
+              <a
+                href={`#section-${resume}`}
+                className="inline-flex w-fit items-center gap-1.5 font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+              >
                 <Trans>Next unanswered: {i18n._(SECTION_TITLES[resume])}</Trans>
+                <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
               </a>
             ) : null}
             {dirty.length > 0 ? (
-              <div className="text-muted-foreground">
+              <p className="text-ink-3">
                 <Trans>Unsaved: {dirty.map((s) => i18n._(SECTION_TITLES[s])).join(", ")}</Trans>
-              </div>
+              </p>
             ) : null}
           </div>
-          <div className="flex gap-2">
-            {inSetup ? (
-              <>
-                <Button variant="outline" onClick={() => void finish("skipped")}>
-                  <Trans>Skip for now</Trans>
-                </Button>
-                <Button onClick={() => void finish("completed")} disabled={dirty.length > 0}>
-                  <Trans>Done</Trans>
-                </Button>
-              </>
-            ) : (
-              <Link to="/settings" className="text-sm underline">
-                <Trans>Back to settings</Trans>
-              </Link>
-            )}
-          </div>
-        </CardContent>
-        {pageMessage ? (
-          <p role="alert" className="px-6 pb-4 text-sm text-destructive">
-            {i18n._(pageMessage)}
-          </p>
-        ) : null}
-      </Card>
+          {pageMessage ? (
+            <p role="alert" className="text-destructive">
+              {i18n._(pageMessage)}
+            </p>
+          ) : null}
+          {!online ? (
+            <p
+              role="status"
+              className="flex items-start gap-2 rounded-2xl bg-warning/14 px-4 py-3 text-ink-2"
+            >
+              <WifiOff className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              <span>
+                <Trans>You are offline.</Trans> {PROFILE_OFFLINE_NOTE}
+              </span>
+            </p>
+          ) : null}
+        </aside>
 
-      <WellnessProfileEditor
-        snapshot={snapshot}
-        draft={draft}
-        onDraftChange={(next) => {
-          setDraft(next);
-          setSaveState({});
-        }}
-        birthYearText={birthYearText}
-        onBirthYearTextChange={setBirthYearText}
-        saveState={saveState}
-        onSave={(section) => void onSave(section)}
-        onUndo={(section) => {
-          setDraft((current) => resetSection(snapshot, current, section));
-          if (section === "ageAndSex") {
-            setBirthYearText(
-              snapshot.birthYear.state === "recorded" ? String(snapshot.birthYear.value) : "",
-            );
-          }
-        }}
-        goalSection={<GoalSection draft={draft} />}
-        now={new Date()}
-      />
-    </div>
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <WellnessProfileEditor
+            snapshot={snapshot}
+            draft={draft}
+            onDraftChange={(next) => {
+              setDraft(next);
+              setSaveState({});
+            }}
+            birthYearText={birthYearText}
+            onBirthYearTextChange={setBirthYearText}
+            saveState={saveState}
+            onSave={(section) => void onSave(section)}
+            onUndo={(section) => {
+              setDraft((current) => resetSection(snapshot, current, section));
+              if (section === "ageAndSex") {
+                setBirthYearText(
+                  snapshot.birthYear.state === "recorded" ? String(snapshot.birthYear.value) : "",
+                );
+              }
+            }}
+            goalSection={<GoalSection draft={draft} />}
+            now={new Date()}
+          />
+        </div>
+      </div>
+    </Page>
   );
 }
 
@@ -297,20 +322,26 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
   const focus = draft.answers.focus.state === "recorded" ? draft.answers.focus.value[0] : undefined;
 
   return (
-    <Card id="section-goal" role="region" aria-labelledby={`${inputId}-title`}>
-      <CardHeader>
-        <CardTitle id={`${inputId}-title`} className="text-lg">
-          {i18n._(SECTION_TITLES.goal)}
-        </CardTitle>
-        <CardDescription>
-          <Trans>
-            Add a goal in your own words if you have one. It is saved to your Goals, where you can
-            set a target and date later. Nothing is suggested or worked out for you.
-          </Trans>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        <label htmlFor={inputId} className="text-sm font-medium">
+    <section
+      id="section-goal"
+      role="region"
+      aria-labelledby={`${inputId}-title`}
+      className="sheet grid scroll-mt-10 gap-5 p-5 md:p-6"
+    >
+      <StepHead
+        section="goal"
+        titleId={`${inputId}-title`}
+        info={
+          <p>
+            <Trans>
+              Add a goal in your own words if you have one. It is saved to your Goals, where you can
+              set a target and date later. Nothing is suggested or worked out for you.
+            </Trans>
+          </p>
+        }
+      />
+      <div className="grid gap-2">
+        <label htmlFor={inputId} className="text-sm text-ink-3">
           <Trans>Goal</Trans>
         </label>
         <div className="flex flex-wrap gap-2">
@@ -344,7 +375,7 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
             {i18n._(message.text)}
           </p>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

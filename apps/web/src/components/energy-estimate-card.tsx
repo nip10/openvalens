@@ -5,10 +5,12 @@ import {
 } from "@openvalens/api/presenters/energy-estimate";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
+import { inlineButtonClass } from "@/components/food-classes";
+import { Gauge, Sparkles } from "lucide-react";
+import { InfoTip, Section } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 export function EnergyEstimateCard({
@@ -86,49 +88,58 @@ export function EnergyEstimateCard({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{i18n._(ENERGY_ESTIMATE_COPY.title)}</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
-        <p className="font-medium">{i18n._(ENERGY_ESTIMATE_COPY.subtitle)}</p>
-        <p className="text-muted-foreground">{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>
+    <Section
+      icon={Gauge}
+      tone="food"
+      sheet
+      title={i18n._(ENERGY_ESTIMATE_COPY.title)}
+      description={i18n._(ENERGY_ESTIMATE_COPY.subtitle)}
+      info={<p>{i18n._(ENERGY_ESTIMATE_COPY.provisional)}</p>}
+    >
+      <div className="grid gap-3 text-sm text-ink-2">
         {hideNumbers ? (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.hidden)}</p>
         ) : !authorized ? (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.unavailable)}</p>
         ) : estimate.isError ? (
-          <p role="alert">
+          <p role="alert" className="rounded-2xl bg-destructive/6 px-4 py-3">
             {i18n._(ENERGY_ESTIMATE_COPY.error)}{" "}
-            <button className="underline" onClick={() => void estimate.refetch()}>
+            <button className={inlineButtonClass} onClick={() => void estimate.refetch()}>
               <Trans>Retry</Trans>
             </button>
           </p>
         ) : estimate.isPending ? (
-          <p>
+          <p role="status" className="text-ink-3">
             <Trans>Loading estimate…</Trans>
           </p>
         ) : presented ? (
-          <div className="rounded-md border p-3">
-            <p className="text-xl font-semibold">{presented.value}</p>
-            <p>{t`${range} (arithmetic range, not a confidence interval)`}</p>
-            <p className="text-xs text-muted-foreground">{presented.window}</p>
-            {presented.notes.map((n, i) => (
-              <p className="mt-1 text-xs text-muted-foreground" key={i}>
-                {n}
-              </p>
-            ))}
+          <div className="grid gap-1">
+            <p className="num font-display text-[2.125rem] leading-none font-medium tracking-[-0.02em] text-ink">
+              {presented.value}
+            </p>
+            <div className="flex flex-wrap items-center gap-1 text-ink-3">
+              {t`${range} (arithmetic range, not a confidence interval)`}
+              <InfoTip label={t`How this is estimated`}>
+                <p>{presented.window}</p>
+                {presented.notes.map((n, i) => (
+                  <p key={i}>{n}</p>
+                ))}
+              </InfoTip>
+            </div>
           </div>
         ) : (
           <p>{i18n._(ENERGY_ESTIMATE_COPY.unavailable)}</p>
         )}
         {authorized && pending ? (
-          <div className="grid gap-2 rounded-md border p-3">
-            <p className="font-medium">{i18n._(ENERGY_ESTIMATE_COPY.pending)}</p>
+          <div className="grid gap-2 rounded-2xl bg-food-soft px-4 py-3">
+            <p className="flex items-center gap-2 font-display font-medium text-ink">
+              <Sparkles className="size-4 text-food" aria-hidden="true" />
+              {i18n._(ENERGY_ESTIMATE_COPY.pending)}
+            </p>
             {pendingPresentation && (
               <>
-                <p>{t`Suggested: ${suggestion}`}</p>
-                <p>{t`Current target: ${currentTarget}`}</p>
+                <p className="text-ink">{t`Suggested: ${suggestion}`}</p>
+                <p className="text-ink-2">{t`Current target: ${currentTarget}`}</p>
               </>
             )}
             {expired && (
@@ -137,10 +148,11 @@ export function EnergyEstimateCard({
               </p>
             )}
             {pending.needsConfirmation && (
-              <label className="flex gap-2">
+              <label className="flex cursor-pointer gap-2">
                 <input
                   id={id}
                   type="checkbox"
+                  className="mt-0.5 size-4 shrink-0 accent-primary"
                   checked={confirm}
                   onChange={(e) => setConfirm(e.target.checked)}
                 />
@@ -149,6 +161,7 @@ export function EnergyEstimateCard({
             )}
             <div className="flex flex-wrap gap-2">
               <Button
+                variant="outline"
                 disabled={
                   !allowed ||
                   !presented ||
@@ -177,7 +190,7 @@ export function EnergyEstimateCard({
                 {i18n._(ENERGY_ESTIMATE_COPY.accept)}
               </Button>
               <Button
-                variant="outline"
+                variant="ghost"
                 disabled={!allowed || dismiss.isPending}
                 onClick={() =>
                   dismiss.mutate(
@@ -201,6 +214,7 @@ export function EnergyEstimateCard({
         {authorized && proposals.isSuccess && !pending && !hideNumbers && (
           <Button
             variant="outline"
+            className="w-fit"
             disabled={!presented || ask.isPending}
             onClick={() =>
               ask.mutate(
@@ -220,15 +234,16 @@ export function EnergyEstimateCard({
               )
             }
           >
+            <Sparkles aria-hidden="true" />
             {i18n._(ENERGY_ESTIMATE_COPY.ask)}
           </Button>
         )}
         {message && (
-          <p role="status" aria-live="polite">
+          <p role="status" aria-live="polite" className="text-ink-2">
             {message}
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }

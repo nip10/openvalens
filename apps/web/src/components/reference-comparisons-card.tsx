@@ -9,17 +9,12 @@ import type {
   ReferenceComparisonsResult,
 } from "@openvalens/api/reference-comparison-contract";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Footprints, HeartPulse, type LucideIcon, Moon, Scale } from "lucide-react";
 import { toast } from "sonner";
 
+import { Details, ErrorState, InfoTip, type Tone, ToneIcon } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -31,7 +26,14 @@ import { orpc } from "@/utils/orpc";
  * No colour carries meaning: positions are in text.
  */
 
-function MetricSection({
+const METRIC_LOOK: Record<ComparisonMetric, { icon: LucideIcon; tone: Tone }> = {
+  resting_heart_rate: { icon: HeartPulse, tone: "heart" },
+  sleep_duration: { icon: Moon, tone: "sleep" },
+  active_minutes: { icon: Footprints, tone: "steps" },
+};
+
+/** One measure as a card: your own figures first, the published reference under them, and its opt-in. */
+function MetricCard({
   metric,
   pending,
   onToggle,
@@ -41,48 +43,46 @@ function MetricSection({
   onToggle: (metric: ComparisonMetric, enabled: boolean) => void;
 }) {
   const headingId = `comparison-${metric.key}`;
+  const look = METRIC_LOOK[metric.key] ?? { icon: Scale, tone: "water" as const };
   return (
-    <section aria-labelledby={headingId} className="grid gap-2 border-t border-border pt-4">
-      <h3 id={headingId} className="font-medium">
-        {metric.title}
-      </h3>
-      <ul className="text-sm text-muted-foreground">
-        {metric.ownTrendLines.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
-      {metric.statusText ? <p className="text-sm">{metric.statusText}</p> : null}
-      {metric.comparisonLines.map((line) => (
-        <p key={line} className="text-sm">
-          {line}
-        </p>
-      ))}
-      {metric.notes.length > 0 ? (
-        <ul className="list-disc pl-5 text-sm text-muted-foreground">
-          {metric.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      ) : null}
-      <details className="text-sm">
-        <summary className="cursor-pointer">{metric.source.label}</summary>
-        <div className="mt-2 grid gap-1 text-muted-foreground">
-          <p>
-            <a href={metric.source.url} target="_blank" rel="noreferrer" className="underline">
-              {metric.source.citation}
-            </a>
+    <li aria-labelledby={headingId} className="sheet grid min-w-0 content-start gap-4 p-5">
+      <div className="flex items-start gap-3">
+        <ToneIcon icon={look.icon} tone={look.tone} />
+        <div className="grid min-w-0 flex-1 gap-1">
+          <div className="flex items-center gap-1">
+            <h3 id={headingId} className="text-base leading-snug text-ink">
+              {metric.title}
+            </h3>
+            {!metric.optedIn ? (
+              <InfoTip>
+                <p>{metric.disclosure}</p>
+              </InfoTip>
+            ) : null}
+          </div>
+          <p className="sr-only">
+            <Trans>Your trend</Trans>
           </p>
-          {metric.source.details.map((detail) => (
-            <p key={detail.label}>
-              <span className="font-medium text-foreground">{detail.label}:</span> {detail.text}
+          <ul className="grid gap-0.5 text-sm text-ink-2 tabular-nums">
+            {metric.ownTrendLines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      {metric.statusText || metric.comparisonLines.length > 0 ? (
+        <div className="grid gap-1 rounded-2xl bg-paper-2 px-4 py-3 text-sm">
+          <p className="text-ink-3">
+            <Trans>Published reference</Trans>
+          </p>
+          {metric.statusText ? <p className="text-ink-3">{metric.statusText}</p> : null}
+          {metric.comparisonLines.map((line) => (
+            <p key={line} className="text-ink tabular-nums">
+              {line}
             </p>
           ))}
         </div>
-      </details>
-      {!metric.optedIn ? (
-        <p className="text-sm text-muted-foreground">{metric.disclosure}</p>
       ) : null}
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -93,8 +93,34 @@ function MetricSection({
         >
           {metric.toggleLabel}
         </Button>
+        <Details summary={metric.source.label} className="text-sm">
+          <div className="grid gap-1 text-ink-3">
+            <p>
+              <a
+                href={metric.source.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                {metric.source.citation}
+              </a>
+            </p>
+            {metric.source.details.map((detail) => (
+              <p key={detail.label}>
+                <span className="font-medium text-ink">{detail.label}:</span> {detail.text}
+              </p>
+            ))}
+            {metric.notes.length > 0 ? (
+              <ul className="grid gap-1 pt-1">
+                {metric.notes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </Details>
       </div>
-    </section>
+    </li>
   );
 }
 
@@ -110,34 +136,42 @@ export function ReferenceComparisonsCard({
   const { i18n } = useLingui();
   const view = referenceComparisonsView(result, i18n);
   return (
-    <Card role="region" aria-labelledby="reference-comparisons-title">
-      <CardHeader>
-        <CardTitle id="reference-comparisons-title">{i18n._(COMPARISON_COPY.title)}</CardTitle>
-        <CardDescription>{i18n._(COMPARISON_COPY.intro)}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">{i18n._(COMPARISON_COPY.noOtherPeople)}</p>
-        {view.withheldText ? <p className="text-sm">{view.withheldText}</p> : null}
-        {view.metrics.map((metric) => (
-          <MetricSection key={metric.key} metric={metric} pending={pending} onToggle={onToggle} />
-        ))}
-        <section
-          aria-labelledby="not-compared-title"
-          className="grid gap-2 border-t border-border pt-4"
+    <section
+      aria-labelledby="reference-comparisons-title"
+      className="grid min-w-0 content-start gap-3"
+    >
+      <div className="flex items-center gap-2">
+        <ToneIcon icon={Scale} tone="water" size="sm" />
+        <h2 id="reference-comparisons-title" className="text-xl leading-tight text-ink">
+          {i18n._(COMPARISON_COPY.title)}
+        </h2>
+        <InfoTip>
+          <p>{i18n._(COMPARISON_COPY.intro)}</p>
+          <p>{i18n._(COMPARISON_COPY.noOtherPeople)}</p>
+          <p>{i18n._(COMPARISON_COPY.limits)}</p>
+          <p className="text-ink-3">{view.versionText}</p>
+        </InfoTip>
+      </div>
+      {view.withheldText ? <p className="sheet px-5 py-4 text-ink-2">{view.withheldText}</p> : null}
+      {view.metrics.length > 0 ? (
+        <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {view.metrics.map((metric) => (
+            <MetricCard key={metric.key} metric={metric} pending={pending} onToggle={onToggle} />
+          ))}
+        </ul>
+      ) : null}
+      <section aria-labelledby="not-compared-title" className="pt-1">
+        <Details
+          summary={<span id="not-compared-title">{i18n._(COMPARISON_COPY.notComparedTitle)}</span>}
         >
-          <h3 id="not-compared-title" className="font-medium">
-            {i18n._(COMPARISON_COPY.notComparedTitle)}
-          </h3>
-          <ul className="list-disc pl-5 text-sm text-muted-foreground">
+          <ul className="grid max-w-[65ch] gap-1 text-sm text-ink-3">
             {view.notCompared.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
-        </section>
-        <p className="text-sm text-muted-foreground">{i18n._(COMPARISON_COPY.limits)}</p>
-        <p className="text-xs text-muted-foreground">{view.versionText}</p>
-      </CardContent>
-    </Card>
+        </Details>
+      </section>
+    </section>
   );
 }
 
@@ -155,15 +189,24 @@ export function ReferenceComparisonsSection() {
       onError: () => toast.error(t`Could not update the comparison setting.`),
     }),
   );
-  if (comparisons.isPending) return <Skeleton className="h-64 w-full" />;
+  if (comparisons.isPending)
+    return (
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+        {["a", "b", "c"].map((key) => (
+          <Skeleton key={key} className="h-48 w-full rounded-3xl" />
+        ))}
+      </div>
+    );
   if (comparisons.isError || !comparisons.data)
     return (
-      <p className="text-sm text-muted-foreground">
-        <Trans>Could not load reference comparisons.</Trans>{" "}
-        <button className="underline" onClick={() => void comparisons.refetch()}>
-          <Trans>Retry</Trans>
-        </button>
-      </p>
+      <ErrorState
+        title={<Trans>Could not load reference comparisons.</Trans>}
+        action={
+          <Button variant="outline" size="sm" onClick={() => void comparisons.refetch()}>
+            <Trans>Retry</Trans>
+          </Button>
+        }
+      />
     );
   return (
     <ReferenceComparisonsCard

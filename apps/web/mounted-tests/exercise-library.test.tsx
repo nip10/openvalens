@@ -325,9 +325,11 @@ test.skipIf(!mountedMode)(
             element?.tagName === "P" && element.textContent === "Secondary: None listed",
         ),
       ).toBeTruthy();
-      expect(document.querySelectorAll("svg rect")).toHaveLength(2);
+      // Decorative lucide icons (class "lucide", aria-hidden) are not part of the
+      // muscle guide; count only the guide's own drawings.
+      expect(document.querySelectorAll("svg:not(.lucide) rect")).toHaveLength(2);
       expect(document.querySelector("svg image")).toBeNull();
-      expect(document.querySelectorAll("svg")).toHaveLength(2);
+      expect(document.querySelectorAll("svg:not(.lucide)")).toHaveLength(2);
       await waitFor(() => expect(document.querySelector("img[src*='example.test']")).toBeNull());
 
       const workoutSelect = screen.getByLabelText("Add to workout") as HTMLSelectElement;
@@ -375,8 +377,8 @@ test.skipIf(!mountedMode)(
           element?.tagName === "P" && element.textContent === "Primary: Unknown muscle",
       );
       expect(screen.getByText(/No matching diagram mapping is available/)).toBeTruthy();
-      expect(document.querySelectorAll("svg rect")).toHaveLength(0);
-      expect(document.querySelectorAll("svg")).toHaveLength(0);
+      expect(document.querySelectorAll("svg:not(.lucide) rect")).toHaveLength(0);
+      expect(document.querySelectorAll("svg:not(.lucide)")).toHaveLength(0);
 
       client.setQueryData(key(detailOptions.queryKey), {
         ...detail,

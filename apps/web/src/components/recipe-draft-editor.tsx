@@ -6,15 +6,27 @@ import {
 } from "@openvalens/api/presenters/recipe-draft";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
+import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import {
+  ArrowLeft,
+  Carrot,
+  ChefHat,
+  ClipboardPaste,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { offlineScope } from "@openvalens/api/presenters/offline";
+import { controlLinkClass, nativeSelectClass, textLinkClass } from "@/components/food-classes";
+import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
@@ -197,22 +209,24 @@ export function RecipeDraftEditor() {
 
   if (isPending || scope !== activeScope)
     return (
-      <main className="mx-auto max-w-3xl px-4 py-6">
-        <p role="status">
-          <Trans>Loading your workspace…</Trans>
-        </p>
-      </main>
+      <Page width="narrow">
+        <div role="status" className="grid gap-4">
+          <span className="sr-only">
+            <Trans>Loading your workspace…</Trans>
+          </span>
+          <Skeleton className="h-12 w-64 rounded-full" />
+          <Skeleton className="h-64 w-full rounded-3xl" />
+        </div>
+      </Page>
     );
   if (!scope)
     return (
-      <main className="mx-auto max-w-3xl px-4 py-6">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Recipe draft</Trans>
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          <Trans>Sign in to create a private, session-only draft.</Trans>
-        </p>
-      </main>
+      <Page width="narrow">
+        <PageHeader
+          title={<Trans>Recipe draft</Trans>}
+          description={<Trans>Sign in to create a private, session-only draft.</Trans>}
+        />
+      </Page>
     );
 
   const notProvided = t`Not provided`;
@@ -223,57 +237,59 @@ export function RecipeDraftEditor() {
   const sourceLink = draft?.source.url || notProvided;
 
   return (
-    <main className="mx-auto grid max-w-3xl gap-5 px-4 py-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Recipe draft</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
+    <Page width="narrow">
+      <PageHeader
+        title={<Trans>Recipe draft</Trans>}
+        info={
           <Trans>
             Paste ingredients or Recipe JSON-LD, or import one recipe page if you turned that on in
             nutrition settings. Nothing is saved.
           </Trans>
-        </p>
-        <p className="text-sm text-muted-foreground">
+        }
+        description={
           <Trans>Not saved. Discard the draft to clear it; reloading may lose it.</Trans>
-        </p>
-        <Link to="/nutrition" className="min-h-11 w-fit content-center text-sm underline">
-          <Trans>Back to meal diary</Trans>
-        </Link>
-      </header>
+        }
+        actions={
+          <Link
+            to="/nutrition"
+            className={`inline-flex min-h-11 items-center gap-1.5 ${controlLinkClass}`}
+          >
+            <ArrowLeft className="size-4 text-food" aria-hidden="true" />
+            <Trans>Back to meal diary</Trans>
+          </Link>
+        }
+      />
       {!draft || showPaste ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Paste recipe text</Trans>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <fieldset className="grid gap-2">
-              <legend className="text-sm font-medium">
+        <Section icon={ClipboardPaste} tone="food" sheet title={<Trans>Paste recipe text</Trans>}>
+          <div className="grid gap-4">
+            <fieldset className="flex flex-wrap gap-2">
+              <legend className="mb-2 text-sm font-medium text-ink-3">
                 <Trans>Paste format</Trans>
               </legend>
-              <label className="flex min-h-11 items-center gap-2">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
                 <input
                   type="radio"
+                  className="size-4 accent-primary"
                   name="format"
                   checked={format === "ingredients"}
                   onChange={() => setFormat("ingredients")}
                 />
                 <Trans>Ingredients</Trans>
               </label>
-              <label className="flex min-h-11 items-center gap-2">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
                 <input
                   type="radio"
+                  className="size-4 accent-primary"
                   name="format"
                   checked={format === "json-ld"}
                   onChange={() => setFormat("json-ld")}
                 />
                 <Trans>Recipe JSON-LD</Trans>
               </label>
-              <label className="flex min-h-11 items-center gap-2">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-input bg-card px-3.5 text-sm text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted has-[:checked]:border-transparent has-[:checked]:bg-food-soft has-[:checked]:font-semibold has-[:checked]:text-ink">
                 <input
                   type="radio"
+                  className="size-4 accent-primary"
                   name="format"
                   checked={format === "url"}
                   onChange={() => setFormat("url")}
@@ -283,7 +299,7 @@ export function RecipeDraftEditor() {
             </fieldset>
             {format !== "url" ? (
               <div className="grid gap-1.5">
-                <Label htmlFor="recipe-paste">
+                <Label htmlFor="recipe-paste" className="text-sm font-medium text-ink-3">
                   <Trans>Paste text (up to 1 MiB)</Trans>
                 </Label>
                 <Textarea
@@ -296,7 +312,7 @@ export function RecipeDraftEditor() {
               </div>
             ) : null}
             <div className="grid gap-1.5">
-              <Label htmlFor="recipe-source">
+              <Label htmlFor="recipe-source" className="text-sm font-medium text-ink-3">
                 {format === "url"
                   ? i18n._(RECIPE_IMPORT_COPY.urlLabel)
                   : t`Source URL (optional, provenance only)`}
@@ -309,9 +325,9 @@ export function RecipeDraftEditor() {
                 onChange={(event) => setSourceUrl(event.target.value)}
               />
               {format === "url" ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-ink-3">
                   {i18n._(RECIPE_IMPORT_COPY.urlHint)}{" "}
-                  <Link to="/nutrition-targets" className="underline">
+                  <Link to="/nutrition-targets" className={textLinkClass}>
                     <Trans>Nutrition settings</Trans>
                   </Link>
                 </p>
@@ -332,15 +348,16 @@ export function RecipeDraftEditor() {
                   replacePending
                 }
               >
+                <Sparkles aria-hidden="true" />
                 {importUrl.isPending ? i18n._(RECIPE_IMPORT_COPY.importing) : t`Create draft`}
               </Button>
-              <Button variant="outline" onClick={clear}>
+              <Button variant="ghost" onClick={clear}>
                 <Trans>Clear</Trans>
               </Button>
             </div>
             {replacePending ? (
-              <div role="alert" className="grid gap-2 rounded-lg border p-3">
-                <p className="text-sm">
+              <div role="alert" className="grid gap-2 rounded-2xl bg-warning/10 px-4 py-3">
+                <p className="text-sm text-ink">
                   <Trans>Parsing again will replace your edited review. Continue?</Trans>
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -367,13 +384,13 @@ export function RecipeDraftEditor() {
               </div>
             ) : null}
             {message ? (
-              <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+              <p role="status" aria-live="polite" className="text-sm text-ink-2">
                 {message}
               </p>
             ) : null}
             {result.status === "choose_recipe" ? (
               <fieldset className="grid gap-2">
-                <legend className="text-sm font-medium">
+                <legend className="mb-1 text-sm font-medium text-ink-3">
                   <Trans>Choose a recipe to review</Trans>
                 </legend>
                 {result.candidates.map((candidate) => (
@@ -388,25 +405,21 @@ export function RecipeDraftEditor() {
                 ))}
               </fieldset>
             ) : null}
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       ) : null}
       {draft && !showPaste ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              <Trans>Review draft</Trans>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <p className="rounded-md border p-3 text-sm">
+        <Section icon={ChefHat} tone="food" sheet title={<Trans>Review draft</Trans>}>
+          <div className="grid gap-4">
+            <p className="flex items-start gap-2 rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-2">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-ink-3" aria-hidden="true" />
               <Trans comment="safety">
                 Ingredients remain unmatched and unverified. No nutrition values are calculated.
                 This is not clinical advice.
               </Trans>
             </p>
             <div className="grid gap-1.5">
-              <Label htmlFor="draft-title">
+              <Label htmlFor="draft-title" className="text-sm font-medium text-ink-3">
                 <Trans>Title</Trans>
               </Label>
               <Input
@@ -419,7 +432,7 @@ export function RecipeDraftEditor() {
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="draft-servings">
+              <Label htmlFor="draft-servings" className="text-sm font-medium text-ink-3">
                 <Trans>Servings (text)</Trans>
               </Label>
               <Input
@@ -434,18 +447,31 @@ export function RecipeDraftEditor() {
                 }
               />
             </div>
-            <section className="grid gap-3" aria-labelledby="draft-ingredients-title">
-              <h2 id="draft-ingredients-title" className="text-lg font-medium">
+            <section className="grid gap-3 pt-2" aria-labelledby="draft-ingredients-title">
+              <h3
+                id="draft-ingredients-title"
+                className="flex items-center gap-2.5 font-display text-lg font-medium text-ink"
+              >
+                <ToneIcon icon={Carrot} tone="food" size="sm" />
                 {t`Ingredients (${ingredientCount}/${MAX_INGREDIENTS})`}
-              </h2>
+              </h3>
               {draft.ingredients.map((item, index) => (
-                <fieldset key={item.id} className="grid gap-3 rounded-lg border p-3">
-                  <legend className="px-1 text-sm font-medium">
-                    {t`Ingredient ${index + 1} · unmatched, unverified`}
+                <fieldset
+                  key={item.id}
+                  className="grid min-w-0 gap-3 rounded-2xl bg-paper-2 p-4 sm:grid-cols-2"
+                >
+                  <legend className="float-left mb-1 font-display text-sm font-medium text-ink sm:col-span-2">
+                    {t`Ingredient ${index + 1}: unmatched, unverified`}
                   </legend>
                   {(["rawText", "quantityText", "unitText", "foodText"] as const).map((key) => (
-                    <div key={key} className="grid gap-1.5">
-                      <Label htmlFor={`${item.id}-${key}`}>
+                    <div
+                      key={key}
+                      className={key === "rawText" ? "grid gap-1.5 sm:col-span-2" : "grid gap-1.5"}
+                    >
+                      <Label
+                        htmlFor={`${item.id}-${key}`}
+                        className="text-sm font-medium text-ink-3"
+                      >
                         {
                           {
                             rawText: t`Original text`,
@@ -470,12 +496,12 @@ export function RecipeDraftEditor() {
                     </div>
                   ))}
                   <div className="grid gap-1.5">
-                    <Label htmlFor={`${item.id}-prep`}>
+                    <Label htmlFor={`${item.id}-prep`} className="text-sm font-medium text-ink-3">
                       <Trans>Preparation</Trans>
                     </Label>
                     <select
                       id={`${item.id}-prep`}
-                      className="min-h-11 rounded-md border bg-background px-3"
+                      className={`min-h-11 ${nativeSelectClass}`}
                       value={item.preparation}
                       onChange={(event) =>
                         updateIngredient(item.id, (current) => ({
@@ -490,8 +516,8 @@ export function RecipeDraftEditor() {
                     </select>
                   </div>
                   <Button
-                    variant="outline"
-                    className="min-h-11 w-fit"
+                    variant="ghost"
+                    className="min-h-11 w-fit self-end text-ink-3 hover:text-destructive"
                     onClick={() =>
                       updateDraft((current) => ({
                         ...current,
@@ -501,6 +527,7 @@ export function RecipeDraftEditor() {
                       }))
                     }
                   >
+                    <Trash2 aria-hidden="true" />
                     {t`Remove ingredient ${index + 1}`}
                   </Button>
                 </fieldset>
@@ -512,27 +539,36 @@ export function RecipeDraftEditor() {
               disabled={draft.ingredients.length >= MAX_INGREDIENTS}
               onClick={addIngredient}
             >
+              <Plus aria-hidden="true" />
               <Trans>Add ingredient</Trans>
             </Button>
-            <section className="grid gap-1 rounded-lg border p-3" aria-label={t`Source metadata`}>
-              <h2 className="font-medium">
-                <Trans>Source details (provenance only)</Trans>
-              </h2>
-              <p className="text-sm">{t`Site: ${site}`}</p>
-              <p className="text-sm">{t`Author: ${author}`}</p>
-              <p className="text-sm">{t`Imported: ${importedAt}`}</p>
-              <p className="break-all text-sm">{t`Source URL: ${sourceLink}`}</p>
-              {safeSourceUrl(draft.source.url) ? (
-                <a
-                  className="min-h-11 content-center text-sm underline"
-                  href={safeSourceUrl(draft.source.url)!}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Trans>Open source URL</Trans>
-                </a>
-              ) : null}
-            </section>
+            <Details
+              summary={
+                <h3 className="text-sm">
+                  <Trans>Source details (provenance only)</Trans>
+                </h3>
+              }
+            >
+              <section
+                className="grid gap-1 rounded-2xl bg-paper-2 px-4 py-3"
+                aria-label={t`Source metadata`}
+              >
+                <p className="text-sm text-ink-2">{t`Site: ${site}`}</p>
+                <p className="text-sm text-ink-2">{t`Author: ${author}`}</p>
+                <p className="text-sm text-ink-2">{t`Imported: ${importedAt}`}</p>
+                <p className="text-sm break-all text-ink-2">{t`Source URL: ${sourceLink}`}</p>
+                {safeSourceUrl(draft.source.url) ? (
+                  <a
+                    className={`min-h-11 w-fit content-center text-sm ${textLinkClass}`}
+                    href={safeSourceUrl(draft.source.url)!}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Trans>Open source URL</Trans>
+                  </a>
+                ) : null}
+              </section>
+            </Details>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -547,9 +583,9 @@ export function RecipeDraftEditor() {
                 <Trans>Discard draft</Trans>
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       ) : null}
-    </main>
+    </Page>
   );
 }

@@ -1,7 +1,9 @@
 import type { LoggingStreakOutput } from "@openvalens/api/contracts/nutrition-targets";
 import { presentLoggingStreak, STREAK_COPY } from "@openvalens/api/presenters/logging-streak";
 import { useLingui } from "@lingui/react/macro";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Flame } from "lucide-react";
+
+import { ToneIcon } from "@/components/page";
 
 /**
  * The opt-in logging streak (Issue #90). Renders nothing unless the server
@@ -12,19 +14,25 @@ export function LoggingStreakCard({ streak }: { streak: LoggingStreakOutput | un
   const view = presentLoggingStreak(streak);
   if (!view) return null;
   return (
-    <Card aria-label={i18n._(STREAK_COPY.title)}>
-      <CardHeader>
-        <CardTitle className="text-base">{i18n._(view.headline)}</CardTitle>
-      </CardHeader>
-      {view.lines.length ? (
-        <CardContent className="grid gap-1 text-sm text-muted-foreground">
-          {view.lines
-            .map((line) => i18n._(line))
-            .map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-        </CardContent>
-      ) : null}
-    </Card>
+    <section
+      aria-label={i18n._(STREAK_COPY.title)}
+      className="sheet flex min-w-0 items-center gap-4 p-5"
+    >
+      <ToneIcon icon={Flame} tone="food" size="lg" />
+      <div className="grid min-w-0 gap-0.5">
+        <p className="font-display text-lg leading-snug font-medium text-ink">
+          {i18n._(view.headline)}
+        </p>
+        {view.lines.length
+          ? view.lines
+              .map((line) => i18n._(line))
+              .map((line) => (
+                <p key={line} className="text-sm text-ink-3">
+                  {line}
+                </p>
+              ))
+          : null}
+      </div>
+    </section>
   );
 }

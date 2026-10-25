@@ -1,13 +1,16 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { relativeTime } from "@openvalens/api/presenters/cochat";
 import { Button } from "@openvalens/ui/components/button";
-import { Card, CardContent } from "@openvalens/ui/components/card";
+import { Input } from "@openvalens/ui/components/input";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
-import { ProductSettingsStatus } from "@/components/product-settings-status";
+import { cn } from "@openvalens/ui/lib/utils";
+import { ArrowLeft, Send, Sparkles } from "lucide-react";
+
+import { ErrorState, ToneIcon } from "@/components/page";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 
@@ -51,38 +54,43 @@ function CoachThreadPage() {
 
   if (messages.isPending) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <Skeleton className="h-64 w-full" />
+      <div className="grid max-w-[68ch] gap-4" aria-hidden="true">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-20 w-4/5 rounded-3xl" />
+        <Skeleton className="ml-auto h-16 w-3/5 rounded-3xl" />
+        <Skeleton className="h-12 w-full rounded-full" />
       </div>
     );
   }
 
   if (messages.isError || !messages.data) {
     return (
-      <div className="container mx-auto max-w-3xl px-4 py-6">
-        <h1 className="mb-6 text-2xl font-semibold">
-          <Trans>Coach</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Could not load this conversation.</Trans>{" "}
-          <button className="underline" onClick={() => void messages.refetch()}>
+      <ErrorState
+        title={<Trans>Could not load this conversation.</Trans>}
+        action={
+          <Button variant="outline" size="sm" onClick={() => void messages.refetch()}>
             <Trans>Retry</Trans>
-          </button>
-        </p>
-      </div>
+          </Button>
+        }
+      />
     );
   }
 
   const list = messages.data;
 
   return (
-    <div className="container mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
-      <div className="flex items-center justify-between">
-        <Link to="/coach" className="text-sm text-muted-foreground underline">
-          <Trans>← All conversations</Trans>
+    <section className="grid max-w-[68ch] gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          to="/coach"
+          className="inline-flex items-center gap-1.5 rounded-full px-1 text-sm font-medium text-ink-2 no-underline hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:invisible"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          <Trans>All conversations</Trans>
         </Link>
         <Button
-          variant="outline"
+          variant="ghost"
+          size="sm"
           onClick={() => navigate({ to: "/coach" })}
           disabled={send.isPending}
         >
@@ -90,67 +98,76 @@ function CoachThreadPage() {
         </Button>
       </div>
 
-      <ProductSettingsStatus />
-
       <div
         ref={listRef}
-        className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-card p-4"
+        className="grid max-h-[calc(100dvh-18rem)] min-h-64 content-start gap-4 overflow-y-auto px-1 py-2"
       >
         {list.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground">
-            <Trans>No messages yet — say hello to start.</Trans>
+          <p className="py-6 text-ink-3">
+            <Trans>No messages yet. Say hello to start.</Trans>
           </p>
         ) : (
-          list.map((message) => (
-            <Card
-              key={message.id}
-              className={message.role === "user" ? "border-primary-primary" : ""}
-            >
-              <CardContent className="p-3">
-                <div className="mb-1 text-xs text-muted-foreground">
-                  {message.role === "user" ? t`You` : t`Coach`} ·{" "}
-                  {i18n._(relativeTime(message.createdAt, new Date(), settings))}
+          list.map((message) => {
+            const mine = message.role === "user";
+            return (
+              <article
+                key={message.id}
+                className={cn("flex items-end gap-2.5", mine ? "justify-end" : "justify-start")}
+              >
+                {mine ? null : <ToneIcon icon={Sparkles} tone="signal" size="sm" />}
+                <div
+                  className={cn(
+                    "grid max-w-[85%] gap-1 px-4 py-3",
+                    mine
+                      ? "rounded-3xl rounded-br-lg bg-sidebar-accent"
+                      : "rounded-3xl rounded-bl-lg border border-rule bg-card shadow-sm",
+                  )}
+                >
+                  <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                    <span className="font-semibold text-ink">{mine ? t`You` : t`Coach`}</span>
+                    <span className="text-ink-3">
+                      {i18n._(relativeTime(message.createdAt, new Date(), settings))}
+                    </span>
+                  </p>
+                  <div className="whitespace-pre-wrap text-ink-2">{message.content}</div>
                 </div>
-                <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-              </CardContent>
-            </Card>
-          ))
+              </article>
+            );
+          })
         )}
         {send.isPending ? (
-          <Card>
-            <CardContent className="p-3">
-              <div className="mb-1 text-xs text-muted-foreground">
-                <Trans>Coach · thinking…</Trans>
-              </div>
-              <div className="text-sm text-muted-foreground">…</div>
-            </CardContent>
-          </Card>
+          <p role="status" className="flex items-center gap-2.5 text-sm text-ink-3">
+            <ToneIcon icon={Sparkles} tone="signal" size="sm" />
+            <Trans>Coach is thinking…</Trans>
+          </p>
         ) : null}
         {send.isError ? (
-          <p className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive">
             <Trans>Could not send. Check AI consent in Settings.</Trans>
           </p>
         ) : null}
       </div>
 
       <form
-        className="flex gap-2"
+        className="sheet sticky bottom-2 flex items-center gap-2 rounded-full p-1.5 pl-2"
         onSubmit={(event) => {
           event.preventDefault();
           void submit();
         }}
       >
-        <input
-          className="min-h-11 flex-1 rounded-lg border border-border bg-card px-3 text-base"
+        <Input
+          className="flex-1 rounded-full border-transparent bg-transparent shadow-none"
+          aria-label={t`Ask the coach anything…`}
           placeholder={t`Ask the coach anything…`}
           value={input}
           onChange={(event) => setInput(event.target.value)}
           disabled={send.isPending}
         />
         <Button type="submit" disabled={send.isPending || input.trim().length === 0}>
+          <Send aria-hidden="true" />
           {send.isPending ? t`Sending…` : t`Send`}
         </Button>
       </form>
-    </div>
+    </section>
   );
 }

@@ -1,10 +1,37 @@
+import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
 import { Trans } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  CalendarHeart,
+  ChefHat,
+  Dumbbell,
+  FileDown,
+  FlaskConical,
+  Footprints,
+  Gauge,
+  HeartPulse,
+  History,
+  KeyRound,
+  LayoutDashboard,
+  Leaf,
+  Lock,
+  type LucideIcon,
+  Menu,
+  MessageCircle,
+  MessageSquareText,
+  Moon,
+  PersonStanding,
+  Pill,
+  Scale,
+  Settings,
+  ShieldCheck,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react";
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 
 import { Button } from "@openvalens/ui/components/button";
 import {
@@ -22,43 +49,60 @@ import { adminAccessQueryOptions } from "@/utils/admin-settings";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
-const BASE_LINKS = [
-  { to: "/", label: msg`Home` },
-  { to: "/dashboard", label: msg`Dashboard` },
-  { to: "/scores", label: msg`Scores` },
-  { to: "/preventive-care", label: msg`Preventive care` },
-  { to: "/coach", label: msg`Coach` },
-  { to: "/body", label: msg`Body` },
-  { to: "/body-map", label: msg`Body map` },
-  { to: "/private-measurements", label: msg`Private measurements` },
-  { to: "/cycle", label: msg`Cycle` },
-  { to: "/nutrition", label: msg`Meal diary` },
-  { to: "/micronutrients", label: msg`Micronutrients` },
-  { to: "/recipe-drafts", label: msg`Recipe draft` },
-  { to: "/food-draft", label: msg`Describe a meal` },
-  { to: "/supplements", label: msg`Supplements` },
-  { to: "/workouts", label: msg`Workouts` },
-  { to: "/records/timeline", label: msg`Timeline` },
-  { to: "/records/sleep", label: msg`Sleep` },
-  { to: "/records/activity", label: msg`Activity` },
-  { to: "/records/vitals", label: msg`Vitals` },
-  { to: "/records/labs", label: msg`Labs` },
-  { to: "/exports", label: msg`Clinical export` },
-  { to: "/sharing", label: msg`Sharing` },
-  { to: "/settings", label: msg`Settings` },
-] as const;
+type NavLink = { to: string; label: MessageDescriptor; icon: LucideIcon };
+type NavGroup = { label: MessageDescriptor; links: readonly NavLink[] };
 
-export default function Header() {
+// Twenty-odd destinations read as one undifferentiated row; grouped by what
+// someone came to do, each group stays short enough to scan.
+const NAV_GROUPS: readonly NavGroup[] = [
+  {
+    label: msg`Today`,
+    links: [
+      { to: "/dashboard", label: msg`Dashboard`, icon: LayoutDashboard },
+      { to: "/coach", label: msg`Coach`, icon: MessageCircle },
+      { to: "/scores", label: msg`Scores`, icon: Gauge },
+      { to: "/preventive-care", label: msg`Preventive care`, icon: ShieldCheck },
+    ],
+  },
+  {
+    label: msg`My body`,
+    links: [
+      { to: "/records/sleep", label: msg`Sleep`, icon: Moon },
+      { to: "/records/activity", label: msg`Activity`, icon: Footprints },
+      { to: "/records/vitals", label: msg`Vitals`, icon: HeartPulse },
+      { to: "/body", label: msg`Body`, icon: Scale },
+      { to: "/records/labs", label: msg`Labs`, icon: FlaskConical },
+      { to: "/cycle", label: msg`Cycle`, icon: CalendarHeart },
+      { to: "/body-map", label: msg`Body map`, icon: PersonStanding },
+      { to: "/private-measurements", label: msg`Private measurements`, icon: Lock },
+      { to: "/records/timeline", label: msg`Timeline`, icon: History },
+    ],
+  },
+  {
+    label: msg`Habits`,
+    links: [
+      { to: "/nutrition", label: msg`Meal diary`, icon: UtensilsCrossed },
+      { to: "/food-draft", label: msg`Describe a meal`, icon: MessageSquareText },
+      { to: "/recipe-drafts", label: msg`Recipe draft`, icon: ChefHat },
+      { to: "/micronutrients", label: msg`Micronutrients`, icon: Leaf },
+      { to: "/workouts", label: msg`Workouts`, icon: Dumbbell },
+      { to: "/supplements", label: msg`Supplements`, icon: Pill },
+    ],
+  },
+];
+
+const ADMIN_LINK: NavLink = { to: "/admin/settings", label: msg`Administration`, icon: KeyRound };
+const SETTINGS_LINK: NavLink = { to: "/settings", label: msg`Settings`, icon: Settings };
+const EXPORT_LINK: NavLink = { to: "/exports", label: msg`Clinical export`, icon: FileDown };
+const SHARING_LINK: NavLink = { to: "/sharing", label: msg`Sharing`, icon: Users };
+
+const linkClasses =
+  "flex min-h-10 items-center gap-3 rounded-2xl px-3 py-2 font-body text-[0.9375rem] font-medium text-ink-2 whitespace-nowrap transition-colors duration-[var(--dur-short)] hover:bg-muted hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring active:bg-paper-2 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-semibold aria-[current=page]:text-sidebar-accent-foreground [&>svg]:size-[19px] [&>svg]:shrink-0 [&>svg]:text-ink-3 aria-[current=page]:[&>svg]:text-signal";
+
+function useNavGroups() {
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const userId = session?.user?.id;
   const hasUserId = !!userId;
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const mobileNavRef = useRef<HTMLElement>(null);
-  const location = useLocation();
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
 
   const access = useQuery({
     ...adminAccessQueryOptions(userId ?? ""),
@@ -73,97 +117,188 @@ export default function Header() {
     !access.isError &&
     access.data?.isInstanceAdmin === true;
 
-  const links = showAdministration
-    ? [...BASE_LINKS, { to: "/admin/settings" as const, label: msg`Administration` }]
-    : BASE_LINKS;
+  const more: NavGroup = {
+    label: msg`More`,
+    links: [EXPORT_LINK, SHARING_LINK, SETTINGS_LINK, ...(showAdministration ? [ADMIN_LINK] : [])],
+  };
 
+  return { groups: [...NAV_GROUPS, more], signedIn: hasUserId, sessionPending };
+}
+
+function Wordmark() {
   const { _ } = useLingui();
-  const linkClasses =
-    "text-foreground hover:text-foreground/80 whitespace-nowrap rounded-sm px-1 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:font-semibold";
-
   return (
-    <header className="min-w-0 px-2 py-1">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="2xl:hidden"
-                aria-label={_(msg`Open navigation menu`)}
-              >
-                <Menu className="h-4 w-4" aria-hidden="true" />
-                <span className="ml-2 hidden sm:inline">
-                  <Trans>Menu</Trans>
-                </span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-[min(20rem,85vw)]"
-              onOpenAutoFocus={(event) => {
-                // Land on the current page's link (or the first one) rather than
-                // whichever control Radix finds first mid-animation.
-                event.preventDefault();
-                const nav = mobileNavRef.current;
-                const target =
-                  nav?.querySelector<HTMLElement>('a[aria-current="page"]') ??
-                  nav?.querySelector<HTMLElement>("a");
-                target?.focus();
-              }}
-            >
-              <SheetHeader>
-                <SheetTitle>
-                  <Trans>Menu</Trans>
-                </SheetTitle>
-                <SheetDescription className="sr-only">
-                  <Trans>Navigate the app</Trans>
-                </SheetDescription>
-              </SheetHeader>
-              <nav
-                ref={mobileNavRef}
-                className="flex min-h-0 flex-col gap-1 overflow-y-auto px-4 pb-4"
-                aria-label={_(msg`Mobile navigation`)}
-              >
-                {links.map(({ to, label }) => (
-                  <Link
-                    key={to}
-                    to={to}
-                    className={linkClasses}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {_(label)}
-                  </Link>
-                ))}
-                <hr className="my-2" />
-                <div className="py-1">
-                  <ModeToggle />
-                </div>
-              </nav>
-            </SheetContent>
-          </Sheet>
+    <Link
+      to="/"
+      aria-label={_(msg`OpenValens home`)}
+      className="flex items-center gap-2 rounded-full font-display text-xl font-semibold tracking-[-0.01em] text-ink no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      <span
+        className="size-7 rounded-[10px] bg-[radial-gradient(circle_at_35%_35%,var(--tone-steps-soft),var(--signal))]"
+        aria-hidden="true"
+      />
+      OpenValens
+    </Link>
+  );
+}
 
-          <nav
-            className="hidden min-w-0 items-center gap-x-3 text-sm 2xl:flex"
-            aria-label={_(msg`Main navigation`)}
+function NavGroups({
+  groups,
+  label,
+  navRef,
+  onNavigate,
+}: {
+  groups: readonly NavGroup[];
+  label: string;
+  navRef?: RefObject<HTMLElement | null>;
+  onNavigate?: () => void;
+}) {
+  const { _ } = useLingui();
+  return (
+    <nav ref={navRef} aria-label={label} className="grid gap-5">
+      {groups.map((group) => (
+        <div key={group.label.id} className="grid gap-0.5">
+          <p
+            id={`nav-${label.length}-${group.label.id}`}
+            className="px-3 pb-1 text-[0.8125rem] font-semibold text-ink-3"
           >
-            {links.map(({ to, label }) => (
-              <Link key={to} to={to} className={linkClasses}>
-                {_(label)}
-              </Link>
+            {_(group.label)}
+          </p>
+          <ul aria-labelledby={`nav-${label.length}-${group.label.id}`} className="grid gap-px">
+            {group.links.map(({ to, label: linkLabel, icon: Icon }) => (
+              <li key={to}>
+                <Link to={to} className={linkClasses} onClick={onNavigate}>
+                  <Icon aria-hidden="true" />
+                  {_(linkLabel)}
+                </Link>
+              </li>
             ))}
-          </nav>
+          </ul>
         </div>
+      ))}
+    </nav>
+  );
+}
 
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="hidden 2xl:block">
-            <ModeToggle />
+/**
+ * The app's frame. Signed in: a grouped sidebar from 60rem up, and a top bar
+ * with a menu sheet below it. Signed out: a top bar with the wordmark only.
+ */
+export default function AppShell({ children }: { children: ReactNode }) {
+  const { groups, signedIn, sessionPending } = useNavGroups();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileNavRef = useRef<HTMLElement>(null);
+  const location = useLocation();
+  const { _ } = useLingui();
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  const skipLink = (
+    <a
+      href="#content"
+      className="absolute -top-24 left-4 z-[var(--z-toast)] bg-ink px-3 py-2 font-display text-sm text-paper focus-visible:top-4"
+    >
+      <Trans>Skip to content</Trans>
+    </a>
+  );
+
+  if (!signedIn) {
+    return (
+      <div className="grid min-h-svh grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr]">
+        {skipLink}
+        <header className="border-b border-rule">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 md:px-8">
+            <Wordmark />
+            <div className="flex items-center gap-2">
+              <ModeToggle />
+              {sessionPending ? null : <UserMenu />}
+            </div>
           </div>
-          <UserMenu />
+        </header>
+        <div id="content" className="min-w-0">
+          {children}
         </div>
       </div>
-      <hr />
-    </header>
+    );
+  }
+
+  return (
+    <div className="grid min-h-svh grid-cols-[minmax(0,1fr)] lg:grid-cols-[15rem_minmax(0,1fr)]">
+      {skipLink}
+      <div className="hidden border-r border-sidebar-border bg-sidebar/80 backdrop-blur-sm lg:block">
+        <aside className="sticky top-0 flex h-svh flex-col">
+          <div className="flex h-16 shrink-0 items-center px-5">
+            <Wordmark />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-2 pb-6">
+            <NavGroups groups={groups} label={_(msg`Main navigation`)} />
+          </div>
+          <div className="flex shrink-0 items-center gap-2 border-t border-sidebar-border px-3 py-3">
+            <div className="min-w-0 flex-1">
+              <UserMenu />
+            </div>
+            <ModeToggle />
+          </div>
+        </aside>
+      </div>
+
+      <div className="grid min-w-0 grid-rows-[auto_1fr] lg:grid-rows-[1fr]">
+        <header className="sticky top-0 z-[var(--z-sticky-nav)] flex h-14 items-center justify-between gap-2 border-b border-rule bg-paper px-4 lg:hidden">
+          <div className="flex min-w-0 items-center gap-3">
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" aria-label={_(msg`Open navigation menu`)}>
+                  <Menu className="size-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">
+                    <Trans>Menu</Trans>
+                  </span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-[min(20rem,85vw)] bg-sidebar"
+                onOpenAutoFocus={(event) => {
+                  // Land on the current page's link (or the first one) rather than
+                  // whichever control Radix finds first mid-animation.
+                  event.preventDefault();
+                  const nav = mobileNavRef.current;
+                  const target =
+                    nav?.querySelector<HTMLElement>('a[aria-current="page"]') ??
+                    nav?.querySelector<HTMLElement>("a");
+                  target?.focus();
+                }}
+              >
+                <SheetHeader>
+                  <SheetTitle>
+                    <Trans>Menu</Trans>
+                  </SheetTitle>
+                  <SheetDescription className="sr-only">
+                    <Trans>Navigate the app</Trans>
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="min-h-0 overflow-y-auto px-2 pb-4">
+                  <NavGroups
+                    groups={groups}
+                    label={_(msg`Mobile navigation`)}
+                    navRef={mobileNavRef}
+                    onNavigate={() => setMobileOpen(false)}
+                  />
+                  <div className="mt-5 border-t border-sidebar-border px-3 pt-4">
+                    <ModeToggle />
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <Wordmark />
+          </div>
+          <UserMenu />
+        </header>
+        <div id="content" className="min-w-0">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

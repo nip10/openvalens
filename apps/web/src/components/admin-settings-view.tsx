@@ -1,7 +1,26 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Badge } from "@openvalens/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@openvalens/ui/components/card";
+import { Button } from "@openvalens/ui/components/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@openvalens/ui/components/table";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
+
+import { Settings2, ShieldX } from "lucide-react";
+
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Figure,
+  PageHeader,
+  Section,
+  StatusPill,
+} from "@/components/page";
 import type { AdminConfigurationEntry } from "@/utils/admin-settings-keys";
 
 export type AdminSettingsViewProps = {
@@ -12,6 +31,10 @@ export type AdminSettingsViewProps = {
   onRetryConfig?: () => void;
 };
 
+/**
+ * The head of the instance screen and its configuration inventory. Rendered
+ * inside the route's `Page`; the route adds the display defaults and backups.
+ */
 export function AdminSettingsView({
   accessState,
   configState,
@@ -21,15 +44,11 @@ export function AdminSettingsView({
 }: AdminSettingsViewProps) {
   const { t } = useLingui();
   return (
-    <main className="container mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">
-          <Trans>Instance configuration</Trans>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          <Trans>Administration</Trans>
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title={<Trans>Instance configuration</Trans>}
+        description={<Trans>Administration</Trans>}
+      />
 
       {accessState === "loading" ? (
         <LoadingCard />
@@ -46,121 +65,131 @@ export function AdminSettingsView({
       ) : (
         <ConfigurationList entries={entries ?? []} />
       )}
-    </main>
+    </>
   );
 }
 
 function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) {
   const { t } = useLingui();
+  const configured = entries.filter((entry) => entry.configured).length;
+  const sensitive = entries.filter((entry) => entry.sensitive).length;
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Environment configuration</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <p className="text-sm text-muted-foreground">
-          <Trans>
-            Startup configuration is read-only. Values are hidden for security, even for
-            non-sensitive keys.
-          </Trans>
-        </p>
-
-        {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            <Trans>No configuration keys reported.</Trans>
-          </p>
-        ) : (
-          <ul className="grid gap-2" role="list" aria-label={t`Configuration keys`}>
-            {entries.map((entry) => (
-              <ConfigurationRow key={entry.key} entry={entry} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+    <Section
+      icon={Settings2}
+      tone="signal"
+      title={<Trans>Environment configuration</Trans>}
+      info={
+        <Trans>
+          Startup configuration is read-only. Values are hidden for security, even for non-sensitive
+          keys.
+        </Trans>
+      }
+    >
+      {entries.length === 0 ? (
+        <EmptyState icon={Settings2} title={<Trans>No configuration keys reported.</Trans>} />
+      ) : (
+        <div className="sheet grid gap-4 p-5">
+          <dl className="m-0 grid grid-cols-3 gap-4">
+            <Figure label={<Trans>Keys</Trans>} value={entries.length} />
+            <Figure label={<Trans>Configured</Trans>} value={configured} />
+            <Figure label={<Trans>Sensitive</Trans>} value={sensitive} />
+          </dl>
+          <Details summary={<Trans>All keys</Trans>}>
+            <Table aria-label={t`Configuration keys`}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Trans>Name</Trans>
+                  </TableHead>
+                  <TableHead>
+                    <Trans>Status</Trans>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map((entry) => (
+                  <ConfigurationRow key={entry.key} entry={entry} />
+                ))}
+              </TableBody>
+            </Table>
+          </Details>
+        </div>
+      )}
+    </Section>
   );
 }
 
 function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
   const { t } = useLingui();
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3">
-      <code className="break-all text-sm font-medium">{entry.key}</code>
-      <div className="flex flex-wrap gap-2">
-        {entry.configured ? (
-          <Badge variant="default" aria-label={t`${entry.key} configured`}>
-            <Trans>Configured</Trans>
-          </Badge>
-        ) : (
-          <Badge variant="secondary" aria-label={t`${entry.key} not set`}>
-            <Trans>Not set</Trans>
-          </Badge>
-        )}
-        {entry.sensitive ? (
-          <Badge variant="outline" aria-label={t`${entry.key} sensitive`}>
-            <Trans>Sensitive</Trans>
-          </Badge>
-        ) : null}
-      </div>
-    </li>
+    <TableRow>
+      <TableCell className="py-2.5 whitespace-normal">
+        <code className="text-sm break-all text-ink">{entry.key}</code>
+      </TableCell>
+      <TableCell className="py-2.5">
+        <span className="flex flex-wrap gap-1.5">
+          {entry.configured ? (
+            <span aria-label={t`${entry.key} configured`}>
+              <StatusPill tone="good">
+                <Trans>Configured</Trans>
+              </StatusPill>
+            </span>
+          ) : (
+            <span aria-label={t`${entry.key} not set`}>
+              <StatusPill tone="neutral">
+                <Trans>Not set</Trans>
+              </StatusPill>
+            </span>
+          )}
+          {entry.sensitive ? (
+            <span aria-label={t`${entry.key} sensitive`}>
+              <StatusPill tone="warn">
+                <Trans>Sensitive</Trans>
+              </StatusPill>
+            </span>
+          ) : null}
+        </span>
+      </TableCell>
+    </TableRow>
   );
 }
 
 function LoadingCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Environment configuration</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-14 w-full" />
-      </CardContent>
-    </Card>
+    <Section icon={Settings2} tone="signal" title={<Trans>Environment configuration</Trans>}>
+      <div className="sheet grid gap-3 p-5">
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+      </div>
+    </Section>
   );
 }
 
 function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Environment configuration</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          {message}{" "}
-          {onRetry ? (
-            <button className="underline" onClick={onRetry}>
+    <Section icon={Settings2} tone="signal" title={<Trans>Environment configuration</Trans>}>
+      <ErrorState
+        title={message}
+        action={
+          onRetry ? (
+            <Button variant="outline" onClick={onRetry}>
               <Trans>Retry</Trans>
-            </button>
-          ) : null}
-        </p>
-      </CardContent>
-    </Card>
+            </Button>
+          ) : undefined
+        }
+      />
+    </Section>
   );
 }
 
 function DeniedCard() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <Trans>Access denied</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          <Trans>You do not have access to instance administration.</Trans>
-        </p>
-      </CardContent>
-    </Card>
+    <EmptyState
+      icon={ShieldX}
+      title={<Trans>Access denied</Trans>}
+      description={<Trans>You do not have access to instance administration.</Trans>}
+    />
   );
 }

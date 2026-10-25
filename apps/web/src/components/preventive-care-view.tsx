@@ -18,16 +18,15 @@ import {
   preventivePageNotes,
 } from "@openvalens/api/presenters/preventive-care";
 import { Button } from "@openvalens/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@openvalens/ui/components/card";
 import { Label } from "@openvalens/ui/components/label";
 import { Switch } from "@openvalens/ui/components/switch";
 import { useState, type ReactNode } from "react";
+
+import { BookOpen, CalendarClock, MessageCircleQuestion, ShieldCheck } from "lucide-react";
+
+import { friendlyDate } from "@/utils/friendly";
+
+import { Details, InfoTip, PageHeader, StatTile, StatusPill, ToneIcon } from "./page";
 
 /**
  * Issue #97 — preventive care (web). Same view models and copy as native
@@ -58,7 +57,7 @@ function ItemControls({
   const [next, setNext] = useState(item.state.nextOn ?? "");
   const id = item.id.replace(/\W/g, "-");
   return (
-    <fieldset className="grid gap-3 border-t pt-3" disabled={pending}>
+    <fieldset className="grid gap-3" disabled={pending}>
       <legend className="sr-only">
         <Trans>Your record for {title}</Trans>
       </legend>
@@ -68,7 +67,7 @@ function ItemControls({
           <input
             id={`${id}-done`}
             type="date"
-            className="rounded-md border bg-background px-2 py-1 text-sm"
+            className="h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
             value={done}
             onChange={(event) => setDone(event.target.value)}
           />
@@ -89,7 +88,7 @@ function ItemControls({
               <input
                 id={`${id}-next`}
                 type="date"
-                className="rounded-md border bg-background px-2 py-1 text-sm"
+                className="h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
                 value={next}
                 onChange={(event) => setNext(event.target.value)}
               />
@@ -133,6 +132,7 @@ function ItemControls({
             <div className="flex items-center gap-2">
               <input
                 id={`${id}-invite`}
+                className="size-4 accent-signal disabled:cursor-not-allowed disabled:opacity-55"
                 type="checkbox"
                 checked={item.state.plan === "expect_invitation"}
                 onChange={(event) =>
@@ -156,8 +156,9 @@ function ItemControls({
           className="flex flex-wrap gap-3"
         >
           {(["decided_yes", "decided_no", "decided_later"] as const).map((plan) => (
-            <label key={plan} className="flex items-center gap-1 text-sm">
+            <label key={plan} className="flex items-center gap-1.5 text-sm text-ink-2">
               <input
+                className="size-4 accent-signal disabled:cursor-not-allowed disabled:opacity-55"
                 type="radio"
                 name={`${id}-decision`}
                 checked={item.state.plan === plan}
@@ -192,58 +193,89 @@ export function PreventiveItemCardView({
   pending: boolean;
   onUpdateItem: Handlers["onUpdateItem"];
 }) {
-  const { i18n } = useLingui();
+  const { t, i18n } = useLingui();
   const card = preventiveItemCard(i18n, item);
+  const lastDone = item.state.lastDoneOn;
+  const nextOn = item.state.nextOn;
+  const nextDay = nextOn ? friendlyDate(i18n, nextOn) : "";
+  const doneDay = lastDone ? friendlyDate(i18n, lastDone) : "";
+  const status = card.dateReachedText
+    ? { tone: "warn" as const, label: card.dateReachedText }
+    : nextOn
+      ? { tone: "neutral" as const, label: t`Next: ${nextDay}` }
+      : lastDone
+        ? { tone: "good" as const, label: t`Done: ${doneDay}` }
+        : null;
   return (
-    <Card role="article" aria-labelledby={`pc-${card.key}`}>
-      <CardHeader>
-        <CardTitle id={`pc-${card.key}`}>{card.title}</CardTitle>
-        <CardDescription>
-          <span className="font-medium text-foreground">{card.gradeLabel}</span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-2 text-sm">
+    <article
+      role="article"
+      aria-labelledby={`pc-${card.key}`}
+      className="sheet grid min-w-0 content-start gap-3 p-5"
+    >
+      <div className="flex items-start gap-3">
+        <ToneIcon icon={ShieldCheck} tone="water" />
+        <div className="grid min-w-0 flex-1 gap-1.5">
+          <div className="flex items-start gap-1">
+            <h3 id={`pc-${card.key}`} className="text-lg leading-tight text-ink">
+              {card.title}
+            </h3>
+            <InfoTip align="end">
+              {card.facts.length > 0 ? (
+                <ul className="list-disc pl-5">
+                  {card.facts.map((fact) => (
+                    <li key={fact}>{fact}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="text-ink-3">{card.framing}</p>
+              <p className="text-ink-3">
+                {card.citation}{" "}
+                <a className={LINK} href={card.sourceUrl} target="_blank" rel="noreferrer">
+                  {i18n._(PREVENTIVE_COPY.sourceLink)}
+                </a>
+                . {card.nonEndorsement}{" "}
+                <a
+                  className={LINK}
+                  href={PREVENTIVE_COPY.reportProblemUrl(card.key)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {i18n._(PREVENTIVE_COPY.reportProblem)}
+                </a>
+              </p>
+            </InfoTip>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-water-soft px-2.5 py-0.5 text-sm font-semibold text-ink">
+              {card.gradeLabel}
+            </span>
+            {status ? <StatusPill tone={status.tone}>{status.label}</StatusPill> : null}
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-1.5 text-sm text-ink-2">
         {card.beingReviewed ? <p>{i18n._(PREVENTIVE_COPY.beingReviewed)}</p> : null}
-        <p className="font-medium">{card.applicabilityText}</p>
-        {card.facts.length > 0 ? (
-          <ul className="list-disc pl-5">
-            {card.facts.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
-        ) : null}
+        <p className="text-ink-3">{card.applicabilityText}</p>
         {card.stateLines.map((line) => (
           <p key={line}>{line}</p>
         ))}
-        {card.dateReachedText ? <p className="font-medium">{card.dateReachedText}</p> : null}
         {card.decisionAidUrl ? (
-          <a className="underline" href={card.decisionAidUrl} target="_blank" rel="noreferrer">
+          <a className={LINK} href={card.decisionAidUrl} target="_blank" rel="noreferrer">
             {i18n._(PREVENTIVE_COPY.decisionAid)}
           </a>
         ) : null}
-        <p className="text-muted-foreground">{card.framing}</p>
-        <p className="text-xs text-muted-foreground">
-          {card.citation}{" "}
-          <a className="underline" href={card.sourceUrl} target="_blank" rel="noreferrer">
-            {i18n._(PREVENTIVE_COPY.sourceLink)}
-          </a>
-          . {card.nonEndorsement}{" "}
-          <a
-            className="underline"
-            href={PREVENTIVE_COPY.reportProblemUrl(card.key)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {i18n._(PREVENTIVE_COPY.reportProblem)}
-          </a>
-        </p>
-        {canEdit && !card.beingReviewed ? (
+      </div>
+      {canEdit && !card.beingReviewed ? (
+        <Details summary={<Trans>Update your record</Trans>}>
           <ItemControls item={item} pending={pending} onUpdateItem={onUpdateItem} />
-        ) : null}
-      </CardContent>
-    </Card>
+        </Details>
+      ) : null}
+    </article>
   );
 }
+
+const LINK =
+  "text-ink underline decoration-signal underline-offset-[0.15em] transition-colors duration-[var(--dur-short)] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 function Criteria({
   result,
@@ -257,20 +289,34 @@ function Criteria({
   const { i18n } = useLingui();
   if (result.criteria.length === 0) return null;
   return (
-    <Card role="region" aria-labelledby="pc-criteria">
-      <CardHeader>
-        <CardTitle id="pc-criteria">{i18n._(PREVENTIVE_COPY.criteriaTitle)}</CardTitle>
-        <CardDescription>{i18n._(PREVENTIVE_COPY.criteriaIntro)}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
+    <section role="region" aria-labelledby="pc-criteria" className="grid content-start gap-3">
+      <div className="flex items-center gap-2">
+        <ToneIcon icon={MessageCircleQuestion} tone="water" size="sm" />
+        <h2 id="pc-criteria" className="text-xl leading-tight text-ink">
+          {i18n._(PREVENTIVE_COPY.criteriaTitle)}
+        </h2>
+        <InfoTip>
+          <p>{i18n._(PREVENTIVE_COPY.criteriaIntro)}</p>
+        </InfoTip>
+      </div>
+      <div className="sheet divide-y divide-rule">
         {result.criteria.map((criterion) => (
-          <fieldset key={criterion.id} className="grid gap-1" disabled={pending || !result.canEdit}>
-            <legend className="text-sm font-medium">{criterion.question}</legend>
-            <p className="text-xs text-muted-foreground">{criterion.purpose}</p>
-            <div className="flex flex-wrap items-center gap-3">
+          <fieldset
+            key={criterion.id}
+            className="grid gap-1 px-5 py-4"
+            disabled={pending || !result.canEdit}
+          >
+            <legend className="mb-1 flex items-center gap-1 font-semibold text-ink">
+              {criterion.question}
+              <InfoTip align="end">
+                <p>{criterion.purpose}</p>
+              </InfoTip>
+            </legend>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
               {DECLARATION_ANSWERS.map((answer) => (
-                <label key={answer} className="flex items-center gap-1 text-sm">
+                <label key={answer} className="flex items-center gap-1.5 text-sm text-ink-2">
                   <input
+                    className="size-4 accent-signal disabled:cursor-not-allowed disabled:opacity-55"
                     type="radio"
                     name={`criterion-${criterion.id}`}
                     checked={criterion.answer === answer}
@@ -287,54 +333,67 @@ function Criteria({
             </div>
           </fieldset>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
 export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResult }) {
   const { i18n } = useLingui();
   const version = library.version;
-  if (!library.enabled)
-    return <p className="text-sm text-muted-foreground">{i18n._(LIBRARY_COPY.off)}</p>;
+  if (!library.enabled) return <p className="text-sm text-ink-3">{i18n._(LIBRARY_COPY.off)}</p>;
   return (
-    <section aria-labelledby="pc-library" className="grid gap-3">
-      <h2 id="pc-library" className="text-xl font-semibold">
-        {i18n._(LIBRARY_COPY.title)}
-      </h2>
-      <p className="text-sm text-muted-foreground">{i18n._(LIBRARY_COPY.intro)}</p>
-      {library.entries.map((entry) => {
-        const card = evidenceEntryCard(i18n, entry);
-        return (
-          <Card key={card.key} role="article" aria-labelledby={`ev-${card.key}`}>
-            <CardHeader>
-              <CardTitle id={`ev-${card.key}`}>{card.title}</CardTitle>
-              <CardDescription>
-                <span className="font-medium text-foreground">{card.verdictLabel}</span> ·{" "}
-                {card.certaintyLabel}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2 text-sm">
-              {card.lines.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-              <ul className="grid gap-1 text-xs text-muted-foreground">
-                {card.sources.map((source) => (
-                  <li key={source.url + source.citation}>
-                    <a className="underline" href={source.url} target="_blank" rel="noreferrer">
-                      {source.citation}
-                    </a>
-                    {source.note ? ` — ${source.note}` : null}
-                  </li>
+    <section aria-labelledby="pc-library" className="grid content-start gap-3">
+      <div className="flex items-center gap-2">
+        <ToneIcon icon={BookOpen} tone="water" size="sm" />
+        <h2 id="pc-library" className="text-xl leading-tight text-ink">
+          {i18n._(LIBRARY_COPY.title)}
+        </h2>
+        <InfoTip>
+          <p>{i18n._(LIBRARY_COPY.intro)}</p>
+          <p className="text-ink-3">
+            <Trans>Library {version}.</Trans>
+          </p>
+        </InfoTip>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {library.entries.map((entry) => {
+          const card = evidenceEntryCard(i18n, entry);
+          return (
+            <article
+              key={card.key}
+              role="article"
+              aria-labelledby={`ev-${card.key}`}
+              className="sheet grid min-w-0 content-start gap-2.5 p-5"
+            >
+              <h3 id={`ev-${card.key}`} className="text-base leading-tight text-ink">
+                {card.title}
+              </h3>
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <StatusPill tone="neutral">{card.verdictLabel}</StatusPill>
+                <span className="text-ink-3">{card.certaintyLabel}</span>
+              </p>
+              <div className="grid gap-2 text-sm text-ink-2">
+                {card.lines.map((line) => (
+                  <p key={line}>{line}</p>
                 ))}
-              </ul>
-            </CardContent>
-          </Card>
-        );
-      })}
-      <p className="text-xs text-muted-foreground">
-        <Trans>Library {version}.</Trans>
-      </p>
+              </div>
+              <Details summary={<Trans>Sources</Trans>} className="text-sm">
+                <ul className="grid gap-1 text-sm text-ink-3">
+                  {card.sources.map((source) => (
+                    <li key={source.url + source.citation}>
+                      <a className={LINK} href={source.url} target="_blank" rel="noreferrer">
+                        {source.citation}
+                      </a>
+                      {source.note ? <span className="block">{source.note}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </Details>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -350,74 +409,116 @@ export function PreventiveCareView({
   /** Link to the profile screen (router-specific, so passed in). */
   profileLink?: ReactNode;
 } & Handlers) {
-  const { i18n } = useLingui();
+  const { t, i18n } = useLingui();
   const page = preventivePageNotes(i18n, result);
+  const dueCount = result.items.filter((item) => item.dateReached).length;
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{i18n._(PREVENTIVE_COPY.pageTitle)}</h1>
-        <p className="text-sm text-muted-foreground">{i18n._(PREVENTIVE_COPY.pageIntro)}</p>
-      </div>
+    <>
+      <PageHeader
+        title={i18n._(PREVENTIVE_COPY.pageTitle)}
+        description={
+          <span className="text-sm">
+            {t({
+              message: "General public-health information, not personal medical advice.",
+              comment: "safety",
+            })}
+          </span>
+        }
+        info={
+          <>
+            <p>{i18n._(PREVENTIVE_COPY.pageIntro)}</p>
+            {page.statusText ? null : <p>{i18n._(PREVENTIVE_COPY.disclaimer)}</p>}
+            <p className="text-ink-3">{page.versionText}</p>
+          </>
+        }
+      />
       {page.statusText ? (
-        <div className="grid gap-2">
-          <p>{page.statusText}</p>
+        <div className="sheet grid justify-items-start gap-3 p-5">
+          <ToneIcon icon={ShieldCheck} tone="water" />
+          <p className="max-w-[65ch] text-ink-2">{page.statusText}</p>
           {result.status !== "owner_only" ? profileLink : null}
         </div>
       ) : (
         <>
-          {page.notes.map((note) => (
-            <p key={note} className="text-sm">
-              {note}
-            </p>
-          ))}
-          <Criteria result={result} pending={handlers.pending} onDeclare={handlers.onDeclare} />
-          <div className="grid gap-4">
-            {result.items.map((item) => (
-              <PreventiveItemCardView
-                key={item.id}
-                item={item}
-                canEdit={result.canEdit}
-                pending={handlers.pending}
-                onUpdateItem={handlers.onUpdateItem}
-              />
-            ))}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatTile
+              icon={ShieldCheck}
+              tone="water"
+              label={<Trans>For you</Trans>}
+              value={result.items.length}
+              note={
+                page.notes.length > 0 ? (
+                  <InfoTip>
+                    {page.notes.map((note) => (
+                      <p key={note}>{note}</p>
+                    ))}
+                  </InfoTip>
+                ) : null
+              }
+            />
+            <StatTile
+              icon={CalendarClock}
+              tone="water"
+              label={<Trans>Date reached</Trans>}
+              value={dueCount}
+              status={
+                dueCount > 0
+                  ? { tone: "warn", label: <Trans>Worth a look</Trans> }
+                  : { tone: "good", label: <Trans>All clear</Trans> }
+              }
+            />
           </div>
+          <ul className="grid items-start gap-4 md:grid-cols-2">
+            {result.items.map((item) => (
+              <li key={item.id} className="grid min-w-0">
+                <PreventiveItemCardView
+                  item={item}
+                  canEdit={result.canEdit}
+                  pending={handlers.pending}
+                  onUpdateItem={handlers.onUpdateItem}
+                />
+              </li>
+            ))}
+          </ul>
+          <Criteria result={result} pending={handlers.pending} onDeclare={handlers.onDeclare} />
           {result.notShown.length > 0 ? (
-            <details>
-              <summary className="cursor-pointer text-sm font-medium">
-                {i18n._(PREVENTIVE_COPY.notShownTitle)} ({result.notShown.length})
-              </summary>
-              <p className="text-sm text-muted-foreground">
+            <Details
+              summary={
+                <>
+                  {i18n._(PREVENTIVE_COPY.notShownTitle)}{" "}
+                  <span className="num text-ink-3">({result.notShown.length})</span>
+                </>
+              }
+            >
+              <p className="max-w-[65ch] text-sm text-ink-3">
                 {i18n._(PREVENTIVE_COPY.notShownIntro)}
               </p>
-              <ul className="list-disc pl-5 text-sm">
+              <ul className="mt-2 list-disc pl-5 text-sm text-ink-2">
                 {result.notShown.map((entry) => (
                   <li key={entry.id}>{entry.title}</li>
                 ))}
               </ul>
-            </details>
+            </Details>
           ) : null}
-          <p className="text-xs text-muted-foreground">{i18n._(PREVENTIVE_COPY.disclaimer)}</p>
           {result.canEdit ? (
-            <div className="flex items-start gap-2">
+            <div className="sheet flex items-start gap-3 p-5">
               <Switch
                 id="pc-library-toggle"
                 checked={result.libraryEnabled}
                 disabled={handlers.pending}
                 onCheckedChange={handlers.onLibrary}
               />
-              <div className="grid gap-1">
+              <div className="flex items-center gap-1">
                 <Label htmlFor="pc-library-toggle">{i18n._(PREVENTIVE_COPY.libraryToggle)}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {i18n._(PREVENTIVE_COPY.libraryToggleHint)}
-                </p>
+                <InfoTip>
+                  <p>{i18n._(PREVENTIVE_COPY.libraryToggleHint)}</p>
+                </InfoTip>
               </div>
             </div>
           ) : null}
           {library ? <EvidenceLibraryView library={library} /> : null}
         </>
       )}
-      <p className="text-xs text-muted-foreground">{page.versionText}</p>
-    </div>
+    </>
   );
 }

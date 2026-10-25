@@ -410,13 +410,13 @@ export function PlainWaterSection({
 
   const conflictCard =
     conflict === null ? null : (
-      <div className="grid gap-2 rounded-md border p-3 text-sm" role="alert">
-        <p className="font-medium">{i18n._(WATER_COPY.conflictTitle)}</p>
-        <p className="text-muted-foreground">{otherText(conflict)}</p>
-        <p className="text-muted-foreground">{mineText(conflict)}</p>
+      <div className="grid gap-2 rounded-2xl bg-warning/10 px-4 py-3 text-sm" role="alert">
+        <p className="font-display font-medium text-ink">{i18n._(WATER_COPY.conflictTitle)}</p>
+        <p className="text-ink-2">{otherText(conflict)}</p>
+        <p className="text-ink-2">{mineText(conflict)}</p>
         <div className="flex flex-wrap gap-2">
           {conflict.kind !== "add" && !conflict.server.deleted ? (
-            <Button size="sm" onClick={keepMine} disabled={busy !== null}>
+            <Button size="sm" variant="outline" onClick={keepMine} disabled={busy !== null}>
               {i18n._(WATER_COPY.keepMine)}
             </Button>
           ) : null}
@@ -428,8 +428,8 @@ export function PlainWaterSection({
     );
   const uncertainRetry =
     controllerState.status === "uncertain" ? (
-      <div className="flex items-center gap-2" role="alert">
-        <span>{i18n._(WATER_COPY.networkError)}</span>
+      <div className="flex flex-wrap items-center gap-2 text-sm" role="alert">
+        <span className="text-destructive">{i18n._(WATER_COPY.networkError)}</span>
         <Button size="sm" variant="outline" onClick={retryMutation} disabled={busy !== null}>
           {i18n._(WATER_COPY.retry)}
         </Button>
