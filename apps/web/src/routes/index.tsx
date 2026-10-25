@@ -2,8 +2,9 @@ import { Trans } from "@lingui/react/macro";
 import { buttonVariants } from "@openvalens/ui/components/button";
 import { useQuery } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { Apple, Footprints, HeartPulse, Moon, Scale } from "lucide-react";
 
-import { Page } from "@/components/page";
+import { Page, StatusPill, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
@@ -17,25 +18,35 @@ function HomeComponent() {
   const { data: session } = authClient.useSession();
 
   return (
-    <Page width="narrow" className="content-center gap-12 py-16 lg:py-24">
-      <div className="grid gap-5">
-        <h1 className="text-[2.75rem] leading-[0.98] tracking-[-0.035em] md:text-[4rem]">
+    <Page
+      width="narrow"
+      className="min-h-[calc(100svh-3.5rem)] content-center justify-items-center gap-10 py-16 text-center lg:py-24"
+    >
+      <div className="grid justify-items-center gap-6">
+        <div className="flex items-center gap-2" aria-hidden="true">
+          <ToneIcon icon={Moon} tone="sleep" size="sm" />
+          <ToneIcon icon={Footprints} tone="steps" size="sm" />
+          <ToneIcon icon={HeartPulse} tone="heart" size="sm" />
+          <ToneIcon icon={Scale} tone="weight" size="sm" />
+          <ToneIcon icon={Apple} tone="food" size="sm" />
+        </div>
+        <h1 className="font-display text-[3rem] leading-[0.98] font-medium tracking-[-0.035em] text-ink md:text-[4.5rem]">
           OpenValens
         </h1>
-        <p className="max-w-[40ch] text-xl leading-snug text-ink-2">
+        <p className="max-w-[34ch] text-xl leading-snug text-ink-2">
           <Trans>An open-source, private health record.</Trans>
         </p>
-        <div className="flex flex-wrap items-center gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           {session ? (
-            <Link to="/dashboard" className={buttonVariants()}>
+            <Link to="/dashboard" className={buttonVariants({ size: "lg" })}>
               <Trans>Open your dashboard</Trans>
             </Link>
           ) : (
             <>
-              <Link to="/login" className={buttonVariants()}>
+              <Link to="/login" className={buttonVariants({ size: "lg" })}>
                 <Trans>Sign in</Trans>
               </Link>
-              <Link to="/join" className={buttonVariants({ variant: "outline" })}>
+              <Link to="/join" className={buttonVariants({ variant: "outline", size: "lg" })}>
                 <Trans>Redeem invitation</Trans>
               </Link>
             </>
@@ -43,19 +54,23 @@ function HomeComponent() {
         </div>
       </div>
 
-      <dl className="grid max-w-sm grid-cols-[auto_1fr] items-baseline gap-x-6 border-t-2 border-rule-2 pt-3 text-sm">
-        <dt className="font-medium text-ink-3">
+      <dl className="flex items-center gap-2 text-sm text-ink-3">
+        <dt>
           <Trans>API Status</Trans>
         </dt>
-        <dd role="status" className={isConnected ? "text-success" : "text-ink-2"}>
+        <dd role="status" className="m-0">
           {readiness.isLoading ? (
-            <Trans>Checking...</Trans>
+            <StatusPill tone="neutral">
+              <Trans>Checking...</Trans>
+            </StatusPill>
           ) : isConnected ? (
-            <Trans>Connected</Trans>
+            <StatusPill tone="good">
+              <Trans>Connected</Trans>
+            </StatusPill>
           ) : (
-            <span className="text-destructive">
+            <StatusPill tone="bad">
               <Trans>Disconnected</Trans>
-            </span>
+            </StatusPill>
           )}
         </dd>
       </dl>

@@ -18,6 +18,8 @@ import {
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 
+import { Eye, SlidersHorizontal } from "lucide-react";
+
 import { ErrorState, Section } from "@/components/page";
 import {
   useProductSettingsForm,
@@ -128,8 +130,10 @@ function ReadyForm({
 
   return (
     <Section
+      icon={SlidersHorizontal}
+      tone="signal"
       title={<Trans>Display defaults</Trans>}
-      description={
+      info={
         <Trans>
           Instance-wide defaults affect how weight, distance, dates, and times appear. Stored values
           stay in canonical kilograms and meters; manual entry stays unchanged.
@@ -198,11 +202,12 @@ function ReadyForm({
           </div>
         </div>
 
-        <div className="grid gap-1.5 border-t border-rule pt-4">
-          <p className="text-sm font-medium text-ink-3">
+        <div className="grid gap-1.5 rounded-2xl bg-paper-2 px-4 py-3">
+          <p className="flex items-center gap-1.5 text-sm font-medium text-ink-3">
+            <Eye className="size-4 shrink-0" aria-hidden="true" />
             <Trans>Preview</Trans>
           </p>
-          <p className="flex flex-wrap gap-x-6 gap-y-1 text-ink">
+          <p className="flex flex-wrap gap-x-6 gap-y-1 font-display text-lg text-ink">
             <span className="num">
               {formatKg(PREVIEW_WEIGHT_KG, {
                 units: form.draft.units,
@@ -287,7 +292,11 @@ function FormStatus({
 
   if (status.tag === "conflict" || status.tag === "stale") {
     return (
-      <div role="alert" aria-live="polite" className="border-t-2 border-destructive pt-3">
+      <div
+        role="alert"
+        aria-live="polite"
+        className="rounded-2xl border border-destructive/40 bg-destructive/6 px-4 py-3"
+      >
         <p className="text-sm text-destructive">{message}</p>
         <Button
           type="button"
@@ -309,8 +318,10 @@ function FormStatus({
 function LoadingCard() {
   return (
     <Section
+      icon={SlidersHorizontal}
+      tone="signal"
       title={<Trans>Display defaults</Trans>}
-      description={
+      info={
         <Trans>Instance-wide defaults affect how weight, distance, dates, and times appear.</Trans>
       }
       sheet
@@ -330,7 +341,7 @@ function LoadingCard() {
 function ErrorCard({ message, onRetry }: { message?: string; onRetry: () => void }) {
   const { t } = useLingui();
   return (
-    <Section title={<Trans>Display defaults</Trans>}>
+    <Section icon={SlidersHorizontal} tone="signal" title={<Trans>Display defaults</Trans>}>
       <ErrorState
         title={message ?? t`Could not load display defaults.`}
         action={

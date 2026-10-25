@@ -3,18 +3,20 @@ import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Label } from "@openvalens/ui/components/label";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@openvalens/ui/components/table";
-import { cn } from "@openvalens/ui/lib/utils";
+import { CalendarX, CircleCheck, Clock, Mail, MailPlus, ShieldX } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+  StatusPill,
+  ToneIcon,
+} from "@/components/page";
+import { friendlyDate } from "@/utils/friendly";
 import type { AdmissionInvitationSummary } from "@/utils/admission-keys";
 
 export type AdminInvitationsViewProps = {
@@ -132,8 +134,10 @@ function GrantedView({
 
       <Section
         className="lg:col-start-2 lg:row-start-1"
+        icon={MailPlus}
+        tone="signal"
         title={<Trans>Invite a user</Trans>}
-        description={
+        info={
           <Trans>
             Invite someone to create an account. They will receive an invitation token by email.
           </Trans>
@@ -177,6 +181,14 @@ function GrantedView({
   );
 }
 
+/** Local calendar day as YYYY-MM-DD, for friendlyDate. */
+function localDay(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function InvitationsList({
   invitations,
   confirmRevoke,
@@ -192,125 +204,128 @@ function InvitationsList({
   onRequestRevoke: (id: string | null) => void;
   onRevoke: (id: string) => void | Promise<void>;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
+  const count = (status: AdmissionInvitationSummary["status"]) =>
+    invitations.filter((invitation) => invitation.status === status).length;
   return (
-    <Section
-      title={
-        <span className="flex items-baseline gap-3">
-          <Trans>Invitations</Trans>
-          <span className="num text-base font-medium text-ink-3">{invitations.length}</span>
-        </span>
-      }
-    >
-      {revokeError ? (
-        <p className="text-sm text-destructive" role="alert" aria-live="polite">
-          {revokeError}
-        </p>
+    <div className="grid gap-8">
+      {invitations.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatTile icon={Clock} label={<Trans>Pending</Trans>} value={count("pending")} />
+          <StatTile icon={CircleCheck} label={<Trans>Consumed</Trans>} value={count("consumed")} />
+          <StatTile icon={CalendarX} label={<Trans>Expired</Trans>} value={count("expired")} />
+        </div>
       ) : null}
-      {invitations.length === 0 ? (
-        <EmptyState title={<Trans>No invitations yet.</Trans>} />
-      ) : (
-        <Table className="sheet">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-5">
-                <Trans>Email</Trans>
-              </TableHead>
-              <TableHead>
-                <Trans>Status</Trans>
-              </TableHead>
-              <TableHead>
-                <Trans>Expires</Trans>
-              </TableHead>
-              <TableHead className="pr-5" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <Section
+        icon={Mail}
+        tone="signal"
+        title={
+          <span className="flex items-baseline gap-3">
+            <Trans>Invitations</Trans>
+            <span className="num text-base font-medium text-ink-3">{invitations.length}</span>
+          </span>
+        }
+      >
+        {revokeError ? (
+          <p className="text-sm text-destructive" role="alert" aria-live="polite">
+            {revokeError}
+          </p>
+        ) : null}
+        {invitations.length === 0 ? (
+          <EmptyState icon={MailPlus} title={<Trans>No invitations yet.</Trans>} />
+        ) : (
+          <ul className="grid min-w-0 gap-3 sm:grid-cols-2" aria-label={t`Invitations`}>
             {invitations.map((invitation) => (
-              <TableRow key={invitation.id}>
-                <TableCell className="py-2.5 pl-5 font-medium break-all whitespace-normal text-ink">
-                  {invitation.email}
-                </TableCell>
-                <TableCell className="py-2.5">
+              <li key={invitation.id} className="sheet grid min-w-0 content-start gap-3 p-4">
+                <div className="flex items-start gap-3">
+                  <ToneIcon icon={Mail} tone="signal" />
+                  <div className="grid min-w-0 flex-1 gap-1">
+                    <span className="font-semibold break-all text-ink">{invitation.email}</span>
+                    {invitation.expiresAt ? (
+                      <span className="text-sm text-ink-3">
+                        <Trans>Expires</Trans>{" "}
+                        <time
+                          dateTime={invitation.expiresAt.toISOString()}
+                          title={invitation.expiresAt.toLocaleString()}
+                        >
+                          {friendlyDate(i18n, localDay(invitation.expiresAt))}
+                        </time>
+                      </span>
+                    ) : null}
+                  </div>
                   <StatusBadge status={invitation.status} />
-                </TableCell>
-                <TableCell className="num text-left py-2.5 text-ink-3">
-                  {invitation.expiresAt ? invitation.expiresAt.toLocaleString() : null}
-                </TableCell>
-                <TableCell className="py-2 pr-5 text-right">
-                  {invitation.status === "pending" ? (
-                    <div className="flex items-center justify-end gap-2">
-                      {confirmRevoke === invitation.id ? (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onRequestRevoke(null)}
-                            disabled={revokingId === invitation.id}
-                          >
-                            <Trans>Cancel</Trans>
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => onRevoke(invitation.id)}
-                            disabled={revokingId === invitation.id}
-                          >
-                            {revokingId === invitation.id ? t`Revoking…` : t`Revoke`}
-                          </Button>
-                        </>
-                      ) : (
+                </div>
+                {invitation.status === "pending" ? (
+                  <div className="flex items-center justify-end gap-2">
+                    {confirmRevoke === invitation.id ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onRequestRevoke(null)}
+                          disabled={revokingId === invitation.id}
+                        >
+                          <Trans>Cancel</Trans>
+                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => onRequestRevoke(invitation.id)}
+                          onClick={() => onRevoke(invitation.id)}
                           disabled={revokingId === invitation.id}
                         >
-                          <Trans>Revoke</Trans>
+                          {revokingId === invitation.id ? t`Revoking…` : t`Revoke`}
                         </Button>
-                      )}
-                    </div>
-                  ) : null}
-                </TableCell>
-              </TableRow>
+                      </>
+                    ) : (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onRequestRevoke(invitation.id)}
+                        disabled={revokingId === invitation.id}
+                      >
+                        <Trans>Revoke</Trans>
+                      </Button>
+                    )}
+                  </div>
+                ) : null}
+              </li>
             ))}
-          </TableBody>
-        </Table>
-      )}
-    </Section>
+          </ul>
+        )}
+      </Section>
+    </div>
   );
 }
 
 function StatusBadge({ status }: { status: AdmissionInvitationSummary["status"] }) {
-  const word = "text-sm font-medium";
   if (status === "consumed") {
     return (
-      <span className={cn(word, "text-success")}>
+      <StatusPill tone="good">
         <Trans>Consumed</Trans>
-      </span>
+      </StatusPill>
     );
   }
   if (status === "expired") {
     return (
-      <span className={cn(word, "text-ink-3")}>
+      <StatusPill tone="neutral">
         <Trans>Expired</Trans>
-      </span>
+      </StatusPill>
     );
   }
   return (
-    <span className={cn(word, "text-ink-2")}>
+    <StatusPill tone="warn">
       <Trans>Pending</Trans>
-    </span>
+    </StatusPill>
   );
 }
 
 function LoadingCard() {
   return (
-    <div className="sheet grid gap-3 px-5 py-4">
-      <Skeleton className="h-5 w-1/3" />
-      <Skeleton className="h-8 w-full" />
-      <Skeleton className="h-8 w-full" />
-      <Skeleton className="h-8 w-full" />
+    <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+      <Skeleton className="h-28 w-full rounded-3xl" />
+      <Skeleton className="h-28 w-full rounded-3xl" />
+      <Skeleton className="h-28 w-full rounded-3xl" />
+      <Skeleton className="h-28 w-full rounded-3xl" />
     </div>
   );
 }
@@ -334,6 +349,7 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
 function DeniedCard() {
   return (
     <EmptyState
+      icon={ShieldX}
       title={<Trans>Access denied</Trans>}
       description={<Trans>You do not have access to instance administration.</Trans>}
     />

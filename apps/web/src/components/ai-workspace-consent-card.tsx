@@ -4,7 +4,10 @@ import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
 
+import { Building2, Sparkles } from "lucide-react";
+
 import { ErrorState, Section } from "@/components/page";
+import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 
 /** Workspace AI switch as the caller sees it, derived from the oRPC output type. */
 export type AiWorkspaceConsentState = Awaited<
@@ -40,13 +43,14 @@ export function AiWorkspaceConsentCard({
   return (
     <Section
       title={<Trans>AI for this workspace</Trans>}
-      description={
+      icon={Sparkles}
+      tone="signal"
+      info={
         <Trans comment="safety">
           The workspace owner decides whether AI features can be used in this workspace. When it is
           on, each person still has to give their own consent below before AI processes their data.
         </Trans>
       }
-      sheet
     >
       {status === "pending" ? (
         <Skeleton className="h-12 w-full" />
@@ -60,27 +64,28 @@ export function AiWorkspaceConsentCard({
           }
         />
       ) : (
-        <div className="flex items-start justify-between gap-6">
-          <div className="grid gap-1">
-            <span className="font-display font-medium text-ink">
-              {enabled
+        <SettingsGroup>
+          <SettingsRow
+            icon={Building2}
+            label={
+              enabled
                 ? t({ message: "On for this workspace", comment: "safety" })
-                : t({ message: "Off for this workspace", comment: "safety" })}
-            </span>
-            <span className="text-sm text-ink-3">
-              {canManage
+                : t({ message: "Off for this workspace", comment: "safety" })
+            }
+            description={
+              canManage
                 ? t`As the owner, you can change this.`
-                : t`Only the workspace owner can change this.`}
-            </span>
-          </div>
-          <Switch
-            className="mt-1"
-            aria-label={t({ message: "Allow AI in this workspace", comment: "safety" })}
-            checked={enabled}
-            disabled={!canManage || isPending}
-            onCheckedChange={(checked) => onChange(checked)}
-          />
-        </div>
+                : t`Only the workspace owner can change this.`
+            }
+          >
+            <Switch
+              aria-label={t({ message: "Allow AI in this workspace", comment: "safety" })}
+              checked={enabled}
+              disabled={!canManage || isPending}
+              onCheckedChange={(checked) => onChange(checked)}
+            />
+          </SettingsRow>
+        </SettingsGroup>
       )}
     </Section>
   );

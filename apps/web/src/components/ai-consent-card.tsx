@@ -14,7 +14,10 @@ import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Switch } from "@openvalens/ui/components/switch";
 
+import { Sparkles, UserCheck } from "lucide-react";
+
 import { ErrorState, Section } from "@/components/page";
+import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 
 /**
  * Per-user AI consent state (Issue #123), derived from the oRPC output type
@@ -65,13 +68,14 @@ export function AiConsentCard({
   return (
     <Section
       title={<Trans>AI processing</Trans>}
-      description={
+      icon={Sparkles}
+      tone="signal"
+      info={
         <Trans comment="safety">
           AI features are opt-in and revocable. This setting applies only to you and is independent
           of your organization or owner role.
         </Trans>
       }
-      sheet
     >
       {status === "pending" ? (
         <Skeleton className="h-12 w-full" />
@@ -85,36 +89,37 @@ export function AiConsentCard({
           }
         />
       ) : (
-        <div className="flex items-start justify-between gap-6">
-          <div className="grid gap-1">
-            <span className="font-display font-medium text-ink">
-              {granted && state
+        <SettingsGroup>
+          <SettingsRow
+            icon={UserCheck}
+            label={
+              granted && state
                 ? t({
                     message: `Granted on ${formatGrantedAt(state.grantedAt)}`,
                     comment: "safety",
                   })
-                : t({ message: "Not granted", comment: "safety" })}
-            </span>
-            <span className="text-sm text-ink-3">
-              {granted && state
+                : t({ message: "Not granted", comment: "safety" })
+            }
+            description={
+              granted && state
                 ? t({ message: `Consent version ${state.consentVersion}`, comment: "safety" })
                 : t({
                     message: "Turn on to let AI features process your data.",
                     comment: "safety",
-                  })}
-            </span>
-          </div>
-          <Switch
-            className="mt-1"
-            aria-label={t({ message: "AI processing consent", comment: "safety" })}
-            checked={granted}
-            disabled={isPending}
-            onCheckedChange={(checked) => {
-              if (checked) onGrant();
-              else onRequestRevoke();
-            }}
-          />
-        </div>
+                  })
+            }
+          >
+            <Switch
+              aria-label={t({ message: "AI processing consent", comment: "safety" })}
+              checked={granted}
+              disabled={isPending}
+              onCheckedChange={(checked) => {
+                if (checked) onGrant();
+                else onRequestRevoke();
+              }}
+            />
+          </SettingsRow>
+        </SettingsGroup>
       )}
       <AlertDialog open={confirmOpen} onOpenChange={onConfirmOpenChange}>
         <AlertDialogContent>

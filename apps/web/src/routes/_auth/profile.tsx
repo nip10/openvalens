@@ -30,8 +30,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { ErrorState, Page, PageHeader } from "@/components/page";
-import { WellnessProfileEditor, type SectionSaveState } from "@/components/wellness-profile-editor";
+import { ArrowRight, ListChecks, WifiOff } from "lucide-react";
+
+import { ErrorState, Meter, Page, PageHeader, ToneIcon } from "@/components/page";
+import {
+  StepHead,
+  WellnessProfileEditor,
+  type SectionSaveState,
+} from "@/components/wellness-profile-editor";
 import { orpc } from "@/utils/orpc";
 import { useUpdateWellnessProfile, useWellnessProfile } from "@/utils/wellness-profile";
 
@@ -68,8 +74,8 @@ function ProfilePage() {
       <Page>
         <PageHeader title={<Trans>Your profile</Trans>} />
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
-          <Skeleton className="h-96 w-full" />
-          <Skeleton className="hidden h-40 w-full lg:block" />
+          <Skeleton className="h-96 w-full rounded-3xl" />
+          <Skeleton className="hidden h-40 w-full rounded-3xl lg:block" />
         </div>
       </Page>
     );
@@ -187,7 +193,13 @@ function ProfileEditorPage({
     <Page>
       <PageHeader
         title={<Trans>Your profile</Trans>}
-        description={PROFILE_INTRO}
+        description={<Trans>All optional. Answer what helps you.</Trans>}
+        info={
+          <>
+            <p>{PROFILE_INTRO}</p>
+            <p>{PROFILE_STORAGE_NOTE}</p>
+          </>
+        }
         actions={
           inSetup ? (
             <>
@@ -211,18 +223,26 @@ function ProfileEditorPage({
 
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <aside className="grid gap-3 text-sm lg:sticky lg:top-10 lg:col-start-2 lg:row-start-1">
-          <div className="well grid gap-2 px-4 py-3">
-            <p className="font-display font-medium text-ink">
-              <Trans>
-                {progress.answered} of {progress.available} sections answered
-              </Trans>
-            </p>
+          <div className="sheet grid gap-3 p-5">
+            <div className="flex items-center gap-3">
+              <ToneIcon icon={ListChecks} tone="signal" />
+              <p className="font-display font-medium text-ink">
+                <Trans>
+                  {progress.answered} of {progress.available} sections answered
+                </Trans>
+              </p>
+            </div>
+            <Meter
+              value={progress.available > 0 ? progress.answered / progress.available : 0}
+              tone="signal"
+            />
             {resume ? (
               <a
                 href={`#section-${resume}`}
-                className="w-fit text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+                className="inline-flex w-fit items-center gap-1.5 font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
               >
                 <Trans>Next unanswered: {i18n._(SECTION_TITLES[resume])}</Trans>
+                <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
               </a>
             ) : null}
             {dirty.length > 0 ? (
@@ -237,11 +257,16 @@ function ProfileEditorPage({
             </p>
           ) : null}
           {!online ? (
-            <p role="status" className="border-t-2 border-warning pt-2 text-ink-2">
-              <Trans>You are offline.</Trans> {PROFILE_OFFLINE_NOTE}
+            <p
+              role="status"
+              className="flex items-start gap-2 rounded-2xl bg-warning/14 px-4 py-3 text-ink-2"
+            >
+              <WifiOff className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              <span>
+                <Trans>You are offline.</Trans> {PROFILE_OFFLINE_NOTE}
+              </span>
             </p>
           ) : null}
-          <p className="text-ink-3">{PROFILE_STORAGE_NOTE}</p>
         </aside>
 
         <div className="min-w-0 lg:col-start-1 lg:row-start-1">
@@ -301,19 +326,20 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
       id="section-goal"
       role="region"
       aria-labelledby={`${inputId}-title`}
-      className="grid scroll-mt-10 gap-5 py-6"
+      className="sheet grid scroll-mt-10 gap-5 p-5 md:p-6"
     >
-      <div className="grid gap-1">
-        <h2 id={`${inputId}-title`} className="text-xl leading-tight text-ink">
-          {i18n._(SECTION_TITLES.goal)}
-        </h2>
-        <p className="max-w-[65ch] text-sm text-ink-3">
-          <Trans>
-            Add a goal in your own words if you have one. It is saved to your Goals, where you can
-            set a target and date later. Nothing is suggested or worked out for you.
-          </Trans>
-        </p>
-      </div>
+      <StepHead
+        section="goal"
+        titleId={`${inputId}-title`}
+        info={
+          <p>
+            <Trans>
+              Add a goal in your own words if you have one. It is saved to your Goals, where you can
+              set a target and date later. Nothing is suggested or worked out for you.
+            </Trans>
+          </p>
+        }
+      />
       <div className="grid gap-2">
         <label htmlFor={inputId} className="text-sm text-ink-3">
           <Trans>Goal</Trans>

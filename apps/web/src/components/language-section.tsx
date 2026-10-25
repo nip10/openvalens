@@ -6,16 +6,14 @@ import {
 } from "@openvalens/api/presenters/product-formatting";
 import { PRODUCT_LOCALES, type ProductLocale } from "@openvalens/api/product-settings-contract";
 import { LOCALE_NAMES, LOCALES, isLocale, reviewStatusOf } from "@openvalens/i18n";
-import { Badge } from "@openvalens/ui/components/badge";
+import { CalendarClock, FlaskConical, Globe, Languages } from "lucide-react";
 import { useId } from "react";
 
-import { Section } from "@/components/page";
+import { InfoTip, Section, StatusPill } from "@/components/page";
+import { SETTINGS_SELECT, SettingsGroup, SettingsRow } from "@/components/settings-rows";
 
 import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useAppLocale } from "@/lib/i18n";
-
-const SELECT =
-  "h-9 w-fit max-w-full rounded-sm border border-input bg-card px-2 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring";
 
 /**
  * Interface language (#67). Applies immediately, without a reload. A
@@ -44,13 +42,31 @@ export function LanguageSection() {
   const sample = (value: ProductLocale) =>
     `${formatProductDate(new Date(Date.UTC(2026, 0, 15)), value, undefined, "UTC")}; ${formatProductNumber(1234.5, value)}`;
   return (
-    <Section title={<Trans>Language</Trans>} sheet>
-      <div className="grid gap-5 text-sm">
-        <label htmlFor={id} className="grid gap-1.5 text-ink-3">
-          <Trans>Interface language</Trans>
+    <Section title={<Trans>Language</Trans>} icon={Globe} tone="signal">
+      <SettingsGroup>
+        <SettingsRow
+          icon={Languages}
+          label={<Trans>Interface language</Trans>}
+          htmlFor={id}
+          description={
+            reviewStatusOf(locale) === "community" ? (
+              <span className="flex flex-wrap items-center gap-1">
+                <StatusPill tone="neutral">
+                  <Trans>Community translation</Trans>
+                </StatusPill>
+                <InfoTip>
+                  <Trans>
+                    Not yet reviewed. Units, reference ranges, medication and consent text stay in
+                    English until a reviewer approves them.
+                  </Trans>
+                </InfoTip>
+              </span>
+            ) : undefined
+          }
+        >
           <select
             id={id}
-            className={SELECT}
+            className={SETTINGS_SELECT}
             value={locale}
             onChange={(event) => {
               if (isLocale(event.target.value)) setLocale(event.target.value);
@@ -62,25 +78,15 @@ export function LanguageSection() {
               </option>
             ))}
           </select>
-        </label>
-        {reviewStatusOf(locale) === "community" ? (
-          <p className="flex flex-wrap items-baseline gap-2">
-            <Badge variant="outline">
-              <Trans>Community translation</Trans>
-            </Badge>
-            <span className="text-ink-3">
-              <Trans>
-                Not yet reviewed. Units, reference ranges, medication and consent text stay in
-                English until a reviewer approves them.
-              </Trans>
-            </span>
-          </p>
-        ) : null}
-        <label htmlFor={formatId} className="grid gap-1.5 border-t border-rule pt-4 text-ink-3">
-          <Trans>Date and number format</Trans>
+        </SettingsRow>
+        <SettingsRow
+          icon={CalendarClock}
+          label={<Trans>Date and number format</Trans>}
+          htmlFor={formatId}
+        >
           <select
             id={formatId}
-            className={SELECT}
+            className={SETTINGS_SELECT}
             value={formatLocale ?? ""}
             onChange={(event) => {
               const value = event.target.value;
@@ -98,12 +104,21 @@ export function LanguageSection() {
               </option>
             ))}
           </select>
-        </label>
-        <label htmlFor={unitsId} className="grid gap-1.5 border-t border-rule pt-4 text-ink-3">
-          <Trans>Lab concentration units</Trans>
+        </SettingsRow>
+        <SettingsRow
+          icon={FlaskConical}
+          label={<Trans>Lab concentration units</Trans>}
+          htmlFor={unitsId}
+          info={
+            <Trans comment="safety">
+              Changes only how glucose, cholesterol, triglycerides and creatinine are shown. Your
+              stored results and the lab&apos;s units are never changed.
+            </Trans>
+          }
+        >
           <select
             id={unitsId}
-            className={SELECT}
+            className={SETTINGS_SELECT}
             value={labUnits}
             onChange={(event) => {
               const value = event.target.value;
@@ -117,14 +132,8 @@ export function LanguageSection() {
               </option>
             ))}
           </select>
-          <span className="max-w-[65ch]">
-            <Trans comment="safety">
-              Changes only how glucose, cholesterol, triglycerides and creatinine are shown. Your
-              stored results and the lab&apos;s units are never changed.
-            </Trans>
-          </span>
-        </label>
-      </div>
+        </SettingsRow>
+      </SettingsGroup>
     </Section>
   );
 }

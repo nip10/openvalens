@@ -10,7 +10,17 @@ import {
 } from "@openvalens/ui/components/table";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 
-import { EmptyState, ErrorState, PageHeader, Section } from "@/components/page";
+import { Settings2, ShieldX } from "lucide-react";
+
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Figure,
+  PageHeader,
+  Section,
+  StatusPill,
+} from "@/components/page";
 import type { AdminConfigurationEntry } from "@/utils/admin-settings-keys";
 
 export type AdminSettingsViewProps = {
@@ -61,10 +71,14 @@ export function AdminSettingsView({
 
 function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) {
   const { t } = useLingui();
+  const configured = entries.filter((entry) => entry.configured).length;
+  const sensitive = entries.filter((entry) => entry.sensitive).length;
   return (
     <Section
+      icon={Settings2}
+      tone="signal"
       title={<Trans>Environment configuration</Trans>}
-      description={
+      info={
         <Trans>
           Startup configuration is read-only. Values are hidden for security, even for non-sensitive
           keys.
@@ -72,25 +86,34 @@ function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) 
       }
     >
       {entries.length === 0 ? (
-        <EmptyState title={<Trans>No configuration keys reported.</Trans>} />
+        <EmptyState icon={Settings2} title={<Trans>No configuration keys reported.</Trans>} />
       ) : (
-        <Table aria-label={t`Configuration keys`} className="sheet">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-5">
-                <Trans>Name</Trans>
-              </TableHead>
-              <TableHead className="px-5">
-                <Trans>Status</Trans>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {entries.map((entry) => (
-              <ConfigurationRow key={entry.key} entry={entry} />
-            ))}
-          </TableBody>
-        </Table>
+        <div className="sheet grid gap-4 p-5">
+          <dl className="m-0 grid grid-cols-3 gap-4">
+            <Figure label={<Trans>Keys</Trans>} value={entries.length} />
+            <Figure label={<Trans>Configured</Trans>} value={configured} />
+            <Figure label={<Trans>Sensitive</Trans>} value={sensitive} />
+          </dl>
+          <Details summary={<Trans>All keys</Trans>}>
+            <Table aria-label={t`Configuration keys`}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <Trans>Name</Trans>
+                  </TableHead>
+                  <TableHead>
+                    <Trans>Status</Trans>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map((entry) => (
+                  <ConfigurationRow key={entry.key} entry={entry} />
+                ))}
+              </TableBody>
+            </Table>
+          </Details>
+        </div>
       )}
     </Section>
   );
@@ -100,23 +123,29 @@ function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
   const { t } = useLingui();
   return (
     <TableRow>
-      <TableCell className="px-5 py-2.5 whitespace-normal">
-        <code className="font-mono text-sm break-all text-ink">{entry.key}</code>
+      <TableCell className="py-2.5 whitespace-normal">
+        <code className="text-sm break-all text-ink">{entry.key}</code>
       </TableCell>
-      <TableCell className="px-5 py-2.5">
-        <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+      <TableCell className="py-2.5">
+        <span className="flex flex-wrap gap-1.5">
           {entry.configured ? (
-            <span className="font-medium text-success" aria-label={t`${entry.key} configured`}>
-              <Trans>Configured</Trans>
+            <span aria-label={t`${entry.key} configured`}>
+              <StatusPill tone="good">
+                <Trans>Configured</Trans>
+              </StatusPill>
             </span>
           ) : (
-            <span className="text-ink-3" aria-label={t`${entry.key} not set`}>
-              <Trans>Not set</Trans>
+            <span aria-label={t`${entry.key} not set`}>
+              <StatusPill tone="neutral">
+                <Trans>Not set</Trans>
+              </StatusPill>
             </span>
           )}
           {entry.sensitive ? (
-            <span className="text-ink-2" aria-label={t`${entry.key} sensitive`}>
-              <Trans>Sensitive</Trans>
+            <span aria-label={t`${entry.key} sensitive`}>
+              <StatusPill tone="warn">
+                <Trans>Sensitive</Trans>
+              </StatusPill>
             </span>
           ) : null}
         </span>
@@ -127,8 +156,8 @@ function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
 
 function LoadingCard() {
   return (
-    <Section title={<Trans>Environment configuration</Trans>}>
-      <div className="sheet grid gap-3 px-5 py-4">
+    <Section icon={Settings2} tone="signal" title={<Trans>Environment configuration</Trans>}>
+      <div className="sheet grid gap-3 p-5">
         <Skeleton className="h-4 w-2/3" />
         <Skeleton className="h-8 w-full" />
         <Skeleton className="h-8 w-full" />
@@ -140,7 +169,7 @@ function LoadingCard() {
 
 function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <Section title={<Trans>Environment configuration</Trans>}>
+    <Section icon={Settings2} tone="signal" title={<Trans>Environment configuration</Trans>}>
       <ErrorState
         title={message}
         action={
@@ -158,6 +187,7 @@ function ErrorCard({ message, onRetry }: { message: string; onRetry?: () => void
 function DeniedCard() {
   return (
     <EmptyState
+      icon={ShieldX}
       title={<Trans>Access denied</Trans>}
       description={<Trans>You do not have access to instance administration.</Trans>}
     />

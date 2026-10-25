@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { MailPlus, Settings2 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
 import { AdminBackupStatus } from "@/components/admin-backup-status";
@@ -293,19 +294,21 @@ function BackupSection({ userId }: { userId: string }) {
 function AdminNav() {
   const { t } = useLingui();
   return (
-    <nav aria-label={t`Instance administration`} className="-mb-4 border-b border-rule">
-      <div className="flex gap-6">
+    <nav aria-label={t`Instance administration`} className="-mb-4">
+      <div className="inline-flex flex-wrap gap-1 rounded-full bg-paper-2 p-1">
         <a
           href="/admin/settings"
           aria-current="page"
-          className="-mb-px border-b-2 border-signal px-1 pb-2 font-display text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="sheet inline-flex items-center gap-2 rounded-full px-4 py-2 font-display text-sm font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
+          <Settings2 className="size-4 shrink-0 text-signal" aria-hidden="true" />
           <Trans>Configuration</Trans>
         </a>
         <a
           href="/admin/invitations"
-          className="-mb-px border-b-2 border-transparent px-1 pb-2 font-display text-sm font-medium text-ink-3 transition-colors duration-[var(--dur-short)] hover:border-rule-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:text-ink"
+          className="inline-flex items-center gap-2 rounded-full px-4 py-2 font-display text-sm font-medium text-ink-3 transition-colors duration-[var(--dur-short)] hover:bg-paper-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:text-ink"
         >
+          <MailPlus className="size-4 shrink-0" aria-hidden="true" />
           <Trans>Invitations</Trans>
         </a>
       </div>

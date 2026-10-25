@@ -15,7 +15,7 @@ function JoinPage() {
   const { t } = useLingui();
 
   return (
-    <main className="mx-auto grid w-full max-w-3xl gap-4 px-4 pt-16 pb-16">
+    <main className="mx-auto grid w-full max-w-3xl gap-5 px-4 pt-16 pb-16">
       <ConnectedAdmissionForm
         kind="invitation"
         title={t`Join OpenValens`}
@@ -27,7 +27,7 @@ function JoinPage() {
         // Issue #65 — an invitation is redeemed with the emailed token and
         // code; the IdP identity is bound afterwards, explicitly, by the
         // signed-in user.
-        <p className="mx-auto w-full max-w-md text-sm text-ink-3">
+        <p className="mx-auto w-full max-w-md px-2 text-center text-sm text-ink-3">
           <Trans>
             To sign in with {oidc.displayName} later, finish joining, sign in with the email link,
             then choose Connect under Settings → Sign-in methods.
