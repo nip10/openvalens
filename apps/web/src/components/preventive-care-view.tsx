@@ -22,7 +22,11 @@ import { Label } from "@openvalens/ui/components/label";
 import { Switch } from "@openvalens/ui/components/switch";
 import { useState, type ReactNode } from "react";
 
-import { PageHeader } from "./page";
+import { BookOpen, CalendarClock, MessageCircleQuestion, ShieldCheck } from "lucide-react";
+
+import { friendlyDate } from "@/utils/friendly";
+
+import { Details, InfoTip, PageHeader, StatTile, StatusPill, ToneIcon } from "./page";
 
 /**
  * Issue #97 — preventive care (web). Same view models and copy as native
@@ -53,7 +57,7 @@ function ItemControls({
   const [next, setNext] = useState(item.state.nextOn ?? "");
   const id = item.id.replace(/\W/g, "-");
   return (
-    <fieldset className="grid gap-3 border-t border-rule pt-4" disabled={pending}>
+    <fieldset className="grid gap-3" disabled={pending}>
       <legend className="sr-only">
         <Trans>Your record for {title}</Trans>
       </legend>
@@ -63,7 +67,7 @@ function ItemControls({
           <input
             id={`${id}-done`}
             type="date"
-            className="h-8 rounded-sm border border-input bg-card px-2 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+            className="h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
             value={done}
             onChange={(event) => setDone(event.target.value)}
           />
@@ -84,7 +88,7 @@ function ItemControls({
               <input
                 id={`${id}-next`}
                 type="date"
-                className="h-8 rounded-sm border border-input bg-card px-2 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
+                className="h-9 rounded-xl border border-input bg-card px-3 text-sm text-ink outline-2 -outline-offset-2 outline-transparent focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55"
                 value={next}
                 onChange={(event) => setNext(event.target.value)}
               />
@@ -189,56 +193,82 @@ export function PreventiveItemCardView({
   pending: boolean;
   onUpdateItem: Handlers["onUpdateItem"];
 }) {
-  const { i18n } = useLingui();
+  const { t, i18n } = useLingui();
   const card = preventiveItemCard(i18n, item);
+  const lastDone = item.state.lastDoneOn;
+  const nextOn = item.state.nextOn;
+  const nextDay = nextOn ? friendlyDate(i18n, nextOn) : "";
+  const doneDay = lastDone ? friendlyDate(i18n, lastDone) : "";
+  const status = card.dateReachedText
+    ? { tone: "warn" as const, label: card.dateReachedText }
+    : nextOn
+      ? { tone: "neutral" as const, label: t`Next: ${nextDay}` }
+      : lastDone
+        ? { tone: "good" as const, label: t`Done: ${doneDay}` }
+        : null;
   return (
-    <article role="article" aria-labelledby={`pc-${card.key}`} className="grid gap-3 px-5 py-5">
-      <div className="grid gap-1">
-        <h3 id={`pc-${card.key}`} className="text-lg leading-tight text-ink">
-          {card.title}
-        </h3>
-        <p className="text-sm font-medium text-ink-2">{card.gradeLabel}</p>
+    <article
+      role="article"
+      aria-labelledby={`pc-${card.key}`}
+      className="sheet grid min-w-0 content-start gap-3 p-5"
+    >
+      <div className="flex items-start gap-3">
+        <ToneIcon icon={ShieldCheck} tone="water" />
+        <div className="grid min-w-0 flex-1 gap-1.5">
+          <div className="flex items-start gap-1">
+            <h3 id={`pc-${card.key}`} className="text-lg leading-tight text-ink">
+              {card.title}
+            </h3>
+            <InfoTip align="end">
+              {card.facts.length > 0 ? (
+                <ul className="list-disc pl-5">
+                  {card.facts.map((fact) => (
+                    <li key={fact}>{fact}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="text-ink-3">{card.framing}</p>
+              <p className="text-ink-3">
+                {card.citation}{" "}
+                <a className={LINK} href={card.sourceUrl} target="_blank" rel="noreferrer">
+                  {i18n._(PREVENTIVE_COPY.sourceLink)}
+                </a>
+                . {card.nonEndorsement}{" "}
+                <a
+                  className={LINK}
+                  href={PREVENTIVE_COPY.reportProblemUrl(card.key)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {i18n._(PREVENTIVE_COPY.reportProblem)}
+                </a>
+              </p>
+            </InfoTip>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-water-soft px-2.5 py-0.5 text-sm font-semibold text-ink">
+              {card.gradeLabel}
+            </span>
+            {status ? <StatusPill tone={status.tone}>{status.label}</StatusPill> : null}
+          </div>
+        </div>
       </div>
-      <div className="grid max-w-[65ch] gap-2 text-sm text-ink-2">
+      <div className="grid gap-1.5 text-sm text-ink-2">
         {card.beingReviewed ? <p>{i18n._(PREVENTIVE_COPY.beingReviewed)}</p> : null}
-        <p className="font-medium text-ink">{card.applicabilityText}</p>
-        {card.facts.length > 0 ? (
-          <ul className="list-disc pl-5">
-            {card.facts.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
-        ) : null}
+        <p className="text-ink-3">{card.applicabilityText}</p>
         {card.stateLines.map((line) => (
           <p key={line}>{line}</p>
         ))}
-        {card.dateReachedText ? (
-          <p className="font-medium text-ink">{card.dateReachedText}</p>
-        ) : null}
         {card.decisionAidUrl ? (
           <a className={LINK} href={card.decisionAidUrl} target="_blank" rel="noreferrer">
             {i18n._(PREVENTIVE_COPY.decisionAid)}
           </a>
         ) : null}
-        <p className="text-ink-3">{card.framing}</p>
-        <p className="text-sm text-ink-3">
-          {card.citation}{" "}
-          <a className={LINK} href={card.sourceUrl} target="_blank" rel="noreferrer">
-            {i18n._(PREVENTIVE_COPY.sourceLink)}
-          </a>
-          . {card.nonEndorsement}{" "}
-          <a
-            className={LINK}
-            href={PREVENTIVE_COPY.reportProblemUrl(card.key)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {i18n._(PREVENTIVE_COPY.reportProblem)}
-          </a>
-        </p>
       </div>
       {canEdit && !card.beingReviewed ? (
-        <ItemControls item={item} pending={pending} onUpdateItem={onUpdateItem} />
+        <Details summary={<Trans>Update your record</Trans>}>
+          <ItemControls item={item} pending={pending} onUpdateItem={onUpdateItem} />
+        </Details>
       ) : null}
     </article>
   );
@@ -259,12 +289,15 @@ function Criteria({
   const { i18n } = useLingui();
   if (result.criteria.length === 0) return null;
   return (
-    <section role="region" aria-labelledby="pc-criteria" className="grid content-start gap-4">
-      <div className="grid gap-1">
+    <section role="region" aria-labelledby="pc-criteria" className="grid content-start gap-3">
+      <div className="flex items-center gap-2">
+        <ToneIcon icon={MessageCircleQuestion} tone="water" size="sm" />
         <h2 id="pc-criteria" className="text-xl leading-tight text-ink">
           {i18n._(PREVENTIVE_COPY.criteriaTitle)}
         </h2>
-        <p className="text-sm text-ink-3">{i18n._(PREVENTIVE_COPY.criteriaIntro)}</p>
+        <InfoTip>
+          <p>{i18n._(PREVENTIVE_COPY.criteriaIntro)}</p>
+        </InfoTip>
       </div>
       <div className="sheet divide-y divide-rule">
         {result.criteria.map((criterion) => (
@@ -273,10 +306,12 @@ function Criteria({
             className="grid gap-1 px-5 py-4"
             disabled={pending || !result.canEdit}
           >
-            <legend className="mb-1 font-display text-sm font-medium text-ink">
+            <legend className="mb-1 flex items-center gap-1 font-semibold text-ink">
               {criterion.question}
+              <InfoTip align="end">
+                <p>{criterion.purpose}</p>
+              </InfoTip>
             </legend>
-            <p className="text-sm text-ink-3">{criterion.purpose}</p>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
               {DECLARATION_ANSWERS.map((answer) => (
                 <label key={answer} className="flex items-center gap-1.5 text-sm text-ink-2">
@@ -308,14 +343,20 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
   const version = library.version;
   if (!library.enabled) return <p className="text-sm text-ink-3">{i18n._(LIBRARY_COPY.off)}</p>;
   return (
-    <section aria-labelledby="pc-library" className="grid content-start gap-4">
-      <div className="grid gap-1">
+    <section aria-labelledby="pc-library" className="grid content-start gap-3">
+      <div className="flex items-center gap-2">
+        <ToneIcon icon={BookOpen} tone="water" size="sm" />
         <h2 id="pc-library" className="text-xl leading-tight text-ink">
           {i18n._(LIBRARY_COPY.title)}
         </h2>
-        <p className="max-w-[65ch] text-sm text-ink-3">{i18n._(LIBRARY_COPY.intro)}</p>
+        <InfoTip>
+          <p>{i18n._(LIBRARY_COPY.intro)}</p>
+          <p className="text-ink-3">
+            <Trans>Library {version}.</Trans>
+          </p>
+        </InfoTip>
       </div>
-      <div className="well divide-y divide-rule">
+      <div className="grid gap-4 md:grid-cols-2">
         {library.entries.map((entry) => {
           const card = evidenceEntryCard(i18n, entry);
           return (
@@ -323,37 +364,36 @@ export function EvidenceLibraryView({ library }: { library: EvidenceLibraryResul
               key={card.key}
               role="article"
               aria-labelledby={`ev-${card.key}`}
-              className="grid gap-2 px-5 py-4"
+              className="sheet grid min-w-0 content-start gap-2.5 p-5"
             >
               <h3 id={`ev-${card.key}`} className="text-base leading-tight text-ink">
                 {card.title}
               </h3>
-              <p className="flex flex-wrap gap-x-4 text-sm">
-                <span className="font-medium text-ink">{card.verdictLabel}</span>
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <StatusPill tone="neutral">{card.verdictLabel}</StatusPill>
                 <span className="text-ink-3">{card.certaintyLabel}</span>
               </p>
-              <div className="grid max-w-[65ch] gap-2 text-sm text-ink-2">
+              <div className="grid gap-2 text-sm text-ink-2">
                 {card.lines.map((line) => (
                   <p key={line}>{line}</p>
                 ))}
               </div>
-              <ul className="grid gap-1 text-sm text-ink-3">
-                {card.sources.map((source) => (
-                  <li key={source.url + source.citation}>
-                    <a className={LINK} href={source.url} target="_blank" rel="noreferrer">
-                      {source.citation}
-                    </a>
-                    {source.note ? <span className="block">{source.note}</span> : null}
-                  </li>
-                ))}
-              </ul>
+              <Details summary={<Trans>Sources</Trans>} className="text-sm">
+                <ul className="grid gap-1 text-sm text-ink-3">
+                  {card.sources.map((source) => (
+                    <li key={source.url + source.citation}>
+                      <a className={LINK} href={source.url} target="_blank" rel="noreferrer">
+                        {source.citation}
+                      </a>
+                      {source.note ? <span className="block">{source.note}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </Details>
             </article>
           );
         })}
       </div>
-      <p className="text-sm text-ink-3">
-        <Trans>Library {version}.</Trans>
-      </p>
     </section>
   );
 }
@@ -371,53 +411,78 @@ export function PreventiveCareView({
 } & Handlers) {
   const { i18n } = useLingui();
   const page = preventivePageNotes(i18n, result);
+  const dueCount = result.items.filter((item) => item.dateReached).length;
   return (
     <>
       <PageHeader
         title={i18n._(PREVENTIVE_COPY.pageTitle)}
-        description={i18n._(PREVENTIVE_COPY.pageIntro)}
+        info={
+          <>
+            <p>{i18n._(PREVENTIVE_COPY.pageIntro)}</p>
+            {page.statusText ? null : <p>{i18n._(PREVENTIVE_COPY.disclaimer)}</p>}
+            <p className="text-ink-3">{page.versionText}</p>
+          </>
+        }
       />
       {page.statusText ? (
-        <div className="well grid justify-items-start gap-2 px-5 py-4">
+        <div className="sheet grid justify-items-start gap-3 p-5">
+          <ToneIcon icon={ShieldCheck} tone="water" />
           <p className="max-w-[65ch] text-ink-2">{page.statusText}</p>
           {result.status !== "owner_only" ? profileLink : null}
         </div>
       ) : (
         <>
-          {page.notes.length > 0 ? (
-            <div className="grid max-w-[65ch] gap-2 text-sm text-ink-2">
-              {page.notes.map((note) => (
-                <p key={note}>{note}</p>
-              ))}
-            </div>
-          ) : null}
-          <div
-            className={
-              result.criteria.length > 0
-                ? "grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]"
-                : "grid"
-            }
-          >
-            <div className="sheet min-w-0 divide-y divide-rule">
-              {result.items.map((item) => (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatTile
+              icon={ShieldCheck}
+              tone="water"
+              label={<Trans>For you</Trans>}
+              value={result.items.length}
+              note={
+                page.notes.length > 0 ? (
+                  <InfoTip>
+                    {page.notes.map((note) => (
+                      <p key={note}>{note}</p>
+                    ))}
+                  </InfoTip>
+                ) : null
+              }
+            />
+            <StatTile
+              icon={CalendarClock}
+              tone="water"
+              label={<Trans>Date reached</Trans>}
+              value={dueCount}
+              status={
+                dueCount > 0
+                  ? { tone: "warn", label: <Trans>Worth a look</Trans> }
+                  : { tone: "good", label: <Trans>All clear</Trans> }
+              }
+            />
+          </div>
+          <ul className="grid items-start gap-4 md:grid-cols-2">
+            {result.items.map((item) => (
+              <li key={item.id} className="grid min-w-0">
                 <PreventiveItemCardView
-                  key={item.id}
                   item={item}
                   canEdit={result.canEdit}
                   pending={handlers.pending}
                   onUpdateItem={handlers.onUpdateItem}
                 />
-              ))}
-            </div>
-            <Criteria result={result} pending={handlers.pending} onDeclare={handlers.onDeclare} />
-          </div>
+              </li>
+            ))}
+          </ul>
+          <Criteria result={result} pending={handlers.pending} onDeclare={handlers.onDeclare} />
           {result.notShown.length > 0 ? (
-            <details className="grid gap-2 border-t border-rule pt-4">
-              <summary className="cursor-pointer font-display text-sm font-medium text-ink">
-                {i18n._(PREVENTIVE_COPY.notShownTitle)}{" "}
-                <span className="num text-ink-3">({result.notShown.length})</span>
-              </summary>
-              <p className="mt-2 max-w-[65ch] text-sm text-ink-3">
+            <Details
+              summary={
+                <>
+                  {i18n._(PREVENTIVE_COPY.notShownTitle)}{" "}
+                  <span className="num text-ink-3">({result.notShown.length})</span>
+                </>
+              }
+            >
+              <p className="max-w-[65ch] text-sm text-ink-3">
                 {i18n._(PREVENTIVE_COPY.notShownIntro)}
               </p>
               <ul className="mt-2 list-disc pl-5 text-sm text-ink-2">
@@ -425,29 +490,27 @@ export function PreventiveCareView({
                   <li key={entry.id}>{entry.title}</li>
                 ))}
               </ul>
-            </details>
+            </Details>
           ) : null}
-          <p className="max-w-[65ch] text-sm text-ink-3">{i18n._(PREVENTIVE_COPY.disclaimer)}</p>
           {result.canEdit ? (
-            <div className="flex items-start gap-3 border-t border-rule pt-4">
+            <div className="sheet flex items-start gap-3 p-5">
               <Switch
                 id="pc-library-toggle"
                 checked={result.libraryEnabled}
                 disabled={handlers.pending}
                 onCheckedChange={handlers.onLibrary}
               />
-              <div className="grid gap-1">
+              <div className="flex items-center gap-1">
                 <Label htmlFor="pc-library-toggle">{i18n._(PREVENTIVE_COPY.libraryToggle)}</Label>
-                <p className="max-w-[65ch] text-sm text-ink-3">
-                  {i18n._(PREVENTIVE_COPY.libraryToggleHint)}
-                </p>
+                <InfoTip>
+                  <p>{i18n._(PREVENTIVE_COPY.libraryToggleHint)}</p>
+                </InfoTip>
               </div>
             </div>
           ) : null}
           {library ? <EvidenceLibraryView library={library} /> : null}
         </>
       )}
-      <p className="text-sm text-ink-3">{page.versionText}</p>
     </>
   );
 }

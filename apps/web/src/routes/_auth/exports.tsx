@@ -14,7 +14,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { cn } from "@openvalens/ui/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check } from "lucide-react";
+import { Check, FileCheck, FolderDown, Package } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Page, PageHeader, Section } from "@/components/page";
@@ -40,14 +40,15 @@ function ArtifactList({ artifacts }: { artifacts: ExportArtifact[] }) {
   if (artifacts.length === 0) return null;
 
   return (
-    <ul className="divide-y divide-rule border-t border-rule">
+    <ul className="grid gap-2">
       {artifacts.map((artifact) => (
         <li
           key={artifact.fileName}
-          className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 py-2 text-sm"
+          className="flex items-center gap-3 rounded-2xl bg-paper-2 px-3 py-2 text-sm"
         >
-          <span className="min-w-0 truncate font-mono text-ink-2">{artifact.fileName}</span>
-          <span className="num text-right text-ink-3">
+          <FileCheck className="size-4 shrink-0 text-water" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate text-ink-2">{artifact.fileName}</span>
+          <span className="num shrink-0 text-right text-ink-3">
             {formatBytes(utf8ByteLength(artifact.content))}
           </span>
         </li>
@@ -70,10 +71,13 @@ function BundleCard() {
 
   return (
     <Section
+      sheet
+      icon={Package}
+      tone="water"
       title={<Trans>Download a bundle</Trans>}
-      description={<Trans>Download your clinical record as a single JSON bundle.</Trans>}
+      info={<Trans>Download your clinical record as a single JSON bundle.</Trans>}
     >
-      <div className="well grid gap-4 px-5 py-4">
+      <div className="grid gap-4">
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
@@ -85,7 +89,9 @@ function BundleCard() {
           >
             {bundle.isPending ? <Trans>Downloading…</Trans> : <Trans>Download bundle</Trans>}
           </Button>
-          <span className="text-sm text-ink-3">JSON</span>
+          <span className="rounded-full bg-water-soft px-2.5 py-0.5 text-sm font-semibold text-ink">
+            JSON
+          </span>
         </div>
         {bundle.isPending ? <Skeleton className="h-4 w-48" /> : null}
         {bundle.isError ? (
@@ -149,11 +155,13 @@ function DomainCard() {
 
   return (
     <Section
+      icon={FolderDown}
+      tone="water"
       title={<Trans>Download by domain</Trans>}
-      description={<Trans>Choose domains and a format, then download.</Trans>}
+      info={<Trans>Choose domains and a format, then download.</Trans>}
       sheet
     >
-      <div className="grid gap-6 py-1">
+      <div className="grid gap-6">
         <fieldset className="grid gap-2">
           <legend className="mb-2 text-sm font-medium text-ink-3">
             <Trans>Domains</Trans>
@@ -169,15 +177,17 @@ function DomainCard() {
                   variant="outline"
                   aria-pressed={isSelected}
                   className={cn(
-                    isSelected ? "bg-paper-3 hover:bg-paper-3" : "border-rule text-ink-2",
+                    isSelected
+                      ? "border-water/40 bg-water-soft text-ink hover:bg-water-soft"
+                      : "border-rule text-ink-2",
                   )}
                   onClick={() => toggle(option.domain)}
                 >
                   <span
                     aria-hidden
                     className={cn(
-                      "flex size-3.5 items-center justify-center rounded-sm border",
-                      isSelected ? "border-ink bg-ink text-sheet" : "border-ink-3",
+                      "flex size-4 items-center justify-center rounded-full border",
+                      isSelected ? "border-water bg-water text-card" : "border-ink-3",
                     )}
                   >
                     {isSelected ? <Check className="size-3" strokeWidth={3} /> : null}
@@ -198,7 +208,7 @@ function DomainCard() {
           <legend className="mb-2 text-sm font-medium text-ink-3">
             <Trans>Format</Trans>
           </legend>
-          <div className="flex w-fit">
+          <div className="flex w-fit gap-1 rounded-full bg-paper-2 p-1">
             {(["csv", "pdf"] as const).map((value) => (
               <Button
                 key={value}
@@ -207,8 +217,10 @@ function DomainCard() {
                 variant="outline"
                 aria-pressed={format === value}
                 className={cn(
-                  "not-first:-ml-px",
-                  format === value ? "z-10 bg-paper-3 hover:bg-paper-3" : "text-ink-2",
+                  "border-transparent",
+                  format === value
+                    ? "bg-card text-ink shadow-sm hover:bg-card"
+                    : "bg-transparent text-ink-2",
                 )}
                 onClick={() => setFormat(value)}
               >
@@ -218,7 +230,7 @@ function DomainCard() {
           </div>
         </fieldset>
 
-        <div className="flex items-center gap-3 border-t border-rule pt-4">
+        <div className="flex items-center gap-3">
           <Button
             onClick={submit}
             disabled={selected.size === 0 || active.isPending}
@@ -226,7 +238,9 @@ function DomainCard() {
           >
             {active.isPending ? <Trans>Downloading…</Trans> : <Trans>Download</Trans>}
           </Button>
-          <span className="text-sm text-ink-3">{format.toUpperCase()}</span>
+          <span className="rounded-full bg-water-soft px-2.5 py-0.5 text-sm font-semibold text-ink">
+            {format.toUpperCase()}
+          </span>
         </div>
 
         {active.isPending ? <Skeleton className="h-4 w-48" /> : null}
@@ -245,7 +259,7 @@ function ExportsPage() {
   return (
     <Page>
       <PageHeader title={<Trans>Clinical export</Trans>} />
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <DomainCard />
         <BundleCard />
       </div>

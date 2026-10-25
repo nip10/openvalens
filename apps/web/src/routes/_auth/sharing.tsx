@@ -12,20 +12,25 @@ import {
   SelectValue,
 } from "@openvalens/ui/components/select";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@openvalens/ui/components/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
+import { Mail, ShieldCheck, UserPlus, Users } from "lucide-react";
+
 import { MyInvitationsCard } from "@/components/my-invitations-card";
-import { EmptyState, ErrorState, Page, PageHeader, Section } from "@/components/page";
+import {
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  StatTile,
+  StatusPill,
+  type StatusTone,
+  ToneIcon,
+} from "@/components/page";
+import { SharingAvatar } from "@/components/sharing-avatar";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 
@@ -79,12 +84,10 @@ function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
       <Page>
         <PageHeader title={<Trans>Sharing</Trans>} />
         {myInvitations}
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-          <div className="grid gap-3">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-40 w-full" />
-          </div>
-          <Skeleton className="h-48 w-full" />
+        <div className="grid gap-4 sm:grid-cols-3" aria-hidden="true">
+          {["a", "b", "c"].map((key) => (
+            <Skeleton key={key} className="h-32 w-full rounded-3xl" />
+          ))}
         </div>
       </Page>
     );
@@ -133,15 +136,37 @@ function SharingContent({ myInvitations }: { myInvitations: ReactNode }) {
         }
       />
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile
+          icon={Users}
+          tone="signal"
+          label={<Trans>Members</Trans>}
+          value={members.data.length}
+        />
+        <StatTile
+          icon={Mail}
+          tone="signal"
+          label={<Trans>Pending invitations</Trans>}
+          value={invitations.data.length}
+        />
+        <StatTile
+          icon={ShieldCheck}
+          tone="signal"
+          label={<Trans>Role</Trans>}
+          value={<span className="text-[1.75rem]">{codeLabel(ROLE_LABELS, me.data.role)}</span>}
+        />
+      </div>
+
       {myInvitations}
 
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
-        <div className="grid min-w-0 gap-10">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="grid min-w-0 gap-8">
           <MembersCard members={members.data} isOwner={isOwner} currentUserId={me.data.userId} />
           <InvitationsCard invitations={invitations.data} isOwner={isOwner} />
         </div>
         {!isOwner ? (
-          <p className="well px-5 py-4 text-sm text-ink-3">
+          <p className="sheet flex items-center gap-3 p-5 text-sm text-ink-3">
+            <ToneIcon icon={ShieldCheck} tone="signal" size="sm" />
             <Trans>Only org owners can invite or remove members.</Trans>
           </p>
         ) : (
@@ -174,8 +199,8 @@ function InviteForm() {
   };
 
   return (
-    <Section title={<Trans>Invite a member</Trans>} sheet>
-      <div className="grid gap-4 py-1">
+    <Section icon={UserPlus} tone="signal" title={<Trans>Invite a member</Trans>} sheet>
+      <div className="grid gap-4">
         <div className="grid gap-2">
           <Label className="text-sm font-medium text-ink-3">
             <Trans>Email</Trans>
@@ -201,7 +226,7 @@ function InviteForm() {
             </SelectContent>
           </Select>
         </div>
-        <div className="border-t border-rule pt-4">
+        <div>
           <Button
             onClick={submit}
             disabled={!valid || invite.isPending}
@@ -260,6 +285,7 @@ function MembersCard({
 }) {
   const queryClient = useQueryClient();
   const codeLabel = useCodeLabel();
+  const { t } = useLingui();
   const remove = useMutation(
     orpc.sharing.removeMember.mutationOptions({
       onSuccess: () => {
@@ -270,6 +296,8 @@ function MembersCard({
 
   return (
     <Section
+      icon={Users}
+      tone="signal"
       title={
         <>
           <Trans>Members</Trans> <span className="num text-ink-3">({members.length})</span>
@@ -277,57 +305,49 @@ function MembersCard({
       }
     >
       {members.length === 0 ? (
-        <EmptyState title={<Trans>No members yet.</Trans>} />
+        <EmptyState icon={Users} title={<Trans>No members yet.</Trans>} />
       ) : (
-        <div className="sheet">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5">
-                  <Trans>Name</Trans>
-                </TableHead>
-                <TableHead>
-                  <Trans>Email</Trans>
-                </TableHead>
-                <TableHead>
-                  <Trans>Role</Trans>
-                </TableHead>
-                <TableHead className="pr-5" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members.map((member) => {
-                const isMe = member.userId === currentUserId;
-                return (
-                  <TableRow key={member.id}>
-                    <TableCell className="py-3 pl-5 font-medium text-ink">
-                      {member.name ?? member.email ?? member.userId}
-                      {isMe ? (
-                        <span className="ml-2 font-normal text-ink-3">
-                          <Trans>(you)</Trans>
-                        </span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="py-3 text-ink-3">{member.email ?? "—"}</TableCell>
-                    <TableCell className="py-3">{codeLabel(ROLE_LABELS, member.role)}</TableCell>
-                    <TableCell className="py-3 pr-5 text-right">
-                      {isOwner && !isMe ? (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => remove.mutate({ userId: member.userId })}
-                          disabled={remove.isPending}
-                        >
-                          <Trans>Remove</Trans>
-                        </Button>
-                      ) : null}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {members.map((member) => {
+            const isMe = member.userId === currentUserId;
+            const display = member.name ?? member.email ?? member.userId;
+            return (
+              <li key={member.id} className="sheet flex min-w-0 items-start gap-3 p-4">
+                <SharingAvatar name={display} />
+                <div className="grid min-w-0 flex-1 gap-1">
+                  <span className="font-semibold break-words text-ink">
+                    {display}
+                    {isMe ? (
+                      <span className="ml-2 font-normal text-ink-3">
+                        <Trans>(you)</Trans>
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="text-sm break-all text-ink-3">
+                    <span className="sr-only">{t`Email`}: </span>
+                    {member.email ?? "—"}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 pt-0.5">
+                    <StatusPill tone={member.role === "owner" ? "good" : "neutral"}>
+                      <span className="sr-only">{t`Role`}: </span>
+                      {codeLabel(ROLE_LABELS, member.role)}
+                    </StatusPill>
+                    {isOwner && !isMe ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => remove.mutate({ userId: member.userId })}
+                        disabled={remove.isPending}
+                      >
+                        <Trans>Remove</Trans>
+                      </Button>
+                    ) : null}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </Section>
   );
@@ -352,6 +372,7 @@ function InvitationsCard({
 }) {
   const queryClient = useQueryClient();
   const codeLabel = useCodeLabel();
+  const { t } = useLingui();
   const revoke = useMutation(
     orpc.sharing.revokeInvitation.mutationOptions({
       onSuccess: () => {
@@ -362,6 +383,8 @@ function InvitationsCard({
 
   return (
     <Section
+      icon={Mail}
+      tone="signal"
       title={
         <>
           <Trans>Pending invitations</Trans>{" "}
@@ -370,50 +393,45 @@ function InvitationsCard({
       }
     >
       {invitations.length === 0 ? (
-        <EmptyState title={<Trans>No pending invitations.</Trans>} />
+        <EmptyState icon={Mail} title={<Trans>No pending invitations.</Trans>} />
       ) : (
-        <div className="sheet">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5">
-                  <Trans>Email</Trans>
-                </TableHead>
-                <TableHead>
-                  <Trans>Role</Trans>
-                </TableHead>
-                <TableHead>
-                  <Trans>Status</Trans>
-                </TableHead>
-                <TableHead className="pr-5" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invitations.map((invite) => (
-                <TableRow key={invite.id}>
-                  <TableCell className="py-3 pl-5 font-medium text-ink">{invite.email}</TableCell>
-                  <TableCell className="py-3">{codeLabel(ROLE_LABELS, invite.role)}</TableCell>
-                  <TableCell className="py-3">
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {invitations.map((invite) => (
+            <li key={invite.id} className="sheet flex min-w-0 items-start gap-3 p-4">
+              <SharingAvatar name={invite.email} />
+              <div className="grid min-w-0 flex-1 gap-1">
+                <span className="font-semibold break-all text-ink">{invite.email}</span>
+                <span className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <StatusPill tone="neutral">
+                    <span className="sr-only">{t`Role`}: </span>
+                    {codeLabel(ROLE_LABELS, invite.role)}
+                  </StatusPill>
+                  <StatusPill tone={statusTone(invite.status)}>
+                    <span className="sr-only">{t`Status`}: </span>
                     {codeLabel(INVITATION_STATUS_LABELS, invite.status)}
-                  </TableCell>
-                  <TableCell className="py-3 pr-5 text-right">
-                    {isOwner ? (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => revoke.mutate({ id: invite.id })}
-                        disabled={revoke.isPending}
-                      >
-                        <Trans>Revoke</Trans>
-                      </Button>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                  </StatusPill>
+                  {isOwner ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => revoke.mutate({ id: invite.id })}
+                      disabled={revoke.isPending}
+                    >
+                      <Trans>Revoke</Trans>
+                    </Button>
+                  ) : null}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </Section>
   );
+}
+
+function statusTone(status: string): StatusTone {
+  if (status === "accepted") return "good";
+  if (status === "pending") return "warn";
+  return "neutral";
 }

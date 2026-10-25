@@ -4,6 +4,9 @@ import {
   type ExerciseGuideMuscle,
   type GuideRegion,
 } from "@openvalens/api/presenters/exercise-muscle-guide";
+import { PersonStanding } from "lucide-react";
+
+import { InfoTip, ToneIcon } from "@/components/page";
 
 const parts: Record<GuideRegion, [number, number, number, number][]> = {
   Shoulders: [
@@ -52,7 +55,7 @@ function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideR
       aria-label={
         side === "front" ? t`front view muscle illustration` : t`back view muscle illustration`
       }
-      className="h-36 w-28 text-ink-3"
+      className="h-40 w-32 text-ink-3"
     >
       <circle cx="50" cy="10" r="7" fill="currentColor" opacity=".16" />
       <path
@@ -73,7 +76,7 @@ function Figure({ side, regions }: { side: "front" | "back"; regions: Set<GuideR
               width={w}
               height={h}
               rx="5"
-              className="fill-signal"
+              className="fill-steps"
               opacity=".85"
             />
           )),
@@ -101,13 +104,14 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
   const unresolvedNames = unresolved.map((x) => x.muscle.name).join(", ");
   if (!front.size && !back.size)
     return (
-      <section className="grid gap-2 border-t border-rule pt-3" aria-label={t`Muscle guide`}>
-        <h3 className="text-base text-ink">
+      <section className="grid gap-3 rounded-2xl bg-paper-2 px-4 py-4" aria-label={t`Muscle guide`}>
+        <h3 className="flex items-center gap-2 font-body text-sm font-semibold text-ink">
+          <ToneIcon icon={PersonStanding} tone="steps" size="sm" />
           <Trans>Muscle guide</Trans>
+          <InfoTip>
+            <Trans>Illustration of muscles listed by the source</Trans>
+          </InfoTip>
         </h3>
-        <p className="text-sm text-ink-3">
-          <Trans>Illustration of muscles listed by the source</Trans>
-        </p>
         <p className="text-sm text-ink-2">
           <Trans>
             <strong>Source-listed muscles:</strong> {listedNames}
@@ -129,14 +133,15 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
       </section>
     );
   return (
-    <section className="grid gap-3 border-t border-rule pt-3" aria-label={t`Muscle guide`}>
-      <h3 className="text-base text-ink">
+    <section className="grid gap-3 rounded-2xl bg-paper-2 px-4 py-4" aria-label={t`Muscle guide`}>
+      <h3 className="flex items-center gap-2 font-body text-sm font-semibold text-ink">
+        <ToneIcon icon={PersonStanding} tone="steps" size="sm" />
         <Trans>Muscle guide</Trans>
+        <InfoTip>
+          <Trans>Illustration of muscles listed by the source</Trans>
+        </InfoTip>
       </h3>
-      <p className="text-sm text-ink-3">
-        <Trans>Illustration of muscles listed by the source</Trans>
-      </p>
-      <div className="flex flex-wrap items-center justify-start gap-6">
+      <div className="flex flex-wrap items-center justify-center gap-8 rounded-2xl bg-card py-3">
         <div className="grid justify-items-center gap-1">
           <Figure side="front" regions={front} />
           <span className="text-sm text-ink-3">

@@ -8,7 +8,10 @@ import {
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 
-import { EmptyState, ErrorState, Section } from "./page";
+import { MailOpen } from "lucide-react";
+
+import { EmptyState, ErrorState, Section, StatusPill } from "./page";
+import { SharingAvatar } from "./sharing-avatar";
 
 /**
  * Issue #243 — the signed-in user's own pending workspace invitations on web,
@@ -51,6 +54,8 @@ export function MyInvitationsView({
 
   return (
     <Section
+      icon={MailOpen}
+      tone="signal"
       title={
         listState === "ready" && invitations.length > 0 ? (
           <Trans>Your invitations · {invitations.length}</Trans>
@@ -65,10 +70,7 @@ export function MyInvitationsView({
         </p>
       ) : null}
       {listState === "loading" ? (
-        <div className="sheet grid gap-3 px-5 py-4">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-72 max-w-full" />
-        </div>
+        <Skeleton className="h-24 w-full rounded-3xl" />
       ) : listState === "error" ? (
         <ErrorState
           title={<Trans>Could not load invitations.</Trans>}
@@ -79,32 +81,37 @@ export function MyInvitationsView({
           }
         />
       ) : invitations.length === 0 ? (
-        <EmptyState title={<Trans>You have no pending workspace invitations.</Trans>} />
+        <EmptyState
+          icon={MailOpen}
+          title={<Trans>You have no pending workspace invitations.</Trans>}
+        />
       ) : (
-        <ul className="sheet divide-y divide-rule">
+        <ul className="grid gap-3 md:grid-cols-2">
           {invitations.map((invitation) => {
             const state = invitationState(invitation, { sessionEmail, now });
             const roleLabel = ROLE_LABELS[invitation.role];
             const accepting = busy?.id === invitation.id && busy.action === "accept";
             const declining = busy?.id === invitation.id && busy.action === "decline";
             return (
-              <li
-                key={invitation.id}
-                className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-6"
-              >
-                <div className="grid min-w-0 gap-0.5">
-                  <span className="font-display font-medium text-ink wrap-break-word">
-                    {invitation.organizationName ?? t`A workspace`}
-                  </span>
-                  <span className="text-sm text-ink-2">
-                    {roleLabel ? i18n._(roleLabel) : invitation.role}
-                  </span>
-                  <span className="text-sm text-ink-3 wrap-anywhere">
-                    <Trans>Invited email: {invitation.email}</Trans>
-                  </span>
+              <li key={invitation.id} className="sheet grid min-w-0 content-start gap-4 p-4">
+                <div className="flex min-w-0 items-start gap-3">
+                  <SharingAvatar name={invitation.organizationName ?? invitation.email} />
+                  <div className="grid min-w-0 gap-1">
+                    <span className="font-semibold text-ink wrap-break-word">
+                      {invitation.organizationName ?? t`A workspace`}
+                    </span>
+                    <span>
+                      <StatusPill tone="neutral">
+                        {roleLabel ? i18n._(roleLabel) : invitation.role}
+                      </StatusPill>
+                    </span>
+                    <span className="text-sm text-ink-3 wrap-anywhere">
+                      <Trans>Invited email: {invitation.email}</Trans>
+                    </span>
+                  </div>
                 </div>
                 {state === "pending" ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -122,7 +129,7 @@ export function MyInvitationsView({
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-sm text-ink-3">
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
                     {state === "expired"
                       ? t`This invitation has expired.`
                       : state === "wrong_account"

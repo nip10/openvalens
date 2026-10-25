@@ -12,6 +12,9 @@ import { Button } from "@openvalens/ui/components/button";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { ArrowRight, Sprout } from "lucide-react";
+
+import { Ring, ToneIcon } from "@/components/page";
 import { useUpdateWellnessProfile, useWellnessProfile } from "@/utils/wellness-profile";
 
 /**
@@ -44,13 +47,22 @@ export function ProfileSetupPromptCard({
   return (
     <section
       aria-labelledby="profile-setup-title"
-      className="well grid gap-4 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-x-8"
+      className="sheet grid gap-5 bg-[linear-gradient(120deg,var(--sidebar-accent),transparent_70%)] p-6 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-x-6"
     >
-      <div className="grid min-w-0 gap-1">
-        <h2 id="profile-setup-title" className="text-lg leading-tight text-ink">
+      {started && progress.available > 0 ? (
+        <Ring value={progress.answered / progress.available} tone="signal" size={64}>
+          <span className="num">
+            {progress.answered}/{progress.available}
+          </span>
+        </Ring>
+      ) : (
+        <ToneIcon icon={Sprout} tone="signal" size="lg" />
+      )}
+      <div className="grid min-w-0 gap-1.5">
+        <h2 id="profile-setup-title" className="text-xl leading-tight text-ink">
           {started ? t`Continue setting up (optional)` : t`Set up your profile (optional)`}
         </h2>
-        <p className="max-w-[65ch] text-sm text-ink-3">
+        <p className="max-w-[60ch] text-sm text-ink-2">
           <Trans>
             A few optional questions so the app can show what matters to you. Skip any of them;
             everything else works without them.
@@ -72,6 +84,7 @@ export function ProfileSetupPromptCard({
         >
           <Link to="/profile" search={{ section: next ?? undefined }}>
             {started && next ? t`Continue: ${i18n._(SECTION_TITLES[next])}` : t`Start`}
+            <ArrowRight aria-hidden="true" />
           </Link>
         </Button>
         <Button
@@ -89,7 +102,7 @@ export function ProfileSetupPromptCard({
         </Button>
       </div>
       {error ? (
-        <p role="alert" className="text-sm text-destructive md:col-span-2">
+        <p role="alert" className="text-sm text-destructive md:col-span-3">
           {i18n._(error)}
         </p>
       ) : null}

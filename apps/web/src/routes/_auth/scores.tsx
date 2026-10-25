@@ -5,7 +5,9 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { ErrorState, Page, PageHeader } from "@/components/page";
+import { Target } from "lucide-react";
+
+import { ErrorState, Page, PageHeader, ToneIcon } from "@/components/page";
 import { ReferenceComparisonsSection } from "@/components/reference-comparisons-card";
 import { GoalProgressCard, ReadinessCard } from "@/components/score-panels";
 import { orpc } from "@/utils/orpc";
@@ -35,15 +37,15 @@ function ScoresPage() {
     <Page>
       <PageHeader
         title={i18n._(SCORE_COPY.pageTitle)}
-        description={
+        info={
           <>
-            {i18n._(SCORE_COPY.pageIntro)}
-            <span className="mt-1 block text-sm">{i18n._(SCORE_COPY.noStorage)}</span>
+            <p>{i18n._(SCORE_COPY.pageIntro)}</p>
+            <p>{i18n._(SCORE_COPY.noStorage)}</p>
           </>
         }
       />
 
-      <div className="grid items-start gap-10 lg:grid-cols-2">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         {readiness.isPending ? (
           <ScoreSkeleton />
         ) : readiness.isError || !readiness.data ? (
@@ -77,7 +79,8 @@ function ScoresPage() {
 
       <ReferenceComparisonsSection />
 
-      <p className="border-t border-rule pt-4 text-sm text-ink-3">
+      <p className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
+        <ToneIcon icon={Target} tone="weight" size="sm" />
         <Trans>
           Set targets, directions and priorities for your goals under{" "}
           <Link
@@ -94,10 +97,5 @@ function ScoresPage() {
 }
 
 function ScoreSkeleton() {
-  return (
-    <div className="grid gap-4">
-      <Skeleton className="h-6 w-48" />
-      <Skeleton className="h-72 w-full" />
-    </div>
-  );
+  return <Skeleton className="h-80 w-full rounded-3xl" />;
 }

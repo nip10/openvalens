@@ -12,7 +12,9 @@ import {
 } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { EmptyState, ErrorState, Page, PageHeader } from "@/components/page";
+import { MessageCircle, Plus } from "lucide-react";
+
+import { EmptyState, ErrorState, Page, PageHeader, ToneIcon } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
@@ -65,6 +67,7 @@ function CoachListPage() {
         title={<Trans>Coach</Trans>}
         actions={
           <Button onClick={onNew} disabled={starting || start.isPending}>
+            <Plus aria-hidden="true" />
             {start.isPending ? t`Starting…` : t`New conversation`}
           </Button>
         }
@@ -83,7 +86,7 @@ function CoachListPage() {
       <div
         className={
           hasThread
-            ? "grid items-start gap-10 lg:grid-cols-[16rem_minmax(0,1fr)]"
+            ? "grid items-start gap-8 lg:grid-cols-[18rem_minmax(0,1fr)]"
             : "grid max-w-3xl items-start"
         }
       >
@@ -92,10 +95,10 @@ function CoachListPage() {
           className={hasThread ? "order-last lg:order-none" : undefined}
         >
           {threads.isPending ? (
-            <div className="grid gap-3">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
+            <div className="grid gap-3" aria-hidden="true">
+              <Skeleton className="h-20 w-full rounded-3xl" />
+              <Skeleton className="h-20 w-full rounded-3xl" />
+              <Skeleton className="h-20 w-full rounded-3xl" />
             </div>
           ) : threads.isError || !threads.data ? (
             <ErrorState
@@ -108,30 +111,37 @@ function CoachListPage() {
             />
           ) : list.length === 0 ? (
             <EmptyState
+              icon={MessageCircle}
               title={<Trans>No conversations yet</Trans>}
               description={
                 <Trans>Start a new conversation to ask the AI coach for guidance.</Trans>
               }
             />
           ) : (
-            <ul className="divide-y divide-rule border-t border-rule">
+            <ul className="grid gap-2.5">
               {list.map((thread) => (
                 <li key={thread.conversationId}>
                   <Link
                     to="/coach/$conversationId"
                     params={{ conversationId: thread.conversationId }}
-                    className="grid gap-0.5 px-2 py-3 text-ink-2 transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                    activeProps={{ className: "bg-paper-2 text-ink", "aria-current": "page" }}
+                    className="sheet flex items-start gap-3 p-4 text-ink-2 no-underline transition-transform duration-[var(--dur-short)] ease-[var(--ease-out)] hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-0 motion-reduce:transition-none"
+                    activeProps={{
+                      className: "ring-2 ring-signal/40 text-ink",
+                      "aria-current": "page",
+                    }}
                   >
-                    <span className="truncate font-display text-sm font-medium">
-                      {truncate(previewLine(thread), 80)}
-                    </span>
-                    <span className="flex flex-wrap justify-between gap-x-3 text-sm text-ink-3">
-                      <span>
-                        {i18n._(relativeTime(thread.lastMessageAt, new Date(), settings))}
+                    <ToneIcon icon={MessageCircle} tone="signal" size="sm" />
+                    <span className="grid min-w-0 flex-1 gap-1">
+                      <span className="truncate text-sm font-semibold text-ink">
+                        {truncate(previewLine(thread), 80)}
                       </span>
-                      <span>
-                        <Plural value={thread.messageCount} one="# message" other="# messages" />
+                      <span className="flex flex-wrap justify-between gap-x-3 text-sm text-ink-3">
+                        <span>
+                          {i18n._(relativeTime(thread.lastMessageAt, new Date(), settings))}
+                        </span>
+                        <span>
+                          <Plural value={thread.messageCount} one="# message" other="# messages" />
+                        </span>
                       </span>
                     </span>
                   </Link>
