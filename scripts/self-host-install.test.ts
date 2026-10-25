@@ -222,6 +222,13 @@ describe("deploy/Caddyfile", () => {
     expect(caddyfile).toContain("reverse_proxy server:3000");
     expect(caddyfile).toContain("reverse_proxy web:80");
   });
+
+  test("serves HTTPS unless OPENVALENS_SITE_SCHEME says a proxy terminates TLS", async () => {
+    const caddyfile = await Bun.file(join(deploy, "Caddyfile")).text();
+    expect(caddyfile).toContain("{$OPENVALENS_SITE_SCHEME:https}://{$OPENVALENS_DOMAIN} {");
+    const compose = await Bun.file(join(deploy, "compose.yml")).text();
+    expect(compose).toContain("OPENVALENS_SITE_SCHEME: ${OPENVALENS_SITE_SCHEME:-https}");
+  });
 });
 
 describe("image build context", () => {
@@ -533,6 +540,24 @@ describe("deploy/setup.sh install re-runs (Issue #63)", () => {
       const env = box.readEnv();
       expect(valuesOf(env, "OPENVALENS_DOMAIN")).toEqual(["other.example.org"]);
       expect(valuesOf(env, "EMAIL_REPLY_TO")).toEqual(["support@example.org"]);
+    } finally {
+      box.cleanup();
+    }
+  }, 30_000);
+
+  test("records OPENVALENS_SITE_SCHEME, keeps it on re-runs and rejects other values", () => {
+    const box = installSandbox();
+    try {
+      expect(box.run(install).exitCode).toBe(0);
+      expect(valuesOf(box.readEnv(), "OPENVALENS_SITE_SCHEME")).toEqual(["https"]);
+
+      expect(box.run(install, { OPENVALENS_SITE_SCHEME: "http" }).exitCode).toBe(0);
+      expect(box.run(install).exitCode).toBe(0);
+      expect(valuesOf(box.readEnv(), "OPENVALENS_SITE_SCHEME")).toEqual(["http"]);
+
+      const bad = box.run(install, { OPENVALENS_SITE_SCHEME: "ftp" });
+      expect(bad.exitCode).not.toBe(0);
+      expect(bad.output).toContain("OPENVALENS_SITE_SCHEME must be https (default) or http");
     } finally {
       box.cleanup();
     }

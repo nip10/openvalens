@@ -40,6 +40,8 @@
 #                    OPENVALENS_DOMAIN, ACME_EMAIL, EMAIL_FROM and, optionally,
 #                    RESEND_API_KEY_SOURCE (path to a private file holding the
 #                    Resend key). Secrets are never accepted as arguments.
+#                    OPENVALENS_SITE_SCHEME=http (any mode) serves plain HTTP
+#                    for a proxy in front that terminates TLS.
 #                    catalogs: start without asking to confirm the downloads.
 # --reconfigure      install only: ask for (or, with --non-interactive, read) the
 #                    domain and email settings again instead of reusing the ones
@@ -197,7 +199,7 @@ gather_config() {
 # Keys `install` writes on every run, keeping the values already in
 # deploy/.env (only the domain and email settings are re-asked, and only with
 # --reconfigure). Every other line is the operator's and is copied through.
-MANAGED_KEYS="OPENVALENS_DOMAIN ACME_EMAIL EMAIL_FROM OPENVALENS_VERSION
+MANAGED_KEYS="OPENVALENS_DOMAIN OPENVALENS_SITE_SCHEME ACME_EMAIL EMAIL_FROM OPENVALENS_VERSION
   OPENVALENS_PRE_MIGRATE_BACKUP OPENVALENS_BACKUP_RETAIN STORAGE_PROVIDER
   STORAGE_S3_ENDPOINT STORAGE_S3_REGION STORAGE_S3_BUCKET
   STORAGE_S3_FORCE_PATH_STYLE STORAGE_S3_SSE"
@@ -262,6 +264,8 @@ write_env() {
 # Written by deploy/setup.sh. Non-secret settings only: secrets live in
 # deploy/secrets/ and are referenced through *_FILE paths.
 OPENVALENS_DOMAIN=$DOMAIN
+# https (default): Caddy gets the certificate. http: a proxy in front terminates TLS.
+OPENVALENS_SITE_SCHEME=${OPENVALENS_SITE_SCHEME:-$(env_get OPENVALENS_SITE_SCHEME | grep . || echo https)}
 ACME_EMAIL=$ACME
 EMAIL_FROM=$FROM
 # Image tag for the locally built server/web images (the checked-out version).
@@ -354,6 +358,10 @@ generate_secrets() {
 
 validate_compose() {
   log "validating deploy/compose.yml"
+  case "$(env_get OPENVALENS_SITE_SCHEME)" in
+    "" | https | http) ;;
+    *) die "OPENVALENS_SITE_SCHEME must be https (default) or http" ;;
+  esac
   compose config --quiet || die "compose configuration is invalid"
   # Only Caddy may publish ports: Docker-published ports bypass host firewalls.
   local publishers

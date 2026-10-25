@@ -135,6 +135,25 @@ RESEND_API_KEY_SOURCE=/root/resend-key \
 `RESEND_API_KEY_SOURCE` is the path to a private file containing the key; the
 key is never accepted as an argument or environment value.
 
+### Behind a TLS-terminating proxy
+
+By default Caddy obtains the certificate itself, which needs ports 80 and 443
+to reach the host directly. If a load balancer, tunnel or hosting edge in front
+of the host already terminates HTTPS and forwards plain HTTP to port 80, set
+`OPENVALENS_SITE_SCHEME=http` when you run `install` (or add it to
+`deploy/.env` and run `deploy/setup.sh upgrade`):
+
+```bash
+OPENVALENS_SITE_SCHEME=http deploy/setup.sh install
+```
+
+Caddy then serves plain HTTP on port 80 for `OPENVALENS_DOMAIN`, asks for no
+certificate and does not redirect. The public URL stays
+`https://<domain>`, so the proxy must serve HTTPS for that name. Only use this
+when the proxy is the sole route to port 80: anyone who reaches port 80
+directly talks to OpenValens without TLS. Firewall the host so only the proxy
+can connect.
+
 ### Dry run
 
 ```bash

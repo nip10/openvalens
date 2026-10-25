@@ -130,6 +130,7 @@ services:
       - "${OPENVALENS_HTTPS_PORT:-443}:443/udp"
     environment:
       OPENVALENS_DOMAIN: ${OPENVALENS_DOMAIN:?run deploy/setup.sh first}
+      OPENVALENS_SITE_SCHEME: ${OPENVALENS_SITE_SCHEME:-https}
       ACME_EMAIL: ${ACME_EMAIL:?run deploy/setup.sh first}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
