@@ -44,7 +44,7 @@ export default function CoachListScreen() {
       conversationId: id,
       message: t({
         message:
-          "Hi coach — give me a one-line summary of where I am today and one concrete suggestion.",
+          "Hi coach, give me a one-line summary of where I am today and one concrete suggestion.",
         comment:
           "First message sent to the AI coach for a new conversation; shown as the person's own message",
       }),
@@ -129,7 +129,7 @@ export default function CoachListScreen() {
                   title={truncate(previewLine(thread), 80)}
                   subtitle={
                     <Text>
-                      {i18n._(relativeTime(thread.lastMessageAt))} ·{" "}
+                      {i18n._(relativeTime(thread.lastMessageAt))},{" "}
                       <Plural value={thread.messageCount} one="# message" other="# messages" />
                     </Text>
                   }

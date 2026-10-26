@@ -20,6 +20,10 @@ import { Mail, ShieldCheck, UserPlus, Users } from "lucide-react";
 
 import { MyInvitationsCard } from "@/components/my-invitations-card";
 import {
+  SharingConfirmDialog,
+  type SharingConfirmTarget,
+} from "@/components/sharing-confirm-dialog";
+import {
   EmptyState,
   ErrorState,
   Page,
@@ -293,6 +297,7 @@ function MembersCard({
       },
     }),
   );
+  const [confirming, setConfirming] = useState<SharingConfirmTarget | null>(null);
 
   return (
     <Section
@@ -336,7 +341,9 @@ function MembersCard({
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => remove.mutate({ userId: member.userId })}
+                        onClick={() =>
+                          setConfirming({ kind: "member", userId: member.userId, name: display })
+                        }
                         disabled={remove.isPending}
                       >
                         <Trans>Remove</Trans>
@@ -349,6 +356,14 @@ function MembersCard({
           })}
         </ul>
       )}
+      <SharingConfirmDialog
+        target={confirming}
+        onCancel={() => setConfirming(null)}
+        onConfirm={(target) => {
+          if (target.kind === "member") remove.mutate({ userId: target.userId });
+          setConfirming(null);
+        }}
+      />
     </Section>
   );
 }
@@ -380,6 +395,7 @@ function InvitationsCard({
       },
     }),
   );
+  const [confirming, setConfirming] = useState<SharingConfirmTarget | null>(null);
 
   return (
     <Section
@@ -414,7 +430,9 @@ function InvitationsCard({
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => revoke.mutate({ id: invite.id })}
+                      onClick={() =>
+                        setConfirming({ kind: "invitation", id: invite.id, email: invite.email })
+                      }
                       disabled={revoke.isPending}
                     >
                       <Trans>Revoke</Trans>
@@ -426,6 +444,14 @@ function InvitationsCard({
           ))}
         </ul>
       )}
+      <SharingConfirmDialog
+        target={confirming}
+        onCancel={() => setConfirming(null)}
+        onConfirm={(target) => {
+          if (target.kind === "invitation") revoke.mutate({ id: target.id });
+          setConfirming(null);
+        }}
+      />
     </Section>
   );
 }

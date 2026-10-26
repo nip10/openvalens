@@ -164,8 +164,8 @@ test.skipIf(!mountedMode)(
           }),
         ),
       );
-      expect(text("License: CC0-1.0 · Exercise author")).toBeTruthy();
-      expect(text("License: CC-BY-SA-4.0 · French translator")).toBeTruthy();
+      expect(text("License: CC0-1.0, Exercise author")).toBeTruthy();
+      expect(text("License: CC-BY-SA-4.0, French translator")).toBeTruthy();
       expect(section("Selected translation (fr)")).toBeTruthy();
       const sourceLinks = links("Source record");
       expect(sourceLinks).toHaveLength(2);
@@ -260,7 +260,7 @@ test.skipIf(!mountedMode)(
         "http://localhost:3000/api/exercise-assets/a1b2c3d4-e5f6-4789-8123-456789abcdef",
       );
       expect(preview?.getAttribute("src")).not.toContain("images.example.test");
-      expect(container.textContent).toContain("License: CC BY 4.0 · Image author");
+      expect(container.textContent).toContain("License: CC BY 4.0, Image author");
       await React.act(async () => preview?.dispatchEvent(new Event("error")));
       expect(container.textContent).toContain("Muscle guide");
       expect(container.textContent).toContain("Primary: Biceps");

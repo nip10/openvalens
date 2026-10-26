@@ -57,7 +57,7 @@ export function ProfileSetupPrompt() {
       <Sheet className="gap-4">
         <Text className="font-sans text-base leading-relaxed text-ink-2">
           <Trans>
-            A few optional questions so the app can show what matters to you. Skip any of them —
+            A few optional questions so the app can show what matters to you. Skip any of them;
             everything else works without them.
           </Trans>
           {started ? (

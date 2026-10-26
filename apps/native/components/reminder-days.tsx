@@ -111,7 +111,7 @@ export function ReminderDaysRow({
     <View className="gap-2 pt-1">
       <Text className="font-sans text-sm text-ink-3">
         {i18n._(cadence.frequency)}
-        {cadence.days ? ` · ${cadence.days}` : ""}
+        {cadence.days ? `, ${cadence.days}` : ""}
       </Text>
       {cadence.needsDays ? (
         <Text className="font-sans text-sm text-warning">{i18n._(REMINDER_DAYS_COPY.needed)}</Text>

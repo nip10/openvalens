@@ -110,7 +110,7 @@ export default function CoachThreadScreen() {
         <View ref={listRef} className="gap-4">
           {list.length === 0 ? (
             <Text className="py-6 font-sans text-base text-ink-3">
-              <Trans>No messages yet — say hello to start.</Trans>
+              <Trans>No messages yet. Say hello to start.</Trans>
             </Text>
           ) : (
             list.map((message) => {
@@ -133,8 +133,7 @@ export default function CoachThreadScreen() {
                     )}
                   >
                     <Text className="font-sans text-sm text-ink-3">
-                      <Text className="font-semibold text-ink">{mine ? t`You` : t`Coach`}</Text>
-                      {" · "}
+                      <Text className="font-semibold text-ink">{mine ? t`You` : t`Coach`}</Text>{" "}
                       {i18n._(relativeTime(message.createdAt))}
                     </Text>
                     <Text className="font-sans text-base leading-relaxed text-ink-2">
@@ -149,7 +148,7 @@ export default function CoachThreadScreen() {
             <View className="flex-row items-center gap-2.5" accessibilityRole="progressbar">
               <ToneIcon icon={Sparkles} tone="signal" size="sm" />
               <Text className="font-sans text-sm text-ink-3">
-                <Trans>Coach · thinking…</Trans>
+                <Trans>Coach is thinking…</Trans>
               </Text>
             </View>
           ) : null}

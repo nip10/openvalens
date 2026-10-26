@@ -37,6 +37,7 @@ const DRAFT_DISCARDED = msg`Draft discarded. Nothing was saved.`;
 export default function FoodDraftScreen() {
   const router = useRouter();
   const { t, i18n } = useLingui();
+  const itemHeardLabel = (number: number, heard: string) => t`Item ${number}, heard “${heard}”`;
   const placeholder = useThemeColor("ink-3");
   const [transcript, setTranscript] = useState("");
   const [useAi, setUseAi] = useState(false);
@@ -167,7 +168,7 @@ export default function FoodDraftScreen() {
               {candidates.map((item, index) => (
                 <Sheet key={item.id} className="gap-3">
                   <Text className="font-display text-base font-medium text-ink">
-                    {t`Item ${index + 1} · heard “${item.sourceText}”`}
+                    {itemHeardLabel(index + 1, item.sourceText)}
                   </Text>
                   <TextInput
                     value={item.foodText}
@@ -185,7 +186,7 @@ export default function FoodDraftScreen() {
                     className={INPUT}
                   />
                   <Text className="font-sans text-sm text-ink-3">
-                    {item.quantityText ?? t`No quantity`} · {item.unitText ?? t`no unit`}
+                    {item.quantityText ?? t`No quantity`}, {item.unitText ?? t`no unit`}
                   </Text>
                   {item.flags.length ? (
                     <View className="flex-row flex-wrap gap-1.5">

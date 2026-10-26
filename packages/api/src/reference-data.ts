@@ -111,7 +111,7 @@ export const NSF_2015_SLEEP_DURATION: GuidelineDataset = {
     publisher: "National Sleep Foundation",
     year: 2015,
   },
-  population: "Adults without a sleep disorder: adults 18–64 and adults 65 and over.",
+  population: "Adults without a sleep disorder: adults 18 to 64 and adults 65 and over.",
   collectionYears: "Recommendations issued 2015",
   method:
     "18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution.",

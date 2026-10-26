@@ -191,7 +191,7 @@ export const ALL_NUTRIENTS: readonly NutrientKey[] = [
   "saltG",
 ];
 
-/** Where the day's logged foods came from, e.g. `"2 from USDA FoodData Central · 1 from Quick add"`. */
+/** Where the day's logged foods came from, e.g. `"2 from USDA FoodData Central, 1 from Quick add"`. */
 export function formatSources(sources: NutrientSummary["sources"], i18n: I18n): string | null {
   const parts = (["fdc", "off", "custom", "manual"] as const)
     .filter((source) => sources[source] > 0)
@@ -200,7 +200,7 @@ export function formatSources(sources: NutrientSummary["sources"], i18n: I18n): 
       const label = i18n._(foodSourceLabel(source));
       return i18n._(msg`${count} from ${label}`);
     });
-  return parts.length ? parts.join(" · ") : null;
+  return parts.length ? parts.join(", ") : null;
 }
 
 /** Amount with unit, e.g. `"150 g"`, `"2 servings"`. */

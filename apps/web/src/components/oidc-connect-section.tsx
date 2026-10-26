@@ -5,7 +5,7 @@ import { Fingerprint, KeyRound } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
-import { Section, StatusPill } from "@/components/page";
+import { ErrorState, Section, StatusPill } from "@/components/page";
 import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { authClient } from "@/lib/auth-client";
 import { oidcConnectErrorMessage, signInOptionsQueryOptions } from "@/utils/sign-in-options";
@@ -72,37 +72,48 @@ export function OidcConnectSection() {
 
   return (
     <Section title={<Trans>Sign-in methods</Trans>} icon={KeyRound} tone="signal">
-      <SettingsGroup>
-        <SettingsRow
-          icon={Fingerprint}
-          label={oidc.displayName}
-          description={
-            linked
-              ? t`Connected. You can sign in with ${oidc.displayName}.`
-              : t`Connect your ${oidc.displayName} account to sign in with it. Email links keep working.`
-          }
-        >
-          {linked ? (
-            <>
-              <StatusPill tone="good">
-                <Trans>Connected</Trans>
-              </StatusPill>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={disconnect.isPending}
-                onClick={() => disconnect.mutate(linked.id)}
-              >
-                <Trans>Disconnect</Trans>
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" size="sm" disabled={accounts.isPending} onClick={connect}>
-              <Trans>Connect</Trans>
+      {accounts.isError ? (
+        <ErrorState
+          title={<Trans>Could not check your sign-in methods.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void accounts.refetch()}>
+              <Trans>Retry</Trans>
             </Button>
-          )}
-        </SettingsRow>
-      </SettingsGroup>
+          }
+        />
+      ) : (
+        <SettingsGroup>
+          <SettingsRow
+            icon={Fingerprint}
+            label={oidc.displayName}
+            description={
+              linked
+                ? t`Connected. You can sign in with ${oidc.displayName}.`
+                : t`Connect your ${oidc.displayName} account to sign in with it. Email links keep working.`
+            }
+          >
+            {linked ? (
+              <>
+                <StatusPill tone="good">
+                  <Trans>Connected</Trans>
+                </StatusPill>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={disconnect.isPending}
+                  onClick={() => disconnect.mutate(linked.id)}
+                >
+                  <Trans>Disconnect</Trans>
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" disabled={accounts.isPending} onClick={connect}>
+                <Trans>Connect</Trans>
+              </Button>
+            )}
+          </SettingsRow>
+        </SettingsGroup>
+      )}
     </Section>
   );
 }

@@ -134,7 +134,7 @@ describe("summarizeDay", () => {
 
   test("names the sources behind the totals", () => {
     expect(formatSources({ fdc: 2, off: 0, custom: 0, manual: 1 }, englishI18n)).toBe(
-      "2 from USDA FoodData Central · 1 from Quick add",
+      "2 from USDA FoodData Central, 1 from Quick add",
     );
     expect(formatSources({ fdc: 0, off: 0, custom: 0, manual: 0 }, englishI18n)).toBeNull();
   });

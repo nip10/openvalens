@@ -50,7 +50,7 @@ export function ExerciseAttribution({
   // License names, authors and attribution text come from the source records.
   const licenseLine = license
     ? author
-      ? t`License: ${license} · ${author}`
+      ? t`License: ${license}, ${author}`
       : t`License: ${license}`
     : t`License not listed.`;
   return (

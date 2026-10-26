@@ -13,7 +13,7 @@ import { CYCLE_COPY as CYCLE_SOURCE } from "@openvalens/body/cycle-estimates";
 export const CYCLE_COPY = Object.freeze({
   estimateLabel: msg`Estimate`,
   lutealLabel: msg({
-    message: "Estimated luteal phase (about the last 12–14 days before your period)",
+    message: "Estimated luteal phase (about the last 12 to 14 days before your period)",
     comment: "safety",
   }),
   currentLowConfidence: msg({

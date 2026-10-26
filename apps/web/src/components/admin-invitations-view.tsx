@@ -16,6 +16,7 @@ import {
   StatusPill,
   ToneIcon,
 } from "@/components/page";
+import { SharingConfirmDialog } from "@/components/sharing-confirm-dialog";
 import { friendlyDate } from "@/utils/friendly";
 import type { AdmissionInvitationSummary } from "@/utils/admission-keys";
 
@@ -189,7 +190,7 @@ function localDay(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function InvitationsList({
+export function InvitationsList({
   invitations,
   confirmRevoke,
   revokingId,
@@ -205,6 +206,7 @@ function InvitationsList({
   onRevoke: (id: string) => void | Promise<void>;
 }) {
   const { t, i18n } = useLingui();
+  const pendingRevoke = invitations.find((invitation) => invitation.id === confirmRevoke) ?? null;
   const count = (status: AdmissionInvitationSummary["status"]) =>
     invitations.filter((invitation) => invitation.status === status).length;
   return (
@@ -257,35 +259,14 @@ function InvitationsList({
                 </div>
                 {invitation.status === "pending" ? (
                   <div className="flex items-center justify-end gap-2">
-                    {confirmRevoke === invitation.id ? (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onRequestRevoke(null)}
-                          disabled={revokingId === invitation.id}
-                        >
-                          <Trans>Cancel</Trans>
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => onRevoke(invitation.id)}
-                          disabled={revokingId === invitation.id}
-                        >
-                          {revokingId === invitation.id ? t`Revoking…` : t`Revoke`}
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => onRequestRevoke(invitation.id)}
-                        disabled={revokingId === invitation.id}
-                      >
-                        <Trans>Revoke</Trans>
-                      </Button>
-                    )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => onRequestRevoke(invitation.id)}
+                      disabled={revokingId === invitation.id}
+                    >
+                      {revokingId === invitation.id ? t`Revoking…` : t`Revoke`}
+                    </Button>
                   </div>
                 ) : null}
               </li>
@@ -293,6 +274,17 @@ function InvitationsList({
           </ul>
         )}
       </Section>
+      <SharingConfirmDialog
+        target={
+          pendingRevoke
+            ? { kind: "invitation", id: pendingRevoke.id, email: pendingRevoke.email }
+            : null
+        }
+        onCancel={() => onRequestRevoke(null)}
+        onConfirm={(target) => {
+          if (target.kind === "invitation") void onRevoke(target.id);
+        }}
+      />
     </div>
   );
 }

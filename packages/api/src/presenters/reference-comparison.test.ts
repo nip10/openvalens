@@ -136,7 +136,7 @@ describe("reference comparison copy (#96)", () => {
     const view = referenceComparisonsView(result(55), englishI18n);
     const rhr = view.metrics.find((m) => m.key === "resting_heart_rate")!;
     expect(rhr.comparisonLines).toEqual([
-      "Your usual resting heart rate, 55 bpm, is below the middle range for men aged 40–59 in the reference group (61–77 bpm).",
+      "Your usual resting heart rate, 55 bpm, is below the middle range for men aged 40 to 59 in the reference group (61 to 77 bpm).",
       "About 1 in 4 people in that group had a resting pulse below 61 bpm.",
     ]);
     expect(rhr.source.label).toBe("Source: NCHS, NHANES 1999–2008");
@@ -155,7 +155,7 @@ describe("reference comparison copy (#96)", () => {
       (m) => m.key === "sleep_duration",
     )!;
     expect(sleep.comparisonLines).toEqual([
-      "Your usual sleep, 8h 00m a night, is within the 7–9 hours a night the National Sleep Foundation recommends for adults aged 18–64.",
+      "Your usual sleep, 8h 00m a night, is within the 7 to 9 hours a night the National Sleep Foundation recommends for adults aged 18 to 64.",
     ]);
     expect(sleep.notes).toEqual([
       "This is a recommended range, not a description of what most people do.",

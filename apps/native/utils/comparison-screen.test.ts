@@ -63,7 +63,7 @@ describe("native comparison screen model", () => {
   test("on: same band sentences and source as the web card", () => {
     const rhr = model(true).blocks[0]!;
     expect(rhr.comparisonLines[0]).toBe(
-      "Your usual resting heart rate, 60 bpm, is below the middle range for women aged 40–59 in the reference group (64–79 bpm).",
+      "Your usual resting heart rate, 60 bpm, is below the middle range for women aged 40 to 59 in the reference group (64 to 79 bpm).",
     );
     expect(rhr.sourceLabel).toBe("Source: NCHS, NHANES 1999–2008");
     expect(rhr.sourceDetails.some((line) => line.startsWith("Licence: "))).toBe(true);

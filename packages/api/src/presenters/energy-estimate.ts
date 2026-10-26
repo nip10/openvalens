@@ -6,7 +6,7 @@ import type { EnergyEstimateOutput, EnergyProposalWire } from "../contracts/ener
 export const ENERGY_ESTIMATE_COPY = Object.freeze({
   title: msg`Energy estimate`,
   subtitle: msg`Estimated maintenance intake`,
-  provisional: msg`Experimental estimate—not a target or a measure of what you ate.`,
+  provisional: msg`Experimental estimate: not a target or a measure of what you ate.`,
   ask: msg`Ask for a suggestion`,
   pending: msg`Suggestion awaiting your review`,
   accept: msg`Accept suggestion`,
@@ -35,7 +35,7 @@ export function presentEnergyEstimate(
     value: perDay(result.estimate.kcalPerDay, i18n),
     range: i18n._(
       msg({
-        message: `${low}–${high} kcal/day`,
+        message: `${low} to ${high} kcal/day`,
         comment: "safety",
       }),
     ),

@@ -97,10 +97,10 @@ describe("custom food form", () => {
   });
 
   test("summaries state the basis and how much was entered", () => {
-    expect(describeBasis(food.basis, englishI18n)).toBe("Values per 100 g · 1 slice = 40 g");
+    expect(describeBasis(food.basis, englishI18n)).toBe("Values per 100 g (1 slice = 40 g)");
     expect(
       describeBasis({ ...food.basis, servingSizeAmount: null, servingSizeUnit: null }, englishI18n),
-    ).toBe("Values per 100 g · serving: 1 slice");
+    ).toBe("Values per 100 g (serving: 1 slice)");
     expect(inEnglish(describeCoverage(food))).toBe("3 of 12 values entered");
   });
 

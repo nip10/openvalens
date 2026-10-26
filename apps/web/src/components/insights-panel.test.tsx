@@ -231,20 +231,20 @@ describe("insights panel (web)", () => {
     expect(html).toContain("Turn on the weekly email");
     expect(html).toContain(inEnglish(INSIGHT_DELIVERY_COPY.dailyRemindersEmail));
     expect(html).toContain(inEnglish(INSIGHT_DELIVERY_COPY.dailyRemindersEmailNote));
-    expect(html).toContain("Goal milestones — Push notification");
+    expect(html).toContain("Goal milestones, Push notification");
     // Nutrition observations are opted in only through their dedicated card:
     // insight delivery never sends them, so no delivery/email/push switch may
     // be offered here. This removes a misleading no-op surface (#84).
     expect(html).not.toContain(inEnglish(INSIGHT_KIND_LABELS.observation));
     expect(html).not.toMatch(
-      /(?:observation|Nutrition observations)\s*—\s*(?:In the app|Push|Weekly)/,
+      /(?:observation|Nutrition observations)\s*,\s*(?:In the app|Push|Weekly)/,
     );
     for (const [kind, message] of Object.entries(INSIGHT_KIND_LABELS)) {
       if (kind === "observation") continue;
       const label = inEnglish(message);
       expect(html).toContain(label);
       for (const channelLabel of Object.values(INSIGHT_CHANNEL_LABELS).map(inEnglish)) {
-        expect(html).toContain(`${label} — ${channelLabel}`);
+        expect(html).toContain(`${label}, ${channelLabel}`);
       }
     }
     const viewer = renderToStaticMarkup(

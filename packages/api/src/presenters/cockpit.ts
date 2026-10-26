@@ -81,7 +81,7 @@ export function buildCockpitBlocks(snapshot: CockpitSnapshot, i18n: I18n): Cockp
       key: "weight",
       title: i18n._(msg`Weight`),
       primary: weight ? formatKg(weight.weightKg) : "—",
-      secondary: weight ? i18n._(msg`Last reading · ${weight.date}`) : i18n._(msg`No reading yet`),
+      secondary: weight ? i18n._(msg`Last reading: ${weight.date}`) : i18n._(msg`No reading yet`),
       tertiary: null,
     },
     {
@@ -89,7 +89,7 @@ export function buildCockpitBlocks(snapshot: CockpitSnapshot, i18n: I18n): Cockp
       title: i18n._(msg`Sleep`),
       primary: sleep ? formatSleepDuration(sleep.asleepMinutes) : "—",
       secondary: sleep
-        ? `${sleep.date} · ${sleepStatusText(sleep.status, i18n)}`
+        ? `${sleep.date}, ${sleepStatusText(sleep.status, i18n)}`
         : i18n._(msg`No sleep logged`),
       tertiary:
         snapshot.sleep && snapshot.sleep.bedtime && snapshot.sleep.wakeAt
@@ -101,7 +101,7 @@ export function buildCockpitBlocks(snapshot: CockpitSnapshot, i18n: I18n): Cockp
       title: i18n._(msg`Activity`),
       primary: snapshot.activity ? formatSteps(snapshot.activity.steps) : "—",
       secondary: snapshot.activity
-        ? `${snapshot.activity.date} · ${formatKcalories(snapshot.activity.activeCaloriesKcal)} · ${formatDistanceMeters(snapshot.activity.distanceMeters)}`
+        ? `${snapshot.activity.date}, ${formatKcalories(snapshot.activity.activeCaloriesKcal)}, ${formatDistanceMeters(snapshot.activity.distanceMeters)}`
         : i18n._(msg`No activity logged`),
       tertiary: null,
     },
@@ -109,7 +109,7 @@ export function buildCockpitBlocks(snapshot: CockpitSnapshot, i18n: I18n): Cockp
       key: "vitals",
       title: i18n._(msg`Heart rate`),
       primary: vitals && vitals.heartRateAvgBpm !== null ? formatBpm(vitals.heartRateAvgBpm) : "—",
-      secondary: vitals ? i18n._(msg`Avg · ${vitals.date}`) : i18n._(msg`No reading yet`),
+      secondary: vitals ? i18n._(msg`Avg, ${vitals.date}`) : i18n._(msg`No reading yet`),
       tertiary: null,
     },
   ];

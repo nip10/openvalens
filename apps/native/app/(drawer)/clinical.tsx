@@ -102,21 +102,21 @@ export default function ClinicalScreen() {
 
         <RecordSection
           icon={HeartPulse}
-          title={t`Cardiac · ${cardiac.data.length}`}
+          title={`${t`Cardiac`} (${cardiac.data.length})`}
           rows={cardiac.data}
           renderItem={(row) => renderCardiac(row, i18n)}
           emptyText={t`No cardiac exams recorded.`}
         />
         <RecordSection
           icon={ScanLine}
-          title={t`Imaging · ${imaging.data.length}`}
+          title={`${t`Imaging`} (${imaging.data.length})`}
           rows={imaging.data}
           renderItem={(row) => renderImaging(row, i18n)}
           emptyText={t`No imaging studies recorded.`}
         />
         <RecordSection
           icon={Users}
-          title={t`Family history · ${family.data.length}`}
+          title={`${t`Family history`} (${family.data.length})`}
           rows={family.data}
           renderItem={(row) => renderFamily(row, i18n)}
           emptyText={t`No family history entries.`}
@@ -202,7 +202,7 @@ function renderCardiac(row: CardiacRow, i18n: I18n): RecordItem {
     headline: cardiacExamTypeLabel(row.type, i18n),
     date: row.date,
     isDate: true,
-    secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
+    secondary: `${row.facility ?? "—"}, ${summaryText(row.conclusion)}`,
   };
 }
 
@@ -215,10 +215,10 @@ type ImagingRow = {
 };
 function renderImaging(row: ImagingRow, i18n: I18n): RecordItem {
   return {
-    headline: `${imagingTypeLabel(row.type, i18n)} · ${row.bodyPart}`,
+    headline: `${imagingTypeLabel(row.type, i18n)}, ${row.bodyPart}`,
     date: row.date,
     isDate: true,
-    secondary: `${row.facility ?? "—"} · ${summaryText(row.conclusion)}`,
+    secondary: `${row.facility ?? "—"}, ${summaryText(row.conclusion)}`,
   };
 }
 
@@ -230,7 +230,7 @@ type FamilyRow = {
 };
 function renderFamily(row: FamilyRow, i18n: I18n): RecordItem {
   return {
-    headline: `${familyRelationLabel(row.relation, i18n)} · ${row.condition}`,
+    headline: `${familyRelationLabel(row.relation, i18n)}, ${row.condition}`,
     date: formatYear(row.ageOfOnset),
     isDate: false,
     secondary: summaryText(row.notes),

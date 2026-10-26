@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BellRing, ChevronLeft, Send, Timer } from "lucide-react";
 
-import { Page, PageHeader, Section, StatusPill } from "@/components/page";
+import { ErrorState, Page, PageHeader, Section, StatusPill } from "@/components/page";
 import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
 import { orpc } from "@/utils/orpc";
 
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_auth/settings/telegram")({
   component: TelegramSettingsPage,
 });
 
-function TelegramSettingsPage() {
+export function TelegramSettingsPage() {
   const queryClient = useQueryClient();
   const { t } = useLingui();
 
@@ -48,23 +48,44 @@ function TelegramSettingsPage() {
     );
   }
 
+  const header = (
+    <PageHeader
+      title="Telegram"
+      actions={
+        <Link
+          to="/settings"
+          className="inline-flex items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
+        >
+          <ChevronLeft className="size-4" aria-hidden="true" />
+          <Trans>Settings</Trans>
+        </Link>
+      }
+    />
+  );
+
+  // Without a status there is nothing true to say: not "Not connected".
+  if (status.isError && !status.data) {
+    return (
+      <Page width="narrow">
+        {header}
+        <ErrorState
+          title={<Trans>Could not check your Telegram connection.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void status.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Page>
+    );
+  }
+
   const connected = status.data?.connected;
   const pendingLink = connect.isSuccess && connect.data && !connected ? connect.data : null;
 
   return (
     <Page width="narrow">
-      <PageHeader
-        title="Telegram"
-        actions={
-          <Link
-            to="/settings"
-            className="inline-flex items-center gap-1 rounded-full px-1 text-sm font-medium text-ink-2 underline decoration-signal underline-offset-[0.15em] hover:text-ink hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:decoration-2"
-          >
-            <ChevronLeft className="size-4" aria-hidden="true" />
-            <Trans>Settings</Trans>
-          </Link>
-        }
-      />
+      {header}
 
       <Section title={<Trans>Daily reminders over Telegram</Trans>} icon={BellRing} tone="signal">
         <SettingsGroup>

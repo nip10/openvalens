@@ -382,7 +382,7 @@ export default function InsightSettingsScreen() {
                     {INSIGHT_CHANNELS.map((channel) => (
                       <Toggle
                         key={channel}
-                        label={`${i18n._(INSIGHT_KIND_LABELS[kind])} — ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
+                        label={`${i18n._(INSIGHT_KIND_LABELS[kind])}, ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
                         value={prefs.channels[kind][channel]}
                         disabled={busy}
                         onChange={(value) =>

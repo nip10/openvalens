@@ -17,11 +17,12 @@ import {
   type RegionFill,
 } from "@openvalens/api/presenters/body-map";
 import { useQuery } from "@tanstack/react-query";
-import { Card, cn } from "heroui-native";
+import { Button, Card, cn } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 
+import { ErrorState } from "@/components/bloom";
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { client } from "@/utils/orpc";
@@ -329,6 +330,16 @@ export default function BodyMapScreen() {
                   ) : null}
                 </>
               )}
+              {composition.isError ? (
+                <ErrorState
+                  title={t`Could not load this scan.`}
+                  action={
+                    <Button variant="outline" size="sm" onPress={() => void composition.refetch()}>
+                      <Button.Label>{t`Retry`}</Button.Label>
+                    </Button>
+                  }
+                />
+              ) : null}
               {composition.data ? (
                 <Text className="text-sm text-ink-2">
                   {compareDate

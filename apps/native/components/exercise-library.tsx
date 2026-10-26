@@ -220,7 +220,7 @@ export function ExerciseMediaGallery({
           <View className="gap-1">
             <Text className="font-sans text-xs text-ink-3">
               {asset.author
-                ? t`License: ${ph({ license: asset.license })} · ${ph({ author: asset.author })}`
+                ? t`License: ${ph({ license: asset.license })}, ${ph({ author: asset.author })}`
                 : t`License: ${ph({ license: asset.license })}`}
             </Text>
             {asset.attribution ? (
@@ -469,7 +469,7 @@ export default function ExerciseLibraryScreen() {
   // License names and authors come from the source records (wger).
   const sourceLine = (license: string | null | undefined, author: string | null | undefined) => {
     const licenseText = license ?? t`License not listed`;
-    return author ? t`From wger · ${licenseText} · ${author}` : t`From wger · ${licenseText}`;
+    return author ? t`From wger, ${licenseText}, ${author}` : t`From wger, ${licenseText}`;
   };
   const muscleOptions = filters.data?.muscles ?? [];
   const equipmentOptions = filters.data?.equipment ?? [];
@@ -715,7 +715,7 @@ export default function ExerciseLibraryScreen() {
               >
                 <Text className="font-sans font-medium text-ink">{item.name}</Text>
                 <Text className="font-sans text-xs text-ink-3">
-                  {item.muscles.map((m) => m.name).join(" · ") || item.category || t`Exercise`}
+                  {item.muscles.map((m) => m.name).join(", ") || item.category || t`Exercise`}
                 </Text>
                 <Text className="font-sans text-xs text-ink-3">
                   {item.source === "wger"
@@ -819,7 +819,7 @@ export default function ExerciseLibraryScreen() {
                         className={`min-h-11 justify-center rounded-xl border border-rule-2 px-3 ${workoutId === workout.id ? "bg-primary/10" : ""}`}
                       >
                         <Text className="font-sans text-sm text-ink">
-                          {workout.date} · {workout.type}
+                          {workout.date}, {workout.type}
                         </Text>
                       </Pressable>
                     ))}

@@ -122,6 +122,7 @@ function CycleForMember({ scope }: { scope: string }) {
   const remove = useMutation({
     mutationFn: (id: string) => client.cycle.deletePeriod({ id }),
     onSuccess: refresh,
+    onError: () => setNotice(t`Could not delete this period. Try again.`),
   });
   const updateSettings = useMutation({
     mutationFn: (value: boolean) => client.cycle.updateSettings({ noNaturalCycle: value }),
@@ -325,7 +326,16 @@ function CycleForMember({ scope }: { scope: string }) {
                     })}
                   </Sheet>
                 ) : null}
-                {periods.data?.length ? (
+                {periods.isError ? (
+                  <ErrorState
+                    title={t`Could not load your periods.`}
+                    action={
+                      <Button variant="outline" size="sm" onPress={() => void periods.refetch()}>
+                        {t`Retry`}
+                      </Button>
+                    }
+                  />
+                ) : periods.data?.length ? (
                   periods.data.map((period) => (
                     <ListCard
                       key={period.id}
@@ -342,14 +352,29 @@ function CycleForMember({ scope }: { scope: string }) {
                           period.source !== "manual" ? t`imported` : "",
                         ]
                           .filter(Boolean)
-                          .join(" · ") || undefined
+                          .join(", ") || undefined
                       }
                       trailing={
                         <Button
                           size="sm"
                           variant="ghost"
                           accessibilityRole="button"
-                          onPress={() => remove.mutate(period.id)}
+                          onPress={() =>
+                            Alert.alert(
+                              t`Delete this period?`,
+                              period.endDate
+                                ? t`${period.startDate} to ${period.endDate}`
+                                : period.startDate,
+                              [
+                                { text: t`Cancel`, style: "cancel" },
+                                {
+                                  text: t`Delete`,
+                                  style: "destructive",
+                                  onPress: () => remove.mutate(period.id),
+                                },
+                              ],
+                            )
+                          }
                         >
                           {t`Delete`}
                         </Button>

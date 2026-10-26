@@ -87,7 +87,7 @@ export function HealthSyncSettings() {
             : t`Access requested for ${total} data types`
           : access.data.background
             ? t`${granted} of ${total} data types`
-            : t`${granted} of ${total} data types · background access off`;
+            : t`${granted} of ${total} data types, background access off`;
 
   const last = status.data;
   const errorCode = last?.lastErrorCode;

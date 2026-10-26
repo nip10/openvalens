@@ -346,7 +346,7 @@ export function describeProfileSaveError(error: unknown): {
   if (value.code === "CONFLICT") {
     return {
       kind: "conflict",
-      message: msg`Your profile was changed somewhere else. We've loaded the latest version — check it and save again.`,
+      message: msg`Your profile was changed somewhere else. We've loaded the latest version. Check it and save again.`,
     };
   }
   if (value.code === "INVALID_INPUT") {
@@ -366,7 +366,7 @@ export function describeProfileSaveError(error: unknown): {
   if (offline) {
     return {
       kind: "offline",
-      message: msg`Not saved — you seem to be offline. Saving needs a connection; your changes are still here.`,
+      message: msg`Not saved: you seem to be offline. Saving needs a connection; your changes are still here.`,
     };
   }
   return { kind: "unknown", message: msg`Not saved. Try again.` };

@@ -511,8 +511,8 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
           <InfoTip title={t`Intensity (optional)`}>
             <Prose>
               <Trans>
-                Talk test: light — you can talk and sing; moderate — you can talk, but not sing;
-                vigorous — you can only say a few words without pausing for breath.
+                Talk test. Light: you can talk and sing. Moderate: you can talk, but not sing.
+                Vigorous: you can only say a few words without pausing for breath.
               </Trans>
             </Prose>
           </InfoTip>
@@ -535,13 +535,13 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
       </View>
       <View className="gap-2">
         <FieldLabel>
-          <Trans>Effort, 0–10 (optional)</Trans>
+          <Trans>Effort, 0 to 10 (optional)</Trans>
         </FieldLabel>
         <View className="flex-row items-center gap-1">
           <Text className="shrink font-sans text-sm text-ink-3">
             <Trans>You can also add it later today.</Trans>
           </Text>
-          <InfoTip title={t`Effort, 0–10 (optional)`}>
+          <InfoTip title={t`Effort, 0 to 10 (optional)`}>
             <Prose>{_(EFFORT_QUESTION)}</Prose>
           </InfoTip>
         </View>
@@ -566,7 +566,7 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
         </Button>
         {durationInvalid ? (
           <Text className="font-sans text-sm text-destructive">
-            <Trans>Duration must be 1–1440 minutes.</Trans>
+            <Trans>Duration must be 1 to 1440 minutes.</Trans>
           </Text>
         ) : save.isSuccess ? (
           <Text className="font-sans text-sm text-success">
@@ -912,7 +912,7 @@ export default function WorkoutsScreen() {
           title={t`Session log`}
           description={
             workoutSummary.count > 0
-              ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })} · ${workoutSummary.totalDurationLabel}`
+              ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })}, ${workoutSummary.totalDurationLabel}`
               : undefined
           }
         >
@@ -970,7 +970,7 @@ export default function WorkoutsScreen() {
                         </Text>
                         <Text className="font-sans text-sm text-ink-3">
                           {workout.date}
-                          {workout.notes ? ` · ${workout.notes}` : ""}
+                          {workout.notes ? `, ${workout.notes}` : ""}
                         </Text>
                         <Text className="font-sans text-sm text-ink-3">
                           {sessionEffortText(workout, i18n)}
@@ -999,7 +999,7 @@ export default function WorkoutsScreen() {
           description={
             goalSummary.total > 0 ? (
               <Trans>
-                {goalSummary.open} open · {goalSummary.achieved} achieved
+                {goalSummary.open} open, {goalSummary.achieved} achieved
               </Trans>
             ) : undefined
           }

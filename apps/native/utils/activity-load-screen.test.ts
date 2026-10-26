@@ -77,11 +77,11 @@ function result(
 describe("native activity load screen model", () => {
   test("both numbers with units, status, breakdown, coverage, formula and WHO source", () => {
     const screen = activityLoadScreen(result(), englishI18n);
-    expect(screen.windowText).toBe("Last 7 days: Sat 10 Oct – Fri 16 Oct");
+    expect(screen.windowText).toBe("Last 7 days: Sat 10 Oct to Fri 16 Oct");
     const [active, effort] = screen.numbers;
     expect(active).toMatchObject({ key: "active_minutes", valueText: "160", unitText: "min" });
     expect(active!.lines).toEqual([
-      "Within the WHO range of 150–300 minutes a week.",
+      "Within the WHO range of 150 to 300 minutes a week.",
       "Moderate: 60 min",
       "Vigorous: 50 min (counts double)",
       "Light: 0 min (not counted)",

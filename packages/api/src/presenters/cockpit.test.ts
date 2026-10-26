@@ -44,8 +44,8 @@ describe("cockpit presenter", () => {
     expect(blocks[0]?.primary).toBe("72.4 kg");
     expect(blocks[1]?.primary).toBe("7h 32m");
     expect(blocks[1]?.tertiary).toBe("22:47 → 06:19");
-    expect(blocks[1]?.secondary).toBe("2026-10-01 · Acceptable");
-    expect(blocks[3]?.secondary).toBe("Avg · 2026-10-01");
+    expect(blocks[1]?.secondary).toBe("2026-10-01, Acceptable");
+    expect(blocks[3]?.secondary).toBe("Avg, 2026-10-01");
     expect(blocks[2]?.primary).toBe("5.0k");
     expect(blocks[3]?.primary).toBe("72 bpm");
   });

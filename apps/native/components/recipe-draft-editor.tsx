@@ -445,7 +445,7 @@ export default function RecipeDraftEditor() {
                   {draft.ingredients.map((item, index) => (
                     <View key={item.id} className="gap-3 rounded-2xl bg-paper-2 p-4">
                       <Text className="font-display text-sm font-medium text-ink">
-                        {t`Ingredient ${index + 1} · unmatched, unverified`}
+                        {t`Ingredient ${index + 1}: unmatched, unverified`}
                       </Text>
                       {(["rawText", "quantityText", "unitText", "foodText"] as const).map((key) => (
                         <Field
