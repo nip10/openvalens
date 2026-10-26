@@ -10,13 +10,28 @@ every workspace is invite-only.
 
 > **Pre-release.** The current version is 0.1.0 and no release is tagged yet.
 
-![Placeholder for the OpenValens dashboard screenshot](apps/site/src/screenshots/dashboard.svg)
+![The OpenValens dashboard: sleep, steps, heart rate and weight tiles over a 90-day weight chart](apps/site/src/screenshots/dashboard.webp)
 
-_Placeholder. Screenshots are only ever captured from a synthetic demo account,
-never from a real person's records (see [Landing site](#landing-site))._
+<table>
+  <tr>
+    <td width="33%"><img src="apps/site/src/screenshots/sleep.webp" alt="Sleep: last night's duration and stages, averages and a 30-day trend" /><br />Sleep</td>
+    <td width="33%"><img src="apps/site/src/screenshots/meal-diary.webp" alt="Meal diary: today's energy, protein, carbohydrate, fat and fibre totals" /><br />Meal diary</td>
+    <td width="33%"><img src="apps/site/src/screenshots/labs.webp" alt="Labs: one card per marker with its latest reading" /><br />Labs</td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="apps/site/src/screenshots/workouts.webp" alt="Workouts: weekly active minutes next to the WHO range, and effort points by day" /><br />Workouts</td>
+    <td width="33%"><img src="apps/site/src/screenshots/dashboard-dark.webp" alt="The dashboard in dark mode" /><br />Dark mode</td>
+    <td width="33%"><img src="apps/site/src/screenshots/settings.webp" alt="Settings: account, language and units" /><br />Settings</td>
+  </tr>
+</table>
+
+_Every screenshot shows a synthetic demo account ("Alex Morgan", made-up
+records), never a real person's data (see [Landing site](#landing-site))._
 
 ## What it does
 
+- **Dashboard:** today's sleep, steps, heart rate and weight at a glance, with
+  your weight over the last 90 days.
 - **Labs:** enter lab results and keep each marker's readings together.
 - **Body and vitals:** weight, body measurements and vitals over time.
 - **Workouts and activity:** sessions with an effort rating; weekly active
@@ -31,7 +46,7 @@ never from a real person's records (see [Landing site](#landing-site))._
 - **Workspaces and sharing** with owner, admin, collaborator and viewer roles.
 - **Optional AI assistant,** off by default. When an operator turns it on
   (Anthropic or any OpenAI-compatible endpoint, including a local model) and
-  you consent, it can summarise your own records. It is not medical advice and
+  you consent, it can summarise your own records (the Coach screen). It is not medical advice and
   can be wrong ([AI providers](docs/ai-providers.md)).
 - A mobile app (`apps/native`) that you build for your own instance.
 
@@ -254,10 +269,11 @@ the page carries a strict same-origin Content Security Policy (also written to
 `dist/_headers`). `apps/site/scripts/build.test.ts` checks the output, the
 banned-wording list and the stated limits in CI.
 
-Screenshots must come from synthetic data only. They are placeholders until a
-deterministic demo seed exists; `apps/site/scripts/capture-screenshots.ts`
-documents how to capture them from a local, disposable instance signed in as a
-synthetic account.
+Screenshots must come from synthetic data only. The ones in
+`apps/site/src/screenshots` were captured from a local, disposable instance
+whose only account is a synthetic demo account;
+`apps/site/scripts/capture-screenshots.ts` documents how to recapture them (a
+deterministic demo seed does not exist yet).
 
 ## Security
 
