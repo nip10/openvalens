@@ -45,6 +45,7 @@ SUITES=(
   "NUTRITION_COACH_TEST_DATABASE_URL|nutrition_coach_test|packages/api/src/routers/nutrition-coach.integration.test.ts"
   "AI_CHAT_TEST_DATABASE_URL|ai_chat_test|packages/api/src/routers/ai.integration.test.ts"
   "LABS_TEST_DATABASE_URL|labs_test|packages/labs/src/queries.integration.test.ts"
+  "LABS_ROUTER_TEST_DATABASE_URL|labs_router_test|packages/api/src/routers/labs.integration.test.ts"
   "AI_TOOLS_TEST_DATABASE_URL|ai_tools_test|packages/ai/src/tools/health-tools.integration.test.ts"
   "AI_REMAINING_TOOLS_TEST_DATABASE_URL|ai_remaining_tools_test|packages/ai/src/tools/remaining-tools.integration.test.ts"
   "DATA_RIGHTS_TEST_DATABASE_URL|data_rights_test|packages/data-rights/src/export.integration.test.ts"

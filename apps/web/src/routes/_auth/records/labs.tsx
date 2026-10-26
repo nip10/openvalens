@@ -1,6 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { displayLabValue } from "@openvalens/api/presenters/clinical-units";
-import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
+import {
+  displayLabRange,
+  formatLabDate,
+  formatLabRange,
+  formatLabValue,
+  type LabRangeDisplay,
+} from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
   makeManualEntryHash,
@@ -123,10 +129,12 @@ type MarkerRow = {
 function MarkerCard({
   marker,
   display,
+  range,
   settings,
 }: {
   marker: MarkerRow;
   display: { value: number | null; unit: string | null; converted: boolean };
+  range: LabRangeDisplay | null;
   settings: Parameters<typeof formatLabDate>[1];
 }) {
   const { t, i18n } = useLingui();
@@ -176,6 +184,7 @@ function MarkerCard({
           </span>
         ) : null}
       </div>
+      {range ? <span className="num text-sm text-ink-2">{formatLabRange(i18n, range)}</span> : null}
       {display.converted || marker.sampleCount > 0 ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {marker.sampleCount > 0 ? (
@@ -208,6 +217,14 @@ function LabsPage() {
     marker.latestValue === null
       ? { value: null, unit: marker.unit, converted: false }
       : displayLabValue(marker, marker.latestValue, labUnits);
+  // The lab's own range stored with the latest reading, shown as recorded.
+  const rangeOf = (marker: {
+    code: string;
+    unit: string | null;
+    latestValue: number | null;
+    referenceRange?: Parameters<typeof displayLabRange>[1];
+  }) =>
+    marker.latestValue === null ? null : displayLabRange(marker, marker.referenceRange, labUnits);
 
   const header = <PageHeader title={<Trans>Labs</Trans>} actions={<SyncStatusBadge />} />;
 
@@ -272,6 +289,7 @@ function LabsPage() {
                       key={marker.code}
                       marker={marker}
                       display={shown(marker)}
+                      range={rangeOf(marker)}
                       settings={settings}
                     />
                   ))}
@@ -296,6 +314,7 @@ function LabsPage() {
                       key={marker.code}
                       marker={marker}
                       display={shown(marker)}
+                      range={rangeOf(marker)}
                       settings={settings}
                     />
                   ))}
