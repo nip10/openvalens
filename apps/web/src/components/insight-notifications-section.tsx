@@ -21,7 +21,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Details, InfoTip, StatusPill, ToneIcon } from "@/components/page";
+import { Details, ErrorState, InfoTip, StatusPill, ToneIcon } from "@/components/page";
 import { SETTINGS_SELECT, SettingsGroup, SettingsIcon } from "@/components/settings-rows";
 import { orpc } from "@/utils/orpc";
 
@@ -397,7 +397,18 @@ export function InsightNotificationsSection() {
     }),
   );
   if (preferences.isPending) return <Skeleton className="h-48 w-full rounded-3xl" />;
-  if (preferences.isError || !preferences.data) return null;
+  if (preferences.isError || !preferences.data) {
+    return (
+      <ErrorState
+        title={<Trans>Could not load your notification settings.</Trans>}
+        action={
+          <Button variant="outline" onClick={() => void preferences.refetch()}>
+            <Trans>Retry</Trans>
+          </Button>
+        }
+      />
+    );
+  }
   return (
     <InsightNotificationsForm
       preferences={preferences.data}

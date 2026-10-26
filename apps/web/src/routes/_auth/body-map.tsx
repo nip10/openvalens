@@ -16,13 +16,14 @@ import {
   type LegendStep,
   type RegionFill,
 } from "@openvalens/api/presenters/body-map";
+import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Dumbbell, MousePointerClick, PersonStanding, ScanLine } from "lucide-react";
 
-import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
+import { Details, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
 
 export const Route = createFileRoute("/_auth/body-map")({ component: BodyMapPage });
@@ -161,7 +162,7 @@ function BodyFigure({
   );
 }
 
-function BodyMapPage() {
+export function BodyMapPage() {
   const [layer, setLayer] = useState<Layer>("composition");
   const [view, setView] = useState<BodyMapView>("front");
   const [selected, setSelected] = useState<string | null>(null);
@@ -357,6 +358,16 @@ function BodyMapPage() {
                     ) : null}
                   </div>
                 )}
+                {composition.isError ? (
+                  <ErrorState
+                    title={<Trans>Could not load this scan.</Trans>}
+                    action={
+                      <Button variant="outline" onClick={() => void composition.refetch()}>
+                        <Trans>Retry</Trans>
+                      </Button>
+                    }
+                  />
+                ) : null}
                 {composition.data ? (
                   <p className="text-ink-2">
                     {compareDate

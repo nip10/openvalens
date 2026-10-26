@@ -237,7 +237,21 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
     }),
   );
 
-  if (preview.isPending || preview.isError || !preview.data) return null;
+  if (preview.isPending) return null;
+  if (preview.isError || !preview.data) {
+    return (
+      <Section title={t`Delete account`} icon={Trash2}>
+        <ErrorState
+          title={t`Could not load what would be deleted.`}
+          action={
+            <Button variant="outline" size="sm" onPress={() => void preview.refetch()}>
+              <Button.Label>{t`Retry`}</Button.Label>
+            </Button>
+          }
+        />
+      </Section>
+    );
+  }
   const data = preview.data;
   const rows = data.totalRows.toLocaleString();
   const organizationCount = data.organizations.length;

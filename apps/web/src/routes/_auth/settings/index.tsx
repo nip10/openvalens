@@ -418,7 +418,7 @@ function Field({
  * "Delete everything" (Issue #89): preview, export-first link, co-owner
  * blockers, fresh sign-in via magic link, typed confirmation, then sign-out.
  */
-function DeleteAccountSection() {
+export function DeleteAccountSection() {
   const navigate = useNavigate();
   const { data: session } = authClient.useSession();
   const preview = useQuery(orpc.dataRights.deletionPreview.queryOptions({ input: {} }));
@@ -440,7 +440,20 @@ function DeleteAccountSection() {
   );
 
   if (preview.isPending) return <Skeleton className="h-40 w-full rounded-3xl" />;
-  if (preview.isError || !preview.data) return null;
+  if (preview.isError || !preview.data) {
+    return (
+      <Section title={<Trans>Delete account and all data</Trans>} icon={Trash2}>
+        <ErrorState
+          title={<Trans>Could not load what would be deleted.</Trans>}
+          action={
+            <Button variant="outline" onClick={() => void preview.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          }
+        />
+      </Section>
+    );
+  }
   const data = preview.data;
   const rows = data.totalRows.toLocaleString();
   const organizationCount = data.organizations.length;

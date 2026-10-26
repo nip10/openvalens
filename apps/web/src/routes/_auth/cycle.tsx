@@ -147,7 +147,7 @@ function CycleForMember({ scope }: { scope: string }) {
   );
 }
 
-function CycleEnabled({
+export function CycleEnabled({
   noNaturalCycle,
   keyFor,
   refresh,
@@ -200,6 +200,7 @@ function CycleEnabled({
       setNotice(t`Period deleted.`);
       refresh();
     },
+    onError: () => setNotice(t`Could not delete this period. Try again.`),
   });
   const undo = useMutation({
     mutationFn: (importId: string) => client.cycle.undoImport({ importId }),
@@ -209,6 +210,7 @@ function CycleEnabled({
       );
       refresh();
     },
+    onError: () => setNotice(t`Could not undo this import. Try again.`),
   });
   const updateSettings = useMutation({
     mutationFn: (value: boolean) => client.cycle.updateSettings({ noNaturalCycle: value }),
@@ -369,7 +371,16 @@ function CycleEnabled({
               })}
             </ul>
           ) : null}
-          {periods.data?.length ? (
+          {periods.isError ? (
+            <ErrorState
+              title={<Trans>Could not load your periods.</Trans>}
+              action={
+                <Button variant="outline" onClick={() => void periods.refetch()}>
+                  <Trans>Retry</Trans>
+                </Button>
+              }
+            />
+          ) : periods.data?.length ? (
             <ul className="sheet grid divide-y divide-rule px-5 py-1">
               {periods.data.map((period) => (
                 <li
@@ -407,7 +418,16 @@ function CycleEnabled({
           ) : (
             <EmptyState icon={History} title={<Trans>No periods logged yet.</Trans>} />
           )}
-          {imports.data?.length ? (
+          {imports.isError ? (
+            <ErrorState
+              title={<Trans>Could not load your imports.</Trans>}
+              action={
+                <Button variant="outline" onClick={() => void imports.refetch()}>
+                  <Trans>Retry</Trans>
+                </Button>
+              }
+            />
+          ) : imports.data?.length ? (
             <div className="grid gap-2">
               <h3 className="text-base text-ink">
                 <Trans>Imports</Trans>

@@ -2471,6 +2471,14 @@ msgstr "Não foi possível verificar esta definição. As medições ficam indis
 msgid "Could not check this setting. Try again"
 msgstr "Não foi possível verificar esta definição. Tente novamente"
 
+#: apps/web/src/components/oidc-connect-section.tsx
+msgid "Could not check your sign-in methods."
+msgstr "Não foi possível verificar os seus métodos de início de sessão."
+
+#: apps/web/src/routes/_auth/settings/telegram.tsx
+msgid "Could not check your Telegram connection."
+msgstr "Não foi possível verificar a sua ligação ao Telegram."
+
 #: apps/native/components/sign-in.tsx
 msgid "Could not clear the pending sign-in. Please try again."
 msgstr "Não foi possível limpar o início de sessão pendente. Tente novamente."
@@ -2555,6 +2563,11 @@ msgstr "Não foi possível eliminar este registo. Continua no seu histórico."
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Could not delete this entry. It is still in your history. Retry below."
 msgstr "Não foi possível eliminar este registo. Continua no seu histórico. Tente novamente abaixo."
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not delete this period. Try again."
+msgstr "Não foi possível eliminar este período. Tente novamente."
 
 #: apps/native/components/progress-photos.tsx
 #: apps/web/src/components/progress-photos.tsx
@@ -2754,6 +2767,11 @@ msgstr "Não foi possível carregar a definição de IA do espaço de trabalho."
 msgid "Could not load this conversation."
 msgstr "Não foi possível carregar esta conversa."
 
+#: apps/native/app/(drawer)/body-map.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
+msgid "Could not load this scan."
+msgstr "Não foi possível carregar este exame."
+
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Could not load threads."
@@ -2774,6 +2792,11 @@ msgstr "Não foi possível carregar a atividade semanal."
 msgid "Could not load weight."
 msgstr "Não foi possível carregar o peso."
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Could not load what would be deleted."
+msgstr "Não foi possível carregar o que seria eliminado."
+
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -2789,6 +2812,19 @@ msgstr "Não foi possível carregar os seus dados."
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Could not load your devices."
 msgstr "Não foi possível carregar os seus dispositivos."
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not load your imports."
+msgstr "Não foi possível carregar as suas importações."
+
+#: apps/web/src/components/insight-notifications-section.tsx
+msgid "Could not load your notification settings."
+msgstr "Não foi possível carregar as suas definições de notificações."
+
+#: apps/native/app/(drawer)/cycle.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not load your periods."
+msgstr "Não foi possível carregar os seus períodos."
 
 #: apps/web/src/components/progress-photos.tsx
 msgid "Could not load your photos."
@@ -2986,6 +3022,10 @@ msgstr "Não foi possível ativar as notificações."
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Could not turn this on. Try again."
 msgstr "Não foi possível ativar. Tente novamente."
+
+#: apps/web/src/routes/_auth/cycle.tsx
+msgid "Could not undo this import. Try again."
+msgstr "Não foi possível anular esta importação. Tente novamente."
 
 #: apps/web/src/components/ai-consent-section.tsx
 msgid "Could not update AI consent."
@@ -7945,9 +7985,11 @@ msgstr "Restaurar registo"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/native/app/(drawer)/admin/settings.tsx
+#: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/native/app/(drawer)/coach/index.tsx
+#: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/native/app/(drawer)/invitations.tsx
@@ -7975,16 +8017,20 @@ msgstr "Restaurar registo"
 #: apps/web/src/components/analytics-consent-section.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/insight-notifications-section.tsx
 #: apps/web/src/components/insights-section.tsx
 #: apps/web/src/components/my-invitations-view.tsx
+#: apps/web/src/components/oidc-connect-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
+#: apps/web/src/routes/_auth/body-map.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
+#: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/preventive-care.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
@@ -7995,6 +8041,7 @@ msgstr "Restaurar registo"
 #: apps/web/src/routes/_auth/route.tsx
 #: apps/web/src/routes/_auth/scores.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
+#: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
