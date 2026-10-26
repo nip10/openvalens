@@ -142,18 +142,18 @@ export function parseCustomFood(
   };
 }
 
-/** `"Values per 100 g · 1 slice = 30 g"`. */
+/** `"Values per 100 g (1 slice = 30 g)"`. */
 export function describeBasis(basis: NutrientBasis, i18n: I18n): string {
   const per = formatAmount(basis.nutrientBasisAmount, basis.nutrientBasisUnit, i18n);
   const label = basis.servingLabel;
   if (basis.servingSizeAmount === null || basis.servingSizeUnit === null)
     return label
-      ? i18n._(msg`Values per ${per} · serving: ${label}`)
+      ? i18n._(msg`Values per ${per} (serving: ${label})`)
       : i18n._(msg`Values per ${per}`);
   const size = formatAmount(basis.servingSizeAmount, basis.servingSizeUnit, i18n);
   return label
-    ? i18n._(msg`Values per ${per} · ${label} = ${size}`)
-    : i18n._(msg`Values per ${per} · 1 serving = ${size}`);
+    ? i18n._(msg`Values per ${per} (${label} = ${size})`)
+    : i18n._(msg`Values per ${per} (1 serving = ${size})`);
 }
 
 /** `"5 of 12 values entered"`: how much of the label the member filled in. */

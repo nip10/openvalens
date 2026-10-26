@@ -78,7 +78,7 @@ describe("vitals presenter", () => {
 
   test("formatBpmRange: includes min/max when present", () => {
     expect(formatBpmRange(null, null, null)).toBe("—");
-    expect(formatBpmRange(72, 65, 88)).toBe("72 bpm · 65 bpm–88 bpm");
+    expect(formatBpmRange(72, 65, 88)).toBe("72 bpm (65 bpm–88 bpm)");
     expect(formatBpmRange(72, null, null)).toBe("72 bpm");
   });
 

@@ -68,7 +68,7 @@ export const COMPARISON_METRIC_LABELS: Record<ComparisonMetric, MessageDescripto
 export const COMPARISON_DISCLOSURES: Record<ComparisonMetric, MessageDescriptor> = {
   resting_heart_rate: msg({
     message:
-      "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured in 1999–2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide.",
+      "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide.",
     comment: "safety",
   }),
   sleep_duration: msg({
@@ -78,7 +78,7 @@ export const COMPARISON_DISCLOSURES: Record<ComparisonMetric, MessageDescriptor>
   }),
   active_minutes: msg({
     message:
-      "Shows your active minutes for the last 7 days next to the WHO 2020 range of 150–300 minutes a week for adults. Only sessions with a recorded intensity count.",
+      "Shows your active minutes for the last 7 days next to the WHO 2020 range of 150 to 300 minutes a week for adults. Only sessions with a recorded intensity count.",
     comment: "safety",
   }),
 };
@@ -88,7 +88,7 @@ export const COMPARISON_NOTE_COPY: Record<ComparisonNote, MessageDescriptor> = {
   manual_pulse_protocol: msg`The reference pulse was counted after about 4 minutes of sitting quietly. Readings taken the same way compare best.`,
   active_minutes_need_intensity: msg`Only sessions with a recorded intensity count; sessions without one are left out, not counted as zero.`,
   guideline_is_not_a_distribution: msg`This is a recommended range, not a description of what most people do.`,
-  us_reference_population: msg`The reference group is US adults measured in 1999–2008 and may differ from people where you live.`,
+  us_reference_population: msg`The reference group is US adults measured from 1999 to 2008 and may differ from people where you live.`,
   near_band_edge: msg`Your usual value is close to the edge of the middle range, so a small change could move it to the other side.`,
 };
 
@@ -185,19 +185,19 @@ export function formatAgeSpan(row: { minAge: number; maxAge: number | null }, i1
   const { minAge, maxAge } = row;
   return maxAge === null
     ? i18n._(msg`aged ${minAge} and over`)
-    : i18n._(msg`aged ${minAge}–${maxAge}`);
+    : i18n._(msg`aged ${minAge} to ${maxAge}`);
 }
 
-/** "men aged 40–59" / "women aged 80 and over". */
+/** "men aged 40 to 59" / "women aged 80 and over". */
 function groupLabel(band: BandComparison, i18n: I18n): string {
   const { minAge, maxAge } = band;
   if (band.sex === "female")
     return maxAge === null
       ? i18n._(msg`women aged ${minAge} and over`)
-      : i18n._(msg`women aged ${minAge}–${maxAge}`);
+      : i18n._(msg`women aged ${minAge} to ${maxAge}`);
   return maxAge === null
     ? i18n._(msg`men aged ${minAge} and over`)
-    : i18n._(msg`men aged ${minAge}–${maxAge}`);
+    : i18n._(msg`men aged ${minAge} to ${maxAge}`);
 }
 
 function datasetById(id: string): ReferenceDataset | null {
@@ -220,7 +220,7 @@ export function bandSentences(band: BandComparison, value: number, i18n: I18n): 
         : msg`About 1 in 4 people in that group had a resting pulse above ${upper} bpm.`;
   return [
     i18n._(
-      msg`Your usual resting heart rate, ${usual} bpm, is ${select(position, { within: "within the middle range", below: "below the middle range", other: "above the middle range" })} for ${group} in the reference group (${lower}–${upper} bpm).`,
+      msg`Your usual resting heart rate, ${usual} bpm, is ${select(position, { within: "within the middle range", below: "below the middle range", other: "above the middle range" })} for ${group} in the reference group (${lower} to ${upper} bpm).`,
     ),
     i18n._(frequency),
   ];
@@ -241,10 +241,10 @@ function rangeText(
   if (metric === "sleep_duration") {
     const lower = formatHours(row.lower);
     const upper = formatHours(row.upper);
-    return i18n._(msg({ message: `${lower}–${upper} hours a night`, comment: "safety" }));
+    return i18n._(msg({ message: `${lower} to ${upper} hours a night`, comment: "safety" }));
   }
   const { lower, upper } = row;
-  return i18n._(msg({ message: `${lower}–${upper} minutes a week`, comment: "safety" }));
+  return i18n._(msg({ message: `${lower} to ${upper} minutes a week`, comment: "safety" }));
 }
 
 export function guidelineSentences(
@@ -335,7 +335,7 @@ const DATASET_TEXT: Record<
     licence: msg`Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced.`,
   },
   [NSF_2015_SLEEP_DURATION.id]: {
-    population: msg`Adults without a sleep disorder: adults 18–64 and adults 65 and over.`,
+    population: msg`Adults without a sleep disorder: adults 18 to 64 and adults 65 and over.`,
     collectionYears: msg`Recommendations issued 2015`,
     method: msg`18-member multidisciplinary expert panel using the RAND/UCLA Appropriateness Method. A recommended range, not a measured distribution.`,
     licence: msg`Published recommendation figures quoted with attribution (facts, not the article text).`,

@@ -84,11 +84,11 @@ export function formatBpm(value: number | null | undefined): string {
   return `${Math.round(value)} bpm`;
 }
 
-/** "72 bpm · 65–88" / "—" when min/max missing. */
+/** "72 bpm (65 bpm–88 bpm)" / "—" when min/max missing. */
 export function formatBpmRange(avg: number | null, min: number | null, max: number | null): string {
   if (avg === null) return "—";
   if (min === null || max === null) return formatBpm(avg);
-  return `${formatBpm(avg)} · ${formatBpm(min)}–${formatBpm(max)}`;
+  return `${formatBpm(avg)} (${formatBpm(min)}–${formatBpm(max)})`;
 }
 
 /** Chart series: oldest-first daily avg bpm. */

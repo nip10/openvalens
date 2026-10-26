@@ -130,10 +130,10 @@ describe("targets", () => {
   });
 
   test("states where a target came from and when it applies", () => {
-    expect(inEnglish(describeTargetSource(target()))).toBe("Entered by you · from 2026-10-01");
+    expect(inEnglish(describeTargetSource(target()))).toBe("Entered by you, from 2026-10-01");
     expect(
       inEnglish(describeTargetSource(target({ source: "proposal", effectiveTo: "2026-10-08" }))),
-    ).toBe("Accepted suggestion · from 2026-10-01 until 2026-10-08");
+    ).toBe("Accepted suggestion, from 2026-10-01 until 2026-10-08");
   });
 });
 

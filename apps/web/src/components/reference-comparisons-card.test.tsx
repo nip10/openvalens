@@ -66,7 +66,7 @@ describe("reference comparisons card (web)", () => {
 
   test("on: band in words, source, and the device note", () => {
     const html = render(true);
-    expect(html).toContain("within the middle range for women aged 40–59");
+    expect(html).toContain("within the middle range for women aged 40 to 59");
     expect(html).toContain("About 5 in 10 people in that group");
     expect(html).toContain("Source: NCHS, NHANES 1999–2008");
     expect(html).toContain("https://www.cdc.gov/nchs/data/nhsr/nhsr041.pdf");

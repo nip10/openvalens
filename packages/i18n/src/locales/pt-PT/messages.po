@@ -132,13 +132,13 @@ msgstr "{0, plural, one {Mostrar # músculo} other {Mostrar os # músculos}}"
 
 #. placeholder {0}: target.source
 #: packages/api/src/presenters/nutrition-targets.ts
-msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from}"
-msgstr "{0, select, entered {Introduzido por si} proposal {Sugestão aceite} other {Objetivo}} · a partir de {from}"
+msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}}, from {from}"
+msgstr "{0, select, entered {Introduzido por si} proposal {Sugestão aceite} other {Objetivo}}, a partir de {from}"
 
 #. placeholder {0}: target.source
 #: packages/api/src/presenters/nutrition-targets.ts
-msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}} · from {from} until {to}"
-msgstr "{0, select, entered {Introduzido por si} proposal {Sugestão aceite} other {Objetivo}} · de {from} até {to}"
+msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}}, from {from} until {to}"
+msgstr "{0, select, entered {Introduzido por si} proposal {Sugestão aceite} other {Objetivo}}, de {from} até {to}"
 
 #. placeholder {0}: formatLabDate(marker.latestSampledAt, dateSettings)
 #. placeholder {1}: marker.sampleCount
@@ -387,16 +387,16 @@ msgid "{hr}h ago"
 msgstr "há {hr} h"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "{intensity} · effort {rating}/10 · {count, plural, one {{points} point} other {{points} points}}"
-msgstr "{intensity} · esforço {rating}/10 · {count, plural, one {{points} ponto} other {{points} pontos}}"
+msgid "{intensity}, effort {rating}/10, {count, plural, one {{points} point} other {{points} points}}"
+msgstr "{intensity}, esforço {rating}/10, {count, plural, one {{points} ponto} other {{points} pontos}}"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "{intensity} · effort {rating}/10 · no duration, no points"
-msgstr "{intensity} · esforço {rating}/10 · sem duração, sem pontos"
+msgid "{intensity}, effort {rating}/10, no duration, no points"
+msgstr "{intensity}, esforço {rating}/10, sem duração, sem pontos"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "{intensity} · effort not rated"
-msgstr "{intensity} · esforço não avaliado"
+msgid "{intensity}, effort not rated"
+msgstr "{intensity}, esforço não avaliado"
 
 #: packages/email/src/templates/invitation.tsx
 msgid "{inviterName} invited you to {organizationName} on {appName}"
@@ -493,18 +493,18 @@ msgstr "{label}: valor oculto, {coverage}"
 
 #. safety
 #: packages/api/src/presenters/energy-estimate.ts
-msgid "{low}–{high} kcal/day"
-msgstr "{low}–{high} kcal/dia"
+msgid "{low} to {high} kcal/day"
+msgstr "{low} a {high} kcal/dia"
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "{lower}–{upper} hours a night"
-msgstr "{lower}–{upper} horas por noite"
+msgid "{lower} to {upper} hours a night"
+msgstr "{lower} a {upper} horas por noite"
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "{lower}–{upper} minutes a week"
-msgstr "{lower}–{upper} minutos por semana"
+msgid "{lower} to {upper} minutes a week"
+msgstr "{lower} a {upper} minutos por semana"
 
 #. placeholder {0}: cycle.lutealEstimate.from
 #. placeholder {1}: cycle.lutealEstimate.to
@@ -753,12 +753,8 @@ msgid "<0>Source-listed muscles:</0> {listedNames}"
 msgstr "<0>Músculos indicados pela fonte:</0> {listedNames}"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "0 · Rest"
-msgstr "0 · Repouso"
-
-#: packages/api/src/presenters/activity-load.ts
-msgid "1 · Very, very easy"
-msgstr "1 · Muito, muito fácil"
+msgid "0: Rest"
+msgstr "0: Repouso"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -766,8 +762,12 @@ msgid "1 = very gentle, 5 = very forceful. Currently {assertiveness} of 5."
 msgstr "1 = muito suave, 5 = muito enérgico. Atualmente {assertiveness} de 5."
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "10 · Maximal"
-msgstr "10 · Máximo"
+msgid "1: Very, very easy"
+msgstr "1: Muito, muito fácil"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "10: Maximal"
+msgstr "10: Máximo"
 
 #: packages/api/src/presenters/score.ts
 msgid "100% (target reached)"
@@ -786,12 +786,12 @@ msgid "18-member multidisciplinary expert panel using the RAND/UCLA Appropriaten
 msgstr "Painel multidisciplinar de 18 especialistas, com o método de adequação RAND/UCLA. Um intervalo recomendado, não uma distribuição medida."
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "2 · Easy"
-msgstr "2 · Fácil"
+msgid "2: Easy"
+msgstr "2: Fácil"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "3 · Moderate"
-msgstr "3 · Moderado"
+msgid "3: Moderate"
+msgstr "3: Moderado"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
@@ -806,21 +806,17 @@ msgstr "30 dias"
 msgid "30-day trend"
 msgstr "Tendência de 30 dias"
 
-#: packages/api/src/presenters/activity-load.ts
-msgid "4 · Somewhat hard"
-msgstr "4 · Algo difícil"
-
 #: packages/api/src/presenters/body-map.ts
 msgid "4 to under 8"
 msgstr "4 a menos de 8"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "5 · Hard"
-msgstr "5 · Difícil"
+msgid "4: Somewhat hard"
+msgstr "4: Algo difícil"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "7 · Very hard"
-msgstr "7 · Muito difícil"
+msgid "5: Hard"
+msgstr "5: Difícil"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/index.tsx
@@ -838,6 +834,10 @@ msgstr "Média de 7 dias"
 #: apps/native/app/(drawer)/records/vitals.tsx
 msgid "7-day avg"
 msgstr "Média 7 dias"
+
+#: packages/api/src/presenters/activity-load.ts
+msgid "7: Very hard"
+msgstr "7: Muito difícil"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "8 to under 12"
@@ -1205,7 +1205,7 @@ msgid "Adults aged 18 and over, including older adults (65+)."
 msgstr "Adultos com 18 anos ou mais, incluindo adultos mais velhos (65+)."
 
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "Adults without a sleep disorder: adults 18–64 and adults 65 and over."
+msgid "Adults without a sleep disorder: adults 18 to 64 and adults 65 and over."
 msgstr "Adultos sem perturbação do sono: adultos dos 18 aos 64 anos e adultos com 65 anos ou mais."
 
 #: apps/web/src/components/product-settings-form.tsx
@@ -1230,8 +1230,8 @@ msgid "aged {minAge} and over"
 msgstr "com {minAge} anos ou mais"
 
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "aged {minAge}–{maxAge}"
-msgstr "com {minAge}–{maxAge} anos"
+msgid "aged {minAge} to {maxAge}"
+msgstr "com {minAge} a {maxAge} anos"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Aggressive"
@@ -1548,11 +1548,6 @@ msgstr "Média, {0}"
 msgid "Avg"
 msgstr "Média"
 
-#. placeholder {0}: vitals.date
-#: packages/api/src/presenters/cockpit.ts
-msgid "Avg · {0}"
-msgstr "Média · {0}"
-
 #: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Avg bpm"
 msgstr "Média de bpm"
@@ -1566,6 +1561,11 @@ msgstr "Défice médio"
 #: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Avg heart rate"
 msgstr "Frequência cardíaca média"
+
+#. placeholder {0}: vitals.date
+#: packages/api/src/presenters/cockpit.ts
+msgid "Avg, {0}"
+msgstr "Média, {0}"
 
 #: packages/api/src/presenters/sleep.ts
 msgid "Awake"
@@ -1687,8 +1687,8 @@ msgid "before an upgrade"
 msgstr "antes de uma atualização"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "Below the WHO range of 150–300 minutes a week."
-msgstr "Abaixo do intervalo da OMS de 150–300 minutos por semana."
+msgid "Below the WHO range of 150 to 300 minutes a week."
+msgstr "Abaixo do intervalo da OMS de 150 a 300 minutos por semana."
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Biceps"
@@ -3514,12 +3514,12 @@ msgid "Display defaults"
 msgstr "Predefinições de apresentação"
 
 #: apps/web/src/components/product-settings-status.tsx
-msgid "Display defaults refresh failed · showing last loaded defaults"
-msgstr "Falha ao atualizar as predefinições de apresentação · a mostrar as últimas carregadas"
+msgid "Display defaults refresh failed (showing last loaded defaults)"
+msgstr "Falha ao atualizar as predefinições de apresentação (a mostrar as últimas carregadas)"
 
 #: apps/web/src/components/product-settings-status.tsx
-msgid "Display defaults unavailable · showing metric fallback"
-msgstr "Predefinições de apresentação indisponíveis · a mostrar o sistema métrico"
+msgid "Display defaults unavailable (showing metric fallback)"
+msgstr "Predefinições de apresentação indisponíveis (a mostrar o sistema métrico)"
 
 #: apps/web/src/components/plain-water-day-view.tsx
 msgid "Display unit"
@@ -3649,8 +3649,8 @@ msgid "Each rule compares your last 7 days with your own usual (the median of th
 msgstr "Cada regra compara os seus últimos 7 dias com o seu habitual (a mediana dos 28 dias anteriores). Uma alteração só é descrita quando é maior do que a sua variação habitual de um dia para o outro e do que um valor mínimo fixo, e quando a maioria dos dias recentes fica do mesmo lado. Um novo dispositivo ou aplicação dá início a um novo habitual, em vez de ser misturado com o anterior."
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "Each session's effort rating (0–10) × its minutes, added up over the last 7 days (session-RPE)."
-msgstr "A avaliação de esforço de cada sessão (0–10) × os seus minutos, somada nos últimos 7 dias (session-RPE)."
+msgid "Each session's effort rating (0 to 10) × its minutes, added up over the last 7 days (session-RPE)."
+msgstr "A avaliação de esforço de cada sessão (0 a 10) × os seus minutos, somada nos últimos 7 dias (session-RPE)."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Earlier"
@@ -3948,8 +3948,8 @@ msgstr "Foi registada energia de atividade estimada em {activityDays, plural, on
 
 #. safety
 #: packages/api/src/presenters/cycle.ts
-msgid "Estimated luteal phase (about the last 12–14 days before your period)"
-msgstr "Fase lútea estimada (cerca dos últimos 12–14 dias antes do período)"
+msgid "Estimated luteal phase (about the last 12 to 14 days before your period)"
+msgstr "Fase lútea estimada (cerca dos últimos 12 a 14 dias antes do período)"
 
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "Estimated maintenance intake"
@@ -4045,8 +4045,8 @@ msgid "Experimental"
 msgstr "Experimental"
 
 #: packages/api/src/presenters/energy-estimate.ts
-msgid "Experimental estimate—not a target or a measure of what you ate."
-msgstr "Estimativa experimental — não é um objetivo nem uma medida do que comeu."
+msgid "Experimental estimate: not a target or a measure of what you ate."
+msgstr "Estimativa experimental: não é um objetivo nem uma medida do que comeu."
 
 #: packages/api/src/presenters/score.ts
 msgid "Experimental readiness index {score} out of 100, {profileName}."
@@ -4633,8 +4633,8 @@ msgid "How far you have moved toward the targets you set, weighted by your prior
 msgstr "O quanto avançou em direção aos alvos que definiu, ponderado pelas suas prioridades."
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "How hard was the whole session? (0–10)"
-msgstr "Quão difícil foi a sessão completa? (0–10)"
+msgid "How hard was the whole session? (0 to 10)"
+msgstr "Quão difícil foi a sessão completa? (0 a 10)"
 
 #: packages/api/src/presenters/insights.ts
 msgid "How insights work"
@@ -5167,8 +5167,8 @@ msgid "Last 7 days: {recent}."
 msgstr "Últimos 7 dias: {recent}."
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "Last 7 days: {start} – {end}"
-msgstr "Últimos 7 dias: {start} – {end}"
+msgid "Last 7 days: {start} to {end}"
+msgstr "Últimos 7 dias: {start} a {end}"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/web/src/routes/_auth/body.tsx
@@ -5198,8 +5198,8 @@ msgstr "Última noite"
 
 #. placeholder {0}: weight.date
 #: packages/api/src/presenters/cockpit.ts
-msgid "Last reading · {0}"
-msgstr "Última leitura · {0}"
+msgid "Last reading: {0}"
+msgstr "Última leitura: {0}"
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Last sync failed. Try again."
@@ -5763,8 +5763,8 @@ msgid "men aged {minAge} and over"
 msgstr "homens com {minAge} anos ou mais"
 
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "men aged {minAge}–{maxAge}"
-msgstr "homens com {minAge}–{maxAge} anos"
+msgid "men aged {minAge} to {maxAge}"
+msgstr "homens com {minAge} a {maxAge} anos"
 
 #: apps/web/src/components/header.tsx
 msgid "Menu"
@@ -6590,8 +6590,8 @@ msgid "Not reported by this scan"
 msgstr "Não reportado por este exame"
 
 #: packages/api/src/presenters/wellness-profile.ts
-msgid "Not saved — you seem to be offline. Saving needs a connection; your changes are still here."
-msgstr "Não guardado — parece estar sem ligação. Para guardar é preciso ligação; as suas alterações continuam aqui."
+msgid "Not saved: you seem to be offline. Saving needs a connection; your changes are still here."
+msgstr "Não guardado: parece estar sem ligação. Para guardar é preciso ligação; as suas alterações continuam aqui."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -8747,13 +8747,13 @@ msgstr "Mostra a alteração medida por região entre dois dos seus exames."
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured in 1999–2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
-msgstr "Mostra se a sua frequência cardíaca em repouso habitual (a mediana dos últimos 28 dias) está abaixo, dentro ou acima da metade central dos adultos dos EUA do seu grupo etário e sexo, medidos em 1999–2008 (NCHS). Precisa do seu ano de nascimento e do seu sexo para tabelas de referência no seu perfil, cada um com o respetivo consentimento. As leituras dos dispositivos são normalmente obtidas de forma diferente da pulsação sentada da referência, por isso use-as como uma indicação aproximada."
+msgid "Shows whether your usual resting heart rate (the median of the last 28 days) is below, within or above the middle half of US adults of your age group and sex, measured from 1999 to 2008 (NCHS). Needs your birth year and sex for reference tables in your profile, each with its consent. Device readings are usually taken differently from the seated pulse in the reference, so treat them as a rough guide."
+msgstr "Mostra se a sua frequência cardíaca em repouso habitual (a mediana dos últimos 28 dias) está abaixo, dentro ou acima da metade central dos adultos dos EUA do seu grupo etário e sexo, medidos de 1999 a 2008 (NCHS). Precisa do seu ano de nascimento e do seu sexo para tabelas de referência no seu perfil, cada um com o respetivo consentimento. As leituras dos dispositivos são normalmente obtidas de forma diferente da pulsação sentada da referência, por isso use-as como uma indicação aproximada."
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "Shows your active minutes for the last 7 days next to the WHO 2020 range of 150–300 minutes a week for adults. Only sessions with a recorded intensity count."
-msgstr "Mostra os seus minutos ativos dos últimos 7 dias ao lado do intervalo da OMS 2020 de 150–300 minutos por semana para adultos. Só contam as sessões com intensidade registada."
+msgid "Shows your active minutes for the last 7 days next to the WHO 2020 range of 150 to 300 minutes a week for adults. Only sessions with a recorded intensity count."
+msgstr "Mostra os seus minutos ativos dos últimos 7 dias ao lado do intervalo da OMS 2020 de 150 a 300 minutos por semana para adultos. Só contam as sessões com intensidade registada."
 
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
@@ -9583,8 +9583,8 @@ msgid "The recipe data on that page could not be read. Paste the ingredients ins
 msgstr "Não foi possível ler os dados da receita nessa página. Cole os ingredientes."
 
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "The reference group is US adults measured in 1999–2008 and may differ from people where you live."
-msgstr "O grupo de referência são adultos dos EUA medidos em 1999–2008 e pode ser diferente das pessoas onde vive."
+msgid "The reference group is US adults measured from 1999 to 2008 and may differ from people where you live."
+msgstr "O grupo de referência são adultos dos EUA medidos de 1999 a 2008 e pode ser diferente das pessoas onde vive."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "The reference pulse was counted after about 4 minutes of sitting quietly. Readings taken the same way compare best."
@@ -10506,16 +10506,16 @@ msgid "Values per {per}"
 msgstr "Valores por {per}"
 
 #: packages/api/src/presenters/custom-foods.ts
-msgid "Values per {per} · {label} = {size}"
-msgstr "Valores por {per} · {label} = {size}"
+msgid "Values per {per} ({label} = {size})"
+msgstr "Valores por {per} ({label} = {size})"
 
 #: packages/api/src/presenters/custom-foods.ts
-msgid "Values per {per} · 1 serving = {size}"
-msgstr "Valores por {per} · 1 porção = {size}"
+msgid "Values per {per} (1 serving = {size})"
+msgstr "Valores por {per} (1 porção = {size})"
 
 #: packages/api/src/presenters/custom-foods.ts
-msgid "Values per {per} · serving: {label}"
-msgstr "Valores por {per} · porção: {label}"
+msgid "Values per {per} (serving: {label})"
+msgstr "Valores por {per} (porção: {label})"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Values per amount"
@@ -10731,8 +10731,8 @@ msgid "WHO 2020 guidelines (opens the paper)"
 msgstr "Diretrizes da OMS de 2020 (abre o artigo)"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "WHO guideline for adults: 150–300 minutes of moderate activity a week, or 75–150 minutes of vigorous activity, or a mix of both (vigorous minutes count double)."
-msgstr "Diretriz da OMS para adultos: 150–300 minutos de atividade moderada por semana, ou 75–150 minutos de atividade vigorosa, ou uma combinação de ambas (os minutos vigorosos contam a dobrar)."
+msgid "WHO guideline for adults: 150 to 300 minutes of moderate activity a week, or 75 to 150 minutes of vigorous activity, or a mix of both (vigorous minutes count double)."
+msgstr "Diretriz da OMS para adultos: 150 a 300 minutos de atividade moderada por semana, ou 75 a 150 minutos de atividade vigorosa, ou uma combinação de ambas (os minutos vigorosos contam a dobrar)."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Who was measured"
@@ -10743,16 +10743,16 @@ msgid "Within {slight}"
 msgstr "Dentro de {slight}"
 
 #: packages/api/src/presenters/activity-load.ts
-msgid "Within the WHO range of 150–300 minutes a week."
-msgstr "Dentro do intervalo da OMS de 150–300 minutos por semana."
+msgid "Within the WHO range of 150 to 300 minutes a week."
+msgstr "Dentro do intervalo da OMS de 150 a 300 minutos por semana."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "women aged {minAge} and over"
 msgstr "mulheres com {minAge} anos ou mais"
 
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "women aged {minAge}–{maxAge}"
-msgstr "mulheres com {minAge}–{maxAge} anos"
+msgid "women aged {minAge} to {maxAge}"
+msgstr "mulheres com {minAge} a {maxAge} anos"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Working sets in the last 7 days. A muscle the exercise mainly works counts 1 per set; a muscle it also works counts 0.5. Exercises not linked to the catalog are listed below and not counted."
@@ -11101,8 +11101,8 @@ msgid "Your profile"
 msgstr "O seu perfil"
 
 #: packages/api/src/presenters/wellness-profile.ts
-msgid "Your profile was changed somewhere else. We've loaded the latest version — check it and save again."
-msgstr "O seu perfil foi alterado noutro local. Carregámos a versão mais recente — verifique-a e guarde novamente."
+msgid "Your profile was changed somewhere else. We've loaded the latest version. Check it and save again."
+msgstr "O seu perfil foi alterado noutro local. Carregámos a versão mais recente. Verifique-a e guarde novamente."
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Your record for {title}"
@@ -11143,8 +11143,8 @@ msgid "Your trend"
 msgstr "A sua tendência"
 
 #: packages/api/src/presenters/reference-comparison.ts
-msgid "Your usual resting heart rate, {usual} bpm, is {position, select, within {within the middle range} below {below the middle range} other {above the middle range}} for {group} in the reference group ({lower}–{upper} bpm)."
-msgstr "A sua frequência cardíaca em repouso habitual, {usual} bpm, está {position, select, within {dentro da faixa central} below {abaixo da faixa central} other {acima da faixa central}} para {group} no grupo de referência ({lower}–{upper} bpm)."
+msgid "Your usual resting heart rate, {usual} bpm, is {position, select, within {within the middle range} below {below the middle range} other {above the middle range}} for {group} in the reference group ({lower} to {upper} bpm)."
+msgstr "A sua frequência cardíaca em repouso habitual, {usual} bpm, está {position, select, within {dentro da faixa central} below {abaixo da faixa central} other {acima da faixa central}} para {group} no grupo de referência ({lower} a {upper} bpm)."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your usual sleep, {sleep} a night, is {position, select, within {within} below {below} other {above}} the {range} {source, select, who {WHO} nsf {the National Sleep Foundation} other {the guideline}} recommends for adults {ages}."

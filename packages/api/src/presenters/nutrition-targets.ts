@@ -45,7 +45,7 @@ export const TARGET_NUTRIENTS: readonly NutrientKey[] = [
 export const HIDDEN_VALUE: MessageDescriptor = msg`Hidden`;
 
 /**
- * A food's summary nutrients on one line ("Energy 412 kcal · Protein 9 g · …"),
+ * A food's summary nutrients on one line ("Energy 412 kcal, Protein 9 g, …"),
  * or {@link HIDDEN_VALUE} in hide-numbers mode. Every surface that lists a
  * food's values uses this, so none can show a number the mode hides (#88).
  */
@@ -59,7 +59,7 @@ export function formatNutrientSummaryLine(
     const label = i18n._(NUTRIENT_LABELS[key].label);
     const value = formatNutrientValue(key, values[key], i18n);
     return i18n._(msg`${label} ${value}`);
-  }).join(" · ");
+  }).join(", ");
 }
 
 /** Unknown display preference must never default to exposing health numbers. */
@@ -174,7 +174,7 @@ export function formatTarget(
   return "—";
 }
 
-/** `"Entered by you · from 2026-10-01"` (and `"until …"` once ended). */
+/** `"Entered by you, from 2026-10-01"` (and `"until …"` once ended). */
 export function describeTargetSource(
   target: Pick<NutritionTargetWire, "source" | "effectiveFrom" | "effectiveTo">,
 ): MessageDescriptor {
@@ -185,12 +185,12 @@ export function describeTargetSource(
         entered: "Entered by you",
         proposal: "Accepted suggestion",
         other: "Target",
-      })} · from ${from} until ${to}`
+      })}, from ${from} until ${to}`
     : msg`${select(target.source, {
         entered: "Entered by you",
         proposal: "Accepted suggestion",
         other: "Target",
-      })} · from ${from}`;
+      })}, from ${from}`;
 }
 
 /** Accessible one-line reading of a target. */

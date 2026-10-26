@@ -363,7 +363,7 @@ export function InsightNotificationsForm({
                             <input
                               type="checkbox"
                               className="size-4 accent-primary"
-                              aria-label={`${i18n._(INSIGHT_KIND_LABELS[kind])} — ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
+                              aria-label={`${i18n._(INSIGHT_KIND_LABELS[kind])}, ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
                               checked={preferences.channels[kind][channel]}
                               onChange={(event) =>
                                 onUpdate({

@@ -65,7 +65,7 @@ describe("energy estimate client presenter", () => {
   test("keeps explicit estimates clearly provisional and shows the arithmetic range", () => {
     const displayed = presentEnergyEstimate(estimated, false, englishI18n);
     expect(displayed?.value).toBe("2,000 kcal/day");
-    expect(displayed?.range).toBe("1,700–2,300 kcal/day");
+    expect(displayed?.range).toBe("1,700 to 2,300 kcal/day");
     expect(displayed?.notes).toContain("Experimental, not a clinical measure.");
   });
 

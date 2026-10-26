@@ -38,7 +38,7 @@ export type CycleEstimates =
 /** Shared copy; never names an ovulation day, fertile window or safe days. */
 export const CYCLE_COPY = Object.freeze({
   estimateLabel: "Estimate",
-  lutealLabel: "Estimated luteal phase (about the last 12–14 days before your period)",
+  lutealLabel: "Estimated luteal phase (about the last 12 to 14 days before your period)",
   currentLowConfidence:
     "Estimated, low confidence. A phase can only be estimated once your next period is logged.",
   noNaturalCycle:

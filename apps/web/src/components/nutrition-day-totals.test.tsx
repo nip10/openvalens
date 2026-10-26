@@ -47,7 +47,7 @@ describe("NutritionDayTotals", () => {
     // Salt and sodium are listed separately, as are the sugar types.
     for (const label of ["Sodium (mg)", "Salt (g)", "Total sugars (g)", "Added sugars (g)"])
       expect(html).toContain(label);
-    expect(html).toContain("2 from USDA FoodData Central · 1 from Quick add");
+    expect(html).toContain("2 from USDA FoodData Central, 1 from Quick add");
     expect(html).not.toMatch(/>0 kcal</);
   });
 

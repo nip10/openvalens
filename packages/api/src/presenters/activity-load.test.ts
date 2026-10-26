@@ -69,11 +69,11 @@ describe("activityLoadView", () => {
   test("shows both numbers with formulas, units, WHO range and citation", () => {
     const view = activityLoadView(full, englishI18n);
     expect(view.available).toBe(true);
-    expect(view.windowText).toBe("Last 7 days: Sat 10 Oct – Fri 16 Oct");
+    expect(view.windowText).toBe("Last 7 days: Sat 10 Oct to Fri 16 Oct");
     expect(view.activeMinutes).toMatchObject({
       valueText: "140",
       unitText: "min",
-      statusText: "Below the WHO range of 150–300 minutes a week.",
+      statusText: "Below the WHO range of 150 to 300 minutes a week.",
     });
     expect(view.activeMinutes!.breakdown).toEqual([
       "Moderate: 60 min",
@@ -131,7 +131,7 @@ describe("activityLoadView", () => {
   test("screen-reader labels carry the number and its meaning without colour", () => {
     const view = activityLoadView(full, englishI18n);
     expect(view.activeMinutes!.accessibilityLabel).toBe(
-      "Active minutes, last 7 days: 140 minutes. Below the WHO range of 150–300 minutes a week.",
+      "Active minutes, last 7 days: 140 minutes. Below the WHO range of 150 to 300 minutes a week.",
     );
     expect(view.effort!.accessibilityLabel).toContain("440 points");
     for (const day of view.effortDays) expect(day.accessibilityLabel).toMatch(/^\w{3} \d+ \w{3}: /);
@@ -141,10 +141,10 @@ describe("activityLoadView", () => {
 describe("session capture helpers", () => {
   test("effort labels use CR-10 anchors", () => {
     expect(EFFORT_RATING_OPTIONS).toHaveLength(11);
-    expect(effortRatingLabel(0, englishI18n)).toBe("0 · Rest");
-    expect(effortRatingLabel(7, englishI18n)).toBe("7 · Very hard");
+    expect(effortRatingLabel(0, englishI18n)).toBe("0: Rest");
+    expect(effortRatingLabel(7, englishI18n)).toBe("7: Very hard");
     expect(effortRatingLabel(6, englishI18n)).toBe("6");
-    expect(inEnglish(EFFORT_QUESTION)).toBe("How hard was the whole session? (0–10)");
+    expect(inEnglish(EFFORT_QUESTION)).toBe("How hard was the whole session? (0 to 10)");
   });
 
   test("intensity choices keep their talk-test wording", () => {
@@ -159,16 +159,16 @@ describe("session capture helpers", () => {
   test("session text shows missing values as missing", () => {
     const text = (session: SessionEffortLike) => sessionEffortText(session, englishI18n);
     expect(text({ date: AS_OF, duration: 45, intensity: "moderate", effortRating: 7 })).toBe(
-      "Moderate · effort 7/10 · 315 points",
+      "Moderate, effort 7/10, 315 points",
     );
     expect(text({ date: AS_OF, duration: 45, intensity: null, effortRating: null })).toBe(
-      "No intensity · effort not rated",
+      "No intensity, effort not rated",
     );
     expect(text({ date: AS_OF, duration: null, intensity: "light", effortRating: 3 })).toBe(
-      "Light · effort 3/10 · no duration, no points",
+      "Light, effort 3/10, no duration, no points",
     );
     expect(text({ date: AS_OF, duration: 300, intensity: "vigorous", effortRating: 10 })).toBe(
-      "Vigorous · effort 10/10 · 3,000 points",
+      "Vigorous, effort 10/10, 3,000 points",
     );
   });
 
@@ -178,7 +178,7 @@ describe("session capture helpers", () => {
         { date: AS_OF, duration: 45, intensity: "moderate", effortRating: 7 },
         createAppI18n("pt-PT"),
       ),
-    ).toBe("Moderada · esforço 7/10 · 315 pontos");
+    ).toBe("Moderada, esforço 7/10, 315 pontos");
   });
 
   test("rating is offered on the session's own day", () => {

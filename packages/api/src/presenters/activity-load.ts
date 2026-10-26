@@ -38,14 +38,14 @@ export const ACTIVITY_LOAD_COPY = {
   activeMinutesTitle: msg`Active minutes`,
   activeMinutesUnit: "min",
   activeMinutesFormula: msg`Moderate minutes + 2 × vigorous minutes from your sessions in the last 7 days. Light sessions are recorded but not counted.`,
-  whoGuideline: msg`WHO guideline for adults: 150–300 minutes of moderate activity a week, or 75–150 minutes of vigorous activity, or a mix of both (vigorous minutes count double).`,
+  whoGuideline: msg`WHO guideline for adults: 150 to 300 minutes of moderate activity a week, or 75 to 150 minutes of vigorous activity, or a mix of both (vigorous minutes count double).`,
   whoEvidence: msg`The range comes from large observational studies, where more weekly activity was associated with lower mortality. It is a population guideline, not a personal target or an assessment of you.`,
   whoCitation: WHO_GUIDELINE_CITATION,
   whoUrl: WHO_GUIDELINE_URL,
   intensityMethod: msg`Intensity is the level you recorded for each session (talk test). Wearable workouts have no intensity in OpenValens yet, so their minutes are listed but not counted.`,
   effortTitle: msg`Effort points`,
   effortUnit: msg({ message: "points", context: "unit", comment: "safety" }),
-  effortFormula: msg`Each session's effort rating (0–10) × its minutes, added up over the last 7 days (session-RPE).`,
+  effortFormula: msg`Each session's effort rating (0 to 10) × its minutes, added up over the last 7 days (session-RPE).`,
   effortCitation: SESSION_RPE_CITATION,
   effortMissing: msg`Sessions without a rating are left out, not estimated.`,
   comparisonTitle: msg`Compared with your recent weeks`,
@@ -84,19 +84,19 @@ export const INTENSITY_DESCRIPTIONS: Record<ActivityIntensityOption, MessageDesc
  * with the number; unanchored steps show the number only.
  */
 const EFFORT_ANCHOR_LABELS: Record<number, MessageDescriptor> = {
-  0: msg`0 · Rest`,
-  1: msg`1 · Very, very easy`,
-  2: msg`2 · Easy`,
-  3: msg`3 · Moderate`,
-  4: msg`4 · Somewhat hard`,
-  5: msg`5 · Hard`,
-  7: msg`7 · Very hard`,
-  10: msg`10 · Maximal`,
+  0: msg`0: Rest`,
+  1: msg`1: Very, very easy`,
+  2: msg`2: Easy`,
+  3: msg`3: Moderate`,
+  4: msg`4: Somewhat hard`,
+  5: msg`5: Hard`,
+  7: msg`7: Very hard`,
+  10: msg`10: Maximal`,
 };
 
 export const EFFORT_RATING_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
-export const EFFORT_QUESTION = msg`How hard was the whole session? (0–10)`;
+export const EFFORT_QUESTION = msg`How hard was the whole session? (0 to 10)`;
 
 /** "7 · Very hard" / "6". */
 export function effortRatingLabel(rating: number, i18n: I18n): string {
@@ -113,18 +113,18 @@ export type SessionEffortLike = {
 
 const NO_INTENSITY = msg`No intensity`;
 
-/** "Moderate · effort 7/10 · 315 points" / "No intensity · effort not rated". */
+/** "Moderate, effort 7/10, 315 points" / "No intensity, effort not rated". */
 export function sessionEffortText(session: SessionEffortLike, i18n: I18n): string {
   const intensity = i18n._(session.intensity ? INTENSITY_LABELS[session.intensity] : NO_INTENSITY);
   const rating = session.effortRating;
-  if (rating === null) return i18n._(msg`${intensity} · effort not rated`);
+  if (rating === null) return i18n._(msg`${intensity}, effort not rated`);
   if (session.duration === null || session.duration <= 0) {
-    return i18n._(msg`${intensity} · effort ${rating}/10 · no duration, no points`);
+    return i18n._(msg`${intensity}, effort ${rating}/10, no duration, no points`);
   }
   const count = rating * session.duration;
   const points = thousands(count);
   return i18n._(
-    msg`${intensity} · effort ${rating}/10 · ${plural(count, { one: `${points} point`, other: `${points} points` })}`,
+    msg`${intensity}, effort ${rating}/10, ${plural(count, { one: `${points} point`, other: `${points} points` })}`,
   );
 }
 
@@ -217,8 +217,8 @@ const WHO_POSITION_TEXT: Record<
   NonNullable<WeeklyActivityLoadView["activeMinutes"]["whoPosition"]>,
   MessageDescriptor
 > = {
-  below_range: msg`Below the WHO range of 150–300 minutes a week.`,
-  within_range: msg`Within the WHO range of 150–300 minutes a week.`,
+  below_range: msg`Below the WHO range of 150 to 300 minutes a week.`,
+  within_range: msg`Within the WHO range of 150 to 300 minutes a week.`,
   above_range: msg`Above the top of the WHO range (300 minutes a week).`,
 };
 
@@ -460,7 +460,7 @@ export function activityLoadView(result: ActivityLoadResult, i18n: I18n): Activi
     ...base,
     available: true,
     withheldExplanation: null,
-    windowText: i18n._(msg`Last 7 days: ${start} – ${end}`),
+    windowText: i18n._(msg`Last 7 days: ${start} to ${end}`),
     activeMinutes: activeMinutesView(load, i18n),
     effort: effortView(load, i18n),
     effortDays: load.effort.days.map((day) => effortDayView(day, i18n)),

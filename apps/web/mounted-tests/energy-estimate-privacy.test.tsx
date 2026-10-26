@@ -17,7 +17,7 @@ const mounted =
 
 const scope = "synthetic-energy-scope";
 const targetKey = ["synthetic-targets"];
-const estimateValues = ["7,777 kcal/day", "6,777–8,777 kcal/day"];
+const estimateValues = ["7,777 kcal/day", "6,777 to 8,777 kcal/day"];
 
 test.skipIf(process.env.MOUNTED_ENERGY_PRIVACY_TEST !== "1")(
   "mounted card never presents cached proposal numbers without an authorized current estimate",
