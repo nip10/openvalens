@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner } from "heroui-native";
 import { Mail, ShieldCheck, UserPlus, UserRound, Users } from "lucide-react-native";
 import { useState } from "react";
-import { RefreshControl, Text, TextInput, View } from "react-native";
+import { Alert, RefreshControl, Text, TextInput, View } from "react-native";
 
 import {
   EmptyState,
@@ -21,6 +21,7 @@ import {
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
+import { sharingConfirmAlert } from "@/utils/sharing-confirm";
 import { useThemeColor } from "@/utils/theme";
 
 const ROLE_LABELS: Record<string, MessageDescriptor> = {
@@ -247,7 +248,7 @@ function MembersCard({
   currentUserId: string;
 }) {
   const queryClient = useQueryClient();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const codeLabel = useCodeLabel();
   const remove = useMutation(
     orpc.sharing.removeMember.mutationOptions({
@@ -265,6 +266,7 @@ function MembersCard({
         <View className="gap-3">
           {members.map((member) => {
             const isMe = member.userId === currentUserId;
+            const display = member.name ?? member.email ?? member.userId;
             return (
               <ListCard
                 key={member.id}
@@ -272,7 +274,7 @@ function MembersCard({
                 tone="signal"
                 title={
                   <Text>
-                    {member.name ?? member.email ?? member.userId}
+                    {display}
                     {isMe ? (
                       <Text className="font-sans text-sm font-normal text-ink-3">
                         {" "}
@@ -289,7 +291,15 @@ function MembersCard({
                     variant="danger-soft"
                     size="sm"
                     className="self-start"
-                    onPress={() => remove.mutate({ userId: member.userId })}
+                    onPress={() =>
+                      Alert.alert(
+                        ...sharingConfirmAlert(
+                          i18n,
+                          { kind: "member", userId: member.userId, name: display },
+                          () => remove.mutate({ userId: member.userId }),
+                        ),
+                      )
+                    }
                     isDisabled={remove.isPending}
                   >
                     <Button.Label>
@@ -324,7 +334,7 @@ function InvitationsCard({
   isOwner: boolean;
 }) {
   const queryClient = useQueryClient();
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const codeLabel = useCodeLabel();
   const revoke = useMutation(
     orpc.sharing.revokeInvitation.mutationOptions({
@@ -357,7 +367,15 @@ function InvitationsCard({
                   variant="danger-soft"
                   size="sm"
                   className="self-start"
-                  onPress={() => revoke.mutate({ id: invite.id })}
+                  onPress={() =>
+                    Alert.alert(
+                      ...sharingConfirmAlert(
+                        i18n,
+                        { kind: "invitation", id: invite.id, email: invite.email },
+                        () => revoke.mutate({ id: invite.id }),
+                      ),
+                    )
+                  }
                   isDisabled={revoke.isPending}
                 >
                   <Button.Label>

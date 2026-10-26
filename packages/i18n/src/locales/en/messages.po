@@ -1854,8 +1854,10 @@ msgstr "Canada"
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/progress-photos.tsx
+#: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -7870,10 +7872,17 @@ msgstr "Reminders for each day are sent once, from this time in your time zone. 
 
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/native/app/(drawer)/sharing.tsx
+#: apps/native/utils/sharing-confirm.ts
+#: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Remove"
 msgstr "Remove"
+
+#: apps/native/utils/sharing-confirm.ts
+#: apps/web/src/components/sharing-confirm-dialog.tsx
+msgid "Remove {name}?"
+msgstr "Remove {name}?"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Remove from favourites: {name}"
@@ -8059,8 +8068,10 @@ msgstr "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {sourc
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/components/ai-section.tsx
+#: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Revoke"
 msgstr "Revoke"
@@ -8071,6 +8082,11 @@ msgstr "Revoke"
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Revoke AI consent?"
 msgstr "Revoke AI consent?"
+
+#: apps/native/utils/sharing-confirm.ts
+#: apps/web/src/components/sharing-confirm-dialog.tsx
+msgid "Revoke the invitation for {email}?"
+msgstr "Revoke the invitation for {email}?"
 
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Revoking…"
@@ -9598,6 +9614,16 @@ msgstr "These settings changed on another device. The latest version is shown."
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "These settings were changed elsewhere. Reload the latest version, then make your edits again."
 msgstr "These settings were changed elsewhere. Reload the latest version, then make your edits again."
+
+#: apps/native/utils/sharing-confirm.ts
+#: apps/web/src/components/sharing-confirm-dialog.tsx
+msgid "They can no longer use it to join. You can send a new one later."
+msgstr "They can no longer use it to join. You can send a new one later."
+
+#: apps/native/utils/sharing-confirm.ts
+#: apps/web/src/components/sharing-confirm-dialog.tsx
+msgid "They lose access to this workspace straight away. You can invite them again later."
+msgstr "They lose access to this workspace straight away. You can invite them again later."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
