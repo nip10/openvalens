@@ -1,7 +1,12 @@
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { displayLabValue } from "@openvalens/api/presenters/clinical-units";
-import { formatLabDate, formatLabValue } from "@openvalens/api/presenters/labs";
+import {
+  displayLabRange,
+  formatLabDate,
+  formatLabRange,
+  formatLabValue,
+} from "@openvalens/api/presenters/labs";
 import {
   defaultObservedAt,
   makeManualEntryHash,
@@ -104,7 +109,7 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
 
 export default function LabsScreen() {
   const foreground = useThemeColor("foreground");
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { formatLocale, labUnits } = useDisplayPreferences();
   const dateSettings = formatLocale
     ? { units: "metric" as const, locale: formatLocale }
@@ -160,6 +165,9 @@ export default function LabsScreen() {
 
   const markerCard = (marker: (typeof list)[number]) => {
     const display = shown(marker);
+    // The lab's own range stored with the latest reading, shown as recorded.
+    const range =
+      marker.latestValue === null ? null : displayLabRange(marker, marker.referenceRange, labUnits);
     return (
       <ListCard
         key={marker.code}
@@ -173,6 +181,9 @@ export default function LabsScreen() {
             : t`${formatLabDate(marker.latestSampledAt, dateSettings)}, ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`
         }
       >
+        {range ? (
+          <Text className="font-sans text-sm text-ink-2">{formatLabRange(i18n, range)}</Text>
+        ) : null}
         {marker.unit && display.converted ? (
           <Text className="font-sans text-xs text-ink-3">
             {t({ message: `Converted from ${marker.unit}`, comment: "safety" })}

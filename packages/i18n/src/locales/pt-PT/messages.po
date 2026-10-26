@@ -5083,6 +5083,26 @@ msgstr "Tipo"
 msgid "Lab concentration units"
 msgstr "Unidades de concentração das análises"
 
+#. safety
+#: packages/api/src/presenters/labs.ts
+msgid "Lab range {low} to {high} {unit}"
+msgstr "Intervalo do laboratório {low} a {high} {unit}"
+
+#. safety
+#: packages/api/src/presenters/labs.ts
+msgid "Lab range from {low} {unit}"
+msgstr "Intervalo do laboratório a partir de {low} {unit}"
+
+#. safety
+#: packages/api/src/presenters/labs.ts
+msgid "Lab range up to {high} {unit}"
+msgstr "Intervalo do laboratório até {high} {unit}"
+
+#. safety
+#: packages/api/src/presenters/labs.ts
+msgid "Lab range: {text} {unit}"
+msgstr "Intervalo do laboratório: {text} {unit}"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/components/header.tsx

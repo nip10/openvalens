@@ -11,12 +11,23 @@ import {
 } from "@openvalens/api/presenters/insights";
 import { goalProgressView, readinessView } from "@openvalens/api/presenters/score";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card } from "heroui-native";
+import { Button } from "heroui-native";
+import { Sparkles, X } from "lucide-react-native";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  Details,
+  Icon,
+  InfoTip,
+  Prose,
+  Ring,
+  Section,
+  Sheet,
+  StatusPill,
+  ToneIcon,
+} from "@/components/bloom";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { insightsSectionModel } from "@/utils/insight-screen";
 import { client, orpc } from "@/utils/orpc";
@@ -89,7 +100,6 @@ function SubjectInsightsSection({
   });
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [showMethod, setShowMethod] = useState(false);
   const [hideObservations, setHideObservations] = useState(false);
   useEffect(() => {
     if (observationPrefs.data?.channels.observation.in_app === false) setHideObservations(false);
@@ -150,61 +160,101 @@ function SubjectInsightsSection({
   const progress = goals.data ? goalProgressView(goals.data, i18n) : null;
   const model = insights.data ? insightsSectionModel(i18n, insights.data) : null;
 
+  const readyNote = ready?.withheldExplanation ?? ready?.coverageText ?? null;
+  const progressNote = progress?.withheldExplanation ?? progress?.coverageText ?? null;
+
   return (
-    <View className="gap-6">
-      <CardStack title={i18n._(INSIGHT_COPY.summariesTitle)}>
-        <Card variant="secondary" className="gap-3 p-4">
-          {[
-            {
-              key: "readiness",
-              title: ready?.title ?? t`Readiness index`,
-              badge: ready?.badge,
-              score: ready?.scoreText ?? "—",
-              label: ready?.accessibilityLabel ?? t`Readiness index not loaded.`,
-              note: ready?.withheldExplanation ?? ready?.coverageText ?? null,
-            },
-            {
-              key: "goals",
-              title: progress?.title ?? t`Goal progress`,
-              badge: undefined,
-              score: progress?.scoreText ?? "—",
-              label: progress?.accessibilityLabel ?? t`Goal progress not loaded.`,
-              note: progress?.withheldExplanation ?? progress?.coverageText ?? null,
-            },
-          ].map((summary) => (
-            <View key={summary.key} className="gap-1" accessible accessibilityLabel={summary.label}>
-              <Text className="font-sans text-sm text-ink-3">
-                {summary.title}
-                {summary.badge ? `, ${summary.badge}` : ""}
-              </Text>
-              <Text className="font-display text-3xl font-medium text-ink">{summary.score}</Text>
-              {summary.note ? (
-                <Text className="font-sans text-sm text-ink-3">{summary.note}</Text>
-              ) : null}
-            </View>
-          ))}
+    <View className="gap-7">
+      <Section
+        title={i18n._(INSIGHT_COPY.summariesTitle)}
+        actions={
           <Pressable
             onPress={() => router.push("/scores")}
             accessibilityRole="link"
             className="min-h-11 justify-center"
           >
-            <Text className="font-sans font-medium text-ink underline">
+            <Text className="font-display text-sm font-medium text-ink underline">
               {i18n._(INSIGHT_COPY.summariesLink)}
             </Text>
           </Pressable>
-        </Card>
-      </CardStack>
+        }
+      >
+        {[
+          {
+            key: "readiness",
+            tone: "sleep" as const,
+            title: ready?.title ?? t`Readiness index`,
+            badge: ready?.badge,
+            score: ready?.scoreText ?? "—",
+            label: ready?.accessibilityLabel ?? t`Readiness index not loaded.`,
+            note: readyNote,
+            flagged: null,
+          },
+          {
+            key: "goals",
+            tone: "weight" as const,
+            title: progress?.title ?? t`Goal progress`,
+            badge: undefined,
+            score: progress?.scoreText ?? "—",
+            label: progress?.accessibilityLabel ?? t`Goal progress not loaded.`,
+            note: progressNote,
+            flagged: progress?.flaggedText ?? null,
+          },
+        ].map((summary) => (
+          <Sheet key={summary.key} className="gap-2 p-4">
+            <View className="flex-row items-center gap-4">
+              <Ring value={(Number.parseFloat(summary.score) || 0) / 100} tone={summary.tone} />
+              <View className="min-w-0 flex-1 gap-1">
+                <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
+                  <Text className="shrink font-sans text-[15px] font-semibold text-ink-2">
+                    {summary.title}
+                  </Text>
+                  {summary.badge ? <StatusPill tone="neutral">{summary.badge}</StatusPill> : null}
+                  {summary.note ? (
+                    <InfoTip title={summary.title}>
+                      <Prose>{summary.note}</Prose>
+                    </InfoTip>
+                  ) : null}
+                </View>
+                <View accessible accessibilityLabel={summary.label}>
+                  <Text
+                    className="font-display text-[32px] font-medium leading-[38px] text-ink"
+                    style={{ fontVariant: ["tabular-nums"] }}
+                  >
+                    {summary.score}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            {summary.flagged ? (
+              <Text className="font-sans text-sm text-ink-2">{summary.flagged}</Text>
+            ) : null}
+          </Sheet>
+        ))}
+      </Section>
 
-      <CardStack title={i18n._(INSIGHT_COPY.sectionTitle)}>
-        <Card variant="secondary" className="gap-3 p-4">
-          <Text className="font-sans text-sm text-ink-3">{i18n._(INSIGHT_COPY.sectionIntro)}</Text>
+      <Section
+        title={i18n._(INSIGHT_COPY.sectionTitle)}
+        info={
+          <>
+            <Prose>{i18n._(INSIGHT_COPY.sectionIntro)}</Prose>
+            <Prose>{model?.method ?? i18n._(INSIGHT_COPY.methodText)}</Prose>
+            <Prose>{model?.limits ?? i18n._(INSIGHT_COPY.limits)}</Prose>
+            {model?.footnotes.map((note) => (
+              <Prose key={note}>{note}</Prose>
+            ))}
+            {model ? <Prose className="text-sm text-ink-3">{model.versionText}</Prose> : null}
+          </>
+        }
+      >
+        <Sheet className="gap-2.5 p-3">
           {insights.isPending ? (
-            <Text className="font-sans text-sm text-ink-3">{t`Loading…`}</Text>
+            <Text className="px-2 py-1 font-sans text-sm text-ink-3">{t`Loading…`}</Text>
           ) : insights.isError || !model ? (
             <Pressable
               onPress={() => void insights.refetch()}
               accessibilityRole="button"
-              className="min-h-11 justify-center"
+              className="min-h-11 justify-center px-2"
             >
               <Text className="font-sans text-sm text-ink underline">
                 {t`Could not load insights. Retry`}
@@ -212,102 +262,109 @@ function SubjectInsightsSection({
             </Pressable>
           ) : (
             <>
-              {model.rows.map((row) => (
-                <View key={row.key} className="gap-1 border-t border-rule pt-3">
-                  <View accessible accessibilityLabel={row.accessibilityLabel} className="gap-1">
-                    <Text className="font-sans text-sm text-ink-3">{row.kindLabel}</Text>
-                    <Text
-                      className="font-display text-lg font-semibold text-ink"
-                      accessibilityRole="header"
-                    >
-                      {row.title}
-                    </Text>
-                    {row.lines.map((line) => (
-                      <Text key={line} className="font-sans text-sm text-ink">
-                        {line}
-                      </Text>
-                    ))}
-                    <Text className="font-sans text-sm text-ink-3">{row.ruleText}</Text>
-                  </View>
-                  <View className="flex-row flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      isDisabled={pendingId === row.key}
-                      accessibilityLabel={i18n._(INSIGHT_COPY.dismissLabel(row.title))}
-                      onPress={() => {
-                        setPendingId(row.key);
-                        feedback.mutate({ insightId: row.key, action: "dismiss" });
-                      }}
-                    >
-                      <Button.Label>{i18n._(INSIGHT_COPY.dismiss)}</Button.Label>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      isDisabled={pendingId === row.key}
-                      accessibilityLabel={i18n._(INSIGHT_COPY.notUsefulLabel(row.title))}
-                      onPress={() => {
-                        setPendingId(row.key);
-                        feedback.mutate({ insightId: row.key, action: "not_useful" });
-                      }}
-                    >
-                      <Button.Label>{i18n._(INSIGHT_COPY.notUseful)}</Button.Label>
-                    </Button>
-                    {consent.data?.granted ? (
-                      <Button size="sm" variant="ghost" onPress={() => router.push("/coach")}>
-                        <Button.Label>{i18n._(INSIGHT_COPY.askCoach)}</Button.Label>
-                      </Button>
-                    ) : null}
-                  </View>
-                </View>
-              ))}
-              {model.notes.map((note) => (
-                <Text key={note} className="font-sans text-sm text-ink-3">
+              {model.notices.map((note) => (
+                <Text key={note} className="px-2 py-1 font-sans text-base text-ink-2">
                   {note}
                 </Text>
               ))}
+              {model.rows.map((row) => (
+                <View key={row.key} className="flex-row gap-3 rounded-2xl bg-paper-2/60 p-4">
+                  <ToneIcon icon={Sparkles} tone="signal" size="sm" />
+                  <View className="min-w-0 flex-1 gap-1">
+                    <View className="flex-row items-start gap-1">
+                      <View
+                        accessible
+                        accessibilityLabel={row.accessibilityLabel}
+                        className="min-w-0 flex-1 gap-1"
+                      >
+                        <Text
+                          className="pt-0.5 font-display text-base font-semibold leading-snug text-ink"
+                          accessibilityRole="header"
+                        >
+                          {row.title}
+                        </Text>
+                        <Text className="font-sans text-[15px] leading-relaxed text-ink-2">
+                          {row.body}
+                        </Text>
+                      </View>
+                      <InfoTip title={row.title}>
+                        {row.details.map((line) => (
+                          <Prose key={line}>{line}</Prose>
+                        ))}
+                        <Prose className="text-sm text-ink-3">{row.kindLabel}</Prose>
+                        <Prose className="text-sm text-ink-3">{row.ruleText}</Prose>
+                      </InfoTip>
+                    </View>
+                    <View className="-ml-3 flex-row flex-wrap items-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isDisabled={pendingId === row.key}
+                        accessibilityLabel={i18n._(INSIGHT_COPY.dismissLabel(row.title))}
+                        onPress={() => {
+                          setPendingId(row.key);
+                          feedback.mutate({ insightId: row.key, action: "dismiss" });
+                        }}
+                      >
+                        <Icon icon={X} size={15} color="ink-2" />
+                        <Button.Label className="text-ink-2">
+                          {i18n._(INSIGHT_COPY.dismiss)}
+                        </Button.Label>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isDisabled={pendingId === row.key}
+                        accessibilityLabel={i18n._(INSIGHT_COPY.notUsefulLabel(row.title))}
+                        onPress={() => {
+                          setPendingId(row.key);
+                          feedback.mutate({ insightId: row.key, action: "not_useful" });
+                        }}
+                      >
+                        <Button.Label className="text-ink-2">
+                          {i18n._(INSIGHT_COPY.notUseful)}
+                        </Button.Label>
+                      </Button>
+                      {consent.data?.granted ? (
+                        <Button size="sm" variant="ghost" onPress={() => router.push("/coach")}>
+                          <Button.Label className="text-ink">
+                            {i18n._(INSIGHT_COPY.askCoach)}
+                          </Button.Label>
+                        </Button>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+              ))}
               {model.notReady.length > 0 ? (
-                <View className="gap-1">
-                  <Text className="font-sans text-sm font-medium text-ink">
-                    {model.notReadyTitle}
-                  </Text>
-                  {model.notReady.map((row) => (
-                    <Text key={row.key} className="font-sans text-sm text-ink-3">
-                      {row.text}
-                    </Text>
-                  ))}
+                <View className="border-t border-rule px-2 pt-1">
+                  <Details summary={model.notReadyTitle}>
+                    {model.notReady.map((row) => (
+                      <Text key={row.key} className="font-sans text-sm text-ink-2">
+                        {row.text}
+                      </Text>
+                    ))}
+                  </Details>
                 </View>
               ) : null}
-              <Pressable
-                onPress={() => setShowMethod((open) => !open)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: showMethod }}
-                className="min-h-11 justify-center"
-              >
-                <Text className="font-sans font-medium text-ink underline">
-                  {i18n._(INSIGHT_COPY.method)}
-                </Text>
-              </Pressable>
-              {showMethod ? (
-                <Text className="font-sans text-sm text-ink-3">{model.method}</Text>
-              ) : null}
-              <Text className="font-sans text-sm text-ink-3">{model.limits}</Text>
-              <Text className="font-sans text-sm text-ink-3">{model.versionText}</Text>
             </>
           )}
-        </Card>
-      </CardStack>
+        </Sheet>
+      </Section>
 
-      <CardStack title={t`Nutrition observations`}>
-        <Card variant="secondary" className="gap-3 p-4">
-          <Text className="font-sans text-sm text-ink-3">
+      <Section
+        title={t`Nutrition observations`}
+        info={
+          <Prose>
             {t({
               message:
                 "Optional descriptions of how your recorded meals line up in time with recorded sleep and workouts. This reads across those logs only when you turn it on. It does not establish a cause or provide health advice. You can turn it off here without changing either log.",
               comment: "safety",
             })}
-          </Text>
+          </Prose>
+        }
+      >
+        <Sheet className="gap-3 p-4">
           {observationPrefs.isPending ? (
             <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
               {t`Loading observation setting…`}
@@ -322,6 +379,9 @@ function SubjectInsightsSection({
             </Pressable>
           ) : (
             <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
               isDisabled={observation.isPending}
               accessibilityLabel={
                 observationPrefs.data.channels.observation.in_app
@@ -347,7 +407,12 @@ function SubjectInsightsSection({
             </Text>
           ) : null}
           {observation.isError && typeof observation.variables === "boolean" ? (
-            <Button variant="secondary" onPress={() => observation.mutate(observation.variables!)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onPress={() => observation.mutate(observation.variables!)}
+            >
               <Button.Label>{t`Retry saving choice`}</Button.Label>
             </Button>
           ) : null}
@@ -391,13 +456,13 @@ function SubjectInsightsSection({
               {t`Off by default. No nutrition observations are shown.`}
             </Text>
           )}
-        </Card>
-      </CardStack>
+        </Sheet>
+      </Section>
 
       {insights.data?.offerPush ? (
-        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.pushOfferTitle)}>
-          <Card variant="secondary" className="gap-3 p-4">
-            <Text className="font-sans text-sm text-ink">
+        <Section title={i18n._(INSIGHT_DELIVERY_COPY.pushOfferTitle)}>
+          <Sheet className="gap-3 p-4">
+            <Text className="font-sans text-sm text-ink-2">
               {i18n._(INSIGHT_DELIVERY_COPY.pushOfferBody)}
             </Text>
             <View className="flex-row flex-wrap gap-3">
@@ -405,15 +470,17 @@ function SubjectInsightsSection({
                 <Button.Label>{i18n._(INSIGHT_DELIVERY_COPY.pushOfferAccept)}</Button.Label>
               </Button>
               <Button
-                variant="secondary"
+                variant="ghost"
                 isDisabled={offer.isPending}
                 onPress={() => offer.mutate("declined")}
               >
-                <Button.Label>{i18n._(INSIGHT_DELIVERY_COPY.pushOfferDecline)}</Button.Label>
+                <Button.Label className="text-ink-2">
+                  {i18n._(INSIGHT_DELIVERY_COPY.pushOfferDecline)}
+                </Button.Label>
               </Button>
             </View>
-          </Card>
-        </CardStack>
+          </Sheet>
+        </Section>
       ) : null}
       {message ? (
         <Text className="font-sans text-sm text-ink" accessibilityRole="alert">

@@ -68,6 +68,22 @@ describe("insights section model (native)", () => {
     expect(model.notes).toContain("1 insight is hidden by your dismissals or settings.");
   });
 
+  test("splits each row into the body on sight and its details for the InfoTip", () => {
+    const data = result();
+    const model = insightsSectionModel(englishI18n, data);
+    const web = insightsListView(englishI18n, data);
+    const row = model.rows[0]!;
+    const first = web.insights[0]!;
+    expect(row.body).toBe(first.body);
+    expect(row.details).toEqual(
+      [first.certaintyText, first.coverageText, first.factorsText].filter(Boolean) as string[],
+    );
+    expect(row.lines).toEqual([row.body, ...row.details]);
+    expect(model.notices).toEqual([]);
+    expect(model.footnotes).toEqual(web.footnotes);
+    expect(model.footnotes).toContain("1 insight is hidden by your dismissals or settings.");
+  });
+
   test("withheld results show only the adults-only note", () => {
     const model = insightsSectionModel(englishI18n, {
       ...result(),
@@ -81,5 +97,7 @@ describe("insights section model (native)", () => {
     expect(model.notes).toEqual([
       "Insights are for adults 18 and over, based on your profile answer.",
     ]);
+    expect(model.notices).toEqual(model.notes);
+    expect(model.footnotes).toEqual([]);
   });
 });
