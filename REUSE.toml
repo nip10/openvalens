@@ -5,3 +5,11 @@ path = "**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 The OpenValens contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later AND LicenseRef-OpenValens-app-store-permission"
+
+# Body artwork vendored from HichamELBSI/react-native-body-highlighter (MIT).
+# Each file also carries its own SPDX header.
+[[annotations]]
+path = "packages/api/src/presenters/body-map-paths/*.ts"
+precedence = "override"
+SPDX-FileCopyrightText = "2022 ELABBASSI Hicham"
+SPDX-License-Identifier = "MIT"
