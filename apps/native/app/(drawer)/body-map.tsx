@@ -1,8 +1,10 @@
 import { useLingui } from "@lingui/react/macro";
 import {
+  BODY_MAP_BASE,
   BODY_MAP_COPY,
   BODY_MAP_REGIONS,
   BODY_MAP_VIEWBOX,
+  bodyMapArtwork,
   DEXA_MEASUREMENT_LABELS,
   compositionLayer,
   dexaMeasurementTypes,
@@ -18,7 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { G, Path } from "react-native-svg";
 
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
@@ -31,6 +33,12 @@ import { client } from "@/utils/orpc";
  */
 
 type Layer = "composition" | "training";
+
+/**
+ * The male figure for everyone for now: the member's consented sex lives in
+ * the wellness profile, which this screen does not load.
+ */
+const ARTWORK = bodyMapArtwork("male");
 
 function localToday(): string {
   const now = new Date();
@@ -98,18 +106,23 @@ function BodyFigure({
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
-  const regions = BODY_MAP_REGIONS.filter((region) => region.view === view);
+  const regions = ARTWORK.regions.filter((region) => region.view === view);
   const { t, i18n } = useLingui();
   return (
     <View className="items-center">
       <Svg width={180} height={360} viewBox={BODY_MAP_VIEWBOX} accessible={false}>
+        <G fill={BODY_MAP_BASE} stroke="#71717a" strokeWidth={0.8}>
+          <Path d={ARTWORK.outline[view]} />
+          <Path d={ARTWORK.base[view]} strokeOpacity={0.5} />
+        </G>
         {regions.map((region) => (
           <Path
             key={region.id}
             d={region.path}
             fill={fills[region.id]!.colour}
             stroke={selected === region.id ? "#18181b" : "#71717a"}
-            strokeWidth={selected === region.id ? 2.5 : 1}
+            strokeWidth={selected === region.id ? 2.2 : 0.8}
+            strokeLinejoin="round"
             onPress={() => onSelect(region.id)}
           />
         ))}

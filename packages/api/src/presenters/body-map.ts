@@ -10,8 +10,10 @@
  * - Training: working sets in the last 7 days per muscle (primary = 1,
  *   secondary = 0.5), from catalog-linked exercises only.
  *
- * The shapes are simple self-drawn outlines (no vendored artwork), on a
- * 200 × 400 view box per side.
+ * The figure is MIT-licensed artwork from react-native-body-highlighter
+ * (`./body-map-paths`, see its README), moved into a 200 × 400 view box per
+ * side. Each map region names the artwork parts it draws; every other part
+ * (hands, feet, neck, knees, …) is drawn as the plain body underneath.
  *
  * Labels and copy are Lingui message descriptors; the layers render their
  * legend and value text through the `i18n` they are given (#67).
@@ -19,8 +21,18 @@
 import type { I18n, MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
+import { fitViewBox, normalizePath, type PathTransform } from "./body-map-geometry";
+import { bodyBack } from "./body-map-paths/body-back";
+import { bodyFemaleBack } from "./body-map-paths/body-female-back";
+import { bodyFemaleFront } from "./body-map-paths/body-female-front";
+import { bodyFront } from "./body-map-paths/body-front";
+import { BODY_OUTLINES } from "./body-map-paths/outlines";
+import type { BodyPart, Slug } from "./body-map-paths/types";
+
 export type BodyMapView = "front" | "back";
 export type BodyMapSide = "left" | "right";
+/** Which artwork to draw. Regions, ids and values are the same for both. */
+export type BodyMapFigure = "male" | "female";
 
 export type BodyMapRegion = {
   /** Unique across both views, e.g. `front.biceps_left`. */
@@ -28,6 +40,7 @@ export type BodyMapRegion = {
   view: BodyMapView;
   /** Screen-reader and legend label. "Left" is the member's left. */
   label: MessageDescriptor;
+  /** SVG path data in `BODY_MAP_VIEWBOX` coordinates, absolute commands only. */
   path: string;
   /** DEXA regions this map region can show, most specific first. */
   dexaSources: readonly string[];
@@ -36,12 +49,6 @@ export type BodyMapRegion = {
 };
 
 export const BODY_MAP_VIEWBOX = "0 0 200 400";
-
-function rect(x: number, y: number, w: number, h: number, r: number): string {
-  return `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
-}
-
-const HEAD = "M80 30A20 20 0 1 0 120 30A20 20 0 1 0 80 30Z";
 
 export const TRAINING_GROUPS = [
   "shoulders",
@@ -85,15 +92,11 @@ type ShapeLabel = MessageDescriptor | { left: MessageDescriptor; right: MessageD
 type Shape = {
   name: string;
   label: ShapeLabel;
-  /** Viewer-left x for a paired shape, or the full shape for a single one. */
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  r: number;
+  /** Artwork parts this region draws (see the slug mapping in the README). */
+  slugs: readonly Slug[];
   dexa: (side: BodyMapSide | null) => string[];
   group: TrainingGroup | null;
-  /** Paired shapes are mirrored around x = 100 for the other side. */
+  /** Paired shapes are one region per side; single shapes draw both sides. */
   paired: boolean;
 };
 
@@ -105,11 +108,7 @@ const FRONT: Shape[] = [
   {
     name: "shoulder",
     label: { left: msg`Left shoulder (front)`, right: msg`Right shoulder (front)` },
-    x: 52,
-    y: 58,
-    w: 24,
-    h: 24,
-    r: 10,
+    slugs: ["deltoids"],
     dexa: arm,
     group: "shoulders",
     paired: true,
@@ -117,11 +116,7 @@ const FRONT: Shape[] = [
   {
     name: "chest",
     label: { left: msg`Left chest (front)`, right: msg`Right chest (front)` },
-    x: 76,
-    y: 60,
-    w: 24,
-    h: 40,
-    r: 6,
+    slugs: ["chest"],
     dexa: (s) => ["ribs", ...trunk(s)],
     group: "chest",
     paired: true,
@@ -129,11 +124,7 @@ const FRONT: Shape[] = [
   {
     name: "biceps",
     label: { left: msg`Left upper arm (front)`, right: msg`Right upper arm (front)` },
-    x: 48,
-    y: 84,
-    w: 18,
-    h: 44,
-    r: 8,
+    slugs: ["biceps"],
     dexa: arm,
     group: "biceps",
     paired: true,
@@ -141,11 +132,7 @@ const FRONT: Shape[] = [
   {
     name: "forearm",
     label: { left: msg`Left forearm (front)`, right: msg`Right forearm (front)` },
-    x: 42,
-    y: 130,
-    w: 16,
-    h: 50,
-    r: 7,
+    slugs: ["forearm"],
     dexa: arm,
     group: "forearms",
     paired: true,
@@ -153,11 +140,7 @@ const FRONT: Shape[] = [
   {
     name: "abs",
     label: { left: msg`Left abdomen (front)`, right: msg`Right abdomen (front)` },
-    x: 80,
-    y: 102,
-    w: 20,
-    h: 52,
-    r: 5,
+    slugs: ["abs"],
     dexa: (s) => ["android", ...trunk(s)],
     group: "abs",
     paired: true,
@@ -165,11 +148,7 @@ const FRONT: Shape[] = [
   {
     name: "obliques",
     label: { left: msg`Left side (front)`, right: msg`Right side (front)` },
-    x: 70,
-    y: 102,
-    w: 10,
-    h: 48,
-    r: 4,
+    slugs: ["obliques"],
     dexa: (s) => ["android", ...trunk(s)],
     group: "obliques",
     paired: true,
@@ -177,11 +156,7 @@ const FRONT: Shape[] = [
   {
     name: "pelvis",
     label: msg`Hips (front)`,
-    x: 72,
-    y: 156,
-    w: 56,
-    h: 22,
-    r: 8,
+    slugs: ["adductors"],
     dexa: () => ["gynoid", "pelvis", "trunk"],
     group: null,
     paired: false,
@@ -189,11 +164,7 @@ const FRONT: Shape[] = [
   {
     name: "thigh",
     label: { left: msg`Left thigh (front)`, right: msg`Right thigh (front)` },
-    x: 72,
-    y: 180,
-    w: 26,
-    h: 80,
-    r: 10,
+    slugs: ["quadriceps"],
     dexa: leg,
     group: "quads",
     paired: true,
@@ -201,11 +172,7 @@ const FRONT: Shape[] = [
   {
     name: "shin",
     label: { left: msg`Left lower leg (front)`, right: msg`Right lower leg (front)` },
-    x: 76,
-    y: 266,
-    w: 20,
-    h: 80,
-    r: 8,
+    slugs: ["tibialis", "calves"],
     dexa: leg,
     group: null,
     paired: true,
@@ -216,11 +183,7 @@ const BACK: Shape[] = [
   {
     name: "traps",
     label: msg`Upper back and neck (back)`,
-    x: 80,
-    y: 50,
-    w: 40,
-    h: 24,
-    r: 8,
+    slugs: ["trapezius"],
     dexa: () => ["trunk"],
     group: "traps",
     paired: false,
@@ -228,11 +191,7 @@ const BACK: Shape[] = [
   {
     name: "shoulder",
     label: { left: msg`Left shoulder (back)`, right: msg`Right shoulder (back)` },
-    x: 52,
-    y: 58,
-    w: 24,
-    h: 24,
-    r: 10,
+    slugs: ["deltoids"],
     dexa: arm,
     group: "shoulders",
     paired: true,
@@ -240,11 +199,7 @@ const BACK: Shape[] = [
   {
     name: "upper_back",
     label: { left: msg`Left upper back (back)`, right: msg`Right upper back (back)` },
-    x: 74,
-    y: 76,
-    w: 26,
-    h: 50,
-    r: 6,
+    slugs: ["upper-back"],
     dexa: (s) => ["ribs", ...trunk(s)],
     group: "lats",
     paired: true,
@@ -252,11 +207,7 @@ const BACK: Shape[] = [
   {
     name: "triceps",
     label: { left: msg`Left upper arm (back)`, right: msg`Right upper arm (back)` },
-    x: 48,
-    y: 84,
-    w: 18,
-    h: 44,
-    r: 8,
+    slugs: ["triceps"],
     dexa: arm,
     group: "triceps",
     paired: true,
@@ -264,11 +215,7 @@ const BACK: Shape[] = [
   {
     name: "forearm",
     label: { left: msg`Left forearm (back)`, right: msg`Right forearm (back)` },
-    x: 42,
-    y: 130,
-    w: 16,
-    h: 50,
-    r: 7,
+    slugs: ["forearm"],
     dexa: arm,
     group: "forearms",
     paired: true,
@@ -276,11 +223,7 @@ const BACK: Shape[] = [
   {
     name: "lower_back",
     label: { left: msg`Left lower back (back)`, right: msg`Right lower back (back)` },
-    x: 80,
-    y: 128,
-    w: 20,
-    h: 26,
-    r: 6,
+    slugs: ["lower-back"],
     dexa: (s) => ["android", "spine", ...trunk(s)],
     group: "lower_back",
     paired: true,
@@ -288,11 +231,7 @@ const BACK: Shape[] = [
   {
     name: "glutes",
     label: { left: msg`Left glute (back)`, right: msg`Right glute (back)` },
-    x: 72,
-    y: 156,
-    w: 28,
-    h: 30,
-    r: 10,
+    slugs: ["gluteal"],
     dexa: (s) => ["gynoid", "pelvis", ...trunk(s)],
     group: "glutes",
     paired: true,
@@ -300,11 +239,7 @@ const BACK: Shape[] = [
   {
     name: "hamstrings",
     label: { left: msg`Left back of thigh (back)`, right: msg`Right back of thigh (back)` },
-    x: 72,
-    y: 188,
-    w: 26,
-    h: 72,
-    r: 10,
+    slugs: ["hamstring"],
     dexa: leg,
     group: "hamstrings",
     paired: true,
@@ -312,35 +247,71 @@ const BACK: Shape[] = [
   {
     name: "calf",
     label: { left: msg`Left calf (back)`, right: msg`Right calf (back)` },
-    x: 76,
-    y: 266,
-    w: 20,
-    h: 80,
-    r: 8,
+    slugs: ["calves"],
     dexa: leg,
     group: "calves",
     paired: true,
   },
 ];
 
-function regionsFor(view: BodyMapView, shapes: Shape[]): BodyMapRegion[] {
+const HEAD_SLUGS: readonly Slug[] = ["head", "hair"];
+
+/** Artwork for one figure and view, already in `BODY_MAP_VIEWBOX` coordinates. */
+type ViewArtwork = {
+  /** Path data per slug and viewer side (the artwork's `left` is the viewer's left). */
+  parts: ReadonlyMap<Slug, { viewerLeft: string[]; viewerRight: string[] }>;
+  outline: string;
+};
+
+function viewArtwork(
+  parts: readonly BodyPart[],
+  source: { viewBox: string; outline: string },
+): ViewArtwork {
+  const transform: PathTransform = fitViewBox(source.viewBox);
+  const map = new Map<Slug, { viewerLeft: string[]; viewerRight: string[] }>();
+  for (const part of parts) {
+    if (!part.slug || !part.path) continue;
+    const entry = map.get(part.slug) ?? { viewerLeft: [], viewerRight: [] };
+    const draw = (d: string) => normalizePath(d, transform).d;
+    entry.viewerLeft.push(...(part.path.left ?? []).map(draw));
+    entry.viewerRight.push(...(part.path.right ?? []).map(draw));
+    // Centred parts (head, hair, neck) count as both sides.
+    entry.viewerLeft.push(...(part.path.common ?? []).map(draw));
+    map.set(part.slug, entry);
+  }
+  return { parts: map, outline: normalizePath(source.outline, transform).d };
+}
+
+function regionsFor(view: BodyMapView, shapes: Shape[], art: ViewArtwork) {
+  const draw = (slugs: readonly Slug[], viewerSide: "left" | "right" | null) =>
+    slugs
+      .flatMap((slug) => {
+        const part = art.parts.get(slug);
+        if (!part) return [];
+        if (viewerSide === "left") return part.viewerLeft;
+        if (viewerSide === "right") return part.viewerRight;
+        return [...part.viewerLeft, ...part.viewerRight];
+      })
+      .join("");
+  const used = new Set<Slug>(HEAD_SLUGS);
   const regions: BodyMapRegion[] = [
     {
       id: `${view}.head`,
       view,
       label: view === "front" ? msg`Head (front)` : msg`Head (back)`,
-      path: HEAD,
+      path: draw(HEAD_SLUGS, null),
       dexaSources: ["head"],
       trainingGroup: null,
     },
   ];
   for (const shape of shapes) {
+    for (const slug of shape.slugs) used.add(slug);
     if (!shape.paired || !("left" in shape.label)) {
       regions.push({
         id: `${view}.${shape.name}`,
         view,
         label: "left" in shape.label ? shape.label.left : shape.label,
-        path: rect(shape.x, shape.y, shape.w, shape.h, shape.r),
+        path: draw(shape.slugs, null),
         dexaSources: shape.dexa(null),
         trainingGroup: shape.group,
       });
@@ -349,29 +320,73 @@ function regionsFor(view: BodyMapView, shapes: Shape[]): BodyMapRegion[] {
     // Front view: the member's right is on the viewer's left. Back view: the reverse.
     const viewerLeft: BodyMapSide = view === "front" ? "right" : "left";
     for (const side of [viewerLeft, viewerLeft === "left" ? "right" : "left"] as const) {
-      const x = side === viewerLeft ? shape.x : 200 - shape.x - shape.w;
       regions.push({
         id: `${view}.${shape.name}_${side}`,
         view,
         label: shape.label[side],
-        path: rect(x, shape.y, shape.w, shape.h, shape.r),
+        path: draw(shape.slugs, side === viewerLeft ? "left" : "right"),
         dexaSources: shape.dexa(side),
         trainingGroup: shape.group,
       });
     }
   }
-  return regions;
+  const base = [...art.parts.keys()].filter((slug) => !used.has(slug));
+  return { regions, base: draw(base, null), outline: art.outline };
 }
 
-export const BODY_MAP_REGIONS: readonly BodyMapRegion[] = Object.freeze([
-  ...regionsFor("front", FRONT),
-  ...regionsFor("back", BACK),
-]);
+export type BodyMapArtwork = {
+  /** Same ids, labels, sources and groups as `BODY_MAP_REGIONS`; paths for this figure. */
+  regions: readonly BodyMapRegion[];
+  /** Body parts that are not map regions (hands, feet, neck, …), drawn in `BODY_MAP_BASE`. */
+  base: Readonly<Record<BodyMapView, string>>;
+  /** Silhouette outline per view, drawn under everything else. */
+  outline: Readonly<Record<BodyMapView, string>>;
+};
+
+const ARTWORK_SOURCES: Record<
+  BodyMapFigure,
+  Record<BodyMapView, { parts: readonly BodyPart[]; viewBox: string; outline: string }>
+> = {
+  male: {
+    front: { parts: bodyFront, ...BODY_OUTLINES.male.front },
+    back: { parts: bodyBack, ...BODY_OUTLINES.male.back },
+  },
+  female: {
+    front: { parts: bodyFemaleFront, ...BODY_OUTLINES.female.front },
+    back: { parts: bodyFemaleBack, ...BODY_OUTLINES.female.back },
+  },
+};
+
+const artworkCache = new Map<BodyMapFigure, BodyMapArtwork>();
+
+/** The figure's regions, base parts and outline, in `BODY_MAP_VIEWBOX` coordinates. */
+export function bodyMapArtwork(figure: BodyMapFigure): BodyMapArtwork {
+  const cached = artworkCache.get(figure);
+  if (cached) return cached;
+  const sources = ARTWORK_SOURCES[figure];
+  const front = regionsFor("front", FRONT, viewArtwork(sources.front.parts, sources.front));
+  const back = regionsFor("back", BACK, viewArtwork(sources.back.parts, sources.back));
+  const artwork: BodyMapArtwork = Object.freeze({
+    regions: Object.freeze([...front.regions, ...back.regions]),
+    base: Object.freeze({ front: front.base, back: back.base }),
+    outline: Object.freeze({ front: front.outline, back: back.outline }),
+  });
+  artworkCache.set(figure, artwork);
+  return artwork;
+}
+
+/**
+ * The map regions (male figure paths). Ids, labels, DEXA sources and training
+ * groups do not depend on the figure.
+ */
+export const BODY_MAP_REGIONS: readonly BodyMapRegion[] = bodyMapArtwork("male").regions;
 
 // ─── Colours ──────────────────────────────────────────────────────
 
 /** Fill for a region with no measured or logged value. */
 export const BODY_MAP_NEUTRAL = "#babec3";
+/** Fill for body parts that are not map regions (hands, feet, neck, …). */
+export const BODY_MAP_BASE = "#e3e6e9";
 /**
  * Low to high. One ink-blue ramp (the Almanac slate hue, OKLCH 245): no
  * good/bad reading is implied. Hex because react-native-svg reads these too.
