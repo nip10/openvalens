@@ -16,7 +16,12 @@ export type InsightRowModel = {
   key: string;
   kindLabel: string;
   title: string;
+  /** Everything the row says: body, then certainty, coverage and factors. */
   lines: string[];
+  /** The one line shown on sight. */
+  body: string;
+  /** Certainty, coverage and factors: behind the row's InfoTip. */
+  details: string[];
   ruleText: string;
   accessibilityLabel: string;
 };
@@ -24,7 +29,12 @@ export type InsightRowModel = {
 export type InsightsSectionModel = {
   title: string;
   intro: string;
+  /** Notices first, then footnotes. */
   notes: string[];
+  /** Withheld / empty text: shown on sight. */
+  notices: string[];
+  /** Hidden-count and budget footnotes: behind the section InfoTip. */
+  footnotes: string[];
   rows: InsightRowModel[];
   notReadyTitle: string;
   notReady: { key: string; text: string }[];
@@ -39,12 +49,13 @@ export function insightsSectionModel(
   settings?: ProductDisplaySettings | null,
 ): InsightsSectionModel {
   const view = insightsListView(i18n, result, settings);
+  const notices = [view.withheld, view.emptyText].filter((line): line is string => line !== null);
   return {
     title: i18n._(INSIGHT_COPY.sectionTitle),
     intro: i18n._(INSIGHT_COPY.sectionIntro),
-    notes: [view.withheld, view.emptyText, ...view.footnotes].filter(
-      (line): line is string => line !== null,
-    ),
+    notes: [...notices, ...view.footnotes],
+    notices,
+    footnotes: view.footnotes,
     rows: view.insights.map((insight) => ({
       key: insight.key,
       kindLabel: insight.kindLabel,
@@ -55,6 +66,10 @@ export function insightsSectionModel(
         insight.coverageText,
         insight.factorsText,
       ].filter((line): line is string => line !== null),
+      body: insight.body,
+      details: [insight.certaintyText, insight.coverageText, insight.factorsText].filter(
+        (line): line is string => line !== null,
+      ),
       ruleText: insight.ruleText,
       accessibilityLabel: insight.accessibilityLabel,
     })),
