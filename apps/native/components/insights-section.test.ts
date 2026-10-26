@@ -69,6 +69,34 @@ if (!childMode) {
     Button: Object.assign(Pressable, { Label: Text }),
     cn: (...values: unknown[]) => values.filter(Boolean).join(" "),
   }));
+  // Bloom primitives as plain markup. As on the device, InfoTip and Details
+  // start closed: their content is not in the tree until opened.
+  const Plain = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", null, children);
+  const Closed = () => null;
+  const Titled = ({
+    children,
+    title,
+    actions,
+  }: {
+    children?: React.ReactNode;
+    title?: React.ReactNode;
+    actions?: React.ReactNode;
+  }) => React.createElement("div", null, title, actions, children);
+  const ClosedDetails = ({ summary }: { summary?: React.ReactNode }) =>
+    React.createElement("button", { type: "button" }, summary);
+  mock.module("@/components/bloom", () => ({
+    Details: ClosedDetails,
+    Icon: () => null,
+    InfoTip: Closed,
+    Prose: Text,
+    Ring: Plain,
+    Section: Titled,
+    Sheet: View,
+    StatusPill: Text,
+    ToneIcon: () => null,
+  }));
+  mock.module("lucide-react-native", () => ({ Sparkles: () => null, X: () => null }));
   const unexpected = () => {
     throw new Error("Unexpected navigation, push, or RPC call");
   };
@@ -143,7 +171,7 @@ if (!childMode) {
     },
   }));
   const { runInsightRules } = await import("@openvalens/api/insight-rules");
-  const { nutritionObservationView, privateInsightsQueryKey } =
+  const { insightsListView, nutritionObservationView, privateInsightsQueryKey } =
     await import("@openvalens/api/presenters/insights");
   const { observationPreferencePatch } = await import("@openvalens/api/presenters/insights");
   const reactDomClientModule = "react-dom/client";
@@ -243,6 +271,18 @@ if (!childMode) {
       expect(view.accessibilityLabel).toContain("4 matching timestamped records");
       await render("success");
       assertObservation(true);
+      // Each insight shows its title and body; certainty, coverage, the rule
+      // and the section's method sit behind closed InfoTips.
+      const listView = insightsListView(englishI18n, payload);
+      const first = listView.insights[0]!;
+      expect(container.textContent).toContain(first.title);
+      expect(container.textContent).toContain(first.body);
+      expect(first.certaintyText).toBeTruthy();
+      expect(container.textContent).not.toContain(first.certaintyText!);
+      expect(container.textContent).not.toContain(first.ruleText);
+      expect(container.textContent).not.toContain(listView.versionText);
+      expect(labels()).toContain(`Dismiss: ${first.title}`);
+      for (const row of listView.notReady) expect(container.textContent).not.toContain(row.detail);
       await render("fetching");
       assertObservation(false);
       await render("denied");
