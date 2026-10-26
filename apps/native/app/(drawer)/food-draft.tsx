@@ -5,13 +5,22 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Button, Card } from "heroui-native";
+import { Button } from "heroui-native";
+import {
+  ArrowLeft,
+  ListChecks,
+  MessageSquareText,
+  Mic,
+  Search,
+  Sparkles,
+} from "lucide-react-native";
 import { useState } from "react";
 import { Switch, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import { Icon, Page, PageHeader, Section, Sheet, StatusPill, ToneIcon } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { client } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 /**
  * Describe a meal (#73). Speech comes from the keyboard's dictation; this
@@ -20,7 +29,7 @@ import { client } from "@/utils/orpc";
  */
 
 const INPUT =
-  "min-h-11 rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground";
+  "min-h-11 rounded-xl border border-rule bg-sheet px-3 py-2 font-sans text-base text-ink";
 
 const DRAFT_FAILED = msg`Could not make a draft. Nothing was saved.`;
 const DRAFT_DISCARDED = msg`Draft discarded. Nothing was saved.`;
@@ -28,6 +37,7 @@ const DRAFT_DISCARDED = msg`Draft discarded. Nothing was saved.`;
 export default function FoodDraftScreen() {
   const router = useRouter();
   const { t, i18n } = useLingui();
+  const placeholder = useThemeColor("ink-3");
   const [transcript, setTranscript] = useState("");
   const [useAi, setUseAi] = useState(false);
   const [aiAgreed, setAiAgreed] = useState(false);
@@ -58,15 +68,25 @@ export default function FoodDraftScreen() {
     : (provider.data?.provider ?? "");
 
   return (
-    <Container className="p-4">
-      <View className="gap-6">
-        <View className="gap-2">
-          <Text accessibilityRole="header" className="font-mono text-3xl text-foreground">
-            <Trans>Describe a meal</Trans>
-          </Text>
-          <Text className="text-sm text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.intro)}</Text>
-        </View>
-        <Card variant="secondary" className="gap-3 p-4">
+    <Container>
+      <Page>
+        <PageHeader
+          title={<Trans>Describe a meal</Trans>}
+          info={i18n._(FOOD_DRAFT_COPY.intro)}
+          actions={
+            <Button variant="outline" size="sm" onPress={() => router.push("/nutrition")}>
+              <Icon icon={ArrowLeft} size={16} color="food" />
+              <Button.Label>{t`Back to meal diary`}</Button.Label>
+            </Button>
+          }
+        />
+        <Sheet className="gap-4">
+          <View className="flex-row items-center gap-2.5">
+            <ToneIcon icon={MessageSquareText} tone="food" size="sm" />
+            <Text className="font-display text-lg font-medium text-ink">
+              <Trans>What did you have?</Trans>
+            </Text>
+          </View>
           <TextInput
             value={transcript}
             onChangeText={setTranscript}
@@ -76,13 +96,20 @@ export default function FoodDraftScreen() {
             placeholder={t`Two eggs, a slice of toast and a coffee`}
             accessibilityLabel={t`What did you have?`}
             className={`${INPUT} min-h-28`}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={placeholder}
           />
-          <Text className="text-xs text-muted-foreground">{i18n._(FOOD_DRAFT_COPY.dictation)}</Text>
+          <View className="flex-row items-start gap-1.5">
+            <View className="pt-0.5">
+              <Icon icon={Mic} size={16} />
+            </View>
+            <Text className="flex-1 font-sans text-sm text-ink-3">
+              {i18n._(FOOD_DRAFT_COPY.dictation)}
+            </Text>
+          </View>
           {provider.data?.available ? (
-            <View className="gap-2 rounded-lg border border-border p-3">
+            <View className="gap-3 rounded-2xl bg-paper-2 p-4">
               <View className="flex-row items-center justify-between gap-3">
-                <Text className="flex-1 text-sm text-foreground">
+                <Text className="flex-1 font-sans text-sm text-ink-2">
                   <Trans>Use the AI provider for this draft</Trans>
                 </Text>
                 <Switch
@@ -96,7 +123,7 @@ export default function FoodDraftScreen() {
               </View>
               {useAi ? (
                 <View className="flex-row items-center justify-between gap-3">
-                  <Text className="flex-1 text-sm text-foreground">
+                  <Text className="flex-1 font-sans text-sm text-ink-2">
                     <Trans comment="safety">
                       Send this text, and nothing else, to {providerName} now.
                     </Trans>{" "}
@@ -115,27 +142,31 @@ export default function FoodDraftScreen() {
             </View>
           ) : null}
           <Button
+            className="self-start"
             isDisabled={!transcript.trim() || (useAi && !aiAgreed) || parse.isPending}
             onPress={() => parse.mutate()}
           >
-            {parse.isPending ? t`Working…` : t`Make a draft`}
+            <Icon icon={Sparkles} size={16} color="accent-foreground" />
+            <Button.Label>{parse.isPending ? t`Working…` : t`Make a draft`}</Button.Label>
           </Button>
           {message ? (
-            <Text accessibilityLiveRegion="polite" className="text-sm text-muted-foreground">
+            <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-2">
               {i18n._(message)}
             </Text>
           ) : null}
-        </Card>
+        </Sheet>
 
         {candidates ? (
-          <CardStack title={t`Review the draft`}>
-            <Card variant="secondary" className="gap-3 p-4">
-              <Text className="text-sm text-muted-foreground">
-                {i18n._(FOOD_DRAFT_COPY.review)}
-              </Text>
+          <Section
+            icon={ListChecks}
+            tone="food"
+            title={t`Review the draft`}
+            info={i18n._(FOOD_DRAFT_COPY.review)}
+          >
+            <View className="gap-3">
               {candidates.map((item, index) => (
-                <View key={item.id} className="gap-2 rounded-lg border border-border p-3">
-                  <Text className="text-sm font-medium text-foreground">
+                <Sheet key={item.id} className="gap-3">
+                  <Text className="font-display text-base font-medium text-ink">
                     {t`Item ${index + 1} · heard “${item.sourceText}”`}
                   </Text>
                   <TextInput
@@ -153,50 +184,63 @@ export default function FoodDraftScreen() {
                     accessibilityLabel={t`Food for item ${index + 1}`}
                     className={INPUT}
                   />
-                  <Text className="text-sm text-muted-foreground">
+                  <Text className="font-sans text-sm text-ink-3">
                     {item.quantityText ?? t`No quantity`} · {item.unitText ?? t`no unit`}
                   </Text>
                   {item.flags.length ? (
-                    <Text className="text-sm text-foreground">
-                      {item.flags.map((flag) => i18n._(FOOD_DRAFT_FLAG_LABELS[flag])).join(" · ")}
-                    </Text>
+                    <View className="flex-row flex-wrap gap-1.5">
+                      {item.flags.map((flag) => (
+                        <StatusPill key={flag} tone="warn">
+                          {i18n._(FOOD_DRAFT_FLAG_LABELS[flag])}
+                        </StatusPill>
+                      ))}
+                    </View>
                   ) : null}
                   <View className="flex-row flex-wrap gap-2">
                     <Button
                       size="sm"
+                      variant="outline"
                       onPress={() =>
                         router.push({ pathname: "/nutrition", params: { food: item.foodText } })
                       }
                     >
-                      <Trans>Find and log this food</Trans>
+                      <Icon icon={Search} size={16} color="ink-2" />
+                      <Button.Label>
+                        <Trans>Find and log this food</Trans>
+                      </Button.Label>
                     </Button>
                     <Button
                       size="sm"
-                      variant="secondary"
+                      variant="ghost"
                       onPress={() =>
                         setCandidates((current) =>
                           current ? current.filter((entry) => entry.id !== item.id) : current,
                         )
                       }
                     >
-                      <Trans>Remove</Trans>
+                      <Button.Label>
+                        <Trans>Remove</Trans>
+                      </Button.Label>
                     </Button>
                   </View>
-                </View>
+                </Sheet>
               ))}
               <Button
                 variant="secondary"
+                className="self-start"
                 onPress={() => {
                   setCandidates(null);
                   setMessage(DRAFT_DISCARDED);
                 }}
               >
-                <Trans>Discard draft</Trans>
+                <Button.Label>
+                  <Trans>Discard draft</Trans>
+                </Button.Label>
               </Button>
-            </Card>
-          </CardStack>
+            </View>
+          </Section>
         ) : null}
-      </View>
+      </Page>
     </Container>
   );
 }

@@ -40,7 +40,7 @@ export function InsightsSection() {
   if (!scope)
     return (
       <View>
-        <Text>{t`Loading insights…`}</Text>
+        <Text className="font-sans text-sm text-ink-3">{t`Loading insights…`}</Text>
       </View>
     );
   return (
@@ -173,13 +173,13 @@ function SubjectInsightsSection({
             },
           ].map((summary) => (
             <View key={summary.key} className="gap-1" accessible accessibilityLabel={summary.label}>
-              <Text className="text-xs text-muted-foreground">
+              <Text className="font-sans text-sm text-ink-3">
                 {summary.title}
                 {summary.badge ? ` · ${summary.badge}` : ""}
               </Text>
-              <Text className="font-mono text-2xl text-foreground">{summary.score}</Text>
+              <Text className="font-display text-3xl font-medium text-ink">{summary.score}</Text>
               {summary.note ? (
-                <Text className="text-xs text-muted-foreground">{summary.note}</Text>
+                <Text className="font-sans text-sm text-ink-3">{summary.note}</Text>
               ) : null}
             </View>
           ))}
@@ -188,7 +188,7 @@ function SubjectInsightsSection({
             accessibilityRole="link"
             className="min-h-11 justify-center"
           >
-            <Text className="font-medium text-foreground underline">
+            <Text className="font-sans font-medium text-ink underline">
               {i18n._(INSIGHT_COPY.summariesLink)}
             </Text>
           </Pressable>
@@ -197,37 +197,37 @@ function SubjectInsightsSection({
 
       <CardStack title={i18n._(INSIGHT_COPY.sectionTitle)}>
         <Card variant="secondary" className="gap-3 p-4">
-          <Text className="text-sm text-muted-foreground">{i18n._(INSIGHT_COPY.sectionIntro)}</Text>
+          <Text className="font-sans text-sm text-ink-3">{i18n._(INSIGHT_COPY.sectionIntro)}</Text>
           {insights.isPending ? (
-            <Text className="text-sm text-muted-foreground">{t`Loading…`}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`Loading…`}</Text>
           ) : insights.isError || !model ? (
             <Pressable
               onPress={() => void insights.refetch()}
               accessibilityRole="button"
               className="min-h-11 justify-center"
             >
-              <Text className="text-sm text-foreground underline">
+              <Text className="font-sans text-sm text-ink underline">
                 {t`Could not load insights. Retry`}
               </Text>
             </Pressable>
           ) : (
             <>
               {model.rows.map((row) => (
-                <View key={row.key} className="gap-1 border-t border-border pt-3">
+                <View key={row.key} className="gap-1 border-t border-rule pt-3">
                   <View accessible accessibilityLabel={row.accessibilityLabel} className="gap-1">
-                    <Text className="text-xs text-muted-foreground">{row.kindLabel}</Text>
+                    <Text className="font-sans text-sm text-ink-3">{row.kindLabel}</Text>
                     <Text
-                      className="text-base font-medium text-foreground"
+                      className="font-display text-lg font-semibold text-ink"
                       accessibilityRole="header"
                     >
                       {row.title}
                     </Text>
                     {row.lines.map((line) => (
-                      <Text key={line} className="text-sm text-foreground">
+                      <Text key={line} className="font-sans text-sm text-ink">
                         {line}
                       </Text>
                     ))}
-                    <Text className="text-xs text-muted-foreground">{row.ruleText}</Text>
+                    <Text className="font-sans text-sm text-ink-3">{row.ruleText}</Text>
                   </View>
                   <View className="flex-row flex-wrap gap-2">
                     <Button
@@ -263,15 +263,17 @@ function SubjectInsightsSection({
                 </View>
               ))}
               {model.notes.map((note) => (
-                <Text key={note} className="text-sm text-muted-foreground">
+                <Text key={note} className="font-sans text-sm text-ink-3">
                   {note}
                 </Text>
               ))}
               {model.notReady.length > 0 ? (
                 <View className="gap-1">
-                  <Text className="text-sm font-medium text-foreground">{model.notReadyTitle}</Text>
+                  <Text className="font-sans text-sm font-medium text-ink">
+                    {model.notReadyTitle}
+                  </Text>
                   {model.notReady.map((row) => (
-                    <Text key={row.key} className="text-sm text-muted-foreground">
+                    <Text key={row.key} className="font-sans text-sm text-ink-3">
                       {row.text}
                     </Text>
                   ))}
@@ -283,15 +285,15 @@ function SubjectInsightsSection({
                 accessibilityState={{ expanded: showMethod }}
                 className="min-h-11 justify-center"
               >
-                <Text className="font-medium text-foreground underline">
+                <Text className="font-sans font-medium text-ink underline">
                   {i18n._(INSIGHT_COPY.method)}
                 </Text>
               </Pressable>
               {showMethod ? (
-                <Text className="text-sm text-muted-foreground">{model.method}</Text>
+                <Text className="font-sans text-sm text-ink-3">{model.method}</Text>
               ) : null}
-              <Text className="text-sm text-muted-foreground">{model.limits}</Text>
-              <Text className="text-xs text-muted-foreground">{model.versionText}</Text>
+              <Text className="font-sans text-sm text-ink-3">{model.limits}</Text>
+              <Text className="font-sans text-sm text-ink-3">{model.versionText}</Text>
             </>
           )}
         </Card>
@@ -299,7 +301,7 @@ function SubjectInsightsSection({
 
       <CardStack title={t`Nutrition observations`}>
         <Card variant="secondary" className="gap-3 p-4">
-          <Text className="text-sm text-muted-foreground">
+          <Text className="font-sans text-sm text-ink-3">
             {t({
               message:
                 "Optional descriptions of how your recorded meals line up in time with recorded sleep and workouts. This reads across those logs only when you turn it on. It does not establish a cause or provide health advice. You can turn it off here without changing either log.",
@@ -307,7 +309,7 @@ function SubjectInsightsSection({
             })}
           </Text>
           {observationPrefs.isPending ? (
-            <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
+            <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
               {t`Loading observation setting…`}
             </Text>
           ) : observationPrefs.isError || !observationPrefs.data ? (
@@ -316,7 +318,7 @@ function SubjectInsightsSection({
               accessibilityLabel={t`Retry loading observation setting`}
               onPress={() => void observationPrefs.refetch()}
             >
-              <Text className="underline">{t`Could not load setting. Retry`}</Text>
+              <Text className="font-sans text-sm text-ink underline">{t`Could not load setting. Retry`}</Text>
             </Pressable>
           ) : (
             <Button
@@ -340,7 +342,7 @@ function SubjectInsightsSection({
             </Button>
           )}
           {observation.isError ? (
-            <Text accessibilityRole="alert" className="text-sm text-foreground">
+            <Text accessibilityRole="alert" className="font-sans text-sm text-ink">
               {t`Could not save this choice. Your saved setting is unchanged.`}
             </Text>
           ) : null}
@@ -350,7 +352,7 @@ function SubjectInsightsSection({
             </Button>
           ) : null}
           {showObservations && insights.data?.observations.length === 0 ? (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               {t`No observations to show for this period. Some records may be missing or incomplete.`}
             </Text>
           ) : null}
@@ -362,27 +364,30 @@ function SubjectInsightsSection({
                     key={`${item.ruleId}:${item.window.from}`}
                     accessible
                     accessibilityLabel={view.accessibilityLabel}
-                    className="gap-1 border-t border-border pt-3"
+                    className="gap-1 border-t border-rule pt-3"
                   >
-                    <Text accessibilityRole="header" className="font-medium text-foreground">
+                    <Text
+                      accessibilityRole="header"
+                      className="font-display text-base font-semibold text-ink"
+                    >
                       {view.title}
                     </Text>
-                    <Text className="text-sm text-foreground">{view.body}</Text>
-                    <Text className="text-sm text-muted-foreground">{view.completeness}</Text>
-                    <Text className="text-xs text-muted-foreground">{view.period}</Text>
+                    <Text className="font-sans text-sm text-ink">{view.body}</Text>
+                    <Text className="font-sans text-sm text-ink-3">{view.completeness}</Text>
+                    <Text className="font-sans text-sm text-ink-3">{view.period}</Text>
                   </View>
                 );
               })
             : null}
           {showObservations ? (
-            <Text className="text-xs text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               {t({
                 message: "Observations describe recorded timing only. They are not medical advice.",
                 comment: "safety",
               })}
             </Text>
           ) : (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               {t`Off by default. No nutrition observations are shown.`}
             </Text>
           )}
@@ -392,7 +397,7 @@ function SubjectInsightsSection({
       {insights.data?.offerPush ? (
         <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.pushOfferTitle)}>
           <Card variant="secondary" className="gap-3 p-4">
-            <Text className="text-sm text-foreground">
+            <Text className="font-sans text-sm text-ink">
               {i18n._(INSIGHT_DELIVERY_COPY.pushOfferBody)}
             </Text>
             <View className="flex-row flex-wrap gap-3">
@@ -411,7 +416,7 @@ function SubjectInsightsSection({
         </CardStack>
       ) : null}
       {message ? (
-        <Text className="text-sm text-foreground" accessibilityRole="alert">
+        <Text className="font-sans text-sm text-ink" accessibilityRole="alert">
           {message}
         </Text>
       ) : null}

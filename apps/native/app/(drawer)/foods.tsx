@@ -12,17 +12,32 @@ import {
   type CustomFoodFields,
 } from "@openvalens/api/presenters/custom-foods";
 import { localDateIn, newClientMutationId } from "@openvalens/api/presenters/nutrition-diary";
+import { formatNutrientValue } from "@openvalens/api/presenters/nutrition-diary";
 import {
   formatNutrientSummaryLine,
+  HIDDEN_VALUE,
   resolveHideNumbers,
 } from "@openvalens/api/presenters/nutrition-targets";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
-import { Button, Card, Spinner } from "heroui-native";
+import { Button } from "heroui-native";
+import { Archive, ArchiveRestore, ArrowLeft, Bookmark, Pencil, Plus } from "lucide-react-native";
 import { useState } from "react";
 import { AccessibilityInfo, Pressable, Switch, Text, TextInput, View } from "react-native";
 
+import {
+  EmptyState,
+  ErrorState,
+  Icon,
+  InfoTip,
+  ListCard,
+  Page,
+  PageHeader,
+  Prose,
+  Section,
+  Sheet,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 
@@ -35,7 +50,7 @@ import { orpc } from "@/utils/orpc";
  */
 
 const inputClass =
-  "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
+  "min-h-11 rounded-xl border border-rule bg-sheet px-3 font-sans text-base text-ink";
 
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
@@ -55,9 +70,11 @@ function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`min-h-11 justify-center rounded-lg border px-3 ${selected ? "border-foreground bg-accent" : "border-border"}`}
+      className={`min-h-11 justify-center rounded-full border px-4 ${selected ? "border-food bg-food-soft" : "border-rule bg-sheet"}`}
     >
-      <Text className="text-sm text-foreground">{label}</Text>
+      <Text className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -65,7 +82,7 @@ function Chip({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View className="gap-1">
-      <Text className="text-sm font-medium text-foreground">{label}</Text>
+      <Text className="font-sans text-sm font-medium text-ink-3">{label}</Text>
       {children}
     </View>
   );
@@ -121,30 +138,42 @@ export default function FoodsScreen() {
 
   return (
     <Container>
-      <View className="gap-5 p-4">
-        <Text className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.privacy)}</Text>
-        <View className="flex-row flex-wrap items-center justify-between gap-2">
-          <Link href="/nutrition" asChild>
-            <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-              <Text className="text-sm text-foreground underline">
-                <Trans>Back to meal diary</Trans>
-              </Text>
-            </Pressable>
-          </Link>
-          <Button size="sm" onPress={() => setEditing("new")} isDisabled={editing === "new"}>
-            {i18n._(CUSTOM_FOOD_COPY.create)}
-          </Button>
-        </View>
+      <Page>
+        <PageHeader
+          title={i18n._(CUSTOM_FOOD_COPY.title)}
+          description={i18n._(CUSTOM_FOOD_COPY.privacy)}
+          actions={
+            <>
+              <Link href="/nutrition" asChild>
+                <Button variant="outline" size="sm" accessibilityRole="link">
+                  <Icon icon={ArrowLeft} size={16} color="food" />
+                  <Button.Label>
+                    <Trans>Back to meal diary</Trans>
+                  </Button.Label>
+                </Button>
+              </Link>
+              <Button
+                size="sm"
+                variant={editing ? "secondary" : "primary"}
+                onPress={() => setEditing("new")}
+                isDisabled={editing === "new"}
+              >
+                <Icon icon={Plus} size={16} color={editing ? "ink-2" : "accent-foreground"} />
+                <Button.Label>{i18n._(CUSTOM_FOOD_COPY.create)}</Button.Label>
+              </Button>
+            </>
+          }
+        />
 
         {error ? (
-          <Card variant="secondary" className="flex-row items-center justify-between gap-2 p-3">
-            <Text className="flex-1 text-sm text-foreground" accessibilityLiveRegion="polite">
-              {error.text}
-            </Text>
-            <Button size="sm" variant="secondary" onPress={error.retry}>
-              {i18n._(CUSTOM_FOOD_COPY.retry)}
-            </Button>
-          </Card>
+          <ErrorState
+            title={error.text}
+            action={
+              <Button size="sm" variant="secondary" onPress={error.retry}>
+                <Button.Label>{i18n._(CUSTOM_FOOD_COPY.retry)}</Button.Label>
+              </Button>
+            }
+          />
         ) : null}
 
         {editing ? (
@@ -159,78 +188,125 @@ export default function FoodsScreen() {
           />
         ) : null}
 
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-foreground">{i18n._(CUSTOM_FOOD_COPY.showArchived)}</Text>
-          <Switch
-            value={showArchived}
-            onValueChange={setShowArchived}
-            accessibilityLabel={i18n._(CUSTOM_FOOD_COPY.showArchived)}
-          />
-        </View>
-
-        {foods.isPending ? (
-          <Spinner />
-        ) : foods.isError ? (
-          <Pressable onPress={() => void foods.refetch()} accessibilityRole="button">
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(CUSTOM_FOOD_COPY.networkError)} {i18n._(CUSTOM_FOOD_COPY.retry)}
+        <Section
+          icon={Bookmark}
+          tone="food"
+          title={<Trans>Saved foods</Trans>}
+          info={
+            <>
+              <Prose>{i18n._(CUSTOM_FOOD_COPY.provenance)}</Prose>
+              <Prose>{i18n._(CUSTOM_FOOD_COPY.archiveNote)}</Prose>
+            </>
+          }
+        >
+          <View className="flex-row items-center justify-between gap-3">
+            <Text className="flex-1 font-sans text-sm text-ink-2">
+              {i18n._(CUSTOM_FOOD_COPY.showArchived)}
             </Text>
-          </Pressable>
-        ) : foods.data.foods.length === 0 ? (
-          <Text className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.empty)}</Text>
-        ) : (
-          foods.data.foods.map((food) => (
-            <Card key={food.id} variant="secondary" className="gap-2 p-4">
-              <Text className="font-medium text-foreground">
-                {food.name}
-                {food.brand ? ` · ${food.brand}` : ""}
-                {food.archived ? ` · ${i18n._(CUSTOM_FOOD_COPY.archivedBadge)}` : ""}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {describeBasis(food.basis, i18n)} · {i18n._(describeCoverage(food))} ·{" "}
-                {i18n._(CUSTOM_FOOD_COPY.provenance)}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers, i18n)}
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {food.archived ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onPress={() => setArchived(food, false)}
-                    accessibilityLabel={t`Restore ${food.name}`}
-                  >
-                    {i18n._(CUSTOM_FOOD_COPY.restore)}
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => setEditing(food)}
-                      accessibilityLabel={t`Edit ${food.name}`}
-                    >
-                      {i18n._(CUSTOM_FOOD_COPY.edit)}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => setArchived(food, true)}
-                      accessibilityLabel={t`Archive ${food.name}`}
-                    >
-                      {i18n._(CUSTOM_FOOD_COPY.archive)}
-                    </Button>
-                  </>
-                )}
-              </View>
-            </Card>
-          ))
-        )}
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(CUSTOM_FOOD_COPY.archiveNote)}
-        </Text>
-      </View>
+            <Switch
+              value={showArchived}
+              onValueChange={setShowArchived}
+              accessibilityLabel={i18n._(CUSTOM_FOOD_COPY.showArchived)}
+            />
+          </View>
+
+          {foods.isPending ? (
+            <Sheet>
+              <Text className="font-sans text-sm text-ink-3">{t`Loading…`}</Text>
+            </Sheet>
+          ) : foods.isError ? (
+            <ErrorState
+              title={i18n._(CUSTOM_FOOD_COPY.networkError)}
+              action={
+                <Button variant="outline" size="sm" onPress={() => void foods.refetch()}>
+                  <Button.Label>{i18n._(CUSTOM_FOOD_COPY.retry)}</Button.Label>
+                </Button>
+              }
+            />
+          ) : foods.data.foods.length === 0 ? (
+            <EmptyState
+              icon={Bookmark}
+              tone="food"
+              title={i18n._(CUSTOM_FOOD_COPY.empty)}
+              action={
+                <Button variant="outline" size="sm" onPress={() => setEditing("new")}>
+                  <Button.Label>{i18n._(CUSTOM_FOOD_COPY.create)}</Button.Label>
+                </Button>
+              }
+            />
+          ) : (
+            <View className="gap-3">
+              {foods.data.foods.map((food) => (
+                <ListCard
+                  key={food.id}
+                  icon={food.archived ? Archive : Bookmark}
+                  tone="food"
+                  title={food.name}
+                  status={
+                    food.archived
+                      ? { label: i18n._(CUSTOM_FOOD_COPY.archivedBadge), tone: "neutral" }
+                      : undefined
+                  }
+                  subtitle={`${food.brand ? `${food.brand} · ` : ""}${describeBasis(food.basis, i18n)}`}
+                  chip={
+                    hideNumbers
+                      ? i18n._(HIDDEN_VALUE)
+                      : formatNutrientValue("energyKcal", food.nutrientsPerBasis.energyKcal, i18n)
+                  }
+                >
+                  <View className="flex-row flex-wrap items-center justify-between gap-2">
+                    <View className="flex-row items-center gap-1">
+                      <Text className="font-sans text-sm text-ink-3">
+                        {i18n._(describeCoverage(food))}
+                      </Text>
+                      <InfoTip label={t`Nutrients`} title={food.name}>
+                        <Prose>
+                          {formatNutrientSummaryLine(food.nutrientsPerBasis, hideNumbers, i18n)}
+                        </Prose>
+                        <Prose className="text-ink-3">{i18n._(CUSTOM_FOOD_COPY.provenance)}</Prose>
+                      </InfoTip>
+                    </View>
+                    <View className="flex-row flex-wrap gap-1">
+                      {food.archived ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => setArchived(food, false)}
+                          accessibilityLabel={t`Restore ${food.name}`}
+                        >
+                          <Icon icon={ArchiveRestore} size={16} color="ink-2" />
+                          <Button.Label>{i18n._(CUSTOM_FOOD_COPY.restore)}</Button.Label>
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onPress={() => setEditing(food)}
+                            accessibilityLabel={t`Edit ${food.name}`}
+                          >
+                            <Icon icon={Pencil} size={16} color="ink-2" />
+                            <Button.Label>{i18n._(CUSTOM_FOOD_COPY.edit)}</Button.Label>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onPress={() => setArchived(food, true)}
+                            accessibilityLabel={t`Archive ${food.name}`}
+                          >
+                            <Icon icon={Archive} size={16} color="ink-2" />
+                            <Button.Label>{i18n._(CUSTOM_FOOD_COPY.archive)}</Button.Label>
+                          </Button>
+                        </>
+                      )}
+                    </View>
+                  </View>
+                </ListCard>
+              ))}
+            </View>
+          )}
+        </Section>
+      </Page>
     </Container>
   );
 }
@@ -319,16 +395,19 @@ function FoodForm({
   );
 
   return (
-    <Card className="gap-3 p-4">
-      <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
-        {food ? t`Edit ${foodName}` : i18n._(CUSTOM_FOOD_COPY.create)}
-      </Text>
-      {food ? (
-        <Text className="text-sm text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.editNote)}</Text>
-      ) : null}
+    <Section
+      icon={food ? Pencil : Plus}
+      tone="food"
+      sheet
+      title={food ? t`Edit ${foodName}` : i18n._(CUSTOM_FOOD_COPY.create)}
+      info={food ? i18n._(CUSTOM_FOOD_COPY.editNote) : undefined}
+    >
       {conflict ? (
-        <Card variant="secondary" className="gap-2 p-3">
-          <Text className="font-medium text-foreground" accessibilityLiveRegion="polite">
+        <View className="gap-2 rounded-2xl bg-warning/10 px-4 py-3">
+          <Text
+            className="font-display text-base font-medium text-ink"
+            accessibilityLiveRegion="polite"
+          >
             {i18n._(
               conflict.archived
                 ? CUSTOM_FOOD_COPY.conflictArchived
@@ -336,7 +415,7 @@ function FoodForm({
             )}
           </Text>
           {conflict.archived ? null : (
-            <Text className="text-sm text-foreground">
+            <Text className="font-sans text-sm text-ink-2">
               {t`Other version:`} {conflict.name} · {describeBasis(conflict.basis, i18n)} ·{" "}
               {i18n._(describeCoverage(conflict))}
             </Text>
@@ -345,19 +424,20 @@ function FoodForm({
             {conflict.archived ? null : (
               <Button
                 size="sm"
+                variant="secondary"
                 onPress={() => {
                   setConflict(null);
                   save(conflict.revision);
                 }}
               >
-                {i18n._(CUSTOM_FOOD_COPY.keepMine)}
+                <Button.Label>{i18n._(CUSTOM_FOOD_COPY.keepMine)}</Button.Label>
               </Button>
             )}
-            <Button size="sm" variant="secondary" onPress={() => onDone(null)}>
-              {i18n._(CUSTOM_FOOD_COPY.keepServer)}
+            <Button size="sm" variant="outline" onPress={() => onDone(null)}>
+              <Button.Label>{i18n._(CUSTOM_FOOD_COPY.keepServer)}</Button.Label>
             </Button>
           </View>
-        </Card>
+        </View>
       ) : null}
       {textField(t`Food name`, "name")}
       {textField(t`Brand (optional)`, "brand")}
@@ -385,7 +465,7 @@ function FoodForm({
         ))}
       </View>
       {textField(t`Barcode (optional)`, "barcode", "number-pad")}
-      <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+      <Text className="pt-2 font-display text-lg font-medium text-ink" accessibilityRole="header">
         <Trans>Nutrients</Trans>
       </Text>
       {CUSTOM_FOOD_NUTRIENTS.map((key) => (
@@ -399,30 +479,32 @@ function FoodForm({
           />
         </Field>
       ))}
-      <Text className="text-xs text-muted-foreground">{i18n._(CUSTOM_FOOD_COPY.blankNote)}</Text>
+      <Text className="font-sans text-sm text-ink-3">{i18n._(CUSTOM_FOOD_COPY.blankNote)}</Text>
       {!parsed.ok && fields.name ? (
-        <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+        <Text className="font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
           {i18n._(parsed.error)}
         </Text>
       ) : null}
       {failed ? (
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text className="flex-1 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+          <Text className="flex-1 font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
             {i18n._(CUSTOM_FOOD_COPY.networkError)}
           </Text>
           <Button size="sm" variant="secondary" onPress={failed}>
-            {i18n._(CUSTOM_FOOD_COPY.retry)}
+            <Button.Label>{i18n._(CUSTOM_FOOD_COPY.retry)}</Button.Label>
           </Button>
         </View>
       ) : null}
       <View className="flex-row flex-wrap gap-2">
         <Button onPress={() => save()} isDisabled={!parsed.ok || pending}>
-          {i18n._(pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save)}
+          <Button.Label>
+            {i18n._(pending ? CUSTOM_FOOD_COPY.saving : CUSTOM_FOOD_COPY.save)}
+          </Button.Label>
         </Button>
-        <Button variant="secondary" onPress={() => onDone(null)}>
-          {i18n._(CUSTOM_FOOD_COPY.cancel)}
+        <Button variant="ghost" onPress={() => onDone(null)}>
+          <Button.Label>{i18n._(CUSTOM_FOOD_COPY.cancel)}</Button.Label>
         </Button>
       </View>
-    </Card>
+    </Section>
   );
 }

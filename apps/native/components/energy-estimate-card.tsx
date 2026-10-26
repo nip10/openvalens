@@ -7,9 +7,11 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, Text, View } from "react-native";
-import { Button, Card } from "heroui-native";
+import { Button } from "heroui-native";
+import { Gauge, Sparkles, Square, SquareCheck } from "lucide-react-native";
 
 import { deviceTimeZone, localDateIn } from "@openvalens/api/presenters/nutrition-diary";
+import { Icon, InfoTip, Prose, Section } from "@/components/bloom";
 import { orpc } from "@/utils/orpc";
 
 export function EnergyEstimateCard({
@@ -78,73 +80,85 @@ export function EnergyEstimateCard({
   const description = estimate.data?.status === "no_estimate" ? estimate.data.reasonNotes : [];
 
   return (
-    <Card variant="secondary" className="gap-3 p-4">
-      <Text className="font-medium text-foreground" accessibilityRole="header">
-        {i18n._(ENERGY_ESTIMATE_COPY.title)}
-      </Text>
-      <Text className="text-sm font-medium text-foreground">
-        {i18n._(ENERGY_ESTIMATE_COPY.subtitle)}
-      </Text>
-      <Text className="text-sm text-muted-foreground">
+    <Section
+      icon={Gauge}
+      tone="food"
+      sheet
+      title={i18n._(ENERGY_ESTIMATE_COPY.title)}
+      description={i18n._(ENERGY_ESTIMATE_COPY.subtitle)}
+    >
+      <Text className="font-sans text-sm text-ink-3">
         {i18n._(ENERGY_ESTIMATE_COPY.provisional)}
       </Text>
       {hideNumbers || !preferenceKnown ? (
-        <Text className="text-sm text-muted-foreground">{i18n._(ENERGY_ESTIMATE_COPY.hidden)}</Text>
+        <Text className="font-sans text-sm text-ink-2">{i18n._(ENERGY_ESTIMATE_COPY.hidden)}</Text>
       ) : safetyOff ? (
-        <Text className="text-sm text-muted-foreground">
+        <Text className="font-sans text-sm text-ink-2">
           {i18n._(ENERGY_ESTIMATE_COPY.unavailable)}
         </Text>
       ) : estimate.isError ? (
-        <View className="gap-2">
-          <Text className="text-sm text-muted-foreground" accessibilityRole="alert">
+        <View className="items-start gap-2 rounded-2xl bg-destructive/5 px-4 py-3">
+          <Text className="font-sans text-sm text-ink-2" accessibilityRole="alert">
             {i18n._(ENERGY_ESTIMATE_COPY.error)}
           </Text>
-          <Button variant="secondary" onPress={() => void estimate.refetch()}>
+          <Button size="sm" variant="outline" onPress={() => void estimate.refetch()}>
             <Trans>Retry</Trans>
           </Button>
         </View>
       ) : estimate.isPending ? (
-        <Text className="text-sm text-muted-foreground">
+        <Text className="font-sans text-sm text-ink-3">
           <Trans>Loading estimate…</Trans>
         </Text>
       ) : display ? (
-        <View className="gap-1 rounded-lg border border-border p-3">
-          <Text className="text-xl font-semibold text-foreground">{display.value}</Text>
-          <Text className="text-sm text-foreground">
-            {t`${range} (arithmetic range, not a confidence interval)`}
+        <View className="gap-1">
+          <Text
+            className="font-display text-[34px] font-medium leading-[40px] text-ink"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {display.value}
           </Text>
-          <Text className="text-xs text-muted-foreground">{display.window}</Text>
-          {display.notes.map((note, i) => (
-            <Text key={i} className="text-xs text-muted-foreground">
-              {note}
+          <View className="flex-row flex-wrap items-center gap-1">
+            <Text className="shrink font-sans text-sm text-ink-3">
+              {t`${range} (arithmetic range, not a confidence interval)`}
             </Text>
-          ))}
+            <InfoTip label={t`How this is estimated`}>
+              <Prose>{display.window}</Prose>
+              {display.notes.map((note, i) => (
+                <Prose key={i}>{note}</Prose>
+              ))}
+            </InfoTip>
+          </View>
         </View>
       ) : (
         <View className="gap-1">
-          <Text className="text-sm text-muted-foreground">
+          <Text className="font-sans text-sm text-ink-2">
             {i18n._(ENERGY_ESTIMATE_COPY.unavailable)}
           </Text>
           {description.map((note, i) => (
-            <Text key={i} className="text-xs text-muted-foreground">
+            <Text key={i} className="font-sans text-sm text-ink-3">
               {note}
             </Text>
           ))}
         </View>
       )}
       {pending ? (
-        <View className="gap-2 rounded-lg border border-border p-3">
-          <Text className="font-medium text-foreground">
-            {i18n._(ENERGY_ESTIMATE_COPY.pending)}
-          </Text>
+        <View className="gap-2 rounded-2xl bg-food-soft px-4 py-3">
+          <View className="flex-row items-center gap-2">
+            <Icon icon={Sparkles} size={16} color="food" />
+            <Text className="shrink font-display text-base font-medium text-ink">
+              {i18n._(ENERGY_ESTIMATE_COPY.pending)}
+            </Text>
+          </View>
           {authorized && proposalDisplay && (
             <>
-              <Text className="text-sm text-foreground">{t`Suggested: ${suggestion}`}</Text>
-              <Text className="text-sm text-foreground">{t`Current target: ${currentTarget}`}</Text>
+              <Text className="font-sans text-sm text-ink">{t`Suggested: ${suggestion}`}</Text>
+              <Text className="font-sans text-sm text-ink-2">
+                {t`Current target: ${currentTarget}`}
+              </Text>
             </>
           )}
           {pending.expired && (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-2">
               <Trans>This suggestion has expired.</Trans>
             </Text>
           )}
@@ -155,8 +169,8 @@ export function EnergyEstimateCard({
               accessibilityState={{ checked: confirmed }}
               className="min-h-11 flex-row items-center gap-2"
             >
-              <Text className="text-foreground">{confirmed ? "☑" : "☐"}</Text>
-              <Text className="flex-1 text-sm text-foreground">
+              <Icon icon={confirmed ? SquareCheck : Square} size={20} color="ink-2" />
+              <Text className="flex-1 font-sans text-sm text-ink-2">
                 <Trans comment="safety">I have read this and want to accept the suggestion.</Trans>
               </Text>
             </Pressable>
@@ -194,7 +208,7 @@ export function EnergyEstimateCard({
               </Button>
             ) : null}
             <Button
-              variant="secondary"
+              variant="ghost"
               isDisabled={dismiss.isPending}
               onPress={() =>
                 dismiss.mutate(
@@ -219,7 +233,8 @@ export function EnergyEstimateCard({
       ) : null}
       {authorized && !pending && (
         <Button
-          variant="secondary"
+          variant="outline"
+          className="self-start"
           isDisabled={!display || ask.isPending}
           onPress={() =>
             ask.mutate(
@@ -239,14 +254,15 @@ export function EnergyEstimateCard({
             )
           }
         >
-          {i18n._(ENERGY_ESTIMATE_COPY.ask)}
+          <Icon icon={Sparkles} size={16} color="ink-2" />
+          <Button.Label>{i18n._(ENERGY_ESTIMATE_COPY.ask)}</Button.Label>
         </Button>
       )}
       {status ? (
-        <Text accessibilityLiveRegion="polite" className="text-sm text-muted-foreground">
+        <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-2">
           {status}
         </Text>
       ) : null}
-    </Card>
+    </Section>
   );
 }

@@ -7,6 +7,9 @@ import {
   type ActivityLoadResult,
 } from "@openvalens/api/activity-load-contract";
 import {
+  ACTIVITY_LOAD_COPY,
+  activityLoadView,
+  type ActivityNumberView,
   canRateEffortToday,
   EFFORT_QUESTION,
   EFFORT_RATING_OPTIONS,
@@ -31,14 +34,49 @@ import {
   workoutTypeRecordName,
 } from "@openvalens/api/presenters/workouts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
 import { Link } from "expo-router";
+import { Button, Spinner } from "heroui-native";
+import {
+  Activity,
+  Bike,
+  BookOpen,
+  Dumbbell,
+  Flame,
+  Footprints,
+  type LucideIcon,
+  Plus,
+  Target,
+  Timer,
+  TrendingUp,
+  Trophy,
+  Waves,
+  Zap,
+} from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Icon,
+  InfoTip,
+  ListCard,
+  Meter,
+  Page,
+  PageHeader,
+  Prose,
+  Section,
+  Sheet,
+  StatTile,
+  type StatusTone,
+  TileRow,
+  ToneIcon,
+} from "@/components/bloom";
+import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
-import { activityLoadScreen, toggleEffort, toggleIntensity } from "@/utils/activity-load-screen";
+import { toggleEffort, toggleIntensity } from "@/utils/activity-load-screen";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { goalLogValue } from "@/utils/score-screen";
 import { useThemeColor } from "@/utils/theme";
@@ -51,6 +89,38 @@ type GoalStatus = (typeof GOAL_STATUSES)[number];
 
 const MAX_DURATION_MINUTES = 1440;
 
+/** How many sessions show as cards; the rest are in the full log. */
+const RECENT_SESSIONS = 6;
+
+const INPUT_CLASS =
+  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
+
+const WORKOUT_ICONS: Record<string, LucideIcon> = {
+  weights: Dumbbell,
+  running: Footprints,
+  cycling: Bike,
+  swimming: Waves,
+  tennis: Trophy,
+};
+
+function workoutIcon(type: string): LucideIcon {
+  return WORKOUT_ICONS[type] ?? Activity;
+}
+
+function goalTone(status: string): StatusTone {
+  if (status === "achieved") return "good";
+  return "neutral";
+}
+
+/** How far a goal has come from its start toward its target, 0 to 1; null without three numbers (as web). */
+function goalShare(start: string | null, now: string | null, target: string | null): number | null {
+  const a = Number.parseFloat(start ?? "");
+  const b = Number.parseFloat(now ?? "");
+  const c = Number.parseFloat(target ?? "");
+  if (![a, b, c].every(Number.isFinite) || a === c) return null;
+  return (b - a) / (c - a);
+}
+
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -62,6 +132,10 @@ function parseDurationMinutes(value: string): number | null {
   const parsed = Number(trimmed);
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > MAX_DURATION_MINUTES) return null;
   return parsed;
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <Text className="font-sans text-sm font-medium text-ink-3">{children}</Text>;
 }
 
 function Pill({
@@ -78,13 +152,11 @@ function Pill({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-        selected ? "border-primary bg-primary/15" : "border-border bg-card"
+      className={`min-h-9 justify-center rounded-full border px-3.5 py-1.5 active:opacity-70 ${
+        selected ? "border-primary bg-primary/15" : "border-rule-2 bg-sheet"
       }`}
     >
-      <Text
-        className={`text-sm ${selected ? "font-medium text-foreground" : "text-muted-foreground"}`}
-      >
+      <Text className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}>
         {label}
       </Text>
     </Pressable>
@@ -127,20 +199,21 @@ function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => 
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        className="min-h-11 justify-center"
+        className="min-h-11 justify-center self-start"
       >
-        <Text className="text-sm font-medium text-foreground underline">
+        <Text className="font-sans text-sm font-semibold text-signal">
           <Trans>Rate effort</Trans>
         </Text>
       </Pressable>
     );
   return (
     <View className="gap-2">
-      <Text className="text-xs text-muted-foreground">{i18n._(EFFORT_QUESTION)}</Text>
+      <Text className="font-sans text-sm text-ink-3">{i18n._(EFFORT_QUESTION)}</Text>
       <EffortPills value={rating} onChange={setRating} />
       <View className="flex-row items-center gap-3">
         <Button
           size="sm"
+          variant="secondary"
           isDisabled={rating === null || rate.isPending}
           onPress={() => {
             if (rating !== null) rate.mutate({ id: workoutId, effortRating: rating });
@@ -149,7 +222,7 @@ function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => 
           {t`Save rating`}
         </Button>
         {rate.isError ? (
-          <Text className="text-xs text-destructive">
+          <Text className="font-sans text-sm text-destructive">
             <Trans>Could not save.</Trans>
           </Text>
         ) : null}
@@ -158,113 +231,193 @@ function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => 
   );
 }
 
-/** Issue #99 — weekly activity (same content as the web card). */
+/** The method behind one weekly number: breakdown, coverage, formula and sources. */
+function NumberMethod({ part }: { part: ActivityNumberView }) {
+  return (
+    <View className="gap-1.5">
+      <Text className="font-sans text-base font-semibold text-ink">{part.title}</Text>
+      {part.breakdown.map((line) => (
+        <Text key={line} className="font-sans text-sm text-ink-2">
+          {line}
+        </Text>
+      ))}
+      {part.coverage.map((line) => (
+        <Text key={line} className="font-sans text-sm text-ink-3">
+          {line}
+        </Text>
+      ))}
+      <Text className="font-sans text-sm text-ink-2">{part.formula}</Text>
+      {part.sources.map((line) => (
+        <Text key={line} className="font-sans text-sm text-ink-3">
+          {line}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+/** Issue #99 — weekly activity (same content as the web card), in Bloom. */
 function ActivityLoadView({ result }: { result: ActivityLoadResult }) {
   const { i18n } = useLingui();
-  const screen = activityLoadScreen(result, i18n);
-  const [showMethod, setShowMethod] = useState(false);
+  const view = activityLoadView(result, i18n);
+  const active = result.load?.activeMinutes;
+  const activeMeter =
+    active && active.activeMinutes !== null && active.whoRange.lower > 0
+      ? { value: active.activeMinutes / active.whoRange.lower }
+      : undefined;
+  const chartData = (result.load?.effort.days ?? []).map((day) => ({
+    value: day.points ?? 0,
+    label: friendlyDate(i18n, day.date),
+  }));
+  const parts = [view.activeMinutes, view.effort].filter(
+    (part): part is ActivityNumberView => part !== null,
+  );
+
   return (
-    <CardStack>
-      <Card variant="secondary" className="gap-3 p-4">
-        <Text className="text-lg font-semibold text-foreground" accessibilityRole="header">
-          {screen.title}
-        </Text>
-        <Text className="text-sm text-muted-foreground">{screen.intro}</Text>
-        {screen.windowText ? (
-          <Text className="text-xs text-muted-foreground">{screen.windowText}</Text>
-        ) : null}
-        {screen.withheldExplanation ? (
-          <Text className="text-sm text-foreground">{screen.withheldExplanation}</Text>
-        ) : null}
-        {screen.numbers.map((number) => (
-          <View key={number.key} className="gap-1 border-t border-border pt-2">
-            <Text className="text-base font-medium text-foreground">{number.title}</Text>
-            <View
-              className="flex-row items-baseline gap-2"
-              accessible
-              accessibilityLabel={number.accessibilityLabel}
-            >
-              <Text className="font-mono text-3xl text-foreground">{number.valueText}</Text>
-              {number.unitText ? (
-                <Text className="text-sm text-muted-foreground">{number.unitText}</Text>
-              ) : null}
-            </View>
-            {number.lines.map((line) => (
-              <Text key={line} className="text-xs text-muted-foreground">
+    <View className="gap-3">
+      <View className="gap-1">
+        <View className="flex-row items-center gap-2">
+          <ToneIcon icon={Flame} tone="steps" size="sm" />
+          <Text
+            className="shrink font-display text-xl font-semibold text-ink"
+            accessibilityRole="header"
+          >
+            {view.title}
+          </Text>
+          <InfoTip title={view.title}>
+            <Prose>{view.intro}</Prose>
+            {view.notes.map((line) => (
+              <Text key={line} className="font-sans text-sm text-ink-3">
                 {line}
               </Text>
             ))}
-            {showMethod
-              ? number.method.map((line) => (
-                  <Text key={line} className="text-xs text-foreground">
-                    {line}
+            {view.versionText ? (
+              <Text className="font-sans text-sm text-ink-3">{view.versionText}</Text>
+            ) : null}
+          </InfoTip>
+        </View>
+        {view.windowText ? (
+          <Text className="font-sans text-sm text-ink-3">{view.windowText}</Text>
+        ) : null}
+      </View>
+
+      {view.withheldExplanation ? (
+        <Sheet>
+          <Prose>{view.withheldExplanation}</Prose>
+        </Sheet>
+      ) : null}
+
+      {view.activeMinutes && view.effort ? (
+        <TileRow>
+          <View accessible accessibilityLabel={view.activeMinutes.accessibilityLabel}>
+            <StatTile
+              icon={Timer}
+              tone="steps"
+              label={view.activeMinutes.title}
+              value={view.activeMinutes.valueText}
+              unit={view.activeMinutes.available ? view.activeMinutes.unitText : undefined}
+              meter={activeMeter}
+              note={view.activeMinutes.statusText}
+            />
+          </View>
+          <View accessible accessibilityLabel={view.effort.accessibilityLabel}>
+            <StatTile
+              icon={Zap}
+              tone="steps"
+              label={view.effort.title}
+              value={view.effort.valueText}
+              unit={view.effort.available ? view.effort.unitText : undefined}
+              note={view.effort.statusText}
+            />
+          </View>
+        </TileRow>
+      ) : null}
+
+      {parts.length > 0 ? (
+        <Details summary={<Trans>How this is calculated</Trans>}>
+          <Sheet className="gap-4">
+            {parts.map((part) => (
+              <NumberMethod key={part.key} part={part} />
+            ))}
+          </Sheet>
+        </Details>
+      ) : null}
+
+      {view.effortDays.length > 0 ? (
+        <Sheet className="gap-3">
+          <Text className="font-sans text-base font-semibold text-ink-2">
+            <Trans>Effort points by day</Trans>
+          </Text>
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <TrendChart tone="steps" data={chartData} bars minValue={0} />
+          </View>
+          <Details summary={<Trans>By day</Trans>}>
+            <View className="gap-1">
+              {view.effortDays.map((day) => (
+                <View
+                  key={day.date}
+                  className="flex-row justify-between gap-4 py-1"
+                  accessible
+                  accessibilityLabel={day.accessibilityLabel}
+                >
+                  <Text className="font-sans text-sm text-ink-3">{day.label}</Text>
+                  <Text
+                    className="font-sans text-sm font-semibold text-ink"
+                    style={{ fontVariant: ["tabular-nums"] }}
+                  >
+                    {day.valueText}
                   </Text>
-                ))
-              : null}
+                </View>
+              ))}
+            </View>
+          </Details>
+        </Sheet>
+      ) : null}
+
+      {view.comparison ? (
+        <Sheet
+          className="flex-row items-start gap-3"
+          accessibilityLabel={view.comparison.accessibilityLabel}
+        >
+          <ToneIcon icon={TrendingUp} tone="steps" size="sm" />
+          <View className="min-w-0 flex-1 gap-1">
+            <View className="flex-row items-center gap-1">
+              <Text className="shrink font-sans text-base font-semibold text-ink">
+                {view.comparison.title}
+              </Text>
+              <InfoTip title={view.comparison.title}>
+                {view.comparison.detail ? <Prose>{view.comparison.detail}</Prose> : null}
+                <Text className="font-sans text-sm text-ink-3">{view.comparison.limits}</Text>
+              </InfoTip>
+            </View>
+            <Text className="font-sans text-sm text-ink-2">{view.comparison.text}</Text>
           </View>
-        ))}
-        {screen.numbers.length > 0 ? (
-          <Pressable
-            onPress={() => setShowMethod((open) => !open)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: showMethod }}
-            className="min-h-11 justify-center"
-          >
-            <Text className="font-medium text-foreground underline">
-              <Trans>How this is calculated</Trans>
+        </Sheet>
+      ) : null}
+
+      {view.context.length > 0 ? (
+        <Sheet className="flex-row items-start gap-3">
+          <ToneIcon icon={Footprints} tone="steps" size="sm" />
+          <View className="min-w-0 flex-1 gap-1">
+            <Text className="font-sans text-base font-semibold text-ink">
+              {i18n._(ACTIVITY_LOAD_COPY.contextTitle)}
             </Text>
-          </Pressable>
-        ) : null}
-        {screen.dayRows.length > 0 ? (
-          <View className="gap-1 border-t border-border pt-2">
-            <Text className="text-sm font-medium text-foreground">
-              <Trans>Effort points by day</Trans>
-            </Text>
-            {screen.dayRows.map((row) => (
-              <View
-                key={row.key}
-                className="flex-row justify-between"
-                accessible
-                accessibilityLabel={row.accessibilityLabel}
-              >
-                <Text className="text-xs text-foreground">{row.label}</Text>
-                <Text className="font-mono text-xs text-foreground">{row.value}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-        {screen.comparison ? (
-          <View
-            className="gap-1 border-t border-border pt-2"
-            accessible
-            accessibilityLabel={screen.comparison.accessibilityLabel}
-          >
-            <Text className="text-sm font-medium text-foreground">{screen.comparison.title}</Text>
-            {screen.comparison.lines.map((line) => (
-              <Text key={line} className="text-xs text-muted-foreground">
+            {view.context.map((line) => (
+              <Text key={line} className="font-sans text-sm text-ink-2">
                 {line}
               </Text>
             ))}
           </View>
-        ) : null}
-        {screen.context.map((line) => (
-          <Text key={line} className="text-xs text-muted-foreground">
-            {line}
-          </Text>
-        ))}
-        {screen.footer.map((line) => (
-          <Text key={line} className="text-xs text-muted-foreground">
-            {line}
-          </Text>
-        ))}
-      </Card>
-    </CardStack>
+        </Sheet>
+      ) : null}
+    </View>
   );
 }
 
 function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
   const { t } = useLingui();
   const { _ } = useLinguiRuntime();
+  const placeholder = useThemeColor("ink-3");
   const [type, setType] = useState<WorkoutType>("weights");
   const [date, setDate] = useState(todayIso);
   const [duration, setDuration] = useState("");
@@ -307,128 +460,132 @@ function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title={t`Add workout`}>
-      <Card variant="secondary" className="gap-4 p-4">
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Type</Trans>
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {WORKOUT_TYPES.map((value) => (
-              <Pill
-                key={value}
-                label={_(workoutTypeLabel(value))}
-                selected={value === type}
-                onPress={() => setType(value)}
-              />
-            ))}
-          </View>
-        </View>
-        <View className="flex-row gap-3">
-          <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">
-              <Trans>Date</Trans>
-            </Text>
-            <TextInput
-              value={date}
-              onChangeText={setDate}
-              placeholder={t`YYYY-MM-DD`}
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
+    <Section sheet icon={Plus} tone="steps" title={t`Add a session`}>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Type</Trans>
+        </FieldLabel>
+        <View className="flex-row flex-wrap gap-2">
+          {WORKOUT_TYPES.map((value) => (
+            <Pill
+              key={value}
+              label={_(workoutTypeLabel(value))}
+              selected={value === type}
+              onPress={() => setType(value)}
             />
-          </View>
-          <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">
-              <Trans>Duration (minutes)</Trans>
-            </Text>
-            <TextInput
-              value={duration}
-              onChangeText={setDuration}
-              placeholder="45"
-              keyboardType="numeric"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
+          ))}
         </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
+      </View>
+      <View className="flex-row gap-3">
+        <View className="flex-1 gap-2">
+          <FieldLabel>
+            <Trans>Date</Trans>
+          </FieldLabel>
+          <TextInput
+            value={date}
+            onChangeText={setDate}
+            placeholder={t`YYYY-MM-DD`}
+            className={INPUT_CLASS}
+            placeholderTextColor={placeholder}
+          />
+        </View>
+        <View className="flex-1 gap-2">
+          <FieldLabel>
+            <Trans>Duration (minutes)</Trans>
+          </FieldLabel>
+          <TextInput
+            value={duration}
+            onChangeText={setDuration}
+            placeholder="45"
+            keyboardType="numeric"
+            className={INPUT_CLASS}
+            placeholderTextColor={placeholder}
+          />
+        </View>
+      </View>
+      <View className="gap-2">
+        <View className="flex-row items-center gap-1">
+          <FieldLabel>
             <Trans>Intensity (optional)</Trans>
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {ACTIVITY_INTENSITIES.map((value) => (
-              <Pill
-                key={value}
-                label={_(INTENSITY_LABELS[value])}
-                selected={value === intensity}
-                onPress={() => setIntensity(toggleIntensity(intensity, value))}
-              />
-            ))}
-          </View>
-          {intensity ? (
-            <Text className="text-xs text-muted-foreground">
-              {_(INTENSITY_DESCRIPTIONS[intensity])}
-            </Text>
-          ) : (
-            <Text className="text-xs text-muted-foreground">
+          </FieldLabel>
+          <InfoTip title={t`Intensity (optional)`}>
+            <Prose>
               <Trans>
                 Talk test: light — you can talk and sing; moderate — you can talk, but not sing;
                 vigorous — you can only say a few words without pausing for breath.
               </Trans>
-            </Text>
-          )}
+            </Prose>
+          </InfoTip>
         </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Effort, 0–10 (optional)</Trans>
+        <View className="flex-row flex-wrap gap-2">
+          {ACTIVITY_INTENSITIES.map((value) => (
+            <Pill
+              key={value}
+              label={_(INTENSITY_LABELS[value])}
+              selected={value === intensity}
+              onPress={() => setIntensity(toggleIntensity(intensity, value))}
+            />
+          ))}
+        </View>
+        {intensity ? (
+          <Text className="font-sans text-sm text-ink-3">
+            {_(INTENSITY_DESCRIPTIONS[intensity])}
           </Text>
-          <Text className="text-xs text-muted-foreground">
-            {_(EFFORT_QUESTION)} <Trans>You can also add it later today.</Trans>
+        ) : null}
+      </View>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Effort, 0–10 (optional)</Trans>
+        </FieldLabel>
+        <View className="flex-row items-center gap-1">
+          <Text className="shrink font-sans text-sm text-ink-3">
+            <Trans>You can also add it later today.</Trans>
           </Text>
-          <EffortPills value={effort} onChange={setEffort} />
+          <InfoTip title={t`Effort, 0–10 (optional)`}>
+            <Prose>{_(EFFORT_QUESTION)}</Prose>
+          </InfoTip>
         </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Notes</Trans>
+        <EffortPills value={effort} onChange={setEffort} />
+      </View>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Notes</Trans>
+        </FieldLabel>
+        <TextInput
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t`How did it go?`}
+          multiline
+          className="min-h-20 rounded-xl border border-rule-2 bg-paper-2 px-3 py-2 font-sans text-base text-ink"
+          placeholderTextColor={placeholder}
+        />
+      </View>
+      <View className="flex-row flex-wrap items-center gap-3 pt-1">
+        <Button onPress={submit} isDisabled={dateMissing || durationInvalid || save.isPending}>
+          {save.isPending ? t`Saving…` : t`Save`}
+        </Button>
+        {durationInvalid ? (
+          <Text className="font-sans text-sm text-destructive">
+            <Trans>Duration must be 1–1440 minutes.</Trans>
           </Text>
-          <TextInput
-            value={notes}
-            onChangeText={setNotes}
-            placeholder={t`How did it go?`}
-            multiline
-            className="min-h-16 rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground"
-            placeholderTextColor="#9ca3af"
-          />
-        </View>
-        <View className="flex-row items-center gap-3">
-          <Button onPress={submit} isDisabled={dateMissing || durationInvalid || save.isPending}>
-            {save.isPending ? t`Saving…` : t`Save`}
-          </Button>
-          {durationInvalid ? (
-            <Text className="text-sm text-destructive">
-              <Trans>Duration must be 1–1440 minutes.</Trans>
-            </Text>
-          ) : save.isSuccess ? (
-            <Text className="text-sm text-success">
-              <Trans>Saved</Trans>
-            </Text>
-          ) : save.isError ? (
-            <Text className="text-sm text-destructive">
-              <Trans>Could not save.</Trans>
-            </Text>
-          ) : null}
-        </View>
-      </Card>
-    </CardStack>
+        ) : save.isSuccess ? (
+          <Text className="font-sans text-sm text-success">
+            <Trans>Saved</Trans>
+          </Text>
+        ) : save.isError ? (
+          <Text className="font-sans text-sm text-destructive">
+            <Trans>Could not save.</Trans>
+          </Text>
+        ) : null}
+      </View>
+    </Section>
   );
 }
-
-const INPUT_CLASS =
-  "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
 
 function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   const { t } = useLingui();
   const { _ } = useLinguiRuntime();
+  const placeholder = useThemeColor("ink-3");
   const [title, setTitle] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [status, setStatus] = useState<GoalStatus>("not_started");
@@ -470,129 +627,134 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title={t`Add goal`}>
-      <Card variant="secondary" className="gap-4 p-4">
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Title</Trans>
-          </Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder={t`Run a 5k`}
-            className={INPUT_CLASS}
-            placeholderTextColor="#9ca3af"
-          />
+    <Section sheet icon={Plus} tone="weight" title={t`Add a goal`}>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Title</Trans>
+        </FieldLabel>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder={t`Run a 5k`}
+          className={INPUT_CLASS}
+          placeholderTextColor={placeholder}
+        />
+      </View>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Due date</Trans>
+        </FieldLabel>
+        <TextInput
+          value={targetDate}
+          onChangeText={setTargetDate}
+          placeholder={t`YYYY-MM-DD`}
+          className={INPUT_CLASS}
+          placeholderTextColor={placeholder}
+        />
+      </View>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Status</Trans>
+        </FieldLabel>
+        <View className="flex-row flex-wrap gap-2">
+          {GOAL_STATUSES.map((value) => (
+            <Pill
+              key={value}
+              label={_(goalStatusLabel(value))}
+              selected={value === status}
+              onPress={() => setStatus(value)}
+            />
+          ))}
         </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Due date</Trans>
-          </Text>
-          <TextInput
-            value={targetDate}
-            onChangeText={setTargetDate}
-            placeholder={t`YYYY-MM-DD`}
-            className={INPUT_CLASS}
-            placeholderTextColor="#9ca3af"
-          />
-        </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Status</Trans>
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {GOAL_STATUSES.map((value) => (
-              <Pill
-                key={value}
-                label={_(goalStatusLabel(value))}
-                selected={value === status}
-                onPress={() => setStatus(value)}
-              />
-            ))}
-          </View>
-        </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
+      </View>
+      <View className="flex-row gap-3">
+        <View className="flex-1 gap-2">
+          <FieldLabel>
             <Trans>Starting value (optional)</Trans>
-          </Text>
+          </FieldLabel>
           <TextInput
             value={startValue}
             onChangeText={setStartValue}
             placeholder="80 kg"
             accessibilityLabel={t`Starting value (optional)`}
             className={INPUT_CLASS}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={placeholder}
           />
         </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
+        <View className="flex-1 gap-2">
+          <FieldLabel>
             <Trans>Target (optional)</Trans>
-          </Text>
+          </FieldLabel>
           <TextInput
             value={targetValue}
             onChangeText={setTargetValue}
             placeholder="75 kg"
             accessibilityLabel={t`Target (optional)`}
             className={INPUT_CLASS}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={placeholder}
           />
         </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Progress means the value should</Trans>
+      </View>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Progress means the value should</Trans>
+        </FieldLabel>
+        <View className="flex-row flex-wrap gap-2">
+          {GOAL_DIRECTION_OPTIONS.map((value) => (
+            <Pill
+              key={value}
+              label={_(goalDirectionLabel(value))}
+              selected={value === direction}
+              onPress={() => setDirection(value === direction ? null : value)}
+            />
+          ))}
+        </View>
+      </View>
+      <View className="gap-2">
+        <FieldLabel>
+          <Trans>Priority</Trans>
+        </FieldLabel>
+        <View className="flex-row flex-wrap gap-2">
+          {GOAL_PRIORITY_OPTIONS.map((value) => (
+            <Pill
+              key={value}
+              label={_(goalPriorityLabel(value))}
+              selected={value === priority}
+              onPress={() => setPriority(value)}
+            />
+          ))}
+        </View>
+      </View>
+      <View className="flex-row flex-wrap items-center gap-3 pt-1">
+        <Button
+          variant="outline"
+          onPress={submit}
+          isDisabled={titleMissing || !measurement.ok || save.isPending}
+        >
+          {save.isPending ? t`Saving…` : t`Save`}
+        </Button>
+        {!measurement.ok ? (
+          <Text className="font-sans text-sm text-destructive" accessibilityRole="alert">
+            {_(measurement.error)}
           </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {GOAL_DIRECTION_OPTIONS.map((value) => (
-              <Pill
-                key={value}
-                label={_(goalDirectionLabel(value))}
-                selected={value === direction}
-                onPress={() => setDirection(value === direction ? null : value)}
-              />
-            ))}
-          </View>
-        </View>
-        <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">
-            <Trans>Priority</Trans>
+        ) : save.isSuccess ? (
+          <Text className="font-sans text-sm text-success">
+            <Trans>Saved</Trans>
           </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {GOAL_PRIORITY_OPTIONS.map((value) => (
-              <Pill
-                key={value}
-                label={_(goalPriorityLabel(value))}
-                selected={value === priority}
-                onPress={() => setPriority(value)}
-              />
-            ))}
-          </View>
-        </View>
-        <View className="flex-row flex-wrap items-center gap-3">
-          <Button onPress={submit} isDisabled={titleMissing || !measurement.ok || save.isPending}>
-            {save.isPending ? t`Saving…` : t`Save`}
-          </Button>
-          {!measurement.ok ? (
-            <Text className="text-sm text-destructive" accessibilityRole="alert">
-              {_(measurement.error)}
-            </Text>
-          ) : save.isSuccess ? (
-            <Text className="text-sm text-success">
-              <Trans>Saved</Trans>
-            </Text>
-          ) : save.isError ? (
-            <Text className="text-sm text-destructive">
-              <Trans>Could not save.</Trans>
-            </Text>
-          ) : null}
-        </View>
-      </Card>
-    </CardStack>
+        ) : save.isError ? (
+          <Text className="font-sans text-sm text-destructive">
+            <Trans>Could not save.</Trans>
+          </Text>
+        ) : null}
+      </View>
+    </Section>
   );
 }
 
 /** Issue #95 — record today's value for a goal (same as web "Log"). */
 function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void }) {
   const { t } = useLingui();
+  const placeholder = useThemeColor("ink-3");
   const [text, setText] = useState("");
   const log = useMutation(
     orpc.plans.goals.upsertCheckin.mutationOptions({
@@ -611,8 +773,8 @@ function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void
         placeholder={t`Today`}
         accessibilityLabel={t`Today's value`}
         maxLength={80}
-        className="min-h-11 w-24 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
-        placeholderTextColor="#9ca3af"
+        className="min-h-11 w-28 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-sm text-ink"
+        placeholderTextColor={placeholder}
       />
       <Button
         size="sm"
@@ -640,36 +802,60 @@ export default function WorkoutsScreen() {
   const goals = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
   const load = useQuery(orpc.activity.weeklyLoad.queryOptions({ input: {} }));
 
+  const header = (
+    <PageHeader
+      title={t`Workouts`}
+      actions={
+        <Link href="/exercise-library" asChild>
+          <Button variant="outline" size="sm" accessibilityRole="link">
+            <Icon icon={BookOpen} size={16} color="ink-2" />
+            <Button.Label>{t`Exercise library`}</Button.Label>
+          </Button>
+        </Link>
+      }
+    />
+  );
+
   if (workouts.isPending || goals.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          {header}
+          <Sheet className="items-center py-10">
+            <Spinner />
+          </Sheet>
+        </Page>
       </Container>
     );
 
   if (workouts.isError || !workouts.data || goals.isError || !goals.data)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">
-          <Trans>Could not load workouts.</Trans>
-        </Text>
-        <Pressable
-          onPress={() => {
-            void workouts.refetch();
-            void goals.refetch();
-          }}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">
-            <Trans>Retry</Trans>
-          </Text>
-        </Pressable>
+      <Container>
+        <Page>
+          {header}
+          <ErrorState
+            title={<Trans>Could not load workouts.</Trans>}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  void workouts.refetch();
+                  void goals.refetch();
+                }}
+              >
+                {t`Retry`}
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
   const workoutSummary = summarizeWorkouts(workouts.data);
   const goalSummary = summarizeGoals(goals.data);
+  const today = todayIso();
+  const recent = workouts.data.slice(0, RECENT_SESSIONS);
 
   const reloadWorkouts = () => {
     void workouts.refetch();
@@ -700,136 +886,164 @@ export default function WorkoutsScreen() {
         ),
       }}
     >
-      <View className="gap-6 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Workouts</Trans>
-          </Text>
-          <Text className="font-mono text-3xl text-foreground">
-            <Trans>Sessions &amp; goals</Trans>
-          </Text>
-          <Link href="/exercise-library" asChild>
-            <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-              <Text className="text-sm text-foreground underline">
-                <Trans>Exercise library</Trans>
-              </Text>
-            </Pressable>
-          </Link>
-        </View>
+      <Page>
+        {header}
 
         {load.isPending ? (
-          <Spinner />
+          <Sheet className="items-center py-10">
+            <Spinner />
+          </Sheet>
         ) : load.isError || !load.data ? (
-          <Pressable
-            onPress={() => void load.refetch()}
-            className="min-h-11 justify-center"
-            accessibilityRole="button"
-          >
-            <Text className="text-sm text-foreground">
-              <Trans>
-                Could not load weekly activity. <Text className="underline">Retry</Text>
-              </Trans>
-            </Text>
-          </Pressable>
+          <ErrorState
+            title={<Trans>Could not load weekly activity.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void load.refetch()}>
+                {t`Retry`}
+              </Button>
+            }
+          />
         ) : (
           <ActivityLoadView result={load.data} />
         )}
 
-        <AddWorkoutForm onSaved={reloadWorkouts} />
-        <CardStack title={t`Workouts`}>
+        <Section
+          icon={Dumbbell}
+          tone="steps"
+          title={t`Session log`}
+          description={
+            workoutSummary.count > 0
+              ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })} · ${workoutSummary.totalDurationLabel}`
+              : undefined
+          }
+        >
           {workouts.data.length === 0 ? (
-            <Card variant="secondary" className="items-center gap-1 p-8">
-              <Text className="font-medium text-foreground">
-                <Trans>No workouts yet</Trans>
-              </Text>
-              <Text className="text-center text-sm text-muted-foreground">
-                <Trans>Add a session to start tracking.</Trans>
-              </Text>
-            </Card>
+            <EmptyState
+              icon={Dumbbell}
+              tone="steps"
+              title={<Trans>No workouts yet</Trans>}
+              description={<Trans>Add a session to start tracking.</Trans>}
+            />
           ) : (
-            <Card variant="secondary" className="p-0">
-              {workouts.data.map((workout, index, arr) => (
-                <View
-                  key={workout.id}
-                  className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                    index < arr.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-base text-foreground">
-                      {_(workoutTypeLabel(workout.type))}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {workout.date}
-                      {workout.notes ? ` · ${workout.notes}` : ""}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {sessionEffortText(workout, i18n)}
-                    </Text>
-                    {workout.effortRating === null &&
-                    canRateEffortToday(workout.date, todayIso()) ? (
+            <View className="gap-3">
+              {recent.map((workout) => {
+                const rating = workout.effortRating;
+                const canRate = rating === null && canRateEffortToday(workout.date, today);
+                return (
+                  <ListCard
+                    key={workout.id}
+                    icon={workoutIcon(workout.type)}
+                    tone="steps"
+                    title={_(workoutTypeLabel(workout.type))}
+                    subtitle={`${friendlyDate(i18n, workout.date)}${
+                      workout.intensity ? `, ${_(INTENSITY_LABELS[workout.intensity])}` : ""
+                    }`}
+                    chip={workoutDurationLabel(workout.duration)}
+                    status={
+                      rating !== null
+                        ? { label: `${rating}/10`, tone: "neutral" }
+                        : canRate
+                          ? undefined
+                          : { label: t`Not rated`, tone: "neutral" }
+                    }
+                  >
+                    {workout.notes ? (
+                      <Text className="font-sans text-sm text-ink-2">{workout.notes}</Text>
+                    ) : null}
+                    {canRate ? (
                       <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
                     ) : null}
-                  </View>
-                  <Text className="font-mono text-sm text-foreground">
-                    {workoutDurationLabel(workout.duration)}
-                  </Text>
-                </View>
-              ))}
-            </Card>
+                  </ListCard>
+                );
+              })}
+              <Details summary={<Trans>Full log</Trans>}>
+                <Sheet className="gap-0 px-4 py-1">
+                  {workouts.data.map((workout, index, arr) => (
+                    <View
+                      key={workout.id}
+                      className={`flex-row items-start justify-between gap-3 py-3 ${
+                        index < arr.length - 1 ? "border-b border-rule" : ""
+                      }`}
+                    >
+                      <View className="min-w-0 flex-1 gap-0.5">
+                        <Text className="font-sans text-base font-medium text-ink">
+                          {_(workoutTypeLabel(workout.type))}
+                        </Text>
+                        <Text className="font-sans text-sm text-ink-3">
+                          {workout.date}
+                          {workout.notes ? ` · ${workout.notes}` : ""}
+                        </Text>
+                        <Text className="font-sans text-sm text-ink-3">
+                          {sessionEffortText(workout, i18n)}
+                        </Text>
+                      </View>
+                      <Text
+                        className="font-sans text-sm font-semibold text-ink"
+                        style={{ fontVariant: ["tabular-nums"] }}
+                      >
+                        {workoutDurationLabel(workout.duration)}
+                      </Text>
+                    </View>
+                  ))}
+                </Sheet>
+              </Details>
+            </View>
           )}
-          {workoutSummary.count > 0 ? (
-            <Text className="text-xs text-muted-foreground">
-              {t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })} · ${workoutSummary.totalDurationLabel}`}
-            </Text>
-          ) : null}
-        </CardStack>
+        </Section>
 
-        <AddGoalForm onSaved={reloadGoals} />
-        <CardStack title={t`Goals`}>
-          {goals.data.length === 0 ? (
-            <Card variant="secondary" className="items-center gap-1 p-8">
-              <Text className="font-medium text-foreground">
-                <Trans>No goals yet</Trans>
-              </Text>
-              <Text className="text-center text-sm text-muted-foreground">
-                <Trans>Add a goal to start tracking.</Trans>
-              </Text>
-            </Card>
-          ) : (
-            <Card variant="secondary" className="p-0">
-              {goals.data.map((goal, index, arr) => (
-                <View
-                  key={goal.id}
-                  className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                    index < arr.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-base text-foreground">{goal.title}</Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {goal.targetDate ? t`Due ${goal.targetDate}` : t`No due date`}
-                      {goal.targetValue ? ` · ${t`Target ${goal.targetValue}`}` : ""}
-                      {goal.currentValue ? ` · ${t`Now ${goal.currentValue}`}` : ""}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {_(goalStatusLabel(goal.status))}
-                    </Text>
-                  </View>
-                  <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
-                </View>
-              ))}
-            </Card>
-          )}
-          {goalSummary.total > 0 ? (
-            <Text className="text-xs text-muted-foreground">
+        <AddWorkoutForm onSaved={reloadWorkouts} />
+
+        <Section
+          icon={Target}
+          tone="weight"
+          title={t`Goals`}
+          description={
+            goalSummary.total > 0 ? (
               <Trans>
                 {goalSummary.open} open · {goalSummary.achieved} achieved
               </Trans>
-            </Text>
-          ) : null}
-        </CardStack>
-      </View>
+            ) : undefined
+          }
+        >
+          {goals.data.length === 0 ? (
+            <EmptyState
+              icon={Target}
+              tone="weight"
+              title={<Trans>No goals yet</Trans>}
+              description={<Trans>Add a goal to start tracking.</Trans>}
+            />
+          ) : (
+            <View className="gap-3">
+              {goals.data.map((goal) => {
+                const progress = goalShare(goal.baselineValue, goal.currentValue, goal.targetValue);
+                return (
+                  <ListCard
+                    key={goal.id}
+                    icon={Target}
+                    tone="weight"
+                    title={goal.title}
+                    status={{ label: _(goalStatusLabel(goal.status)), tone: goalTone(goal.status) }}
+                    subtitle={
+                      goal.targetDate
+                        ? t`Due ${friendlyDate(i18n, goal.targetDate)}`
+                        : t`No due date`
+                    }
+                    chip={
+                      goal.currentValue || goal.targetValue
+                        ? `${goal.currentValue ?? "—"} / ${goal.targetValue ?? "—"}`
+                        : undefined
+                    }
+                  >
+                    {progress !== null ? <Meter value={progress} tone="weight" /> : null}
+                    <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
+                  </ListCard>
+                );
+              })}
+            </View>
+          )}
+        </Section>
+
+        <AddGoalForm onSaved={reloadGoals} />
+      </Page>
     </Container>
   );
 }

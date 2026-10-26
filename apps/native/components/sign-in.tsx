@@ -1,9 +1,11 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Button, Input, Label, Spinner, Surface, TextField, useToast } from "heroui-native";
+import { Button, Input, Label, Spinner, TextField, useToast } from "heroui-native";
+import { Mail, MailCheck } from "lucide-react-native";
 import { useRef, useState } from "react";
 import { Text, View } from "react-native";
 import z from "zod";
 
+import { Sheet, ToneIcon } from "@/components/bloom";
 import { cancelPendingMagicLink, requestMagicLink } from "@/lib/magic-link";
 
 /**
@@ -63,13 +65,19 @@ export function SignIn() {
   };
 
   return (
-    <Surface variant="secondary" className="rounded-lg p-4">
-      <Text className="mb-1 font-medium text-foreground">
-        <Trans>Sign in</Trans>
-      </Text>
+    <Sheet className="gap-4 p-6">
+      <View className="items-center gap-3">
+        <ToneIcon icon={sentTo ? MailCheck : Mail} tone="signal" size="lg" />
+        <Text
+          className="font-display text-[26px] font-semibold leading-[32px] text-ink"
+          accessibilityRole="header"
+        >
+          <Trans>Sign in</Trans>
+        </Text>
+      </View>
       {sentTo ? (
-        <View className="gap-3">
-          <Text className="text-sm text-muted">
+        <View className="gap-4">
+          <Text className="text-center font-sans text-base leading-relaxed text-ink-2">
             <Trans>
               We sent a sign-in link to {sentTo}. Open it on this phone within 10 minutes.
             </Trans>
@@ -81,14 +89,13 @@ export function SignIn() {
           </Button>
         </View>
       ) : (
-        <View className="gap-3">
-          <Text className="text-sm text-muted">
+        <View className="gap-4">
+          <Text className="text-center font-sans text-base leading-relaxed text-ink-3">
             <Trans>We'll email you a link. No password needed.</Trans>
           </Text>
           <TextField isInvalid={!!error}>
-            <Label>
-              <Trans>Email</Trans>
-            </Label>
+            {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
+            <Label>{t`Email`}</Label>
             <Input
               value={email}
               onChangeText={setEmail}
@@ -101,7 +108,7 @@ export function SignIn() {
               onSubmitEditing={() => void submit()}
             />
           </TextField>
-          {error && <Text className="text-sm text-danger">{error}</Text>}
+          {error && <Text className="font-sans text-sm text-danger">{error}</Text>}
           <Button onPress={() => void submit()} isDisabled={sending}>
             {sending ? (
               <Spinner size="sm" />
@@ -113,6 +120,6 @@ export function SignIn() {
           </Button>
         </View>
       )}
-    </Surface>
+    </Sheet>
   );
 }

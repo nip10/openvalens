@@ -2,11 +2,21 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Chip, Spinner } from "heroui-native";
+import { Button, Spinner } from "heroui-native";
+import { Mail, MailOpen } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, Text, View } from "react-native";
+import { RefreshControl, Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  EmptyState,
+  ErrorState,
+  ListCard,
+  Page,
+  PageHeader,
+  Prose,
+  Section,
+  Sheet,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
@@ -96,11 +106,14 @@ export default function InvitationsScreen() {
 
   if (!email) {
     return (
-      <Container className="gap-4 p-4">
-        <Text className="text-sm text-muted-foreground">
-          <Trans>Sign in to see and accept workspace invitations.</Trans>
-        </Text>
-        <SignIn />
+      <Container>
+        <Page>
+          <PageHeader eyebrow={<Trans>Workspace</Trans>} title={<Trans>Invitations</Trans>} />
+          <Prose className="text-ink-3">
+            <Trans>Sign in to see and accept workspace invitations.</Trans>
+          </Prose>
+          <SignIn />
+        </Page>
       </Container>
     );
   }
@@ -119,49 +132,44 @@ export default function InvitationsScreen() {
         ),
       }}
     >
-      <View className="gap-4 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Workspace</Trans>
-          </Text>
-          <Text className="font-mono text-3xl text-foreground">
-            <Trans>Invitations</Trans>
-          </Text>
-        </View>
+      <Page>
+        <PageHeader eyebrow={<Trans>Workspace</Trans>} title={<Trans>Invitations</Trans>} />
 
         {message ? (
-          <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
-            {message}
-          </Text>
+          <Sheet className="p-4">
+            <Text className="font-sans text-base text-ink" accessibilityLiveRegion="polite">
+              {message}
+            </Text>
+          </Sheet>
         ) : null}
 
         {invitations.isPending ? (
           <Spinner />
         ) : invitations.isError ? (
-          <Card variant="secondary" className="gap-3 p-4">
-            <Text className="text-base text-foreground">
-              <Trans>Could not load invitations.</Trans>
-            </Text>
-            <Pressable
-              onPress={refresh}
-              className="min-h-11 justify-center active:opacity-70"
-              accessibilityRole="button"
-            >
-              <Text className="font-medium text-foreground underline">
-                <Trans>Retry</Trans>
-              </Text>
-            </Pressable>
-          </Card>
+          <ErrorState
+            title={<Trans>Could not load invitations.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onPress={refresh}>
+                <Button.Label>
+                  <Trans>Retry</Trans>
+                </Button.Label>
+              </Button>
+            }
+          />
         ) : invitations.data.length === 0 ? (
-          <CardStack title={t`Pending invitations`}>
-            <Card variant="secondary" className="p-4">
-              <Text className="text-sm text-muted-foreground">
-                <Trans>You have no pending workspace invitations.</Trans>
-              </Text>
-            </Card>
-          </CardStack>
+          <Section icon={Mail} tone="signal" title={t`Pending invitations`}>
+            <EmptyState
+              icon={MailOpen}
+              tone="signal"
+              title={<Trans>You have no pending workspace invitations.</Trans>}
+            />
+          </Section>
         ) : (
-          <CardStack title={t`Pending invitations · ${invitations.data.length}`}>
+          <Section
+            icon={Mail}
+            tone="signal"
+            title={t`Pending invitations · ${invitations.data.length}`}
+          >
             {invitations.data.map((invitation) => (
               <InvitationRow
                 key={invitation.id}
@@ -180,9 +188,9 @@ export default function InvitationsScreen() {
                 }}
               />
             ))}
-          </CardStack>
+          </Section>
         )}
-      </View>
+      </Page>
     </Container>
   );
 }
@@ -209,32 +217,24 @@ function InvitationRow({
   const roleLabel = ROLE_LABELS[invitation.role];
 
   return (
-    <Card variant="secondary" className="gap-3 p-4">
-      <View className="gap-1">
-        <Text className="text-base text-foreground">
-          {invitation.organizationName ?? t`A workspace`}
-        </Text>
-        <View className="flex-row items-center gap-2">
-          <Chip size="sm" variant="secondary">
-            <Chip.Label>{roleLabel ? i18n._(roleLabel) : invitation.role}</Chip.Label>
-          </Chip>
-          <Text className="text-xs text-muted-foreground break-words">
-            <Trans>Invited email: {invitation.email}</Trans>
-          </Text>
-        </View>
-      </View>
-
+    <ListCard
+      icon={Mail}
+      tone="signal"
+      title={invitation.organizationName ?? t`A workspace`}
+      chip={roleLabel ? i18n._(roleLabel) : invitation.role}
+      subtitle={<Trans>Invited email: {invitation.email}</Trans>}
+    >
       {state === "pending" ? (
         <View className="flex-row gap-2">
           <Button className="flex-1" onPress={onAccept} isDisabled={busy}>
-            {accepting ? t`Accepting…` : t`Accept`}
+            <Button.Label>{accepting ? t`Accepting…` : t`Accept`}</Button.Label>
           </Button>
           <Button className="flex-1" variant="outline" onPress={onDecline} isDisabled={busy}>
-            {declining ? t`Declining…` : t`Decline`}
+            <Button.Label>{declining ? t`Declining…` : t`Decline`}</Button.Label>
           </Button>
         </View>
       ) : (
-        <Text className="text-sm text-muted-foreground">
+        <Text className="font-sans text-sm text-ink-3">
           {state === "expired"
             ? t`This invitation has expired.`
             : state === "wrong_account"
@@ -242,6 +242,6 @@ function InvitationRow({
               : t`This invitation is no longer pending.`}
         </Text>
       )}
-    </Card>
+    </ListCard>
   );
 }

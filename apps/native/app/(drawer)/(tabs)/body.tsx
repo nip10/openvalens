@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLingui } from "@lingui/react/macro";
 import {
   formatKg,
@@ -13,32 +12,39 @@ import {
   parseManualEntryValue,
 } from "@openvalens/api/presenters/manual-entry";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
-import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
+import { Button } from "heroui-native";
+import { CalendarDays, Plus, Scale, TrendingDown, TrendingUp } from "lucide-react-native";
+import { RefreshControl, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 
-import { CardStack, ListRow } from "@/components/list-row";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+  StatTile,
+  TileRow,
+} from "@/components/bloom";
+import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
-import { LineChart } from "@/components/chart";
 import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
 const SERIES_DAYS = 90;
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-1 gap-1">
-      <Text className="text-sm text-muted-foreground">{label}</Text>
-      <Text className="font-mono text-lg text-foreground">{value}</Text>
-    </View>
-  );
-}
+const INPUT_CLASS =
+  "min-h-11 rounded-xl border border-rule-2 bg-sheet px-3 font-sans text-base text-ink";
 
 function AddWeightForm({ onSaved }: { onSaved: () => void }) {
   const field = MANUAL_ENTRY_FIELDS.weight;
   const { t, i18n } = useLingui();
+  const placeholder = useThemeColor("ink-3");
   const unit = i18n._(field.unit);
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
@@ -66,54 +72,50 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title={t`Add weight`}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <View className="flex-row gap-3">
-          <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Weight (${unit})`}</Text>
-            <TextInput
-              value={value}
-              onChangeText={setValue}
-              placeholder={`${field.min}–${field.max}`}
-              keyboardType="numeric"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-          <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
-            <TextInput
-              value={observedAt}
-              onChangeText={setObservedAt}
-              placeholder="YYYY-MM-DDTHH:MM"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
+    <Section icon={Plus} tone="weight" title={t`Add weight`} sheet>
+      <View className="flex-row gap-3">
+        <View className="flex-1 gap-2">
+          <Text className="font-sans text-sm font-medium text-ink-2">{t`Weight (${unit})`}</Text>
+          <TextInput
+            value={value}
+            onChangeText={setValue}
+            placeholder={`${field.min}–${field.max}`}
+            keyboardType="numeric"
+            className={INPUT_CLASS}
+            placeholderTextColor={placeholder}
+          />
         </View>
-        <View className="flex-row items-center gap-3">
-          <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? t`Saving…` : t`Save`}
-          </Button>
-          {numeric === null && value.length > 0 ? (
-            <Text className="text-sm text-destructive">
-              {field.min}–{field.max} {unit}
-            </Text>
-          ) : save.isSuccess ? (
-            <Text className="text-sm text-success">{t`Saved`}</Text>
-          ) : save.isError ? (
-            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
-          ) : null}
+        <View className="flex-1 gap-2">
+          <Text className="font-sans text-sm font-medium text-ink-2">{t`Observed at`}</Text>
+          <TextInput
+            value={observedAt}
+            onChangeText={setObservedAt}
+            placeholder="YYYY-MM-DDTHH:MM"
+            className={INPUT_CLASS}
+            placeholderTextColor={placeholder}
+          />
         </View>
-      </Card>
-    </CardStack>
+      </View>
+      <View className="flex-row flex-wrap items-center gap-3">
+        <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
+          {save.isPending ? t`Saving…` : t`Save`}
+        </Button>
+        {numeric === null && value.length > 0 ? (
+          <Text className="font-sans text-sm text-destructive">
+            {field.min}–{field.max} {unit}
+          </Text>
+        ) : save.isSuccess ? (
+          <Text className="font-sans text-sm text-success">{t`Saved`}</Text>
+        ) : save.isError ? (
+          <Text className="font-sans text-sm text-destructive">{t`Could not save.`}</Text>
+        ) : null}
+      </View>
+    </Section>
   );
 }
 
 export default function BodyScreen() {
   const foreground = useThemeColor("foreground");
-  const muted = useThemeColor("muted");
-  const chart1 = useThemeColor("chart-1");
   const { t, i18n } = useLingui();
 
   const daily = useCacheFirst(
@@ -121,65 +123,9 @@ export default function BodyScreen() {
     orpc.body.dailyWeights.queryOptions({ input: { limit: SERIES_DAYS } }),
   );
   const summary = summarizeDailyWeights(daily.data ?? []);
+  const refetch = () => void daily.refetch();
 
-  if (daily.isPending)
-    return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
-      </Container>
-    );
-
-  if (daily.isError)
-    return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">{t`Could not load weight.`}</Text>
-        <Pressable
-          onPress={() => void daily.refetch()}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
-        </Pressable>
-      </Container>
-    );
-
-  if (!summary.latest)
-    return (
-      <Container
-        scrollViewProps={{
-          refreshControl: (
-            <RefreshControl
-              refreshing={daily.isRefetching}
-              onRefresh={() => void daily.refetch()}
-              tintColor={foreground}
-            />
-          ),
-        }}
-      >
-        <View className="gap-6 p-4">
-          <View className="flex-row items-start justify-between gap-3">
-            <View>
-              <Text className="text-sm text-muted-foreground">{t`Today`}</Text>
-              <Text className="font-mono text-3xl text-foreground">{t`Body`}</Text>
-            </View>
-            <SyncStatusBadge />
-          </View>
-          <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">{t`No weight yet`}</Text>
-            <Text className="text-center text-sm text-muted-foreground">
-              {t`Sync a scale through Health Connect or Apple Health, or add a weight.`}
-            </Text>
-          </Card>
-        </View>
-      </Container>
-    );
-
-  const series = summary.series.map((point) => ({
-    value: point.weightKg,
-    label: point.date.slice(5),
-    dataPointText: point.weightKg.toFixed(1),
-  }));
-
+  const weights = summary.series.map((point) => point.weightKg);
   const recent = [...summary.series].reverse().slice(0, 14);
 
   return (
@@ -188,89 +134,114 @@ export default function BodyScreen() {
         refreshControl: (
           <RefreshControl
             refreshing={daily.isRefetching}
-            onRefresh={() => void daily.refetch()}
+            onRefresh={refetch}
             tintColor={foreground}
           />
         ),
       }}
     >
-      <View className="gap-6 p-4">
-        <View className="flex-row items-start justify-between gap-3">
-          <View>
-            <Text className="text-sm text-muted-foreground">{t`Body`}</Text>
-            <Text className="font-mono text-3xl text-foreground">{t`Weight`}</Text>
+      <Page>
+        <PageHeader title={t`Body`} actions={<SyncStatusBadge />} />
+
+        {daily.isPending ? (
+          <View className="gap-3">
+            <Sheet className="h-36" />
+            <Sheet className="h-56" />
           </View>
-          <SyncStatusBadge />
-        </View>
-
-        <AddWeightForm onSaved={() => void daily.refetch()} />
-
-        <CardStack>
-          <Card variant="secondary" className="p-4">
-            <View className="mb-3 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-foreground">{t`Latest`}</Text>
-              <Text className="text-sm text-muted-foreground">{summary.latest.date}</Text>
-            </View>
-            <View className="flex-row gap-4">
-              <Stat label={t`Weight`} value={formatKg(summary.latest.weightKg)} />
-              <Stat
-                label={t`7 days`}
-                value={summary.change7d === null ? "—" : formatKgDelta(i18n, summary.change7d)}
+        ) : daily.isError ? (
+          <ErrorState
+            title={t`Could not load weight.`}
+            action={
+              <Button variant="outline" size="sm" onPress={refetch}>
+                {t`Retry`}
+              </Button>
+            }
+          />
+        ) : !summary.latest ? (
+          <EmptyState
+            icon={Scale}
+            tone="weight"
+            title={t`No weight yet`}
+            description={t`Sync a scale through Health Connect or Apple Health, or add a weight.`}
+          />
+        ) : (
+          <>
+            <View className="gap-3">
+              <StatTile
+                icon={Scale}
+                tone="weight"
+                label={t`Weight`}
+                value={formatKg(summary.latest.weightKg)}
+                note={friendlyDate(i18n, summary.latest.date)}
               />
-              <Stat
-                label={t`30 days`}
-                value={summary.change30d === null ? "—" : formatKgDelta(i18n, summary.change30d)}
-              />
+              <TileRow>
+                <StatTile
+                  icon={CalendarDays}
+                  tone="weight"
+                  label={t`7 days`}
+                  value={summary.change7d === null ? "—" : formatKgDelta(i18n, summary.change7d)}
+                />
+                <StatTile
+                  icon={TrendingDown}
+                  tone="weight"
+                  label={t`30 days`}
+                  value={summary.change30d === null ? "—" : formatKgDelta(i18n, summary.change30d)}
+                />
+              </TileRow>
             </View>
-          </Card>
-        </CardStack>
 
-        <CardStack>
-          <Card variant="secondary" className="p-4">
-            <Text className="mb-3 text-lg font-medium text-foreground">{t`Last 90 days`}</Text>
-            <LineChart
-              data={series}
-              color={chart1}
-              dataPointsColor={chart1}
-              xAxisColor={muted}
-              yAxisColor={muted}
-              rulesColor={muted}
-              height={180}
-              spacing={Math.max(20, 280 / Math.max(1, series.length))}
-              initialSpacing={8}
-              thickness={2}
-              hideRules={false}
-              yAxisLabelSuffix=" kg"
-              yAxisTextStyle={{ color: foreground }}
-              xAxisLabelTextStyle={{ color: foreground, fontSize: 10 }}
-              noOfSections={4}
-              maxValue={Math.ceil(Math.max(...series.map((s) => s.value)) + 1)}
-            />
-          </Card>
-        </CardStack>
+            <Section icon={TrendingUp} tone="weight" title={t`Last 90 days`}>
+              <Sheet>
+                <TrendChart
+                  tone="weight"
+                  data={summary.series.map((point) => ({
+                    value: point.weightKg,
+                    label: friendlyDate(i18n, point.date),
+                  }))}
+                  minValue={Math.floor(Math.min(...weights) - 1)}
+                  maxValue={Math.ceil(Math.max(...weights) + 1)}
+                  formatYLabel={(label) => String(Math.round(Number(label)))}
+                />
+              </Sheet>
+            </Section>
+          </>
+        )}
 
-        <CardStack title={t`Recent`}>
-          <Card variant="secondary" className="overflow-hidden p-0">
-            {recent.map((point, index) => {
-              const source = daily.data?.find((row) => row.date === point.date)?.source ?? "";
-              return (
-                <ListRow
-                  key={point.date}
-                  icon={<Ionicons name="barbell-outline" size={20} color={foreground} />}
-                  title={point.date}
-                  subtitle={i18n._(weightSourceLabel(source))}
-                  trailing={
-                    <Text className="font-mono text-base text-foreground">
+        {daily.isError ? null : <AddWeightForm onSaved={refetch} />}
+
+        {recent.length > 0 ? (
+          <Details summary={t`All readings`}>
+            <Sheet className="px-4 py-1">
+              {recent.map((point, index) => {
+                const source = daily.data?.find((row) => row.date === point.date)?.source ?? "";
+                return (
+                  <View
+                    key={point.date}
+                    className={`flex-row items-center justify-between gap-3 py-3 ${
+                      index < recent.length - 1 ? "border-b border-rule" : ""
+                    }`}
+                  >
+                    <View className="min-w-0 flex-1 gap-0.5">
+                      <Text className="font-sans text-base font-medium text-ink">
+                        {friendlyDate(i18n, point.date)}
+                      </Text>
+                      <Text className="font-sans text-sm text-ink-3">
+                        {i18n._(weightSourceLabel(source))}
+                      </Text>
+                    </View>
+                    <Text
+                      className="font-sans text-base font-semibold text-ink"
+                      style={{ fontVariant: ["tabular-nums"] }}
+                    >
                       {formatKg(point.weightKg)}
                     </Text>
-                  }
-                  showDivider={index < recent.length - 1}
-                />
-              );
-            })}
-          </Card>
-        </CardStack>
-      </View>
+                  </View>
+                );
+              })}
+            </Sheet>
+          </Details>
+        ) : null}
+      </Page>
     </Container>
   );
 }

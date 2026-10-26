@@ -106,24 +106,24 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
     return (
       <View
         accessibilityLabel={t`Muscle guide`}
-        className="gap-2 rounded-lg border border-border bg-card p-3"
+        className="gap-2 rounded-2xl border border-rule bg-sheet p-4"
       >
-        <Text className="text-sm font-medium text-foreground">
+        <Text className="font-sans text-sm font-semibold text-ink-2">
           <Trans>Muscle guide</Trans>
         </Text>
-        <Text className="text-xs text-muted-foreground">
+        <Text className="font-sans text-xs text-ink-3">
           <Trans>Illustration of muscles listed by the source</Trans>
         </Text>
-        <Text className="text-xs text-foreground">
+        <Text className="font-sans text-xs text-ink">
           <Trans>Source-listed muscles: {listedNames}</Trans>
         </Text>
-        <Text className="text-xs text-foreground">
+        <Text className="font-sans text-xs text-ink">
           <Trans>Primary: {primaryNames}</Trans>
         </Text>
-        <Text className="text-xs text-foreground">
+        <Text className="font-sans text-xs text-ink">
           <Trans>Secondary: {secondaryNames}</Trans>
         </Text>
-        <Text className="text-xs text-muted-foreground">
+        <Text className="font-sans text-xs text-ink-3">
           <Trans>No matching diagram mapping is available; no anatomy is highlighted.</Trans>
         </Text>
       </View>
@@ -131,36 +131,36 @@ export function MuscleGuide({ muscles }: { muscles: ExerciseGuideMuscle[] }) {
   return (
     <View
       accessibilityLabel={t`Muscle guide`}
-      className="gap-2 rounded-lg border border-border bg-card p-3"
+      className="gap-2 rounded-2xl border border-rule bg-sheet p-4"
     >
-      <Text className="text-sm font-medium text-foreground">
+      <Text className="font-sans text-sm font-semibold text-ink-2">
         <Trans>Muscle guide</Trans>
       </Text>
-      <Text className="text-xs text-muted-foreground">
+      <Text className="font-sans text-xs text-ink-3">
         <Trans>Illustration of muscles listed by the source</Trans>
       </Text>
       <View className="flex-row flex-wrap justify-center gap-2">
         <View className="items-center">
           <Figure side="front" regions={front} />
-          <Text className="text-xs text-foreground">
+          <Text className="font-sans text-xs text-ink">
             <Trans>Front</Trans>
           </Text>
         </View>
         <View className="items-center">
           <Figure side="back" regions={back} />
-          <Text className="text-xs text-foreground">
+          <Text className="font-sans text-xs text-ink">
             <Trans>Back</Trans>
           </Text>
         </View>
       </View>
-      <Text className="text-xs text-foreground">
+      <Text className="font-sans text-xs text-ink">
         <Trans>Primary: {primaryNames}</Trans>
       </Text>
-      <Text className="text-xs text-foreground">
+      <Text className="font-sans text-xs text-ink">
         <Trans>Secondary: {secondaryNames}</Trans>
       </Text>
       {unknown.length > 0 && (
-        <Text accessibilityRole="text" className="text-xs text-muted-foreground">
+        <Text accessibilityRole="text" className="font-sans text-xs text-ink-3">
           <Trans>
             No matching diagram mapping for: {unknownNames}. Names are shown without highlighting.
           </Trans>

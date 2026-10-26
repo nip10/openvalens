@@ -14,28 +14,36 @@ import {
   type ManualEntryMetric,
 } from "@openvalens/api/presenters/manual-entry";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
+import { Button } from "heroui-native";
+import { BarChart3, Flame, Footprints, Plus, Route } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Figure,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+  StatTile,
+  TileRow,
+  ToneChip,
+} from "@/components/bloom";
+import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
-import { BarChart } from "@/components/chart";
 import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
 const TREND_WINDOW_DAYS = 30;
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-1 gap-1">
-      <Text className="text-sm text-muted-foreground">{label}</Text>
-      <Text className="font-mono text-lg text-foreground">{value}</Text>
-    </View>
-  );
-}
+const INPUT_CLASS =
+  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
 
 const MANUAL_METRICS: ManualEntryMetric[] = ["steps", "active_calories", "distance"];
 
@@ -43,6 +51,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   const [metric, setMetric] = useState<ManualEntryMetric>("steps");
   const field = MANUAL_ENTRY_FIELDS[metric];
   const { t, i18n } = useLingui();
+  const placeholderColor = useThemeColor("ink-3");
   const unit = i18n._(field.unit);
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
@@ -70,10 +79,10 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title={t`Add reading`}>
-      <Card variant="secondary" className="gap-3 p-4">
+    <Section icon={Plus} tone="steps" title={t`Add reading`}>
+      <Sheet className="gap-4">
         <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">{t`Metric`}</Text>
+          <Text className="font-sans text-sm text-ink-3">{t`Metric`}</Text>
           <View className="flex-row flex-wrap gap-2">
             {MANUAL_METRICS.map((code) => {
               const selected = code === metric;
@@ -83,13 +92,13 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
                   onPress={() => setMetric(code)}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-                    selected ? "border-primary bg-primary/15" : "border-border bg-card"
+                  className={`min-h-9 justify-center rounded-full border px-3.5 active:opacity-70 ${
+                    selected ? "border-steps bg-steps-soft" : "border-rule-2 bg-paper-2"
                   }`}
                 >
                   <Text
-                    className={`text-sm ${
-                      selected ? "font-medium text-foreground" : "text-muted-foreground"
+                    className={`font-sans text-sm ${
+                      selected ? "font-semibold text-ink" : "text-ink-2"
                     }`}
                   >
                     {i18n._(MANUAL_ENTRY_FIELDS[code].label)}
@@ -101,51 +110,49 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </View>
         <View className="flex-row gap-3">
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Value (${unit})`}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`Value (${unit})`}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
               placeholder={`${field.min}–${field.max}`}
               keyboardType="numeric"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
+              className={INPUT_CLASS}
+              placeholderTextColor={placeholderColor}
             />
           </View>
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`Observed at`}</Text>
             <TextInput
               value={observedAt}
               onChangeText={setObservedAt}
               placeholder="YYYY-MM-DDTHH:MM"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
+              className={INPUT_CLASS}
+              placeholderTextColor={placeholderColor}
             />
           </View>
         </View>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row flex-wrap items-center gap-3">
           <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? t`Saving…` : t`Save`}
+            <Button.Label>{save.isPending ? t`Saving…` : t`Save`}</Button.Label>
           </Button>
           {numeric === null && value.length > 0 ? (
-            <Text className="text-sm text-destructive">
+            <Text className="font-sans text-sm text-destructive">
               {field.min}–{field.max} {unit}
             </Text>
           ) : save.isSuccess ? (
-            <Text className="text-sm text-success">{t`Saved`}</Text>
+            <Text className="font-sans text-sm text-success">{t`Saved`}</Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
+            <Text className="font-sans text-sm text-destructive">{t`Could not save.`}</Text>
           ) : null}
         </View>
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }
 
 export default function ActivityScreen() {
   const foreground = useThemeColor("foreground");
-  const muted = useThemeColor("muted");
-  const chart1 = useThemeColor("chart-1");
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const windowDays = TREND_WINDOW_DAYS;
 
   const totals = useCacheFirst(
@@ -159,25 +166,36 @@ export default function ActivityScreen() {
   );
   const series = useMemo(() => (summary ? stepsSeries(summary.days) : []), [summary]);
 
+  const header = <PageHeader title={t`Activity`} actions={<SyncStatusBadge />} />;
+
   if (totals.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          {header}
+          <TileRow>
+            <Sheet className="h-36" />
+            <Sheet className="h-36" />
+          </TileRow>
+          <Sheet className="h-56" />
+        </Page>
       </Container>
     );
 
   if (totals.isError || !summary)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <SyncStatusBadge />
-        <Text className="text-base text-foreground">{t`Could not load activity.`}</Text>
-        <Pressable
-          onPress={() => void totals.refetch()}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
-        </Pressable>
+      <Container>
+        <Page>
+          {header}
+          <ErrorState
+            title={t`Could not load activity.`}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void totals.refetch()}>
+                <Button.Label>{t`Retry`}</Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
@@ -197,113 +215,136 @@ export default function ActivityScreen() {
         ),
       }}
     >
-      <View className="gap-6 p-4">
-        <View className="flex-row items-start justify-between gap-3">
-          <View>
-            <Text className="text-sm text-muted-foreground">{t`Activity`}</Text>
-            <Text className="font-mono text-3xl text-foreground">{t`Last 30 days`}</Text>
-          </View>
-          <SyncStatusBadge />
-        </View>
+      <Page>
+        {header}
+
+        {!today ? (
+          <EmptyState
+            icon={Footprints}
+            tone="steps"
+            title={t`No activity yet`}
+            description={t`Sync Health Connect or Apple Health from the mobile app, or add an entry.`}
+          />
+        ) : (
+          <>
+            <View className="gap-3" accessibilityLabel={t`Today`}>
+              <TileRow>
+                <StatTile
+                  icon={Footprints}
+                  tone="steps"
+                  label={t`Steps`}
+                  value={formatSteps(today.steps)}
+                  meter={
+                    summary.sevenDayAverageSteps
+                      ? { value: today.steps / summary.sevenDayAverageSteps }
+                      : undefined
+                  }
+                  note={t`Your usual: ${formatSteps(summary.sevenDayAverageSteps)}`}
+                />
+                <StatTile
+                  icon={Flame}
+                  tone="food"
+                  label={t`Calories`}
+                  value={formatKcalories(today.activeCaloriesKcal)}
+                  note={t`Your usual: ${formatKcalories(summary.sevenDayAverageCalories)}`}
+                />
+              </TileRow>
+              <TileRow>
+                <StatTile
+                  icon={Route}
+                  tone="water"
+                  label={t`Distance`}
+                  value={formatDistanceMeters(today.distanceMeters)}
+                  note={t`Your usual: ${formatDistanceMeters(summary.sevenDayAverageDistance)}`}
+                />
+                <View />
+              </TileRow>
+            </View>
+
+            <Section
+              icon={BarChart3}
+              tone="steps"
+              title={t`Last ${windowDays} days`}
+              info={t`Bars: steps per day`}
+            >
+              <Sheet>
+                <TrendChart
+                  bars
+                  tone="steps"
+                  data={series.map((point) => ({
+                    value: point.steps,
+                    label: friendlyDate(i18n, point.date),
+                  }))}
+                  minValue={0}
+                  maxValue={Math.ceil(maxSteps / 1000) * 1000}
+                  formatYLabel={(label) => formatSteps(Number(label))}
+                  height={170}
+                />
+              </Sheet>
+            </Section>
+          </>
+        )}
 
         <AddReadingForm onSaved={() => void totals.refetch()} />
 
-        {!today ? (
-          <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">{t`No activity yet`}</Text>
-            <Text className="text-center text-sm text-muted-foreground">
-              {t`Sync Health Connect or Apple Health from the mobile app, or add an entry.`}
-            </Text>
-          </Card>
-        ) : (
-          <>
-            <CardStack>
-              <Card variant="secondary" className="gap-2 p-4">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-medium text-foreground">{t`Today`}</Text>
-                  <Text className="text-sm text-muted-foreground">{today.date}</Text>
-                </View>
-                <View className="flex-row gap-4">
-                  <Stat label={t`Steps`} value={formatSteps(today.steps)} />
-                  <Stat label={t`Calories`} value={formatKcalories(today.activeCaloriesKcal)} />
-                  <Stat label={t`Distance`} value={formatDistanceMeters(today.distanceMeters)} />
-                </View>
-              </Card>
-            </CardStack>
-
-            <CardStack title={t`Last ${windowDays} days`}>
-              <Card variant="secondary" className="p-4">
-                <BarChart
-                  data={series.map((point) => ({
-                    value: point.steps,
-                    label: point.label,
-                    frontColor: chart1,
-                  }))}
-                  barWidth={Math.max(6, Math.min(14, 280 / Math.max(1, series.length)))}
-                  spacing={Math.max(4, 280 / Math.max(1, series.length))}
-                  initialSpacing={4}
-                  xAxisColor={muted}
-                  yAxisColor={muted}
-                  rulesColor={muted}
-                  hideRules
-                  height={160}
-                  yAxisTextStyle={{ color: foreground, fontSize: 10 }}
-                  xAxisLabelTextStyle={{ color: foreground, fontSize: 9 }}
-                  noOfSections={4}
-                  maxValue={Math.ceil(maxSteps / 1000) * 1000}
-                  yAxisLabelSuffix=""
-                />
-                <Text className="mt-2 text-xs text-muted-foreground">{t`Bars: steps per day`}</Text>
-              </Card>
-            </CardStack>
-
-            <CardStack title={t`This week`}>
-              <Card variant="secondary" className="p-4">
-                <View className="flex-row gap-4">
-                  <Stat
+        {today ? (
+          <Details summary={t`Recent days`}>
+            <View className="gap-3">
+              <Sheet className="gap-3 p-4">
+                <Text className="font-display text-base font-medium text-ink">{t`This week`}</Text>
+                <View className="flex-row">
+                  <Figure
+                    className="flex-1 pr-2"
                     label={t`Steps / active day`}
                     value={formatSteps(summary.sevenDayAverageSteps)}
                   />
-                  <Stat
+                  <Figure
+                    className="flex-1 border-l border-rule px-2"
                     label={t`Calories / day`}
                     value={formatKcalories(summary.sevenDayAverageCalories)}
                   />
-                  <Stat
+                  <Figure
+                    className="flex-1 border-l border-rule pl-2"
                     label={t`Distance / day`}
                     value={formatDistanceMeters(summary.sevenDayAverageDistance)}
                   />
                 </View>
-              </Card>
-            </CardStack>
-
-            <CardStack title={t`Recent`}>
-              <Card variant="secondary" className="p-0">
+              </Sheet>
+              <Sheet className="p-0">
                 {recent.map((day, index) => (
                   <View
                     key={day.date}
-                    className={`flex-row items-center justify-between px-4 py-3 ${
-                      index < recent.length - 1 ? "border-b border-border" : ""
+                    className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
+                      index < recent.length - 1 ? "border-b border-rule" : ""
                     }`}
                   >
-                    <Text className="font-mono text-sm text-muted-foreground">{day.date}</Text>
-                    <View className="flex-row items-center gap-4">
-                      <Text className="font-mono text-sm text-foreground">
+                    <Text className="font-sans text-sm text-ink-3">
+                      {friendlyDate(i18n, day.date)}
+                    </Text>
+                    <View className="flex-row items-center gap-3">
+                      <ToneChip tone="steps">
                         {t({ message: `${formatSteps(day.steps)} steps`, comment: "safety" })}
-                      </Text>
-                      <Text className="font-mono text-xs text-muted-foreground">
+                      </ToneChip>
+                      <Text
+                        className="font-sans text-xs text-ink-3"
+                        style={{ fontVariant: ["tabular-nums"] }}
+                      >
                         {formatKcalories(day.activeCaloriesKcal)}
                       </Text>
-                      <Text className="font-mono text-xs text-muted-foreground">
+                      <Text
+                        className="font-sans text-xs text-ink-3"
+                        style={{ fontVariant: ["tabular-nums"] }}
+                      >
                         {formatDistanceMeters(day.distanceMeters)}
                       </Text>
                     </View>
                   </View>
                 ))}
-              </Card>
-            </CardStack>
-          </>
-        )}
-      </View>
+              </Sheet>
+            </View>
+          </Details>
+        ) : null}
+      </Page>
     </Container>
   );
 }

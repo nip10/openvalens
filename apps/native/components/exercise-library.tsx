@@ -14,7 +14,8 @@ import { authClient } from "@/lib/auth-client";
 import { ENV } from "@/src/env";
 import { orpc } from "@/utils/orpc";
 
-const INPUT = "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
+const INPUT =
+  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CATALOG_LANGUAGE = Intl.DateTimeFormat().resolvedOptions().locale.slice(0, 16) || "en";
 type CatalogIntent =
@@ -151,7 +152,7 @@ export function ExerciseMediaGallery({
   if (assets.length === 0)
     return (
       <View className="gap-3">
-        <Text className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+        <Text className="font-sans rounded-2xl border border-dashed border-rule-2 p-4 text-center text-xs text-ink-3">
           {Array.isArray(media) && media.length > 0
             ? t`Preview unavailable because image license details are incomplete.`
             : t`No preview image is provided.`}
@@ -163,7 +164,7 @@ export function ExerciseMediaGallery({
     return (
       <Text
         accessibilityLiveRegion="polite"
-        className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground"
+        className="font-sans rounded-2xl border border-dashed border-rule-2 p-4 text-center text-xs text-ink-3"
       >
         <Trans>Preparing preview…</Trans>
       </Text>
@@ -177,12 +178,12 @@ export function ExerciseMediaGallery({
       {urls.map(({ asset, url }, index) => (
         <View key={asset.assetId} className="gap-2">
           <View
-            className="relative overflow-hidden rounded-lg border border-border bg-muted"
+            className="relative overflow-hidden rounded-2xl border border-rule bg-paper-2"
             style={{ aspectRatio: asset.width / asset.height, maxHeight: 320 }}
           >
             {!url ? (
               <View className="flex-1 items-center justify-center p-4">
-                <Text className="text-center text-xs text-muted-foreground">
+                <Text className="font-sans text-center text-xs text-ink-3">
                   <Trans>Preview unavailable on this connection.</Trans>
                 </Text>
               </View>
@@ -190,7 +191,7 @@ export function ExerciseMediaGallery({
               <View className="flex-1 items-center justify-center p-4">
                 <Text
                   accessibilityLiveRegion="polite"
-                  className="text-center text-xs text-muted-foreground"
+                  className="font-sans text-center text-xs text-ink-3"
                 >
                   <Trans>Preview unavailable.</Trans>
                 </Text>
@@ -198,7 +199,7 @@ export function ExerciseMediaGallery({
             ) : (
               <>
                 <View className="absolute inset-0 items-center justify-center">
-                  <Text accessibilityLiveRegion="polite" className="text-xs text-muted-foreground">
+                  <Text accessibilityLiveRegion="polite" className="font-sans text-xs text-ink-3">
                     {states[asset.assetId] === "loaded" ? "" : t`Loading preview…`}
                   </Text>
                 </View>
@@ -217,22 +218,22 @@ export function ExerciseMediaGallery({
             )}
           </View>
           <View className="gap-1">
-            <Text className="text-xs text-muted-foreground">
+            <Text className="font-sans text-xs text-ink-3">
               {asset.author
                 ? t`License: ${ph({ license: asset.license })} · ${ph({ author: asset.author })}`
                 : t`License: ${ph({ license: asset.license })}`}
             </Text>
             {asset.attribution ? (
-              <Text className="text-xs text-muted-foreground">{asset.attribution}</Text>
+              <Text className="font-sans text-xs text-ink-3">{asset.attribution}</Text>
             ) : null}
             {asset.transformationNotice ? (
-              <Text className="text-xs text-muted-foreground">{asset.transformationNotice}</Text>
+              <Text className="font-sans text-xs text-ink-3">{asset.transformationNotice}</Text>
             ) : null}
             {safeHttpUrl(asset.licenseUrl) ? (
               <Text
                 onPress={() => void Linking.openURL(safeHttpUrl(asset.licenseUrl)!)}
                 accessibilityRole="link"
-                className="min-h-11 text-xs text-foreground underline"
+                className="min-h-11 text-xs font-semibold text-signal"
               >
                 <Trans>License details</Trans>
               </Text>
@@ -241,7 +242,7 @@ export function ExerciseMediaGallery({
               <Text
                 onPress={() => void Linking.openURL(safeHttpUrl(asset.sourceUrl)!)}
                 accessibilityRole="link"
-                className="min-h-11 text-xs text-foreground underline"
+                className="min-h-11 text-xs font-semibold text-signal"
               >
                 <Trans>Image source</Trans>
               </Text>
@@ -492,10 +493,10 @@ export default function ExerciseLibraryScreen() {
     return (
       <Container>
         <View className="gap-2 p-4">
-          <Text className="text-2xl font-semibold text-foreground">
+          <Text className="font-display text-[30px] font-semibold leading-[36px] text-ink">
             <Trans>Exercise library</Trans>
           </Text>
-          <Text className="text-sm text-muted-foreground">
+          <Text className="font-sans text-sm text-ink-3">
             <Trans>Sign in to browse exercises for your workspace.</Trans>
           </Text>
         </View>
@@ -506,15 +507,15 @@ export default function ExerciseLibraryScreen() {
     <Container>
       <View className="gap-4 p-4">
         <View className="gap-1">
-          <Text className="text-2xl font-semibold text-foreground">
+          <Text className="font-display text-[30px] font-semibold leading-[36px] text-ink">
             <Trans>Exercise library</Trans>
           </Text>
-          <Text className="text-sm text-muted-foreground">
+          <Text className="font-sans text-sm text-ink-3">
             <Trans>Browse licensed exercises or create one for your workspace.</Trans>
           </Text>
         </View>
         {notice ? (
-          <Text accessibilityLiveRegion="polite" className="text-sm text-muted-foreground">
+          <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-3">
             {notice}
           </Text>
         ) : null}
@@ -534,8 +535,8 @@ export default function ExerciseLibraryScreen() {
           </Button>
         ) : null}
         {uncertain ? (
-          <Card variant="secondary" className="gap-2 p-3">
-            <Text className="text-sm text-foreground">
+          <Card variant="secondary" className="gap-2 rounded-3xl p-4">
+            <Text className="font-sans text-sm text-ink">
               <Trans>Could not confirm. Refresh and review before trying again.</Trans>
             </Text>
             {!refreshedAfterUncertain ? (
@@ -560,8 +561,8 @@ export default function ExerciseLibraryScreen() {
             )}
           </Card>
         ) : null}
-        <Card variant="secondary" className="gap-3 p-4">
-          <Text className="text-lg font-medium text-foreground">
+        <Card variant="secondary" className="gap-3 rounded-3xl p-5">
+          <Text className="font-display text-xl font-semibold text-ink">
             <Trans>Browse</Trans>
           </Text>
           <TextInput
@@ -574,12 +575,12 @@ export default function ExerciseLibraryScreen() {
             placeholderTextColor="#9ca3af"
           />
           {filters.isPending ? (
-            <Text className="text-xs text-muted-foreground" accessibilityLiveRegion="polite">
+            <Text className="font-sans text-xs text-ink-3" accessibilityLiveRegion="polite">
               <Trans>Loading muscle and equipment filters…</Trans>
             </Text>
           ) : filters.isError ? (
             <View className="flex-row flex-wrap items-center gap-2">
-              <Text className="flex-1 text-xs text-muted-foreground" accessibilityRole="alert">
+              <Text className="font-sans flex-1 text-xs text-ink-3" accessibilityRole="alert">
                 <Trans>Filters are unavailable; name search still works.</Trans>
               </Text>
               <Button size="sm" variant="secondary" onPress={() => void filters.refetch()}>
@@ -589,7 +590,7 @@ export default function ExerciseLibraryScreen() {
           ) : (
             <View className="gap-3">
               <View className="gap-2" accessibilityLabel={t`Filter by muscle`}>
-                <Text className="text-sm font-medium text-foreground">
+                <Text className="font-sans text-sm font-semibold text-ink-2">
                   <Trans>Muscle</Trans>
                 </Text>
                 <View className="flex-row flex-wrap gap-2">
@@ -610,7 +611,7 @@ export default function ExerciseLibraryScreen() {
                   ))}
                 </View>
                 {muscleOptions.length === 0 ? (
-                  <Text className="text-xs text-muted-foreground">
+                  <Text className="font-sans text-xs text-ink-3">
                     <Trans>No muscle filters available.</Trans>
                   </Text>
                 ) : muscleOptions.length > 12 ? (
@@ -621,7 +622,7 @@ export default function ExerciseLibraryScreen() {
                     accessibilityState={{ expanded: expandMuscles }}
                     className="min-h-11 justify-center"
                   >
-                    <Text className="text-sm text-foreground underline">
+                    <Text className="font-sans text-sm font-semibold text-signal">
                       {expandMuscles
                         ? t`Show fewer muscles`
                         : t`${plural(muscleOptions.length, { one: "Show # muscle", other: "Show all # muscles" })}`}
@@ -630,7 +631,7 @@ export default function ExerciseLibraryScreen() {
                 ) : null}
               </View>
               <View className="gap-2" accessibilityLabel={t`Filter by equipment`}>
-                <Text className="text-sm font-medium text-foreground">
+                <Text className="font-sans text-sm font-semibold text-ink-2">
                   <Trans>Equipment</Trans>
                 </Text>
                 <View className="flex-row flex-wrap gap-2">
@@ -651,7 +652,7 @@ export default function ExerciseLibraryScreen() {
                   ))}
                 </View>
                 {equipmentOptions.length === 0 ? (
-                  <Text className="text-xs text-muted-foreground">
+                  <Text className="font-sans text-xs text-ink-3">
                     <Trans>No equipment filters available.</Trans>
                   </Text>
                 ) : equipmentOptions.length > 12 ? (
@@ -662,7 +663,7 @@ export default function ExerciseLibraryScreen() {
                     accessibilityState={{ expanded: expandEquipment }}
                     className="min-h-11 justify-center"
                   >
-                    <Text className="text-sm text-foreground underline">
+                    <Text className="font-sans text-sm font-semibold text-signal">
                       {expandEquipment
                         ? t`Show less equipment`
                         : t`${plural(equipmentOptions.length, { one: "Show # equipment option", other: "Show all # equipment options" })}`}
@@ -680,7 +681,7 @@ export default function ExerciseLibraryScreen() {
                   accessibilityRole="button"
                   className="min-h-11 justify-center"
                 >
-                  <Text className="text-sm text-foreground underline">
+                  <Text className="font-sans text-sm font-semibold text-signal">
                     <Trans>Clear filters</Trans>
                   </Text>
                 </Pressable>
@@ -688,14 +689,14 @@ export default function ExerciseLibraryScreen() {
             </View>
           )}
           {!scope ? (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               <Trans>Sign in to browse your workspace library.</Trans>
             </Text>
           ) : catalog.isPending ? (
             <Spinner />
           ) : catalog.isError ? (
             <View className="gap-2">
-              <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
+              <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
                 <Trans>Could not load exercises.</Trans>
               </Text>
               <Button variant="secondary" onPress={() => void catalog.refetch()}>
@@ -710,13 +711,13 @@ export default function ExerciseLibraryScreen() {
                 onPress={() => setSelectedId(item.id)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: selectedId === item.id }}
-                className={`min-h-11 justify-center rounded-lg px-3 ${selectedId === item.id ? "bg-accent" : ""}`}
+                className={`min-h-11 justify-center rounded-2xl px-3 py-2 ${selectedId === item.id ? "bg-primary/10" : ""}`}
               >
-                <Text className="font-medium text-foreground">{item.name}</Text>
-                <Text className="text-xs text-muted-foreground">
+                <Text className="font-sans font-medium text-ink">{item.name}</Text>
+                <Text className="font-sans text-xs text-ink-3">
                   {item.muscles.map((m) => m.name).join(" · ") || item.category || t`Exercise`}
                 </Text>
-                <Text className="text-xs text-muted-foreground">
+                <Text className="font-sans text-xs text-ink-3">
                   {item.source === "wger"
                     ? sourceLine(item.license, item.author)
                     : t`Workspace exercise`}
@@ -724,11 +725,11 @@ export default function ExerciseLibraryScreen() {
               </Pressable>
             ))
           ) : (
-            <View className="gap-1 rounded-lg border border-dashed p-4">
-              <Text className="font-medium text-foreground">
+            <View className="gap-1 rounded-2xl border border-dashed border-rule-2 p-4">
+              <Text className="font-sans font-medium text-ink">
                 {query.trim() ? t`No exercises match this search.` : t`No exercises found yet`}
               </Text>
-              <Text className="text-sm text-muted-foreground">
+              <Text className="font-sans text-sm text-ink-3">
                 {query.trim()
                   ? t`Try another name, or clear the search.`
                   : t`An administrator can import licensed exercises, or you can create a workspace exercise below.`}
@@ -737,24 +738,24 @@ export default function ExerciseLibraryScreen() {
           )}
         </Card>
         {selectedId ? (
-          <Card variant="secondary" className="gap-3 p-4">
-            <Text className="text-lg font-medium text-foreground">
+          <Card variant="secondary" className="gap-3 rounded-3xl p-5">
+            <Text className="font-display text-xl font-semibold text-ink">
               <Trans>Details</Trans>
             </Text>
             {detail.isPending ? (
               <Spinner />
             ) : detail.isError || !detail.data ? (
-              <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
+              <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
                 <Trans>Exercise details are unavailable.</Trans>
               </Text>
             ) : (
               <>
-                <Text className="font-medium text-foreground">{detail.data.name}</Text>
+                <Text className="font-sans font-medium text-ink">{detail.data.name}</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {detail.data.muscles.map((muscle) => (
                     <Text
                       key={muscle.externalMuscleId}
-                      className="rounded-full border border-border px-2 py-1 text-xs text-foreground"
+                      className="font-sans rounded-full bg-steps-soft px-2.5 py-1 text-xs text-ink"
                     >
                       {muscle.name}
                     </Text>
@@ -762,7 +763,7 @@ export default function ExerciseLibraryScreen() {
                   {detail.data.equipment.map((equipment) => (
                     <Text
                       key={equipment.externalEquipmentId}
-                      className="rounded-full border border-border px-2 py-1 text-xs text-foreground"
+                      className="font-sans rounded-full bg-steps-soft px-2.5 py-1 text-xs text-ink"
                     >
                       {equipment.name}
                     </Text>
@@ -774,7 +775,7 @@ export default function ExerciseLibraryScreen() {
                   media={detail.data.media}
                   muscles={detail.data.muscles}
                 />
-                <Text className="text-sm text-foreground">
+                <Text className="font-sans text-sm text-ink">
                   {detail.data.instructions || t`No instructions provided.`}
                 </Text>
                 <ExerciseAttribution
@@ -792,14 +793,14 @@ export default function ExerciseLibraryScreen() {
                     attribution={detail.data.translationAttribution}
                   />
                 ) : null}
-                <Text className="text-sm font-medium text-foreground">
+                <Text className="font-sans text-sm font-semibold text-ink-2">
                   <Trans>Add to workout</Trans>
                 </Text>
                 {workouts.isPending ? (
                   <Spinner />
                 ) : workouts.isError ? (
                   <View className="gap-2">
-                    <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
+                    <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
                       <Trans>Could not load workouts.</Trans>
                     </Text>
                     <Button variant="secondary" onPress={() => void workouts.refetch()}>
@@ -815,16 +816,16 @@ export default function ExerciseLibraryScreen() {
                         onPress={() => setWorkoutId(workout.id)}
                         accessibilityRole="button"
                         accessibilityState={{ selected: workoutId === workout.id }}
-                        className={`min-h-11 justify-center rounded-lg border border-border px-3 ${workoutId === workout.id ? "bg-accent" : ""}`}
+                        className={`min-h-11 justify-center rounded-xl border border-rule-2 px-3 ${workoutId === workout.id ? "bg-primary/10" : ""}`}
                       >
-                        <Text className="text-sm text-foreground">
+                        <Text className="font-sans text-sm text-ink">
                           {workout.date} · {workout.type}
                         </Text>
                       </Pressable>
                     ))}
                   </View>
                 ) : (
-                  <Text className="text-sm text-muted-foreground">
+                  <Text className="font-sans text-sm text-ink-3">
                     <Trans>Create a workout first, then return here to add an exercise.</Trans>
                   </Text>
                 )}
@@ -840,14 +841,14 @@ export default function ExerciseLibraryScreen() {
             )}
           </Card>
         ) : null}
-        <Card variant="secondary" className="gap-3 p-4">
-          <Text className="text-lg font-medium text-foreground">
+        <Card variant="secondary" className="gap-3 rounded-3xl p-5">
+          <Text className="font-display text-xl font-semibold text-ink">
             <Trans>Create workspace exercise</Trans>
           </Text>
-          <Text className="text-xs text-muted-foreground">
+          <Text className="font-sans text-xs text-ink-3">
             <Trans>Visible to members of this workspace.</Trans>
           </Text>
-          <Text className="text-sm font-medium text-foreground">
+          <Text className="font-sans text-sm font-semibold text-ink-2">
             <Trans>Name</Trans>
           </Text>
           <TextInput
@@ -858,7 +859,7 @@ export default function ExerciseLibraryScreen() {
             accessibilityLabel={t`Exercise name`}
             className={INPUT}
           />
-          <Text className="text-sm font-medium text-foreground">
+          <Text className="font-sans text-sm font-semibold text-ink-2">
             <Trans>Language code</Trans>
           </Text>
           <TextInput
@@ -869,7 +870,7 @@ export default function ExerciseLibraryScreen() {
             accessibilityLabel={t`Language code`}
             className={INPUT}
           />
-          <Text className="text-sm font-medium text-foreground">
+          <Text className="font-sans text-sm font-semibold text-ink-2">
             <Trans>Instructions (optional)</Trans>
           </Text>
           <TextInput
@@ -916,9 +917,9 @@ function FilterChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`min-h-11 justify-center rounded-full border px-3 ${selected ? "border-primary bg-primary/15" : "border-border bg-card"}`}
+      className={`min-h-11 justify-center rounded-full border px-3 ${selected ? "border-primary bg-primary/15" : "border-rule-2 bg-sheet"}`}
     >
-      <Text className="text-sm text-foreground">{label}</Text>
+      <Text className="font-sans text-sm text-ink">{label}</Text>
     </Pressable>
   );
 }

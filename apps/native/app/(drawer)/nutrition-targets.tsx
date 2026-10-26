@@ -4,6 +4,7 @@ import type {
   NutritionTargetWire,
   TargetSettingsWire,
 } from "@openvalens/api/contracts/nutrition-targets";
+import { CUSTOM_FOOD_COPY } from "@openvalens/api/presenters/custom-foods";
 import {
   DIARY_COPY,
   NUTRIENT_LABELS,
@@ -35,14 +36,45 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
-import { Button, Card, Spinner } from "heroui-native";
-import { useEffect, useMemo, useState } from "react";
+import type { NutrientKey } from "@openvalens/api/contracts/nutrition-diary";
+import { Button } from "heroui-native";
+import {
+  ArrowLeft,
+  Beef,
+  Check,
+  Droplet,
+  Leaf,
+  LifeBuoy,
+  type LucideIcon,
+  Plus,
+  Settings2,
+  ShieldCheck,
+  Target,
+  Wheat,
+  X,
+  Zap,
+} from "lucide-react-native";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Pressable, Switch, Text, TextInput, View } from "react-native";
 
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Icon,
+  InfoTip,
+  ListCard,
+  Page,
+  PageHeader,
+  Prose,
+  Section,
+  Sheet,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { readCache, writeCache } from "@/lib/offline/cache";
 import { useOfflineScope } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 import { EnergyEstimateCard } from "@/components/energy-estimate-card";
 
 /**
@@ -53,7 +85,16 @@ import { EnergyEstimateCard } from "@/components/energy-estimate-card";
  */
 
 const inputClass =
-  "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
+  "min-h-11 rounded-xl border border-rule bg-sheet px-3 font-sans text-base text-ink";
+
+const TARGET_ICONS: Partial<Record<NutrientKey, LucideIcon>> = {
+  energyKcal: Zap,
+  energyKj: Zap,
+  proteinG: Beef,
+  carbohydrateG: Wheat,
+  fatG: Droplet,
+  fiberG: Leaf,
+};
 
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
@@ -73,18 +114,53 @@ function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`min-h-11 justify-center rounded-lg border px-3 ${selected ? "border-foreground bg-accent" : "border-border"}`}
+      className={`min-h-11 justify-center rounded-full border px-4 ${selected ? "border-food bg-food-soft" : "border-rule bg-sheet"}`}
     >
-      <Text className="text-sm text-foreground">{label}</Text>
+      <Text className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}>
+        {label}
+      </Text>
     </Pressable>
   );
+}
+
+/** A labelled switch, with its longer explanation behind an ⓘ. */
+function ToggleRow({
+  label,
+  value,
+  onValueChange,
+  info,
+  strong = false,
+}: {
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  info?: ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <View className="min-h-11 flex-row items-center justify-between gap-3">
+      <View className="min-w-0 flex-1 flex-row items-center gap-1">
+        <Text
+          className={`shrink font-sans text-sm ${strong ? "font-semibold text-ink" : "text-ink-2"}`}
+        >
+          {label}
+        </Text>
+        {info ? <InfoTip title={label}>{info}</InfoTip> : null}
+      </View>
+      <Switch value={value} onValueChange={onValueChange} accessibilityLabel={label} />
+    </View>
+  );
+}
+
+function FieldLabel({ children }: { children: ReactNode }) {
+  return <Text className="font-sans text-sm font-medium text-ink-3">{children}</Text>;
 }
 
 export default function NutritionTargetsScreen() {
   const localDate = useMemo(() => localDateIn(deviceTimeZone()), []);
   const scope = useOfflineScope();
   const queryClient = useQueryClient();
-  const { i18n } = useLingui();
+  const { t, i18n } = useLingui();
   const overviewOptions = orpc.nutritionTargets.get.queryOptions({ input: { localDate } });
   const overview = useQuery({
     ...overviewOptions,
@@ -113,43 +189,62 @@ export default function NutritionTargetsScreen() {
 
   return (
     <Container>
-      <View className="gap-5 p-4">
-        <Link href="/nutrition" asChild>
-          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-            <Text className="text-sm text-foreground underline">
-              <Trans>Back to meal diary</Trans>
-            </Text>
-          </Pressable>
-        </Link>
+      <Page>
+        <PageHeader
+          title={i18n._(TARGET_COPY.title)}
+          actions={
+            <Link href="/nutrition" asChild>
+              <Button variant="outline" size="sm" accessibilityRole="link">
+                <Icon icon={ArrowLeft} size={16} color="food" />
+                <Button.Label>
+                  <Trans>Back to meal diary</Trans>
+                </Button.Label>
+              </Button>
+            </Link>
+          }
+        />
 
         {overview.isPending ? (
-          <Spinner />
+          <Sheet>
+            <Text className="font-sans text-sm text-ink-3">{t`Loading…`}</Text>
+          </Sheet>
         ) : overview.isError || !data ? (
-          <Pressable onPress={() => void overview.refetch()} accessibilityRole="button">
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(TARGET_COPY.networkError)} {i18n._(DIARY_COPY.retry)}
-            </Text>
-          </Pressable>
+          <ErrorState
+            title={i18n._(TARGET_COPY.networkError)}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void overview.refetch()}>
+                <Button.Label>{i18n._(DIARY_COPY.retry)}</Button.Label>
+              </Button>
+            }
+          />
         ) : (
           <>
             {data.support ? (
-              <Card variant="secondary" className="gap-2 p-4">
-                <Text className="text-sm text-foreground" accessibilityRole="header">
-                  {i18n._(TARGET_COPY.helplinesTitle)}
-                </Text>
-                <Text className="text-sm text-foreground">{data.support.text}</Text>
-                {data.support.helplines.map((line) => (
-                  <Text key={line.name} className="text-sm text-foreground">
-                    {formatHelpline(line)}
+              <Sheet className="flex-row items-start gap-4">
+                <View className="pt-0.5">
+                  <Icon icon={LifeBuoy} size={20} />
+                </View>
+                <View className="min-w-0 flex-1 gap-2">
+                  <Text
+                    className="font-display text-base font-medium text-ink"
+                    accessibilityRole="header"
+                  >
+                    {i18n._(TARGET_COPY.helplinesTitle)}
                   </Text>
-                ))}
-              </Card>
+                  <Text className="font-sans text-sm text-ink">{data.support.text}</Text>
+                  {data.support.helplines.map((line) => (
+                    <Text key={line.name} className="font-sans text-sm text-ink-2">
+                      {formatHelpline(line)}
+                    </Text>
+                  ))}
+                </View>
+              </Sheet>
             ) : null}
 
             {data.notes.length > 0 ? (
-              <View className="gap-1">
+              <View className="gap-1 rounded-2xl bg-paper-2 px-4 py-3">
                 {data.notes.map((note) => (
-                  <Text key={note} className="text-sm text-muted-foreground">
+                  <Text key={note} className="font-sans text-sm text-ink-2">
                     {note}
                   </Text>
                 ))}
@@ -170,6 +265,32 @@ export default function NutritionTargetsScreen() {
               safetyOff={data.safety.energyTargets === "off"}
             />
 
+            <Section
+              icon={Beef}
+              tone="food"
+              sheet
+              title={i18n._(TARGET_COPY.proteinReferenceTitle)}
+              info={
+                <>
+                  <Prose>{i18n._(TARGET_COPY.proteinReferenceNote)}</Prose>
+                  <Prose className="text-ink-3">{data.safety.policyVersion}</Prose>
+                </>
+              }
+            >
+              <Text
+                className={
+                  data.proteinReference
+                    ? "font-display text-2xl font-medium text-ink"
+                    : "font-sans text-sm text-ink-2"
+                }
+                style={data.proteinReference ? { fontVariant: ["tabular-nums"] } : undefined}
+              >
+                {data.proteinReference
+                  ? formatProteinReference(data.proteinReference, hideNumbers, i18n)
+                  : i18n._(TARGET_COPY.proteinReferenceUnavailable)}
+              </Text>
+            </Section>
+
             <SettingsCard
               settings={data.settings}
               onHideNumbersChange={(value) => {
@@ -179,24 +300,9 @@ export default function NutritionTargetsScreen() {
               }}
               onChanged={() => void refresh()}
             />
-
-            <Card variant="secondary" className="gap-2 p-4">
-              <Text className="font-medium text-foreground" accessibilityRole="header">
-                {i18n._(TARGET_COPY.proteinReferenceTitle)}
-              </Text>
-              <Text className="font-mono text-sm text-foreground">
-                {data.proteinReference
-                  ? formatProteinReference(data.proteinReference, hideNumbers, i18n)
-                  : i18n._(TARGET_COPY.proteinReferenceUnavailable)}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {i18n._(TARGET_COPY.proteinReferenceNote)}
-              </Text>
-              <Text className="text-xs text-muted-foreground">{data.safety.policyVersion}</Text>
-            </Card>
           </>
         )}
-      </View>
+      </Page>
     </Container>
   );
 }
@@ -223,6 +329,7 @@ function TargetsCard({
   const setTarget = useMutation(orpc.nutritionTargets.setTarget.mutationOptions());
   const clearTarget = useMutation(orpc.nutritionTargets.clearTarget.mutationOptions());
   const { t, i18n } = useLingui();
+  const placeholder = useThemeColor("ink-3");
   const activeForSelected = targets.find((target) => target.nutrient === nutrient);
 
   const save = () => {
@@ -261,98 +368,121 @@ function TargetsCard({
   };
 
   return (
-    <Card variant="secondary" className="gap-3 p-4">
-      <Text className="font-medium text-foreground" accessibilityRole="header">
-        {i18n._(TARGET_COPY.yourTargets)}
-      </Text>
-      <Text className="text-sm text-muted-foreground">{i18n._(TARGET_COPY.targetsNote)}</Text>
-
-      {targets.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{i18n._(TARGET_COPY.noTargets)}</Text>
-      ) : (
-        targets.map((target) => (
-          <View key={target.id} className="gap-1">
-            <Text className="text-sm font-medium text-foreground">
-              {i18n._(NUTRIENT_LABELS[target.nutrient].label)}:{" "}
-              {formatTarget(target, hideNumbers, i18n)}
-            </Text>
-            <Text className="text-xs text-muted-foreground">
-              {i18n._(describeTargetSource(target))}
-            </Text>
-            <Button
-              size="sm"
-              variant="secondary"
-              onPress={() => clear(target)}
-              accessibilityLabel={t`Clear target ${i18n._(NUTRIENT_LABELS[target.nutrient].label)}`}
-            >
-              {i18n._(TARGET_COPY.clearTarget)}
-            </Button>
+    <>
+      <Section
+        icon={Target}
+        tone="food"
+        title={i18n._(TARGET_COPY.yourTargets)}
+        info={i18n._(TARGET_COPY.targetsNote)}
+      >
+        {targets.length === 0 ? (
+          <EmptyState icon={Target} tone="food" title={i18n._(TARGET_COPY.noTargets)} />
+        ) : (
+          <View className="gap-3">
+            {targets.map((target) => (
+              <ListCard
+                key={target.id}
+                icon={TARGET_ICONS[target.nutrient] ?? Target}
+                tone="food"
+                title={i18n._(NUTRIENT_LABELS[target.nutrient].label)}
+                chip={formatTarget(target, hideNumbers, i18n)}
+                subtitle={i18n._(describeTargetSource(target))}
+              >
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="self-end"
+                  onPress={() => clear(target)}
+                  accessibilityLabel={t`Clear target ${i18n._(NUTRIENT_LABELS[target.nutrient].label)}`}
+                >
+                  <Icon icon={X} size={16} color="ink-3" />
+                  <Button.Label>{i18n._(TARGET_COPY.clearTarget)}</Button.Label>
+                </Button>
+              </ListCard>
+            ))}
           </View>
-        ))
-      )}
+        )}
+      </Section>
 
-      <View className="flex-row flex-wrap gap-2" accessibilityLabel={t`Nutrient`}>
-        {choices.map((key) => (
-          <Chip
-            key={key}
-            label={i18n._(NUTRIENT_LABELS[key].label)}
-            selected={nutrient === key}
-            onPress={() => setNutrient(key)}
+      <Section icon={Plus} tone="food" sheet title={t`Set a target`}>
+        <View className="gap-1.5">
+          <FieldLabel>{t`Nutrient`}</FieldLabel>
+          <View className="flex-row flex-wrap gap-2" accessibilityLabel={t`Nutrient`}>
+            {choices.map((key) => (
+              <Chip
+                key={key}
+                label={i18n._(NUTRIENT_LABELS[key].label)}
+                selected={nutrient === key}
+                onPress={() => setNutrient(key)}
+              />
+            ))}
+          </View>
+        </View>
+        <View className="gap-1.5">
+          <FieldLabel>{i18n._(TARGET_COPY.minimum)}</FieldLabel>
+          <TextInput
+            value={hideNumbers ? "" : min}
+            onChangeText={setMin}
+            keyboardType="decimal-pad"
+            placeholder={
+              hideNumbers
+                ? i18n._(TARGET_COPY.minimum)
+                : activeForSelected && activeForSelected.minAmount !== null
+                  ? `${i18n._(TARGET_COPY.minimum)} (${activeForSelected.minAmount})`
+                  : i18n._(TARGET_COPY.minimum)
+            }
+            accessibilityLabel={
+              hideNumbers ? t`Minimum (optional), hidden` : i18n._(TARGET_COPY.minimum)
+            }
+            className={inputClass}
+            placeholderTextColor={placeholder}
           />
-        ))}
-      </View>
-      <TextInput
-        value={hideNumbers ? "" : min}
-        onChangeText={setMin}
-        keyboardType="decimal-pad"
-        placeholder={
-          hideNumbers
-            ? i18n._(TARGET_COPY.minimum)
-            : activeForSelected && activeForSelected.minAmount !== null
-              ? `${i18n._(TARGET_COPY.minimum)} (${activeForSelected.minAmount})`
-              : i18n._(TARGET_COPY.minimum)
-        }
-        accessibilityLabel={
-          hideNumbers ? t`Minimum (optional), hidden` : i18n._(TARGET_COPY.minimum)
-        }
-        className={inputClass}
-        placeholderTextColor="#9ca3af"
-      />
-      <TextInput
-        value={hideNumbers ? "" : max}
-        onChangeText={setMax}
-        keyboardType="decimal-pad"
-        placeholder={
-          hideNumbers
-            ? i18n._(TARGET_COPY.maximum)
-            : activeForSelected && activeForSelected.maxAmount !== null
-              ? `${i18n._(TARGET_COPY.maximum)} (${activeForSelected.maxAmount})`
-              : i18n._(TARGET_COPY.maximum)
-        }
-        accessibilityLabel={
-          hideNumbers ? t`Maximum (optional), hidden` : i18n._(TARGET_COPY.maximum)
-        }
-        className={inputClass}
-        placeholderTextColor="#9ca3af"
-      />
-      <TextInput
-        value={effectiveFrom}
-        onChangeText={setEffectiveFrom}
-        autoCapitalize="none"
-        placeholder="YYYY-MM-DD"
-        accessibilityLabel={i18n._(TARGET_COPY.effectiveFrom)}
-        className={inputClass}
-        placeholderTextColor="#9ca3af"
-      />
-      {error ? (
-        <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-          {error}
-        </Text>
-      ) : null}
-      <Button onPress={save} isDisabled={setTarget.isPending}>
-        {i18n._(setTarget.isPending ? TARGET_COPY.saving : TARGET_COPY.setTarget)}
-      </Button>
-    </Card>
+        </View>
+        <View className="gap-1.5">
+          <FieldLabel>{i18n._(TARGET_COPY.maximum)}</FieldLabel>
+          <TextInput
+            value={hideNumbers ? "" : max}
+            onChangeText={setMax}
+            keyboardType="decimal-pad"
+            placeholder={
+              hideNumbers
+                ? i18n._(TARGET_COPY.maximum)
+                : activeForSelected && activeForSelected.maxAmount !== null
+                  ? `${i18n._(TARGET_COPY.maximum)} (${activeForSelected.maxAmount})`
+                  : i18n._(TARGET_COPY.maximum)
+            }
+            accessibilityLabel={
+              hideNumbers ? t`Maximum (optional), hidden` : i18n._(TARGET_COPY.maximum)
+            }
+            className={inputClass}
+            placeholderTextColor={placeholder}
+          />
+        </View>
+        <View className="gap-1.5">
+          <FieldLabel>{i18n._(TARGET_COPY.effectiveFrom)}</FieldLabel>
+          <TextInput
+            value={effectiveFrom}
+            onChangeText={setEffectiveFrom}
+            autoCapitalize="none"
+            placeholder="YYYY-MM-DD"
+            accessibilityLabel={i18n._(TARGET_COPY.effectiveFrom)}
+            className={inputClass}
+            style={{ fontVariant: ["tabular-nums"] }}
+            placeholderTextColor={placeholder}
+          />
+        </View>
+        {error ? (
+          <Text className="font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
+            {error}
+          </Text>
+        ) : null}
+        <Button className="self-start" onPress={save} isDisabled={setTarget.isPending}>
+          <Button.Label>
+            {i18n._(setTarget.isPending ? TARGET_COPY.saving : TARGET_COPY.setTarget)}
+          </Button.Label>
+        </Button>
+      </Section>
+    </>
   );
 }
 
@@ -473,258 +603,234 @@ function SettingsCard({
   };
 
   return (
-    <Card variant="secondary" className="gap-3 p-4">
-      <Text className="font-medium text-foreground" accessibilityRole="header">
-        {i18n._(TARGET_COPY.settingsLink)}
-      </Text>
-
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-1 gap-0.5">
-          <Text className="text-sm font-medium text-foreground">
-            {i18n._(TARGET_COPY.hideNumbers)}
-          </Text>
-          <Text className="text-xs text-muted-foreground">
-            {i18n._(TARGET_COPY.hideNumbersDescription)}
-          </Text>
-        </View>
-        <Switch
+    <Section
+      icon={Settings2}
+      tone="food"
+      sheet
+      title={i18n._(TARGET_COPY.settingsLink)}
+      info={i18n._(CUSTOM_FOOD_COPY.privacy)}
+    >
+      <View className="gap-5">
+        <ToggleRow
+          strong
+          label={i18n._(TARGET_COPY.hideNumbers)}
+          info={i18n._(TARGET_COPY.hideNumbersDescription)}
           value={hideNumbers}
           onValueChange={(value) => {
             setHideNumbers(value);
             onHideNumbersChange(value);
           }}
-          accessibilityLabel={i18n._(TARGET_COPY.hideNumbers)}
         />
-      </View>
 
-      <View className="gap-1">
-        <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-          {i18n._(TARGET_COPY.directionTitle)}
-        </Text>
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(TARGET_COPY.directionDescription)}
-        </Text>
-        <View className="flex-row flex-wrap gap-2">
-          {(Object.keys(DIRECTION_LABELS) as EnergyDirection[]).map((key) => (
-            <Chip
-              key={key}
-              label={i18n._(DIRECTION_LABELS[key].label)}
-              selected={direction === key}
-              onPress={() => setDirection(key)}
-            />
-          ))}
+        <View className="gap-2">
+          <View className="flex-row items-center gap-1">
+            <Text
+              className="font-display text-base font-medium text-ink"
+              accessibilityRole="header"
+            >
+              {i18n._(TARGET_COPY.directionTitle)}
+            </Text>
+            <InfoTip title={i18n._(TARGET_COPY.directionTitle)}>
+              {i18n._(TARGET_COPY.directionDescription)}
+            </InfoTip>
+          </View>
+          <View className="flex-row flex-wrap gap-2">
+            {(Object.keys(DIRECTION_LABELS) as EnergyDirection[]).map((key) => (
+              <Chip
+                key={key}
+                label={i18n._(DIRECTION_LABELS[key].label)}
+                selected={direction === key}
+                onPress={() => setDirection(key)}
+              />
+            ))}
+          </View>
+          <Text className="font-sans text-sm text-ink-3">
+            {i18n._(DIRECTION_LABELS[direction].description)}
+          </Text>
         </View>
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(DIRECTION_LABELS[direction].description)}
-        </Text>
-      </View>
 
-      <View className="gap-1">
-        <Text className="text-sm font-medium text-foreground">
-          {i18n._(TARGET_COPY.heightLabel)}
-        </Text>
-        <TextInput
-          value={height}
-          onChangeText={setHeight}
-          keyboardType="decimal-pad"
-          accessibilityLabel={i18n._(TARGET_COPY.heightLabel)}
-          className={inputClass}
-        />
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(TARGET_COPY.heightDescription)}
-        </Text>
-      </View>
+        <View className="gap-1.5">
+          <FieldLabel>{i18n._(TARGET_COPY.heightLabel)}</FieldLabel>
+          <TextInput
+            value={height}
+            onChangeText={setHeight}
+            keyboardType="decimal-pad"
+            accessibilityLabel={i18n._(TARGET_COPY.heightLabel)}
+            className={inputClass}
+            style={{ fontVariant: ["tabular-nums"] }}
+          />
+          <Text className="font-sans text-sm text-ink-3">
+            {i18n._(TARGET_COPY.heightDescription)}
+          </Text>
+        </View>
 
-      <View className="flex-row items-center justify-between gap-3">
-        <Text className="flex-1 text-sm text-foreground">{i18n._(TARGET_COPY.activeProtein)}</Text>
-        <Switch
+        <ToggleRow
+          label={i18n._(TARGET_COPY.activeProtein)}
           value={activeProtein}
           onValueChange={setActiveProtein}
-          accessibilityLabel={i18n._(TARGET_COPY.activeProtein)}
         />
-      </View>
 
-      <View className="gap-1">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">{i18n._(STREAK_COPY.settingLabel)}</Text>
-          <Switch
-            value={streaksEnabled}
-            onValueChange={setStreaksEnabled}
-            accessibilityLabel={i18n._(STREAK_COPY.settingLabel)}
-          />
-        </View>
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(STREAK_COPY.settingDescription)}
-        </Text>
-      </View>
-
-      <View className="gap-1">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">
-            {i18n._(RECIPE_IMPORT_COPY.settingLabel)}
-          </Text>
-          <Switch
-            value={recipeImportEnabled}
-            onValueChange={setRecipeImportEnabled}
-            accessibilityLabel={i18n._(RECIPE_IMPORT_COPY.settingLabel)}
-          />
-        </View>
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(RECIPE_IMPORT_COPY.settingDescription)}
-        </Text>
-      </View>
-
-      <View className="gap-1">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">
-            {i18n._(FOOD_DRAFT_COPY.settingLabel)}
-          </Text>
-          <Switch
-            value={voiceDraftsEnabled}
-            onValueChange={setVoiceDraftsEnabled}
-            accessibilityLabel={i18n._(FOOD_DRAFT_COPY.settingLabel)}
-          />
-        </View>
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(FOOD_DRAFT_COPY.settingDescription)}
-        </Text>
-      </View>
-
-      <View className="gap-1">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">
-            {i18n._(PHOTO_DRAFT_COPY.settingLabel)}
-          </Text>
-          <Switch
-            value={photoDraftsEnabled}
-            onValueChange={setPhotoDraftsEnabled}
-            accessibilityLabel={i18n._(PHOTO_DRAFT_COPY.settingLabel)}
-          />
-        </View>
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(PHOTO_DRAFT_COPY.settingDescription)}
-        </Text>
-      </View>
-
-      <View className="gap-2">
-        <View className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm text-foreground">
-            {i18n._(MICRONUTRIENT_COPY.settingLabel)}
-          </Text>
-          <Switch
-            value={micronutrientsEnabled}
-            onValueChange={setMicronutrientsEnabled}
-            accessibilityLabel={i18n._(MICRONUTRIENT_COPY.settingLabel)}
-          />
-        </View>
-        <Text className="text-xs text-muted-foreground">
-          {i18n._(MICRONUTRIENT_COPY.settingDescription)}
-        </Text>
-        {micronutrientsEnabled ? (
-          <View className="gap-2 rounded-lg border border-border p-3">
-            <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-              {i18n._(MICRONUTRIENT_COPY.sourceLabel)}
-            </Text>
-            <Text className="text-xs text-muted-foreground">
-              {i18n._(MICRONUTRIENT_COPY.sourceHelp)}
-            </Text>
-            <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
-              {([null, "efsa", "nasem"] as const).map((value) => (
-                <Pressable
-                  key={value ?? "none"}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: referenceSource === value }}
-                  onPress={() => {
-                    setReferenceSource(value);
-                    setPopulation(null);
-                  }}
-                  className={`min-h-11 justify-center rounded-lg border px-3 ${referenceSource === value ? "bg-accent" : "border-border"}`}
+        <Details summary={<Trans>More options</Trans>}>
+          <View className="gap-3">
+            <ToggleRow
+              label={i18n._(STREAK_COPY.settingLabel)}
+              info={i18n._(STREAK_COPY.settingDescription)}
+              value={streaksEnabled}
+              onValueChange={setStreaksEnabled}
+            />
+            <ToggleRow
+              label={i18n._(RECIPE_IMPORT_COPY.settingLabel)}
+              info={i18n._(RECIPE_IMPORT_COPY.settingDescription)}
+              value={recipeImportEnabled}
+              onValueChange={setRecipeImportEnabled}
+            />
+            <ToggleRow
+              label={i18n._(FOOD_DRAFT_COPY.settingLabel)}
+              info={i18n._(FOOD_DRAFT_COPY.settingDescription)}
+              value={voiceDraftsEnabled}
+              onValueChange={setVoiceDraftsEnabled}
+            />
+            <ToggleRow
+              label={i18n._(PHOTO_DRAFT_COPY.settingLabel)}
+              info={i18n._(PHOTO_DRAFT_COPY.settingDescription)}
+              value={photoDraftsEnabled}
+              onValueChange={setPhotoDraftsEnabled}
+            />
+            <ToggleRow
+              label={i18n._(MICRONUTRIENT_COPY.settingLabel)}
+              info={i18n._(MICRONUTRIENT_COPY.settingDescription)}
+              value={micronutrientsEnabled}
+              onValueChange={setMicronutrientsEnabled}
+            />
+            {micronutrientsEnabled ? (
+              <View className="gap-2 rounded-2xl bg-paper-2 p-4">
+                <Text
+                  className="font-display text-sm font-medium text-ink"
+                  accessibilityRole="header"
                 >
-                  <Text className="text-sm text-foreground">
-                    {value ? i18n._(MICRONUTRIENT_COPY.sources[value]) : t`None`}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            {referenceSource ? (
-              <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
-                {(
-                  Object.entries(MICRONUTRIENT_POPULATIONS) as [
-                    NonNullable<TargetSettingsWire["micronutrientPopulation"]>,
-                    { source: string; label: string },
-                  ][]
-                )
-                  .filter(([, group]) => group.source === referenceSource)
-                  .map(([id, group]) => (
+                  {i18n._(MICRONUTRIENT_COPY.sourceLabel)}
+                </Text>
+                <Text className="font-sans text-sm text-ink-3">
+                  {i18n._(MICRONUTRIENT_COPY.sourceHelp)}
+                </Text>
+                <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+                  {([null, "efsa", "nasem"] as const).map((value) => (
                     <Pressable
-                      key={id}
+                      key={value ?? "none"}
                       accessibilityRole="radio"
-                      accessibilityState={{ checked: population === id }}
-                      onPress={() => setPopulation(id)}
-                      className={`min-h-11 justify-center rounded-lg border px-3 ${population === id ? "bg-accent" : "border-border"}`}
+                      accessibilityState={{ checked: referenceSource === value }}
+                      onPress={() => {
+                        setReferenceSource(value);
+                        setPopulation(null);
+                      }}
+                      className={`min-h-11 justify-center rounded-full border px-4 ${referenceSource === value ? "border-food bg-food-soft" : "border-rule bg-sheet"}`}
                     >
-                      <Text className="text-sm text-foreground">{group.label}</Text>
+                      <Text
+                        className={`font-sans text-sm ${referenceSource === value ? "font-semibold text-ink" : "text-ink-2"}`}
+                      >
+                        {value ? i18n._(MICRONUTRIENT_COPY.sources[value]) : t`None`}
+                      </Text>
                     </Pressable>
                   ))}
+                </View>
+                {referenceSource ? (
+                  <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
+                    {(
+                      Object.entries(MICRONUTRIENT_POPULATIONS) as [
+                        NonNullable<TargetSettingsWire["micronutrientPopulation"]>,
+                        { source: string; label: string },
+                      ][]
+                    )
+                      .filter(([, group]) => group.source === referenceSource)
+                      .map(([id, group]) => (
+                        <Pressable
+                          key={id}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: population === id }}
+                          onPress={() => setPopulation(id)}
+                          className={`min-h-11 justify-center rounded-full border px-4 ${population === id ? "border-food bg-food-soft" : "border-rule bg-sheet"}`}
+                        >
+                          <Text
+                            className={`font-sans text-sm ${population === id ? "font-semibold text-ink" : "text-ink-2"}`}
+                          >
+                            {group.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                  </View>
+                ) : null}
+                {proposal.data?.source &&
+                (proposal.data.source !== referenceSource ||
+                  (proposal.data.population && proposal.data.population !== population)) ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setReferenceSource(proposal.data!.source);
+                      setPopulation(proposal.data!.population);
+                    }}
+                    className="min-h-11 justify-center"
+                  >
+                    <Text className="font-sans text-sm text-signal underline">
+                      {proposalText(proposal.data.source, proposal.data.population)}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
-            {proposal.data?.source &&
-            (proposal.data.source !== referenceSource ||
-              (proposal.data.population && proposal.data.population !== population)) ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setReferenceSource(proposal.data!.source);
-                  setPopulation(proposal.data!.population);
-                }}
-                className="min-h-11 justify-center"
-              >
-                <Text className="text-xs text-foreground underline">
-                  {proposalText(proposal.data.source, proposal.data.population)}
-                </Text>
-              </Pressable>
-            ) : null}
           </View>
+        </Details>
+
+        <View className="gap-2">
+          <View className="flex-row items-center gap-2">
+            <Icon icon={ShieldCheck} size={18} />
+            <Text
+              className="font-display text-base font-medium text-ink"
+              accessibilityRole="header"
+            >
+              {i18n._(TARGET_COPY.declarationsTitle)}
+            </Text>
+          </View>
+          {/* Safety copy stays on the surface. */}
+          <Text className="font-sans text-sm text-ink-3">
+            {NUTRITION_SAFETY_COPY.declarationsIntro}
+          </Text>
+          {choices.map((choice) => (
+            <Pressable
+              key={choice.key}
+              onPress={() => toggleDeclaration(choice.key)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: choice.selected }}
+              className="min-h-11 flex-row items-center gap-3"
+            >
+              <View
+                className={`h-6 w-6 items-center justify-center rounded-md border ${choice.selected ? "border-food bg-food-soft" : "border-rule-2 bg-sheet"}`}
+              >
+                {choice.selected ? <Icon icon={Check} size={16} color="ink" /> : null}
+              </View>
+              <Text className="flex-1 font-sans text-sm text-ink-2">{choice.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {message ? (
+          <Text className="font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
+            {message}
+          </Text>
         ) : null}
-      </View>
 
-      <View className="gap-1">
-        <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
-          {i18n._(TARGET_COPY.declarationsTitle)}
-        </Text>
-        <Text className="text-xs text-muted-foreground">
-          {NUTRITION_SAFETY_COPY.declarationsIntro}
-        </Text>
-        {choices.map((choice) => (
-          <Pressable
-            key={choice.key}
-            onPress={() => toggleDeclaration(choice.key)}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: choice.selected }}
-            className="min-h-11 flex-row items-center gap-2"
-          >
-            <Text className="text-foreground">{choice.selected ? "[x]" : "[ ]"}</Text>
-            <Text className="flex-1 text-sm text-foreground">{choice.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {message ? (
-        <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-          {message}
-        </Text>
-      ) : null}
-
-      <View className="flex-row flex-wrap gap-2">
-        <Button onPress={() => save()} isDisabled={update.isPending}>
-          {i18n._(update.isPending ? TARGET_COPY.saving : TARGET_COPY.saveSettings)}
-        </Button>
-        {needsConfirm ? (
-          <Button variant="secondary" onPress={() => save(true)} isDisabled={update.isPending}>
-            {i18n._(TARGET_COPY.saveSettings)}
+        <View className="flex-row flex-wrap gap-2">
+          <Button variant="secondary" onPress={() => save()} isDisabled={update.isPending}>
+            <Button.Label>
+              {i18n._(update.isPending ? TARGET_COPY.saving : TARGET_COPY.saveSettings)}
+            </Button.Label>
           </Button>
-        ) : null}
+          {needsConfirm ? (
+            <Button variant="outline" onPress={() => save(true)} isDisabled={update.isPending}>
+              <Button.Label>{i18n._(TARGET_COPY.saveSettings)}</Button.Label>
+            </Button>
+          ) : null}
+        </View>
       </View>
-    </Card>
+    </Section>
   );
 }

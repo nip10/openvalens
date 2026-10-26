@@ -1,11 +1,12 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Chip, Spinner } from "heroui-native";
+import { Spinner } from "heroui-native";
+import { Activity, Clock, HeartPulse, RefreshCw } from "lucide-react-native";
 
-import { CardStack, ListRow } from "@/components/list-row";
+import { Icon, Section, Sheet, StatusPill } from "@/components/bloom";
+import { ListRow } from "@/components/list-row";
 import {
   getHealthAccess,
   getHealthSyncStatus,
@@ -16,7 +17,6 @@ import {
   syncableTypes,
   unregisterHealthSyncTask,
 } from "@/lib/health-sync";
-import { useThemeColor } from "@/utils/theme";
 
 /** Foreground "Sync now" gets more room than a background run. */
 const FOREGROUND_BUDGET = { maxBatches: 50, windowMs: 60_000 };
@@ -43,7 +43,6 @@ const keys = {
 
 export function HealthSyncSettings() {
   const queryClient = useQueryClient();
-  const foreground = useThemeColor("foreground");
   const { t, i18n } = useLingui();
   const access = useQuery({ queryKey: keys.access, queryFn: getHealthAccess });
   const status = useQuery({ queryKey: keys.status, queryFn: getHealthSyncStatus });
@@ -104,10 +103,10 @@ export function HealthSyncSettings() {
         : t`Not synced yet`;
 
   return (
-    <CardStack title={t`Health data`}>
-      <Card variant="secondary" className="overflow-hidden p-0">
+    <Section title={t`Health data`} icon={Activity} tone="signal">
+      <Sheet className="overflow-hidden p-0 py-1">
         <ListRow
-          icon={<Ionicons name="fitness-outline" size={20} color={foreground} />}
+          icon={<Icon icon={HeartPulse} size={18} color="ink-2" />}
           title={sourceName}
           subtitle={connectionSubtitle}
           showDivider
@@ -118,13 +117,13 @@ export function HealthSyncSettings() {
           }
           accessibilityHint={t`Opens ${sourceName} permissions`}
           trailing={
-            <Chip size="sm" variant="secondary">
-              <Chip.Label>{connected ? t`Connected` : t`Connect`}</Chip.Label>
-            </Chip>
+            <StatusPill tone={connected ? "good" : "neutral"}>
+              {connected ? t`Connected` : t`Connect`}
+            </StatusPill>
           }
         />
         <ListRow
-          icon={<Ionicons name="sync-outline" size={20} color={foreground} />}
+          icon={<Icon icon={RefreshCw} size={18} color="ink-2" />}
           title={t`Sync now`}
           subtitle={syncSubtitle}
           showDivider
@@ -132,7 +131,7 @@ export function HealthSyncSettings() {
           trailing={sync.isPending ? <Spinner size="sm" color="default" /> : undefined}
         />
         <ListRow
-          icon={<Ionicons name="time-outline" size={20} color={foreground} />}
+          icon={<Icon icon={Clock} size={18} color="ink-2" />}
           title={t`Background sync`}
           subtitle={
             toggleBackground.error
@@ -145,12 +144,12 @@ export function HealthSyncSettings() {
               : undefined
           }
           trailing={
-            <Chip size="sm" variant="secondary">
-              <Chip.Label>{background.data ? t`On` : t`Off`}</Chip.Label>
-            </Chip>
+            <StatusPill tone={background.data ? "good" : "neutral"}>
+              {background.data ? t`On` : t`Off`}
+            </StatusPill>
           }
         />
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }

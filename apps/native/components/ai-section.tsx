@@ -1,9 +1,13 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card } from "heroui-native";
-import { Alert, Pressable, Switch, Text, View } from "react-native";
+import { Button } from "heroui-native";
+import { Building2, Sparkles, UserCheck } from "lucide-react-native";
+import { Alert, Switch, View } from "react-native";
 
+import { ErrorState, Section } from "@/components/bloom";
+import { SettingsGroup, SettingsRow } from "@/components/language-section";
 import { orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 /**
  * AI settings: the workspace switch (only the owner can change it; the server
@@ -13,6 +17,7 @@ import { orpc } from "@/utils/orpc";
 export function AiSection() {
   const queryClient = useQueryClient();
   const { t } = useLingui();
+  const signal = useThemeColor("signal");
   const workspace = useQuery(orpc.ai.workspaceConsent.get.queryOptions({ input: {} }));
   const personal = useQuery(orpc.ai.consent.get.queryOptions({ input: {} }));
 
@@ -60,83 +65,106 @@ export function AiSection() {
     );
 
   return (
-    <Card className="gap-3 p-4">
-      <Text className="text-base font-semibold text-foreground">
-        <Trans>AI for this workspace</Trans>
-      </Text>
-      <Text className="text-sm leading-5 text-muted-foreground">
-        <Trans comment="safety">
-          The workspace owner decides whether AI features can be used in this workspace. When it is
-          on, each person still has to give their own consent below before AI processes their data.
-        </Trans>
-      </Text>
-      <View className="min-h-12 flex-row items-center justify-between gap-3">
-        <View className="flex-1">
-          <Text className="text-sm text-foreground">
-            {workspace.isPending
-              ? t`Loading…`
-              : workspaceOn
-                ? t({ message: "On for this workspace", comment: "safety" })
-                : t({ message: "Off for this workspace", comment: "safety" })}
-          </Text>
-          <Text className="text-xs text-muted-foreground">
-            {canManage
-              ? t`As the owner, you can change this.`
-              : t`Only the workspace owner can change this.`}
-          </Text>
-        </View>
-        <Switch
-          accessibilityLabel={workspaceLabel}
-          value={workspaceOn}
-          disabled={!canManage || setWorkspace.isPending}
-          onValueChange={(enabled) => setWorkspace.mutate({ enabled })}
-        />
-      </View>
+    <View className="gap-7">
+      <Section
+        title={t`AI for this workspace`}
+        icon={Sparkles}
+        tone="signal"
+        description={
+          <Trans comment="safety">
+            The workspace owner decides whether AI features can be used in this workspace. When it
+            is on, each person still has to give their own consent below before AI processes their
+            data.
+          </Trans>
+        }
+      >
+        <SettingsGroup>
+          <SettingsRow
+            icon={Building2}
+            label={
+              workspace.isPending
+                ? t`Loading…`
+                : workspaceOn
+                  ? t({ message: "On for this workspace", comment: "safety" })
+                  : t({ message: "Off for this workspace", comment: "safety" })
+            }
+            description={
+              canManage
+                ? t`As the owner, you can change this.`
+                : t`Only the workspace owner can change this.`
+            }
+            trailing={
+              <Switch
+                accessibilityLabel={workspaceLabel}
+                value={workspaceOn}
+                disabled={!canManage || setWorkspace.isPending}
+                onValueChange={(enabled) => setWorkspace.mutate({ enabled })}
+                trackColor={{ true: signal }}
+              />
+            }
+          />
+        </SettingsGroup>
+      </Section>
 
-      <Text className="pt-2 text-base font-semibold text-foreground">
-        <Trans>AI processing</Trans>
-      </Text>
-      <Text className="text-sm leading-5 text-muted-foreground">
-        <Trans comment="safety">
-          AI features are opt-in and revocable. This setting applies only to you and is independent
-          of your organization or owner role.
-        </Trans>
-      </Text>
-      <View className="min-h-12 flex-row items-center justify-between gap-3">
-        <Text className="flex-1 text-sm text-foreground">
-          {personal.isPending
-            ? t`Loading…`
-            : granted
-              ? t({ message: "Granted", comment: "safety" })
-              : t({ message: "Not granted", comment: "safety" })}
-        </Text>
-        <Switch
-          accessibilityLabel={personalLabel}
-          value={granted}
-          disabled={personal.isPending || grant.isPending || revoke.isPending}
-          onValueChange={(next) => (next ? grant.mutate({}) : confirmRevoke())}
-        />
-      </View>
+      <Section
+        title={t`AI processing`}
+        icon={Sparkles}
+        tone="signal"
+        description={
+          <Trans comment="safety">
+            AI features are opt-in and revocable. This setting applies only to you and is
+            independent of your organization or owner role.
+          </Trans>
+        }
+      >
+        <SettingsGroup>
+          <SettingsRow
+            icon={UserCheck}
+            label={
+              personal.isPending
+                ? t`Loading…`
+                : granted
+                  ? t({ message: "Granted", comment: "safety" })
+                  : t({ message: "Not granted", comment: "safety" })
+            }
+            description={
+              personal.isPending || granted
+                ? undefined
+                : t({
+                    message: "Turn on to let AI features process your data.",
+                    comment: "safety",
+                  })
+            }
+            trailing={
+              <Switch
+                accessibilityLabel={personalLabel}
+                value={granted}
+                disabled={personal.isPending || grant.isPending || revoke.isPending}
+                onValueChange={(next) => (next ? grant.mutate({}) : confirmRevoke())}
+                trackColor={{ true: signal }}
+              />
+            }
+          />
+        </SettingsGroup>
 
-      {failed && (
-        <View className="gap-1">
-          <Text accessibilityRole="alert" className="text-sm text-destructive">
-            <Trans>Could not load or update AI settings.</Trans>
-          </Text>
-          <Pressable
-            onPress={() => {
-              void workspace.refetch();
-              void personal.refetch();
-            }}
-            accessibilityRole="button"
-            className="min-h-11 justify-center"
-          >
-            <Text className="text-foreground underline">
-              <Trans>Retry</Trans>
-            </Text>
-          </Pressable>
-        </View>
-      )}
-    </Card>
+        {failed && (
+          <ErrorState
+            title={t`Could not load or update AI settings.`}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  void workspace.refetch();
+                  void personal.refetch();
+                }}
+              >
+                <Button.Label>{t`Retry`}</Button.Label>
+              </Button>
+            }
+          />
+        )}
+      </Section>
+    </View>
   );
 }

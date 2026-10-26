@@ -44,6 +44,25 @@ jobs:
         working-directory: apps/web
         run: bun run test:mounted-i18n
 
+  native-bundle:
+    name: Mobile app bundles (iOS, Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      # Bundles the JavaScript for both platforms the way a release build
+      # does, to catch imports, assets or Metro config that would break a
+      # store build. No native build, no credentials, no EAS.
+      - name: Export the native bundles
+        working-directory: apps/native
+        env:
+          EXPO_PUBLIC_SERVER_URL: https://openvalens.example
+        run: bunx expo export --platform ios --platform android --output-dir "$RUNNER_TEMP/native-export"
+
   server-image-sanitizer:
     name: Built server image Sharp sanitizer proof
     if: always()

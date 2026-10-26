@@ -1,9 +1,18 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
-import { Card, Chip, useThemeColor } from "heroui-native";
-import { Text, View, Pressable } from "react-native";
+import { Link } from "expo-router";
+import { Button } from "heroui-native";
+import {
+  CircleCheck,
+  CircleX,
+  Hourglass,
+  LayoutDashboard,
+  LogOut,
+  Server,
+} from "lucide-react-native";
+import { Text, View } from "react-native";
 
+import { BloomMark, Details, Icon, Page, Sheet, StatusPill, ToneIcon } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
@@ -20,73 +29,83 @@ export default function Home() {
   const { data: session } = authClient.useSession();
   const { t } = useLingui();
 
-  const mutedColor = useThemeColor("muted");
-  const successColor = useThemeColor("success");
-  const dangerColor = useThemeColor("danger");
-
   return (
-    <Container className="p-6">
-      <View className="py-4 mb-6">
-        <Text className="text-4xl font-bold text-foreground mb-2">BETTER T STACK</Text>
-      </View>
-
-      {session?.user ? (
-        <Card variant="secondary" className="mb-6 p-4">
-          <Text className="text-foreground text-base mb-2">
-            <Trans>
-              Welcome, <Text className="font-medium">{session.user.name}</Text>
-            </Trans>
-          </Text>
-          <Text className="text-muted text-sm mb-4">{session.user.email}</Text>
-          <Pressable
-            className="bg-danger py-3 px-4 rounded-lg self-start active:opacity-70"
-            onPress={() => void signOutOfThisPhone()}
+    <Container>
+      <Page className="pt-10">
+        <View className="items-center gap-3">
+          <BloomMark size={56} />
+          <Text
+            className="font-display text-[34px] font-semibold leading-[40px] text-ink"
+            accessibilityRole="header"
           >
-            <Text className="text-foreground font-medium">{t`Sign Out`}</Text>
-          </Pressable>
-        </Card>
-      ) : null}
-
-      <Card variant="secondary" className="p-6">
-        <View className="flex-row items-center justify-between mb-4">
-          <Card.Title>{t`System Status`}</Card.Title>
-          <Chip variant="secondary" color={isConnected ? "success" : "danger"} size="sm">
-            <Chip.Label>{isConnected ? t`LIVE` : t`OFFLINE`}</Chip.Label>
-          </Chip>
+            OpenValens
+          </Text>
+          <Text className="text-center font-sans text-base text-ink-3">
+            {t`An open-source, private health record.`}
+          </Text>
         </View>
 
-        <Card className="p-4">
-          <View className="flex-row items-center">
-            <View
-              className={`w-3 h-3 rounded-full mr-3 ${isConnected ? "bg-success" : "bg-muted"}`}
-            />
-            <View className="flex-1">
-              <Text className="text-foreground font-medium mb-1">ORPC Backend</Text>
-              <Card.Description>
-                {isLoading
-                  ? t`Checking connection...`
-                  : isConnected
-                    ? t`Connected to API`
-                    : t`API Disconnected`}
-              </Card.Description>
+        {session?.user ? (
+          <Sheet className="gap-4">
+            <View className="gap-1">
+              <Text className="font-display text-xl text-ink">
+                <Trans>
+                  Welcome, <Text className="font-display font-semibold">{session.user.name}</Text>
+                </Trans>
+              </Text>
+              <Text className="font-sans text-sm text-ink-3">{session.user.email}</Text>
             </View>
-            {isLoading && <Ionicons name="hourglass-outline" size={20} color={mutedColor} />}
-            {!isLoading && isConnected && (
-              <Ionicons name="checkmark-circle" size={20} color={successColor} />
-            )}
-            {!isLoading && !isConnected && (
-              <Ionicons name="close-circle" size={20} color={dangerColor} />
-            )}
+            <Link href="/(drawer)/(tabs)" asChild>
+              <Button accessibilityLabel={t`Cockpit`}>
+                <Icon icon={LayoutDashboard} size={18} color="primary-foreground" />
+                <Button.Label>{t`Cockpit`}</Button.Label>
+              </Button>
+            </Link>
+            <Button variant="danger-soft" onPress={() => void signOutOfThisPhone()}>
+              <Icon icon={LogOut} size={18} color="danger" />
+              <Button.Label>{t`Sign Out`}</Button.Label>
+            </Button>
+          </Sheet>
+        ) : (
+          <SignIn />
+        )}
+
+        <Details summary={t`System Status`}>
+          <View className="gap-3">
+            <Sheet className="gap-3 p-4">
+              <View className="flex-row items-center justify-between gap-3">
+                <Text className="font-display text-lg font-semibold text-ink">{t`System Status`}</Text>
+                <StatusPill tone={isConnected ? "good" : "bad"}>
+                  {isConnected ? t`LIVE` : t`OFFLINE`}
+                </StatusPill>
+              </View>
+              <View className="flex-row items-center gap-3">
+                <ToneIcon icon={Server} tone="neutral" size="sm" />
+                <View className="flex-1">
+                  <Text className="font-sans text-base font-medium text-ink">ORPC Backend</Text>
+                  <Text className="font-sans text-sm text-ink-3">
+                    {isLoading
+                      ? t`Checking connection...`
+                      : isConnected
+                        ? t`Connected to API`
+                        : t`API Disconnected`}
+                  </Text>
+                </View>
+                {isLoading && <Icon icon={Hourglass} size={20} color="ink-3" />}
+                {!isLoading && isConnected && <Icon icon={CircleCheck} size={20} color="success" />}
+                {!isLoading && !isConnected && <Icon icon={CircleX} size={20} color="danger" />}
+              </View>
+            </Sheet>
+
+            <Sheet className="gap-2 p-4">
+              <Text className="font-display text-lg font-semibold text-ink">{t`Private Data`}</Text>
+              {protectedEcho && (
+                <Text className="font-sans text-sm text-ink-3">{protectedEcho.data?.message}</Text>
+              )}
+            </Sheet>
           </View>
-        </Card>
-      </Card>
-
-      <Card variant="secondary" className="mt-6 p-4">
-        <Card.Title className="mb-3">{t`Private Data`}</Card.Title>
-        {protectedEcho && <Card.Description>{protectedEcho.data?.message}</Card.Description>}
-      </Card>
-
-      {!session?.user && <SignIn />}
+        </Details>
+      </Page>
     </Container>
   );
 }

@@ -10,11 +10,20 @@ import {
   supplementFrequencyLabel,
 } from "@openvalens/api/presenters/supplements";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Chip, Spinner } from "heroui-native";
+import { Button, Spinner } from "heroui-native";
+import { Pill, Plus, Tablets } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  EmptyState,
+  ErrorState,
+  ListCard,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { ReminderDaysField, ReminderDaysRow } from "@/components/reminder-days";
 import { orpc } from "@/utils/orpc";
@@ -22,10 +31,13 @@ import { useThemeColor } from "@/utils/theme";
 
 const UNITS = ["mg", "mcg", "IU", "g", "ml"] as const;
 
+const INPUT_CLASS =
+  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View className="gap-2">
-      <Text className="text-sm font-medium text-foreground">{label}</Text>
+      <Text className="font-sans text-sm font-medium text-ink-3">{label}</Text>
       {children}
     </View>
   );
@@ -52,14 +64,12 @@ function Pills({
             onPress={() => onChange(option)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
-            className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-              selected ? "border-primary bg-primary/15" : "border-border bg-card"
+            className={`min-h-9 justify-center rounded-full border px-3.5 py-1.5 active:opacity-70 ${
+              selected ? "border-primary bg-primary/15" : "border-rule-2 bg-sheet"
             }`}
           >
             <Text
-              className={`text-sm ${
-                selected ? "font-medium text-foreground" : "text-muted-foreground"
-              }`}
+              className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}
             >
               {labelFor(option)}
             </Text>
@@ -81,19 +91,19 @@ function SaveStatus({
 }) {
   if (isError)
     return (
-      <Text className="text-sm text-destructive">
+      <Text className="font-sans text-sm text-destructive">
         <Trans>Could not save.</Trans>
       </Text>
     );
   if (pending)
     return (
-      <Text className="text-sm text-muted-foreground">
+      <Text className="font-sans text-sm text-ink-3">
         <Trans>Saving…</Trans>
       </Text>
     );
   if (isSuccess)
     return (
-      <Text className="text-sm text-success">
+      <Text className="font-sans text-sm text-success">
         <Trans>Saved</Trans>
       </Text>
     );
@@ -103,6 +113,7 @@ function SaveStatus({
 function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   const { t } = useLingui();
   const { _ } = useLinguiRuntime();
+  const placeholder = useThemeColor("ink-3");
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
@@ -139,63 +150,58 @@ function AddSupplementForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title={t`Add supplement`}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <Field label={t`Name`}>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Vitamin D"
-            className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-            placeholderTextColor="#9ca3af"
-          />
-        </Field>
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <Field label={t({ message: "Dose", comment: "safety" })}>
-              <TextInput
-                value={dose}
-                onChangeText={setDose}
-                placeholder="500"
-                keyboardType="numeric"
-                className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-                placeholderTextColor="#9ca3af"
-              />
-            </Field>
-          </View>
-        </View>
-        <Field label={t({ message: "Unit", comment: "safety" })}>
-          <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />
-        </Field>
-        <Field label={t({ message: "Frequency", comment: "safety" })}>
-          <Pills
-            options={SUPPLEMENT_FREQUENCIES}
-            value={frequency}
-            onChange={setFrequency}
-            labelFor={(option) => _(supplementFrequencyLabel(option))}
-          />
-        </Field>
-        {needsDays ? (
-          <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
-        ) : null}
-        <View className="flex-row items-center gap-3">
-          <Button onPress={() => void submit()} isDisabled={!valid || pending}>
-            {pending ? t`Saving…` : t`Save`}
-          </Button>
-          <SaveStatus
-            pending={pending}
-            isError={addSupplement.isError || addSchedule.isError}
-            isSuccess={addSupplement.isSuccess && addSchedule.isSuccess}
-          />
-        </View>
-      </Card>
-    </CardStack>
+    <Section sheet icon={Plus} tone="food" title={t`Add supplement`}>
+      <Field label={t`Name`}>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Vitamin D"
+          className={INPUT_CLASS}
+          placeholderTextColor={placeholder}
+        />
+      </Field>
+      <Field label={t({ message: "Dose", comment: "safety" })}>
+        <TextInput
+          value={dose}
+          onChangeText={setDose}
+          placeholder="500"
+          keyboardType="numeric"
+          className={INPUT_CLASS}
+          placeholderTextColor={placeholder}
+        />
+      </Field>
+      <Field label={t({ message: "Unit", comment: "safety" })}>
+        <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />
+      </Field>
+      <Field label={t({ message: "Frequency", comment: "safety" })}>
+        <Pills
+          options={SUPPLEMENT_FREQUENCIES}
+          value={frequency}
+          onChange={setFrequency}
+          labelFor={(option) => _(supplementFrequencyLabel(option))}
+        />
+      </Field>
+      {needsDays ? (
+        <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
+      ) : null}
+      <View className="flex-row items-center gap-3 pt-1">
+        <Button onPress={() => void submit()} isDisabled={!valid || pending}>
+          {pending ? t`Saving…` : t`Save`}
+        </Button>
+        <SaveStatus
+          pending={pending}
+          isError={addSupplement.isError || addSchedule.isError}
+          isSuccess={addSupplement.isSuccess && addSchedule.isSuccess}
+        />
+      </View>
+    </Section>
   );
 }
 
 function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
   const { t } = useLingui();
   const { _ } = useLinguiRuntime();
+  const placeholder = useThemeColor("ink-3");
   const [name, setName] = useState("");
   const [dose, setDose] = useState("");
   const [unit, setUnit] = useState<string>(UNITS[0]);
@@ -230,53 +236,51 @@ function AddMedicationForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title={t`Add medication`}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <Field label={t`Name`}>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Metformin"
-            className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-            placeholderTextColor="#9ca3af"
-          />
-        </Field>
-        <Field label={t({ message: "Dose", comment: "safety" })}>
-          <TextInput
-            value={dose}
-            onChangeText={setDose}
-            placeholder="500"
-            keyboardType="numeric"
-            className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-            placeholderTextColor="#9ca3af"
-          />
-        </Field>
-        <Field label={t({ message: "Unit", comment: "safety" })}>
-          <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />
-        </Field>
-        <Field label={t({ message: "Frequency", comment: "safety" })}>
-          <Pills
-            options={SUPPLEMENT_FREQUENCIES}
-            value={frequency}
-            onChange={setFrequency}
-            labelFor={(option) => _(supplementFrequencyLabel(option))}
-          />
-        </Field>
-        {needsDays ? (
-          <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
-        ) : null}
-        <View className="flex-row items-center gap-3">
-          <Button onPress={submit} isDisabled={!valid || addMedication.isPending}>
-            {addMedication.isPending ? t`Saving…` : t`Save`}
-          </Button>
-          <SaveStatus
-            pending={addMedication.isPending}
-            isError={addMedication.isError}
-            isSuccess={addMedication.isSuccess}
-          />
-        </View>
-      </Card>
-    </CardStack>
+    <Section sheet icon={Plus} tone="heart" title={t`Add medication`}>
+      <Field label={t`Name`}>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Metformin"
+          className={INPUT_CLASS}
+          placeholderTextColor={placeholder}
+        />
+      </Field>
+      <Field label={t({ message: "Dose", comment: "safety" })}>
+        <TextInput
+          value={dose}
+          onChangeText={setDose}
+          placeholder="500"
+          keyboardType="numeric"
+          className={INPUT_CLASS}
+          placeholderTextColor={placeholder}
+        />
+      </Field>
+      <Field label={t({ message: "Unit", comment: "safety" })}>
+        <Pills options={UNITS} value={unit} onChange={setUnit} labelFor={(option) => option} />
+      </Field>
+      <Field label={t({ message: "Frequency", comment: "safety" })}>
+        <Pills
+          options={SUPPLEMENT_FREQUENCIES}
+          value={frequency}
+          onChange={setFrequency}
+          labelFor={(option) => _(supplementFrequencyLabel(option))}
+        />
+      </Field>
+      {needsDays ? (
+        <ReminderDaysField frequency={frequency} value={days} onChange={setDays} />
+      ) : null}
+      <View className="flex-row items-center gap-3 pt-1">
+        <Button variant="outline" onPress={submit} isDisabled={!valid || addMedication.isPending}>
+          {addMedication.isPending ? t`Saving…` : t`Save`}
+        </Button>
+        <SaveStatus
+          pending={addMedication.isPending}
+          isError={addMedication.isError}
+          isSuccess={addMedication.isSuccess}
+        />
+      </View>
+    </Section>
   );
 }
 
@@ -300,31 +304,41 @@ export default function SupplementsScreen() {
     }),
   );
 
+  const header = <PageHeader title={t`Supplements`} />;
+
   if (supplements.isPending || medications.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          {header}
+          <Sheet className="items-center py-10">
+            <Spinner />
+          </Sheet>
+        </Page>
       </Container>
     );
 
   if (supplements.isError || medications.isError || !supplements.data || !medications.data)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">
-          <Trans>Could not load supplements.</Trans>
-        </Text>
-        <Pressable
-          onPress={() => {
-            void supplements.refetch();
-            void medications.refetch();
-          }}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">
-            <Trans>Retry</Trans>
-          </Text>
-        </Pressable>
+      <Container>
+        <Page>
+          {header}
+          <ErrorState
+            title={<Trans>Could not load supplements.</Trans>}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  void supplements.refetch();
+                  void medications.refetch();
+                }}
+              >
+                {t`Retry`}
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
@@ -346,125 +360,109 @@ export default function SupplementsScreen() {
         ),
       }}
     >
-      <View className="gap-6 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Supplements</Trans>
-          </Text>
-          <Text className="font-mono text-3xl text-foreground">
-            <Trans>Regimen</Trans>
-          </Text>
+      <Page>
+        {header}
+
+        <View className="gap-3" accessibilityLabel={t`Supplements`}>
+          {supplementList.length === 0 ? (
+            <EmptyState
+              icon={Pill}
+              tone="food"
+              title={<Trans>No supplements logged. Add one to get reminders.</Trans>}
+            />
+          ) : (
+            supplementList.map((supplement) => {
+              const scheduled =
+                supplement.activeScheduleCount > 0
+                  ? t`${plural(supplement.activeScheduleCount, { one: "# scheduled", other: "# scheduled" })}`
+                  : "";
+              const subtitle = [supplement.category, scheduled].filter(Boolean).join(", ");
+              return (
+                <ListCard
+                  key={supplement.id}
+                  icon={Pill}
+                  tone="food"
+                  title={supplement.name}
+                  subtitle={subtitle || undefined}
+                  chip={supplementDoseLabel(supplement.dose, null)}
+                >
+                  {supplement.schedules
+                    .filter(
+                      (schedule) =>
+                        schedule.status === "active" && frequencyNeedsDays(schedule.frequency),
+                    )
+                    .map((schedule) => (
+                      <ReminderDaysRow
+                        key={schedule.id}
+                        item={schedule}
+                        pending={saveScheduleDays.isPending}
+                        onSave={(daysOfWeek) =>
+                          saveScheduleDays.mutate({ id: schedule.id, daysOfWeek })
+                        }
+                      />
+                    ))}
+                </ListCard>
+              );
+            })
+          )}
         </View>
 
         <AddSupplementForm onSaved={() => void supplements.refetch()} />
 
-        {supplementList.length === 0 ? (
-          <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="text-center font-medium text-foreground">
-              <Trans>No supplements logged. Add one to get reminders.</Trans>
-            </Text>
-          </Card>
-        ) : (
-          <CardStack>
-            <Card variant="secondary" className="p-0">
-              {supplementList.map((supplement, index) => (
-                <View
-                  key={supplement.id}
-                  className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                    index < supplementList.length - 1 ? "border-b border-border" : ""
-                  }`}
+        <Section icon={Tablets} tone="heart" title={t`Medications`}>
+          {medicationList.length === 0 ? (
+            <EmptyState
+              icon={Tablets}
+              tone="heart"
+              title={<Trans>No medications logged. Add one to track your protocol.</Trans>}
+            />
+          ) : (
+            <View className="gap-3" accessibilityLabel={t`Medications`}>
+              {medicationList.map((medication) => (
+                <ListCard
+                  key={medication.id}
+                  icon={Tablets}
+                  tone="heart"
+                  title={medication.name}
+                  chip={medicationDoseLabel(medication.dose, null)}
+                  status={{
+                    label: _(medicationStatusLabel(medication.status)),
+                    tone: medication.status === "active" ? "good" : "neutral",
+                  }}
+                  subtitle={
+                    medication.frequency && !frequencyNeedsDays(medication.frequency)
+                      ? _(supplementFrequencyLabel(medication.frequency))
+                      : undefined
+                  }
                 >
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-base text-foreground">{supplement.name}</Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {supplementDoseLabel(supplement.dose, null)}
-                      {supplement.category ? ` · ${supplement.category}` : ""}
-                    </Text>
-                    {supplement.schedules
-                      .filter(
-                        (schedule) =>
-                          schedule.status === "active" && frequencyNeedsDays(schedule.frequency),
-                      )
-                      .map((schedule) => (
-                        <ReminderDaysRow
-                          key={schedule.id}
-                          item={schedule}
-                          pending={saveScheduleDays.isPending}
-                          onSave={(daysOfWeek) =>
-                            saveScheduleDays.mutate({ id: schedule.id, daysOfWeek })
-                          }
-                        />
-                      ))}
-                  </View>
-                  {supplement.activeScheduleCount > 0 ? (
-                    <Chip size="sm" color="default">
-                      <Chip.Label>
-                        {t`${plural(supplement.activeScheduleCount, { one: "# scheduled", other: "# scheduled" })}`}
-                      </Chip.Label>
-                    </Chip>
+                  {frequencyNeedsDays(medication.frequency) ? (
+                    <ReminderDaysRow
+                      item={medication}
+                      pending={saveMedicationDays.isPending}
+                      onSave={(daysOfWeek) =>
+                        saveMedicationDays.mutate({
+                          id: medication.id,
+                          name: medication.name,
+                          dose: medication.dose,
+                          route: medication.route,
+                          protocol: medication.protocol,
+                          frequency: medication.frequency,
+                          status: medication.status,
+                          interactions: medication.interactions,
+                          notes: medication.notes,
+                          daysOfWeek,
+                        })
+                      }
+                    />
                   ) : null}
-                </View>
+                </ListCard>
               ))}
-            </Card>
-          </CardStack>
-        )}
+            </View>
+          )}
+        </Section>
 
         <AddMedicationForm onSaved={() => void medications.refetch()} />
-
-        {medicationList.length === 0 ? (
-          <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="text-center font-medium text-foreground">
-              <Trans>No medications logged. Add one to track your protocol.</Trans>
-            </Text>
-          </Card>
-        ) : (
-          <CardStack>
-            <Card variant="secondary" className="p-0">
-              {medicationList.map((medication, index) => (
-                <View
-                  key={medication.id}
-                  className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                    index < medicationList.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-base text-foreground">{medication.name}</Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {medicationDoseLabel(medication.dose, null)}
-                      {medication.frequency && !frequencyNeedsDays(medication.frequency)
-                        ? ` · ${_(supplementFrequencyLabel(medication.frequency))}`
-                        : ""}
-                    </Text>
-                    {frequencyNeedsDays(medication.frequency) ? (
-                      <ReminderDaysRow
-                        item={medication}
-                        pending={saveMedicationDays.isPending}
-                        onSave={(daysOfWeek) =>
-                          saveMedicationDays.mutate({
-                            id: medication.id,
-                            name: medication.name,
-                            dose: medication.dose,
-                            route: medication.route,
-                            protocol: medication.protocol,
-                            frequency: medication.frequency,
-                            status: medication.status,
-                            interactions: medication.interactions,
-                            notes: medication.notes,
-                            daysOfWeek,
-                          })
-                        }
-                      />
-                    ) : null}
-                  </View>
-                  <Chip size="sm" color="default">
-                    <Chip.Label>{_(medicationStatusLabel(medication.status))}</Chip.Label>
-                  </Chip>
-                </View>
-              ))}
-            </Card>
-          </CardStack>
-        )}
-      </View>
+      </Page>
     </Container>
   );
 }

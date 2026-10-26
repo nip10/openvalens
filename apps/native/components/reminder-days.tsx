@@ -46,14 +46,12 @@ export function WeekdayPicker({
             accessibilityRole="button"
             accessibilityLabel={weekdayLabel(day, i18n.locale, "long")}
             accessibilityState={{ selected, disabled }}
-            className={`min-h-11 justify-center rounded-full border px-3 active:opacity-70 ${
-              selected ? "border-primary bg-primary/15" : "border-border bg-card"
+            className={`min-h-11 min-w-11 items-center justify-center rounded-full border px-3 active:opacity-70 ${
+              selected ? "border-signal bg-sidebar-accent" : "border-rule bg-paper"
             }`}
           >
             <Text
-              className={`text-sm ${
-                selected ? "font-medium text-foreground" : "text-muted-foreground"
-              }`}
+              className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}
             >
               {weekdayLabel(day, i18n.locale)}
             </Text>
@@ -77,11 +75,11 @@ export function ReminderDaysField({
   const { i18n } = useLingui();
   return (
     <View className="gap-2">
-      <Text className="text-sm font-medium text-foreground">
+      <Text className="font-sans text-sm font-medium text-ink-2">
         {i18n._(REMINDER_DAYS_COPY.label)}
       </Text>
       <WeekdayPicker value={value} onChange={onChange} />
-      <Text className="text-sm text-muted-foreground">
+      <Text className="font-sans text-sm text-ink-3">
         {i18n._(
           frequency === "training_days"
             ? REMINDER_DAYS_COPY.trainingNote
@@ -111,12 +109,12 @@ export function ReminderDaysRow({
   const cadence = reminderCadence(item, i18n.locale);
   return (
     <View className="gap-2 pt-1">
-      <Text className="text-xs text-muted-foreground">
+      <Text className="font-sans text-sm text-ink-3">
         {i18n._(cadence.frequency)}
         {cadence.days ? ` · ${cadence.days}` : ""}
       </Text>
       {cadence.needsDays ? (
-        <Text className="text-xs text-warning">{i18n._(REMINDER_DAYS_COPY.needed)}</Text>
+        <Text className="font-sans text-sm text-warning">{i18n._(REMINDER_DAYS_COPY.needed)}</Text>
       ) : null}
       {editing ? (
         <View className="gap-2">
@@ -132,7 +130,7 @@ export function ReminderDaysRow({
             >
               <Button.Label>{i18n._(REMINDER_DAYS_COPY.save)}</Button.Label>
             </Button>
-            <Button size="sm" variant="secondary" onPress={() => setEditing(false)}>
+            <Button size="sm" variant="ghost" onPress={() => setEditing(false)}>
               <Button.Label>{i18n._(REMINDER_DAYS_COPY.cancel)}</Button.Label>
             </Button>
           </View>
@@ -141,7 +139,7 @@ export function ReminderDaysRow({
         <View className="flex-row">
           <Button
             size="sm"
-            variant="secondary"
+            variant="outline"
             onPress={() => {
               setDraft(item.daysOfWeek ?? []);
               setEditing(true);

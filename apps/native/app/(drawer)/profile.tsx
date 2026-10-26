@@ -7,6 +7,7 @@ import {
   dirtySections,
   draftFromSnapshot,
   isAdultConfirmed,
+  isSectionAnswered,
   isSectionDirty,
   nextSetupSection,
   parseBirthYearInput,
@@ -14,6 +15,7 @@ import {
   rejectionMessage,
   resetSection,
   SECTION_TITLES,
+  SETUP_SECTIONS,
   setupProgress,
   wellnessProfileQueryKey,
   type SetupSection,
@@ -33,12 +35,34 @@ import {
   type WellnessProfileUpdateInput,
 } from "@openvalens/api/wellness-profile-contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
+import { Button, cn } from "heroui-native";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import {
+  Check,
+  Compass,
+  Globe,
+  ListChecks,
+  type LucideIcon,
+  ShieldCheck,
+  Smartphone,
+  Target,
+  UserRound,
+} from "lucide-react-native";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  ErrorState,
+  Icon,
+  InfoTip,
+  Meter,
+  Page,
+  PageHeader,
+  Prose,
+  Sheet,
+  StatusPill,
+  ToneIcon,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
@@ -76,24 +100,31 @@ export default function ProfileScreen() {
 
   if (profile.isPending) {
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          <PageHeader title={<Trans>Your profile</Trans>} />
+          <Sheet className="h-32" />
+          <Sheet className="h-48" />
+        </Page>
       </Container>
     );
   }
   if (profile.isError || !profile.data) {
     return (
-      <Container className="p-4">
-        <Card variant="secondary" className="items-center gap-2 p-6">
-          <Text className="text-base text-foreground" accessibilityRole="alert">
-            <Trans>Could not load your profile. Nothing has changed.</Trans>
-          </Text>
-          <Pressable onPress={() => void profile.refetch()} accessibilityRole="button">
-            <Text className="font-medium text-foreground underline">
-              <Trans>Retry</Trans>
-            </Text>
-          </Pressable>
-        </Card>
+      <Container>
+        <Page>
+          <PageHeader title={<Trans>Your profile</Trans>} />
+          <ErrorState
+            title={<Trans>Could not load your profile. Nothing has changed.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void profile.refetch()}>
+                <Button.Label>
+                  <Trans>Retry</Trans>
+                </Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
   }
@@ -198,173 +229,252 @@ function ProfileEditor({
   };
 
   return (
-    <Container className="p-4">
-      <View className="gap-6">
-        <View className="gap-2">
-          <Text className="text-2xl font-semibold text-foreground" accessibilityRole="header">
-            <Trans>Your profile</Trans>
-          </Text>
-          <Text className="text-sm text-muted-foreground">{PROFILE_INTRO}</Text>
-          <Text className="text-xs text-muted-foreground">{PROFILE_STORAGE_NOTE}</Text>
-          <Text className="text-xs text-muted-foreground">{PROFILE_OFFLINE_NOTE}</Text>
-        </View>
+    <Container>
+      <Page>
+        <PageHeader
+          title={<Trans>Your profile</Trans>}
+          description={<Trans>All optional. Answer what helps you.</Trans>}
+          info={
+            <>
+              <Prose>{PROFILE_INTRO}</Prose>
+              <Prose>{PROFILE_STORAGE_NOTE}</Prose>
+              <Prose>{PROFILE_OFFLINE_NOTE}</Prose>
+            </>
+          }
+          actions={
+            snapshot.setupStatus !== "completed" ? (
+              <>
+                <Button variant="outline" onPress={() => void finish("skipped")}>
+                  <Button.Label>
+                    <Trans>Skip for now</Trans>
+                  </Button.Label>
+                </Button>
+                <Button onPress={() => void finish("completed")} isDisabled={dirty.length > 0}>
+                  <Button.Label>
+                    <Trans>Done</Trans>
+                  </Button.Label>
+                </Button>
+              </>
+            ) : undefined
+          }
+        />
 
-        <Card variant="secondary" className="gap-2 p-4">
-          <Text className="text-sm text-foreground">
-            <Trans>
-              {progress.answered} of {progress.available} sections answered
-            </Trans>
-          </Text>
+        <Sheet className="gap-3">
+          <View className="flex-row items-center gap-3">
+            <ToneIcon icon={ListChecks} tone="signal" />
+            <Text className="shrink font-display text-lg font-medium text-ink">
+              <Trans>
+                {progress.answered} of {progress.available} sections answered
+              </Trans>
+            </Text>
+          </View>
+          <Meter
+            value={progress.available > 0 ? progress.answered / progress.available : 0}
+            tone="signal"
+          />
           {next ? (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-2">
               <Trans>Next unanswered: {i18n._(SECTION_TITLES[next])}</Trans>
             </Text>
           ) : null}
           {dirty.length > 0 ? (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               <Trans>Unsaved: {dirty.map((s) => i18n._(SECTION_TITLES[s])).join(", ")}</Trans>
             </Text>
           ) : null}
-          {snapshot.setupStatus !== "completed" ? (
-            <View className="flex-row gap-3">
-              <Button variant="secondary" onPress={() => void finish("skipped")}>
-                <Button.Label>
-                  <Trans>Skip for now</Trans>
-                </Button.Label>
-              </Button>
-              <Button onPress={() => void finish("completed")} isDisabled={dirty.length > 0}>
-                <Button.Label>
-                  <Trans>Done</Trans>
-                </Button.Label>
-              </Button>
-            </View>
-          ) : null}
           {pageError ? (
-            <Text className="text-sm text-destructive" accessibilityRole="alert">
+            <Text className="font-sans text-sm text-destructive" accessibilityRole="alert">
               {i18n._(pageError)}
             </Text>
           ) : null}
-        </Card>
+        </Sheet>
 
-        <Section {...sectionProps} section="eligibility" fields={["eligibility"]}>
-          <Chips field="eligibility" draft={draft} onChange={change} />
-        </Section>
+        <View className="gap-4">
+          <Section {...sectionProps} section="eligibility" fields={["eligibility"]}>
+            <Chips field="eligibility" draft={draft} onChange={change} />
+          </Section>
 
-        <Section {...sectionProps} section="focus" fields={["focus"]}>
-          <Chips field="focus" draft={draft} onChange={change} />
-        </Section>
+          <Section {...sectionProps} section="focus" fields={["focus"]}>
+            <Chips field="focus" draft={draft} onChange={change} />
+          </Section>
 
-        <Section {...sectionProps} section="inputMethod" fields={["inputMethod"]}>
-          <Chips field="inputMethod" draft={draft} onChange={change} />
-        </Section>
+          <Section {...sectionProps} section="inputMethod" fields={["inputMethod"]}>
+            <Chips field="inputMethod" draft={draft} onChange={change} />
+          </Section>
 
-        <GoalSection draft={draft} />
+          <GoalSection draft={draft} />
 
-        <Section {...sectionProps} section="region" fields={["region"]}>
-          <Chips field="region" draft={draft} onChange={change} />
-        </Section>
+          <Section {...sectionProps} section="region" fields={["region"]}>
+            <Chips field="region" draft={draft} onChange={change} />
+          </Section>
 
-        {adult ? (
-          <Section {...sectionProps} section="ageAndSex" fields={["birthYear", "sex"]}>
-            <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">
-                {WELLNESS_FIELD_COPY.birthYear.question}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {WELLNESS_FIELD_COPY.birthYear.purpose}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {WELLNESS_FIELD_COPY.birthYear.limits}
-              </Text>
-              <ConsentToggle
-                label={CONSENT_COPY.age_band}
-                checked={draft.consents.age_band}
-                onPress={() => {
-                  const toggled = toggleConsent("age_band", draft);
-                  if (toggled.answers.birthYear.state === "unknown") setBirthYearText("");
-                  change(toggled);
-                }}
-              />
-              <TextInput
-                value={birthYearText}
-                editable={draft.consents.age_band && draft.answers.birthYear.state !== "declined"}
-                keyboardType="number-pad"
-                maxLength={4}
-                accessibilityLabel={t`Birth year`}
-                placeholder={t`Birth year`}
-                onChangeText={(text) => {
-                  setBirthYearText(text);
-                  const parsed = parseBirthYearInput(text, new Date());
-                  if (parsed.ok) {
+          {adult ? (
+            <Section {...sectionProps} section="ageAndSex" fields={["birthYear", "sex"]}>
+              <View className="gap-3">
+                <QuestionLabel
+                  info={
+                    <>
+                      <Prose>{WELLNESS_FIELD_COPY.birthYear.purpose}</Prose>
+                      <Prose>{WELLNESS_FIELD_COPY.birthYear.limits}</Prose>
+                    </>
+                  }
+                >
+                  {WELLNESS_FIELD_COPY.birthYear.question}
+                </QuestionLabel>
+                <ConsentToggle
+                  label={CONSENT_COPY.age_band}
+                  checked={draft.consents.age_band}
+                  onPress={() => {
+                    const toggled = toggleConsent("age_band", draft);
+                    if (toggled.answers.birthYear.state === "unknown") setBirthYearText("");
+                    change(toggled);
+                  }}
+                />
+                <TextInput
+                  value={birthYearText}
+                  editable={draft.consents.age_band && draft.answers.birthYear.state !== "declined"}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  accessibilityLabel={t`Birth year`}
+                  placeholder={t`Birth year`}
+                  onChangeText={(text) => {
+                    setBirthYearText(text);
+                    const parsed = parseBirthYearInput(text, new Date());
+                    if (parsed.ok) {
+                      change({
+                        ...draft,
+                        answers: {
+                          ...draft.answers,
+                          birthYear:
+                            parsed.year === null
+                              ? { state: "unknown" }
+                              : { state: "recorded", value: parsed.year },
+                        },
+                      });
+                    }
+                  }}
+                  className="w-32 rounded-xl border border-rule bg-paper px-3 py-2.5 font-sans text-base text-ink"
+                  style={{ fontVariant: ["tabular-nums"] }}
+                />
+                {!parsedYear.ok ? (
+                  <Text className="font-sans text-sm text-destructive" accessibilityRole="alert">
+                    {i18n._(rejectionMessage(parsedYear.reason))}
+                  </Text>
+                ) : null}
+                <ConsentToggle
+                  label={DECLINE_LABEL}
+                  checked={draft.answers.birthYear.state === "declined"}
+                  onPress={() => {
+                    setBirthYearText("");
                     change({
                       ...draft,
                       answers: {
                         ...draft.answers,
                         birthYear:
-                          parsed.year === null
+                          draft.answers.birthYear.state === "declined"
                             ? { state: "unknown" }
-                            : { state: "recorded", value: parsed.year },
+                            : { state: "declined" },
                       },
                     });
+                  }}
+                />
+              </View>
+              <View className="gap-3 border-t border-rule pt-4">
+                <QuestionLabel
+                  info={
+                    <>
+                      <Prose>{WELLNESS_FIELD_COPY.sex.purpose}</Prose>
+                      <Prose>{WELLNESS_FIELD_COPY.sex.limits}</Prose>
+                    </>
                   }
-                }}
-                className="rounded-lg border border-border px-3 py-2 font-mono text-foreground"
-              />
-              {!parsedYear.ok ? (
-                <Text className="text-xs text-destructive" accessibilityRole="alert">
-                  {i18n._(rejectionMessage(parsedYear.reason))}
-                </Text>
-              ) : null}
-              <ConsentToggle
-                label={DECLINE_LABEL}
-                checked={draft.answers.birthYear.state === "declined"}
-                onPress={() => {
-                  setBirthYearText("");
-                  change({
-                    ...draft,
-                    answers: {
-                      ...draft.answers,
-                      birthYear:
-                        draft.answers.birthYear.state === "declined"
-                          ? { state: "unknown" }
-                          : { state: "declined" },
-                    },
-                  });
-                }}
-              />
-            </View>
-            <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">
-                {WELLNESS_FIELD_COPY.sex.question}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {WELLNESS_FIELD_COPY.sex.purpose}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {WELLNESS_FIELD_COPY.sex.limits}
-              </Text>
-              <ConsentToggle
-                label={CONSENT_COPY.sex}
-                checked={draft.consents.sex}
-                onPress={() => change(toggleConsent("sex", draft))}
-              />
-              <Chips field="sex" draft={draft} onChange={change} />
-            </View>
-          </Section>
-        ) : (
-          <CardStack title={i18n._(SECTION_TITLES.ageAndSex)}>
-            <Card variant="secondary" className="p-4">
-              <Text className="text-sm text-muted-foreground">
+                >
+                  {WELLNESS_FIELD_COPY.sex.question}
+                </QuestionLabel>
+                <ConsentToggle
+                  label={CONSENT_COPY.sex}
+                  checked={draft.consents.sex}
+                  onPress={() => change(toggleConsent("sex", draft))}
+                />
+                <Chips field="sex" draft={draft} onChange={change} />
+              </View>
+            </Section>
+          ) : (
+            <Sheet className="gap-4">
+              <StepHead section="ageAndSex" />
+              <Text className="font-sans text-sm leading-relaxed text-ink-3">
                 {unavailableExplanation("adult_confirmation_required")}{" "}
                 <Trans>
                   Age and sex are only used by adult features, so they are not asked here.
                 </Trans>
               </Text>
-            </Card>
-          </CardStack>
-        )}
-      </View>
+            </Sheet>
+          )}
+        </View>
+      </Page>
     </Container>
+  );
+}
+
+const SECTION_ICONS: Record<SetupSection, LucideIcon> = {
+  eligibility: ShieldCheck,
+  focus: Compass,
+  inputMethod: Smartphone,
+  goal: Target,
+  region: Globe,
+  ageAndSex: UserRound,
+};
+
+/**
+ * The head of one profile step (as on web): its number in a soft circle, its
+ * icon and title, an optional ⓘ with the why, and a pill once it has an answer.
+ */
+function StepHead({
+  section,
+  answered = false,
+  info,
+}: {
+  section: SetupSection;
+  answered?: boolean;
+  info?: ReactNode;
+}) {
+  const { i18n } = useLingui();
+  return (
+    <View className="flex-row flex-wrap items-center gap-3">
+      <View
+        className="h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Text className="font-display text-base font-medium text-signal">
+          {SETUP_SECTIONS.indexOf(section) + 1}
+        </Text>
+      </View>
+      <View className="min-w-0 flex-1 flex-row items-center gap-2">
+        <Icon icon={SECTION_ICONS[section]} size={18} />
+        <Text
+          className="shrink font-display text-xl font-semibold text-ink"
+          accessibilityRole="header"
+        >
+          {i18n._(SECTION_TITLES[section])}
+        </Text>
+        {info ? <InfoTip>{info}</InfoTip> : null}
+      </View>
+      {answered ? (
+        <StatusPill tone="good">
+          <Trans>Answered</Trans>
+        </StatusPill>
+      ) : null}
+    </View>
+  );
+}
+
+/** A question inside a step, in Fraunces, with its why behind an ⓘ. */
+function QuestionLabel({ children, info }: { children: ReactNode; info?: ReactNode }) {
+  return (
+    <View className="flex-row items-center gap-1.5">
+      <Text className="shrink font-display text-base font-medium text-ink">{children}</Text>
+      {info ? <InfoTip>{info}</InfoTip> : null}
+    </View>
   );
 }
 
@@ -396,53 +506,65 @@ function Section({
   const { t, i18n } = useLingui();
 
   return (
-    <CardStack title={i18n._(SECTION_TITLES[section])}>
-      <Card variant="secondary" className="gap-3 p-4">
-        {section !== "ageAndSex" ? (
-          <>
-            <Text className="text-sm font-medium text-foreground">{copy.question}</Text>
-            <Text className="text-xs text-muted-foreground">{copy.purpose}</Text>
-          </>
-        ) : null}
-        {children}
-        {section !== "ageAndSex" ? (
-          <Text className="text-xs text-muted-foreground">{copy.limits}</Text>
-        ) : null}
-        <View className="flex-row flex-wrap items-center gap-3">
-          <Button onPress={() => onSave(section)} isDisabled={!dirty || state.status === "saving"}>
-            <Button.Label>{state.status === "saving" ? t`Saving…` : t`Save`}</Button.Label>
+    <Sheet className="gap-4">
+      <StepHead
+        section={section}
+        answered={isSectionAnswered(section, snapshot)}
+        info={
+          section !== "ageAndSex" ? (
+            <>
+              <Prose>{copy.purpose}</Prose>
+              <Prose>{copy.limits}</Prose>
+            </>
+          ) : undefined
+        }
+      />
+      {section !== "ageAndSex" ? <QuestionLabel>{copy.question}</QuestionLabel> : null}
+      {children}
+      <View className="flex-row flex-wrap items-center gap-2">
+        <Button
+          variant={dirty ? "primary" : "outline"}
+          onPress={() => onSave(section)}
+          isDisabled={!dirty || state.status === "saving"}
+        >
+          <Button.Label>{state.status === "saving" ? t`Saving…` : t`Save`}</Button.Label>
+        </Button>
+        {dirty ? (
+          <Button variant="ghost" onPress={() => onUndo(section)}>
+            <Button.Label>
+              <Trans>Undo changes</Trans>
+            </Button.Label>
           </Button>
-          {dirty ? (
-            <Pressable onPress={() => onUndo(section)} accessibilityRole="button">
-              <Text className="text-sm text-foreground underline">
-                <Trans>Undo changes</Trans>
-              </Text>
-            </Pressable>
-          ) : null}
-          {hasAnswer ? (
-            <Pressable onPress={() => onClear(fields)} accessibilityRole="button">
-              <Text className="text-sm text-foreground underline">
-                <Trans>Clear answer</Trans>
-              </Text>
-            </Pressable>
-          ) : null}
-          <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-            {state.status === "error"
-              ? ""
-              : dirty
-                ? t`Unsaved changes`
-                : state.status === "saved"
-                  ? t`Saved`
-                  : ""}
-          </Text>
-        </View>
-        {state.status === "error" ? (
-          <Text className="text-sm text-destructive" accessibilityRole="alert">
-            {i18n._(state.message)}
-          </Text>
         ) : null}
-      </Card>
-    </CardStack>
+        {hasAnswer ? (
+          <Button variant="outline" onPress={() => onClear(fields)}>
+            <Button.Label>
+              <Trans>Clear answer</Trans>
+            </Button.Label>
+          </Button>
+        ) : null}
+        <Text
+          className={cn(
+            "font-sans text-sm",
+            state.status === "saved" && !dirty ? "text-success" : "text-ink-3",
+          )}
+          accessibilityLiveRegion="polite"
+        >
+          {state.status === "error"
+            ? ""
+            : dirty
+              ? t`Unsaved changes`
+              : state.status === "saved"
+                ? t`Saved`
+                : ""}
+        </Text>
+      </View>
+      {state.status === "error" ? (
+        <Text className="font-sans text-sm text-destructive" accessibilityRole="alert">
+          {i18n._(state.message)}
+        </Text>
+      ) : null}
+    </Sheet>
   );
 }
 
@@ -472,14 +594,17 @@ function Chips({
               checked: isSelected,
               disabled: chip.disabled,
             }}
-            className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-              isSelected ? "border-primary bg-primary/15" : "border-border bg-card"
-            } ${chip.disabled ? "opacity-40" : ""}`}
+            className={cn(
+              "min-h-11 justify-center rounded-full border px-4 active:opacity-70",
+              isSelected ? "border-signal bg-sidebar-accent" : "border-rule bg-paper",
+              chip.disabled && "opacity-40",
+            )}
           >
             <Text
-              className={`text-sm ${
-                isSelected ? "font-medium text-foreground" : "text-muted-foreground"
-              }`}
+              className={cn(
+                "font-sans text-sm",
+                isSelected ? "font-semibold text-ink" : "text-ink-2",
+              )}
             >
               {i18n._(chip.label)}
             </Text>
@@ -504,16 +629,17 @@ function ConsentToggle({
       onPress={onPress}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
-      className="flex-row items-start gap-2 active:opacity-70"
+      className="min-h-11 flex-row items-start gap-3 py-1 active:opacity-70"
     >
       <View
-        className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${
-          checked ? "border-primary bg-primary" : "border-border"
-        }`}
+        className={cn(
+          "mt-0.5 h-5 w-5 items-center justify-center rounded-md border",
+          checked ? "border-primary bg-primary" : "border-rule-2 bg-paper",
+        )}
       >
-        {checked ? <Text className="text-xs text-primary-foreground">✓</Text> : null}
+        {checked ? <Icon icon={Check} size={14} color="primary-foreground" /> : null}
       </View>
-      <Text className="flex-1 text-sm text-foreground">{label}</Text>
+      <Text className="flex-1 font-sans text-sm leading-relaxed text-ink-2">{label}</Text>
     </Pressable>
   );
 }
@@ -537,44 +663,48 @@ function GoalSection({ draft }: { draft: WellnessProfileDraft }) {
   const focus = draft.answers.focus.state === "recorded" ? draft.answers.focus.value[0] : undefined;
 
   return (
-    <CardStack title={i18n._(SECTION_TITLES.goal)}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <Text className="text-xs text-muted-foreground">
-          <Trans>
-            Add a goal in your own words if you have one. It is saved to your Goals, where you can
-            set a target and date later. Nothing is suggested or worked out for you.
-          </Trans>
-        </Text>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          maxLength={200}
-          accessibilityLabel={t`Goal`}
-          placeholder={t`For example: walk most days`}
-          className="rounded-lg border border-border px-3 py-2 text-foreground"
-        />
-        <Button
-          variant="secondary"
-          isDisabled={title.trim().length === 0 || add.isPending}
-          onPress={() =>
-            add.mutate({
-              title: title.trim(),
-              category: focus ? FOCUS_AREA_LABELS[focus] : "General",
-              status: "not_started",
-            })
-          }
+    <Sheet className="gap-4">
+      <StepHead
+        section="goal"
+        info={
+          <Prose>
+            <Trans>
+              Add a goal in your own words if you have one. It is saved to your Goals, where you can
+              set a target and date later. Nothing is suggested or worked out for you.
+            </Trans>
+          </Prose>
+        }
+      />
+      <TextInput
+        value={title}
+        onChangeText={setTitle}
+        maxLength={200}
+        accessibilityLabel={t`Goal`}
+        placeholder={t`For example: walk most days`}
+        className="rounded-xl border border-rule bg-paper px-3 py-2.5 font-sans text-base text-ink"
+      />
+      <Button
+        variant="outline"
+        className="self-start"
+        isDisabled={title.trim().length === 0 || add.isPending}
+        onPress={() =>
+          add.mutate({
+            title: title.trim(),
+            category: focus ? FOCUS_AREA_LABELS[focus] : "General",
+            status: "not_started",
+          })
+        }
+      >
+        <Button.Label>{add.isPending ? t`Adding…` : t`Add goal`}</Button.Label>
+      </Button>
+      {message ? (
+        <Text
+          className={cn("font-sans text-sm", message.ok ? "text-success" : "text-destructive")}
+          accessibilityRole={message.ok ? "text" : "alert"}
         >
-          <Button.Label>{add.isPending ? t`Adding…` : t`Add goal`}</Button.Label>
-        </Button>
-        {message ? (
-          <Text
-            className={`text-sm ${message.ok ? "text-success" : "text-destructive"}`}
-            accessibilityRole={message.ok ? "text" : "alert"}
-          >
-            {i18n._(message.text)}
-          </Text>
-        ) : null}
-      </Card>
-    </CardStack>
+          {i18n._(message.text)}
+        </Text>
+      ) : null}
+    </Sheet>
   );
 }

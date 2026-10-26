@@ -53,13 +53,54 @@ import {
 import type { I18n } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Link, useLocalSearchParams } from "expo-router";
-import { Button, Card, Spinner } from "heroui-native";
+import { type Href, Link, useLocalSearchParams } from "expo-router";
+import { Button, Spinner, cn } from "heroui-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import {
+  Apple,
+  Bookmark,
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  CloudOff,
+  Coffee,
+  Copy,
+  type LucideIcon,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Sandwich,
+  ScanBarcode,
+  Search,
+  SlidersHorizontal,
+  Soup,
+  Square,
+  SquareCheck,
+  Star,
+  Trash2,
+  TriangleAlert,
+  Utensils,
+  UtensilsCrossed,
+  Zap,
+} from "lucide-react-native";
 import { AccessibilityInfo, Alert, Pressable, Text, TextInput, View } from "react-native";
 
 import { BarcodeScanner } from "@/components/barcode-scanner";
+import {
+  Details,
+  ErrorState,
+  Icon,
+  InfoTip,
+  Page,
+  PageHeader,
+  Prose,
+  Section,
+  Sheet,
+  StatusPill,
+  ToneChip,
+  ToneIcon,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { LoggingStreakCard } from "@/components/logging-streak-card";
 import { NutritionDayTotals } from "@/components/nutrition-day-totals";
@@ -74,7 +115,9 @@ import {
   useCacheFirst,
   useOfflineWriteSessionKey,
 } from "@/lib/offline/sync";
+import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 /**
  * Meal diary (Issue #77) with food search and barcode scan/lookup (#75).
@@ -85,7 +128,28 @@ import { client, orpc } from "@/utils/orpc";
  */
 
 const inputClass =
-  "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
+  "min-h-11 rounded-xl border border-rule bg-card px-3 font-sans text-base text-ink";
+
+/** The same icon per meal as the web diary. */
+const SLOT_ICONS: Record<MealSlot, LucideIcon> = {
+  breakfast: Coffee,
+  lunch: Sandwich,
+  dinner: Soup,
+  snack: Apple,
+  other: Utensils,
+};
+
+/** Macros listed beside energy in each food's ⓘ, as on web. */
+const LEDGER_MACROS = [
+  "proteinG",
+  "carbohydrateG",
+  "fatG",
+] as const satisfies readonly NutrientKey[];
+
+/** The placeholder colour for text inputs, from the theme. */
+function usePlaceholderColor() {
+  return useThemeColor("ink-3");
+}
 
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
@@ -96,12 +160,9 @@ function SyncBadge({ state }: { state: DiarySyncState }) {
   if (state === "synced") return null;
   const label = i18n._(SYNC_STATE_LABELS[state]);
   return (
-    <Text
-      className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground"
-      accessibilityLabel={t`Sync state: ${label}`}
-    >
-      {label}
-    </Text>
+    <View accessible accessibilityLabel={t`Sync state: ${label}`}>
+      <StatusPill tone={state === "needs_attention" ? "warn" : "neutral"}>{label}</StatusPill>
+    </View>
   );
 }
 
@@ -110,11 +171,13 @@ function Chip({
   selected,
   onPress,
   disabled = false,
+  icon,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
   disabled?: boolean;
+  icon?: LucideIcon;
 }) {
   return (
     <Pressable
@@ -122,9 +185,14 @@ function Chip({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`min-h-11 justify-center rounded-lg border px-3 ${selected ? "border-foreground bg-accent" : "border-border"}`}
+      className={cn(
+        "min-h-11 flex-row items-center justify-center gap-1.5 rounded-full border px-4",
+        selected ? "border-signal bg-sidebar-accent" : "border-rule bg-card",
+        disabled && "opacity-55",
+      )}
     >
-      <Text className="text-sm text-foreground">{label}</Text>
+      {icon ? <Icon icon={icon} size={16} color={selected ? "signal" : "ink-3"} /> : null}
+      <Text className={cn("font-sans text-sm text-ink", selected && "font-semibold")}>{label}</Text>
     </Pressable>
   );
 }
@@ -307,35 +375,36 @@ export default function NutritionScreen() {
       ],
     );
 
+  const slotRows = (slot: MealSlot) =>
+    visible.filter(
+      (row) =>
+        (row.kind === "server"
+          ? row.entry.slot
+          : row.change.op.kind === "log"
+            ? row.change.op.input.slot
+            : null) === slot,
+    );
+
   return (
     <Container>
-      <View className="gap-5 p-4">
-        <View className="flex-row flex-wrap items-center justify-between gap-2">
-          <Chip
-            label={t`Previous`}
-            selected={false}
-            onPress={() => go(shiftLocalDate(localDate, -1))}
-          />
-          <Text className="font-mono text-lg text-foreground" accessibilityRole="header">
-            {localDate}
-          </Text>
-          <Chip label={t`Next`} selected={false} onPress={() => go(shiftLocalDate(localDate, 1))} />
-        </View>
-
-        <Link href="/foods" asChild>
-          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-            <Text className="text-sm text-foreground underline">
-              {i18n._(CUSTOM_FOOD_COPY.manageLink)}
-            </Text>
-          </Pressable>
-        </Link>
-        <Link href="/nutrition-targets" asChild>
-          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-            <Text className="text-sm text-foreground underline">
-              {i18n._(TARGET_COPY.settingsLink)}
-            </Text>
-          </Pressable>
-        </Link>
+      <Page>
+        <PageHeader
+          title={i18n._(DIARY_COPY.title)}
+          actions={
+            <>
+              <HeaderLink
+                href="/foods"
+                icon={Bookmark}
+                label={i18n._(CUSTOM_FOOD_COPY.manageLink)}
+              />
+              <HeaderLink
+                href="/nutrition-targets"
+                icon={SlidersHorizontal}
+                label={i18n._(TARGET_COPY.settingsLink)}
+              />
+            </>
+          }
+        />
 
         <OutboxBanner outbox={outbox} />
 
@@ -344,59 +413,89 @@ export default function NutritionScreen() {
         ))}
 
         {undo ? (
-          <Card variant="secondary" className="flex-row items-center justify-between p-3">
-            <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+          <Sheet className="flex-row items-center justify-between gap-3 p-4">
+            <Text className="flex-1 font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
               {t`Entry removed. ${undoName}`}
             </Text>
-            <Button size="sm" variant="secondary" onPress={undoDelete}>
-              {i18n._(DIARY_COPY.undo)}
+            <Button size="sm" variant="outline" onPress={undoDelete}>
+              <Button.Label>{i18n._(DIARY_COPY.undo)}</Button.Label>
             </Button>
-          </Card>
+          </Sheet>
         ) : null}
 
-        {day.isPending && !day.data ? (
-          <Spinner />
-        ) : day.isError && !day.data ? (
-          <Pressable onPress={() => void day.refetch()} accessibilityRole="button">
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(DIARY_COPY.networkError)} {i18n._(DIARY_COPY.retry)}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <Card variant="secondary" className="gap-3 p-4">
-          <View className="flex-row items-start justify-between gap-3">
-            <View className="flex-1 gap-1">
-              <Text className="font-medium text-foreground" accessibilityLiveRegion="polite">
-                {i18n._(statusText.label)}
-                {pendingStatus ? ` · ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
+        <View className="gap-4">
+          <View className="flex-row items-center gap-3">
+            <ToneIcon icon={UtensilsCrossed} tone="food" size="lg" />
+            <View className="min-w-0 flex-1 gap-1">
+              <Text
+                className="font-display text-2xl font-semibold text-ink"
+                accessibilityRole="header"
+              >
+                {friendlyDate(i18n, localDate)}
               </Text>
-              <Text className="text-sm text-muted-foreground">
-                {i18n._(statusText.description)}
-              </Text>
+              <View className="flex-row flex-wrap items-center gap-1.5">
+                <View accessibilityLiveRegion="polite">
+                  <StatusPill tone={status === "complete" ? "good" : "neutral"}>
+                    {i18n._(statusText.label)}
+                    {pendingStatus ? ` · ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
+                  </StatusPill>
+                </View>
+                <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
+              </View>
             </View>
-            <Button size="sm" variant="secondary" onPress={toggleStatus}>
-              {i18n._(status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete)}
+            <Button
+              size="sm"
+              variant="outline"
+              isIconOnly
+              accessibilityLabel={t`Previous`}
+              onPress={() => go(shiftLocalDate(localDate, -1))}
+            >
+              <Icon icon={ChevronLeft} size={18} color="ink-2" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              isIconOnly
+              accessibilityLabel={t`Next`}
+              onPress={() => go(shiftLocalDate(localDate, 1))}
+            >
+              <Icon icon={ChevronRight} size={18} color="ink-2" />
             </Button>
           </View>
+          <Button size="sm" variant="outline" className="self-start" onPress={toggleStatus}>
+            <Icon icon={CircleCheck} size={16} color="ink-2" />
+            <Button.Label>
+              {i18n._(status === "complete" ? DIARY_COPY.clearComplete : DIARY_COPY.markComplete)}
+            </Button.Label>
+          </Button>
+
+          {day.isPending && !day.data ? (
+            <Sheet className="items-center">
+              <Spinner />
+            </Sheet>
+          ) : day.isError && !day.data ? (
+            <ErrorState
+              title={i18n._(DIARY_COPY.networkError)}
+              action={
+                <Button size="sm" variant="outline" onPress={() => void day.refetch()}>
+                  <Button.Label>{i18n._(DIARY_COPY.retry)}</Button.Label>
+                </Button>
+              }
+            />
+          ) : null}
+
           <NutritionDayTotals
             totals={summary.totals}
             sources={summarySources}
             pending={pendingRows}
             hideNumbers={hideNumbers}
+            targets={targets.data?.targetsOn.targets ?? []}
           />
-        </Card>
+
+          <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
+        </View>
 
         <LoggingStreakCard streak={streak.isSuccess ? streak.data : undefined} />
-
-        <TargetsOnDay targets={targets.data?.targetsOn.targets ?? []} hideNumbers={hideNumbers} />
-
-        <PlainWaterSection
-          key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
-          localDate={localDate}
-          timeZone={timeZone}
-          hideNumbers={hideNumbers}
-        />
 
         <AddFood
           key={initialQuery}
@@ -409,65 +508,90 @@ export default function NutritionScreen() {
           hideNumbers={hideNumbers}
         />
 
-        {MEAL_SLOTS.map((slot) => {
-          const slotRows = visible.filter(
-            (row) =>
-              (row.kind === "server"
-                ? row.entry.slot
-                : row.change.op.kind === "log"
-                  ? row.change.op.input.slot
-                  : null) === slot,
-          );
-          return (
-            <View key={slot} className="gap-2">
-              <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
-                {i18n._(SLOT_LABELS[slot])}
-              </Text>
-              {slotRows.length === 0 ? (
-                <Text className="text-sm text-muted-foreground">
-                  {i18n._(DIARY_COPY.emptySlot)}
-                </Text>
-              ) : (
-                slotRows.map((row) => (
-                  <EntryCard
-                    key={row.key}
-                    row={row}
-                    outbox={outbox}
-                    onDelete={() => remove(row)}
-                    hideNumbers={hideNumbers}
-                    favorite={
-                      row.kind === "server" &&
-                      (foods.data?.favorites ?? []).some(
-                        (food) =>
-                          food.ref.kind === "snapshot" &&
-                          food.ref.snapshotId === row.entry.food.snapshotId,
-                      )
-                    }
-                  />
-                ))
-              )}
-            </View>
-          );
-        })}
+        <View className="gap-4">
+          {MEAL_SLOTS.map((slot) => {
+            const rowsInSlot = slotRows(slot);
+            return (
+              <Sheet key={slot} className="gap-3">
+                <View className="flex-row items-center gap-3">
+                  <ToneIcon icon={SLOT_ICONS[slot]} tone="food" size="sm" />
+                  <Text
+                    className="font-display text-xl font-semibold text-ink"
+                    accessibilityRole="header"
+                  >
+                    {i18n._(SLOT_LABELS[slot])}
+                  </Text>
+                </View>
+                {rowsInSlot.length === 0 ? (
+                  <Text className="font-sans text-sm text-ink-3">
+                    {i18n._(DIARY_COPY.emptySlot)}
+                  </Text>
+                ) : (
+                  rowsInSlot.map((row, index) => (
+                    <EntryCard
+                      key={row.key}
+                      row={row}
+                      first={index === 0}
+                      outbox={outbox}
+                      onDelete={() => remove(row)}
+                      hideNumbers={hideNumbers}
+                      favorite={
+                        row.kind === "server" &&
+                        (foods.data?.favorites ?? []).some(
+                          (food) =>
+                            food.ref.kind === "snapshot" &&
+                            food.ref.snapshotId === row.entry.food.snapshotId,
+                        )
+                      }
+                    />
+                  ))
+                )}
+              </Sheet>
+            );
+          })}
 
-        <CopyDay
+          <CopyDay
+            localDate={localDate}
+            timeZone={timeZone}
+            outbox={outbox}
+            hideNumbers={hideNumbers}
+          />
+        </View>
+
+        <PlainWaterSection
+          key={`${outbox.scope ?? "signed-out"}:${localDate}:${timeZone}`}
           localDate={localDate}
           timeZone={timeZone}
-          outbox={outbox}
           hideNumbers={hideNumbers}
         />
 
         <Pressable
           onPress={clearDeviceData}
           accessibilityRole="button"
-          className="min-h-11 justify-center"
+          className="min-h-11 flex-row items-center gap-2 self-start rounded-full px-1 active:opacity-70"
         >
-          <Text className="text-sm text-muted-foreground underline">
+          <Icon icon={Trash2} size={16} color="ink-3" />
+          <Text className="font-sans text-sm text-ink-3 underline">
             {i18n._(DIARY_COPY.clearCache)}
           </Text>
         </Pressable>
-      </View>
+      </Page>
     </Container>
+  );
+}
+
+/** A quiet pill link under the page title (my foods, targets). */
+function HeaderLink({ href, icon, label }: { href: Href; icon: LucideIcon; label: string }) {
+  return (
+    <Link href={href} asChild>
+      <Pressable
+        accessibilityRole="link"
+        className="min-h-11 flex-row items-center gap-1.5 rounded-full border border-rule bg-card px-4 active:opacity-80"
+      >
+        <Icon icon={icon} size={16} color="food" />
+        <Text className="font-sans text-sm font-medium text-ink-2">{label}</Text>
+      </Pressable>
+    </Link>
   );
 }
 
@@ -493,30 +617,36 @@ function TargetsOnDay({
   const { i18n } = useLingui();
   if (targets.length === 0) return null;
   return (
-    <Card variant="secondary" className="gap-2 p-4">
-      <Text className="font-medium text-foreground" accessibilityRole="header">
-        {i18n._(TARGET_COPY.yourTargets)}
-      </Text>
-      {targets.map((target) => (
-        <View key={target.id} className="gap-0.5">
-          <Text className="text-sm text-foreground">
-            {i18n._(NUTRIENT_LABELS[target.nutrient].label)}:{" "}
-            {formatTarget(target, hideNumbers, i18n)}
-          </Text>
-          <Text className="text-xs text-muted-foreground">
-            {i18n._(describeTargetSource(target))}
-          </Text>
-        </View>
-      ))}
-      <Text className="text-xs text-muted-foreground">{i18n._(TARGET_COPY.targetsNote)}</Text>
-      <Link href="/nutrition-targets" asChild>
-        <Pressable accessibilityRole="link" className="min-h-11 justify-center">
-          <Text className="text-sm text-foreground underline">
-            {i18n._(TARGET_COPY.settingsLink)}
-          </Text>
-        </Pressable>
-      </Link>
-    </Card>
+    <Details summary={i18n._(TARGET_COPY.yourTargets)}>
+      <Sheet className="gap-3" accessibilityLabel={i18n._(TARGET_COPY.yourTargets)}>
+        {targets.map((target, index) => (
+          <View key={target.id} className={cn("gap-0.5", index > 0 && "border-t border-rule pt-2")}>
+            <View className="flex-row flex-wrap items-baseline justify-between gap-x-3">
+              <Text className="font-sans text-sm font-semibold text-ink">
+                {i18n._(NUTRIENT_LABELS[target.nutrient].label)}
+              </Text>
+              <Text
+                className="font-sans text-sm text-ink"
+                style={{ fontVariant: ["tabular-nums"] }}
+              >
+                {formatTarget(target, hideNumbers, i18n)}
+              </Text>
+            </View>
+            <Text className="font-sans text-xs text-ink-3">
+              {i18n._(describeTargetSource(target))}
+            </Text>
+          </View>
+        ))}
+        <Text className="font-sans text-sm text-ink-3">{i18n._(TARGET_COPY.targetsNote)}</Text>
+        <Link href="/nutrition-targets" asChild>
+          <Pressable accessibilityRole="link" className="min-h-11 justify-center">
+            <Text className="font-sans text-sm text-ink-2 underline">
+              {i18n._(TARGET_COPY.settingsLink)}
+            </Text>
+          </Pressable>
+        </Link>
+      </Sheet>
+    </Details>
   );
 }
 
@@ -533,16 +663,19 @@ function OutboxBanner({ outbox }: { outbox: DiaryOutbox }) {
   ].filter(Boolean);
   const partsText = parts.join(", ");
   return (
-    <Card variant="secondary" className="flex-row items-center justify-between gap-3 p-3">
-      <Text className="flex-1 text-sm text-foreground" accessibilityLiveRegion="polite">
+    <Sheet className="flex-row items-center gap-3 p-4">
+      <ToneIcon icon={outbox.online ? RefreshCw : CloudOff} tone="neutral" size="sm" />
+      <Text className="flex-1 font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
         {outbox.online
           ? t`Diary changes: ${partsText}`
           : t`Offline. Changes are saved on this device: ${partsText}`}
       </Text>
-      <Button size="sm" variant="secondary" onPress={() => void outbox.syncNow()}>
-        <Trans>Sync now</Trans>
+      <Button size="sm" variant="outline" onPress={() => void outbox.syncNow()}>
+        <Button.Label>
+          <Trans>Sync now</Trans>
+        </Button.Label>
       </Button>
-    </Card>
+    </Sheet>
   );
 }
 
@@ -597,43 +730,48 @@ function AttentionCard({
   const otherSlot = server ? i18n._(SLOT_LABELS[server.slot]) : "";
   const errorCode = item.lastErrorCode ?? t`unknown`;
   return (
-    <Card variant="secondary" className="gap-2 p-4" accessibilityRole="alert">
-      <Text className="font-medium text-foreground">
-        {server ? i18n._(DIARY_COPY.conflictTitle) : t`Needs attention: ${change}`}
-      </Text>
+    <Sheet className="gap-3 border-warning/40" accessibilityRole="alert">
+      <View className="flex-row items-start gap-3">
+        <Icon icon={TriangleAlert} size={20} color="warning" />
+        <Text className="flex-1 font-sans text-base font-semibold text-ink">
+          {server ? i18n._(DIARY_COPY.conflictTitle) : t`Needs attention: ${change}`}
+        </Text>
+      </View>
       {server ? (
-        <Text className="text-sm text-muted-foreground">
+        <Text className="font-sans text-sm text-ink-2">
           {server.deleted
             ? t`Other version: ${otherName}, deleted. Your change: ${change}.`
             : t`Other version: ${otherName}, ${otherAmount}, ${otherSlot}. Your change: ${change}.`}
         </Text>
       ) : (
-        <Text className="text-sm text-muted-foreground">
+        <Text className="font-sans text-sm text-ink-2">
           {t`The server did not accept this change (${errorCode}). It stays on this device until you retry or discard it.`}
         </Text>
       )}
       <View className="flex-row flex-wrap gap-2">
         {server ? (
           <>
-            <Button size="sm" onPress={() => outbox.keepMine(item.id)}>
-              {i18n._(DIARY_COPY.keepMine)}
+            <Button size="sm" variant="outline" onPress={() => outbox.keepMine(item.id)}>
+              <Button.Label>{i18n._(DIARY_COPY.keepMine)}</Button.Label>
             </Button>
-            <Button size="sm" variant="secondary" onPress={() => outbox.discard(item.id)}>
-              {i18n._(DIARY_COPY.keepServer)}
+            <Button size="sm" variant="ghost" onPress={() => outbox.discard(item.id)}>
+              <Button.Label>{i18n._(DIARY_COPY.keepServer)}</Button.Label>
             </Button>
           </>
         ) : (
           <>
-            <Button size="sm" onPress={() => outbox.retry(item.id)}>
-              {i18n._(DIARY_COPY.retry)}
+            <Button size="sm" variant="outline" onPress={() => outbox.retry(item.id)}>
+              <Button.Label>{i18n._(DIARY_COPY.retry)}</Button.Label>
             </Button>
-            <Button size="sm" variant="secondary" onPress={() => outbox.discard(item.id)}>
-              <Trans>Discard change</Trans>
+            <Button size="sm" variant="ghost" onPress={() => outbox.discard(item.id)}>
+              <Button.Label>
+                <Trans>Discard change</Trans>
+              </Button.Label>
             </Button>
           </>
         )}
       </View>
-    </Card>
+    </Sheet>
   );
 }
 
@@ -653,10 +791,13 @@ function FavoriteButton({
   const queryClient = useQueryClient();
   const mutation = useMutation(orpc.nutritionDiary.setFavorite.mutationOptions());
   const { t, i18n } = useLingui();
+  const food = useThemeColor("food");
+  const ink3 = useThemeColor("ink-3");
   return (
     <Button
       size="sm"
-      variant="secondary"
+      variant="ghost"
+      isIconOnly
       isDisabled={mutation.isPending}
       accessibilityLabel={
         favorite ? t`Remove from favourites: ${name}` : t`Add to favourites: ${name}`
@@ -677,19 +818,27 @@ function FavoriteButton({
         )
       }
     >
-      {favorite ? t`Unfavourite` : t`Favourite`}
+      <Star
+        size={18}
+        color={favorite ? food : ink3}
+        fill={favorite ? food : "transparent"}
+        strokeWidth={2}
+        aria-hidden
+      />
     </Button>
   );
 }
 
 function EntryCard({
   row,
+  first,
   outbox,
   onDelete,
   hideNumbers,
   favorite,
 }: {
   row: DiaryRow;
+  first: boolean;
   outbox: DiaryOutbox;
   onDelete: () => void;
   hideNumbers: boolean;
@@ -758,27 +907,40 @@ function EntryCard({
     announce(t`Updated ${name}`);
   };
 
+  const attribution =
+    row.kind === "server" && row.entry.food.source === "off" ? row.entry.food.attribution : null;
+  const brand = row.kind === "server" ? row.entry.food.brand : null;
+  const figure = (key: NutrientKey) =>
+    hideNumbers ? i18n._(HIDDEN_VALUE) : formatNutrientValue(key, nutrients?.[key] ?? null, i18n);
+
   return (
-    <Card variant="secondary" className="gap-2 p-3">
+    <View className={cn("gap-2", !first && "border-t border-rule pt-3")}>
       <View className="flex-row items-start justify-between gap-2">
-        <View className="flex-1 gap-0.5">
-          <Text className="font-medium text-foreground">{name}</Text>
-          <Text className="text-xs text-muted-foreground">
-            {hideNumbers ? i18n._(HIDDEN_VALUE) : formatAmount(amount, unit, i18n)} ·{" "}
-            {i18n._(foodSourceLabel(source))}
-          </Text>
-          {row.kind === "server" &&
-          row.entry.food.source === "off" &&
-          row.entry.food.attribution ? (
-            <Text className="text-xs text-muted-foreground">{row.entry.food.attribution}</Text>
-          ) : null}
-          <Text className="font-mono text-sm text-foreground">
-            {hideNumbers
-              ? i18n._(HIDDEN_VALUE)
-              : formatNutrientValue("energyKcal", nutrients?.energyKcal ?? null, i18n)}
+        <View className="min-w-0 flex-1 gap-0.5">
+          <View className="flex-row items-center gap-1">
+            <Text className="shrink font-sans text-base font-semibold text-ink">{name}</Text>
+            <InfoTip label={t`Nutrients and source`} title={name}>
+              {LEDGER_MACROS.map((key) => (
+                <View key={key} className="flex-row justify-between gap-4">
+                  <Prose>{i18n._(NUTRIENT_LABELS[key].label)}</Prose>
+                  <Prose className="text-ink">{figure(key)}</Prose>
+                </View>
+              ))}
+              <Prose className="text-ink-3">
+                {i18n._(foodSourceLabel(source))}
+                {brand ? `, ${brand}` : ""}
+              </Prose>
+              {attribution ? <Prose className="text-ink-3">{attribution}</Prose> : null}
+            </InfoTip>
+          </View>
+          <Text className="font-sans text-sm text-ink-3" style={{ fontVariant: ["tabular-nums"] }}>
+            {hideNumbers ? i18n._(HIDDEN_VALUE) : formatAmount(amount, unit, i18n)}
           </Text>
         </View>
-        <SyncBadge state={row.sync} />
+        <View className="items-end gap-1">
+          <ToneChip tone="food">{figure("energyKcal")}</ToneChip>
+          <SyncBadge state={row.sync} />
+        </View>
       </View>
       {editing ? (
         <View className="flex-row flex-wrap items-center gap-2">
@@ -790,14 +952,17 @@ function EntryCard({
             className={`${inputClass} flex-1`}
           />
           <Button size="sm" onPress={save}>
-            <Trans>Save</Trans>
+            <Button.Label>
+              <Trans>Save</Trans>
+            </Button.Label>
           </Button>
         </View>
       ) : null}
-      <View className="flex-row flex-wrap gap-2">
+      <View className="flex-row flex-wrap gap-1">
         <Button
           size="sm"
-          variant="secondary"
+          variant="ghost"
+          isIconOnly
           onPress={() =>
             setEditing((value) => {
               const next = !value;
@@ -807,21 +972,22 @@ function EntryCard({
           }
           accessibilityLabel={t`Edit ${name}`}
         >
-          <Trans>Edit</Trans>
+          <Icon icon={Pencil} size={18} color="ink-3" />
         </Button>
         <Button
           size="sm"
-          variant="secondary"
+          variant="ghost"
+          isIconOnly
           onPress={onDelete}
           accessibilityLabel={t`Delete ${name}`}
         >
-          <Trans>Delete</Trans>
+          <Icon icon={Trash2} size={18} color="ink-3" />
         </Button>
         {row.kind === "server" ? (
           <FavoriteButton snapshotId={row.entry.food.snapshotId} name={name} favorite={favorite} />
         ) : null}
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -869,12 +1035,18 @@ function CandidateRow({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`min-h-11 justify-center rounded-lg px-3 ${selected ? "bg-accent" : ""}`}
+      className={cn(
+        "min-h-11 flex-row items-center gap-2 rounded-xl px-3 py-2",
+        selected ? "bg-sidebar-accent" : "active:bg-paper-3",
+      )}
     >
-      <Text className="text-sm text-foreground">
+      <Text className="flex-1 font-sans text-sm text-ink">
         {candidate.name}
-        {candidate.brand ? ` · ${candidate.brand}` : ""} · {i18n._(candidate.sourceLabel)}
+        <Text className="text-ink-3">
+          {candidate.brand ? ` · ${candidate.brand}` : ""} · {i18n._(candidate.sourceLabel)}
+        </Text>
       </Text>
+      {selected ? <Icon icon={CircleCheck} size={18} color="signal" /> : null}
     </Pressable>
   );
 }
@@ -884,7 +1056,7 @@ function AttributionNotes({ candidates }: { candidates: readonly FoodCandidate[]
   return (
     <>
       {notices.map((notice) => (
-        <Text key={notice} className="text-xs text-muted-foreground">
+        <Text key={notice} className="font-sans text-xs text-ink-3">
           {notice}
         </Text>
       ))}
@@ -929,6 +1101,8 @@ function AddFood({
   const lifecycle = useAddFoodSaveLifecycle(contextKey);
   const { editable } = lifecycle;
   const { t, i18n } = useLingui();
+  const placeholder = usePlaceholderColor();
+  const accentForeground = useThemeColor("accent-foreground");
 
   // Cached foods stay searchable offline: filtering is local.
   const saved = useMemo(() => {
@@ -961,7 +1135,13 @@ function AddFood({
     [search.data, savedIds],
   );
 
-  if (!open) return <Button onPress={() => setOpen(true)}>{i18n._(DIARY_COPY.addFood)}</Button>;
+  if (!open)
+    return (
+      <Button onPress={() => setOpen(true)}>
+        <Plus size={18} color={accentForeground} strokeWidth={2} aria-hidden />
+        <Button.Label>{i18n._(DIARY_COPY.addFood)}</Button.Label>
+      </Button>
+    );
 
   const select = (candidate: FoodCandidate) => {
     if (!lifecycle.canMutate()) return;
@@ -1166,24 +1346,24 @@ function AddFood({
   };
 
   return (
-    <Card variant="secondary" className="gap-3 p-4">
-      <Text className="text-lg font-medium text-foreground" accessibilityRole="header">
-        {i18n._(DIARY_COPY.addFood)}
-      </Text>
+    <Section title={i18n._(DIARY_COPY.addFood)} icon={Plus} tone="food" sheet>
       <View className="flex-row flex-wrap gap-2">
         <Chip
+          icon={Search}
           label={t`Search and recents`}
           selected={mode === "choose"}
           onPress={() => switchMode("choose")}
           disabled={!editable}
         />
         <Chip
+          icon={ScanBarcode}
           label={i18n._(BARCODE_COPY.mode)}
           selected={mode === "barcode"}
           onPress={() => switchMode("barcode")}
           disabled={!editable}
         />
         <Chip
+          icon={Zap}
           label={t`Quick add`}
           selected={mode === "quick"}
           onPress={() => switchMode("quick")}
@@ -1200,13 +1380,16 @@ function AddFood({
             accessibilityLabel={i18n._(BARCODE_COPY.searchLabel)}
             accessibilityHint={i18n._(BARCODE_COPY.searchHint)}
             className={inputClass}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={placeholder}
           />
-          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+          <Text
+            className="pt-1 font-sans text-sm font-semibold text-ink-2"
+            accessibilityRole="header"
+          >
             {i18n._(BARCODE_COPY.savedFoods)}
           </Text>
           {saved.length === 0 ? (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               {query.trim()
                 ? i18n._(BARCODE_COPY.searchEmpty)
                 : t`No saved or recent foods yet. Search, scan a barcode or use quick add.`}
@@ -1224,15 +1407,18 @@ function AddFood({
                 />
               ))
           )}
-          <Text className="text-sm font-medium text-foreground" accessibilityRole="header">
+          <Text
+            className="pt-1 font-sans text-sm font-semibold text-ink-2"
+            accessibilityRole="header"
+          >
             {i18n._(BARCODE_COPY.searchResults)}
           </Text>
           {!outbox.online ? (
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               {i18n._(BARCODE_COPY.searchOffline)}
             </Text>
           ) : !searchable ? (
-            <Text className="text-sm text-muted-foreground">{i18n._(BARCODE_COPY.searchHint)}</Text>
+            <Text className="font-sans text-sm text-ink-3">{i18n._(BARCODE_COPY.searchHint)}</Text>
           ) : search.isPending ? (
             <Spinner />
           ) : search.isError ? (
@@ -1243,12 +1429,15 @@ function AddFood({
               }}
               accessibilityRole="button"
             >
-              <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              <Text
+                className="font-sans text-sm text-ink-2 underline"
+                accessibilityLiveRegion="polite"
+              >
                 {i18n._(BARCODE_COPY.searchFailed)} {i18n._(DIARY_COPY.retry)}
               </Text>
             </Pressable>
           ) : found.length === 0 ? (
-            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+            <Text className="font-sans text-sm text-ink-3" accessibilityLiveRegion="polite">
               {i18n._(BARCODE_COPY.searchEmpty)}
             </Text>
           ) : (
@@ -1278,9 +1467,9 @@ function AddFood({
       ) : (
         <View className="gap-2">
           {draftNote ? (
-            <View className="gap-1 rounded-lg border border-border p-3">
-              <Text className="text-sm text-foreground">{draftNote}</Text>
-              <Text className="text-sm text-muted-foreground">
+            <View className="gap-1 rounded-2xl bg-paper-2 p-3">
+              <Text className="font-sans text-sm text-ink-2">{draftNote}</Text>
+              <Text className="font-sans text-sm text-ink-3">
                 {i18n._(BARCODE_COPY.manualNote)}
               </Text>
             </View>
@@ -1292,10 +1481,10 @@ function AddFood({
             placeholder={t`Food name`}
             accessibilityLabel={t`Food name`}
             className={inputClass}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={placeholder}
           />
           <View className="flex-row flex-wrap items-center gap-2">
-            <Text className="text-sm text-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               <Trans>Values per</Trans>
             </Text>
             <TextInput
@@ -1337,7 +1526,7 @@ function AddFood({
               placeholder={i18n._(nutrientFieldLabel(key))}
               accessibilityLabel={i18n._(nutrientFieldLabel(key))}
               className={inputClass}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={placeholder}
             />
           ))}
           {draftNote !== null ? (
@@ -1349,21 +1538,23 @@ function AddFood({
               placeholder={t`Barcode (kept with this food), optional`}
               accessibilityLabel={t`Barcode (kept with this food), optional`}
               className={inputClass}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={placeholder}
             />
           ) : null}
           {!parsed.ok && quick.name ? (
-            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+            <Text className="font-sans text-sm text-ink-3" accessibilityLiveRegion="polite">
               {i18n._(parsed.error)}
             </Text>
           ) : null}
         </View>
       )}
 
+      <Text className="pt-1 font-sans text-sm text-ink-3">{t`Meal`}</Text>
       <View className="flex-row flex-wrap gap-2" accessibilityLabel={t`Meal`}>
         {MEAL_SLOTS.map((option) => (
           <Chip
             key={option}
+            icon={SLOT_ICONS[option]}
             label={i18n._(SLOT_LABELS[option])}
             selected={slot === option}
             onPress={() => {
@@ -1373,6 +1564,7 @@ function AddFood({
           />
         ))}
       </View>
+      <Text className="pt-1 font-sans text-sm text-ink-3">{t`Amount`}</Text>
       <View className="flex-row flex-wrap items-center gap-2">
         <TextInput
           value={amount}
@@ -1405,36 +1597,41 @@ function AddFood({
           accessibilityState={{ checked: saveAsFood }}
           className="min-h-11 flex-row items-center gap-2"
         >
-          <Text className="text-foreground">{saveAsFood ? "☑" : "□"}</Text>
-          <Text className="text-sm text-foreground">
+          <Icon
+            icon={saveAsFood ? SquareCheck : Square}
+            size={20}
+            color={saveAsFood ? "signal" : "ink-3"}
+          />
+          <Text className="font-sans text-sm text-ink-2">
             <Trans>Save to my foods for next time</Trans>
           </Text>
         </Pressable>
       ) : null}
 
       {preview ? (
-        <View className="gap-1" accessibilityLabel={t`Review before saving`}>
-          <Text className="text-sm font-medium text-foreground">{reviewLine()}</Text>
-          <Text className="text-sm text-muted-foreground">
+        <View
+          className="gap-1 rounded-2xl bg-food-soft p-3"
+          accessibilityLabel={t`Review before saving`}
+        >
+          <Text className="font-sans text-sm font-semibold text-ink">{reviewLine()}</Text>
+          <Text className="font-sans text-sm text-ink-2">
             {formatNutrientSummaryLine(preview, hideNumbers, i18n)}
           </Text>
-          {missingNote ? (
-            <Text className="text-sm text-muted-foreground">{missingNote}</Text>
-          ) : null}
+          {missingNote ? <Text className="font-sans text-sm text-ink-3">{missingNote}</Text> : null}
           {mode !== "quick" && chosen?.attribution ? (
-            <Text className="text-xs text-muted-foreground">{chosen.attribution}</Text>
+            <Text className="font-sans text-xs text-ink-3">{chosen.attribution}</Text>
           ) : null}
           {mode === "barcode" ? (
-            <Text className="text-xs text-muted-foreground">{i18n._(BARCODE_COPY.verify)}</Text>
+            <Text className="font-sans text-xs text-ink-3">{i18n._(BARCODE_COPY.verify)}</Text>
           ) : null}
         </View>
       ) : null}
       <View className="flex-row flex-wrap gap-2">
         <Button onPress={save} isDisabled={!preview || !editable}>
-          {t`Save to ${slotLabel}`}
+          <Button.Label>{t`Save to ${slotLabel}`}</Button.Label>
         </Button>
         <Button
-          variant="secondary"
+          variant="ghost"
           onPress={() => {
             const wasSaving = !lifecycle.canMutate();
             close();
@@ -1448,7 +1645,7 @@ function AddFood({
           <Trans>Cancel</Trans>
         </Button>
       </View>
-    </Card>
+    </Section>
   );
 }
 
@@ -1479,6 +1676,7 @@ function BarcodePanel({
   const [outcome, setOutcome] = useState<BarcodeOutcome | null>(null);
   const [last, setLast] = useState<string | null>(null);
   const { t, i18n } = useLingui();
+  const placeholder = usePlaceholderColor();
 
   const run = async (raw: string) => {
     if (!canMutate()) return;
@@ -1527,12 +1725,13 @@ function BarcodePanel({
       ) : (
         <Button
           isDisabled={disabled}
-          variant="secondary"
+          variant="outline"
           onPress={() => {
             if (canMutate()) setScanning(true);
           }}
         >
-          {i18n._(BARCODE_COPY.scan)}
+          <Icon icon={ScanBarcode} size={18} color="food" />
+          <Button.Label>{i18n._(BARCODE_COPY.scan)}</Button.Label>
         </Button>
       )}
       <View className="flex-row flex-wrap items-center gap-2">
@@ -1546,13 +1745,14 @@ function BarcodePanel({
           placeholder={i18n._(BARCODE_COPY.digitsLabel)}
           accessibilityLabel={i18n._(BARCODE_COPY.digitsLabel)}
           className={`${inputClass} flex-1`}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={placeholder}
           onSubmitEditing={() => {
             if (canMutate()) void run(digits);
           }}
         />
         <Button
           size="sm"
+          variant="outline"
           onPress={() => {
             if (canMutate()) void run(digits);
           }}
@@ -1562,13 +1762,13 @@ function BarcodePanel({
         </Button>
       </View>
       {message ? (
-        <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+        <Text className="font-sans text-sm text-ink" accessibilityLiveRegion="polite">
           {message}
         </Text>
       ) : null}
       {outcome?.kind === "matches" ? (
         <View className="gap-2">
-          <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+          <Text className="font-sans text-sm text-ink" accessibilityLiveRegion="polite">
             {i18n._(outcome.message)}
           </Text>
           {outcome.candidates.map((candidate) => (
@@ -1583,7 +1783,7 @@ function BarcodePanel({
           <AttributionNotes candidates={outcome.candidates} />
           <Button
             size="sm"
-            variant="secondary"
+            variant="ghost"
             isDisabled={disabled}
             onPress={() => {
               if (canMutate()) onManualDraft(outcome.barcode, i18n._(BARCODE_COPY.notThisProduct));
@@ -1594,12 +1794,13 @@ function BarcodePanel({
         </View>
       ) : outcome?.kind === "manual" ? (
         <View className="gap-2">
-          <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+          <Text className="font-sans text-sm text-ink" accessibilityLiveRegion="polite">
             {i18n._(outcome.message)}
           </Text>
           <View className="flex-row flex-wrap gap-2">
             <Button
               size="sm"
+              variant="outline"
               isDisabled={disabled}
               onPress={() => {
                 if (canMutate()) onManualDraft(outcome.barcode, i18n._(outcome.message));
@@ -1610,7 +1811,7 @@ function BarcodePanel({
             {outcome.canRetry && last ? (
               <Button
                 size="sm"
-                variant="secondary"
+                variant="ghost"
                 isDisabled={disabled}
                 onPress={() => {
                   if (canMutate()) void run(last);
@@ -1641,14 +1842,16 @@ function CopyDay({
   const [fromDate, setFromDate] = useState(() => shiftLocalDate(localDate, -1));
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const { t, i18n } = useLingui();
+  const placeholder = usePlaceholderColor();
   const source = useCacheFirst(
     `${DIARY_CACHE_PREFIX}day:${fromDate}`,
     orpc.nutritionDiary.getDay.queryOptions({ input: { localDate: fromDate } }),
   );
   if (!open)
     return (
-      <Button variant="secondary" onPress={() => setOpen(true)}>
-        {t`Copy from ${fromDate}`}
+      <Button variant="outline" size="sm" className="self-start" onPress={() => setOpen(true)}>
+        <Icon icon={Copy} size={16} color="ink-2" />
+        <Button.Label>{t`Copy from ${fromDate}`}</Button.Label>
       </Button>
     );
   const entries = source.data?.entries ?? [];
@@ -1672,10 +1875,13 @@ function CopyDay({
     setOpen(false);
   };
   return (
-    <Card variant="secondary" className="gap-2 p-4">
-      <Text className="font-medium text-foreground">
-        <Trans>Copy from</Trans>
-      </Text>
+    <Sheet className="gap-3">
+      <View className="flex-row items-center gap-3">
+        <ToneIcon icon={Copy} tone="food" size="sm" />
+        <Text className="font-display text-lg font-semibold text-ink" accessibilityRole="header">
+          <Trans>Copy from</Trans>
+        </Text>
+      </View>
       <TextInput
         value={fromDate}
         onChangeText={(value) => {
@@ -1685,14 +1891,15 @@ function CopyDay({
         accessibilityLabel={t`Copy from date`}
         placeholder="YYYY-MM-DD"
         className={inputClass}
+        placeholderTextColor={placeholder}
       />
       {fromDate === localDate ? (
-        <Text className="text-sm text-muted-foreground">
+        <Text className="font-sans text-sm text-ink-3">
           <Trans>Choose a different day.</Trans>
         </Text>
       ) : null}
       {fromDate !== localDate && entries.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{i18n._(DIARY_COPY.empty)}</Text>
+        <Text className="font-sans text-sm text-ink-3">{i18n._(DIARY_COPY.empty)}</Text>
       ) : fromDate !== localDate ? (
         entries.map((entry) => {
           const checked = selected.has(entry.id);
@@ -1709,8 +1916,12 @@ function CopyDay({
               accessibilityState={{ checked }}
               className="min-h-11 flex-row items-center gap-2"
             >
-              <Text className="text-foreground">{checked ? "[x]" : "[ ]"}</Text>
-              <Text className="text-sm text-foreground">
+              <Icon
+                icon={checked ? SquareCheck : Square}
+                size={20}
+                color={checked ? "signal" : "ink-3"}
+              />
+              <Text className="flex-1 font-sans text-sm text-ink-2">
                 {i18n._(SLOT_LABELS[entry.slot])}: {entry.food.name},{" "}
                 {hideNumbers ? i18n._(HIDDEN_VALUE) : formatAmount(entry.amount, entry.unit, i18n)}
               </Text>
@@ -1719,13 +1930,13 @@ function CopyDay({
         })
       ) : null}
       <View className="flex-row flex-wrap gap-2">
-        <Button onPress={confirm} isDisabled={selected.size === 0}>
-          {t`Copy ${selected.size} to ${localDate}`}
+        <Button size="sm" variant="outline" onPress={confirm} isDisabled={selected.size === 0}>
+          <Button.Label>{t`Copy ${selected.size} to ${localDate}`}</Button.Label>
         </Button>
-        <Button variant="secondary" onPress={() => setOpen(false)}>
+        <Button size="sm" variant="ghost" onPress={() => setOpen(false)}>
           <Trans>Cancel</Trans>
         </Button>
       </View>
-    </Card>
+    </Sheet>
   );
 }

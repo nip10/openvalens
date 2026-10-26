@@ -11,14 +11,25 @@ import {
   INSIGHT_KIND_LABELS,
 } from "@openvalens/api/presenters/insights";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
+import { Button } from "heroui-native";
+import { BellRing, Clock, Mail, Smartphone } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { Switch, Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  Details,
+  ErrorState,
+  Page,
+  PageHeader,
+  Prose,
+  Sheet,
+  StatusPill,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
+import { SettingsGroup, SettingsRow } from "@/components/language-section";
 import { describePushRegistration, enablePushOnThisPhone } from "@/lib/push-notifications";
 import { client, orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 /**
  * Issue #92 — insight notification settings on mobile, parity with the web
@@ -41,16 +52,62 @@ function Toggle({
   disabled?: boolean;
   onChange: (next: boolean) => void;
 }) {
+  const signal = useThemeColor("signal");
   return (
     <View className="min-h-11 flex-row items-center justify-between gap-3">
-      <Text className="flex-1 text-sm text-foreground">{label}</Text>
+      <Text className="flex-1 font-sans text-sm text-ink-2">{label}</Text>
       <Switch
         value={value}
         disabled={disabled}
         onValueChange={onChange}
         accessibilityLabel={label}
         accessibilityState={{ checked: value, disabled }}
+        trackColor={{ true: signal }}
       />
+    </View>
+  );
+}
+
+/** An hour of the day, one step earlier or later, with the time set as a figure. */
+function HourStepper({
+  hour,
+  label,
+  disabled,
+  onChange,
+}: {
+  hour: number;
+  label: string;
+  disabled: boolean;
+  onChange: (hour: number) => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <View className="flex-row items-center gap-4">
+      <Button
+        size="sm"
+        variant="outline"
+        isDisabled={disabled || hour === 0}
+        accessibilityLabel={t`Earlier`}
+        onPress={() => onChange(hour - 1)}
+      >
+        <Button.Label>−</Button.Label>
+      </Button>
+      <Text
+        className="font-display text-2xl font-medium text-ink"
+        style={{ fontVariant: ["tabular-nums"] }}
+        accessibilityLabel={`${label} ${hour}:00`}
+      >
+        {String(hour).padStart(2, "0")}:00
+      </Text>
+      <Button
+        size="sm"
+        variant="outline"
+        isDisabled={disabled || hour === 23}
+        accessibilityLabel={t`Later`}
+        onPress={() => onChange(hour + 1)}
+      >
+        <Button.Label>+</Button.Label>
+      </Button>
     </View>
   );
 }
@@ -81,25 +138,29 @@ export default function InsightSettingsScreen() {
 
   if (preferences.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          <PageHeader title={i18n._(INSIGHT_DELIVERY_COPY.settingsTitle)} />
+          <Sheet className="h-48" />
+        </Page>
       </Container>
     );
   if (preferences.isError || !preferences.data)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">
-          <Trans>Could not load notification settings.</Trans>
-        </Text>
-        <Pressable
-          onPress={() => void preferences.refetch()}
-          accessibilityRole="button"
-          className="min-h-11 justify-center px-4"
-        >
-          <Text className="font-medium text-foreground underline">
-            <Trans>Retry</Trans>
-          </Text>
-        </Pressable>
+      <Container>
+        <Page>
+          <PageHeader title={i18n._(INSIGHT_DELIVERY_COPY.settingsTitle)} />
+          <ErrorState
+            title={<Trans>Could not load notification settings.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void preferences.refetch()}>
+                <Button.Label>
+                  <Trans>Retry</Trans>
+                </Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
@@ -110,34 +171,61 @@ export default function InsightSettingsScreen() {
     acknowledged || prefs.email.acknowledgedVersion === EMAIL_DIGEST_ACKNOWLEDGEMENT_VERSION;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+  const timeZoneNote = (
+    <View className="gap-2">
+      <Text className="font-sans text-sm text-ink-3">
+        {i18n._(INSIGHT_DELIVERY_COPY.timeZone)}: {prefs.timeZone}
+      </Text>
+      {zone && zone !== prefs.timeZone ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="self-start"
+          isDisabled={busy}
+          onPress={() => update.mutate({ timeZone: zone })}
+        >
+          <Button.Label>
+            <Trans>Use {zone}</Trans>
+          </Button.Label>
+        </Button>
+      ) : null}
+    </View>
+  );
+
   return (
     <Container>
-      <View className="gap-6 p-4">
-        <View className="gap-1">
-          <Text className="font-mono text-2xl text-foreground">
-            {i18n._(INSIGHT_DELIVERY_COPY.settingsTitle)}
-          </Text>
-          <Text className="text-sm text-muted-foreground">
-            {i18n._(INSIGHT_DELIVERY_COPY.settingsIntro)}
-          </Text>
+      <Page>
+        <PageHeader
+          title={i18n._(INSIGHT_DELIVERY_COPY.settingsTitle)}
+          info={i18n._(INSIGHT_DELIVERY_COPY.settingsIntro)}
+        />
+
+        <SettingsGroup>
           {!canDeliver ? (
-            <Text className="text-sm text-foreground">
+            <Text className="py-4 font-sans text-sm text-ink-2">
               {i18n._(INSIGHT_DELIVERY_COPY.ownerOnly)}
             </Text>
           ) : null}
-        </View>
 
-        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.pushTitle)}>
-          <Card variant="secondary" className="gap-2 p-4">
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(INSIGHT_DELIVERY_COPY.pushDescription)}
-            </Text>
+          <SettingsRow
+            icon={Smartphone}
+            label={i18n._(INSIGHT_DELIVERY_COPY.pushTitle)}
+            info={i18n._(INSIGHT_DELIVERY_COPY.pushDescription)}
+            divider={!canDeliver}
+            trailing={
+              prefs.pushAvailable ? (
+                <StatusPill tone={prefs.push.enabled ? "good" : "neutral"}>
+                  {prefs.push.enabled ? t`On` : t`Off`}
+                </StatusPill>
+              ) : undefined
+            }
+          >
             {!prefs.pushAvailable ? (
-              <Text className="text-sm text-foreground">
+              <Text className="font-sans text-sm text-ink-2">
                 {i18n._(INSIGHT_DELIVERY_COPY.pushUnavailable)}
               </Text>
             ) : (
-              <>
+              <View>
                 <Toggle
                   label={i18n._(INSIGHT_DELIVERY_COPY.pushTitle)}
                   value={prefs.push.enabled}
@@ -155,7 +243,8 @@ export default function InsightSettingsScreen() {
                 {prefs.push.enabled && prefs.push.registeredDevices === 0 ? (
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="outline"
+                    className="mt-1 self-start"
                     onPress={() => enablePush.mutate()}
                     isDisabled={busy}
                   >
@@ -164,24 +253,30 @@ export default function InsightSettingsScreen() {
                     </Button.Label>
                   </Button>
                 ) : null}
-              </>
+              </View>
             )}
-          </Card>
-        </CardStack>
+          </SettingsRow>
 
-        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.emailTitle)}>
-          <Card variant="secondary" className="gap-2 p-4">
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(INSIGHT_DELIVERY_COPY.emailDescription)}
-            </Text>
+          <SettingsRow
+            icon={Mail}
+            label={i18n._(INSIGHT_DELIVERY_COPY.emailTitle)}
+            info={i18n._(INSIGHT_DELIVERY_COPY.emailDescription)}
+            divider
+            trailing={
+              prefs.emailAvailable && prefs.email.enabled ? (
+                <StatusPill tone="good">{t`On`}</StatusPill>
+              ) : undefined
+            }
+          >
             {!prefs.emailAvailable ? (
-              <Text className="text-sm text-foreground">
+              <Text className="font-sans text-sm text-ink-2">
                 {i18n._(INSIGHT_DELIVERY_COPY.emailUnavailable)}
               </Text>
             ) : prefs.email.enabled ? (
               <Button
                 size="sm"
-                variant="secondary"
+                variant="outline"
+                className="self-start"
                 isDisabled={busy || !canDeliver}
                 onPress={() => update.mutate({ email: { enabled: false } })}
               >
@@ -190,8 +285,8 @@ export default function InsightSettingsScreen() {
                 </Button.Label>
               </Button>
             ) : (
-              <>
-                <Text className="text-sm text-foreground">
+              <View className="gap-2">
+                <Text className="font-sans text-sm leading-relaxed text-ink-3">
                   {i18n._(INSIGHT_DELIVERY_COPY.emailDisclosure)}
                 </Text>
                 <Toggle
@@ -202,6 +297,7 @@ export default function InsightSettingsScreen() {
                 />
                 <Button
                   size="sm"
+                  className="self-start"
                   isDisabled={busy || !canDeliver || !ack}
                   onPress={() =>
                     update.mutate({
@@ -216,15 +312,23 @@ export default function InsightSettingsScreen() {
                     <Trans>Turn on the weekly email</Trans>
                   </Button.Label>
                 </Button>
-              </>
+              </View>
             )}
-          </Card>
-        </CardStack>
+          </SettingsRow>
 
-        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTitle)}>
-          <Card variant="secondary" className="gap-2 p-4">
+          <SettingsRow
+            icon={BellRing}
+            label={i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTitle)}
+            info={
+              <>
+                <Prose>{i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersEmailNote)}</Prose>
+                <Prose>{i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}</Prose>
+              </>
+            }
+            divider
+          >
             {!prefs.emailAvailable ? (
-              <Text className="text-sm text-foreground">
+              <Text className="font-sans text-sm text-ink-2">
                 {i18n._(INSIGHT_DELIVERY_COPY.emailUnavailable)}
               </Text>
             ) : (
@@ -235,148 +339,70 @@ export default function InsightSettingsScreen() {
                 onChange={(email) => update.mutate({ dailyReminders: { email } })}
               />
             )}
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersEmailNote)}
-            </Text>
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersTelegram)}
-            </Text>
             {prefs.dailyReminders.email || prefs.dailyReminders.telegramConnected ? (
-              <View className="gap-2 border-t border-border pt-2">
-                <Text className="text-sm font-medium text-foreground">
+              <View className="gap-3 rounded-2xl bg-paper-2 p-3">
+                <Text className="font-sans text-sm font-medium text-ink-2">
                   {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHour)}
                 </Text>
-                <View className="flex-row items-center justify-between">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    isDisabled={busy || prefs.dailyReminders.hour === 0}
-                    accessibilityLabel={t`Earlier`}
-                    onPress={() =>
-                      update.mutate({ dailyReminders: { hour: prefs.dailyReminders.hour - 1 } })
-                    }
-                  >
-                    <Button.Label>−</Button.Label>
-                  </Button>
-                  <Text
-                    className="font-mono text-lg text-foreground"
-                    accessibilityLabel={`${i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHour)} ${prefs.dailyReminders.hour}:00`}
-                  >
-                    {String(prefs.dailyReminders.hour).padStart(2, "0")}:00
-                  </Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    isDisabled={busy || prefs.dailyReminders.hour === 23}
-                    accessibilityLabel={t`Later`}
-                    onPress={() =>
-                      update.mutate({ dailyReminders: { hour: prefs.dailyReminders.hour + 1 } })
-                    }
-                  >
-                    <Button.Label>+</Button.Label>
-                  </Button>
-                </View>
-                <Text className="text-sm text-muted-foreground">
-                  {i18n._(INSIGHT_DELIVERY_COPY.timeZone)}: {prefs.timeZone}
-                </Text>
-                {zone && zone !== prefs.timeZone ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    isDisabled={busy}
-                    onPress={() => update.mutate({ timeZone: zone })}
-                  >
-                    <Button.Label>
-                      <Trans>Use {zone}</Trans>
-                    </Button.Label>
-                  </Button>
-                ) : null}
-                <Text className="text-sm text-muted-foreground">
+                <HourStepper
+                  hour={prefs.dailyReminders.hour}
+                  label={i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHour)}
+                  disabled={busy}
+                  onChange={(hour) => update.mutate({ dailyReminders: { hour } })}
+                />
+                {timeZoneNote}
+                <Text className="font-sans text-sm text-ink-3">
                   {i18n._(INSIGHT_DELIVERY_COPY.dailyRemindersHourNote)}
                 </Text>
               </View>
             ) : null}
-          </Card>
-        </CardStack>
+          </SettingsRow>
 
-        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)}>
-          <Card variant="secondary" className="gap-2 p-4">
-            <View className="flex-row items-center justify-between">
-              <Button
-                size="sm"
-                variant="secondary"
-                isDisabled={busy || prefs.deliveryHour === 0}
-                accessibilityLabel={t`Earlier`}
-                onPress={() => update.mutate({ deliveryHour: prefs.deliveryHour - 1 })}
-              >
-                <Button.Label>−</Button.Label>
-              </Button>
-              <Text
-                className="font-mono text-lg text-foreground"
-                accessibilityLabel={`${i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)} ${prefs.deliveryHour}:00`}
-              >
-                {String(prefs.deliveryHour).padStart(2, "0")}:00
-              </Text>
-              <Button
-                size="sm"
-                variant="secondary"
-                isDisabled={busy || prefs.deliveryHour === 23}
-                accessibilityLabel={t`Later`}
-                onPress={() => update.mutate({ deliveryHour: prefs.deliveryHour + 1 })}
-              >
-                <Button.Label>+</Button.Label>
-              </Button>
-            </View>
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(INSIGHT_DELIVERY_COPY.timeZone)}: {prefs.timeZone}
-            </Text>
-            {zone && zone !== prefs.timeZone ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                isDisabled={busy}
-                onPress={() => update.mutate({ timeZone: zone })}
-              >
-                <Button.Label>
-                  <Trans>Use {zone}</Trans>
-                </Button.Label>
-              </Button>
-            ) : null}
-          </Card>
-        </CardStack>
+          <SettingsRow icon={Clock} label={i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)} divider>
+            <HourStepper
+              hour={prefs.deliveryHour}
+              label={i18n._(INSIGHT_DELIVERY_COPY.deliveryHour)}
+              disabled={busy}
+              onChange={(deliveryHour) => update.mutate({ deliveryHour })}
+            />
+            {timeZoneNote}
+          </SettingsRow>
 
-        <CardStack title={i18n._(INSIGHT_DELIVERY_COPY.kindsTitle)}>
-          <Card variant="secondary" className="gap-3 p-4">
-            <Text className="text-sm text-muted-foreground">
-              {i18n._(INSIGHT_DELIVERY_COPY.kindsIntro)}
-            </Text>
-            {GENERIC_DELIVERY_KINDS.map((kind) => (
-              <View key={kind} className="gap-1 border-t border-border pt-2">
-                <Text className="text-sm font-medium text-foreground">
-                  {i18n._(INSIGHT_KIND_LABELS[kind])}
+          <View className="border-t border-rule py-3">
+            <Details summary={i18n._(INSIGHT_DELIVERY_COPY.kindsTitle)}>
+              <View className="gap-3">
+                <Text className="font-sans text-sm text-ink-3">
+                  {i18n._(INSIGHT_DELIVERY_COPY.kindsIntro)}
                 </Text>
-                {INSIGHT_CHANNELS.map((channel) => (
-                  <Toggle
-                    key={channel}
-                    label={`${i18n._(INSIGHT_KIND_LABELS[kind])} — ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
-                    value={prefs.channels[kind][channel]}
-                    disabled={busy}
-                    onChange={(value) =>
-                      update.mutate({ channels: { [kind]: { [channel]: value } } })
-                    }
-                  />
+                {GENERIC_DELIVERY_KINDS.map((kind) => (
+                  <View key={kind} className="gap-1 border-t border-rule pt-2">
+                    <Text className="font-sans text-sm font-semibold text-ink">
+                      {i18n._(INSIGHT_KIND_LABELS[kind])}
+                    </Text>
+                    {INSIGHT_CHANNELS.map((channel) => (
+                      <Toggle
+                        key={channel}
+                        label={`${i18n._(INSIGHT_KIND_LABELS[kind])} — ${i18n._(INSIGHT_CHANNEL_LABELS[channel])}`}
+                        value={prefs.channels[kind][channel]}
+                        disabled={busy}
+                        onChange={(value) =>
+                          update.mutate({ channels: { [kind]: { [channel]: value } } })
+                        }
+                      />
+                    ))}
+                  </View>
                 ))}
               </View>
-            ))}
-          </Card>
-        </CardStack>
+            </Details>
+          </View>
+        </SettingsGroup>
 
         {message ? (
-          <Text className="text-sm text-foreground" accessibilityRole="alert">
+          <Text className="font-sans text-sm text-ink-2" accessibilityRole="alert">
             {message}
           </Text>
         ) : null}
-      </View>
+      </Page>
     </Container>
   );
 }

@@ -36,14 +36,14 @@ export function ListRow({
       className={cn(
         "flex-row items-center gap-3 px-4",
         heightClass,
-        showDivider && "border-b border-border",
+        showDivider && "border-b border-rule",
         className,
       )}
     >
-      <View className="h-10 w-10 items-center justify-center rounded-lg bg-muted">{icon}</View>
+      <View className="h-10 w-10 items-center justify-center rounded-full bg-paper-2">{icon}</View>
       <View className="flex-1">
-        <Text className="text-base text-foreground">{title}</Text>
-        {subtitle ? <Text className="text-sm text-muted-foreground">{subtitle}</Text> : null}
+        <Text className="font-sans text-base font-medium text-ink">{title}</Text>
+        {subtitle ? <Text className="font-sans text-sm text-ink-3">{subtitle}</Text> : null}
       </View>
       {trailing ? <View className="ml-2">{trailing}</View> : null}
     </View>
@@ -74,7 +74,11 @@ type CardStackProps = PropsWithChildren<{
 export function CardStack({ title, children, className }: CardStackProps) {
   return (
     <View className={cn("gap-3", className)}>
-      {title ? <Text className="text-sm font-medium text-muted-foreground">{title}</Text> : null}
+      {title ? (
+        <Text className="font-display text-xl font-semibold text-ink" accessibilityRole="header">
+          {title}
+        </Text>
+      ) : null}
       {children}
     </View>
   );

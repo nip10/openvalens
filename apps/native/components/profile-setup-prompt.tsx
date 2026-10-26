@@ -9,12 +9,13 @@ import {
   wellnessProfileQueryKey,
 } from "@openvalens/api/presenters/wellness-profile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card } from "heroui-native";
+import { Button } from "heroui-native";
 import { router } from "expo-router";
+import { UserRound } from "lucide-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import { Meter, Section, Sheet } from "@/components/bloom";
 import { authClient } from "@/lib/auth-client";
 import { client, orpc } from "@/utils/orpc";
 
@@ -48,11 +49,13 @@ export function ProfileSetupPrompt() {
   const started = snapshot.setupStatus === "in_progress";
 
   return (
-    <CardStack
+    <Section
+      icon={UserRound}
+      tone="signal"
       title={started ? t`Continue setting up (optional)` : t`Set up your profile (optional)`}
     >
-      <Card variant="secondary" className="gap-3 p-4">
-        <Text className="text-sm text-foreground">
+      <Sheet className="gap-4">
+        <Text className="font-sans text-base leading-relaxed text-ink-2">
           <Trans>
             A few optional questions so the app can show what matters to you. Skip any of them —
             everything else works without them.
@@ -66,6 +69,9 @@ export function ProfileSetupPrompt() {
             </>
           ) : null}
         </Text>
+        {started && progress.available > 0 ? (
+          <Meter value={progress.answered / progress.available} tone="signal" />
+        ) : null}
         <View className="flex-row flex-wrap gap-3">
           <Button onPress={() => router.push("/profile")}>
             <Button.Label>
@@ -86,11 +92,11 @@ export function ProfileSetupPrompt() {
           </Button>
         </View>
         {error ? (
-          <Text className="text-sm text-destructive" accessibilityRole="alert">
+          <Text className="font-sans text-sm text-destructive" accessibilityRole="alert">
             {i18n._(error)}
           </Text>
         ) : null}
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    The OpenValens bloom: five soft petals round a warm centre, lit from the
+    upper left like the web wordmark (tone-steps-soft into the terracotta
+    signal). Transparent background; used for the splash, the Android
+    adaptive foreground and as the centre of icon.svg.
+  -->
+  <defs>
+    <radialGradient id="petals" gradientUnits="userSpaceOnUse" cx="420" cy="400" r="560">
+      <stop offset="0" stop-color="#fbe6db"/>
+      <stop offset="0.38" stop-color="#e98a62"/>
+      <stop offset="0.78" stop-color="#c2512e"/>
+      <stop offset="1" stop-color="#a8441f"/>
+    </radialGradient>
+    <radialGradient id="heart" gradientUnits="userSpaceOnUse" cx="490" cy="490" r="150">
+      <stop offset="0" stop-color="#fff8f4"/>
+      <stop offset="1" stop-color="#f8d6c4"/>
+    </radialGradient>
+  </defs>
+  <g fill="url(#petals)">
+    <circle cx="512" cy="322" r="178"/>
+    <circle cx="693" cy="453" r="178"/>
+    <circle cx="624" cy="666" r="178"/>
+    <circle cx="400" cy="666" r="178"/>
+    <circle cx="331" cy="453" r="178"/>
+  </g>
+  <circle cx="512" cy="512" r="118" fill="url(#heart)"/>
+</svg>
