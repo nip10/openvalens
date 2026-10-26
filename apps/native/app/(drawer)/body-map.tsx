@@ -17,7 +17,7 @@ import {
   type RegionFill,
 } from "@openvalens/api/presenters/body-map";
 import { useQuery } from "@tanstack/react-query";
-import { Card } from "heroui-native";
+import { Card, cn } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
@@ -25,6 +25,7 @@ import Svg, { G, Path } from "react-native-svg";
 import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { client } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 /**
  * Body map (#94) on mobile: measured DEXA values by region, or this week's
@@ -69,9 +70,21 @@ function Chips<T extends string | number>({
           accessibilityRole="radio"
           accessibilityState={{ checked: value === option.value }}
           onPress={() => onChange(option.value)}
-          className={`min-h-11 justify-center rounded-lg border px-3 ${value === option.value ? "bg-accent" : "border-border"}`}
+          className={cn(
+            "min-h-11 justify-center rounded-full border px-4 active:opacity-70",
+            value === option.value ? "border-signal bg-sidebar-accent" : "border-rule-2 bg-paper-2",
+          )}
         >
-          <Text className="text-sm text-foreground">{option.label}</Text>
+          <Text
+            className={cn(
+              "font-sans text-sm",
+              value === option.value
+                ? "font-semibold text-sidebar-accent-foreground"
+                : "font-medium text-ink-2",
+            )}
+          >
+            {option.label}
+          </Text>
         </Pressable>
       ))}
     </View>
@@ -85,10 +98,10 @@ function Legend({ steps }: { steps: LegendStep[] }) {
       {steps.map((step) => (
         <View key={step.label} className="flex-row items-center gap-2">
           <View
-            className="h-4 w-4 rounded-sm border border-border"
+            className="h-4 w-4 rounded-sm border border-rule"
             style={{ backgroundColor: step.colour }}
           />
-          <Text className="text-sm text-foreground">{step.label}</Text>
+          <Text className="text-sm text-ink-2">{step.label}</Text>
         </View>
       ))}
     </View>
@@ -108,10 +121,14 @@ function BodyFigure({
 }) {
   const regions = ARTWORK.regions.filter((region) => region.view === view);
   const { t, i18n } = useLingui();
+  // The figure keeps its own light palette in both themes, so its edges stay
+  // a fixed grey; the selected region is ringed in the signal colour.
+  const edge = "#71717a";
+  const selectedEdge = useThemeColor("signal");
   return (
     <View className="items-center">
       <Svg width={180} height={360} viewBox={BODY_MAP_VIEWBOX} accessible={false}>
-        <G fill={BODY_MAP_BASE} stroke="#71717a" strokeWidth={0.8}>
+        <G fill={BODY_MAP_BASE} stroke={edge} strokeWidth={0.8}>
           <Path d={ARTWORK.outline[view]} />
           <Path d={ARTWORK.base[view]} strokeOpacity={0.5} />
         </G>
@@ -120,7 +137,7 @@ function BodyFigure({
             key={region.id}
             d={region.path}
             fill={fills[region.id]!.colour}
-            stroke={selected === region.id ? "#18181b" : "#71717a"}
+            stroke={selected === region.id ? selectedEdge : edge}
             strokeWidth={selected === region.id ? 2.2 : 0.8}
             strokeLinejoin="round"
             onPress={() => onSelect(region.id)}
@@ -141,10 +158,10 @@ function BodyFigure({
               accessibilityLabel={t`${label}: ${value}`}
               accessibilityState={{ selected: selected === region.id }}
               onPress={() => onSelect(region.id)}
-              className="min-h-11 flex-row items-center justify-between gap-2 border-b border-border px-1"
+              className="min-h-11 flex-row items-center justify-between gap-2 border-b border-rule px-1"
             >
-              <Text className="flex-1 text-sm text-foreground">{label}</Text>
-              <Text className="text-sm text-foreground">{fill.valueText}</Text>
+              <Text className="flex-1 text-sm text-ink-2">{label}</Text>
+              <Text className="text-sm text-ink-2">{fill.valueText}</Text>
             </Pressable>
           );
         })}
@@ -220,10 +237,13 @@ export default function BodyMapScreen() {
     <Container className="p-4">
       <View className="gap-6">
         <View className="gap-2">
-          <Text accessibilityRole="header" className="font-mono text-3xl text-foreground">
+          <Text
+            accessibilityRole="header"
+            className="font-display text-[30px] font-semibold leading-[36px] text-ink"
+          >
             {t`Body map`}
           </Text>
-          <Text className="text-sm text-muted-foreground">{i18n._(BODY_MAP_COPY.intro)}</Text>
+          <Text className="text-sm text-ink-3">{i18n._(BODY_MAP_COPY.intro)}</Text>
         </View>
 
         <Chips
@@ -254,20 +274,20 @@ export default function BodyMapScreen() {
         {layer === "composition" ? (
           <CardStack title={t`Scan`}>
             <Card variant="secondary" className="gap-3 p-4">
-              <Text className="text-sm text-muted-foreground">
+              <Text className="text-sm text-ink-3">
                 {i18n._(compareScanId ? BODY_MAP_COPY.compare : BODY_MAP_COPY.composition)}
               </Text>
               {scans.isPending ? (
-                <Text className="text-sm text-foreground">{t`Loading scans…`}</Text>
+                <Text className="text-sm text-ink-2">{t`Loading scans…`}</Text>
               ) : scans.isError ? (
-                <Text className="text-sm text-foreground">{t`Could not load your scans.`}</Text>
+                <Text className="text-sm text-ink-2">{t`Could not load your scans.`}</Text>
               ) : !recentScans.length ? (
-                <Text className="text-sm text-foreground">
+                <Text className="text-sm text-ink-2">
                   {t`No DEXA scans yet. Import a scan to see measured regions here.`}
                 </Text>
               ) : (
                 <>
-                  <Text className="text-sm font-medium text-foreground">{t`Scan`}</Text>
+                  <Text className="text-sm font-medium text-ink-2">{t`Scan`}</Text>
                   <Chips
                     label={t`Scan`}
                     value={activeScanId}
@@ -279,7 +299,7 @@ export default function BodyMapScreen() {
                   />
                   {recentScans.length > 1 ? (
                     <>
-                      <Text className="text-sm font-medium text-foreground">{t`Compare with`}</Text>
+                      <Text className="text-sm font-medium text-ink-2">{t`Compare with`}</Text>
                       <Chips
                         label={t`Compare with`}
                         value={compareScanId ?? 0}
@@ -295,7 +315,7 @@ export default function BodyMapScreen() {
                   ) : null}
                   {types.length > 1 ? (
                     <>
-                      <Text className="text-sm font-medium text-foreground">{t`Measurement`}</Text>
+                      <Text className="text-sm font-medium text-ink-2">{t`Measurement`}</Text>
                       <Chips
                         label={t`Measurement`}
                         value={activeType ?? null}
@@ -310,27 +330,23 @@ export default function BodyMapScreen() {
                 </>
               )}
               {composition.data ? (
-                <Text className="text-sm text-foreground">
+                <Text className="text-sm text-ink-2">
                   {compareDate
                     ? t`${scanSource}, ${scanDate}, compared with ${compareDate}`
                     : `${scanSource}, ${scanDate}`}
                 </Text>
               ) : null}
               {composition.data && !types.length ? (
-                <Text className="text-sm text-foreground">
-                  {t`This scan has no regional values.`}
-                </Text>
+                <Text className="text-sm text-ink-2">{t`This scan has no regional values.`}</Text>
               ) : null}
             </Card>
           </CardStack>
         ) : (
           <CardStack title={t`Sets from ${trainingFrom} to ${trainingTo}`}>
             <Card variant="secondary" className="gap-2 p-4">
-              <Text className="text-sm text-muted-foreground">
-                {i18n._(BODY_MAP_COPY.training)}
-              </Text>
+              <Text className="text-sm text-ink-3">{i18n._(BODY_MAP_COPY.training)}</Text>
               {training.isError ? (
-                <Text className="text-sm text-foreground">{t`Could not load your workouts.`}</Text>
+                <Text className="text-sm text-ink-2">{t`Could not load your workouts.`}</Text>
               ) : null}
             </Card>
           </CardStack>
@@ -346,27 +362,25 @@ export default function BodyMapScreen() {
             />
             <View
               accessibilityLiveRegion="polite"
-              className="gap-1 rounded-lg border border-border p-3"
+              className="gap-1 rounded-lg border border-rule p-3"
             >
               {selectedRegion && selectedFill ? (
                 <>
-                  <Text className="text-sm font-medium text-foreground">
+                  <Text className="text-sm font-medium text-ink-2">
                     {i18n._(selectedRegion.label)}
                   </Text>
-                  <Text className="text-sm text-foreground">
+                  <Text className="text-sm text-ink-2">
                     {selectedFill.valueText ?? t`No value`}
                   </Text>
                   {selectedFill.sourceText ? (
-                    <Text className="text-sm text-muted-foreground">{selectedFill.sourceText}</Text>
+                    <Text className="text-sm text-ink-3">{selectedFill.sourceText}</Text>
                   ) : null}
                   {layer === "composition" && composition.data ? (
-                    <Text className="text-sm text-muted-foreground">{t`Scan ${scanDate}`}</Text>
+                    <Text className="text-sm text-ink-3">{t`Scan ${scanDate}`}</Text>
                   ) : null}
                 </>
               ) : (
-                <Text className="text-sm text-muted-foreground">
-                  {t`Tap a region to see its value.`}
-                </Text>
+                <Text className="text-sm text-ink-3">{t`Tap a region to see its value.`}</Text>
               )}
             </View>
             <Legend steps={result.legend} />
@@ -380,23 +394,23 @@ export default function BodyMapScreen() {
                 const count = formatSets(trainingResult.setsByGroup[group]);
                 return (
                   <View key={group} className="flex-row justify-between gap-2">
-                    <Text className="text-sm text-foreground">
+                    <Text className="text-sm text-ink-2">
                       {i18n._(TRAINING_GROUP_LABELS[group])}
                     </Text>
-                    <Text className="text-sm text-foreground">{t`${count} sets`}</Text>
+                    <Text className="text-sm text-ink-2">{t`${count} sets`}</Text>
                   </View>
                 );
               })}
               {training.data.unmapped.length ? (
                 <View className="mt-2 gap-1">
-                  <Text className="text-sm font-medium text-foreground">
+                  <Text className="text-sm font-medium text-ink-2">
                     {t`Not counted (no catalog muscles)`}
                   </Text>
                   {training.data.unmapped.map((item) => {
                     const name = item.name;
                     const count = item.sets;
                     return (
-                      <Text key={name} className="text-sm text-foreground">
+                      <Text key={name} className="text-sm text-ink-2">
                         {t`${name}: ${count} sets`}
                       </Text>
                     );
@@ -404,7 +418,7 @@ export default function BodyMapScreen() {
                 </View>
               ) : null}
               {trainingResult.unmappedMuscles.length ? (
-                <Text className="text-sm text-muted-foreground">
+                <Text className="text-sm text-ink-3">
                   {t`Muscles not shown on the map: ${trainingResult.unmappedMuscles.join(", ")}`}
                 </Text>
               ) : null}
