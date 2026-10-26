@@ -173,8 +173,8 @@ describe("site copy", () => {
 
   test("states the honest limits of the release", async () => {
     const text = await pageText();
-    expect(text).toContain("Backups are not finished.");
-    expect(text).toContain("plain, unencrypted pg_dump");
+    expect(text).toContain("Off-site backups are opt-in.");
+    expect(text).toContain("Encrypted daily backups stay on the host");
     expect(text).toContain("no release is tagged yet");
     expect(text).toContain("no analytics and no telemetry");
   });
