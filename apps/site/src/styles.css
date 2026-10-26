@@ -1,256 +1,618 @@
-/* OpenValens landing site. System fonts only: no web fonts, no remote assets. */
+/* Hallmark · shape: Stage · genre: playful · theme: Bloom (the app's locked system) · job: try · draw: none, DESIGN.md locks the system
+ * hero: split, the head and actions left, the real dashboard right with its phone view over the corner · nav: wordmark and four plain links, no bar · footer: a quiet line, the licence over the links · imagery: the product, synthetic demo captures · signature: the real dashboard with its phone view tucked over the corner · posture: restrained
+ * axes: peach paper/Fraunces over Figtree/terracotta · contrast: pass · fold: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V3 · weakest: V, the paper, serif and clay are the app's own and cannot move; varied the structure instead, the hero leads with two real captures and the features are an icon list, not tiles */
+/* Hallmark · waive 65 · palette pinned by DESIGN.md, the owner's chosen Bloom system · the landing page has to look like the app its screenshots show */
+/* Hallmark · waive 77 · the install section is two columns at full width, the copy and the real install command as its object · the command is what a self-hoster came to copy */
+/* Hallmark · waive 44c · the dashboard capture and its phone view run to about y 740 at 1440 x 900 and the features start near y 790; the measured end is the text column · the real screenshot fills the first screen, not more copy */
+/* Hallmark · waive 79 · the band under the text column is filled by the phone capture overlapping the dashboard screenshot · the real product fills that space, there is no dead band beside it */
+/* Hallmark · copy: verbatim · the intended-purpose statement is fixed wording the site build test checks word for word, so 58 reports it as a note */
+/* Hallmark · answered F5 · DESIGN.md sets every icon in its measure's soft round tint (ToneIcon), so the site matches the app */
+/*
+ * OpenValens landing site, in the app's Bloom system (DESIGN.md, packages/ui/src/styles/tokens.css).
+ * No web fonts: the CSP has no font-src, so the faces are a system stack that uses Fraunces and
+ * Figtree only when they are installed locally (no request), then close system serifs and sans.
+ */
+
 :root {
-  --bg: #fbfaf7;
-  --surface: #ffffff;
-  --text: #1d2321;
-  --muted: #56615c;
-  --border: #dfe3dd;
-  --accent: #1f6f5c;
-  --accent-text: #ffffff;
-  --code-bg: #f1f3ef;
   color-scheme: light dark;
+  --font-display:
+    "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-body:
+    "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-paper: #fbf1ea;
+  --color-paper-2: #f6e6dc;
+  --color-paper-3: #efd9cc;
+  --color-sheet: #fffbf8;
+  --color-ink: #2e211c;
+  --color-ink-2: #57463e;
+  --color-ink-3: #7a665b;
+  --color-rule: #f0e0d6;
+  --color-rule-2: #e2c9ba;
+  --color-accent: #c2512e;
+  --color-accent-2: #a8441f;
+  --color-accent-ink: #fff8f4;
+  --color-link: #a8441f;
+  --color-fill: #a8441f;
+  --color-fill-2: #8f3819;
+  --color-glow-1: #f7d9c9;
+  --color-glow-2: #ece3f8;
+  --color-shadow: rgb(120 60 30 / 0.1);
+  --color-shadow-2: rgb(120 60 30 / 0.05);
+
+  --color-sleep: #7d5fc0;
+  --color-sleep-soft: #efe8fb;
+  --color-steps: #d06a3d;
+  --color-steps-soft: #fbe6db;
+  --color-heart: #c94a70;
+  --color-heart-soft: #fbe3ea;
+  --color-weight: #5f8c54;
+  --color-weight-soft: #e7f1e3;
+  --color-water: #3f87a6;
+  --color-water-soft: #e1f0f6;
+  --color-food: #b9821c;
+  --color-food-soft: #faefd6;
+
+  --radius-card: 24px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px var(--color-shadow-2), 0 18px 40px -22px var(--color-shadow);
+  --measure: 34rem;
+  --container: 76rem;
+  --gap: 1.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #121615;
-    --surface: #1a201e;
-    --text: #e7ece9;
-    --muted: #a3b0aa;
-    --border: #2c3532;
-    --accent: #5cc4a6;
-    --accent-text: #0d1311;
-    --code-bg: #1f2724;
+    --color-paper: #1d1613;
+    --color-paper-2: #261d19;
+    --color-paper-3: #30251f;
+    --color-sheet: #2a201c;
+    --color-ink: #f6ebe4;
+    --color-ink-2: #dccbc1;
+    --color-ink-3: #b5a297;
+    --color-rule: #3a2d27;
+    --color-rule-2: #54423a;
+    --color-accent: #f08a66;
+    --color-accent-2: #f5a184;
+    --color-accent-ink: #2a1610;
+    --color-link: #f5a184;
+    --color-fill: #f08a66;
+    --color-fill-2: #f5a184;
+    --color-glow-1: #3a2219;
+    --color-glow-2: #2a2036;
+    --color-shadow: rgb(0 0 0 / 0.4);
+    --color-shadow-2: rgb(0 0 0 / 0.2);
+
+    --color-sleep: #b7a2f2;
+    --color-sleep-soft: #382d52;
+    --color-steps: #f39a72;
+    --color-steps-soft: #48291d;
+    --color-heart: #f185a5;
+    --color-heart-soft: #47222f;
+    --color-weight: #9cc48f;
+    --color-weight-soft: #2b3827;
+    --color-water: #80c3de;
+    --color-water-soft: #1f3540;
+    --color-food: #e8b65a;
+    --color-food-soft: #43341a;
   }
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: clip;
 }
 
 html {
   scroll-behavior: smooth;
+  scrollbar-color: var(--color-rule-2) var(--color-paper);
 }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font:
-    17px/1.6 system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
+  color: var(--color-ink-2);
+  background:
+    radial-gradient(48rem 32rem at 92% -6%, var(--color-glow-1), transparent 70%),
+    radial-gradient(40rem 34rem at -8% 24%, var(--color-glow-2), transparent 70%),
+    var(--color-paper);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  caret-color: var(--color-accent);
+  -webkit-font-smoothing: antialiased;
 }
 
-a {
-  color: var(--accent);
+::selection {
+  background: var(--color-glow-1);
+  color: var(--color-ink);
 }
 
-code,
-pre {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.9em;
-}
-
-code {
-  background: var(--code-bg);
-  padding: 0.1em 0.3em;
-  border-radius: 4px;
-}
-
-pre {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-  overflow-x: auto;
-}
-
-pre code {
-  background: none;
-  padding: 0;
-}
-
-.wrap {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-
-section {
-  padding: 48px 0 8px;
+h1,
+h2,
+h3 {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.1;
+  overflow-wrap: break-word;
+  min-width: 0;
+  margin: 0;
+  text-wrap: balance;
 }
 
 h1 {
-  font-size: clamp(2rem, 5vw, 3.1rem);
-  line-height: 1.15;
-  margin: 8px 0 16px;
+  font-size: clamp(2.6rem, 5.4vw, 4.4rem);
   letter-spacing: -0.02em;
 }
 
 h2 {
-  font-size: 1.6rem;
-  margin: 0 0 16px;
+  font-size: clamp(1.8rem, 3.2vw, 2.5rem);
+  letter-spacing: -0.01em;
+  margin-bottom: 1.75rem;
 }
 
 h3 {
-  font-size: 1.05rem;
-  margin: 0 0 4px;
+  font-size: 1.2rem;
 }
+
+p {
+  margin: 0 0 1rem;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--color-link);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--color-ink);
+}
+
+a:focus-visible,
+.button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-control);
+}
+
+strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+code,
+pre {
+  font-family: var(--font-code);
+  font-size: 0.9rem;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 48rem) {
+  .wrap {
+    padding-inline: 2rem;
+  }
+}
+
+.skip {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-sheet);
+  border-radius: var(--radius-control);
+}
+
+.skip:focus-visible {
+  top: 1rem;
+}
+
+/* Header */
 
 .site-header {
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.header-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 24px;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  gap: 0.75rem 2rem;
+  padding-block: 1.25rem;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 1.15rem;
-  color: var(--text);
-  text-decoration: none;
-}
-
-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 18px;
-}
-
-nav a {
-  color: var(--muted);
-  text-decoration: none;
-}
-
-nav a:hover {
-  color: var(--text);
-}
-
-.status {
-  display: inline-block;
-  margin: 0;
-  padding: 2px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.lede {
-  font-size: 1.15rem;
-  color: var(--muted);
-  max-width: 46em;
-}
-
-.lede.small {
-  font-size: 1rem;
-}
-
-.cta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 24px 0 32px;
-}
-
-.button {
-  display: inline-block;
-  padding: 10px 18px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
+  gap: 0.6rem;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
   font-weight: 600;
   text-decoration: none;
 }
 
+.brand img {
+  border-radius: 10px;
+}
+
+.site-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+}
+
+.site-header nav a {
+  color: var(--color-ink-2);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.site-header nav a:hover {
+  color: var(--color-accent);
+}
+
+/* Buttons: pills, one filled primary recipe */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 3rem;
+  padding: 0.7rem 1.4rem;
+  border: 1px solid var(--color-rule-2);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.button:hover {
+  border-color: var(--color-accent);
+  color: var(--color-ink);
+}
+
+.button:active {
+  background: var(--color-paper-2);
+}
+
 .button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
+  border-color: var(--color-fill);
+  background: var(--color-fill);
+  color: var(--color-accent-ink);
+  box-shadow: 0 10px 22px -12px var(--color-fill);
+}
+
+.button.primary:hover {
+  border-color: var(--color-fill-2);
+  background: var(--color-fill-2);
+  color: var(--color-accent-ink);
+}
+
+/* Hero */
+
+.hero {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+  padding-block: 1.5rem 3rem;
+}
+
+@media (min-width: 60rem) {
+  .hero {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 8fr);
+    gap: 3.5rem;
+    padding-block: 3.5rem 3rem;
+  }
+
+  .hero-shot {
+    width: 112%;
+  }
+}
+
+.hero-text h1 {
+  max-width: 11ch;
+}
+
+.lede {
+  max-width: 24rem;
+  margin: 1.25rem 0 2rem;
+  color: var(--color-ink-2);
+  font-size: 1.25rem;
+  line-height: 1.5;
 }
 
 .shot {
-  margin: 0;
-}
-
-.shot img {
   display: block;
   width: 100%;
   height: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
+  background: var(--color-sheet);
+  box-shadow:
+    0 0 0 1px var(--color-rule),
+    0 2px 4px var(--color-shadow-2),
+    0 30px 60px -30px var(--color-shadow);
 }
 
-.shot figcaption {
-  color: var(--muted);
-  font-size: 0.85rem;
-  margin-top: 8px;
+.hero-shot {
+  position: relative;
+  margin: 0 0 0 0;
+  padding: 0 2.5rem 3rem 0;
 }
 
-.grid {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 32px;
+.hero-shot .phone {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 26%;
+  max-width: 11rem;
+  aspect-ratio: 390 / 600;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 4px var(--color-sheet),
+    0 0 0 5px var(--color-rule-2),
+    0 26px 50px -20px var(--color-shadow);
+}
+
+figcaption {
+  margin-top: 0.75rem;
+  color: var(--color-ink-2);
+  font-size: 0.9rem;
+}
+
+.hero-shot figcaption {
+  max-width: 70%;
+}
+
+/* Sections */
+
+main > section {
+  padding-block: 3.5rem;
+}
+
+@media (min-width: 60rem) {
+  main > section {
+    padding-block: 5rem;
+  }
+}
+
+/* Features: an icon list in the measure tones */
+
+.features {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 16px;
-}
-
-.grid li {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-}
-
-.grid p {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 2rem var(--gap);
   margin: 0;
-  color: var(--muted);
-  font-size: 0.95rem;
+  padding: 0;
+  list-style: none;
 }
 
-.two-col {
+.features li {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 1rem;
+  align-items: start;
 }
 
-.plain {
-  padding-left: 1.2em;
+.features h3 {
+  align-self: center;
 }
 
-.plain li {
-  margin-bottom: 8px;
+.features p {
+  grid-column: 2;
+  margin: 0.25rem 0 0;
+  color: var(--color-ink-2);
+  font-size: 1rem;
 }
+
+.icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-pill);
+}
+
+.icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tone-sleep {
+  color: var(--color-sleep);
+  background: var(--color-sleep-soft);
+}
+
+.tone-steps {
+  color: var(--color-steps);
+  background: var(--color-steps-soft);
+}
+
+.tone-heart {
+  color: var(--color-heart);
+  background: var(--color-heart-soft);
+}
+
+.tone-weight {
+  color: var(--color-weight);
+  background: var(--color-weight-soft);
+}
+
+.tone-food {
+  color: var(--color-food);
+  background: var(--color-food-soft);
+}
+
+.tone-water {
+  color: var(--color-water);
+  background: var(--color-water-soft);
+}
+
+.tone-plain {
+  color: var(--color-ink-2);
+  background: var(--color-paper-2);
+}
+
+/* Gallery of real screens */
+
+.gallery {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem var(--gap);
+}
+
+@media (min-width: 48rem) {
+  .gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.gallery figure {
+  margin: 0;
+}
+
+/* Two-column text sections */
+
+.split {
+  display: grid;
+  gap: 1rem var(--gap);
+}
+
+@media (min-width: 60rem) {
+  .split {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 3rem;
+  }
+}
+
+.split p {
+  max-width: var(--measure);
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows li {
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--color-rule-2);
+}
+
+.rows li:first-child {
+  padding-top: 0;
+}
+
+.rows li:last-child {
+  border-bottom: 0;
+}
+
+/* Install */
+
+.install p {
+  max-width: var(--measure);
+  margin-bottom: 2rem;
+}
+
+.install {
+  align-items: center;
+}
+
+pre {
+  margin: 0;
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  border-radius: var(--radius-card);
+  background: var(--color-sheet);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-card);
+  line-height: 1.7;
+}
+
+/* Intended purpose */
 
 .purpose {
-  color: var(--muted);
-  font-size: 0.95rem;
-  max-width: 50em;
+  max-width: 52rem;
+  padding: 2rem;
+  border-radius: var(--radius-card);
+  background: var(--color-sheet);
+  box-shadow: var(--shadow-card);
 }
 
+.purpose h2 {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.purpose p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--color-ink-3);
+  font-size: 0.95rem;
+}
+
+/* Footer */
+
 .site-footer {
-  margin-top: 48px;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.9rem;
-  padding: 16px 0;
+  padding-block: 2.5rem 3rem;
+  border-top: 1px solid var(--color-rule-2);
+  color: var(--color-ink-2);
+  font-size: 0.95rem;
+}
+
+.site-footer p {
+  margin-bottom: 0.75rem;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .button {
+    transition: none;
+  }
 }

@@ -261,8 +261,11 @@ After changing auth plugins or schema options, run `bun run auth:generate` from 
 
 ### Landing site
 
-`apps/site` is the static landing page: plain HTML, CSS and SVG with no
-JavaScript, no web fonts and no third-party requests. `bun run --cwd apps/site
+`apps/site` is the static landing page, in the app's Bloom look
+([DESIGN.md](DESIGN.md)): plain HTML, CSS, SVG and WebP screenshots with no
+JavaScript, no web fonts and no third-party requests. Headlines use Fraunces
+and text uses Figtree only when they are installed on the visitor's device;
+otherwise a system serif and sans stack (the CSP has no `font-src`). `bun run --cwd apps/site
 build` writes it to `apps/site/dist` (upload that directory to any static
 host); the build fails if any page loads a resource from another origin, and
 the page carries a strict same-origin Content Security Policy (also written to

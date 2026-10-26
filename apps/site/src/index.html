@@ -6,243 +6,298 @@
     <!-- The build replaces this placeholder with SITE_CSP (scripts/build.ts). -->
     <meta http-equiv="Content-Security-Policy" content="__SITE_CSP__" />
     <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
       content="OpenValens is an open-source, private health record that you host yourself. Your data stays on your server."
     />
-    <title>OpenValens — open-source, private health record</title>
+    <title>OpenValens, your private health record</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="site-header">
-      <div class="wrap header-row">
-        <a class="brand" href="#top"
-          ><img src="favicon.svg" alt="" width="28" height="28" />OpenValens</a
-        >
-        <nav aria-label="Sections">
-          <a href="#features">What it does</a>
-          <a href="#privacy">Your data</a>
-          <a href="#install">Install</a>
-          <a href="https://github.com/nip10/openvalens">Source</a>
-        </nav>
-      </div>
+    <a class="skip" href="#top">Skip to content</a>
+    <header class="wrap site-header">
+      <a class="brand" href="#top"
+        ><img src="favicon.svg" alt="" width="32" height="32" /><span>OpenValens</span></a
+      >
+      <nav aria-label="Sections">
+        <a href="#features">What it does</a>
+        <a href="#privacy">Your data</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/nip10/openvalens">Source</a>
+      </nav>
     </header>
 
     <main id="top">
-      <section class="hero wrap">
-        <p class="status">Pre-release 0.1.0 · no release is tagged yet</p>
-        <h1>Open-source, private health record.<br />Your data stays on your server.</h1>
-        <p class="lede">
-          OpenValens keeps your labs, body measurements, vitals, workouts, nutrition and sleep in
-          one record that you host yourself. Record, organize, visualize and export it — on a server
-          you control, with no account at anyone else's service.
-        </p>
-        <p class="lede small">
-          “Open” means open source (AGPL-3.0). It never means your records are public: an instance
-          has no public sign-up, and every workspace is invite-only.
-        </p>
-        <div class="cta">
-          <a class="button primary" href="#install">Install with Docker Compose</a>
-          <a class="button" href="https://github.com/nip10/openvalens">Read the source</a>
+      <section class="wrap hero" aria-labelledby="hero-title">
+        <div class="hero-text">
+          <h1 id="hero-title">Your health, kept close to home.</h1>
+          <p class="lede">Open-source, private health record. Your data stays on your server.</p>
+          <div class="actions">
+            <a class="button primary" href="#install">Install it yourself</a>
+            <a class="button" href="https://github.com/nip10/openvalens">Read the source</a>
+          </div>
         </div>
-        <figure class="shot hero-shot">
+        <figure class="hero-shot">
+          <picture>
+            <source srcset="screenshots/dashboard-dark.webp" media="(prefers-color-scheme: dark)" />
+            <img
+              class="shot"
+              src="screenshots/dashboard.webp"
+              width="2560"
+              height="1600"
+              alt="The OpenValens dashboard with sleep, steps, heart rate and weight tiles over a 90-day weight chart"
+            />
+          </picture>
           <img
-            src="screenshots/dashboard.webp"
-            width="1280"
-            height="800"
-            alt="The OpenValens dashboard with sleep, steps, heart rate and weight tiles over a 90-day weight chart"
+            class="shot phone"
+            src="screenshots/dashboard-phone.webp"
+            width="780"
+            height="1688"
+            alt="The same dashboard at phone width"
           />
-          <figcaption>
-            A synthetic demo account. Screenshots are never captured from a real person's records.
-          </figcaption>
+          <figcaption>A synthetic demo account, never a real person’s records.</figcaption>
         </figure>
       </section>
 
-      <section id="features" class="wrap">
-        <h2>What it does in 0.1.0</h2>
-        <ul class="grid">
+      <section id="features" class="wrap" aria-labelledby="features-title">
+        <h2 id="features-title">What it keeps for you</h2>
+        <ul class="features">
           <li>
-            <h3>Labs</h3>
-            <p>Enter lab results and keep each marker's readings together in one place.</p>
+            <span class="icon tone-sleep" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z" /></svg
+            ></span>
+            <h3>Sleep</h3>
+            <p>Nights, stages and your trend.</p>
           </li>
           <li>
-            <h3>Body and vitals</h3>
-            <p>Weight, body measurements and vitals, with your own history over time.</p>
+            <span class="icon tone-steps" aria-hidden="true"
+              ><svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4" /></svg
+            ></span>
+            <h3>Activity</h3>
+            <p>Workouts, and weekly minutes beside the WHO range.</p>
           </li>
           <li>
-            <h3>Workouts and activity</h3>
-            <p>
-              Log sessions with an effort rating and see your weekly active minutes next to the WHO
-              adult range.
-            </p>
+            <span class="icon tone-heart" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <path
+                  d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20Z"
+                /></svg
+            ></span>
+            <h3>Heart and vitals</h3>
+            <p>Heart rate and vitals over time.</p>
           </li>
           <li>
+            <span class="icon tone-weight" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <rect x="4" y="4" width="16" height="16" rx="5" />
+                <path d="M8.5 10.5a5 5 0 0 1 7 0M12 10l1.6-1.8" /></svg
+            ></span>
+            <h3>Body</h3>
+            <p>Weight and body measurements.</p>
+          </li>
+          <li>
+            <span class="icon tone-food" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <path
+                  d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17.5 21V3c-2.2 1.6-3.5 4.4-3.5 8h3.5"
+                /></svg
+            ></span>
             <h3>Meal diary</h3>
-            <p>
-              Log meals from imported public food catalogs (USDA FoodData Central, Open Food Facts)
-              or your own foods. Daily totals show which entries had a value.
-            </p>
+            <p>USDA and Open Food Facts catalogs, or your own foods.</p>
           </li>
           <li>
-            <h3>Sleep, supplements, timeline</h3>
-            <p>Record sleep and supplements and see everything on one timeline.</p>
+            <span class="icon tone-water" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <path
+                  d="M9 3h6M10 3v6.5L5 18a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-8.5V3M7.6 15h8.8"
+                /></svg
+            ></span>
+            <h3>Labs</h3>
+            <p>Each marker’s readings together.</p>
           </li>
           <li>
+            <span class="icon tone-plain" aria-hidden="true"
+              ><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg
+            ></span>
             <h3>Export and delete</h3>
-            <p>
-              Download your record (JSON, CSV or PDF) to take to a professional, or delete your
-              account and everything you own.
-            </p>
+            <p>JSON, CSV or PDF, or delete everything you own.</p>
           </li>
           <li>
-            <h3>Workspaces and sharing</h3>
-            <p>
-              Share a workspace with people you invite, as owner, admin, collaborator or viewer.
-            </p>
+            <span class="icon tone-plain" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <circle cx="9" cy="8" r="3.5" />
+                <path
+                  d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M21.5 20a6.5 6.5 0 0 0-4-6"
+                /></svg
+            ></span>
+            <h3>Sharing</h3>
+            <p>Invite-only workspaces with roles.</p>
           </li>
           <li>
-            <h3>Optional AI assistant</h3>
-            <p>
-              Off by default. When an operator turns it on (Anthropic or any OpenAI-compatible
-              endpoint, including a local model) and you consent, it can summarise your own records.
-              It is not medical advice and can be wrong.
-            </p>
+            <span class="icon tone-plain" aria-hidden="true"
+              ><svg viewBox="0 0 24 24">
+                <path
+                  d="M5 4.5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"
+                /></svg
+            ></span>
+            <h3>AI assistant</h3>
+            <p>Optional and off by default. It is not medical advice and can be wrong.</p>
           </li>
         </ul>
-        <div class="two-col">
-          <figure class="shot">
+      </section>
+
+      <section id="privacy" class="wrap split" aria-labelledby="privacy-title">
+        <div>
+          <h2 id="privacy-title">Where your data goes</h2>
+          <p>
+            Your records live in your instance’s database, with no published port. There is no
+            analytics and no telemetry.
+          </p>
+          <p>
+            “Open” means open source (AGPL-3.0). It never means your records are public: every
+            workspace is invite-only.
+          </p>
+        </div>
+        <ul class="rows">
+          <li><strong>Resend</strong> sends sign-in and invitation emails.</li>
+          <li><strong>Let’s Encrypt</strong> issues the HTTPS certificate.</li>
+          <li>
+            <strong>Off unless you turn them on:</strong> AI, barcode lookup, S3 storage, push and
+            single sign-on.
+          </li>
+        </ul>
+      </section>
+
+      <section class="wrap" aria-labelledby="screens-title">
+        <h2 id="screens-title">A look inside</h2>
+        <div class="gallery">
+          <figure>
             <img
+              class="shot"
+              src="screenshots/sleep.webp"
+              width="2560"
+              height="1600"
+              loading="lazy"
+              alt="Sleep, with last night’s duration and stages, averages and a 30-day trend"
+            />
+            <figcaption>Sleep</figcaption>
+          </figure>
+          <figure>
+            <img
+              class="shot"
+              src="screenshots/meal-diary.webp"
+              width="2560"
+              height="1600"
+              loading="lazy"
+              alt="Meal diary, with today’s energy, protein, carbohydrate, fat and fibre totals"
+            />
+            <figcaption>Meal diary</figcaption>
+          </figure>
+          <figure>
+            <img
+              class="shot"
               src="screenshots/labs.webp"
-              width="1280"
-              height="800"
+              width="2560"
+              height="1600"
+              loading="lazy"
               alt="Labs, one card per marker with its latest reading"
             />
-            <figcaption>Lab results (synthetic demo data).</figcaption>
+            <figcaption>Labs</figcaption>
           </figure>
-          <figure class="shot">
+          <figure>
             <img
-              src="screenshots/sleep.webp"
-              width="1280"
-              height="800"
-              alt="Sleep, with last night's duration and stages, averages and a 30-day trend"
+              class="shot"
+              src="screenshots/dashboard-dark.webp"
+              width="2560"
+              height="1600"
+              loading="lazy"
+              alt="The dashboard in dark mode"
             />
-            <figcaption>Sleep (synthetic demo data).</figcaption>
+            <figcaption>The dashboard at night</figcaption>
           </figure>
         </div>
       </section>
 
-      <section id="limits" class="wrap">
-        <h2>What it does not do (yet)</h2>
-        <ul class="plain">
+      <section id="limits" class="wrap split" aria-labelledby="limits-title">
+        <h2 id="limits-title">Not there yet</h2>
+        <ul class="rows">
           <li>
-            <strong>Backups are not finished.</strong> 0.1.0 takes a plain, unencrypted
-            <code>pg_dump</code> before each migration and nothing else. Encrypted, scheduled,
-            off-host backups and a tested restore are still to come. Read the
-            <a href="https://github.com/nip10/openvalens/blob/main/docs/self-hosting/backup.md"
-              >backup guide</a
+            <strong>Off-site backups are opt-in.</strong> Encrypted daily backups stay on the host
+            until you add a bucket.
+          </li>
+          <li><strong>No hosted service.</strong> You run your own.</li>
+          <li><strong>No published images</strong> and no store build of the mobile app.</li>
+          <li><strong>No wearable-vendor connections</strong> yet.</li>
+        </ul>
+      </section>
+
+      <section id="install" class="wrap split install" aria-labelledby="install-title">
+        <div>
+          <h2 id="install-title">Install with Docker Compose</h2>
+          <p>
+            Pre-release 0.1.0, and no release is tagged yet. You need a Linux host with Docker, a
+            domain and a Resend API key. Read the script and the guide first.
+          </p>
+          <div class="actions">
+            <a
+              class="button primary"
+              href="https://github.com/nip10/openvalens/blob/main/docs/self-hosting/install.md"
+              >Read the install guide</a
             >
-            before you store real records.
-          </li>
-          <li>
-            <strong>No hosted service.</strong> You run your own instance; there is no sign-up here.
-          </li>
-          <li>
-            <strong>No published images.</strong> The install builds the containers from the source
-            you check out.
-          </li>
-          <li>
-            <strong>No store build of the mobile app.</strong> To use it with your instance you
-            build it yourself.
-          </li>
-          <li><strong>No direct wearable-vendor connections</strong> such as Oura or Whoop yet.</li>
-        </ul>
-      </section>
-
-      <section id="privacy" class="wrap">
-        <h2>Where your data goes</h2>
-        <p>
-          Your records live in the Postgres database of your instance, which has no published port
-          and no route to the internet. The app has no analytics and no telemetry.
-        </p>
-        <p>An instance only talks to outside services that you configure:</p>
-        <ul class="plain">
-          <li>
-            <strong>Email (Resend)</strong> delivers sign-in codes, invitations and, only if you opt
-            in, insight notifications. It receives the recipient address and those messages.
-          </li>
-          <li><strong>Let's Encrypt</strong> issues the HTTPS certificate for your domain.</li>
-          <li>
-            <strong>Off unless you turn them on:</strong> an AI provider, Open Food Facts barcode
-            lookup (sends only the product code), S3-compatible file storage, Expo push
-            notifications and one single sign-on provider.
-          </li>
-        </ul>
-        <p>
-          This page follows the same rule: it is plain HTML and CSS served from one origin. No
-          scripts, no web fonts, no trackers, no requests to anyone else.
-        </p>
-      </section>
-
-      <section id="install" class="wrap">
-        <h2>Install with Docker Compose</h2>
-        <p>
-          One supported install: a pinned Docker Compose stack with Caddy for HTTPS, driven by an
-          interactive setup script that generates every secret on your host. You need a Linux host
-          with Docker Engine, the Compose v2 plugin and <code>git</code>, a domain pointing at it,
-          and a Resend API key for sign-in email.
-        </p>
+            <a class="button" href="https://github.com/nip10/openvalens/tree/main/docs/self-hosting"
+              >All guides</a
+            >
+          </div>
+        </div>
         <pre><code>git clone https://github.com/nip10/openvalens.git
 cd openvalens
 git checkout main            # or a release tag, once one exists
 deploy/setup.sh install</code></pre>
-        <p>
-          Read the script before you run it, and read the
-          <a href="https://github.com/nip10/openvalens/blob/main/docs/self-hosting/install.md"
-            >install guide</a
-          >
-          first: it covers requirements, the one-time setup token for the first administrator,
-          verifying the install and scheduling the daily jobs. All self-hosting guides are in
-          <a href="https://github.com/nip10/openvalens/tree/main/docs/self-hosting"
-            >docs/self-hosting</a
-          >.
-        </p>
       </section>
 
-      <section id="purpose" class="wrap">
-        <h2>Intended purpose</h2>
-        <p class="purpose">
-          OpenValens is a personal record-keeping and general-wellness app. It helps you store,
-          organise and view your own health-related records (such as lab results you enter or
-          import, body measurements, workouts, nutrition, sleep and wearable data) and track healthy
-          habits. It shows publicly available guidance published by recognised public-health
-          authorities, attributed and unaltered, for your information. OpenValens is not a medical
-          device. It is not intended to diagnose, screen for, prevent, monitor, predict, treat or
-          alleviate any disease or condition, and it does not provide medical advice. Talk to a
-          qualified healthcare professional about your health.
-        </p>
+      <section id="purpose" class="wrap" aria-labelledby="purpose-title">
+        <div class="purpose">
+          <h2 id="purpose-title">Intended purpose</h2>
+          <p>
+            OpenValens is a personal record-keeping and general-wellness app. It helps you store,
+            organise and view your own health-related records (such as lab results you enter or
+            import, body measurements, workouts, nutrition, sleep and wearable data) and track
+            healthy habits. It shows publicly available guidance published by recognised
+            public-health authorities, attributed and unaltered, for your information. OpenValens is
+            not a medical device. It is not intended to diagnose, screen for, prevent, monitor,
+            predict, treat or alleviate any disease or condition, and it does not provide medical
+            advice. Talk to a qualified healthcare professional about your health.
+          </p>
+        </div>
       </section>
     </main>
 
-    <footer class="site-footer">
-      <div class="wrap">
-        <p>
-          OpenValens is free software under the
-          <a href="https://github.com/nip10/openvalens/blob/main/LICENSE">GNU AGPL v3.0 or later</a
-          >, with an
-          <a href="https://github.com/nip10/openvalens/blob/main/LICENSE-APP-STORE"
-            >app-store permission</a
-          >. The name and logo are covered by the
-          <a href="https://github.com/nip10/openvalens/blob/main/TRADEMARK.md">trademark policy</a>.
-        </p>
-        <p>
-          <a href="https://github.com/nip10/openvalens/blob/main/CONTRIBUTING.md">Contributing</a> ·
+    <footer class="wrap site-footer">
+      <p>
+        Free software under the
+        <a href="https://github.com/nip10/openvalens/blob/main/LICENSE">GNU AGPL v3.0 or later</a>,
+        with an
+        <a href="https://github.com/nip10/openvalens/blob/main/LICENSE-APP-STORE"
+          >app-store permission</a
+        >.
+      </p>
+      <ul class="footer-links">
+        <li>
+          <a href="https://github.com/nip10/openvalens/blob/main/CONTRIBUTING.md">Contributing</a>
+        </li>
+        <li>
           <a href="https://github.com/nip10/openvalens/blob/main/SECURITY.md"
             >Report a vulnerability</a
           >
-          · © 2026 The OpenValens contributors
-        </p>
-      </div>
+        </li>
+        <li>
+          <a href="https://github.com/nip10/openvalens/blob/main/TRADEMARK.md">Trademark policy</a>
+        </li>
+        <li>© 2026 The OpenValens contributors</li>
+      </ul>
     </footer>
   </body>
 </html>
