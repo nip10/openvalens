@@ -8,11 +8,20 @@ import {
   parseManualEntryValue,
 } from "@openvalens/api/presenters/manual-entry";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
+import { Button } from "heroui-native";
+import { FlaskConical, Plus, TestTube } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
+import { RefreshControl, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  EmptyState,
+  ErrorState,
+  ListCard,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { useDisplayPreferences } from "@/lib/display-preferences";
@@ -23,6 +32,7 @@ import { useThemeColor } from "@/utils/theme";
 function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
   const [value, setValue] = useState("");
   const { t } = useLingui();
+  const placeholderColor = useThemeColor("ink-3");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
 
   const save = useMutation(
@@ -50,45 +60,45 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
   };
 
   return (
-    <CardStack title={t`Add reading`}>
-      <Card variant="secondary" className="gap-3 p-4">
+    <Section icon={Plus} tone="water" title={t`Add reading`}>
+      <Sheet className="gap-4">
         <View className="flex-row gap-3">
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Value`}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`Value`}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
               placeholder="0–100000"
               keyboardType="numeric"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
+              className="min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink"
+              placeholderTextColor={placeholderColor}
             />
           </View>
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`Observed at`}</Text>
             <TextInput
               value={observedAt}
               onChangeText={setObservedAt}
               placeholder="YYYY-MM-DDTHH:MM"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
+              className="min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink"
+              placeholderTextColor={placeholderColor}
             />
           </View>
         </View>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row flex-wrap items-center gap-3">
           <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? t`Saving…` : t`Save`}
+            <Button.Label>{save.isPending ? t`Saving…` : t`Save`}</Button.Label>
           </Button>
           {numeric === null && value.length > 0 ? (
-            <Text className="text-sm text-destructive">0–100000</Text>
+            <Text className="font-sans text-sm text-destructive">0–100000</Text>
           ) : save.isSuccess ? (
-            <Text className="text-sm text-success">{t`Saved`}</Text>
+            <Text className="font-sans text-sm text-success">{t`Saved`}</Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
+            <Text className="font-sans text-sm text-destructive">{t`Could not save.`}</Text>
           ) : null}
         </View>
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }
 
@@ -109,29 +119,68 @@ export default function LabsScreen() {
     orpc.labs.latest.queryOptions({ input: { recentLimit: 10 } }),
   );
 
+  const header = (
+    <PageHeader title={t`Labs`} description={t`Latest markers`} actions={<SyncStatusBadge />} />
+  );
+
   if (markers.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          {header}
+          <View className="gap-3">
+            <Sheet className="h-24" />
+            <Sheet className="h-24" />
+            <Sheet className="h-24" />
+          </View>
+        </Page>
       </Container>
     );
 
   if (markers.isError || !markers.data)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <SyncStatusBadge />
-        <Text className="text-base text-foreground">{t`Could not load labs.`}</Text>
-        <Pressable
-          onPress={() => void markers.refetch()}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
-        </Pressable>
+      <Container>
+        <Page>
+          {header}
+          <ErrorState
+            title={t`Could not load labs.`}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void markers.refetch()}>
+                <Button.Label>{t`Retry`}</Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
   const list = markers.data;
+  const withResults = list.filter((marker) => marker.latestValue !== null);
+  const waiting = list.filter((marker) => marker.latestValue === null);
+
+  const markerCard = (marker: (typeof list)[number]) => {
+    const display = shown(marker);
+    return (
+      <ListCard
+        key={marker.code}
+        icon={TestTube}
+        tone="water"
+        title={marker.displayName}
+        chip={marker.latestValue === null ? undefined : formatLabValue(display.value, display.unit)}
+        subtitle={
+          marker.latestValue === null
+            ? t`No readings yet`
+            : t`${formatLabDate(marker.latestSampledAt, dateSettings)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`
+        }
+      >
+        {marker.unit && display.converted ? (
+          <Text className="font-sans text-xs text-ink-3">
+            {t({ message: `Converted from ${marker.unit}`, comment: "safety" })}
+          </Text>
+        ) : null}
+      </ListCard>
+    );
+  };
 
   return (
     <Container
@@ -145,64 +194,40 @@ export default function LabsScreen() {
         ),
       }}
     >
-      <View className="gap-6 p-4">
-        <View className="flex-row items-start justify-between gap-3">
-          <View>
-            <Text className="text-sm text-muted-foreground">{t`Labs`}</Text>
-            <Text className="font-mono text-3xl text-foreground">{t`Latest markers`}</Text>
-          </View>
-          <SyncStatusBadge />
-        </View>
+      <Page>
+        {header}
 
         {list.length === 0 ? (
-          <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">{t`No lab markers yet`}</Text>
-            <Text className="text-center text-sm text-muted-foreground">
-              {t`Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet.`}
-            </Text>
-          </Card>
+          <EmptyState
+            icon={FlaskConical}
+            tone="water"
+            title={t`No lab markers yet`}
+            description={t`Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet.`}
+          />
         ) : (
           <>
+            {withResults.length > 0 ? (
+              <Section icon={FlaskConical} tone="water" title={t`Your results`}>
+                <View className="gap-3">{withResults.map(markerCard)}</View>
+              </Section>
+            ) : null}
+            {waiting.length > 0 ? (
+              <Section
+                icon={TestTube}
+                tone="water"
+                title={t`No readings yet`}
+                info={t`Markers appear here once a lab reading is recorded for your account. Importing lab reports is not available yet.`}
+              >
+                <View className="gap-3">{waiting.map(markerCard)}</View>
+              </Section>
+            ) : null}
             <AddReadingForm
               markerCode={list[0]?.code ?? ""}
               onSaved={() => void markers.refetch()}
             />
-            <CardStack>
-              <Card variant="secondary" className="p-0">
-                {list.map((marker, index) => (
-                  <View
-                    key={marker.code}
-                    className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                      index < list.length - 1 ? "border-b border-border" : ""
-                    }`}
-                  >
-                    <View className="min-w-0 flex-1">
-                      <Text className="text-base text-foreground">{marker.displayName}</Text>
-                      <Text className="text-xs text-muted-foreground">
-                        {marker.latestValue === null
-                          ? t`No readings yet`
-                          : t`${formatLabDate(marker.latestSampledAt, dateSettings)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`}
-                      </Text>
-                    </View>
-                    <View className="shrink-0 items-end">
-                      <Text className="font-mono text-base text-foreground">
-                        {formatLabValue(shown(marker).value, shown(marker).unit)}
-                      </Text>
-                      {marker.unit ? (
-                        <Text className="text-xs text-muted-foreground">
-                          {shown(marker).converted
-                            ? t({ message: `Converted from ${marker.unit}`, comment: "safety" })
-                            : marker.unit}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                ))}
-              </Card>
-            </CardStack>
           </>
         )}
-      </View>
+      </Page>
     </Container>
   );
 }

@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLingui } from "@lingui/react/macro";
 import {
   domainLabel,
@@ -7,28 +6,54 @@ import {
   sourceLabel,
 } from "@openvalens/api/presenters/timeline";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Chip, Spinner } from "heroui-native";
-import { Pressable, RefreshControl, SectionList, Text, View } from "react-native";
+import { Button, Spinner } from "heroui-native";
+import {
+  Activity,
+  CalendarDays,
+  FlaskConical,
+  Footprints,
+  HeartPulse,
+  History,
+  type LucideIcon,
+  Moon,
+  Pill,
+  RefreshCw,
+  Scale,
+  ScanLine,
+  Sparkles,
+} from "lucide-react-native";
+import { RefreshControl, SectionList, Text, View } from "react-native";
 
+import {
+  EmptyState,
+  ErrorState,
+  ListCard,
+  Page,
+  PageHeader,
+  Sheet,
+  type Tone,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
-import { ListRow } from "@/components/list-row";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
 const PAGE_SIZE = 50;
 
-const DOMAIN_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  sleep: "moon-outline",
-  activity: "walk-outline",
-  body: "body-outline",
-  vitals: "pulse-outline",
-  labs: "flask-outline",
-  meds_supplements: "medkit-outline",
-  calendar: "calendar-outline",
-  sync: "sync-outline",
-  imaging: "scan-outline",
-  cardiac: "heart-outline",
+// The same icon and tone per domain as the web timeline.
+const DOMAIN_ICON: Record<string, { icon: LucideIcon; tone: Tone }> = {
+  sleep: { icon: Moon, tone: "sleep" },
+  activity: { icon: Footprints, tone: "steps" },
+  body: { icon: Scale, tone: "weight" },
+  vitals: { icon: HeartPulse, tone: "heart" },
+  labs: { icon: FlaskConical, tone: "water" },
+  meds_supplements: { icon: Pill, tone: "food" },
+  calendar: { icon: CalendarDays, tone: "signal" },
+  sync: { icon: RefreshCw, tone: "signal" },
+  imaging: { icon: ScanLine, tone: "water" },
+  cardiac: { icon: Activity, tone: "heart" },
 };
+const OTHER_DOMAIN = { icon: Sparkles, tone: "signal" } as const;
 
 export default function TimelineScreen() {
   const foreground = useThemeColor("foreground");
@@ -47,24 +72,36 @@ export default function TimelineScreen() {
     data: group.items,
   }));
 
+  const header = <PageHeader title={t`Timeline`} />;
+
   if (query.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          {header}
+          <View className="gap-3">
+            <Sheet className="h-20" />
+            <Sheet className="h-20" />
+            <Sheet className="h-20" />
+          </View>
+        </Page>
       </Container>
     );
 
   if (query.isError)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">{t`Could not load the timeline.`}</Text>
-        <Pressable
-          onPress={() => void query.refetch()}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
-        </Pressable>
+      <Container>
+        <Page>
+          {header}
+          <ErrorState
+            title={t`Could not load the timeline.`}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void query.refetch()}>
+                <Button.Label>{t`Retry`}</Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
@@ -73,54 +110,58 @@ export default function TimelineScreen() {
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
-        contentContainerClassName="p-4 gap-1"
+        contentContainerClassName="gap-2 px-4 pb-12 pt-4"
         stickySectionHeadersEnabled={false}
         refreshControl={
-          <RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
+          <RefreshControl
+            refreshing={query.isRefetching}
+            onRefresh={() => void query.refetch()}
+            tintColor={foreground}
+          />
         }
         onEndReachedThreshold={0.5}
         onEndReached={() => {
           if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
         }}
+        ListHeaderComponent={<View className="pb-2">{header}</View>}
         ListEmptyComponent={
-          <View className="items-center gap-1 py-16">
-            <Text className="text-base font-medium text-foreground">{t`No records yet`}</Text>
-            <Text className="text-center text-sm text-muted-foreground">
-              {t`Connect Health Connect or Apple Health in Settings to sync your data.`}
-            </Text>
-          </View>
+          <EmptyState
+            icon={History}
+            tone="signal"
+            title={t`No records yet`}
+            description={t`Connect Health Connect or Apple Health in Settings to sync your data.`}
+          />
         }
         renderSectionHeader={({ section }) => (
-          <Text className="pt-4 pb-2 font-mono text-sm text-muted-foreground">{section.title}</Text>
+          <Text
+            className="pb-1 pt-5 font-display text-xl font-semibold text-ink"
+            accessibilityRole="header"
+          >
+            {friendlyDate(i18n, section.title)}
+          </Text>
         )}
         renderItem={({ item }) => {
           const tone = severityTone(item.severity);
           const source = sourceLabel(item);
+          const look = DOMAIN_ICON[item.domain] ?? OTHER_DOMAIN;
           return (
-            <View className="overflow-hidden rounded-xl bg-card">
-              <ListRow
-                icon={
-                  <Ionicons
-                    name={DOMAIN_ICONS[item.domain] ?? "ellipse-outline"}
-                    size={20}
-                    color={foreground}
-                  />
-                }
-                title={item.title}
-                subtitle={[item.time, item.summary, source ?? i18n._(domainLabel(item.domain))]
-                  .filter(Boolean)
-                  .join(" · ")}
-                trailing={
-                  tone ? (
-                    <Chip size="sm" color={tone === "destructive" ? "danger" : "warning"}>
-                      <Chip.Label>
-                        {tone === "destructive" ? t`Needs attention` : t`Check`}
-                      </Chip.Label>
-                    </Chip>
-                  ) : undefined
-                }
-              />
-            </View>
+            <ListCard
+              icon={look.icon}
+              tone={look.tone}
+              title={item.title}
+              chip={item.time || undefined}
+              status={
+                tone
+                  ? {
+                      label: tone === "destructive" ? t`Needs attention` : t`Check`,
+                      tone: tone === "destructive" ? "bad" : "warn",
+                    }
+                  : undefined
+              }
+              subtitle={[item.summary, source ?? i18n._(domainLabel(item.domain))]
+                .filter(Boolean)
+                .join(" · ")}
+            />
           );
         }}
         ListFooterComponent={query.isFetchingNextPage ? <Spinner className="my-4" /> : null}

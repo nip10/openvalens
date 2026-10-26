@@ -28,17 +28,17 @@ export function SyncStatusBadge() {
       accessibilityLabel={label}
       className="active:opacity-70"
     >
-      <View className="flex-row items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1">
+      <View className="flex-row items-center gap-1.5 rounded-full border border-rule bg-paper-2 px-2.5 py-1">
         {state === "syncing" ? (
           <ActivityIndicator size="small" />
         ) : (
           <View
             className={`h-1.5 w-1.5 rounded-full ${
-              state === "offline" ? "bg-muted-foreground" : "bg-destructive"
+              state === "offline" ? "bg-ink-3" : "bg-destructive"
             }`}
           />
         )}
-        <Text className="text-xs font-medium text-foreground">{label}</Text>
+        <Text className="font-sans text-xs font-medium text-ink-2">{label}</Text>
       </View>
     </Pressable>
   );

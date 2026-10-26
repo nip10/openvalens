@@ -5,13 +5,30 @@ import {
   wearableStatusLabel,
 } from "@openvalens/api/presenters/wearables";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
-import { Pressable, RefreshControl, Text, View } from "react-native";
+import { Button } from "heroui-native";
+import { MonitorSmartphone, Watch } from "lucide-react-native";
+import { RefreshControl, Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  EmptyState,
+  ErrorState,
+  ListCard,
+  Page,
+  PageHeader,
+  Sheet,
+  type StatusTone,
+  ToneIcon,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+
+const STATUS_TONE: Record<string, StatusTone> = {
+  active: "good",
+  not_connected: "neutral",
+  reconnect_needed: "warn",
+  quarantined: "bad",
+};
 
 /**
  * Cloud wearable connections (Issue #60), read-mostly. Connecting is done in
@@ -35,8 +52,11 @@ export default function DevicesSettingsScreen() {
 
   if (list.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          <PageHeader eyebrow={<Trans>Integrations</Trans>} title={<Trans>Devices</Trans>} />
+          <Sheet className="h-28" />
+        </Page>
       </Container>
     );
 
@@ -54,43 +74,39 @@ export default function DevicesSettingsScreen() {
         ),
       }}
     >
-      <View className="gap-4 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Integrations</Trans>
-          </Text>
-          <Text className="font-mono text-3xl text-foreground">
-            <Trans>Devices</Trans>
-          </Text>
-        </View>
+      <Page>
+        <PageHeader eyebrow={<Trans>Integrations</Trans>} title={<Trans>Devices</Trans>} />
 
-        <Text className="text-sm text-muted-foreground">
-          <Trans>
-            This app already syncs Apple Health or Health Connect. To connect, disconnect or remove
-            a vendor account such as Oura or WHOOP, sign in to the web app and open Settings, then
-            Devices.
-          </Trans>
-        </Text>
+        <Sheet className="flex-row items-start gap-3 p-4">
+          <ToneIcon icon={MonitorSmartphone} tone="signal" size="sm" />
+          <Text className="flex-1 font-sans text-sm leading-relaxed text-ink-2">
+            <Trans>
+              This app already syncs Apple Health or Health Connect. To connect, disconnect or
+              remove a vendor account such as Oura or WHOOP, sign in to the web app and open
+              Settings, then Devices.
+            </Trans>
+          </Text>
+        </Sheet>
 
         {list.isError ? (
-          <Card variant="secondary" className="items-center gap-2 p-6">
-            <Text className="text-base text-foreground">
-              <Trans>Could not load your devices.</Trans>
-            </Text>
-            <Pressable onPress={() => void list.refetch()} accessibilityRole="button">
-              <Text className="font-medium text-foreground underline">
-                <Trans>Retry</Trans>
-              </Text>
-            </Pressable>
-          </Card>
+          <ErrorState
+            title={<Trans>Could not load your devices.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void list.refetch()}>
+                <Button.Label>
+                  <Trans>Retry</Trans>
+                </Button.Label>
+              </Button>
+            }
+          />
         ) : providers.length === 0 ? (
-          <Card variant="secondary" className="p-4">
-            <Text className="text-base text-foreground">
-              <Trans>No cloud devices are available on this server</Trans>
-            </Text>
-          </Card>
+          <EmptyState
+            icon={Watch}
+            tone="signal"
+            title={<Trans>No cloud devices are available on this server</Trans>}
+          />
         ) : (
-          <CardStack>
+          <View className="gap-3">
             {providers.map((row) => {
               const error = wearableErrorLabel(row.lastErrorCode);
               const lastSynced = row.lastSyncedAt
@@ -99,26 +115,27 @@ export default function DevicesSettingsScreen() {
               const busy = syncNow.isPending && syncNow.variables?.provider === row.provider;
               const requested = syncNow.isSuccess && syncNow.variables?.provider === row.provider;
               return (
-                <Card key={row.provider} variant="secondary" className="gap-2 p-4">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-lg font-medium text-foreground">{row.displayName}</Text>
-                    <Text className="text-sm text-muted-foreground">
-                      {i18n._(wearableStatusLabel(row.status))}
-                    </Text>
-                  </View>
-                  <Text className="text-xs text-muted-foreground">
-                    {i18n._(wearableSendsLabel(row.provider))}
-                  </Text>
+                <ListCard
+                  key={row.provider}
+                  icon={Watch}
+                  tone="signal"
+                  title={row.displayName}
+                  status={{
+                    label: i18n._(wearableStatusLabel(row.status)),
+                    tone: STATUS_TONE[row.status] ?? "neutral",
+                  }}
+                  subtitle={i18n._(wearableSendsLabel(row.provider))}
+                >
                   {row.status !== "not_connected" ? (
-                    <Text className="text-sm text-muted-foreground">
+                    <Text className="font-sans text-sm text-ink-3">
                       {lastSynced ? t`Last synced ${lastSynced}` : t`Not synced yet`}
                     </Text>
                   ) : null}
                   {error && row.status !== "quarantined" ? (
-                    <Text className="text-sm text-destructive">{i18n._(error)}</Text>
+                    <Text className="font-sans text-sm text-destructive">{i18n._(error)}</Text>
                   ) : null}
                   {row.status === "quarantined" ? (
-                    <Text className="text-sm text-foreground">
+                    <Text className="font-sans text-sm text-ink-2">
                       <Trans>
                         Access was revoked. Choose whether to keep or delete its records in the web
                         app.
@@ -126,30 +143,32 @@ export default function DevicesSettingsScreen() {
                     </Text>
                   ) : null}
                   {requested ? (
-                    <Text className="text-sm text-muted-foreground">
+                    <Text className="font-sans text-sm text-ink-3">
                       <Trans>Sync requested. It runs on the next scheduled pass.</Trans>
                     </Text>
                   ) : null}
                   {syncNow.isError && syncNow.variables?.provider === row.provider ? (
-                    <Text className="text-sm text-destructive">
+                    <Text className="font-sans text-sm text-destructive">
                       <Trans>Could not request a sync.</Trans>
                     </Text>
                   ) : null}
                   {row.status === "active" ? (
                     <Button
-                      variant="secondary"
+                      variant="outline"
+                      size="sm"
+                      className="self-start"
                       isDisabled={busy}
                       onPress={() => syncNow.mutate({ provider: row.provider })}
                     >
-                      {t`Sync now`}
+                      <Button.Label>{t`Sync now`}</Button.Label>
                     </Button>
                   ) : null}
-                </Card>
+                </ListCard>
               );
             })}
-          </CardStack>
+          </View>
         )}
-      </View>
+      </Page>
     </Container>
   );
 }

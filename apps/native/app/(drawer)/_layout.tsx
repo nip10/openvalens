@@ -1,66 +1,136 @@
-import { Ionicons } from "@expo/vector-icons";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react";
 import { Link, usePathname } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { cn } from "heroui-native";
+import {
+  CalendarHeart,
+  ChefHat,
+  Dumbbell,
+  FileDown,
+  FlaskConical,
+  Footprints,
+  Gauge,
+  HeartPulse,
+  History,
+  LayoutDashboard,
+  Leaf,
+  Library,
+  Lock,
+  type LucideIcon,
+  Mail,
+  MessageCircle,
+  MessageSquareText,
+  Moon,
+  PersonStanding,
+  Pill,
+  Scale,
+  Settings,
+  ShieldCheck,
+  User,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react-native";
 import React, { useCallback } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BloomMark } from "@/components/bloom";
+import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useThemeColor } from "@/utils/theme";
 
-const DRAWER_ITEMS = [
-  { label: msg`Cockpit`, href: "/" as const, icon: "home-outline" as const },
-  { label: msg`Scores`, href: "/scores" as const, icon: "speedometer-outline" as const },
+type DrawerItem = {
+  label: MessageDescriptor;
+  href:
+    | "/(drawer)/(tabs)"
+    | "/scores"
+    | "/preventive-care"
+    | "/supplements"
+    | "/nutrition"
+    | "/micronutrients"
+    | "/recipe-drafts"
+    | "/food-draft"
+    | "/timeline"
+    | "/records/sleep"
+    | "/records/activity"
+    | "/records/vitals"
+    | "/private-measurements"
+    | "/cycle"
+    | "/body-map"
+    | "/body"
+    | "/records/labs"
+    | "/workouts"
+    | "/exercise-library"
+    | "/exports"
+    | "/coach"
+    | "/sharing"
+    | "/invitations"
+    | "/profile"
+    | "/settings";
+  icon: LucideIcon;
+};
+
+/**
+ * The drawer, grouped like the web sidebar by what someone came to do:
+ * Today, My body, Habits, More. Every destination keeps its place.
+ */
+const DRAWER_GROUPS: readonly { label: MessageDescriptor; items: readonly DrawerItem[] }[] = [
   {
-    label: msg`Preventive care`,
-    href: "/preventive-care" as const,
-    icon: "shield-checkmark-outline" as const,
-  },
-  { label: msg`Supplements`, href: "/supplements" as const, icon: "medkit-outline" as const },
-  { label: msg`Meal diary`, href: "/nutrition" as const, icon: "restaurant-outline" as const },
-  {
-    label: msg`Micronutrients`,
-    href: "/micronutrients" as const,
-    icon: "nutrition-outline" as const,
+    label: msg`Today`,
+    items: [
+      { label: msg`Cockpit`, href: "/(drawer)/(tabs)", icon: LayoutDashboard },
+      { label: msg`Coach`, href: "/coach", icon: MessageCircle },
+      { label: msg`Scores`, href: "/scores", icon: Gauge },
+      { label: msg`Preventive care`, href: "/preventive-care", icon: ShieldCheck },
+    ],
   },
   {
-    label: msg`Recipe draft`,
-    href: "/recipe-drafts" as const,
-    icon: "document-text-outline" as const,
+    label: msg`My body`,
+    items: [
+      { label: msg`Sleep`, href: "/records/sleep", icon: Moon },
+      { label: msg`Activity`, href: "/records/activity", icon: Footprints },
+      { label: msg`Vitals`, href: "/records/vitals", icon: HeartPulse },
+      { label: msg`Body`, href: "/body", icon: Scale },
+      { label: msg`Labs`, href: "/records/labs", icon: FlaskConical },
+      { label: msg`Cycle`, href: "/cycle", icon: CalendarHeart },
+      { label: msg`Body map`, href: "/body-map", icon: PersonStanding },
+      { label: msg`Private measurements`, href: "/private-measurements", icon: Lock },
+      { label: msg`Timeline`, href: "/timeline", icon: History },
+    ],
   },
-  { label: msg`Describe a meal`, href: "/food-draft" as const, icon: "mic-outline" as const },
-  { label: msg`Timeline`, href: "/timeline" as const, icon: "time-outline" as const },
-  { label: msg`Sleep`, href: "/records/sleep" as const, icon: "moon-outline" as const },
-  { label: msg`Activity`, href: "/records/activity" as const, icon: "walk-outline" as const },
-  { label: msg`Vitals`, href: "/records/vitals" as const, icon: "pulse-outline" as const },
   {
-    label: msg`Private measurements`,
-    href: "/private-measurements" as const,
-    icon: "lock-closed-outline" as const,
+    label: msg`Habits`,
+    items: [
+      { label: msg`Meal diary`, href: "/nutrition", icon: UtensilsCrossed },
+      { label: msg`Describe a meal`, href: "/food-draft", icon: MessageSquareText },
+      { label: msg`Recipe draft`, href: "/recipe-drafts", icon: ChefHat },
+      { label: msg`Micronutrients`, href: "/micronutrients", icon: Leaf },
+      { label: msg`Workouts`, href: "/workouts", icon: Dumbbell },
+      { label: msg`Exercise library`, href: "/exercise-library", icon: Library },
+      { label: msg`Supplements`, href: "/supplements", icon: Pill },
+    ],
   },
-  { label: msg`Cycle`, href: "/cycle" as const, icon: "calendar-outline" as const },
-  { label: msg`Body map`, href: "/body-map" as const, icon: "body-outline" as const },
-  { label: msg`Labs`, href: "/records/labs" as const, icon: "flask-outline" as const },
-  { label: msg`Workouts`, href: "/workouts" as const, icon: "barbell-outline" as const },
   {
-    label: msg`Exercise library`,
-    href: "/exercise-library" as const,
-    icon: "fitness-outline" as const,
+    label: msg`More`,
+    items: [
+      { label: msg`Clinical export`, href: "/exports", icon: FileDown },
+      { label: msg`Sharing`, href: "/sharing", icon: Users },
+      { label: msg`Invitations`, href: "/invitations", icon: Mail },
+      { label: msg`Profile`, href: "/profile", icon: User },
+      { label: msg`Settings`, href: "/settings", icon: Settings },
+    ],
   },
-  { label: msg`Clinical export`, href: "/exports" as const, icon: "download-outline" as const },
-  { label: msg`Coach`, href: "/coach" as const, icon: "chatbubbles-outline" as const },
-  { label: msg`Sharing`, href: "/sharing" as const, icon: "people-outline" as const },
-  { label: msg`Invitations`, href: "/invitations" as const, icon: "mail-outline" as const },
-  { label: msg`Profile`, href: "/profile" as const, icon: "person-outline" as const },
-  { label: msg`Settings`, href: "/settings" as const, icon: "settings-outline" as const },
 ];
 
 /** Header title per route; anything else is the Cockpit. */
 const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/timeline": msg`Timeline`,
+  "/body": msg`Body`,
+  "/coach": msg`Coach`,
+  "/sharing": msg`Sharing`,
+  "/profile": msg`Profile`,
   "/records/sleep": msg`Sleep`,
   "/records/activity": msg`Activity`,
   "/records/vitals": msg`Vitals`,
@@ -88,46 +158,69 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
 function DrawerContent() {
   const pathname = usePathname();
   const { _ } = useLingui();
-  const foreground = useThemeColor("foreground");
-  const primary = useThemeColor("primary");
-  const background = useThemeColor("background");
+  const insets = useSafeAreaInsets();
+  const ink3 = useThemeColor("ink-3");
+  const signal = useThemeColor("signal");
+  const sidebar = useThemeColor("sidebar");
 
   return (
     <ScrollView
-      contentContainerStyle={{ flexGrow: 1, backgroundColor: background }}
+      contentContainerStyle={{
+        flexGrow: 1,
+        backgroundColor: sidebar,
+        paddingTop: insets.top + 12,
+        paddingBottom: insets.bottom + 16,
+      }}
       accessibilityRole="menu"
     >
-      <View className="px-4 pb-4 pt-2">
-        <Text className="text-2xl font-semibold text-foreground">OpenValens</Text>
+      <View className="flex-row items-center gap-2.5 px-5 pb-5">
+        <BloomMark size={30} />
+        <Text className="font-display text-2xl font-semibold text-ink">OpenValens</Text>
       </View>
 
-      <View className="mt-2">
-        {DRAWER_ITEMS.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link key={item.href} href={item.href} asChild>
-              <Pressable
-                className={cn(
-                  "flex-row items-center gap-3 px-4 py-3 active:opacity-70",
-                  active && "bg-accent",
-                )}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={_(item.label)}
-              >
-                <Ionicons name={item.icon} size={20} color={active ? primary : foreground} />
-                <Text
-                  className={cn(
-                    "text-base",
-                    active ? "font-medium text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {_(item.label)}
-                </Text>
-              </Pressable>
-            </Link>
-          );
-        })}
+      <View className="gap-5 px-3">
+        {DRAWER_GROUPS.map((group) => (
+          <View key={group.label.id} className="gap-0.5">
+            <Text
+              className="px-3 pb-1 font-sans text-[13px] font-semibold text-ink-3"
+              accessibilityRole="header"
+            >
+              {_(group.label)}
+            </Text>
+            {group.items.map((item) => {
+              // The Cockpit tab lives at "/" too; its href names the tabs group so it is
+              // not confused with the sign-in screen at (drawer)/index.
+              const active =
+                pathname === item.href || (item.href === "/(drawer)/(tabs)" && pathname === "/");
+              const ItemIcon = item.icon;
+              return (
+                <Link key={item.href} href={item.href} asChild>
+                  <Pressable
+                    className={cn(
+                      "min-h-11 flex-row items-center gap-3 rounded-2xl px-3 py-2.5 active:bg-paper-2",
+                      active && "bg-sidebar-accent",
+                    )}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={_(item.label)}
+                  >
+                    <ItemIcon size={19} color={active ? signal : ink3} strokeWidth={2} />
+                    <Text
+                      className={cn(
+                        "font-sans text-[15px]",
+                        active
+                          ? "font-semibold text-sidebar-accent-foreground"
+                          : "font-medium text-ink-2",
+                      )}
+                    >
+                      {_(item.label)}
+                    </Text>
+                  </Pressable>
+                </Link>
+              );
+            })}
+          </View>
+        ))}
       </View>
     </ScrollView>
   );
@@ -136,6 +229,7 @@ function DrawerContent() {
 function DrawerLayout() {
   const themeColorForeground = useThemeColor("foreground");
   const themeColorBackground = useThemeColor("background");
+  const themeColorSidebar = useThemeColor("sidebar");
   const pathname = usePathname();
 
   const renderThemeToggle = useCallback(() => <ThemeToggle />, []);
@@ -151,11 +245,14 @@ function DrawerLayout() {
         headerTintColor: themeColorForeground,
         headerStyle: { backgroundColor: themeColorBackground },
         headerTitleStyle: {
+          fontFamily: DISPLAY_FONT,
           fontWeight: "600",
+          fontSize: 19,
           color: themeColorForeground,
         },
+        headerShadowVisible: false,
         headerRight: renderThemeToggle,
-        drawerStyle: { backgroundColor: themeColorBackground },
+        drawerStyle: { backgroundColor: themeColorSidebar },
       }}
     >
       <Drawer.Screen

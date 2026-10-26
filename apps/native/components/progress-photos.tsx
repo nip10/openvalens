@@ -1,10 +1,11 @@
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card } from "heroui-native";
+import { Button } from "heroui-native";
+import { Camera, Lock } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Alert, Image, Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import { EmptyState, ErrorState, Section, Sheet, ToneIcon } from "@/components/bloom";
 import { client } from "@/utils/orpc";
 
 /**
@@ -37,47 +38,55 @@ export function ProgressPhotos({
     ]);
 
   return (
-    <CardStack title={t`Progress photos`}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <Text className="text-sm text-muted-foreground">
+    <Section icon={Camera} tone="weight" title={t`Progress photos`}>
+      <Sheet className="flex-row items-start gap-3 p-4">
+        <ToneIcon icon={Lock} tone="weight" size="sm" />
+        <Text className="min-w-0 flex-1 font-sans text-sm leading-relaxed text-ink-2">
           {t`Only you can see these photos. Location, camera and other hidden details are removed before a photo is stored. Add photos from the web app.`}
         </Text>
-        {photos.isPending ? (
-          <Text className="text-sm text-muted-foreground">{t`Loading photos…`}</Text>
-        ) : photos.isError ? (
-          <Button size="sm" variant="secondary" onPress={() => void photos.refetch()}>
-            {t`Could not load photos. Try again`}
-          </Button>
-        ) : !photos.data.storage ? (
-          <Text className="text-sm text-muted-foreground">
-            {t`Photo storage is not set up on this server.`}
-          </Text>
-        ) : photos.data.photos.length === 0 ? (
-          <Text className="text-sm text-muted-foreground">{t`No photos yet.`}</Text>
-        ) : (
-          <View className="flex-row flex-wrap gap-3">
-            {photos.data.photos.map((photo) => (
-              <View key={photo.id} className="w-[47%] gap-2">
-                <PhotoImage id={photo.id} createdAt={photo.createdAt} />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  isDisabled={remove.isPending}
-                  onPress={() => confirmDelete(photo.id)}
-                >
-                  {t`Delete photo`}
-                </Button>
-              </View>
-            ))}
-          </View>
-        )}
-        {notice ? (
-          <Text accessibilityLiveRegion="polite" className="text-sm text-muted-foreground">
-            {notice}
-          </Text>
-        ) : null}
-      </Card>
-    </CardStack>
+      </Sheet>
+      {photos.isPending ? (
+        <Text className="font-sans text-sm text-ink-3">{t`Loading photos…`}</Text>
+      ) : photos.isError ? (
+        <ErrorState
+          title={t`Could not load photos. Try again`}
+          action={
+            <Button size="sm" variant="outline" onPress={() => void photos.refetch()}>
+              {t`Try again`}
+            </Button>
+          }
+        />
+      ) : !photos.data.storage ? (
+        <EmptyState
+          icon={Camera}
+          tone="weight"
+          title={t`Photo storage is not set up on this server.`}
+        />
+      ) : photos.data.photos.length === 0 ? (
+        <EmptyState icon={Camera} tone="weight" title={t`No photos yet.`} />
+      ) : (
+        <View className="flex-row flex-wrap gap-3">
+          {photos.data.photos.map((photo) => (
+            <Sheet key={photo.id} className="w-[47%] gap-3 p-2 pb-3">
+              <PhotoImage id={photo.id} createdAt={photo.createdAt} />
+              <Button
+                size="sm"
+                variant="ghost"
+                isDisabled={remove.isPending}
+                onPress={() => confirmDelete(photo.id)}
+              >
+                {t`Delete photo`}
+              </Button>
+            </Sheet>
+          ))}
+        </View>
+      )}
+      {notice ? (
+        <Text accessibilityLiveRegion="polite" className="font-sans text-sm text-ink-3">
+          {notice}
+        </Text>
+      ) : null}
+    </Section>
   );
 }
 
@@ -99,18 +108,18 @@ function PhotoImage({ id, createdAt }: { id: string; createdAt: string }) {
   const date = new Date(createdAt).toLocaleDateString();
   if (file.isError)
     return (
-      <Text className="text-sm text-muted-foreground">{t`This photo could not be loaded.`}</Text>
+      <Text className="font-sans text-sm text-ink-3">{t`This photo could not be loaded.`}</Text>
     );
   return uri ? (
     <Image
       source={{ uri }}
       accessibilityLabel={t`Progress photo from ${date}`}
-      className="aspect-square w-full rounded-lg"
+      className="aspect-square w-full rounded-2xl"
     />
   ) : (
     <View
       accessibilityLabel={t`Loading progress photo from ${date}`}
-      className="aspect-square w-full rounded-lg bg-muted"
+      className="aspect-square w-full rounded-2xl bg-paper-2"
     />
   );
 }

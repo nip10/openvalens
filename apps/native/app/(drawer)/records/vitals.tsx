@@ -15,28 +15,36 @@ import {
 } from "@openvalens/api/presenters/vitals";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
+import { Button } from "heroui-native";
+import { Activity, HeartPulse, Plus, Waves } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Figure,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+  StatTile,
+  TileRow,
+  ToneChip,
+} from "@/components/bloom";
+import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
-import { LineChart } from "@/components/chart";
 import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
 const TREND_WINDOW_DAYS = 30;
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-1 gap-1">
-      <Text className="text-sm text-muted-foreground">{label}</Text>
-      <Text className="font-mono text-lg text-foreground">{value}</Text>
-    </View>
-  );
-}
+const INPUT_CLASS =
+  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
 
 const MANUAL_METRICS: ManualEntryMetric[] = ["heart_rate", "resting_heart_rate"];
 
@@ -44,6 +52,7 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   const [metric, setMetric] = useState<ManualEntryMetric>("heart_rate");
   const field = MANUAL_ENTRY_FIELDS[metric];
   const { t, i18n } = useLingui();
+  const placeholderColor = useThemeColor("ink-3");
   const unit = i18n._(field.unit);
   const [value, setValue] = useState("");
   const [observedAt, setObservedAt] = useState(defaultObservedAt());
@@ -71,10 +80,10 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <CardStack title={t`Add reading`}>
-      <Card variant="secondary" className="gap-4 p-4">
+    <Section icon={Plus} tone="heart" title={t`Add reading`}>
+      <Sheet className="gap-4">
         <View className="gap-2">
-          <Text className="text-sm font-medium text-foreground">{t`Metric`}</Text>
+          <Text className="font-sans text-sm text-ink-3">{t`Metric`}</Text>
           <View className="flex-row flex-wrap gap-2">
             {MANUAL_METRICS.map((code) => {
               const selected = code === metric;
@@ -84,13 +93,13 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
                   onPress={() => setMetric(code)}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-                    selected ? "border-primary bg-primary/15" : "border-border bg-card"
+                  className={`min-h-9 justify-center rounded-full border px-3.5 active:opacity-70 ${
+                    selected ? "border-heart bg-heart-soft" : "border-rule-2 bg-paper-2"
                   }`}
                 >
                   <Text
-                    className={`text-sm ${
-                      selected ? "font-medium text-foreground" : "text-muted-foreground"
+                    className={`font-sans text-sm ${
+                      selected ? "font-semibold text-ink" : "text-ink-2"
                     }`}
                   >
                     {i18n._(MANUAL_ENTRY_FIELDS[code].label)}
@@ -102,52 +111,49 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
         </View>
         <View className="flex-row gap-3">
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Value (${unit})`}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`Value (${unit})`}</Text>
             <TextInput
               value={value}
               onChangeText={setValue}
               placeholder={`${field.min}–${field.max}`}
               keyboardType="numeric"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
+              className={INPUT_CLASS}
+              placeholderTextColor={placeholderColor}
             />
           </View>
           <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">{t`Observed at`}</Text>
+            <Text className="font-sans text-sm text-ink-3">{t`Observed at`}</Text>
             <TextInput
               value={observedAt}
               onChangeText={setObservedAt}
               placeholder="YYYY-MM-DDTHH:MM"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
+              className={INPUT_CLASS}
+              placeholderTextColor={placeholderColor}
             />
           </View>
         </View>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row flex-wrap items-center gap-3">
           <Button onPress={submit} isDisabled={numeric === null || save.isPending}>
-            {save.isPending ? t`Saving…` : t`Save`}
+            <Button.Label>{save.isPending ? t`Saving…` : t`Save`}</Button.Label>
           </Button>
           {numeric === null && value.length > 0 ? (
-            <Text className="text-sm text-destructive">
+            <Text className="font-sans text-sm text-destructive">
               {field.min}–{field.max} {unit}
             </Text>
           ) : save.isSuccess ? (
-            <Text className="text-sm text-success">{t`Saved`}</Text>
+            <Text className="font-sans text-sm text-success">{t`Saved`}</Text>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">{t`Could not save.`}</Text>
+            <Text className="font-sans text-sm text-destructive">{t`Could not save.`}</Text>
           ) : null}
         </View>
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }
 
 export default function VitalsScreen() {
   const queryClient = useQueryClient();
   const foreground = useThemeColor("foreground");
-  const muted = useThemeColor("muted");
-  const chart1 = useThemeColor("chart-1");
-
   const daily = useCacheFirst(
     "vitals.daily",
     orpc.vitals.daily.queryOptions({ input: { days: TREND_WINDOW_DAYS } }),
@@ -164,33 +170,53 @@ export default function VitalsScreen() {
     [daily.data, samples.data],
   );
 
+  const header = <PageHeader title={t`Vitals`} actions={<SyncStatusBadge />} />;
+
   if (daily.isPending || samples.isPending)
     return (
-      <Container className="items-center justify-center" isScrollable={false}>
-        <Spinner />
+      <Container>
+        <Page>
+          {header}
+          <TileRow>
+            <Sheet className="h-36" />
+            <Sheet className="h-36" />
+          </TileRow>
+          <Sheet className="h-56" />
+        </Page>
       </Container>
     );
 
   if (daily.isError || !daily.data || samples.isError || !summary)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <SyncStatusBadge />
-        <Text className="text-base text-foreground">{t`Could not load vitals.`}</Text>
-        <Pressable
-          onPress={() => {
-            void daily.refetch();
-            void samples.refetch();
-          }}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
-        </Pressable>
+      <Container>
+        <Page>
+          {header}
+          <ErrorState
+            title={t`Could not load vitals.`}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  void daily.refetch();
+                  void samples.refetch();
+                }}
+              >
+                <Button.Label>{t`Retry`}</Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
-  const series = heartRateSeries(summary.days);
-  const maxBpm = Math.max(80, ...series.filter((p) => p.avgBpm !== null).map((p) => p.avgBpm ?? 0));
+  const today = summary.today;
+  const series = heartRateSeries(summary.days).filter(
+    (p): p is typeof p & { avgBpm: number } => p.avgBpm !== null,
+  );
+  const bpms = series.map((p) => p.avgBpm);
+  const minBpm = bpms.length ? Math.floor(Math.min(...bpms) - 5) : 40;
+  const maxBpm = Math.ceil(Math.max(80, ...bpms) + 5);
 
   return (
     <Container
@@ -207,14 +233,72 @@ export default function VitalsScreen() {
         ),
       }}
     >
-      <View className="gap-6 p-4">
-        <View className="flex-row items-start justify-between gap-3">
-          <View>
-            <Text className="text-sm text-muted-foreground">{t`Vitals`}</Text>
-            <Text className="font-mono text-3xl text-foreground">{t`Last 30 days`}</Text>
-          </View>
-          <SyncStatusBadge />
-        </View>
+      <Page>
+        {header}
+
+        {!today ? (
+          <EmptyState
+            icon={HeartPulse}
+            tone="heart"
+            title={t`No vitals yet`}
+            description={t`Sync Health Connect or Apple Health from the mobile app, or add a reading.`}
+          />
+        ) : (
+          <>
+            <View className="gap-3" accessibilityLabel={t`Today`}>
+              <TileRow>
+                <StatTile
+                  icon={HeartPulse}
+                  tone="heart"
+                  label={t`Avg heart rate`}
+                  value={formatBpm(today.heartRate.avgBpm)}
+                  note={t`Your usual: ${formatBpm(summary.sevenDayAverageBpm)}`}
+                />
+                <StatTile
+                  icon={Activity}
+                  tone="heart"
+                  label={i18n._(MANUAL_ENTRY_FIELDS.resting_heart_rate.label)}
+                  value={formatBpm(today.restingHeartRate.avgBpm)}
+                />
+              </TileRow>
+              {summary.latestHrv ? (
+                <TileRow>
+                  <StatTile
+                    icon={Waves}
+                    tone="heart"
+                    label={t`Overnight HRV`}
+                    value={formatMs(summary.latestHrv.avgMs)}
+                    note={friendlyDate(i18n, summary.latestHrv.date)}
+                  />
+                  <View />
+                </TileRow>
+              ) : null}
+            </View>
+
+            {series.length > 0 ? (
+              <Section
+                icon={HeartPulse}
+                tone="heart"
+                title={t`Last ${windowDays} days`}
+                info={t`Y-axis: avg bpm`}
+              >
+                <Sheet>
+                  <TrendChart
+                    tone="heart"
+                    data={series.map((point) => ({
+                      value: point.avgBpm,
+                      label: friendlyDate(i18n, point.date),
+                    }))}
+                    minValue={Math.max(0, minBpm)}
+                    maxValue={maxBpm}
+                    formatYLabel={(label) => String(Math.round(Number(label)))}
+                    height={170}
+                  />
+                </Sheet>
+              </Section>
+            ) : null}
+          </>
+        )}
 
         <AddReadingForm
           onSaved={() => {
@@ -224,115 +308,80 @@ export default function VitalsScreen() {
           }}
         />
 
-        {!summary.today ? (
-          <Card variant="secondary" className="items-center gap-1 p-8">
-            <Text className="font-medium text-foreground">{t`No vitals yet`}</Text>
-            <Text className="text-center text-sm text-muted-foreground">
-              {t`Sync Health Connect or Apple Health from the mobile app, or add a reading.`}
-            </Text>
-          </Card>
-        ) : (
-          <>
-            <CardStack>
-              <Card variant="secondary" className="gap-2 p-4">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-medium text-foreground">{t`Today`}</Text>
-                  <Text className="text-sm text-muted-foreground">{summary.today.date}</Text>
-                </View>
-                <View className="flex-row gap-4">
-                  <Stat label={t`Avg`} value={formatBpm(summary.today.heartRate.avgBpm)} />
-                  <Stat
+        {today ? (
+          <Details summary={t`Recent samples`}>
+            <View className="gap-3">
+              <Sheet className="gap-3 p-4">
+                <Text className="font-display text-base font-medium text-ink">{t`Today`}</Text>
+                <View className="flex-row">
+                  <Figure
+                    className="flex-1 pr-2"
+                    label={t`Avg`}
+                    value={formatBpm(today.heartRate.avgBpm)}
+                  />
+                  <Figure
+                    className="flex-1 border-l border-rule px-2"
                     label={t`Range`}
                     value={formatBpmRange(
-                      summary.today.heartRate.avgBpm,
-                      summary.today.heartRate.minBpm,
-                      summary.today.heartRate.maxBpm,
+                      today.heartRate.avgBpm,
+                      today.heartRate.minBpm,
+                      today.heartRate.maxBpm,
                     )}
                   />
-                  <Stat label={t`Samples`} value={summary.today.heartRate.sampleCount.toString()} />
+                  <Figure
+                    className="flex-1 border-l border-rule pl-2"
+                    label={t`Samples`}
+                    value={today.heartRate.sampleCount.toString()}
+                  />
                 </View>
-              </Card>
-            </CardStack>
-
-            <CardStack title={t`Last ${windowDays} days`}>
-              <Card variant="secondary" className="p-4">
-                <LineChart
-                  data={series.map((point) => ({
-                    value: point.avgBpm ?? 0,
-                    label: point.label,
-                    dataPointText: point.avgBpm !== null ? String(Math.round(point.avgBpm)) : "",
-                  }))}
-                  color={chart1}
-                  dataPointsColor={chart1}
-                  xAxisColor={muted}
-                  yAxisColor={muted}
-                  rulesColor={muted}
-                  height={160}
-                  spacing={Math.max(14, 260 / Math.max(1, series.length))}
-                  initialSpacing={8}
-                  thickness={2}
-                  hideRules={false}
-                  noOfSections={4}
-                  maxValue={Math.ceil(maxBpm + 5)}
-                  yAxisTextStyle={{ color: foreground, fontSize: 10 }}
-                  xAxisLabelTextStyle={{ color: foreground, fontSize: 9 }}
-                  roundToDigits={0}
-                />
-                <Text className="mt-2 text-xs text-muted-foreground">{t`Y-axis: avg bpm`}</Text>
-              </Card>
-            </CardStack>
-
-            <CardStack title={t`This week`}>
-              <Card variant="secondary" className="p-4">
-                <View className="flex-row gap-4">
-                  <Stat label={t`7-day avg`} value={formatBpm(summary.sevenDayAverageBpm)} />
-                  <Stat
+              </Sheet>
+              <Sheet className="gap-3 p-4">
+                <Text className="font-display text-base font-medium text-ink">{t`This week`}</Text>
+                <View className="flex-row">
+                  <Figure
+                    className="flex-1 pr-2"
+                    label={t`7-day avg`}
+                    value={formatBpm(summary.sevenDayAverageBpm)}
+                  />
+                  <Figure
+                    className="flex-1 border-l border-rule px-2"
                     label={t`Latest`}
                     value={formatBpm(summary.latestSample?.heartRateBpm ?? null)}
                   />
-                  <Stat
+                  <Figure
+                    className="flex-1 border-l border-rule pl-2"
                     label={t`Source`}
                     value={vitalsSourceLabel(summary.latestSample?.source ?? null, i18n)}
                   />
                 </View>
-                {summary.latestHrv ? (
-                  <View className="mt-4 flex-row gap-4">
-                    <Stat
-                      label={t`Overnight HRV · ${summary.latestHrv.date}`}
-                      value={formatMs(summary.latestHrv.avgMs)}
-                    />
-                  </View>
-                ) : null}
-              </Card>
-            </CardStack>
-
-            <CardStack title={t`Recent samples`}>
-              <Card variant="secondary" className="p-0">
+              </Sheet>
+              <Sheet className="p-0">
                 {(samples.data ?? []).map((sample, index, arr) => (
                   <View
                     key={sample.sampledAt}
-                    className={`flex-row items-center justify-between px-4 py-3 ${
-                      index < arr.length - 1 ? "border-b border-border" : ""
+                    className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
+                      index < arr.length - 1 ? "border-b border-rule" : ""
                     }`}
                   >
-                    <Text className="font-mono text-sm text-muted-foreground">
+                    <Text
+                      className="font-sans text-sm text-ink-3"
+                      style={{ fontVariant: ["tabular-nums"] }}
+                    >
                       {new Date(sample.sampledAt).toISOString().slice(0, 16).replace("T", " ")}
                     </Text>
                     <View className="flex-row items-center gap-3">
-                      <Text className="font-mono text-sm text-foreground">
-                        {formatBpm(sample.heartRateBpm)}
-                      </Text>
-                      <Text className="text-xs text-muted-foreground">
+                      <ToneChip tone="heart">{formatBpm(sample.heartRateBpm)}</ToneChip>
+                      <Text className="font-sans text-xs text-ink-3">
                         {vitalsSourceLabel(sample.source, i18n)}
                       </Text>
                     </View>
                   </View>
                 ))}
-              </Card>
-            </CardStack>
-          </>
-        )}
-      </View>
+              </Sheet>
+            </View>
+          </Details>
+        ) : null}
+      </Page>
     </Container>
   );
 }

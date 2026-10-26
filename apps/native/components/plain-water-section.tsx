@@ -22,9 +22,10 @@ import {
 import type { MessageDescriptor } from "@lingui/core";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Button, Card, Spinner } from "heroui-native";
+import { Button } from "heroui-native";
+import { GlassWater, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, Switch, Text, TextInput, View } from "react-native";
 
 import {
@@ -39,6 +40,9 @@ import { canDiscardWaterItem } from "@/lib/plain-water/outbox";
 import { editAmountChanged, editUnitChanged, waterEditAmountPatch } from "@/lib/plain-water/form";
 import { useCacheFirst } from "@/lib/offline/sync";
 import { client, orpc } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
+
+import { Details, ErrorState, Icon, InfoTip, Section, StatusPill } from "./bloom";
 
 /**
  * Plain water (Issue #83) on mobile, between the day's targets and the meal add
@@ -49,7 +53,17 @@ import { client, orpc } from "@/utils/orpc";
  */
 
 const inputClass =
-  "min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground";
+  "min-h-11 rounded-xl border border-rule bg-sheet px-3 font-sans text-base text-ink";
+
+/** A quiet placeholder while the day loads. */
+function Loading() {
+  const { t } = useLingui();
+  return (
+    <View className="h-20 justify-center rounded-2xl bg-paper-2 px-4">
+      <Text className="font-sans text-sm text-ink-3">{t`Loading…`}</Text>
+    </View>
+  );
+}
 
 function announce(message: string) {
   AccessibilityInfo.announceForAccessibility(message);
@@ -69,9 +83,11 @@ function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className={`min-h-11 justify-center rounded-lg border px-3 ${selected ? "border-foreground bg-accent" : "border-border"}`}
+      className={`min-h-11 justify-center rounded-full border px-4 ${selected ? "border-water bg-water-soft" : "border-rule bg-sheet"}`}
     >
-      <Text className="text-sm text-foreground">{label}</Text>
+      <Text className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -206,33 +222,43 @@ export function PlainWaterSection({
   };
 
   return (
-    <Card variant="secondary" className="gap-3 p-4">
-      <View className="gap-1">
-        <Text className="font-medium text-foreground" accessibilityRole="header">
-          {i18n._(WATER_COPY.title)}
-        </Text>
-        <Text className="text-sm text-muted-foreground">{i18n._(WATER_COPY.scopeNote)}</Text>
-      </View>
-
+    <Section
+      icon={GlassWater}
+      tone="water"
+      sheet
+      title={i18n._(WATER_COPY.title)}
+      info={i18n._(WATER_COPY.scopeNote)}
+      actions={
+        enabled === false ? (
+          <StatusPill tone="neutral">{i18n._(WATER_COPY.optional)}</StatusPill>
+        ) : null
+      }
+    >
       {outbox.error ? (
-        <Pressable onPress={() => void outbox.syncNow()} accessibilityRole="button">
-          <Text className="text-sm text-muted-foreground">
-            {i18n._(WATER_COPY.storageError)} {i18n._(WATER_COPY.retry)}
-          </Text>
-        </Pressable>
+        <ErrorState
+          title={i18n._(WATER_COPY.storageError)}
+          action={
+            <Button size="sm" variant="outline" onPress={() => void outbox.syncNow()}>
+              <Button.Label>{i18n._(WATER_COPY.retry)}</Button.Label>
+            </Button>
+          }
+        />
       ) : null}
 
       {!outbox.error ? (
-        <>
+        <View className="gap-4">
           {notice ? (
-            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+            <Text className="font-sans text-sm text-ink-2" accessibilityLiveRegion="polite">
               {notice}
             </Text>
           ) : null}
 
           {counts.queued + counts.syncing + counts.attention > 0 ? (
-            <View className="flex-row items-center justify-between gap-3">
-              <Text className="flex-1 text-sm text-foreground" accessibilityLiveRegion="polite">
+            <View className="flex-row items-center justify-between gap-3 rounded-2xl bg-paper-2 px-4 py-3">
+              <Text
+                className="flex-1 font-sans text-sm text-ink-2"
+                accessibilityLiveRegion="polite"
+              >
                 {`${i18n._(WATER_COPY.pendingTitle)}: `}
                 {[
                   counts.queued
@@ -251,8 +277,9 @@ export function PlainWaterSection({
                   .filter(Boolean)
                   .join(", ")}
               </Text>
-              <Button size="sm" variant="secondary" onPress={() => void outbox.syncNow()}>
-                {i18n._(WATER_COPY.syncNow)}
+              <Button size="sm" variant="outline" onPress={() => void outbox.syncNow()}>
+                <Icon icon={RefreshCw} size={16} color="ink-2" />
+                <Button.Label>{i18n._(WATER_COPY.syncNow)}</Button.Label>
               </Button>
             </View>
           ) : null}
@@ -262,52 +289,55 @@ export function PlainWaterSection({
             const queued = outbox.items.find((entry) => entry.id === item.id);
             const discardable = queued ? canDiscardWaterItem(queued) : false;
             return (
-              <View key={item.id} className="gap-2 rounded-lg border border-border p-3">
-                <Text className="font-medium text-foreground" accessibilityRole="alert">
+              <View key={item.id} className="gap-2 rounded-2xl bg-warning/10 px-4 py-3">
+                <Text
+                  className="font-display text-base font-medium text-ink"
+                  accessibilityRole="alert"
+                >
                   {copy.title}
                 </Text>
                 {copy.other ? (
-                  <Text className="text-sm text-muted-foreground">{copy.other}</Text>
+                  <Text className="font-sans text-sm text-ink-2">{copy.other}</Text>
                 ) : null}
-                <Text className="text-sm text-muted-foreground">{copy.mine}</Text>
+                <Text className="font-sans text-sm text-ink-2">{copy.mine}</Text>
                 {!item.isConflict ? (
-                  <Text className="text-sm text-muted-foreground">
+                  <Text className="font-sans text-sm text-ink-3">
                     {i18n._(WATER_COPY.rejectedBody)}
                   </Text>
                 ) : null}
                 <View className="flex-row flex-wrap gap-2">
                   {item.isConflict ? (
                     <>
-                      <Button size="sm" onPress={() => keepMine(item)}>
-                        {i18n._(WATER_COPY.keepMine)}
+                      <Button size="sm" variant="secondary" onPress={() => keepMine(item)}>
+                        <Button.Label>{i18n._(WATER_COPY.keepMine)}</Button.Label>
                       </Button>
                       {discardable ? (
                         <Button
                           size="sm"
-                          variant="secondary"
+                          variant="outline"
                           onPress={() => {
                             if (outbox.discard(item.id)) announce(i18n._(WATER_COPY.keepOther));
                           }}
                         >
-                          {i18n._(WATER_COPY.keepOther)}
+                          <Button.Label>{i18n._(WATER_COPY.keepOther)}</Button.Label>
                         </Button>
                       ) : null}
                     </>
                   ) : (
                     <>
-                      <Button size="sm" onPress={() => outbox.retry(item.id)}>
-                        {i18n._(WATER_COPY.retry)}
+                      <Button size="sm" variant="secondary" onPress={() => outbox.retry(item.id)}>
+                        <Button.Label>{i18n._(WATER_COPY.retry)}</Button.Label>
                       </Button>
                       {discardable ? (
                         <Button
                           size="sm"
-                          variant="secondary"
+                          variant="outline"
                           onPress={() => {
                             if (outbox.discard(item.id))
                               announce(t`Change discarded on this device.`);
                           }}
                         >
-                          {i18n._(WATER_COPY.discard)}
+                          <Button.Label>{i18n._(WATER_COPY.discard)}</Button.Label>
                         </Button>
                       ) : null}
                     </>
@@ -319,29 +349,37 @@ export function PlainWaterSection({
 
           {enabled === null ? (
             day.isPending || preferences.isPending ? (
-              <Spinner />
+              <Loading />
             ) : (
-              <Pressable
-                onPress={() => {
-                  void day.refetch();
-                  void preferences.refetch();
-                }}
-                accessibilityRole="button"
-              >
-                <Text className="text-sm text-muted-foreground">
-                  {i18n._(WATER_COPY.readError)} {i18n._(WATER_COPY.retry)}
-                </Text>
-              </Pressable>
+              <ErrorState
+                title={i18n._(WATER_COPY.readError)}
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onPress={() => {
+                      void day.refetch();
+                      void preferences.refetch();
+                    }}
+                  >
+                    <Button.Label>{i18n._(WATER_COPY.retry)}</Button.Label>
+                  </Button>
+                }
+              />
             )
           ) : enabled === false ? (
             <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">
+              <Text className="font-display text-base font-medium text-ink">
                 {i18n._(WATER_COPY.offTitle)}
               </Text>
-              <Text className="text-sm text-muted-foreground">{i18n._(WATER_COPY.offBody)}</Text>
-              <View>
-                <Button size="sm" onPress={() => void saveSettings({ enabled: true })}>
-                  {i18n._(WATER_COPY.turnOn)}
+              <Text className="font-sans text-sm text-ink-3">{i18n._(WATER_COPY.offBody)}</Text>
+              <View className="flex-row pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onPress={() => void saveSettings({ enabled: true })}
+                >
+                  <Button.Label>{i18n._(WATER_COPY.turnOn)}</Button.Label>
                 </Button>
               </View>
             </View>
@@ -358,25 +396,24 @@ export function PlainWaterSection({
               onEnqueue={onEnqueue}
               settingsBusy={savingSettings}
               onSaveGoal={(personalGoalMl) => saveSettings({ personalGoal: personalGoalMl })}
+              settingsSwitch={
+                <View className="min-h-11 flex-row items-center justify-between gap-3">
+                  <Text className="flex-1 font-sans text-sm text-ink-2">
+                    {i18n._(WATER_COPY.settingsTitle)}
+                  </Text>
+                  <Switch
+                    value={true}
+                    onValueChange={(value) => void saveSettings({ enabled: value })}
+                    disabled={savingSettings}
+                    accessibilityLabel={i18n._(WATER_COPY.settingsTitle)}
+                  />
+                </View>
+              }
             />
           )}
-
-          {enabled ? (
-            <View className="flex-row items-center justify-between gap-3">
-              <Text className="flex-1 text-sm text-foreground">
-                {i18n._(WATER_COPY.settingsTitle)}
-              </Text>
-              <Switch
-                value={true}
-                onValueChange={(value) => void saveSettings({ enabled: value })}
-                disabled={savingSettings}
-                accessibilityLabel={i18n._(WATER_COPY.settingsTitle)}
-              />
-            </View>
-          ) : null}
-        </>
+        </View>
       ) : null}
-    </Card>
+    </Section>
   );
 }
 
@@ -396,6 +433,7 @@ function PlainWaterDayPanel({
   onEnqueue,
   settingsBusy,
   onSaveGoal,
+  settingsSwitch,
 }: {
   view: ReturnType<typeof buildWaterDayView> | null;
   localDate: string;
@@ -407,8 +445,10 @@ function PlainWaterDayPanel({
   onEnqueue: (op: Parameters<PlainWaterOutbox["enqueue"]>[0]) => boolean;
   settingsBusy: boolean;
   onSaveGoal: (personalGoalMl: number | null) => Promise<boolean>;
+  settingsSwitch: ReactNode;
 }) {
   const { t, i18n } = useLingui();
+  const placeholder = useThemeColor("ink-3");
   const [addOpen, setAddOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [addUnit, setAddUnit] = useState<WaterUnit>(unit);
@@ -430,7 +470,7 @@ function PlainWaterDayPanel({
   const [goalError, setGoalError] = useState<string | null>(null);
 
   if (!view) {
-    return <Spinner />;
+    return <Loading />;
   }
 
   const fail = (set: (message: string) => void, error: MessageDescriptor) => {
@@ -543,37 +583,50 @@ function PlainWaterDayPanel({
     await onSaveGoal(parsed.personalGoalMl);
   };
 
+  const canDiscard = (row: WaterDayRow) => {
+    if (row.state === "synced" || !row.pendingOpId) return false;
+    const item = outbox.items.find((entry) => entry.id === row.pendingOpId);
+    return item ? canDiscardWaterItem(item) : false;
+  };
+
   return (
     <>
       <View
-        className="gap-1 rounded-lg border border-border p-3"
+        className="gap-3"
         accessible
         accessibilityLabel={describeWaterSubtotal(view, unit, hideNumbers, i18n)}
       >
-        <View className="flex-row flex-wrap items-baseline justify-between gap-2">
-          <Text className="text-sm text-muted-foreground">{i18n._(WATER_COPY.subtotalLabel)}</Text>
-          <Text className="font-mono text-lg text-foreground">
+        <View className="gap-1">
+          <Text className="font-sans text-sm text-ink-3">{i18n._(WATER_COPY.subtotalLabel)}</Text>
+          <Text
+            className="font-display text-[34px] font-medium leading-[40px] text-ink"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
             {formatWaterSubtotal(view, unit, hideNumbers, i18n)}
           </Text>
         </View>
-        <View className="flex-row flex-wrap items-baseline justify-between gap-2">
-          <Text className="text-sm text-foreground">
+        {/* The goal sits beside the total as text, never as a bar or ring. */}
+        <View className="flex-row flex-wrap items-center gap-1">
+          <Text className="font-sans text-sm text-ink-2">
             {t`Personal goal:`}{" "}
-            <Text className="font-mono">
+            <Text
+              className="font-sans font-semibold text-ink"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
               {formatWaterGoal(view.personalGoalMl, unit, hideNumbers, i18n)}
             </Text>
           </Text>
-          <Text className="text-xs text-muted-foreground">{i18n._(WATER_COPY.goalNote)}</Text>
+          <InfoTip title={i18n._(WATER_COPY.goalLabel)}>{i18n._(WATER_COPY.goalNote)}</InfoTip>
         </View>
         {hideNumbers ? (
-          <Text className="text-xs text-muted-foreground">{i18n._(WATER_COPY.hiddenNote)}</Text>
+          <Text className="font-sans text-sm text-ink-3">{i18n._(WATER_COPY.hiddenNote)}</Text>
         ) : (
           <UnitChoice value={unit} onChange={onUnitChange} />
         )}
       </View>
 
       {view.pendingRemovalCount > 0 ? (
-        <Text className="text-xs text-muted-foreground" accessibilityLiveRegion="polite">
+        <Text className="font-sans text-sm text-ink-3" accessibilityLiveRegion="polite">
           {t`${plural(view.pendingRemovalCount, {
             one: "# removal waiting to sync.",
             other: "# removals waiting to sync.",
@@ -582,201 +635,216 @@ function PlainWaterDayPanel({
       ) : null}
 
       {view.rows.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">
+        <Text className="font-sans text-sm text-ink-3">
           {i18n._(view.reconciliationUnknown ? WATER_COPY.reconciliationUnknown : WATER_COPY.empty)}
         </Text>
       ) : (
-        view.rows.map((row) => (
-          <View
-            key={row.key}
-            className="gap-2 rounded-lg border border-border p-3"
-            accessible
-            accessibilityLabel={describeWaterRow(row, unit, hideNumbers, i18n)}
-          >
-            <View className="flex-row flex-wrap items-baseline justify-between gap-2">
-              <Text className="font-mono text-sm text-muted-foreground">
-                {formatObservedClock(row.observedAt, timeZone) ?? row.observedAt}
-              </Text>
-              <Text className="font-mono text-sm text-foreground">
-                {formatWaterAmount(row.quantityMl, unit, hideNumbers, i18n)}
-              </Text>
-              {row.state === "synced" ? null : (
-                <Text className="text-xs text-muted-foreground">
-                  {i18n._(
-                    row.state === "syncing"
-                      ? WATER_COPY.rowSyncing
-                      : row.state === "needs_attention"
-                        ? WATER_COPY.rowNeedsAttention
-                        : WATER_COPY.rowQueued,
-                  )}
-                </Text>
-              )}
-            </View>
-
-            <View className="flex-row flex-wrap gap-2">
-              {row.state === "synced" && !row.local ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onPress={() => {
-                      setConfirming(null);
-                      setFormError(null);
-                      setEditing({
-                        entryId: row.entryId as number,
-                        revision: row.revision as number,
-                        // A hidden row carries no amount, so the field starts blank.
-                        amount: String(waterAmountValue(row.quantityMl, unit) ?? ""),
-                        amountDirty: false,
-                        unit,
-                        clock: formatObservedClock(row.observedAt, timeZone) ?? "",
-                        originalClock: formatObservedClock(row.observedAt, timeZone) ?? "",
-                      });
-                    }}
+        <View className="border-t border-rule">
+          {view.rows.map((row) => (
+            <View
+              key={row.key}
+              className="gap-2 border-b border-rule py-3"
+              accessible
+              accessibilityLabel={describeWaterRow(row, unit, hideNumbers, i18n)}
+            >
+              <View className="flex-row flex-wrap items-center justify-between gap-2">
+                <View className="flex-row flex-wrap items-center gap-3">
+                  <View className="rounded-full bg-water-soft px-2.5 py-1">
+                    <Text
+                      className="font-sans text-sm font-semibold text-ink"
+                      style={{ fontVariant: ["tabular-nums"] }}
+                    >
+                      {formatWaterAmount(row.quantityMl, unit, hideNumbers, i18n)}
+                    </Text>
+                  </View>
+                  <Text
+                    className="font-sans text-sm text-ink-3"
+                    style={{ fontVariant: ["tabular-nums"] }}
                   >
-                    {i18n._(WATER_COPY.edit)}
-                  </Button>
-                  <Button size="sm" variant="secondary" onPress={() => setConfirming(row.key)}>
-                    {i18n._(WATER_COPY.delete)}
-                  </Button>
-                </>
-              ) : null}
-              {row.state !== "synced" &&
-              row.pendingOpId &&
-              (() => {
-                const item = outbox.items.find((entry) => entry.id === row.pendingOpId);
-                return item ? canDiscardWaterItem(item) : false;
-              })() ? (
-                <Button size="sm" variant="secondary" onPress={() => setConfirming(row.key)}>
-                  {i18n._(WATER_COPY.discard)}
-                </Button>
-              ) : null}
-            </View>
-
-            {confirming === row.key ? (
-              <View className="gap-2 rounded-lg border border-border p-3">
-                <Text className="text-sm text-foreground">
-                  {i18n._(
-                    row.state !== "synced"
-                      ? row.local
-                        ? WATER_COPY.deleteConfirmLocal
-                        : WATER_COPY.discardConfirm
-                      : WATER_COPY.deleteConfirm,
-                  )}
-                </Text>
-                <View className="flex-row flex-wrap gap-2">
-                  <Button size="sm" onPress={() => removeRow(row)}>
-                    {i18n._(
-                      row.state !== "synced" ? WATER_COPY.confirmDiscard : WATER_COPY.confirmDelete,
-                    )}
-                  </Button>
-                  <Button size="sm" variant="secondary" onPress={() => setConfirming(null)}>
-                    {i18n._(WATER_COPY.cancel)}
-                  </Button>
-                </View>
-              </View>
-            ) : null}
-
-            {editing?.entryId === row.entryId && row.entryId !== null ? (
-              <View className="gap-2 rounded-lg border border-border p-3">
-                {hideNumbers ? (
-                  <Text className="text-xs text-muted-foreground">
-                    {i18n._(WATER_COPY.editHiddenNote)}
+                    {formatObservedClock(row.observedAt, timeZone) ?? row.observedAt}
                   </Text>
-                ) : null}
-                <TextInput
-                  className={inputClass}
-                  value={editing.amount}
-                  onChangeText={(value) =>
-                    setEditing((current) => (current ? editAmountChanged(current, value) : current))
-                  }
-                  placeholder={i18n._(WATER_COPY.amountPlaceholder)}
-                  placeholderTextColor="#8b8b8b"
-                  keyboardType="decimal-pad"
-                  accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
-                />
-                <UnitChoice
-                  value={editing.unit}
-                  onChange={(next) =>
-                    setEditing((current) => (current ? editUnitChanged(current, next) : current))
-                  }
-                />
-                <TextInput
-                  className={inputClass}
-                  value={editing.clock}
-                  onChangeText={(value) =>
-                    setEditing((current) => (current ? { ...current, clock: value } : current))
-                  }
-                  placeholder={i18n._(WATER_COPY.timePlaceholder)}
-                  placeholderTextColor="#8b8b8b"
-                  maxLength={5}
-                  accessibilityLabel={i18n._(WATER_COPY.timeLabel)}
-                />
-                <View className="flex-row flex-wrap gap-2">
-                  <Button size="sm" onPress={submitEdit} isDisabled={outbox.busy}>
-                    {i18n._(WATER_COPY.save)}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onPress={() => {
-                      setEditing(null);
-                      setFormError(null);
-                    }}
-                  >
-                    {i18n._(WATER_COPY.cancel)}
-                  </Button>
+                  {row.state === "synced" ? null : (
+                    <StatusPill tone={row.state === "needs_attention" ? "warn" : "neutral"}>
+                      {i18n._(
+                        row.state === "syncing"
+                          ? WATER_COPY.rowSyncing
+                          : row.state === "needs_attention"
+                            ? WATER_COPY.rowNeedsAttention
+                            : WATER_COPY.rowQueued,
+                      )}
+                    </StatusPill>
+                  )}
+                </View>
+
+                <View className="flex-row flex-wrap gap-1">
+                  {row.state === "synced" && !row.local ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => {
+                          setConfirming(null);
+                          setFormError(null);
+                          setEditing({
+                            entryId: row.entryId as number,
+                            revision: row.revision as number,
+                            // A hidden row carries no amount, so the field starts blank.
+                            amount: String(waterAmountValue(row.quantityMl, unit) ?? ""),
+                            amountDirty: false,
+                            unit,
+                            clock: formatObservedClock(row.observedAt, timeZone) ?? "",
+                            originalClock: formatObservedClock(row.observedAt, timeZone) ?? "",
+                          });
+                        }}
+                      >
+                        <Icon icon={Pencil} size={16} color="ink-3" />
+                        <Button.Label>{i18n._(WATER_COPY.edit)}</Button.Label>
+                      </Button>
+                      <Button size="sm" variant="ghost" onPress={() => setConfirming(row.key)}>
+                        <Icon icon={Trash2} size={16} color="ink-3" />
+                        <Button.Label>{i18n._(WATER_COPY.delete)}</Button.Label>
+                      </Button>
+                    </>
+                  ) : null}
+                  {canDiscard(row) ? (
+                    <Button size="sm" variant="ghost" onPress={() => setConfirming(row.key)}>
+                      <Button.Label>{i18n._(WATER_COPY.discard)}</Button.Label>
+                    </Button>
+                  ) : null}
                 </View>
               </View>
-            ) : null}
-          </View>
-        ))
+
+              {confirming === row.key ? (
+                <View className="gap-2 rounded-2xl bg-destructive/5 px-4 py-3">
+                  <Text className="font-sans text-sm text-ink">
+                    {i18n._(
+                      row.state !== "synced"
+                        ? row.local
+                          ? WATER_COPY.deleteConfirmLocal
+                          : WATER_COPY.discardConfirm
+                        : WATER_COPY.deleteConfirm,
+                    )}
+                  </Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    <Button size="sm" variant="danger" onPress={() => removeRow(row)}>
+                      <Button.Label>
+                        {i18n._(
+                          row.state !== "synced"
+                            ? WATER_COPY.confirmDiscard
+                            : WATER_COPY.confirmDelete,
+                        )}
+                      </Button.Label>
+                    </Button>
+                    <Button size="sm" variant="outline" onPress={() => setConfirming(null)}>
+                      <Button.Label>{i18n._(WATER_COPY.cancel)}</Button.Label>
+                    </Button>
+                  </View>
+                </View>
+              ) : null}
+
+              {editing?.entryId === row.entryId && row.entryId !== null ? (
+                <View className="gap-2 rounded-2xl bg-paper-2 p-4">
+                  {hideNumbers ? (
+                    <Text className="font-sans text-sm text-ink-3">
+                      {i18n._(WATER_COPY.editHiddenNote)}
+                    </Text>
+                  ) : null}
+                  <TextInput
+                    className={inputClass}
+                    value={editing.amount}
+                    onChangeText={(value) =>
+                      setEditing((current) =>
+                        current ? editAmountChanged(current, value) : current,
+                      )
+                    }
+                    placeholder={i18n._(WATER_COPY.amountPlaceholder)}
+                    placeholderTextColor={placeholder}
+                    keyboardType="decimal-pad"
+                    accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
+                  />
+                  <UnitChoice
+                    value={editing.unit}
+                    onChange={(next) =>
+                      setEditing((current) => (current ? editUnitChanged(current, next) : current))
+                    }
+                  />
+                  <TextInput
+                    className={inputClass}
+                    value={editing.clock}
+                    onChangeText={(value) =>
+                      setEditing((current) => (current ? { ...current, clock: value } : current))
+                    }
+                    placeholder={i18n._(WATER_COPY.timePlaceholder)}
+                    placeholderTextColor={placeholder}
+                    maxLength={5}
+                    accessibilityLabel={i18n._(WATER_COPY.timeLabel)}
+                  />
+                  <View className="flex-row flex-wrap gap-2">
+                    <Button size="sm" onPress={submitEdit} isDisabled={outbox.busy}>
+                      <Button.Label>{i18n._(WATER_COPY.save)}</Button.Label>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onPress={() => {
+                        setEditing(null);
+                        setFormError(null);
+                      }}
+                    >
+                      <Button.Label>{i18n._(WATER_COPY.cancel)}</Button.Label>
+                    </Button>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </View>
       )}
 
       {formError ? (
-        <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+        <Text className="font-sans text-sm text-destructive" accessibilityLiveRegion="polite">
           {formError}
         </Text>
       ) : null}
 
       {addOpen ? (
-        <View className="gap-2 rounded-lg border border-border p-3">
+        <View className="gap-2 rounded-2xl bg-paper-2 p-4">
           <TextInput
             className={inputClass}
             value={amount}
             onChangeText={setAmount}
             placeholder={i18n._(WATER_COPY.amountPlaceholder)}
-            placeholderTextColor="#8b8b8b"
+            placeholderTextColor={placeholder}
             keyboardType="decimal-pad"
             accessibilityLabel={i18n._(WATER_COPY.amountLabel)}
           />
           <UnitChoice value={addUnit} onChange={setAddUnit} />
-          <View className="flex-row items-end gap-2">
+          <View className="flex-row items-center gap-2">
             <TextInput
               className={`${inputClass} flex-1`}
               value={clock}
               onChangeText={setClock}
               placeholder={i18n._(WATER_COPY.timePlaceholder)}
-              placeholderTextColor="#8b8b8b"
+              placeholderTextColor={placeholder}
               maxLength={5}
               accessibilityLabel={i18n._(WATER_COPY.timeLabel)}
             />
             <Button
               size="sm"
-              variant="secondary"
+              variant="outline"
               onPress={() =>
                 setClock(formatObservedClock(new Date().toISOString(), timeZone) ?? clock)
               }
             >
-              {i18n._(WATER_COPY.useNow)}
+              <Button.Label>{i18n._(WATER_COPY.useNow)}</Button.Label>
             </Button>
           </View>
           <View className="flex-row flex-wrap gap-2">
             <Button size="sm" onPress={submitAdd}>
-              {i18n._(WATER_COPY.save)}
+              <Button.Label>{i18n._(WATER_COPY.save)}</Button.Label>
             </Button>
-            <Button size="sm" variant="secondary" onPress={() => setAddOpen(false)}>
-              {i18n._(WATER_COPY.cancel)}
+            <Button size="sm" variant="ghost" onPress={() => setAddOpen(false)}>
+              <Button.Label>{i18n._(WATER_COPY.cancel)}</Button.Label>
             </Button>
           </View>
         </View>
@@ -784,6 +852,7 @@ function PlainWaterDayPanel({
         <View className="flex-row">
           <Button
             size="sm"
+            variant="outline"
             onPress={() => {
               setAddOpen(true);
               setAmount("");
@@ -792,52 +861,67 @@ function PlainWaterDayPanel({
               setFormError(null);
             }}
           >
-            {i18n._(WATER_COPY.add)}
+            <Icon icon={Plus} size={16} color="water" />
+            <Button.Label>{i18n._(WATER_COPY.add)}</Button.Label>
           </Button>
         </View>
       )}
 
-      <View className="gap-2 rounded-lg border border-border p-3">
-        <Text className="text-sm font-medium text-foreground">{i18n._(WATER_COPY.goalLabel)}</Text>
-        {hideNumbers ? (
-          <Text className="text-xs text-muted-foreground">
-            {i18n._(WATER_COPY.editGoalHiddenNote)}
-          </Text>
-        ) : null}
-        <View className="flex-row items-end gap-2">
-          <TextInput
-            className={`${inputClass} flex-1`}
-            value={goalText}
-            onChangeText={setGoalText}
-            placeholder={i18n._(WATER_COPY.goalAmountPlaceholder)}
-            placeholderTextColor="#8b8b8b"
-            keyboardType="decimal-pad"
-            accessibilityLabel={i18n._(WATER_COPY.goalAmountLabel)}
-          />
-          {hideNumbers ? null : (
-            <Text className="pb-3 text-sm text-muted-foreground">{WATER_UNIT_LABELS[unit]}</Text>
-          )}
+      <Details summary={i18n._(WATER_COPY.settingsTitle)}>
+        <View className="gap-3">
+          {settingsSwitch}
+          <View className="gap-2 rounded-2xl bg-paper-2 p-4">
+            <Text className="font-display text-sm font-medium text-ink">
+              {i18n._(WATER_COPY.goalLabel)}
+            </Text>
+            {hideNumbers ? (
+              <Text className="font-sans text-sm text-ink-3">
+                {i18n._(WATER_COPY.editGoalHiddenNote)}
+              </Text>
+            ) : null}
+            <View className="flex-row items-center gap-2">
+              <TextInput
+                className={`${inputClass} flex-1`}
+                value={goalText}
+                onChangeText={setGoalText}
+                placeholder={i18n._(WATER_COPY.goalAmountPlaceholder)}
+                placeholderTextColor={placeholder}
+                keyboardType="decimal-pad"
+                accessibilityLabel={i18n._(WATER_COPY.goalAmountLabel)}
+              />
+              {hideNumbers ? null : (
+                <Text className="font-sans text-sm text-ink-3">{WATER_UNIT_LABELS[unit]}</Text>
+              )}
+            </View>
+            <View className="flex-row flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onPress={() => void submitGoal(false)}
+                isDisabled={settingsBusy}
+              >
+                <Button.Label>
+                  {i18n._(settingsBusy ? WATER_COPY.saving : WATER_COPY.setGoal)}
+                </Button.Label>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => void submitGoal(true)}
+                isDisabled={settingsBusy || (view.personalGoalMl === null && !hideNumbers)}
+              >
+                <Button.Label>{i18n._(WATER_COPY.clearGoal)}</Button.Label>
+              </Button>
+            </View>
+            {goalError ? (
+              <Text className="font-sans text-sm text-destructive" accessibilityLiveRegion="polite">
+                {goalError}
+              </Text>
+            ) : null}
+            <Text className="font-sans text-sm text-ink-3">{i18n._(WATER_COPY.goalNote)}</Text>
+          </View>
         </View>
-        <View className="flex-row flex-wrap gap-2">
-          <Button size="sm" onPress={() => void submitGoal(false)} isDisabled={settingsBusy}>
-            {i18n._(settingsBusy ? WATER_COPY.saving : WATER_COPY.setGoal)}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={() => void submitGoal(true)}
-            isDisabled={settingsBusy || (view.personalGoalMl === null && !hideNumbers)}
-          >
-            {i18n._(WATER_COPY.clearGoal)}
-          </Button>
-        </View>
-        {goalError ? (
-          <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
-            {goalError}
-          </Text>
-        ) : null}
-        <Text className="text-xs text-muted-foreground">{i18n._(WATER_COPY.goalNote)}</Text>
-      </View>
+      </Details>
     </>
   );
 }

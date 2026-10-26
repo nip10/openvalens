@@ -10,12 +10,22 @@ import {
   type ExportDomain,
 } from "@openvalens/api/presenters/clinical-export";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Card, Chip, Spinner } from "heroui-native";
+import { Button, cn, Spinner } from "heroui-native";
+import { Download, FileArchive, FileText, Layers } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Linking, Pressable, RefreshControl, Text, View } from "react-native";
 
+import {
+  ErrorState,
+  Icon,
+  ListCard,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+  ToneChip,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
-import { CardStack } from "@/components/list-row";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 
@@ -76,40 +86,37 @@ function ArtifactRow({
   const { t } = useLingui();
   const fileName = artifact.fileName;
   return (
-    <View className="flex-row items-center justify-between gap-3">
-      <View className="min-w-0 flex-1">
-        <Text className="font-mono text-sm text-foreground" numberOfLines={1}>
-          {artifact.fileName}
-        </Text>
-        <Text className="text-xs text-muted-foreground">
-          {formatBytes(utf8ByteLength(artifact.content))}
-        </Text>
-      </View>
-      <Pressable
-        onPress={() => onOpen(artifact)}
-        className="min-h-11 justify-center px-3 active:opacity-70"
-        accessibilityRole="button"
-        accessibilityLabel={t`Open ${fileName}`}
-      >
-        <Text className="font-medium text-foreground underline">{t`Open`}</Text>
-      </Pressable>
-    </View>
+    <ListCard
+      icon={FileText}
+      tone="water"
+      title={fileName}
+      subtitle={formatBytes(utf8ByteLength(artifact.content))}
+      trailing={
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={() => onOpen(artifact)}
+          accessibilityRole="button"
+          accessibilityLabel={t`Open ${fileName}`}
+        >
+          <Button.Label>{t`Open`}</Button.Label>
+        </Button>
+      }
+    />
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ExportError({ onRetry }: { onRetry: () => void }) {
   const { t } = useLingui();
   return (
-    <View className="flex-row items-center gap-3">
-      <Text className="text-sm text-destructive">{t`Could not export.`}</Text>
-      <Pressable
-        onPress={onRetry}
-        className="min-h-11 justify-center active:opacity-70"
-        accessibilityRole="button"
-      >
-        <Text className="font-medium text-foreground underline">{t`Retry`}</Text>
-      </Pressable>
-    </View>
+    <ErrorState
+      title={t`Could not export.`}
+      action={
+        <Button variant="outline" size="sm" onPress={onRetry}>
+          <Button.Label>{t`Retry`}</Button.Label>
+        </Button>
+      }
+    />
   );
 }
 
@@ -193,41 +200,42 @@ export default function ExportsScreen() {
         ),
       }}
     >
-      <View className="gap-6 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">{t`Records`}</Text>
-          <Text className="font-mono text-3xl text-foreground">{t`Clinical export`}</Text>
-        </View>
+      <Page>
+        <PageHeader eyebrow={t`Records`} title={t`Clinical export`} />
 
-        <CardStack title={t`Download a bundle`}>
-          <Card variant="secondary" className="gap-3 p-4">
-            <Text className="text-sm text-muted-foreground">
-              {t`Download your clinical record as a single JSON bundle.`}
-            </Text>
+        <Section
+          icon={FileArchive}
+          tone="water"
+          title={t`Download a bundle`}
+          description={t`Download your clinical record as a single JSON bundle.`}
+        >
+          <Sheet className="gap-3">
             <View className="flex-row items-center gap-3">
-              <Button onPress={runBundle} isDisabled={bundle.isPending}>
-                {bundle.isPending ? t`Downloading…` : t`Download bundle`}
+              <Button className="flex-1" onPress={runBundle} isDisabled={bundle.isPending}>
+                <Icon icon={Download} size={18} color="primary-foreground" />
+                <Button.Label>
+                  {bundle.isPending ? t`Downloading…` : t`Download bundle`}
+                </Button.Label>
               </Button>
-              <Chip size="sm" variant="secondary">
-                <Chip.Label>JSON</Chip.Label>
-              </Chip>
+              <ToneChip tone="water">JSON</ToneChip>
             </View>
             {bundle.isPending ? <Spinner /> : null}
-            {bundle.isError ? <ErrorState onRetry={runBundle} /> : null}
-            {bundleArtifacts.map((artifact) => (
-              <ArtifactRow key={artifact.fileName} artifact={artifact} onOpen={openArtifact} />
-            ))}
-          </Card>
-        </CardStack>
+            {bundle.isError ? <ExportError onRetry={runBundle} /> : null}
+          </Sheet>
+          {bundleArtifacts.map((artifact) => (
+            <ArtifactRow key={artifact.fileName} artifact={artifact} onOpen={openArtifact} />
+          ))}
+        </Section>
 
-        <CardStack title={t`Download by domain`}>
-          <Card variant="secondary" className="gap-4 p-4">
-            <Text className="text-sm text-muted-foreground">
-              {t`Choose domains and a format, then download.`}
-            </Text>
-
+        <Section
+          icon={Layers}
+          tone="water"
+          title={t`Download by domain`}
+          description={t`Choose domains and a format, then download.`}
+        >
+          <Sheet className="gap-5">
             <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">{t`Domains`}</Text>
+              <Text className="font-sans text-sm font-medium text-ink-2">{t`Domains`}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {options.map((option) => {
                   const isSelected = selected.has(option.domain);
@@ -237,14 +245,16 @@ export default function ExportsScreen() {
                       onPress={() => toggle(option.domain)}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: isSelected }}
-                      className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-                        isSelected ? "border-primary bg-primary/15" : "border-border bg-card"
-                      }`}
+                      className={cn(
+                        "min-h-9 justify-center rounded-full border px-3.5 py-1.5 active:opacity-70",
+                        isSelected ? "border-water bg-water-soft" : "border-rule-2 bg-card",
+                      )}
                     >
                       <Text
-                        className={`text-sm ${
-                          isSelected ? "font-medium text-foreground" : "text-muted-foreground"
-                        }`}
+                        className={cn(
+                          "font-sans text-sm",
+                          isSelected ? "font-semibold text-ink" : "text-ink-3",
+                        )}
                       >
                         {i18n._(option.label)}
                       </Text>
@@ -253,12 +263,14 @@ export default function ExportsScreen() {
                 })}
               </View>
               {selected.size === 0 ? (
-                <Text className="text-sm text-destructive">{t`Select at least one domain.`}</Text>
+                <Text className="font-sans text-sm text-destructive">
+                  {t`Select at least one domain.`}
+                </Text>
               ) : null}
             </View>
 
             <View className="gap-2">
-              <Text className="text-sm font-medium text-foreground">{t`Format`}</Text>
+              <Text className="font-sans text-sm font-medium text-ink-2">{t`Format`}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {(["csv", "pdf"] as const).map((value) => {
                   const isSelected = format === value;
@@ -268,14 +280,16 @@ export default function ExportsScreen() {
                       onPress={() => setFormat(value)}
                       accessibilityRole="button"
                       accessibilityState={{ selected: isSelected }}
-                      className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-                        isSelected ? "border-primary bg-primary/15" : "border-border bg-card"
-                      }`}
+                      className={cn(
+                        "min-h-9 justify-center rounded-full border px-3.5 py-1.5 active:opacity-70",
+                        isSelected ? "border-water bg-water-soft" : "border-rule-2 bg-card",
+                      )}
                     >
                       <Text
-                        className={`text-sm ${
-                          isSelected ? "font-medium text-foreground" : "text-muted-foreground"
-                        }`}
+                        className={cn(
+                          "font-sans text-sm",
+                          isSelected ? "font-semibold text-ink" : "text-ink-3",
+                        )}
                       >
                         {value.toUpperCase()}
                       </Text>
@@ -286,21 +300,25 @@ export default function ExportsScreen() {
             </View>
 
             <View className="flex-row items-center gap-3">
-              <Button onPress={runDomainExport} isDisabled={selected.size === 0 || domainPending}>
-                {domainPending ? t`Downloading…` : t`Download`}
+              <Button
+                className="flex-1"
+                variant="secondary"
+                onPress={runDomainExport}
+                isDisabled={selected.size === 0 || domainPending}
+              >
+                <Icon icon={Download} size={18} color="ink" />
+                <Button.Label>{domainPending ? t`Downloading…` : t`Download`}</Button.Label>
               </Button>
-              <Chip size="sm" variant="secondary">
-                <Chip.Label>{format.toUpperCase()}</Chip.Label>
-              </Chip>
+              <ToneChip tone="water">{format.toUpperCase()}</ToneChip>
             </View>
             {domainPending ? <Spinner /> : null}
-            {domainError ? <ErrorState onRetry={runDomainExport} /> : null}
-            {domainArtifacts.map((artifact) => (
-              <ArtifactRow key={artifact.fileName} artifact={artifact} onOpen={openArtifact} />
-            ))}
-          </Card>
-        </CardStack>
-      </View>
+            {domainError ? <ExportError onRetry={runDomainExport} /> : null}
+          </Sheet>
+          {domainArtifacts.map((artifact) => (
+            <ArtifactRow key={artifact.fileName} artifact={artifact} onOpen={openArtifact} />
+          ))}
+        </Section>
+      </Page>
     </Container>
   );
 }

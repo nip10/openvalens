@@ -54,10 +54,13 @@ export function ExerciseAttribution({
       : t`License: ${license}`
     : t`License not listed.`;
   return (
-    <View className="gap-1 rounded-lg border border-border p-3" accessibilityLabel={title}>
-      <Text className="text-sm font-medium text-foreground">{title}</Text>
-      <Text className="text-xs text-muted-foreground">{licenseLine}</Text>
-      {attribution ? <Text className="text-xs text-muted-foreground">{attribution}</Text> : null}
+    <View
+      className="gap-1 rounded-2xl border border-rule bg-paper-2 p-4"
+      accessibilityLabel={title}
+    >
+      <Text className="font-sans text-sm font-semibold text-ink-2">{title}</Text>
+      <Text className="font-sans text-xs text-ink-3">{licenseLine}</Text>
+      {attribution ? <Text className="font-sans text-xs text-ink-3">{attribution}</Text> : null}
       {licenseHref ? (
         <Pressable
           onPress={() => void Linking.openURL(licenseHref)}
@@ -65,7 +68,7 @@ export function ExerciseAttribution({
           accessibilityLabel={licenseLabel}
           className="min-h-11 justify-center"
         >
-          <Text className="text-sm text-foreground underline">{licenseLabel}</Text>
+          <Text className="font-sans text-sm font-semibold text-signal">{licenseLabel}</Text>
         </Pressable>
       ) : null}
       {sourceHref ? (
@@ -75,7 +78,7 @@ export function ExerciseAttribution({
           accessibilityLabel={t`Source record`}
           className="min-h-11 justify-center"
         >
-          <Text className="text-sm text-foreground underline">
+          <Text className="font-sans text-sm font-semibold text-signal">
             <Trans>Source record</Trans>
           </Text>
         </Pressable>

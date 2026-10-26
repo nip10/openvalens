@@ -1,6 +1,5 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Ionicons } from "@expo/vector-icons";
 import {
   assertivenessLabel,
   COACH_DISCLAIMER_VALUES,
@@ -21,15 +20,50 @@ import {
 } from "@openvalens/api/presenters/coach-settings";
 import { UPSTREAM_SOURCE_CODE_URL } from "@openvalens/api/source-code";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Chip, useThemeColor } from "heroui-native";
+import { Button } from "heroui-native";
 import { router, useFocusEffect } from "expo-router";
+import {
+  Bell,
+  Bot,
+  Code2,
+  Info,
+  List,
+  Moon,
+  Plug,
+  Scale,
+  Send,
+  Server,
+  ShieldCheck,
+  Smartphone,
+  SlidersHorizontal,
+  Sun,
+  Trash2,
+  UserRound,
+  Watch,
+} from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Pressable, Text, TextInput, View } from "react-native";
 
-import { CardStack, ListRow } from "@/components/list-row";
+import {
+  ErrorState,
+  Icon,
+  Page,
+  PageHeader,
+  RowChevron,
+  Section,
+  Sheet,
+  StatusPill,
+} from "@/components/bloom";
+import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
-import { LanguageSection } from "@/components/language-section";
+import {
+  choiceChip,
+  choiceText,
+  LanguageSection,
+  SettingsGroup,
+  SettingsIcon,
+} from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
 import { useAppTheme } from "@/contexts/app-theme-context";
@@ -43,127 +77,141 @@ export default function SettingsScreen() {
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const { data: session, isPending: sessionPending } = authClient.useSession();
 
-  const foreground = useThemeColor("foreground");
   const { t } = useLingui();
+  const displayName = session?.user ? (session.user.name ?? session.user.email) : null;
 
   return (
-    <Container className="p-4">
-      <View className="gap-6">
-        {session?.user && (
-          <CardStack title={t`Account`}>
-            <Card variant="secondary" className="p-4">
-              <Text className="text-base text-foreground">
-                {session.user.name ?? session.user.email}
-              </Text>
-              {session.user.email && (
-                <Text className="font-mono text-sm text-muted-foreground">
-                  {session.user.email}
-                </Text>
-              )}
-            </Card>
-          </CardStack>
-        )}
+    <Container>
+      <Page>
+        <PageHeader title={t`Settings`} />
+
+        <Section title={t`Account`} icon={UserRound} tone="signal">
+          <SettingsGroup>
+            <View className="flex-row flex-wrap items-center gap-4 py-4">
+              {session?.user ? (
+                <>
+                  <View
+                    className="h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sidebar-accent"
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  >
+                    <Text className="font-display text-xl font-medium text-signal">
+                      {(displayName ?? "?").trim().charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View className="min-w-0 flex-1 gap-0.5">
+                    <Text className="font-display text-lg font-medium text-ink">{displayName}</Text>
+                    {session.user.email && (
+                      <Text className="font-sans text-sm text-ink-3">{session.user.email}</Text>
+                    )}
+                  </View>
+                </>
+              ) : null}
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => void signOutOfThisPhone()}
+                accessibilityLabel={t`Sign out`}
+              >
+                <Button.Label>
+                  <Trans>Sign out</Trans>
+                </Button.Label>
+              </Button>
+            </View>
+          </SettingsGroup>
+        </Section>
 
         <LanguageSection />
 
         {session?.user && (
-          <CardStack title={t`Profile`}>
-            <Card variant="secondary" className="overflow-hidden p-0">
+          <Section title={t`Profile`} icon={UserRound} tone="signal">
+            <Sheet className="overflow-hidden p-0 py-1">
               <ListRow
-                icon={<Ionicons name="person-outline" size={20} color={foreground} />}
+                icon={<Icon icon={UserRound} size={18} color="ink-2" />}
                 title={t`Your profile`}
                 subtitle={t`Optional answers only you can see`}
                 onPress={() => router.push("/profile")}
+                showDivider
+                trailing={<RowChevron />}
               />
               <ListRow
-                icon={<Ionicons name="notifications-outline" size={20} color={foreground} />}
+                icon={<Icon icon={Bell} size={18} color="ink-2" />}
                 title={t`Insight notifications`}
                 subtitle={t`Push and weekly email, off until you turn them on`}
                 onPress={() => router.push("/insight-settings")}
+                trailing={<RowChevron />}
               />
-            </Card>
-          </CardStack>
+            </Sheet>
+          </Section>
         )}
 
         {session?.user && <HealthSyncSettings />}
+
+        {session?.user && (
+          <Section title={t`Integrations`} icon={Plug} tone="signal">
+            <Sheet className="overflow-hidden p-0 py-1">
+              <ListRow
+                icon={<Icon icon={Watch} size={18} color="ink-2" />}
+                title={t`Devices`}
+                subtitle={t`Cloud wearable connections`}
+                onPress={() => router.push("/settings/devices")}
+                showDivider
+                trailing={<RowChevron />}
+              />
+              <ListRow
+                icon={<Icon icon={Send} size={18} color="ink-2" />}
+                title="Telegram"
+                subtitle={t`Daily reminders`}
+                onPress={() => router.push("/settings/telegram")}
+                trailing={<RowChevron />}
+              />
+            </Sheet>
+          </Section>
+        )}
+
         {session?.user && <AnalyticsConsentSection />}
 
         {session?.user && <CoachSection />}
         {session?.user && <AiSection />}
 
         {session?.user && (
-          <CardStack title={t`Integrations`}>
-            <Card variant="secondary" className="overflow-hidden p-0">
-              <ListRow
-                icon={<Ionicons name="watch-outline" size={20} color={foreground} />}
-                title={t`Devices`}
-                subtitle={t`Cloud wearable connections`}
-                onPress={() => router.push("/settings/devices")}
-              />
-              <ListRow
-                icon={<Text className="text-lg">✈</Text>}
-                title="Telegram"
-                subtitle={t`Daily reminders`}
-                onPress={() => router.push("/settings/telegram")}
-              />
-            </Card>
-          </CardStack>
-        )}
-
-        {session?.user && (
           <AdministrationRow userId={session.user.id} sessionPending={sessionPending} />
         )}
 
-        <CardStack title={t`Preferences`}>
-          <Card variant="secondary" className="overflow-hidden p-0">
+        <Section title={t`Preferences`} icon={SlidersHorizontal} tone="signal">
+          <Sheet className="overflow-hidden p-0 py-1">
             <ListRow
-              icon={
-                <Ionicons
-                  name={isDark ? "sunny-outline" : "moon-outline"}
-                  size={20}
-                  color={foreground}
-                />
-              }
+              icon={<Icon icon={isDark ? Sun : Moon} size={18} color="ink-2" />}
               title={t`Dark mode`}
               subtitle={isDark ? t`On` : t`Off`}
               onPress={toggleTheme}
+              showDivider
               trailing={
-                <Chip size="sm" variant="secondary">
-                  <Chip.Label>{isDark ? t`On` : t`Off`}</Chip.Label>
-                </Chip>
+                <StatusPill tone={isDark ? "good" : "neutral"}>
+                  {isDark ? t`On` : t`Off`}
+                </StatusPill>
               }
             />
             <ListRow
-              icon={<Ionicons name="list-outline" size={20} color={foreground} />}
+              icon={<Icon icon={List} size={18} color="ink-2" />}
               title={t`Compact density`}
               subtitle={density === "compact" ? t`On` : t`Off`}
               onPress={() =>
                 setDensity((prev) => (prev === "comfortable" ? "compact" : "comfortable"))
               }
               trailing={
-                <Chip size="sm" variant="secondary">
-                  <Chip.Label>{density === "compact" ? t`compact` : t`comfortable`}</Chip.Label>
-                </Chip>
+                <StatusPill tone="neutral">
+                  {density === "compact" ? t`compact` : t`comfortable`}
+                </StatusPill>
               }
             />
-          </Card>
-        </CardStack>
-
-        <Pressable
-          onPress={() => void signOutOfThisPhone()}
-          className="min-h-14 items-center justify-center rounded-lg bg-destructive active:opacity-70"
-          accessibilityRole="button"
-          accessibilityLabel={t`Sign out`}
-        >
-          <Text className="font-medium text-destructive-foreground">
-            <Trans>Sign out</Trans>
-          </Text>
-        </Pressable>
+          </Sheet>
+        </Section>
 
         {session?.user && <DeleteAccountSection onSignOut={signOutOfThisPhone} />}
 
         <AboutSection />
-      </View>
+      </Page>
     </Container>
   );
 }
@@ -196,9 +244,9 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
   const typeToConfirm = t({ message: `Type ${confirmationPhrase} to confirm`, comment: "safety" });
 
   return (
-    <CardStack title={t`Delete account`}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <Text className="text-sm text-foreground">
+    <Section title={t`Delete account`} icon={Trash2}>
+      <Sheet className="gap-3">
+        <Text className="font-sans text-sm leading-relaxed text-ink-2">
           {organizationCount === 1 ? (
             <Trans comment="safety">
               Permanently deletes your account and {rows} stored rows across your health record.
@@ -212,7 +260,7 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
           )}
         </Text>
         {data.blockers.length > 0 ? (
-          <Text className="text-sm text-destructive">
+          <Text className="font-sans text-sm text-destructive">
             <Trans comment="safety">
               {blockerNames} also has another owner. Remove them or transfer the record before
               deleting.
@@ -220,12 +268,12 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
           </Text>
         ) : data.reauthRequired ? (
           <>
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-sans text-sm text-ink-3">
               <Trans>
                 For your security, sign out and sign back in, then return here within 10 minutes.
               </Trans>
             </Text>
-            <Button variant="secondary" onPress={() => void onSignOut()}>
+            <Button variant="outline" className="self-start" onPress={() => void onSignOut()}>
               <Button.Label>
                 <Trans>Sign out to confirm it's you</Trans>
               </Button.Label>
@@ -233,33 +281,33 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
           </>
         ) : (
           <>
-            <Text className="text-sm text-foreground">{typeToConfirm}</Text>
+            <Text className="font-sans text-sm text-ink-2">{typeToConfirm}</Text>
             <TextInput
               value={typed}
               onChangeText={setTyped}
               autoCapitalize="characters"
               autoCorrect={false}
               accessibilityLabel={typeToConfirm}
-              className="rounded-lg border border-border px-3 py-2 font-mono text-foreground"
+              className="rounded-xl border border-rule bg-paper px-3 py-2.5 font-sans text-base text-ink"
             />
-            <Pressable
+            <Button
+              variant="danger"
               onPress={() => remove.mutate({ confirmation: typed })}
-              disabled={typed !== data.confirmationPhrase || remove.isPending}
-              className="min-h-12 items-center justify-center rounded-lg bg-destructive active:opacity-70 disabled:opacity-40"
+              isDisabled={typed !== data.confirmationPhrase || remove.isPending}
               accessibilityRole="button"
               accessibilityLabel={t({ message: "Delete everything", comment: "safety" })}
             >
-              <Text className="font-medium text-destructive-foreground">
+              <Button.Label>
                 {remove.isPending
                   ? t`Deleting…`
                   : t({ message: "Delete everything", comment: "safety" })}
-              </Text>
-            </Pressable>
+              </Button.Label>
+            </Button>
           </>
         )}
-        {error && <Text className="text-sm text-destructive">{error}</Text>}
-      </Card>
-    </CardStack>
+        {error && <Text className="font-sans text-sm text-destructive">{error}</Text>}
+      </Sheet>
+    </Section>
   );
 }
 
@@ -270,35 +318,40 @@ function DeleteAccountSection({ onSignOut }: { onSignOut: () => Promise<void> })
  */
 function AboutSection() {
   const about = useQuery(orpc.about.info.queryOptions({ input: {} }));
-  const foreground = useThemeColor("foreground");
   const { t } = useLingui();
   const serverSource = about.data?.sourceCodeUrl;
 
   return (
-    <CardStack title={t`About`}>
-      <Card variant="secondary" className="overflow-hidden p-0">
-        <Text className="px-4 pt-4 pb-2 text-sm text-muted-foreground">
-          <Trans>
-            OpenValens is free software under the GNU Affero General Public License, version 3 or
-            later.
-          </Trans>
-        </Text>
+    <Section title={t`About`} icon={Info} tone="signal">
+      <Sheet className="overflow-hidden p-0 py-1">
+        <View className="flex-row items-center gap-3 border-b border-rule px-4 py-3">
+          <SettingsIcon icon={Scale} />
+          <Text className="flex-1 font-sans text-sm leading-relaxed text-ink-2">
+            <Trans>
+              OpenValens is free software under the GNU Affero General Public License, version 3 or
+              later.
+            </Trans>
+          </Text>
+        </View>
         <ListRow
-          icon={<Ionicons name="phone-portrait-outline" size={20} color={foreground} />}
+          icon={<Icon icon={Smartphone} size={18} color="ink-2" />}
           title={t`Source code for this app`}
           subtitle={UPSTREAM_SOURCE_CODE_URL}
           onPress={() => void Linking.openURL(UPSTREAM_SOURCE_CODE_URL)}
+          showDivider={!!serverSource}
+          trailing={<Icon icon={Code2} size={16} />}
         />
         {serverSource ? (
           <ListRow
-            icon={<Ionicons name="server-outline" size={20} color={foreground} />}
+            icon={<Icon icon={Server} size={18} color="ink-2" />}
             title={t`Source code for this server`}
             subtitle={serverSource}
             onPress={() => void Linking.openURL(serverSource)}
+            trailing={<Icon icon={Code2} size={16} />}
           />
         ) : null}
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }
 
@@ -307,22 +360,27 @@ function CoachSection() {
   const config = useQuery(orpc.coach.getConfig.queryOptions({ input: undefined }));
   const { t } = useLingui();
 
-  if (config.isPending) return null;
+  if (config.isPending) {
+    return (
+      <Section title={t`Coach`} icon={Bot} tone="signal">
+        <Sheet>
+          <Text className="font-sans text-sm text-ink-3">{t`Loading…`}</Text>
+        </Sheet>
+      </Section>
+    );
+  }
   if (config.isError || !config.data) {
     return (
-      <CardStack title={t`Coach`}>
-        <Card variant="secondary" className="p-4">
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Could not load coach settings.</Trans>{" "}
-            <Text
-              className="font-medium text-foreground underline"
-              onPress={() => void config.refetch()}
-            >
-              <Trans>Retry</Trans>
-            </Text>
-          </Text>
-        </Card>
-      </CardStack>
+      <Section title={t`Coach`} icon={Bot} tone="signal">
+        <ErrorState
+          title={t`Could not load coach settings.`}
+          action={
+            <Button variant="outline" size="sm" onPress={() => void config.refetch()}>
+              <Button.Label>{t`Retry`}</Button.Label>
+            </Button>
+          }
+        />
+      </Section>
     );
   }
 
@@ -373,8 +431,8 @@ function CoachForm({
     template !== initial.selectedTemplateKey;
 
   return (
-    <CardStack title={t`Coach`}>
-      <Card variant="secondary" className="gap-4 p-4">
+    <Section title={t`Coach`} icon={Bot} tone="signal">
+      <Sheet className="gap-5">
         <CoachSelect
           label={t`Tone`}
           hint={text(toneDescription(tone))}
@@ -428,20 +486,20 @@ function CoachForm({
             }
             isDisabled={!dirty || save.isPending}
           >
-            {save.isPending ? t`Saving…` : t`Save`}
+            <Button.Label>{save.isPending ? t`Saving…` : t`Save`}</Button.Label>
           </Button>
           {save.isSuccess && !dirty ? (
-            <Text className="text-sm text-success">
+            <StatusPill tone="good">
               <Trans>Saved</Trans>
-            </Text>
+            </StatusPill>
           ) : save.isError ? (
-            <Text className="text-sm text-destructive">
+            <Text className="font-sans text-sm text-destructive">
               <Trans>Could not save.</Trans>
             </Text>
           ) : null}
         </View>
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }
 
@@ -467,7 +525,6 @@ function AdministrationRow({
     }, [access.refetch, userId]),
   );
 
-  const foreground = useThemeColor("foreground");
   const { t } = useLingui();
 
   const showAdministration =
@@ -483,16 +540,17 @@ function AdministrationRow({
   }
 
   return (
-    <CardStack title={t`Administration`}>
-      <Card variant="secondary" className="overflow-hidden p-0">
+    <Section title={t`Administration`} icon={ShieldCheck} tone="signal">
+      <Sheet className="overflow-hidden p-0 py-1">
         <ListRow
-          icon={<Ionicons name="shield-outline" size={20} color={foreground} />}
+          icon={<Icon icon={ShieldCheck} size={18} color="ink-2" />}
           title={t`Instance configuration`}
           subtitle={t`View global environment settings`}
           onPress={() => router.push("/admin/settings")}
+          trailing={<RowChevron />}
         />
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }
 
@@ -513,7 +571,7 @@ function CoachSelect<V extends string>({
 }) {
   return (
     <View className="gap-2">
-      <Text className="text-sm font-medium text-foreground">{label}</Text>
+      <Text className="font-sans text-sm font-medium text-ink-2">{label}</Text>
       <View className="flex-row flex-wrap gap-2">
         {values.map((option) => {
           const selected = option === value;
@@ -523,22 +581,14 @@ function CoachSelect<V extends string>({
               onPress={() => onChange(option)}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              className={`rounded-full border px-3 py-1.5 active:opacity-70 ${
-                selected ? "border-primary bg-primary/15" : "border-border bg-card"
-              }`}
+              className={choiceChip(selected)}
             >
-              <Text
-                className={`text-sm ${
-                  selected ? "font-medium text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {format(option)}
-              </Text>
+              <Text className={choiceText(selected)}>{format(option)}</Text>
             </Pressable>
           );
         })}
       </View>
-      {hint ? <Text className="text-xs text-muted-foreground">{hint}</Text> : null}
+      {hint ? <Text className="font-sans text-sm text-ink-3">{hint}</Text> : null}
     </View>
   );
 }

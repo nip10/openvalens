@@ -1,11 +1,22 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";
-import { Card, Chip } from "heroui-native";
+import { Button, cn } from "heroui-native";
+import { Settings2, ShieldX } from "lucide-react-native";
 import { useCallback } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  Details,
+  EmptyState,
+  ErrorState,
+  Figure,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+  StatusPill,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import { isConfigPermissionDenied } from "@/utils/admin-settings-error";
@@ -61,16 +72,12 @@ export default function AdminSettingsScreen() {
   );
 
   return (
-    <Container className="p-4">
-      <View className="gap-6">
-        <View className="gap-1">
-          <Text className="text-2xl font-semibold text-foreground">
-            <Trans>Instance configuration</Trans>
-          </Text>
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Administration</Trans>
-          </Text>
-        </View>
+    <Container>
+      <Page>
+        <PageHeader
+          eyebrow={<Trans>Administration</Trans>}
+          title={<Trans>Instance configuration</Trans>}
+        />
 
         {state === "loading" || state === "config-loading" ? (
           <LoadingCard />
@@ -82,9 +89,10 @@ export default function AdminSettingsScreen() {
             onAction={() => void access.refetch()}
           />
         ) : state === "denied" ? (
-          <MessageCard
+          <EmptyState
+            icon={ShieldX}
             title={t`Access denied`}
-            message={t`You do not have access to instance administration.`}
+            description={t`You do not have access to instance administration.`}
           />
         ) : state === "config-error" ? (
           <MessageCard
@@ -96,52 +104,83 @@ export default function AdminSettingsScreen() {
         ) : state === "ready" ? (
           <ConfigurationList entries={config.data?.entries ?? []} />
         ) : null}
-      </View>
+      </Page>
     </Container>
   );
 }
 
 function ConfigurationList({ entries }: { entries: AdminConfigurationEntry[] }) {
   const { t } = useLingui();
+  const configured = entries.filter((entry) => entry.configured).length;
+  const sensitive = entries.filter((entry) => entry.sensitive).length;
   return (
-    <CardStack title={t`Environment configuration`}>
-      <Text className="text-sm text-muted-foreground">
+    <Section
+      title={t`Environment configuration`}
+      icon={Settings2}
+      tone="signal"
+      info={
         <Trans>
           Startup configuration is read-only. Values are hidden for security, even for non-sensitive
           keys.
         </Trans>
-      </Text>
-
+      }
+    >
       {entries.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">
-          <Trans>No configuration keys reported.</Trans>
-        </Text>
+        <EmptyState icon={Settings2} title={<Trans>No configuration keys reported.</Trans>} />
       ) : (
-        <View className="gap-2">
-          {entries.map((entry) => (
-            <ConfigurationRow key={entry.key} entry={entry} />
-          ))}
-        </View>
+        <Sheet className="gap-4">
+          <View className="flex-row">
+            <Figure className="flex-1 pr-3" label={<Trans>Keys</Trans>} value={entries.length} />
+            <Figure
+              className="flex-1 border-l border-rule px-3"
+              label={<Trans>Configured</Trans>}
+              value={configured}
+            />
+            <Figure
+              className="flex-1 border-l border-rule pl-3"
+              label={<Trans>Sensitive</Trans>}
+              value={sensitive}
+            />
+          </View>
+          <Details summary={<Trans>All keys</Trans>}>
+            <View>
+              {entries.map((entry, index) => (
+                <ConfigurationRow key={entry.key} entry={entry} divider={index > 0} />
+              ))}
+            </View>
+          </Details>
+        </Sheet>
       )}
-    </CardStack>
+    </Section>
   );
 }
 
-function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
+function ConfigurationRow({
+  entry,
+  divider,
+}: {
+  entry: AdminConfigurationEntry;
+  divider: boolean;
+}) {
   const { t } = useLingui();
   return (
-    <View className="flex-row flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
-      <Text className="flex-1 break-words text-sm font-medium text-foreground">{entry.key}</Text>
-      <View className="flex-row flex-wrap gap-2">
-        <Chip size="sm" variant={entry.configured ? "primary" : "secondary"}>
-          <Chip.Label>{entry.configured ? t`Configured` : t`Not set`}</Chip.Label>
-        </Chip>
+    <View
+      className={cn(
+        "flex-row flex-wrap items-center justify-between gap-2 py-3",
+        divider && "border-t border-rule",
+      )}
+    >
+      <Text className="min-w-0 flex-1 font-sans text-sm font-medium text-ink" selectable>
+        {entry.key}
+      </Text>
+      <View className="flex-row flex-wrap gap-1.5">
+        <StatusPill tone={entry.configured ? "good" : "neutral"}>
+          {entry.configured ? t`Configured` : t`Not set`}
+        </StatusPill>
         {entry.sensitive ? (
-          <Chip size="sm" variant="tertiary">
-            <Chip.Label>
-              <Trans>Sensitive</Trans>
-            </Chip.Label>
-          </Chip>
+          <StatusPill tone="warn">
+            <Trans>Sensitive</Trans>
+          </StatusPill>
         ) : null}
       </View>
     </View>
@@ -151,14 +190,14 @@ function ConfigurationRow({ entry }: { entry: AdminConfigurationEntry }) {
 function LoadingCard() {
   const { t } = useLingui();
   return (
-    <CardStack title={t`Environment configuration`}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <View className="h-4 w-full rounded-md bg-muted" />
-        <View className="h-14 w-full rounded-md bg-muted" />
-        <View className="h-14 w-full rounded-md bg-muted" />
-        <View className="h-14 w-full rounded-md bg-muted" />
-      </Card>
-    </CardStack>
+    <Section title={t`Environment configuration`} icon={Settings2} tone="signal">
+      <Sheet className="gap-3">
+        <View className="h-4 w-2/3 rounded-md bg-paper-2" />
+        <View className="h-8 w-full rounded-md bg-paper-2" />
+        <View className="h-8 w-full rounded-md bg-paper-2" />
+        <View className="h-8 w-full rounded-md bg-paper-2" />
+      </Sheet>
+    </Section>
   );
 }
 
@@ -174,20 +213,22 @@ function MessageCard({
   onAction?: () => void;
 }) {
   return (
-    <CardStack title={title}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <Text className="text-sm text-muted-foreground">{message}</Text>
-        {actionLabel && onAction ? (
-          <Pressable
+    <ErrorState
+      title={title}
+      description={message}
+      action={
+        actionLabel && onAction ? (
+          <Button
+            variant="outline"
+            size="sm"
             onPress={onAction}
-            className="self-start rounded-lg bg-primary px-4 py-2 active:opacity-70"
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
           >
-            <Text className="font-medium text-primary-foreground">{actionLabel}</Text>
-          </Pressable>
-        ) : null}
-      </Card>
-    </CardStack>
+            <Button.Label>{actionLabel}</Button.Label>
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }

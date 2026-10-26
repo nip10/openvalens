@@ -1,13 +1,17 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Card } from "heroui-native";
+import { Button } from "heroui-native";
 import { useFocusEffect } from "expo-router";
-import { Pressable, Switch, Text, View } from "react-native";
+import { ChartNoAxesColumn, ChartPie } from "lucide-react-native";
+import { Switch, Text, View } from "react-native";
 
 import { useAnalyticsConsent } from "@openvalens/ui/hooks/use-analytics-consent";
 
+import { Section } from "@/components/bloom";
+import { SettingsGroup, SettingsRow } from "@/components/language-section";
 import { authClient } from "@/lib/auth-client";
 import { client } from "@/utils/orpc";
+import { useThemeColor } from "@/utils/theme";
 
 const analyticsApi = client.analytics;
 
@@ -43,6 +47,7 @@ export function AnalyticsConsentSection() {
   const busy = pending !== null;
   const checked = preference?.enabled === true && !locallyRevoked;
   const { t } = useLingui();
+  const signal = useThemeColor("signal");
   const stoppedLocally = t({
     message: "Stopped locally; server change unconfirmed. Retry turning it off.",
     comment: "safety",
@@ -73,11 +78,11 @@ export function AnalyticsConsentSection() {
                     });
 
   return (
-    <Card className="gap-3 p-4">
-      <Text className="text-base font-semibold text-foreground">
-        <Trans>Usage analytics</Trans>
-      </Text>
-      <Text className="text-sm leading-5 text-muted-foreground">
+    <Section
+      title={t`Usage analytics`}
+      icon={ChartPie}
+      tone="signal"
+      description={
         <Trans comment="safety">
           Optional usage analytics via PostHog EU. Sends approved settings-action names and a new
           random event ID for each event; events are not linked to your account, device, session, or
@@ -85,43 +90,55 @@ export function AnalyticsConsentSection() {
           and sees our server’s network IP, not your forwarded IP. Turning this off stops new sends;
           already-sent events cannot be recalled.
         </Trans>
-      </Text>
-      <Text accessibilityRole="alert" className="text-sm text-muted-foreground">
-        {status}
-      </Text>
-      {(error || (pending === null && !preference)) && (
-        <Pressable
-          onPress={error ? consent.retry : consent.refresh}
-          disabled={busy}
-          accessibilityRole="button"
-          accessibilityLabel={t`Retry loading analytics preference`}
-          className="min-h-11 justify-center"
-        >
-          <Text className="text-foreground underline">
-            <Trans>Retry</Trans>
-          </Text>
-        </Pressable>
-      )}
-      <View className="min-h-12 flex-row items-center justify-between">
-        <Text className="flex-1 text-sm text-foreground">{shareLabel}</Text>
-        <Switch
-          accessibilityLabel={shareLabel}
-          value={checked}
-          disabled={
-            busy ||
-            !scope ||
-            isPending ||
-            !preference ||
-            (!preference.available && !preference.enabled && error !== "revoke")
+      }
+    >
+      <SettingsGroup>
+        <SettingsRow
+          icon={ChartNoAxesColumn}
+          label={shareLabel}
+          description={
+            <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
+              {status}
+            </Text>
           }
-          onValueChange={(next) => void consent.setPreference(next)}
-        />
-      </View>
-      {error === "revoke" && (
-        <Text accessibilityRole="alert" className="text-sm text-destructive">
-          {stoppedLocally}
-        </Text>
-      )}
-    </Card>
+          trailing={
+            <Switch
+              accessibilityLabel={shareLabel}
+              value={checked}
+              disabled={
+                busy ||
+                !scope ||
+                isPending ||
+                !preference ||
+                (!preference.available && !preference.enabled && error !== "revoke")
+              }
+              onValueChange={(next) => void consent.setPreference(next)}
+              trackColor={{ true: signal }}
+            />
+          }
+        >
+          {error || (pending === null && !preference) || error === "revoke" ? (
+            <View className="items-start gap-2 pl-12">
+              {(error || (pending === null && !preference)) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onPress={error ? consent.retry : consent.refresh}
+                  isDisabled={busy}
+                  accessibilityLabel={t`Retry loading analytics preference`}
+                >
+                  <Button.Label>{t`Retry`}</Button.Label>
+                </Button>
+              )}
+              {error === "revoke" && (
+                <Text accessibilityRole="alert" className="font-sans text-sm text-destructive">
+                  {stoppedLocally}
+                </Text>
+              )}
+            </View>
+          ) : null}
+        </SettingsRow>
+      </SettingsGroup>
+    </Section>
   );
 }

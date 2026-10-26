@@ -2,11 +2,23 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Chip, Spinner } from "heroui-native";
+import { Button, Spinner } from "heroui-native";
+import { Mail, ShieldCheck, UserPlus, UserRound, Users } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
+import { RefreshControl, Text, TextInput, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  EmptyState,
+  ErrorState,
+  ListCard,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+  StatTile,
+  type StatusTone,
+  TileRow,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
@@ -24,6 +36,14 @@ const INVITATION_STATUS_LABELS: Record<string, MessageDescriptor> = {
   canceled: msg`canceled`,
 };
 
+/** How an invitation's state reads as a pill: pending is still waiting, the rest are settled. */
+const INVITATION_STATUS_TONES: Record<string, StatusTone> = {
+  pending: "warn",
+  accepted: "good",
+  rejected: "neutral",
+  canceled: "neutral",
+};
+
 /** A role or status label, or the stored value when it is not a known one. */
 function useCodeLabel() {
   const { i18n } = useLingui();
@@ -35,6 +55,7 @@ function useCodeLabel() {
 
 export default function SharingScreen() {
   const foreground = useThemeColor("foreground");
+  const ink3 = useThemeColor("ink-3");
   const members = useQuery(orpc.sharing.listMembers.queryOptions({ input: {} }));
   const invitations = useQuery(orpc.sharing.listInvitations.queryOptions({ input: {} }));
   const me = useQuery(orpc.sharing.me.queryOptions({ input: {} }));
@@ -58,23 +79,27 @@ export default function SharingScreen() {
     !me.data
   )
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">
-          <Trans>Could not load sharing info.</Trans>
-        </Text>
-        <Pressable
-          onPress={() => {
-            void members.refetch();
-            void invitations.refetch();
-            void me.refetch();
-          }}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">
-            <Trans>Retry</Trans>
-          </Text>
-        </Pressable>
+      <Container>
+        <Page>
+          <ErrorState
+            title={<Trans>Could not load sharing info.</Trans>}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  void members.refetch();
+                  void invitations.refetch();
+                  void me.refetch();
+                }}
+              >
+                <Button.Label>
+                  <Trans>Retry</Trans>
+                </Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
@@ -94,27 +119,41 @@ export default function SharingScreen() {
         ),
       }}
     >
-      <View className="gap-4 p-4">
-        <View>
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Sharing</Trans>
-          </Text>
-          <Text className="font-mono text-3xl text-foreground">
-            <Trans>Role · {codeLabel(ROLE_LABELS, me.data.role)}</Trans>
-          </Text>
-        </View>
+      <Page>
+        <PageHeader
+          title={<Trans>Sharing</Trans>}
+          description={<Trans>Role · {codeLabel(ROLE_LABELS, me.data.role)}</Trans>}
+        />
+
+        <TileRow>
+          <StatTile
+            icon={Users}
+            tone="signal"
+            label={<Trans>Members</Trans>}
+            value={members.data.length}
+          />
+          <StatTile
+            icon={Mail}
+            tone="signal"
+            label={<Trans>Pending invitations</Trans>}
+            value={invitations.data.length}
+          />
+        </TileRow>
 
         {!isOwner ? (
-          <Text className="text-sm text-muted-foreground">
-            <Trans>Only org owners can invite or remove members.</Trans>
-          </Text>
+          <Sheet className="flex-row items-center gap-3 p-4">
+            <ShieldCheck size={18} color={ink3} />
+            <Text className="flex-1 font-sans text-sm text-ink-3">
+              <Trans>Only org owners can invite or remove members.</Trans>
+            </Text>
+          </Sheet>
         ) : (
           <InviteForm />
         )}
 
         <MembersCard members={members.data} isOwner={isOwner} currentUserId={me.data.userId} />
         <InvitationsCard invitations={invitations.data} isOwner={isOwner} />
-      </View>
+      </Page>
     </Container>
   );
 }
@@ -122,6 +161,7 @@ export default function SharingScreen() {
 function InviteForm() {
   const [email, setEmail] = useState("");
   const { t } = useLingui();
+  const placeholderColor = useThemeColor("ink-3");
   const queryClient = useQueryClient();
   const invite = useMutation(
     orpc.sharing.createInvitation.mutationOptions({
@@ -139,41 +179,39 @@ function InviteForm() {
   };
 
   return (
-    <CardStack title={t`Invite a member`}>
-      <Card variant="secondary" className="gap-3 p-4">
-        <View className="flex-row items-end gap-3">
-          <View className="flex-1 gap-2">
-            <Text className="text-sm font-medium text-foreground">
-              <Trans>Email</Trans>
-            </Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="name@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              className="min-h-11 rounded-lg border border-border bg-card px-3 text-base text-foreground"
-              placeholderTextColor="#9ca3af"
-            />
-          </View>
-          <Button onPress={submit} isDisabled={!valid || invite.isPending}>
-            {invite.isPending ? t`Sending…` : t`Send`}
-          </Button>
+    <Section icon={UserPlus} tone="signal" title={t`Invite a member`}>
+      <Sheet className="gap-3">
+        <View className="gap-2">
+          <Text className="font-sans text-sm font-medium text-ink-2">
+            <Trans>Email</Trans>
+          </Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="name@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            className="min-h-11 rounded-xl border border-rule-2 bg-card px-3 font-sans text-base text-ink"
+            placeholderTextColor={placeholderColor}
+          />
         </View>
+        <Button onPress={submit} isDisabled={!valid || invite.isPending}>
+          <Button.Label>{invite.isPending ? t`Sending…` : t`Send`}</Button.Label>
+        </Button>
         {invite.isSuccess ? (
           invite.data.emailDelivery === "sent" ? (
-            <Text className="text-sm text-success" accessibilityLiveRegion="polite">
+            <Text className="font-sans text-sm text-success" accessibilityLiveRegion="polite">
               <Trans>Invitation sent by email.</Trans>
             </Text>
           ) : invite.data.emailDelivery === "unavailable" ? (
-            <Text className="text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+            <Text className="font-sans text-sm text-ink-3" accessibilityLiveRegion="polite">
               <Trans>
                 Invitation saved, but email is not configured on this server, so no email was sent.
                 Ask them to open Sharing (or Invitations in the mobile app) to accept it.
               </Trans>
             </Text>
           ) : (
-            <Text className="text-sm text-destructive" accessibilityLiveRegion="polite">
+            <Text className="font-sans text-sm text-destructive" accessibilityLiveRegion="polite">
               <Trans>
                 Invitation saved, but the email could not be sent. Ask them to open Sharing (or
                 Invitations in the mobile app) to accept it.
@@ -181,12 +219,12 @@ function InviteForm() {
             </Text>
           )
         ) : invite.isError ? (
-          <Text className="text-sm text-destructive">
+          <Text className="font-sans text-sm text-destructive">
             <Trans>Could not send invite. Email may already be pending.</Trans>
           </Text>
         ) : null}
-      </Card>
-    </CardStack>
+      </Sheet>
+    </Section>
   );
 }
 
@@ -220,51 +258,51 @@ function MembersCard({
   );
 
   return (
-    <CardStack title={t`Members · ${members.length}`}>
-      <Card variant="secondary" className="p-0">
-        {members.length === 0 ? (
-          <Text className="py-6 text-center text-sm text-muted-foreground">
-            <Trans>No members yet.</Trans>
-          </Text>
-        ) : (
-          members.map((member, index) => {
+    <Section icon={Users} tone="signal" title={t`Members · ${members.length}`}>
+      {members.length === 0 ? (
+        <EmptyState icon={Users} tone="signal" title={<Trans>No members yet.</Trans>} />
+      ) : (
+        <View className="gap-3">
+          {members.map((member) => {
             const isMe = member.userId === currentUserId;
             return (
-              <View
+              <ListCard
                 key={member.id}
-                className={`flex-row items-center justify-between px-4 py-3 ${
-                  index < members.length - 1 ? "border-b border-border" : ""
-                }`}
-              >
-                <View className="min-w-0 flex-1">
-                  <Text className="text-base text-foreground">
+                icon={UserRound}
+                tone="signal"
+                title={
+                  <Text>
                     {member.name ?? member.email ?? member.userId}
                     {isMe ? (
-                      <Text className="text-xs text-muted-foreground">
+                      <Text className="font-sans text-sm font-normal text-ink-3">
                         {" "}
                         <Trans>(you)</Trans>
                       </Text>
                     ) : null}
                   </Text>
-                  <Text className="text-xs text-muted-foreground">
-                    {member.email ?? "—"} · {codeLabel(ROLE_LABELS, member.role)}
-                  </Text>
-                </View>
+                }
+                subtitle={member.email ?? "—"}
+                chip={codeLabel(ROLE_LABELS, member.role)}
+              >
                 {isOwner && !isMe ? (
                   <Button
-                    variant="outline"
+                    variant="danger-soft"
+                    size="sm"
+                    className="self-start"
                     onPress={() => remove.mutate({ userId: member.userId })}
                     isDisabled={remove.isPending}
                   >
-                    <Trans>Remove</Trans>
+                    <Button.Label>
+                      <Trans>Remove</Trans>
+                    </Button.Label>
                   </Button>
                 ) : null}
-              </View>
+              </ListCard>
             );
-          })
-        )}
-      </Card>
-    </CardStack>
+          })}
+        </View>
+      )}
+    </Section>
   );
 }
 
@@ -297,44 +335,40 @@ function InvitationsCard({
   );
 
   return (
-    <CardStack title={t`Pending invitations · ${invitations.length}`}>
-      <Card variant="secondary" className="p-0">
-        {invitations.length === 0 ? (
-          <Text className="py-6 text-center text-sm text-muted-foreground">
-            <Trans>No pending invitations.</Trans>
-          </Text>
-        ) : (
-          invitations.map((invite, index) => (
-            <View
+    <Section icon={Mail} tone="signal" title={t`Pending invitations · ${invitations.length}`}>
+      {invitations.length === 0 ? (
+        <EmptyState icon={Mail} tone="signal" title={<Trans>No pending invitations.</Trans>} />
+      ) : (
+        <View className="gap-3">
+          {invitations.map((invite) => (
+            <ListCard
               key={invite.id}
-              className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                index < invitations.length - 1 ? "border-b border-border" : ""
-              }`}
+              icon={Mail}
+              tone="signal"
+              title={invite.email}
+              chip={codeLabel(ROLE_LABELS, invite.role)}
+              status={{
+                label: codeLabel(INVITATION_STATUS_LABELS, invite.status),
+                tone: INVITATION_STATUS_TONES[invite.status] ?? "neutral",
+              }}
             >
-              <View className="min-w-0 flex-1">
-                <Text className="text-base text-foreground">{invite.email}</Text>
-                <View className="mt-1 flex-row items-center gap-2">
-                  <Chip size="sm" variant="secondary">
-                    <Chip.Label>{codeLabel(ROLE_LABELS, invite.role)}</Chip.Label>
-                  </Chip>
-                  <Text className="text-xs text-muted-foreground">
-                    {codeLabel(INVITATION_STATUS_LABELS, invite.status)}
-                  </Text>
-                </View>
-              </View>
               {isOwner ? (
                 <Button
-                  variant="outline"
+                  variant="danger-soft"
+                  size="sm"
+                  className="self-start"
                   onPress={() => revoke.mutate({ id: invite.id })}
                   isDisabled={revoke.isPending}
                 >
-                  <Trans>Revoke</Trans>
+                  <Button.Label>
+                    <Trans>Revoke</Trans>
+                  </Button.Label>
                 </Button>
               ) : null}
-            </View>
-          ))
-        )}
-      </Card>
-    </CardStack>
+            </ListCard>
+          ))}
+        </View>
+      )}
+    </Section>
   );
 }

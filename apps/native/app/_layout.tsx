@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useEffect, useRef } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
+import { BloomFonts, DISPLAY_FONT } from "@/components/fonts";
 import { LocaleSync } from "@/components/locale-sync";
 import {
   installForegroundNotificationHandler,
@@ -68,7 +69,7 @@ function MagicLinkLifecycle() {
 function StackLayout() {
   const { t } = useLingui();
   return (
-    <Stack screenOptions={{}}>
+    <Stack screenOptions={{ headerTitleStyle: { fontFamily: DISPLAY_FONT } }}>
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ title: t`Modal`, presentation: "modal" }} />
     </Stack>
@@ -86,7 +87,9 @@ export default function Layout() {
                 <HeroUINativeProvider>
                   <MagicLinkLifecycle />
                   <LocaleSync />
-                  <StackLayout />
+                  <BloomFonts>
+                    <StackLayout />
+                  </BloomFonts>
                   <PushNotificationLifecycle />
                 </HeroUINativeProvider>
               </AppThemeProvider>

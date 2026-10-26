@@ -1,12 +1,21 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { previewLine, relativeTime, truncate } from "@openvalens/api/presenters/cochat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, Spinner } from "heroui-native";
-import { useState } from "react";
-import { Pressable, RefreshControl, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { Button, Spinner } from "heroui-native";
+import { MessageCircle, Plus } from "lucide-react-native";
+import { useState } from "react";
+import { RefreshControl, Text, View } from "react-native";
 
-import { CardStack } from "@/components/list-row";
+import {
+  EmptyState,
+  ErrorState,
+  Icon,
+  ListCard,
+  Page,
+  PageHeader,
+  Section,
+} from "@/components/bloom";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
@@ -51,19 +60,19 @@ export default function CoachListScreen() {
 
   if (threads.isError || !threads.data)
     return (
-      <Container className="items-center justify-center gap-3 p-6" isScrollable={false}>
-        <Text className="text-base text-foreground">
-          <Trans>Could not load threads.</Trans>
-        </Text>
-        <Pressable
-          onPress={() => void threads.refetch()}
-          className="min-h-11 justify-center px-4"
-          accessibilityRole="button"
-        >
-          <Text className="font-medium text-foreground underline">
-            <Trans>Retry</Trans>
-          </Text>
-        </Pressable>
+      <Container>
+        <Page>
+          <ErrorState
+            title={<Trans>Could not load threads.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void threads.refetch()}>
+                <Button.Label>
+                  <Trans>Retry</Trans>
+                </Button.Label>
+              </Button>
+            }
+          />
+        </Page>
       </Container>
     );
 
@@ -81,65 +90,56 @@ export default function CoachListScreen() {
         ),
       }}
     >
-      <View className="gap-4 p-4">
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="text-sm text-muted-foreground">
-              <Trans>Coach</Trans>
-            </Text>
-            <Text className="font-mono text-3xl text-foreground">
-              <Trans>Conversations</Trans>
-            </Text>
-          </View>
-          <Button onPress={onNew} isDisabled={starting || start.isPending}>
-            {start.isPending ? t`Starting…` : t`New`}
-          </Button>
-        </View>
+      <Page>
+        <PageHeader
+          title={<Trans>Coach</Trans>}
+          actions={
+            <Button onPress={onNew} isDisabled={starting || start.isPending}>
+              <Icon icon={Plus} size={18} color="primary-foreground" />
+              <Button.Label>{start.isPending ? t`Starting…` : t`New`}</Button.Label>
+            </Button>
+          }
+        />
 
         {start.isError ? (
-          <Text className="text-sm text-destructive">
-            <Trans>Could not start a conversation. Check that AI is enabled in Settings.</Trans>
-          </Text>
+          <ErrorState
+            title={
+              <Trans>Could not start a conversation. Check that AI is enabled in Settings.</Trans>
+            }
+          />
         ) : null}
 
-        {list.length === 0 ? (
-          <CardStack>
-            <Card variant="secondary" className="items-center gap-1 p-8">
-              <Text className="font-medium text-foreground">
-                <Trans>No conversations yet</Trans>
-              </Text>
-              <Text className="text-center text-sm text-muted-foreground">
+        <Section title={<Trans>Conversations</Trans>}>
+          {list.length === 0 ? (
+            <EmptyState
+              icon={MessageCircle}
+              tone="signal"
+              title={<Trans>No conversations yet</Trans>}
+              description={
                 <Trans>Start a new conversation to ask the AI coach for guidance.</Trans>
-              </Text>
-            </Card>
-          </CardStack>
-        ) : (
-          <CardStack>
-            <Card variant="secondary" className="p-0">
-              {list.map((thread, index) => (
-                <Pressable
+              }
+            />
+          ) : (
+            <View className="gap-3">
+              {list.map((thread) => (
+                <ListCard
                   key={thread.conversationId}
-                  onPress={() => router.push(`/coach/${thread.conversationId}`)}
-                  accessibilityRole="button"
-                  className={`flex-row items-center justify-between gap-3 px-4 py-3 active:opacity-70 ${
-                    index < list.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-xs text-muted-foreground">
+                  icon={MessageCircle}
+                  tone="signal"
+                  title={truncate(previewLine(thread), 80)}
+                  subtitle={
+                    <Text>
                       {i18n._(relativeTime(thread.lastMessageAt))} ·{" "}
                       <Plural value={thread.messageCount} one="# message" other="# messages" />
                     </Text>
-                    <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
-                      {truncate(previewLine(thread), 80)}
-                    </Text>
-                  </View>
-                </Pressable>
+                  }
+                  onPress={() => router.push(`/coach/${thread.conversationId}`)}
+                />
               ))}
-            </Card>
-          </CardStack>
-        )}
-      </View>
+            </View>
+          )}
+        </Section>
+      </Page>
     </Container>
   );
 }

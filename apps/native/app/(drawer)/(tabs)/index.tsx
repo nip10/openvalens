@@ -1,22 +1,61 @@
-import { Ionicons } from "@expo/vector-icons";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
+import { formatSteps, summarizeDailyActivity } from "@openvalens/api/presenters/activity";
+import { formatKg, formatKgDelta, summarizeDailyWeights } from "@openvalens/api/presenters/body";
 import {
   buildCockpitBlocks,
   COCKPIT_SLEEP_WINDOW_DAYS,
   type CockpitSnapshot,
 } from "@openvalens/api/presenters/cockpit";
+import { sleepStatusLabel, sleepStatusTone } from "@openvalens/api/presenters/sleep";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Chip } from "heroui-native";
+import { Link } from "expo-router";
+import { Button, Chip } from "heroui-native";
+import {
+  CircleCheck,
+  CircleX,
+  Database,
+  Footprints,
+  HeartPulse,
+  History,
+  KeyRound,
+  Moon,
+  Scale,
+  ShieldCheck,
+  TrendingUp,
+} from "lucide-react-native";
 import { useMemo } from "react";
 import { RefreshControl, Text, View } from "react-native";
 
-import { CardStack, ListRow } from "@/components/list-row";
+import {
+  Details,
+  ErrorState,
+  Figure,
+  Icon,
+  Page,
+  PageHeader,
+  Section,
+  Sheet,
+  StatTile,
+  TileRow,
+} from "@/components/bloom";
+import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { InsightsSection } from "@/components/insights-section";
+import { ListRow } from "@/components/list-row";
 import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
+import { authClient } from "@/lib/auth-client";
+import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useHealthReadiness } from "@/utils/queries";
 import { useThemeColor } from "@/utils/theme";
+
+// The weight chart reads the same 90-day window the web dashboard does; the
+// first row is still the latest reading the Weight tile shows.
+const WEIGHT_TREND_DAYS = 90;
+// Thirty days of activity give the "usual" (seven-day average) steps; the
+// last row is still today's.
+const ACTIVITY_WINDOW_DAYS = 30;
 
 function formatClockTime(iso: string | null): string | null {
   if (!iso) return null;
@@ -29,31 +68,29 @@ function formatClockTime(iso: string | null): string | null {
   }).format(date);
 }
 
-function StatBlock({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <View className="gap-1">
-      <Text className="text-xs text-muted-foreground">{label}</Text>
-      <Text className="font-mono text-xl text-foreground">{value}</Text>
-      <Text className="text-xs text-muted-foreground">{sub}</Text>
-    </View>
-  );
+function greeting(hour: number) {
+  if (hour < 12) return msg`Good morning`;
+  if (hour < 18) return msg`Good afternoon`;
+  return msg`Good evening`;
 }
 
 export default function CockpitScreen() {
   const queryClient = useQueryClient();
   const { t, i18n } = useLingui();
   const readiness = useHealthReadiness();
-  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const { data: session } = authClient.useSession();
 
   const foreground = useThemeColor("foreground");
-  const success = useThemeColor("success");
-  const danger = useThemeColor("danger");
 
-  const weight = useQuery(orpc.body.dailyWeights.queryOptions({ input: { limit: 1 } }));
+  const weight = useQuery(
+    orpc.body.dailyWeights.queryOptions({ input: { limit: WEIGHT_TREND_DAYS } }),
+  );
   const sleep = useQuery(
     orpc.sleep.summary.queryOptions({ input: { days: COCKPIT_SLEEP_WINDOW_DAYS } }),
   );
-  const activity = useQuery(orpc.activity.dailyTotals.queryOptions({ input: { days: 1 } }));
+  const activity = useQuery(
+    orpc.activity.dailyTotals.queryOptions({ input: { days: ACTIVITY_WINDOW_DAYS } }),
+  );
   const vitals = useQuery(orpc.vitals.daily.queryOptions({ input: { days: 1 } }));
 
   const snapshot: CockpitSnapshot = useMemo(
@@ -96,6 +133,14 @@ export default function CockpitScreen() {
   );
 
   const dataPending = weight.isPending || sleep.isPending || activity.isPending || vitals.isPending;
+  const dataError = weight.isError || sleep.isError || activity.isError || vitals.isError;
+
+  const sleepRow = sleep.data?.lastNight;
+  const activityRow = activity.data?.at(-1);
+  const usualSteps = activity.data
+    ? summarizeDailyActivity(activity.data).sevenDayAverageSteps || null
+    : null;
+  const weightSummary = summarizeDailyWeights(weight.data ?? []);
 
   const status = readiness.data?.status ?? "unknown";
   const statusLabel =
@@ -107,13 +152,6 @@ export default function CockpitScreen() {
           ? t`Unavailable`
           : t`Checking…`;
 
-  const capabilityIcon = (enabled: boolean) =>
-    enabled ? (
-      <Ionicons name="checkmark-circle" size={20} color={success} />
-    ) : (
-      <Ionicons name="close-circle" size={20} color={danger} />
-    );
-
   const onRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: orpc.health.readiness.key() });
     void weight.refetch();
@@ -122,9 +160,17 @@ export default function CockpitScreen() {
     void vitals.refetch();
   };
 
+  const now = new Date();
+  const firstName = session?.user?.name?.trim().split(/\s+/)[0];
+  const hello = i18n._(greeting(now.getHours()));
+  const longDate = new Intl.DateTimeFormat(i18n.locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(now);
+
   return (
     <Container
-      className="p-4"
       scrollViewProps={{
         refreshControl: (
           <RefreshControl
@@ -141,59 +187,156 @@ export default function CockpitScreen() {
         ),
       }}
     >
-      <View className="gap-6">
-        <View>
-          <Text className="text-sm text-muted-foreground">{t`Today`}</Text>
-          <Text className="font-mono text-3xl text-foreground">{today}</Text>
-        </View>
+      <Page>
+        <PageHeader
+          title={firstName ? `${hello}, ${firstName}` : hello}
+          description={longDate}
+          actions={
+            <Link href="/timeline" asChild>
+              <Button variant="outline" size="sm" accessibilityLabel={t`Timeline`}>
+                <Icon icon={History} size={16} color="ink-2" />
+                <Button.Label>{t`Timeline`}</Button.Label>
+              </Button>
+            </Link>
+          }
+        />
 
         <ProfileSetupPrompt />
 
+        {dataPending && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
+          <Sheet>
+            <Text className="font-sans text-sm text-ink-3">{t`Loading…`}</Text>
+          </Sheet>
+        ) : dataError && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
+          <ErrorState title={t`Could not load status. Pull down to retry.`} />
+        ) : (
+          <View className="gap-3" accessibilityLabel={t`Today`}>
+            <TileRow>
+              <StatTile
+                icon={Moon}
+                tone="sleep"
+                label={blocks[1]?.title ?? t`Sleep`}
+                href="/records/sleep"
+                value={blocks[1]?.primary ?? "—"}
+                meter={
+                  sleepRow && sleepRow.targetMinutes
+                    ? { value: sleepRow.asleepMinutes / sleepRow.targetMinutes }
+                    : undefined
+                }
+                status={
+                  sleepRow
+                    ? {
+                        label: i18n._(sleepStatusLabel(sleepRow.status)),
+                        tone: pillTone(sleepStatusTone(sleepRow.status)),
+                      }
+                    : undefined
+                }
+                note={sleepRow ? undefined : t`No reading yet`}
+              />
+              <StatTile
+                icon={Footprints}
+                tone="steps"
+                label={t`Steps`}
+                href="/records/activity"
+                value={blocks[2]?.primary ?? "—"}
+                meter={
+                  activityRow && usualSteps
+                    ? { value: (activityRow.steps ?? 0) / usualSteps }
+                    : undefined
+                }
+                note={
+                  activityRow
+                    ? usualSteps
+                      ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
+                      : friendlyDate(i18n, activityRow.date)
+                    : t`No activity logged`
+                }
+              />
+            </TileRow>
+            <TileRow>
+              <StatTile
+                icon={HeartPulse}
+                tone="heart"
+                label={blocks[3]?.title ?? t`Heart rate`}
+                href="/records/vitals"
+                value={blocks[3]?.primary ?? "—"}
+                note={
+                  snapshot.vitals
+                    ? t`Average, ${friendlyDate(i18n, snapshot.vitals.date)}`
+                    : t`No reading yet`
+                }
+              />
+              <StatTile
+                icon={Scale}
+                tone="weight"
+                label={blocks[0]?.title ?? t`Weight`}
+                href="/body"
+                value={blocks[0]?.primary ?? "—"}
+                note={
+                  weightSummary.change30d !== null
+                    ? t`${formatKgDelta(i18n, weightSummary.change30d)} in 30 days`
+                    : snapshot.weight
+                      ? friendlyDate(i18n, snapshot.weight.date)
+                      : t`No reading yet`
+                }
+              />
+            </TileRow>
+          </View>
+        )}
+
+        {weightSummary.latest ? (
+          <Section
+            icon={TrendingUp}
+            tone="weight"
+            title={t`Weight, last ${WEIGHT_TREND_DAYS} days`}
+          >
+            <Sheet className="gap-4">
+              <View className="flex-row">
+                <Figure
+                  className="flex-1 pr-3"
+                  label={friendlyDate(i18n, weightSummary.latest.date)}
+                  value={formatKg(weightSummary.latest.weightKg)}
+                />
+                <Figure
+                  className="flex-1 border-l border-rule px-3"
+                  label={t`7 days`}
+                  value={
+                    weightSummary.change7d === null
+                      ? "—"
+                      : formatKgDelta(i18n, weightSummary.change7d)
+                  }
+                />
+                <Figure
+                  className="flex-1 border-l border-rule pl-3"
+                  label={t`30 days`}
+                  value={
+                    weightSummary.change30d === null
+                      ? "—"
+                      : formatKgDelta(i18n, weightSummary.change30d)
+                  }
+                />
+              </View>
+              <TrendChart
+                tone="weight"
+                data={weightSummary.series.map((point) => ({
+                  value: point.weightKg,
+                  label: friendlyDate(i18n, point.date),
+                }))}
+                minValue={Math.floor(Math.min(...weightSummary.series.map((p) => p.weightKg)) - 1)}
+                maxValue={Math.ceil(Math.max(...weightSummary.series.map((p) => p.weightKg)) + 1)}
+                formatYLabel={(label) => String(Math.round(Number(label)))}
+                height={160}
+              />
+            </Sheet>
+          </Section>
+        ) : null}
+
         <InsightsSection />
 
-        <CardStack title={t`Today`}>
-          <Card variant="secondary" className="p-4">
-            {dataPending && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
-              <Text className="text-sm text-muted-foreground">{t`Loading…`}</Text>
-            ) : (
-              <View className="gap-4">
-                <StatBlock
-                  label={blocks[0]?.title ?? t`Weight`}
-                  value={blocks[0]?.primary ?? "—"}
-                  sub={blocks[0]?.secondary ?? ""}
-                />
-                <View className="flex-row gap-4">
-                  <View className="flex-1">
-                    <StatBlock
-                      label={blocks[1]?.title ?? t`Sleep`}
-                      value={blocks[1]?.primary ?? "—"}
-                      sub={blocks[1]?.secondary ?? ""}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <StatBlock
-                      label={blocks[2]?.title ?? t`Activity`}
-                      value={blocks[2]?.primary ?? "—"}
-                      sub={blocks[2]?.secondary ?? ""}
-                    />
-                  </View>
-                </View>
-                <View>
-                  <StatBlock
-                    label={blocks[3]?.title ?? t`Heart rate`}
-                    value={blocks[3]?.primary ?? "—"}
-                    sub={blocks[3]?.secondary ?? ""}
-                  />
-                </View>
-              </View>
-            )}
-          </Card>
-        </CardStack>
-
-        <CardStack title={t`System readiness`}>
-          <Card variant="secondary" className="p-4">
-            <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-lg font-medium text-foreground">{t`Status`}</Text>
+        <Details summary={t`System readiness`}>
+          <Sheet className="gap-3 p-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-sans text-base font-semibold text-ink">{t`Status`}</Text>
               <Chip
                 size="sm"
                 color={
@@ -211,11 +354,11 @@ export default function CockpitScreen() {
             </View>
 
             {readiness.isLoading && !readiness.isError && (
-              <Text className="text-sm text-muted-foreground">{t`Checking connection…`}</Text>
+              <Text className="font-sans text-sm text-ink-3">{t`Checking connection…`}</Text>
             )}
 
             {readiness.isError && (
-              <Text className="text-sm text-destructive">
+              <Text className="font-sans text-sm text-destructive">
                 {t`Could not load status. Pull down to retry.`}
               </Text>
             )}
@@ -223,7 +366,7 @@ export default function CockpitScreen() {
             {readiness.data && (
               <View>
                 <ListRow
-                  icon={<Ionicons name="server-outline" size={20} color={foreground} />}
+                  icon={<Icon icon={Database} size={18} color="ink-2" />}
                   title={t`Database`}
                   trailing={
                     <Chip
@@ -235,7 +378,7 @@ export default function CockpitScreen() {
                   }
                 />
                 <ListRow
-                  icon={<Ionicons name="key-outline" size={20} color={foreground} />}
+                  icon={<Icon icon={KeyRound} size={18} color="ink-2" />}
                   title={t`Auth secret`}
                   trailing={
                     <Chip
@@ -251,7 +394,7 @@ export default function CockpitScreen() {
                   }
                 />
                 <ListRow
-                  icon={<Ionicons name="shield-checkmark-outline" size={20} color={foreground} />}
+                  icon={<Icon icon={ShieldCheck} size={18} color="ink-2" />}
                   title={t`Cron secret`}
                   trailing={
                     <Chip
@@ -266,14 +409,13 @@ export default function CockpitScreen() {
                 />
               </View>
             )}
-          </Card>
-        </CardStack>
 
-        {readiness.data && (
-          <CardStack title={t`Recent activity`}>
-            <Card variant="secondary" className="p-4">
-              <View className="gap-3">
-                <Text className="font-mono text-xs text-muted-foreground">
+            {readiness.data && (
+              <View className="gap-3 border-t border-rule pt-3">
+                <Text className="font-sans text-sm font-semibold text-ink-2">
+                  {t`Recent activity`}
+                </Text>
+                <Text className="font-sans text-xs text-ink-3">
                   {t`Readiness checked at ${readiness.data.timestamp}`}
                 </Text>
                 <View>
@@ -281,12 +423,21 @@ export default function CockpitScreen() {
                     ([name, enabled], index, arr) => (
                       <ListRow
                         key={name}
-                        icon={capabilityIcon(enabled)}
+                        density="compact"
+                        icon={
+                          <Icon
+                            icon={enabled ? CircleCheck : CircleX}
+                            size={18}
+                            color={enabled ? "success" : "destructive"}
+                          />
+                        }
                         title={name}
                         trailing={
                           <Text
                             className={
-                              enabled ? "text-sm text-success" : "text-sm text-destructive"
+                              enabled
+                                ? "font-sans text-sm text-success"
+                                : "font-sans text-sm text-destructive"
                             }
                           >
                             {enabled ? t`Enabled` : t`Disabled`}
@@ -298,10 +449,10 @@ export default function CockpitScreen() {
                   )}
                 </View>
               </View>
-            </Card>
-          </CardStack>
-        )}
-      </View>
+            )}
+          </Sheet>
+        </Details>
+      </Page>
     </Container>
   );
 }
