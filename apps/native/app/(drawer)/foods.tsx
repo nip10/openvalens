@@ -247,7 +247,7 @@ export default function FoodsScreen() {
                       ? { label: i18n._(CUSTOM_FOOD_COPY.archivedBadge), tone: "neutral" }
                       : undefined
                   }
-                  subtitle={`${food.brand ? `${food.brand} · ` : ""}${describeBasis(food.basis, i18n)}`}
+                  subtitle={`${food.brand ? `${food.brand}, ` : ""}${describeBasis(food.basis, i18n)}`}
                   chip={
                     hideNumbers
                       ? i18n._(HIDDEN_VALUE)
@@ -416,7 +416,7 @@ function FoodForm({
           </Text>
           {conflict.archived ? null : (
             <Text className="font-sans text-sm text-ink-2">
-              {t`Other version:`} {conflict.name} · {describeBasis(conflict.basis, i18n)} ·{" "}
+              {t`Other version:`} {conflict.name}, {describeBasis(conflict.basis, i18n)},{" "}
               {i18n._(describeCoverage(conflict))}
             </Text>
           )}

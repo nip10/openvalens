@@ -168,7 +168,7 @@ export default function InvitationsScreen() {
           <Section
             icon={Mail}
             tone="signal"
-            title={t`Pending invitations · ${invitations.data.length}`}
+            title={`${t`Pending invitations`} (${invitations.data.length})`}
           >
             {invitations.data.map((invitation) => (
               <InvitationRow

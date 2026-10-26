@@ -170,7 +170,7 @@ export default function LabsScreen() {
         subtitle={
           marker.latestValue === null
             ? t`No readings yet`
-            : t`${formatLabDate(marker.latestSampledAt, dateSettings)} · ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`
+            : t`${formatLabDate(marker.latestSampledAt, dateSettings)}, ${plural(marker.sampleCount, { one: "# reading", other: "# readings" })}`
         }
       >
         {marker.unit && display.converted ? (

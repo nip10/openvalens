@@ -644,7 +644,7 @@ export default function PreventiveCareScreen() {
                           {entry.sources.map((source) => (
                             <TextButton
                               key={source.url + source.citation}
-                              label={`${source.citation}${source.note ? ` — ${source.note}` : ""}`}
+                              label={`${source.citation}${source.note ? ` (${source.note})` : ""}`}
                               external
                               onPress={() => void Linking.openURL(source.url)}
                             />

@@ -437,7 +437,7 @@ export default function NutritionScreen() {
                 <View accessibilityLiveRegion="polite">
                   <StatusPill tone={status === "complete" ? "good" : "neutral"}>
                     {i18n._(statusText.label)}
-                    {pendingStatus ? ` · ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
+                    {pendingStatus ? `, ${i18n._(SYNC_STATE_LABELS[pendingStatus.status])}` : ""}
                   </StatusPill>
                 </View>
                 <InfoTip title={i18n._(statusText.label)}>{i18n._(statusText.description)}</InfoTip>
@@ -1043,7 +1043,7 @@ function CandidateRow({
       <Text className="flex-1 font-sans text-sm text-ink">
         {candidate.name}
         <Text className="text-ink-3">
-          {candidate.brand ? ` · ${candidate.brand}` : ""} · {i18n._(candidate.sourceLabel)}
+          {candidate.brand ? `, ${candidate.brand}` : ""}, {i18n._(candidate.sourceLabel)}
         </Text>
       </Text>
       {selected ? <Icon icon={CircleCheck} size={18} color="signal" /> : null}
@@ -1217,8 +1217,8 @@ function AddFood({
           ? t`Entered by you`
           : null;
     if (reviewName && source)
-      return t`Review: ${reviewName}, ${reviewAmount}, ${slotLabel}, ${localDate} · ${source}`;
-    if (source) return t`Review: ${reviewAmount}, ${slotLabel}, ${localDate} · ${source}`;
+      return t`Review: ${reviewName}, ${reviewAmount}, ${slotLabel}, ${localDate} (${source})`;
+    if (source) return t`Review: ${reviewAmount}, ${slotLabel}, ${localDate} (${source})`;
     return t`Review: ${reviewAmount}, ${slotLabel}, ${localDate}`;
   };
   const savedText = (name: string) => {

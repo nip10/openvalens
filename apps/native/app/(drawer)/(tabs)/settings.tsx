@@ -463,7 +463,7 @@ function CoachForm({
           value={String(assertiveness)}
           onChange={(next) => setAssertiveness(Number(next))}
           values={["1", "2", "3", "4", "5"]}
-          format={(value) => `${value} · ${assertivenessText(Number(value))}`}
+          format={(value) => `${value}: ${assertivenessText(Number(value))}`}
         />
         <CoachSelect
           label={t`Risk tolerance`}

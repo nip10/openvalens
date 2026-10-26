@@ -160,7 +160,7 @@ export default function TimelineScreen() {
               }
               subtitle={[item.summary, source ?? i18n._(domainLabel(item.domain))]
                 .filter(Boolean)
-                .join(" · ")}
+                .join(", ")}
             />
           );
         }}

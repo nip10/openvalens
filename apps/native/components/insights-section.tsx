@@ -175,7 +175,7 @@ function SubjectInsightsSection({
             <View key={summary.key} className="gap-1" accessible accessibilityLabel={summary.label}>
               <Text className="font-sans text-sm text-ink-3">
                 {summary.title}
-                {summary.badge ? ` · ${summary.badge}` : ""}
+                {summary.badge ? `, ${summary.badge}` : ""}
               </Text>
               <Text className="font-display text-3xl font-medium text-ink">{summary.score}</Text>
               {summary.note ? (

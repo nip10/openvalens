@@ -352,14 +352,29 @@ function CycleForMember({ scope }: { scope: string }) {
                           period.source !== "manual" ? t`imported` : "",
                         ]
                           .filter(Boolean)
-                          .join(" · ") || undefined
+                          .join(", ") || undefined
                       }
                       trailing={
                         <Button
                           size="sm"
                           variant="ghost"
                           accessibilityRole="button"
-                          onPress={() => remove.mutate(period.id)}
+                          onPress={() =>
+                            Alert.alert(
+                              t`Delete this period?`,
+                              period.endDate
+                                ? t`${period.startDate} to ${period.endDate}`
+                                : period.startDate,
+                              [
+                                { text: t`Cancel`, style: "cancel" },
+                                {
+                                  text: t`Delete`,
+                                  style: "destructive",
+                                  onPress: () => remove.mutate(period.id),
+                                },
+                              ],
+                            )
+                          }
                         >
                           {t`Delete`}
                         </Button>

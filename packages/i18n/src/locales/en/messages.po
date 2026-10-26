@@ -101,11 +101,6 @@ msgstr "{0, plural, one {# session without a duration.} other {# sessions withou
 #. placeholder {0}: workoutSummary.count
 #. placeholder {1}: workoutSummary.totalDurationLabel
 #: apps/native/app/(drawer)/workouts.tsx
-msgid "{0, plural, one {# session} other {# sessions}} · {1}"
-msgstr "{0, plural, one {# session} other {# sessions}} · {1}"
-
-#. placeholder {0}: workoutSummary.count
-#. placeholder {1}: workoutSummary.totalDurationLabel
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "{0, plural, one {# session} other {# sessions}}, {1}"
 msgstr "{0, plural, one {# session} other {# sessions}}, {1}"
@@ -139,12 +134,6 @@ msgstr "{0, select, entered {Entered by you} proposal {Accepted suggestion} othe
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}}, from {from} until {to}"
 msgstr "{0, select, entered {Entered by you} proposal {Accepted suggestion} other {Target}}, from {from} until {to}"
-
-#. placeholder {0}: formatLabDate(marker.latestSampledAt, dateSettings)
-#. placeholder {1}: marker.sampleCount
-#: apps/native/app/(drawer)/records/labs.tsx
-msgid "{0} · {1, plural, one {# reading} other {# readings}}"
-msgstr "{0} · {1, plural, one {# reading} other {# readings}}"
 
 #. placeholder {0}: when(backups.lastBackup.at)
 #. placeholder {1}: trigger(backups.lastBackup.trigger)
@@ -213,11 +202,6 @@ msgstr "{0} of {1} sections answered."
 #. placeholder {0}: goalSummary.open
 #. placeholder {1}: goalSummary.achieved
 #: apps/native/app/(drawer)/workouts.tsx
-msgid "{0} open · {1} achieved"
-msgstr "{0} open · {1} achieved"
-
-#. placeholder {0}: goalSummary.open
-#. placeholder {1}: goalSummary.achieved
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "{0} open, {1} achieved"
 msgstr "{0} open, {1} achieved"
@@ -247,6 +231,12 @@ msgstr "{0} to {1}"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "{0} value"
 msgstr "{0} value"
+
+#. placeholder {0}: formatLabDate(marker.latestSampledAt, dateSettings)
+#. placeholder {1}: marker.sampleCount
+#: apps/native/app/(drawer)/records/labs.tsx
+msgid "{0}, {1, plural, one {# reading} other {# readings}}"
+msgstr "{0}, {1, plural, one {# reading} other {# readings}}"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{amount, plural, one {{value} serving} other {{value} servings}}"
@@ -378,8 +368,8 @@ msgid "{granted} of {total} data types"
 msgstr "{granted} of {total} data types"
 
 #: apps/native/components/health-sync-settings.tsx
-msgid "{granted} of {total} data types · background access off"
-msgstr "{granted} of {total} data types · background access off"
+msgid "{granted} of {total} data types, background access off"
+msgstr "{granted} of {total} data types, background access off"
 
 #. Hours ago, abbreviated
 #: packages/api/src/presenters/cochat.ts
@@ -852,9 +842,6 @@ msgid "A date you set in OpenValens has arrived. Open the app to see it. This em
 msgstr "A date you set in OpenValens has arrived. Open the app to see it. This email does not include any health details."
 
 #: apps/native/components/profile-setup-prompt.tsx
-msgid "A few optional questions so the app can show what matters to you. Skip any of them — everything else works without them."
-msgstr "A few optional questions so the app can show what matters to you. Skip any of them — everything else works without them."
-
 #: apps/web/src/components/profile-setup-prompt.tsx
 msgid "A few optional questions so the app can show what matters to you. Skip any of them; everything else works without them."
 msgstr "A few optional questions so the app can show what matters to you. Skip any of them; everything else works without them."
@@ -1850,12 +1837,12 @@ msgstr "Camera view for scanning a barcode"
 msgid "Canada"
 msgstr "Canada"
 
+#: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/utils/sharing-confirm.ts
-#: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
@@ -1895,11 +1882,6 @@ msgstr "Carbohydrate"
 #: packages/api/src/presenters/timeline.ts
 msgid "Cardiac"
 msgstr "Cardiac"
-
-#. placeholder {0}: cardiac.data.length
-#: apps/native/app/(drawer)/clinical.tsx
-msgid "Cardiac · {0}"
-msgstr "Cardiac · {0}"
 
 #: packages/api/src/presenters/supplements.ts
 msgid "Change days"
@@ -2191,9 +2173,6 @@ msgid "Coach"
 msgstr "Coach"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
-msgid "Coach · thinking…"
-msgstr "Coach · thinking…"
-
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "Coach is thinking…"
 msgstr "Coach is thinking…"
@@ -3356,6 +3335,7 @@ msgstr "Delete the held-back {confirmName} records?"
 msgid "Delete this entry?"
 msgstr "Delete this entry?"
 
+#: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Delete this period?"
 msgstr "Delete this period?"
@@ -3624,13 +3604,10 @@ msgstr "Duration"
 msgid "Duration (minutes)"
 msgstr "Duration (minutes)"
 
+#: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Duration must be 1 to 1440 minutes."
 msgstr "Duration must be 1 to 1440 minutes."
-
-#: apps/native/app/(drawer)/workouts.tsx
-msgid "Duration must be 1–1440 minutes."
-msgstr "Duration must be 1–1440 minutes."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Each answer is optional and only you can see it. Nothing is pre-selected, and you can choose “Prefer not to say” or clear an answer at any time."
@@ -3729,13 +3706,10 @@ msgstr "Effort points not available. {statusText}"
 msgid "Effort points, last 7 days: {value} points. {statusText}"
 msgstr "Effort points, last 7 days: {value} points. {statusText}"
 
+#: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Effort, 0 to 10 (optional)"
 msgstr "Effort, 0 to 10 (optional)"
-
-#: apps/native/app/(drawer)/workouts.tsx
-msgid "Effort, 0–10 (optional)"
-msgstr "Effort, 0–10 (optional)"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "EFSA (European Food Safety Authority)"
@@ -4091,11 +4065,6 @@ msgstr "Failed {0}"
 msgid "Family history"
 msgstr "Family history"
 
-#. placeholder {0}: family.data.length
-#: apps/native/app/(drawer)/clinical.tsx
-msgid "Family history · {0}"
-msgstr "Family history · {0}"
-
 #: packages/api/src/presenters/body-map.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Fat"
@@ -4282,17 +4251,11 @@ msgid "From a photo"
 msgstr "From a photo"
 
 #: apps/native/components/exercise-library.tsx
-msgid "From wger · {licenseText}"
-msgstr "From wger · {licenseText}"
-
-#: apps/native/components/exercise-library.tsx
-msgid "From wger · {licenseText} · {author}"
-msgstr "From wger · {licenseText} · {author}"
-
 #: apps/web/src/components/exercise-library.tsx
 msgid "From wger, {licenseText}"
 msgstr "From wger, {licenseText}"
 
+#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "From wger, {licenseText}, {author}"
 msgstr "From wger, {licenseText}, {author}"
@@ -4533,11 +4496,8 @@ msgid "HH:MM"
 msgstr "HH:MM"
 
 #. First message sent to the AI coach for a new conversation; shown as the person's own message
-#: apps/native/app/(drawer)/coach/index.tsx
-msgid "Hi coach — give me a one-line summary of where I am today and one concrete suggestion."
-msgstr "Hi coach — give me a one-line summary of where I am today and one concrete suggestion."
-
 #. First message sent to the AI coach for a new conversation; shown as the person's own message
+#: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Hi coach, give me a one-line summary of where I am today and one concrete suggestion."
 msgstr "Hi coach, give me a one-line summary of where I am today and one concrete suggestion."
@@ -4752,11 +4712,6 @@ msgstr "Image source"
 msgid "Imaging"
 msgstr "Imaging"
 
-#. placeholder {0}: imaging.data.length
-#: apps/native/app/(drawer)/clinical.tsx
-msgid "Imaging · {0}"
-msgstr "Imaging · {0}"
-
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Imperial"
 msgstr "Imperial"
@@ -4840,10 +4795,6 @@ msgstr "Information from {authority, select, uspstf {the US Preventive Services 
 
 #. placeholder {0}: index + 1
 #: apps/native/components/recipe-draft-editor.tsx
-msgid "Ingredient {0} · unmatched, unverified"
-msgstr "Ingredient {0} · unmatched, unverified"
-
-#. placeholder {0}: index + 1
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Ingredient {0}: unmatched, unverified"
 msgstr "Ingredient {0}: unmatched, unverified"
@@ -5054,16 +5005,11 @@ msgstr "It expires in 10 minutes."
 msgid "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
 msgstr "It is not medical advice and says nothing about your health status. It does not tell you whether or how hard to exercise, and it has not been validated."
 
-#. placeholder {0}: index + 1
-#. placeholder {1}: item.sourceText
-#: apps/native/app/(drawer)/food-draft.tsx
-msgid "Item {0} · heard “{1}”"
-msgstr "Item {0} · heard “{1}”"
-
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Item {number}, from the photo"
 msgstr "Item {number}, from the photo"
 
+#: apps/native/app/(drawer)/food-draft.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Item {number}, heard “{heard}”"
 msgstr "Item {number}, heard “{heard}”"
@@ -5370,11 +5316,14 @@ msgstr "License not listed."
 msgid "License: {license}"
 msgstr "License: {license}"
 
-#: apps/native/components/exercise-attribution.tsx
-#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "License: {license} · {author}"
 msgstr "License: {license} · {author}"
+
+#: apps/native/components/exercise-attribution.tsx
+#: apps/native/components/exercise-library.tsx
+msgid "License: {license}, {author}"
+msgstr "License: {license}, {author}"
 
 #: apps/web/src/components/mode-toggle.tsx
 msgid "Light"
@@ -5752,11 +5701,6 @@ msgstr "member"
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Members"
 msgstr "Members"
-
-#. placeholder {0}: members.length
-#: apps/native/app/(drawer)/sharing.tsx
-msgid "Members · {0}"
-msgstr "Members · {0}"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "men aged {minAge} and over"
@@ -6242,9 +6186,6 @@ msgid "No members yet."
 msgstr "No members yet."
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
-msgid "No messages yet — say hello to start."
-msgstr "No messages yet — say hello to start."
-
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "No messages yet. Say hello to start."
 msgstr "No messages yet. Say hello to start."
@@ -7257,13 +7198,6 @@ msgstr "Pending"
 msgid "Pending invitations"
 msgstr "Pending invitations"
 
-#. placeholder {0}: invitations.data.length
-#. placeholder {0}: invitations.length
-#: apps/native/app/(drawer)/invitations.tsx
-#: apps/native/app/(drawer)/sharing.tsx
-msgid "Pending invitations · {0}"
-msgstr "Pending invitations · {0}"
-
 #: apps/native/app/(drawer)/foods.tsx
 msgid "per {unit}"
 msgstr "per {unit}"
@@ -8102,16 +8036,16 @@ msgid "Review: {reviewAmount}, {slotLabel}, {localDate}"
 msgstr "Review: {reviewAmount}, {slotLabel}, {localDate}"
 
 #: apps/native/app/(drawer)/nutrition.tsx
-msgid "Review: {reviewAmount}, {slotLabel}, {localDate} · {source}"
-msgstr "Review: {reviewAmount}, {slotLabel}, {localDate} · {source}"
+msgid "Review: {reviewAmount}, {slotLabel}, {localDate} ({source})"
+msgstr "Review: {reviewAmount}, {slotLabel}, {localDate} ({source})"
 
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Review: {reviewName}, {reviewAmount} on {localDate} ({reviewSource})"
 msgstr "Review: {reviewName}, {reviewAmount} on {localDate} ({reviewSource})"
 
 #: apps/native/app/(drawer)/nutrition.tsx
-msgid "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source}"
-msgstr "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} · {source}"
+msgid "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} ({source})"
+msgstr "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} ({source})"
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/components/ai-section.tsx
@@ -8211,11 +8145,6 @@ msgstr "Risk tolerance"
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Role"
 msgstr "Role"
-
-#. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
-#: apps/native/app/(drawer)/sharing.tsx
-msgid "Role · {0}"
-msgstr "Role · {0}"
 
 #: packages/api/src/presenters/insights.ts
 msgid "Rule {ruleId} v{ruleVersion}"
@@ -9359,8 +9288,8 @@ msgid "Take care: {cautions}"
 msgstr "Take care: {cautions}"
 
 #: apps/native/app/(drawer)/workouts.tsx
-msgid "Talk test: light — you can talk and sing; moderate — you can talk, but not sing; vigorous — you can only say a few words without pausing for breath."
-msgstr "Talk test: light — you can talk and sing; moderate — you can talk, but not sing; vigorous — you can only say a few words without pausing for breath."
+msgid "Talk test. Light: you can talk and sing. Moderate: you can talk, but not sing. Vigorous: you can only say a few words without pausing for breath."
+msgstr "Talk test. Light: you can talk and sing. Moderate: you can talk, but not sing. Vigorous: you can only say a few words without pausing for breath."
 
 #: apps/native/app/(drawer)/body-map.tsx
 msgid "Tap a region to see its value."
@@ -11116,6 +11045,11 @@ msgstr "Your records"
 #: apps/web/src/routes/_auth/records/labs.tsx
 msgid "Your results"
 msgstr "Your results"
+
+#. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
+#: apps/native/app/(drawer)/sharing.tsx
+msgid "Your role: {0}"
+msgstr "Your role: {0}"
 
 #. placeholder {0}: codeLabel(ROLE_LABELS, me.data.role)
 #: apps/web/src/routes/_auth/sharing.tsx

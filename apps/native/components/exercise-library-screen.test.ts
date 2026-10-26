@@ -231,7 +231,7 @@ test.skipIf(!mountedMode)(
       await render();
       await clickButton("Exercice français");
       expect(container.textContent).toContain("Texte");
-      await clickButton("2026-10-22 · Strength");
+      await clickButton("2026-10-22, Strength");
       await clickButton("Add exercise");
       expect(mutationInputs).toEqual([
         {
@@ -275,7 +275,7 @@ test.skipIf(!mountedMode)(
     try {
       await render();
       await clickButton("Exercice français");
-      await clickButton("2026-10-22 · Strength");
+      await clickButton("2026-10-22, Strength");
       await clickButton("Add exercise");
       expect(mutationInputs).toHaveLength(1);
       expect(container.textContent).toContain(
@@ -346,7 +346,7 @@ test.skipIf(!mountedMode)(
         ),
       ).toBe(true);
       await clickButton("Exercice français");
-      await clickButton("2026-10-22 · Strength");
+      await clickButton("2026-10-22, Strength");
       await clickButton("Add exercise");
       expect(mutationInputs).toHaveLength(1);
       expect(container.textContent).toContain("Cancel request");

@@ -63,6 +63,7 @@ export default function SharingScreen() {
 
   const isOwner = me.data?.role === "owner";
   const codeLabel = useCodeLabel();
+  const { t } = useLingui();
 
   if (members.isPending || invitations.isPending || me.isPending)
     return (
@@ -123,7 +124,7 @@ export default function SharingScreen() {
       <Page>
         <PageHeader
           title={<Trans>Sharing</Trans>}
-          description={<Trans>Role · {codeLabel(ROLE_LABELS, me.data.role)}</Trans>}
+          description={t`Your role: ${codeLabel(ROLE_LABELS, me.data.role)}`}
         />
 
         <TileRow>
@@ -259,7 +260,7 @@ function MembersCard({
   );
 
   return (
-    <Section icon={Users} tone="signal" title={t`Members · ${members.length}`}>
+    <Section icon={Users} tone="signal" title={`${t`Members`} (${members.length})`}>
       {members.length === 0 ? (
         <EmptyState icon={Users} tone="signal" title={<Trans>No members yet.</Trans>} />
       ) : (
@@ -345,7 +346,7 @@ function InvitationsCard({
   );
 
   return (
-    <Section icon={Mail} tone="signal" title={t`Pending invitations · ${invitations.length}`}>
+    <Section icon={Mail} tone="signal" title={`${t`Pending invitations`} (${invitations.length})`}>
       {invitations.length === 0 ? (
         <EmptyState icon={Mail} tone="signal" title={<Trans>No pending invitations.</Trans>} />
       ) : (
