@@ -102,7 +102,9 @@ export default function SettingsScreen() {
                   <View className="min-w-0 flex-1 gap-0.5">
                     <Text className="font-display text-lg font-medium text-ink">{displayName}</Text>
                     {session.user.email && (
-                      <Text className="font-sans text-sm text-ink-3">{session.user.email}</Text>
+                      <Text className="font-sans text-sm text-ink-3" numberOfLines={1}>
+                        {session.user.email}
+                      </Text>
                     )}
                   </View>
                 </>

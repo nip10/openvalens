@@ -235,7 +235,9 @@ function DrawerLayout() {
   const renderThemeToggle = useCallback(() => <ThemeToggle />, []);
 
   const { _ } = useLingui();
-  const headerTitle = _(HEADER_TITLES[pathname] ?? msg`Cockpit`);
+  // A conversation lives at /coach/<id>; its bar reads "Coach" too.
+  const titleKey = pathname.startsWith("/coach/") ? "/coach" : pathname;
+  const headerTitle = _(HEADER_TITLES[titleKey] ?? msg`Cockpit`);
 
   return (
     <Drawer
@@ -255,6 +257,14 @@ function DrawerLayout() {
         drawerStyle: { backgroundColor: themeColorSidebar },
       }}
     >
+      <Drawer.Screen
+        name="index"
+        options={{
+          // The welcome screen carries its own wordmark; no bar title.
+          headerTitle: "",
+          drawerItemStyle: { display: "none" },
+        }}
+      />
       <Drawer.Screen
         name="(tabs)"
         options={{
@@ -377,7 +387,14 @@ function DrawerLayout() {
         options={{ headerTitle, drawerItemStyle: { display: "none" } }}
       />
       <Drawer.Screen
-        name="coach"
+        name="coach/index"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="coach/[conversationId]"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },

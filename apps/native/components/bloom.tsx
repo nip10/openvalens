@@ -12,9 +12,9 @@ import { useLingui } from "@lingui/react";
 import { type Href, Link } from "expo-router";
 import { BottomSheet, cn } from "heroui-native";
 import { ChevronDown, ChevronRight, Info, type LucideIcon } from "lucide-react-native";
-import { Children, type ReactNode, useState } from "react";
+import { Children, isValidElement, type ReactNode, useState } from "react";
 import { Pressable, Text, View, type ViewProps } from "react-native";
-import Svg, { Circle, Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 
 import { useThemeColor } from "@/utils/theme";
 
@@ -284,6 +284,24 @@ export function ToneChip({
 }
 
 /**
+ * Lingui's <Trans> renders a bare string, which React Native only accepts
+ * inside <Text>. Wraps strings, numbers and <Trans> elements (they carry a
+ * message `id`) in body text and leaves views as they are.
+ */
+function textChildren(children: ReactNode): ReactNode {
+  return Children.map(children, (child) => {
+    const isTrans =
+      isValidElement(child) &&
+      typeof child.type !== "string" &&
+      typeof (child.props as { id?: unknown }).id === "string";
+    if (typeof child === "string" || typeof child === "number" || isTrans) {
+      return <Prose>{child}</Prose>;
+    }
+    return child;
+  });
+}
+
+/**
  * A small ⓘ that opens the explanation in a bottom sheet: method notes,
  * sources and caveats live here so the screen itself stays short.
  */
@@ -319,11 +337,7 @@ export function InfoTip({
             <BottomSheet.Title className="font-display text-xl text-ink">
               {title ?? a11yLabel}
             </BottomSheet.Title>
-            {typeof children === "string" ? (
-              <Text className="font-sans text-base leading-relaxed text-ink-2">{children}</Text>
-            ) : (
-              <View className="gap-2">{children}</View>
-            )}
+            <View className="gap-2">{textChildren(children)}</View>
           </View>
         </BottomSheet.Content>
       </BottomSheet.Portal>
@@ -372,7 +386,7 @@ export function Details({
         <Chevron size={16} color={ink2} />
         <Text className="font-display text-base font-medium text-ink-2">{summary}</Text>
       </Pressable>
-      {open ? <View>{children}</View> : null}
+      {open ? <View className="gap-2">{textChildren(children)}</View> : null}
     </View>
   );
 }
@@ -496,10 +510,15 @@ export function StatTile({
   const body = (
     <Sheet className={cn("min-w-0 gap-3", className)} testID={href ? undefined : testID}>
       <View className="flex-row items-center justify-between gap-2">
-        <Text className="shrink font-sans text-base font-semibold text-ink-2" numberOfLines={2}>
+        <Text
+          className="shrink font-sans text-[15px] font-semibold leading-5 text-ink-2"
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
           {label}
         </Text>
-        <ToneIcon icon={icon} tone={tone} />
+        <ToneIcon icon={icon} tone={tone} size="sm" />
       </View>
       <View className="flex-row flex-wrap items-baseline gap-1.5">
         <Text
@@ -719,19 +738,31 @@ export function RowChevron() {
   return <Icon icon={ChevronRight} size={18} />;
 }
 
-/** The OpenValens mark: a soft terracotta bloom on a rounded square, as the web wordmark. */
+/**
+ * The OpenValens mark: five soft petals round a warm centre, lit from the
+ * upper left (steps-soft into the terracotta signal). The same drawing as
+ * the app icon (assets/source/mark.svg).
+ */
 export function BloomMark({ size = 28 }: { size?: number }) {
   const soft = useThemeColor("steps-soft");
   const signal = useThemeColor("signal");
+  const steps = useThemeColor("steps");
+  const sheet = useThemeColor("signal-ink");
   return (
-    <Svg width={size} height={size} viewBox="0 0 28 28" accessibilityElementsHidden>
+    <Svg width={size} height={size} viewBox="144 144 736 736" accessibilityElementsHidden>
       <Defs>
-        <RadialGradient id="bloom-mark" cx="35%" cy="35%" r="75%">
+        <RadialGradient id="bloom-petals" gradientUnits="userSpaceOnUse" cx="420" cy="400" r="560">
           <Stop offset="0" stopColor={soft} />
-          <Stop offset="1" stopColor={signal} />
+          <Stop offset="0.38" stopColor={steps} />
+          <Stop offset="0.85" stopColor={signal} />
         </RadialGradient>
       </Defs>
-      <Rect x="0" y="0" width="28" height="28" rx="10" fill="url(#bloom-mark)" />
+      <Circle cx="512" cy="322" r="178" fill="url(#bloom-petals)" />
+      <Circle cx="693" cy="453" r="178" fill="url(#bloom-petals)" />
+      <Circle cx="624" cy="666" r="178" fill="url(#bloom-petals)" />
+      <Circle cx="400" cy="666" r="178" fill="url(#bloom-petals)" />
+      <Circle cx="331" cy="453" r="178" fill="url(#bloom-petals)" />
+      <Circle cx="512" cy="512" r="118" fill={sheet} opacity={0.92} />
     </Svg>
   );
 }

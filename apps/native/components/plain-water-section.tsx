@@ -589,6 +589,8 @@ function PlainWaterDayPanel({
     return item ? canDiscardWaterItem(item) : false;
   };
 
+  const subtotalText = formatWaterSubtotal(view, unit, hideNumbers, i18n);
+
   return (
     <>
       <View
@@ -598,11 +600,16 @@ function PlainWaterDayPanel({
       >
         <View className="gap-1">
           <Text className="font-sans text-sm text-ink-3">{i18n._(WATER_COPY.subtotalLabel)}</Text>
+          {/* A figure is set large; a sentence ("Nothing logged…") stays body size. */}
           <Text
-            className="font-display text-[34px] font-medium leading-[40px] text-ink"
+            className={
+              /\d/.test(subtotalText)
+                ? "font-display text-[34px] font-medium leading-[40px] text-ink"
+                : "font-display text-lg font-medium text-ink-2"
+            }
             style={{ fontVariant: ["tabular-nums"] }}
           >
-            {formatWaterSubtotal(view, unit, hideNumbers, i18n)}
+            {subtotalText}
           </Text>
         </View>
         {/* The goal sits beside the total as text, never as a bar or ring. */}

@@ -152,16 +152,15 @@ export function TrendChart({
   const ink3 = useThemeColor("ink-3");
   const yLabelWidth = 36;
   const n = data.length;
-  const every = Math.max(1, Math.ceil(n / 5));
-  // Every few points get a label, centred on the point and wide enough for
-  // "Yesterday" or "28 Sep" (gifted-charts otherwise clips to the spacing).
+  // Four labels spread evenly from the first point to the last.
+  const labelled = new Set(n <= 1 ? [0] : [0, 1, 2, 3].map((k) => Math.round((k * (n - 1)) / 3)));
   const points = data.map((point, index) => {
-    const labelled = index % every === 0 || (index === n - 1 && (n - 1) % every >= every / 2);
+    const align = index === 0 ? "left" : index === n - 1 ? "right" : "center";
     return {
       value: point.value,
-      label: labelled ? point.label : "",
-      labelWidth: 64,
-      labelTextStyle: { textAlign: "center" as const, marginLeft: -26 },
+      labelComponent: labelled.has(index)
+        ? () => <AxisLabel text={point.label} align={align} color={ink3} nudge={bars ? -12 : 0} />
+        : undefined,
     };
   });
   const plotWidth = Math.max(0, width - yLabelWidth - 16);
@@ -226,5 +225,41 @@ export function TrendChart({
         )
       ) : null}
     </View>
+  );
+}
+
+/**
+ * An x-axis label wider than the bar or point spacing, centred on its point
+ * (the first and last align to the plot edge so they are not cut off).
+ */
+function AxisLabel({
+  text,
+  align,
+  color,
+  nudge = 0,
+}: {
+  text: string;
+  align: "left" | "center" | "right";
+  color: string;
+  /** Extra shift for the last label (bars are drawn from their left edge). */
+  nudge?: number;
+}) {
+  const width = 72;
+  const marginLeft =
+    align === "left" ? -2 : align === "right" ? -width + 8 + nudge : -width / 2 + 4;
+  return (
+    <Text
+      numberOfLines={1}
+      style={{
+        width,
+        marginLeft,
+        textAlign: align,
+        color,
+        fontFamily: BODY_FONT,
+        fontSize: 10,
+      }}
+    >
+      {text}
+    </Text>
   );
 }
