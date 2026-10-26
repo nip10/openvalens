@@ -2,6 +2,7 @@ import type { Database } from "@openvalens/db";
 import { metricDefinition, metricSample } from "@openvalens/db/schema/health-record";
 import { and, desc, eq, isNull, like, sql } from "drizzle-orm";
 
+import { referenceRangeFromSample } from "./reference-range";
 import type { LabMarkerLatest } from "./types";
 
 const BLOOD_MARKER_PREFIX = "blood_marker_";
@@ -10,7 +11,8 @@ const BLOOD_MARKER_PREFIX = "blood_marker_";
  * For each lab marker (metric definition starting with `blood_marker_`),
  * return the latest sample and a small recent series. Markers the tenant
  * has defined but never written a sample for are included with
- * `latestValue = null`. Excludes superseded rows.
+ * `latestValue = null`. Excludes superseded rows. The latest reading carries
+ * the lab's own reference range when one was stored with it.
  */
 export async function listLabMarkerLatest(
   db: Database,
@@ -41,6 +43,8 @@ export async function listLabMarkerLatest(
       .select({
         sampledAt: metricSample.sampledAt,
         numericValue: metricSample.numericValue,
+        unit: metricSample.unit,
+        metadataJson: metricSample.metadataJson,
       })
       .from(metricSample)
       .where(
@@ -54,14 +58,16 @@ export async function listLabMarkerLatest(
       .orderBy(desc(metricSample.sampledAt), desc(metricSample.id))
       .limit(safeLimit);
 
-    const numeric = samples
-      .filter((s): s is typeof s & { numericValue: number } => s.numericValue !== null)
-      .map((s) => ({
-        sampledAt: s.sampledAt.toISOString(),
-        value: s.numericValue,
-      }));
+    const withValue = samples.filter(
+      (s): s is typeof s & { numericValue: number } => s.numericValue !== null,
+    );
+    const numeric = withValue.map((s) => ({
+      sampledAt: s.sampledAt.toISOString(),
+      value: s.numericValue,
+    }));
 
     const latest = numeric[0];
+    const latestRow = withValue[0];
     results.push({
       code: def.code,
       displayName: def.displayName,
@@ -70,6 +76,9 @@ export async function listLabMarkerLatest(
       latestSampledAt: latest?.sampledAt ?? null,
       sampleCount: numeric.length,
       recentValues: [...numeric].reverse(),
+      referenceRange: latestRow
+        ? referenceRangeFromSample(latestRow.metadataJson, latestRow.unit, def.unit)
+        : null,
     });
   }
 

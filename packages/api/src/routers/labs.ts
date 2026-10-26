@@ -12,7 +12,9 @@ import { permissionedProcedure, validateInput } from "../index";
  * - `labs.latest` — read; `permissionedProcedure` on `records` with `read`
  *   action. Returns one entry per defined lab marker for the active org,
  *   each with the latest reading, the most recent samples (oldest-first for
- *   a sparkline) and the unit on file.
+ *   a sparkline) and the unit on file. `referenceRange` is the lab's own
+ *   range stored with the latest reading (`null` when none was recorded);
+ *   the app never supplies or looks up a range.
  *
  * Markers with no readings yet are included with `latestValue = null` so
  * the UI can show an empty state per marker. Org/user are taken
@@ -38,6 +40,14 @@ const latestOutput = z.array(
         value: z.number(),
       }),
     ),
+    referenceRange: z
+      .object({
+        low: z.number().nullable(),
+        high: z.number().nullable(),
+        text: z.string().nullable(),
+        unit: z.string().nullable(),
+      })
+      .nullable(),
   }),
 );
 

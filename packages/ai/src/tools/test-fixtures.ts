@@ -147,6 +147,7 @@ export function marker(
     latestSampledAt: latest?.sampledAt ?? null,
     sampleCount: recentValues.length,
     recentValues,
+    referenceRange: null,
   };
 }
 
