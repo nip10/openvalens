@@ -23,13 +23,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://openvalens.com"
+        "EXPO_PUBLIC_SERVER_URL": "https://app.openvalens.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://openvalens.com"
+        "EXPO_PUBLIC_SERVER_URL": "https://app.openvalens.com"
       }
     }
   },
