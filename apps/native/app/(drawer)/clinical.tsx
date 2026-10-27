@@ -27,6 +27,7 @@ import { Container } from "@/components/container";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export default function ClinicalScreen() {
   const foreground = useThemeColor("foreground");
@@ -44,6 +45,7 @@ export default function ClinicalScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="labs" />
           <PageHeader title={t`Clinical`} />
           <Sheet className="h-28 items-center justify-center">
             <Spinner />
@@ -56,6 +58,7 @@ export default function ClinicalScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="labs" />
           <PageHeader title={t`Clinical`} />
           <ErrorState
             title={t`Could not load clinical records.`}
@@ -82,6 +85,7 @@ export default function ClinicalScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="labs" />
         <PageHeader eyebrow={t`Clinical`} title={t`Records`} />
 
         <Sheet className="flex-row">

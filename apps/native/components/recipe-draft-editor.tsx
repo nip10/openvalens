@@ -36,6 +36,7 @@ import { Container } from "@/components/container";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const MAX_INPUT = 1024 * 1024;
 const MAX_INGREDIENTS = 200;
@@ -208,6 +209,7 @@ export default function RecipeDraftEditor() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="food" />
           <PageHeader
             title={<Trans>Recipe draft</Trans>}
             description={<Trans>Sign in to create a private, session-only draft.</Trans>}
@@ -231,6 +233,7 @@ export default function RecipeDraftEditor() {
       >
         <ScrollView keyboardShouldPersistTaps="handled">
           <Page>
+            <ModuleHiddenNote module="food" />
             <PageHeader
               title={<Trans>Recipe draft</Trans>}
               info={

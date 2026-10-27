@@ -11,6 +11,7 @@ import { ErrorState, Icon, Page, Sheet, ToneIcon } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export default function CoachThreadScreen() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
@@ -56,6 +57,7 @@ export default function CoachThreadScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="coach" />
           <ErrorState
             title={<Trans>Could not load this conversation.</Trans>}
             action={
@@ -85,6 +87,7 @@ export default function CoachThreadScreen() {
       }}
     >
       <Page className="gap-5">
+        <ModuleHiddenNote module="coach" />
         <View className="flex-row items-center justify-between gap-2">
           <Pressable
             onPress={() => router.push("/coach")}

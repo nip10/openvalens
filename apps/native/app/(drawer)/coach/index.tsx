@@ -19,6 +19,7 @@ import {
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export default function CoachListScreen() {
   const router = useRouter();
@@ -62,6 +63,7 @@ export default function CoachListScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="coach" />
           <ErrorState
             title={<Trans>Could not load threads.</Trans>}
             action={
@@ -91,6 +93,7 @@ export default function CoachListScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="coach" />
         <PageHeader
           title={<Trans>Coach</Trans>}
           actions={

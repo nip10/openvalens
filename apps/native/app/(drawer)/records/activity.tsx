@@ -39,6 +39,7 @@ import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const TREND_WINDOW_DAYS = 30;
 
@@ -172,6 +173,7 @@ export default function ActivityScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="activity" />
           {header}
           <TileRow>
             <Sheet className="h-36" />
@@ -186,6 +188,7 @@ export default function ActivityScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="activity" />
           {header}
           <ErrorState
             title={t`Could not load activity.`}
@@ -216,6 +219,7 @@ export default function ActivityScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="activity" />
         {header}
 
         {!today ? (

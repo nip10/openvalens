@@ -42,6 +42,7 @@ import {
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
 import { InsightsSection } from "@/components/insights-section";
+import { useModules } from "@/lib/modules/use-modules";
 import { ListRow } from "@/components/list-row";
 import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
 import { authClient } from "@/lib/auth-client";
@@ -74,11 +75,19 @@ function greeting(hour: number) {
   return msg`Good evening`;
 }
 
+/** Tiles two to a row. */
+function pairs<T>(items: readonly T[]): T[][] {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += 2) rows.push(items.slice(index, index + 2));
+  return rows;
+}
+
 export default function CockpitScreen() {
   const queryClient = useQueryClient();
   const { t, i18n } = useLingui();
   const readiness = useHealthReadiness();
   const { data: session } = authClient.useSession();
+  const modules = useModules();
 
   const foreground = useThemeColor("foreground");
 
@@ -160,6 +169,87 @@ export default function CockpitScreen() {
     void vitals.refetch();
   };
 
+  // Onboarding stage 1: tiles of hidden modules are left out (all show while
+  // the profile loads). The queries stay, so turning a module on is instant.
+  const tiles = [
+    modules.isEnabled("sleep") ? (
+      <StatTile
+        key="sleep"
+        icon={Moon}
+        tone="sleep"
+        label={blocks[1]?.title ?? t`Sleep`}
+        href="/records/sleep"
+        value={blocks[1]?.primary ?? "—"}
+        meter={
+          sleepRow && sleepRow.targetMinutes
+            ? { value: sleepRow.asleepMinutes / sleepRow.targetMinutes }
+            : undefined
+        }
+        status={
+          sleepRow
+            ? {
+                label: i18n._(sleepStatusLabel(sleepRow.status)),
+                tone: pillTone(sleepStatusTone(sleepRow.status)),
+              }
+            : undefined
+        }
+        note={sleepRow ? undefined : t`No reading yet`}
+      />
+    ) : null,
+    modules.isEnabled("activity") ? (
+      <StatTile
+        key="activity"
+        icon={Footprints}
+        tone="steps"
+        label={t`Steps`}
+        href="/records/activity"
+        value={blocks[2]?.primary ?? "—"}
+        meter={
+          activityRow && usualSteps ? { value: (activityRow.steps ?? 0) / usualSteps } : undefined
+        }
+        note={
+          activityRow
+            ? usualSteps
+              ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
+              : friendlyDate(i18n, activityRow.date)
+            : t`No activity logged`
+        }
+      />
+    ) : null,
+    modules.isEnabled("heart") ? (
+      <StatTile
+        key="heart"
+        icon={HeartPulse}
+        tone="heart"
+        label={blocks[3]?.title ?? t`Heart rate`}
+        href="/records/vitals"
+        value={blocks[3]?.primary ?? "—"}
+        note={
+          snapshot.vitals
+            ? t`Average, ${friendlyDate(i18n, snapshot.vitals.date)}`
+            : t`No reading yet`
+        }
+      />
+    ) : null,
+    modules.isEnabled("body") ? (
+      <StatTile
+        key="body"
+        icon={Scale}
+        tone="weight"
+        label={blocks[0]?.title ?? t`Weight`}
+        href="/body"
+        value={blocks[0]?.primary ?? "—"}
+        note={
+          weightSummary.change30d !== null
+            ? t`${formatKgDelta(i18n, weightSummary.change30d)} in 30 days`
+            : snapshot.weight
+              ? friendlyDate(i18n, snapshot.weight.date)
+              : t`No reading yet`
+        }
+      />
+    ) : null,
+  ].filter((tile) => tile !== null);
+
   const now = new Date();
   const firstName = session?.user?.name?.trim().split(/\s+/)[0];
   const hello = i18n._(greeting(now.getHours()));
@@ -209,82 +299,15 @@ export default function CockpitScreen() {
           </Sheet>
         ) : dataError && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
           <ErrorState title={t`Could not load status. Pull down to retry.`} />
-        ) : (
+        ) : tiles.length > 0 ? (
           <View className="gap-3" accessibilityLabel={t`Today`}>
-            <TileRow>
-              <StatTile
-                icon={Moon}
-                tone="sleep"
-                label={blocks[1]?.title ?? t`Sleep`}
-                href="/records/sleep"
-                value={blocks[1]?.primary ?? "—"}
-                meter={
-                  sleepRow && sleepRow.targetMinutes
-                    ? { value: sleepRow.asleepMinutes / sleepRow.targetMinutes }
-                    : undefined
-                }
-                status={
-                  sleepRow
-                    ? {
-                        label: i18n._(sleepStatusLabel(sleepRow.status)),
-                        tone: pillTone(sleepStatusTone(sleepRow.status)),
-                      }
-                    : undefined
-                }
-                note={sleepRow ? undefined : t`No reading yet`}
-              />
-              <StatTile
-                icon={Footprints}
-                tone="steps"
-                label={t`Steps`}
-                href="/records/activity"
-                value={blocks[2]?.primary ?? "—"}
-                meter={
-                  activityRow && usualSteps
-                    ? { value: (activityRow.steps ?? 0) / usualSteps }
-                    : undefined
-                }
-                note={
-                  activityRow
-                    ? usualSteps
-                      ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
-                      : friendlyDate(i18n, activityRow.date)
-                    : t`No activity logged`
-                }
-              />
-            </TileRow>
-            <TileRow>
-              <StatTile
-                icon={HeartPulse}
-                tone="heart"
-                label={blocks[3]?.title ?? t`Heart rate`}
-                href="/records/vitals"
-                value={blocks[3]?.primary ?? "—"}
-                note={
-                  snapshot.vitals
-                    ? t`Average, ${friendlyDate(i18n, snapshot.vitals.date)}`
-                    : t`No reading yet`
-                }
-              />
-              <StatTile
-                icon={Scale}
-                tone="weight"
-                label={blocks[0]?.title ?? t`Weight`}
-                href="/body"
-                value={blocks[0]?.primary ?? "—"}
-                note={
-                  weightSummary.change30d !== null
-                    ? t`${formatKgDelta(i18n, weightSummary.change30d)} in 30 days`
-                    : snapshot.weight
-                      ? friendlyDate(i18n, snapshot.weight.date)
-                      : t`No reading yet`
-                }
-              />
-            </TileRow>
+            {pairs(tiles).map((row, index) => (
+              <TileRow key={index}>{row}</TileRow>
+            ))}
           </View>
-        )}
+        ) : null}
 
-        {weightSummary.latest ? (
+        {weightSummary.latest && modules.isEnabled("body") ? (
           <Section
             icon={TrendingUp}
             tone="weight"

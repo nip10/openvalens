@@ -5,6 +5,8 @@ import { ensureDeviceRegistered, getDeviceId } from "./device";
 import { drainHealthChanges, type DrainOptions, type DrainSummary } from "./drain";
 import { healthConnectSource } from "./health-connect-source";
 import { healthKitSource } from "./healthkit-source";
+import { loadSyncModuleProfile } from "./module-profile";
+import { sourceForModules } from "./modules";
 import { getHealthAccess } from "./permissions";
 import { recordHealthSyncRun } from "./status";
 
@@ -38,6 +40,8 @@ async function run(options: DrainOptions): Promise<HealthSyncResult> {
   if (access.grantedTypes.length === 0) return { status: "skipped", reason: "no_permissions" };
 
   try {
+    // Onboarding stage 1: hidden modules' data types are not read or sent.
+    const modules = await loadSyncModuleProfile();
     const deviceId = await getDeviceId();
     await ensureDeviceRegistered(deviceId);
     const summary = await drainHealthChanges(
@@ -46,7 +50,7 @@ async function run(options: DrainOptions): Promise<HealthSyncResult> {
         provider: ios ? "apple_health" : "health_connect",
         clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
         now: () => new Date(),
-        source: ios ? healthKitSource : healthConnectSource,
+        source: sourceForModules(ios ? healthKitSource : healthConnectSource, modules),
         cursors: asyncStorageCursorStore,
         send: async (batch) => {
           await client.mobile.ingestBatch(batch);

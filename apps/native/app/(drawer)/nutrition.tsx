@@ -118,6 +118,7 @@ import {
 import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Meal diary (Issue #77) with food search and barcode scan/lookup (#75).
@@ -388,6 +389,7 @@ export default function NutritionScreen() {
   return (
     <Container>
       <Page>
+        <ModuleHiddenNote module="food" />
         <PageHeader
           title={i18n._(DIARY_COPY.title)}
           actions={

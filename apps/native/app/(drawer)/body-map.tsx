@@ -27,6 +27,7 @@ import { CardStack } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { client } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Body map (#94) on mobile: measured DEXA values by region, or this week's
@@ -237,6 +238,7 @@ export default function BodyMapScreen() {
   return (
     <Container className="p-4">
       <View className="gap-6">
+        <ModuleHiddenNote module="body" />
         <View className="gap-2">
           <Text
             accessibilityRole="header"

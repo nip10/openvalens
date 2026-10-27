@@ -28,6 +28,7 @@ import { Container } from "@/components/container";
 import { ReminderDaysField, ReminderDaysRow } from "@/components/reminder-days";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const UNITS = ["mg", "mcg", "IU", "g", "ml"] as const;
 
@@ -310,6 +311,7 @@ export default function SupplementsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="supplements" />
           {header}
           <Sheet className="items-center py-10">
             <Spinner />
@@ -322,6 +324,7 @@ export default function SupplementsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="supplements" />
           {header}
           <ErrorState
             title={<Trans>Could not load supplements.</Trans>}
@@ -361,6 +364,7 @@ export default function SupplementsScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="supplements" />
         {header}
 
         <View className="gap-3" accessibilityLabel={t`Supplements`}>

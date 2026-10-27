@@ -76,6 +76,7 @@ import { useOfflineScope } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
 import { EnergyEstimateCard } from "@/components/energy-estimate-card";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Nutrition targets and display settings (Issue #80), matching the web view.
@@ -190,6 +191,7 @@ export default function NutritionTargetsScreen() {
   return (
     <Container>
       <Page>
+        <ModuleHiddenNote module="food" />
         <PageHeader
           title={i18n._(TARGET_COPY.title)}
           actions={

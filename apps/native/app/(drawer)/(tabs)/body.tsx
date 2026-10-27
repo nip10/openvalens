@@ -35,6 +35,7 @@ import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const SERIES_DAYS = 90;
 
@@ -141,6 +142,7 @@ export default function BodyScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="body" />
         <PageHeader title={t`Body`} actions={<SyncStatusBadge />} />
 
         {daily.isPending ? (

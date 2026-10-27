@@ -45,6 +45,7 @@ import {
   type PrivateSubject,
 } from "@/utils/private-measurements";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const KIND_LABELS: Record<PrivateKind, MessageDescriptor> = {
   weight: msg`Weight`,
@@ -198,6 +199,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="body" />
           <PageHeader title={t`Private measurements`} />
           <Sheet className="flex-row items-center gap-3">
             <Spinner />
@@ -213,6 +215,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="body" />
           <PageHeader title={t`Private measurements`} />
           <ErrorState
             title={t`Could not check this setting. Measurements stay unavailable until it can be confirmed.`}
@@ -230,6 +233,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
   return (
     <Container>
       <Page>
+        <ModuleHiddenNote module="body" />
         <PageHeader eyebrow={t`Your records`} title={t`Private measurements`} />
         <Sheet className="flex-row items-start gap-3 p-4">
           <ToneIcon icon={Lock} tone="weight" size="sm" />

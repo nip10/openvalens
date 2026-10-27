@@ -39,6 +39,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BloomMark } from "@/components/bloom";
 import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { isRouteVisible } from "@/lib/modules/routes";
+import { useModules } from "@/lib/modules/use-modules";
 import { useThemeColor } from "@/utils/theme";
 
 type DrawerItem = {
@@ -150,6 +152,7 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/exports": msg`Clinical export`,
   "/settings": msg`Settings`,
   "/settings/devices": msg`Devices`,
+  "/settings/modules": msg`Modules`,
   "/scores": msg`Scores`,
   "/invitations": msg`Invitations`,
   "/preventive-care": msg`Preventive care`,
@@ -162,6 +165,9 @@ function DrawerContent() {
   const ink3 = useThemeColor("ink-3");
   const signal = useThemeColor("signal");
   const sidebar = useThemeColor("sidebar");
+  // Onboarding stage 1: a hidden module leaves the drawer (its screens still
+  // open from a link). Everything shows while the profile loads.
+  const { enabled } = useModules();
 
   return (
     <ScrollView
@@ -179,48 +185,53 @@ function DrawerContent() {
       </View>
 
       <View className="gap-5 px-3">
-        {DRAWER_GROUPS.map((group) => (
-          <View key={group.label.id} className="gap-0.5">
-            <Text
-              className="px-3 pb-1 font-sans text-[13px] font-semibold text-ink-3"
-              accessibilityRole="header"
-            >
-              {_(group.label)}
-            </Text>
-            {group.items.map((item) => {
-              // The Cockpit tab lives at "/" too; its href names the tabs group so it is
-              // not confused with the sign-in screen at (drawer)/index.
-              const active =
-                pathname === item.href || (item.href === "/(drawer)/(tabs)" && pathname === "/");
-              const ItemIcon = item.icon;
-              return (
-                <Link key={item.href} href={item.href} asChild>
-                  <Pressable
-                    className={cn(
-                      "min-h-11 flex-row items-center gap-3 rounded-2xl px-3 py-2.5 active:bg-paper-2",
-                      active && "bg-sidebar-accent",
-                    )}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    accessibilityLabel={_(item.label)}
-                  >
-                    <ItemIcon size={19} color={active ? signal : ink3} strokeWidth={2} />
-                    <Text
+        {DRAWER_GROUPS.map((group) => ({
+          ...group,
+          items: group.items.filter((item) => isRouteVisible(item.href, enabled)),
+        }))
+          .filter((group) => group.items.length > 0)
+          .map((group) => (
+            <View key={group.label.id} className="gap-0.5">
+              <Text
+                className="px-3 pb-1 font-sans text-[13px] font-semibold text-ink-3"
+                accessibilityRole="header"
+              >
+                {_(group.label)}
+              </Text>
+              {group.items.map((item) => {
+                // The Cockpit tab lives at "/" too; its href names the tabs group so it is
+                // not confused with the sign-in screen at (drawer)/index.
+                const active =
+                  pathname === item.href || (item.href === "/(drawer)/(tabs)" && pathname === "/");
+                const ItemIcon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} asChild>
+                    <Pressable
                       className={cn(
-                        "font-sans text-[15px]",
-                        active
-                          ? "font-semibold text-sidebar-accent-foreground"
-                          : "font-medium text-ink-2",
+                        "min-h-11 flex-row items-center gap-3 rounded-2xl px-3 py-2.5 active:bg-paper-2",
+                        active && "bg-sidebar-accent",
                       )}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={_(item.label)}
                     >
-                      {_(item.label)}
-                    </Text>
-                  </Pressable>
-                </Link>
-              );
-            })}
-          </View>
-        ))}
+                      <ItemIcon size={19} color={active ? signal : ink3} strokeWidth={2} />
+                      <Text
+                        className={cn(
+                          "font-sans text-[15px]",
+                          active
+                            ? "font-semibold text-sidebar-accent-foreground"
+                            : "font-medium text-ink-2",
+                        )}
+                      >
+                        {_(item.label)}
+                      </Text>
+                    </Pressable>
+                  </Link>
+                );
+              })}
+            </View>
+          ))}
       </View>
     </ScrollView>
   );
@@ -444,6 +455,13 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="settings/devices"
+        options={{
+          headerTitle,
+          drawerItemStyle: { display: "none" },
+        }}
+      />
+      <Drawer.Screen
+        name="settings/modules"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },

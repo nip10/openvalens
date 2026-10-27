@@ -80,6 +80,7 @@ import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { goalLogValue } from "@/utils/score-screen";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const WORKOUT_TYPES = ["weights", "running", "cycling", "swimming", "tennis", "other"] as const;
 type WorkoutType = (typeof WORKOUT_TYPES)[number];
@@ -820,6 +821,7 @@ export default function WorkoutsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="activity" />
           {header}
           <Sheet className="items-center py-10">
             <Spinner />
@@ -832,6 +834,7 @@ export default function WorkoutsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="activity" />
           {header}
           <ErrorState
             title={<Trans>Could not load workouts.</Trans>}
@@ -887,6 +890,7 @@ export default function WorkoutsScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="activity" />
         {header}
 
         {load.isPending ? (

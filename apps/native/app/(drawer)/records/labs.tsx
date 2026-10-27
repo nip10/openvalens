@@ -33,6 +33,7 @@ import { useDisplayPreferences } from "@/lib/display-preferences";
 import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: () => void }) {
   const [value, setValue] = useState("");
@@ -132,6 +133,7 @@ export default function LabsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="labs" />
           {header}
           <View className="gap-3">
             <Sheet className="h-24" />
@@ -146,6 +148,7 @@ export default function LabsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="labs" />
           {header}
           <ErrorState
             title={t`Could not load labs.`}
@@ -206,6 +209,7 @@ export default function LabsScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="labs" />
         {header}
 
         {list.length === 0 ? (
