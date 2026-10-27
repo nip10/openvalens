@@ -230,10 +230,13 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
 
   test("the database refuses unknown module ids", async () => {
     await db.execute(sql`insert into wellness_profile (user_id) values ('user-a')`);
+    // db.execute returns a lazy query; await it inside an async function so the
+    // rejection is what the assertion sees.
     await expect(
-      db.execute(
-        sql`update wellness_profile set enabled_modules = array['weight']::text[] where user_id = 'user-a'`,
-      ),
+      (async () =>
+        await db.execute(
+          sql`update wellness_profile set enabled_modules = array['weight']::text[] where user_id = 'user-a'`,
+        ))(),
     ).rejects.toThrow();
   });
 
