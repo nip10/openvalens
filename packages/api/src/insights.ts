@@ -36,6 +36,12 @@ import {
   type InsightFeedbackRecord,
 } from "./insight-rules";
 import { computeGoalProgress, type GoalWithHistory } from "./score-goal-progress";
+import {
+  filterInsightsByModules,
+  hasChosenModules,
+  isModuleEnabled,
+  METRIC_MODULES,
+} from "./presenters/modules";
 import { createWellnessProfileService } from "./wellness-profile";
 
 /**
@@ -301,11 +307,6 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
   const { db } = deps;
   const now = deps.now ?? (() => new Date());
 
-  async function declaredUnder18(userId: string): Promise<boolean> {
-    const profile = await createWellnessProfileService({ db }).read(userId);
-    return profile.eligibility.state === "recorded" && profile.eligibility.value === "under_18";
-  }
-
   async function readRow(scope: InsightScope): Promise<PreferenceRow | null> {
     const [row] = await db
       .select()
@@ -397,9 +398,21 @@ export function createInsightService(deps: { db: Database; now?: () => Date }): 
     scope: InsightScope,
     access: InsightAccess,
   ): Promise<InsightEngineOutput | null> {
-    if (await declaredUnder18(scope.userId)) return null;
+    const profile = await createWellnessProfileService({ db }).read(scope.userId);
+    if (profile.eligibility.state === "recorded" && profile.eligibility.value === "under_18")
+      return null;
     const asOf = now().toISOString().slice(0, 10);
-    return runInsightRules(await loadInsightEngineInput(db, scope, access, asOf));
+    const output = runInsightRules(await loadInsightEngineInput(db, scope, access, asOf));
+    // Onboarding stage 1: a hidden module produces no insight (and no
+    // readiness row), on every channel. Not chosen yet = every module on.
+    if (!hasChosenModules(profile)) return output;
+    return {
+      ...output,
+      insights: filterInsightsByModules(output.insights, profile),
+      readiness: output.readiness.filter((row) =>
+        isModuleEnabled(profile, METRIC_MODULES[row.metric]),
+      ),
+    };
   }
 
   return {

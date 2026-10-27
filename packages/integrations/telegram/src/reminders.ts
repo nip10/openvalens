@@ -14,7 +14,11 @@ import type { StructuredLogger } from "@openvalens/observability";
 import { and, eq, gte, inArray, isNull } from "drizzle-orm";
 
 import type { TelegramClient } from "./client";
-import { earliestDeliverableDate, reminderEmailOptedIn } from "./reminder-materialization";
+import {
+  earliestDeliverableDate,
+  reminderEmailOptedIn,
+  usersWithModuleHidden,
+} from "./reminder-materialization";
 import { isReminderDeliverable, localClockIn } from "./reminder-schedule";
 
 /**
@@ -139,6 +143,7 @@ type PendingSelectionRow = {
   userId: string;
   date: string;
   label: string;
+  sourceType: "supplement" | "medication" | "activity";
 };
 
 /**
@@ -165,6 +170,7 @@ export async function materializeDailyReminders(
       userId: dailyReminder.userId,
       date: dailyReminder.date,
       label: dailyReminder.label,
+      sourceType: dailyReminder.sourceType,
     })
     .from(dailyReminder)
     .where(
@@ -195,7 +201,15 @@ export async function materializeDailyReminders(
             ),
           );
   const prefsByUser = new Map(schedulePrefs.map((row) => [row.userId, row]));
+  // Onboarding stage 1: rows made before the member hid supplements stay
+  // pending and unsent (nothing is deleted).
+  const supplementsHidden = await usersWithModuleHidden(db, candidateUserIds, "supplements");
   const pending = candidates.filter((row) => {
+    if (
+      (row.sourceType === "supplement" || row.sourceType === "medication") &&
+      supplementsHidden.has(row.userId)
+    )
+      return false;
     const prefs = prefsByUser.get(row.userId);
     return isReminderDeliverable(row.date, localClockIn(now, prefs?.timeZone), prefs?.reminderHour);
   });

@@ -361,6 +361,35 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
     expect(body.offerPush).toBe(true);
   });
 
+  test("modules: a hidden module's insights and readiness are not returned (onboarding stage 1)", async () => {
+    await db.execute(
+      sql`insert into wellness_profile (user_id, enabled_modules) values ('user-a', array['sleep']::text[])
+          on conflict (user_id) do update set enabled_modules = excluded.enabled_modules`,
+    );
+    try {
+      const hidden = await call<InsightsResult>("insights/list", {});
+      expect(hidden.body.status).toBe("available");
+      expect(hidden.body.insights.find((entry) => entry.id === RHR_INSIGHT)).toBeUndefined();
+      const rules = hidden.body.readiness.map((entry) => entry.ruleId);
+      expect(rules).toContain("change.sleep_duration");
+      expect(rules).not.toContain("change.resting_heart_rate");
+      expect(rules).not.toContain("change.steps");
+
+      await db.execute(
+        sql`update wellness_profile set enabled_modules = array['sleep', 'heart']::text[] where user_id = 'user-a'`,
+      );
+      const shown = await call<InsightsResult>("insights/list", {});
+      expect(shown.body.insights.some((entry) => entry.id === RHR_INSIGHT)).toBe(true);
+    } finally {
+      // Not chosen = every module on, as for accounts that predate onboarding.
+      await db.execute(
+        sql`update wellness_profile set enabled_modules = null where user_id = 'user-a'`,
+      );
+    }
+    const restored = await call<InsightsResult>("insights/list", {});
+    expect(restored.body.insights.some((entry) => entry.id === RHR_INSIGHT)).toBe(true);
+  });
+
   test("permissions, isolation and the 18+ scope", async () => {
     expect((await call("insights/list", {}, "user-n")).status).toBe(403);
     expect((await call("insights/list", {}, null)).status).toBe(401);
@@ -750,6 +779,30 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       rule_versions: ["change.resting_heart_rate@1"],
       status: "sent",
     });
+  });
+
+  test("cron: no push for insights of a hidden module", async () => {
+    await db.execute(
+      sql`insert into wellness_profile (user_id, enabled_modules) values ('user-a', array['sleep']::text[])
+          on conflict (user_id) do update set enabled_modules = excluded.enabled_modules`,
+    );
+    // Today's push already went out above; clear it so only the module stops this one.
+    await db.execute(
+      sql`delete from insight_delivery where user_id = 'user-a' and channel = 'push'`,
+    );
+    const before = pushes.length;
+    try {
+      const run = await runCron();
+      expect(run.body).toMatchObject({ pushSent: 0 });
+      expect(pushes).toHaveLength(before);
+    } finally {
+      await db.execute(
+        sql`update wellness_profile set enabled_modules = null where user_id = 'user-a'`,
+      );
+    }
+    // With every module on again, today's push goes out as before.
+    expect((await runCron()).body).toMatchObject({ pushSent: 1 });
+    expect(pushes).toHaveLength(before + 1);
   });
 
   test("cron: the weekly email needs acknowledgement, sends values once, and unsubscribes in one step", async () => {
