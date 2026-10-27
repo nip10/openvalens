@@ -1,15 +1,29 @@
 import { Trans } from "@lingui/react/macro";
 import { buttonVariants } from "@openvalens/ui/components/button";
 import { useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { Apple, Footprints, HeartPulse, Moon, Scale } from "lucide-react";
 
 import { Page, StatusPill, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
+import { needsWelcomeRedirect } from "@/utils/onboarding-data";
 import { orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
+  // Onboarding stage 2: a signed-in person who never opened setup goes to
+  // /welcome once. Signed out, or any failure, shows this page as before.
+  beforeLoad: async ({ context }) => {
+    let userId: string | undefined;
+    try {
+      userId = (await authClient.getSession()).data?.user?.id;
+    } catch {
+      return;
+    }
+    if (await needsWelcomeRedirect(context.queryClient, userId)) {
+      throw redirect({ to: "/welcome" });
+    }
+  },
 });
 
 function HomeComponent() {
