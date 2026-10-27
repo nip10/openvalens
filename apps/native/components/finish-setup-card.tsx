@@ -2,28 +2,35 @@ import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   describeProfileSaveError,
-  nextSetupSection,
-  SECTION_TITLES,
-  setupProgress,
-  shouldOfferSetup,
   wellnessProfileQueryKey,
 } from "@openvalens/api/presenters/wellness-profile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
-import { router } from "expo-router";
-import { UserRound } from "lucide-react-native";
-import { useState } from "react";
+import { Sparkles } from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 
 import { Meter, Section, Sheet } from "@/components/bloom";
+import { openStep } from "@/components/onboarding/flow";
+import { useIsInstanceAdmin } from "@/components/onboarding/steps";
 import { authClient } from "@/lib/auth-client";
+import { useLocalOnboardingProgress } from "@/lib/onboarding/local-progress";
+import {
+  onboardingProgress,
+  resumeStep,
+  shouldAutoOpenOnboarding,
+  shouldShowSetupCard,
+} from "@/lib/onboarding/steps";
 import { client, orpc } from "@/utils/orpc";
 
 /**
- * Issue #98 — optional setup prompt on the cockpit (parity with the web
- * dashboard card). Hidden while loading or on error; "Not now" records a skip.
+ * Onboarding stage 3 — "Finish setting up, N of 8" on the Cockpit (it
+ * replaces the earlier profile setup prompt), until setup is completed or
+ * dismissed. "Not now" records a skip. After the first sign-in, while modules
+ * were never chosen, the Cockpit opens the flow by itself once; deep links to
+ * other screens are never redirected.
  */
-export function ProfileSetupPrompt() {
+export function FinishSetupCard() {
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id ?? "";
@@ -33,6 +40,8 @@ export function ProfileSetupPrompt() {
     enabled: !!userId,
     retry: 1,
   });
+  const local = useLocalOnboardingProgress(userId);
+  const admin = useIsInstanceAdmin(userId);
   const [error, setError] = useState<MessageDescriptor | null>(null);
   const { t, i18n } = useLingui();
   const skip = useMutation({
@@ -43,40 +52,38 @@ export function ProfileSetupPrompt() {
   });
 
   const snapshot = profile.data;
-  if (!snapshot || !shouldOfferSetup(snapshot)) return null;
-  const progress = setupProgress(snapshot);
-  const next = nextSetupSection(snapshot);
-  const started = snapshot.setupStatus === "in_progress";
+  const resume = snapshot
+    ? resumeStep(snapshot, local.visited, { isInstanceAdmin: admin.isAdmin })
+    : "welcome";
+
+  const opening = useRef(false);
+  useEffect(() => {
+    if (opening.current || !local.loaded || !admin.loaded) return;
+    if (!shouldAutoOpenOnboarding(snapshot, local.autoOpened)) return;
+    opening.current = true;
+    void local.markAutoOpened().then(() => openStep(resume));
+  }, [snapshot, local.loaded, local.autoOpened, admin.loaded, resume, local]);
+
+  if (!snapshot || !shouldShowSetupCard(snapshot)) return null;
+  const progress = onboardingProgress(snapshot, local.visited);
 
   return (
     <Section
-      icon={UserRound}
+      icon={Sparkles}
       tone="signal"
-      title={started ? t`Continue setting up (optional)` : t`Set up your profile (optional)`}
+      title={t`Finish setting up, ${progress.done} of ${progress.total}`}
     >
       <Sheet className="gap-4">
         <Text className="font-sans text-base leading-relaxed text-ink-2">
           <Trans>
-            A few optional questions so the app can show what matters to you. Skip any of them;
-            everything else works without them.
+            A few quick questions so the app shows what matters to you. Skip any of them; everything
+            else works without them.
           </Trans>
-          {started ? (
-            <>
-              {" "}
-              <Trans>
-                {progress.answered} of {progress.available} sections answered.
-              </Trans>
-            </>
-          ) : null}
         </Text>
-        {started && progress.available > 0 ? (
-          <Meter value={progress.answered / progress.available} tone="signal" />
-        ) : null}
+        <Meter value={progress.done / progress.total} tone="signal" label={t`Setup progress`} />
         <View className="flex-row flex-wrap gap-3">
-          <Button onPress={() => router.push("/profile")}>
-            <Button.Label>
-              {started && next ? t`Continue: ${i18n._(SECTION_TITLES[next])}` : t`Start`}
-            </Button.Label>
+          <Button onPress={() => openStep(resume)} testID="finish-setup-continue">
+            <Button.Label>{progress.done > 0 ? t`Continue` : t`Start`}</Button.Label>
           </Button>
           <Button
             variant="secondary"
