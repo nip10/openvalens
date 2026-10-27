@@ -29,6 +29,7 @@ import {
 } from "@/components/page";
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/micronutrients")({ component: MicronutrientsPage });
 
@@ -69,6 +70,7 @@ function MicronutrientsPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="food" />
       <PageHeader
         title={<Trans>Micronutrients</Trans>}
         info={i18n._(MICRONUTRIENT_COPY.intro)}

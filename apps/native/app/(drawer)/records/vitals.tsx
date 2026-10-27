@@ -40,6 +40,7 @@ import { enqueueMetricSample, useCacheFirst } from "@/lib/offline/sync";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const TREND_WINDOW_DAYS = 30;
 
@@ -176,6 +177,7 @@ export default function VitalsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="heart" />
           {header}
           <TileRow>
             <Sheet className="h-36" />
@@ -190,6 +192,7 @@ export default function VitalsScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="heart" />
           {header}
           <ErrorState
             title={t`Could not load vitals.`}
@@ -234,6 +237,7 @@ export default function VitalsScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="heart" />
         {header}
 
         {!today ? (

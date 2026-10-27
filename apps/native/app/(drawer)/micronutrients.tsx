@@ -30,6 +30,7 @@ import { Container } from "@/components/container";
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Opt-in micronutrient summary (#78) on mobile. Same server summary and copy
@@ -66,6 +67,7 @@ export default function MicronutrientsScreen() {
   return (
     <Container>
       <Page>
+        <ModuleHiddenNote module="food" />
         <PageHeader
           title={<Trans>Micronutrients</Trans>}
           info={i18n._(MICRONUTRIENT_COPY.intro)}

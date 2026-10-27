@@ -191,6 +191,55 @@ describe.skipIf(!url)("wellness profile over RPC (PostgreSQL)", () => {
     });
   });
 
+  test("enabled modules: null until chosen, stored in order, kept by other updates", async () => {
+    const a = sessionFor("user-a");
+    const fresh = await call("get", {}, a);
+    expect(fresh.json.enabledModules).toBeNull();
+
+    const chosen = await call(
+      "update",
+      { expectedRevision: 0, enabledModules: ["food", "sleep", "care"] },
+      a,
+    );
+    expect(chosen.status).toBe(200);
+    expect(chosen.json).toMatchObject({ revision: 1, enabledModules: ["sleep", "food", "care"] });
+
+    const other = await call(
+      "update",
+      { expectedRevision: 1, region: { state: "recorded", value: "pt" } },
+      a,
+    );
+    expect(other.json).toMatchObject({ revision: 2, enabledModules: ["sleep", "food", "care"] });
+
+    // The same set again is not a change (no revision bump).
+    const same = await call(
+      "update",
+      { expectedRevision: 2, enabledModules: ["care", "food", "sleep"] },
+      a,
+    );
+    expect(same.json).toMatchObject({ revision: 2 });
+
+    const none = await call("update", { expectedRevision: 2, enabledModules: [] }, a);
+    expect(none.json).toMatchObject({ revision: 3, enabledModules: [] });
+    expect((await call("get", {}, sessionFor("user-b"))).json.enabledModules).toBeNull();
+
+    const bad = await call("update", { expectedRevision: 3, enabledModules: ["weight"] }, a);
+    expect(bad.status).toBe(400);
+    expect(logged.join("")).not.toContain('"sleep"');
+  });
+
+  test("the database refuses unknown module ids", async () => {
+    await db.execute(sql`insert into wellness_profile (user_id) values ('user-a')`);
+    // db.execute returns a lazy query; await it inside an async function so the
+    // rejection is what the assertion sees.
+    await expect(
+      (async () =>
+        await db.execute(
+          sql`update wellness_profile set enabled_modules = array['weight']::text[] where user_id = 'user-a'`,
+        ))(),
+    ).rejects.toThrow();
+  });
+
   test("partial updates keep omitted fields; explicit unknown clears", async () => {
     const a = sessionFor("user-a");
     await call(

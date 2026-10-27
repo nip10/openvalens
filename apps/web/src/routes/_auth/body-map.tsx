@@ -25,6 +25,7 @@ import { Dumbbell, MousePointerClick, PersonStanding, ScanLine } from "lucide-re
 
 import { Details, ErrorState, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/body-map")({ component: BodyMapPage });
 
@@ -231,6 +232,7 @@ export function BodyMapPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="body" />
       <PageHeader
         title={<Trans>Body map</Trans>}
         info={i18n._(BODY_MAP_COPY.intro)}

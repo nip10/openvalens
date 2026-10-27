@@ -28,6 +28,7 @@ import { useState } from "react";
 import { controlLinkClass, textLinkClass } from "@/components/food-classes";
 import { Page, PageHeader, Section, StatusPill, ToneIcon } from "@/components/page";
 import { client } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/food-draft")({ component: FoodDraftPage });
 
@@ -115,6 +116,7 @@ function FoodDraftPage() {
 
   return (
     <Page width="narrow">
+      <ModuleHiddenNote module="food" />
       <PageHeader
         title={<Trans>Describe a meal</Trans>}
         info={i18n._(FOOD_DRAFT_COPY.intro)}

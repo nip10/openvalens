@@ -38,6 +38,8 @@ import {
   type InsightDeliveryContext,
 } from "../insights";
 import { loadNutritionObservations } from "../nutrition-observation-data";
+import { isModuleEnabled } from "../presenters/modules";
+import { readWellnessProfile } from "../wellness-profile";
 
 /**
  * Issue #92 — insights.
@@ -132,7 +134,10 @@ export const insightsRouter = {
         // the trusted authz context. Withheld adults-only profiles load nothing.
         if (result.status === "available") {
           const preferences = await service.getPreferences(scope, delivery);
-          if (preferences.channels.observation.in_app) {
+          // Onboarding stage 1: observations need the food module, plus the
+          // module of the records they describe.
+          const profile = await readWellnessProfile(context.db, scope.userId);
+          if (preferences.channels.observation.in_app && isModuleEnabled(profile, "food")) {
             const to = new Date(`${result.asOf}T00:00:00.000Z`);
             const from = new Date(to);
             from.setUTCDate(from.getUTCDate() - 27);
@@ -148,8 +153,8 @@ export const insightsRouter = {
                 optedIn: true,
                 nutrition: true,
                 // The procedure's records:read guard is the sleep/diary read gate.
-                sleep: true,
-                activity: workoutPermission,
+                sleep: isModuleEnabled(profile, "sleep"),
+                activity: workoutPermission && isModuleEnabled(profile, "activity"),
                 hideNumbers: nutritionSettings.hideNumbers,
               },
             );

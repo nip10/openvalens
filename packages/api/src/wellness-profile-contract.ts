@@ -50,6 +50,38 @@ export type WellnessEligibility = (typeof WELLNESS_ELIGIBILITY)[number];
 export const WELLNESS_SETUP_STATUSES = ["in_progress", "skipped", "completed"] as const;
 export type WellnessSetupStatus = (typeof WELLNESS_SETUP_STATUSES)[number];
 
+/**
+ * Onboarding stage 1 — the parts of the app a person can switch on or off.
+ * Stable API values (stored in `wellness_profile.enabled_modules`). Dashboard,
+ * timeline, scores, sharing, settings, export and the profile are always on
+ * and are not modules. Labels, icons and defaults live in `presenters/modules.ts`.
+ */
+export const PERSON_MODULES = [
+  "sleep",
+  "activity",
+  "heart",
+  "body",
+  "food",
+  "supplements",
+  "labs",
+  "cycle",
+  "coach",
+  "care",
+] as const;
+export type PersonModule = (typeof PERSON_MODULES)[number];
+
+/** The stored module choice: `null` = never chosen (every module on). */
+export const enabledModulesSchema = z
+  .array(z.enum(PERSON_MODULES))
+  .max(PERSON_MODULES.length)
+  .refine((modules) => new Set(modules).size === modules.length, "Duplicate module");
+
+/** Canonical order (the order of {@link PERSON_MODULES}), so equal choices compare equal. */
+export function normalizeModules(modules: readonly PersonModule[]): PersonModule[] {
+  const chosen = new Set(modules);
+  return PERSON_MODULES.filter((module) => chosen.has(module));
+}
+
 /** Purposes that need their own recorded consent before a value is stored. */
 export const WELLNESS_CONSENT_PURPOSES = ["age_band", "sex"] as const;
 export type WellnessConsentPurpose = (typeof WELLNESS_CONSENT_PURPOSES)[number];
@@ -166,6 +198,8 @@ export const wellnessProfileSnapshotSchema = z.strictObject({
   region: regionAnswerSchema,
   birthYear: birthYearAnswerSchema,
   sex: sexAnswerSchema,
+  /** The modules the person switched on; `null` = not chosen yet, so every module is on. */
+  enabledModules: enabledModulesSchema.nullable(),
   consents: z.strictObject({
     age_band: consentRecordSchema.nullable(),
     sex: consentRecordSchema.nullable(),
@@ -186,6 +220,7 @@ export const EMPTY_WELLNESS_PROFILE: WellnessProfileSnapshot = Object.freeze({
   region: UNKNOWN,
   birthYear: UNKNOWN,
   sex: UNKNOWN,
+  enabledModules: null,
   consents: Object.freeze({ age_band: null, sex: null }),
   updatedAt: null,
 });
@@ -208,6 +243,8 @@ export const wellnessProfileUpdateInput = z.strictObject({
   region: regionAnswerSchema.optional(),
   birthYear: birthYearAnswerSchema.optional(),
   sex: sexAnswerSchema.optional(),
+  /** Replaces the whole module choice (any order; stored in canonical order). */
+  enabledModules: enabledModulesSchema.optional(),
   consents: z
     .strictObject({
       age_band: consentActionSchema.optional(),
@@ -230,6 +267,7 @@ export type WellnessProfileRejection =
 export type WellnessProfileState = {
   setupStatus: WellnessSetupStatus | null;
   answers: WellnessProfileAnswers;
+  enabledModules: PersonModule[] | null;
   activeConsents: Record<WellnessConsentPurpose, boolean>;
 };
 
@@ -333,13 +371,19 @@ export function applyWellnessProfileUpdate(
   const changedFields: string[] = [];
   const setupStatus = input.setupStatus ?? current.setupStatus;
   if (setupStatus !== current.setupStatus) changedFields.push("setupStatus");
+  const enabledModules =
+    input.enabledModules !== undefined
+      ? normalizeModules(input.enabledModules)
+      : current.enabledModules;
+  if (JSON.stringify(enabledModules) !== JSON.stringify(current.enabledModules))
+    changedFields.push("enabledModules");
   for (const field of WELLNESS_PROFILE_FIELDS) {
     if (!answersEqual(answers[field], current.answers[field])) changedFields.push(field);
   }
 
   return {
     ok: true,
-    next: { setupStatus, answers, activeConsents },
+    next: { setupStatus, answers, enabledModules, activeConsents },
     changedFields,
     consentChanges,
   };
@@ -357,6 +401,7 @@ export function snapshotToState(snapshot: WellnessProfileSnapshot): WellnessProf
       birthYear: snapshot.birthYear,
       sex: snapshot.sex,
     },
+    enabledModules: snapshot.enabledModules,
     activeConsents: {
       age_band: snapshot.consents.age_band?.active === true,
       sex: snapshot.consents.sex?.active === true,

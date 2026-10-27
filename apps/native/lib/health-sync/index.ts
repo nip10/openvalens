@@ -17,6 +17,13 @@ export {
 } from "./permissions";
 export { runHealthSync, type HealthSyncResult } from "./run-sync";
 export {
+  healthConnectPermissionsForModules,
+  healthKitReadTypesForModules,
+  syncableRecordTypes,
+  type ModuleProfile,
+} from "./modules";
+export { rememberSyncModules } from "./module-profile";
+export {
   HEALTH_SYNC_TASK,
   isBackgroundSyncAvailable,
   isHealthSyncTaskRegistered,

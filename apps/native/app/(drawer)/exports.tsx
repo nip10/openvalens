@@ -28,6 +28,7 @@ import {
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -201,6 +202,7 @@ export default function ExportsScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="labs" />
         <PageHeader eyebrow={t`Records`} title={t`Clinical export`} />
 
         <Section

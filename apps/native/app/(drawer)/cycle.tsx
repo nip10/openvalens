@@ -29,6 +29,7 @@ import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Optional cycle logging (#91) on mobile. Off until the member accepts its
@@ -153,6 +154,7 @@ function CycleForMember({ scope }: { scope: string }) {
   return (
     <Container>
       <Page>
+        <ModuleHiddenNote module="cycle" />
         <PageHeader title={t`Cycle`} description={i18n._(CYCLE_COPY.notForContraception)} />
         {settings.isPending ? (
           <Sheet className="h-40 items-center justify-center">

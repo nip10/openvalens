@@ -59,6 +59,7 @@ import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/records/activity")({
   component: ActivityPage,
@@ -187,6 +188,7 @@ function ActivityPage() {
   if (totals.isPending) {
     return (
       <Page>
+        <ModuleHiddenNote module="activity" />
         {header}
         <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
           <Skeleton className="h-96 w-full" />
@@ -199,6 +201,7 @@ function ActivityPage() {
   if (totals.isError || !totals.data) {
     return (
       <Page>
+        <ModuleHiddenNote module="activity" />
         {header}
         <ErrorState
           title={<Trans>Could not load activity.</Trans>}
@@ -217,6 +220,7 @@ function ActivityPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="activity" />
       {header}
 
       <ProductSettingsStatus />

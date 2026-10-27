@@ -13,6 +13,8 @@ import {
   wellnessProfileUpdateInput,
   type WellnessProfileSnapshot,
   type WellnessProfileState,
+  normalizeModules,
+  PERSON_MODULES,
 } from "./wellness-profile-contract";
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
@@ -28,6 +30,7 @@ const adultWithConsents = (): WellnessProfileState => ({
     sex: { state: "recorded", value: "female" },
     region: { state: "recorded", value: "uk" },
   },
+  enabledModules: null,
   activeConsents: { age_band: true, sex: true },
 });
 
@@ -404,5 +407,57 @@ describe("copy", () => {
     expect(unavailableExplanation("consent_required", "your consent")).toContain(
       "Add your consent",
     );
+  });
+});
+
+describe("enabled modules (onboarding stage 1)", () => {
+  test("a new profile has not chosen modules", () => {
+    expect(EMPTY_WELLNESS_PROFILE.enabledModules).toBeNull();
+  });
+
+  test("the input accepts a module list, including an empty one, and rejects bad ids", () => {
+    for (const ok of [[], ["sleep"], ["care", "sleep", "food"]]) {
+      expect(
+        wellnessProfileUpdateInput.safeParse({ expectedRevision: 0, enabledModules: ok }).success,
+      ).toBe(true);
+    }
+    for (const bad of [["sleep", "sleep"], ["weight"], "sleep", null]) {
+      expect(
+        wellnessProfileUpdateInput.safeParse({ expectedRevision: 0, enabledModules: bad }).success,
+      ).toBe(false);
+    }
+  });
+
+  test("an update stores the list in canonical order and reports the change", () => {
+    const result = applyWellnessProfileUpdate(
+      empty(),
+      { expectedRevision: 0, enabledModules: ["food", "sleep"] },
+      NOW,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.next.enabledModules).toEqual(["sleep", "food"]);
+    expect(result.changedFields).toEqual(["enabledModules"]);
+  });
+
+  test("the same set in another order is not a change; omitting keeps the choice", () => {
+    const current = { ...empty(), enabledModules: ["sleep", "food"] as const } as never;
+    const same = applyWellnessProfileUpdate(
+      current,
+      { expectedRevision: 3, enabledModules: ["food", "sleep"] },
+      NOW,
+    );
+    expect(same.ok && same.changedFields).toEqual([]);
+    const untouched = applyWellnessProfileUpdate(
+      current,
+      { expectedRevision: 3, region: { state: "declined" } },
+      NOW,
+    );
+    expect(untouched.ok && untouched.next.enabledModules).toEqual(["sleep", "food"]);
+  });
+
+  test("normalizeModules follows PERSON_MODULES order", () => {
+    expect(normalizeModules(["care", "activity", "sleep"])).toEqual(["sleep", "activity", "care"]);
+    expect(PERSON_MODULES).toHaveLength(10);
   });
 });

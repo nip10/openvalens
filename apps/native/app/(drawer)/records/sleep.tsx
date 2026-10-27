@@ -35,6 +35,7 @@ import { Container } from "@/components/container";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const TREND_WINDOW_DAYS = 30;
 
@@ -140,6 +141,7 @@ export default function SleepScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="sleep" />
           <PageHeader title={t`Sleep`} />
           <Sheet className="h-48" />
           <TileRow>
@@ -154,6 +156,7 @@ export default function SleepScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="sleep" />
           <PageHeader title={t`Sleep`} />
           <ErrorState
             title={t`Could not load sleep.`}
@@ -185,6 +188,7 @@ export default function SleepScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="sleep" />
         <PageHeader title={t`Sleep`} />
 
         {!last ? (

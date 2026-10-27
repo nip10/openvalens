@@ -29,6 +29,7 @@ import { controlLinkClass, nativeSelectClass, textLinkClass } from "@/components
 import { Details, Page, PageHeader, Section, ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 const MAX_INPUT = 1024 * 1024;
 const MAX_INGREDIENTS = 200;
@@ -210,6 +211,7 @@ export function RecipeDraftEditor() {
   if (isPending || scope !== activeScope)
     return (
       <Page width="narrow">
+        <ModuleHiddenNote module="food" />
         <div role="status" className="grid gap-4">
           <span className="sr-only">
             <Trans>Loading your workspace…</Trans>
@@ -222,6 +224,7 @@ export function RecipeDraftEditor() {
   if (!scope)
     return (
       <Page width="narrow">
+        <ModuleHiddenNote module="food" />
         <PageHeader
           title={<Trans>Recipe draft</Trans>}
           description={<Trans>Sign in to create a private, session-only draft.</Trans>}
@@ -238,6 +241,7 @@ export function RecipeDraftEditor() {
 
   return (
     <Page width="narrow">
+      <ModuleHiddenNote module="food" />
       <PageHeader
         title={<Trans>Recipe draft</Trans>}
         info={

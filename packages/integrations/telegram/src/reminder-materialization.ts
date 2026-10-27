@@ -3,6 +3,7 @@ import { sql } from "@openvalens/db";
 import { member, user } from "@openvalens/db/schema/auth";
 import { insightPreference } from "@openvalens/db/schema/insights";
 import { dailyReminder, telegramAccount } from "@openvalens/db/schema/integrations";
+import { wellnessProfile } from "@openvalens/db/schema/profile";
 import {
   medication,
   scheduledEvent,
@@ -78,6 +79,32 @@ export type CreateDueDailyRemindersResult = {
 };
 
 type NewReminder = typeof dailyReminder.$inferInsert;
+
+/**
+ * Onboarding stage 1: the members (of `userIds`) who switched a module off on
+ * their wellness profile. `enabled_modules` null = never chosen = every module
+ * on. Supplement and medication reminders follow the `supplements` module.
+ * (Matches `PERSON_MODULES` in `@openvalens/api`'s wellness profile contract;
+ * this package cannot import the API.)
+ */
+export async function usersWithModuleHidden(
+  db: Pick<Database, "select">,
+  userIds: readonly string[],
+  module: "supplements" | "food" | "activity",
+): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+  const rows = await db
+    .select({ userId: wellnessProfile.userId })
+    .from(wellnessProfile)
+    .where(
+      and(
+        inArray(wellnessProfile.userId, [...userIds]),
+        sql`${wellnessProfile.enabledModules} is not null`,
+        sql`not (${module} = any(${wellnessProfile.enabledModules}))`,
+      ),
+    );
+  return new Set(rows.map((row) => row.userId));
+}
 
 /** The member turned on "Daily reminders by email" (off unless explicitly on). */
 export function reminderEmailOptedIn(): SQL {
@@ -158,6 +185,7 @@ export async function createDueDailyReminders(
   }
 
   const userIds = [...dateByUser.keys()];
+  const supplementsHidden = await usersWithModuleHidden(db, userIds, "supplements");
 
   const [schedules, medications, events] = await Promise.all([
     db
@@ -227,9 +255,11 @@ export async function createDueDailyReminders(
     return date !== undefined && isPlanItemDue(row, date);
   };
   for (const row of schedules)
-    if (dueOnMemberDate(row)) add(row.userId, "supplement", row.id, row.label);
+    if (!supplementsHidden.has(row.userId) && dueOnMemberDate(row))
+      add(row.userId, "supplement", row.id, row.label);
   for (const row of medications)
-    if (dueOnMemberDate(row)) add(row.userId, "medication", row.id, row.label);
+    if (!supplementsHidden.has(row.userId) && dueOnMemberDate(row))
+      add(row.userId, "medication", row.id, row.label);
   for (const row of events) {
     const date = dateByUser.get(row.userId);
     if (date && isScheduledEventDue(row, date)) add(row.userId, "activity", row.id, row.label);

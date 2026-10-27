@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ErrorState, Page, PageHeader } from "@/components/page";
 import { PreventiveCareView } from "@/components/preventive-care-view";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/preventive-care")({
   component: PreventiveCarePage,
@@ -43,6 +44,7 @@ function PreventiveCarePage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="care" />
       {result.isPending ? (
         <>
           <PageHeader title={i18n._(PREVENTIVE_COPY.pageTitle)} />

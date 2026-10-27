@@ -19,6 +19,7 @@ import { useMemo, useState } from "react";
 
 import { Page, PageHeader, Section } from "@/components/page";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/exports")({
   component: ExportsPage,
@@ -258,6 +259,7 @@ function DomainCard() {
 function ExportsPage() {
   return (
     <Page>
+      <ModuleHiddenNote module="labs" />
       <PageHeader title={<Trans>Clinical export</Trans>} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <DomainCard />

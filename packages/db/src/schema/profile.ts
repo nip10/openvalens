@@ -58,6 +58,13 @@ export const wellnessProfile = pgTable(
     /** `recorded` (`female` | `male`) | `declined` | `not_applicable`. */
     sexState: text("sex_state"),
     sex: text("sex"),
+    /**
+     * Onboarding stage 1: the modules the person switched on (`sleep`,
+     * `activity`, …). `null` = never chosen, which means every module is on, so
+     * nothing disappears for accounts that predate onboarding. An empty array
+     * is a real choice (everything off). Hiding a module never deletes data.
+     */
+    enabledModules: text("enabled_modules").array(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
@@ -100,6 +107,10 @@ export const wellnessProfile = pgTable(
       sql`(${table.birthYearState} is null and ${table.birthYear} is null)
         or (${table.birthYearState} = 'declined' and ${table.birthYear} is null)
         or (${table.birthYearState} = 'recorded' and ${table.birthYear} is not null and ${table.birthYear} between 1900 and 2100)`,
+    ),
+    wellnessProfileEnabledModulesCheck: check(
+      "wellness_profile_enabled_modules_check",
+      sql`${table.enabledModules} is null or ${table.enabledModules} <@ array['sleep', 'activity', 'heart', 'body', 'food', 'supplements', 'labs', 'cycle', 'coach', 'care']::text[]`,
     ),
     wellnessProfileSexCheck: check(
       "wellness_profile_sex_check",

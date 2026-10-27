@@ -1,5 +1,6 @@
 import { clearCursors } from "./cursor-store";
 import { forgetDeviceRegistration } from "./device";
+import { clearSyncModules } from "./module-profile";
 import { unregisterHealthSyncTask } from "./scheduler";
 import { clearHealthSyncStatus } from "./status";
 
@@ -14,5 +15,6 @@ export async function resetHealthSync(): Promise<void> {
     clearCursors(),
     forgetDeviceRegistration(),
     clearHealthSyncStatus(),
+    clearSyncModules(),
   ]);
 }

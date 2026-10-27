@@ -43,6 +43,7 @@ import {
   ToneIcon,
 } from "@/components/page";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * "My foods" (Issue #81): create, edit, archive and restore the member's
@@ -128,6 +129,7 @@ function FoodsPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="food" />
       <p className="sr-only" role="status" aria-live="polite">
         {message}
       </p>

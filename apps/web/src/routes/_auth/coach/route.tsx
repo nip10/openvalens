@@ -18,6 +18,7 @@ import { EmptyState, ErrorState, Page, PageHeader, ToneIcon } from "@/components
 import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/coach")({
   component: CoachListPage,
@@ -63,6 +64,7 @@ function CoachListPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="coach" />
       <PageHeader
         title={<Trans>Coach</Trans>}
         actions={

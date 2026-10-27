@@ -21,6 +21,7 @@ import { Icon, Page, PageHeader, Section, Sheet, StatusPill, ToneIcon } from "@/
 import { Container } from "@/components/container";
 import { client } from "@/utils/orpc";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Describe a meal (#73). Speech comes from the keyboard's dictation; this
@@ -71,6 +72,7 @@ export default function FoodDraftScreen() {
   return (
     <Container>
       <Page>
+        <ModuleHiddenNote module="food" />
         <PageHeader
           title={<Trans>Describe a meal</Trans>}
           info={i18n._(FOOD_DRAFT_COPY.intro)}

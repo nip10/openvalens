@@ -20,6 +20,7 @@ import { findPreventiveItem, PREVENTIVE_CARE_PACK } from "./preventive-care-pack
 import { serverI18n } from "./locale";
 import { REMINDER_EMAIL_COPY, reminderPushContent } from "./presenters/preventive-care";
 import { deriveWellnessProfileInputs } from "./wellness-profile-contract";
+import { isModuleEnabled } from "./presenters/modules";
 import { createWellnessProfileService } from "./wellness-profile";
 
 /**
@@ -112,7 +113,14 @@ export async function runPreventiveReminderDelivery(
         result.skipped += 1;
         continue;
       }
-      const inputs = deriveWellnessProfileInputs(await profiles.read(scope.userId), now);
+      const profile = await profiles.read(scope.userId);
+      // Onboarding stage 1: no preventive-care reminders while the module is hidden.
+      if (!isModuleEnabled(profile, "care")) {
+        result.skipped += 1;
+        logger.info("preventive.reminders.skipped", { ...log, reason: "module_hidden" });
+        continue;
+      }
+      const inputs = deriveWellnessProfileInputs(profile, now);
       if (!inputs.adultConfirmed || !inputs.region.available) {
         result.skipped += 1;
         logger.info("preventive.reminders.skipped", { ...log, reason: "profile" });

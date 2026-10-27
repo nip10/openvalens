@@ -17,6 +17,7 @@ import {
   syncableTypes,
   unregisterHealthSyncTask,
 } from "@/lib/health-sync";
+import { useModules } from "@/lib/modules/use-modules";
 
 /** Foreground "Sync now" gets more room than a background run. */
 const FOREGROUND_BUDGET = { maxBatches: 50, windowMs: 60_000 };
@@ -48,8 +49,11 @@ export function HealthSyncSettings() {
   const status = useQuery({ queryKey: keys.status, queryFn: getHealthSyncStatus });
   const background = useQuery({ queryKey: keys.background, queryFn: isHealthSyncTaskRegistered });
 
+  // Onboarding stage 1: only the data types of enabled modules are asked for
+  // and counted (all of them until the person chooses modules).
+  const modules = useModules().profile.data ?? null;
   const connect = useMutation({
-    mutationFn: requestHealthAccess,
+    mutationFn: () => requestHealthAccess(modules),
     onSuccess: (result) => queryClient.setQueryData(keys.access, result),
   });
   const sync = useMutation({
@@ -68,10 +72,11 @@ export function HealthSyncSettings() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: keys.background }),
   });
 
-  const total = syncableTypes().length;
+  const syncable = syncableTypes(modules);
+  const total = syncable.length;
   const appleHealth = access.data?.platform === "apple_health";
   const sourceName = appleHealth ? "Apple Health" : "Health Connect";
-  const granted = access.data?.grantedTypes.length ?? 0;
+  const granted = access.data?.grantedTypes.filter((type) => syncable.includes(type)).length ?? 0;
   const connected = granted > 0;
   const connectionSubtitle = !access.data
     ? t`Checking…`

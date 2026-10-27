@@ -37,6 +37,7 @@ import {
   unitsForMeasurement,
   type PrivateMeasurementKind,
 } from "@/utils/private-measurements";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/private-measurements")({
   component: PrivateMeasurements,
@@ -71,6 +72,7 @@ export function PrivateMeasurements() {
   if (isPending || !subject) {
     return (
       <Page width="narrow">
+        <ModuleHiddenNote module="body" />
         <PageHeader title={<Trans>Private measurements</Trans>} />
         <p role="status" className="text-sm text-ink-3">
           {isPending ? (
@@ -192,6 +194,7 @@ function PrivateMeasurementsForSubject({
   const canDisplayStoredValues = mayShowStoredMeasurementValue(undefined);
   return (
     <Page width="narrow">
+      <ModuleHiddenNote module="body" />
       <PageHeader
         title={<Trans>Private measurements</Trans>}
         info={

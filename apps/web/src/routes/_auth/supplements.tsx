@@ -37,6 +37,7 @@ import {
   ToneIcon,
 } from "@/components/page";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/supplements")({
   component: SupplementsPage,
@@ -319,6 +320,7 @@ function SupplementsPage() {
   if (supplements.isPending || medications.isPending) {
     return (
       <Page>
+        <ModuleHiddenNote module="supplements" />
         {header}
         <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]" aria-hidden="true">
           <div className="grid gap-2">
@@ -335,6 +337,7 @@ function SupplementsPage() {
   if (supplements.isError || medications.isError || !supplements.data || !medications.data) {
     return (
       <Page>
+        <ModuleHiddenNote module="supplements" />
         {header}
         <ErrorState
           title={<Trans>Could not load supplements.</Trans>}
@@ -359,6 +362,7 @@ function SupplementsPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="supplements" />
       {header}
 
       <section

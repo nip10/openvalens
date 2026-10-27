@@ -51,6 +51,7 @@ import {
   preventiveScreenModel,
 } from "@/utils/preventive-care-screen";
 import { useThemeColor } from "@/utils/theme";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Issue #97 — preventive care on mobile, parity with the web page: the same
@@ -403,6 +404,7 @@ export default function PreventiveCareScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="care" />
           <PageHeader title={title} />
           <TileRow>
             <Sheet className="h-32" />
@@ -416,6 +418,7 @@ export default function PreventiveCareScreen() {
     return (
       <Container>
         <Page>
+          <ModuleHiddenNote module="care" />
           <PageHeader title={title} />
           <ErrorState
             title={t`Could not load preventive care.`}
@@ -446,6 +449,7 @@ export default function PreventiveCareScreen() {
       }}
     >
       <Page>
+        <ModuleHiddenNote module="care" />
         {/* The intro is safety copy (general information, not medical advice): it stays on show. */}
         <PageHeader
           title={model.title}

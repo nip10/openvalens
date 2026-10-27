@@ -40,6 +40,7 @@ import {
 } from "@/components/bloom";
 import { Container } from "@/components/container";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * "My foods" (Issue #81): create, edit, archive and restore the member's
@@ -139,6 +140,7 @@ export default function FoodsScreen() {
   return (
     <Container>
       <Page>
+        <ModuleHiddenNote module="food" />
         <PageHeader
           title={i18n._(CUSTOM_FOOD_COPY.title)}
           description={i18n._(CUSTOM_FOOD_COPY.privacy)}

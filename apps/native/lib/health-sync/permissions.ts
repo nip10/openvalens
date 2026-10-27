@@ -1,22 +1,25 @@
 import { Platform } from "react-native";
 import type { Permission } from "react-native-health-connect";
 
+import { HEALTHKIT_SYNCED_TYPES, healthKitAskedTypes } from "./healthkit-source";
 import {
-  HEALTHKIT_READ_TYPES,
-  HEALTHKIT_SYNCED_TYPES,
-  healthKitAskedTypes,
-} from "./healthkit-source";
+  healthConnectPermissionsForModules,
+  healthKitReadTypesForModules,
+  syncableRecordTypes,
+  type ModuleProfile,
+} from "./modules";
 import { HEALTH_CONNECT_RECORD_TYPES, SYNCED_TYPES } from "./record-types";
 
 /**
  * Read-only Health Connect access. OpenValens does not write to Health
  * Connect (#25), so it asks for no write scopes. Background and history
  * access let sync run while the app is closed and backfill past 30 days.
+ * Only the data types of the person's enabled modules are asked for
+ * (onboarding stage 1; not chosen = every module).
  */
-const READ_PERMISSIONS: Permission[] = SYNCED_TYPES.map((type) => ({
-  accessType: "read",
-  recordType: HEALTH_CONNECT_RECORD_TYPES[type],
-}));
+function readPermissions(profile: ModuleProfile): Permission[] {
+  return healthConnectPermissionsForModules(SYNCED_TYPES, profile);
+}
 
 export type HealthAccess = {
   platform: "health_connect" | "apple_health" | "none";
@@ -27,9 +30,11 @@ export type HealthAccess = {
   history: boolean;
 };
 
-/** Types that can sync on this platform. */
-export function syncableTypes(): string[] {
-  return Platform.OS === "ios" ? HEALTHKIT_SYNCED_TYPES : SYNCED_TYPES;
+/** Types that can sync on this platform, for the modules that are on. */
+export function syncableTypes(profile?: ModuleProfile): string[] {
+  return Platform.OS === "ios"
+    ? syncableRecordTypes(HEALTHKIT_SYNCED_TYPES, profile)
+    : syncableRecordTypes(SYNCED_TYPES, profile);
 }
 
 async function getHealthKitAccess(): Promise<HealthAccess> {
@@ -78,18 +83,25 @@ export async function getHealthAccess(): Promise<HealthAccess> {
   };
 }
 
-/** Shows the Health Connect permission sheet; returns the resulting access. */
-export async function requestHealthAccess(): Promise<HealthAccess> {
+/**
+ * Shows the Apple Health / Health Connect permission sheet for the data types
+ * of the enabled modules; returns the resulting access. With no health module
+ * on there is nothing to ask for, so no sheet is shown.
+ */
+export async function requestHealthAccess(profile?: ModuleProfile): Promise<HealthAccess> {
   if (Platform.OS === "ios") {
     const hk = await import("@kingstinct/react-native-healthkit");
+    const toRead = healthKitReadTypesForModules(HEALTHKIT_SYNCED_TYPES, profile);
     // Read-only: OpenValens never writes to Apple Health.
-    await hk.requestAuthorization({ toRead: HEALTHKIT_READ_TYPES });
+    if (toRead.length > 0) await hk.requestAuthorization({ toRead });
     return getHealthKitAccess();
   }
+  const permissions = readPermissions(profile);
+  if (permissions.length === 0) return getHealthAccess();
   const hc = await import("react-native-health-connect");
   await hc.initialize();
   await hc.requestPermission([
-    ...READ_PERMISSIONS,
+    ...permissions,
     { accessType: "read", recordType: "BackgroundAccessPermission" },
     { accessType: "read", recordType: "ReadHealthDataHistory" },
   ]);

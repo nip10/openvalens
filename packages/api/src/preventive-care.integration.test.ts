@@ -374,6 +374,21 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
     expect(pushes).toHaveLength(0);
   });
 
+  test("reminders: nothing while the preventive care module is hidden (onboarding stage 1)", async () => {
+    await call("preventiveCare/updateItem", { itemId: "us.breast_screening", remind: true });
+    await db.execute(
+      sql`update wellness_profile set enabled_modules = array['sleep']::text[] where user_id = 'user-a'`,
+    );
+    try {
+      expect((await runCron()).body).toMatchObject({ remindersPushSent: 0 });
+      expect(pushes).toHaveLength(0);
+    } finally {
+      await db.execute(
+        sql`update wellness_profile set enabled_modules = null where user_id = 'user-a'`,
+      );
+    }
+  });
+
   test("reminders: one generic push via the #92 channel, never twice, sharing the daily limit", async () => {
     await call("preventiveCare/updateItem", { itemId: "us.breast_screening", remind: true });
     await call("insights/preferences/update", { channels: { reminder: { push: false } } });

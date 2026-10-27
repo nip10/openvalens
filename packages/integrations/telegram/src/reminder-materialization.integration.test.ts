@@ -279,6 +279,37 @@ describe.skipIf(!url)("createDueDailyReminders", () => {
     ]);
   });
 
+  test("supplements module hidden: no supplement or medication reminders are made or sent", async () => {
+    await db.execute(
+      sql`insert into wellness_profile (user_id, enabled_modules) values ('u-tg', array['sleep']::text[])`,
+    );
+    try {
+      // Created before the member hid the module: stays pending and unsent.
+      await db.execute(sql`
+        insert into daily_reminder (organization_id, user_id, date, source_type, source_id, label, created_at)
+        values ('org-a', 'u-tg', '2026-10-14', 'medication', 21, 'Metformin', '2026-10-14')`);
+      const { sent } = await hourly("org-a", now.toISOString());
+      expect(await slots("org-a")).toEqual([
+        "u-mail:activity:33@2026-10-13",
+        "u-mail:supplement:14@2026-10-13",
+        "u-tg:activity:31@2026-10-14",
+        "u-tg:medication:21@2026-10-14",
+      ]);
+      expect(sent).toEqual(["chat-tg:Blood test"]);
+
+      // Turning the module back on brings the reminders back; nothing was deleted.
+      await db.execute(
+        sql`update wellness_profile set enabled_modules = array['supplements']::text[] where user_id = 'u-tg'`,
+      );
+      expect((await hourly("org-a", now.toISOString())).sent).toEqual([
+        "chat-tg:Metformin",
+        "chat-tg:Vitamin D",
+      ]);
+    } finally {
+      await db.execute(sql`delete from wellness_profile where user_id = 'u-tg'`);
+    }
+  });
+
   test("never logs a label", async () => {
     const { logger, lines } = capturingLogger();
     await createDueDailyReminders({

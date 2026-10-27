@@ -8,6 +8,14 @@ import {
   type HealthKitRecordType,
   type HealthKitSampleLike,
 } from "./map-healthkit";
+import {
+  HEALTHKIT_QUANTITY_TYPES,
+  HEALTHKIT_SLEEP_TYPE,
+  HEALTHKIT_TYPE_IDENTIFIERS,
+  HEALTHKIT_WORKOUT_TYPE,
+} from "./healthkit-types";
+
+export { HEALTHKIT_QUANTITY_TYPES, HEALTHKIT_SLEEP_TYPE, HEALTHKIT_WORKOUT_TYPE };
 
 /**
  * iOS `HealthSource` on `@kingstinct/react-native-healthkit` anchored queries
@@ -17,17 +25,6 @@ import {
  * walks the full history in pages, then keeps returning only changes and
  * deletions, so there is no separate backfill (`backfill: false`).
  */
-export const HEALTHKIT_QUANTITY_TYPES = {
-  weight: { identifier: "HKQuantityTypeIdentifierBodyMass", unit: "kg" },
-  body_fat: { identifier: "HKQuantityTypeIdentifierBodyFatPercentage", unit: "%" },
-  steps: { identifier: "HKQuantityTypeIdentifierStepCount", unit: "count" },
-  heart_rate: { identifier: "HKQuantityTypeIdentifierHeartRate", unit: "count/min" },
-  active_calories: { identifier: "HKQuantityTypeIdentifierActiveEnergyBurned", unit: "kcal" },
-  distance: { identifier: "HKQuantityTypeIdentifierDistanceWalkingRunning", unit: "m" },
-} as const;
-export const HEALTHKIT_WORKOUT_TYPE = "HKWorkoutTypeIdentifier" as const;
-export const HEALTHKIT_SLEEP_TYPE = "HKCategoryTypeIdentifierSleepAnalysis" as const;
-
 /** The types every install was first asked for (#26). */
 const HEALTHKIT_BASE_TYPES: HealthKitRecordType[] = [
   ...(Object.keys(HEALTHKIT_QUANTITY_TYPES) as (keyof typeof HEALTHKIT_QUANTITY_TYPES)[]),
@@ -50,20 +47,23 @@ export const HEALTHKIT_SYNCED_TYPES: HealthKitRecordType[] = [
 export const HEALTHKIT_READ_TYPES = [...HEALTHKIT_BASE_READ_TYPES, HEALTHKIT_SLEEP_TYPE];
 
 /**
- * Types the user has been asked for. Sleep is checked on its own: installs
+ * Types the user has been asked for, checked one type at a time: installs
  * that connected before sleep was added keep syncing everything else until
- * they reconnect from Settings, instead of stopping until they re-consent.
+ * they reconnect from Settings, and a person who only turned some modules on
+ * (onboarding stage 1) was only asked for those modules' types.
  */
 export async function healthKitAskedTypes(): Promise<HealthKitRecordType[]> {
   const { getRequestStatusForAuthorization, AuthorizationRequestStatus } =
     await import("@kingstinct/react-native-healthkit");
-  const asked = async (toRead: typeof HEALTHKIT_READ_TYPES) =>
-    (await getRequestStatusForAuthorization({ toRead })) === AuthorizationRequestStatus.unnecessary;
-  const [base, sleep] = await Promise.all([
-    asked(HEALTHKIT_BASE_READ_TYPES),
-    asked([HEALTHKIT_SLEEP_TYPE]),
-  ]);
-  return [...(base ? HEALTHKIT_BASE_TYPES : []), ...(sleep ? (["sleep_segment"] as const) : [])];
+  const asked = await Promise.all(
+    HEALTHKIT_SYNCED_TYPES.map(
+      async (type) =>
+        (await getRequestStatusForAuthorization({
+          toRead: [HEALTHKIT_TYPE_IDENTIFIERS[type]],
+        })) === AuthorizationRequestStatus.unnecessary,
+    ),
+  );
+  return HEALTHKIT_SYNCED_TYPES.filter((_, index) => asked[index]);
 }
 
 const PAGE_SIZE = 500;

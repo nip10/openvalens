@@ -27,6 +27,7 @@ import {
   Bot,
   Code2,
   Info,
+  LayoutGrid,
   List,
   Moon,
   Plug,
@@ -141,6 +142,14 @@ export default function SettingsScreen() {
                 title={t`Insight notifications`}
                 subtitle={t`Push and weekly email, off until you turn them on`}
                 onPress={() => router.push("/insight-settings")}
+                showDivider
+                trailing={<RowChevron />}
+              />
+              <ListRow
+                icon={<Icon icon={LayoutGrid} size={18} color="ink-2" />}
+                title={t`Modules`}
+                subtitle={t`Choose the parts of the app you want to see`}
+                onPress={() => router.push("/settings/modules")}
                 trailing={<RowChevron />}
               />
             </Sheet>
