@@ -17,14 +17,13 @@ export interface RouterAppContext {
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   component: RootComponent,
+  // The description and the Open Graph / Twitter tags are static in
+  // apps/web/index.html, because link-preview crawlers do not run JavaScript;
+  // only the title is managed here, so nothing is emitted twice.
   head: () => ({
     meta: [
       {
         title: "OpenValens",
-      },
-      {
-        name: "description",
-        content: "OpenValens is an open-source, private health record",
       },
     ],
     links: [

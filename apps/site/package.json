@@ -7,7 +7,8 @@
   "scripts": {
     "build": "bun scripts/build.ts dist",
     "check-types": "tsc --noEmit",
-    "screenshots": "bun scripts/capture-screenshots.ts"
+    "screenshots": "bun scripts/capture-screenshots.ts",
+    "og": "bun scripts/render-og.ts"
   },
   "devDependencies": {
     "@openvalens/config": "workspace:*",

@@ -55,6 +55,47 @@ describe("built site", () => {
     expect(headers).toContain("Referrer-Policy: no-referrer");
   });
 
+  test("the page carries the canonical URL, Open Graph and Twitter card tags", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const meta = (key: "property" | "name", value: string) =>
+      new RegExp(`<meta\\s+${key}="${value.replaceAll(".", "\\.")}"\\s+content="([^"]*)"`).exec(
+        html.replace(/\s+/g, " "),
+      )?.[1];
+    expect(html).toContain('<link rel="canonical" href="https://openvalens.com/" />');
+    expect(meta("name", "description")).toContain("Your data stays on your server.");
+    expect(meta("property", "og:type")).toBe("website");
+    expect(meta("property", "og:site_name")).toBe("OpenValens");
+    expect(meta("property", "og:title")).toBe("OpenValens, your private health record");
+    expect(meta("property", "og:description")).toContain("Your data stays on your server.");
+    expect(meta("property", "og:url")).toBe("https://openvalens.com/");
+    expect(meta("property", "og:image")).toBe("https://openvalens.com/og.png");
+    expect(meta("property", "og:image:width")).toBe("1200");
+    expect(meta("property", "og:image:height")).toBe("630");
+    expect(meta("property", "og:image:alt")).toBeTruthy();
+    expect(meta("name", "twitter:card")).toBe("summary_large_image");
+    expect(meta("name", "twitter:title")).toBeTruthy();
+    expect(meta("name", "twitter:description")).toBeTruthy();
+    expect(meta("name", "twitter:image")).toBe("https://openvalens.com/og.png");
+  });
+
+  test("ships og.png as a 1200 x 630 PNG under 300 KB", async () => {
+    const png = await readFile(join(outDir, "og.png"));
+    expect(png.subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+    expect(png.length).toBeLessThan(300 * 1024);
+  });
+
+  test("the nginx allowlist serves og.png instead of redirecting it to the app", async () => {
+    const conf = await readFile(
+      join(import.meta.dir, "..", "deploy", "default.conf.template"),
+      "utf8",
+    );
+    expect(conf).toMatch(/location ~ \^\/\([^)]*og\\\.png/);
+  });
+
   test("the CSP allows nothing but same-origin styles and images", () => {
     expect(SITE_CSP).toContain("default-src 'none'");
     expect(SITE_CSP).not.toMatch(/https?:|\*|'unsafe-|script-src|font-src|connect-src/);
@@ -87,6 +128,14 @@ describe("auditMarkup / auditCss catch third-party resources", () => {
     ['<button onclick="x()"></button>', "onclick"],
   ])("%s", (markup, expected) => {
     expect(audit(markup).join("\n")).toContain(expected);
+  });
+
+  test("allows crawler metadata: Open Graph <meta content> and <link rel=canonical>", () => {
+    expect(
+      audit(
+        '<meta property="og:image" content="https://openvalens.com/og.png"><link rel="canonical" href="https://openvalens.com/">',
+      ),
+    ).toEqual([]);
   });
 
   test("allows plain anchors to other sites and SVG namespaces", () => {
