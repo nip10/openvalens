@@ -17,7 +17,7 @@ server {
         try_files /index.html =404;
     }
 
-    location ~ ^/(index\.html|styles\.css|favicon\.svg|screenshots/) {
+    location ~ ^/(index\.html|styles\.css|favicon\.svg|og\.png|screenshots/) {
         include /etc/nginx/site-security-headers.conf;
         add_header Cache-Control "public, max-age=3600";
         try_files $uri =404;

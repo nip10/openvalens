@@ -43,10 +43,19 @@ export function renderHeaders(): string {
   ].join("\n");
 }
 
-/** Attributes whose absolute URL is a namespace or a navigation, not a fetch. */
-function isNonFetchingAttribute(tag: string, attribute: string): boolean {
+/**
+ * Attributes whose value is a namespace, a navigation or metadata for crawlers
+ * (Open Graph / Twitter `<meta>`, `<link rel=canonical>`), not something the
+ * browser fetches.
+ */
+function isNonFetchingAttribute(tag: Tag, attribute: string): boolean {
   if (attribute === "xmlns" || attribute.startsWith("xmlns:")) return true;
-  return tag === "a" && attribute === "href";
+  // <meta> never fetches (a refresh redirect is refused separately).
+  if (tag.name === "meta") return true;
+  if (tag.name === "link" && attribute === "href") {
+    return tag.attributes.get("rel")?.trim().toLowerCase() === "canonical";
+  }
+  return tag.name === "a" && attribute === "href";
 }
 
 /** True for `https://…`, `http://…`, `//host/…` and any other `scheme:` except `data:`. */
@@ -126,7 +135,7 @@ export function auditMarkup(file: string, markup: string, findings: Finding[]): 
         findings.push({ file, problem: `inline style attribute on <${tag.name}>` });
         continue;
       }
-      if (isNonFetchingAttribute(tag.name, attribute)) continue;
+      if (isNonFetchingAttribute(tag, attribute)) continue;
       const urls = attribute.endsWith("srcset") ? srcsetUrls(value) : [value];
       for (const url of urls) {
         if (isExternalUrl(url)) {
