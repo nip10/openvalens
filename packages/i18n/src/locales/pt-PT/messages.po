@@ -1029,6 +1029,10 @@ msgstr "atividade"
 msgid "Activity"
 msgstr "Atividade"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Activity & workouts"
+msgstr "Atividade e treinos"
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Activity and fitness"
 msgstr "Atividade e condição física"
@@ -1710,6 +1714,10 @@ msgstr "corpo"
 msgid "Body"
 msgstr "Corpo"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Body & weight"
+msgstr "Corpo e peso"
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Body goals"
 msgstr "Objetivos corporais"
@@ -1928,6 +1936,10 @@ msgstr "Alterações em comparação com o seu habitual"
 msgid "Changes only how glucose, cholesterol, triglycerides and creatinine are shown. Your stored results and the lab's units are never changed."
 msgstr "Altera apenas a forma como a glicose, o colesterol, os triglicéridos e a creatinina são apresentados. Os resultados guardados e as unidades do laboratório nunca são alterados."
 
+#: packages/api/src/presenters/modules.ts
+msgid "Chat about your own records"
+msgstr "Conversar sobre os seus registos"
+
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "Check"
@@ -2064,6 +2076,19 @@ msgstr "Escolha como o peso e a distância são apresentados."
 msgid "Choose the days you train. Reminders go out on those days."
 msgstr "Escolha os dias em que treina. Os lembretes são enviados nesses dias."
 
+#: apps/web/src/routes/_auth/settings/index.tsx
+#: apps/web/src/routes/_auth/settings/modules.tsx
+msgid "Choose the parts of the app you use."
+msgstr "Escolha as partes da aplicação que usa."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Choose the parts of the app you want to see"
+msgstr "Escolha as partes da aplicação que quer ver"
+
+#: apps/native/app/(drawer)/settings/modules.tsx
+msgid "Choose the parts of the app you want to see."
+msgstr "Escolha as partes da aplicação que quer ver."
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Choose the recipe you want to review."
@@ -2171,6 +2196,10 @@ msgstr "Ligações de wearables na nuvem"
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Coach"
 msgstr "Coach"
+
+#: packages/api/src/presenters/modules.ts
+msgid "Coach (AI)"
+msgstr "Coach (IA)"
 
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
@@ -2796,6 +2825,14 @@ msgstr "Não foi possível carregar os seus dispositivos."
 msgid "Could not load your imports."
 msgstr "Não foi possível carregar as suas importações."
 
+#: apps/web/src/components/modules-settings.tsx
+msgid "Could not load your modules."
+msgstr "Não foi possível carregar os seus módulos."
+
+#: apps/native/app/(drawer)/settings/modules.tsx
+msgid "Could not load your modules. Nothing has changed."
+msgstr "Não foi possível carregar os seus módulos. Nada foi alterado."
+
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Could not load your notification settings."
 msgstr "Não foi possível carregar as suas definições de notificações."
@@ -3105,6 +3142,7 @@ msgstr "Definição"
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
+#: packages/api/src/presenters/modules.ts
 msgid "Cycle"
 msgstr "Ciclo"
 
@@ -4125,6 +4163,10 @@ msgstr "Fluxo (opcional)"
 msgid "Food"
 msgstr "Alimento"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Food & water"
+msgstr "Alimentação e água"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Food archived. It no longer appears in search or quick logging."
 msgstr "Alimento arquivado. Deixa de aparecer na pesquisa e no registo rápido."
@@ -4453,6 +4495,10 @@ msgstr "Cabeça (frente)"
 msgid "Health data"
 msgstr "Dados de saúde"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Heart & vitals"
+msgstr "Coração e sinais vitais"
+
 #: packages/api/src/presenters/insights.ts
 msgctxt "insight topic"
 msgid "heart rate"
@@ -4473,6 +4519,10 @@ msgstr "Variabilidade da frequência cardíaca"
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Heart rate variability: no published table matches overnight device readings. You see your own trend only."
 msgstr "Variabilidade da frequência cardíaca: nenhuma tabela publicada corresponde a leituras noturnas de dispositivos. Vê apenas a sua própria tendência."
+
+#: packages/api/src/presenters/modules.ts
+msgid "Heart rate, HRV, blood pressure"
+msgstr "Frequência cardíaca, VFC, tensão arterial"
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "Heart-rate based load is not calculated in this version."
@@ -4504,6 +4554,7 @@ msgstr "Olá coach, dê-me um resumo numa linha de como estou hoje e uma sugest�
 
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/nutrition-targets.ts
@@ -4525,6 +4576,10 @@ msgstr "Oculta os números de energia, nutrientes e objetivos no diário. O regi
 #: packages/api/src/presenters/insights.ts
 msgid "Hides this kind of insight for 30 days."
 msgstr "Oculta este tipo de perspetiva durante 30 dias."
+
+#: packages/api/src/presenters/modules.ts
+msgid "Hiding a module keeps its data. Turn it back on and everything is there again."
+msgstr "Ocultar um módulo mantém os seus dados. Volte a ativá-lo e está tudo lá outra vez."
 
 #: packages/api/src/presenters/workouts.ts
 msgctxt "goal priority"
@@ -5111,6 +5166,10 @@ msgstr "Intervalo do laboratório: {text} {unit}"
 msgid "Labs"
 msgstr "Análises"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Labs & clinical"
+msgstr "Análises e registos clínicos"
+
 #: apps/native/components/language-section.tsx
 #: apps/web/src/components/language-section.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
@@ -5657,6 +5716,10 @@ msgstr "Refeição"
 msgid "Meal diary"
 msgstr "Diário de refeições"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Meal diary, water, nutrients"
+msgstr "Diário de refeições, água, nutrientes"
+
 #: apps/web/src/routes/_auth/food-draft.tsx
 msgid "Meal photo (JPEG or PNG, up to 10 MB)"
 msgstr "Fotografia da refeição (JPEG ou PNG, até 10 MB)"
@@ -5817,6 +5880,15 @@ msgstr "Minutos moderados + 2 × minutos vigorosos das suas sessões nos último
 #: packages/api/src/presenters/activity-load.ts
 msgid "Moderate: {moderate} min"
 msgstr "Moderado: {moderate} min"
+
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/settings/modules.tsx
+#: apps/web/src/components/modules-settings.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+#: apps/web/src/routes/_auth/settings/modules.tsx
+msgid "Modules"
+msgstr "Módulos"
 
 #. safety
 #: packages/api/src/presenters/supplements.ts
@@ -6015,6 +6087,10 @@ msgstr "Próxima: {nextDay}"
 #: packages/api/src/presenters/wearables.ts
 msgid "Nightly Recharge status, overnight HRV and sleep sessions."
 msgstr "Estado do Nightly Recharge, VFC noturna e sessões de sono."
+
+#: packages/api/src/presenters/modules.ts
+msgid "Nights, stages, rest"
+msgstr "Noites, fases, descanso"
 
 #: packages/api/src/presenters/preventive-care.ts
 msgctxt "declaration answer"
@@ -6880,6 +6956,7 @@ msgstr "Sem ligação. A pesquisa nas bases de dados de alimentos precisa de lig
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
+#: apps/web/src/components/modules-settings.tsx
 msgid "On"
 msgstr "Ligado"
 
@@ -6959,6 +7036,10 @@ msgstr "Abra o OpenValens para ver que data definiu."
 #: apps/native/components/barcode-scanner.tsx
 msgid "Open Settings"
 msgstr "Abrir Definições"
+
+#: packages/api/src/presenters/modules.ts
+msgid "Open Settings › Modules"
+msgstr "Abrir Definições › Módulos"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -7240,6 +7321,10 @@ msgstr "Desempenho"
 msgid "Period deleted."
 msgstr "Período eliminado."
 
+#: packages/api/src/presenters/modules.ts
+msgid "Period log, history"
+msgstr "Registo do período, histórico"
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Period saved."
@@ -7430,6 +7515,7 @@ msgstr "A preparar pré-visualização…"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
+#: packages/api/src/presenters/modules.ts
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Preventive care"
 msgstr "Cuidados preventivos"
@@ -7819,6 +7905,10 @@ msgstr "Atualizar e rever"
 msgid "Refresh diary"
 msgstr "Atualizar diário"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Regimens, reminders"
+msgstr "Tomas, lembretes"
+
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Region"
 msgstr "Região"
@@ -7935,6 +8025,10 @@ msgstr "Restaurar {0}"
 msgid "Restore entry"
 msgstr "Restaurar registo"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Results with the lab's ranges"
+msgstr "Resultados com os intervalos do laboratório"
+
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
@@ -7955,6 +8049,7 @@ msgstr "Restaurar registo"
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/scores.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
+#: apps/native/app/(drawer)/settings/modules.tsx
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
@@ -7973,6 +8068,7 @@ msgstr "Restaurar registo"
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
 #: apps/web/src/components/insights-section.tsx
+#: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/components/my-invitations-view.tsx
 #: apps/web/src/components/oidc-connect-section.tsx
 #: apps/web/src/components/product-settings-form.tsx
@@ -8392,6 +8488,10 @@ msgstr "A leitura não está disponível neste dispositivo. Escreva os dígitos 
 #: apps/web/src/components/header.tsx
 msgid "Scores"
 msgstr "Pontuações"
+
+#: packages/api/src/presenters/modules.ts
+msgid "Screening dates"
+msgstr "Datas de rastreio"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -8839,6 +8939,7 @@ msgstr "sono"
 #: apps/web/src/routes/_auth/records/sleep.tsx
 #: packages/api/src/presenters/cockpit.ts
 #: packages/api/src/presenters/insights.ts
+#: packages/api/src/presenters/modules.ts
 #: packages/api/src/presenters/score.ts
 #: packages/api/src/presenters/timeline.ts
 msgid "Sleep"
@@ -9073,6 +9174,10 @@ msgstr "Passos"
 msgid "Steps / active day"
 msgstr "Passos / dia ativo"
 
+#: packages/api/src/presenters/modules.ts
+msgid "Steps, sessions, effort"
+msgstr "Passos, sessões, esforço"
+
 #. placeholder {0}: c.stepDays
 #: packages/api/src/presenters/activity-load.ts
 msgid "Steps: {steps} over {0, plural, one {# day} other {# days}} with step data."
@@ -9213,6 +9318,10 @@ msgstr "As sugestões seguem a ingestão estimada que mantém estável a tendên
 #: packages/api/src/presenters/clinical-export.ts
 msgid "Supplements"
 msgstr "Suplementos"
+
+#: packages/api/src/presenters/modules.ts
+msgid "Supplements & medications"
+msgstr "Suplementos e medicamentos"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Support"
@@ -9419,6 +9528,10 @@ msgstr "Não foi possível iniciar a câmara. Escreva os dígitos do código de 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The camera is used only while you scan. Nothing is recorded."
 msgstr "A câmara só é usada durante a leitura. Nada é gravado."
+
+#: apps/web/src/components/modules-settings.tsx
+msgid "The coach also needs AI to be turned on for this server and your consent in Settings."
+msgstr "O coach também precisa que a IA esteja ativada neste servidor e do seu consentimento nas Definições."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The date you set has arrived."
@@ -9776,6 +9889,10 @@ msgstr "Este item está a ser revisto face à sua fonte. Os detalhes e os lembre
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "This link is not valid any more. Sign in and open Settings to change your notifications."
 msgstr "Esta ligação já não é válida. Inicie sessão e abra as Definições para alterar as notificações."
+
+#: packages/api/src/presenters/modules.ts
+msgid "This module is hidden. Turn it on in Settings › Modules."
+msgstr "Este módulo está oculto. Ative-o em Definições › Módulos."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "This needs your consent for this purpose."
@@ -10638,6 +10755,10 @@ msgstr "Peso, IMC, gordura corporal e cintura: nunca comparados com outras pesso
 #: packages/api/src/presenters/wearables.ts
 msgid "Weight, body fat and sleep sessions."
 msgstr "Peso, gordura corporal e sessões de sono."
+
+#: packages/api/src/presenters/modules.ts
+msgid "Weight, composition, body map"
+msgstr "Peso, composição, mapa corporal"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
