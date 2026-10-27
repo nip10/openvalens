@@ -278,6 +278,8 @@ whose only account is a synthetic demo account;
 `apps/site/scripts/capture-screenshots.ts` documents how to recapture them (a
 deterministic demo seed does not exist yet).
 
+`apps/site/Dockerfile` serves the built site with nginx and the same headers. Set `SITE_APP_URL` to the web app's origin (for example `https://app.openvalens.com`): any path the site does not have is redirected there, so old app links and emailed sign-in links keep working after the app moves to its own subdomain.
+
 ## Security
 
 Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md);

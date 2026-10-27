@@ -27,11 +27,11 @@ servers. Self-hosters building for their own instance should read
 
 ### Build profiles (`apps/native/eas.json`)
 
-| Profile       | For                                                                                           | Distribution                               | Server                   |
-| ------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------ |
-| `development` | A dev client (`expo-dev-client`) on a simulator or an Android emulator, loading JS from Metro | internal, iOS simulator build, Android APK | `http://localhost:3000`  |
-| `preview`     | Testers' phones (TestFlight is not needed)                                                    | internal (ad hoc iOS, Android APK)         | `https://openvalens.com` |
-| `production`  | App Store and Google Play                                                                     | store                                      | `https://openvalens.com` |
+| Profile       | For                                                                                           | Distribution                               | Server                       |
+| ------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------- |
+| `development` | A dev client (`expo-dev-client`) on a simulator or an Android emulator, loading JS from Metro | internal, iOS simulator build, Android APK | `http://localhost:3000`      |
+| `preview`     | Testers' phones (TestFlight is not needed)                                                    | internal (ad hoc iOS, Android APK)         | `https://app.openvalens.com` |
+| `production`  | App Store and Google Play                                                                     | store                                      | `https://app.openvalens.com` |
 
 `EXPO_PUBLIC_SERVER_URL` is baked in at build time; an app built for one
 server only talks to that server. Cloud builds take the value from the
