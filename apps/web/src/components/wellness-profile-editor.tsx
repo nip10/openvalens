@@ -272,6 +272,23 @@ export function WellnessProfileEditor(props: WellnessProfileEditorProps) {
 }
 
 function AgeAndSexSection(props: WellnessProfileEditorProps) {
+  return (
+    <Section {...props} section="ageAndSex" field="birthYear" extraField="sex">
+      <AgeAndSexFields {...props} />
+    </Section>
+  );
+}
+
+/**
+ * The consent-gated birth year and sex questions, shared by the profile page
+ * and the onboarding flow (same copy, same rules).
+ */
+export function AgeAndSexFields(
+  props: Pick<
+    WellnessProfileEditorProps,
+    "draft" | "onDraftChange" | "birthYearText" | "onBirthYearTextChange" | "now"
+  >,
+) {
   const { draft, onDraftChange, birthYearText, onBirthYearTextChange, now } = props;
   const birthYearId = useId();
   const parsed = parseBirthYearInput(birthYearText, now);
@@ -296,7 +313,7 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
   };
 
   return (
-    <Section {...props} section="ageAndSex" field="birthYear" extraField="sex">
+    <>
       <fieldset className="grid min-w-0 gap-3">
         <legend className="mb-1 flex items-center gap-1.5 font-display font-medium text-ink">
           {WELLNESS_FIELD_COPY.birthYear.question}
@@ -401,11 +418,11 @@ function AgeAndSexSection(props: WellnessProfileEditorProps) {
           }
         />
       </fieldset>
-    </Section>
+    </>
   );
 }
 
-function answerValue(answer: { state: string; value?: unknown }): string | null {
+export function answerValue(answer: { state: string; value?: unknown }): string | null {
   if (answer.state === "unknown") return null;
   return answer.state === "recorded" ? String(answer.value) : answer.state;
 }
@@ -511,7 +528,7 @@ function Section({
   );
 }
 
-function RadioGroup({
+export function RadioGroup({
   name,
   value,
   options,
@@ -555,7 +572,7 @@ function RadioGroup({
   );
 }
 
-function CheckboxRow({
+export function CheckboxRow({
   label,
   checked,
   onChange,
