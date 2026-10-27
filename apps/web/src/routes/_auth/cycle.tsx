@@ -25,6 +25,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { client } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/cycle")({ component: CyclePage });
 
@@ -60,6 +61,7 @@ function CyclePage() {
   if (isPending || !scope)
     return (
       <Page width="narrow">
+        <ModuleHiddenNote module="cycle" />
         <PageHeader title={<Trans>Cycle</Trans>} />
         <p role="status" className="text-sm text-ink-3">
           {isPending ? (
@@ -91,6 +93,7 @@ function CycleForMember({ scope }: { scope: string }) {
 
   return (
     <Page width="narrow">
+      <ModuleHiddenNote module="cycle" />
       <PageHeader
         title={<Trans>Cycle</Trans>}
         description={i18n._(CYCLE_COPY.notForContraception)}

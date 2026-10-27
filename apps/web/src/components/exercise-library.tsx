@@ -17,6 +17,7 @@ import { ENV } from "@/env";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 type PreviewAsset = {
   assetId: string;
@@ -565,6 +566,7 @@ export function ExerciseLibraryPage() {
   if (sessionPending || scopeChanging)
     return (
       <Page>
+        <ModuleHiddenNote module="activity" />
         <p role="status" className="text-ink-3">
           <Trans>Loading your workspace…</Trans>
         </p>
@@ -573,6 +575,7 @@ export function ExerciseLibraryPage() {
   if (!scope)
     return (
       <Page width="narrow">
+        <ModuleHiddenNote module="activity" />
         <PageHeader title={<Trans>Exercise library</Trans>} />
         <p className="text-ink-2">
           <Trans>Sign in to browse exercises for your workspace.</Trans>
@@ -582,6 +585,7 @@ export function ExerciseLibraryPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="activity" />
       {header}
       {notice || isDispatching || uncertain ? (
         <div className="grid gap-3">

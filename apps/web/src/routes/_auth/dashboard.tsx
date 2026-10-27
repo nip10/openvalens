@@ -30,6 +30,7 @@ import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { friendlyDate, pillTone } from "@/utils/friendly";
+import { useEnabledModules } from "@/utils/modules";
 import { useProductSettings } from "@/utils/product-settings";
 
 export const Route = createFileRoute("/_auth/dashboard")({
@@ -58,6 +59,9 @@ function DashboardPage() {
   const settings = settingsQuery.data;
   const { data: session } = authClient.useSession();
   const { t, i18n } = useLingui();
+  // Onboarding stage 1: tiles of hidden modules are left out (all show until
+  // the person chooses, or while the profile loads).
+  const { isEnabled } = useEnabledModules();
 
   const isPending = weight.isPending || sleep.isPending || activity.isPending || vitals.isPending;
   const isError = weight.isError || sleep.isError || activity.isError || vitals.isError;
@@ -114,80 +118,90 @@ function DashboardPage() {
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatTile
-              icon={Moon}
-              tone="sleep"
-              label={<Trans>Sleep</Trans>}
-              to="/records/sleep"
-              value={sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—"}
-              meter={
-                sleepRow && sleepRow.targetMinutes
-                  ? { value: sleepRow.asleepMinutes / sleepRow.targetMinutes }
-                  : undefined
-              }
-              status={
-                sleepRow
-                  ? {
-                      label: i18n._(sleepStatusLabel(sleepRow.status)),
-                      tone: pillTone(sleepStatusTone(sleepRow.status)),
-                    }
-                  : undefined
-              }
-              note={sleepRow ? undefined : t`No reading yet`}
-            />
-            <StatTile
-              icon={Footprints}
-              tone="steps"
-              label={<Trans>Steps</Trans>}
-              to="/records/activity"
-              value={activityRow ? formatSteps(activityRow.steps ?? 0) : "—"}
-              meter={
-                activityRow && usualSteps
-                  ? { value: (activityRow.steps ?? 0) / usualSteps }
-                  : undefined
-              }
-              note={
-                activityRow
-                  ? usualSteps
-                    ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
-                    : friendlyDate(i18n, activityRow.date)
-                  : t`No activity logged`
-              }
-            />
-            <StatTile
-              icon={HeartPulse}
-              tone="heart"
-              label={<Trans>Heart rate</Trans>}
-              to="/records/vitals"
-              value={
-                vitalsRow && vitalsRow.heartRate.avgBpm !== null
-                  ? formatBpm(vitalsRow.heartRate.avgBpm)
-                  : "—"
-              }
-              note={
-                vitalsRow ? t`Average, ${friendlyDate(i18n, vitalsRow.date)}` : t`No reading yet`
-              }
-            />
-            <StatTile
-              icon={Scale}
-              tone="weight"
-              label={<Trans>Weight</Trans>}
-              to="/body"
-              value={weightRow ? formatKg(weightRow.weightKg, settings) : "—"}
-              note={
-                weightSummary.change30d !== null
-                  ? t`${formatKgDelta(i18n, weightSummary.change30d, settings)} in 30 days`
-                  : weightRow
-                    ? friendlyDate(i18n, weightRow.date)
-                    : t`No reading yet`
-              }
-            />
+            {isEnabled("sleep") ? (
+              <StatTile
+                icon={Moon}
+                tone="sleep"
+                label={<Trans>Sleep</Trans>}
+                to="/records/sleep"
+                value={sleepRow ? formatSleepDuration(sleepRow.asleepMinutes) : "—"}
+                meter={
+                  sleepRow && sleepRow.targetMinutes
+                    ? { value: sleepRow.asleepMinutes / sleepRow.targetMinutes }
+                    : undefined
+                }
+                status={
+                  sleepRow
+                    ? {
+                        label: i18n._(sleepStatusLabel(sleepRow.status)),
+                        tone: pillTone(sleepStatusTone(sleepRow.status)),
+                      }
+                    : undefined
+                }
+                note={sleepRow ? undefined : t`No reading yet`}
+              />
+            ) : null}
+            {isEnabled("activity") ? (
+              <StatTile
+                icon={Footprints}
+                tone="steps"
+                label={<Trans>Steps</Trans>}
+                to="/records/activity"
+                value={activityRow ? formatSteps(activityRow.steps ?? 0) : "—"}
+                meter={
+                  activityRow && usualSteps
+                    ? { value: (activityRow.steps ?? 0) / usualSteps }
+                    : undefined
+                }
+                note={
+                  activityRow
+                    ? usualSteps
+                      ? t`Your usual: ${formatSteps(Math.round(usualSteps))}`
+                      : friendlyDate(i18n, activityRow.date)
+                    : t`No activity logged`
+                }
+              />
+            ) : null}
+            {isEnabled("heart") ? (
+              <StatTile
+                icon={HeartPulse}
+                tone="heart"
+                label={<Trans>Heart rate</Trans>}
+                to="/records/vitals"
+                value={
+                  vitalsRow && vitalsRow.heartRate.avgBpm !== null
+                    ? formatBpm(vitalsRow.heartRate.avgBpm)
+                    : "—"
+                }
+                note={
+                  vitalsRow ? t`Average, ${friendlyDate(i18n, vitalsRow.date)}` : t`No reading yet`
+                }
+              />
+            ) : null}
+            {isEnabled("body") ? (
+              <StatTile
+                icon={Scale}
+                tone="weight"
+                label={<Trans>Weight</Trans>}
+                to="/body"
+                value={weightRow ? formatKg(weightRow.weightKg, settings) : "—"}
+                note={
+                  weightSummary.change30d !== null
+                    ? t`${formatKgDelta(i18n, weightSummary.change30d, settings)} in 30 days`
+                    : weightRow
+                      ? friendlyDate(i18n, weightRow.date)
+                      : t`No reading yet`
+                }
+              />
+            ) : null}
           </div>
-          <WeightTrend
-            rows={weight.data ?? []}
-            settings={settings}
-            emptyLabel={t`No weight logged in the last ${WEIGHT_TREND_DAYS} days.`}
-          />
+          {isEnabled("body") ? (
+            <WeightTrend
+              rows={weight.data ?? []}
+              settings={settings}
+              emptyLabel={t`No weight logged in the last ${WEIGHT_TREND_DAYS} days.`}
+            />
+          ) : null}
         </>
       )}
 

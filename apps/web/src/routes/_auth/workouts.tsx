@@ -79,6 +79,7 @@ import {
 } from "@/components/page";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/workouts")({
   component: WorkoutsPage,
@@ -597,6 +598,7 @@ function WorkoutsPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="activity" />
       <PageHeader
         title={<Trans>Workouts</Trans>}
         actions={

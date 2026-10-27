@@ -89,6 +89,7 @@ import {
   Section,
   ToneIcon,
 } from "@/components/page";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Nutrition targets and display settings (Issue #80), reached from the meal
@@ -144,6 +145,7 @@ function NutritionTargetsPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="food" />
       <PageHeader
         title={i18n._(TARGET_COPY.title)}
         actions={

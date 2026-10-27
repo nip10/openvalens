@@ -25,6 +25,7 @@ import {
 } from "@/components/page";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/clinical")({
   component: ClinicalPage,
@@ -39,6 +40,7 @@ function ClinicalPage() {
   if (cardiac.isPending || imaging.isPending || family.isPending) {
     return (
       <Page>
+        <ModuleHiddenNote module="labs" />
         <PageHeader title={<Trans>Clinical</Trans>} />
         <div className="grid gap-4 sm:grid-cols-3" aria-hidden="true">
           {[0, 1, 2].map((key) => (
@@ -52,6 +54,7 @@ function ClinicalPage() {
   if (cardiac.isError || imaging.isError || family.isError) {
     return (
       <Page>
+        <ModuleHiddenNote module="labs" />
         <PageHeader title={<Trans>Clinical</Trans>} />
         <ErrorState
           title={<Trans>Could not load clinical records.</Trans>}
@@ -74,6 +77,7 @@ function ClinicalPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="labs" />
       <PageHeader title={<Trans>Clinical</Trans>} />
 
       <div className="grid gap-4 sm:grid-cols-3">

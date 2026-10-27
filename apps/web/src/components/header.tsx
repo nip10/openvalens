@@ -45,6 +45,7 @@ import {
 
 import { authClient } from "@/lib/auth-client";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
+import { filterNavByModules, useEnabledModules } from "@/utils/modules";
 
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
@@ -122,7 +123,12 @@ function useNavGroups() {
     links: [EXPORT_LINK, SHARING_LINK, SETTINGS_LINK, ...(showAdministration ? [ADMIN_LINK] : [])],
   };
 
-  return { groups: [...NAV_GROUPS, more], signedIn: hasUserId, sessionPending };
+  // Onboarding stage 1: links of hidden modules leave the menu (every link
+  // shows while the profile loads or fails, or before the person chooses).
+  const { isEnabled } = useEnabledModules();
+  const groups = filterNavByModules([...NAV_GROUPS, more], isEnabled);
+
+  return { groups, signedIn: hasUserId, sessionPending };
 }
 
 function Wordmark() {

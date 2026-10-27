@@ -37,6 +37,7 @@ import { client, orpc } from "@/utils/orpc";
 import { useDisplayPreferences } from "@/lib/display-preferences";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/records/labs")({
   component: LabsPage,
@@ -231,6 +232,7 @@ function LabsPage() {
   if (markers.isPending) {
     return (
       <Page>
+        <ModuleHiddenNote module="labs" />
         {header}
         <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 6 }, (_, i) => (
@@ -244,6 +246,7 @@ function LabsPage() {
   if (markers.isError || !markers.data) {
     return (
       <Page>
+        <ModuleHiddenNote module="labs" />
         {header}
         <ErrorState
           title={<Trans>Could not load labs.</Trans>}
@@ -263,6 +266,7 @@ function LabsPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="labs" />
       {header}
 
       <ProductSettingsStatus />

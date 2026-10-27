@@ -59,6 +59,7 @@ import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/records/vitals")({
   component: VitalsPage,
@@ -186,6 +187,7 @@ function VitalsPage() {
   if (daily.isPending || samples.isPending) {
     return (
       <Page>
+        <ModuleHiddenNote module="heart" />
         {header}
         <div className="grid gap-4 sm:grid-cols-3">
           <Skeleton className="h-36 w-full rounded-3xl" />
@@ -200,6 +202,7 @@ function VitalsPage() {
   if (daily.isError || !daily.data || samples.isError) {
     return (
       <Page>
+        <ModuleHiddenNote module="heart" />
         {header}
         <ErrorState
           title={<Trans>Could not load vitals.</Trans>}
@@ -225,6 +228,7 @@ function VitalsPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="heart" />
       {header}
 
       {!today ? (

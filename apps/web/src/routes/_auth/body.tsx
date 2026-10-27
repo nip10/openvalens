@@ -51,6 +51,7 @@ import { friendlyDate } from "@/utils/friendly";
 import { client, orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
 import { enqueueMetricSample, useCacheFirst } from "@/utils/sync-engine";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/body")({
   component: BodyPage,
@@ -166,6 +167,7 @@ function BodyPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="body" />
       <PageHeader title={<Trans>Body</Trans>} actions={<SyncStatusBadge />} />
 
       <ProductSettingsStatus />

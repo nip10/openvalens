@@ -108,6 +108,7 @@ import {
 import { PlainWaterSection } from "@/components/plain-water-section";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 /**
  * Meal diary (Issue #77) with food search and typed barcode lookup (#75). Online-only on web: every change goes straight to
@@ -220,6 +221,7 @@ function NutritionPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="food" />
       {region}
       <PageHeader
         title={i18n._(DIARY_COPY.title)}

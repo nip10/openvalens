@@ -44,6 +44,7 @@ import { ProductSettingsStatus } from "@/components/product-settings-status";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { useProductSettings } from "@/utils/product-settings";
+import { ModuleHiddenNote } from "@/components/module-hidden-note";
 
 export const Route = createFileRoute("/_auth/records/sleep")({
   component: SleepPage,
@@ -78,6 +79,7 @@ function SleepPage() {
   if (summary.isPending) {
     return (
       <Page>
+        <ModuleHiddenNote module="sleep" />
         <PageHeader title={<Trans>Sleep</Trans>} />
         <div className="grid gap-10 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
           <Skeleton className="h-96 w-full" />
@@ -90,6 +92,7 @@ function SleepPage() {
   if (summary.isError || !summary.data) {
     return (
       <Page>
+        <ModuleHiddenNote module="sleep" />
         <PageHeader title={<Trans>Sleep</Trans>} />
         <ErrorState
           title={<Trans>Could not load sleep.</Trans>}
@@ -113,6 +116,7 @@ function SleepPage() {
 
   return (
     <Page>
+      <ModuleHiddenNote module="sleep" />
       <PageHeader title={<Trans>Sleep</Trans>} />
 
       <ProductSettingsStatus />

@@ -33,7 +33,7 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bot, ChevronRight, Plug, Send, Trash2, UserRound, Watch } from "lucide-react";
+import { Bot, ChevronRight, LayoutGrid, Plug, Send, Trash2, UserRound, Watch } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -66,6 +66,7 @@ function SettingsPage() {
     { id: "account", label: t`Account` },
     { id: "language", label: t`Language` },
     { id: "profile", label: t`Profile` },
+    { id: "modules", label: t`Modules` },
     { id: "notifications", label: i18n._(INSIGHT_DELIVERY_COPY.settingsTitle) },
     { id: "integrations", label: t`Integrations` },
     { id: "analytics", label: t`Usage analytics` },
@@ -104,6 +105,9 @@ function SettingsPage() {
           <div id="profile" className="scroll-mt-10">
             <ProfileSummarySection />
           </div>
+          <div id="modules" className="scroll-mt-10">
+            <ModulesSection />
+          </div>
           <div id="notifications" className="scroll-mt-10">
             <InsightNotificationsSection />
           </div>
@@ -129,6 +133,22 @@ function SettingsPage() {
         </div>
       </div>
     </Page>
+  );
+}
+
+/** Onboarding stage 1: the link to Settings › Modules. */
+function ModulesSection() {
+  return (
+    <Section title={<Trans>Modules</Trans>} icon={LayoutGrid} tone="signal">
+      <SettingsGroup className="px-0">
+        <IntegrationLink
+          to="/settings/modules"
+          icon={LayoutGrid}
+          label={<Trans>Modules</Trans>}
+          description={<Trans>Choose the parts of the app you use.</Trans>}
+        />
+      </SettingsGroup>
+    </Section>
   );
 }
 
@@ -160,7 +180,7 @@ function IntegrationLink({
   label,
   description,
 }: {
-  to: "/settings/devices" | "/settings/telegram";
+  to: "/settings/devices" | "/settings/telegram" | "/settings/modules";
   icon: typeof Watch;
   label: React.ReactNode;
   description: React.ReactNode;
