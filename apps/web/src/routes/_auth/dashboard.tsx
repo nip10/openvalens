@@ -19,22 +19,29 @@ import {
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { Footprints, HeartPulse, History, Moon, Scale, TrendingUp } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { InsightsSection } from "@/components/insights-section";
 import { ErrorState, Figure, Page, PageHeader, Section, StatTile } from "@/components/page";
 import { ProductSettingsStatus } from "@/components/product-settings-status";
-import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
+import { FinishSetupCard } from "@/components/onboarding/finish-setup-card";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { useEnabledModules } from "@/utils/modules";
+import { needsWelcomeRedirect } from "@/utils/onboarding-data";
 import { useProductSettings } from "@/utils/product-settings";
 
 export const Route = createFileRoute("/_auth/dashboard")({
   component: DashboardPage,
+  // Onboarding stage 2: the first sign-in lands on /welcome once.
+  beforeLoad: async ({ context }) => {
+    if (await needsWelcomeRedirect(context.queryClient, context.session?.user?.id)) {
+      throw redirect({ to: "/welcome" });
+    }
+  },
 });
 
 // The dashboard's chart reads the same 90-day window the Body screen does.
@@ -102,7 +109,7 @@ function DashboardPage() {
 
       <ProductSettingsStatus />
 
-      <ProfileSetupPrompt />
+      <FinishSetupCard />
 
       {isPending ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

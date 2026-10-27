@@ -71,6 +71,7 @@ function StackLayout() {
   return (
     <Stack screenOptions={{ headerTitleStyle: { fontFamily: DISPLAY_FONT } }}>
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ title: t`Modal`, presentation: "modal" }} />
     </Stack>
   );

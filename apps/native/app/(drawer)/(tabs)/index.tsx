@@ -44,7 +44,7 @@ import { Container } from "@/components/container";
 import { InsightsSection } from "@/components/insights-section";
 import { useModules } from "@/lib/modules/use-modules";
 import { ListRow } from "@/components/list-row";
-import { ProfileSetupPrompt } from "@/components/profile-setup-prompt";
+import { FinishSetupCard } from "@/components/finish-setup-card";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
@@ -291,7 +291,7 @@ export default function CockpitScreen() {
           }
         />
 
-        <ProfileSetupPrompt />
+        <FinishSetupCard />
 
         {dataPending && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
           <Sheet>
