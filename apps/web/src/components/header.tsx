@@ -210,7 +210,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
     </a>
   );
 
-  if (!signedIn) {
+  // The first-run flow gets a focused frame: no sidebar to wander off into.
+  const focused = location.pathname === "/welcome";
+
+  if (!signedIn || focused) {
     return (
       <div className="grid min-h-svh grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr]">
         {skipLink}
