@@ -196,12 +196,6 @@ msgstr "{0} não definida"
 msgid "{0} of {1} sections answered"
 msgstr "{0} de {1} secções respondidas"
 
-#. placeholder {0}: progress.answered
-#. placeholder {1}: progress.available
-#: apps/native/components/profile-setup-prompt.tsx
-msgid "{0} of {1} sections answered."
-msgstr "{0} de {1} secções respondidas."
-
 #. placeholder {0}: goalSummary.open
 #. placeholder {1}: goalSummary.achieved
 #: apps/native/app/(drawer)/workouts.tsx
@@ -848,18 +842,20 @@ msgstr "Chegou uma data que definiu"
 msgid "A date you set in OpenValens has arrived. Open the app to see it. This email does not include any health details."
 msgstr "Chegou uma data que definiu no OpenValens. Abra a aplicação para a ver. Este email não inclui nenhum dado de saúde."
 
+#: apps/native/components/onboarding/steps.tsx
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 #: apps/web/src/utils/onboarding.ts
 msgid "A few basics"
 msgstr "Alguns dados básicos"
 
-#: apps/native/components/profile-setup-prompt.tsx
-msgid "A few optional questions so the app can show what matters to you. Skip any of them; everything else works without them."
-msgstr "Algumas perguntas opcionais para que a aplicação mostre o que lhe interessa. Pode saltar qualquer uma; tudo o resto funciona sem elas."
-
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "A few quick questions so the app shows what matters to you. It takes about 2 minutes, and you can change everything later."
 msgstr "Algumas perguntas rápidas para a aplicação mostrar o que é importante para si. Demora cerca de 2 minutos e pode alterar tudo mais tarde."
+
+#: apps/native/components/finish-setup-card.tsx
+msgid "A few quick questions so the app shows what matters to you. Skip any of them; everything else works without them."
+msgstr "Algumas perguntas rápidas para a app mostrar o que lhe importa. Pode saltar qualquer uma; tudo o resto funciona sem elas."
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "A general reference from your recent weight, not a target. Enter a target yourself if you want one."
@@ -889,6 +885,10 @@ msgstr "Uma entrada de receita contém dados de ingredientes não suportados ou 
 #: packages/api/src/presenters/plain-water.ts
 msgid "A reference you set yourself. Optional."
 msgstr "Uma referência definida por si. Opcional."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "A wearable account"
+msgstr "Uma conta de wearable"
 
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/web/src/components/my-invitations-view.tsx
@@ -1058,6 +1058,7 @@ msgid "Add a goal"
 msgstr "Adicionar um objetivo"
 
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Add a goal in your own words if you have one. It is saved to your Goals, where you can set a target and date later. Nothing is suggested or worked out for you."
 msgstr "Se tiver um objetivo, adicione-o por palavras suas. Fica guardado nos seus Objetivos, onde pode definir uma meta e uma data mais tarde. Nada é sugerido nem calculado por si."
@@ -1219,6 +1220,7 @@ msgid "Affects number, date, and time formatting. Language stays English."
 msgstr "Afeta o formato de números, datas e horas. O idioma mantém-se em inglês."
 
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Age and sex are only used by adult features, so they are not asked here."
@@ -1228,6 +1230,7 @@ msgstr "A idade e o sexo só são usados por funcionalidades para adultos, por i
 msgid "Age and sex for guidance"
 msgstr "Idade e sexo para orientação"
 
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Age check"
@@ -1302,6 +1305,7 @@ msgstr "Tratamento por IA desativado"
 msgid "AI processing enabled"
 msgstr "Tratamento por IA ativado"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "AI provider"
 msgstr "Fornecedor de IA"
@@ -1348,6 +1352,7 @@ msgstr "Todas as noites"
 msgid "All nutrients"
 msgstr "Todos os nutrientes"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "All off unless you turn them on. Your records stay on your server either way."
 msgstr "Tudo desligado, a menos que o ligue. Os seus registos ficam no seu servidor em qualquer caso."
@@ -1381,6 +1386,10 @@ msgstr "Também registado"
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Always"
 msgstr "Sempre"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Always there: Timeline, Scores, Sharing and Settings"
+msgstr "Sempre disponíveis: Cronologia, Pontuações, Partilha e Definições"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -1473,6 +1482,10 @@ msgstr "Arquivado"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Archiving hides a food from search and logging. Meals you already logged keep their values, and you can restore it later."
 msgstr "Arquivar oculta um alimento da pesquisa e do registo. As refeições já registadas mantêm os seus valores e pode restaurá-lo mais tarde."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Are you 18 or older?"
+msgstr "Tem 18 anos ou mais?"
 
 #. safety
 #. safety
@@ -1589,6 +1602,7 @@ msgstr "Acordado"
 
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/native/components/muscle-guide.tsx
+#: apps/native/components/onboarding/flow.tsx
 #: apps/web/src/components/muscle-guide.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
@@ -1633,6 +1647,7 @@ msgstr "As tarefas em segundo plano estão restritas para esta aplicação."
 msgid "Backup"
 msgstr "Cópia de segurança"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Backups"
@@ -1706,6 +1721,10 @@ msgstr "Com base em {recentDays} dos últimos {recentWindowDays} dias, em compar
 msgid "before an upgrade"
 msgstr "antes de uma atualização"
 
+#: apps/native/components/onboarding/flow.tsx
+msgid "Before your own setup"
+msgstr "Antes da sua configuração"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "Below the WHO range of 150 to 300 minutes a week."
 msgstr "Abaixo do intervalo da OMS de 150 a 300 minutos por semana."
@@ -1715,6 +1734,7 @@ msgid "Biceps"
 msgstr "Bíceps"
 
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Birth year"
 msgstr "Ano de nascimento"
@@ -2348,6 +2368,10 @@ msgstr "Ligar"
 msgid "Connect a Telegram chat to receive daily reminders."
 msgstr "Ligue uma conversa do Telegram para receber lembretes diários."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Connect a wearable"
+msgstr "Ligar um wearable"
+
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Connect a wearable vendor account such as Oura or WHOOP"
 msgstr "Ligue uma conta de um fornecedor de wearables, como Oura ou WHOOP"
@@ -2409,15 +2433,17 @@ msgstr "Conservador"
 msgid "Consumed"
 msgstr "Utilizado"
 
+#: apps/native/components/finish-setup-card.tsx
+#: apps/native/components/onboarding/flow.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Continue"
 msgstr "Continuar"
 
-#: apps/native/components/profile-setup-prompt.tsx
-msgid "Continue setting up (optional)"
-msgstr "Continuar a configuração (opcional)"
+#: apps/native/components/onboarding/steps.tsx
+msgid "Continue to my setup"
+msgstr "Continuar para a minha configuração"
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Continue to OpenValens as <0>{email}</0>."
@@ -2430,11 +2456,6 @@ msgstr "Continuar para a sua configuração"
 #: apps/web/src/components/oidc-sign-in-button.tsx
 msgid "Continue with {displayName}"
 msgstr "Continuar com {displayName}"
-
-#. placeholder {0}: i18n._(SECTION_TITLES[next])
-#: apps/native/components/profile-setup-prompt.tsx
-msgid "Continue: {0}"
-msgstr "Continuar: {0}"
 
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
@@ -2459,6 +2480,10 @@ msgstr "Cozinhado"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Copied {0, plural, one {# item} other {# items}} to {localDate}"
 msgstr "{0, plural, one {# item copiado} other {# itens copiados}} para {localDate}"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Copies of the database, checked every day"
+msgstr "Cópias da base de dados, verificadas todos os dias"
 
 #. placeholder {0}: selected.size
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -2719,6 +2744,7 @@ msgid "Could not load labs."
 msgstr "Não foi possível carregar as análises."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/native/components/onboarding/steps.tsx
 msgid "Could not load notification settings."
 msgstr "Não foi possível carregar as definições de notificações."
 
@@ -2895,6 +2921,7 @@ msgid "Could not load your profile."
 msgstr "Não foi possível carregar o seu perfil."
 
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/app/onboarding/[step].tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Could not load your profile. Nothing has changed."
@@ -2991,6 +3018,7 @@ msgstr "Não foi possível guardar o seu comentário."
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
@@ -3072,6 +3100,7 @@ msgid "Could not start sign-in with {displayName}. Please try again."
 msgstr "Não foi possível iniciar sessão com {displayName}. Tente novamente."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/native/components/onboarding/steps.tsx
 msgid "Could not turn on notifications."
 msgstr "Não foi possível ativar as notificações."
 
@@ -3088,6 +3117,7 @@ msgid "Could not update AI consent."
 msgstr "Não foi possível atualizar o consentimento para IA."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Could not update notification settings."
@@ -3809,6 +3839,7 @@ msgstr "A EFSA é a escolha habitual na UE, no EEE e no Reino Unido; a NASEM nos
 msgid "Email"
 msgstr "Email"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Email delivery"
 msgstr "Envio de email"
@@ -3823,6 +3854,10 @@ msgstr "O email não está configurado neste servidor."
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Email me a sign-in link"
 msgstr "Enviar-me uma ligação de início de sessão"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Email, backups and the AI provider are set in the server's environment. The web app's admin pages show the details and how to change them."
+msgstr "O email, as cópias de segurança e o fornecedor de IA são definidos no ambiente do servidor. As páginas de administração da app web mostram os detalhes e como os alterar."
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Enabled"
@@ -4197,6 +4232,16 @@ msgstr "Encontrar um apoio à decisão (inventário de Ottawa de apoios à decis
 msgid "Find and log this food"
 msgstr "Procurar e registar este alimento"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Fine-tune what appears. Hidden parts keep their data."
+msgstr "Ajuste o que aparece. As partes ocultas mantêm os seus dados."
+
+#. placeholder {0}: progress.done
+#. placeholder {1}: progress.total
+#: apps/native/components/finish-setup-card.tsx
+msgid "Finish setting up, {0} of {1}"
+msgstr "Terminar a configuração, {0} de {1}"
+
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
 msgid "Finish setting up, {done} of {total}"
 msgstr "Terminar a configuração, {done} de {total}"
@@ -4275,6 +4320,7 @@ msgid "For {sex, select, female {women} male {men} other {adults}} aged {minAge}
 msgstr "Para {sex, select, female {mulheres} male {homens} other {adultos}} dos {minAge} aos {maxAge} anos"
 
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "For example: walk most days"
@@ -4427,6 +4473,7 @@ msgid "Go up"
 msgstr "Subir"
 
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Goal"
 msgstr "Objetivo"
@@ -4597,6 +4644,7 @@ msgstr "Altura (cm, opcional)"
 msgid "Height must be between 100 and 250 cm, or left blank."
 msgstr "A altura deve estar entre 100 e 250 cm, ou ficar em branco."
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Here's your Today with the modules you picked. Change them any time in Settings › Modules."
 msgstr "Este é o seu Hoje com os módulos que escolheu. Altere-os quando quiser em Definições › Módulos."
@@ -4698,6 +4746,7 @@ msgstr "Contraceção hormonal ou sem ciclo natural (desliga as estimativas)"
 msgid "How am I doing?"
 msgstr "Como estou?"
 
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 msgid "How data arrives"
 msgstr "Como chegam os dados"
@@ -4744,6 +4793,7 @@ msgstr "Como isto é estimado"
 msgid "How to add"
 msgstr "Como adicionar"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "How will your data arrive?"
 msgstr "Como vão chegar os seus dados?"
@@ -4792,6 +4842,10 @@ msgstr "Uso contraceção hormonal ou não tenho ciclo natural (desliga as estim
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "I'll enter things myself"
 msgstr "Vou introduzir os dados manualmente"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "I'll type things in"
+msgstr "Vou escrever eu"
 
 #: packages/email/src/templates/magic-link.tsx
 msgid "If the button does not work, paste this link into your browser: {url}"
@@ -5092,9 +5146,14 @@ msgstr "Convidar um membro"
 msgid "Invite a user"
 msgstr "Convidar um utilizador"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Invite people"
 msgstr "Convidar pessoas"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Invite people from the web app: Admin › Invitations."
+msgstr "Convide pessoas a partir da app web: Administração › Convites."
 
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Invite someone to create an account. They will receive an invitation token by email."
@@ -5432,6 +5491,7 @@ msgstr "Parte superior esquerda das costas (costas)"
 msgid "Legend"
 msgstr "Legenda"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Let's start"
 msgstr "Vamos começar"
@@ -5591,6 +5651,7 @@ msgstr "A carregar o seu espaço de trabalho…"
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/insights-section.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/plain-water-section.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
@@ -5630,6 +5691,7 @@ msgstr "Registe um período para ver o histórico do seu ciclo."
 msgid "Log food ({amount})"
 msgstr "Registar alimento ({amount})"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Log meals most days"
 msgstr "Registar as refeições na maioria dos dias"
@@ -5814,6 +5876,10 @@ msgstr "Refeições e horário do sono registado"
 msgid "Meals and recorded workouts"
 msgstr "Refeições e treinos registados"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Meals, weights, readings"
+msgstr "Refeições, pesos, medições"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Measured composition"
@@ -5990,6 +6056,10 @@ msgstr "Mais dados de {helpList} ajudariam."
 msgid "More information"
 msgstr "Mais informação"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "More notification settings"
+msgstr "Mais definições de notificações"
+
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "More options"
@@ -6037,6 +6107,10 @@ msgstr "O meu alimento"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "My foods"
 msgstr "Os meus alimentos"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "My phone's health app"
+msgstr "A app de saúde do meu telemóvel"
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/components/exercise-library.tsx
@@ -6181,6 +6255,10 @@ msgstr "Não"
 #: packages/api/src/presenters/insights.ts
 msgid "No {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} recorded since {date}"
 msgstr "Sem registos de {metric, select, sleep_duration {sono} resting_heart_rate {frequência cardíaca em repouso} steps {passos} other {peso}} desde {date}"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "No access was given. That's fine: you can connect later in Settings › Health data."
+msgstr "Não foi dado acesso. Não há problema: pode ligar mais tarde em Definições › Dados de saúde."
 
 #: apps/web/src/utils/sign-in-options.ts
 msgid "No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings."
@@ -6370,6 +6448,10 @@ msgstr "Ainda não há mensagens. Diga olá para começar."
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "No modules picked. Your dashboard shows your timeline, and you can add modules any time in Settings › Modules."
 msgstr "Nenhum módulo escolhido. O seu painel mostra a sua cronologia e pode adicionar módulos quando quiser em Definições › Módulos."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "No modules picked. Your Today shows the timeline and scores, and you can add a module any time in Settings › Modules."
+msgstr "Nenhum módulo escolhido. O seu Hoje mostra a cronologia e as pontuações, e pode adicionar um módulo quando quiser em Definições › Módulos."
 
 #: apps/native/components/exercise-library.tsx
 msgid "No muscle filters available."
@@ -6568,6 +6650,10 @@ msgstr "Nenhuma das sessões dos últimos 7 dias tem intensidade e duração, po
 msgid "None of your goals has a numeric target, current value and direction yet, so no number is shown. A focus area alone does not produce a number."
 msgstr "Nenhum dos seus objetivos tem ainda um alvo numérico, um valor atual e uma direção, por isso não é mostrado nenhum número. Uma área de foco por si só não produz um número."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "None of your modules read from your phone's health app, so nothing was asked."
+msgstr "Nenhum dos seus módulos lê dados da app de saúde do telemóvel, por isso não foi pedido nada."
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "None yet"
 msgstr "Ainda nenhuma"
@@ -6649,7 +6735,8 @@ msgstr "Não concedido"
 msgid "Not marked complete"
 msgstr "Não marcado como completo"
 
-#: apps/native/components/profile-setup-prompt.tsx
+#: apps/native/components/finish-setup-card.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: packages/api/src/presenters/insights.ts
 msgid "Not now"
 msgstr "Agora não"
@@ -6735,6 +6822,7 @@ msgstr "Não agendada"
 msgid "Not set"
 msgstr "Não definida"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Not set up"
 msgstr "Não configurado"
@@ -6945,6 +7033,7 @@ msgstr "Observado em, hora local"
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Off"
@@ -6988,6 +7077,10 @@ msgstr "Desligada neste espaço de trabalho"
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Off unless a provider is configured and you turn AI on."
 msgstr "Desligado, a menos que haja um fornecedor configurado e ligue a IA."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Off unless you set one up. The coach needs it."
+msgstr "Desligado, a menos que configure um. O coach precisa dele."
 
 #. safety
 #: packages/api/src/presenters/insights.ts
@@ -7050,6 +7143,7 @@ msgstr "Sem ligação. A pesquisa nas bases de dados de alimentos precisa de lig
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/insight-notifications-section.tsx
 #: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
@@ -7072,10 +7166,12 @@ msgstr "Uma vez"
 msgid "Once a week, a summary of your insights with their values. Service messages only, never promotion. Every email has a one-step unsubscribe link."
 msgstr "Uma vez por semana, um resumo das suas perspetivas com os respetivos valores. Apenas mensagens de serviço, nunca promoções. Cada email tem uma ligação para cancelar a subscrição num só passo."
 
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 msgid "One goal"
 msgstr "Um objetivo"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "One goal (optional)"
 msgstr "Um objetivo (opcional)"
@@ -7125,6 +7221,11 @@ msgstr "Abrir {fileName}"
 msgid "Open in Telegram"
 msgstr "Abrir no Telegram"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Open instance configuration"
+msgstr "Abrir a configuração da instância"
+
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Open my dashboard"
 msgstr "Abrir o meu painel"
@@ -7183,6 +7284,10 @@ msgstr "Página inicial do OpenValens"
 #: apps/web/src/components/about-section.tsx
 msgid "OpenValens is free software under the GNU Affero General Public License, version 3 or later."
 msgstr "O OpenValens é software livre, distribuído sob a Licença Pública Geral GNU Affero, versão 3 ou posterior."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "OpenValens personalisation is for adults. This is the only question you can't skip."
+msgstr "A personalização do OpenValens é para adultos. Esta é a única pergunta que não pode saltar."
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "OpenValens shows public information from these authorities. They have not reviewed or endorsed this app."
@@ -7279,6 +7384,10 @@ msgstr "Outra versão: {otherName}, eliminado. A sua alteração: {change}."
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Other version: deleted. Your change: {mineAmount}, {mineSlot}."
 msgstr "Outra versão: eliminado. A sua alteração: {mineAmount}, {mineSlot}."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Oura, WHOOP, Polar, Withings"
+msgstr "Oura, WHOOP, Polar, Withings"
 
 #: packages/api/src/presenters/score.ts
 msgid "out of 100"
@@ -7515,10 +7624,16 @@ msgstr "Perfil com dados fisiológicos"
 msgid "Pick a photo of your meal. You get a draft list of what the provider could see; nothing is logged until you confirm each item."
 msgstr "Escolha uma fotografia da sua refeição. Obtém uma lista de rascunho do que o fornecedor conseguiu ver; nada é registado até confirmar cada item."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Pick all that apply."
+msgstr "Escolha todas as que se aplicam."
+
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Pick any. We'll switch on the matching parts of the app."
 msgstr "Escolha as que quiser. Vamos ligar as partes da aplicação correspondentes."
 
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 msgid "Pick your modules"
 msgstr "Escolha os seus módulos"
@@ -7664,6 +7779,10 @@ msgstr "Lembretes de cuidados preventivos (datas que definiu)"
 msgid "Preview"
 msgstr "Pré-visualização"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Preview of your Today"
+msgstr "Pré-visualização do seu Hoje"
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Preview unavailable because image license details are incomplete."
@@ -7696,6 +7815,7 @@ msgstr "Principais: {primaryNames}"
 msgid "Priority"
 msgstr "Prioridade"
 
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 msgid "Privacy choices"
 msgstr "Escolhas de privacidade"
@@ -7861,6 +7981,7 @@ msgstr "Avaliar esforço"
 msgid "Raw"
 msgstr "Cru"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Reach a weight"
 msgstr "Atingir um peso"
@@ -7894,6 +8015,7 @@ msgid "Readiness score, overnight HRV, resting heart rate, sleep sessions and da
 msgstr "Pontuação de prontidão, VFC noturna, frequência cardíaca em repouso, sessões de sono e passos diários."
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 #: packages/api/src/presenters/insights.ts
 msgid "Ready"
@@ -8195,6 +8317,7 @@ msgstr "Resultados com os intervalos do laboratório"
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/app/onboarding/[step].tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
@@ -8564,9 +8687,17 @@ msgstr "Guardado neste dispositivo. Será sincronizado quando tiver ligação."
 msgid "Saved to your Goals under Workouts, where you can add a target and date later."
 msgstr "Guardado nos seus Objetivos, em Treinos, onde pode adicionar uma meta e uma data mais tarde."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Saved to your Goals. You can edit it under Workouts."
+msgstr "Guardado nos seus Objetivos. Pode editá-lo em Treinos."
+
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Saved."
 msgstr "Guardado."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Saving birth year or sex asks for your consent, with the same text as the profile page. You can withdraw it any time."
+msgstr "Guardar o ano de nascimento ou o sexo pede o seu consentimento, com o mesmo texto da página do perfil. Pode retirá-lo a qualquer momento."
 
 #: apps/web/src/components/progress-photos.tsx
 msgid "Saving photo…"
@@ -8582,6 +8713,7 @@ msgstr "A guardar fotografia…"
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/onboarding/flow.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
@@ -8822,10 +8954,6 @@ msgstr "Defina alvos, direções e prioridades para os seus objetivos em <0>Trei
 msgid "Set targets, directions and priorities for your goals under Workouts."
 msgstr "Defina alvos, direções e prioridades para os seus objetivos em Treinos."
 
-#: apps/native/components/profile-setup-prompt.tsx
-msgid "Set up your profile (optional)"
-msgstr "Configure o seu perfil (opcional)"
-
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Sets from {trainingFrom} to {trainingTo}"
@@ -8850,6 +8978,11 @@ msgstr "Definições guardadas."
 #: apps/web/src/routes/setup.tsx
 msgid "Setup is complete"
 msgstr "A configuração está concluída"
+
+#: apps/native/components/finish-setup-card.tsx
+#: apps/native/components/onboarding/flow.tsx
+msgid "Setup progress"
+msgstr "Progresso da configuração"
 
 #. placeholder {0}: index + 1
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
@@ -9061,6 +9194,10 @@ msgstr "Os códigos de início de sessão e os convites são enviados por email.
 msgid "Sign-in link sent"
 msgstr "Ligação de início de sessão enviada"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Sign-in links, invitations and the weekly email"
+msgstr "Links de início de sessão, convites e o email semanal"
+
 #: apps/web/src/components/oidc-connect-section.tsx
 msgid "Sign-in methods"
 msgstr "Métodos de início de sessão"
@@ -9086,6 +9223,7 @@ msgstr "início de sessão único"
 msgid "Site: {site}"
 msgstr "Site: {site}"
 
+#: apps/native/components/onboarding/flow.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Skip"
 msgstr "Saltar"
@@ -9121,6 +9259,10 @@ msgstr "Sono"
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Sleep 7 to 9 hours most nights"
 msgstr "Dormir 7 a 9 horas na maioria das noites"
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Sleep 7–9 hours most nights"
+msgstr "Dormir 7–9 horas na maioria das noites"
 
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Sleep and recovery"
@@ -9165,6 +9307,7 @@ msgstr "Algumas refeições registadas ocorreram até quatro horas antes ou depo
 msgid "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
 msgstr "Algumas refeições foram registadas nas quatro horas anteriores ao início do sono, nesta janela de {windowDays} dias. Isto descreve apenas horários nos seus registos e não estabelece uma relação entre o horário das refeições e o sono."
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Something to work toward, in your own words."
 msgstr "Algo pelo qual trabalhar, por palavras suas."
@@ -9255,7 +9398,7 @@ msgstr "Perdas ligeiras"
 msgid "Stages"
 msgstr "Fases"
 
-#: apps/native/components/profile-setup-prompt.tsx
+#: apps/native/components/finish-setup-card.tsx
 msgid "Start"
 msgstr "Começar"
 
@@ -9340,6 +9483,10 @@ msgstr "Constante mas flexível, tem em conta o contexto."
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Step {0} of {total}: {1}"
 msgstr "Passo {0} de {total}: {1}"
+
+#: apps/native/components/onboarding/flow.tsx
+msgid "Step {position} of {total}: {stepTitle}"
+msgstr "Passo {position} de {total}: {stepTitle}"
 
 #. safety
 #: packages/api/src/presenters/manual-entry.ts
@@ -10718,6 +10865,10 @@ msgstr "Use AAAA-MM-DD para a data de início."
 msgid "Used"
 msgstr "Usado"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Used for the published references the app compares against. Birth year and sex are optional."
+msgstr "Usados para as referências publicadas com que a app compara. O ano de nascimento e o sexo são opcionais."
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Used only for safeguards on reduction suggestions."
 msgstr "Usado apenas para salvaguardas nas sugestões de redução."
@@ -10879,6 +11030,7 @@ msgstr "Cintura"
 msgid "Waiting to sync"
 msgstr "A aguardar sincronização"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Walk 8,000 steps a day"
 msgstr "Andar 8000 passos por dia"
@@ -10903,6 +11055,11 @@ msgstr "Enviámos uma ligação de início de sessão para {sentTo}. Abra-a nest
 #: apps/web/src/components/magic-link-form.tsx
 msgid "We sent a sign-in link to <0>{sentTo}</0>. It expires in 10 minutes."
 msgstr "Enviámos uma ligação de início de sessão para <0>{sentTo}</0>. Expira dentro de 10 minutos."
+
+#. placeholder {0}: healthModules.map((module) => i18n._(MODULE_LABELS[module])).join(", ")
+#: apps/native/components/onboarding/steps.tsx
+msgid "We'll ask {sourceName} only for: {0}. Read only; OpenValens never writes to it."
+msgstr "Vamos pedir ao {sourceName} apenas: {0}. Só leitura; o OpenValens nunca escreve lá."
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "We'll email you a link to sign in. No password needed."
@@ -10977,10 +11134,12 @@ msgstr "Peso, composição, mapa corporal"
 msgid "Weight, last {WEIGHT_TREND_DAYS} days"
 msgstr "Peso, últimos {WEIGHT_TREND_DAYS} dias"
 
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
 msgid "Welcome"
 msgstr "Boas-vindas"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Welcome to OpenValens"
 msgstr "Bem-vindo ao OpenValens"
@@ -10998,6 +11157,7 @@ msgstr "Bem-estar"
 msgid "What brings you here"
 msgstr "O que o traz cá"
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "What brings you here?"
 msgstr "O que o traz aqui?"
@@ -11135,6 +11295,10 @@ msgstr "Pode fechar esta página."
 msgid "You can only say a few words without pausing for breath"
 msgstr "Só consegue dizer algumas palavras sem parar para respirar"
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "You can still keep a record, but personal guidance and references stay off."
+msgstr "Pode continuar a manter um registo, mas as orientações pessoais e as referências ficam desligadas."
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "You can talk and sing"
 msgstr "Consegue falar e cantar"
@@ -11248,6 +11412,10 @@ msgstr "Marcou este dia como completo."
 msgid "You requested a secure sign-in link for {appName}."
 msgstr "Pediu uma ligação segura de início de sessão para {appName}."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "You run this OpenValens server. A few things to check, then your own setup."
+msgstr "É quem gere este servidor OpenValens. Algumas coisas a verificar e depois a sua configuração."
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "You said neither option fits you."
 msgstr "Indicou que nenhuma opção se aplica a si."
@@ -11261,6 +11429,7 @@ msgstr "Configurou este servidor. Uma vista rápida do que ele indica e depois a
 msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
 msgstr "Retirou o consentimento para esta resposta, por isso não pode ser guardada. Limpe-a ou mantenha o consentimento."
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "You're all set"
 msgstr "Está tudo pronto"
@@ -11396,6 +11565,7 @@ msgstr "O seu último check-in de “{goalTitle}” aproximou-se do seu alvo."
 msgid "Your latest check-in for “{goalTitle}” reached the target you set."
 msgstr "O seu último check-in de “{goalTitle}” atingiu o alvo que definiu."
 
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Your modules"
 msgstr "Os seus módulos"
@@ -11404,6 +11574,11 @@ msgstr "Os seus módulos"
 msgid "Your own trend comes first. If you turn a comparison on, your usual value is shown next to a published guideline range, or a broad band for adults of your age group and sex, with its source named."
 msgstr "A sua própria tendência vem primeiro. Se ativar uma comparação, o seu valor habitual é mostrado ao lado de um intervalo de uma diretriz publicada, ou de uma faixa ampla para adultos do seu grupo etário e sexo, com a fonte indicada."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Your phone's health app isn't available here. You can type things in, or connect later in Settings › Health data."
+msgstr "A app de saúde do telemóvel não está disponível aqui. Pode escrever os dados ou ligar mais tarde em Definições › Dados de saúde."
+
+#: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Your privacy choices"
 msgstr "As suas escolhas de privacidade"
@@ -11411,6 +11586,10 @@ msgstr "As suas escolhas de privacidade"
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 msgid "Your private health record."
 msgstr "O seu registo de saúde privado."
+
+#: apps/native/components/onboarding/steps.tsx
+msgid "Your private health record. A few quick questions so the app shows what matters to you. It takes about 2 minutes, and you can change everything later."
+msgstr "O seu registo de saúde privado. Algumas perguntas rápidas para a app mostrar o que lhe importa. Demora cerca de 2 minutos e pode alterar tudo mais tarde."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/profile.tsx
@@ -11453,6 +11632,10 @@ msgstr "A quantidade guardada está oculta. Introduza uma nova quantidade para a
 msgid "Your saved goal is hidden. Enter a new goal to replace it, or clear it."
 msgstr "A meta guardada está oculta. Introduza uma nova meta para a substituir, ou limpe-a."
 
+#: apps/native/components/onboarding/steps.tsx
+msgid "Your server checklist"
+msgstr "A lista de verificação do seu servidor"
+
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
 msgstr "O operador do servidor não ativou nenhum fornecedor. A aplicação móvel continua a sincronizar o Apple Health e o Health Connect."
@@ -11461,6 +11644,7 @@ msgstr "O operador do servidor não ativou nenhum fornecedor. A aplicação móv
 msgid "Your targets"
 msgstr "Os seus objetivos"
 
+#: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/utils/onboarding.ts
 msgid "Your Today"
