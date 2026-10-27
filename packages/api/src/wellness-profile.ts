@@ -8,6 +8,7 @@ import { raiseApiError } from "./errors";
 import {
   applyWellnessProfileUpdate,
   EMPTY_WELLNESS_PROFILE,
+  normalizeModules,
   WELLNESS_CONSENT_VERSION,
   wellnessProfileSnapshotSchema,
   wellnessProfileUpdateInput,
@@ -117,11 +118,13 @@ export function toSnapshot(
     region: answer(row.regionState, row.region),
     birthYear: answer(row.birthYearState, row.birthYear),
     sex: answer(row.sexState, row.sex),
+    enabledModules: row.enabledModules,
     consents: consentState,
     updatedAt: row.updatedAt.toISOString(),
   });
   if (!parsed.success) throw new WellnessProfileError("INTERNAL");
-  return parsed.data;
+  const modules = parsed.data.enabledModules;
+  return { ...parsed.data, enabledModules: modules === null ? null : normalizeModules(modules) };
 }
 
 function columnsFor(snapshotAnswers: ReturnType<typeof snapshotToState>["answers"]) {
@@ -223,6 +226,7 @@ export function createWellnessProfileService(deps: {
           .set({
             ...columnsFor(result.next.answers),
             setupStatus: result.next.setupStatus,
+            enabledModules: result.next.enabledModules,
             revision: current.revision + 1,
             updatedAt: now,
           })
