@@ -18,7 +18,9 @@ Last updated: 2026-10-06
 This repo runs two deployable services:
 
 - `apps/server` — Hono + oRPC API on port `3000` (`/rpc`, `/api-reference`,
-  `/api/auth/*`).
+  `/api/auth/*`, and `/.well-known/openvalens`, the public check the mobile
+  app reads before connecting). If the web and API share a domain, route that
+  path to the server too.
 - `apps/web` — static/TanStack web app served on port `80` (proxied to `3001`
   locally by `docker-compose.yml`).
 

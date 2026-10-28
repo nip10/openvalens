@@ -7,8 +7,7 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { Platform } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
-
-import { ENV } from "../src/env";
+import { requireServerUrl } from "@/lib/server/server-url";
 
 export const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: shouldRetryQuery } },
@@ -34,8 +33,11 @@ async function expoFetch(request: Request, init?: RequestInit) {
 // TODO(#7 / #29): switch to mobile device-session auth (custom 3-token
 // contract). Until then we use the Better-T-Stack default: Better Auth Expo
 // session cookies forwarded manually on native via `authClient.getCookie()`.
+// Issue #295 — the server is read per request, so a server change takes
+// effect on the next call and a headless background run waits for the saved
+// address instead of using a build-time one.
 export const link = new RPCLink({
-  url: `${ENV.EXPO_PUBLIC_SERVER_URL}/rpc`,
+  url: async () => `${await requireServerUrl()}/rpc`,
   fetch(request, init) {
     return expoFetch(request, {
       ...init,
@@ -48,6 +50,7 @@ export const link = new RPCLink({
       return {};
     }
     const headers = new Map<string, string>();
+    await requireServerUrl();
     const cookies = await authClient.getCookie();
     if (cookies) {
       headers.set("Cookie", cookies);

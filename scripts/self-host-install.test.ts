@@ -23,6 +23,7 @@ import { join } from "node:path";
 import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 
 import { CSP_REPORT_PATH } from "../apps/server/src/security-csp-report";
+import { SERVER_META_PATH } from "../packages/api/src/server-meta";
 
 const repo = join(import.meta.dir, "..");
 const deploy = join(repo, "deploy");
@@ -288,7 +289,7 @@ describe("deploy/Caddyfile", () => {
   test("routes every server path prefix to the server", async () => {
     const caddyfile = await Bun.file(join(deploy, "Caddyfile")).text();
     const matcher = caddyfile.split("\n").find((line) => line.includes("@api path"))!;
-    for (const prefix of ["/api/*", "/rpc/*", "/api-reference/*"]) {
+    for (const prefix of ["/api/*", "/rpc/*", "/api-reference/*", SERVER_META_PATH]) {
       expect(matcher).toContain(prefix);
     }
     expect(CSP_REPORT_PATH.startsWith("/api/")).toBe(true);

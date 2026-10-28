@@ -1,27 +1,106 @@
 # Connecting the mobile app
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-28
 
-The mobile app (`apps/native`, built with Expo) talks to one server, and that
-server is chosen **when the app is built**, not in the app. There is no
-in-app setting for a server address at 0.1.0, and there is no official store
-build to point at your instance, so connecting a phone to your instance means
-building the app yourself.
+The OpenValens app from the App Store and Google Play connects to any
+OpenValens server, not only to OpenValens Cloud. You do not need to build the
+app yourself. Building your own is still possible and is described at the end
+of this page.
 
-## How the app finds the server
+## Connect the store app to your server
 
-The server address is the `EXPO_PUBLIC_SERVER_URL` variable of
-`apps/native/.env.schema`. Expo compiles it into the app's JavaScript bundle,
-and the app sends every request to it:
+On first launch, before signing in, the app asks where the account is:
 
-- `https://<domain>/rpc` for the API;
-- `https://<domain>/api/auth/*` for sign-in.
+- **OpenValens Cloud**, the hosted service (`https://app.openvalens.com`);
+- **My own server**: enter your instance's public origin, for example
+  `https://health.example.org`.
 
-On the supported install, Caddy routes both paths to the server
-([Install](install.md#what-you-get)), so the value is your instance's public
-origin: `https://<domain>`, with no path and no trailing slash.
+The app reduces what you type to an origin (it adds `https://` when no scheme
+is given, and drops any path, query or trailing slash), then checks the server
+before saving it. To use another server later, open **Settings → Server →
+Change server**. Changing server signs you out and removes everything the app
+saved from the old server on that phone: the session, cached screens, queued
+writes and health-sync progress. If writes are still waiting to be sent, the
+app says how many before it deletes them.
 
-## Build for your instance
+## What your server must offer
+
+- **HTTPS with a valid certificate.** The store app refuses plain HTTP. The
+  supported install gets a certificate from Caddy automatically
+  ([Install](install.md#what-you-get)).
+- **The server paths on your public origin.** The app sends every request to
+  that origin:
+  - `/.well-known/openvalens` for the server check;
+  - `/rpc` for the API;
+  - `/api/auth/*` for sign-in.
+
+  On the supported install Caddy routes all three to the server. Behind your
+  own proxy, or on a platform where web and API share a domain, route
+  `/.well-known/openvalens` to the server as well, next to `/rpc` and `/api`.
+  When the API has its own domain ([Deployment](../deployment.md)), enter that
+  domain in the app.
+
+- **A version the app supports.** The server check returns the API version the
+  server speaks. An app that is older or newer than your server says so, and
+  names your server's version.
+- **Working email**, for magic-link sign-in ([Email](email.md)).
+
+The store app's URL scheme, `openvalens://`, is already a trusted origin on
+every server, so sign-in returns to the app without extra configuration.
+
+### Check it
+
+```bash
+curl -fsS https://<domain>/.well-known/openvalens
+```
+
+The answer looks like this:
+
+```json
+{
+  "product": "openvalens",
+  "apiVersion": 1,
+  "serverVersion": "0.1.0",
+  "mode": "self-hosted",
+  "signIn": { "magicLink": true, "oidc": false, "google": false, "apple": false, "signUp": false }
+}
+```
+
+It is public and needs no session. It holds nothing beyond what your login
+page already shows: no instance name, no OIDC provider name and no counts.
+`signIn` tells the app which sign-in options to show; `oidc` is `true` when
+[OIDC sign-in](oidc.md) is configured.
+
+When the check fails, the app tells the person which of these it is: the
+server cannot be reached, the address is not an OpenValens server (often a
+proxy that sends `/.well-known/openvalens` to the web app), the address is not
+HTTPS, or the server or the app needs an update.
+
+## Signing in
+
+- Accounts on a self-hosted server are created on the web: the first
+  administrator through `/setup` and everyone else through an invitation at
+  `/join` ([Install](install.md#first-administrator-and-invitations)). The
+  app cannot create an account on a self-hosted server.
+- An existing account signs in on the phone with an emailed magic link, which
+  returns to the app through `openvalens://`. With OIDC configured, the app
+  also shows "Continue with <name>".
+
+## Push notifications
+
+Insight and care-reminder pushes go from your server through the
+[Expo push service](https://docs.expo.dev/push-notifications/overview/) to
+Apple (APNs) and Google (FCM). On the server, set `PUSH_PROVIDER=expo`
+([Configuration](configuration.md)); the server needs no credential for this.
+The store app carries the OpenValens project's push setup, so nothing else is
+needed for it. A build of your own needs its own push setup, described below.
+
+## Build the app yourself (optional)
+
+You only need this to change the app, or to ship a build locked to your
+server.
+
+### Lock a build to your server
 
 From a clone of the same version as your server:
 
@@ -30,34 +109,28 @@ bun install
 printf 'EXPO_PUBLIC_SERVER_URL=https://<domain>\n' > apps/native/.env.local
 ```
 
-`apps/native/.env.local` is git-ignored. Check that the value resolves:
+`apps/native/.env.local` is git-ignored. With `EXPO_PUBLIC_SERVER_URL` set,
+the app skips the server choice, connects only to that origin and hides
+"Change server". Leave it unset to build the same app as the store, which
+asks. Check that the value resolves:
 
 ```bash
 cd apps/native && bunx varlock load
 ```
 
-The output lists `EXPO_PUBLIC_SERVER_URL` with your URL. Then build or run the
-app with the usual Expo tooling, for example `bun run dev:native` from the
-repository root for a development build, or `bun run ios` / `bun run android`
-inside `apps/native` for a native build. Building and signing for a physical
-device or a store needs your own Apple or Google developer setup, which these
-docs do not cover.
+Then build or run the app with the usual Expo tooling, for example
+`bun run dev:native` from the repository root for a development build, or
+`bun run ios` / `bun run android` inside `apps/native` for a native build. A
+development build also accepts plain HTTP to localhost or the local network.
+Building and signing for a physical device or a store needs your own Apple or
+Google developer setup, which these docs do not cover.
 
-Changing the server later means rebuilding the app: an app built for one server
-connects only to that server.
+### Push for your own build
 
-## Push notifications
-
-Insight and care-reminder pushes go from your server through the
-[Expo push service](https://docs.expo.dev/push-notifications/overview/) to
-Apple (APNs) and Google (FCM). Two sides have to be set up:
-
-- **Server:** set `PUSH_PROVIDER=expo` ([Configuration](configuration.md)).
-  The server needs no credential for this.
-- **App build:** the app can only get a push token when it is built with an
-  [EAS](https://docs.expo.dev/eas/) project ID, and that EAS project must hold
-  your APNs and FCM credentials. Without a project ID the app still works and
-  shows push notifications as unavailable.
+The app can only get a push token when it is built with an
+[EAS](https://docs.expo.dev/eas/) project ID, and that EAS project must hold
+your APNs and FCM credentials. Without a project ID the app still works and
+shows push notifications as unavailable.
 
 The project ID is required because `getExpoPushTokenAsync` attributes the token
 to a project; Expo
@@ -66,17 +139,17 @@ read from `Constants.expoConfig.extra.eas.projectId`
 ([setup guide](https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid)),
 which is what the app does.
 
-### 1. Create the EAS project
+#### 1. Create the EAS project
 
 With an [Expo account](https://expo.dev/signup), create a project (on
 expo.dev or with `bunx eas-cli init` inside `apps/native`) and copy its
 project ID, a UUID.
 
-### 2. Set the project ID at build time
+#### 2. Set the project ID at build time
 
 `apps/native/app.config.ts` extends `app.json` and copies
 `EXPO_PUBLIC_EAS_PROJECT_ID` into `extra.eas.projectId`. For a local build,
-add it next to the server URL:
+add it to `apps/native/.env.local`:
 
 ```bash
 printf 'EXPO_PUBLIC_EAS_PROJECT_ID=<project-id>\n' >> apps/native/.env.local
@@ -89,7 +162,7 @@ git-ignored and therefore not uploaded, so define the variable as an
 or in the build profile's `env` in `eas.json`, and export it in the shell that
 runs `eas` so the CLI sees the same project.
 
-### 3. Add Apple and Google credentials to the EAS project
+#### 3. Add Apple and Google credentials to the EAS project
 
 - **iOS (APNs):** a paid Apple Developer account is required. When
   `eas build` asks, let it set up push notifications and generate an APNs key,
@@ -109,17 +182,7 @@ or an iOS simulator on Xcode 14 or later). A tapped notification opens the
 matching screen (insights or preventive care); the app ignores any other path
 in a push.
 
-## Signing in
-
-- Accounts are created on the web: the first administrator through `/setup`
-  and everyone else through an invitation at `/join`
-  ([Install](install.md#first-administrator-and-invitations)). The app cannot
-  create an account.
-- An existing account signs in on the phone with an emailed magic link, which
-  returns to the app through its URL scheme `openvalens://`. Email must
-  therefore work ([Email](email.md)).
-
-## Distributing your build
+### Distributing your build
 
 If you hand your build to other people, the licence and trademark rules apply:
 a build that is not made from an official release tag, or that you modified,
@@ -128,7 +191,8 @@ available ([Licensing and trademark](licensing.md)).
 
 ## Not verified
 
-The build-time configuration above was checked with `varlock load`, and the
-push project ID with `expo config`. Signing in, and registering for and
-receiving pushes, on a physical device against a self-hosted instance have not
-been verified for 0.1.0.
+The server check was tested against the server's route and the app's parsing
+in unit tests. Connecting the published store app to a self-hosted instance,
+OIDC sign-in on the phone, and push from a self-hosted server to the store app
+have not been verified on a device for 0.1.0; the store apps are not published
+yet (#306).

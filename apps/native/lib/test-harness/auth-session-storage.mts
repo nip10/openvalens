@@ -264,4 +264,33 @@ describe("coordinated Better Auth Expo storage", () => {
     expect(JSON.parse(storage.values.get(CACHE_KEY) ?? "null")).toEqual(sessionData);
     expect(await actions.getCookie()).toBe(`${TOKEN_NAME}=current-token`);
   });
+
+  test("clears the stored session before a server switch, even after an uncertain install (#295)", async () => {
+    const { storage, coordinator, actions } = setup();
+    const previousJar = jar("old-server-token");
+    storage.values.set(COOKIE_KEY, previousJar);
+    storage.values.set(CACHE_KEY, JSON.stringify({ session: { id: "old-server-session" } }));
+    storage.failReadAfterWriteValue = jar("candidate-token");
+    storage.failWriteValue = previousJar;
+    await expect(
+      coordinator.installVerifiedSessionCookie(jar("candidate-token")),
+    ).rejects.toThrow();
+    storage.failWriteValue = null;
+
+    await coordinator.clearStoredSession();
+
+    expect(storage.values.get(COOKIE_KEY)).toBe("{}");
+    expect(storage.values.get(CACHE_KEY)).toBe("{}");
+    expect(await actions.getCookie()).toBe("");
+  });
+
+  test("fails a session clear whose write cannot be read back (#295)", async () => {
+    const { storage, coordinator } = setup();
+    storage.values.set(COOKIE_KEY, jar("old-server-token"));
+    storage.swallowWriteValue = "{}";
+
+    await expect(coordinator.clearStoredSession()).rejects.toThrow(
+      "The stored sign-in session could not be cleared.",
+    );
+  });
 });

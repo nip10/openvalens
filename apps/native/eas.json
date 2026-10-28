@@ -12,25 +12,16 @@
       },
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_SERVER_URL": "http://localhost:3000"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://app.openvalens.com"
       }
     },
     "production": {
-      "autoIncrement": true,
-      "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://app.openvalens.com"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {

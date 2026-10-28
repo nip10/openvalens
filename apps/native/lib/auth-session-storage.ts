@@ -16,6 +16,7 @@ type ExpoSuccessContext = Parameters<
 
 const INSTALL_ERROR = "Sign-in session could not be safely installed.";
 const SUPERSEDED_ERROR = "A newer sign-in session replaced this response.";
+const CLEAR_ERROR = "The stored sign-in session could not be cleared.";
 
 function cookiePairs(header: string): Array<{ name: string; value: string }> {
   return header
@@ -64,7 +65,12 @@ export class AuthSessionStorageCoordinator {
     this.managedStorage = storageAdapter(backingStorage);
   }
 
-  wrapExpoPlugin(plugin: ExpoPlugin, options: ExpoOptions): ExpoPlugin {
+  /**
+   * Derive the storage keys Better Auth Expo uses for these options. Called
+   * by `wrapExpoPlugin`, and up front so a session can be cleared before any
+   * client exists (#295).
+   */
+  configure(options: ExpoOptions): void {
     const storagePrefix = options.storagePrefix || "better-auth";
     const cookiePrefix = options.cookiePrefix || "better-auth";
     this.cookieKey = normalizeCookieName(`${storagePrefix}_cookie`);
@@ -73,6 +79,10 @@ export class AuthSessionStorageCoordinator {
       `${cookiePrefix}.session_token`,
       `__Secure-${cookiePrefix}.session_token`,
     ];
+  }
+
+  wrapExpoPlugin(plugin: ExpoPlugin, options: ExpoOptions): ExpoPlugin {
+    this.configure(options);
     const originalGetActions = plugin.getActions;
 
     return {
@@ -135,6 +145,31 @@ export class AuthSessionStorageCoordinator {
     // Notify after releasing the coordinator so listeners can synchronously
     // schedule their own credential reads without re-entering the lock.
     store.notify("$sessionSignal");
+  }
+
+  /**
+   * Issue #295 — forget the stored session cookie and session cache before
+   * the app moves to another server. Runs even after an uncertain install,
+   * and leaves the coordinator in a known (signed-out) state.
+   */
+  async clearStoredSession(): Promise<void> {
+    const result = this.operationTail.then(async () => {
+      const cookieKey = this.cookieKey;
+      const sessionCacheKey = this.sessionCacheKey;
+      if (!cookieKey || !sessionCacheKey) throw new Error(CLEAR_ERROR);
+      try {
+        await this.writeAndVerify(cookieKey, "{}");
+        await this.writeAndVerify(sessionCacheKey, "{}");
+      } catch {
+        throw new Error(CLEAR_ERROR);
+      }
+      this.uncertainState = false;
+    });
+    this.operationTail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 
   private withLock<T>(operation: () => Promise<T>): Promise<T> {

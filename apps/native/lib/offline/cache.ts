@@ -180,3 +180,32 @@ export function clearOfflineData(): void {
   db.runSync("DELETE FROM nutrition_entry_receipt");
   db.runSync("DELETE FROM plain_water_outbox");
 }
+
+/**
+ * Issue #295 — writes on this phone the server has not confirmed yet, across
+ * every lane (metrics, meals, water, workouts) and account. Rows from before
+ * account scoping are never sent, so they do not count.
+ */
+export function countQueuedWrites(): number {
+  const row = getDb().getFirstSync<{ total: number }>(
+    `SELECT
+      (SELECT COUNT(*) FROM outbox WHERE scope IS NOT NULL) +
+      (SELECT COUNT(*) FROM nutrition_outbox) +
+      (SELECT COUNT(*) FROM plain_water_outbox) +
+      (SELECT COUNT(*) FROM workout_outbox) AS total`,
+  );
+  return row?.total ?? 0;
+}
+
+/**
+ * Issue #295 — on a server switch, wipe everything `clearOfflineData` does plus
+ * workout drafts, queued workouts and their acknowledgements: none of it
+ * belongs on the next server.
+ */
+export function clearAllServerData(): void {
+  clearOfflineData();
+  const db = getDb();
+  db.runSync("DELETE FROM workout_drafts");
+  db.runSync("DELETE FROM workout_outbox");
+  db.runSync("DELETE FROM workout_acks");
+}

@@ -21,22 +21,30 @@ servers. Self-hosters building for their own instance should read
 | Marketing version | `app.json` → `version`              | `1.0.0`; bump it by hand for each store release                         |
 | Build numbers     | `eas.json` → `cli.appVersionSource` | `remote`: EAS keeps them; `production` auto-increments                  |
 | Icon and splash   | `apps/native/assets/images`         | Rendered from `assets/source/mark.svg` by `bun scripts/render-icons.ts` |
-| Server address    | `eas.json` → each profile's `env`   | `EXPO_PUBLIC_SERVER_URL`, compiled into the bundle (see below)          |
+| Server address    | chosen in the app on first launch   | Cloud or a self-hosted origin; `EXPO_PUBLIC_SERVER_URL` locks a build   |
 | Push project id   | `app.config.ts`                     | `EXPO_PUBLIC_EAS_PROJECT_ID` (optional; push is off without it)         |
 | FCM config        | `app.config.ts`                     | `GOOGLE_SERVICES_JSON` (optional; Android push only)                    |
 
 ### Build profiles (`apps/native/eas.json`)
 
-| Profile       | For                                                                                           | Distribution                               | Server                       |
-| ------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------- |
-| `development` | A dev client (`expo-dev-client`) on a simulator or an Android emulator, loading JS from Metro | internal, iOS simulator build, Android APK | `http://localhost:3000`      |
-| `preview`     | Testers' phones (TestFlight is not needed)                                                    | internal (ad hoc iOS, Android APK)         | `https://app.openvalens.com` |
-| `production`  | App Store and Google Play                                                                     | store                                      | `https://app.openvalens.com` |
+| Profile       | For                                                                                           | Distribution                               |
+| ------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `development` | A dev client (`expo-dev-client`) on a simulator or an Android emulator, loading JS from Metro | internal, iOS simulator build, Android APK |
+| `preview`     | Testers' phones (TestFlight is not needed)                                                    | internal (ad hoc iOS, Android APK)         |
+| `production`  | App Store and Google Play                                                                     | store                                      |
 
-`EXPO_PUBLIC_SERVER_URL` is baked in at build time; an app built for one
-server only talks to that server. Cloud builds take the value from the
-profile's `env`, not from your shell, so to build for another instance add a
-profile (for example `"staging": { "extends": "preview", "env": { ... } }`).
+No profile sets a server (#295). On first launch the app asks: OpenValens
+Cloud (`https://app.openvalens.com`) or the address of a self-hosted server,
+which it checks against `GET /.well-known/openvalens` before saving.
+Settings → Server changes it later. A development build also accepts plain
+HTTP to localhost or the local network, for a server on your machine.
+
+`EXPO_PUBLIC_SERVER_URL` is optional. Set it (in a profile's `env`, or in
+`apps/native/.env.local` for a local build) to lock a build to one server:
+the app then skips the choice and hides "Change server". EAS builds take the
+value from the profile's `env`, not from your shell, so to lock a build to
+another instance add a profile (for example
+`"staging": { "extends": "preview", "env": { ... } }`).
 
 ## What the owner must provide
 
@@ -79,8 +87,9 @@ bunx eas-cli submit --profile production --platform ios --latest
 bunx eas-cli submit --profile production --platform android --latest
 ```
 
-Local builds without EAS still work for development:
-`EXPO_PUBLIC_SERVER_URL=http://localhost:3000 bunx expo run:ios`. The `ios/`
+Local builds without EAS still work for development: `bunx expo run:ios`,
+then choose "My own server" and enter `http://localhost:3000` (or lock the
+build with `EXPO_PUBLIC_SERVER_URL=http://localhost:3000 bunx expo run:ios`). The `ios/`
 and `android/` folders this generates are not committed.
 
 ## Health data notes
