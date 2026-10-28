@@ -418,6 +418,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(parse("account")[0]).not.toHaveProperty("password");
     expect(parse("exercise_catalog_mutation")[0]).not.toHaveProperty("fingerprint");
     expect(all).not.toContain("d".repeat(64));
+    expect(all).not.toContain("signup-token-hash-");
     expect(all).not.toContain("c".repeat(64));
     expect(all).not.toContain("e".repeat(64));
     expect(exported.manifest.redacted.map((r) => r.table).sort()).toEqual([
@@ -429,6 +430,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "nutrition_template_revision",
       "push_device",
       "session",
+      "sign_up_request",
       "telegram_connect_token",
       "wearable_connection",
       "wearable_oauth_state",
