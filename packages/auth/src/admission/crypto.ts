@@ -16,6 +16,8 @@ export const SETUP_DOMAIN = "openvalens:admission:setup:";
 export const INVITATION_DOMAIN = "openvalens:admission:invitation:";
 export const CODE_DOMAIN = "openvalens:admission:code:";
 export const EMAIL_LOCK_DOMAIN = "openvalens:admission:email:";
+/** Issue #294 — public sign-up link tokens (Cloud only). */
+export const SIGN_UP_DOMAIN = "openvalens:admission:sign-up:";
 
 /** 32 CSPRNG bytes → base64url, 256 bits of entropy. */
 export function generateSetupSecret(): string {
@@ -46,6 +48,15 @@ export function hashInvitationSecret(secret: string): string {
 
 export function hashProofCode(code: string): string {
   return sha256Hex(CODE_DOMAIN + code);
+}
+
+/** 32 CSPRNG bytes → base64url, 256 bits of entropy. */
+export function generateSignUpSecret(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+export function hashSignUpSecret(secret: string): string {
+  return sha256Hex(SIGN_UP_DOMAIN + secret);
 }
 
 const HASH_PATTERN = /^[0-9a-f]{64}$/;

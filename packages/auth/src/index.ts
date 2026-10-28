@@ -27,6 +27,7 @@ import {
 import { sendAuthMagicLink } from "./magic-link";
 import type { OidcProviderConfig } from "./oidc/config";
 import { createGenericOidcPlugin } from "./providers/generic-oidc";
+import { publicSignUpPlugin, type PublicSignUpPluginOptions } from "./public-sign-up-plugin";
 
 const logger = createStructuredLogger({ level: "info" });
 
@@ -86,6 +87,12 @@ export type CreateAuthOptions = {
    * from `email`, `locales` and `CORS_ORIGIN`.
    */
   invitationEmails?: WorkspaceInvitationEmails;
+  /**
+   * Issue #294 — Cloud public sign-up. The admission core's
+   * `completePublicSignUp`, served behind the emailed sign-up link. Omitted or
+   * `null` (every self-hosted deployment) mounts no sign-up endpoint at all.
+   */
+  publicSignUp?: Pick<PublicSignUpPluginOptions, "completePublicSignUp"> | null;
 };
 
 /**
@@ -127,6 +134,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
   const email = options.email;
   const devLinkSink = devMagicLinkSink(env);
   const oidc = options.oidc ?? null;
+  const publicSignUp = options.publicSignUp ?? null;
   const locales = options.locales ?? databaseMessageLocales(database);
   const invitationEmails =
     options.invitationEmails ??
@@ -378,6 +386,17 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
       }),
       expo(),
       ...(oidc ? [createGenericOidcPlugin(oidc)] : []),
+      // Issue #294 — Cloud only. The sign-up link endpoint hands the token to
+      // the admission core, which creates the account; this plugin only starts
+      // the session afterwards. No Better Auth create path is opened.
+      ...(publicSignUp
+        ? [
+            publicSignUpPlugin({
+              completePublicSignUp: publicSignUp.completePublicSignUp,
+              webOrigin: env.CORS_ORIGIN,
+            }),
+          ]
+        : []),
       magicLink({
         // Issue #63 — a magic link may sign in an existing account but must
         // never provision a new one; admission owns account creation.

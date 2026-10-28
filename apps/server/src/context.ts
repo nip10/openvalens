@@ -13,6 +13,7 @@ import {
   auth,
   capabilities,
   db,
+  deploymentConfig,
   email,
   exerciseCatalogAssetsEnabled,
   getExerciseCatalogAssetService,
@@ -21,9 +22,11 @@ import {
   integrations,
   invitationEmails,
   productSettingsService,
+  publicSignUpService,
   pushProvider,
   storageService,
   signInOptions,
+  signUpRateLimiter,
   telegramBotUsername,
   telegramClient,
   telegramConfig,
@@ -93,6 +96,10 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     admissionService,
     analytics: analyticsService,
     admissionRateLimiter,
+    // Issue #294 — deployment mode, Cloud public sign-up and its limiter.
+    deployment: deploymentConfig,
+    publicSignUp: publicSignUpService,
+    signUpRateLimiter,
     // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
     storage: storageService,
     ...(exerciseCatalogAssetsEnabled

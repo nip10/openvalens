@@ -65,6 +65,23 @@ export class InMemoryRateLimiter {
     return { allowed: true };
   }
 
+  /**
+   * Drops every key with no hit inside the current window. A limiter keyed by
+   * caller-controlled values (an IP, an email digest) calls this periodically
+   * so its memory stays bounded by recent traffic, not by every key ever seen.
+   */
+  sweep(): void {
+    const cutoff = this.now() - this.windowMs;
+    for (const [key, hits] of this.hits) {
+      if (hits.length === 0 || (hits.at(-1) as number) <= cutoff) this.hits.delete(key);
+    }
+  }
+
+  /** Number of keys currently tracked (for tests and bounded-memory checks). */
+  get size(): number {
+    return this.hits.size;
+  }
+
   /** Clears state for one key, or all keys when `key` is omitted. */
   reset(key?: string): void {
     if (typeof key === "undefined") {

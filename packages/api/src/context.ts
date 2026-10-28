@@ -1,5 +1,6 @@
 import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
-import type { AdmissionService } from "@openvalens/auth/admission";
+import type { AdmissionService, PublicSignUpService } from "@openvalens/auth/admission";
+import type { DeploymentConfig } from "@openvalens/auth/deployment";
 import type { WorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import type { Session } from "@openvalens/auth";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
@@ -16,6 +17,7 @@ import type { AnalyticsService } from "./contracts/analytics";
 import type { FoodDraftService } from "./food-drafts";
 import type { ProductSettingsService } from "./product-settings";
 import type { RecipeImportService } from "./recipe-import/service";
+import type { SignUpRateLimiter } from "./sign-up";
 
 /**
  * Structural view of the inbound request that the authz guards need.
@@ -192,6 +194,19 @@ export type Context = {
    * names. The server owns the instance.
    */
   admissionRateLimiter?: InMemoryRateLimiter;
+  /**
+   * Issue #294 — validated deployment settings (`DEPLOYMENT_MODE` and, in
+   * Cloud, the legal document versions). Absent means `self-hosted`.
+   */
+  deployment?: DeploymentConfig;
+  /**
+   * Issue #294 — Cloud public sign-up, from the admission core. Sign-up
+   * procedures answer `NOT_FOUND` unless the deployment is Cloud and this is
+   * enabled.
+   */
+  publicSignUp?: PublicSignUpService;
+  /** Issue #294 — per-IP and per-email limiter for sign-up requests. */
+  signUpRateLimiter?: SignUpRateLimiter;
   /**
    * Issue #65 — public, value-free sign-in options the server derives from its
    * OIDC config: the provider id and button label, or `null` when OIDC is off.
