@@ -1,7 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 mock.module("expo-crypto", () => ({ randomUUID: () => "33333333-3333-4333-8333-333333333333" }));
-import { createWorkoutSyncEngine } from "./engine";
 import type { WorkoutQueueItem } from "./sync";
+// Loaded after the expo-crypto mock: the real module pulls in React Native, which Bun cannot parse.
+const { createWorkoutSyncEngine } = await import("./engine");
 
 const idA = "11111111-1111-4111-8111-111111111111";
 const payload = (id: string) => ({
