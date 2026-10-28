@@ -29,7 +29,9 @@ export function signUpLinkErrorMessage(reason: SignUpLinkError): MessageDescript
     case "expired":
       return msg`That sign-up link has expired. Enter your email to get a new one.`;
     case "used":
-      return msg`That sign-up link was already used. If your account exists, sign in instead.`;
+      // An email scanner may open the link before the person does, so a used
+      // link usually means the account was created: point them at sign-in.
+      return msg`That sign-up link was already used, so your account exists. Sign in with your email instead.`;
     case "invalid":
       return msg`That sign-up link is not valid. Enter your email to get a new one.`;
   }

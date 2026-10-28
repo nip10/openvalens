@@ -110,7 +110,18 @@ export default function SignUpForm({
           </p>
         </div>
 
-        {linkError ? <ErrorState title={i18n._(signUpLinkErrorMessage(linkError))} /> : null}
+        {linkError ? (
+          <ErrorState
+            title={i18n._(signUpLinkErrorMessage(linkError))}
+            action={
+              linkError === "used" ? (
+                <a href="/login" className={linkClass}>
+                  <Trans>Sign in</Trans>
+                </a>
+              ) : undefined
+            }
+          />
+        ) : null}
         {requestError ? (
           <ErrorState title={i18n._(signUpRequestErrorMessage(requestError))} />
         ) : null}

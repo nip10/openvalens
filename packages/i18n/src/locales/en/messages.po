@@ -10576,6 +10576,7 @@ msgstr "Side"
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/index.tsx
 #: packages/email/src/templates/magic-link.tsx
 msgid "Sign in"
@@ -11383,8 +11384,8 @@ msgid "That sign-up link is not valid. Enter your email to get a new one."
 msgstr "That sign-up link is not valid. Enter your email to get a new one."
 
 #: apps/web/src/utils/sign-up.ts
-msgid "That sign-up link was already used. If your account exists, sign in instead."
-msgstr "That sign-up link was already used. If your account exists, sign in instead."
+msgid "That sign-up link was already used, so your account exists. Sign in with your email instead."
+msgstr "That sign-up link was already used, so your account exists. Sign in with your email instead."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "That time does not exist on this date in your time zone. Choose another time."

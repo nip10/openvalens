@@ -45,6 +45,21 @@ describe("SignUpForm", () => {
       renderToStaticMarkup(
         <SignUpForm terms={terms} privacy={privacy} linkError="used" onSubmit={async () => {}} />,
       ),
-    ).toInclude("already used");
+    ).toInclude("your account exists");
+    const used = renderToStaticMarkup(
+      <SignUpForm terms={terms} privacy={privacy} linkError="used" onSubmit={async () => {}} />,
+    );
+    // The used-link notice links to sign-in (in addition to the footer link).
+    expect(used.split('href="/login"').length - 1).toBe(2);
+    expect(
+      renderToStaticMarkup(
+        <SignUpForm
+          terms={terms}
+          privacy={privacy}
+          linkError="expired"
+          onSubmit={async () => {}}
+        />,
+      ).split('href="/login"').length - 1,
+    ).toBe(1);
   });
 });
