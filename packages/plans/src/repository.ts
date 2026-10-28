@@ -182,8 +182,7 @@ export function createPlansRepository(db: Database) {
         return { id: input.id, created: false };
       }
 
-      const insertValues: Supplement = {
-        id: 0,
+      const insertValues: Omit<Supplement, "id"> = {
         name: input.name,
         dose: input.dose,
         form: input.form ?? null,
@@ -297,8 +296,7 @@ export function createPlansRepository(db: Database) {
         return { id: input.id, created: false };
       }
 
-      const insertValues: Medication = {
-        id: 0,
+      const insertValues: Omit<Medication, "id"> = {
         organizationId,
         userId: input.userId,
         name: input.name,
@@ -377,8 +375,7 @@ export function createPlansRepository(db: Database) {
         return { id: input.id, created: false };
       }
 
-      const insertValues: SupplementSchedule = {
-        id: 0,
+      const insertValues: Omit<SupplementSchedule, "id"> = {
         organizationId: input.organizationId,
         userId: input.userId,
         supplementId: input.supplementId,

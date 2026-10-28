@@ -1,0 +1,25 @@
+{
+  "name": "@openvalens/demo-seed",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "check-types": "tsc -b ../api && tsc --noEmit"
+  },
+  "dependencies": {
+    "@openvalens/api": "workspace:*",
+    "@openvalens/auth": "workspace:*",
+    "@openvalens/db": "workspace:*",
+    "@orpc/server": "catalog:",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@openvalens/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "typescript": "^6.0.3"
+  }
+}
