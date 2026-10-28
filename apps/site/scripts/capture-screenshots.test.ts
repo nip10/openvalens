@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { HIDE_DEVTOOLS_CSS, loopbackBaseUrl, SHOTS } from "./capture-screenshots";
+import { HIDE_DEVTOOLS_CSS, loopbackBaseUrl, sessionSource, SHOTS } from "./capture-screenshots";
 
 describe("loopbackBaseUrl", () => {
   test.each(["http://localhost:3001", "http://127.0.0.1:3001/", "https://[::1]:8443"])(
@@ -16,6 +16,34 @@ describe("loopbackBaseUrl", () => {
       expect(() => loopbackBaseUrl(value)).toThrow();
     },
   );
+});
+
+describe("sessionSource", () => {
+  test("prefers a loopback dev magic link", () => {
+    const source = sessionSource({
+      SITE_SCREENSHOT_MAGIC_LINK: "http://localhost:3000/api/auth/magic-link/verify?token=x",
+      SITE_SCREENSHOT_STORAGE_STATE: "/tmp/state.json",
+    });
+    expect(source.kind).toBe("magic-link");
+  });
+
+  test("falls back to a storage-state file", () => {
+    expect(sessionSource({ SITE_SCREENSHOT_STORAGE_STATE: "/tmp/state.json" })).toEqual({
+      kind: "storage-state",
+      path: "/tmp/state.json",
+    });
+  });
+
+  test.each(["https://health.example.org/api/auth/magic-link/verify?token=x", "not a url"])(
+    "refuses the magic link %p",
+    (link) => {
+      expect(() => sessionSource({ SITE_SCREENSHOT_MAGIC_LINK: link })).toThrow();
+    },
+  );
+
+  test("requires one of the two", () => {
+    expect(() => sessionSource({})).toThrow();
+  });
 });
 
 describe("SHOTS", () => {

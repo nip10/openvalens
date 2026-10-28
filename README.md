@@ -274,9 +274,11 @@ banned-wording list and the stated limits in CI.
 
 Screenshots must come from synthetic data only. The ones in
 `apps/site/src/screenshots` were captured from a local, disposable instance
-whose only account is a synthetic demo account;
-`apps/site/scripts/capture-screenshots.ts` documents how to recapture them (a
-deterministic demo seed does not exist yet).
+whose only account is a synthetic demo account. `bun run demo:seed` creates
+that account (Alex Morgan, about 90 days of synthetic data in every module)
+deterministically in a disposable `openvalens_demo` database; see
+[`packages/demo-seed`](packages/demo-seed/README.md).
+`apps/site/scripts/capture-screenshots.ts` documents how to recapture them.
 
 `apps/site/Dockerfile` serves the built site with nginx and the same headers. Set `SITE_APP_URL` to the web app's origin (for example `https://app.openvalens.com`): any path the site does not have is redirected there, so old app links and emailed sign-in links keep working after the app moves to its own subdomain.
 

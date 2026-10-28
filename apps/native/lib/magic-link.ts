@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 
 import { authClient } from "@/lib/auth-client";
 import { installVerifiedSessionCookie } from "@/lib/auth-session-storage";
-import { ENV } from "@/src/env";
+import { requireServerUrl } from "@/lib/server/server-url";
 
 const PENDING_KEY = "openvalens.magic-link.pending.v1";
 const PENDING_WINDOW_MS = 10 * 60 * 1000;
@@ -151,7 +151,7 @@ async function verifyCandidateSession(cookie: {
 }): Promise<VerifiedSession | null> {
   const endpoint = new URL(
     "/api/auth/get-session?disableCookieCache=true&disableRefresh=true",
-    ENV.EXPO_PUBLIC_SERVER_URL,
+    await requireServerUrl(),
   );
   const response = await fetch(endpoint.toString(), {
     method: "GET",

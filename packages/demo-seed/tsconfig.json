@@ -1,0 +1,8 @@
+{
+  "extends": "@openvalens/config/tsconfig.base.json",
+  "references": [{ "path": "../api" }],
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"]
+}

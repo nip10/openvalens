@@ -7,7 +7,7 @@ import * as Linking from "expo-linking";
 import { Stack } from "expo-router";
 import { HeroUINativeProvider, useToast } from "heroui-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef, type ReactNode } from "react";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { BloomFonts, DISPLAY_FONT } from "@/components/fonts";
@@ -16,13 +16,16 @@ import {
   installForegroundNotificationHandler,
   PushNotificationLifecycle,
 } from "@/components/push-notification-lifecycle";
+import { ServerChoice } from "@/components/server-choice";
 import { AppThemeProvider } from "@/contexts/app-theme-context";
 import { DisplayPreferencesProvider } from "@/lib/display-preferences";
 import { AppI18nProvider } from "@/lib/i18n/provider";
+import { getAuthClient } from "@/lib/auth-client";
 import { initErrorReporting } from "@/lib/error-reporting";
 // Defines the background sync task on every launch, including headless ones.
 import "@/lib/health-sync/scheduler";
 import { acceptMagicLinkUrl } from "@/lib/magic-link";
+import { useServer } from "@/lib/server/server-url";
 import { queryClient } from "@/utils/orpc";
 
 // Issue #54 — optional, PHI-scrubbed error reporting; off without a DSN.
@@ -66,6 +69,21 @@ function MagicLinkLifecycle() {
   return null;
 }
 
+/**
+ * Issue #295 — nothing that talks to a server renders before one is chosen.
+ * Keyed on the server, so a switch remounts every screen and hook against
+ * the new one.
+ */
+function ServerGate({ children }: { children: ReactNode }) {
+  const server = useServer();
+  if (server.status === "loading") return null;
+  if (server.status === "unset") return <ServerChoice />;
+  // Create the auth client up front: a magic link that cold-starts the app
+  // installs its session into this client's store.
+  getAuthClient();
+  return <Fragment key={server.url}>{children}</Fragment>;
+}
+
 function StackLayout() {
   const { t } = useLingui();
   return (
@@ -90,12 +108,14 @@ export default function Layout() {
             <KeyboardProvider>
               <AppThemeProvider>
                 <HeroUINativeProvider>
-                  <MagicLinkLifecycle />
-                  <LocaleSync />
                   <BloomFonts>
-                    <StackLayout />
+                    <ServerGate>
+                      <MagicLinkLifecycle />
+                      <LocaleSync />
+                      <StackLayout />
+                      <PushNotificationLifecycle />
+                    </ServerGate>
                   </BloomFonts>
-                  <PushNotificationLifecycle />
                 </HeroUINativeProvider>
               </AppThemeProvider>
             </KeyboardProvider>

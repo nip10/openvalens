@@ -129,7 +129,7 @@ if (mountedMode) {
   mock.module("@/lib/auth-client", () => ({
     authClient: { useSession: () => ({ data: currentSession, isPending: false }) },
   }));
-  mock.module("@/src/env", () => ({ ENV: { EXPO_PUBLIC_SERVER_URL: "http://localhost:3000" } }));
+  mock.module("@/lib/server/server-url", () => ({ getServerUrl: () => "http://localhost:3000" }));
   const queryOptions =
     (label: string) =>
     ({ input }: { input: unknown }) => ({ queryKey: [label, input] });

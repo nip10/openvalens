@@ -44,8 +44,8 @@ it for a real installation.
   route to the internet. The server also joins `app` because it needs outbound
   access to email/AI providers.
 - Web and API share **one origin** (`https://<domain>`): Caddy routes `/api/*`,
-  `/rpc/*` and `/api-reference/*` to the server and everything else to the web
-  app.
+  `/rpc/*`, `/api-reference/*` and `/.well-known/openvalens` (the server check
+  the mobile app reads) to the server and everything else to the web app.
 - `<version>` is `git describe --tags --always --dirty` of your checkout (a
   commit hash until a release is tagged). Images are built from your checkout;
   published registry images are tracked separately (#129).

@@ -4,21 +4,33 @@
  * (Issue #66).
  *
  * Screenshots must only ever show synthetic data. Run this against a
- * disposable local instance whose only account is a synthetic demo account
- * (made-up name and email, synthetic records) — never against an instance that
- * holds anyone's real records. A `seed:demo` fixture that creates that account
- * deterministically does not exist yet, so the account is prepared by hand.
+ * disposable local instance seeded with the synthetic demo account (Issue
+ * #301) — never against an instance that holds anyone's real records:
  *
- * Playwright is not a dependency of this repository. Install it for the run:
+ *   # 1. Seed a disposable database (it is reset on every run).
+ *   DEMO_DATABASE_URL=postgres://postgres:pw@127.0.0.1:5432/openvalens_demo \
+ *     bun run demo:seed --today "$(date -u +%F)"
  *
+ *   # 2. Run the server against it with the dev magic-link sink, and the web app.
+ *   DATABASE_URL=postgres://postgres:pw@127.0.0.1:5432/openvalens_demo \
+ *   NODE_ENV=development EMAIL_DRY_RUN=true AUTH_DEV_MAGIC_LINK_CONSOLE=true \
+ *     bun run dev:server
+ *   bun run dev:web
+ *
+ *   # 3. Ask for a sign-in link for alex.morgan@example.com on /login; the
+ *   #    server prints it (Varlock masks the BETTER_AUTH_URL origin in console
+ *   #    output: put it back). Capture with that link (it is single-use).
  *   bun add --no-save playwright && bunx playwright install chromium
  *   SITE_SCREENSHOT_BASE_URL=http://localhost:3001 \
- *   SITE_SCREENSHOT_STORAGE_STATE=/path/to/demo-session.json \
+ *   SITE_SCREENSHOT_MAGIC_LINK='http://localhost:3000/api/auth/magic-link/verify?token=…' \
  *     bun run --cwd apps/site screenshots
  *
- * `SITE_SCREENSHOT_STORAGE_STATE` is a Playwright storage-state file saved
- * after signing the synthetic account in (`page.context().storageState()`).
- * Keep it out of the repository. Only loopback base URLs are accepted.
+ * Playwright is not a dependency of this repository, hence the `--no-save`
+ * install. Instead of a magic link, `SITE_SCREENSHOT_STORAGE_STATE` may name a
+ * Playwright storage-state file saved after signing the demo account in
+ * (`page.context().storageState()`); keep it out of the repository. Only
+ * loopback URLs are accepted. Seeding with today's date matters because the
+ * app reads the real clock to decide what "today" and "this week" are.
  *
  * Writes `src/screenshots/<name>.webp` for every entry in {@link SHOTS}, at
  * twice the CSS pixel size. Each capture is taken as PNG and converted with
@@ -76,6 +88,34 @@ export function loopbackBaseUrl(value: string | undefined): URL {
   return url;
 }
 
+export type SessionSource =
+  | { kind: "storage-state"; path: string }
+  | { kind: "magic-link"; url: URL };
+
+/**
+ * How the demo account is signed in: a dev magic link printed by the local
+ * server, or a saved storage-state file. A magic link must be on a loopback
+ * host too, so it can only sign in to a local instance.
+ */
+export function sessionSource(env: Record<string, string | undefined>): SessionSource {
+  const link = env.SITE_SCREENSHOT_MAGIC_LINK;
+  if (link) {
+    let url: URL;
+    try {
+      url = new URL(link);
+    } catch {
+      throw new Error("SITE_SCREENSHOT_MAGIC_LINK must be an absolute http(s) URL");
+    }
+    if (!["http:", "https:"].includes(url.protocol) || !LOOPBACK_HOSTS.has(url.hostname)) {
+      throw new Error("SITE_SCREENSHOT_MAGIC_LINK must point at a local, disposable instance");
+    }
+    return { kind: "magic-link", url };
+  }
+  const path = env.SITE_SCREENSHOT_STORAGE_STATE;
+  if (path) return { kind: "storage-state", path };
+  throw new Error("Set SITE_SCREENSHOT_MAGIC_LINK or SITE_SCREENSHOT_STORAGE_STATE");
+}
+
 type Page = {
   goto(url: string, options: object): Promise<unknown>;
   addStyleTag(options: { content: string }): Promise<unknown>;
@@ -85,15 +125,32 @@ type Page = {
   close(): Promise<void>;
 };
 
-type Browser = {
-  newContext(options: object): Promise<{ newPage(): Promise<Page>; close(): Promise<void> }>;
+type Context = {
+  newPage(): Promise<Page>;
+  storageState(): Promise<object>;
   close(): Promise<void>;
 };
 
+type Browser = {
+  newContext(options: object): Promise<Context>;
+  close(): Promise<void>;
+};
+
+/** Opens the magic link once and keeps the signed-in cookies for every shot. */
+async function signInWithMagicLink(browser: Browser, url: URL): Promise<object> {
+  const context = await browser.newContext({});
+  try {
+    const page = await context.newPage();
+    await page.goto(url.href, { waitUntil: "networkidle" });
+    return await context.storageState();
+  } finally {
+    await context.close();
+  }
+}
+
 if (import.meta.main) {
   const baseUrl = loopbackBaseUrl(process.env.SITE_SCREENSHOT_BASE_URL);
-  const storageState = process.env.SITE_SCREENSHOT_STORAGE_STATE;
-  if (!storageState) throw new Error("SITE_SCREENSHOT_STORAGE_STATE is required");
+  const source = sessionSource(process.env);
   const outDir = join(import.meta.dir, "..", "src", "screenshots");
   const cwebp = Bun.which("cwebp");
   if (!cwebp) console.warn("cwebp is not on the PATH: keeping PNG files");
@@ -105,6 +162,8 @@ if (import.meta.main) {
   };
   const browser = await chromium.launch();
   try {
+    const storageState =
+      source.kind === "magic-link" ? await signInWithMagicLink(browser, source.url) : source.path;
     for (const shot of SHOTS) {
       const context = await browser.newContext({
         storageState,

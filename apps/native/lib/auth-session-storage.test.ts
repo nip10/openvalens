@@ -6,5 +6,5 @@ test("coordinated Better Auth Expo storage scenarios", async () => {
   const output = await runIsolatedHarness(
     `${import.meta.dir}/test-harness/auth-session-storage.mts`,
   );
-  expect(output).toMatch(/7 pass\s+0 fail/);
+  expect(output).toMatch(/9 pass\s+0 fail/);
 });

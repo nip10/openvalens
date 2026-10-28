@@ -83,7 +83,9 @@ mock.module("@/lib/auth-client", () => ({
     $store: { notify: () => (notifications += 1) },
   },
 }));
-mock.module("@/src/env", () => ({ ENV: { EXPO_PUBLIC_SERVER_URL: "https://server.example" } }));
+mock.module("@/lib/server/server-url", () => ({
+  requireServerUrl: async () => "https://server.example",
+}));
 
 const { acceptMagicLinkUrl, cancelPendingMagicLink, requestMagicLink } =
   await import("../magic-link");

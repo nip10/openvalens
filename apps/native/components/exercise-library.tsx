@@ -12,7 +12,7 @@ import { ExerciseAttribution, TranslationAttribution } from "@/components/exerci
 import { MuscleGuide } from "@/components/muscle-guide";
 import { WorkoutExerciseHistory } from "@/components/workout-history";
 import { authClient } from "@/lib/auth-client";
-import { ENV } from "@/src/env";
+import { getServerUrl } from "@/lib/server/server-url";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { workoutTypeLabel } from "@openvalens/api/presenters/workouts";
@@ -174,7 +174,7 @@ export function ExerciseMediaGallery({
     );
   const urls = assets.map((asset) => ({
     asset,
-    url: previewUrl(asset, ENV.EXPO_PUBLIC_SERVER_URL, browserOrigin),
+    url: previewUrl(asset, getServerUrl() ?? "", browserOrigin),
   }));
   return (
     <View className="gap-4" accessibilityLabel={t`${exerciseName} previews`}>

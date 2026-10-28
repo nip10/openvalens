@@ -83,6 +83,7 @@ SUITES=(
   "EXERCISE_CATALOG_TEST_DATABASE_URL|exercise_catalog_test|apps/server/src/services/exercise-catalog.integration.test.ts"
   "EXERCISE_CATALOG_API_TEST_DATABASE_URL|exercise_catalog_api_test|packages/api/src/services/exercise-catalog.integration.test.ts"
   "FOOD_CATALOG_CLI_TEST_DATABASE_URL|food_catalog_cli_test|scripts/food-catalog-import.integration.test.ts"
+  "DEMO_SEED_TEST_DATABASE_URL|openvalens_demo_test|packages/demo-seed/src/demo-seed.integration.test.ts"
 )
 
 reset_db() {

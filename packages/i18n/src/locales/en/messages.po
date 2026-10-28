@@ -501,6 +501,22 @@ msgstr "{granted} of {total} data types"
 msgid "{granted} of {total} data types, background access off"
 msgstr "{granted} of {total} data types, background access off"
 
+#: apps/native/components/server-choice.tsx
+msgid "{host} does not use HTTPS"
+msgstr "{host} does not use HTTPS"
+
+#: apps/native/components/server-choice.tsx
+msgid "{host} is not an OpenValens server"
+msgstr "{host} is not an OpenValens server"
+
+#: apps/native/components/server-choice.tsx
+msgid "{host} runs OpenValens {version}, which needs a newer version of this app. Update it from your app store."
+msgstr "{host} runs OpenValens {version}, which needs a newer version of this app. Update it from your app store."
+
+#: apps/native/components/server-choice.tsx
+msgid "{host} runs OpenValens {version}, which this app no longer supports. Ask the server's administrator to update it."
+msgstr "{host} runs OpenValens {version}, which this app no longer supports. Ask the server's administrator to update it."
+
 #. Hours ago, abbreviated
 #: packages/api/src/presenters/cochat.ts
 msgid "{hr}h ago"
@@ -709,6 +725,10 @@ msgstr "{needs_attention, plural, one {# needs attention} other {# need attentio
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "{nutrient, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Nutrient}} targets must be 0 or more, or left blank."
 msgstr "{nutrient, select, energyKcal {Energy} energyKj {Energy} proteinG {Protein} carbohydrateG {Carbohydrate} fatG {Fat} saturatedFatG {Saturated fat} fiberG {Fibre} totalSugarsG {Total sugars} addedSugarsG {Added sugars} freeSugarsG {Free sugars} sodiumMg {Sodium} saltG {Salt} other {Nutrient}} targets must be 0 or more, or left blank."
+
+#: apps/native/components/change-server.tsx
+msgid "{pending, plural, one {# change has not reached} other {# changes have not reached}} {host} yet. Changing server signs you out and deletes them from this phone."
+msgstr "{pending, plural, one {# change has not reached} other {# changes have not reached}} {host} yet. Changing server signs you out and deletes them from this phone."
 
 #: packages/api/src/presenters/score.ts
 msgid "{percent}% above your usual"
@@ -1650,6 +1670,10 @@ msgstr "An individual decision. Talk to your clinician about whether it is right
 msgid "An open-source, private health record."
 msgstr "An open-source, private health record."
 
+#: apps/native/components/server-choice.tsx
+msgid "An OpenValens server you or your organization runs."
+msgstr "An OpenValens server you or your organization runs."
+
 #. safety
 #. safety
 #: apps/native/components/analytics-consent-section.tsx
@@ -2164,6 +2188,7 @@ msgstr "Canada"
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/ai-section.tsx
+#: apps/native/components/change-server.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
@@ -2255,6 +2280,15 @@ msgstr "Change in {source}"
 msgid "Change paste"
 msgstr "Change paste"
 
+#: apps/native/components/change-server.tsx
+#: apps/native/components/sign-in.tsx
+msgid "Change server"
+msgstr "Change server"
+
+#: apps/native/components/change-server.tsx
+msgid "Change server?"
+msgstr "Change server?"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Change the amount or the time, then save."
 msgstr "Change the amount or the time, then save."
@@ -2275,6 +2309,10 @@ msgstr "Changes apply to new entries. Meals you already logged keep the values t
 #: packages/api/src/presenters/insights.ts
 msgid "Changes compared with your usual"
 msgstr "Changes compared with your usual"
+
+#: apps/native/components/change-server.tsx
+msgid "Changes not sent to {host}"
+msgstr "Changes not sent to {host}"
 
 #. safety
 #. safety
@@ -2304,6 +2342,14 @@ msgstr "Check"
 msgid "Check each item, fix anything misheard, then find the matching food in your diary and confirm it there. Quantities you did not say stay empty."
 msgstr "Check each item, fix anything misheard, then find the matching food in your diary and confirm it there. Quantities you did not say stay empty."
 
+#: apps/native/components/server-choice.tsx
+msgid "Check the address and your network, then try again."
+msgstr "Check the address and your network, then try again."
+
+#: apps/native/components/server-choice.tsx
+msgid "Check the address. If it is right, the server may need an update."
+msgstr "Check the address. If it is right, the server may need an update."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Check the email and token, then try again."
 msgstr "Check the email and token, then try again."
@@ -2329,6 +2375,10 @@ msgstr "Check your connection, then reload the page."
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Check your email"
 msgstr "Check your email"
+
+#: apps/native/components/sign-in.tsx
+msgid "Checking {host}…"
+msgstr "Checking {host}…"
 
 #: apps/native/app/(drawer)/index.tsx
 msgid "Checking connection..."
@@ -2712,6 +2762,7 @@ msgstr "Confirm your email to create your OpenValens account."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: apps/native/components/server-choice.tsx
 #: apps/web/src/components/oidc-connect-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
@@ -2812,6 +2863,7 @@ msgstr "Continue to OpenValens as <0>{email}</0>."
 msgid "Continue to your setup"
 msgstr "Continue to your setup"
 
+#: apps/native/components/sign-in.tsx
 #: apps/web/src/components/oidc-sign-in-button.tsx
 msgid "Continue with {displayName}"
 msgstr "Continue with {displayName}"
@@ -2912,6 +2964,10 @@ msgstr "Could not accept the invitation."
 #: apps/web/src/utils/session-bootstrap.ts
 msgid "Could not activate your workspace. Please try again."
 msgstr "Could not activate your workspace. Please try again."
+
+#: apps/native/components/change-server.tsx
+msgid "Could not change server. Your data on this phone was kept. Try again."
+msgstr "Could not change server. Your data on this phone was kept. Try again."
 
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Could not check this setting."
@@ -3383,6 +3439,10 @@ msgstr "Could not make a draft. Nothing was saved."
 msgid "Could not prepare your workspace. Please try again."
 msgstr "Could not prepare your workspace. Please try again."
 
+#: apps/native/components/server-choice.tsx
+msgid "Could not reach {host}"
+msgstr "Could not reach {host}"
+
 #: apps/web/src/utils/sign-up.ts
 msgid "Could not reach the server. Check your connection and try again."
 msgstr "Could not reach the server. Check your connection and try again."
@@ -3431,6 +3491,10 @@ msgstr "Could not save routine"
 #: apps/web/src/components/workout-routines.tsx
 msgid "Could not save the routine. Your finished workout is unchanged."
 msgstr "Could not save the routine. Your finished workout is unchanged."
+
+#: apps/native/components/server-choice.tsx
+msgid "Could not save the server"
+msgstr "Could not save the server"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Could not save this change on this device. Nothing was sent."
@@ -3567,6 +3631,7 @@ msgstr "Could not start a conversation. Check that AI is enabled in Settings."
 msgid "Could not start connecting. Try again."
 msgstr "Could not start connecting. Try again."
 
+#: apps/native/components/sign-in.tsx
 #: apps/web/src/components/oidc-sign-in-button.tsx
 msgid "Could not start sign-in with {displayName}. Please try again."
 msgstr "Could not start sign-in with {displayName}. Please try again."
@@ -3659,6 +3724,10 @@ msgstr "Coverage"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Create a workout first, then return here to add an exercise."
 msgstr "Create a workout first, then return here to add an exercise."
+
+#: apps/native/components/sign-in.tsx
+msgid "Create an account"
+msgstr "Create an account"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -3924,6 +3993,10 @@ msgstr "Delete account"
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Delete account and all data"
 msgstr "Delete account and all data"
+
+#: apps/native/components/change-server.tsx
+msgid "Delete and change server"
+msgstr "Delete and change server"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: packages/api/src/presenters/plain-water.ts
@@ -4609,6 +4682,10 @@ msgstr "Enter the token again to continue enrollment as <0>{0}</0>."
 msgid "Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero."
 msgstr "Enter values from the label. Leave anything you do not know blank; it is shown as unknown, not zero."
 
+#: apps/native/components/server-choice.tsx
+msgid "Enter your server's address"
+msgstr "Enter your server's address"
+
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: packages/api/src/presenters/custom-foods.ts
@@ -5055,6 +5132,10 @@ msgstr "For {sex, select, female {women} male {men} other {adults}} aged {minAge
 #: packages/api/src/presenters/preventive-care.ts
 msgid "For {sex, select, female {women} male {men} other {adults}} aged {minAge} to {maxAge}"
 msgstr "For {sex, select, female {women} male {men} other {adults}} aged {minAge} to {maxAge}"
+
+#: apps/native/components/server-choice.tsx
+msgid "For example https://health.example.org."
+msgstr "For example https://health.example.org."
 
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/components/onboarding/steps.tsx
@@ -5503,6 +5584,10 @@ msgstr "Hormonal contraception or no natural cycle"
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "Hormonal contraception or no natural cycle (turns estimates off)"
 msgstr "Hormonal contraception or no natural cycle (turns estimates off)"
+
+#: apps/native/components/server-choice.tsx
+msgid "Hosted for you at {cloudHost}."
+msgstr "Hosted for you at {cloudHost}."
 
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/score.ts
@@ -7082,6 +7167,10 @@ msgstr "My food"
 msgid "My foods"
 msgstr "My foods"
 
+#: apps/native/components/server-choice.tsx
+msgid "My own server"
+msgstr "My own server"
+
 #: apps/native/components/onboarding/steps.tsx
 msgid "My phone's health app"
 msgstr "My phone's health app"
@@ -8343,6 +8432,14 @@ msgstr "Opens {sourceName} permissions"
 msgid "Opens the date picker"
 msgstr "Opens the date picker"
 
+#: apps/native/components/sign-in.tsx
+msgid "Opens the sign-up page in your browser"
+msgstr "Opens the sign-up page in your browser"
+
+#: apps/native/components/server-choice.tsx
+msgid "OpenValens Cloud"
+msgstr "OpenValens Cloud"
+
 #: apps/web/src/components/header.tsx
 msgid "OpenValens home"
 msgstr "OpenValens home"
@@ -9563,6 +9660,7 @@ msgstr "Resume workout"
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
+#: apps/native/components/sign-in.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
@@ -10301,6 +10399,14 @@ msgstr "Sending…"
 msgid "Sensitive"
 msgstr "Sensitive"
 
+#: apps/native/components/change-server.tsx
+msgid "Server"
+msgstr "Server"
+
+#: apps/native/components/server-choice.tsx
+msgid "Server address"
+msgstr "Server address"
+
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Server checklist"
 msgstr "Server checklist"
@@ -10404,6 +10510,10 @@ msgstr "Set targets, directions and priorities for your goals under <0>Workouts<
 #: apps/native/app/(drawer)/scores.tsx
 msgid "Set targets, directions and priorities for your goals under Workouts."
 msgstr "Set targets, directions and priorities for your goals under Workouts."
+
+#: apps/native/components/change-server.tsx
+msgid "Set when this app was built"
+msgstr "Set when this app was built"
 
 #: apps/native/components/workout-routines.tsx
 msgid "sets"
@@ -10684,6 +10794,18 @@ msgstr "Signed in as {email}. Enter the token again to continue enrollment."
 msgid "Signed in as <0>{sessionEmail}</0>."
 msgstr "Signed in as <0>{sessionEmail}</0>."
 
+#: apps/native/components/sign-in.tsx
+msgid "Signing in to {host}"
+msgstr "Signing in to {host}"
+
+#: apps/native/components/change-server.tsx
+msgid "Signs you out and removes this server's data from this phone"
+msgstr "Signs you out and removes this server's data from this phone"
+
+#: apps/native/components/change-server.tsx
+msgid "Signs you out of {host}"
+msgstr "Signs you out of {host}"
+
 #: apps/web/src/components/magic-link-form.tsx
 msgid "single sign-on"
 msgstr "single sign-on"
@@ -10765,6 +10887,10 @@ msgstr "Sodium"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Some answers could not be saved. Check them and try again."
 msgstr "Some answers could not be saved. Check them and try again."
+
+#: apps/native/components/change-server.tsx
+msgid "Some changes may not have reached {host} yet. Changing server signs you out and deletes them from this phone."
+msgstr "Some changes may not have reached {host} yet. Changing server signs you out and deletes them from this phone."
 
 #. safety
 #: packages/api/src/nutrition-observations.ts
@@ -11395,6 +11521,10 @@ msgstr "That time does not exist on this date in your time zone. Choose another 
 msgid "The AI provider is not set up on this server. Use the on-server draft instead."
 msgstr "The AI provider is not set up on this server. Use the on-server draft instead."
 
+#: apps/native/components/server-choice.tsx
+msgid "The app connects only over HTTPS. Use an address that starts with https://."
+msgstr "The app connects only over HTTPS. Use an address that starts with https://."
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "The backup status could not be read."
 msgstr "The backup status could not be read."
@@ -11670,6 +11800,10 @@ msgstr "Thigh"
 msgid "This active workout will be deleted."
 msgstr "This active workout will be deleted."
 
+#: apps/native/components/server-choice.tsx
+msgid "This address does not use HTTPS"
+msgstr "This address does not use HTTPS"
+
 #: apps/native/app/(drawer)/settings/devices.tsx
 msgid "This app already syncs Apple Health or Health Connect. To connect, disconnect or remove a vendor account such as Oura or WHOOP, sign in to the web app and open Settings, then Devices."
 msgstr "This app already syncs Apple Health or Health Connect. To connect, disconnect or remove a vendor account such as Oura or WHOOP, sign in to the web app and open Settings, then Devices."
@@ -11815,6 +11949,10 @@ msgstr "This is clearly larger than your usual day-to-day variation."
 msgid "This is general information about published references. It is not medical advice and says nothing about your health."
 msgstr "This is general information about published references. It is not medical advice and says nothing about your health."
 
+#: apps/native/components/server-choice.tsx
+msgid "This is not a server address"
+msgstr "This is not a server address"
+
 #: packages/api/src/presenters/insights.ts
 msgid "This is only a little larger than your usual day-to-day variation."
 msgstr "This is only a little larger than your usual day-to-day variation."
@@ -11905,6 +12043,14 @@ msgstr "This server can't send email yet, so the verification code can't be deli
 #: apps/web/src/routes/_auth/admin/invitations.tsx
 msgid "This server can't send email yet. Add a Resend key, then invite again."
 msgstr "This server can't send email yet. Add a Resend key, then invite again."
+
+#: apps/native/components/server-choice.tsx
+msgid "This server needs an update"
+msgstr "This server needs an update"
+
+#: apps/native/components/sign-in.tsx
+msgid "This server offers no sign-in method this app supports. Sign in on the web."
+msgstr "This server offers no sign-in method this app supports. Sign in on the web."
 
 #: apps/native/components/workout-session.tsx
 msgid "This session was deleted elsewhere. Discard the change to clear it."
@@ -12118,6 +12264,10 @@ msgstr "Triceps"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Try again"
 msgstr "Try again"
+
+#: apps/native/components/server-choice.tsx
+msgid "Try again. If it keeps failing, restart the app."
+msgstr "Try again. If it keeps failing, restart the app."
 
 #: apps/native/components/exercise-library.tsx
 msgid "Try another name, or clear the search."
@@ -12415,6 +12565,10 @@ msgstr "Untracked"
 msgid "Up to {value} {unit}"
 msgstr "Up to {value} {unit}"
 
+#: apps/native/components/server-choice.tsx
+msgid "Update the app"
+msgstr "Update the app"
+
 #: apps/native/app/(drawer)/preventive-care.tsx
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Update your record"
@@ -12493,6 +12647,10 @@ msgstr "Use a different email"
 msgid "Use a JPEG or PNG photo up to 10 MB."
 msgstr "Use a JPEG or PNG photo up to 10 MB."
 
+#: apps/native/components/server-choice.tsx
+msgid "Use an address such as https://health.example.org."
+msgstr "Use an address such as https://health.example.org."
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Use at most 100 characters for the serving name."
 msgstr "Use at most 100 characters for the serving name."
@@ -12508,6 +12666,10 @@ msgstr "Use at most 200 characters for the name."
 #: apps/native/components/workout-session.tsx
 msgid "Use last"
 msgstr "Use last"
+
+#: apps/native/components/server-choice.tsx
+msgid "Use OpenValens Cloud"
+msgstr "Use OpenValens Cloud"
 
 #: apps/web/src/routes/_auth/food-draft.tsx
 #: packages/api/src/presenters/food-logger-capture.ts
@@ -12901,6 +13063,10 @@ msgstr "What public-health authorities in your region publish for people of your
 msgid "What to include"
 msgstr "What to include"
 
+#: apps/native/components/server-choice.tsx
+msgid "Where is your account?"
+msgstr "Where is your account?"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "Where your effort ratings come from changed (for example a new device), so earlier weeks are not compared. Shown once {minimum} earlier weeks with the same source exist (found {windows})."
 msgstr "Where your effort ratings come from changed (for example a new device), so earlier weeks are not compared. Shown once {minimum} earlier weeks with the same source exist (found {windows})."
@@ -13169,6 +13335,10 @@ msgstr "You said neither option fits you."
 msgid "You set up this server. A quick look at what it reports, then your own setup."
 msgstr "You set up this server. A quick look at what it reports, then your own setup."
 
+#: apps/native/components/change-server.tsx
+msgid "You will be signed out, and everything this app saved from {host} is removed from this phone."
+msgstr "You will be signed out, and everything this app saved from {host} is removed from this phone."
+
 #. safety
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "You withdrew consent for this answer, so it can't be saved. Clear it or keep your consent."
@@ -13202,6 +13372,10 @@ msgstr "Your account is ready."
 #: apps/web/src/components/admission-form.tsx
 msgid "Your account is ready. Sign in to continue."
 msgstr "Your account is ready. Sign in to continue."
+
+#: apps/native/components/change-server.tsx
+msgid "Your account lives here"
+msgstr "Your account lives here"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your active minutes for the last 7 days, {minutes}, are {position, select, within {within} below {below} other {above}} the {range} {source, select, who {WHO} nsf {the National Sleep Foundation} other {the guideline}} recommends for adults {ages}."

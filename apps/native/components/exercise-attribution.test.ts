@@ -79,7 +79,7 @@ if (mountedMode) {
   // Exercise history renders gifted-charts, whose module body needs real React Native; it has its own suite.
   mock.module("@/components/workout-history", () => ({ WorkoutExerciseHistory: () => null }));
   mock.module("@/lib/auth-client", () => ({ authClient: { useSession: () => ({ data: null }) } }));
-  mock.module("@/src/env", () => ({ ENV: { EXPO_PUBLIC_SERVER_URL: "http://localhost:3000" } }));
+  mock.module("@/lib/server/server-url", () => ({ getServerUrl: () => "http://localhost:3000" }));
   mock.module("@/utils/orpc", () => ({ orpc: {} }));
 }
 
