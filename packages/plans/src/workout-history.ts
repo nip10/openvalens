@@ -351,49 +351,43 @@ export function createWorkoutHistoryRepository(db: Database) {
         )
           refs.push({ name });
       if (!refs.length) return { items: [] };
-      const identityKey = sql<string>`case when ${workoutExercise.exerciseId} is null then 'name:' || lower(regexp_replace(btrim(normalize(${workoutExercise.name}, NFKC)), '\\s+', ' ', 'g')) else 'id:' || ${workoutExercise.exerciseId}::text end`;
-      const matches = await db
-        .selectDistinctOn([identityKey], {
-          workoutId: workout.id,
-          date: workout.date,
-          createdAt: workout.createdAt,
-          exerciseId: workoutExercise.exerciseId,
-          name: workoutExercise.name,
-        })
-        .from(workout)
-        .innerJoin(
-          workoutExercise,
-          and(eq(workoutExercise.workoutId, workout.id), eq(workoutExercise.organizationId, org)),
-        )
-        .where(
-          and(
-            eq(workout.organizationId, org),
-            eq(workout.userId, userId),
-            or(...refs.map(matchPredicate)),
-            ...(input.onOrBeforeDate ? [sql`${workout.date} <= ${input.onOrBeforeDate}`] : []),
-            ...(input.excludeWorkoutId ? [sql`${workout.id} <> ${input.excludeWorkoutId}`] : []),
-          ),
-        )
-        .orderBy(identityKey, desc(workout.date), desc(workout.createdAt), desc(workout.id));
-      const latest = new Map<string, (typeof matches)[number]>();
-      for (const row of matches)
-        for (const ref of refs) {
-          const isMatch =
-            "exerciseId" in ref
-              ? row.exerciseId === ref.exerciseId
-              : row.exerciseId === null &&
-                normalizeExerciseName(row.name) === normalizeExerciseName(ref.name);
-          const key =
-            "exerciseId" in ref
-              ? `id:${ref.exerciseId}`
-              : `name:${normalizeExerciseName(ref.name)}`;
-          if (isMatch && !latest.has(key)) latest.set(key, row);
-        }
-      const chosen = refs.map((ref) => {
-        const key =
-          "exerciseId" in ref ? `id:${ref.exerciseId}` : `name:${normalizeExerciseName(ref.name)}`;
-        return { ref, row: latest.get(key) };
-      });
+      // Per reference: walk the user's sessions newest-first on the (org, user, date, id) index and
+      // probe each session's exercises laterally, stopping at the first match. This shape keeps the
+      // lookup independent of history length and of stale planner statistics.
+      const chosen = await Promise.all(
+        refs.map(async (ref) => {
+          const match = db
+            .select({ id: workoutExercise.id })
+            .from(workoutExercise)
+            .where(
+              and(
+                eq(workoutExercise.workoutId, workout.id),
+                eq(workoutExercise.organizationId, org),
+                matchPredicate(ref),
+              ),
+            )
+            .orderBy(asc(workoutExercise.sortOrder))
+            .limit(1)
+            .as("match");
+          const [row] = await db
+            .select({ workoutId: workout.id, date: workout.date })
+            .from(workout)
+            .innerJoinLateral(match, sql`true`)
+            .where(
+              and(
+                eq(workout.organizationId, org),
+                eq(workout.userId, userId),
+                ...(input.onOrBeforeDate ? [sql`${workout.date} <= ${input.onOrBeforeDate}`] : []),
+                ...(input.excludeWorkoutId
+                  ? [sql`${workout.id} <> ${input.excludeWorkoutId}`]
+                  : []),
+              ),
+            )
+            .orderBy(desc(workout.date), desc(workout.createdAt), desc(workout.id))
+            .limit(1);
+          return { ref, row };
+        }),
+      );
       const ids = [...new Set(chosen.flatMap(({ row }) => (row ? [row.workoutId] : [])))];
       const allRows = ids.length
         ? await db
