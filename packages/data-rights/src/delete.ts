@@ -205,6 +205,22 @@ async function eraseInTransaction(
     await tx.execute(sql`select id from supplement where ${rowFilter("supplement", subject)}`)
   ).rows.map((row) => String((row as { id: number }).id));
 
+  // Snapshot rows have no direct member owner. Capture every snapshot that is
+  // either in an erased container or referenced by the subject before their
+  // entries, favorites and immutable template revisions are removed. Later we
+  // delete only those that no surviving diary/template/favorite still uses.
+  const nutritionSnapshotIds = (
+    await tx.execute(sql`select s.id from nutrition_food_snapshot s
+      where ${inList("organization_id", orgIds)}
+        or exists (select 1 from nutrition_meal_entry e
+          where e.organization_id = s.organization_id and e.snapshot_id = s.id and e.user_id = ${subject.userId})
+        or exists (select 1 from nutrition_favorite_food f
+          where f.organization_id = s.organization_id and f.snapshot_id = s.id and f.user_id = ${subject.userId})
+        or exists (select 1 from nutrition_template_revision r
+          where r.organization_id = s.organization_id and r.user_id = ${subject.userId}
+            and r.ingredients @> jsonb_build_array(jsonb_build_object('snapshotId', s.id)))`)
+  ).rows.map((row) => String((row as { id: number }).id));
+
   for (const { table, filter } of QUARANTINED) {
     const exists = await tx.execute(
       sql`select to_regclass(${`public.${table}`}) is not null as ok`,
@@ -214,6 +230,26 @@ async function eraseInTransaction(
   }
 
   for (const table of order) {
+    if (table === "nutrition_food_snapshot") {
+      record(
+        table,
+        await deleteCount(
+          tx,
+          table,
+          sql`${inList("id", nutritionSnapshotIds)}
+            and not exists (select 1 from nutrition_meal_entry e
+              where e.organization_id = nutrition_food_snapshot.organization_id
+                and e.snapshot_id = nutrition_food_snapshot.id)
+            and not exists (select 1 from nutrition_favorite_food f
+              where f.organization_id = nutrition_food_snapshot.organization_id
+                and f.snapshot_id = nutrition_food_snapshot.id)
+            and not exists (select 1 from nutrition_template_revision r
+              where r.organization_id = nutrition_food_snapshot.organization_id
+                and r.ingredients @> jsonb_build_array(jsonb_build_object('snapshotId', nutrition_food_snapshot.id)))`,
+        ),
+      );
+      continue;
+    }
     if (table === "supplement") {
       record(
         table,

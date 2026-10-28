@@ -3,16 +3,21 @@ import {
   nutritionDiaryDay,
   nutritionDiaryMutation,
   nutritionFavoriteFood,
+  nutritionMeal,
   nutritionFoodSnapshot,
   nutritionMealEntry,
+  nutritionDiaryBatch,
+  nutritionTemplate,
+  nutritionTemplateRevision,
 } from "@openvalens/db/schema/nutrition";
-import { and, asc, desc, eq, isNull, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
 import { createCustomFoods, type CreateCustomFoodInput } from "./custom-foods";
 import { NutritionError } from "./errors";
 import type { FoodLookupProvider } from "./food-lookup";
 import { createFoodSearch, foodResultToLogFood } from "./food-search";
-import { isLocalDate, MEAL_SLOTS, type MealSlot } from "./local-day";
+import { isLocalDate, isValidTimeZone, MEAL_SLOTS, type MealSlot } from "./local-day";
 import {
   computeNutrientFactor,
   nutrientsOf,
@@ -95,8 +100,10 @@ export type EntryChangeInput = {
 export type UpdateEntryInput = EntryChangeInput & {
   amount: number;
   unit: AmountUnit;
-  /** Move the entry to another slot on the same local day. */
+  /** Move the entry to another local day and its own zone snapshot. */
   slot?: MealSlot;
+  localDate?: string;
+  timeZone?: string;
 };
 
 export type CopyDayInput = {
@@ -105,8 +112,26 @@ export type CopyDayInput = {
   timeZone: string;
   /** Entries to copy (all active entries of `fromDate` when omitted). */
   entryIds?: number[];
+  entries?: {
+    itemKey: string;
+    snapshotId: number;
+    amount: number;
+    unit: AmountUnit;
+    slot: MealSlot;
+  }[];
+  targetSlot?: MealSlot;
   /** Each copy gets `${clientMutationId}:${sourceEntryId}`, so replays copy nothing twice. */
   clientMutationId: string;
+};
+
+export type LogTemplateInput = {
+  clientMutationId: string;
+  templateId: number;
+  templateRevision: number;
+  localDate: string;
+  timeZone: string;
+  slot: MealSlot;
+  servings?: number;
 };
 
 /** A food the member can log again without searching. */
@@ -121,6 +146,9 @@ export type FoodChoice = {
   nutrientsPerBasis: NutrientValues;
   /** Recents only: when this food was last logged. */
   lastLoggedAt: Date | null;
+  lastAmount: number | null;
+  lastUnit: AmountUnit | null;
+  lastSlot: MealSlot | null;
 };
 
 export type DiaryFoods = {
@@ -154,7 +182,15 @@ function basisOf(row: NutrientBasis): NutrientBasis {
   };
 }
 
-function snapshotChoice(snapshot: FoodSnapshot, lastLoggedAt: Date | null): FoodChoice {
+type LastPortion = {
+  lastLoggedAt: Date;
+  lastAmount: number;
+  lastUnit: AmountUnit;
+  lastSlot: MealSlot;
+  entryId: number;
+};
+
+function snapshotChoice(snapshot: FoodSnapshot, last: LastPortion | null): FoodChoice {
   return {
     ref: { kind: "snapshot", snapshotId: snapshot.id },
     source: snapshot.source,
@@ -167,7 +203,10 @@ function snapshotChoice(snapshot: FoodSnapshot, lastLoggedAt: Date | null): Food
     brand: snapshot.brand,
     basis: basisOf(snapshot),
     nutrientsPerBasis: nutrientsOf(snapshot),
-    lastLoggedAt,
+    lastLoggedAt: last?.lastLoggedAt ?? null,
+    lastAmount: last?.lastAmount ?? null,
+    lastUnit: last?.lastUnit ?? null,
+    lastSlot: last?.lastSlot ?? null,
   };
 }
 
@@ -266,7 +305,20 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
         ),
       )
       .limit(1);
-    if (!logged) throw new NutritionError("NOT_FOUND", "Food snapshot not found");
+    if (!logged) {
+      const [revision] = await db
+        .select({ id: nutritionTemplateRevision.id })
+        .from(nutritionTemplateRevision)
+        .where(
+          and(
+            eq(nutritionTemplateRevision.organizationId, scope.organizationId),
+            eq(nutritionTemplateRevision.userId, scope.userId),
+            sql`${nutritionTemplateRevision.ingredients} @> ${JSON.stringify([{ snapshotId }])}::jsonb`,
+          ),
+        )
+        .limit(1);
+      if (!revision) throw new NutritionError("NOT_FOUND", "Food snapshot not found");
+    }
   }
 
   const bump = () => ({
@@ -325,22 +377,44 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
     async updateEntry(scope: NutritionScope, input: UpdateEntryInput): Promise<EntryOutcome> {
       if (input.slot !== undefined && !MEAL_SLOTS.includes(input.slot))
         throw new NutritionError("INVALID_INPUT", "Unsupported meal slot");
+      if ((input.localDate === undefined) !== (input.timeZone === undefined))
+        throw new NutritionError(
+          "INVALID_INPUT",
+          "Local date and time zone must be supplied together",
+        );
+      if (input.localDate !== undefined) assertDate(input.localDate);
+      if (input.timeZone !== undefined && !isValidTimeZone(input.timeZone))
+        throw new NutritionError("INVALID_INPUT", "Unknown time zone");
       return change(scope, input, "update", async (tx, current) => {
         // Editing a deleted entry would silently resurrect it: ask instead.
         if (current.deletedAt) return "conflict";
         const nutrientFactor = computeNutrientFactor(current.food.basis, input.amount, input.unit);
         let mealId = current.mealId;
-        if (input.slot && input.slot !== current.slot) {
+        const nextDate = input.localDate ?? current.localDate;
+        const nextZone = input.timeZone ?? current.timeZone;
+        const nextSlot = input.slot ?? current.slot;
+        if (
+          nextDate !== current.localDate ||
+          nextZone !== current.timeZone ||
+          nextSlot !== current.slot
+        ) {
           const meal = await ensureMeal(tx, scope, {
-            localDate: current.localDate,
-            timeZone: current.timeZone,
-            slot: input.slot,
+            localDate: nextDate,
+            timeZone: nextZone,
+            slot: nextSlot,
           });
           mealId = meal.id;
         }
         await tx
           .update(nutritionMealEntry)
-          .set({ amount: input.amount, unit: input.unit, nutrientFactor, mealId, ...bump() })
+          .set({
+            amount: input.amount,
+            unit: input.unit,
+            timeZone: input.timeZone ?? current.timeZone,
+            nutrientFactor,
+            mealId,
+            ...bump(),
+          })
           .where(ownEntry(scope, current.id));
         return "changed";
       });
@@ -417,38 +491,220 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
       const clientMutationId = assertMutationId(input.clientMutationId);
       assertDate(input.fromDate);
       assertDate(input.toDate);
-      if (input.fromDate === input.toDate)
-        throw new NutritionError("INVALID_INPUT", "Choose a different day to copy into");
-      const source = await repo.listDayEntries(scope, input.fromDate);
-      const wanted = input.entryIds ? new Set(input.entryIds) : null;
-      const selected = wanted ? source.filter((entry) => wanted.has(entry.id)) : source;
-      if (wanted && selected.length !== wanted.size)
-        throw new NutritionError("NOT_FOUND", "Meal entry not found");
-      const entries: DiaryEntry[] = [];
-      let created = 0;
-      for (const entry of selected) {
-        const result = await repo.logEntry(scope, {
-          localDate: input.toDate,
-          timeZone: input.timeZone,
-          slot: entry.slot,
-          food: { kind: "snapshot", snapshotId: entry.food.snapshotId },
-          amount: entry.amount,
-          unit: entry.unit,
-          method: "copied",
-          clientMutationId: `${clientMutationId}:${entry.id}`,
+      if (input.fromDate === input.toDate && !input.targetSlot)
+        throw new NutritionError("INVALID_INPUT", "Choose a different meal slot");
+      if (input.entryIds && input.entries)
+        throw new NutritionError(
+          "INVALID_INPUT",
+          "Choose source entry IDs or frozen entries, not both",
+        );
+      if (!isValidTimeZone(input.timeZone))
+        throw new NutritionError("INVALID_INPUT", "Unknown time zone");
+      if (
+        input.entries &&
+        new Set(input.entries.map((item) => item.itemKey)).size !== input.entries.length
+      )
+        throw new NutritionError("INVALID_INPUT", "Item keys must be unique");
+      const fingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+      return db.transaction(async (tx) => {
+        const [receipt] = await tx
+          .select()
+          .from(nutritionDiaryBatch)
+          .where(
+            and(
+              eq(nutritionDiaryBatch.organizationId, scope.organizationId),
+              eq(nutritionDiaryBatch.userId, scope.userId),
+              eq(nutritionDiaryBatch.clientMutationId, clientMutationId),
+            ),
+          )
+          .for("update");
+        if (receipt) {
+          if (receipt.operation !== "copyDay" || receipt.fingerprint !== fingerprint)
+            throw new NutritionError(
+              "INVALID_INPUT",
+              "Mutation id was reused with different input",
+            );
+          const entries: DiaryEntry[] = [];
+          for (const id of receipt.entryIds) {
+            const entry = await selectEntry(tx, scope, eq(nutritionMealEntry.id, id));
+            if (entry) entries.push(entry);
+          }
+          return { entries, created: 0 };
+        }
+        const source = input.entries ? [] : await repo.listDayEntries(scope, input.fromDate);
+        const wanted = input.entryIds ? new Set(input.entryIds) : null;
+        const selected = wanted ? source.filter((entry) => wanted.has(entry.id)) : source;
+        if (wanted && selected.length !== wanted.size)
+          throw new NutritionError("NOT_FOUND", "Meal entry not found");
+        const copies =
+          input.entries ??
+          selected.map((entry) => ({
+            itemKey: String(entry.id),
+            snapshotId: entry.food.snapshotId,
+            amount: entry.amount,
+            unit: entry.unit,
+            slot: input.targetSlot ?? entry.slot,
+          }));
+        if (
+          input.fromDate === input.toDate &&
+          copies.some((copy) =>
+            source.some((entry) => String(entry.id) === copy.itemKey && entry.slot === copy.slot),
+          )
+        )
+          throw new NutritionError(
+            "INVALID_INPUT",
+            "Same-day copies must use a different meal slot",
+          );
+        for (const copy of copies) await assertOwnSnapshot(scope, copy.snapshotId);
+        const results = [];
+        for (const item of copies) {
+          const childId = `${clientMutationId}:${createHash("sha256").update(item.itemKey).digest("hex").slice(0, 24)}`;
+          results.push(
+            await repo.logEntryInTransaction(tx, scope, {
+              localDate: input.toDate,
+              timeZone: input.timeZone,
+              slot: item.slot,
+              food: { kind: "snapshot", snapshotId: item.snapshotId },
+              amount: item.amount,
+              unit: item.unit,
+              method: "copied",
+              clientMutationId: childId,
+            }),
+          );
+        }
+        await tx.insert(nutritionDiaryBatch).values({
+          ...scope,
+          clientMutationId,
+          operation: "copyDay",
+          fingerprint,
+          entryIds: results.map((r) => r.entry.id),
         });
-        entries.push(result.entry);
-        if (result.created) created += 1;
-      }
-      return { entries, created };
+        return {
+          entries: results.map((r) => r.entry),
+          created: results.filter((r) => r.created).length,
+        };
+      });
+    },
+
+    /** Logs the exact immutable revision of an owned saved meal or recipe. */
+    async logTemplate(
+      scope: NutritionScope,
+      input: LogTemplateInput,
+    ): Promise<{ entries: DiaryEntry[]; created: number }> {
+      const clientMutationId = assertMutationId(input.clientMutationId);
+      assertDate(input.localDate);
+      if (!isValidTimeZone(input.timeZone))
+        throw new NutritionError("INVALID_INPUT", "Unknown time zone");
+      if (!MEAL_SLOTS.includes(input.slot))
+        throw new NutritionError("INVALID_INPUT", "Unsupported meal slot");
+      if (
+        !Number.isInteger(input.templateId) ||
+        input.templateId < 1 ||
+        !Number.isInteger(input.templateRevision) ||
+        input.templateRevision < 1
+      )
+        throw new NutritionError("INVALID_INPUT", "Template revision is invalid");
+      if (input.servings !== undefined && (!Number.isFinite(input.servings) || input.servings <= 0))
+        throw new NutritionError("INVALID_INPUT", "Servings must be positive");
+      const fingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
+      return db.transaction(async (tx) => {
+        const [receipt] = await tx
+          .select()
+          .from(nutritionDiaryBatch)
+          .where(
+            and(
+              eq(nutritionDiaryBatch.organizationId, scope.organizationId),
+              eq(nutritionDiaryBatch.userId, scope.userId),
+              eq(nutritionDiaryBatch.clientMutationId, clientMutationId),
+            ),
+          )
+          .for("update");
+        if (receipt) {
+          if (receipt.operation !== "logTemplate" || receipt.fingerprint !== fingerprint)
+            throw new NutritionError(
+              "INVALID_INPUT",
+              "Mutation id was reused with different input",
+            );
+          const entries: DiaryEntry[] = [];
+          for (const id of receipt.entryIds) {
+            const entry = await selectEntry(tx, scope, eq(nutritionMealEntry.id, id));
+            if (entry) entries.push(entry);
+          }
+          return { entries, created: 0 };
+        }
+        const [revision] = await tx
+          .select({ revision: nutritionTemplateRevision, template: nutritionTemplate })
+          .from(nutritionTemplateRevision)
+          .innerJoin(
+            nutritionTemplate,
+            and(
+              eq(nutritionTemplate.organizationId, nutritionTemplateRevision.organizationId),
+              eq(nutritionTemplate.id, nutritionTemplateRevision.templateId),
+            ),
+          )
+          .where(
+            and(
+              eq(nutritionTemplateRevision.organizationId, scope.organizationId),
+              eq(nutritionTemplateRevision.userId, scope.userId),
+              eq(nutritionTemplate.organizationId, scope.organizationId),
+              eq(nutritionTemplate.userId, scope.userId),
+              eq(nutritionTemplateRevision.templateId, input.templateId),
+              eq(nutritionTemplateRevision.revision, input.templateRevision),
+            ),
+          )
+          .for("update", { of: nutritionTemplate });
+        if (!revision)
+          throw new NutritionError("NOT_FOUND", "Nutrition template revision not found");
+        const content = revision.revision;
+        if (content.kind === "meal" && input.servings !== undefined)
+          throw new NutritionError("INVALID_INPUT", "Servings are only valid for recipes");
+        if (content.kind === "recipe" && input.servings === undefined)
+          throw new NutritionError("INVALID_INPUT", "Recipe servings are required");
+        const scale =
+          content.kind === "recipe" ? input.servings! / (content.yieldServings ?? 0) : 1;
+        if (!Number.isFinite(scale) || scale <= 0)
+          throw new NutritionError("INVALID_INPUT", "Recipe yield is invalid");
+        const results: LogEntryResult[] = [];
+        for (const [index, ingredient] of content.ingredients.entries()) {
+          results.push(
+            await repo.logEntryInTransaction(tx, scope, {
+              localDate: input.localDate,
+              timeZone: input.timeZone,
+              slot: input.slot,
+              food: { kind: "snapshot", snapshotId: ingredient.snapshotId },
+              amount: ingredient.amount * scale,
+              unit: ingredient.unit,
+              method: "copied",
+              clientMutationId: `${clientMutationId}:template:${index}`,
+            }),
+          );
+        }
+        await tx.insert(nutritionDiaryBatch).values({
+          ...scope,
+          clientMutationId,
+          operation: "logTemplate",
+          fingerprint,
+          entryIds: results.map((result) => result.entry.id),
+        });
+        return {
+          entries: results.map((result) => result.entry),
+          created: results.filter((result) => result.created).length,
+        };
+      });
     },
 
     /** Recently logged foods, favourites and active custom foods for quick logging. */
     async listFoods(scope: NutritionScope): Promise<DiaryFoods> {
-      const recentRows = await db
-        .select({
+      // One latest active row per snapshot, ordered by entry id for deterministic
+      // ties. Reuse it for recents, favorites, and custom-food portions.
+      const latestRows = await db
+        .selectDistinctOn([nutritionMealEntry.snapshotId], {
           snapshot: nutritionFoodSnapshot,
-          lastLoggedAt: max(nutritionMealEntry.createdAt),
+          amount: nutritionMealEntry.amount,
+          unit: nutritionMealEntry.unit,
+          slot: nutritionMeal.slot,
+          createdAt: nutritionMealEntry.createdAt,
+          entryId: nutritionMealEntry.id,
         })
         .from(nutritionMealEntry)
         .innerJoin(
@@ -458,6 +714,13 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
             eq(nutritionFoodSnapshot.id, nutritionMealEntry.snapshotId),
           ),
         )
+        .innerJoin(
+          nutritionMeal,
+          and(
+            eq(nutritionMeal.organizationId, nutritionMealEntry.organizationId),
+            eq(nutritionMeal.id, nutritionMealEntry.mealId),
+          ),
+        )
         .where(
           and(
             eq(nutritionMealEntry.organizationId, scope.organizationId),
@@ -465,9 +728,37 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
             isNull(nutritionMealEntry.deletedAt),
           ),
         )
-        .groupBy(nutritionFoodSnapshot.id)
-        .orderBy(desc(max(nutritionMealEntry.createdAt)), desc(nutritionFoodSnapshot.id))
-        .limit(RECENT_LIMIT);
+        .orderBy(
+          nutritionMealEntry.snapshotId,
+          desc(nutritionMealEntry.createdAt),
+          desc(nutritionMealEntry.id),
+        );
+      const lastBySnapshot = new Map<number, LastPortion>();
+      const lastByCustomFood = new Map<number, LastPortion>();
+      for (const row of latestRows) {
+        const last: LastPortion = {
+          lastLoggedAt: row.createdAt,
+          lastAmount: row.amount,
+          lastUnit: row.unit,
+          lastSlot: row.slot,
+          entryId: row.entryId,
+        };
+        lastBySnapshot.set(row.snapshot.id, last);
+        const customFoodId = row.snapshot.customFoodId;
+        if (customFoodId !== null) {
+          const current = lastByCustomFood.get(customFoodId);
+          if (
+            !current ||
+            last.lastLoggedAt > current.lastLoggedAt ||
+            (last.lastLoggedAt.getTime() === current.lastLoggedAt.getTime() &&
+              last.entryId > current.entryId)
+          )
+            lastByCustomFood.set(customFoodId, last);
+        }
+      }
+      const recentRows = [...latestRows]
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.entryId - a.entryId)
+        .slice(0, RECENT_LIMIT);
       const favoriteRows = await db
         .select({ snapshot: nutritionFoodSnapshot })
         .from(nutritionFavoriteFood)
@@ -488,9 +779,12 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
       const custom = await repo.listCustomFoods(scope);
       return {
         recents: recentRows.map((row) =>
-          snapshotChoice(row.snapshot, row.lastLoggedAt ? new Date(row.lastLoggedAt) : null),
+          snapshotChoice(row.snapshot, lastBySnapshot.get(row.snapshot.id) ?? null),
         ),
-        favorites: favoriteRows.map((row) => snapshotChoice(row.snapshot, null)),
+        favorites: favoriteRows.map((row) => ({
+          ...snapshotChoice(row.snapshot, lastBySnapshot.get(row.snapshot.id) ?? null),
+          lastLoggedAt: null,
+        })),
         customFoods: custom.map((food) => ({
           ref: { kind: "custom", foodId: food.id },
           source: "custom",
@@ -501,6 +795,9 @@ export function createNutritionDiary(db: Database, options: NutritionDiaryOption
           basis: basisOf(food),
           nutrientsPerBasis: nutrientsOf(food),
           lastLoggedAt: null,
+          lastAmount: lastByCustomFood.get(food.id)?.lastAmount ?? null,
+          lastUnit: lastByCustomFood.get(food.id)?.lastUnit ?? null,
+          lastSlot: lastByCustomFood.get(food.id)?.lastSlot ?? null,
         })),
       };
     },

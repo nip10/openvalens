@@ -28,6 +28,9 @@ describe("navigation follows modules", () => {
     expect(routeModule("/records/vitals")).toBe("heart");
     expect(routeModule("/body")).toBe("body");
     expect(routeModule("/nutrition")).toBe("food");
+    expect(routeModule("/nutrition?food=oats")).toBe("food");
+    expect(routeModule("/(drawer)/(tabs)/nutrition")).toBe("food");
+    expect(routeModule("/log-food")).toBe("food");
     expect(routeModule("/supplements")).toBe("supplements");
     expect(routeModule("/records/labs")).toBe("labs");
     expect(routeModule("/cycle")).toBe("cycle");

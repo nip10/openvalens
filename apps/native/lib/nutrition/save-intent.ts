@@ -15,6 +15,7 @@ export class AddFoodSaveController {
   private contextKey: string | null = null;
   private generation = 0;
   private pending = false;
+  private live = false;
   private active: AddFoodSaveIntent | null = null;
   private retry: Pick<
     AddFoodSaveIntent,
@@ -22,13 +23,19 @@ export class AddFoodSaveController {
   > | null = null;
 
   setContext(contextKey: string): void {
-    if (this.contextKey === contextKey) return;
-    this.invalidate();
+    if (this.contextKey !== contextKey) this.invalidate();
     this.contextKey = contextKey;
+    // Called by the committed layout effect. Re-arming the same controller is
+    // required for StrictMode's setup-cleanup-setup mount probe.
+    this.live = true;
   }
 
   isPending(): boolean {
     return this.pending;
+  }
+
+  canMutate(contextKey: string): boolean {
+    return this.live && this.contextKey === contextKey && !this.pending;
   }
 
   begin(
@@ -37,7 +44,7 @@ export class AddFoodSaveController {
     newId: () => string,
     contextKey: string,
   ): AddFoodSaveIntent | null {
-    if (this.pending || this.contextKey !== contextKey) return null;
+    if (!this.live || this.pending || this.contextKey !== contextKey) return null;
     this.pending = true;
     if (!this.retry || this.retry.foodFingerprint !== fingerprint) {
       this.retry = {
@@ -80,6 +87,7 @@ export class AddFoodSaveController {
     this.pending = false;
     this.active = null;
     this.retry = null;
+    this.live = false;
   }
 }
 
@@ -96,18 +104,20 @@ export function useAddFoodSaveLifecycle(contextKey: string) {
     return () => controller.invalidate();
   }, [contextKey, controller]);
 
-  const canMutate = useCallback(() => !controller.isPending(), [controller]);
+  const canMutate = useCallback(() => controller.canMutate(contextKey), [contextKey, controller]);
   const bindMutation = useCallback(
     <TArgs extends unknown[]>(mutation: (...args: TArgs) => void) =>
       (...args: TArgs) => {
-        if (controller.isPending()) return;
+        if (!controller.canMutate(contextKey)) return;
         mutation(...args);
       },
-    [controller],
+    [contextKey, controller],
   );
   const begin = useCallback(
     (ticket: OfflineWriteTicket | null, fingerprint: string, newId: () => string) => {
-      const intent = controller.begin(ticket, fingerprint, newId, contextKey);
+      const intent = controller.canMutate(contextKey)
+        ? controller.begin(ticket, fingerprint, newId, contextKey)
+        : null;
       if (intent) setPending(true);
       return intent;
     },

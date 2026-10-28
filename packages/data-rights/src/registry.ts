@@ -150,6 +150,11 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   nutrition_diary_day: organization,
   nutrition_favorite_food: organization,
   nutrition_diary_mutation: organization,
+  // Saved meals/recipes and their immutable revision history, plus durable
+  // batch replay receipts, are private to the member who created them.
+  nutrition_template: organization,
+  nutrition_template_revision: { kind: "organization", redact: ["fingerprint"] },
+  nutrition_diary_batch: { kind: "organization", redact: ["fingerprint"] },
   // Energy estimate (#76): target proposals with the estimate they came from.
   nutrition_energy_proposal: organization,
   // Nutrition targets (#80): member settings and self-declarations.

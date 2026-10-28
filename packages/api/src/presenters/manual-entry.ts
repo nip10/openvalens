@@ -25,13 +25,11 @@ export type ManualEntryField = {
   step: number;
 };
 
-const SYMBOL = "Unit symbol; keep as is.";
-
 export const MANUAL_ENTRY_FIELDS: Record<ManualEntryMetric, ManualEntryField> = {
   heart_rate: {
     metric: "heart_rate",
     label: msg`Heart rate`,
-    unit: msg({ message: "bpm", comment: SYMBOL }),
+    unit: msg({ message: "bpm", comment: "Unit symbol; keep as is." }),
     min: 30,
     max: 220,
     step: 1,
@@ -39,7 +37,7 @@ export const MANUAL_ENTRY_FIELDS: Record<ManualEntryMetric, ManualEntryField> = 
   resting_heart_rate: {
     metric: "resting_heart_rate",
     label: msg`Resting heart rate`,
-    unit: msg({ message: "bpm", comment: SYMBOL }),
+    unit: msg({ message: "bpm", comment: "Unit symbol; keep as is." }),
     min: 30,
     max: 120,
     step: 1,
@@ -55,7 +53,7 @@ export const MANUAL_ENTRY_FIELDS: Record<ManualEntryMetric, ManualEntryField> = 
   active_calories: {
     metric: "active_calories",
     label: msg`Active calories`,
-    unit: msg({ message: "kcal", comment: SYMBOL }),
+    unit: msg({ message: "kcal", comment: "Unit symbol; keep as is." }),
     min: 0,
     max: 10_000,
     step: 1,
@@ -63,7 +61,7 @@ export const MANUAL_ENTRY_FIELDS: Record<ManualEntryMetric, ManualEntryField> = 
   distance: {
     metric: "distance",
     label: msg`Distance`,
-    unit: msg({ message: "m", comment: SYMBOL }),
+    unit: msg({ message: "m", comment: "Unit symbol; keep as is." }),
     min: 0,
     max: 200_000,
     step: 1,
@@ -71,7 +69,7 @@ export const MANUAL_ENTRY_FIELDS: Record<ManualEntryMetric, ManualEntryField> = 
   weight: {
     metric: "weight",
     label: msg`Weight`,
-    unit: msg({ message: "kg", comment: SYMBOL }),
+    unit: msg({ message: "kg", comment: "Unit symbol; keep as is." }),
     min: 20,
     max: 300,
     step: 0.1,

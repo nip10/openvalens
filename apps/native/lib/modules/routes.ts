@@ -17,6 +17,8 @@ export const ROUTE_MODULES: Readonly<Record<string, PersonModule>> = {
   "/body-map": "body",
   "/private-measurements": "body",
   "/nutrition": "food",
+  "/(drawer)/(tabs)/nutrition": "food",
+  "/log-food": "food",
   "/food-draft": "food",
   "/recipe-drafts": "food",
   "/micronutrients": "food",
@@ -32,8 +34,9 @@ export const ROUTE_MODULES: Readonly<Record<string, PersonModule>> = {
 };
 
 export function routeModule(href: string): PersonModule | null {
-  if (href.startsWith("/coach/")) return "coach";
-  return ROUTE_MODULES[href] ?? null;
+  const pathname = href.split(/[?#]/, 1)[0] ?? href;
+  if (pathname.startsWith("/coach/")) return "coach";
+  return ROUTE_MODULES[pathname] ?? null;
 }
 
 /** Whether a route is shown in navigation for the given enabled modules. */

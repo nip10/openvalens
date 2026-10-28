@@ -111,6 +111,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
   const db = createDb({ DATABASE_URL: url ?? "postgres://127.0.0.1/data_rights_test" });
   let exported: DataExport;
   let exportedA2: DataExport;
+  let exportedA2WithoutOwnedOrganization: DataExport;
 
   const parse = (table: string) => {
     const file = exported.files.find((f) => f.path === `entities/${table}.json`);
@@ -218,6 +219,40 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
         ('object-lab-collab', 'org-photo-collab', 'user-a', 'lab_document', 'org/org-photo-collab/lab-key-1', 'application/pdf', 3, '${sha256(encoder.encode("lab"))}');
       insert into exercise_catalog_mutation (organization_id,user_id,client_mutation_id,kind,fingerprint,target_id)
         values ('org-a','user-a','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','create_custom','${"d".repeat(64)}',2147483000);
+      `),
+    );
+
+    // Templates/revisions and receipts are member-private even within one
+    // organization. The owner's archived revision is the sole reference to
+    // its manual snapshot; the collaborator's manual snapshot must not leak.
+    await db.execute(
+      sql.raw(`
+      insert into nutrition_food_snapshot
+        (organization_id, source, name, nutrient_basis_amount, nutrient_basis_unit, content_hash)
+      values ('org-a', 'manual', 'template-only-owner-snapshot', 100, 'g', repeat('a', 64)),
+             ('org-a', 'manual', 'other-member-manual-snapshot', 100, 'g', repeat('b', 64));
+      with owner_template as (
+        insert into nutrition_template (organization_id, user_id, kind, current_revision, archived_at)
+        values ('org-a', 'user-a', 'meal', 2, now()) returning id
+      ), owner_revision as (
+        insert into nutrition_template_revision
+          (organization_id, user_id, template_id, revision, kind, name, ingredients, client_mutation_id, fingerprint)
+        select 'org-a', 'user-a', id, 2, 'meal', 'Archived owner meal',
+          jsonb_build_array(jsonb_build_object('snapshotId', (select id from nutrition_food_snapshot where name = 'template-only-owner-snapshot'), 'amount', 80, 'unit', 'g')),
+          'owner-archive-mutation', repeat('c', 64) from owner_template returning id
+      )
+      insert into nutrition_diary_batch
+        (organization_id, user_id, client_mutation_id, operation, fingerprint, entry_ids)
+      values ('org-a', 'user-a', 'owner-batch-replay', 'log_template', repeat('d', 64), '[]'::jsonb);
+      with other_template as (
+        insert into nutrition_template (organization_id, user_id, kind, current_revision, archived_at)
+        values ('org-a', 'user-a2', 'meal', 1, now()) returning id
+      )
+      insert into nutrition_template_revision
+        (organization_id, user_id, template_id, revision, kind, name, ingredients, client_mutation_id, fingerprint)
+      select 'org-a', 'user-a2', id, 1, 'meal', 'Other member meal',
+        jsonb_build_array(jsonb_build_object('snapshotId', (select id from nutrition_food_snapshot where name = 'other-member-manual-snapshot'), 'amount', 50, 'unit', 'g')),
+        'other-member-mutation', repeat('e', 64) from other_template;
     `),
     );
 
@@ -229,6 +264,11 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     exportedA2 = await exportSubjectData(
       db,
       { userId: "user-a2", organizationIds: ["org-a"] },
+      new Date("2026-10-03T00:00:00.000Z"),
+    );
+    exportedA2WithoutOwnedOrganization = await exportSubjectData(
+      db,
+      { userId: "user-a2", organizationIds: [] },
       new Date("2026-10-03T00:00:00.000Z"),
     );
   });
@@ -330,6 +370,45 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(ownerRows("workout_operation").every((row) => row.user_id === "user-a")).toBe(true);
   });
 
+  test("template exports include archived revisions and referenced snapshots without other members", () => {
+    const rows = (data: DataExport, table: string) =>
+      JSON.parse(data.files.find((f) => f.path === `entities/${table}.json`)!.content) as Record<
+        string,
+        unknown
+      >[];
+    expect(rows(exported, "nutrition_template").map((row) => row.user_id)).toEqual(["user-a"]);
+    expect(
+      rows(exported, "nutrition_template_revision").map((row) => [row.user_id, row.name]),
+    ).toEqual([["user-a", "Archived owner meal"]]);
+    expect(rows(exported, "nutrition_diary_batch").map((row) => row.client_mutation_id)).toEqual([
+      "owner-batch-replay",
+    ]);
+    const snapshots = rows(exported, "nutrition_food_snapshot").map((row) => row.name);
+    expect(snapshots).toContain("template-only-owner-snapshot");
+    expect(snapshots).not.toContain("other-member-manual-snapshot");
+    expect(rows(exportedA2, "nutrition_template_revision").map((row) => row.user_id)).toEqual([
+      "user-a2",
+    ]);
+    expect(exported.files.map((f) => f.content).join("\n")).not.toContain("Other member meal");
+    expect(exported.files.map((f) => f.content).join("\n")).not.toContain(
+      "other-member-manual-snapshot",
+    );
+    const collaboratorRows = (table: string) =>
+      JSON.parse(
+        exportedA2WithoutOwnedOrganization.files.find((f) => f.path === `entities/${table}.json`)!
+          .content,
+      ) as Record<string, unknown>[];
+    expect(collaboratorRows("nutrition_template_revision").map((row) => row.name)).toEqual([
+      "Other member meal",
+    ]);
+    expect(collaboratorRows("nutrition_food_snapshot").map((row) => row.name)).toEqual([
+      "other-member-manual-snapshot",
+    ]);
+    expect(exportedA2WithoutOwnedOrganization.files.map((f) => f.content).join("\n")).not.toContain(
+      "template-only-owner-snapshot",
+    );
+  });
+
   test("credentials are redacted and listed in the manifest", () => {
     const all = exported.files.map((f) => f.content).join("\n");
     expect(all).not.toContain("session-secret-a");
@@ -339,11 +418,15 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(parse("account")[0]).not.toHaveProperty("password");
     expect(parse("exercise_catalog_mutation")[0]).not.toHaveProperty("fingerprint");
     expect(all).not.toContain("d".repeat(64));
+    expect(all).not.toContain("c".repeat(64));
+    expect(all).not.toContain("e".repeat(64));
     expect(exported.manifest.redacted.map((r) => r.table).sort()).toEqual([
       "account",
       "admission_grant",
       "exercise_catalog_mutation",
       "insight_preference",
+      "nutrition_diary_batch",
+      "nutrition_template_revision",
       "push_device",
       "session",
       "telegram_connect_token",

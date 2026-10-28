@@ -18,6 +18,7 @@ import { msg, plural } from "@lingui/core/macro";
 
 import type {
   FoodChoice,
+  AmountUnit,
   FoodRef,
   NutrientBasis,
   NutrientValues,
@@ -26,9 +27,12 @@ import type { BarcodeLookup, FoodOrigin, FoodResult } from "../contracts/nutriti
 import {
   NUTRIENT_LABELS,
   SUMMARY_NUTRIENTS,
+  formatNutrientValue,
   foodSourceLabel,
+  unitsFor,
   type QuickAddFields,
 } from "./nutrition-diary";
+import { HIDDEN_VALUE, resolveHideNumbers } from "./nutrition-targets";
 
 /** How the member found a food; becomes the entry's `method`. */
 export type CandidateMethod = "manual" | "search" | "barcode";
@@ -51,7 +55,48 @@ export type FoodCandidate = {
   nutrientsPerBasis: NutrientValues;
   /** Summary nutrients the source did not provide (shown as unknown). */
   missing: MessageDescriptor[];
+  lastAmount?: number | null;
+  lastUnit?: FoodChoice["lastUnit"];
+  lastSlot?: FoodChoice["lastSlot"];
 };
+
+/**
+ * Accessible and visible summary for a food lookup row. Values use the
+ * declared serving when it is compatible with the nutrient basis; otherwise
+ * they remain on the food's documented per-100 g/ml basis.
+ */
+export function formatFoodCandidateSummaryLine(
+  candidate: Pick<FoodCandidate, "basis" | "nutrientsPerBasis">,
+  hideNumbers: boolean | undefined,
+  i18n: I18n,
+): string {
+  if (resolveHideNumbers(hideNumbers)) return i18n._(HIDDEN_VALUE);
+
+  const { basis, nutrientsPerBasis } = candidate;
+  const hasServing =
+    basis.servingSizeAmount !== null &&
+    basis.servingSizeUnit !== null &&
+    basis.servingSizeAmount > 0 &&
+    basis.servingSizeUnit === basis.nutrientBasisUnit;
+  const scale = hasServing ? basis.servingSizeAmount! / basis.nutrientBasisAmount : 1;
+  const energy =
+    nutrientsPerBasis.energyKcal === null ? null : nutrientsPerBasis.energyKcal * scale;
+  const protein = nutrientsPerBasis.proteinG === null ? null : nutrientsPerBasis.proteinG * scale;
+  const amount = hasServing ? basis.servingSizeAmount! : basis.nutrientBasisAmount;
+  const unit = hasServing ? basis.servingSizeUnit! : basis.nutrientBasisUnit;
+  const formattedAmount = new Intl.NumberFormat(i18n.locale, { maximumFractionDigits: 2 }).format(
+    amount,
+  );
+  const basisText = hasServing
+    ? basis.servingLabel
+      ? i18n._(msg`${basis.servingLabel} (${formattedAmount} ${unit})`)
+      : i18n._(msg`serving (${formattedAmount} ${unit})`)
+    : i18n._(msg`${formattedAmount} ${unit}`);
+
+  return i18n._(
+    msg`${formatNutrientValue("energyKcal", energy, i18n)} · ${formatNutrientValue("proteinG", protein, i18n)} protein · per ${basisText}`,
+  );
+}
 
 function missingSummary(values: NutrientValues): MessageDescriptor[] {
   return SUMMARY_NUTRIENTS.filter((key) => values[key] === null).map(
@@ -81,7 +126,31 @@ export function candidateFromChoice(choice: FoodChoice): FoodCandidate {
     basis: choice.basis,
     nutrientsPerBasis: choice.nutrientsPerBasis,
     missing: missingSummary(choice.nutrientsPerBasis),
+    lastAmount: choice.lastAmount ?? null,
+    lastUnit: choice.lastUnit ?? null,
+    lastSlot: choice.lastSlot ?? null,
   };
+}
+
+/** Prefer a supported last portion, then a real serving, then the nutrient basis. */
+export function defaultFoodPortion(
+  candidate: Pick<FoodCandidate, "basis" | "lastAmount" | "lastUnit">,
+): { amount: number; unit: AmountUnit } {
+  const supported = unitsFor(candidate.basis);
+  if (
+    candidate.lastAmount &&
+    candidate.lastAmount > 0 &&
+    candidate.lastUnit &&
+    supported.includes(candidate.lastUnit)
+  )
+    return { amount: candidate.lastAmount, unit: candidate.lastUnit };
+  if (
+    candidate.basis.servingSizeAmount &&
+    candidate.basis.servingSizeAmount > 0 &&
+    supported.includes("serving")
+  )
+    return { amount: 1, unit: "serving" };
+  return { amount: candidate.basis.nutrientBasisAmount, unit: candidate.basis.nutrientBasisUnit };
 }
 
 /**

@@ -1,7 +1,12 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createDb, sql } from "@openvalens/db";
 
-import { deleteSubjectData, PhotoErasureBlockedError, type DeletionReport } from "./delete";
+import {
+  deleteSelfSubjectData,
+  deleteSubjectData,
+  PhotoErasureBlockedError,
+  type DeletionReport,
+} from "./delete";
 import { rowFilter } from "./export";
 import { previewSubjectData, resolveSubject, type SubjectResolution } from "./policy";
 import { DATA_RIGHTS_REGISTRY, isExported } from "./registry";
@@ -136,6 +141,26 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
         values ('org-b', 'user-a', 'RECORD_VIEWED', '2026-10-01');
       insert into chat_message (organization_id, user_id, conversation_id, role, content, created_at)
         values ('org-b', 'user-a', 'conv-a-in-b', 'user', 'Subject chat in B', '2026-10-01');
+      insert into nutrition_template (organization_id, user_id, kind, current_revision, archived_at) values
+        ('org-a', 'user-a', 'meal', 2, now()),
+        ('org-a', 'user-a3', 'recipe', 1, null),
+        ('org-b', 'user-a', 'meal', 1, null),
+        ('org-b', 'user-b', 'meal', 1, null);
+      insert into nutrition_template_revision
+        (organization_id, user_id, template_id, revision, kind, name, ingredients, client_mutation_id, fingerprint)
+      select t.organization_id, t.user_id, t.id, r.revision, t.kind,
+        'rights template ' || t.user_id || ' rev ' || r.revision, '[]'::jsonb,
+        'rights-rev-' || t.user_id || '-' || r.revision, repeat('a', 64)
+      from nutrition_template t
+      cross join lateral generate_series(1, t.current_revision) r(revision)
+      where (t.organization_id, t.user_id) in (('org-a','user-a'), ('org-a','user-a3'), ('org-b','user-a'), ('org-b','user-b'))
+      ;
+      insert into nutrition_diary_batch
+        (organization_id, user_id, client_mutation_id, operation, fingerprint, entry_ids)
+      values ('org-a', 'user-a', 'batch-a-owned', 'copy_day', repeat('b', 64), '[]'::jsonb),
+        ('org-a', 'user-a3', 'batch-a-other', 'copy_day', repeat('c', 64), '[]'::jsonb),
+        ('org-b', 'user-a', 'batch-a-in-b', 'log_template', repeat('d', 64), '[]'::jsonb),
+        ('org-b', 'user-b', 'batch-b-in-b', 'log_template', repeat('e', 64), '[]'::jsonb);
     `),
     );
 
@@ -247,6 +272,24 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     expect(await count("plain_water_preference", sql`organization_id = 'org-a'`)).toBe(0);
     expect(await count("plain_water_mutation", sql`organization_id = 'org-a'`)).toBe(0);
     expect(
+      await count("nutrition_template", sql`user_id = 'user-a' or organization_id = 'org-a'`),
+    ).toBe(0);
+    expect(
+      await count(
+        "nutrition_template_revision",
+        sql`user_id = 'user-a' or organization_id = 'org-a'`,
+      ),
+    ).toBe(0);
+    expect(
+      await count("nutrition_diary_batch", sql`user_id = 'user-a' or organization_id = 'org-a'`),
+    ).toBe(0);
+    expect(
+      await count("nutrition_template", sql`organization_id = 'org-b' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
+      await count("nutrition_diary_batch", sql`organization_id = 'org-b' and user_id = 'user-b'`),
+    ).toBe(1);
+    expect(
       await count("plain_water_preference", sql`organization_id = 'org-c' and user_id = 'user-a'`),
     ).toBe(0);
   });
@@ -331,6 +374,9 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
       "nutrition_diary_day",
       "nutrition_favorite_food",
       "nutrition_diary_mutation",
+      "nutrition_template",
+      "nutrition_template_revision",
+      "nutrition_diary_batch",
       "plain_water_entry",
       "plain_water_preference",
       "plain_water_mutation",
@@ -340,7 +386,11 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
           ? 3
           : table === "plain_water_preference"
             ? 4
-            : 1,
+            : table === "nutrition_template" || table === "nutrition_diary_batch"
+              ? 3
+              : table === "nutrition_template_revision"
+                ? 4
+                : 1,
       );
     expect(report.rowCounts.nutrition_goal).toBe(3);
     expect(report.rowCounts.nutrition_energy_proposal).toBe(5);
@@ -663,6 +713,126 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     const rows = (await db.execute(sql`select id, state, completed_at from instance_admission`))
       .rows as { id: string; state: string; completed_at: string | null }[];
     expect(rows).toEqual([{ id: "instance", state: "pending", completed_at: null }]);
+  });
+
+  test("collaborator erasure prunes only unreferenced template snapshots across memberships", async () => {
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('user-template-collab', 'template-collab@example.test');
+      insert into member (id, organization_id, user_id, role)
+        values ('m-template-collab', 'org-b', 'user-template-collab', 'collaborator');
+      with snapshots as (
+        insert into nutrition_food_snapshot
+          (organization_id, source, name, nutrient_basis_amount, nutrient_basis_unit, content_hash)
+        values ('org-b', 'manual', 'collaborator archived template only', 100, 'g', repeat('1', 64)),
+               ('org-b', 'manual', 'owner shared history snapshot', 100, 'g', repeat('2', 64))
+        returning id, name
+      ), templates as (
+        insert into nutrition_template (organization_id, user_id, kind, current_revision, archived_at)
+        values ('org-b', 'user-template-collab', 'meal', 1, now()),
+               ('org-b', 'user-b', 'meal', 1, null)
+        returning id, organization_id, user_id, kind
+      )
+      insert into nutrition_template_revision
+        (organization_id, user_id, template_id, revision, kind, name, ingredients, client_mutation_id, fingerprint)
+      select t.organization_id, t.user_id, t.id, 1, t.kind,
+        case when t.user_id = 'user-template-collab' then 'Archived collaborator meal' else 'Owner shared meal' end,
+        jsonb_build_array(jsonb_build_object('snapshotId', s.id, 'amount', 75, 'unit', 'g')),
+        'template-snapshot-' || t.user_id, repeat('3', 64)
+      from templates t join snapshots s
+        on s.name = case when t.user_id = 'user-template-collab'
+          then 'collaborator archived template only' else 'owner shared history snapshot' end;
+      with meal as (
+        insert into nutrition_meal (organization_id, user_id, local_date, time_zone, slot)
+        values ('org-b', 'user-b', '2026-11-15', 'UTC', 'snack') returning id
+      )
+      insert into nutrition_meal_entry
+        (organization_id, user_id, meal_id, snapshot_id, amount, unit, time_zone, nutrient_factor, method, client_mutation_id)
+      select 'org-b', 'user-b', meal.id, s.id, 75, 'g', 'UTC', 0.75, 'manual', 'owner-shared-history-entry'
+      from meal cross join nutrition_food_snapshot s
+      where s.organization_id = 'org-b' and s.name = 'owner shared history snapshot';
+      insert into nutrition_favorite_food (organization_id, user_id, snapshot_id)
+      select 'org-b', 'user-b', id from nutrition_food_snapshot
+      where organization_id = 'org-b' and name = 'owner shared history snapshot';
+    `),
+    );
+
+    const report = await deleteSubjectData(db, {
+      userId: "user-template-collab",
+      organizationIds: [],
+    });
+    expect(report.rowCounts.nutrition_template).toBe(1);
+    expect(report.rowCounts.nutrition_template_revision).toBe(1);
+    expect(report.rowCounts.nutrition_food_snapshot).toBe(1);
+    expect(await count("nutrition_template", sql`user_id = 'user-template-collab'`)).toBe(0);
+    expect(await count("nutrition_template_revision", sql`user_id = 'user-template-collab'`)).toBe(
+      0,
+    );
+    expect(
+      await count("nutrition_food_snapshot", sql`name = 'collaborator archived template only'`),
+    ).toBe(0);
+    expect(
+      await count("nutrition_template", sql`user_id = 'user-b' and organization_id = 'org-b'`),
+    ).toBe(2);
+    expect(await count("nutrition_template_revision", sql`name = 'Owner shared meal'`)).toBe(1);
+    expect(
+      await count("nutrition_food_snapshot", sql`name = 'owner shared history snapshot'`),
+    ).toBe(1);
+    expect(
+      await count(
+        "nutrition_meal_entry",
+        sql`user_id = 'user-b' and client_mutation_id = 'owner-shared-history-entry'`,
+      ),
+    ).toBe(1);
+    expect(
+      await count(
+        "nutrition_favorite_food",
+        sql`user_id = 'user-b' and snapshot_id = (select id from nutrition_food_snapshot where name = 'owner shared history snapshot')`,
+      ),
+    ).toBe(1);
+  });
+
+  test("self-service account deletion removes template history and replay receipts", async () => {
+    await seedAccount(db, "template-account-delete", 0);
+    await db.execute(
+      sql`delete from stored_object where organization_id = 'org-template-account-delete'`,
+    );
+    await db.execute(sql`delete from photo_cleanup_intent
+      where org_id = 'org-template-account-delete' or subject_id = 'user-template-account-delete'`);
+    await db.execute(sql`insert into nutrition_template
+      (organization_id, user_id, kind, current_revision, archived_at)
+      values ('org-template-account-delete', 'user-template-account-delete', 'meal', 1, now())`);
+    await db.execute(sql`insert into nutrition_template_revision
+      (organization_id, user_id, template_id, revision, kind, name, ingredients, client_mutation_id, fingerprint)
+      select organization_id, user_id, id, 1, kind, 'Archived account template', '[]'::jsonb,
+        'account-delete-revision', repeat('f', 64) from nutrition_template
+      where organization_id = 'org-template-account-delete'`);
+    await db.execute(sql`insert into nutrition_diary_batch
+      (organization_id, user_id, client_mutation_id, operation, fingerprint, entry_ids)
+      values ('org-template-account-delete', 'user-template-account-delete', 'account-delete-replay',
+        'log_template', repeat('e', 64), '[]'::jsonb)`);
+
+    const result = await deleteSelfSubjectData(
+      db,
+      { userId: "user-template-account-delete", sessionId: "s-template-account-delete" },
+      null,
+    );
+    expect(result.report.rowCounts.nutrition_template).toBe(1);
+    expect(result.report.rowCounts.nutrition_template_revision).toBe(1);
+    expect(result.report.rowCounts.nutrition_diary_batch).toBe(1);
+    expect(await count("user", sql`id = 'user-template-account-delete'`)).toBe(0);
+    expect(
+      await count("nutrition_template", sql`organization_id = 'org-template-account-delete'`),
+    ).toBe(0);
+    expect(
+      await count(
+        "nutrition_template_revision",
+        sql`organization_id = 'org-template-account-delete'`,
+      ),
+    ).toBe(0);
+    expect(
+      await count("nutrition_diary_batch", sql`organization_id = 'org-template-account-delete'`),
+    ).toBe(0);
   });
 });
 

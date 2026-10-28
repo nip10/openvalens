@@ -41,6 +41,14 @@ export function createSqliteOutboxStore(db: NutritionSqlite): OutboxStore {
           json,
         );
     },
+    updateEntryReceipts(scope, entryId, revision) {
+      db.runSync(
+        "UPDATE nutrition_entry_receipt SET revision = ? WHERE scope = ? AND entry_id = ?",
+        revision,
+        scope,
+        String(entryId),
+      );
+    },
     remove(scope, id) {
       db.runSync("DELETE FROM nutrition_outbox WHERE scope = ? AND id = ?", scope, id);
     },
@@ -49,6 +57,30 @@ export function createSqliteOutboxStore(db: NutritionSqlite): OutboxStore {
         "SELECT coalesce(max(seq), 0) + 1 AS next FROM nutrition_outbox",
       );
       return row?.next ?? 1;
+    },
+    getEntryReceipt(scope, mutationId, itemKey) {
+      const row = db.getFirstSync<{ entry_id: string; revision: number }>(
+        "SELECT entry_id, revision FROM nutrition_entry_receipt WHERE scope = ? AND mutation_id = ? AND item_key = ?",
+        scope,
+        mutationId,
+        itemKey ?? "",
+      );
+      return row
+        ? {
+            entryId: /^\d+$/.test(row.entry_id) ? Number(row.entry_id) : row.entry_id,
+            revision: row.revision,
+          }
+        : null;
+    },
+    putEntryReceipt(scope, mutationId, itemKey, entryId, revision) {
+      db.runSync(
+        "INSERT OR REPLACE INTO nutrition_entry_receipt(scope, mutation_id, item_key, entry_id, revision) VALUES (?, ?, ?, ?, ?)",
+        scope,
+        mutationId,
+        itemKey ?? "",
+        String(entryId),
+        revision,
+      );
     },
   };
 }

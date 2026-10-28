@@ -46,10 +46,10 @@ type DrawerItem = {
   label: MessageDescriptor;
   href:
     | "/(drawer)/(tabs)"
+    | "/(drawer)/(tabs)/nutrition"
     | "/scores"
     | "/preventive-care"
     | "/supplements"
-    | "/nutrition"
     | "/micronutrients"
     | "/recipe-drafts"
     | "/food-draft"
@@ -104,7 +104,7 @@ const DRAWER_GROUPS: readonly { label: MessageDescriptor; items: readonly Drawer
   {
     label: msg`Habits`,
     items: [
-      { label: msg`Meal diary`, href: "/nutrition", icon: UtensilsCrossed },
+      { label: msg`Meal diary`, href: "/(drawer)/(tabs)/nutrition", icon: UtensilsCrossed },
       { label: msg`Describe a meal`, href: "/food-draft", icon: MessageSquareText },
       { label: msg`Recipe draft`, href: "/recipe-drafts", icon: ChefHat },
       { label: msg`Micronutrients`, href: "/micronutrients", icon: Leaf },
@@ -334,13 +334,6 @@ function DrawerLayout() {
       />
       <Drawer.Screen
         name="supplements"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="nutrition"
         options={{
           headerTitle,
           drawerItemStyle: { display: "none" },
