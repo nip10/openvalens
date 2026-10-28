@@ -2,7 +2,8 @@
 # obtains/renews TLS certificates automatically for OPENVALENS_DOMAIN, unless
 # OPENVALENS_SITE_SCHEME=http says a proxy in front already terminates TLS.
 # Web and API share one origin: API paths go to `server`, everything else to
-# the static `web` app. Values come from deploy/.env (written by setup.sh).
+# the static `web` app. `/.well-known/openvalens` is the server check the
+# mobile app reads (#295). Values come from deploy/.env (written by setup.sh).
 {
 	email {$ACME_EMAIL}
 }
@@ -12,7 +13,7 @@
 
 	header Strict-Transport-Security "max-age=31536000"
 
-	@api path /api /api/* /rpc /rpc/* /api-reference /api-reference/*
+	@api path /api /api/* /rpc /rpc/* /api-reference /api-reference/* /.well-known/openvalens
 	handle @api {
 		reverse_proxy server:3000
 	}

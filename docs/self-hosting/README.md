@@ -32,7 +32,7 @@ so.
 | [Security model and reporting](security.md) | What the stack protects, what you must, how to report a vulnerability.   |
 | [Privacy and data rights](privacy.md)       | Where data lives, export and "delete everything".                        |
 | [Licensing and trademark](licensing.md)     | AGPL obligations, app-store permission, use of the name.                 |
-| [Connecting the mobile app](mobile-app.md)  | Building the app for your server.                                        |
+| [Connecting the mobile app](mobile-app.md)  | The store app on your server; building your own is optional.             |
 
 ## Reference
 

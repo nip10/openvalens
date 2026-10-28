@@ -67,6 +67,7 @@ import {
 } from "@/components/language-section";
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
+import { ServerSection } from "@/components/change-server";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
 import { signOutOfThisPhone } from "@/lib/sign-out";
@@ -123,6 +124,8 @@ export default function SettingsScreen() {
             </View>
           </SettingsGroup>
         </Section>
+
+        <ServerSection />
 
         <LanguageSection />
 
