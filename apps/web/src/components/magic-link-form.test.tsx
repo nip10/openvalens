@@ -51,3 +51,18 @@ describe("MagicLinkForm OIDC option (Issue #65)", () => {
     expect(html).not.toInclude("account_not_linked");
   });
 });
+
+describe("MagicLinkForm sign-up link (Issue #294)", () => {
+  test("self-hosted: no Create account link, invitation copy stays", () => {
+    const html = renderToStaticMarkup(<MagicLinkForm />);
+    expect(html).not.toInclude('href="/signup"');
+    expect(html).toInclude("New accounts require an invitation.");
+  });
+
+  test("cloud: shows Create account linking to /signup", () => {
+    const html = renderToStaticMarkup(<MagicLinkForm signUpAvailable />);
+    expect(html).toInclude('href="/signup"');
+    expect(html).toInclude("Create account");
+    expect(html).not.toInclude("New accounts require an invitation.");
+  });
+});

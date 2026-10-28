@@ -143,7 +143,7 @@ export const globalSecurityEvent = pgTable(
   (table) => ({
     globalSecurityEventTypeCheck: check(
       "global_security_event_type_check",
-      sql`${table.eventType} in ('setup_token_minted', 'setup_completed', 'admission_invitation_issued', 'admission_invitation_revoked', 'admission_completed')`,
+      sql`${table.eventType} in ('setup_token_minted', 'setup_completed', 'admission_invitation_issued', 'admission_invitation_revoked', 'admission_completed', 'public_sign_up_completed')`,
     ),
     globalSecurityEventOccurredAtIdx: index("global_security_event_occurred_at_idx").on(
       table.occurredAt,
@@ -154,5 +154,82 @@ export const globalSecurityEvent = pgTable(
     globalSecurityEventTargetUserIdx: index("global_security_event_target_user_id_idx").on(
       table.targetUserId,
     ),
+  }),
+);
+
+// ─── Public sign-up (Issue #294) ──────────────────────────────
+//
+// Cloud only (`DEPLOYMENT_MODE=cloud`). A sign-up request is a pending,
+// single-use link sent to an email address; no `user` row exists until that
+// link is used. Only the SHA-256 digest of the link token is stored.
+
+/**
+ * One row per public sign-up request. `user_id` is set (and `consumed_at`
+ * stamped) when the link creates the account. The terms and privacy versions
+ * the person ticked are captured here at request time and copied to
+ * `legal_acceptance` when the account is created. Expired requests are pruned.
+ */
+export const signUpRequest = pgTable(
+  "sign_up_request",
+  {
+    id: text("id").primaryKey(),
+    canonicalEmail: text("canonical_email").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    locale: text("locale"),
+    termsVersion: text("terms_version").notNull(),
+    privacyVersion: text("privacy_version").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true, mode: "date" }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    signUpRequestCanonicalEmailCheck: check(
+      "sign_up_request_canonical_email_check",
+      sql`${table.canonicalEmail} = lower(${table.canonicalEmail})`,
+    ),
+    signUpRequestConsumedShapeCheck: check(
+      "sign_up_request_consumed_shape_check",
+      sql`${table.userId} is null or ${table.consumedAt} is not null`,
+    ),
+    signUpRequestCanonicalEmailIdx: index("sign_up_request_canonical_email_idx").on(
+      table.canonicalEmail,
+    ),
+    signUpRequestExpiresAtIdx: index("sign_up_request_expires_at_idx").on(table.expiresAt),
+    signUpRequestUserIdx: index("sign_up_request_user_id_idx").on(table.userId),
+  }),
+);
+
+/**
+ * Acceptance of a legal document (terms of service, privacy policy) by an
+ * account, with the exact version and when it was accepted (#294, #300). One
+ * row per user, document and version; accepting a later version adds a row.
+ */
+export const legalAcceptance = pgTable(
+  "legal_acceptance",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    document: text("document").notNull(),
+    version: text("version").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true, mode: "date" }).notNull(),
+    source: text("source").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    legalAcceptanceDocumentCheck: check(
+      "legal_acceptance_document_check",
+      sql`${table.document} in ('terms', 'privacy')`,
+    ),
+    legalAcceptanceSourceCheck: check(
+      "legal_acceptance_source_check",
+      sql`${table.source} in ('sign_up')`,
+    ),
+    legalAcceptanceUserDocumentVersionUnique: uniqueIndex(
+      "legal_acceptance_user_document_version_key",
+    ).on(table.userId, table.document, table.version),
   }),
 );

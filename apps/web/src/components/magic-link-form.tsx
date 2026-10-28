@@ -18,6 +18,8 @@ import { oidcSignInErrorMessage } from "@/utils/sign-in-options";
 export type MagicLinkFormProps = {
   linkError?: boolean;
   setupAvailable?: boolean;
+  /** Issue #294 — OpenValens Cloud: anyone may create an account at `/signup`. */
+  signUpAvailable?: boolean;
   returnUrl?: string | null;
   /** Issue #65 — the configured OIDC provider, or `null` (no button). */
   oidc?: { providerId: string; displayName: string } | null;
@@ -26,12 +28,14 @@ export type MagicLinkFormProps = {
 };
 
 /**
- * Passwordless sign-in. The server only supports magic links for existing
- * accounts (email/password and public sign-up are disabled).
+ * Passwordless sign-in. Magic links only sign in existing accounts. New
+ * accounts come from an invitation, the first setup, or — on OpenValens Cloud
+ * only — the public `/signup` page (Issue #294).
  */
 export default function MagicLinkForm({
   linkError,
   setupAvailable,
+  signUpAvailable = false,
   returnUrl,
   oidc = null,
   oidcError = null,
@@ -178,9 +182,23 @@ export default function MagicLinkForm({
       </div>
 
       <div className="grid justify-items-center gap-2 text-center text-sm text-ink-3">
-        <p>
-          <Trans>New accounts require an invitation.</Trans>
-        </p>
+        {signUpAvailable ? (
+          <p>
+            <Trans>
+              New to OpenValens?{" "}
+              <a
+                href="/signup"
+                className="rounded font-display font-medium text-ink underline decoration-signal underline-offset-[0.15em] hover:decoration-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                Create account
+              </a>
+            </Trans>
+          </p>
+        ) : (
+          <p>
+            <Trans>New accounts require an invitation.</Trans>
+          </p>
+        )}
         <div className="flex flex-wrap items-center justify-center gap-4">
           {setupAvailable ? (
             <a

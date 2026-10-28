@@ -9,6 +9,15 @@ export { canonicalizeEmail } from "./email";
 export { AdmissionError, isAdmissionError } from "./errors";
 export type { AdmissionErrorCode } from "./errors";
 export { createAdmissionService } from "./service";
+export { createPublicSignUpService, SIGN_UP_LINK_TTL_MS } from "./sign-up";
+export type {
+  CompletePublicSignUpResult,
+  DeliverSignUp,
+  OnPublicAccountCreated,
+  PublicSignUpDeps,
+  PublicSignUpService,
+  SignUpPublicInput,
+} from "./sign-up";
 export type {
   AdmissionBeginInput,
   AdmissionCompleteInput,

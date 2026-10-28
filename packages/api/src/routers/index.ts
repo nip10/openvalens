@@ -43,6 +43,7 @@ import { privateBodyRouter } from "./private-body";
 import { scoreRouter } from "./score";
 import { sharingRouter } from "./sharing";
 import { signInRouter } from "./sign-in";
+import { signUpRouter } from "./sign-up";
 import { sleepRouter } from "./sleep";
 import { storageRouter } from "./storage";
 import { telegramRouter } from "./telegram";
@@ -98,6 +99,7 @@ type AppRouterShape = {
   score: typeof scoreRouter;
   sharing: typeof sharingRouter;
   signIn: typeof signInRouter;
+  signUp: typeof signUpRouter;
   sleep: typeof sleepRouter;
   storage: typeof storageRouter;
   telegram: typeof telegramRouter;
@@ -150,6 +152,7 @@ export const appRouter: AppRouterShape = {
   score: scoreRouter,
   sharing: sharingRouter,
   signIn: signInRouter,
+  signUp: signUpRouter,
   sleep: sleepRouter,
   storage: storageRouter,
   telegram: telegramRouter,

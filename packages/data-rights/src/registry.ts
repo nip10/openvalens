@@ -237,6 +237,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     kind: "admission",
     redact: ["invitation_token_hash", "verification_code_hash"],
   },
+  // Cloud public sign-up (#294): the pending link (token digest redacted) and
+  // the legal documents an account accepted, both keyed by `user_id`.
+  sign_up_request: { kind: "user", redact: ["token_hash"] },
+  legal_acceptance: { kind: "user" },
   global_security_event: {
     kind: "system",
     reason:

@@ -8,6 +8,7 @@ import {
   serverMetaSchema,
   type ServerMeta,
 } from "@openvalens/api/server-meta";
+import { parseDeploymentConfig } from "@openvalens/auth/deployment";
 import { Hono } from "hono";
 
 import { deploymentProfile, registerServerMetaRoute } from "./server-meta-route";
@@ -57,6 +58,33 @@ describe("GET /.well-known/openvalens (#295)", () => {
 
   test("self-host stays invite-only by default", () => {
     expect(deploymentProfile()).toEqual({ mode: "self-hosted", signUp: false });
+    expect(deploymentProfile({ mode: "self-hosted" })).toEqual({
+      mode: "self-hosted",
+      signUp: false,
+    });
+  });
+
+  test("cloud mode (#294) advertises public sign-up from the parsed DEPLOYMENT_MODE", async () => {
+    const config = parseDeploymentConfig({
+      DEPLOYMENT_MODE: "cloud",
+      LEGAL_TERMS_URL: "https://legal.test/terms",
+      LEGAL_TERMS_VERSION: "t-1",
+      LEGAL_PRIVACY_URL: "https://legal.test/privacy",
+      LEGAL_PRIVACY_VERSION: "p-1",
+    });
+    expect(deploymentProfile(config)).toEqual({ mode: "cloud", signUp: true });
+
+    const response = await appWith({
+      signInOptions: { oidc: null },
+      profile: () => deploymentProfile(config),
+    }).request(SERVER_META_PATH);
+    const text = await response.text();
+    const body = JSON.parse(text) as ServerMeta;
+    expect(body.mode).toBe("cloud");
+    expect(body.signIn.signUp).toBe(true);
+    expect(serverMetaSchema.strict().parse(body)).toEqual(body);
+    // Value-free: no legal URL or version leaks into the public meta.
+    expect(text).not.toContain("legal.test");
   });
 
   test("is GET only", async () => {

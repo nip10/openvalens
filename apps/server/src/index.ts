@@ -41,6 +41,7 @@ import { registerServerMetaRoute } from "./server-meta-route";
 import {
   auth,
   db,
+  deploymentInfo,
   exerciseCatalogAssetsEnabled,
   getExerciseCatalogAssetService,
   signInOptions,
@@ -264,7 +265,8 @@ registerExerciseCatalogAssetRoute(app, {
 });
 
 // Issue #295 — public server check the mobile app reads before connecting.
-registerServerMetaRoute(app, { signInOptions });
+// Issue #294 — mode and sign-up come from the validated `DEPLOYMENT_MODE`.
+registerServerMetaRoute(app, { signInOptions, profile: () => deploymentInfo });
 
 // Issue #60 — cloud wearable OAuth callback. Plain Hono (NOT oRPC): the
 // browser arrives here from the vendor with the one-time `code` and the

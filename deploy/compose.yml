@@ -50,6 +50,13 @@ x-server-env: &server-env
   # Source code link shown to users (AGPL-3.0 section 13). Point it at your
   # fork's public repository if you run a modified version.
   SOURCE_CODE_URL: ${SOURCE_CODE_URL:-https://github.com/nip10/openvalens}
+  # `self-hosted` (invite-only) unless this server is OpenValens Cloud. `cloud`
+  # opens public sign-up and refuses to start without the LEGAL_* settings.
+  DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
+  LEGAL_TERMS_URL: ${LEGAL_TERMS_URL:-}
+  LEGAL_TERMS_VERSION: ${LEGAL_TERMS_VERSION:-}
+  LEGAL_PRIVACY_URL: ${LEGAL_PRIVACY_URL:-}
+  LEGAL_PRIVACY_VERSION: ${LEGAL_PRIVACY_VERSION:-}
   EMAIL_FROM: ${EMAIL_FROM:?run deploy/setup.sh first}
   EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
   EMAIL_AUDIT_BCC_FILE: ${EMAIL_AUDIT_BCC_FILE:-}

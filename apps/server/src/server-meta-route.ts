@@ -3,15 +3,18 @@ import {
   SERVER_META_PATH,
   type DeploymentProfile,
 } from "@openvalens/api/server-meta";
+import { deploymentCapabilities, type DeploymentConfig } from "@openvalens/auth/deployment";
 import type { Hono } from "hono";
 
 /**
- * Cloud or self-hosted, and whether this instance takes public sign-ups. Every
- * instance is self-hosted and invite-only until the Cloud mode exists.
+ * Cloud or self-hosted, and whether this instance takes public sign-ups
+ * (Issue #294). Derived from the validated `DEPLOYMENT_MODE` config the server
+ * parsed at boot; with none given it is self-hosted and invite-only.
  */
-export function deploymentProfile(): DeploymentProfile {
-  // #294 wires DEPLOYMENT_MODE here
-  return { mode: "self-hosted", signUp: false };
+export function deploymentProfile(
+  config: DeploymentConfig = { mode: "self-hosted" },
+): DeploymentProfile {
+  return deploymentCapabilities(config);
 }
 
 /**

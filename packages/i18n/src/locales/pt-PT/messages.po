@@ -1118,6 +1118,10 @@ msgstr "Aceitar convite"
 msgid "Accept suggestion"
 msgstr "Aceitar sugestão"
 
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Accept the terms of service and privacy policy to continue."
+msgstr "Aceite os termos de serviço e a política de privacidade para continuar."
+
 #: packages/api/src/presenters/sleep.ts
 msgid "Acceptable"
 msgstr "Aceitável"
@@ -1601,6 +1605,10 @@ msgstr "Permitir IA neste espaço de trabalho"
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Allow notifications on this phone"
 msgstr "Permitir notificações neste telemóvel"
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Already have an account? <0>Sign in</0>"
+msgstr "Já tem conta? <0>Iniciar sessão</0>"
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "Also recorded"
@@ -2363,6 +2371,7 @@ msgid "Check your connection, then reload the page."
 msgstr "Verifique a ligação e depois recarregue a página."
 
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Check your email"
 msgstr "Verifique o seu email"
@@ -2746,6 +2755,10 @@ msgstr "Confirme primeiro o envio deste texto ao fornecedor."
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Confirm you are 18 or older before adding age or sex."
 msgstr "Confirme que tem 18 anos ou mais antes de indicar a idade ou o sexo."
+
+#: apps/server/src/admission-email.ts
+msgid "Confirm your email to create your OpenValens account."
+msgstr "Confirme o seu email para criar a sua conta OpenValens."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
@@ -3430,6 +3443,10 @@ msgstr "Não foi possível preparar o seu espaço de trabalho. Tente novamente."
 msgid "Could not reach {host}"
 msgstr "Não foi possível contactar {host}"
 
+#: apps/web/src/utils/sign-up.ts
+msgid "Could not reach the server. Check your connection and try again."
+msgstr "Não foi possível contactar o servidor. Verifique a ligação e tente novamente."
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Could not reach the server. Your saved entries are unchanged."
 msgstr "Não foi possível contactar o servidor. Os seus registos guardados não foram alterados."
@@ -3596,6 +3613,10 @@ msgstr "Não foi possível enviar a ligação de início de sessão."
 msgid "Could not send the sign-in link. Please try again."
 msgstr "Não foi possível enviar a ligação de início de sessão. Tente novamente."
 
+#: apps/web/src/utils/sign-up.ts
+msgid "Could not send the sign-up link. Please try again."
+msgstr "Não foi possível enviar a ligação de registo. Tente novamente."
+
 #: apps/native/app/(drawer)/coach/[conversationId].tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "Could not send. Check AI consent in Settings."
@@ -3718,6 +3739,10 @@ msgstr "Criar rascunho"
 msgid "Create exercise"
 msgstr "Criar exercício"
 
+#: apps/server/src/admission-email.ts
+msgid "Create my account"
+msgstr "Criar a minha conta"
+
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Create recipe"
 msgstr "Criar receita"
@@ -3726,6 +3751,14 @@ msgstr "Criar receita"
 #: apps/web/src/components/exercise-library.tsx
 msgid "Create workspace exercise"
 msgstr "Criar exercício do espaço de trabalho"
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Create your account"
+msgstr "Criar a sua conta"
+
+#: apps/server/src/admission-email.ts
+msgid "Create your OpenValens account"
+msgstr "Crie a sua conta OpenValens"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -4488,6 +4521,7 @@ msgstr "A EFSA é a escolha habitual na UE, no EEE e no Reino Unido; a NASEM nos
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Email"
 msgstr "Email"
@@ -4507,6 +4541,10 @@ msgstr "O email não está configurado neste servidor."
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Email me a sign-in link"
 msgstr "Enviar-me uma ligação de início de sessão"
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Email me a sign-up link"
+msgstr "Enviar-me uma ligação de registo"
 
 #: apps/native/components/onboarding/steps.tsx
 msgid "Email, backups and the AI provider are set in the server's environment. The web app's admin pages show the details and how to change them."
@@ -4586,8 +4624,13 @@ msgstr "Introduza uma data válida."
 
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 msgid "Enter a valid email address"
 msgstr "Introduza um endereço de email válido"
+
+#: apps/web/src/utils/sign-up.ts
+msgid "Enter a valid email address and accept the terms to continue."
+msgstr "Introduza um endereço de email válido e aceite os termos para continuar."
 
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Enter a valid measurement and observed time."
@@ -5617,6 +5660,10 @@ msgstr "Concordo em enviar esta fotografia agora"
 msgid "I agree to store my cycle data on this server for my own reference."
 msgstr "Aceito guardar os meus dados do ciclo neste servidor para minha própria referência."
 
+#: apps/web/src/components/sign-up-form.tsx
+msgid "I agree to the <0>terms of service</0> and the <1>privacy policy</1>."
+msgstr "Aceito os <0>termos de serviço</0> e a <1>política de privacidade</1>."
+
 #. safety
 #. safety
 #: apps/native/components/energy-estimate-card.tsx
@@ -5651,9 +5698,17 @@ msgstr "Vou introduzir os dados manualmente"
 msgid "I'll type things in"
 msgstr "Vou escrever eu"
 
+#: apps/server/src/admission-email.ts
+msgid "If that wasn’t you, you can ignore this email."
+msgstr "Se não foi você, pode ignorar este email."
+
 #: packages/email/src/templates/magic-link.tsx
 msgid "If the button does not work, paste this link into your browser: {url}"
 msgstr "Se o botão não funcionar, cole esta ligação no seu navegador: {url}"
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "If this email already has an account, we sent a sign-in link instead."
+msgstr "Se este email já tiver conta, enviámos antes uma ligação para iniciar sessão."
 
 #: packages/api/src/presenters/insights.ts
 msgid "If you connect Telegram in Settings, the same reminders are sent there instead."
@@ -5662,6 +5717,10 @@ msgstr "Se ligar o Telegram nas Definições, os mesmos lembretes são enviados 
 #: packages/email/src/templates/magic-link.tsx
 msgid "If you did not request this email, you can safely ignore it."
 msgstr "Se não pediu este email, pode ignorá-lo em segurança."
+
+#: apps/server/src/admission-email.ts
+msgid "If you didn’t ask to create an account, ignore this email. No account is created unless the link is used."
+msgstr "Se não pediu para criar uma conta, ignore este email. Nenhuma conta é criada sem que a ligação seja usada."
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
@@ -7213,6 +7272,10 @@ msgstr "Nova rotina"
 #: packages/api/src/presenters/insights.ts
 msgid "New source for {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}}"
 msgstr "Nova fonte de dados para {metric, select, sleep_duration {o sono} resting_heart_rate {a frequência cardíaca em repouso} steps {os passos} other {o peso}}"
+
+#: apps/web/src/components/magic-link-form.tsx
+msgid "New to OpenValens? <0>Create account</0>"
+msgstr "Novo no OpenValens? <0>Criar conta</0>"
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Next"
@@ -10326,6 +10389,7 @@ msgstr "A enviar o código…"
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "Sending…"
 msgstr "A enviar…"
@@ -10622,6 +10686,7 @@ msgstr "Lado"
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/index.tsx
 #: packages/email/src/templates/magic-link.tsx
 msgid "Sign in"
@@ -10841,6 +10906,10 @@ msgstr "Algumas refeições registadas ocorreram até quatro horas antes ou depo
 #: packages/api/src/presenters/insights.ts
 msgid "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
 msgstr "Algumas refeições foram registadas nas quatro horas anteriores ao início do sono, nesta janela de {windowDays} dias. Isto descreve apenas horários nos seus registos e não estabelece uma relação entre o horário das refeições e o sono."
+
+#: apps/server/src/admission-email.ts
+msgid "Someone asked to create an OpenValens account with this email address, but it already has one."
+msgstr "Alguém pediu para criar uma conta OpenValens com este endereço de email, mas ele já tem uma."
 
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
@@ -11432,6 +11501,18 @@ msgstr "Essa descrição é demasiado longa. Mantenha-a abaixo de 2000 caractere
 msgid "That sign-in link is invalid or has expired. Request a new one."
 msgstr "Essa ligação de início de sessão é inválida ou expirou. Peça uma nova."
 
+#: apps/web/src/utils/sign-up.ts
+msgid "That sign-up link has expired. Enter your email to get a new one."
+msgstr "Essa ligação de registo expirou. Introduza o seu email para receber uma nova."
+
+#: apps/web/src/utils/sign-up.ts
+msgid "That sign-up link is not valid. Enter your email to get a new one."
+msgstr "Essa ligação de registo não é válida. Introduza o seu email para receber uma nova."
+
+#: apps/web/src/utils/sign-up.ts
+msgid "That sign-up link was already used, so your account exists. Sign in with your email instead."
+msgstr "Essa ligação de registo já foi usada, por isso a sua conta já existe. Inicie sessão com o seu email."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "That time does not exist on this date in your time zone. Choose another time."
 msgstr "Essa hora não existe nesta data no seu fuso horário. Escolha outra hora."
@@ -11513,6 +11594,10 @@ msgstr "A última sincronização falhou. Será repetida automaticamente."
 #: apps/web/src/components/exercise-library.tsx
 msgid "The library is empty for now."
 msgstr "Por agora, a biblioteca está vazia."
+
+#: apps/server/src/admission-email.ts
+msgid "The link expires in 1 hour and works once."
+msgstr "A ligação expira dentro de 1 hora e só funciona uma vez."
 
 #: packages/api/src/presenters/workout-progression.ts
 msgid "The load stays the same because it cannot be increased for this exercise."
@@ -11943,6 +12028,10 @@ msgstr "Este item guardado foi alterado noutro local. Reveja a versão do servid
 msgid "This scan has no regional values."
 msgstr "Este exame não tem valores regionais."
 
+#: apps/web/src/utils/sign-up.ts
+msgid "This server can't send email right now, so sign-up is unavailable."
+msgstr "Este servidor não consegue enviar emails neste momento, por isso o registo não está disponível."
+
 #: apps/web/src/routes/setup.tsx
 msgid "This server can't send email yet, so setup can't finish: the verification code is sent by email. Add a Resend key with <0>deploy/setup.sh install --reconfigure</0>, then reload this page."
 msgstr "Este servidor ainda não consegue enviar email, por isso a configuração não pode terminar: o código de verificação é enviado por email. Adicione uma chave Resend com <0>deploy/setup.sh install --reconfigure</0> e volte a carregar esta página."
@@ -12061,6 +12150,10 @@ msgstr "Para criar a sua conta, abra {url} e cole o token."
 msgid "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
 msgstr "Para iniciar sessão com {0} mais tarde, termine a adesão, inicie sessão com a ligação por email e depois escolha Ligar em Definições → Métodos de início de sessão."
 
+#: apps/server/src/admission-email.ts
+msgid "To sign in, open {url}."
+msgstr "Para iniciar sessão, abra {url}."
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "To speak, use your keyboard's dictation (microphone) key. This app never records or uploads audio."
 msgstr "Para falar, use a tecla de ditado (microfone) do teclado. Esta aplicação nunca grava nem carrega áudio."
@@ -12097,6 +12190,10 @@ msgstr "Nível máximo de ingestão tolerável (UL)"
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Tone"
 msgstr "Tom"
+
+#: apps/web/src/utils/sign-up.ts
+msgid "Too many attempts. Wait a few minutes and try again."
+msgstr "Demasiadas tentativas. Aguarde alguns minutos e tente novamente."
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Too many attempts. Wait a moment, then try again."
@@ -12541,6 +12638,7 @@ msgstr "Use o formato de 24 horas, por exemplo 14:05."
 
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 msgid "Use a different email"
 msgstr "Usar outro email"
 
@@ -12811,6 +12909,10 @@ msgstr "Não foi possível carregar este convite. Pode ter expirado ou sido revo
 msgid "We emailed a one-time code to <0>{0}</0>. It expires in 10 minutes."
 msgstr "Enviámos um código de utilização única para <0>{0}</0>. Expira dentro de 10 minutos."
 
+#: apps/web/src/components/sign-up-form.tsx
+msgid "We sent a link to <0>{sentTo}</0>. Open it within 1 hour to finish creating your account."
+msgstr "Enviámos uma ligação para <0>{sentTo}</0>. Abra-a dentro de 1 hora para concluir a criação da sua conta."
+
 #: apps/native/components/sign-in.tsx
 msgid "We sent a sign-in link to {sentTo}. Open it on this phone within 10 minutes."
 msgstr "Enviámos uma ligação de início de sessão para {sentTo}. Abra-a neste telemóvel dentro de 10 minutos."
@@ -12823,6 +12925,10 @@ msgstr "Enviámos uma ligação de início de sessão para <0>{sentTo}</0>. Expi
 #: apps/native/components/onboarding/steps.tsx
 msgid "We'll ask {sourceName} only for: {0}. Read only; OpenValens never writes to it."
 msgstr "Vamos pedir ao {sourceName} apenas: {0}. Só leitura; o OpenValens nunca escreve lá."
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "We'll email you a link to finish. No password needed."
+msgstr "Vamos enviar-lhe por email uma ligação para concluir. Não precisa de palavra-passe."
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "We'll email you a link to sign in. No password needed."
@@ -13071,6 +13177,10 @@ msgstr "Ontem"
 #: apps/web/src/routes/_auth/coach/$conversationId.tsx
 msgid "You"
 msgstr "Você"
+
+#: apps/server/src/admission-email.ts
+msgid "You already have an OpenValens account"
+msgstr "Já tem uma conta OpenValens"
 
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "You already have goals. See them, and add a target and date, under <0>Workouts</0>."

@@ -1,8 +1,11 @@
 import { describeAiIntegration, InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
 import { deriveInsightUnsubscribeKey } from "@openvalens/api/insights";
 import { createProductSettingsService } from "@openvalens/api/product-settings";
+import { SignUpRateLimiter } from "@openvalens/api/sign-up";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
-import { createAdmissionService } from "@openvalens/auth/admission";
+import { createAdmissionService, createPublicSignUpService } from "@openvalens/auth/admission";
+import { deploymentCapabilities, parseDeploymentConfig } from "@openvalens/auth/deployment";
+import { PUBLIC_SIGN_UP_VERIFY_PATH } from "@openvalens/auth/public-sign-up-plugin";
 import { createWorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import { describeOidcIntegration, oidcSignInOption, parseOidcConfig } from "@openvalens/auth/oidc";
 import { createDb } from "@openvalens/db";
@@ -36,7 +39,7 @@ import {
   TelegramClient,
 } from "@openvalens/telegram";
 
-import { createAdmissionEmailDelivery } from "./admission-email";
+import { createAdmissionEmailDelivery, createSignUpEmailDelivery } from "./admission-email";
 import { ENV } from "./env.server";
 import { initErrorReporting } from "./error-reporting";
 import { createAnalyticsService } from "./services/analytics";
@@ -110,8 +113,54 @@ export const invitationEmails = createWorkspaceInvitationEmails({
   webOrigin: ENV.CORS_ORIGIN,
 });
 
+// ─── Deployment mode (Issue #294) ───────────────────────────────
+//
+// `DEPLOYMENT_MODE` is `self-hosted` unless the operator sets `cloud`. Cloud
+// refuses to start without the settings it depends on (today the terms and
+// privacy versions every sign-up records; #297 adds the Stripe keys to
+// `CLOUD_REQUIRED_KEYS`). The thrown error names keys only, never values.
+export const deploymentConfig = parseDeploymentConfig({
+  DEPLOYMENT_MODE: ENV.DEPLOYMENT_MODE,
+  LEGAL_TERMS_URL: ENV.LEGAL_TERMS_URL,
+  LEGAL_TERMS_VERSION: ENV.LEGAL_TERMS_VERSION,
+  LEGAL_PRIVACY_URL: ENV.LEGAL_PRIVACY_URL,
+  LEGAL_PRIVACY_VERSION: ENV.LEGAL_PRIVACY_VERSION,
+});
+
+/**
+ * Public `{ mode, signUp }` for clients that adapt to the server (the web
+ * sign-in screens, and the `GET /.well-known/openvalens` capabilities
+ * endpoint from #295). Value-free: no URL, version or secret.
+ */
+export const deploymentInfo = Object.freeze(deploymentCapabilities(deploymentConfig));
+
+/**
+ * Issue #294 — Cloud public sign-up through the admission core. Built on every
+ * deployment, but inert unless `DEPLOYMENT_MODE=cloud`: its methods refuse
+ * and `createAuth` mounts no sign-up endpoint. The emailed link points at the
+ * Better Auth plugin endpoint, which starts the session after the core has
+ * created the account.
+ */
+export const publicSignUpService = createPublicSignUpService({
+  db,
+  deployment: deploymentConfig,
+  emailDeliveryAvailable: () => !emailConfig.EMAIL_DRY_RUN,
+  deliver: createSignUpEmailDelivery({ email, webOrigin: ENV.CORS_ORIGIN }),
+  verifyUrl: (token) => {
+    const url = new URL(`/api/auth${PUBLIC_SIGN_UP_VERIFY_PATH}`, ENV.BETTER_AUTH_URL);
+    url.searchParams.set("token", token);
+    return url.toString();
+  },
+  // #297 — start the 30-day no-card trial here (`onAccountCreated`).
+});
+
 // Issue #58 — auth must be constructed only after the email service exists.
-export const auth = createAuth(ENV, db, { email, oidc: oidcConfig.provider, invitationEmails });
+export const auth = createAuth(ENV, db, {
+  email,
+  oidc: oidcConfig.provider,
+  invitationEmails,
+  publicSignUp: publicSignUpService.enabled ? publicSignUpService : null,
+});
 
 // Issue #14 — server-side Telegram instantiation. The `@openvalens/telegram`
 // package stays pure; the server binds the validated `ENV` here. The client is
@@ -361,3 +410,7 @@ export const admissionService = createAdmissionService({
 
 // Process-local admission limiter with fixed endpoint keys (see `@openvalens/api`).
 export const admissionRateLimiter = new InMemoryRateLimiter({ limitPerMinute: 20 });
+
+// Issue #294 — per-IP and per-email limits on Cloud sign-up requests.
+// TODO(#13-rate-limit): share across replicas with the other limiters.
+export const signUpRateLimiter = new SignUpRateLimiter();
