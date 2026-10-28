@@ -76,6 +76,8 @@ if (mountedMode) {
   mock.module("expo-crypto", () => ({ randomUUID: () => "12345678-1234-4234-8234-123456789abc" }));
   mock.module("heroui-native", () => ({ Button: "button", Card: "div", Spinner: "span" }));
   mock.module("@/components/container", () => ({ Container: "div" }));
+  // Exercise history renders gifted-charts, whose module body needs real React Native; it has its own suite.
+  mock.module("@/components/workout-history", () => ({ WorkoutExerciseHistory: () => null }));
   mock.module("@/lib/auth-client", () => ({ authClient: { useSession: () => ({ data: null }) } }));
   mock.module("@/src/env", () => ({ ENV: { EXPO_PUBLIC_SERVER_URL: "http://localhost:3000" } }));
   mock.module("@/utils/orpc", () => ({ orpc: {} }));

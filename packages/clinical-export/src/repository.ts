@@ -18,7 +18,10 @@ import {
 /** Read-only boundary. Organization authority must come from the records:read guard. */
 export function createClinicalExportRepository(db: Database) {
   return {
-    async buildBundle(organizationId: string, options: { limit?: number; now?: Date } = {}) {
+    async buildBundle(
+      organizationId: string,
+      options: { limit?: number; now?: Date; userId?: string } = {},
+    ) {
       const limit = normalizeClinicalExportLimit(options.limit);
       return db.transaction(
         async (tx) => {

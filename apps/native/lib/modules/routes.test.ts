@@ -14,6 +14,7 @@ describe("navigation follows modules", () => {
       "/sharing",
       "/settings",
       "/profile",
+      "/goals",
     ])
       expect(routeModule(href)).toBeNull();
   });
@@ -21,6 +22,9 @@ describe("navigation follows modules", () => {
   test("module routes map to their module, conversations included", () => {
     expect(routeModule("/records/sleep")).toBe("sleep");
     expect(routeModule("/workouts")).toBe("activity");
+    expect(routeModule("/training")).toBe("activity");
+    expect(routeModule("/routines")).toBe("activity");
+    expect(routeModule("/goals")).toBeNull();
     expect(routeModule("/records/vitals")).toBe("heart");
     expect(routeModule("/body")).toBe("body");
     expect(routeModule("/nutrition")).toBe("food");

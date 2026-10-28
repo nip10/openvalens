@@ -23,6 +23,7 @@ const INTENSITIES = new Set<string>(["light", "moderate", "vigorous"]);
 export async function listActivitySessions(
   db: Database,
   organizationId: string,
+  userId: string,
   range: { from: string; to: string },
 ): Promise<ActivitySession[]> {
   const volume = db
@@ -64,6 +65,7 @@ export async function listActivitySessions(
     .where(
       and(
         eq(workout.organizationId, organizationId),
+        eq(workout.userId, userId),
         gte(workout.date, range.from),
         lte(workout.date, range.to),
       ),

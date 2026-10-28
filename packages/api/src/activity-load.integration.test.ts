@@ -163,6 +163,7 @@ describe.skipIf(!url)("activity load over HTTP against disposable PostgreSQL", (
       .insert(workout)
       .values({
         organizationId: org,
+        userId: org === "org-b" ? "user-b" : "user-a",
         date: dateOf(daysAgo),
         type: "running",
         duration: fields.duration ?? 30,
@@ -355,7 +356,10 @@ describe.skipIf(!url)("activity load over HTTP against disposable PostgreSQL", (
   });
 
   test("weeklyLoad: the session reader keeps sources apart and skips superseded events", async () => {
-    const sessions = await listActivitySessions(db, "org-a", { from: dateOf(6), to: dateOf(0) });
+    const sessions = await listActivitySessions(db, "org-a", "user-a", {
+      from: dateOf(6),
+      to: dateOf(0),
+    });
     const device = sessions.filter((s) => s.source.startsWith("device:"));
     expect(device).toHaveLength(1);
     expect(device[0]).toMatchObject({ durationMinutes: 40, intensity: null, effortRating: null });

@@ -10,6 +10,8 @@ import {
   index,
   uniqueIndex,
   foreignKey,
+  uuid,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 import { orgId, user, member } from "./auth";
@@ -181,6 +183,7 @@ export const workout = pgTable(
   {
     id: serial("id").primaryKey(),
     organizationId: orgId(),
+    userId: text("user_id").references(() => user.id, { onDelete: "restrict" }),
     date: text("date").notNull(),
     type: text("type").notNull(), // "weights", "tennis", "running", "cycling"
     duration: integer("duration"), // minutes
@@ -194,6 +197,9 @@ export const workout = pgTable(
     intensity: text("intensity"), // "light" | "moderate" | "vigorous"
     effortRating: integer("effort_rating"),
     effortRatedAt: text("effort_rated_at"), // ISO timestamp of the latest rating
+    version: integer("version").notNull().default(1),
+    routineId: integer("routine_id"),
+    routineSnapshot: jsonb("routine_snapshot"),
   },
   (table) => ({
     workoutOrgIdx: index("workout_organization_id_idx").on(table.organizationId),
@@ -210,6 +216,22 @@ export const workout = pgTable(
       table.organizationId,
       table.date,
     ),
+    workoutOwnerDateIdx: index("workout_org_user_date_id_idx").on(
+      table.organizationId,
+      table.userId,
+      table.date,
+      table.id,
+    ),
+    workoutOwnerMemberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "workout_org_user_member_fk",
+    }).onDelete("restrict"),
+    workoutRoutineOwnerFk: foreignKey({
+      columns: [table.organizationId, table.userId, table.routineId],
+      foreignColumns: [workoutRoutine.organizationId, workoutRoutine.userId, workoutRoutine.id],
+      name: "workout_org_user_routine_fk",
+    }).onDelete("restrict"),
   }),
 );
 
@@ -280,6 +302,124 @@ export const workoutSet = pgTable(
       foreignColumns: [workoutExercise.organizationId, workoutExercise.id],
       name: "workout_set_org_exercise_fk",
     }).onDelete("cascade"),
+  }),
+);
+
+/** Organization-scoped receipts for offline workout creation retries. */
+export const workoutMutation = pgTable(
+  "workout_mutation",
+  {
+    organizationId: orgId(),
+    clientMutationId: uuid("client_mutation_id").notNull(),
+    userId: text("user_id").references(() => user.id, { onDelete: "restrict" }),
+    fingerprint: text("fingerprint").notNull(),
+    workoutId: integer("workout_id").notNull(),
+    exerciseCount: integer("exercise_count").notNull(),
+    setCount: integer("set_count").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => ({
+    workoutMutationKey: uniqueIndex("workout_mutation_org_client_key").on(
+      table.organizationId,
+      table.clientMutationId,
+    ),
+    workoutMutationFingerprintCheck: check(
+      "workout_mutation_fingerprint_check",
+      sql`${table.fingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+  }),
+);
+
+export const workoutRoutine = pgTable(
+  "workout_routine",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    version: integer("version").notNull().default(1),
+    name: text("name").notNull(),
+    notes: text("notes"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => ({
+    ownerIdx: index("workout_routine_org_user_idx").on(table.organizationId, table.userId),
+    orgIdUnique: uniqueIndex("workout_routine_org_id_key").on(table.organizationId, table.id),
+    orgUserIdUnique: uniqueIndex("workout_routine_org_user_id_key").on(
+      table.organizationId,
+      table.userId,
+      table.id,
+    ),
+    memberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "workout_routine_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+export const workoutRoutineExercise = pgTable(
+  "workout_routine_exercise",
+  {
+    id: serial("id").primaryKey(),
+    key: uuid("key").notNull(),
+    routineId: integer("routine_id").notNull(),
+    organizationId: orgId(),
+    sortOrder: integer("sort_order").notNull(),
+    exerciseId: integer("exercise_id").references(() => exercise.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    targetSets: integer("target_sets").notNull(),
+    repsMin: integer("reps_min").notNull(),
+    repsMax: integer("reps_max").notNull(),
+    targetWeightKg: real("target_weight_kg"),
+    restSeconds: integer("rest_seconds").notNull().default(90),
+    progression: jsonb("progression")
+      .notNull()
+      .default(sql`'{"kind":"none"}'::jsonb`),
+  },
+  (table) => ({
+    routineOrderUnique: uniqueIndex("workout_routine_exercise_order_key").on(
+      table.routineId,
+      table.sortOrder,
+    ),
+    parentFk: foreignKey({
+      columns: [table.organizationId, table.routineId],
+      foreignColumns: [workoutRoutine.organizationId, workoutRoutine.id],
+      name: "workout_routine_exercise_org_parent_fk",
+    }).onDelete("cascade"),
+  }),
+);
+
+export const workoutOperation = pgTable(
+  "workout_operation",
+  {
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    clientMutationId: uuid("client_mutation_id").notNull(),
+    operation: text("operation").notNull(),
+    targetId: integer("target_id"),
+    fingerprint: text("fingerprint").notNull(),
+    result: jsonb("result").notNull(),
+  },
+  (table) => ({
+    operationKey: uniqueIndex("workout_operation_org_user_client_key").on(
+      table.organizationId,
+      table.userId,
+      table.clientMutationId,
+    ),
+    memberFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "workout_operation_org_user_member_fk",
+    }).onDelete("restrict"),
   }),
 );
 

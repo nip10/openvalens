@@ -179,6 +179,21 @@ async function eraseInTransaction(
   options: { recordLedger: boolean } = { recordLedger: true },
 ): Promise<DeletionReport> {
   const orgIds = [...subject.organizationIds];
+  // Container erasure must not cascade another member's private training data.
+  // The owner must resolve these records through the separately authorized
+  // ownership flow before their organization can be removed.
+  if (orgIds.length) {
+    const foreignPrivateTraining = await tx.execute(sql`select 1 from (
+      select 1 from workout where ${inList("organization_id", orgIds)} and user_id is not null and user_id <> ${subject.userId}
+      union all
+      select 1 from workout_routine where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+      union all
+      select 1 from workout_mutation where ${inList("organization_id", orgIds)} and user_id is distinct from ${subject.userId}
+      union all
+      select 1 from workout_operation where ${inList("organization_id", orgIds)} and user_id <> ${subject.userId}
+    ) private_training limit 1`);
+    if (foreignPrivateTraining.rows.length) throw new SelfErasureError("CONFLICT");
+  }
   const rowCounts: Record<string, number> = {};
   const record = (table: string, n: number) => {
     if (n > 0) rowCounts[table] = (rowCounts[table] ?? 0) + n;

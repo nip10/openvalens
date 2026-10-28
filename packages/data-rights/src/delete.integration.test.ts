@@ -52,6 +52,25 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     await seedAccount(db, "b", 5);
     await seedEveryModule(db, "a");
     await seedEveryModule(db, "b");
+    await db.execute(
+      sql.raw(`
+      with routine as (
+        insert into workout_routine (organization_id, user_id, name)
+        values ('org-a', 'user-a', 'Rights routine') returning id
+      )
+      insert into workout_routine_exercise
+        (key, routine_id, organization_id, sort_order, name, target_sets, reps_min, reps_max)
+      select '33333333-3333-4333-8333-333333333333', id, 'org-a', 0, 'Rights squat', 3, 8, 10 from routine;
+      insert into workout_operation (organization_id, user_id, client_mutation_id, operation, fingerprint, result)
+        values ('org-a', 'user-a', 'cccccccc-1111-4111-8111-111111111111', 'create', repeat('f', 64), '{}');
+      with session as (
+        insert into workout (organization_id, user_id, date, type, created_at)
+        values ('org-a', 'user-a', '2026-10-01', 'weights', now()) returning id
+      )
+      insert into workout_mutation (organization_id, user_id, client_mutation_id, fingerprint, workout_id, exercise_count, set_count, version)
+        select 'org-a', 'user-a', 'dddddddd-1111-4111-8111-111111111111', repeat('e', 64), id, 1, 3, 1 from session;
+    `),
+    );
     // Photo erasure is now deliberately gated until per-photo physical cleanup.
     // Keep this suite's legacy broad-erasure fixture focused on its existing tables.
     await db.execute(sql`delete from stored_object where organization_id in ('org-a', 'org-b')`);
@@ -414,6 +433,29 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     );
     expect(await count("plain_water_mutation", sql`organization_id = 'direct-water-org'`)).toBe(0);
     expect(await count("member", sql`organization_id = 'direct-water-org'`)).toBe(0);
+  });
+
+  test("owner erasure conflicts rather than cascading another member's private routine", async () => {
+    await db.execute(
+      sql.raw(`
+      insert into "user" (id, email) values ('routine-owner', 'routine-owner@example.test'), ('routine-member', 'routine-member@example.test');
+      insert into organization (id, name, slug) values ('routine-org', 'Routine org', 'routine-org');
+      insert into member (id, organization_id, user_id, role) values ('routine-owner-member', 'routine-org', 'routine-owner', 'owner'), ('routine-member-member', 'routine-org', 'routine-member', 'collaborator');
+      insert into workout_routine (organization_id, user_id, name) values ('routine-org', 'routine-member', 'Private routine') returning id;
+    `),
+    );
+    await expect(
+      deleteSubjectData(db, { userId: "routine-owner", organizationIds: ["routine-org"] }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    const privateRoutine = (
+      await db.execute(sql`select id from workout_routine where name = 'Private routine'`)
+    ).rows[0] as { id: number };
+    expect(await count("workout_routine", sql`id = ${privateRoutine.id}`)).toBe(1);
+    expect(await count("organization", sql`id = 'routine-org'`)).toBe(1);
+    await db.execute(sql`delete from workout_routine where id = ${privateRoutine.id}`);
+    await db.execute(sql`delete from member where id = 'routine-owner-member'`);
+    await db.execute(sql`delete from organization where id = 'routine-org'`);
+    await db.execute(sql`delete from "user" where id in ('routine-owner', 'routine-member')`);
   });
 
   test("photo uploader across memberships is blocked before account erasure", async () => {

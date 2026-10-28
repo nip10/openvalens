@@ -1,11 +1,7 @@
 import { plural } from "@lingui/core/macro";
 import { useLingui as useLinguiRuntime } from "@lingui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  ACTIVITY_INTENSITIES,
-  type ActivityIntensityOption,
-  type ActivityLoadResult,
-} from "@openvalens/api/activity-load-contract";
+import { type ActivityLoadResult } from "@openvalens/api/activity-load-contract";
 import {
   ACTIVITY_LOAD_COPY,
   activityLoadView,
@@ -14,7 +10,6 @@ import {
   EFFORT_QUESTION,
   EFFORT_RATING_OPTIONS,
   effortRatingLabel,
-  INTENSITY_DESCRIPTIONS,
   INTENSITY_LABELS,
   sessionEffortText,
 } from "@openvalens/api/presenters/activity-load";
@@ -31,20 +26,19 @@ import {
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
-  workoutTypeRecordName,
 } from "@openvalens/api/presenters/workouts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
 import { Button, Spinner } from "heroui-native";
 import {
   Activity,
+  Plus,
   Bike,
   BookOpen,
   Dumbbell,
   Flame,
   Footprints,
   type LucideIcon,
-  Plus,
   Target,
   Timer,
   TrendingUp,
@@ -53,7 +47,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 
 import {
   Details,
@@ -75,26 +69,59 @@ import {
 } from "@/components/bloom";
 import { TrendChart } from "@/components/chart";
 import { Container } from "@/components/container";
-import { toggleEffort, toggleIntensity } from "@/utils/activity-load-screen";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { goalLogValue } from "@/utils/score-screen";
 import { useThemeColor } from "@/utils/theme";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { WorkoutSession } from "@/components/workout-session";
+import { DateField } from "@/components/date-field";
+import { toggleEffort } from "@/utils/activity-load-screen";
+import { WorkoutSessionDetail } from "@/components/workout-session-detail";
+import { useWorkoutSession } from "@/lib/workouts/sync";
+import type { WorkoutDetail } from "@/lib/workouts/model";
+import { createWorkoutDraft } from "@/lib/workouts/model";
+import { authClient } from "@/lib/auth-client";
 
-const WORKOUT_TYPES = ["weights", "running", "cycling", "swimming", "tennis", "other"] as const;
-type WorkoutType = (typeof WORKOUT_TYPES)[number];
+const INPUT_CLASS =
+  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <Text className="font-sans text-sm font-medium text-ink-3">{children}</Text>;
+}
+
+function Pill({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={`min-h-9 justify-center rounded-full border px-3.5 py-1.5 active:opacity-70 ${selected ? "border-primary bg-primary/15" : "border-rule-2 bg-sheet"}`}
+    >
+      <Text className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 const GOAL_STATUSES = ["not_started", "in_progress", "achieved", "paused", "cancelled"] as const;
 type GoalStatus = (typeof GOAL_STATUSES)[number];
 
-const MAX_DURATION_MINUTES = 1440;
-
 /** How many sessions show as cards; the rest are in the full log. */
 const RECENT_SESSIONS = 6;
-
-const INPUT_CLASS =
-  "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
 
 const WORKOUT_ICONS: Record<string, LucideIcon> = {
   weights: Dumbbell,
@@ -120,48 +147,6 @@ function goalShare(start: string | null, now: string | null, target: string | nu
   const c = Number.parseFloat(target ?? "");
   if (![a, b, c].every(Number.isFinite) || a === c) return null;
   return (b - a) / (c - a);
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/** Whole minutes in [1, 1440], or null when blank/invalid. */
-function parseDurationMinutes(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-  const parsed = Number(trimmed);
-  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > MAX_DURATION_MINUTES) return null;
-  return parsed;
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <Text className="font-sans text-sm font-medium text-ink-3">{children}</Text>;
-}
-
-function Pill({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      className={`min-h-9 justify-center rounded-full border px-3.5 py-1.5 active:opacity-70 ${
-        selected ? "border-primary bg-primary/15" : "border-rule-2 bg-sheet"
-      }`}
-    >
-      <Text className={`font-sans text-sm ${selected ? "font-semibold text-ink" : "text-ink-2"}`}>
-        {label}
-      </Text>
-    </Pressable>
-  );
 }
 
 /** Issue #99 — 0–10 effort choices (CR-10); tapping the selected one clears it. */
@@ -415,180 +400,12 @@ function ActivityLoadView({ result }: { result: ActivityLoadResult }) {
   );
 }
 
-function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
-  const { t } = useLingui();
-  const { _ } = useLinguiRuntime();
-  const placeholder = useThemeColor("ink-3");
-  const [type, setType] = useState<WorkoutType>("weights");
-  const [date, setDate] = useState(todayIso);
-  const [duration, setDuration] = useState("");
-  const [notes, setNotes] = useState("");
-  // Issue #99 — both optional; left unset they are shown as missing, never guessed.
-  const [intensity, setIntensity] = useState<ActivityIntensityOption | null>(null);
-  const [effort, setEffort] = useState<number | null>(null);
-
-  const save = useMutation(
-    orpc.plans.workouts.upsertWorkout.mutationOptions({
-      onSuccess: () => {
-        setDuration("");
-        setNotes("");
-        setDate(todayIso());
-        setIntensity(null);
-        setEffort(null);
-        onSaved();
-      },
-    }),
-  );
-
-  const parsedDuration = parseDurationMinutes(duration);
-  const durationInvalid = duration.trim().length > 0 && parsedDuration === null;
-  const dateMissing = date.trim().length === 0;
-
-  const submit = () => {
-    if (dateMissing || durationInvalid) return;
-    save.mutate({
-      date,
-      type,
-      duration: parsedDuration,
-      notes: notes.trim().length > 0 ? notes.trim() : null,
-      intensity,
-      effortRating: effort,
-      // `upsertWorkout` requires at least one exercise with one set; the
-      // session header is what this form captures, so we seed a single
-      // placeholder set the user can refine later.
-      exercises: [{ name: workoutTypeRecordName(type), notes: null, sets: [{ reps: 1 }] }],
-    });
-  };
-
-  return (
-    <Section sheet icon={Plus} tone="steps" title={t`Add a session`}>
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Type</Trans>
-        </FieldLabel>
-        <View className="flex-row flex-wrap gap-2">
-          {WORKOUT_TYPES.map((value) => (
-            <Pill
-              key={value}
-              label={_(workoutTypeLabel(value))}
-              selected={value === type}
-              onPress={() => setType(value)}
-            />
-          ))}
-        </View>
-      </View>
-      <View className="flex-row gap-3">
-        <View className="flex-1 gap-2">
-          <FieldLabel>
-            <Trans>Date</Trans>
-          </FieldLabel>
-          <TextInput
-            value={date}
-            onChangeText={setDate}
-            placeholder={t`YYYY-MM-DD`}
-            className={INPUT_CLASS}
-            placeholderTextColor={placeholder}
-          />
-        </View>
-        <View className="flex-1 gap-2">
-          <FieldLabel>
-            <Trans>Duration (minutes)</Trans>
-          </FieldLabel>
-          <TextInput
-            value={duration}
-            onChangeText={setDuration}
-            placeholder="45"
-            keyboardType="numeric"
-            className={INPUT_CLASS}
-            placeholderTextColor={placeholder}
-          />
-        </View>
-      </View>
-      <View className="gap-2">
-        <View className="flex-row items-center gap-1">
-          <FieldLabel>
-            <Trans>Intensity (optional)</Trans>
-          </FieldLabel>
-          <InfoTip title={t`Intensity (optional)`}>
-            <Prose>
-              <Trans>
-                Talk test. Light: you can talk and sing. Moderate: you can talk, but not sing.
-                Vigorous: you can only say a few words without pausing for breath.
-              </Trans>
-            </Prose>
-          </InfoTip>
-        </View>
-        <View className="flex-row flex-wrap gap-2">
-          {ACTIVITY_INTENSITIES.map((value) => (
-            <Pill
-              key={value}
-              label={_(INTENSITY_LABELS[value])}
-              selected={value === intensity}
-              onPress={() => setIntensity(toggleIntensity(intensity, value))}
-            />
-          ))}
-        </View>
-        {intensity ? (
-          <Text className="font-sans text-sm text-ink-3">
-            {_(INTENSITY_DESCRIPTIONS[intensity])}
-          </Text>
-        ) : null}
-      </View>
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Effort, 0 to 10 (optional)</Trans>
-        </FieldLabel>
-        <View className="flex-row items-center gap-1">
-          <Text className="shrink font-sans text-sm text-ink-3">
-            <Trans>You can also add it later today.</Trans>
-          </Text>
-          <InfoTip title={t`Effort, 0 to 10 (optional)`}>
-            <Prose>{_(EFFORT_QUESTION)}</Prose>
-          </InfoTip>
-        </View>
-        <EffortPills value={effort} onChange={setEffort} />
-      </View>
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Notes</Trans>
-        </FieldLabel>
-        <TextInput
-          value={notes}
-          onChangeText={setNotes}
-          placeholder={t`How did it go?`}
-          multiline
-          className="min-h-20 rounded-xl border border-rule-2 bg-paper-2 px-3 py-2 font-sans text-base text-ink"
-          placeholderTextColor={placeholder}
-        />
-      </View>
-      <View className="flex-row flex-wrap items-center gap-3 pt-1">
-        <Button onPress={submit} isDisabled={dateMissing || durationInvalid || save.isPending}>
-          {save.isPending ? t`Saving…` : t`Save`}
-        </Button>
-        {durationInvalid ? (
-          <Text className="font-sans text-sm text-destructive">
-            <Trans>Duration must be 1 to 1440 minutes.</Trans>
-          </Text>
-        ) : save.isSuccess ? (
-          <Text className="font-sans text-sm text-success">
-            <Trans>Saved</Trans>
-          </Text>
-        ) : save.isError ? (
-          <Text className="font-sans text-sm text-destructive">
-            <Trans>Could not save.</Trans>
-          </Text>
-        ) : null}
-      </View>
-    </Section>
-  );
-}
-
 function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   const { t } = useLingui();
   const { _ } = useLinguiRuntime();
   const placeholder = useThemeColor("ink-3");
   const [title, setTitle] = useState("");
-  const [targetDate, setTargetDate] = useState("");
+  const [targetDate, setTargetDate] = useState<string | null>(null);
   const [status, setStatus] = useState<GoalStatus>("not_started");
   // Issue #95 — optional measurement so goal progress can be calculated (same as web).
   const [startValue, setStartValue] = useState("");
@@ -600,7 +417,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
     orpc.plans.goals.upsertGoal.mutationOptions({
       onSuccess: () => {
         setTitle("");
-        setTargetDate("");
+        setTargetDate(null);
         setStatus("not_started");
         setStartValue("");
         setTargetValue("");
@@ -621,7 +438,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
       // `upsertGoal` requires a category; goals created here default to
       // the general health category.
       category: "health",
-      targetDate: targetDate.trim().length > 0 ? targetDate : null,
+      targetDate,
       status,
       ...measurement.fields,
     });
@@ -641,18 +458,7 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
           placeholderTextColor={placeholder}
         />
       </View>
-      <View className="gap-2">
-        <FieldLabel>
-          <Trans>Due date</Trans>
-        </FieldLabel>
-        <TextInput
-          value={targetDate}
-          onChangeText={setTargetDate}
-          placeholder={t`YYYY-MM-DD`}
-          className={INPUT_CLASS}
-          placeholderTextColor={placeholder}
-        />
-      </View>
+      <DateField label={t`Due date`} value={targetDate} onChange={setTargetDate} nullable />
       <View className="gap-2">
         <FieldLabel>
           <Trans>Status</Trans>
@@ -791,21 +597,112 @@ function LogGoalValue({ goalId, onSaved }: { goalId: number; onSaved: () => void
   );
 }
 
+export function GoalsContent() {
+  const { t, i18n } = useLingui();
+  const { _ } = useLinguiRuntime();
+  const queryClient = useQueryClient();
+  const goals = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
+  const reloadGoals = () => {
+    void goals.refetch();
+    void queryClient.invalidateQueries({ queryKey: [["plans", "goals", "listGoals"]] });
+    void queryClient.invalidateQueries({ queryKey: orpc.score.key() });
+  };
+  if (goals.isPending)
+    return (
+      <Sheet className="items-center py-10">
+        <Spinner />
+      </Sheet>
+    );
+  if (goals.isError || !goals.data)
+    return (
+      <ErrorState
+        title={<Trans>Could not load goals.</Trans>}
+        action={
+          <Button variant="outline" size="sm" onPress={() => void goals.refetch()}>
+            <Trans>Retry</Trans>
+          </Button>
+        }
+      />
+    );
+  const summary = summarizeGoals(goals.data);
+  return (
+    <Section
+      icon={Target}
+      tone="weight"
+      title={t`Goals`}
+      description={
+        summary.total ? (
+          <Trans>
+            {summary.open} open, {summary.achieved} achieved
+          </Trans>
+        ) : undefined
+      }
+    >
+      {goals.data.length === 0 ? (
+        <EmptyState
+          icon={Target}
+          tone="weight"
+          title={<Trans>No goals yet</Trans>}
+          description={<Trans>Add a goal to start tracking.</Trans>}
+        />
+      ) : (
+        <View className="gap-3">
+          {goals.data.map((goal) => {
+            const progress = goalShare(goal.baselineValue, goal.currentValue, goal.targetValue);
+            return (
+              <ListCard
+                key={goal.id}
+                icon={Target}
+                tone="weight"
+                title={goal.title}
+                status={{ label: _(goalStatusLabel(goal.status)), tone: goalTone(goal.status) }}
+                subtitle={
+                  goal.targetDate ? t`Due ${friendlyDate(i18n, goal.targetDate)}` : t`No due date`
+                }
+                chip={
+                  goal.currentValue || goal.targetValue
+                    ? `${goal.currentValue ?? "—"} / ${goal.targetValue ?? "—"}`
+                    : undefined
+                }
+              >
+                {progress !== null ? <Meter value={progress} tone="weight" /> : null}
+                <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
+              </ListCard>
+            );
+          })}
+        </View>
+      )}
+      <AddGoalForm onSaved={reloadGoals} />
+    </Section>
+  );
+}
+
 export default function WorkoutsScreen() {
   const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const queryClient = useQueryClient();
   const foreground = useThemeColor("foreground");
+  const session = useWorkoutSession();
+  const { data: auth } = authClient.useSession();
+  const identity = `${auth?.user?.id ?? ""}:${auth?.session.activeOrganizationId ?? ""}`;
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutDetail | null>(null);
 
-  const workouts = useQuery(
-    orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),
-  );
-  const goals = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
-  const load = useQuery(orpc.activity.weeklyLoad.queryOptions({ input: {} }));
+  const workouts = useQuery({
+    ...orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),
+    queryKey: [...orpc.plans.workouts.listWorkouts.queryKey({ input: { limit: 50 } }), identity],
+    enabled: !!auth?.user?.id && !!auth.session.activeOrganizationId,
+  });
+  const load = useQuery({
+    ...orpc.activity.weeklyLoad.queryOptions({ input: {} }),
+    queryKey: [...orpc.activity.weeklyLoad.queryKey({ input: {} }), identity],
+    enabled: !!auth?.user?.id && !!auth.session.activeOrganizationId,
+  });
+  const settings = useQuery(orpc.adminSettings.productSettings.queryOptions({ input: {} }));
+  const units = settings.data?.units === "imperial" ? "lb" : "kg";
 
   const header = (
     <PageHeader
-      title={t`Workouts`}
+      title={t`Training`}
       actions={
         <Link href="/exercise-library" asChild>
           <Button variant="outline" size="sm" accessibilityRole="link">
@@ -817,48 +714,11 @@ export default function WorkoutsScreen() {
     />
   );
 
-  if (workouts.isPending || goals.isPending)
-    return (
-      <Container>
-        <Page>
-          <ModuleHiddenNote module="activity" />
-          {header}
-          <Sheet className="items-center py-10">
-            <Spinner />
-          </Sheet>
-        </Page>
-      </Container>
-    );
-
-  if (workouts.isError || !workouts.data || goals.isError || !goals.data)
-    return (
-      <Container>
-        <Page>
-          <ModuleHiddenNote module="activity" />
-          {header}
-          <ErrorState
-            title={<Trans>Could not load workouts.</Trans>}
-            action={
-              <Button
-                variant="outline"
-                size="sm"
-                onPress={() => {
-                  void workouts.refetch();
-                  void goals.refetch();
-                }}
-              >
-                {t`Retry`}
-              </Button>
-            }
-          />
-        </Page>
-      </Container>
-    );
-
-  const workoutSummary = summarizeWorkouts(workouts.data);
-  const goalSummary = summarizeGoals(goals.data);
+  // routineSnapshot is stored as jsonb, so the server type is unknown; it is written only from RoutineSnapshot.
+  const workoutItems = session.optimisticWorkouts((workouts.data ?? []) as WorkoutDetail[]);
+  const workoutSummary = summarizeWorkouts(workoutItems);
   const today = todayIso();
-  const recent = workouts.data.slice(0, RECENT_SESSIONS);
+  const recent = workoutItems.slice(0, RECENT_SESSIONS);
 
   const reloadWorkouts = () => {
     void workouts.refetch();
@@ -867,21 +727,15 @@ export default function WorkoutsScreen() {
     });
     void queryClient.invalidateQueries({ queryKey: orpc.activity.weeklyLoad.key() });
   };
-  const reloadGoals = () => {
-    void goals.refetch();
-    void queryClient.invalidateQueries({ queryKey: [["plans", "goals", "listGoals"]] });
-    void queryClient.invalidateQueries({ queryKey: orpc.score.key() });
-  };
 
   return (
     <Container
       scrollViewProps={{
         refreshControl: (
           <RefreshControl
-            refreshing={workouts.isRefetching || goals.isRefetching || load.isRefetching}
+            refreshing={workouts.isRefetching || load.isRefetching}
             onRefresh={() => {
               void workouts.refetch();
-              void goals.refetch();
               void load.refetch();
             }}
             tintColor={foreground}
@@ -893,34 +747,63 @@ export default function WorkoutsScreen() {
         <ModuleHiddenNote module="activity" />
         {header}
 
-        {load.isPending ? (
-          <Sheet className="items-center py-10">
-            <Spinner />
-          </Sheet>
-        ) : load.isError || !load.data ? (
-          <ErrorState
-            title={<Trans>Could not load weekly activity.</Trans>}
-            action={
-              <Button variant="outline" size="sm" onPress={() => void load.refetch()}>
-                {t`Retry`}
-              </Button>
+        <WorkoutSession />
+        <Button
+          variant="outline"
+          onPress={() => {
+            const start = () => session.saveDraft(createWorkoutDraft());
+            if (!session.draft) {
+              start();
+              return;
             }
-          />
-        ) : (
-          <ActivityLoadView result={load.data} />
-        )}
+            Alert.alert(
+              t`Active workout in progress`,
+              t`Save or discard your active workout before starting a past session.`,
+              [
+                { text: t`Cancel`, style: "cancel" },
+                {
+                  text: t`Discard and continue`,
+                  style: "destructive",
+                  onPress: () => {
+                    if (session.discardDraft()) start();
+                  },
+                },
+              ],
+            );
+          }}
+        >
+          <Button.Label>{t`Log past session`}</Button.Label>
+        </Button>
+        <WorkoutSessionDetail
+          workout={auth?.user?.id && auth.session.activeOrganizationId ? selectedWorkout : null}
+          units={units === "lb" ? "imperial" : "metric"}
+          onClose={() => setSelectedWorkout(null)}
+        />
 
         <Section
           icon={Dumbbell}
           tone="steps"
-          title={t`Session log`}
+          title={t`Recent sessions`}
           description={
             workoutSummary.count > 0
               ? t`${plural(workoutSummary.count, { one: "# session", other: "# sessions" })}, ${workoutSummary.totalDurationLabel}`
               : undefined
           }
         >
-          {workouts.data.length === 0 ? (
+          {workouts.isPending ? (
+            <Text className="font-sans text-sm text-ink-3">
+              <Trans>Loading recent sessions…</Trans>
+            </Text>
+          ) : workouts.isError && workoutItems.length === 0 ? (
+            <View className="gap-2">
+              <Text className="font-sans text-sm text-ink-2">
+                <Trans>Could not load recent sessions.</Trans>
+              </Text>
+              <Button variant="outline" size="sm" onPress={() => void workouts.refetch()}>
+                <Button.Label>{t`Retry`}</Button.Label>
+              </Button>
+            </View>
+          ) : workoutItems.length === 0 ? (
             <EmptyState
               icon={Dumbbell}
               tone="steps"
@@ -931,7 +814,36 @@ export default function WorkoutsScreen() {
             <View className="gap-3">
               {recent.map((workout) => {
                 const rating = workout.effortRating;
-                const canRate = rating === null && canRateEffortToday(workout.date, today);
+                const localPending =
+                  workout.id < 1 ||
+                  workout.ownership !== "mine" ||
+                  session.items.some(
+                    (item) =>
+                      item.targetId === workout.id ||
+                      ("localKey" in workout && item.id === workout.localKey),
+                  );
+                const canRate =
+                  !!workout.canEdit &&
+                  !localPending &&
+                  workout.id > 0 &&
+                  workout.ownership === "mine" &&
+                  rating === null &&
+                  canRateEffortToday(workout.date, today);
+                const exercises = workout.exercises;
+                const setCount = exercises.reduce(
+                  (count, exercise) => count + exercise.sets.length,
+                  0,
+                );
+                const volumeKg = exercises.reduce(
+                  (total, exercise) =>
+                    total +
+                    exercise.sets.reduce(
+                      (sum, set) => sum + (set.weightKg ?? 0) * (set.reps ?? 0),
+                      0,
+                    ),
+                  0,
+                );
+                const volume = units === "lb" ? volumeKg * 2.2046226218 : volumeKg;
                 return (
                   <ListCard
                     key={workout.id}
@@ -950,8 +862,36 @@ export default function WorkoutsScreen() {
                           : { label: t`Not rated`, tone: "neutral" }
                     }
                   >
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t`View workout details`}
+                      onPress={() => setSelectedWorkout(workout)}
+                      className="min-h-10 justify-center"
+                    >
+                      <Text className="font-sans text-sm font-semibold text-signal">
+                        <Trans>View details</Trans>
+                      </Text>
+                    </Pressable>
                     {workout.notes ? (
                       <Text className="font-sans text-sm text-ink-2">{workout.notes}</Text>
+                    ) : null}
+                    {exercises.length > 0 ? (
+                      <View className="gap-1">
+                        <Text className="font-sans text-sm text-ink-2">
+                          {plural(exercises.length, { one: "# exercise", other: "# exercises" })} ·{" "}
+                          {plural(setCount, { one: "# set", other: "# sets" })}
+                          {volumeKg > 0 ? ` · ${Math.round(volume)} ${units}` : ""}
+                        </Text>
+                        <Text className="font-sans text-sm text-ink-3">
+                          {exercises.map((exercise) => exercise.name).join(", ")}
+                        </Text>
+                      </View>
+                    ) : workout.type === "running" ||
+                      workout.type === "cycling" ||
+                      workout.type === "swimming" ? (
+                      <Text className="font-sans text-sm text-ink-3">
+                        <Trans>Cardio session · no exercises logged</Trans>
+                      </Text>
                     ) : null}
                     {canRate ? (
                       <RateEffort workoutId={workout.id} onSaved={reloadWorkouts} />
@@ -961,7 +901,7 @@ export default function WorkoutsScreen() {
               })}
               <Details summary={<Trans>Full log</Trans>}>
                 <Sheet className="gap-0 px-4 py-1">
-                  {workouts.data.map((workout, index, arr) => (
+                  {workoutItems.map((workout, index, arr) => (
                     <View
                       key={workout.id}
                       className={`flex-row items-start justify-between gap-3 py-3 ${
@@ -969,16 +909,21 @@ export default function WorkoutsScreen() {
                       }`}
                     >
                       <View className="min-w-0 flex-1 gap-0.5">
-                        <Text className="font-sans text-base font-medium text-ink">
-                          {_(workoutTypeLabel(workout.type))}
-                        </Text>
-                        <Text className="font-sans text-sm text-ink-3">
-                          {workout.date}
-                          {workout.notes ? `, ${workout.notes}` : ""}
-                        </Text>
-                        <Text className="font-sans text-sm text-ink-3">
-                          {sessionEffortText(workout, i18n)}
-                        </Text>
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => setSelectedWorkout(workout)}
+                        >
+                          <Text className="font-sans text-base font-medium text-ink">
+                            {_(workoutTypeLabel(workout.type))}
+                          </Text>
+                          <Text className="font-sans text-sm text-ink-3">
+                            {workout.date}
+                            {workout.notes ? `, ${workout.notes}` : ""}
+                          </Text>
+                          <Text className="font-sans text-sm text-ink-3">
+                            {sessionEffortText(workout, i18n)}
+                          </Text>
+                        </Pressable>
                       </View>
                       <Text
                         className="font-sans text-sm font-semibold text-ink"
@@ -994,59 +939,43 @@ export default function WorkoutsScreen() {
           )}
         </Section>
 
-        <AddWorkoutForm onSaved={reloadWorkouts} />
+        <Link href="/goals" asChild>
+          <Button variant="outline">
+            <Button.Label>{t`Goals`}</Button.Label>
+          </Button>
+        </Link>
+        <Link href="/routines" asChild>
+          <Button variant="outline">
+            <Button.Label>{t`Routines`}</Button.Label>
+          </Button>
+        </Link>
+        <Link href="/exercise-library" asChild>
+          <Button variant="outline">
+            <Button.Label>{t`Exercise library`}</Button.Label>
+          </Button>
+        </Link>
+        <Link href="/body-map" asChild>
+          <Button variant="outline">
+            <Button.Label>{t`Body map`}</Button.Label>
+          </Button>
+        </Link>
 
-        <Section
-          icon={Target}
-          tone="weight"
-          title={t`Goals`}
-          description={
-            goalSummary.total > 0 ? (
-              <Trans>
-                {goalSummary.open} open, {goalSummary.achieved} achieved
-              </Trans>
-            ) : undefined
-          }
-        >
-          {goals.data.length === 0 ? (
-            <EmptyState
-              icon={Target}
-              tone="weight"
-              title={<Trans>No goals yet</Trans>}
-              description={<Trans>Add a goal to start tracking.</Trans>}
-            />
-          ) : (
-            <View className="gap-3">
-              {goals.data.map((goal) => {
-                const progress = goalShare(goal.baselineValue, goal.currentValue, goal.targetValue);
-                return (
-                  <ListCard
-                    key={goal.id}
-                    icon={Target}
-                    tone="weight"
-                    title={goal.title}
-                    status={{ label: _(goalStatusLabel(goal.status)), tone: goalTone(goal.status) }}
-                    subtitle={
-                      goal.targetDate
-                        ? t`Due ${friendlyDate(i18n, goal.targetDate)}`
-                        : t`No due date`
-                    }
-                    chip={
-                      goal.currentValue || goal.targetValue
-                        ? `${goal.currentValue ?? "—"} / ${goal.targetValue ?? "—"}`
-                        : undefined
-                    }
-                  >
-                    {progress !== null ? <Meter value={progress} tone="weight" /> : null}
-                    <LogGoalValue goalId={goal.id} onSaved={reloadGoals} />
-                  </ListCard>
-                );
-              })}
-            </View>
-          )}
-        </Section>
-
-        <AddGoalForm onSaved={reloadGoals} />
+        {load.isPending ? (
+          <Sheet className="items-center py-10">
+            <Spinner />
+          </Sheet>
+        ) : load.isError || !load.data ? (
+          <ErrorState
+            title={<Trans>Could not load weekly activity.</Trans>}
+            action={
+              <Button variant="outline" size="sm" onPress={() => void load.refetch()}>
+                <Button.Label>{t`Retry`}</Button.Label>
+              </Button>
+            }
+          />
+        ) : (
+          <ActivityLoadView result={load.data} />
+        )}
       </Page>
     </Container>
   );

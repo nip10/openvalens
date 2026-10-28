@@ -117,6 +117,7 @@ function fakeDb(store: RowStore): { db: Database; calls: CapturedCall[] } {
     const chain: {
       from: (value: unknown) => typeof chain;
       where: (condition: Parameters<PgDialect["sqlToQuery"]>[0]) => typeof chain;
+      for: (...args: unknown[]) => typeof chain;
       orderBy: (...args: unknown[]) => typeof chain;
       limit: (n?: number) => Promise<unknown[]>;
       then: <TResult1 = unknown, TResult2 = never>(
@@ -144,12 +145,17 @@ function fakeDb(store: RowStore): { db: Database; calls: CapturedCall[] } {
         // chain alive.
         return chain;
       },
+      for() {
+        return chain;
+      },
       limit(n?: number) {
         const key = findTable(table);
         const all = key ? store[key] : [];
         const filtered = filterRows(all, selectFilters.get(key ?? "") ?? []);
         selectFilters.delete(key ?? "");
-        return Promise.resolve(n !== undefined ? filtered.slice(0, n) : filtered);
+        return Object.assign(Promise.resolve(n !== undefined ? filtered.slice(0, n) : filtered), {
+          for: () => chain,
+        });
       },
       // oxlint-disable-next-line unicorn/no-thenable
       then<TResult1 = unknown, TResult2 = never>(
@@ -243,6 +249,7 @@ function fakeDb(store: RowStore): { db: Database; calls: CapturedCall[] } {
     insert,
     update,
     delete: del,
+    execute: async () => undefined,
     async transaction<T>(cb: (tx: typeof db) => Promise<T>): Promise<T> {
       return cb(db);
     },
@@ -384,6 +391,19 @@ describe("plans.workouts — write boundary", () => {
     expect(JSON.stringify(auditInsert.payload)).not.toContain("Bench Press");
   });
 
+  test("upsertWorkout accepts empty exercises and empty sets", async () => {
+    role = "owner";
+    const state = fakeDb({ workouts: [], exercises: [], sets: [] });
+    const result = await appRouter.plans.workouts.upsertWorkout.callable({
+      context: contextWithDb(state.db),
+    })({ date: "2026-03-07", type: "running", exercises: [{ name: "Intervals", sets: [] }] });
+    expect(result).toMatchObject({ exerciseCount: 1, setCount: 0 });
+    const empty = await appRouter.plans.workouts.upsertWorkout.callable({
+      context: contextWithDb(state.db),
+    })({ date: "2026-03-08", type: "running", exercises: [] });
+    expect(empty).toMatchObject({ exerciseCount: 0, setCount: 0 });
+  });
+
   test("upsertWorkout rolls back when a later insert fails (atomicity)", async () => {
     role = "owner";
     const state = fakeDb({ workouts: [], exercises: [], sets: [] });
@@ -452,10 +472,14 @@ describe("plans.workouts — write boundary", () => {
     role = "owner";
     const state = fakeDb({ workouts: [], exercises: [], sets: [] });
     const ctx = contextWithDb(state.db);
-    const result = await appRouter.plans.workouts.deleteWorkout.callable({
-      context: ctx,
-    })({ id: 999 });
-    expect(result).toBeNull();
+    await expect(
+      appRouter.plans.workouts.deleteWorkout.callable({ context: ctx })({
+        id: 999,
+        expectedVersion: 1,
+        clientMutationId: "00000000-0000-4000-8000-000000000001",
+        expectedScope: "user-1:org-1",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(state.calls.filter((c) => c.kind === "insert")).toEqual([]);
   });
 

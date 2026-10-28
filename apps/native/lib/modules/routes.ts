@@ -9,6 +9,8 @@ export const ROUTE_MODULES: Readonly<Record<string, PersonModule>> = {
   "/records/sleep": "sleep",
   "/records/activity": "activity",
   "/workouts": "activity",
+  "/training": "activity",
+  "/routines": "activity",
   "/exercise-library": "activity",
   "/records/vitals": "heart",
   "/body": "body",

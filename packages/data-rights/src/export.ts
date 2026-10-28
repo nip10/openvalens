@@ -53,6 +53,15 @@ export function inList(column: string, values: readonly string[]): SQL {
   )})`;
 }
 
+/** Fixed qualified SQL expression for the workout alias; values stay parameterized. */
+export function workoutOrganizationInList(values: readonly string[]): SQL {
+  if (values.length === 0) return sql`false`;
+  return sql`"w"."organization_id" in (${sql.join(
+    values.map((value) => sql`${value}`),
+    sql`, `,
+  )})`;
+}
+
 /**
  * Safe `stored_object` fields for progress-photo metadata. The text export is
  * metadata only, not photo bytes (see `exportSubjectPhotoFiles`); storage
@@ -70,10 +79,10 @@ const PHOTO_OBJECT_COLUMNS = [
 ] as const;
 
 /** Row filters for tables reachable only through a parent. */
-const CHILD_QUERIES: Record<string, (orgIds: string[]) => SQL> = {
-  access_request_decision: (orgIds) =>
+const CHILD_QUERIES: Record<string, (subject: DataRightsSubject) => SQL> = {
+  access_request_decision: ({ organizationIds: orgIds }) =>
     sql`request_id in (select id from access_request where ${inList("organization_id", orgIds)})`,
-  supplement: (orgIds) =>
+  supplement: ({ organizationIds: orgIds }) =>
     sql`id in (
       select supplement_id from supplement_schedule where ${inList("organization_id", orgIds)}
       union
@@ -81,14 +90,37 @@ const CHILD_QUERIES: Record<string, (orgIds: string[]) => SQL> = {
       where ${inList("organization_id", orgIds)} and supplement_id is not null
     )`,
   // Only custom exercises are in owned organizations; global reference rows have NULL organization_id.
-  exercise_translation: (orgIds) =>
+  exercise_translation: ({ organizationIds: orgIds }) =>
     sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
-  exercise_muscle: (orgIds) =>
+  exercise_muscle: ({ organizationIds: orgIds }) =>
     sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
-  exercise_equipment: (orgIds) =>
+  exercise_equipment: ({ organizationIds: orgIds }) =>
     sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
-  exercise_media: (orgIds) =>
+  exercise_media: ({ organizationIds: orgIds }) =>
     sql`exercise_id in (select id from exercise where ${inList("organization_id", orgIds)})`,
+  workout_routine_exercise: ({ userId }) => sql`routine_id in (
+    select id from workout_routine where user_id = ${userId}
+  )`,
+  workout_exercise: ({ organizationIds: orgIds, userId }) => sql`workout_id in (
+    select id from workout where (user_id = ${userId} or (user_id is null and ${inList("organization_id", orgIds)}))
+  ) and exists (select 1 from workout w where w.id = workout_exercise.workout_id
+    and (w.user_id is not null or not (
+      workout_exercise.exercise_id is null and workout_exercise.name = case w.type
+        when 'weights' then 'Strength' when 'running' then 'Run' when 'cycling' then 'Cycling'
+        when 'swimming' then 'Swim' when 'tennis' then 'Tennis' else w.type end
+      and (select count(*) from workout_set s where s.exercise_id = workout_exercise.id) = 1
+      and exists (select 1 from workout_set s where s.exercise_id = workout_exercise.id
+        and s.reps = 1 and s.weight_kg is null)
+    )))`,
+  workout_set: ({ organizationIds: orgIds, userId }) => sql`exercise_id in (
+    select e.id from workout_exercise e join workout w on w.id = e.workout_id
+    where (w.user_id = ${userId} or (w.user_id is null and ${workoutOrganizationInList(orgIds)}))
+      and (w.user_id is not null or not (e.exercise_id is null and e.name = case w.type
+        when 'weights' then 'Strength' when 'running' then 'Run' when 'cycling' then 'Cycling'
+        when 'swimming' then 'Swim' when 'tennis' then 'Tennis' else w.type end
+        and (select count(*) from workout_set s where s.exercise_id = e.id) = 1
+        and exists (select 1 from workout_set s where s.exercise_id = e.id and s.reps = 1 and s.weight_kg is null)))
+  )`,
 };
 
 /** WHERE clause selecting the subject's rows in an exported table. */
@@ -117,6 +149,15 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
         table === "chat_message"
       )
         return sql`user_id = ${subject.userId}`;
+      if (table === "workout")
+        return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)} and exists (
+          select 1 from workout_exercise e where e.workout_id = workout.id
+          and not (e.exercise_id is null and e.name = case workout.type when 'weights' then 'Strength'
+            when 'running' then 'Run' when 'cycling' then 'Cycling' when 'swimming' then 'Swim'
+            when 'tennis' then 'Tennis' else workout.type end
+            and (select count(*) from workout_set s where s.exercise_id = e.id) = 1
+            and exists (select 1 from workout_set s where s.exercise_id = e.id and s.reps = 1 and s.weight_kg is null))
+        ))`;
       return inList("organization_id", orgIds);
     case "user":
       return sql`user_id = ${subject.userId}`;
@@ -129,9 +170,13 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
       return sql`target_user_id = ${subject.userId}
         or canonical_email = lower((select email from "user" where id = ${subject.userId}))`;
     case "child": {
+      if (table === "workout_routine_exercise")
+        return sql`routine_id in (select id from workout_routine where user_id = ${subject.userId})`;
+      if (table === "workout_exercise") return CHILD_QUERIES[table]!(subject);
+      if (table === "workout_set") return CHILD_QUERIES[table]!(subject);
       const query = CHILD_QUERIES[table];
       if (!query) throw new Error(`No child query registered for ${table}`);
-      return query(orgIds);
+      return query(subject);
     }
     default:
       throw new Error(`${table} is not exported`);
@@ -149,6 +194,15 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
  * this predicate must not silently widen or narrow with export scope.
  */
 export function deletionRowFilter(table: string, subject: DataRightsSubject): SQL {
+  const orgIds = [...subject.organizationIds];
+  if (table === "workout")
+    return sql`user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)})`;
+  if (table === "workout_exercise")
+    return sql`workout_id in (select id from workout where user_id = ${subject.userId} or (user_id is null and ${inList("organization_id", orgIds)}))`;
+  if (table === "workout_set")
+    return sql`exercise_id in (select e.id from workout_exercise e join workout w on w.id=e.workout_id where w.user_id=${subject.userId} or (w.user_id is null and ${workoutOrganizationInList(orgIds)}))`;
+  if (table === "workout_mutation" || table === "workout_operation")
+    return sql`user_id = ${subject.userId} or ${inList("organization_id", orgIds)}`;
   if (table === "stored_object") return inList("organization_id", subject.organizationIds);
   // Idempotency receipts are exported to their actor only, but erased with
   // either that actor or a workspace whose owned contents are being removed.

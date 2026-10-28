@@ -49,6 +49,14 @@ msgstr "{0, plural, one {# dia registado} other {# dias registados}} este mês"
 msgid "{0, plural, one {# day} other {# days}} of logging. Nicely done."
 msgstr "{0, plural, one {# dia} other {# dias}} de registo. Muito bem."
 
+#. placeholder {0}: counts.exercises
+#. placeholder {0}: exercises.length
+#. placeholder {0}: summary?.exerciseCount ?? 0
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/workout-session.tsx
+msgid "{0, plural, one {# exercise} other {# exercises}}"
+msgstr "{0, plural, one {# exercício} other {# exercícios}}"
+
 #. placeholder {0}: found.length
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "{0, plural, one {# food found} other {# foods found}}"
@@ -109,6 +117,16 @@ msgstr "{0, plural, one {# sessão sem duração.} other {# sessões sem duraç�
 msgid "{0, plural, one {# session} other {# sessions}}, {1}"
 msgstr "{0, plural, one {# sessão} other {# sessões}}, {1}"
 
+#. placeholder {0}: summary?.setCount ?? 0
+#: apps/native/components/workout-session.tsx
+msgid "{0, plural, one {# set done} other {# sets done}}"
+msgstr "{0, plural, one {# série concluída} other {# séries concluídas}}"
+
+#. placeholder {0}: counts.sets
+#: apps/native/components/workout-session.tsx
+msgid "{0, plural, one {# set} other {# sets}}"
+msgstr "{0, plural, one {# série} other {# séries}}"
+
 #. placeholder {0}: counts.syncing
 #: apps/native/components/plain-water-section.tsx
 msgid "{0, plural, one {# syncing} other {# syncing}}"
@@ -160,6 +178,12 @@ msgstr "{0} ({1}) no passo \"{2}\", {3}"
 msgid "{0} (keeping {1} daily backups)"
 msgstr "{0} (a manter {1} cópias diárias)"
 
+#. placeholder {0}: number.format(Number(value))
+#. placeholder {1}: metric === "volume" ? (imperial ? t`lb-reps` : t`kg-reps`) : unit
+#: apps/web/src/components/workout-history.tsx
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
 #. placeholder {0}: result.name
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -177,12 +201,38 @@ msgstr "{0} adicionado a este espaço de trabalho."
 msgid "{0} configured"
 msgstr "{0} configurada"
 
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} deload percent"
+msgstr "{0} por cento de redução de carga"
+
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} failures before deload"
+msgstr "{0} falhas antes de reduzir a carga"
+
+#. placeholder {0}: formatWeight(record.weightKg)
+#. placeholder {1}: record.reps
+#: apps/native/components/workout-history.tsx
+msgid "{0} for {1, plural, one {# rep} other {# reps}}"
+msgstr "{0} para {1, plural, one {# repetição} other {# repetições}}"
+
 #. placeholder {0}: formatKgDelta(i18n, weightSummary.change30d)
 #. placeholder {0}: formatKgDelta(i18n, weightSummary.change30d, settings)
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "{0} in 30 days"
 msgstr "{0} em 30 dias"
+
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} maximum reps"
+msgstr "{0} repetições máximas"
+
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} minimum reps"
+msgstr "{0} repetições mínimas"
 
 #. placeholder {0}: entry.key
 #: apps/web/src/components/admin-settings-view.tsx
@@ -197,22 +247,59 @@ msgid "{0} of {1} sections answered"
 msgstr "{0} de {1} secções respondidas"
 
 #. placeholder {0}: goalSummary.open
+#. placeholder {0}: summary.open
 #. placeholder {1}: goalSummary.achieved
+#. placeholder {1}: summary.achieved
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "{0} open, {1} achieved"
 msgstr "{0} em aberto, {1} alcançados"
+
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} progression"
+msgstr "Progressão {0}"
+
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} progression weight increment"
+msgstr "Incremento de peso da progressão {0}"
+
+#. placeholder {0}: pr.reps
+#. placeholder {0}: record.reps
+#. placeholder {0}: set.reps
+#: apps/native/components/workout-history.tsx
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-history.tsx
+msgid "{0} reps"
+msgstr "{0} repetições"
+
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} rest in seconds"
+msgstr "{0} de descanso em segundos"
 
 #. placeholder {0}: entry.key
 #: apps/web/src/components/admin-settings-view.tsx
 msgid "{0} sensitive"
 msgstr "{0} sensível"
 
+#. placeholder {0}: exercise.name
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} sets"
+msgstr "{0} séries"
+
 #. safety
 #. placeholder {0}: formatSteps(day.steps)
 #: apps/native/app/(drawer)/records/activity.tsx
 msgid "{0} steps"
 msgstr "{0} passos"
+
+#. placeholder {0}: exercise.name
+#. placeholder {1}: units === "metric" ? "kilograms" : "pounds"
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "{0} target weight in {1}"
+msgstr "{0} de peso-alvo em {1}"
 
 #. placeholder {0}: cycle.startDate
 #. placeholder {0}: period.startDate
@@ -234,6 +321,25 @@ msgstr "Valor de {0}"
 #: apps/native/app/(drawer)/records/labs.tsx
 msgid "{0}, {1, plural, one {# reading} other {# readings}}"
 msgstr "{0}, {1, plural, one {# leitura} other {# leituras}}"
+
+#. placeholder {0}: row.date
+#. placeholder {1}: row.value === null ? t`No result` : weight(metric === "volume" ? row.value / (imperial ? kgToLb(1) : 1) : row.value)
+#: apps/web/src/components/workout-history.tsx
+msgid "{0}: {1}"
+msgstr "{0}: {1}"
+
+#. placeholder {0}: metrics.find((item) => item.key === metric)?.label
+#. placeholder {1}: chart.length
+#: apps/native/components/workout-history.tsx
+msgid "{0}: {1} recorded sessions. Values are shown in {unit}."
+msgstr "{0}: {1} sessões registadas. Os valores são apresentados em {unit}."
+
+#. placeholder {0}: i + 1
+#. placeholder {1}: set.reps ?? "—"
+#. placeholder {2}: set.weightKg === null ? t`Bodyweight` : weight(set.weightKg)
+#: apps/web/src/components/workout-history.tsx
+msgid "{0}. {1} reps × {2}"
+msgstr "{0}. {1} repetições × {2}"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "{amount, plural, one {{value} serving} other {{value} servings}}"
@@ -341,6 +447,14 @@ msgstr "Pré-visualização {number} de {exerciseName}"
 #: apps/web/src/components/exercise-library.tsx
 msgid "{exerciseName} previews"
 msgstr "Pré-visualizações de {exerciseName}"
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "{failures, plural, one {# attempted failure} other {# attempted failures}} recorded, so reduce the load by {percent}%."
+msgstr "{failures, plural, one {# falha tentada} other {# falhas tentadas}} registadas; reduza a carga em {percent}%."
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "{failures, plural, one {# incomplete session} other {# incomplete sessions}} recorded; the load stays the same."
+msgstr "{failures, plural, one {# sessão incompleta} other {# sessões incompletas}} registadas; a carga mantém-se."
 
 #: packages/api/src/presenters/score.ts
 msgid "{first} and {last}"
@@ -644,6 +758,10 @@ msgstr "{scanSource}, {scanDate}, comparado com {compareDate}"
 msgid "{scored} of {total, plural, one {# goal} other {# goals}} counted."
 msgstr "{scored} de {total, plural, one {# objetivo contado} other {# objetivos contados}}."
 
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "{setCount, plural, one {# set} other {# sets}}"
+msgstr "{setCount, plural, one {# série} other {# séries}}"
+
 #. safety
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "{sleep} a night"
@@ -727,6 +845,10 @@ msgstr "% da referência"
 msgid "← All conversations"
 msgstr "← Todas as conversas"
 
+#: apps/native/components/workout-session.tsx
+msgid "+15 sec"
+msgstr "+15 s"
+
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "<0>Download an export first</0>."
 msgstr "<0>Transfira primeiro uma exportação</0>."
@@ -742,6 +864,10 @@ msgstr "<0>Secundários:</0> {secondaryNames}"
 #: apps/web/src/components/muscle-guide.tsx
 msgid "<0>Source-listed muscles:</0> {listedNames}"
 msgstr "<0>Músculos indicados pela fonte:</0> {listedNames}"
+
+#: apps/native/components/workout-session.tsx
+msgid "−15 sec"
+msgstr "−15 s"
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "0: Rest"
@@ -842,6 +968,10 @@ msgstr "Chegou uma data que definiu"
 msgid "A date you set in OpenValens has arrived. Open the app to see it. This email does not include any health details."
 msgstr "Chegou uma data que definiu no OpenValens. Abra a aplicação para a ver. Este email não inclui nenhum dado de saúde."
 
+#: apps/native/components/workout-session.tsx
+msgid "A dependent change is already syncing."
+msgstr "Uma alteração dependente já está a ser sincronizada."
+
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/components/onboarding/welcome-flow.tsx
@@ -885,6 +1015,10 @@ msgstr "Uma entrada de receita contém dados de ingredientes não suportados ou 
 #: packages/api/src/presenters/plain-water.ts
 msgid "A reference you set yourself. Optional."
 msgstr "Uma referência definida por si. Opcional."
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "A session can have at most 100 exercises."
+msgstr "Uma sessão pode ter, no máximo, 100 exercícios."
 
 #: apps/native/components/onboarding/steps.tsx
 msgid "A wearable account"
@@ -1030,6 +1164,11 @@ msgstr "Minutos ativos indisponíveis. {statusText}"
 msgid "Active minutes, last 7 days: {value} minutes. {statusText}"
 msgstr "Minutos ativos, últimos 7 dias: {value} minutos. {statusText}"
 
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/workout-session-detail.tsx
+msgid "Active workout in progress"
+msgstr "Treino ativo em curso"
+
 #: packages/api/src/presenters/insights.ts
 msgctxt "insight topic"
 msgid "activity"
@@ -1051,6 +1190,11 @@ msgstr "Atividade e treinos"
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Activity and fitness"
 msgstr "Atividade e condição física"
+
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Add"
+msgstr "Adicionar"
 
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -1076,7 +1220,6 @@ msgstr "Adicione um objetivo com um alvo para ver o progresso dos objetivos."
 msgid "Add a photo (JPEG or PNG, up to 10 MB)"
 msgstr "Adicionar uma fotografia (JPEG ou PNG, até 10 MB)"
 
-#: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Add a session"
 msgstr "Adicionar uma sessão"
@@ -1095,7 +1238,17 @@ msgstr "Adicionar um peso"
 msgid "Add an entry"
 msgstr "Adicionar um registo"
 
+#: apps/native/components/workout-session.tsx
+msgid "Add an exercise"
+msgstr "Adicionar um exercício"
+
+#: apps/native/components/workout-session.tsx
+msgid "Add custom exercise"
+msgstr "Adicionar exercício personalizado"
+
 #: apps/native/components/exercise-library.tsx
+#: apps/native/components/workout-routines.tsx
+#: apps/native/components/workout-session.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Add exercise"
 msgstr "Adicionar exercício"
@@ -1131,6 +1284,11 @@ msgstr "Adicionar água simples"
 #: apps/web/src/routes/_auth/records/vitals.tsx
 msgid "Add reading"
 msgstr "Adicionar leitura"
+
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Add set"
+msgstr "Adicionar série"
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -1367,6 +1525,11 @@ msgstr "Tudo opcional. Responda ao que lhe for útil."
 msgid "All readings"
 msgstr "Todas as leituras"
 
+#. placeholder {0}: prescription.repsMax
+#: packages/api/src/presenters/workout-progression.ts
+msgid "All sets reached {0} reps last time, so add {increment} {unit}."
+msgstr "Todas as séries atingiram {0} repetições na última vez; adicione {increment} {unit}."
+
 #. safety
 #. safety
 #: apps/native/components/ai-section.tsx
@@ -1416,6 +1579,10 @@ msgstr "Um administrador pode importar exercícios licenciados, ou pode criar ab
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "An estimate is not available yet."
 msgstr "Ainda não há uma estimativa disponível."
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "An exercise can have at most 100 sets."
+msgstr "Um exercício pode ter, no máximo, 100 séries."
 
 #: packages/api/src/presenters/score.ts
 msgid "An experimental summary of how your recent sleep, resting heart rate and activity compare with your own usual pattern."
@@ -1536,6 +1703,11 @@ msgstr "Assertividade ({0})"
 msgid "At least {value} {unit}"
 msgstr "Pelo menos {value} {unit}"
 
+#. placeholder {0}: prescription.repsMin
+#: packages/api/src/presenters/workout-progression.ts
+msgid "At least one set was below the target of {0} reps, so the load stays the same."
+msgstr "Pelo menos uma série ficou abaixo do objetivo de {0} repetições, por isso a carga mantém-se."
+
 #: packages/api/src/presenters/insights.ts
 msgid "At most one a day, delivered quietly. The lock screen says only “You have a new insight” unless you choose to show the topic. Values never appear on the lock screen."
 msgstr "No máximo uma por dia, entregue de forma discreta. O ecrã de bloqueio diz apenas “Tem uma nova perspetiva”, a não ser que opte por mostrar o tema. Os valores nunca aparecem no ecrã de bloqueio."
@@ -1635,6 +1807,10 @@ msgstr "Voltar aos treinos"
 msgid "back view muscle illustration"
 msgstr "ilustração muscular, vista de costas"
 
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Background alerts are not supported on this device."
+msgstr "Este dispositivo não suporta alertas em segundo plano."
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Background sync"
 msgstr "Sincronização em segundo plano"
@@ -1729,6 +1905,15 @@ msgstr "Antes da sua configuração"
 msgid "Below the WHO range of 150 to 300 minutes a week."
 msgstr "Abaixo do intervalo da OMS de 150 a 300 minutos por semana."
 
+#: apps/web/src/components/workout-history.tsx
+msgid "Best estimated 1RM"
+msgstr "Melhor estimativa de 1RM"
+
+#. placeholder {0}: formatWeight(records?.bestEstimated1RmKg)
+#: apps/native/components/workout-history.tsx
+msgid "Best estimated 1RM (Epley): {0}"
+msgstr "Melhor estimativa de 1RM (Epley): {0}"
+
 #: packages/api/src/presenters/body-map.ts
 msgid "Biceps"
 msgstr "Bíceps"
@@ -1777,6 +1962,7 @@ msgstr "Objetivos corporais"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/body-map.tsx
+#: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Body map"
@@ -1789,6 +1975,11 @@ msgstr "Mapa corporal, vista de costas"
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Body map, front view"
 msgstr "Mapa corporal, vista de frente"
+
+#: apps/native/components/workout-history.tsx
+#: apps/web/src/components/workout-history.tsx
+msgid "Bodyweight"
+msgstr "Peso corporal"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Bone density"
@@ -1831,6 +2022,10 @@ msgstr "Explore exercícios licenciados ou crie um para o seu espaço de trabalh
 #: apps/web/src/components/exercise-library.tsx
 msgid "Browse licensed library entries and exercises created for your workspace."
 msgstr "Explore entradas licenciadas da biblioteca e exercícios criados para o seu espaço de trabalho."
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Build a reusable plan. Progression suggestions are optional and never change past workouts."
+msgstr "Crie um plano reutilizável. As sugestões de progressão são opcionais e nunca alteram treinos anteriores."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Building your usual"
@@ -1901,19 +2096,30 @@ msgstr "Canadá"
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/progress-photos.tsx
+#: apps/native/components/workout-routines.tsx
+#: apps/native/components/workout-session-detail.tsx
+#: apps/native/components/workout-session.tsx
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/ai-consent-card.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/plain-water.ts
 #: packages/api/src/presenters/supplements.ts
 msgid "Cancel"
 msgstr "Cancelar"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Cancel editing"
+msgstr "Cancelar edição"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -1943,6 +2149,22 @@ msgstr "Hidratos de carbono"
 #: packages/api/src/presenters/timeline.ts
 msgid "Cardiac"
 msgstr "Cardíaco"
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Cardio session · no exercises logged"
+msgstr "Sessão de cardio · sem exercícios registados"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Catalog exercise"
+msgstr "Exercício do catálogo"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Catalog results"
+msgstr "Resultados do catálogo"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Catalog search is unavailable. You can still add an exercise by name."
+msgstr "A pesquisa no catálogo não está disponível. Ainda pode adicionar um exercício pelo nome."
 
 #: packages/api/src/presenters/supplements.ts
 msgid "Change days"
@@ -1989,6 +2211,14 @@ msgstr "Alterações em comparação com o seu habitual"
 msgid "Changes only how glucose, cholesterol, triglycerides and creatinine are shown. Your stored results and the lab's units are never changed."
 msgstr "Altera apenas a forma como a glicose, o colesterol, os triglicéridos e a creatinina são apresentados. Os resultados guardados e as unidades do laboratório nunca são alterados."
 
+#: apps/native/components/workout-session.tsx
+msgid "Changes queued after this one depend on it and will also be discarded."
+msgstr "As alterações em fila depois desta dependem dela e também serão descartadas."
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Chart metric"
+msgstr "Métrica do gráfico"
+
 #: packages/api/src/presenters/modules.ts
 msgid "Chat about your own records"
 msgstr "Conversar sobre os seus registos"
@@ -2009,6 +2239,14 @@ msgstr "Verifique o email e o token e tente novamente."
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Check the product, source and amount. Nothing is saved until you press Save."
 msgstr "Verifique o produto, a fonte e a quantidade. Nada é guardado até premir Guardar."
+
+#: apps/native/components/workout-session.tsx
+msgid "Check the workout details and try again."
+msgstr "Verifique os detalhes do treino e tente novamente."
+
+#: apps/native/components/workout-session.tsx
+msgid "Check your connection and try again."
+msgstr "Verifique a ligação e tente novamente."
 
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Check your connection, then reload the page."
@@ -2073,6 +2311,10 @@ msgstr "Peito"
 msgid "Choose"
 msgstr "Escolher"
 
+#: apps/native/components/date-field.tsx
+msgid "Choose a date"
+msgstr "Escolher uma data"
+
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Choose a different day."
@@ -2108,6 +2350,10 @@ msgstr "Escolha um espaço de trabalho."
 #: apps/web/src/components/exercise-library.tsx
 msgid "Choose an exercise to read its details."
 msgstr "Escolha um exercício para ver os detalhes."
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Choose catalog exercise"
+msgstr "Escolher exercício do catálogo"
 
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Choose day"
@@ -2166,6 +2412,7 @@ msgid "Choose your region in your profile to see guidance from public-health aut
 msgstr "Escolha a sua região no seu perfil para ver as orientações das autoridades de saúde pública dessa região. Sem uma região, não é mostrada nenhuma lista."
 
 #: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/components/date-field.tsx
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Clear"
@@ -2176,6 +2423,10 @@ msgstr "Limpar"
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Clear answer"
 msgstr "Limpar resposta"
+
+#: apps/native/components/date-field.tsx
+msgid "Clear date"
+msgstr "Limpar data"
 
 #: apps/web/src/components/preventive-care-view.tsx
 msgid "Clear decision"
@@ -2225,6 +2476,8 @@ msgid "Clinician decision for specific situations"
 msgstr "Decisão do profissional de saúde em situações específicas"
 
 #: apps/native/app/modal.tsx
+#: apps/native/components/workout-session-detail.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Close"
 msgstr "Fechar"
 
@@ -2516,6 +2769,10 @@ msgstr "Copiar da data"
 msgid "Copy into {date}"
 msgstr "Copiar para {date}"
 
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Copy set"
+msgstr "Copiar série"
+
 #. placeholder {0}: selected.size
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Copying {0, plural, one {# item} other {# items}} to {localDate}"
@@ -2645,6 +2902,18 @@ msgstr "Não foi possível eliminar este período. Tente novamente."
 msgid "Could not delete this photo. Try again."
 msgstr "Não foi possível eliminar esta fotografia. Tente novamente."
 
+#: apps/native/components/workout-session-detail.tsx
+msgid "Could not delete workout"
+msgstr "Não foi possível eliminar o treino"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Could not delete. Refresh and review the routine."
+msgstr "Não foi possível eliminar. Atualize e reveja a rotina."
+
+#: apps/native/components/workout-session.tsx
+msgid "Could not discard"
+msgstr "Não foi possível descartar"
+
 #: apps/web/src/routes/_auth/settings/devices.tsx
 msgid "Could not disconnect this device."
 msgstr "Não foi possível desligar este dispositivo."
@@ -2652,6 +2921,10 @@ msgstr "Não foi possível desligar este dispositivo."
 #: apps/web/src/components/oidc-connect-section.tsx
 msgid "Could not disconnect. Sign in again and retry."
 msgstr "Não foi possível desligar. Inicie sessão novamente e tente outra vez."
+
+#: apps/native/components/workout-session-detail.tsx
+msgid "Could not edit workout"
+msgstr "Não foi possível editar o treino"
 
 #: apps/native/app/(drawer)/exports.tsx
 msgid "Could not export."
@@ -2665,6 +2938,10 @@ msgstr "Não foi possível exportar. Tente novamente."
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Could not generate a connect link."
 msgstr "Não foi possível gerar uma ligação."
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Could not load a preview. Your routine is unchanged."
+msgstr "Não foi possível carregar uma pré-visualização. A rotina não foi alterada."
 
 #: apps/native/app/(drawer)/records/activity.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
@@ -2711,6 +2988,7 @@ msgstr "Não foi possível carregar os exercícios."
 msgid "Could not load goal progress."
 msgstr "Não foi possível carregar o progresso dos objetivos."
 
+#: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load goals."
 msgstr "Não foi possível carregar os objetivos."
@@ -2743,6 +3021,10 @@ msgstr "Não foi possível carregar os convites."
 msgid "Could not load labs."
 msgstr "Não foi possível carregar as análises."
 
+#: apps/web/src/components/workout-history.tsx
+msgid "Could not load more history."
+msgstr "Não foi possível carregar mais histórico."
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/native/components/onboarding/steps.tsx
 msgid "Could not load notification settings."
@@ -2769,6 +3051,10 @@ msgstr "Não foi possível carregar os registos ou as definições de água simp
 msgid "Could not load preventive care."
 msgstr "Não foi possível carregar os cuidados preventivos."
 
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Could not load recent sessions."
+msgstr "Não foi possível carregar as sessões recentes."
+
 #: apps/web/src/components/reference-comparisons-card.tsx
 msgid "Could not load reference comparisons."
 msgstr "Não foi possível carregar as comparações de referência."
@@ -2776,6 +3062,10 @@ msgstr "Não foi possível carregar as comparações de referência."
 #: apps/native/components/reference-comparisons-section.tsx
 msgid "Could not load reference comparisons. <0>Retry</0>"
 msgstr "Não foi possível carregar as comparações de referência. <0>Tentar novamente</0>"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Could not load routines."
+msgstr "Não foi possível carregar as rotinas."
 
 #: apps/native/components/insights-section.tsx
 msgid "Could not load setting. Retry"
@@ -2815,6 +3105,10 @@ msgstr "Não foi possível carregar a estimativa. Tente novamente."
 #: apps/web/src/components/exercise-library.tsx
 msgid "Could not load the exercise library."
 msgstr "Não foi possível carregar a biblioteca de exercícios."
+
+#: apps/native/components/workout-session.tsx
+msgid "Could not load the latest version"
+msgstr "Não foi possível carregar a versão mais recente"
 
 #: apps/web/src/routes/_auth/scores.tsx
 msgid "Could not load the readiness index."
@@ -2869,7 +3163,10 @@ msgstr "Não foi possível carregar o peso."
 msgid "Could not load what would be deleted."
 msgstr "Não foi possível carregar o que seria eliminado."
 
-#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Could not load workout."
+msgstr "Não foi possível carregar o treino."
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
@@ -2975,6 +3272,10 @@ msgstr "Não foi possível ler as alterações guardadas neste dispositivo. Os r
 msgid "Could not read your health data. Check permissions."
 msgstr "Não foi possível ler os seus dados de saúde. Verifique as permissões."
 
+#: apps/native/components/workout-session.tsx
+msgid "Could not reopen"
+msgstr "Não foi possível reabrir"
+
 #: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/devices.tsx
 msgid "Could not request a sync."
@@ -2983,6 +3284,18 @@ msgstr "Não foi possível pedir uma sincronização."
 #: apps/web/src/components/admin-invitations-view.tsx
 msgid "Could not revoke invitation."
 msgstr "Não foi possível revogar o convite."
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Could not save rest preference. Your workout is unchanged."
+msgstr "Não foi possível guardar a preferência de descanso. O treino não foi alterado."
+
+#: apps/native/components/workout-routines.tsx
+msgid "Could not save routine"
+msgstr "Não foi possível guardar a rotina"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Could not save the routine. Your finished workout is unchanged."
+msgstr "Não foi possível guardar a rotina. O treino concluído não foi alterado."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Could not save this change on this device. Nothing was sent."
@@ -3000,6 +3313,14 @@ msgstr "Não foi possível guardar este registo. Tente novamente."
 #: apps/web/src/components/progress-photos.tsx
 msgid "Could not save this photo. Use a JPEG or PNG up to 10 MB."
 msgstr "Não foi possível guardar esta fotografia. Use um JPEG ou PNG até 10 MB."
+
+#: apps/native/components/workout-session.tsx
+msgid "Could not save workout"
+msgstr "Não foi possível guardar o treino"
+
+#: apps/native/components/workout-session.tsx
+msgid "Could not save workout changes. Please try again."
+msgstr "Não foi possível guardar as alterações do treino. Tente novamente."
 
 #: apps/native/components/insights-section.tsx
 #: apps/web/src/components/insights-section.tsx
@@ -3042,6 +3363,14 @@ msgstr "Não foi possível guardar. Verifique a ligação e tente novamente."
 msgid "Could not save. Nothing was changed."
 msgstr "Não foi possível guardar. Nada foi alterado."
 
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Could not save. Please retry."
+msgstr "Não foi possível guardar. Tente novamente."
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Could not save. Refresh and review for a newer version."
+msgstr "Não foi possível guardar. Atualize e verifique se existe uma versão mais recente."
+
 #: apps/web/src/utils/product-settings-form-state.ts
 msgid "Could not save. Try again."
 msgstr "Não foi possível guardar. Tente novamente."
@@ -3049,6 +3378,10 @@ msgstr "Não foi possível guardar. Tente novamente."
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "Could not save. Use YYYY-MM-DD dates and try again."
 msgstr "Não foi possível guardar. Use datas no formato AAAA-MM-DD e tente novamente."
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Could not save. Your changes are retained; refresh to resolve the conflict."
+msgstr "Não foi possível guardar. As alterações foram mantidas; atualize para resolver o conflito."
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Could not search food databases. Showing foods saved on this device."
@@ -3159,6 +3492,18 @@ msgstr "Não foi possível verificar o acesso"
 msgid "Could not verify admin access."
 msgstr "Não foi possível verificar o acesso de administrador."
 
+#: apps/native/components/workout-routines.tsx
+msgid "Couldn’t load routines. Try again when connected."
+msgstr "Não foi possível carregar as rotinas. Tente novamente quando tiver ligação."
+
+#: apps/native/components/workout-routines.tsx
+msgid "Couldn’t load your routines. Cached routines remain available; try refreshing."
+msgstr "Não foi possível carregar as suas rotinas. As rotinas em cache continuam disponíveis; tente atualizar."
+
+#: apps/native/components/workout-routines.tsx
+msgid "Couldn’t prepare this routine. Refresh when you’re connected."
+msgstr "Não foi possível preparar esta rotina. Atualize quando tiver ligação."
+
 #: packages/api/src/presenters/score.ts
 msgid "Counted"
 msgstr "Contado"
@@ -3227,6 +3572,7 @@ msgstr "O registo do ciclo está desligado"
 msgid "Cycle logging is optional and separate from everything else. Your cycle data stays private to you: workspace owners and other members cannot see it, and it is left out of AI and coach features, clinical exports, Telegram, email and analytics. You can turn it off and erase it at any time."
 msgstr "O registo do ciclo é opcional e separado de tudo o resto. Os seus dados do ciclo ficam privados: os proprietários do espaço de trabalho e outros membros não os podem ver, e ficam de fora das funcionalidades de IA e do coach, das exportações clínicas, do Telegram, do email e da análise de utilização. Pode desligá-lo e apagá-lo a qualquer momento."
 
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/workouts.ts
 msgid "Cycling"
 msgstr "Ciclismo"
@@ -3293,7 +3639,7 @@ msgstr "Base de dados"
 msgid "Dataset {datasetVersion}."
 msgstr "Conjunto de dados {datasetVersion}."
 
-#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/records/activity.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
@@ -3381,11 +3727,22 @@ msgstr "Degradado"
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/progress-photos.tsx
+#: apps/native/components/workout-routines.tsx
+#: apps/native/components/workout-session-detail.tsx
+#: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Delete"
 msgstr "Eliminar"
+
+#. placeholder {0}: deleteTarget?.name
+#. placeholder {0}: r.name
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
+msgid "Delete {0}?"
+msgstr "Eliminar {0}?"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Delete {label} entry from {date}"
@@ -3437,6 +3794,10 @@ msgstr "Eliminar medição privada?"
 msgid "Delete records"
 msgstr "Eliminar registos"
 
+#: apps/native/components/workout-session.tsx
+msgid "Delete set"
+msgstr "Eliminar série"
+
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Delete the held-back {confirmName} records?"
 msgstr "Eliminar os registos retidos de {confirmName}?"
@@ -3462,6 +3823,14 @@ msgstr "Eliminar esta fotografia? Esta ação não pode ser anulada."
 msgid "Delete this private measurement? This cannot be undone."
 msgstr "Eliminar esta medição privada? Esta ação não pode ser anulada."
 
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Delete this workout?"
+msgstr "Eliminar este treino?"
+
+#: apps/native/components/workout-session-detail.tsx
+msgid "Delete workout?"
+msgstr "Eliminar treino?"
+
 #. safety
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Deletes every period and import you have logged, in every workspace, and withdraws your consent. This cannot be undone."
@@ -3471,6 +3840,14 @@ msgstr "Elimina todos os períodos e importações que registou, em todos os esp
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Deleting…"
 msgstr "A eliminar…"
+
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Deload (%)"
+msgstr "Redução de carga (%)"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Deload percent"
+msgstr "Percentagem de redução de carga"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Deload, sleep, and stress priority."
@@ -3484,6 +3861,8 @@ msgid "Describe a meal"
 msgstr "Descrever uma refeição"
 
 #: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Details"
 msgstr "Detalhes"
 
@@ -3537,7 +3916,21 @@ msgstr "Direção inferida a partir do valor inicial."
 msgid "Disabled"
 msgstr "Desativado"
 
+#: apps/native/components/workout-session.tsx
+msgid "Discard"
+msgstr "Descartar"
+
+#: apps/native/components/workout-session.tsx
+msgid "Discard all"
+msgstr "Descartar tudo"
+
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/workout-session-detail.tsx
+msgid "Discard and continue"
+msgstr "Descartar e continuar"
+
 #: apps/native/app/(drawer)/nutrition.tsx
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Discard change"
 msgstr "Descartar alteração"
@@ -3553,6 +3946,14 @@ msgstr "Descartar rascunho"
 msgid "Discard entry"
 msgstr "Descartar registo"
 
+#: apps/native/components/workout-session.tsx
+msgid "Discard later changes too?"
+msgstr "Descartar também as alterações seguintes?"
+
+#: apps/native/components/workout-session.tsx
+msgid "Discard this change?"
+msgstr "Descartar esta alteração?"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Discard this change? Your saved entry is unchanged."
 msgstr "Descartar esta alteração? O seu registo guardado não é alterado."
@@ -3560,6 +3961,14 @@ msgstr "Descartar esta alteração? O seu registo guardado não é alterado."
 #: packages/api/src/presenters/plain-water.ts
 msgid "Discard this entry? It was saved on this device only."
 msgstr "Descartar este registo? Foi guardado apenas neste dispositivo."
+
+#: apps/native/components/workout-session.tsx
+msgid "Discard workout"
+msgstr "Descartar treino"
+
+#: apps/native/components/workout-session.tsx
+msgid "Discard workout?"
+msgstr "Descartar o treino?"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/web/src/components/oidc-connect-section.tsx
@@ -3631,7 +4040,12 @@ msgstr "Distância / dia"
 msgid "Domains"
 msgstr "Domínios"
 
+#: apps/native/components/workout-session.tsx
+msgid "done"
+msgstr "concluída"
+
 #: apps/native/app/(drawer)/profile.tsx
+#: apps/native/components/date-field.tsx
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Done"
 msgstr "Concluído"
@@ -3651,6 +4065,11 @@ msgstr "Feito: {doneDay}"
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Dose"
 msgstr "Dose"
+
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Double progression"
+msgstr "Progressão dupla"
 
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/routes/_auth/exports.tsx
@@ -3710,14 +4129,20 @@ msgstr "Data-limite"
 msgid "Duration"
 msgstr "Duração"
 
-#: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 msgid "Duration (minutes)"
 msgstr "Duração (minutos)"
 
-#: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
-msgid "Duration must be 1 to 1440 minutes."
+#: apps/native/components/workout-session.tsx
+msgid "Duration in minutes"
+msgstr "Duração em minutos"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Duration must be between 1 and 1,440 minutes."
+msgstr "A duração tem de ser entre 1 e 1 440 minutos."
+
+#: apps/native/components/workout-session.tsx
+msgid "Duration must be between 1 and 1440 minutes."
 msgstr "A duração tem de ser entre 1 e 1440 minutos."
 
 #: packages/api/src/presenters/preventive-care.ts
@@ -3749,7 +4174,10 @@ msgid "Earliest delivery time"
 msgstr "Hora mais cedo de envio"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/plain-water.ts
 msgid "Edit"
@@ -3790,6 +4218,19 @@ msgstr "Editar registo"
 msgid "Edit profile"
 msgstr "Editar perfil"
 
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
+msgid "Edit routine"
+msgstr "Editar rotina"
+
+#: apps/native/components/workout-session.tsx
+msgid "Edit session"
+msgstr "Editar sessão"
+
+#: apps/native/components/workout-session-detail.tsx
+msgid "Edit workout"
+msgstr "Editar treino"
+
 #: apps/native/app/(drawer)/records/sleep.tsx
 #: apps/web/src/routes/_auth/records/sleep.tsx
 msgid "Efficiency"
@@ -3798,6 +4239,18 @@ msgstr "Eficiência"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Effort"
 msgstr "Esforço"
+
+#: apps/native/components/workout-session.tsx
+msgid "Effort (0–10, optional)"
+msgstr "Esforço (0–10, opcional)"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Effort (0–10)"
+msgstr "Esforço (0–10)"
+
+#: apps/native/components/workout-session.tsx
+msgid "Effort must be a whole number from 0 to 10."
+msgstr "O esforço tem de ser um número inteiro entre 0 e 10."
 
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/activity-load.ts
@@ -3817,10 +4270,9 @@ msgstr "Pontos de esforço indisponíveis. {statusText}"
 msgid "Effort points, last 7 days: {value} points. {statusText}"
 msgstr "Pontos de esforço, últimos 7 dias: {value} pontos. {statusText}"
 
-#: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
-msgid "Effort, 0 to 10 (optional)"
-msgstr "Esforço, 0 a 10 (opcional)"
+#: apps/native/components/workout-session.tsx
+msgid "Effort rating from 0 to 10"
+msgstr "Classificação do esforço de 0 a 10"
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "EFSA (European Food Safety Authority)"
@@ -3858,6 +4310,10 @@ msgstr "Enviar-me uma ligação de início de sessão"
 #: apps/native/components/onboarding/steps.tsx
 msgid "Email, backups and the AI provider are set in the server's environment. The web app's admin pages show the details and how to change them."
 msgstr "O email, as cópias de segurança e o fornecedor de IA são definidos no ambiente do servidor. As páginas de administração da app web mostram os detalhes e como os alterar."
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Enable rest alerts"
+msgstr "Ativar alertas de descanso"
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
 msgid "Enabled"
@@ -3919,6 +4375,10 @@ msgstr "Introduza um mínimo, um máximo ou ambos."
 msgid "Enter a public http or https recipe address."
 msgstr "Introduza um endereço público http ou https de uma receita."
 
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Enter a valid date."
+msgstr "Introduza uma data válida."
+
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/magic-link-form.tsx
 msgid "Enter a valid email address"
@@ -3931,6 +4391,14 @@ msgstr "Introduza uma medição válida e a hora da observação."
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Enter a valid positive value and real local date/time."
 msgstr "Introduza um valor positivo válido e uma data/hora local real."
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Enter a whole number from 0 to 3600 seconds."
+msgstr "Introduza um número inteiro entre 0 e 3600 segundos."
+
+#: apps/native/components/workout-session.tsx
+msgid "Enter a whole number of reps for each completed set."
+msgstr "Introduza um número inteiro de repetições para cada série concluída."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Enter an amount greater than zero."
@@ -4011,6 +4479,10 @@ msgstr "Registo guardado."
 msgid "Environment configuration"
 msgstr "Configuração do ambiente"
 
+#: apps/native/components/workout-history.tsx
+msgid "Epley estimates use sets of 1–12 reps. Sets above 12 reps remain included in history and volume."
+msgstr "As estimativas de Epley usam séries de 1–12 repetições. As séries com mais de 12 repetições continuam incluídas no histórico e no volume."
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Equipment"
@@ -4035,6 +4507,22 @@ msgstr "A apagar…"
 #: packages/api/src/presenters/cycle.ts
 msgid "Estimate"
 msgstr "Estimativa"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Estimated 1RM"
+msgstr "Estimativa de 1RM"
+
+#: apps/native/components/workout-history.tsx
+msgid "Estimated 1RM (Epley)"
+msgstr "Estimativa de 1RM (Epley)"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Estimated 1RM PR"
+msgstr "Recorde de estimativa de 1RM"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Estimated 1RM uses the Epley formula for weighted sets of 1–12 reps."
+msgstr "A estimativa de 1RM usa a fórmula de Epley para séries com peso de 1–12 repetições."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Estimated activity energy was recorded on {activityDays, plural, one {# day} other {# days}} in this {windowDays}-day window. It is shown separately from food intake."
@@ -4093,10 +4581,19 @@ msgid "Exam"
 msgstr "Exame"
 
 #: apps/native/components/exercise-library.tsx
+#: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Exercise"
 msgstr "Exercício"
 
+#. placeholder {0}: ei + 1
+#. placeholder {0}: index + 1
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Exercise {0}"
+msgstr "Exercício {0}"
+
+#: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Exercise details"
 msgstr "Detalhes do exercício"
@@ -4104,6 +4601,22 @@ msgstr "Detalhes do exercício"
 #: apps/native/components/exercise-library.tsx
 msgid "Exercise details are unavailable."
 msgstr "Os detalhes do exercício não estão disponíveis."
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Exercise history"
+msgstr "Histórico do exercício"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Exercise history chart in kilograms"
+msgstr "Gráfico do histórico do exercício em quilogramas"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Exercise history chart in pounds"
+msgstr "Gráfico do histórico do exercício em libras"
+
+#: apps/web/src/components/exercise-library.tsx
+msgid "Exercise information"
+msgstr "Informações do exercício"
 
 #: apps/native/components/exercise-library.tsx
 msgid "Exercise instructions, optional"
@@ -4118,15 +4631,30 @@ msgid "Exercise library"
 msgstr "Biblioteca de exercícios"
 
 #: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 msgid "Exercise name"
 msgstr "Nome do exercício"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Exercise name is required (200 characters max)."
+msgstr "O nome do exercício é obrigatório (máximo de 200 caracteres)."
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Exercise notes"
+msgstr "Notas do exercício"
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Exercise record"
 msgstr "Registo do exercício"
 
+#: apps/web/src/components/workout-routines.tsx
+msgid "exercises"
+msgstr "exercícios"
+
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 msgid "Exercises"
 msgstr "Exercícios"
 
@@ -4178,6 +4706,14 @@ msgstr "Falhou ({pending})"
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Failed {0}"
 msgstr "Falhou {0}"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Failure threshold"
+msgstr "Limite de falhas"
+
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Failures before deload"
+msgstr "Falhas antes da redução de carga"
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
@@ -4245,6 +4781,10 @@ msgstr "Terminar a configuração, {0} de {1}"
 #: apps/web/src/components/onboarding/finish-setup-card.tsx
 msgid "Finish setting up, {done} of {total}"
 msgstr "Terminar a configuração, {done} de {total}"
+
+#: apps/native/components/workout-session.tsx
+msgid "Finish workout"
+msgstr "Concluir treino"
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "First setup"
@@ -4519,6 +5059,8 @@ msgctxt "insight topic"
 msgid "goals"
 msgstr "objetivos"
 
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/goals.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/clinical-export.ts
@@ -4631,6 +5173,19 @@ msgstr "Frequência cardíaca, VFC, tensão arterial"
 msgid "Heart-rate based load is not calculated in this version."
 msgstr "A carga baseada na frequência cardíaca não é calculada nesta versão."
 
+#: apps/web/src/components/workout-history.tsx
+msgid "Heaviest"
+msgstr "Mais pesado"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Heaviest weight PR"
+msgstr "Recorde de peso máximo"
+
+#. placeholder {0}: formatWeight(records?.heaviestWeightKg)
+#: apps/native/components/workout-history.tsx
+msgid "Heaviest: {0}"
+msgstr "Mais pesado: {0}"
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Heavy"
@@ -4718,10 +5273,21 @@ msgstr "Ancas (frente)"
 
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/exercise-library.tsx
+#: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "History"
 msgstr "Histórico"
+
+#: apps/native/components/workout-history.tsx
+msgid "History chart measure"
+msgstr "Medida do gráfico do histórico"
+
+#: apps/native/components/workout-history.tsx
+#: apps/web/src/components/workout-history.tsx
+msgid "History is unavailable right now."
+msgstr "O histórico não está disponível neste momento."
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Hold current weight and habits."
@@ -4750,11 +5316,6 @@ msgstr "Como estou?"
 #: apps/web/src/utils/onboarding.ts
 msgid "How data arrives"
 msgstr "Como chegam os dados"
-
-#: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
-msgid "How did it go?"
-msgstr "Como correu?"
 
 #: packages/api/src/presenters/score.ts
 msgid "How far you have moved toward the targets you set, weighted by your priorities."
@@ -4955,6 +5516,18 @@ msgstr "Inclui alterações a aguardar sincronização. Os totais são confirmad
 msgid "Increase"
 msgstr "Aumentar"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Increment"
+msgstr "Incremento"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Increment (kg)"
+msgstr "Incremento (kg)"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Increment (lb)"
+msgstr "Incremento (lb)"
+
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Individual decision"
@@ -5052,20 +5625,21 @@ msgstr "As predefinições da instância afetam a forma como o peso, a distânci
 msgid "Instructions (optional)"
 msgstr "Instruções (opcional)"
 
+#: apps/native/components/exercise-library.tsx
+msgid "Instructions & media"
+msgstr "Instruções e multimédia"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Integrations"
 msgstr "Integrações"
 
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Intensity"
 msgstr "Intensidade"
-
-#: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
-msgid "Intensity (optional)"
-msgstr "Intensidade (opcional)"
 
 #: packages/api/src/presenters/activity-load.ts
 msgid "Intensity is the level you recorded for each session (talk test). Wearable workouts have no intensity in OpenValens yet, so their minutes are listed but not counted."
@@ -5251,14 +5825,30 @@ msgstr "Manter a outra versão"
 msgid "Keys"
 msgstr "Chaves"
 
+#: apps/native/components/workout-history.tsx
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/manual-entry.ts
 msgid "kg"
 msgstr "kg"
+
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-history.tsx
+msgctxt "unit"
+msgid "kg"
+msgstr "kg"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "kg-reps"
+msgstr "kg-repetições"
 
 #. safety
 #: apps/web/src/components/product-settings-form.tsx
 msgid "kg, kilometers"
 msgstr "kg, quilómetros"
+
+#: apps/native/components/workout-session.tsx
+msgid "kilograms"
+msgstr "quilogramas"
 
 #: apps/web/src/components/insight-notifications-section.tsx
 msgid "Kind"
@@ -5380,6 +5970,12 @@ msgstr "Último envio {0}"
 msgid "Last verify"
 msgstr "Última verificação"
 
+#. placeholder {0}: previous.weightKg == null ? t`no weight` : `${Number(weightFromKg(previous.weightKg, units).toFixed(1))} ${units === "metric" ? t`kg` : t`lb`}`
+#. placeholder {1}: previous.reps ?? "—"
+#: apps/native/components/workout-session.tsx
+msgid "Last: {0} × {1}"
+msgstr "Último: {0} × {1}"
+
 #: apps/native/app/(drawer)/insight-settings.tsx
 msgid "Later"
 msgstr "Mais tarde"
@@ -5409,6 +6005,21 @@ msgstr "Dorsais"
 msgid "Layer"
 msgstr "Camada"
 
+#: apps/native/components/workout-history.tsx
+#: apps/native/components/workout-session.tsx
+msgid "lb"
+msgstr "lb"
+
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-history.tsx
+msgctxt "unit"
+msgid "lb"
+msgstr "lb"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "lb-reps"
+msgstr "lb-repetições"
+
 #. safety
 #: apps/web/src/components/product-settings-form.tsx
 msgid "lb, miles"
@@ -5421,6 +6032,10 @@ msgstr "Massa magra"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Leave a value blank if you do not know it. Blank is shown as unknown; 0 is saved as zero."
 msgstr "Deixe um valor em branco se não o souber. Em branco é mostrado como desconhecido; 0 é guardado como zero."
+
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Leave blank for bodyweight or unspecified."
+msgstr "Deixe em branco para peso corporal ou se não especificado."
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Left abdomen (front)"
@@ -5486,6 +6101,10 @@ msgstr "Braço esquerdo (frente)"
 msgid "Left upper back (back)"
 msgstr "Parte superior esquerda das costas (costas)"
 
+#: apps/native/components/workout-session-detail.tsx
+msgid "Legacy session · read only"
+msgstr "Sessão antiga · só de leitura"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Legend"
@@ -5544,6 +6163,7 @@ msgstr "Licença: {license}, {author}"
 msgid "Light"
 msgstr "Claro"
 
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/activity-load.ts
 msgctxt "intensity"
 msgid "Light"
@@ -5564,6 +6184,11 @@ msgstr "Leve"
 msgid "Light: {light} min (not counted)"
 msgstr "Leve: {light} min (não contados)"
 
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Linear progression"
+msgstr "Progressão linear"
+
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Little or no benefit"
@@ -5577,6 +6202,14 @@ msgstr "EM LINHA"
 msgid "Load more"
 msgstr "Carregar mais"
 
+#: apps/native/components/workout-history.tsx
+msgid "Load more sessions"
+msgstr "Carregar mais sessões"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Load older sessions"
+msgstr "Carregar sessões anteriores"
+
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading details…"
 msgstr "A carregar detalhes…"
@@ -5589,6 +6222,10 @@ msgstr "A carregar as predefinições de apresentação…"
 #: apps/web/src/components/energy-estimate-card.tsx
 msgid "Loading estimate…"
 msgstr "A carregar a estimativa…"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Loading exercise history…"
+msgstr "A carregar o histórico do exercício…"
 
 #: apps/native/components/insights-section.tsx
 #: apps/web/src/components/insights-section.tsx
@@ -5624,6 +6261,15 @@ msgstr "A carregar pré-visualização…"
 msgid "Loading progress photo from {date}"
 msgstr "A carregar a fotografia de progresso de {date}"
 
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Loading recent sessions…"
+msgstr "A carregar as sessões recentes…"
+
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
+msgid "Loading routines…"
+msgstr "A carregar as rotinas…"
+
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Loading scans…"
@@ -5653,9 +6299,11 @@ msgstr "A carregar o seu espaço de trabalho…"
 #: apps/native/components/insights-section.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/native/components/plain-water-section.tsx
+#: apps/native/components/workout-history.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/micronutrients.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Loading…"
 msgstr "A carregar…"
 
@@ -5696,10 +6344,22 @@ msgstr "Registar alimento ({amount})"
 msgid "Log meals most days"
 msgstr "Registar as refeições na maioria dos dias"
 
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Log past session"
+msgstr "Registar sessão anterior"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Log session"
+msgstr "Registar sessão"
+
 #. safety
 #: packages/api/src/presenters/insights.ts
 msgid "Logged meals and workouts occurred on {daysWithBoth, plural, one {# day} other {# days}} in this {windowDays}-day window. This describes co-occurrence in your records only and does not establish a relationship between them."
 msgstr "Houve refeições e treinos registados em {daysWithBoth, plural, one {# dia} other {# dias}} nesta janela de {windowDays} dias. Isto descreve apenas a ocorrência em simultâneo nos seus registos e não estabelece uma relação entre eles."
+
+#: apps/native/components/workout-history.tsx
+msgid "Logged sessions for this exercise will appear here."
+msgstr "As sessões registadas para este exercício serão apresentadas aqui."
 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "Logging streak"
@@ -5770,6 +6430,10 @@ msgstr "Criar um rascunho"
 msgid "Make a draft from this photo"
 msgstr "Criar um rascunho a partir desta fotografia"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Make a routine"
+msgstr "Criar uma rotina"
+
 #: packages/api/src/presenters/food-draft.ts
 msgid "Make food drafts from a meal photo"
 msgstr "Criar rascunhos de alimentos a partir de uma fotografia da refeição"
@@ -5821,6 +6485,10 @@ msgstr "Os marcadores aparecem aqui quando for registada uma leitura de análise
 msgid "Matches the age, sex and answers you shared."
 msgstr "Corresponde à idade, ao sexo e às respostas que partilhou."
 
+#: apps/native/components/workout-routines.tsx
+msgid "Max reps"
+msgstr "Repetições máximas"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Maximises upside, accepts setbacks."
 msgstr "Procura o máximo de ganhos, aceita contratempos."
@@ -5836,6 +6504,10 @@ msgstr "Máximo (opcional) (oculto)"
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 msgid "Maximum (optional), hidden"
 msgstr "Máximo (opcional), oculto"
+
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Maximum reps"
+msgstr "Repetições máximas"
 
 #. safety
 #: packages/api/src/presenters/preventive-care.ts
@@ -5974,6 +6646,14 @@ msgstr "Micronutrientes"
 msgid "Mild sleep debt"
 msgstr "Défice de sono ligeiro"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Min reps"
+msgstr "Repetições mínimas"
+
+#: apps/native/components/workout-session.tsx
+msgid "Minimize workout"
+msgstr "Minimizar treino"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Minimum (optional)"
 msgstr "Mínimo (opcional)"
@@ -5985,6 +6665,10 @@ msgstr "Mínimo (opcional) (oculto)"
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 msgid "Minimum (optional), hidden"
 msgstr "Mínimo (opcional), oculto"
+
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Minimum reps"
+msgstr "Repetições mínimas"
 
 #. safety
 #. safety
@@ -6009,6 +6693,7 @@ msgstr "Ecrã modal"
 msgid "Moderate"
 msgstr "Moderado"
 
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/activity-load.ts
 msgctxt "intensity"
 msgid "Moderate"
@@ -6070,6 +6755,33 @@ msgstr "Mais opções"
 msgid "Morning"
 msgstr "Manhã"
 
+#. placeholder {0}: weight(record.weightKg)
+#: apps/web/src/components/workout-history.tsx
+msgid "Most reps at {0}"
+msgstr "Mais repetições a {0}"
+
+#. placeholder {0}: exercise.name
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Move {0} down"
+msgstr "Mover {0} para baixo"
+
+#. placeholder {0}: exercise.name
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Move {0} up"
+msgstr "Mover {0} para cima"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Move down"
+msgstr "Mover para baixo"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Move up"
+msgstr "Mover para cima"
+
 #: packages/api/src/presenters/score.ts
 msgid "Moved away from the target at the last check-in"
 msgstr "Afastou-se do alvo no último check-in"
@@ -6116,6 +6828,7 @@ msgstr "A app de saúde do meu telemóvel"
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/admin-settings-view.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
 msgid "Name"
@@ -6163,6 +6876,7 @@ msgid "Needs at least one session with a recorded intensity in the last 7 days."
 msgstr "Precisa de pelo menos uma sessão com intensidade registada nos últimos 7 dias."
 
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
+#: apps/native/components/workout-session.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
@@ -6198,6 +6912,10 @@ msgstr "Nova conversa"
 #: packages/api/src/presenters/custom-foods.ts
 msgid "New food"
 msgstr "Novo alimento"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "New routine"
+msgstr "Nova rotina"
 
 #: packages/api/src/presenters/insights.ts
 msgid "New source for {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}}"
@@ -6331,6 +7049,10 @@ msgstr "Não foi criado nenhum rascunho."
 msgid "No due date"
 msgstr "Sem data-limite"
 
+#: apps/native/components/workout-history.tsx
+msgid "No eligible values for this measure."
+msgstr "Não existem valores elegíveis para esta medida."
+
 #: packages/api/src/presenters/energy-estimate.ts
 msgid "No energy target set"
 msgstr "Sem objetivo de energia definido"
@@ -6342,6 +7064,10 @@ msgstr "Não há filtros de equipamento disponíveis."
 #: packages/api/src/presenters/workouts.ts
 msgid "No exercises"
 msgstr "Sem exercícios"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "No exercises added. Cardio and session-only workouts can be saved without exercise details."
+msgstr "Não foram adicionados exercícios. Os treinos de cardio e apenas de sessão podem ser guardados sem detalhes dos exercícios."
 
 #: apps/native/components/exercise-library.tsx
 msgid "No exercises found yet"
@@ -6376,6 +7102,14 @@ msgstr "Não foram reconhecidos alimentos. Experimente indicar cada alimento, po
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "No goals yet"
 msgstr "Ainda não há objetivos"
+
+#: apps/native/components/workout-history.tsx
+msgid "No history yet"
+msgstr "Ainda não há histórico"
+
+#: apps/web/src/components/workout-history.tsx
+msgid "No history yet. Log this exercise in a workout to see your progress here."
+msgstr "Ainda não há histórico. Registe este exercício num treino para ver aqui o seu progresso."
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
@@ -6429,6 +7163,10 @@ msgstr "Sem correspondência no diagrama para: {unresolvedNames}. Os nomes são 
 #: apps/web/src/components/muscle-guide.tsx
 msgid "No matching diagram mapping is available; no anatomy is highlighted."
 msgstr "Não há correspondência no diagrama; nenhuma zona do corpo está destacada."
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "No matching exercises. Add a name manually instead."
+msgstr "Não foram encontrados exercícios correspondentes. Em alternativa, adicione um nome manualmente."
 
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/web/src/routes/_auth/supplements.tsx
@@ -6503,6 +7241,14 @@ msgstr "Ainda sem registos privados."
 msgid "No profile applies yet"
 msgstr "Ainda não se aplica nenhum perfil"
 
+#: apps/native/components/workout-routines.tsx
+msgid "No progression"
+msgstr "Sem progressão"
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "No progression rule is set, so the prescription stays the same."
+msgstr "Não está definida uma regra de progressão, por isso a prescrição mantém-se."
+
 #: apps/native/app/(drawer)/food-draft.tsx
 msgid "No quantity"
 msgstr "Sem quantidade"
@@ -6535,6 +7281,10 @@ msgstr "Sem dados recentes"
 msgid "No recent weight for a reference yet."
 msgstr "Ainda não há um peso recente para uma referência."
 
+#: apps/native/components/workout-history.tsx
+msgid "No record"
+msgstr "Sem recorde"
+
 #: apps/native/app/(drawer)/(tabs)/timeline.tsx
 #: apps/web/src/routes/_auth/records/timeline.tsx
 msgid "No records yet"
@@ -6543,6 +7293,22 @@ msgstr "Ainda sem registos"
 #: packages/api/src/presenters/micronutrients.ts
 msgid "No reference values chosen. Choose them in nutrition settings to see them here."
 msgstr "Não foram escolhidos valores de referência. Escolha-os nas definições de nutrição para os ver aqui."
+
+#: apps/native/components/workout-session.tsx
+msgid "no reps"
+msgstr "sem repetições"
+
+#: apps/native/components/workout-history.tsx
+msgid "No reps-at-weight records yet."
+msgstr "Ainda não há registos de repetições com peso."
+
+#: apps/web/src/components/workout-history.tsx
+msgid "No result"
+msgstr "Sem resultado"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "No routines yet. Create one to reuse a plan."
+msgstr "Ainda não há rotinas. Crie uma para reutilizar um plano."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "No saved foods yet. Create one here or tick “Save to my foods” when you quick add."
@@ -6560,6 +7326,10 @@ msgstr "Nenhuma sessão dos últimos 7 dias tem avaliação de esforço e duraç
 #: packages/api/src/presenters/activity-load.ts
 msgid "No sessions recorded in the last 7 days, so there is no number (not zero)."
 msgstr "Sem sessões registadas nos últimos 7 dias, por isso não há número (não é zero)."
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "No sets recorded. You can add a set, or leave this exercise without sets."
+msgstr "Não foram registadas séries. Pode adicionar uma série ou deixar este exercício sem séries."
 
 #: packages/api/src/presenters/cockpit.ts
 msgid "No sleep logged"
@@ -6613,6 +7383,10 @@ msgstr "Sem valor"
 msgid "No vitals yet"
 msgstr "Ainda sem sinais vitais"
 
+#: apps/native/components/workout-session.tsx
+msgid "no weight"
+msgstr "sem peso"
+
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "No weight logged in the last {WEIGHT_TREND_DAYS} days."
 msgstr "Nenhum peso registado nos últimos {WEIGHT_TREND_DAYS} dias."
@@ -6633,6 +7407,7 @@ msgstr "Não, tenho menos de 18 anos"
 
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 #: apps/web/src/components/admin-backup-status.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: apps/web/src/routes/_auth/nutrition-targets.tsx
 msgid "None"
 msgstr "Nenhum"
@@ -6703,6 +7478,10 @@ msgstr "Não ligado"
 #: apps/web/src/routes/_auth/body-map.tsx
 msgid "Not counted (no catalog muscles)"
 msgstr "Não contados (sem músculos do catálogo)"
+
+#: apps/native/components/workout-session.tsx
+msgid "not done"
+msgstr "não concluída"
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Not endorsed by AHRQ, HHS or the USPSTF."
@@ -6818,7 +7597,7 @@ msgstr "Não agendada"
 
 #: apps/native/app/(drawer)/admin/settings.tsx
 #: apps/web/src/components/admin-settings-view.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 msgid "Not set"
 msgstr "Não definida"
 
@@ -6867,8 +7646,7 @@ msgstr "Não é útil: {title}. Oculta este tipo de perspetiva durante 30 dias."
 msgid "Not yet reviewed. Units, reference ranges, medication and consent text stay in English until a reviewer approves them."
 msgstr "Ainda não revista. As unidades, os intervalos de referência e os textos sobre medicação e consentimento ficam em inglês até um revisor os aprovar."
 
-#: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
+#: apps/native/components/workout-session.tsx
 msgid "Notes"
 msgstr "Notas"
 
@@ -7276,6 +8054,10 @@ msgstr "Abrir o seu perfil"
 msgid "Opens {sourceName} permissions"
 msgstr "Abre as permissões de {sourceName}"
 
+#: apps/native/components/date-field.tsx
+msgid "Opens the date picker"
+msgstr "Abre o seletor de data"
+
 #: apps/web/src/components/header.tsx
 msgid "OpenValens home"
 msgstr "Página inicial do OpenValens"
@@ -7297,6 +8079,8 @@ msgstr "O OpenValens mostra informação pública destas autoridades. Estas não
 msgid "Optimal"
 msgstr "Ótimo"
 
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Optional"
 msgstr "Opcional"
@@ -7327,6 +8111,12 @@ msgstr "Estatísticas de utilização opcionais através do PostHog EU. Envia no
 msgid "or"
 msgstr "ou"
 
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Or enter an exercise name"
+msgstr "Ou introduza o nome de um exercício"
+
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Or in your own words"
 msgstr "Ou por palavras suas"
@@ -7336,6 +8126,7 @@ msgstr "Ou por palavras suas"
 msgid "Original text"
 msgstr "Texto original"
 
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/timeline.ts
 #: packages/api/src/presenters/workouts.ts
@@ -7437,6 +8228,10 @@ msgstr "Analisar novamente substitui a revisão que editou. Continuar?"
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "Passed {0}"
 msgstr "Aprovada {0}"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Past workouts stay unchanged."
+msgstr "Os treinos anteriores não são alterados."
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -7590,6 +8385,23 @@ msgstr "Meta pessoal:"
 msgid "Personal goal: <0>{0}</0>"
 msgstr "Meta pessoal: <0>{0}</0>"
 
+#: apps/native/components/workout-history.tsx
+msgid "Personal record · Estimated 1RM (Epley)"
+msgstr "Recorde pessoal · estimativa de 1RM (Epley)"
+
+#: apps/native/components/workout-history.tsx
+msgid "Personal record · Heaviest weight"
+msgstr "Recorde pessoal · maior peso"
+
+#: apps/native/components/workout-history.tsx
+msgid "Personal record · Reps at weight"
+msgstr "Recorde pessoal · repetições com peso"
+
+#: apps/native/components/workout-history.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Personal records"
+msgstr "Recordes pessoais"
+
 #. safety
 #: packages/api/src/presenters/cycle.ts
 msgid "Phase estimates are off because you said you use hormonal contraception or have no natural cycle."
@@ -7732,6 +8544,10 @@ msgstr "Portugal (UE)"
 msgid "Potassium"
 msgstr "Potássio"
 
+#: apps/native/components/workout-session.tsx
+msgid "pounds"
+msgstr "libras"
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgid "Pre-bed"
@@ -7756,6 +8572,10 @@ msgstr "Preparação"
 msgid "Preparing preview…"
 msgstr "A preparar pré-visualização…"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Preparing…"
+msgstr "A preparar…"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
 #: packages/api/src/presenters/modules.ts
@@ -7776,12 +8596,17 @@ msgid "Preventive-care reminders (dates you set)"
 msgstr "Lembretes de cuidados preventivos (datas que definiu)"
 
 #: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/components/workout-routines.tsx
 msgid "Preview"
 msgstr "Pré-visualização"
 
 #: apps/native/components/onboarding/steps.tsx
 msgid "Preview of your Today"
 msgstr "Pré-visualização do seu Hoje"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Preview ready. Suggestions are read-only; edit the routine to change future targets."
+msgstr "Pré-visualização pronta. As sugestões são apenas de leitura; edite a rotina para alterar objetivos futuros."
 
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
@@ -7849,6 +8674,10 @@ msgstr "As medições privadas estão ligadas"
 msgid "Private measurements are on."
 msgstr "As medições privadas estão ligadas."
 
+#: apps/native/components/workout-routines.tsx
+msgid "Private plans for workouts you want to repeat."
+msgstr "Planos privados para treinos que pretende repetir."
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/web/src/components/profile-summary-card.tsx
@@ -7874,6 +8703,14 @@ msgstr "Fotografia de progresso de {date}"
 #: apps/web/src/components/progress-photos.tsx
 msgid "Progress photos"
 msgstr "Fotografias de progresso"
+
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Progression"
+msgstr "Progressão"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Progression rule"
+msgstr "Regra de progressão"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Protein"
@@ -8058,6 +8895,10 @@ msgstr "Leituras recentes"
 msgid "Recent samples"
 msgstr "Amostras recentes"
 
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Recent sessions"
+msgstr "Sessões recentes"
+
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/header.tsx
@@ -8100,6 +8941,10 @@ msgstr "Voltar a ligar"
 #: packages/api/src/presenters/wearables.ts
 msgid "Reconnect needed"
 msgstr "É necessário voltar a ligar"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Record the session as it happened. Exercise and set details are optional."
+msgstr "Registe a sessão tal como aconteceu. Os detalhes dos exercícios e das séries são opcionais."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Recorded activity energy"
@@ -8168,6 +9013,10 @@ msgstr "Atualizar e rever"
 msgid "Refresh diary"
 msgstr "Atualizar diário"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Refresh routines"
+msgstr "Atualizar rotinas"
+
 #: packages/api/src/presenters/modules.ts
 msgid "Regimens, reminders"
 msgstr "Tomas, lembretes"
@@ -8190,6 +9039,7 @@ msgid "Reload failed."
 msgstr "Não foi possível recarregar."
 
 #: apps/web/src/components/product-settings-form.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "Reload latest"
 msgstr "Recarregar a versão mais recente"
 
@@ -8219,12 +9069,20 @@ msgstr "Os lembretes de cada dia são enviados uma vez, a partir desta hora no s
 
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/native/app/(drawer)/sharing.tsx
+#: apps/native/components/workout-routines.tsx
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Remove"
 msgstr "Remover"
+
+#. placeholder {0}: exercise.name
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Remove {0}"
+msgstr "Remover {0}"
 
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/sharing-confirm-dialog.tsx
@@ -8240,6 +9098,11 @@ msgstr "Remover dos favoritos: {name}"
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Remove ingredient {0}"
 msgstr "Remover ingrediente {0}"
+
+#. placeholder {0}: si + 1
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Remove set {0}"
+msgstr "Remover série {0}"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Remove the entry."
@@ -8259,6 +9122,29 @@ msgstr "Substituir revisão"
 msgid "Report a problem with this guidance"
 msgstr "Comunicar um problema com esta orientação"
 
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
+msgid "reps"
+msgstr "repetições"
+
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Reps"
+msgstr "Repetições"
+
+#. placeholder {0}: suggestion.reps
+#: packages/api/src/presenters/workout-progression.ts
+msgid "Reps increased to {0} while the load stays the same."
+msgstr "As repetições aumentaram para {0}, mantendo-se a carga."
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Reps must be from 1 to 1,000."
+msgstr "As repetições têm de estar entre 1 e 1 000."
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Reps PR"
+msgstr "Recorde de repetições"
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Resend code"
 msgstr "Reenviar código"
@@ -8266,6 +9152,38 @@ msgstr "Reenviar código"
 #: apps/web/src/components/product-settings-form.tsx
 msgid "Reset"
 msgstr "Repor"
+
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Rest (seconds)"
+msgstr "Descanso (segundos)"
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Rest alerts enabled."
+msgstr "Alertas de descanso ativados."
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Rest alerts were not enabled. Check your phone settings."
+msgstr "Os alertas de descanso não foram ativados. Verifique as definições do telemóvel."
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Rest between sets"
+msgstr "Descanso entre séries"
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Rest duration in seconds"
+msgstr "Duração do descanso em segundos"
+
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "Rest preference saved."
+msgstr "Preferência de descanso guardada."
+
+#: apps/native/components/workout-routines.tsx
+msgid "Rest seconds"
+msgstr "Segundos de descanso"
+
+#: apps/native/lib/workouts/rest-timer.ts
+msgid "Rest timer complete"
+msgstr "Temporizador de descanso concluído"
 
 #: packages/api/src/presenters/insights.ts
 #: packages/api/src/presenters/manual-entry.ts
@@ -8291,6 +9209,10 @@ msgstr "Restaurar registo"
 #: packages/api/src/presenters/modules.ts
 msgid "Results with the lab's ranges"
 msgstr "Resultados com os intervalos do laboratório"
+
+#: apps/native/components/workout-session.tsx
+msgid "Resume workout"
+msgstr "Retomar treino"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
@@ -8340,6 +9262,7 @@ msgstr "Resultados com os intervalos do laboratório"
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
+#: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
@@ -8389,9 +9312,17 @@ msgstr "Repetir o mesmo pedido"
 msgid "Retry saving choice"
 msgstr "Tentar guardar a escolha novamente"
 
+#: apps/native/components/workout-session.tsx
+msgid "Retry sync"
+msgstr "Tentar sincronizar novamente"
+
 #: apps/native/components/exercise-library.tsx
 msgid "Retry workouts"
 msgstr "Tentar carregar treinos"
+
+#: apps/native/components/workout-session.tsx
+msgid "Review against latest"
+msgstr "Rever com a versão mais recente"
 
 #: apps/native/app/(drawer)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -8427,6 +9358,10 @@ msgstr "Rever: {reviewName}, {reviewAmount} em {localDate} ({reviewSource})"
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Review: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} ({source})"
 msgstr "Rever: {reviewName}, {reviewAmount}, {slotLabel}, {localDate} ({source})"
+
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Revise and try again"
+msgstr "Rever e tentar novamente"
 
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/native/components/ai-section.tsx
@@ -8527,6 +9462,40 @@ msgstr "Tolerância ao risco"
 msgid "Role"
 msgstr "Função"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Routine changed or couldn’t be deleted. Refresh and try again."
+msgstr "A rotina foi alterada ou não foi possível eliminá-la. Atualize e tente novamente."
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Routine created."
+msgstr "Rotina criada."
+
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
+msgid "Routine name"
+msgstr "Nome da rotina"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Routine saved."
+msgstr "Rotina guardada."
+
+#: apps/native/components/workout-routines.tsx
+msgid "Routine wasn’t saved. Your edits are still here; retry or refresh."
+msgstr "A rotina não foi guardada. As suas alterações continuam aqui; tente novamente ou atualize."
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Routines"
+msgstr "Rotinas"
+
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "RPE (optional)"
+msgstr "RPE (opcional)"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "RPE must be from 0 to 10."
+msgstr "O RPE tem de estar entre 0 e 10."
+
 #: packages/api/src/presenters/insights.ts
 msgid "Rule {ruleId} v{ruleVersion}"
 msgstr "Regra {ruleId} v{ruleVersion}"
@@ -8543,6 +9512,10 @@ msgstr "Corrida"
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Run a 5k"
 msgstr "Correr 5 km"
+
+#: apps/native/components/workout-session.tsx
+msgid "Running"
+msgstr "Corrida"
 
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -8573,6 +9546,7 @@ msgstr "Ácidos gordos saturados"
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/workout-exercise-tools.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 #: apps/web/src/routes/_auth/body.tsx
@@ -8588,11 +9562,21 @@ msgstr "Ácidos gordos saturados"
 msgid "Save"
 msgstr "Guardar"
 
+#: apps/native/components/workout-routines.tsx
+msgid "Save as a routine"
+msgstr "Guardar como rotina"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Save as routine"
+msgstr "Guardar como rotina"
+
 #: apps/native/app/(drawer)/nutrition.tsx
 msgid "Save cancelled. A food creation already sent may still complete."
 msgstr "Gravação cancelada. A criação de um alimento já enviada ainda pode ser concluída."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/workout-routines.tsx
+#: apps/native/components/workout-session.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Save changes"
 msgstr "Guardar alterações"
@@ -8618,6 +9602,18 @@ msgstr "Guardar alimento"
 msgid "Save next date"
 msgstr "Guardar próxima data"
 
+#: apps/native/components/workout-session-detail.tsx
+msgid "Save or discard your active workout before editing another session."
+msgstr "Guarde ou descarte o treino ativo antes de editar outra sessão."
+
+#: apps/native/app/(drawer)/workouts.tsx
+msgid "Save or discard your active workout before starting a past session."
+msgstr "Guarde ou descarte o treino ativo antes de iniciar uma sessão anterior."
+
+#: apps/native/components/workout-session.tsx
+msgid "Save or discard your active workout first."
+msgstr "Guarde ou descarte primeiro o treino ativo."
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Save period"
@@ -8626,6 +9622,11 @@ msgstr "Guardar período"
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "Save rating"
 msgstr "Guardar avaliação"
+
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
+msgid "Save routine"
+msgstr "Guardar rotina"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Save target"
@@ -8640,6 +9641,11 @@ msgstr "Guardar em {slotLabel}"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Save to my foods for next time"
 msgstr "Guardar nos meus alimentos para a próxima vez"
+
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Save workout"
+msgstr "Guardar treino"
 
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
@@ -8714,9 +9720,12 @@ msgstr "A guardar fotografia…"
 #: apps/native/app/(drawer)/supplements.tsx
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/onboarding/flow.tsx
+#: apps/native/components/workout-routines.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/components/workout-session-editor.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -8785,6 +9794,20 @@ msgstr "Pesquisar por nome do exercício"
 msgid "Search by name"
 msgstr "Pesquisar por nome"
 
+#: apps/web/src/components/workout-routines.tsx
+msgid "Search catalog"
+msgstr "Pesquisar no catálogo"
+
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Search exercise catalog"
+msgstr "Pesquisar no catálogo de exercícios"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Search exercise or enter a name"
+msgstr "Pesquise um exercício ou introduza um nome"
+
+#: apps/native/components/workout-session.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Search exercises"
 msgstr "Pesquisar exercícios"
@@ -8793,6 +9816,11 @@ msgstr "Pesquisar exercícios"
 msgid "Search foods"
 msgstr "Pesquisar alimentos"
 
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Search the exercise catalog or enter a name. A session with no exercises is valid."
+msgstr "Pesquise no catálogo de exercícios ou introduza um nome. Uma sessão sem exercícios é válida."
+
+#: apps/web/src/components/workout-session-editor.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Searching…"
 msgstr "A pesquisar…"
@@ -8928,14 +9956,44 @@ msgstr "Unidade da porção"
 msgid "Servings (text)"
 msgstr "Porções (texto)"
 
-#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Session details"
+msgstr "Detalhes da sessão"
+
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Session log"
 msgstr "Registo de sessões"
 
+#: apps/native/components/workout-session.tsx
+msgid "Session no longer exists"
+msgstr "A sessão já não existe"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Session notes"
+msgstr "Notas da sessão"
+
+#: apps/native/components/workout-history.tsx
+msgid "Sessions"
+msgstr "Sessões"
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "Sessions without a rating are left out, not estimated."
 msgstr "As sessões sem avaliação ficam de fora, não são estimadas."
+
+#. placeholder {0}: j + 1
+#. placeholder {0}: si + 1
+#: apps/web/src/components/workout-session-editor.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Set {0}"
+msgstr "Série {0}"
+
+#. placeholder {0}: si + 1
+#. placeholder {1}: set.weightKg == null ? t`no weight` : `${Number(weightFromKg(set.weightKg, units).toFixed(1))} ${units === "metric" ? t`kilograms` : t`pounds`}`
+#. placeholder {2}: set.reps ? t`${set.reps} reps` : t`no reps`
+#. placeholder {3}: set.done ? t`done` : t`not done`
+#: apps/native/components/workout-session.tsx
+msgid "Set {0}, {1}, {2}, {3}"
+msgstr "Série {0}, {1}, {2}, {3}"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Set a goal"
@@ -8946,6 +10004,10 @@ msgstr "Definir uma meta"
 msgid "Set a target"
 msgstr "Definir uma meta"
 
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Set notes"
+msgstr "Notas da série"
+
 #: apps/web/src/routes/_auth/scores.tsx
 msgid "Set targets, directions and priorities for your goals under <0>Workouts</0>."
 msgstr "Defina alvos, direções e prioridades para os seus objetivos em <0>Treinos</0>."
@@ -8953,6 +10015,16 @@ msgstr "Defina alvos, direções e prioridades para os seus objetivos em <0>Trei
 #: apps/native/app/(drawer)/scores.tsx
 msgid "Set targets, directions and priorities for your goals under Workouts."
 msgstr "Defina alvos, direções e prioridades para os seus objetivos em Treinos."
+
+#: apps/native/components/workout-routines.tsx
+msgid "sets"
+msgstr "séries"
+
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Sets"
+msgstr "Séries"
 
 #: apps/native/app/(drawer)/body-map.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
@@ -9159,6 +10231,14 @@ msgstr "Inicie sessão para ver e aceitar convites para espaços de trabalho."
 msgid "Sign in to view"
 msgstr "Inicie sessão para ver"
 
+#: apps/native/components/workout-history.tsx
+msgid "Sign in to view exercise history."
+msgstr "Inicie sessão para ver o histórico do exercício."
+
+#: apps/web/src/components/workout-history.tsx
+msgid "Sign in to view your exercise history."
+msgstr "Inicie sessão para ver o histórico dos seus exercícios."
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Sign in with <0>{email}</0> to start using OpenValens."
 msgstr "Inicie sessão com <0>{email}</0> para começar a usar o OpenValens."
@@ -9232,6 +10312,10 @@ msgstr "Saltar"
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "Skip for now"
 msgstr "Saltar por agora"
+
+#: apps/native/components/workout-session.tsx
+msgid "Skip rest"
+msgstr "Ignorar descanso"
 
 #: apps/web/src/components/header.tsx
 msgid "Skip to content"
@@ -9407,6 +10491,10 @@ msgstr "Começar"
 msgid "Start a new conversation to ask the AI coach for guidance."
 msgstr "Inicie uma nova conversa para pedir orientação ao coach de IA."
 
+#: apps/native/components/workout-session.tsx
+msgid "Start a workout and log each set as you go."
+msgstr "Inicie um treino e registe cada série à medida que a faz."
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Start date"
 msgstr "Data de início"
@@ -9422,6 +10510,11 @@ msgstr "Data de início, AAAA-MM-DD"
 #: apps/web/src/components/admission-form.tsx
 msgid "Start over"
 msgstr "Recomeçar"
+
+#: apps/native/components/workout-routines.tsx
+#: apps/native/components/workout-session.tsx
+msgid "Start workout"
+msgstr "Iniciar treino"
 
 #: packages/api/src/presenters/score.ts
 msgid "Start: {start} (first check-in)."
@@ -9569,6 +10662,10 @@ msgstr "Rigoroso"
 msgid "Sufficient matching timestamped records from completed diary days were available."
 msgstr "Havia registos suficientes com data e hora correspondentes de dias do diário concluídos."
 
+#: apps/native/components/workout-routines.tsx
+msgid "Suggested changes"
+msgstr "Alterações sugeridas"
+
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Suggested from your profile"
 msgstr "Sugerido com base no seu perfil"
@@ -9588,6 +10685,10 @@ msgstr "Sugerido com base no seu perfil: {sourceName}."
 #: apps/native/app/(drawer)/nutrition-targets.tsx
 msgid "Suggested from your profile: {sourceName}. Use this"
 msgstr "Sugerido com base no seu perfil: {sourceName}. Usar esta opção"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Suggested next session"
+msgstr "Próxima sessão sugerida"
 
 #: apps/native/components/energy-estimate-card.tsx
 #: apps/web/src/components/energy-estimate-card.tsx
@@ -9640,6 +10741,10 @@ msgstr "As sugestões são uma redução pequena e limitada em relação à esti
 msgid "Suggestions are based on your estimate and only change a target if you accept them."
 msgstr "As sugestões baseiam-se na sua estimativa e só alteram um objetivo se as aceitar."
 
+#: apps/web/src/components/workout-routines.tsx
+msgid "Suggestions are optional. Change future targets in Edit; recorded workouts stay as they were."
+msgstr "As sugestões são opcionais. Altere os objetivos futuros em Editar; os treinos registados não são alterados."
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Suggestions follow the estimated intake that keeps your weight trend steady."
 msgstr "As sugestões seguem a ingestão estimada que mantém estável a tendência do seu peso."
@@ -9668,6 +10773,10 @@ msgstr "Apoiante"
 msgid "Swim"
 msgstr "Natação"
 
+#: apps/native/components/workout-session.tsx
+msgid "Swimming"
+msgstr "Natação"
+
 #: packages/api/src/presenters/timeline.ts
 msgid "Sync"
 msgstr "Sincronização"
@@ -9676,6 +10785,10 @@ msgstr "Sincronização"
 #: apps/web/src/routes/_auth/body.tsx
 msgid "Sync a scale through Health Connect or Apple Health, or add a weight."
 msgstr "Sincronize uma balança através do Health Connect ou do Apple Health, ou adicione um peso."
+
+#: apps/native/components/workout-session.tsx
+msgid "Sync failed"
+msgstr "A sincronização falhou"
 
 #: apps/native/app/(drawer)/records/vitals.tsx
 #: apps/web/src/routes/_auth/records/vitals.tsx
@@ -9753,10 +10866,6 @@ msgstr "Cuidados: {cautions}"
 msgid "Taken and verified with deploy/setup.sh on the server."
 msgstr "Feitas e verificadas com deploy/setup.sh no servidor."
 
-#: apps/native/app/(drawer)/workouts.tsx
-msgid "Talk test. Light: you can talk and sing. Moderate: you can talk, but not sing. Vigorous: you can only say a few words without pausing for breath."
-msgstr "Teste da fala. Leve: consegue falar e cantar. Moderada: consegue falar, mas não cantar. Vigorosa: só consegue dizer algumas palavras sem parar para respirar."
-
 #: apps/native/app/(drawer)/body-map.tsx
 msgid "Tap a region to see its value."
 msgstr "Toque numa região para ver o seu valor."
@@ -9792,6 +10901,23 @@ msgstr "Alvo atingido: {goalTitle}"
 msgid "Target saved."
 msgstr "Objetivo guardado."
 
+#: apps/native/components/workout-routines.tsx
+msgid "Target weight"
+msgstr "Peso-alvo"
+
+#. placeholder {0}: units === "metric" ? "kg" : "lb"
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Target weight ({0})"
+msgstr "Peso-alvo ({0})"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Target weight (kg)"
+msgstr "Peso-alvo (kg)"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Target weight (lb)"
+msgstr "Peso-alvo (lb)"
+
 #: packages/api/src/presenters/score.ts
 msgid "Target: {target} (down)."
 msgstr "Alvo: {target} (para baixo)."
@@ -9822,6 +10948,7 @@ msgstr "Os objetivos são seus para definir, alterar ou limpar. São mostrados a
 msgid "Template"
 msgstr "Modelo"
 
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/workouts.ts
 msgid "Tennis"
 msgstr "Ténis"
@@ -9866,6 +10993,10 @@ msgstr "Não foi possível iniciar a câmara. Escreva os dígitos do código de 
 msgid "The camera is used only while you scan. Nothing is recorded."
 msgstr "A câmara só é usada durante a leitura. Nada é gravado."
 
+#: apps/native/components/workout-session.tsx
+msgid "The change will not be saved to your history."
+msgstr "A alteração não será guardada no seu histórico."
+
 #: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "The coach also needs AI to be turned on for this server and your consent in Settings."
@@ -9896,6 +11027,22 @@ msgstr "Não foi possível contactar a fonte de alimentos. Tente a consulta mais
 msgid "The import failed. Nothing was saved."
 msgstr "A importação falhou. Nada foi guardado."
 
+#: apps/native/components/workout-exercise-tools.tsx
+msgid "The in-app countdown works without permission. Background alerts depend on your phone settings and are best-effort."
+msgstr "A contagem decrescente na aplicação funciona sem autorização. Os alertas em segundo plano dependem das definições do telemóvel e são fornecidos com os melhores esforços."
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "The last session did not include all prescribed sets, so the prescription stays the same."
+msgstr "A última sessão não incluiu todas as séries prescritas, por isso a prescrição mantém-se."
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "The last session used different loads between sets, so the prescription stays the same."
+msgstr "A última sessão usou cargas diferentes entre séries, por isso a prescrição mantém-se."
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "The last session was complete, so add {increment} {unit}."
+msgstr "A última sessão foi concluída; adicione {increment} {unit}."
+
 #: packages/api/src/presenters/wearables.ts
 msgid "The last sync failed. It will retry automatically."
 msgstr "A última sincronização falhou. Será repetida automaticamente."
@@ -9903,6 +11050,10 @@ msgstr "A última sincronização falhou. Será repetida automaticamente."
 #: apps/web/src/components/exercise-library.tsx
 msgid "The library is empty for now."
 msgstr "Por agora, a biblioteca está vazia."
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "The load stays the same because it cannot be increased for this exercise."
+msgstr "A carga mantém-se porque não pode ser aumentada neste exercício."
 
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "The menu will show: {menu}."
@@ -9964,6 +11115,14 @@ msgstr "A aplicação do telemóvel faz a sincronização a partir do Apple Heal
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "The previous review was cleared. Your pasted text is still here."
 msgstr "A revisão anterior foi limpa. O texto que colou continua aqui."
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "The progression reason is unavailable, so the prescription stays the same."
+msgstr "O motivo da progressão não está disponível, por isso a prescrição mantém-se."
+
+#: packages/api/src/presenters/workout-progression.ts
+msgid "The progression settings are invalid, so the prescription stays the same."
+msgstr "As definições de progressão são inválidas, por isso a prescrição mantém-se."
 
 #: packages/api/src/presenters/food-draft.ts
 msgid "The provider could not process this photo. It may not accept images. Nothing was saved."
@@ -10041,6 +11200,10 @@ msgstr "O email semanal de perspetivas está desligado. Pode voltar a ligá-lo n
 msgid "The workspace owner decides whether AI features can be used in this workspace. When it is on, each person still has to give their own consent below before AI processes their data."
 msgstr "O proprietário do espaço de trabalho decide se as funcionalidades de IA podem ser usadas neste espaço de trabalho. Quando está ligada, cada pessoa tem ainda de dar o seu próprio consentimento abaixo antes de a IA tratar os seus dados."
 
+#: packages/api/src/presenters/workout-progression.ts
+msgid "There is no previous session to compare, so the prescription stays the same."
+msgstr "Não existe uma sessão anterior para comparação, por isso a prescrição mantém-se."
+
 #: packages/api/src/presenters/score.ts
 msgid "There is not enough recent data to compare with your usual pattern, so no number is shown."
 msgstr "Não há dados recentes suficientes para comparar com o seu padrão habitual, por isso não é mostrado nenhum número."
@@ -10085,18 +11248,32 @@ msgstr "Perde o acesso a este espaço de trabalho de imediato. Pode voltar a con
 msgid "Thigh"
 msgstr "Coxa"
 
+#: apps/native/components/workout-session.tsx
+msgid "This active workout will be deleted."
+msgstr "Este treino em curso será eliminado."
+
 #: apps/native/app/(drawer)/settings/devices.tsx
 msgid "This app already syncs Apple Health or Health Connect. To connect, disconnect or remove a vendor account such as Oura or WHOOP, sign in to the web app and open Settings, then Devices."
 msgstr "Esta aplicação já sincroniza o Apple Health ou o Health Connect. Para ligar, desligar ou remover uma conta de fornecedor, como Oura ou WHOOP, inicie sessão na aplicação web e abra Definições e depois Dispositivos."
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/progress-photos.tsx
+#: apps/web/src/components/workout-routines.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
 msgid "This cannot be undone."
 msgstr "Esta ação não pode ser anulada."
+
+#: apps/native/components/workout-session.tsx
+msgid "This change conflicts with the saved session and was not applied."
+msgstr "Esta alteração está em conflito com a sessão guardada e não foi aplicada."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "This change remains on this device until you resolve it."
 msgstr "Esta alteração fica neste dispositivo até a resolver."
+
+#: apps/native/components/workout-session.tsx
+msgid "This change was not saved. Please try again."
+msgstr "Esta alteração não foi guardada. Tente novamente."
 
 #: packages/integrations/telegram/src/webhook.ts
 msgid "This connect link is invalid or has expired. Open Settings → Telegram in OpenValens and connect again."
@@ -10236,6 +11413,10 @@ msgstr "Esta é a única pergunta que não pode saltar."
 msgid "This item is being reviewed against its source. Its details and reminders are paused until that check is done."
 msgstr "Este item está a ser revisto face à sua fonte. Os detalhes e os lembretes ficam em pausa até essa verificação estar concluída."
 
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "This legacy workout is read-only."
+msgstr "Este treino antigo é só de leitura."
+
 #: apps/web/src/routes/unsubscribe.tsx
 msgid "This link is not valid any more. Sign in and open Settings to change your notifications."
 msgstr "Esta ligação já não é válida. Inicie sessão e abra as Definições para alterar as notificações."
@@ -10299,6 +11480,14 @@ msgstr "Este servidor ainda não consegue enviar email, por isso não é possív
 msgid "This server can't send email yet. Add a Resend key, then invite again."
 msgstr "Este servidor ainda não consegue enviar email. Adicione uma chave Resend e volte a enviar o convite."
 
+#: apps/native/components/workout-session.tsx
+msgid "This session was deleted elsewhere. Discard the change to clear it."
+msgstr "Esta sessão foi eliminada noutro local. Descarte a alteração para a limpar."
+
+#: apps/native/components/workout-session-detail.tsx
+msgid "This session will be removed."
+msgstr "Esta sessão será removida."
+
 #: packages/api/src/recipe-import/service.ts
 msgid "This site does not allow automated imports. Paste the ingredients instead."
 msgstr "Este site não permite importações automáticas. Cole os ingredientes."
@@ -10336,6 +11525,14 @@ msgstr "Os pontos de esforço desta semana estão bem acima da sua média das se
 #: packages/api/src/presenters/activity-load.ts
 msgid "This week's effort points are well below your average for the previous weeks."
 msgstr "Os pontos de esforço desta semana estão bem abaixo da sua média das semanas anteriores."
+
+#: apps/native/components/workout-session-detail.tsx
+msgid "This workout could not be deleted. Please try again."
+msgstr "Não foi possível eliminar este treino. Tente novamente."
+
+#: apps/native/components/workout-session-detail.tsx
+msgid "This workout could not be opened. Please try again."
+msgstr "Não foi possível abrir este treino. Tente novamente."
 
 #. safety
 #: packages/api/src/presenters/wellness-profile.ts
@@ -10426,6 +11623,11 @@ msgstr "Demasiadas tentativas. Aguarde um momento e tente novamente."
 msgid "Too many imports just now. Try again in a minute."
 msgstr "Demasiadas importações neste momento. Tente novamente daqui a um minuto."
 
+#: apps/native/components/workout-history.tsx
+#: apps/web/src/components/workout-history.tsx
+msgid "Top weight"
+msgstr "Peso máximo"
+
 #: apps/web/src/components/nutrition-day-totals.tsx
 msgid "Total"
 msgstr "Total"
@@ -10444,6 +11646,9 @@ msgid "Track sleep through Health Connect or Apple Health, or add a session."
 msgstr "Registe o sono através do Health Connect ou do Apple Health, ou adicione uma sessão."
 
 #. safety
+#: apps/native/app/(drawer)/_layout.tsx
+#: apps/native/app/(drawer)/(tabs)/_layout.tsx
+#: apps/native/app/(drawer)/workouts.tsx
 #: packages/api/src/presenters/supplements.ts
 msgid "Training"
 msgstr "Treino"
@@ -10471,8 +11676,10 @@ msgstr "Tríceps"
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/native/components/progress-photos.tsx
+#: apps/native/components/workout-history.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/progress-photos.tsx
+#: apps/web/src/components/workout-history.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Try again"
@@ -10609,7 +11816,6 @@ msgstr "Dois números separados, cada um com a sua explicação. Nunca são comb
 msgid "Two separate views of your own records: measured DEXA values by region, and the sets you logged this week by muscle group."
 msgstr "Duas vistas separadas dos seus próprios registos: valores DEXA medidos por região e as séries que registou esta semana por grupo muscular."
 
-#: apps/native/app/(drawer)/workouts.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Type"
 msgstr "Tipo"
@@ -10623,6 +11829,10 @@ msgstr "Escreva {confirmationPhrase} para confirmar"
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Type <0>{confirmationPhrase}</0> to confirm"
 msgstr "Escreva <0>{confirmationPhrase}</0> para confirmar"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Type at least 2 characters"
+msgstr "Escreva pelo menos 2 caracteres"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "Type at least 2 characters to search food databases too."
@@ -10662,6 +11872,10 @@ msgstr "Anular importação"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Unfavourite <0>{foodName}</0>"
 msgstr "Remover dos favoritos <0>{foodName}</0>"
+
+#: apps/native/components/workout-session.tsx
+msgid "Unfinished sets will not be saved."
+msgstr "As séries não concluídas não serão guardadas."
 
 #. safety
 #. safety
@@ -10810,6 +12024,10 @@ msgstr "Usar {date} (a partir do intervalo publicado)"
 msgid "Use {zone}"
 msgstr "Usar {zone}"
 
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Use 2,000 characters or fewer."
+msgstr "Utilize no máximo 2 000 caracteres."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Use 24-hour time, for example 14:05."
 msgstr "Use o formato de 24 horas, por exemplo 14:05."
@@ -10835,6 +12053,10 @@ msgstr "Use no máximo 200 caracteres para a marca."
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Use at most 200 characters for the name."
 msgstr "Use no máximo 200 caracteres para o nome."
+
+#: apps/native/components/workout-session.tsx
+msgid "Use last"
+msgstr "Usar o último"
 
 #: apps/native/app/(drawer)/food-draft.tsx
 #: apps/web/src/routes/_auth/food-draft.tsx
@@ -10975,10 +12197,25 @@ msgstr "Muito suave"
 msgid "Very low certainty (“the evidence is very uncertain”)"
 msgstr "Certeza muito baixa (“a evidência é muito incerta”)"
 
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "View details"
+msgstr "Ver detalhes"
+
+#: apps/native/components/workout-session.tsx
+msgid "View exercise history"
+msgstr "Ver histórico do exercício"
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 msgid "View global environment settings"
 msgstr "Ver as definições globais do ambiente"
 
+#: apps/native/app/(drawer)/workouts.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "View workout details"
+msgstr "Ver detalhes do treino"
+
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/activity-load.ts
 msgctxt "intensity"
 msgid "Vigorous"
@@ -11021,11 +12258,22 @@ msgstr "Vitaminas e minerais dos alimentos que registou nesse dia. Os alimentos 
 msgid "VO₂max: not recorded by OpenValens yet. The main lab reference (FRIEND registry) is linked, not copied, and device estimates are too uncertain for a band."
 msgstr "VO₂max: ainda não registado pela OpenValens. A principal referência laboratorial (registo FRIEND) é indicada por ligação, não copiada, e as estimativas dos dispositivos são demasiado incertas para uma faixa."
 
+#: apps/native/components/workout-history.tsx
+#: apps/web/src/components/workout-history.tsx
+msgid "Volume"
+msgstr "Volume"
+
+#. placeholder {0}: weight(item.volumeKg)
+#: apps/web/src/components/workout-history.tsx
+msgid "Volume: {0}-reps"
+msgstr "Volume: {0} repetições"
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Waist"
 msgstr "Cintura"
 
+#: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/plain-water.ts
 msgid "Waiting to sync"
 msgstr "A aguardar sincronização"
@@ -11111,11 +12359,25 @@ msgstr "Email semanal de perspetivas"
 msgid "Weight"
 msgstr "Peso"
 
+#. placeholder {0}: units === "imperial" ? "lb" : "kg"
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Weight ({0})"
+msgstr "Peso ({0})"
+
 #: apps/native/app/(drawer)/(tabs)/body.tsx
 #: apps/web/src/routes/_auth/body.tsx
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Weight ({unit})"
 msgstr "Peso ({unit})"
+
+#. placeholder {0}: units === "metric" ? "kg" : "lb"
+#: apps/web/src/components/workout-routine-exercise-editor.tsx
+msgid "Weight increment ({0})"
+msgstr "Incremento de peso ({0})"
+
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Weight must be from 0 to 1,000 kg."
+msgstr "O peso tem de estar entre 0 e 1 000 kg."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Weight, BMI, body fat and waist: never compared with other people. You see your own trend only."
@@ -11133,6 +12395,10 @@ msgstr "Peso, composição, mapa corporal"
 #: apps/web/src/routes/_auth/dashboard.tsx
 msgid "Weight, last {WEIGHT_TREND_DAYS} days"
 msgstr "Peso, últimos {WEIGHT_TREND_DAYS} dias"
+
+#: apps/native/components/workout-session.tsx
+msgid "Weights"
+msgstr "Pesos"
 
 #: apps/native/lib/onboarding/steps.ts
 #: apps/web/src/utils/onboarding.ts
@@ -11217,8 +12483,28 @@ msgstr "Séries de trabalho nos últimos 7 dias. Um músculo que o exercício tr
 msgid "Working…"
 msgstr "A processar…"
 
-#: apps/native/app/(drawer)/_layout.tsx
-#: apps/native/app/(drawer)/workouts.tsx
+#: apps/native/components/workout-session.tsx
+msgid "Workout date"
+msgstr "Data do treino"
+
+#: apps/native/components/workout-session-detail.tsx
+#: apps/web/src/routes/_auth/workouts.tsx
+msgid "Workout details"
+msgstr "Detalhes do treino"
+
+#: apps/web/src/components/workout-routines.tsx
+msgid "Workout routines"
+msgstr "Rotinas de treino"
+
+#: apps/native/components/workout-session.tsx
+msgid "Workout session"
+msgstr "Sessão de treino"
+
+#: apps/native/components/workout-session.tsx
+#: apps/web/src/components/workout-session-editor.tsx
+msgid "Workout type"
+msgstr "Tipo de treino"
+
 #: apps/web/src/components/header.tsx
 #: apps/web/src/routes/_auth/workouts.tsx
 #: packages/api/src/presenters/clinical-export.ts
@@ -11281,11 +12567,6 @@ msgstr "Foi convidado"
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "You are offline."
 msgstr "Está sem ligação."
-
-#: apps/native/app/(drawer)/workouts.tsx
-#: apps/web/src/routes/_auth/workouts.tsx
-msgid "You can also add it later today."
-msgstr "Também pode adicioná-lo mais tarde, hoje."
 
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "You can close this page."
@@ -11528,6 +12809,11 @@ msgstr "O seu lembrete diário"
 msgid "Your decision about {title}"
 msgstr "A sua decisão sobre {title}"
 
+#: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/workout-routines.tsx
+msgid "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
+msgstr "As suas alterações mudaram enquanto uma gravação pode ainda estar em curso. Repita o pedido original ou cancele e inicie uma nova gravação."
+
 #: packages/email/src/templates/invitation-revoked.tsx
 msgid "Your invitation from {inviterName} to join {organizationName} has been revoked and can no longer be used."
 msgstr "O convite de {inviterName} para se juntar a {organizationName} foi revogado e já não pode ser utilizado."
@@ -11609,6 +12895,10 @@ msgstr "O seu registo de {title}"
 msgid "Your records"
 msgstr "Os seus registos"
 
+#: apps/native/lib/workouts/rest-timer.ts
+msgid "Your rest is over."
+msgstr "O seu descanso terminou."
+
 #: apps/native/app/(drawer)/records/labs.tsx
 #: apps/web/src/routes/_auth/records/labs.tsx
 msgid "Your results"
@@ -11623,6 +12913,10 @@ msgstr "A sua função: {0}"
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "Your role: <0>{0}</0>"
 msgstr "A sua função: <0>{0}</0>"
+
+#: apps/native/components/workout-routines.tsx
+msgid "Your routines"
+msgstr "As suas rotinas"
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "Your saved amount is hidden. Enter a new amount to replace it."
@@ -11699,9 +12993,13 @@ msgstr "As suas perspetivas da semana"
 msgid "Your weekly insights summary"
 msgstr "O seu resumo semanal de perspetivas"
 
-#: apps/native/app/(drawer)/workouts.tsx
-msgid "YYYY-MM-DD"
-msgstr "AAAA-MM-DD"
+#: apps/web/src/components/workout-routines.tsx
+msgid "Your workout form changed while a save may still be in progress. Retry the original request or cancel and start a new save."
+msgstr "O formulário do treino mudou enquanto uma gravação pode ainda estar em curso. Repita o pedido original ou cancele e inicie uma nova gravação."
+
+#: apps/native/components/workout-routines.tsx
+msgid "Your workout is unchanged. Check your connection or try again."
+msgstr "O seu treino não foi alterado. Verifique a ligação ou tente novamente."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"

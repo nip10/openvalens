@@ -9,6 +9,10 @@ import {
   createGoalRepository,
   createPlansRepository,
   createWorkoutRepository,
+  WorkoutMutationConflictError,
+  WorkoutExerciseNotFoundError,
+  WorkoutNotFoundError,
+  WorkoutVersionConflictError,
   GOAL_DIRECTIONS,
   GOAL_PRIORITIES,
   KNOWN_CALENDAR_EVENT_TYPES,
@@ -32,6 +36,8 @@ import {
   type SupplementSchedule,
 } from "@openvalens/plans";
 import { z } from "zod";
+import { workoutHistoryRouter } from "./workout-history";
+import { workoutRoutinesRouter } from "./workout-routines";
 
 import { permissionedProcedure, protectedProcedure, raiseApiError, validateInput } from "../index";
 
@@ -240,6 +246,42 @@ async function requireAuthz(
 // round-trip as opaque strings the caller owns.
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const routineExerciseSnapshot = z.object({
+  key: z.string().uuid(),
+  exerciseId: z.number().nullable(),
+  name: z.string(),
+  targetSets: z.number(),
+  repsMin: z.number(),
+  repsMax: z.number(),
+  targetWeightKg: z.number().nullable(),
+  restSeconds: z.number(),
+  progression: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("none") }),
+    z.object({ kind: z.literal("double"), incrementKg: z.number() }),
+    z.object({
+      kind: z.literal("linear"),
+      incrementKg: z.number(),
+      deloadPercent: z.number(),
+      failureThreshold: z.number(),
+    }),
+  ]),
+  suggestion: z
+    .object({
+      weightKg: z.number().nullable(),
+      reps: z.number(),
+      reason: z.string(),
+      incrementKg: z.number().optional(),
+      failures: z.number().optional(),
+      deloadPercent: z.number().optional(),
+    })
+    .optional(),
+});
+const routineSnapshotShape = z.object({
+  routineId: z.number(),
+  version: z.number(),
+  name: z.string(),
+  exercises: z.array(routineExerciseSnapshot),
+});
 
 const workoutSetShape: z.ZodType<WorkoutSet> = z.object({
   id: z.number(),
@@ -253,10 +295,27 @@ const workoutSetShape: z.ZodType<WorkoutSet> = z.object({
 });
 
 const workoutWithContextShape: z.ZodType<
-  Workout & { exercises: Array<WorkoutExercise & { sets: WorkoutSet[] }> }
+  Workout & {
+    exercises: Array<WorkoutExercise & { sets: WorkoutSet[] }>;
+    ownership: "mine" | "legacy";
+    canEdit: boolean;
+    summary: { exerciseCount: number; setCount: number; volumeKg: number };
+    prs: Array<{
+      kind: "heaviest_weight" | "estimated_1rm" | "reps_at_weight";
+      weightKg: number;
+      reps?: number;
+      estimated1RmKg?: number;
+      exerciseId: number | null;
+      exerciseName: string;
+    }>;
+  }
 > = z.object({
   id: z.number(),
   organizationId: z.string(),
+  userId: z.string().nullable(),
+  version: z.number(),
+  routineId: z.number().nullable(),
+  routineSnapshot: routineSnapshotShape.nullable(),
   date: z.string(),
   type: z.enum(WORKOUT_TYPES),
   duration: z.number().nullable(),
@@ -266,6 +325,19 @@ const workoutWithContextShape: z.ZodType<
   intensity: z.enum(WORKOUT_INTENSITIES).nullable(),
   effortRating: z.number().nullable(),
   effortRatedAt: z.string().nullable(),
+  ownership: z.enum(["mine", "legacy"]),
+  canEdit: z.boolean(),
+  summary: z.object({ exerciseCount: z.number(), setCount: z.number(), volumeKg: z.number() }),
+  prs: z.array(
+    z.object({
+      kind: z.enum(["heaviest_weight", "estimated_1rm", "reps_at_weight"]),
+      weightKg: z.number(),
+      reps: z.number().optional(),
+      estimated1RmKg: z.number().optional(),
+      exerciseId: z.number().nullable(),
+      exerciseName: z.string(),
+    }),
+  ),
   exercises: z.array(
     z.object({
       id: z.number(),
@@ -274,6 +346,7 @@ const workoutWithContextShape: z.ZodType<
       sortOrder: z.number(),
       name: z.string(),
       notes: z.string().nullable(),
+      exerciseId: z.number().nullable(),
       sets: z.array(workoutSetShape),
     }),
   ),
@@ -335,13 +408,16 @@ const workoutSetInputSchema = z.strictObject({
 
 const workoutExerciseInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(200),
+  exerciseId: z.number().int().positive().nullish(),
   notes: z.string().trim().max(2000).nullish(),
-  sets: z.array(workoutSetInputSchema).min(1).max(MAX_SETS_PER_EXERCISE),
+  sets: z.array(workoutSetInputSchema).max(MAX_SETS_PER_EXERCISE),
 });
 
 const effortRatingSchema = z.number().int().min(MIN_EFFORT_RATING).max(MAX_EFFORT_RATING);
 
 const workoutUpsertInputSchema = z.strictObject({
+  // Offline queue scope is transport metadata, not part of the workout domain payload.
+  expectedScope: z.string().min(1).max(512).optional(),
   date: isoDate,
   type: z.enum(WORKOUT_TYPES),
   duration: z.number().int().positive().max(1440).nullish(),
@@ -349,7 +425,10 @@ const workoutUpsertInputSchema = z.strictObject({
   // Issue #99 — optional, for older clients; the rating can also be added later the same day.
   intensity: z.enum(WORKOUT_INTENSITIES).nullish(),
   effortRating: effortRatingSchema.nullish(),
-  exercises: z.array(workoutExerciseInputSchema).min(1).max(MAX_EXERCISES_PER_WORKOUT),
+  routineId: z.number().int().positive().nullish(),
+  routineSnapshot: routineSnapshotShape.nullish(),
+  clientMutationId: z.string().uuid().optional(),
+  exercises: z.array(workoutExerciseInputSchema).max(MAX_EXERCISES_PER_WORKOUT),
 });
 
 const workoutRateEffortInputSchema = z.strictObject({
@@ -359,9 +438,25 @@ const workoutRateEffortInputSchema = z.strictObject({
 
 const workoutUpsertResultSchema = z.object({
   id: z.number(),
+  version: z.number(),
   exerciseCount: z.number(),
   setCount: z.number(),
   targetId: z.string(),
+});
+const workoutMutationMeta = {
+  clientMutationId: z.string().uuid(),
+  expectedScope: z.string().min(1).max(512),
+};
+const workoutUpdateInputSchema = z.strictObject({
+  ...workoutMutationMeta,
+  id: z.number().int().positive(),
+  expectedVersion: z.number().int().positive(),
+  workout: workoutUpsertInputSchema.omit({ clientMutationId: true, expectedScope: true }),
+});
+const workoutDeleteInputSchema = z.strictObject({
+  ...workoutMutationMeta,
+  id: z.number().int().positive(),
+  expectedVersion: z.number().int().positive(),
 });
 
 // ─── goal inputs ───────────────────────────────────────────────
@@ -755,6 +850,7 @@ export const plansRouter = {
   // ─── workouts (Issue #23) ──────────────────────────────────
 
   workouts: {
+    ...workoutHistoryRouter,
     listWorkouts: permissionedProcedure({ resource: "workout", action: "read" })
       .use(validateInput(workoutListInputSchema))
       .input(workoutListInputSchema)
@@ -763,6 +859,7 @@ export const plansRouter = {
         createWorkoutRepository(context.db).listWorkouts(
           context.authz.activeOrganizationId,
           input.limit ?? 50,
+          context.authz.user.id,
         ),
       ),
 
@@ -774,6 +871,7 @@ export const plansRouter = {
         createWorkoutRepository(context.db).getWorkout(
           context.authz.activeOrganizationId,
           input.id,
+          context.authz.user.id,
         ),
       ),
 
@@ -790,49 +888,79 @@ export const plansRouter = {
       .output(workoutUpsertResultSchema)
       .handler(async ({ input, context }) => {
         const authz = await requirePlansAuthz(context, "workout", "write");
-        const result = await context.db.transaction(async (tx) =>
-          createWorkoutRepository(context.db).upsertWorkout(
-            tx as Parameters<ReturnType<typeof createWorkoutRepository>["upsertWorkout"]>[0],
-            authz.activeOrganizationId,
-            {
-              date: input.date,
-              type: input.type,
-              duration: input.duration ?? null,
-              notes: input.notes ?? null,
-              intensity: input.intensity ?? null,
-              effortRating: input.effortRating ?? null,
-              exercises: input.exercises.map((exercise) => ({
-                name: exercise.name,
-                notes: exercise.notes ?? null,
-                sets: exercise.sets.map((set) => ({
-                  reps: set.reps,
-                  weightKg: set.weightKg ?? null,
-                  rpe: set.rpe ?? null,
-                  notes: set.notes ?? null,
+        if (
+          input.expectedScope !== undefined &&
+          input.expectedScope !== `${authz.user.id}:${authz.activeOrganizationId}`
+        ) {
+          throw raiseApiError(
+            "CONFLICT",
+            "The queued workout belongs to a different account scope.",
+          );
+        }
+        let result;
+        try {
+          result = await context.db.transaction(async (tx) => {
+            const created = await createWorkoutRepository(context.db).upsertWorkout(
+              tx as Parameters<ReturnType<typeof createWorkoutRepository>["upsertWorkout"]>[0],
+              authz.activeOrganizationId,
+              {
+                date: input.date,
+                type: input.type,
+                duration: input.duration ?? null,
+                notes: input.notes ?? null,
+                intensity: input.intensity ?? null,
+                effortRating: input.effortRating ?? null,
+                routineId: input.routineId ?? null,
+                routineSnapshot: input.routineSnapshot ?? null,
+                clientMutationId: input.clientMutationId,
+                userId: authz.user.id,
+                exercises: input.exercises.map((exercise) => ({
+                  name: exercise.name,
+                  exerciseId: exercise.exerciseId ?? null,
+                  notes: exercise.notes ?? null,
+                  sets: exercise.sets.map((set) => ({
+                    reps: set.reps,
+                    weightKg: set.weightKg ?? null,
+                    rpe: set.rpe ?? null,
+                    notes: set.notes ?? null,
+                  })),
                 })),
-              })),
-            },
-          ),
-        );
-
-        await writeAuditLog({
-          db: context.db,
-          organizationId: authz.activeOrganizationId,
-          actorUserId: authz.user.id,
-          eventType: "RECORD_CREATED",
-          targetType: "workout",
-          targetId: String(result.id),
-          correlationId: context.correlationId,
-          metadata: {
-            resource: "workout",
-            action: "write",
-            exerciseCount: result.exerciseCount,
-            setCount: result.setCount,
-          },
-        });
+              },
+            );
+            if (created.created !== false)
+              await writeAuditLog({
+                db: tx,
+                organizationId: authz.activeOrganizationId,
+                actorUserId: authz.user.id,
+                eventType: "RECORD_CREATED",
+                targetType: "workout",
+                targetId: String(created.id),
+                correlationId: context.correlationId,
+                metadata: {
+                  resource: "workout",
+                  action: "write",
+                  exerciseCount: created.exerciseCount,
+                  setCount: created.setCount,
+                },
+              });
+            return created;
+          });
+        } catch (error) {
+          if (error instanceof WorkoutMutationConflictError)
+            throw raiseApiError(
+              "CONFLICT",
+              "This workout retry key was already used for another workout.",
+            );
+          if (error instanceof WorkoutExerciseNotFoundError)
+            throw raiseApiError("NOT_FOUND", "One or more catalog exercises are unavailable.");
+          if (error instanceof WorkoutNotFoundError)
+            throw raiseApiError("NOT_FOUND", "Routine not found.");
+          throw error;
+        }
 
         return {
           id: result.id,
+          version: result.version ?? 1,
           exerciseCount: result.exerciseCount,
           setCount: result.setCount,
           targetId: String(result.id),
@@ -855,6 +983,7 @@ export const plansRouter = {
           authz.activeOrganizationId,
           input.id,
           input.effortRating,
+          authz.user.id,
         );
         if (result.status === "not_found") throw raiseApiError("NOT_FOUND", "Workout not found.");
         if (result.status === "closed")
@@ -872,30 +1001,124 @@ export const plansRouter = {
         return { id: result.id, targetId: String(result.id) };
       }),
 
-    deleteWorkout: protectedProcedure
-      .use(validateInput(workoutIdInputSchema))
-      .input(workoutIdInputSchema)
-      .output(deleteResultWithTarget.nullable())
+    updateWorkout: protectedProcedure
+      .use(validateInput(workoutUpdateInputSchema))
+      .input(workoutUpdateInputSchema)
+      .output(
+        z.object({
+          id: z.number(),
+          version: z.number(),
+          exerciseCount: z.number(),
+          setCount: z.number(),
+          targetId: z.string(),
+        }),
+      )
       .handler(async ({ input, context }) => {
         const authz = await requirePlansAuthz(context, "workout", "write");
-        const result = await createWorkoutRepository(context.db).deleteWorkout(
-          authz.activeOrganizationId,
-          input.id,
-        );
-        if (!result) return null;
-        await writeAuditLog({
-          db: context.db,
-          organizationId: authz.activeOrganizationId,
-          actorUserId: authz.user.id,
-          eventType: "RECORD_DELETED",
-          targetType: "workout",
-          targetId: String(result.id),
-          correlationId: context.correlationId,
-          metadata: { resource: "workout", action: "write" },
-        });
-        return { id: result.id, targetId: String(result.id) };
+        try {
+          const result = await context.db.transaction((tx) =>
+            createWorkoutRepository(context.db).mutateWorkout(tx, {
+              ...input,
+              organizationId: authz.activeOrganizationId,
+              userId: authz.user.id,
+              operation: "update",
+              workout: { ...input.workout, userId: authz.user.id },
+              onApplied: async (auditTx, applied) => {
+                await writeAuditLog({
+                  db: auditTx,
+                  organizationId: authz.activeOrganizationId,
+                  actorUserId: authz.user.id,
+                  eventType: "RECORD_UPDATED",
+                  targetType: "workout",
+                  targetId: String(applied.id),
+                  correlationId: context.correlationId,
+                  metadata: { resource: "workout", action: "write" },
+                });
+              },
+            }),
+          );
+          if (
+            result.deleted === true ||
+            typeof result.exerciseCount !== "number" ||
+            typeof result.setCount !== "number"
+          ) {
+            throw raiseApiError("CONFLICT", "Workout mutation receipt is invalid.");
+          }
+          return {
+            id: result.id,
+            version: result.version,
+            exerciseCount: result.exerciseCount,
+            setCount: result.setCount,
+            targetId: result.targetId,
+          };
+        } catch (error) {
+          if (
+            error instanceof WorkoutMutationConflictError ||
+            error instanceof WorkoutVersionConflictError
+          )
+            throw raiseApiError("CONFLICT", "Workout changed or mutation key was reused.");
+          if (error instanceof WorkoutNotFoundError)
+            throw raiseApiError("NOT_FOUND", "Workout not found.");
+          if (error instanceof WorkoutExerciseNotFoundError)
+            throw raiseApiError("NOT_FOUND", "One or more catalog exercises are unavailable.");
+          throw error;
+        }
+      }),
+
+    deleteWorkout: protectedProcedure
+      .use(validateInput(workoutDeleteInputSchema))
+      .input(workoutDeleteInputSchema)
+      .output(
+        z.object({
+          id: z.number(),
+          version: z.number(),
+          deleted: z.literal(true),
+          targetId: z.string(),
+        }),
+      )
+      .handler(async ({ input, context }) => {
+        const authz = await requirePlansAuthz(context, "workout", "write");
+        let result;
+        try {
+          result = await context.db.transaction((tx) =>
+            createWorkoutRepository(context.db).mutateWorkout(tx, {
+              ...input,
+              organizationId: authz.activeOrganizationId,
+              userId: authz.user.id,
+              operation: "delete",
+              onApplied: async (auditTx, applied) => {
+                await writeAuditLog({
+                  db: auditTx,
+                  organizationId: authz.activeOrganizationId,
+                  actorUserId: authz.user.id,
+                  eventType: "RECORD_DELETED",
+                  targetType: "workout",
+                  targetId: String(applied.id),
+                  correlationId: context.correlationId,
+                  metadata: { resource: "workout", action: "write" },
+                });
+              },
+            }),
+          );
+        } catch (error) {
+          if (
+            error instanceof WorkoutMutationConflictError ||
+            error instanceof WorkoutVersionConflictError
+          )
+            throw raiseApiError("CONFLICT", "Workout changed or mutation key was reused.");
+          if (error instanceof WorkoutNotFoundError)
+            throw raiseApiError("NOT_FOUND", "Workout not found.");
+          throw error;
+        }
+        return {
+          id: result.id,
+          version: result.version,
+          deleted: true as const,
+          targetId: result.targetId,
+        };
       }),
   },
+  routines: workoutRoutinesRouter,
 
   // ─── goals (Issue #23) ──────────────────────────────────────
 

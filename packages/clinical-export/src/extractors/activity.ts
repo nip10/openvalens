@@ -10,11 +10,13 @@ export async function extractWorkouts(
   db: Database,
   scope: ExportPayloadScope,
 ): Promise<ExportPayloadDataByDomain["workouts"]> {
-  // The plans repository scopes by active organization id. We request the full
-  // catalog by overriding the limit; the default `listWorkouts` cap is 50.
+  // Do not fall back to organization-wide reads: new sessions are private to
+  // their authenticated author. Legacy sessions remain available per repo rules.
+  if (!scope.userId) return [];
   const sessions = await createWorkoutRepository(db).listWorkouts(
     scope.organizationId,
     Number.MAX_SAFE_INTEGER,
+    scope.userId,
   );
   return sessions.map((session) => ({
     id: session.id,

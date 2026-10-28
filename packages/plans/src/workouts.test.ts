@@ -7,6 +7,7 @@ import {
   aggregateWorkoutVolumeByExercise,
   canRateWorkoutEffort,
   createWorkoutRepository,
+  isLegacyWorkoutPlaceholder,
   isWorkoutType,
   topSet,
   totalReps,
@@ -429,6 +430,20 @@ describe("workouts — derived helpers", () => {
 });
 
 describe("workouts — repository", () => {
+  test("legacy placeholder matching is exact and preserves free-text exercises", () => {
+    const placeholder = { name: "Strength", exerciseId: null, sets: [{ reps: 1, weightKg: null }] };
+    expect(isLegacyWorkoutPlaceholder("weights", placeholder)).toBe(true);
+    expect(
+      isLegacyWorkoutPlaceholder("weights", { ...placeholder, name: "My strength exercise" }),
+    ).toBe(false);
+    expect(
+      isLegacyWorkoutPlaceholder("weights", {
+        ...placeholder,
+        sets: [{ reps: 2, weightKg: null }],
+      }),
+    ).toBe(false);
+    expect(isLegacyWorkoutPlaceholder("weights", { ...placeholder, exerciseId: 4 })).toBe(false);
+  });
   test("listWorkouts scopes by active organization", async () => {
     const state = fakeDb({ workouts: [], exercises: [], sets: [] });
     const rows = await createWorkoutRepository(state.db).listWorkouts("org-1");
@@ -470,6 +485,20 @@ describe("workouts — repository", () => {
     expect(tables).toContain(workout);
     expect(tables).toContain(workoutExercise);
     expect(tables).toContain(workoutSet);
+  });
+
+  test("upsertWorkout accepts an empty exercise list for cardio sessions", async () => {
+    const state = fakeDb({ workouts: [], exercises: [], sets: [] });
+    const result = await createWorkoutRepository(state.db).upsertWorkout(
+      state.db as never,
+      "org-1",
+      { date: "2026-03-07", type: "running", exercises: [] },
+    );
+    expect(result.exerciseCount).toBe(0);
+    expect(result.setCount).toBe(0);
+    expect(state.calls.filter((call) => call.kind === "insert").map((call) => call.table)).toEqual([
+      workout,
+    ]);
   });
 
   test("upsertWorkout rolls back when the sets insert throws (transactional atomicity)", async () => {

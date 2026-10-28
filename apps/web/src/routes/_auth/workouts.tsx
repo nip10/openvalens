@@ -1,14 +1,11 @@
 import { useLingui as useLinguiRuntime } from "@lingui/react";
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { ActivityIntensityOption } from "@openvalens/api/activity-load-contract";
-import { ACTIVITY_INTENSITIES } from "@openvalens/api/activity-load-contract";
 import {
   canRateEffortToday,
   EFFORT_QUESTION,
   EFFORT_RATING_OPTIONS,
   effortRatingLabel,
-  INTENSITY_DESCRIPTIONS,
   INTENSITY_LABELS,
 } from "@openvalens/api/presenters/activity-load";
 import {
@@ -24,7 +21,6 @@ import {
   summarizeWorkouts,
   workoutDurationLabel,
   workoutTypeLabel,
-  workoutTypeRecordName,
 } from "@openvalens/api/presenters/workouts";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
@@ -45,10 +41,20 @@ import {
   TableHeader,
   TableRow,
 } from "@openvalens/ui/components/table";
-import { Textarea } from "@openvalens/ui/components/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { offlineScope } from "@openvalens/api/presenters/offline";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@openvalens/ui/components/alert-dialog";
 
 import { ActivityLoadCard } from "@/components/activity-load-panel";
 import {
@@ -68,7 +74,6 @@ import {
   Details,
   EmptyState,
   ErrorState,
-  InfoTip,
   Meter,
   Page,
   PageHeader,
@@ -80,34 +85,30 @@ import {
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { WorkoutSessionEditor, type WorkoutEditorValue } from "@/components/workout-session-editor";
+import { WorkoutRoutines, SaveWorkoutAsRoutine } from "@/components/workout-routines";
+import { authClient } from "@/lib/auth-client";
+import { useProductSettings } from "@/utils/product-settings";
+import { Dialog, DialogContent, DialogTitle } from "@openvalens/ui/components/dialog";
 
 export const Route = createFileRoute("/_auth/workouts")({
   component: WorkoutsPage,
 });
 
-const WORKOUT_TYPES = ["weights", "running", "cycling", "swimming", "tennis", "other"] as const;
-type WorkoutType = (typeof WORKOUT_TYPES)[number];
-
 const GOAL_STATUSES = ["not_started", "in_progress", "achieved", "paused", "cancelled"] as const;
 type GoalStatus = (typeof GOAL_STATUSES)[number];
-
-const MAX_DURATION_MINUTES = 1440;
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Whole minutes in [1, 1440], or null when blank/invalid. */
-function parseDurationMinutes(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-  const parsed = Number(trimmed);
-  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > MAX_DURATION_MINUTES) return null;
-  return parsed;
-}
-
 /** "" = not set; the select's value round-trips as a string. */
 const NOT_SET = "none";
+function definitiveWorkoutFailure(error: unknown): boolean {
+  const code =
+    typeof error === "object" && error !== null ? (error as { code?: unknown }).code : null;
+  return code === "INVALID_INPUT" || code === "CONFLICT";
+}
 
 function parseEffort(value: string): number | null {
   const parsed = Number(value);
@@ -151,7 +152,9 @@ function EffortSelect({
 function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => void }) {
   const [value, setValue] = useState(NOT_SET);
   const rate = useMutation(
-    orpc.plans.workouts.rateEffort.mutationOptions({ onSuccess: () => onSaved() }),
+    orpc.plans.workouts.rateEffort.mutationOptions({
+      onSuccess: () => onSaved(),
+    }),
   );
   const rating = parseEffort(value);
   return (
@@ -177,172 +180,6 @@ function RateEffort({ workoutId, onSaved }: { workoutId: number; onSaved: () => 
         </span>
       ) : null}
     </form>
-  );
-}
-
-function AddWorkoutForm({ onSaved }: { onSaved: () => void }) {
-  const { t } = useLingui();
-  const { _ } = useLinguiRuntime();
-  const [type, setType] = useState<WorkoutType>("weights");
-  const [date, setDate] = useState(todayIso);
-  const [duration, setDuration] = useState("");
-  const [notes, setNotes] = useState("");
-  // Issue #99 — both optional; left unset they are shown as missing, never guessed.
-  const [intensity, setIntensity] = useState<ActivityIntensityOption | null>(null);
-  const [effort, setEffort] = useState(NOT_SET);
-
-  const save = useMutation(
-    orpc.plans.workouts.upsertWorkout.mutationOptions({
-      onSuccess: () => {
-        setDuration("");
-        setNotes("");
-        setDate(todayIso());
-        setIntensity(null);
-        setEffort(NOT_SET);
-        onSaved();
-      },
-    }),
-  );
-
-  const parsedDuration = parseDurationMinutes(duration);
-  const durationInvalid = duration.trim().length > 0 && parsedDuration === null;
-  const dateMissing = date.trim().length === 0;
-
-  const submit = () => {
-    if (dateMissing || durationInvalid) return;
-    save.mutate({
-      date,
-      type,
-      duration: parsedDuration,
-      notes: notes.trim().length > 0 ? notes.trim() : null,
-      intensity,
-      effortRating: parseEffort(effort),
-      // `upsertWorkout` requires at least one exercise with one set; the
-      // session header is what this form captures, so we seed a single
-      // placeholder set the user can refine later.
-      exercises: [{ name: workoutTypeRecordName(type), notes: null, sets: [{ reps: 1 }] }],
-    });
-  };
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-      <div className="grid gap-2">
-        <Label className="text-sm font-medium text-ink-3">
-          <Trans>Type</Trans>
-        </Label>
-        <Select
-          value={type}
-          onValueChange={(next) => {
-            if (WORKOUT_TYPES.includes(next as WorkoutType)) setType(next as WorkoutType);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue>{_(workoutTypeLabel(type))}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {WORKOUT_TYPES.map((value) => (
-              <SelectItem key={value} value={value}>
-                {_(workoutTypeLabel(value))}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label className="text-sm font-medium text-ink-3">
-          <Trans>Date</Trans>
-        </Label>
-        <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-      </div>
-      <div className="grid gap-2">
-        <Label className="text-sm font-medium text-ink-3">
-          <Trans>Duration (minutes)</Trans>
-        </Label>
-        <Input
-          inputMode="numeric"
-          value={duration}
-          onChange={(event) => setDuration(event.target.value)}
-          placeholder="45"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label className="text-sm font-medium text-ink-3" htmlFor="workout-intensity">
-          <Trans>Intensity (optional)</Trans>
-        </Label>
-        <Select
-          value={intensity ?? NOT_SET}
-          onValueChange={(next) => {
-            const value = String(next);
-            setIntensity(
-              ACTIVITY_INTENSITIES.includes(value as ActivityIntensityOption)
-                ? (value as ActivityIntensityOption)
-                : null,
-            );
-          }}
-        >
-          <SelectTrigger id="workout-intensity">
-            <SelectValue>{intensity ? _(INTENSITY_LABELS[intensity]) : t`Not set`}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NOT_SET}>
-              <Trans>Not set</Trans>
-            </SelectItem>
-            {ACTIVITY_INTENSITIES.map((value) => (
-              <SelectItem key={value} value={value}>
-                <span className="grid">
-                  <span>{_(INTENSITY_LABELS[value])}</span>
-                  <span className="text-sm text-ink-3">{_(INTENSITY_DESCRIPTIONS[value])}</span>
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label className="text-sm font-medium text-ink-3" htmlFor="workout-effort">
-          <Trans>Effort, 0 to 10 (optional)</Trans>
-        </Label>
-        <EffortSelect id="workout-effort" value={effort} onChange={setEffort} />
-        <span className="text-sm text-ink-3">
-          <Trans>You can also add it later today.</Trans>
-          <InfoTip>
-            <p>{_(EFFORT_QUESTION)}</p>
-          </InfoTip>
-        </span>
-      </div>
-      <div className="grid gap-2 sm:col-span-2 lg:col-span-1">
-        <Label className="text-sm font-medium text-ink-3">
-          <Trans>Notes</Trans>
-        </Label>
-        <Textarea
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          placeholder={t`How did it go?`}
-        />
-      </div>
-      <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-1">
-        <Button
-          className="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          onClick={submit}
-          disabled={dateMissing || durationInvalid || save.isPending}
-        >
-          {save.isPending ? t`Saving…` : t`Save`}
-        </Button>
-        {durationInvalid ? (
-          <span className="text-sm text-destructive">
-            <Trans>Duration must be 1 to 1440 minutes.</Trans>
-          </span>
-        ) : save.isSuccess ? (
-          <span className="text-sm text-success">
-            <Trans>Saved</Trans>
-          </span>
-        ) : save.isError ? (
-          <span className="text-sm text-destructive">
-            <Trans>Could not save.</Trans>
-          </span>
-        ) : null}
-      </div>
-    </div>
   );
 }
 
@@ -374,7 +211,12 @@ function AddGoalForm({ onSaved }: { onSaved: () => void }) {
   );
 
   const titleMissing = title.trim().length === 0;
-  const measurement = goalMeasurementFields({ startValue, targetValue, direction, priority });
+  const measurement = goalMeasurementFields({
+    startValue,
+    targetValue,
+    direction,
+    priority,
+  });
 
   const submit = () => {
     if (titleMissing || !measurement.ok) return;
@@ -573,9 +415,101 @@ function WorkoutsPage() {
   const { t, i18n } = useLingui();
   const { _ } = useLinguiRuntime();
   const queryClient = useQueryClient();
-  const workouts = useQuery(
-    orpc.plans.workouts.listWorkouts.queryOptions({ input: { limit: 50 } }),
+  const session = authClient.useSession();
+  const productSettings = useProductSettings();
+  const units = productSettings.data?.units === "imperial" ? "imperial" : "metric";
+  const scope = offlineScope(session.data as Parameters<typeof offlineScope>[0]);
+  const [editing, setEditing] = useState<WorkoutEditorValue | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [editSnapshot, setEditSnapshot] = useState<{ id: number; version: number } | null>(null);
+  const [deleting, setDeleting] = useState<any>(null);
+  const [mutationId, setMutationId] = useState("");
+  const [stateScope, setStateScope] = useState(scope);
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const pendingCreate = useRef<{ fingerprint: string; input: any } | null>(null);
+  const pendingUpdate = useRef<{ fingerprint: string; input: any } | null>(null);
+  const pendingDelete = useRef<{ fingerprint: string; input: any } | null>(null);
+  useEffect(() => {
+    if (stateScope === scope) return;
+    setStateScope(scope);
+    setEditing(null);
+    setSelected(null);
+    setEditSnapshot(null);
+    setDeleting(null);
+    setMutationId("");
+    pendingCreate.current = null;
+    pendingUpdate.current = null;
+    pendingDelete.current = null;
+  }, [scope, stateScope]);
+  const privateStateCurrent = stateScope === scope;
+  const visibleEditing = privateStateCurrent ? editing : null;
+  const visibleSelected = privateStateCurrent ? selected : null;
+  const visibleDeleting = privateStateCurrent ? deleting : null;
+  const detail = useQuery({
+    ...orpc.plans.workouts.getWorkout.queryOptions({
+      input: { id: selected! },
+    } as any),
+    queryKey: [
+      ...orpc.plans.workouts.getWorkout.queryOptions({
+        input: { id: selected! },
+      } as any).queryKey,
+      { scope },
+    ],
+    enabled: Boolean(scope && privateStateCurrent && selected !== null),
+  });
+  const removeWorkout = useMutation(
+    orpc.plans.workouts.deleteWorkout.mutationOptions({
+      onSuccess: (_data, variables) => {
+        if (
+          scopeRef.current !== variables.expectedScope ||
+          pendingDelete.current?.input.clientMutationId !== variables.clientMutationId
+        )
+          return;
+        pendingDelete.current = null;
+        setDeleting(null);
+        setSelected(null);
+        reloadWorkouts();
+      },
+    }),
   );
+  const createWorkout = useMutation(
+    orpc.plans.workouts.upsertWorkout.mutationOptions({
+      onSuccess: (_data, variables) => {
+        if (
+          scopeRef.current !== variables.expectedScope ||
+          pendingCreate.current?.input.clientMutationId !== variables.clientMutationId
+        )
+          return;
+        pendingCreate.current = null;
+        setEditing(null);
+        reloadWorkouts();
+      },
+    }),
+  );
+  const saveWorkout = useMutation(
+    orpc.plans.workouts.updateWorkout.mutationOptions({
+      onSuccess: (_data, variables) => {
+        if (
+          scopeRef.current !== variables.expectedScope ||
+          pendingUpdate.current?.input.clientMutationId !== variables.clientMutationId
+        )
+          return;
+        pendingUpdate.current = null;
+        setEditing(null);
+        setSelected(null);
+        reloadWorkouts();
+      },
+    }),
+  );
+  const workoutsBase = orpc.plans.workouts.listWorkouts.queryOptions({
+    input: { limit: 50 },
+  });
+  const workouts = useQuery({
+    ...workoutsBase,
+    queryKey: [...workoutsBase.queryKey, { scope }],
+    enabled: Boolean(scope),
+  });
   const goals = useQuery(orpc.plans.goals.listGoals.queryOptions({ input: {} }));
   const load = useQuery({
     ...orpc.activity.weeklyLoad.queryOptions({ input: {} }),
@@ -583,11 +517,22 @@ function WorkoutsPage() {
   });
 
   const reloadWorkouts = () => {
-    void queryClient.invalidateQueries({ queryKey: [["plans", "workouts", "listWorkouts"]] });
-    void queryClient.invalidateQueries({ queryKey: orpc.activity.weeklyLoad.key() });
+    void queryClient.invalidateQueries({
+      queryKey: [["plans", "workouts", "listWorkouts"]],
+    });
+    void queryClient.invalidateQueries({ queryKey: [["plans", "workouts", "getWorkout"]] });
+    void queryClient.invalidateQueries({
+      queryKey: orpc.activity.weeklyLoad.key(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: [["plans", "workouts", "exerciseHistory"]],
+    });
+    void queryClient.invalidateQueries({ queryKey: [["activity"]] });
   };
   const reloadGoals = () => {
-    void queryClient.invalidateQueries({ queryKey: [["plans", "goals", "listGoals"]] });
+    void queryClient.invalidateQueries({
+      queryKey: [["plans", "goals", "listGoals"]],
+    });
     void queryClient.invalidateQueries({ queryKey: orpc.score.key() });
   };
 
@@ -656,6 +601,67 @@ function WorkoutsPage() {
                 </Button>
               }
             />
+          ) : visibleEditing && visibleSelected !== null ? (
+            <>
+              <WorkoutSessionEditor
+                initial={visibleEditing}
+                units={units}
+                onCancel={() => setEditing(null)}
+                busy={saveWorkout.isPending}
+                error={saveWorkout.isError ? t`Could not save. Please retry.` : null}
+                onSave={(value) => {
+                  if (!scope || !privateStateCurrent || !selected) return;
+                  const expectedVersion =
+                    editSnapshot?.id === selected ? editSnapshot.version : null;
+                  if (expectedVersion === null) return;
+                  const fingerprint = JSON.stringify({
+                    scope,
+                    id: selected,
+                    expectedVersion,
+                    value,
+                  });
+                  if (pendingUpdate.current && pendingUpdate.current.fingerprint !== fingerprint)
+                    return;
+                  const input = pendingUpdate.current?.input ?? {
+                    id: selected,
+                    expectedVersion,
+                    expectedScope: scope,
+                    clientMutationId: mutationId || globalThis.crypto?.randomUUID?.() || "",
+                    workout: value,
+                  };
+                  if (!input.clientMutationId) return;
+                  pendingUpdate.current = { fingerprint, input };
+                  setMutationId(input.clientMutationId);
+                  saveWorkout.mutate(input as any);
+                }}
+              />
+              {saveWorkout.isError && definitiveWorkoutFailure(saveWorkout.error) ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      pendingUpdate.current = null;
+                      saveWorkout.reset();
+                      setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
+                    }}
+                  >
+                    <Trans>Revise and try again</Trans>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      pendingUpdate.current = null;
+                      saveWorkout.reset();
+                      setEditing(null);
+                      setEditSnapshot(null);
+                      void detail.refetch();
+                    }}
+                  >
+                    <Trans>Reload latest</Trans>
+                  </Button>
+                </div>
+              ) : null}
+            </>
           ) : workouts.data.length === 0 ? (
             <EmptyState
               icon={Dumbbell}
@@ -667,25 +673,39 @@ function WorkoutsPage() {
               <ul className="grid gap-3 sm:grid-cols-2">
                 {recent.map((workout) => {
                   const rating = workout.effortRating;
-                  const canRate = rating === null && canRateEffortToday(workout.date, today);
+                  const canRate =
+                    rating === null &&
+                    workout.canEdit === true &&
+                    workout.ownership === "mine" &&
+                    workout.id > 0 &&
+                    canRateEffortToday(workout.date, today);
                   return (
                     <li key={workout.id} className="sheet grid min-w-0 content-start gap-3 p-4">
-                      <div className="flex items-start gap-3">
-                        <ToneIcon icon={workoutIcon(workout.type)} tone="steps" />
-                        <div className="grid min-w-0 flex-1 gap-0.5">
-                          <span className="font-semibold break-words text-ink">
-                            {_(workoutTypeLabel(workout.type))}
-                          </span>
-                          <span className="text-sm text-ink-3">
-                            {friendlyDate(i18n, workout.date)}
-                            {workout.intensity ? `, ${_(INTENSITY_LABELS[workout.intensity])}` : ""}
+                      <button
+                        type="button"
+                        className="text-left"
+                        onClick={() => setSelected(workout.id)}
+                        aria-label={t`View workout details`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <ToneIcon icon={workoutIcon(workout.type)} tone="steps" />
+                          <div className="grid min-w-0 flex-1 gap-0.5">
+                            <span className="font-semibold break-words text-ink">
+                              {_(workoutTypeLabel(workout.type))}
+                            </span>
+                            <span className="text-sm text-ink-3">
+                              {friendlyDate(i18n, workout.date)}
+                              {workout.intensity
+                                ? `, ${_(INTENSITY_LABELS[workout.intensity])}`
+                                : ""}
+                            </span>
+                          </div>
+                          <span className="num shrink-0 rounded-full bg-steps-soft px-2.5 py-1 text-sm font-semibold text-ink">
+                            <span className="sr-only">{t`Duration`}: </span>
+                            {workoutDurationLabel(workout.duration)}
                           </span>
                         </div>
-                        <span className="num shrink-0 rounded-full bg-steps-soft px-2.5 py-1 text-sm font-semibold text-ink">
-                          <span className="sr-only">{t`Duration`}: </span>
-                          {workoutDurationLabel(workout.duration)}
-                        </span>
-                      </div>
+                      </button>
                       {workout.notes ? (
                         <p className="text-sm break-words text-ink-2">{workout.notes}</p>
                       ) : null}
@@ -732,6 +752,9 @@ function WorkoutsPage() {
                         <TableHead className="num">
                           <Trans>Duration</Trans>
                         </TableHead>
+                        <TableHead>
+                          <Trans>Details</Trans>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -741,7 +764,12 @@ function WorkoutsPage() {
                           rating !== null && workout.duration !== null && workout.duration > 0
                             ? rating * workout.duration
                             : null;
-                        const canRate = rating === null && canRateEffortToday(workout.date, today);
+                        const canRate =
+                          rating === null &&
+                          workout.canEdit === true &&
+                          workout.ownership === "mine" &&
+                          workout.id > 0 &&
+                          canRateEffortToday(workout.date, today);
                         return (
                           <TableRow key={workout.id} className="align-top">
                             <TableCell className="text-left whitespace-nowrap text-ink-3">
@@ -783,6 +811,15 @@ function WorkoutsPage() {
                             <TableCell className="num">
                               {workoutDurationLabel(workout.duration)}
                             </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelected(workout.id)}
+                              >
+                                <Trans>View details</Trans>
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -795,9 +832,215 @@ function WorkoutsPage() {
         </Section>
 
         <Section sheet icon={Plus} tone="steps" title={<Trans>Add a session</Trans>}>
-          <AddWorkoutForm onSaved={reloadWorkouts} />
+          {!visibleEditing && (
+            <Button
+              onClick={() => {
+                pendingCreate.current = null;
+                pendingUpdate.current = null;
+                pendingDelete.current = null;
+                setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
+                setSelected(null);
+                setEditing({
+                  date: todayIso(),
+                  type: "weights",
+                  duration: null,
+                  notes: null,
+                  intensity: null,
+                  effortRating: null,
+                  exercises: [],
+                } as WorkoutEditorValue);
+              }}
+            >
+              <Trans>Log session</Trans>
+            </Button>
+          )}
+          {visibleEditing && visibleSelected === null ? (
+            <>
+              <WorkoutSessionEditor
+                initial={visibleEditing}
+                units={units}
+                busy={createWorkout.isPending}
+                error={createWorkout.isError ? t`Could not save. Please retry.` : null}
+                onCancel={() => setEditing(null)}
+                onSave={(value) => {
+                  if (!scope || !privateStateCurrent) return;
+                  const fingerprint = JSON.stringify({ scope, value });
+                  if (pendingCreate.current && pendingCreate.current.fingerprint !== fingerprint)
+                    return;
+                  const input = pendingCreate.current?.input ?? {
+                    expectedScope: scope,
+                    clientMutationId: mutationId || globalThis.crypto?.randomUUID?.() || "",
+                    ...value,
+                  };
+                  if (!input.clientMutationId) return;
+                  pendingCreate.current = { fingerprint, input };
+                  setMutationId(input.clientMutationId);
+                  createWorkout.mutate(input as any);
+                }}
+              />
+              {createWorkout.isError && definitiveWorkoutFailure(createWorkout.error) ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    pendingCreate.current = null;
+                    createWorkout.reset();
+                    setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
+                  }}
+                >
+                  <Trans>Revise and try again</Trans>
+                </Button>
+              ) : null}
+            </>
+          ) : null}
         </Section>
       </div>
+
+      {visibleSelected !== null && !visibleEditing ? (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setSelected(null);
+          }}
+        >
+          <DialogContent
+            showCloseButton={false}
+            className="sheet max-h-[90vh] max-w-2xl overflow-y-auto grid gap-4 p-6"
+          >
+            <DialogTitle className="font-display text-2xl">
+              <Trans>Workout details</Trans>
+            </DialogTitle>
+            {detail.isPending ? (
+              <p>
+                <Trans>Loading…</Trans>
+              </p>
+            ) : detail.data ? (
+              <>
+                <p>{(detail.data as any).notes}</p>
+                {(detail.data as any).exercises?.map((exercise: any, i: number) => (
+                  <article key={i} className="rounded-xl border p-3">
+                    <h3 className="font-semibold">{exercise.name}</h3>
+                    {exercise.notes && <p>{exercise.notes}</p>}
+                    <ul>
+                      {exercise.sets?.map((set: any, j: number) => (
+                        <li key={j}>
+                          <Trans>Set {j + 1}</Trans>: {set.reps} × {set.weightKg ?? "—"} kg{" "}
+                          {set.notes}
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+                {(detail.data as any).prs?.length ? (
+                  <p className="font-semibold">
+                    <Trans>Personal records</Trans>: {(detail.data as any).prs.join(", ")}
+                  </p>
+                ) : null}
+                {(detail.data as any).canEdit ? (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => {
+                        const d: any = detail.data;
+                        pendingUpdate.current = null;
+                        saveWorkout.reset();
+                        setEditSnapshot({ id: d.id, version: d.version });
+                        setMutationId(globalThis.crypto?.randomUUID?.() ?? "");
+                        setEditing({
+                          date: d.date,
+                          type: d.type,
+                          duration: d.duration,
+                          notes: d.notes,
+                          intensity: d.intensity,
+                          effortRating: d.effortRating,
+                          exercises: d.exercises,
+                        } as WorkoutEditorValue);
+                      }}
+                    >
+                      <Trans>Edit</Trans>
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        const d: any = detail.data;
+                        const samePendingTarget =
+                          pendingDelete.current?.fingerprint ===
+                          JSON.stringify({
+                            scope,
+                            id: d.id,
+                            version: d.version,
+                          });
+                        if (!samePendingTarget) pendingDelete.current = null;
+                        setDeleting(detail.data);
+                      }}
+                    >
+                      <Trans>Delete</Trans>
+                    </Button>
+                  </div>
+                ) : (
+                  <p>
+                    <Trans>This legacy workout is read-only.</Trans>
+                  </p>
+                )}
+                <SaveWorkoutAsRoutine workout={detail.data as any} />
+              </>
+            ) : (
+              <p>
+                <Trans>Could not load workout.</Trans>
+              </p>
+            )}
+            <Button variant="ghost" onClick={() => setSelected(null)}>
+              <Trans>Close</Trans>
+            </Button>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      <AlertDialog
+        open={!!visibleDeleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <Trans>Delete this workout?</Trans>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <Trans>This cannot be undone.</Trans>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <Trans>Cancel</Trans>
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (scope && privateStateCurrent && visibleDeleting) {
+                  const fingerprint = JSON.stringify({
+                    scope,
+                    id: visibleDeleting.id,
+                    version: visibleDeleting.version,
+                  });
+                  if (pendingDelete.current && pendingDelete.current.fingerprint !== fingerprint)
+                    return;
+                  const input = pendingDelete.current?.input ?? {
+                    id: visibleDeleting.id,
+                    expectedVersion: visibleDeleting.version,
+                    expectedScope: scope,
+                    clientMutationId: globalThis.crypto?.randomUUID?.() ?? "",
+                  };
+                  if (!input.clientMutationId) return;
+                  pendingDelete.current = { fingerprint, input };
+                  removeWorkout.mutate(input as any);
+                }
+              }}
+            >
+              <Trans>Delete</Trans>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <WorkoutRoutines />
 
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <Section

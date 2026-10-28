@@ -16,12 +16,15 @@ const nativePush = Platform.OS === "ios" || Platform.OS === "android";
 export function installForegroundNotificationHandler(): void {
   if (!nativePush) return;
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const restTimer = notification.request.content.data?.kind === "workout-rest";
+      return {
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: restTimer,
+        shouldSetBadge: false,
+      };
+    },
   });
 }
 
