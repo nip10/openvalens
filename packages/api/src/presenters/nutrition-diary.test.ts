@@ -19,6 +19,7 @@ import {
   formatSources,
   groupBySlot,
   localDateIn,
+  mealSlotForLocalTime,
   newClientMutationId,
   parseQuickAdd,
   previewFactor,
@@ -27,6 +28,21 @@ import {
   summarizeDay,
   unitsFor,
 } from "./nutrition-diary";
+
+describe("mealSlotForLocalTime", () => {
+  test.each([
+    ["10:29", 10, 29, "breakfast"],
+    ["10:30", 10, 30, "lunch"],
+    ["14:59", 14, 59, "lunch"],
+    ["15:00", 15, 0, "snack"],
+    ["17:29", 17, 29, "snack"],
+    ["17:30", 17, 30, "dinner"],
+    ["21:29", 21, 29, "dinner"],
+    ["21:30", 21, 30, "snack"],
+  ] as const)("uses the local meal window at %s", (_label, hour, minute, expected) => {
+    expect(mealSlotForLocalTime(new Date(2026, 9, 27, hour, minute))).toBe(expected);
+  });
+});
 
 function nutrients(values: Partial<NutrientValues>): NutrientValues {
   return Object.fromEntries(

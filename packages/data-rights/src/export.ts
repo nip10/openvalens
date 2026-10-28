@@ -113,10 +113,26 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
         table === "nutrition_goal" ||
         table === "nutrition_energy_proposal" ||
         table === "nutrition_target_settings" ||
+        table === "nutrition_template" ||
+        table === "nutrition_template_revision" ||
+        table === "nutrition_diary_batch" ||
         // AI coach chats are private to the member who wrote them.
         table === "chat_message"
       )
         return sql`user_id = ${subject.userId}`;
+      // A snapshot has no direct owner and may be deduplicated across members.
+      // Export it only when the subject logged it or references it in their
+      // own saved-template history (including archived revisions).
+      if (table === "nutrition_food_snapshot")
+        return sql`(
+          exists (select 1 from nutrition_meal_entry e
+            where e.organization_id = nutrition_food_snapshot.organization_id
+              and e.snapshot_id = nutrition_food_snapshot.id and e.user_id = ${subject.userId})
+          or exists (select 1 from nutrition_template_revision r
+            where r.organization_id = nutrition_food_snapshot.organization_id
+              and r.user_id = ${subject.userId}
+              and r.ingredients @> jsonb_build_array(jsonb_build_object('snapshotId', nutrition_food_snapshot.id)))
+        )`;
       return inList("organization_id", orgIds);
     case "user":
       return sql`user_id = ${subject.userId}`;
@@ -150,6 +166,37 @@ export function rowFilter(table: string, subject: DataRightsSubject): SQL {
  */
 export function deletionRowFilter(table: string, subject: DataRightsSubject): SQL {
   if (table === "stored_object") return inList("organization_id", subject.organizationIds);
+  // Snapshots are deduplicated and have no member owner. Estimate container
+  // snapshots plus the subject's own diary/template/favourite references, but
+  // exclude snapshots still referenced by another member in a surviving org.
+  if (table === "nutrition_food_snapshot")
+    return sql`(
+      ${inList("organization_id", subject.organizationIds)}
+      or exists (select 1 from nutrition_meal_entry own_entry
+        where own_entry.organization_id = nutrition_food_snapshot.organization_id
+          and own_entry.snapshot_id = nutrition_food_snapshot.id and own_entry.user_id = ${subject.userId})
+      or exists (select 1 from nutrition_favorite_food own_favorite
+        where own_favorite.organization_id = nutrition_food_snapshot.organization_id
+          and own_favorite.snapshot_id = nutrition_food_snapshot.id and own_favorite.user_id = ${subject.userId})
+      or exists (select 1 from nutrition_template_revision own_revision
+        where own_revision.organization_id = nutrition_food_snapshot.organization_id
+          and own_revision.user_id = ${subject.userId}
+          and own_revision.ingredients @> jsonb_build_array(jsonb_build_object('snapshotId', nutrition_food_snapshot.id)))
+    ) and not exists (select 1 from nutrition_meal_entry other_entry
+      where other_entry.organization_id = nutrition_food_snapshot.organization_id
+        and other_entry.snapshot_id = nutrition_food_snapshot.id
+        and other_entry.user_id <> ${subject.userId}
+        and not ${inList("organization_id", subject.organizationIds)})
+      and not exists (select 1 from nutrition_favorite_food other_favorite
+      where other_favorite.organization_id = nutrition_food_snapshot.organization_id
+        and other_favorite.snapshot_id = nutrition_food_snapshot.id
+        and other_favorite.user_id <> ${subject.userId}
+        and not ${inList("organization_id", subject.organizationIds)})
+      and not exists (select 1 from nutrition_template_revision other_revision
+      where other_revision.organization_id = nutrition_food_snapshot.organization_id
+        and other_revision.user_id <> ${subject.userId}
+        and other_revision.ingredients @> jsonb_build_array(jsonb_build_object('snapshotId', nutrition_food_snapshot.id))
+        and not ${inList("organization_id", subject.organizationIds)})`;
   // Idempotency receipts are exported to their actor only, but erased with
   // either that actor or a workspace whose owned contents are being removed.
   if (table === "exercise_catalog_mutation")
@@ -164,6 +211,9 @@ export function deletionRowFilter(table: string, subject: DataRightsSubject): SQ
     table === "nutrition_goal" ||
     table === "nutrition_energy_proposal" ||
     table === "nutrition_target_settings" ||
+    table === "nutrition_template" ||
+    table === "nutrition_template_revision" ||
+    table === "nutrition_diary_batch" ||
     table === "chat_message"
   )
     return sql`user_id = ${subject.userId} or ${inList("organization_id", subject.organizationIds)}`;

@@ -62,6 +62,7 @@
         }
       ],
       "expo-background-task",
+      "@react-native-community/datetimepicker",
       [
         "@kingstinct/react-native-healthkit",
         {

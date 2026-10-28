@@ -35,6 +35,7 @@ import {
   type FoodChoice,
   type FoodRef,
 } from "../contracts/nutrition-diary";
+import { logTemplateInput } from "../contracts/nutrition-templates";
 import {
   permissionedProcedure,
   raiseApiError,
@@ -268,6 +269,22 @@ export const nutritionDiaryRouter = {
       }),
     ),
 
+  /** Logs a frozen owner-owned template revision as ordered ingredient entries. */
+  logTemplate: write("nutrition_meal_entry", "RECORD_CREATED")
+    .use(validateInput(logTemplateInput))
+    .input(logTemplateInput)
+    .output(copyDayOutput)
+    .handler(({ input, context }) =>
+      run(async () => {
+        const result = await diaryFor(context).logTemplate(scopeOf(context), input);
+        return {
+          entries: result.entries.map(toWireEntry),
+          created: result.created,
+          targetId: String(input.templateId),
+        };
+      }),
+    ),
+
   setFavorite: write("nutrition_favorite_food", "RECORD_UPDATED")
     .use(validateInput(setFavoriteInput))
     .input(setFavoriteInput)
@@ -316,6 +333,9 @@ export const nutritionDiaryRouter = {
             saltG: food.saltG,
           },
           lastLoggedAt: null,
+          lastAmount: null,
+          lastUnit: null,
+          lastSlot: null,
           targetId: String(food.id),
         };
       }),

@@ -27,6 +27,17 @@ import { OFFLINE_SCHEMA_SQL } from "./schema";
 const DB_NAME = "openvalens-offline.db";
 
 let database: SQLite.SQLiteDatabase | null = null;
+let offlineCleanupGeneration = 0;
+
+/** Generation used to fence asynchronous writes across offline-data cleanup. */
+export function getOfflineCleanupGeneration(): number {
+  return offlineCleanupGeneration;
+}
+
+/** Advance write authority before synchronously purging offline data. */
+export function invalidateOfflineCleanupWrites(): void {
+  offlineCleanupGeneration += 1;
+}
 
 /** The shared offline database (also holds the meal-diary outbox, Issue #77). */
 export function getDb(): SQLite.SQLiteDatabase {
@@ -156,9 +167,16 @@ export function clearCachePrefix(scope: string, prefix: string): void {
 
 /** Wipes every cached read and queued write, for all accounts (sign-out). */
 export function clearOfflineData(): void {
+  invalidateOfflineCleanupWrites();
   const db = getDb();
   db.runSync("DELETE FROM query_cache");
   db.runSync("DELETE FROM outbox");
   db.runSync("DELETE FROM nutrition_outbox");
+  // Receipt storage was introduced after the offline database. Create it if
+  // needed so this also safely clears upgraded and never-initialized installs.
+  db.execSync(
+    "CREATE TABLE IF NOT EXISTS nutrition_entry_receipt (scope TEXT NOT NULL, mutation_id TEXT NOT NULL, item_key TEXT NOT NULL DEFAULT '', entry_id TEXT NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY(scope, mutation_id, item_key))",
+  );
+  db.runSync("DELETE FROM nutrition_entry_receipt");
   db.runSync("DELETE FROM plain_water_outbox");
 }

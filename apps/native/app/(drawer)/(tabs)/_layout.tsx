@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { Tabs } from "expo-router";
-import { History, LayoutDashboard, Scale, Settings } from "lucide-react-native";
+import { History, LayoutDashboard, Scale, Settings, UtensilsCrossed } from "lucide-react-native";
 
 import { BODY_FONT_MEDIUM, DISPLAY_FONT } from "@/components/fonts";
 import { useModuleEnabled } from "@/lib/modules/use-modules";
@@ -14,8 +14,10 @@ export default function TabLayout() {
   const themeColorInk3 = useThemeColor("ink-3");
   const themeColorSheet = useThemeColor("sheet");
   const themeColorRule = useThemeColor("rule");
+  const themeColorFood = useThemeColor("food");
   // Onboarding stage 1: the Body tab follows the body module.
   const bodyEnabled = useModuleEnabled("body");
+  const foodEnabled = useModuleEnabled("food");
 
   return (
     <Tabs
@@ -51,6 +53,15 @@ export default function TabLayout() {
         options={{
           title: t`Timeline`,
           tabBarIcon: ({ color, size }) => <History size={size - 2} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="nutrition"
+        options={{
+          title: t`Food`,
+          href: foodEnabled ? undefined : null,
+          tabBarActiveTintColor: themeColorFood,
+          tabBarIcon: ({ color, size }) => <UtensilsCrossed size={size - 2} color={color} />,
         }}
       />
       <Tabs.Screen

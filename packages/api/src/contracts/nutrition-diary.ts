@@ -116,12 +116,18 @@ const entryChange = {
   expectedRevision: z.number().int().min(1).nullish(),
 };
 
-export const updateEntryInput = z.strictObject({
-  ...entryChange,
-  amount: positive,
-  unit: z.enum(AMOUNT_UNITS),
-  slot: z.enum(MEAL_SLOTS).optional(),
-});
+export const updateEntryInput = z
+  .strictObject({
+    ...entryChange,
+    amount: positive,
+    unit: z.enum(AMOUNT_UNITS),
+    slot: z.enum(MEAL_SLOTS).optional(),
+    localDate: localDate.optional(),
+    timeZone: timeZone.optional(),
+  })
+  .refine((value) => (value.localDate === undefined) === (value.timeZone === undefined), {
+    message: "Local date and time zone must be supplied together",
+  });
 export type UpdateEntryInput = z.infer<typeof updateEntryInput>;
 
 export const entryChangeInput = z.strictObject(entryChange);
@@ -134,13 +140,31 @@ export const setDayStatusInput = z.strictObject({
 });
 export type SetDayStatusInput = z.infer<typeof setDayStatusInput>;
 
-export const copyDayInput = z.strictObject({
-  clientMutationId,
-  fromDate: localDate,
-  toDate: localDate,
-  timeZone,
-  entryIds: z.array(id).min(1).max(200).optional(),
-});
+export const copyDayInput = z
+  .strictObject({
+    clientMutationId,
+    fromDate: localDate,
+    toDate: localDate,
+    timeZone,
+    entryIds: z.array(id).min(1).max(200).optional(),
+    entries: z
+      .array(
+        z.strictObject({
+          itemKey: z.string().min(1).max(128),
+          snapshotId: id,
+          amount: positive,
+          unit: z.enum(AMOUNT_UNITS),
+          slot: z.enum(MEAL_SLOTS),
+        }),
+      )
+      .min(1)
+      .max(200)
+      .optional(),
+    targetSlot: z.enum(MEAL_SLOTS).optional(),
+  })
+  .refine((value) => !(value.entryIds && value.entries), {
+    message: "Choose source entry IDs or frozen entries, not both",
+  });
 export type CopyDayInput = z.infer<typeof copyDayInput>;
 
 export const getDayInput = z.strictObject({ localDate });
@@ -290,6 +314,9 @@ export const foodChoice = z.object({
   basis: nutrientBasis,
   nutrientsPerBasis: nutrientValues,
   lastLoggedAt: z.string().nullable(),
+  lastAmount: z.number().nullable(),
+  lastUnit: z.enum(AMOUNT_UNITS).nullable(),
+  lastSlot: z.enum(MEAL_SLOTS).nullable(),
 });
 export type FoodChoice = z.infer<typeof foodChoice>;
 

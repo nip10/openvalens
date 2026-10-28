@@ -19,3 +19,9 @@ export * from "./energy-proposals";
 export * from "./targets";
 export * from "./plain-water";
 export * from "./logging-streak";
+export { createNutritionTemplates } from "./templates";
+export type {
+  NutritionTemplate as NutritionTemplateDomain,
+  NutritionTemplateContent as NutritionTemplateContentDomain,
+  NutritionTemplateIngredient as NutritionTemplateIngredientDomain,
+} from "./templates";

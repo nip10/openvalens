@@ -6,6 +6,7 @@ import {
   nutritionMeal,
   nutritionMealEntry,
   nutritionEnergyProposal,
+  nutritionTemplateRevision,
 } from "@openvalens/db/schema/nutrition";
 import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
@@ -295,7 +296,7 @@ function toDiaryEntry(
     id: entry.id,
     mealId: meal.id,
     localDate: meal.localDate,
-    timeZone: meal.timeZone,
+    timeZone: entry.timeZone ?? meal.timeZone,
     slot: meal.slot,
     amount: entry.amount,
     unit: entry.unit,
@@ -383,7 +384,7 @@ async function ensureSnapshot(
   return existing;
 }
 
-async function resolveSnapshot(
+export async function resolveSnapshot(
   tx: Tx,
   scope: NutritionScope,
   food: LogEntryInput["food"],
@@ -401,6 +402,30 @@ async function resolveSnapshot(
         ),
       );
     if (!snapshot) throw new NutritionError("NOT_FOUND", "Food snapshot not found");
+    const [ownedEntry] = await tx
+      .select({ id: nutritionMealEntry.id })
+      .from(nutritionMealEntry)
+      .where(
+        and(
+          eq(nutritionMealEntry.organizationId, scope.organizationId),
+          eq(nutritionMealEntry.userId, scope.userId),
+          eq(nutritionMealEntry.snapshotId, food.snapshotId),
+        ),
+      )
+      .limit(1);
+    const [ownedRevision] = await tx
+      .select({ id: nutritionTemplateRevision.id })
+      .from(nutritionTemplateRevision)
+      .where(
+        and(
+          eq(nutritionTemplateRevision.organizationId, scope.organizationId),
+          eq(nutritionTemplateRevision.userId, scope.userId),
+          sql`${nutritionTemplateRevision.ingredients} @> ${JSON.stringify([{ snapshotId: food.snapshotId }])}::jsonb`,
+        ),
+      )
+      .limit(1);
+    if (!ownedEntry && !ownedRevision)
+      throw new NutritionError("NOT_FOUND", "Food snapshot not found");
     return snapshot;
   }
   const [row] = await tx
@@ -541,49 +566,56 @@ export function createNutritionRepository(db: Database) {
      * With `clientMutationId`, a replay returns the original entry unchanged
      * (`created: false`) instead of adding a duplicate.
      */
-    async logEntry(scope: NutritionScope, input: LogEntryInput): Promise<LogEntryResult> {
+    async logEntryInTransaction(
+      tx: Tx,
+      scope: NutritionScope,
+      input: LogEntryInput,
+    ): Promise<LogEntryResult> {
       assertLocalDay(input);
       const clientMutationId = assertClientMutationId(input.clientMutationId);
-      return db.transaction(async (tx) => {
-        if (clientMutationId) {
-          const replay = await selectEntry(tx, scope, byClientMutation(clientMutationId));
-          if (replay) return { entry: replay, created: false };
-        }
-        const snapshot = await resolveSnapshot(tx, scope, input.food);
-        const nutrientFactor = computeNutrientFactor(snapshot, input.amount, input.unit);
-        const meal = await ensureMeal(tx, scope, input);
-        const [inserted] = await tx
-          .insert(nutritionMealEntry)
-          .values({
-            ...scope,
-            mealId: meal.id,
-            snapshotId: snapshot.id,
-            amount: input.amount,
-            unit: input.unit,
-            nutrientFactor,
-            method: input.method,
-            consumedAt: input.consumedAt ?? null,
-            clientMutationId,
-          })
-          .onConflictDoNothing({
-            target: [
-              nutritionMealEntry.organizationId,
-              nutritionMealEntry.userId,
-              nutritionMealEntry.clientMutationId,
-            ],
-            where: isNotNull(nutritionMealEntry.clientMutationId),
-          })
-          .returning({ id: nutritionMealEntry.id });
-        const entry = await selectEntry(
-          tx,
-          scope,
-          inserted
-            ? eq(nutritionMealEntry.id, inserted.id)
-            : byClientMutation(clientMutationId ?? ""),
-        );
-        if (!entry) throw new Error("Meal entry insert did not return a row");
-        return { entry, created: Boolean(inserted) };
-      });
+      if (clientMutationId) {
+        const replay = await selectEntry(tx, scope, byClientMutation(clientMutationId));
+        if (replay) return { entry: replay, created: false };
+      }
+      const snapshot = await resolveSnapshot(tx, scope, input.food);
+      const nutrientFactor = computeNutrientFactor(snapshot, input.amount, input.unit);
+      const meal = await ensureMeal(tx, scope, input);
+      const [inserted] = await tx
+        .insert(nutritionMealEntry)
+        .values({
+          ...scope,
+          mealId: meal.id,
+          snapshotId: snapshot.id,
+          amount: input.amount,
+          unit: input.unit,
+          timeZone: input.timeZone,
+          nutrientFactor,
+          method: input.method,
+          consumedAt: input.consumedAt ?? null,
+          clientMutationId,
+        })
+        .onConflictDoNothing({
+          target: [
+            nutritionMealEntry.organizationId,
+            nutritionMealEntry.userId,
+            nutritionMealEntry.clientMutationId,
+          ],
+          where: isNotNull(nutritionMealEntry.clientMutationId),
+        })
+        .returning({ id: nutritionMealEntry.id });
+      const entry = await selectEntry(
+        tx,
+        scope,
+        inserted
+          ? eq(nutritionMealEntry.id, inserted.id)
+          : byClientMutation(clientMutationId ?? ""),
+      );
+      if (!entry) throw new Error("Meal entry insert did not return a row");
+      return { entry, created: Boolean(inserted) };
+    },
+
+    async logEntry(scope: NutritionScope, input: LogEntryInput): Promise<LogEntryResult> {
+      return db.transaction((tx) => this.logEntryInTransaction(tx, scope, input));
     },
 
     /** Changes the logged amount; the snapshot (and its per-basis values) never changes. */

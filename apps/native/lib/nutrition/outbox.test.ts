@@ -13,6 +13,8 @@ import {
   localEntryKey,
   mergeDay,
   summarizeOutbox,
+  cachedCopyDayInput,
+  cachedTemplateLogInput,
   type DiarySender,
   type OutboxStore,
   type QueuedChange,
@@ -22,11 +24,21 @@ const SCOPE = "user-1:org-1";
 const OTHER = "user-2:org-2";
 
 /** In-memory stand-in for the SQLite store; `snapshot`/`restore` simulate an app restart. */
-function memoryStore(initial: QueuedChange[] = []): OutboxStore & { rows: QueuedChange[] } {
+function memoryStore(
+  initial: QueuedChange[] = [],
+  initialReceipts: [string, { entryId: number | string; revision: number }][] = [],
+): OutboxStore & {
+  rows: QueuedChange[];
+  receiptRows: [string, { entryId: number | string; revision: number }][];
+} {
   const rows = initial.map((row) => structuredClone(row));
+  const receipts = new Map(initialReceipts);
   let seq = rows.reduce((max, row) => Math.max(max, row.seq), 0);
   return {
     rows,
+    get receiptRows() {
+      return [...receipts.entries()];
+    },
     list: (scope) =>
       rows
         .filter((row) => row.scope === scope)
@@ -42,6 +54,16 @@ function memoryStore(initial: QueuedChange[] = []): OutboxStore & { rows: Queued
       if (index !== -1) rows.splice(index, 1);
     },
     nextSeq: () => (seq += 1),
+    getEntryReceipt: (scope, mutationId, itemKey) =>
+      receipts.get(`${scope}:${mutationId}:${itemKey ?? ""}`) ?? null,
+    putEntryReceipt: (scope, mutationId, itemKey, entryId, revision) =>
+      receipts.set(`${scope}:${mutationId}:${itemKey ?? ""}`, { entryId, revision }),
+    updateEntryReceipts: (scope, entryId, revision) => {
+      for (const [key, receipt] of receipts) {
+        if (key.startsWith(`${scope}:`) && String(receipt.entryId) === String(entryId))
+          receipts.set(key, { ...receipt, revision });
+      }
+    },
   };
 }
 
@@ -227,6 +249,106 @@ describe("diary outbox", () => {
     expect(store.list(SCOPE)).toEqual([]);
   });
 
+  test("batch child delete keeps positional ACK mapping and dependent edits resolve after restart", async () => {
+    const store = memoryStore();
+    const batchInput = cachedCopyDayInput({
+      clientMutationId: "copy-three",
+      fromDate: "2026-10-12",
+      toDate: "2026-10-13",
+      timeZone: "UTC",
+      entries: ["first", "second", "third"].map((itemKey) => ({
+        itemKey,
+        snapshotId: 9,
+        amount: 100,
+        unit: "g" as const,
+        slot: "lunch" as const,
+        preview: { name: itemKey, source: "manual" as const, nutrients: null },
+      })),
+    });
+    enqueue(store, SCOPE, batchInput);
+    const childRef = (key: string) => `${localEntryKey("copy-three")}:${key}` as never;
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "delete",
+        input: { clientMutationId: "delete-first", entryId: childRef("first") },
+      },
+    });
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "edit-second",
+          entryId: childRef("second"),
+          amount: 75,
+          unit: "g",
+          localDate: "2026-10-14",
+          timeZone: "Europe/Lisbon",
+        } as never,
+      },
+    });
+    expect(store.list(SCOPE)[0]!.op).toMatchObject({
+      kind: "copyDay",
+      input: { entries: [{ itemKey: "first" }, { itemKey: "second" }, { itemKey: "third" }] },
+    });
+    expect(store.list(SCOPE)[0]!.batchPreviews?.map((child) => child.itemKey)).toEqual([
+      "first",
+      "second",
+      "third",
+    ]);
+    expect(mergeDay([], store.list(SCOPE), "2026-10-13").map((row) => row.key)).toEqual([
+      `${localEntryKey("copy-three")}:third`,
+    ]);
+    const movedChild = mergeDay([], store.list(SCOPE), "2026-10-14")[0]!;
+    expect(movedChild).toMatchObject({
+      key: `${localEntryKey("copy-three")}:second`,
+      localEntry: {
+        amount: 75,
+        localDate: "2026-10-14",
+        timeZone: "Europe/Lisbon",
+        ref: { mutationId: "copy-three", itemKey: "second" },
+      },
+    });
+
+    const restartedBeforeDrain = memoryStore(store.rows, store.receiptRows);
+    const sent: unknown[] = [];
+    const sender: DiarySender = {
+      ...fakeServer().sender,
+      copyDay: async () => ({ entries: [101, 102, 103].map((id) => entry(id, 1)) }),
+      deleteEntry: async (input) => {
+        sent.push(["delete", input.entryId]);
+        return {
+          outcome: "applied",
+          entry: entry(input.entryId, 2, { deleted: true }),
+          targetId: String(input.entryId),
+        };
+      },
+      updateEntry: async (input) => {
+        sent.push(["update", input.entryId, input.amount]);
+        return {
+          outcome: "applied",
+          entry: entry(input.entryId, 2, { amount: input.amount }),
+          targetId: String(input.entryId),
+        };
+      },
+    };
+    expect(await drain(restartedBeforeDrain, sender, SCOPE)).toEqual({ sent: 3, stopped: null });
+    expect(sent).toEqual([
+      ["delete", 101],
+      ["update", 102, 75],
+    ]);
+    const restarted = memoryStore(restartedBeforeDrain.rows, restartedBeforeDrain.receiptRows);
+    enqueue(restarted, SCOPE, {
+      op: {
+        kind: "restore",
+        input: { clientMutationId: "undo-third", entryId: childRef("third") },
+      },
+    });
+    expect(restarted.list(SCOPE)[0]!.op).toMatchObject({
+      kind: "restore",
+      input: { entryId: 103, expectedRevision: 1 },
+    });
+  });
+
   test("undo of an unsent delete cancels it; sent changes chain revisions", async () => {
     const store = memoryStore();
     const server = fakeServer();
@@ -385,6 +507,30 @@ describe("diary outbox", () => {
     expect(server.sent).toEqual([]);
   });
 
+  test("late ACK or rejection after an epoch change cannot mutate the outbox", async () => {
+    for (const rejection of [false, true]) {
+      const store = memoryStore();
+      enqueue(store, SCOPE, { op: { kind: "log", input: logInput(`late-${rejection}`) } });
+      let current = true;
+      let release!: (value?: unknown) => void;
+      const sender: DiarySender = {
+        ...fakeServer().sender,
+        logEntry: () =>
+          new Promise((resolve, reject) => {
+            release = rejection ? reject : resolve;
+          }),
+      };
+      const draining = drain(store, sender, SCOPE, { isCurrentScope: () => current });
+      await Promise.resolve();
+      current = false;
+      if (rejection) release(offline());
+      else release({ entry: entry(99, 1) });
+      expect(await draining).toEqual({ sent: 0, stopped: "scope_changed" });
+      expect(store.list(SCOPE)[0]).toMatchObject({ status: "syncing", attempts: 0 });
+      expect(store.getEntryReceipt!(SCOPE, `late-${rejection}`)).toBeNull();
+    }
+  });
+
   test("mergeDay shows queued logs and pending changes with their state", () => {
     const store = memoryStore();
     enqueue(store, SCOPE, {
@@ -406,5 +552,430 @@ describe("diary outbox", () => {
       needs_attention: 0,
     });
     expect(mergeDay([], store.list(SCOPE), "2026-10-13")).toEqual([]);
+  });
+
+  test("editing before dispatch rewrites queued log including date, zone and slot", () => {
+    const store = memoryStore();
+    enqueue(store, SCOPE, { op: { kind: "log", input: logInput("rewrite") } });
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "edit-before-send",
+          entryId: localEntryKey("rewrite") as never,
+          amount: 125,
+          unit: "ml",
+          slot: "dinner",
+          localDate: "2026-10-13",
+          timeZone: "Europe/Lisbon",
+        } as never,
+      },
+    });
+    expect(store.list(SCOPE)[0]!.op).toMatchObject({
+      kind: "log",
+      input: {
+        amount: 125,
+        unit: "ml",
+        slot: "dinner",
+        localDate: "2026-10-13",
+        timeZone: "Europe/Lisbon",
+      },
+    });
+  });
+
+  test("network-ambiguous log retries its frozen payload after a dependent edit", async () => {
+    const store = memoryStore();
+    enqueue(store, SCOPE, { op: { kind: "log", input: logInput("frozen", { amount: 50 }) } });
+    const server = fakeServer();
+    server.failWith(() => offline());
+    await drain(store, server.sender, SCOPE);
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "edit-after-dispatch",
+          entryId: localEntryKey("frozen") as never,
+          amount: 90,
+          unit: "g",
+        } as never,
+      },
+    });
+    expect(store.list(SCOPE).map((item) => [item.id, item.op.kind])).toEqual([
+      ["frozen", "log"],
+      ["edit-after-dispatch", "update"],
+    ]);
+    expect(store.list(SCOPE)[0]!.frozenOp).toMatchObject({ kind: "log", input: { amount: 50 } });
+    server.failWith(null);
+    await drain(store, server.sender, SCOPE);
+    expect(server.logs.get("frozen")).toBe(50);
+  });
+
+  test("durable receipt resolves pending ref after restart and preserves Undo revision", () => {
+    const store = memoryStore();
+    store.putEntryReceipt!(SCOPE, "batch-1", "ingredient-1", 81, 4);
+    const restarted = store;
+    expect(restarted.getEntryReceipt!(SCOPE, "batch-1", "ingredient-1")).toEqual({
+      entryId: 81,
+      revision: 4,
+    });
+    enqueue(restarted, SCOPE, {
+      op: {
+        kind: "restore",
+        input: { clientMutationId: "undo-1", entryId: 81, expectedRevision: 4 },
+      },
+    });
+    expect(restarted.list(SCOPE)[0]!.op).toMatchObject({
+      kind: "restore",
+      input: { entryId: 81, expectedRevision: 4 },
+    });
+  });
+
+  test("pending receipt provenance survives batch ACK, edit ACK, restart, and Undo", async () => {
+    const childItemKey = "template-42-3-0";
+    const childRef = `${localEntryKey("template-receipt")}:${childItemKey}` as never;
+    const template = {
+      id: 42,
+      revision: 3,
+      kind: "meal" as const,
+      name: "Breakfast",
+      yieldServings: null,
+      archived: false,
+      createdAt: "",
+      updatedAt: "",
+      summary: {} as never,
+      ingredients: [
+        {
+          food: { name: "Oats", source: "manual" as const },
+          amount: 80,
+          unit: "g",
+          nutrients: { energyKcal: null } as never,
+        },
+      ],
+    };
+    const store = memoryStore();
+    enqueue(
+      store,
+      SCOPE,
+      cachedTemplateLogInput(template as never, {
+        clientMutationId: "template-receipt",
+        localDate: "2026-10-12",
+        timeZone: "UTC",
+        slot: "breakfast",
+      }),
+    );
+    const server = fakeServer();
+    const sent: { kind: string; revision?: number }[] = [];
+    const sender: DiarySender = {
+      ...server.sender,
+      logTemplate: async () => ({ entries: [{ ...entry(81, 1), itemKey: childItemKey }] }),
+      updateEntry: async (input) => {
+        sent.push({ kind: "update", revision: input.expectedRevision ?? undefined });
+        return {
+          outcome: "applied",
+          entry: entry(input.entryId, 2),
+          targetId: String(input.entryId),
+        };
+      },
+      deleteEntry: async (input) => {
+        sent.push({ kind: "delete", revision: input.expectedRevision ?? undefined });
+        return {
+          outcome: "applied",
+          entry: entry(input.entryId, 3, { deleted: true }),
+          targetId: String(input.entryId),
+        };
+      },
+    };
+    await drain(store, sender, SCOPE);
+    let restarted = memoryStore(store.rows, store.receiptRows);
+    expect(restarted.list(SCOPE)).toEqual([]); // parent batch is gone
+    enqueue(restarted, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "receipt-edit",
+          entryId: childRef,
+          amount: 90,
+          unit: "g",
+        } as never,
+      },
+    });
+    expect(restarted.list(SCOPE)[0]).toMatchObject({
+      receiptRef: { mutationId: "template-receipt", itemKey: childItemKey },
+      op: { input: { entryId: 81, expectedRevision: 1 } },
+    });
+    await drain(restarted, sender, SCOPE);
+    restarted = memoryStore(restarted.rows, restarted.receiptRows);
+    enqueue(restarted, SCOPE, {
+      op: {
+        kind: "delete",
+        input: { clientMutationId: "receipt-undo", entryId: childRef } as never,
+      },
+    });
+    expect(restarted.list(SCOPE)[0]!.op).toMatchObject({
+      input: { entryId: 81, expectedRevision: 2 },
+    });
+    await drain(restarted, sender, SCOPE);
+    expect(sent).toEqual([
+      { kind: "update", revision: 1 },
+      { kind: "delete", revision: 2 },
+    ]);
+  });
+
+  test("numeric server-ID mutations refresh all matching receipt aliases only in their owner scope", async () => {
+    const store = memoryStore();
+    store.putEntryReceipt!(SCOPE, "alias-a", "child", 81, 1);
+    store.putEntryReceipt!(SCOPE, "alias-b", "child", 81, 1);
+    store.putEntryReceipt!(OTHER, "other-owner", "child", 81, 1);
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: { clientMutationId: "numeric-edit", entryId: 81, amount: 90, unit: "g" } as never,
+      },
+    });
+    const sender: DiarySender = {
+      ...fakeServer().sender,
+      updateEntry: async (input) => ({
+        outcome: "applied",
+        entry: entry(input.entryId, 2),
+        targetId: String(input.entryId),
+      }),
+    };
+    await drain(store, sender, SCOPE);
+    expect(store.getEntryReceipt!(SCOPE, "alias-a", "child")).toEqual({ entryId: 81, revision: 2 });
+    expect(store.getEntryReceipt!(SCOPE, "alias-b", "child")).toEqual({ entryId: 81, revision: 2 });
+    expect(store.getEntryReceipt!(OTHER, "other-owner", "child")).toEqual({
+      entryId: 81,
+      revision: 1,
+    });
+  });
+
+  test("cross-date update projects the pending entry only on its destination date", () => {
+    const store = memoryStore();
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "move-date",
+          entryId: 7,
+          amount: 90,
+          unit: "g",
+          localDate: "2026-10-13",
+          timeZone: "UTC",
+        } as never,
+      },
+    });
+    const original = entry(7, 1, { localDate: "2026-10-12" });
+    expect(mergeDay([original], store.list(SCOPE), "2026-10-12")).toEqual([]);
+    expect(mergeDay([original], store.list(SCOPE), "2026-10-13")[0]).toMatchObject({
+      kind: "server",
+      entry: { amount: 90, localDate: "2026-10-13" },
+    });
+  });
+
+  test("projects nutrients with canonical basis conversion in both serving directions", () => {
+    const store = memoryStore();
+    const per100g = entry(7, 1, {
+      food: {
+        ...entry(7, 1).food,
+        basis: {
+          nutrientBasisAmount: 100,
+          nutrientBasisUnit: "g",
+          servingSizeAmount: 30,
+          servingSizeUnit: "g",
+          servingLabel: "cup",
+        },
+        nutrientsPerBasis: { energyKcal: 200 } as never,
+      },
+    });
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: { clientMutationId: "to-serving", entryId: 7, amount: 2, unit: "serving" } as never,
+      },
+      entryPreview: per100g,
+    });
+    expect(mergeDay([], store.list(SCOPE), "2026-10-12")[0]).toMatchObject({
+      localEntry: { entry: { nutrients: { energyKcal: 120 } } },
+    });
+
+    const perServing = entry(8, 1, {
+      food: {
+        ...entry(8, 1).food,
+        basis: {
+          nutrientBasisAmount: 1,
+          nutrientBasisUnit: "serving",
+          servingSizeAmount: 250,
+          servingSizeUnit: "g",
+          servingLabel: "bowl",
+        },
+        nutrientsPerBasis: { energyKcal: 300 } as never,
+      },
+    });
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: { clientMutationId: "to-grams", entryId: 8, amount: 125, unit: "g" } as never,
+      },
+      entryPreview: perServing,
+    });
+    expect(mergeDay([], store.list(SCOPE), "2026-10-12")[1]).toMatchObject({
+      localEntry: { entry: { nutrients: { energyKcal: 150 } } },
+    });
+  });
+
+  test("cached copy input persists editable children and removes child before dispatch", () => {
+    const store = memoryStore();
+    const input = cachedCopyDayInput({
+      clientMutationId: "copy-cache",
+      fromDate: "2026-10-12",
+      toDate: "2026-10-13",
+      timeZone: "UTC",
+      entries: [
+        {
+          itemKey: "stable-1",
+          snapshotId: 9,
+          amount: 60,
+          unit: "g",
+          slot: "lunch",
+          preview: { name: "Rice", source: "manual", nutrients: null },
+        },
+      ],
+    });
+    enqueue(store, SCOPE, input);
+    const child = mergeDay([], store.list(SCOPE), "2026-10-13")[0]!;
+    expect(child.kind).toBe("local");
+    if (child.kind !== "local") throw new Error("Expected a local batch row");
+    expect(child.localEntry).toMatchObject({
+      amount: 60,
+      unit: "g",
+      slot: "lunch",
+      ref: { mutationId: "copy-cache", itemKey: "stable-1" },
+    });
+    expect(
+      enqueue(store, SCOPE, {
+        op: {
+          kind: "delete",
+          input: {
+            clientMutationId: "undo-child",
+            entryId: localEntryKey("copy-cache") + ":stable-1",
+          } as never,
+        },
+      }).action,
+    ).toBe("queued");
+    expect(store.list(SCOPE)).toHaveLength(2);
+    expect(store.list(SCOPE)[0]!.batchPreviews?.map((child) => child.itemKey)).toEqual([
+      "stable-1",
+    ]);
+  });
+
+  test("cached template uses numeric revision IDs and exposes ingredient rows", () => {
+    const template = {
+      id: 42,
+      revision: 3,
+      kind: "meal" as const,
+      name: "Breakfast",
+      yieldServings: null,
+      archived: false,
+      createdAt: "",
+      updatedAt: "",
+      summary: {} as never,
+      ingredients: [
+        {
+          food: { name: "Oats", source: "manual" as const },
+          amount: 80,
+          unit: "g",
+          nutrients: { energyKcal: null } as never,
+        },
+      ],
+    };
+    const input = cachedTemplateLogInput(template as never, {
+      clientMutationId: "template-log",
+      localDate: "2026-10-12",
+      timeZone: "UTC",
+      slot: "breakfast",
+    });
+    expect(input.op).toMatchObject({
+      kind: "logTemplate",
+      input: { templateId: 42, templateRevision: 3 },
+    });
+    const store = memoryStore();
+    enqueue(store, SCOPE, input);
+    const row = mergeDay([], store.list(SCOPE), "2026-10-12")[0]!;
+    expect(row.kind).toBe("local");
+    if (row.kind !== "local") throw new Error("Expected a local template row");
+    expect(row.localEntry).toMatchObject({ amount: 80, unit: "g", slot: "breakfast" });
+  });
+
+  test("entry preview projects an uncached destination and chains amount/date edits then delete", () => {
+    const store = memoryStore();
+    const base = entry(7, 1);
+    const source = {
+      ...base,
+      food: { ...base.food, nutrientsPerBasis: { energyKcal: 200 } as never },
+      nutrients: { energyKcal: 200 } as never,
+    };
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "move-a",
+          entryId: 7,
+          amount: 50,
+          unit: "g",
+          localDate: "2026-10-13",
+          timeZone: "Europe/Lisbon",
+        } as never,
+      },
+      entryPreview: source,
+    });
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "move-b",
+          entryId: 7,
+          amount: 25,
+          unit: "g",
+          localDate: "2026-10-14",
+          slot: "dinner",
+        } as never,
+      },
+    });
+    expect(mergeDay([source], store.list(SCOPE), "2026-10-13")).toEqual([]);
+    const moved = mergeDay([], store.list(SCOPE), "2026-10-14")[0]!;
+    expect(moved.kind).toBe("local");
+    if (moved.kind !== "local") throw new Error("Expected a local moved row");
+    expect(moved.localEntry).toMatchObject({
+      amount: 25,
+      localDate: "2026-10-14",
+      slot: "dinner",
+      entry: { nutrients: { energyKcal: 50 } },
+    });
+    enqueue(store, SCOPE, {
+      op: { kind: "delete", input: { clientMutationId: "delete-move", entryId: 7 } as never },
+    });
+    expect(mergeDay([], store.list(SCOPE), "2026-10-14")).toEqual([]);
+  });
+
+  test("ACK projection dedupes against refreshed server entry", () => {
+    const store = memoryStore();
+    const source = entry(7, 1);
+    enqueue(store, SCOPE, {
+      op: {
+        kind: "update",
+        input: {
+          clientMutationId: "move-ack",
+          entryId: 7,
+          amount: 45,
+          unit: "g",
+          localDate: "2026-10-13",
+        } as never,
+      },
+      entryPreview: source,
+    });
+    const refreshed = entry(7, 2, { localDate: "2026-10-13", amount: 45 });
+    const rows = mergeDay([refreshed], store.list(SCOPE), "2026-10-13");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: "server", entry: { id: 7, amount: 45 } });
   });
 });

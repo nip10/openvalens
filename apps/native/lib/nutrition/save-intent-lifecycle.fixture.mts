@@ -175,6 +175,74 @@ function outboxRows() {
 }
 
 describe("mounted Add Food lifecycle and edit gates", () => {
+  test("retained Save and edit callbacks lose authority after invalidation and context replacement", async () => {
+    session = {
+      user: { id: "lifecycle-a" },
+      session: { id: "session-retained", activeOrganizationId: "org" },
+    };
+    clearDiaryOutbox(scope);
+    closes = 0;
+    const origin = context("2026-10-21", "UTC");
+    const next = context("2026-10-22", "UTC");
+    const root = await mount(origin);
+    const old = captured.lifecycle;
+    const oldEdit = captured.onChangeText;
+    const oldCanMutate = old.canMutate;
+
+    const active = begin(origin);
+    expect(active.intent).toBeTruthy();
+    await TestRenderer.act(async () => captured.onCancel());
+    await TestRenderer.act(async () => oldEdit("stale edit"));
+    let staleBegin!: ReturnType<typeof old.begin>;
+    TestRenderer.act(() => {
+      staleBegin = old.begin(active.ticket, "foods-and-amount", () => crypto.randomUUID());
+    });
+    expect(staleBegin).toBeNull();
+    expect(oldCanMutate()).toBe(false);
+
+    await update(root, next);
+    await TestRenderer.act(async () => oldEdit("old-context edit"));
+    TestRenderer.act(() => {
+      staleBegin = old.begin(active.ticket, "foods-and-amount", () => crypto.randomUUID());
+    });
+    expect(staleBegin).toBeNull();
+    expect(oldCanMutate()).toBe(false);
+    expect(root.root.findByProps({ accessibilityLabel: "Food name" }).props.value).toBe(
+      "initial draft",
+    );
+    expect(outboxRows()).toHaveLength(0);
+
+    // Current callbacks on the replacement context retain ordinary behavior.
+    await TestRenderer.act(async () =>
+      root.root.findByProps({ accessibilityLabel: "Food name" }).props.onChangeText("live edit"),
+    );
+    expect(root.root.findByProps({ accessibilityLabel: "Food name" }).props.value).toBe(
+      "live edit",
+    );
+    await TestRenderer.act(async () => root.unmount());
+  });
+
+  test("retained callbacks cannot start another intent after unmount", async () => {
+    session = {
+      user: { id: "lifecycle-a" },
+      session: { id: "session-retired", activeOrganizationId: "org" },
+    };
+    clearDiaryOutbox(scope);
+    const origin = context("2026-10-21", "UTC");
+    const root = await mount(origin);
+    const old = captured.lifecycle;
+    const oldEdit = captured.onChangeText;
+    await TestRenderer.act(async () => root.unmount());
+    await TestRenderer.act(async () => oldEdit("stale after unmount"));
+    let staleBegin!: ReturnType<typeof old.begin>;
+    TestRenderer.act(() => {
+      staleBegin = old.begin(null, "foods-and-amount", () => crypto.randomUUID());
+    });
+    expect(staleBegin).toBeNull();
+    expect(old.canMutate()).toBe(false);
+    expect(outboxRows()).toHaveLength(0);
+  });
+
   test("retained keyboard input handler is blocked while pending; Cancel remains accessible", async () => {
     session = {
       user: { id: "lifecycle-a" },
