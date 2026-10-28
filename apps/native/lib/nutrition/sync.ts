@@ -3,7 +3,7 @@ import * as Network from "expo-network";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 
-import { clearCachePrefix } from "@/lib/offline/cache";
+import { clearCachePrefix, getOfflineCleanupGeneration } from "@/lib/offline/cache";
 import {
   isOfflineWriteTicketCurrent,
   invalidateOfflineWriteTickets,
@@ -21,6 +21,8 @@ import {
   retry,
   summarizeOutbox,
   type EnqueueInput,
+  type LocalEntryRef,
+  type DiaryOp,
   type QueuedChange,
 } from "./outbox";
 import { clearDiaryOutbox, sqliteOutboxStore } from "./store";
@@ -48,6 +50,8 @@ const sender = {
     client.nutritionDiary.setDayStatus(input),
   copyDay: (input: Parameters<typeof client.nutritionDiary.copyDay>[0]) =>
     client.nutritionDiary.copyDay(input),
+  logTemplate: (input: import("./outbox").LogTemplateInput) =>
+    client.nutritionDiary.logTemplate(input),
 };
 
 let scope: string | null = null;
@@ -66,10 +70,12 @@ function emit(): void {
 async function drainNow(): Promise<void> {
   const current = scope;
   if (!current || draining || !online) return;
+  const cleanupGeneration = getOfflineCleanupGeneration();
   draining = true;
   try {
     const result = await drain(sqliteOutboxStore, sender, current, {
-      isCurrentScope: () => scope === current,
+      isCurrentScope: () =>
+        scope === current && getOfflineCleanupGeneration() === cleanupGeneration,
       onChange: emit,
     });
     if (result.stopped === "network") online = false;
@@ -118,6 +124,21 @@ export type DiaryOutbox = {
   enqueue: (input: EnqueueInput) => void;
   beginWrite: () => OfflineWriteTicket | null;
   enqueueForIntent: (ticket: OfflineWriteTicket | null, input: EnqueueInput) => boolean;
+  enqueueForIntentWithHandle: (
+    ticket: OfflineWriteTicket | null,
+    input: EnqueueInput,
+  ) => { id: string; action: "queued" | "coalesced" | "cancelled" } | null;
+  updateEntry: (
+    ticket: OfflineWriteTicket | null,
+    ref: LocalEntryRef,
+    input: Omit<Extract<DiaryOp, { kind: "update" }>["input"], "entryId">,
+    entryPreview?: import("@openvalens/api/contracts/nutrition-diary").DiaryEntry,
+  ) => { id: string; action: "queued" | "coalesced" | "cancelled" } | null;
+  deleteEntry: (
+    ticket: OfflineWriteTicket | null,
+    ref: LocalEntryRef,
+    clientMutationId: string,
+  ) => { id: string; action: "queued" | "coalesced" | "cancelled" } | null;
   keepMine: (id: string) => void;
   discard: (id: string) => void;
   retry: (id: string) => void;
@@ -176,6 +197,73 @@ export function useDiaryOutbox(): DiaryOutbox {
     },
     [currentScope],
   );
+  const enqueueForIntentWithHandle = useCallback(
+    (ticket: OfflineWriteTicket | null, input: EnqueueInput) => {
+      if (
+        !ticket ||
+        !currentScope ||
+        !isOfflineWriteTicketCurrent(ticket, currentScope) ||
+        consumedWriteTickets.has(ticket as object)
+      )
+        return null;
+      try {
+        const result = enqueue(sqliteOutboxStore, currentScope, input);
+        consumedWriteTickets.add(ticket as object);
+        emit();
+        void drainNow();
+        return result;
+      } catch {
+        return null;
+      }
+    },
+    [currentScope],
+  );
+  const mutateRef = useCallback(
+    (
+      ticket: OfflineWriteTicket | null,
+      ref: LocalEntryRef,
+      op: "update" | "delete",
+      body: Record<string, unknown>,
+      id: string,
+      entryPreview?: import("@openvalens/api/contracts/nutrition-diary").DiaryEntry,
+    ) => {
+      if (
+        !ticket ||
+        !currentScope ||
+        !isOfflineWriteTicketCurrent(ticket, currentScope) ||
+        consumedWriteTickets.has(ticket as object)
+      )
+        return null;
+      const target =
+        ref.kind === "server"
+          ? ref.entryId
+          : `local:${ref.mutationId}${ref.itemKey ? `:${ref.itemKey}` : ""}`;
+      const payload =
+        op === "update"
+          ? {
+              kind: "update" as const,
+              input: {
+                ...body,
+                clientMutationId: id,
+                entryId: target,
+                ...(ref.kind === "server" ? { expectedRevision: ref.revision } : {}),
+              },
+            }
+          : {
+              kind: "delete" as const,
+              input: {
+                clientMutationId: id,
+                entryId: target,
+                ...(ref.kind === "server" ? { expectedRevision: ref.revision } : {}),
+              },
+            };
+      return enqueueForIntentWithHandle(ticket, {
+        op: payload as DiaryOp,
+        ...(entryPreview ? { entryPreview } : {}),
+      });
+    },
+    [currentScope, enqueueForIntentWithHandle],
+  );
 
   return {
     scope: currentScope,
@@ -188,6 +276,18 @@ export function useDiaryOutbox(): DiaryOutbox {
     },
     beginWrite,
     enqueueForIntent,
+    enqueueForIntentWithHandle,
+    updateEntry: (ticket, ref, input, entryPreview) =>
+      mutateRef(
+        ticket,
+        ref,
+        "update",
+        input as unknown as Record<string, unknown>,
+        input.clientMutationId,
+        entryPreview,
+      ),
+    deleteEntry: (ticket, ref, clientMutationId) =>
+      mutateRef(ticket, ref, "delete", {}, clientMutationId),
     keepMine: (id) => withScope((s) => keepMine(sqliteOutboxStore, s, id)),
     discard: (id) => withScope((s) => discard(sqliteOutboxStore, s, id)),
     retry: (id) => withScope((s) => retry(sqliteOutboxStore, s, id)),

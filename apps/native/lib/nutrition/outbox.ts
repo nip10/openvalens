@@ -7,8 +7,13 @@ import type {
   NutrientValues,
   SetDayStatusInput,
   UpdateEntryInput,
+  MealSlot,
+  AmountUnit,
 } from "@openvalens/api/contracts/nutrition-diary";
+import type { NutritionTemplate } from "@openvalens/api/contracts/nutrition-templates";
+import type { logTemplateInput } from "@openvalens/api/contracts/nutrition-templates";
 import type { DiarySyncState } from "@openvalens/api/presenters/nutrition-diary";
+import { previewNutrients } from "@openvalens/api/presenters/nutrition-diary";
 
 /**
  * Durable meal-diary outbox (Issue #77). Pure logic: storage and transport
@@ -31,13 +36,142 @@ import type { DiarySyncState } from "@openvalens/api/presenters/nutrition-diary"
  *   only touch the current account's items.
  */
 
+export type OfflineCopyDayInput = CopyDayInput;
+/** Entry references stored by the native outbox; local refs never go on wire. */
+export type LocalEntryId = number | `${typeof LOCAL_ENTRY_PREFIX}${string}`;
+export type LocalUpdateEntryInput = Omit<UpdateEntryInput, "entryId"> & { entryId: LocalEntryId };
+export type LocalEntryChangeInput = Omit<EntryChangeInput, "entryId"> & { entryId: LocalEntryId };
+
 export type DiaryOp =
   | { kind: "log"; input: LogEntryInput }
-  | { kind: "update"; input: UpdateEntryInput }
-  | { kind: "delete"; input: EntryChangeInput }
-  | { kind: "restore"; input: EntryChangeInput }
+  | { kind: "update"; input: LocalUpdateEntryInput }
+  | { kind: "delete"; input: LocalEntryChangeInput }
+  | { kind: "restore"; input: LocalEntryChangeInput }
   | { kind: "setDayStatus"; input: SetDayStatusInput & { clientMutationId: string } }
-  | { kind: "copyDay"; input: CopyDayInput };
+  | { kind: "copyDay"; input: OfflineCopyDayInput }
+  | { kind: "logTemplate"; input: LogTemplateInput };
+
+/** Native offline form of the accepted template-log wire request. */
+export type LogTemplateInput = import("zod").infer<typeof logTemplateInput>;
+export type LocalEntryRef =
+  | { kind: "server"; entryId: number; revision: number }
+  | { kind: "pending"; mutationId: string; itemKey?: string };
+export type BatchPreview = {
+  itemKey: string;
+  preview: LocalPreview;
+  amount: number;
+  unit: AmountUnit;
+  slot: MealSlot;
+  localDate: string;
+  timeZone?: string;
+  basis?: DiaryEntry["food"]["basis"];
+  nutrientsPerBasis?: NutrientValues;
+};
+
+/** Expand an immutable cached template for local display only; never wire nutrients. */
+export type TemplateIngredientPreview = { itemKey: string; preview: LocalPreview };
+
+export function previewTemplateIngredients<
+  T extends {
+    itemKey: string;
+    name: string;
+    source: DiaryEntry["food"]["source"];
+    nutrients: NutrientValues | null;
+    amount: number;
+    yieldServings?: number | null;
+  },
+>(ingredients: readonly T[], servings: number | undefined): TemplateIngredientPreview[] {
+  return ingredients.map((ingredient) => {
+    const factor =
+      servings !== undefined && ingredient.yieldServings ? servings / ingredient.yieldServings : 1;
+    const nutrients =
+      ingredient.nutrients === null
+        ? null
+        : (Object.fromEntries(
+            Object.entries(ingredient.nutrients).map(([key, value]) => [
+              key,
+              value === null ? null : value * factor,
+            ]),
+          ) as NutrientValues);
+    return {
+      itemKey: ingredient.itemKey,
+      preview: { name: ingredient.name, source: ingredient.source, nutrients },
+    };
+  });
+}
+
+/** Create an offline copy request from immutable cached entries; only IDs/amounts are sent. */
+export function cachedCopyDayInput(
+  input: Omit<CopyDayInput, "entries" | "entryIds"> & {
+    entries: readonly {
+      itemKey: string;
+      snapshotId: number;
+      amount: number;
+      unit: AmountUnit;
+      slot: MealSlot;
+      preview: LocalPreview;
+    }[];
+  },
+): EnqueueInput {
+  const { entries, ...request } = input;
+  return {
+    op: {
+      kind: "copyDay",
+      input: {
+        ...request,
+        entries: entries.map(({ itemKey, snapshotId, amount, unit, slot }) => ({
+          itemKey,
+          snapshotId,
+          amount,
+          unit,
+          slot,
+        })),
+      },
+    },
+    batchPreviews: entries.map(({ itemKey, amount, unit, slot, preview }) => ({
+      itemKey,
+      amount,
+      unit,
+      slot,
+      localDate: request.toDate,
+      timeZone: request.timeZone,
+      preview,
+    })),
+  };
+}
+
+/** Create a frozen-revision template log; cached template content is display-only. */
+export function cachedTemplateLogInput(
+  template: NutritionTemplate,
+  input: Omit<LogTemplateInput, "templateId" | "templateRevision">,
+): EnqueueInput {
+  const factor = template.kind === "recipe" ? input.servings! / template.yieldServings : 1;
+  return {
+    op: {
+      kind: "logTemplate",
+      input: { ...input, templateId: template.id, templateRevision: template.revision },
+    },
+    batchPreviews: template.ingredients.map((ingredient, index) => {
+      const nutrients = Object.fromEntries(
+        Object.entries(ingredient.nutrients).map(([key, value]) => [
+          key,
+          value === null ? null : value * factor,
+        ]),
+      ) as NutrientValues;
+      return {
+        itemKey: `template-${template.id}-${template.revision}-${index}`,
+        amount: ingredient.amount * factor,
+        unit: ingredient.unit,
+        slot: input.slot,
+        localDate: input.localDate,
+        timeZone: input.timeZone,
+        basis: ingredient.food.basis,
+        nutrientsPerBasis: ingredient.food.nutrientsPerBasis,
+        preview: { name: ingredient.food.name, source: ingredient.food.source, nutrients },
+      };
+    }),
+  };
+}
 
 /** What the diary shows for a queued log before the server has it. */
 export type LocalPreview = {
@@ -45,6 +179,8 @@ export type LocalPreview = {
   source: DiaryEntry["food"]["source"];
   /** Preview values for the logged amount; `null` when they could not be computed. */
   nutrients: NutrientValues | null;
+  basis?: DiaryEntry["food"]["basis"];
+  nutrientsPerBasis?: NutrientValues;
 };
 
 export type QueuedChange = {
@@ -61,6 +197,14 @@ export type QueuedChange = {
   /** Server state returned with a conflict. */
   conflict: DiaryEntry | null;
   preview: LocalPreview | null;
+  /** Stable children for an atomic copy/template batch (native preview only). */
+  batchPreviews?: BatchPreview[];
+  /** Native-only immutable source for optimistic server-entry projections. */
+  entryPreview?: DiaryEntry;
+  /** Native-only origin of a pending reference resolved to a server ID. */
+  receiptRef?: { mutationId: string; itemKey?: string };
+  /** Immutable request captured on first attempt; retries never change payload. */
+  frozenOp?: DiaryOp;
   createdAt: number;
 };
 
@@ -71,6 +215,21 @@ export type OutboxStore = {
   put(item: QueuedChange): void;
   remove(scope: string, id: string): void;
   nextSeq(): number;
+  /** Optional durable reference receipt support; old stores remain readable. */
+  getEntryReceipt?(
+    scope: string,
+    mutationId: string,
+    itemKey?: string,
+  ): { entryId: number | string; revision: number } | null;
+  putEntryReceipt?(
+    scope: string,
+    mutationId: string,
+    itemKey: string | undefined,
+    entryId: number | string,
+    revision: number,
+  ): void;
+  /** Refresh every durable pending-reference alias for a successfully mutated entry. */
+  updateEntryReceipts?(scope: string, entryId: number | string, revision: number): void;
 };
 
 export type DiarySender = {
@@ -80,12 +239,13 @@ export type DiarySender = {
   restoreEntry(input: EntryChangeInput): Promise<EntryOutcome>;
   setDayStatus(input: SetDayStatusInput): Promise<unknown>;
   copyDay(input: CopyDayInput): Promise<unknown>;
+  logTemplate?(input: LogTemplateInput): Promise<unknown>;
 };
 
 /** Prefix for entries that exist only in the outbox (keyed by their log's mutation id). */
 export const LOCAL_ENTRY_PREFIX = "local:";
 
-export function localEntryKey(logId: string): string {
+export function localEntryKey(logId: string): `${typeof LOCAL_ENTRY_PREFIX}${string}` {
   return `${LOCAL_ENTRY_PREFIX}${logId}`;
 }
 
@@ -109,8 +269,12 @@ export function localDateOf(op: DiaryOp): string | null {
     case "log":
     case "setDayStatus":
       return op.input.localDate;
+    case "update":
+      return (op.input as UpdateEntryInput & { localDate?: string }).localDate ?? null;
     case "copyDay":
       return op.input.toDate;
+    case "logTemplate":
+      return op.input.localDate;
     default:
       return null;
   }
@@ -137,7 +301,13 @@ function isPermanentError(error: unknown): boolean {
   );
 }
 
-export type EnqueueInput = { op: DiaryOp; preview?: LocalPreview | null };
+export type EnqueueInput = {
+  op: DiaryOp;
+  preview?: LocalPreview | null;
+  batchPreviews?: BatchPreview[];
+  entryPreview?: DiaryEntry;
+};
+export type BatchEnqueueInput = EnqueueInput;
 
 /**
  * Queues a change, coalescing changes to entries that only exist locally:
@@ -156,10 +326,64 @@ export function enqueue(
   if (op.kind === "update" || op.kind === "delete" || op.kind === "restore") {
     const target = String(op.input.entryId);
     if (target.startsWith(LOCAL_ENTRY_PREFIX)) {
-      const logId = target.slice(LOCAL_ENTRY_PREFIX.length);
+      const [logId, ...childParts] = target.slice(LOCAL_ENTRY_PREFIX.length).split(":");
+      const childKey = childParts.length ? childParts.join(":") : undefined;
       const log = items.find((item) => item.id === logId && item.op.kind === "log");
+      const batch = items.find(
+        (item) =>
+          item.id === logId && (item.op.kind === "copyDay" || item.op.kind === "logTemplate"),
+      );
+      // Durable receipts outlive the parent batch row. Resolve first so refs
+      // captured before ACK remain usable after drain/restart.
+      const durableReceipt = store.getEntryReceipt?.(scope, logId, childKey);
+      if (durableReceipt) {
+        store.put({
+          id: op.input.clientMutationId,
+          scope,
+          seq: store.nextSeq(),
+          op: {
+            ...op,
+            input: {
+              ...op.input,
+              entryId: durableReceipt.entryId,
+              expectedRevision: durableReceipt.revision,
+            },
+          } as DiaryOp,
+          status: "queued",
+          attempts: 0,
+          lastErrorCode: null,
+          conflict: null,
+          preview: input.preview ?? null,
+          entryPreview: input.entryPreview,
+          receiptRef: { mutationId: logId, ...(childKey ? { itemKey: childKey } : {}) },
+          createdAt: now,
+        });
+        return { action: "queued", id: op.input.clientMutationId };
+      }
+      if ((!log || log.op.kind !== "log") && (!batch || !childKey))
+        throw new Error("Queued entry not found");
+      // Batch payloads are immutable semantic requests: child edits/deletes
+      // are dependent operations, never mutations to the parent's ACK map.
+      const source = log ?? batch!;
+      if (source.status === "syncing" || source.frozenOp || batch) {
+        const dependent = { ...op, input: { ...op.input, entryId: target } } as DiaryOp;
+        store.put({
+          id: op.input.clientMutationId,
+          scope,
+          seq: store.nextSeq(),
+          op: dependent,
+          status: "queued",
+          attempts: 0,
+          lastErrorCode: null,
+          conflict: null,
+          preview: input.preview ?? null,
+          entryPreview: input.entryPreview,
+          receiptRef: { mutationId: logId, ...(childKey ? { itemKey: childKey } : {}) },
+          createdAt: now,
+        });
+        return { action: "queued", id: op.input.clientMutationId };
+      }
       if (!log || log.op.kind !== "log") throw new Error("Queued entry not found");
-      if (log.status === "syncing") throw new Error("Entry is syncing; try again");
       if (op.kind === "delete") {
         store.remove(scope, log.id);
         return { action: "cancelled", id: log.id };
@@ -167,13 +391,40 @@ export function enqueue(
       if (op.kind === "update") {
         const amount = op.input.amount;
         const unit = op.input.unit;
+        const extended = op.input as typeof op.input & { localDate?: string; timeZone?: string };
+        const preview =
+          input.preview ??
+          (log.preview
+            ? {
+                ...log.preview,
+                nutrients:
+                  log.preview.basis && log.preview.nutrientsPerBasis
+                    ? previewNutrients(
+                        log.preview.basis,
+                        log.preview.nutrientsPerBasis,
+                        amount,
+                        unit,
+                      )
+                    : amount === log.op.input.amount && unit === log.op.input.unit
+                      ? log.preview.nutrients
+                      : null,
+              }
+            : log.preview);
         store.put({
           ...log,
           op: {
             kind: "log",
-            input: { ...log.op.input, amount, unit, slot: op.input.slot ?? log.op.input.slot },
+            input: {
+              ...log.op.input,
+              amount,
+              unit,
+              slot: op.input.slot ?? log.op.input.slot,
+              ...(extended.localDate ? { localDate: extended.localDate } : {}),
+              ...(extended.timeZone ? { timeZone: extended.timeZone } : {}),
+            },
           },
-          preview: input.preview ?? log.preview,
+          preview,
+          entryPreview: input.entryPreview ?? log.entryPreview,
           status: "queued",
           lastErrorCode: null,
         });
@@ -209,33 +460,53 @@ export function enqueue(
     lastErrorCode: null,
     conflict: null,
     preview: input.preview ?? null,
+    ...(input.batchPreviews ? { batchPreviews: input.batchPreviews } : {}),
+    ...(input.entryPreview ? { entryPreview: input.entryPreview } : {}),
     createdAt: now,
   });
   return { action: "queued", id };
 }
 
-async function send(sender: DiarySender, op: DiaryOp): Promise<EntryOutcome | null> {
+async function send(sender: DiarySender, op: DiaryOp): Promise<unknown> {
   switch (op.kind) {
-    case "log":
-      await sender.logEntry(op.input);
-      return null;
-    case "update":
-      return sender.updateEntry(op.input);
-    case "delete":
-      return sender.deleteEntry(op.input);
-    case "restore":
-      return sender.restoreEntry(op.input);
+    case "log": {
+      return sender.logEntry(op.input);
+    }
+    case "update": {
+      const entryId = wireEntryId(op.input.entryId);
+      return sender.updateEntry({ ...op.input, entryId });
+    }
+    case "delete": {
+      const entryId = wireEntryId(op.input.entryId);
+      return sender.deleteEntry({ ...op.input, entryId });
+    }
+    case "restore": {
+      const entryId = wireEntryId(op.input.entryId);
+      return sender.restoreEntry({ ...op.input, entryId });
+    }
     case "setDayStatus":
       await sender.setDayStatus(op.input);
       return null;
     case "copyDay":
-      await sender.copyDay(op.input);
-      return null;
+      return sender.copyDay(op.input);
+    case "logTemplate":
+      if (!sender.logTemplate)
+        throw Object.assign(new Error("Template logging unavailable"), { code: "INVALID_INPUT" });
+      return (await sender.logTemplate(op.input)) as EntryOutcome;
     default:
       // A row from another lane or a corrupt queue must never be acknowledged
       // as if a meal operation had succeeded.
       throw Object.assign(new Error("Unknown diary operation"), { code: "INVALID_INPUT" });
   }
+}
+
+/** Validate that all local references were resolved before crossing the wire boundary. */
+function wireEntryId(entryId: LocalEntryId): number {
+  if (typeof entryId !== "number")
+    throw Object.assign(new Error("Local diary entry is not acknowledged"), {
+      code: "INVALID_INPUT",
+    });
+  return entryId;
 }
 
 /** Later changes to the same entry build on the revision this one produced. */
@@ -281,20 +552,52 @@ export async function drain(
     // Re-read: an earlier iteration may have rebased this item.
     const item = store.list(scope).find((candidate) => candidate.id === listed.id);
     if (!item) continue;
-    const key = entryKeyOf(item.op);
+    // Dependent edits/deletes against a dispatched local log wait until its ACK
+    // has supplied the authoritative server id and revision.
+    let readyItem = item;
+    if (
+      (item.op.kind === "update" || item.op.kind === "delete" || item.op.kind === "restore") &&
+      String(item.op.input.entryId).startsWith(LOCAL_ENTRY_PREFIX)
+    ) {
+      const [mutationId, ...parts] = String(item.op.input.entryId)
+        .slice(LOCAL_ENTRY_PREFIX.length)
+        .split(":");
+      const receipt = store.getEntryReceipt?.(
+        scope,
+        mutationId!,
+        parts.length ? parts.join(":") : undefined,
+      );
+      if (!receipt) continue;
+      readyItem = {
+        ...item,
+        op: {
+          ...item.op,
+          input: { ...item.op.input, entryId: receipt.entryId, expectedRevision: receipt.revision },
+        } as DiaryOp,
+      };
+    }
+    const key = entryKeyOf(readyItem.op);
     if (item.status === "needs_attention") {
       if (key) blocked.add(key);
       continue;
     }
     if (key && blocked.has(key)) continue;
 
-    store.put({ ...item, status: "syncing" });
+    // Freeze before crossing the network boundary. Any edits after this point
+    // are dependent rows, while ambiguous failures retry this exact payload.
+    const dispatched = readyItem.frozenOp ? readyItem : { ...readyItem, frozenOp: readyItem.op };
+    store.put({ ...dispatched, status: "syncing" });
     options.onChange?.();
     try {
-      const outcome = await send(sender, item.op);
+      const result = await send(sender, dispatched.frozenOp!);
+      // Scope can change while the request is in flight (including a same-user
+      // relogin). Never commit an old epoch's ACK into the current store.
+      if (options.isCurrentScope && !options.isCurrentScope())
+        return { sent, stopped: "scope_changed" };
+      const outcome = result as EntryOutcome | null;
       if (outcome?.outcome === "conflict") {
         store.put({
-          ...item,
+          ...dispatched,
           status: "needs_attention",
           attempts: item.attempts + 1,
           lastErrorCode: "CONFLICT",
@@ -302,19 +605,91 @@ export async function drain(
         });
         if (key) blocked.add(key);
       } else {
+        if (store.putEntryReceipt) {
+          if (item.op.kind === "log") {
+            const value = result as {
+              entry?: DiaryEntry;
+              id?: number | string;
+              revision?: number;
+            } | null;
+            const entry =
+              value &&
+              (value.entry ??
+                (value.id !== undefined && value.revision !== undefined
+                  ? (value as DiaryEntry)
+                  : null));
+            if (entry) store.putEntryReceipt(scope, item.id, undefined, entry.id, entry.revision);
+          }
+          if (item.op.kind === "copyDay" || item.op.kind === "logTemplate") {
+            const children =
+              (
+                result as {
+                  entries?: Array<DiaryEntry & { itemKey?: string; entryId?: number | string }>;
+                } | null
+              )?.entries ?? [];
+            for (let index = 0; index < children.length; index++) {
+              const child = children[index]!;
+              const key = child.itemKey ?? item.batchPreviews?.[index]?.itemKey;
+              const entryId = child.entryId ?? child.id;
+              if (key && entryId !== undefined && child.revision !== undefined)
+                store.putEntryReceipt(scope, item.id, key, entryId, child.revision);
+            }
+          }
+          if (
+            (item.op.kind === "update" ||
+              item.op.kind === "delete" ||
+              item.op.kind === "restore") &&
+            String(item.op.input.entryId).startsWith(LOCAL_ENTRY_PREFIX) &&
+            outcome?.outcome &&
+            "entry" in outcome
+          ) {
+            const [parent, ...parts] = String(item.op.input.entryId)
+              .slice(LOCAL_ENTRY_PREFIX.length)
+              .split(":");
+            store.putEntryReceipt(
+              scope,
+              parent!,
+              parts.length ? parts.join(":") : undefined,
+              outcome.entry.id,
+              outcome.entry.revision,
+            );
+          }
+        }
+        if (
+          (item.op.kind === "update" || item.op.kind === "delete" || item.op.kind === "restore") &&
+          outcome?.outcome &&
+          "entry" in outcome
+        ) {
+          if (store.updateEntryReceipts) {
+            store.updateEntryReceipts(scope, outcome.entry.id, outcome.entry.revision);
+          } else if (item.receiptRef && store.putEntryReceipt) {
+            store.putEntryReceipt(
+              scope,
+              item.receiptRef.mutationId,
+              item.receiptRef.itemKey,
+              outcome.entry.id,
+              outcome.entry.revision,
+            );
+          }
+        }
         store.remove(scope, item.id);
-        if (outcome) rebase(store, scope, item, outcome.entry.revision);
+        if (outcome?.outcome && "entry" in outcome)
+          rebase(store, scope, readyItem, outcome.entry.revision);
         sent += 1;
       }
     } catch (error) {
+      // A rejected request is just as epoch-sensitive as an ACK. Leave the
+      // syncing row untouched for the owning epoch to recover/replay.
+      if (options.isCurrentScope && !options.isCurrentScope())
+        return { sent, stopped: "scope_changed" };
       if (isAuthError(error)) {
-        store.put({ ...item, status: "queued", lastErrorCode: "UNAUTHENTICATED" });
+        store.put({ ...dispatched, status: "queued", lastErrorCode: "UNAUTHENTICATED" });
         options.onChange?.();
         return { sent, stopped: "auth" };
       }
       if (isPermanentError(error)) {
         store.put({
-          ...item,
+          ...dispatched,
           status: "needs_attention",
           attempts: item.attempts + 1,
           lastErrorCode: errorCodeOf(error),
@@ -322,7 +697,7 @@ export async function drain(
         if (key) blocked.add(key);
       } else {
         store.put({
-          ...item,
+          ...dispatched,
           status: "queued",
           attempts: item.attempts + 1,
           lastErrorCode: "NETWORK",
@@ -359,6 +734,7 @@ export function keepMine(store: OutboxStore, scope: string, id: string): void {
       status: "queued",
       conflict: null,
       lastErrorCode: null,
+      frozenOp: undefined,
     });
     store.put({
       ...item,
@@ -375,15 +751,23 @@ export function keepMine(store: OutboxStore, scope: string, id: string): void {
       status: "queued",
       conflict: null,
       lastErrorCode: null,
+      frozenOp: undefined,
     });
     return;
   }
+  const mutationId = `${item.id}:keep-mine`.slice(0, 64);
+  store.remove(scope, item.id);
   store.put({
     ...item,
-    op: { ...item.op, input: { ...item.op.input, expectedRevision: server.revision } } as DiaryOp,
+    id: mutationId,
+    op: {
+      ...item.op,
+      input: { ...item.op.input, clientMutationId: mutationId, expectedRevision: server.revision },
+    } as DiaryOp,
     status: "queued",
     conflict: null,
     lastErrorCode: null,
+    frozenOp: undefined,
   });
 }
 
@@ -418,7 +802,44 @@ export type DiaryRow =
       sync: DiarySyncState;
       pendingKind: DiaryOp["kind"] | null;
     }
-  | { kind: "local"; key: string; change: QueuedChange; sync: DiarySyncState };
+  | {
+      kind: "local";
+      key: string;
+      change: QueuedChange;
+      sync: DiarySyncState;
+      localEntry?: {
+        amount: number;
+        unit: string;
+        slot: MealSlot;
+        localDate: string;
+        timeZone?: string;
+        ref: LocalEntryRef;
+        entry?: DiaryEntry;
+      };
+    };
+
+function projectEntry(
+  source: DiaryEntry,
+  op: Extract<DiaryOp, { kind: "update" }> | Extract<DiaryOp, { kind: "delete" }>,
+): DiaryEntry {
+  if (op.kind === "delete") return { ...source, deleted: true };
+  const update = op.input as typeof op.input & { localDate?: string; timeZone?: string };
+  const basis = source.food.basis;
+  const nutrients =
+    previewNutrients(basis, source.food.nutrientsPerBasis, update.amount, update.unit) ??
+    (Object.fromEntries(
+      Object.keys(source.food.nutrientsPerBasis).map((key) => [key, null]),
+    ) as DiaryEntry["nutrients"]);
+  return {
+    ...source,
+    amount: update.amount,
+    unit: update.unit,
+    slot: update.slot ?? source.slot,
+    localDate: update.localDate ?? source.localDate,
+    timeZone: update.timeZone ?? source.timeZone,
+    nutrients,
+  };
+}
 
 /**
  * Server entries for `localDate` merged with this account's queued changes,
@@ -430,23 +851,122 @@ export function mergeDay(
   localDate: string,
 ): DiaryRow[] {
   const latestByEntry = new Map<string, QueuedChange>();
+  const projections = new Map<string, { change: QueuedChange; entry: DiaryEntry }>();
+  const serverEntries = new Map(entries.map((entry) => [String(entry.id), entry]));
   for (const item of items) {
     const key = entryKeyOf(item.op);
     if (key) latestByEntry.set(key, item);
+    if (item.op.kind === "update" || item.op.kind === "delete") {
+      const entryKey = String(item.op.input.entryId);
+      const previous = projections.get(entryKey);
+      const base = previous?.entry ?? item.entryPreview ?? serverEntries.get(entryKey);
+      if (base) projections.set(entryKey, { change: item, entry: projectEntry(base, item.op) });
+    }
   }
-  const rows: DiaryRow[] = entries.map((entry) => {
-    const pending = latestByEntry.get(String(entry.id));
-    return {
-      kind: "server",
-      key: String(entry.id),
-      entry,
-      sync: pending ? pending.status : "synced",
-      pendingKind: pending ? pending.op.kind : null,
-    };
-  });
+  const rows: DiaryRow[] = entries
+    .filter((entry) => {
+      const projection = projections.get(String(entry.id));
+      return projection ? projection.entry.localDate === localDate : true;
+    })
+    .map((entry) => {
+      const pending = latestByEntry.get(String(entry.id));
+      const projected = projections.get(String(entry.id));
+      return {
+        kind: "server",
+        key: String(entry.id),
+        entry: projected?.entry ?? entry,
+        sync: pending ? pending.status : "synced",
+        pendingKind: pending ? pending.op.kind : null,
+      };
+    });
+  for (const [id, projection] of projections) {
+    if (
+      projection.entry.deleted ||
+      projection.entry.localDate !== localDate ||
+      entries.some((entry) => String(entry.id) === id)
+    )
+      continue;
+    rows.push({
+      kind: "local",
+      key: `move:${id}`,
+      change: projection.change,
+      sync: projection.change.status,
+      localEntry: {
+        amount: projection.entry.amount,
+        unit: projection.entry.unit,
+        slot: projection.entry.slot,
+        localDate: projection.entry.localDate,
+        ref: { kind: "server", entryId: projection.entry.id, revision: projection.entry.revision },
+        entry: projection.entry,
+      },
+    });
+  }
   for (const item of items) {
-    if (item.op.kind !== "log" || item.op.input.localDate !== localDate) continue;
-    rows.push({ kind: "local", key: localEntryKey(item.id), change: item, sync: item.status });
+    const date = localDateOf(item.op);
+    if (item.op.kind === "log" && date === localDate) {
+      rows.push({ kind: "local", key: localEntryKey(item.id), change: item, sync: item.status });
+      continue;
+    }
+    if (item.op.kind === "copyDay" || item.op.kind === "logTemplate") {
+      for (const child of item.batchPreviews ?? []) {
+        const childRef = `${localEntryKey(item.id)}:${child.itemKey}`;
+        let amount = child.amount;
+        let unit = child.unit;
+        let slot = child.slot;
+        let date = child.localDate;
+        let timeZone = child.timeZone;
+        let nutrients = child.preview.nutrients;
+        let removed = false;
+        let newest = item;
+        for (const dependent of items) {
+          if (
+            (dependent.op.kind !== "update" &&
+              dependent.op.kind !== "delete" &&
+              dependent.op.kind !== "restore") ||
+            String(dependent.op.input.entryId) !== childRef
+          )
+            continue;
+          newest = dependent;
+          if (dependent.op.kind === "delete") removed = true;
+          if (dependent.op.kind === "restore") removed = false;
+          if (dependent.op.kind === "update") {
+            amount = dependent.op.input.amount;
+            unit = dependent.op.input.unit;
+            slot = dependent.op.input.slot ?? slot;
+            const extension = dependent.op.input as typeof dependent.op.input & {
+              localDate?: string;
+            };
+            date = extension.localDate ?? date;
+            timeZone =
+              (dependent.op.input as typeof dependent.op.input & { timeZone?: string }).timeZone ??
+              timeZone;
+            nutrients =
+              child.basis && child.nutrientsPerBasis
+                ? previewNutrients(child.basis, child.nutrientsPerBasis, amount, unit)
+                : null;
+          }
+        }
+        if (removed || date !== localDate) continue;
+        rows.push({
+          kind: "local",
+          key: `${localEntryKey(item.id)}:${child.itemKey}`,
+          change: {
+            ...newest,
+            id: `${item.id}:${child.itemKey}`,
+            preview: { ...child.preview, nutrients },
+          } as QueuedChange,
+          sync: newest.status,
+          localEntry: {
+            amount,
+            unit,
+            slot,
+            localDate: date,
+            ...(timeZone ? { timeZone } : {}),
+            ref: { kind: "pending", mutationId: item.id, itemKey: child.itemKey },
+          },
+        });
+      }
+    }
   }
   return rows;
 }

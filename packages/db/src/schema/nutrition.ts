@@ -336,6 +336,7 @@ export const nutritionMealEntry = pgTable(
     snapshotId: integer("snapshot_id").notNull(),
     amount: real("amount").notNull(),
     unit: text("unit").$type<"g" | "ml" | "serving">().notNull(),
+    timeZone: text("time_zone"),
     nutrientFactor: doublePrecision("nutrient_factor").notNull(),
     method: text("method")
       .$type<"manual" | "search" | "barcode" | "quick_add" | "copied">()
@@ -599,6 +600,106 @@ export const nutritionDiaryMutation = pgTable(
       columns: [table.organizationId, table.userId],
       foreignColumns: [member.organizationId, member.userId],
       name: "nutrition_diary_mutation_org_user_member_fk",
+    }).onDelete("restrict"),
+  }),
+);
+
+export const nutritionTemplate = pgTable(
+  "nutrition_template",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"meal" | "recipe">().notNull(),
+    currentRevision: integer("current_revision").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdUnique: uniqueIndex("nutrition_template_org_id_key").on(table.organizationId, table.id),
+    ownerFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_template_org_user_member_fk",
+    }).onDelete("restrict"),
+    ownerIdx: index("nutrition_template_org_user_idx").on(table.organizationId, table.userId),
+    kindCheck: check("nutrition_template_kind_check", sql`${table.kind} in ('meal', 'recipe')`),
+    revisionCheck: check("nutrition_template_revision_check", sql`${table.currentRevision} > 0`),
+  }),
+);
+
+export const nutritionTemplateRevision = pgTable(
+  "nutrition_template_revision",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    templateId: integer("template_id").notNull(),
+    revision: integer("revision").notNull(),
+    kind: text("kind").$type<"meal" | "recipe">().notNull(),
+    name: text("name").notNull(),
+    yieldServings: real("yield_servings"),
+    ingredients: jsonb("ingredients")
+      .$type<{ snapshotId: number; amount: number; unit: "g" | "ml" | "serving" }[]>()
+      .notNull(),
+    clientMutationId: text("client_mutation_id").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    revisionUnique: uniqueIndex("nutrition_template_revision_key").on(
+      table.organizationId,
+      table.templateId,
+      table.revision,
+    ),
+    mutationUnique: uniqueIndex("nutrition_template_revision_mutation_key").on(
+      table.organizationId,
+      table.userId,
+      table.clientMutationId,
+    ),
+    ownerFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_template_revision_org_user_member_fk",
+    }).onDelete("restrict"),
+    templateFk: foreignKey({
+      columns: [table.organizationId, table.templateId],
+      foreignColumns: [nutritionTemplate.organizationId, nutritionTemplate.id],
+      name: "nutrition_template_revision_template_fk",
+    }).onDelete("restrict"),
+    revisionCheck: check("nutrition_template_revision_positive_check", sql`${table.revision} > 0`),
+  }),
+);
+
+export const nutritionDiaryBatch = pgTable(
+  "nutrition_diary_batch",
+  {
+    id: serial("id").primaryKey(),
+    organizationId: orgId(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    clientMutationId: text("client_mutation_id").notNull(),
+    operation: text("operation").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    entryIds: jsonb("entry_ids").$type<number[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  },
+  (table) => ({
+    mutationUnique: uniqueIndex("nutrition_diary_batch_mutation_key").on(
+      table.organizationId,
+      table.userId,
+      table.clientMutationId,
+    ),
+    ownerFk: foreignKey({
+      columns: [table.organizationId, table.userId],
+      foreignColumns: [member.organizationId, member.userId],
+      name: "nutrition_diary_batch_org_user_member_fk",
     }).onDelete("restrict"),
   }),
 );

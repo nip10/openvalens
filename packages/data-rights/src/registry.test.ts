@@ -45,6 +45,17 @@ describe("data-rights registry", () => {
     expect(wrong.map((t) => t.name)).toEqual([]);
   });
 
+  test("nutrition template persistence is registered for export and erasure", () => {
+    for (const name of [
+      "nutrition_template",
+      "nutrition_template_revision",
+      "nutrition_diary_batch",
+    ]) {
+      expect(DATA_RIGHTS_REGISTRY[name]?.kind).toBe("organization");
+      expect(isExported(DATA_RIGHTS_REGISTRY[name]!)).toBe(true);
+    }
+  });
+
   test("credential columns of exported tables are redacted", () => {
     const unredacted: string[] = [];
     for (const t of tables) {

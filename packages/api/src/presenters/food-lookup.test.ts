@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createAppI18n } from "@openvalens/i18n";
 import { englishI18n, inEnglish } from "@openvalens/i18n/testing";
 import { CATALOG_SOURCE_TERMS } from "@openvalens/nutrition/catalog/sources";
 import {
@@ -21,6 +22,7 @@ import {
   candidateFromResult,
   describeBarcodeLookup,
   describeOfflineBarcode,
+  formatFoodCandidateSummaryLine,
   isSearchable,
   isVariableMeasureBarcode,
   manualDraftFields,
@@ -118,6 +120,106 @@ describe("contract parity with @openvalens/nutrition", () => {
 });
 
 describe("candidates", () => {
+  test("food row summary formats serving and 100 g/ml basis in English and Portuguese", () => {
+    const candidate = candidateFromResult(
+      result({
+        basis: { ...BASIS, servingSizeAmount: 60, servingSizeUnit: "g", servingLabel: "bar" },
+      }),
+      "search",
+    )!;
+    expect(formatFoodCandidateSummaryLine(candidate, false, englishI18n)).toBe(
+      "240 kcal · 4.8 g protein · per bar (60 g)",
+    );
+    const portuguese = createAppI18n("pt-PT");
+    expect(formatFoodCandidateSummaryLine(candidate, false, portuguese)).toBe(
+      "240 kcal · 4.8 g de proteína · por bar (60 g)",
+    );
+    expect(
+      formatFoodCandidateSummaryLine(candidateFromResult(result(), "search")!, false, englishI18n),
+    ).toBe("400 kcal · 8 g protein · per 100 g");
+    expect(
+      formatFoodCandidateSummaryLine(
+        candidateFromResult(result({ basis: { ...BASIS, nutrientBasisUnit: "ml" } }), "search")!,
+        false,
+        englishI18n,
+      ),
+    ).toBe("400 kcal · 8 g protein · per 100 ml");
+    expect(
+      formatFoodCandidateSummaryLine(
+        candidateFromResult(
+          result({ basis: { ...BASIS, nutrientBasisAmount: 1.5, nutrientBasisUnit: "ml" } }),
+          "search",
+        )!,
+        false,
+        portuguese,
+      ),
+    ).toBe("400 kcal · 8 g de proteína · por 1,5 ml");
+  });
+
+  test("incompatible serving units fall back to the nutrient basis; unlabeled serving is named", () => {
+    const candidate = candidateFromResult(
+      result({
+        basis: {
+          ...BASIS,
+          servingSizeAmount: 250,
+          servingSizeUnit: "ml",
+          servingLabel: null,
+        },
+      }),
+      "search",
+    )!;
+    expect(formatFoodCandidateSummaryLine(candidate, false, englishI18n)).toBe(
+      "400 kcal · 8 g protein · per 100 g",
+    );
+    const compatible = candidateFromResult(
+      result({ basis: { ...BASIS, servingSizeAmount: 30, servingSizeUnit: "g" } }),
+      "search",
+    )!;
+    expect(formatFoodCandidateSummaryLine(compatible, false, englishI18n)).toContain(
+      "per serving (30 g)",
+    );
+  });
+
+  test("both unknown values remain unknown and zero remains a real value", () => {
+    const unknown = candidateFromResult(
+      result({ nutrients: nutrients({ energyKcal: null, proteinG: null }) }),
+      "search",
+    )!;
+    expect(formatFoodCandidateSummaryLine(unknown, false, englishI18n)).toBe(
+      "Unknown · Unknown protein · per 100 g",
+    );
+    expect(formatFoodCandidateSummaryLine(unknown, false, createAppI18n("pt-PT"))).toBe(
+      "Desconhecido · Desconhecido de proteína · por 100 g",
+    );
+    const zero = candidateFromResult(
+      result({ nutrients: nutrients({ energyKcal: 0, proteinG: 0 }) }),
+      "search",
+    )!;
+    expect(formatFoodCandidateSummaryLine(zero, false, englishI18n)).toBe(
+      "0 kcal · 0 g protein · per 100 g",
+    );
+  });
+
+  test("summary preserves unknown values and never converts them to zero", () => {
+    const candidate = candidateFromResult(
+      result({ nutrients: nutrients({ energyKcal: null, proteinG: 0 }) }),
+      "search",
+    )!;
+    expect(formatFoodCandidateSummaryLine(candidate, false, englishI18n)).toBe(
+      "Unknown · 0 g protein · per 100 g",
+    );
+    expect(formatFoodCandidateSummaryLine(candidate, false, createAppI18n("pt-PT"))).toContain(
+      "Desconhecido",
+    );
+  });
+
+  test("unknown number preference is hidden conservatively", () => {
+    const candidate = candidateFromResult(result(), "search")!;
+    expect(formatFoodCandidateSummaryLine(candidate, undefined, englishI18n)).toBe("Hidden");
+    expect(formatFoodCandidateSummaryLine(candidate, true, englishI18n)).toBe("Hidden");
+    expect(formatFoodCandidateSummaryLine(candidate, false, englishI18n)).toContain("400 kcal");
+  });
+
   test("a catalog result keeps its source, attribution and unknown values", () => {
     const candidate = candidateFromResult(result(), "barcode");
     expect(candidate).toMatchObject({
@@ -179,6 +281,9 @@ describe("candidates", () => {
       basis: BASIS,
       nutrientsPerBasis: nutrients({ energyKcal: 380 }),
       lastLoggedAt: null,
+      lastAmount: null,
+      lastUnit: null,
+      lastSlot: null,
     });
     expect(candidate).toMatchObject({
       ref: { kind: "snapshot", snapshotId: 3 },

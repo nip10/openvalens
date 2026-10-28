@@ -44,6 +44,27 @@ export const SLOT_LABELS: Readonly<Record<MealSlot, MessageDescriptor>> = Object
   other: msg`Other`,
 });
 
+export const ENTRY_EDITOR_COPY = Object.freeze({
+  close: msg`Close`,
+  amount: msg`Amount`,
+  hidden: msg`Amount hidden`,
+  date: msg`Date`,
+  favorite: msg`Favorite`,
+  delete: msg`Delete`,
+  save: msg`Save changes`,
+  unitUnavailable: msg`Unit choices are unavailable for this saved entry. Its existing unit will be kept.`,
+});
+
+/** Choose a default meal using the device's local clock. */
+export function mealSlotForLocalTime(date: Date = new Date()): MealSlot {
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  if (minutes < 10 * 60 + 30) return "breakfast";
+  if (minutes < 15 * 60) return "lunch";
+  if (minutes < 17 * 60 + 30) return "snack";
+  if (minutes < 21 * 60 + 30) return "dinner";
+  return "snack";
+}
+
 /** Unit symbols stay as written; "serving" is a word. */
 export const UNIT_LABELS: Readonly<Record<AmountUnit, MessageDescriptor>> = Object.freeze({
   g: untranslated("g"),
@@ -270,6 +291,15 @@ export const DIARY_COPY = Object.freeze({
   keepMine: msg`Keep my change`,
   keepServer: msg`Keep the other version`,
   clearCache: msg`Clear diary data on this device`,
+});
+
+export function addFoodToLabel(meal: string): MessageDescriptor {
+  return msg`Add food to ${meal}`;
+}
+
+export const ADD_FOOD_COPY = Object.freeze({
+  nothingSaved: msg`Nothing saved`,
+  pendingFoodCreationCancelled: msg`Save cancelled. A food creation already sent may still complete.`,
 });
 
 /** Local outbox states shown next to unsynced changes (mobile). */

@@ -2,9 +2,13 @@ import { readdir } from "node:fs/promises";
 
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createDb, sql } from "@openvalens/db";
+import { nutritionTemplate, nutritionTemplateRevision } from "@openvalens/db/schema/nutrition";
+import { eq } from "drizzle-orm";
 
 import { NutritionError } from "./errors";
 import { localDateFor } from "./local-day";
+import { createNutritionDiary } from "./diary";
+import { createNutritionTemplates } from "./templates";
 import { createNutritionRepository, type NutritionScope } from "./repository";
 import type { ExternalSnapshotInput } from "./snapshot";
 
@@ -356,7 +360,10 @@ describe.skipIf(!url)("nutrition core against disposable PostgreSQL", () => {
     const day = await repo.listDayEntries(A, "2026-03-10");
     expect(day).toHaveLength(2);
     expect(new Set(day.map((e) => e.mealId)).size).toBe(1);
-    expect(day.every((e) => e.timeZone === "Europe/Berlin")).toBe(true);
+    expect(day.map((entry) => entry.timeZone).sort()).toEqual([
+      "America/New_York",
+      "Europe/Berlin",
+    ]);
 
     expect(
       await errorCode(
@@ -535,6 +542,450 @@ describe.skipIf(!url)("nutrition core against disposable PostgreSQL", () => {
         ),
       ),
     ).toBe("DB_ERROR");
+  });
+
+  test("food choices expose latest active member portions with deterministic ties and isolation", async () => {
+    const diary = createNutritionDiary(db);
+    const food = await diary.createCustomFood(A, {
+      name: "Synthetic portion food",
+      nutrientBasisAmount: 100,
+      nutrientBasisUnit: "g",
+      servingSizeAmount: 40,
+      servingSizeUnit: "g",
+      nutrients: { energyKcal: 100 },
+    });
+    const [unlogged] = (await diary.listFoods(A)).customFoods.filter(
+      (item) => item.ref.kind === "custom" && item.ref.foodId === food.id,
+    );
+    expect(unlogged).toMatchObject({
+      lastLoggedAt: null,
+      lastAmount: null,
+      lastUnit: null,
+      lastSlot: null,
+    });
+
+    const first = await diary.logEntry(A, {
+      clientMutationId: "portion-entry-first",
+      localDate: "2026-03-14",
+      timeZone: "UTC",
+      slot: "breakfast",
+      food: { kind: "custom", foodId: food.id },
+      amount: 80,
+      unit: "g",
+      method: "manual",
+    });
+    const second = await diary.logEntry(A, {
+      clientMutationId: "portion-entry-second",
+      localDate: "2026-03-15",
+      timeZone: "UTC",
+      slot: "dinner",
+      food: { kind: "custom", foodId: food.id },
+      amount: 150,
+      unit: "serving",
+      method: "manual",
+    });
+    await db.execute(sql`update nutrition_meal_entry set created_at = '2099-03-15T12:00:00Z'
+      where organization_id = ${A.organizationId} and user_id = ${A.userId}
+      and id in (${first.entry.id}, ${second.entry.id})`);
+    const snapshotId = second.entry.food.snapshotId;
+    await diary.setFavorite(A, { snapshotId, favorite: true });
+    const choices = await diary.listFoods(A);
+    expect(choices.recents[0]).toMatchObject({
+      lastAmount: 150,
+      lastUnit: "serving",
+      lastSlot: "dinner",
+    });
+    expect(choices.favorites[0]).toMatchObject({
+      ref: { kind: "snapshot", snapshotId },
+      lastAmount: 150,
+      lastUnit: "serving",
+      lastSlot: "dinner",
+    });
+    expect(
+      choices.customFoods.find((item) => item.ref.kind === "custom" && item.ref.foodId === food.id),
+    ).toMatchObject({ lastAmount: 150, lastUnit: "serving", lastSlot: "dinner" });
+
+    await diary.deleteEntry(A, { entryId: second.entry.id, clientMutationId: "portion-delete" });
+    const afterDelete = await diary.listFoods(A);
+    expect(afterDelete.recents[0]).toMatchObject({
+      lastAmount: 80,
+      lastUnit: "g",
+      lastSlot: "breakfast",
+    });
+    expect(afterDelete.favorites[0]).toMatchObject({
+      lastAmount: 80,
+      lastUnit: "g",
+      lastSlot: "breakfast",
+    });
+    expect(
+      afterDelete.customFoods.find(
+        (item) => item.ref.kind === "custom" && item.ref.foodId === food.id,
+      ),
+    ).toMatchObject({ lastAmount: 80, lastUnit: "g", lastSlot: "breakfast" });
+    expect((await diary.listFoods(A2)).recents).toEqual([]);
+    expect(
+      (await diary.listFoods(B)).recents.some((item) => item.name === "Synthetic portion food"),
+    ).toBe(false);
+  });
+
+  test("template logging scales recipe ingredients and replays the exact frozen revision", async () => {
+    const diary = createNutritionDiary(db);
+    const source = await diary.logEntry(A, {
+      clientMutationId: "template-old-source",
+      localDate: "2026-03-20",
+      timeZone: "UTC",
+      slot: "breakfast",
+      food: { kind: "external", snapshot: oats },
+      amount: 20,
+      unit: "g",
+      method: "manual",
+    });
+    const [template] = await db
+      .insert(nutritionTemplate)
+      .values({ ...A, kind: "recipe", currentRevision: 2 })
+      .returning();
+    if (!template) throw new Error("Template fixture insert failed");
+    await db.insert(nutritionTemplateRevision).values({
+      ...A,
+      templateId: template.id,
+      revision: 1,
+      kind: "recipe",
+      name: "Old recipe",
+      yieldServings: 4,
+      ingredients: [{ snapshotId: source.entry.food.snapshotId, amount: 120, unit: "g" }],
+      clientMutationId: "recipe-revision-one",
+      fingerprint: "fixture-v1",
+    });
+    await db
+      .update(nutritionTemplate)
+      .set({ archivedAt: new Date() })
+      .where(eq(nutritionTemplate.id, template.id));
+    const input = {
+      clientMutationId: "recipe-log-old-revision",
+      templateId: template.id,
+      templateRevision: 1,
+      localDate: "2026-03-21",
+      timeZone: "UTC",
+      slot: "lunch" as const,
+      servings: 2,
+    };
+    const applied = await diary.logTemplate(A, input);
+    expect(applied.entries).toHaveLength(1);
+    expect(applied.entries[0]).toMatchObject({
+      amount: 60,
+      food: { name: oats.name },
+      nutrients: { proteinG: 7.8 },
+    });
+    const replayed = await diary.logTemplate(A, input);
+    expect(replayed).toMatchObject({
+      created: 0,
+      entries: [{ id: applied.entries[0]?.id, amount: 60 }],
+    });
+  });
+
+  test("template CRUD is private, immutable, retry-safe, and revision checked", async () => {
+    const templates = createNutritionTemplates(db);
+    const content = {
+      kind: "meal" as const,
+      name: "Synthetic saved meal",
+      ingredients: [
+        { food: { kind: "external" as const, snapshot: oats }, amount: 50, unit: "g" as const },
+      ],
+    };
+    const created = await templates.create(A, {
+      clientMutationId: "template-create-crud",
+      content,
+    });
+    expect(created.outcome).toBe("applied");
+    if (created.outcome === "conflict") throw new Error("Unexpected create conflict");
+    const id = created.template.id;
+    expect(created.template).toMatchObject({
+      kind: "meal",
+      name: content.name,
+      revision: 1,
+      archived: false,
+    });
+    expect((await templates.list(A)).templates.map((template) => template.id)).toContain(id);
+    expect((await templates.list(A2)).templates.map((template) => template.id)).not.toContain(id);
+    expect((await templates.list(B)).templates.map((template) => template.id)).not.toContain(id);
+
+    const revisedContent = { ...content, name: "Renamed saved meal" };
+    const update = {
+      clientMutationId: "template-update-crud",
+      templateId: id,
+      expectedRevision: 1,
+      content: revisedContent,
+    };
+    const applied = await templates.update(A, update);
+    expect(applied).toMatchObject({
+      outcome: "applied",
+      template: { id, revision: 2, name: "Renamed saved meal" },
+    });
+    expect(await templates.update(A, update)).toMatchObject({
+      outcome: "replayed",
+      template: { revision: 2 },
+    });
+    expect(
+      await templates
+        .update(A, { ...update, content: { ...revisedContent, name: "Different request" } })
+        .then(
+          () => "NONE",
+          (error: unknown) => (error instanceof NutritionError ? error.code : "DB_ERROR"),
+        ),
+    ).toBe("INVALID_INPUT");
+    expect(
+      await templates
+        .update(A, { ...update, clientMutationId: "template-stale-conflict" })
+        .then((result) => result.outcome),
+    ).toBe("conflict");
+
+    const archived = await templates.archive(A, {
+      clientMutationId: "template-archive-crud",
+      templateId: id,
+      expectedRevision: 2,
+    });
+    expect(archived).toMatchObject({
+      outcome: "applied",
+      template: { id, revision: 3, archived: true },
+    });
+    expect(
+      await templates.archive(A, {
+        clientMutationId: "template-archive-crud",
+        templateId: id,
+        expectedRevision: 2,
+      }),
+    ).toMatchObject({ outcome: "replayed", template: { archived: true } });
+    expect((await templates.list(A)).templates.map((template) => template.id)).not.toContain(id);
+  });
+
+  test("recipe logging uses owned historical revisions after edit and archive, preserving coverage and scaling", async () => {
+    const diary = createNutritionDiary(db);
+    const templates = createNutritionTemplates(db);
+    const recipe = await templates.create(A, {
+      clientMutationId: "template-recipe-crud",
+      content: {
+        kind: "recipe",
+        name: "Synthetic recipe",
+        yieldServings: 4,
+        ingredients: [
+          {
+            food: {
+              kind: "external",
+              snapshot: { ...oats, nutrients: { energyKcal: 0, proteinG: 13 } },
+            },
+            amount: 120,
+            unit: "g",
+          },
+          {
+            food: {
+              kind: "external",
+              snapshot: {
+                ...oats,
+                sourceFoodId: "900002",
+                name: "Synthetic unknown food",
+                nutrients: { energyKcal: null, proteinG: null },
+              },
+            },
+            amount: 80,
+            unit: "g",
+          },
+        ],
+      },
+    });
+    if (recipe.outcome === "conflict") throw new Error("Unexpected create conflict");
+    expect(recipe.template.summary.totals.energyKcal).toMatchObject({
+      known: 0,
+      reported: 1,
+      missing: 1,
+      coverage: "partial",
+    });
+    expect(recipe.template.summary.totals.proteinG).toMatchObject({
+      known: 15.6,
+      reported: 1,
+      missing: 1,
+      coverage: "partial",
+    });
+    const templateId = recipe.template.id;
+    await templates.update(A, {
+      clientMutationId: "template-recipe-edit",
+      templateId,
+      expectedRevision: 1,
+      content: {
+        kind: "recipe",
+        name: "Changed recipe",
+        yieldServings: 2,
+        ingredients: [{ food: { kind: "external", snapshot: oats }, amount: 10, unit: "g" }],
+      },
+    });
+    await templates.archive(A, {
+      clientMutationId: "template-recipe-archive",
+      templateId,
+      expectedRevision: 2,
+    });
+    const result = await diary.logTemplate(A, {
+      clientMutationId: "template-historical-log",
+      templateId,
+      templateRevision: 1,
+      localDate: "2026-04-11",
+      timeZone: "UTC",
+      slot: "lunch",
+      servings: 2,
+    });
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries.map((entry) => entry.amount)).toEqual([60, 40]);
+    expect(result.entries[0]?.nutrients).toMatchObject({ energyKcal: 0, proteinG: 7.8 });
+    expect(result.entries[1]?.nutrients).toMatchObject({ energyKcal: null, proteinG: null });
+    const replay = await diary.logTemplate(A, {
+      clientMutationId: "template-historical-log",
+      templateId,
+      templateRevision: 1,
+      localDate: "2026-04-11",
+      timeZone: "UTC",
+      slot: "lunch",
+      servings: 2,
+    });
+    expect(replay).toMatchObject({ created: 0, entries: result.entries.map(({ id }) => ({ id })) });
+    expect(
+      await errorCode(
+        diary.logTemplate(A2, {
+          clientMutationId: "template-other-user-log",
+          templateId,
+          templateRevision: 1,
+          localDate: "2026-04-11",
+          timeZone: "UTC",
+          slot: "lunch",
+          servings: 2,
+        }),
+      ),
+    ).toBe("NOT_FOUND");
+    expect(
+      await errorCode(
+        diary.logTemplate(B, {
+          clientMutationId: "template-other-org-log",
+          templateId,
+          templateRevision: 1,
+          localDate: "2026-04-11",
+          timeZone: "UTC",
+          slot: "lunch",
+          servings: 2,
+        }),
+      ),
+    ).toBe("NOT_FOUND");
+  });
+
+  test("template creation cannot snapshot another member's logged-entry snapshot", async () => {
+    const diary = createNutritionDiary(db);
+    const templates = createNutritionTemplates(db);
+    const logged = await diary.logEntry(A, {
+      clientMutationId: "template-auth-source",
+      localDate: "2026-04-12",
+      timeZone: "UTC",
+      slot: "breakfast",
+      food: { kind: "external", snapshot: oats },
+      amount: 10,
+      unit: "g",
+      method: "manual",
+    });
+    expect(
+      await errorCode(
+        templates.create(A2, {
+          clientMutationId: "template-unauthorized-snapshot",
+          content: {
+            kind: "meal",
+            name: "Unauthorized",
+            ingredients: [
+              {
+                food: { kind: "snapshot", snapshotId: logged.entry.food.snapshotId },
+                amount: 10,
+                unit: "g",
+              },
+            ],
+          },
+        }),
+      ),
+    ).toBe("NOT_FOUND");
+  });
+
+  test("failed multi-ingredient template logging rolls back earlier child entries", async () => {
+    const diary = createNutritionDiary(db);
+    const source = await diary.logEntry(A, {
+      clientMutationId: "template-atomic-source",
+      localDate: "2026-04-13",
+      timeZone: "UTC",
+      slot: "breakfast",
+      food: { kind: "external", snapshot: oats },
+      amount: 10,
+      unit: "g",
+      method: "manual",
+    });
+    const [template] = await db
+      .insert(nutritionTemplate)
+      .values({ ...A, kind: "meal", currentRevision: 1 })
+      .returning();
+    if (!template) throw new Error("Template fixture insert failed");
+    await db.insert(nutritionTemplateRevision).values({
+      ...A,
+      templateId: template.id,
+      revision: 1,
+      kind: "meal",
+      name: "Invalid second ingredient",
+      yieldServings: null,
+      ingredients: [
+        { snapshotId: source.entry.food.snapshotId, amount: 10, unit: "g" },
+        { snapshotId: 2_000_000_000, amount: 10, unit: "g" },
+      ],
+      clientMutationId: "template-atomic-revision",
+      fingerprint: "atomic-test",
+    });
+    const before = (await diary.getDay(A, "2026-04-14")).entries.length;
+    let failure: unknown;
+    try {
+      await diary.logTemplate(A, {
+        clientMutationId: "atomic-log",
+        templateId: template.id,
+        templateRevision: 1,
+        localDate: "2026-04-14",
+        timeZone: "UTC",
+        slot: "lunch",
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(NutritionError);
+    expect(failure).toMatchObject({ code: "NOT_FOUND" });
+    expect((await diary.getDay(A, "2026-04-14")).entries).toHaveLength(before);
+  });
+
+  test("copy replay returns frozen child receipts after source entries change", async () => {
+    const diary = createNutritionDiary(db);
+    const source = await diary.logEntry(A, {
+      clientMutationId: "copy-frozen-source",
+      localDate: "2026-04-15",
+      timeZone: "UTC",
+      slot: "breakfast",
+      food: { kind: "external", snapshot: oats },
+      amount: 20,
+      unit: "g",
+      method: "manual",
+    });
+    const input = {
+      clientMutationId: "copy-source-frozen",
+      fromDate: "2026-04-15",
+      toDate: "2026-04-16",
+      timeZone: "UTC",
+      entryIds: [source.entry.id],
+    };
+    const first = await diary.copyDay(A, input);
+    await diary.deleteEntry(A, {
+      entryId: source.entry.id,
+      clientMutationId: "copy-source-delete",
+    });
+    const replay = await diary.copyDay(A, input);
+    expect(first.created).toBe(1);
+    expect(replay).toMatchObject({
+      created: 0,
+      entries: [{ id: first.entries[0]?.id, amount: 20 }],
+    });
   });
 
   test("source identity constraints keep catalogs out of tenant foods", async () => {

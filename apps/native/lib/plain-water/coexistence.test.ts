@@ -163,6 +163,43 @@ describe("plain-water and meal outbox coexistence", () => {
     expect(base.list(SCOPE)).toHaveLength(0);
   });
 
+  test("SQLite receipt update refreshes all aliases for one entry within one scope", () => {
+    const sqlite = new RealSqlite(new Database(":memory:"));
+    sqlite.exec(OFFLINE_SCHEMA_SQL);
+    sqlite.exec(
+      "CREATE TABLE nutrition_entry_receipt (scope TEXT NOT NULL, mutation_id TEXT NOT NULL, item_key TEXT NOT NULL DEFAULT '', entry_id TEXT NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY(scope, mutation_id, item_key))",
+    );
+    sqlite.runSync(
+      "INSERT INTO nutrition_entry_receipt(scope, mutation_id, item_key, entry_id, revision) VALUES (?, ?, ?, ?, ?)",
+      SCOPE,
+      "alias-a",
+      "child",
+      "81",
+      1,
+    );
+    sqlite.runSync(
+      "INSERT INTO nutrition_entry_receipt(scope, mutation_id, item_key, entry_id, revision) VALUES (?, ?, ?, ?, ?)",
+      SCOPE,
+      "alias-b",
+      "child",
+      "81",
+      1,
+    );
+    sqlite.runSync(
+      "INSERT INTO nutrition_entry_receipt(scope, mutation_id, item_key, entry_id, revision) VALUES (?, ?, ?, ?, ?)",
+      "other-owner",
+      "alias-c",
+      "child",
+      "81",
+      1,
+    );
+    const store = createSqliteOutboxStore(sqlite);
+    store.updateEntryReceipts!(SCOPE, 81, 2);
+    expect(store.getEntryReceipt!(SCOPE, "alias-a", "child")?.revision).toBe(2);
+    expect(store.getEntryReceipt!(SCOPE, "alias-b", "child")?.revision).toBe(2);
+    expect(store.getEntryReceipt!("other-owner", "alias-c", "child")?.revision).toBe(1);
+  });
+
   test("crash-recovered syncing rows remain ineligible for discard", async () => {
     const sqlite = new RealSqlite(new Database(":memory:"));
     sqlite.exec(OFFLINE_SCHEMA_SQL);
