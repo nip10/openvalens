@@ -68,6 +68,7 @@ function shiftDate(isoDate: string, days: number): string {
 export async function readBodyMapTraining(
   db: Database,
   organizationId: string,
+  userId: string,
   today: string,
 ): Promise<BodyMapTraining> {
   const from = shiftDate(today, -6);
@@ -87,7 +88,11 @@ export async function readBodyMapTraining(
     )
     .innerJoin(
       workout,
-      and(eq(workout.id, workoutExercise.workoutId), eq(workout.organizationId, organizationId)),
+      and(
+        eq(workout.id, workoutExercise.workoutId),
+        eq(workout.organizationId, organizationId),
+        eq(workout.userId, userId),
+      ),
     )
     .where(
       and(
@@ -96,7 +101,7 @@ export async function readBodyMapTraining(
         lte(workout.date, today),
       ),
     )
-    .groupBy(workoutExercise.exerciseId, workoutExercise.name);
+    .groupBy(workoutExercise.exerciseId, workoutExercise.name, workout.type);
 
   const linkedIds = [
     ...new Set(rows.flatMap((row) => (row.exerciseId === null ? [] : [row.exerciseId]))),

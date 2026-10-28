@@ -26,6 +26,8 @@ export const EXPORT_SCHEMA_VERSION = "export-v1";
 
 export type ExportPayloadScope = {
   organizationId: string;
+  /** Authenticated subject for member-private workout projection. */
+  userId?: string;
 };
 
 export type DomainExtractor<Domain extends ExportDomain> = (

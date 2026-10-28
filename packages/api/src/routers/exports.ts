@@ -66,7 +66,7 @@ export const exportsRouter = {
         throw raiseApiError("INVALID_INPUT", "Organization overrides are not supported.");
       return createClinicalExportRepository(context.db).buildBundle(
         context.authz.activeOrganizationId,
-        { limit: input.limit },
+        { limit: input.limit, userId: context.authz.user.id },
       );
     }),
   legacyDownload: permissionedProcedure({ resource: "records", action: "read" })
@@ -97,7 +97,7 @@ export const exportsRouter = {
       const payload: ExportPayload = await buildExportPayload(
         context.db as unknown as Database,
         requestCheck.data.domains as readonly ExportDomain[],
-        { organizationId: context.authz.activeOrganizationId },
+        { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id },
       );
 
       const files: CsvExportFile[] = input.format === "csv" ? renderCsvExport(payload) : [];
@@ -157,7 +157,7 @@ export const exportsRouter = {
       const payload: ExportPayload = await buildExportPayload(
         context.db as unknown as Database,
         requestCheck.data.domains as readonly ExportDomain[],
-        { organizationId: context.authz.activeOrganizationId },
+        { organizationId: context.authz.activeOrganizationId, userId: context.authz.user.id },
       );
 
       const rendered = renderPdfExport(payload);

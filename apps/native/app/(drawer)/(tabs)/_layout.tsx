@@ -1,10 +1,17 @@
 import { useLingui } from "@lingui/react/macro";
 import { Tabs } from "expo-router";
-import { History, LayoutDashboard, Scale, Settings, UtensilsCrossed } from "lucide-react-native";
+import {
+  Dumbbell,
+  History,
+  LayoutDashboard,
+  Scale,
+  Settings,
+  UtensilsCrossed,
+} from "lucide-react-native";
 
 import { BODY_FONT_MEDIUM, DISPLAY_FONT } from "@/components/fonts";
-import { useModuleEnabled } from "@/lib/modules/use-modules";
 import { useThemeColor } from "@/utils/theme";
+import { useModuleEnabled } from "@/lib/modules/use-modules";
 
 export default function TabLayout() {
   const { t } = useLingui();
@@ -17,6 +24,7 @@ export default function TabLayout() {
   const themeColorFood = useThemeColor("food");
   // Onboarding stage 1: the Body tab follows the body module.
   const bodyEnabled = useModuleEnabled("body");
+  const activityEnabled = useModuleEnabled("activity");
   const foodEnabled = useModuleEnabled("food");
 
   return (
@@ -41,6 +49,14 @@ export default function TabLayout() {
         tabBarInactiveTintColor: themeColorInk3,
       }}
     >
+      <Tabs.Screen
+        name="training"
+        options={{
+          title: t`Training`,
+          href: activityEnabled ? undefined : null,
+          tabBarIcon: ({ color, size }) => <Dumbbell size={size - 2} color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{

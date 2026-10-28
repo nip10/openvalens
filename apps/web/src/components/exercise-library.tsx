@@ -18,6 +18,7 @@ import { authClient } from "@/lib/auth-client";
 import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
 import { ModuleHiddenNote } from "@/components/module-hidden-note";
+import { WorkoutExerciseHistory } from "@/components/workout-history";
 
 type PreviewAsset = {
   assetId: string;
@@ -337,6 +338,7 @@ export function ExerciseLibraryPage() {
   const [muscleExternalId, setMuscleExternalId] = useState("");
   const [equipmentExternalId, setEquipmentExternalId] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailTab, setDetailTab] = useState<"details" | "history">("details");
   const [workoutId, setWorkoutId] = useState("");
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -759,7 +761,10 @@ export function ExerciseLibraryPage() {
                     <button
                       type="button"
                       disabled={fieldDisabled}
-                      onClick={() => setSelectedId(exercise.id)}
+                      onClick={() => {
+                        setSelectedId(exercise.id);
+                        setDetailTab("details");
+                      }}
                       aria-pressed={selectedId === exercise.id}
                       className={`sheet flex w-full items-start gap-3 p-3.5 text-left transition-colors duration-[var(--dur-short)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-55 ${selectedId === exercise.id ? "ring-2 ring-steps/50" : ""}`}
                     >
@@ -801,117 +806,155 @@ export function ExerciseLibraryPage() {
                 </p>
               ) : (
                 <>
-                  <h3 className="text-2xl text-ink">{detail.data.name}</h3>
-                  {detail.data.muscles.length > 0 || detail.data.equipment.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {detail.data.muscles.map((muscle) => (
-                        <span
-                          key={muscle.externalMuscleId}
-                          className="rounded-full bg-steps-soft px-2.5 py-0.5 text-sm font-medium text-ink"
-                        >
-                          {muscle.name}
-                        </span>
-                      ))}
-                      {detail.data.equipment.map((equipment) => (
-                        <span
-                          key={equipment.externalEquipmentId}
-                          className="rounded-full bg-paper-2 px-2.5 py-0.5 text-sm font-medium text-ink-2"
-                        >
-                          {equipment.name}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  <ExerciseMediaGallery
-                    key={`${scope}:${detail.data.id}:${JSON.stringify(previewAssets(detail.data.media))}`}
-                    exerciseName={detail.data.name}
-                    media={detail.data.media}
-                    muscles={detail.data.muscles}
-                  />
-                  {detail.data.instructions ? (
-                    <p className="max-w-[65ch] whitespace-pre-wrap text-ink-2">
-                      {detail.data.instructions}
-                    </p>
+                  <div
+                    className="flex gap-2 border-b border-border"
+                    role="tablist"
+                    aria-label={t`Exercise information`}
+                  >
+                    <button
+                      role="tab"
+                      aria-selected={detailTab === "details"}
+                      className="min-h-11 px-3 font-semibold"
+                      onClick={() => setDetailTab("details")}
+                    >
+                      <Trans>Details</Trans>
+                    </button>
+                    <button
+                      role="tab"
+                      aria-selected={detailTab === "history"}
+                      className="min-h-11 px-3 font-semibold"
+                      onClick={() => setDetailTab("history")}
+                    >
+                      <Trans>History</Trans>
+                    </button>
+                  </div>
+                  {detailTab === "history" ? (
+                    <WorkoutExerciseHistory exercise={{ exerciseId: detail.data.id }} />
                   ) : (
-                    <p className="text-ink-3">
-                      <Trans>No instructions provided.</Trans>
-                    </p>
-                  )}
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Attribution
-                      title={t`Exercise record`}
-                      license={detail.data.license}
-                      author={detail.data.author}
-                      attribution={detail.data.attribution}
-                      sourceUrl={detail.data.sourceRecordUrl}
-                      licenseUrl={detail.data.licenseUrl}
-                    />
-                    {detail.data.translationAttribution ? (
-                      <Attribution
-                        title={translationTitle(detail.data.language)}
-                        license={detail.data.translationAttribution.license}
-                        author={detail.data.translationAttribution.author}
-                        attribution={detail.data.translationAttribution.rawAttribution}
-                        sourceUrl={detail.data.translationAttribution.sourceUrl}
-                        licenseUrl={canonicalTranslationLicenseUrl(
-                          detail.data.translationAttribution.license,
-                        )}
-                        licenseLinkLabel={t`Selected translation license details`}
+                    <>
+                      <h3 className="text-2xl text-ink">{detail.data.name}</h3>
+                      {detail.data.muscles.length > 0 || detail.data.equipment.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {detail.data.muscles.map((muscle) => (
+                            <span
+                              key={muscle.externalMuscleId}
+                              className="rounded-full bg-steps-soft px-2.5 py-0.5 text-sm font-medium text-ink"
+                            >
+                              {muscle.name}
+                            </span>
+                          ))}
+                          {detail.data.equipment.map((equipment) => (
+                            <span
+                              key={equipment.externalEquipmentId}
+                              className="rounded-full bg-paper-2 px-2.5 py-0.5 text-sm font-medium text-ink-2"
+                            >
+                              {equipment.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <ExerciseMediaGallery
+                        key={`${scope}:${detail.data.id}:${JSON.stringify(previewAssets(detail.data.media))}`}
+                        exerciseName={detail.data.name}
+                        media={detail.data.media}
+                        muscles={detail.data.muscles}
                       />
-                    ) : null}
-                  </div>
-                  <div className="grid gap-2 pt-2">
-                    <Label htmlFor="target-workout" className="text-sm text-ink-3">
-                      <Trans>Add to workout</Trans>
-                    </Label>
-                    {workouts.isPending ? (
-                      <p role="status" className="text-sm text-ink-3">
-                        <Trans>Loading workouts…</Trans>
-                      </p>
-                    ) : workouts.isError ? (
-                      <div role="alert" className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="text-ink-2">
-                          <Trans>Could not load workouts.</Trans>
-                        </span>
-                        <Button size="sm" variant="outline" onClick={() => void workouts.refetch()}>
-                          <Trans>Retry</Trans>
-                        </Button>
+                      {detail.data.instructions ? (
+                        <p className="max-w-[65ch] whitespace-pre-wrap text-ink-2">
+                          {detail.data.instructions}
+                        </p>
+                      ) : (
+                        <p className="text-ink-3">
+                          <Trans>No instructions provided.</Trans>
+                        </p>
+                      )}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <Attribution
+                          title={t`Exercise record`}
+                          license={detail.data.license}
+                          author={detail.data.author}
+                          attribution={detail.data.attribution}
+                          sourceUrl={detail.data.sourceRecordUrl}
+                          licenseUrl={detail.data.licenseUrl}
+                        />
+                        {detail.data.translationAttribution ? (
+                          <Attribution
+                            title={translationTitle(detail.data.language)}
+                            license={detail.data.translationAttribution.license}
+                            author={detail.data.translationAttribution.author}
+                            attribution={detail.data.translationAttribution.rawAttribution}
+                            sourceUrl={detail.data.translationAttribution.sourceUrl}
+                            licenseUrl={canonicalTranslationLicenseUrl(
+                              detail.data.translationAttribution.license,
+                            )}
+                            licenseLinkLabel={t`Selected translation license details`}
+                          />
+                        ) : null}
                       </div>
-                    ) : !workouts.data?.length ? (
-                      <p className="text-sm text-ink-3">
-                        <Trans>Create a workout first, then return here to add an exercise.</Trans>
-                      </p>
-                    ) : null}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        id="target-workout"
-                        disabled={
-                          fieldDisabled ||
-                          workouts.isPending ||
-                          workouts.isError ||
-                          !workouts.data?.length
-                        }
-                        value={workoutId}
-                        onChange={(event) => setWorkoutId(event.target.value)}
-                        className={`${selectClass} flex-1`}
-                      >
-                        <option value="">{t`Choose a workout`}</option>
-                        {workouts.data?.map((workout) => (
-                          <option key={workout.id} value={workout.id}>
-                            {friendlyDate(i18n, workout.date)}, {workout.type}
-                          </option>
-                        ))}
-                      </select>
-                      <Button
-                        disabled={
-                          !workoutId || !selectedId || isDispatching || uncertain || scopeChanging
-                        }
-                        onClick={startAdd}
-                      >
-                        {isDispatching ? t`Adding…` : t`Add exercise`}
-                      </Button>
-                    </div>
-                  </div>
+                      <div className="grid gap-2 pt-2">
+                        <Label htmlFor="target-workout" className="text-sm text-ink-3">
+                          <Trans>Add to workout</Trans>
+                        </Label>
+                        {workouts.isPending ? (
+                          <p role="status" className="text-sm text-ink-3">
+                            <Trans>Loading workouts…</Trans>
+                          </p>
+                        ) : workouts.isError ? (
+                          <div role="alert" className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="text-ink-2">
+                              <Trans>Could not load workouts.</Trans>
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void workouts.refetch()}
+                            >
+                              <Trans>Retry</Trans>
+                            </Button>
+                          </div>
+                        ) : !workouts.data?.length ? (
+                          <p className="text-sm text-ink-3">
+                            <Trans>
+                              Create a workout first, then return here to add an exercise.
+                            </Trans>
+                          </p>
+                        ) : null}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            id="target-workout"
+                            disabled={
+                              fieldDisabled ||
+                              workouts.isPending ||
+                              workouts.isError ||
+                              !workouts.data?.length
+                            }
+                            value={workoutId}
+                            onChange={(event) => setWorkoutId(event.target.value)}
+                            className={`${selectClass} flex-1`}
+                          >
+                            <option value="">{t`Choose a workout`}</option>
+                            {workouts.data?.map((workout) => (
+                              <option key={workout.id} value={workout.id}>
+                                {friendlyDate(i18n, workout.date)}, {workout.type}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            disabled={
+                              !workoutId ||
+                              !selectedId ||
+                              isDispatching ||
+                              uncertain ||
+                              scopeChanging
+                            }
+                            onClick={startAdd}
+                          >
+                            {isDispatching ? t`Adding…` : t`Add exercise`}
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>

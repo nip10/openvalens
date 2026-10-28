@@ -3,6 +3,13 @@ import { promisify } from "node:util";
 import { expect, mock, test } from "bun:test";
 import * as React from "react";
 
+// The workout picker shows the friendly localized date (year only outside the current year).
+const WORKOUT_BUTTON = `${new Intl.DateTimeFormat("en", {
+  day: "numeric",
+  month: "short",
+  ...(new Date().getFullYear() === 2026 ? {} : { year: "numeric" }),
+}).format(new Date(2026, 9, 22))}, Strength`;
+
 const execFileAsync = promisify(execFile);
 const mountedMode = process.env.NATIVE_EXERCISE_SCREEN_TEST === "1";
 const mutationInputs: Array<Record<string, unknown>> = [];
@@ -46,7 +53,7 @@ const fixtures: Record<string, unknown> = {
     media: [],
     translationAttribution: null,
   },
-  workouts: [{ id: 71, date: "2026-10-22", type: "Strength" }],
+  workouts: [{ id: 71, date: "2026-10-22", type: "Strength", canEdit: true }],
 };
 let currentSession = {
   user: { id: "native-fixture" },
@@ -117,6 +124,8 @@ if (mountedMode) {
     Spinner: "span",
   }));
   mock.module("@/components/container", () => ({ Container: "div" }));
+  // Exercise history renders gifted-charts, whose module body needs real React Native; it has its own suite.
+  mock.module("@/components/workout-history", () => ({ WorkoutExerciseHistory: () => null }));
   mock.module("@/lib/auth-client", () => ({
     authClient: { useSession: () => ({ data: currentSession, isPending: false }) },
   }));
@@ -231,7 +240,7 @@ test.skipIf(!mountedMode)(
       await render();
       await clickButton("Exercice français");
       expect(container.textContent).toContain("Texte");
-      await clickButton("2026-10-22, Strength");
+      await clickButton(WORKOUT_BUTTON);
       await clickButton("Add exercise");
       expect(mutationInputs).toEqual([
         {
@@ -275,7 +284,7 @@ test.skipIf(!mountedMode)(
     try {
       await render();
       await clickButton("Exercice français");
-      await clickButton("2026-10-22, Strength");
+      await clickButton(WORKOUT_BUTTON);
       await clickButton("Add exercise");
       expect(mutationInputs).toHaveLength(1);
       expect(container.textContent).toContain(
@@ -346,7 +355,7 @@ test.skipIf(!mountedMode)(
         ),
       ).toBe(true);
       await clickButton("Exercice français");
-      await clickButton("2026-10-22, Strength");
+      await clickButton(WORKOUT_BUTTON);
       await clickButton("Add exercise");
       expect(mutationInputs).toHaveLength(1);
       expect(container.textContent).toContain("Cancel request");

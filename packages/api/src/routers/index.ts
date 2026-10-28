@@ -50,7 +50,63 @@ import { timelineRouter } from "./timeline";
 import { vitalsRouter } from "./vitals";
 import { wearablesRouter } from "./wearables";
 
-export const appRouter = {
+/**
+ * Spelled out so declaration emit references each router by name; the inferred literal type
+ * exceeds what the compiler will serialize (TS7056).
+ */
+type AppRouterShape = {
+  about: typeof aboutRouter;
+  activity: typeof activityRouter;
+  adminSettings: typeof adminSettingsRouter;
+  admission: typeof admissionRouter;
+  ai: typeof aiRouter;
+  analytics: typeof analyticsRouter;
+  preferences: typeof preferencesRouter;
+  body: typeof bodyRouter;
+  clinical: typeof clinicalRouter;
+  coach: typeof coachRouter;
+  cockpit: typeof cockpitRouter;
+  comparison: typeof comparisonRouter;
+  cron: typeof cronRouter;
+  cycle: typeof cycleRouter;
+  bodyMap: typeof bodyMapRouter;
+  nutritionMicronutrients: typeof nutritionMicronutrientsRouter;
+  dataRights: typeof dataRightsRouter;
+  example: typeof exampleRouter;
+  exerciseCatalog: typeof exerciseCatalogRouter;
+  exports: typeof exportsRouter;
+  health: typeof healthRouter;
+  healthRecord: typeof healthRecordRouter;
+  ingestion: typeof ingestionRouter;
+  insights: typeof insightsRouter;
+  labs: typeof labsRouter;
+  mobile: typeof mobileRouter;
+  nutritionCustomFoods: typeof nutritionCustomFoodsRouter;
+  nutritionCoach: typeof nutritionCoachRouter;
+  nutritionDiary: typeof nutritionDiaryRouter;
+  nutritionTemplates: typeof nutritionTemplatesRouter;
+  nutritionEnergy: typeof nutritionEnergyRouter;
+  nutritionFoodDrafts: typeof nutritionFoodDraftsRouter;
+  nutritionFoods: typeof nutritionFoodsRouter;
+  nutritionRecipeImport: typeof nutritionRecipeImportRouter;
+  nutritionTargets: typeof nutritionTargetsRouter;
+  plans: typeof plansRouter;
+  plainWater: typeof plainWaterRouter;
+  preventiveCare: typeof preventiveCareRouter;
+  profile: typeof profileRouter;
+  privateBody: typeof privateBodyRouter;
+  score: typeof scoreRouter;
+  sharing: typeof sharingRouter;
+  signIn: typeof signInRouter;
+  sleep: typeof sleepRouter;
+  storage: typeof storageRouter;
+  telegram: typeof telegramRouter;
+  timeline: typeof timelineRouter;
+  vitals: typeof vitalsRouter;
+  wearables: typeof wearablesRouter;
+};
+
+export const appRouter: AppRouterShape = {
   about: aboutRouter,
   activity: activityRouter,
   adminSettings: adminSettingsRouter,

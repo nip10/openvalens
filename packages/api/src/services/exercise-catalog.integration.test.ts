@@ -184,6 +184,7 @@ describe.skipIf(!url)("exercise catalog localized RPC against disposable Postgre
       .insert(workout)
       .values({
         organizationId: members["catalog-a"].org,
+        userId: "catalog-a",
         date: "2026-10-22",
         type: "weights",
       })
@@ -255,6 +256,22 @@ describe.skipIf(!url)("exercise catalog localized RPC against disposable Postgre
       request,
     );
     expect(replay.body).toMatchObject({ id: added.body.id, name: "Fixture FR" });
+    const afterReplay = await db
+      .select({ version: workout.version })
+      .from(workout)
+      .where(eq(workout.id, workoutId));
+    expect(afterReplay[0]?.version).toBe(2);
+    const rejected = await call("exerciseCatalog/addFromLibrary", {
+      ...request,
+      clientMutationId: "8ab1e3f3-13a4-4e62-91d8-998a11fe0013",
+      exerciseId: 2147483647,
+    });
+    expect(rejected.status).toBe(404);
+    const afterRejected = await db
+      .select({ version: workout.version })
+      .from(workout)
+      .where(eq(workout.id, workoutId));
+    expect(afterRejected[0]?.version).toBe(2);
     const conflictingReplay = await call("exerciseCatalog/addFromLibrary", {
       ...request,
       language: "fr-CA",

@@ -33,4 +33,20 @@ export const OFFLINE_SCHEMA_SQL = `
     item TEXT NOT NULL,
     UNIQUE (scope, id)
   );
+  CREATE TABLE IF NOT EXISTS workout_drafts (
+    scope TEXT PRIMARY KEY,
+    item TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS workout_outbox (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT NOT NULL,
+    id TEXT NOT NULL,
+    item TEXT NOT NULL,
+    UNIQUE (scope, id)
+  );
+  CREATE TABLE IF NOT EXISTS workout_acks (
+    scope TEXT NOT NULL, clientMutationId TEXT NOT NULL, serverId INTEGER NOT NULL,
+    version INTEGER NOT NULL, result TEXT NOT NULL, acknowledgedAt INTEGER NOT NULL,
+    PRIMARY KEY(scope, clientMutationId)
+  );
 `;

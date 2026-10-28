@@ -338,11 +338,11 @@ describe.skipIf(!url)("exercise catalog using disposable PostgreSQL and real RPC
       insert into member (id,organization_id,user_id,role) values ('cat-ma','cat-org-a','cat-a','owner'),('cat-mb','cat-org-b','cat-b','owner'),('cat-mv','cat-org-a','cat-v','viewer');`),
     );
     const workout = await db.execute(
-      sql`insert into workout (organization_id,date,type,created_at) values ('cat-org-a','2026-10-22','weights',${new Date().toISOString()}) returning id`,
+      sql`insert into workout (organization_id,user_id,date,type,created_at) values ('cat-org-a','cat-a','2026-10-22','weights',${new Date().toISOString()}) returning id`,
     );
     workoutA = Number((workout.rows[0] as { id: number }).id);
     const secondWorkout = await db.execute(
-      sql`insert into workout (organization_id,date,type,created_at) values ('cat-org-b','2026-10-22','weights',${new Date().toISOString()}) returning id`,
+      sql`insert into workout (organization_id,user_id,date,type,created_at) values ('cat-org-b','cat-b','2026-10-22','weights',${new Date().toISOString()}) returning id`,
     );
     workoutB = Number((secondWorkout.rows[0] as { id: number }).id);
     setRegisteredAuth(fakeAuth);

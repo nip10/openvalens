@@ -355,10 +355,14 @@ export function createExerciseCatalogService(
             sql`select pg_advisory_xact_lock(hashtextextended(${mutationLockKey(input.organizationId, input.userId, clientMutationId)}, 0))`,
           );
         const [targetWorkout] = await tx
-          .select({ id: workout.id })
+          .select({ id: workout.id, version: workout.version })
           .from(workout)
           .where(
-            and(eq(workout.id, input.workoutId), eq(workout.organizationId, input.organizationId)),
+            and(
+              eq(workout.id, input.workoutId),
+              eq(workout.organizationId, input.organizationId),
+              eq(workout.userId, input.userId),
+            ),
           )
           .limit(1)
           .for("update");
@@ -430,6 +434,17 @@ export function createExerciseCatalogService(
             sortOrder: workoutExercise.sortOrder,
           });
         if (!created) return null;
+        await tx
+          .update(workout)
+          .set({ version: targetWorkout.version + 1 })
+          .where(
+            and(
+              eq(workout.id, input.workoutId),
+              eq(workout.organizationId, input.organizationId),
+              eq(workout.userId, input.userId),
+              eq(workout.version, targetWorkout.version),
+            ),
+          );
         if (clientMutationId)
           await tx.insert(exerciseCatalogMutation).values({
             organizationId: input.organizationId,

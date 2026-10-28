@@ -36,6 +36,11 @@ export const bodyMapRouter = {
     .input(bodyMapTrainingInput)
     .output(bodyMapTrainingOutput)
     .handler(async ({ context, input }) =>
-      readBodyMapTraining(context.db, context.authz.activeOrganizationId, input.today),
+      readBodyMapTraining(
+        context.db,
+        context.authz.activeOrganizationId,
+        context.authz.user.id,
+        input.today,
+      ),
     ),
 };

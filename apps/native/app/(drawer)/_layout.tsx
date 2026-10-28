@@ -7,7 +7,6 @@ import { cn } from "heroui-native";
 import {
   CalendarHeart,
   ChefHat,
-  Dumbbell,
   FileDown,
   FlaskConical,
   Footprints,
@@ -16,7 +15,6 @@ import {
   History,
   LayoutDashboard,
   Leaf,
-  Library,
   Lock,
   type LucideIcon,
   Mail,
@@ -28,6 +26,7 @@ import {
   Scale,
   Settings,
   ShieldCheck,
+  Target,
   User,
   Users,
   UtensilsCrossed,
@@ -63,7 +62,7 @@ type DrawerItem = {
     | "/body-map"
     | "/body"
     | "/records/labs"
-    | "/workouts"
+    | "/goals"
     | "/exercise-library"
     | "/exports"
     | "/coach"
@@ -109,8 +108,7 @@ const DRAWER_GROUPS: readonly { label: MessageDescriptor; items: readonly Drawer
       { label: msg`Describe a meal`, href: "/food-draft", icon: MessageSquareText },
       { label: msg`Recipe draft`, href: "/recipe-drafts", icon: ChefHat },
       { label: msg`Micronutrients`, href: "/micronutrients", icon: Leaf },
-      { label: msg`Workouts`, href: "/workouts", icon: Dumbbell },
-      { label: msg`Exercise library`, href: "/exercise-library", icon: Library },
+      { label: msg`Goals`, href: "/goals", icon: Target },
       { label: msg`Supplements`, href: "/supplements", icon: Pill },
     ],
   },
@@ -147,7 +145,8 @@ const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/recipe-drafts": msg`Recipe draft`,
   "/food-draft": msg`Describe a meal`,
   "/foods": msg`My foods`,
-  "/workouts": msg`Workouts`,
+  "/workouts": msg`Training`,
+  "/goals": msg`Goals`,
   "/exercise-library": msg`Exercise library`,
   "/exports": msg`Clinical export`,
   "/settings": msg`Settings`,

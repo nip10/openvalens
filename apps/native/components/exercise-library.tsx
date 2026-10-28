@@ -10,9 +10,12 @@ import { Image, Linking, Platform, Pressable, Text, TextInput, View } from "reac
 import { Container } from "@/components/container";
 import { ExerciseAttribution, TranslationAttribution } from "@/components/exercise-attribution";
 import { MuscleGuide } from "@/components/muscle-guide";
+import { WorkoutExerciseHistory } from "@/components/workout-history";
 import { authClient } from "@/lib/auth-client";
 import { ENV } from "@/src/env";
+import { friendlyDate } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
+import { workoutTypeLabel } from "@openvalens/api/presenters/workouts";
 
 const INPUT =
   "min-h-11 rounded-xl border border-rule-2 bg-paper-2 px-3 font-sans text-base text-ink";
@@ -258,7 +261,7 @@ export function ExerciseMediaGallery({
 }
 
 export default function ExerciseLibraryScreen() {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const scope = offlineScope(session as Parameters<typeof offlineScope>[0]);
   const [query, setQuery] = useState("");
@@ -267,6 +270,7 @@ export default function ExerciseLibraryScreen() {
   const [expandMuscles, setExpandMuscles] = useState(false);
   const [expandEquipment, setExpandEquipment] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailTab, setDetailTab] = useState<"instructions" | "history">("instructions");
   const [workoutId, setWorkoutId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -751,92 +755,123 @@ export default function ExerciseLibraryScreen() {
             ) : (
               <>
                 <Text className="font-sans font-medium text-ink">{detail.data.name}</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {detail.data.muscles.map((muscle) => (
-                    <Text
-                      key={muscle.externalMuscleId}
-                      className="font-sans rounded-full bg-steps-soft px-2.5 py-1 text-xs text-ink"
+                <View
+                  accessibilityRole="tablist"
+                  accessibilityLabel={t`Exercise details`}
+                  className="flex-row gap-2"
+                >
+                  {(["instructions", "history"] as const).map((tab) => (
+                    <Pressable
+                      key={tab}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: detailTab === tab }}
+                      onPress={() => setDetailTab(tab)}
+                      className={`min-h-11 justify-center rounded-full border px-3 ${detailTab === tab ? "border-primary bg-primary/10" : "border-rule-2"}`}
                     >
-                      {muscle.name}
-                    </Text>
-                  ))}
-                  {detail.data.equipment.map((equipment) => (
-                    <Text
-                      key={equipment.externalEquipmentId}
-                      className="font-sans rounded-full bg-steps-soft px-2.5 py-1 text-xs text-ink"
-                    >
-                      {equipment.name}
-                    </Text>
+                      <Text className="font-sans text-sm text-ink">
+                        {tab === "instructions" ? t`Instructions & media` : t`History`}
+                      </Text>
+                    </Pressable>
                   ))}
                 </View>
-                <ExerciseMediaGallery
-                  key={`${scope}:${detail.data.id}:${JSON.stringify(previewAssets(detail.data.media))}`}
-                  exerciseName={detail.data.name}
-                  media={detail.data.media}
-                  muscles={detail.data.muscles}
-                />
-                <Text className="font-sans text-sm text-ink">
-                  {detail.data.instructions || t`No instructions provided.`}
-                </Text>
-                <ExerciseAttribution
-                  title={t`Exercise record`}
-                  license={detail.data.license}
-                  author={detail.data.author}
-                  attribution={detail.data.attribution}
-                  sourceUrl={detail.data.sourceRecordUrl}
-                  licenseUrl={detail.data.licenseUrl}
-                />
-                {detail.data.translationAttribution ? (
-                  <TranslationAttribution
-                    language={detail.data.language}
-                    requestedLanguage={CATALOG_LANGUAGE}
-                    attribution={detail.data.translationAttribution}
-                  />
-                ) : null}
-                <Text className="font-sans text-sm font-semibold text-ink-2">
-                  <Trans>Add to workout</Trans>
-                </Text>
-                {workouts.isPending ? (
-                  <Spinner />
-                ) : workouts.isError ? (
-                  <View className="gap-2">
-                    <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
-                      <Trans>Could not load workouts.</Trans>
-                    </Text>
-                    <Button variant="secondary" onPress={() => void workouts.refetch()}>
-                      {t`Retry workouts`}
-                    </Button>
-                  </View>
-                ) : workouts.data?.length ? (
-                  <View className="flex-row flex-wrap gap-2">
-                    {workouts.data.map((workout) => (
-                      <Pressable
-                        key={workout.id}
-                        disabled={uncertain || isDispatching || scopeChanging}
-                        onPress={() => setWorkoutId(workout.id)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: workoutId === workout.id }}
-                        className={`min-h-11 justify-center rounded-xl border border-rule-2 px-3 ${workoutId === workout.id ? "bg-primary/10" : ""}`}
-                      >
-                        <Text className="font-sans text-sm text-ink">
-                          {workout.date}, {workout.type}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                {detailTab === "history" ? (
+                  <WorkoutExerciseHistory exercise={{ exerciseId: detail.data.id }} />
                 ) : (
-                  <Text className="font-sans text-sm text-ink-3">
-                    <Trans>Create a workout first, then return here to add an exercise.</Trans>
-                  </Text>
+                  <>
+                    <View className="flex-row flex-wrap gap-2">
+                      {detail.data.muscles.map((muscle) => (
+                        <Text
+                          key={muscle.externalMuscleId}
+                          className="font-sans rounded-full bg-steps-soft px-2.5 py-1 text-xs text-ink"
+                        >
+                          {muscle.name}
+                        </Text>
+                      ))}
+                      {detail.data.equipment.map((equipment) => (
+                        <Text
+                          key={equipment.externalEquipmentId}
+                          className="font-sans rounded-full bg-steps-soft px-2.5 py-1 text-xs text-ink"
+                        >
+                          {equipment.name}
+                        </Text>
+                      ))}
+                    </View>
+                    <ExerciseMediaGallery
+                      key={`${scope}:${detail.data.id}:${JSON.stringify(previewAssets(detail.data.media))}`}
+                      exerciseName={detail.data.name}
+                      media={detail.data.media}
+                      muscles={detail.data.muscles}
+                    />
+                    <Text className="font-sans text-sm text-ink">
+                      {detail.data.instructions || t`No instructions provided.`}
+                    </Text>
+                    <ExerciseAttribution
+                      title={t`Exercise record`}
+                      license={detail.data.license}
+                      author={detail.data.author}
+                      attribution={detail.data.attribution}
+                      sourceUrl={detail.data.sourceRecordUrl}
+                      licenseUrl={detail.data.licenseUrl}
+                    />
+                    {detail.data.translationAttribution ? (
+                      <TranslationAttribution
+                        language={detail.data.language}
+                        requestedLanguage={CATALOG_LANGUAGE}
+                        attribution={detail.data.translationAttribution}
+                      />
+                    ) : null}
+                    <Text className="font-sans text-sm font-semibold text-ink-2">
+                      <Trans>Add to workout</Trans>
+                    </Text>
+                    {workouts.isPending ? (
+                      <Spinner />
+                    ) : workouts.isError ? (
+                      <View className="gap-2">
+                        <Text accessibilityRole="alert" className="font-sans text-sm text-ink-3">
+                          <Trans>Could not load workouts.</Trans>
+                        </Text>
+                        <Button variant="secondary" onPress={() => void workouts.refetch()}>
+                          {t`Retry workouts`}
+                        </Button>
+                      </View>
+                    ) : workouts.data?.length ? (
+                      <View className="flex-row flex-wrap gap-2">
+                        {workouts.data.map((workout) => (
+                          <Pressable
+                            key={workout.id}
+                            disabled={
+                              uncertain || isDispatching || scopeChanging || !workout.canEdit
+                            }
+                            onPress={() => setWorkoutId(workout.id)}
+                            accessibilityRole="button"
+                            accessibilityState={{
+                              selected: workoutId === workout.id,
+                              disabled: !workout.canEdit,
+                            }}
+                            className={`min-h-11 justify-center rounded-xl border border-rule-2 px-3 ${workoutId === workout.id ? "bg-primary/10" : ""}`}
+                          >
+                            <Text className="font-sans text-sm text-ink">
+                              {friendlyDate(i18n, workout.date)},{" "}
+                              {i18n._(workoutTypeLabel(workout.type))}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text className="font-sans text-sm text-ink-3">
+                        <Trans>Create a workout first, then return here to add an exercise.</Trans>
+                      </Text>
+                    )}
+                    <Button
+                      isDisabled={
+                        !workoutId || !selectedId || isDispatching || uncertain || scopeChanging
+                      }
+                      onPress={startAdd}
+                    >
+                      {isDispatching ? t`Adding…` : t`Add exercise`}
+                    </Button>
+                  </>
                 )}
-                <Button
-                  isDisabled={
-                    !workoutId || !selectedId || isDispatching || uncertain || scopeChanging
-                  }
-                  onPress={startAdd}
-                >
-                  {isDispatching ? t`Adding…` : t`Add exercise`}
-                </Button>
               </>
             )}
           </Card>

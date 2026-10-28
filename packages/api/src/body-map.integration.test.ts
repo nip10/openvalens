@@ -31,6 +31,8 @@ const MEMBERS: Record<string, { org: string; role: string }> = {
 };
 const noAccess = new Set<string>();
 const actor = (headers: Headers) => headers.get("x-test-user") ?? "user-a";
+const activeOrg = (headers: Headers, id = actor(headers)) =>
+  headers.get("x-test-org") ?? MEMBERS[id]?.org ?? "org-a";
 const auth = {
   api: {
     getSession: async ({ headers }: { headers: Headers }) => {
@@ -41,7 +43,7 @@ const auth = {
         session: {
           id: `s-${id}`,
           userId: id,
-          activeOrganizationId: MEMBERS[id]!.org,
+          activeOrganizationId: activeOrg(headers, id),
           impersonatedBy: headers.get("x-test-impersonated") ?? null,
           expiresAt: new Date(Date.now() + 3_600_000),
         },
@@ -51,7 +53,7 @@ const auth = {
       const id = actor(headers);
       const member = MEMBERS[id];
       return member
-        ? { id: `m-${id}`, userId: id, organizationId: member.org, role: member.role }
+        ? { id: `m-${id}`, userId: id, organizationId: activeOrg(headers, id), role: member.role }
         : null;
     },
     getActiveMemberRole: async ({ headers }: { headers: Headers }) => ({
@@ -86,7 +88,7 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
             session: {
               id: `s-${id}`,
               userId: id,
-              activeOrganizationId: MEMBERS[id]!.org,
+              activeOrganizationId: activeOrg(headers, id),
               impersonatedBy: headers.get("x-test-impersonated") ?? null,
               expiresAt: new Date(Date.now() + 3_600_000),
             },
@@ -116,7 +118,8 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
       "x-test-user": user,
       ...extra,
     });
-    const request = new Request(`http://test.local/rpc/bodyMap/${path}`, {
+    const route = path.startsWith("plans/") ? path : `bodyMap/${path}`;
+    const request = new Request(`http://test.local/rpc/${route}`, {
       method: "POST",
       headers,
       body: JSON.stringify({ json: input }),
@@ -141,6 +144,10 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
 
   beforeEach(async () => {
     noAccess.clear();
+    await db.execute(sql`delete from workout`);
+    await db.execute(sql`delete from workout_routine`);
+    await db.execute(sql`delete from workout_mutation`);
+    await db.execute(sql`delete from workout_operation`);
     await db.execute(sql`delete from "user"`);
     await db.execute(sql`delete from organization`);
     await db.execute(sql`insert into "user" (id, email) values
@@ -150,7 +157,8 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
       ('org-a', 'Synthetic A', 'synthetic-a'), ('org-b', 'Synthetic B', 'synthetic-b')`);
     await db.execute(sql`insert into member (id, organization_id, user_id, role) values
       ('m-a', 'org-a', 'user-a', 'owner'), ('m-b', 'org-a', 'user-b', 'collaborator'),
-      ('m-c', 'org-a', 'user-c', 'owner'), ('m-d', 'org-b', 'user-d', 'owner')`);
+      ('m-c', 'org-a', 'user-c', 'owner'), ('m-d', 'org-b', 'user-d', 'owner'),
+      ('m-a-b', 'org-b', 'user-a', 'owner')`);
   });
 
   afterAll(async () => {
@@ -257,7 +265,7 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
     const session = async (org: string, date: string, items: [string, number | null, number][]) => {
       const [row] = (
         await db.execute(
-          sql`insert into workout (organization_id, date, type, created_at) values (${org}, ${date}, 'weights', ${date}) returning id`,
+          sql`insert into workout (organization_id, date, type, created_at, user_id) values (${org}, ${date}, 'weights', ${date}, ${org === "org-b" ? "user-d" : "user-a"}) returning id`,
         )
       ).rows as { id: number }[];
       for (const [position, [name, catalogId, sets]] of items.entries()) {
@@ -283,10 +291,25 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
     await session("org-a", "2026-10-16", [["Bench press", bench, 10]]);
     await session("org-a", "2026-10-24", [["Bench press", bench, 10]]);
     await session("org-b", "2026-10-20", [["Bench press", null, 10]]);
+    // Legacy auto-created placeholder: exact historical signature, hidden but retained.
+    const [legacyWorkout] = (
+      await db.execute(
+        sql`insert into workout (organization_id, date, type, created_at) values ('org-a', '2026-10-23', 'running', 'legacy') returning id`,
+      )
+    ).rows as { id: number }[];
+    const [legacyExercise] = (
+      await db.execute(
+        sql`insert into workout_exercise (organization_id, workout_id, sort_order, name) values ('org-a', ${legacyWorkout!.id}, 0, 'Run') returning id`,
+      )
+    ).rows as { id: number }[];
+    await db.execute(
+      sql`insert into workout_set (organization_id, exercise_id, sort_order, reps, weight_kg) values ('org-a', ${legacyExercise!.id}, 0, 1, null)`,
+    );
+    return legacyExercise!.id;
   }
 
   test("training counts a fixture week of logged sets per muscle and lists unmapped exercises", async () => {
-    await seedWorkouts();
+    const legacyExerciseId = await seedWorkouts();
     const result = await call("training", { today: "2026-10-23" });
     expect(result.status).toBe(200);
     const body = result.body as BodyMapTraining;
@@ -307,10 +330,107 @@ describe.skipIf(!url)("body map over RPC and PostgreSQL", () => {
       { name: "Farmer carry", sets: 4 },
       { name: "Plank", sets: 2 },
     ]);
+    const stillStored = await db.execute(
+      sql`select count(*)::int as count from workout_exercise where id = ${legacyExerciseId}`,
+    );
+    expect(stillStored.rows).toEqual([{ count: 1 }]);
     const layer = trainingLayer(body.exercises, englishI18n);
     expect(layer.setsByGroup).toMatchObject({ chest: 5, triceps: 2.5, quads: 0 });
     expect(layer.fills["front.chest_left"]!.valueText).toBe("5 sets");
     expect(layer.fills["back.triceps_right"]!.valueText).toBe("2.5 sets");
+  });
+
+  test("workout HTTP create supports empty sessions, catalog links and org-scoped idempotent retries", async () => {
+    await db.execute(sql`delete from workout`);
+    const [catalog] = (
+      await db.execute(
+        sql`insert into exercise (organization_id, source, name) values ('org-a', 'user', 'Bench') returning id`,
+      )
+    ).rows as { id: number }[];
+    const [catalogB] = (
+      await db.execute(
+        sql`insert into exercise (organization_id, source, name) values ('org-b', 'user', 'Bench') returning id`,
+      )
+    ).rows as { id: number }[];
+    const mutation = "94b98c99-8b76-47b9-8ac7-0d1f189d8c01";
+    const input = {
+      date: "2026-10-23",
+      type: "weights",
+      clientMutationId: mutation,
+      exercises: [{ name: "Bench", exerciseId: catalog!.id, sets: [] }],
+    };
+    const [first, retry] = await Promise.all([
+      call("plans/workouts/upsertWorkout", input),
+      call("plans/workouts/upsertWorkout", input),
+    ]);
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200);
+    expect(first.body).toEqual(retry.body);
+    expect((await db.execute(sql`select count(*)::int as count from workout`)).rows).toEqual([
+      { count: 1 },
+    ]);
+    const list = await call("plans/workouts/listWorkouts", { limit: 20 });
+    expect(JSON.stringify(list.body)).toContain(`"exerciseId":${catalog!.id}`);
+    const conflict = await call("plans/workouts/upsertWorkout", { ...input, date: "2026-10-24" });
+    expect(conflict.status).toBe(409);
+    const foreign = await call(
+      "plans/workouts/upsertWorkout",
+      {
+        ...input,
+        clientMutationId: "94b98c99-8b76-47b9-8ac7-0d1f189d8c02",
+        exercises: [{ name: "secret", exerciseId: catalog!.id, sets: [] }],
+      },
+      "user-d",
+    );
+    expect(foreign.status).toBe(404);
+    expect(JSON.stringify(foreign.body)).not.toContain("Bench");
+    const independent = await call(
+      "plans/workouts/upsertWorkout",
+      {
+        ...input,
+        date: "2026-10-23",
+        exercises: [{ name: "Bench", exerciseId: catalogB!.id, sets: [] }],
+      },
+      "user-d",
+    );
+    expect(independent.status).toBe(200);
+  });
+
+  test("queued workout scope mismatches reject before writes and original scope can retry", async () => {
+    await db.execute(sql`delete from workout`);
+    const input = {
+      date: "2026-10-23",
+      type: "weights",
+      clientMutationId: "94b98c99-8b76-47b9-8ac7-0d1f189d8c03",
+      expectedScope: "user-a:org-a",
+      exercises: [{ name: "Queued workout", sets: [] }],
+    };
+    const countWrites = async () => {
+      const rows = await db.execute(sql`select
+        (select count(*)::int from workout) as workouts,
+        (select count(*)::int from workout_mutation) as mutations,
+        (select count(*)::int from access_audit_log where target_type = 'workout') as audits`);
+      return rows.rows[0];
+    };
+    const initialCounts = await countWrites();
+
+    const changedAccount = await call("plans/workouts/upsertWorkout", input, "user-b");
+    expect(changedAccount.status).toBe(409);
+    expect(await countWrites()).toEqual(initialCounts);
+
+    const changedOrganization = await call("plans/workouts/upsertWorkout", input, "user-a", {
+      "x-test-org": "org-b",
+    });
+    expect(changedOrganization.status).toBe(409);
+    expect(await countWrites()).toEqual(initialCounts);
+
+    const retry = await call("plans/workouts/upsertWorkout", input);
+    expect(retry.status).toBe(200);
+    expect(await countWrites()).toEqual({
+      workouts: (initialCounts as { workouts: number }).workouts + 1,
+      mutations: (initialCounts as { mutations: number }).mutations + 1,
+      audits: (initialCounts as { audits: number }).audits + 1,
+    });
   });
 
   test("rejects bad input, other tenants' fields, missing permission and signed-out callers", async () => {

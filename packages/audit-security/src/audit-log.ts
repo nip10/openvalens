@@ -1,4 +1,4 @@
-import type { Database } from "@openvalens/db";
+import type { Database, DbTransaction } from "@openvalens/db";
 import { accessAuditLog } from "@openvalens/db/schema/auth";
 import { createStructuredLogger } from "@openvalens/observability";
 
@@ -39,7 +39,7 @@ import type { AuditEventType } from "./types";
 const logger = createStructuredLogger({ level: "info" });
 
 export type WriteAuditLogInput = {
-  db: Database;
+  db: Database | DbTransaction;
   organizationId: string;
   actorUserId?: string | null;
   eventType: AuditEventType;

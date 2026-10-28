@@ -65,6 +65,7 @@ SUITES=(
   "DATA_RIGHTS_ERASURE_AUTH_TEST_DATABASE_URL|data_rights_erasure_auth_test|packages/api/src/routers/data-rights.integration.test.ts"
   "PRIVATE_BODY_TEST_DATABASE_URL|private_body_test|packages/api/src/private-body.integration.test.ts"
   "BODY_MAP_TEST_DATABASE_URL|body_map_test|packages/api/src/body-map.integration.test.ts"
+  "STRENGTH_TEST_DATABASE_URL|strength_training_test|packages/api/src/strength-training.integration.test.ts"
   "PREFERENCES_TEST_DATABASE_URL|preferences_test|packages/api/src/preferences.integration.test.ts"
   "CYCLE_TEST_DATABASE_URL|cycle_test|packages/api/src/cycle.integration.test.ts"
   "SCORE_TEST_DATABASE_URL|score_test|packages/api/src/score.integration.test.ts"

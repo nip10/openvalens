@@ -46,7 +46,7 @@ export function createActivityLoadService(deps: {
       const asOf = now().toISOString().slice(0, 10);
       const oldest = activityWindow(asOf, EFFORT_BASELINE_WINDOWS).start;
       const [sessions, totals] = await Promise.all([
-        listActivitySessions(db, organizationId, { from: oldest, to: asOf }),
+        listActivitySessions(db, organizationId, viewerUserId, { from: oldest, to: asOf }),
         listDailyActivityTotals(db, organizationId, 7),
       ]);
       const load = computeWeeklyActivityLoad({

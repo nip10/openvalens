@@ -43,6 +43,9 @@ jobs:
       - name: Mounted language switch (#67)
         working-directory: apps/web
         run: bun run test:mounted-i18n
+      - name: Mounted strength training (#282)
+        working-directory: apps/web
+        run: bun run test:mounted-strength
 
   native-bundle:
     name: Mobile app bundles (iOS, Android)

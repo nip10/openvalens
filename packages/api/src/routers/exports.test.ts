@@ -21,7 +21,7 @@ const requirePermission = mock(async (_request: unknown, _permission: unknown) =
     member: { role: "viewer" },
   };
 });
-const build = mock(async (_org: string, _options: { limit: number }) => ({
+const build = mock(async (_org: string, _options: { limit: number; userId?: string }) => ({
   generation: {
     organizationId: "org-a",
     generatedAt: "2026-03-08T10:00:00.000Z",
@@ -31,7 +31,11 @@ const build = mock(async (_org: string, _options: { limit: number }) => ({
   items: [],
 }));
 const buildLegacy = mock(
-  async (_db: unknown, domains: readonly unknown[], scope: { organizationId: string }) => ({
+  async (
+    _db: unknown,
+    domains: readonly unknown[],
+    scope: { organizationId: string; userId?: string },
+  ) => ({
     generatedAt: "2026-03-08T10:00:00.000Z",
     schemaVersion: "export-v1",
     selectedDomains: [...domains],
@@ -96,10 +100,10 @@ test("exports.clinicalBundle is mounted; records:read viewer gets active-tenant 
   const bundle = await exportsRouter.clinicalBundle.callable({ context: context() })({});
   expect(bundle.generation.organizationId).toBe("org-a");
   expect(bundle.items).toEqual([]);
-  expect(build.mock.calls[0]).toEqual(["org-a", { limit: 200 }]);
+  expect(build.mock.calls[0]).toEqual(["org-a", { limit: 200, userId: "actor" }]);
   expect(requirePermission.mock.calls[0]?.[1]).toEqual({ resource: "records", action: "read" });
   await exportsRouter.clinicalBundle.callable({ context: context() })(undefined);
-  expect(build.mock.calls.at(-1)).toEqual(["org-a", { limit: 200 }]);
+  expect(build.mock.calls.at(-1)).toEqual(["org-a", { limit: 200, userId: "actor" }]);
   expect(audit).not.toHaveBeenCalled();
 });
 test("source GET limit default/clamp/truncate semantics are retained", async () => {
@@ -190,7 +194,7 @@ test("exports.legacyDownload is mounted; canonical defaults when domains omitted
     resource: "records",
     action: "read",
   });
-  expect(buildLegacy.mock.calls.at(-1)?.[2]).toEqual({ organizationId: "org-a" });
+  expect(buildLegacy.mock.calls.at(-1)?.[2]).toEqual({ organizationId: "org-a", userId: "actor" });
   expect(output.files).toHaveLength(4);
   expect(output.files.map((f: { fileName: string }) => f.fileName)).toEqual([
     "health-export-blood-2026-03-08.csv",
@@ -334,7 +338,7 @@ test("exports.legacyPdfDownload is mounted; canonical defaults when domains omit
     resource: "records",
     action: "read",
   });
-  expect(buildLegacy.mock.calls.at(-1)?.[2]).toEqual({ organizationId: "org-a" });
+  expect(buildLegacy.mock.calls.at(-1)?.[2]).toEqual({ organizationId: "org-a", userId: "actor" });
   expect(typeof output.content).toBe("string");
   expect(output.content.length).toBeGreaterThan(0);
   expect(renderPdfExport.mock.calls.at(-1)?.[0]).toMatchObject({
@@ -475,7 +479,7 @@ test("legacyPdfDownload cross-tenant payload exclusion: foreign org data never r
   // cannot alter the audit metadata (which only carries the canonical
   // selectedDomains), and the renderer mock is invoked with the
   // payload exactly as the buildExportPayload mock produced.
-  expect(buildLegacy.mock.calls.at(-1)?.[2]).toEqual({ organizationId: "org-a" });
+  expect(buildLegacy.mock.calls.at(-1)?.[2]).toEqual({ organizationId: "org-a", userId: "actor" });
   // The renderer mock receives the payload from buildLegacy, not from
   // any caller-controlled source. Verify the cross-tenant id was not
   // surfaced as part of the selected-domain audit metadata.

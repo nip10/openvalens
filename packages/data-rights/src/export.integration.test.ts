@@ -142,6 +142,25 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       `),
     );
 
+    await db.execute(
+      sql.raw(`
+      with routines as (
+        insert into workout_routine (organization_id, user_id, name)
+          values ('org-a', 'user-a', 'Owner routine canary'),
+                 ('org-a', 'user-a2', 'collaborator_routine_canary') returning id, organization_id, user_id, name
+      )
+      insert into workout_routine_exercise (key, routine_id, organization_id, sort_order, name, target_sets, reps_min, reps_max)
+         select case when user_id = 'user-a' then '11111111-1111-4111-8111-111111111111'::uuid else '22222222-2222-4222-8222-222222222222'::uuid end,
+           id, organization_id, 0, name || ' exercise', 3, 8, 10 from routines;
+       insert into workout_operation (organization_id, user_id, client_mutation_id, operation, fingerprint, result)
+         values ('org-a', 'user-a', 'aaaaaaaa-1111-4111-8111-111111111111', 'create', repeat('a', 64), '{}'),
+                ('org-a', 'user-a2', 'aaaaaaaa-2222-4222-8222-222222222222', 'create', repeat('b', 64), '{}');
+       insert into workout_mutation (organization_id, user_id, client_mutation_id, fingerprint, workout_id, exercise_count, set_count, version)
+         values ('org-a', 'user-a', 'bbbbbbbb-1111-4111-8111-111111111111', repeat('c', 64), 700001, 1, 3, 1),
+                ('org-a', 'user-a2', 'bbbbbbbb-2222-4222-8222-222222222222', repeat('d', 64), 700002, 1, 3, 1);
+    `),
+    );
+
     // Admission grants (#63): A is a recipient (by target user and by pending
     // email), B has its own, and A invited a third party (must never surface in
     // A's export — that would list A's other recipients).
@@ -337,6 +356,20 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     );
   });
 
+  test("private workout routines and operation receipts follow their actor, not the org owner", async () => {
+    const ownerRows = (table: string) => parse(table);
+    const collaboratorRows = JSON.parse(
+      exportedA2.files.find((file) => file.path === "entities/workout_routine.json")!.content,
+    ) as { user_id: string; name: string }[];
+    expect(ownerRows("workout_routine").map((row) => row.user_id)).toEqual(["user-a"]);
+    expect(collaboratorRows.map((row) => row.user_id)).toEqual(["user-a2"]);
+    expect(exported.files.map((file) => file.content).join("\n")).not.toContain(
+      "collaborator_routine_canary",
+    );
+    expect(ownerRows("workout_routine_exercise")).toHaveLength(1);
+    expect(ownerRows("workout_operation").every((row) => row.user_id === "user-a")).toBe(true);
+  });
+
   test("template exports include archived revisions and referenced snapshots without other members", () => {
     const rows = (data: DataExport, table: string) =>
       JSON.parse(data.files.find((f) => f.path === `entities/${table}.json`)!.content) as Record<
@@ -399,6 +432,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "telegram_connect_token",
       "wearable_connection",
       "wearable_oauth_state",
+      "workout_mutation",
+      "workout_operation",
     ]);
     // Insights (#92): the unsubscribe token hash and push token never leave.
     expect(all).not.toContain("unsub-hash-a");
