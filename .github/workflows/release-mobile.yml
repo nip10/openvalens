@@ -1,0 +1,161 @@
+name: Release mobile
+
+# Issue #306 — store builds of apps/native for a release tag, on EAS Build,
+# then (optionally) EAS Submit to TestFlight and Google Play internal testing.
+# Needs the owner's one-time setup (docs/releasing.md#one-time-setup-owner):
+# the EXPO_TOKEN secret and the EXPO_PUBLIC_EAS_PROJECT_ID variable. Without
+# them the workflow says so and stops without failing.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag, for example v1.0.0"
+        required: true
+        type: string
+      platform:
+        description: "Platforms to build"
+        required: true
+        default: all
+        type: choice
+        options: [all, ios, android]
+      submit:
+        description: "Submit to TestFlight / Play internal testing when eas.json is ready"
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: release-mobile-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  PLATFORM: ${{ inputs.platform || 'all' }}
+  SUBMIT: ${{ github.event_name == 'push' || inputs.submit }}
+  # Required by the web build's varlock schema during check-types; placeholder only.
+  VITE_SERVER_URL: http://localhost:3000
+
+jobs:
+  preflight:
+    name: Release tag and EAS access
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      configured: ${{ steps.access.outputs.configured }}
+    steps:
+      - name: The tag is vMAJOR.MINOR.PATCH
+        run: |
+          if ! [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::'$TAG' is not a release tag (vMAJOR.MINOR.PATCH)."
+            exit 1
+          fi
+      - name: EXPO_TOKEN and the EAS project id are set
+        id: access
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
+          IS_UPSTREAM: ${{ github.repository == 'nip10/openvalens' }}
+        run: |
+          missing=()
+          [ "$IS_UPSTREAM" = "true" ] || missing+=("this is not the upstream repository (store builds under the OpenValens name come from nip10/openvalens only, TRADEMARK.md)")
+          [ -n "$EXPO_TOKEN" ] || missing+=("repository secret EXPO_TOKEN")
+          [ -n "$EAS_PROJECT_ID" ] || missing+=("repository variable EXPO_PUBLIC_EAS_PROJECT_ID")
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Mobile release skipped for $TAG"
+            echo "Missing:"
+            for item in "${missing[@]}"; do echo "- $item"; done
+            echo
+            echo "See docs/releasing.md, section One-time setup (owner)."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Mobile release skipped::Missing: ${missing[*]}. See docs/releasing.md#one-time-setup-owner."
+
+  checks:
+    name: Checks at the tag
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: package.json, app.json and the server version equal the tag
+        run: bun run release:version --check "$TAG"
+      - run: bun run licenses:check
+      - run: bun run i18n:check
+      - run: bunx oxlint
+      - run: bunx oxfmt --check .
+      - run: bun run check-types
+      - run: bun test
+      - name: Export the native bundles
+        working-directory: apps/native
+        run: bunx expo export --platform ios --platform android --output-dir "$RUNNER_TEMP/native-export"
+
+  build:
+    name: EAS production build
+    needs: [preflight, checks]
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: bun
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Submit only when eas.json submit.production is filled in
+        id: submit
+        run: |
+          if [ "$SUBMIT" != "true" ]; then
+            echo "Submit not requested; building only."
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          elif bun scripts/eas-submit-config.ts "$PLATFORM"; then
+            echo "flag=--auto-submit" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Submit skipped::eas.json submit.production still has placeholders; building only. See docs/releasing.md#one-time-setup-owner."
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Start the builds on EAS
+        working-directory: apps/native
+        env:
+          # app.config.ts copies it into extra.eas.projectId, which tells EAS
+          # which project (and which EAS environment variables) to use.
+          EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
+          SUBMIT_FLAG: ${{ steps.submit.outputs.flag }}
+        run: |
+          # --no-wait: EAS builds (and, with --auto-submit, submits) on its own
+          # servers; follow progress on expo.dev rather than paying for runner
+          # minutes here.
+          args=(--profile production --platform "$PLATFORM" --non-interactive --no-wait)
+          if [ -n "$SUBMIT_FLAG" ]; then args+=("$SUBMIT_FLAG"); fi
+          eas build "${args[@]}" --message "OpenValens $TAG"
+          {
+            echo "### EAS builds started for $TAG ($PLATFORM)"
+            if [ -n "$SUBMIT_FLAG" ]; then
+              echo "Each build is submitted when it finishes (TestFlight, Play internal testing)."
+            else
+              echo "Not submitted. Submit later from apps/native: eas submit --profile production --platform $PLATFORM --latest"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

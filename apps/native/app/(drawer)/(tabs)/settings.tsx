@@ -18,7 +18,6 @@ import {
   type CoachTemplateId,
   type CoachTone,
 } from "@openvalens/api/presenters/coach-settings";
-import { UPSTREAM_SOURCE_CODE_URL } from "@openvalens/api/source-code";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
 import { router, useFocusEffect } from "expo-router";
@@ -38,6 +37,7 @@ import {
   Smartphone,
   SlidersHorizontal,
   Sun,
+  Tag,
   Trash2,
   UserRound,
   Watch,
@@ -71,7 +71,11 @@ import { AiSection } from "@/components/ai-section";
 import { ServerSection } from "@/components/change-server";
 import { SignInMethodsSection } from "@/components/sign-in-methods";
 import { useAppTheme } from "@/contexts/app-theme-context";
+import { appBuildInfo } from "@/lib/app-version";
 import { authClient } from "@/lib/auth-client";
+import { serverLabel } from "@/lib/server/server-address";
+import { probeServer } from "@/lib/server/server-meta";
+import { useServer } from "@/lib/server/server-url";
 import { signOutOfThisPhone } from "@/lib/sign-out";
 import { orpc } from "@/utils/orpc";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
@@ -355,6 +359,28 @@ function AboutSection() {
   const about = useQuery(orpc.about.info.queryOptions({ input: {} }));
   const { t } = useLingui();
   const serverSource = about.data?.sourceCodeUrl;
+  // Issue #306 — this build's version and build number, and its source at
+  // the release tag; plus the version the connected server reports.
+  const app = appBuildInfo();
+  const server = useServer();
+  const serverUrl = server.status === "set" ? server.url : null;
+  const meta = useQuery({
+    queryKey: ["server-meta", serverUrl],
+    queryFn: () => (serverUrl ? probeServer(serverUrl) : Promise.resolve(null)),
+    enabled: !!serverUrl,
+    staleTime: 5 * 60_000,
+  });
+  const serverVersion = meta.data
+    ? meta.data.ok
+      ? meta.data.meta.serverVersion
+      : "serverVersion" in meta.data.problem
+        ? meta.data.problem.serverVersion
+        : null
+    : null;
+  const appVersion = app.version ?? t`Unknown`;
+  const build = app.build;
+  const versionText = build ? t`${appVersion} (build ${build})` : appVersion;
+  const host = serverUrl ? serverLabel(serverUrl) : "";
 
   return (
     <Section title={t`About`} icon={Info} tone="signal">
@@ -369,10 +395,30 @@ function AboutSection() {
           </Text>
         </View>
         <ListRow
+          icon={<Icon icon={Tag} size={18} color="ink-2" />}
+          title={t`App version`}
+          subtitle={versionText}
+          showDivider
+        />
+        {serverUrl ? (
+          <ListRow
+            icon={<Icon icon={Server} size={18} color="ink-2" />}
+            title={t`Server version`}
+            subtitle={
+              serverVersion
+                ? t`${serverVersion} on ${host}`
+                : meta.isPending
+                  ? t`Checking…`
+                  : t`Not available`
+            }
+            showDivider
+          />
+        ) : null}
+        <ListRow
           icon={<Icon icon={Smartphone} size={18} color="ink-2" />}
           title={t`Source code for this app`}
-          subtitle={UPSTREAM_SOURCE_CODE_URL}
-          onPress={() => void Linking.openURL(UPSTREAM_SOURCE_CODE_URL)}
+          subtitle={app.sourceUrl}
+          onPress={() => void Linking.openURL(app.sourceUrl)}
           showDivider={!!serverSource}
           trailing={<Icon icon={Code2} size={16} />}
         />

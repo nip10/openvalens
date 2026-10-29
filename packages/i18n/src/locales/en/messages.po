@@ -375,6 +375,10 @@ msgstr "{amount} per year"
 msgid "{amount} steps"
 msgstr "{amount} steps"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "{appVersion} (build {build})"
+msgstr "{appVersion} (build {build})"
+
 #: packages/api/src/presenters/insights.ts
 msgid "{baselineDays} of {baselineMinDays} days with data so far."
 msgstr "{baselineDays} of {baselineMinDays} days with data so far."
@@ -819,6 +823,10 @@ msgstr "{scanSource}, {scanDate}, compared with {compareDate}"
 #: packages/api/src/presenters/score.ts
 msgid "{scored} of {total, plural, one {# goal} other {# goals}} counted."
 msgstr "{scored} of {total, plural, one {# goal} other {# goals}} counted."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "{serverVersion} on {host}"
+msgstr "{serverVersion} on {host}"
 
 #: apps/native/app/(drawer)/workouts.tsx
 msgid "{setCount, plural, one {# set} other {# sets}}"
@@ -1743,6 +1751,10 @@ msgstr "API Status"
 msgid "App default"
 msgstr "App default"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "App version"
+msgstr "App version"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Applies from"
 msgstr "Applies from"
@@ -2484,6 +2496,7 @@ msgid "Checking..."
 msgstr "Checking..."
 
 #: apps/native/app/(drawer)/(tabs)/index.tsx
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Checking…"
@@ -8004,6 +8017,10 @@ msgctxt "goal priority"
 msgid "Normal"
 msgstr "Normal"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Not available"
+msgstr "Not available"
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "Not available on this device. It updates after sync."
 msgstr "Not available on this device. It updates after sync."
@@ -10677,6 +10694,10 @@ msgstr "Server address"
 msgid "Server checklist"
 msgstr "Server checklist"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+msgid "Server version"
+msgstr "Server version"
+
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "serving"
 msgstr "serving"
@@ -12853,6 +12874,7 @@ msgstr "Units"
 msgid "unknown"
 msgstr "unknown"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/admin-backup-status.tsx
