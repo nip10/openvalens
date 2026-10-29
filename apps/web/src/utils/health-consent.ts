@@ -8,5 +8,7 @@ export interface HealthConsentStatus {
 }
 
 export function needsHealthConsent(status: HealthConsentStatus | null | undefined): boolean {
-  return !!status?.required && (!status.accepted || status.acceptedVersion !== status.currentVersion);
+  return (
+    !!status?.required && (!status.accepted || status.acceptedVersion !== status.currentVersion)
+  );
 }

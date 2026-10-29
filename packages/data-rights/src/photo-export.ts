@@ -145,7 +145,8 @@ async function readBounded(
   }
   const chunks: Uint8Array[] = [];
   let total = 0;
-  const abortError = () => Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
+  const abortError = () =>
+    Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
   if (signal?.aborted) {
     await reader.cancel().catch(() => undefined);
     throw abortError();
@@ -214,7 +215,8 @@ async function enumerateSubjectPhotos(
     const rows: Candidate[] = [];
     let lastId: string | null = null;
     for (;;) {
-      if (signal?.aborted) throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
+      if (signal?.aborted)
+        throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
       const page = (
         await tx.execute(sql`
           select id, content_type, size_bytes, sha256
@@ -261,13 +263,15 @@ export async function* exportSubjectPhotoFiles(
   options: { maxPhotos?: number; signal?: AbortSignal } = {},
 ): AsyncGenerator<PhotoExportFile, void, unknown> {
   const maxPhotos = options.maxPhotos ?? DEFAULT_MAX_SUBJECT_PHOTOS;
-  if (!Number.isSafeInteger(maxPhotos) || maxPhotos < 0) throw new TypeError("Invalid photo export limit.");
+  if (!Number.isSafeInteger(maxPhotos) || maxPhotos < 0)
+    throw new TypeError("Invalid photo export limit.");
   const candidates = await enumerateSubjectPhotos(db, subject.userId, maxPhotos, options.signal);
   const photos: PhotoExportManifestPhoto[] = [];
   const failures: PhotoExportManifest["failures"] = [];
 
   for (const candidate of candidates) {
-    if (options.signal?.aborted) throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
+    if (options.signal?.aborted)
+      throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
     if (!OBJECT_ID.test(candidate.objectId)) {
       failures.push({ objectId: candidate.objectId, reason: "unavailable" });
       continue;
@@ -293,7 +297,8 @@ export async function* exportSubjectPhotoFiles(
         objectId: candidate.objectId,
       });
     } catch {
-      if (options.signal?.aborted) throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
+      if (options.signal?.aborted)
+        throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
       failures.push({ objectId: candidate.objectId, reason: "read_failed" });
       continue;
     }
@@ -327,7 +332,8 @@ export async function* exportSubjectPhotoFiles(
     }
 
     const path = `photos/${candidate.objectId}.${approved.ext}`;
-    if (options.signal?.aborted) throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
+    if (options.signal?.aborted)
+      throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
     photos.push({
       objectId: candidate.objectId,
       path,
@@ -343,7 +349,8 @@ export async function* exportSubjectPhotoFiles(
     };
   }
 
-  if (options.signal?.aborted) throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
+  if (options.signal?.aborted)
+    throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
   yield {
     kind: "manifest",
     path: PHOTO_MANIFEST_PATH,

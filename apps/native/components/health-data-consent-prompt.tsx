@@ -80,7 +80,9 @@ export function HealthDataConsentPrompt() {
         onPress={() => setChecked((value) => !value)}
         className="flex-row items-start gap-2"
       >
-        <View className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${checked ? "border-primary bg-primary" : "border-rule bg-paper"}`}>
+        <View
+          className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${checked ? "border-primary bg-primary" : "border-rule bg-paper"}`}
+        >
           {checked ? <Text className="text-xs font-bold text-primary-foreground">✓</Text> : null}
         </View>
         <Text className="flex-1 font-sans text-sm text-ink-2">
@@ -98,10 +100,14 @@ export function HealthDataConsentPrompt() {
           <Button.Label>{t`I consent`}</Button.Label>
         </Button>
         <Link href="/exports" asChild>
-          <Button variant="secondary"><Button.Label>{t`Export records`}</Button.Label></Button>
+          <Button variant="secondary">
+            <Button.Label>{t`Export records`}</Button.Label>
+          </Button>
         </Link>
         <Link href="/(drawer)/(tabs)/settings" asChild>
-          <Button variant="secondary"><Button.Label>{t`Settings and account deletion`}</Button.Label></Button>
+          <Button variant="secondary">
+            <Button.Label>{t`Settings and account deletion`}</Button.Label>
+          </Button>
         </Link>
       </View>
     </Sheet>

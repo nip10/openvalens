@@ -21,13 +21,15 @@ export async function openAuthorizedExportArchive(input: {
   const result = await input.db.execute(sql`select j.id, j.subject_user_id, j.state, j.expires_at,
       j.organization_ids, u.banned from data_export_job j left join "user" u on u.id = j.subject_user_id
     where j.id = ${input.jobId}`);
-  const row = result.rows[0] as {
-    subject_user_id: string | null;
-    state: string;
-    expires_at: Date | string | null;
-    organization_ids: string[];
-    banned: boolean | null;
-  } | undefined;
+  const row = result.rows[0] as
+    | {
+        subject_user_id: string | null;
+        state: string;
+        expires_at: Date | string | null;
+        organization_ids: string[];
+        banned: boolean | null;
+      }
+    | undefined;
   if (
     !row ||
     row.subject_user_id !== input.userId ||

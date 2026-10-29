@@ -139,6 +139,9 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
         values ('org-b', 'user-a', 'maintenance', 'pending', 2301, 2300, 1, 'test/v1', '2026-09-01', '2026-09-30', '{"subject_other_org": 2301}', now() + interval '1 day');
       insert into access_audit_log (organization_id, actor_user_id, event_type, created_at)
         values ('org-b', 'user-a', 'RECORD_VIEWED', '2026-10-01');
+      insert into billing_checkout_acknowledgement (id, user_id, version, immediate_start_requested, withdrawal_acknowledged, stripe_checkout_session_id) values
+        ('00000000-0000-4000-8000-0000000000a1', 'user-a', 'checkout-v1', true, true, 'cs_delete_fixture_a'),
+        ('00000000-0000-4000-8000-0000000000b1', 'user-b', 'checkout-v1', true, true, 'cs_delete_fixture_b');
       insert into chat_message (organization_id, user_id, conversation_id, role, content, created_at)
         values ('org-b', 'user-a', 'conv-a-in-b', 'user', 'Subject chat in B', '2026-10-01');
       insert into nutrition_template (organization_id, user_id, kind, current_revision, archived_at) values

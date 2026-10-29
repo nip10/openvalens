@@ -252,6 +252,7 @@ describe("actual server schema sensitive coverage", () => {
           "CLOUD_ENDED_RETENTION_DRY_RUN",
           "CLOUD_ENDED_RETENTION_MONTHS",
           "CSP_MODE",
+          "DATA_EXPORT_DIR",
           "DEPLOYMENT_MODE",
           "EMAIL_DRY_RUN",
           "EMAIL_FROM",

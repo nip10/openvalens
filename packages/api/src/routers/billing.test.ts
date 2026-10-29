@@ -181,11 +181,13 @@ describe("billing procedures", () => {
 
   test("checkout rejects absent acknowledgements at the API boundary", async () => {
     const { service, calls } = billing();
-    await expect(appRouter.billing.checkout.callable({ context: context({ billing: service }) })({
-      plan: "monthly",
-      acceptedImmediateStart: true,
-      acknowledgementVersion: "checkout-v1",
-    } as never)).rejects.toBeDefined();
+    await expect(
+      appRouter.billing.checkout.callable({ context: context({ billing: service }) })({
+        plan: "monthly",
+        acceptedImmediateStart: true,
+        acknowledgementVersion: "checkout-v1",
+      } as never),
+    ).rejects.toBeDefined();
     expect(calls).toEqual([]);
   });
 });

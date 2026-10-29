@@ -112,10 +112,14 @@ describe("parseDeploymentConfig (Issue #294)", () => {
 
   test("cloud requires a bounded health-consent version and uses the configured privacy URL", () => {
     expect(CLOUD_REQUIRED_KEYS).toContain("LEGAL_HEALTH_CONSENT_VERSION");
-    expect(() => parseDeploymentConfig({ ...CLOUD_ENV, LEGAL_HEALTH_CONSENT_VERSION: "x".repeat(65) }))
-      .toThrow(/LEGAL_HEALTH_CONSENT_VERSION/);
+    expect(() =>
+      parseDeploymentConfig({ ...CLOUD_ENV, LEGAL_HEALTH_CONSENT_VERSION: "x".repeat(65) }),
+    ).toThrow(/LEGAL_HEALTH_CONSENT_VERSION/);
     const config = parseDeploymentConfig(CLOUD_ENV);
-    expect(config.mode === "cloud" && config.legal.healthDataConsent).toEqual({ url: CLOUD_ENV.LEGAL_PRIVACY_URL, version: "health-consent-1" });
+    expect(config.mode === "cloud" && config.legal.healthDataConsent).toEqual({
+      url: CLOUD_ENV.LEGAL_PRIVACY_URL,
+      version: "health-consent-1",
+    });
   });
 });
 

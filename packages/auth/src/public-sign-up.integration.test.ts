@@ -201,7 +201,13 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
 
     const link = lastLinkFor("pending@example.test");
     const token = new URL(link).searchParams.get("token")!;
-    const rows = await db.execute<{ token_hash: string; canonical_email: string; locale: string; health_data_consent_version: string; health_data_consent_accepted_at: unknown }>(
+    const rows = await db.execute<{
+      token_hash: string;
+      canonical_email: string;
+      locale: string;
+      health_data_consent_version: string;
+      health_data_consent_accepted_at: unknown;
+    }>(
       sql`select "token_hash", "canonical_email", "locale", "health_data_consent_version", "health_data_consent_accepted_at" from "sign_up_request"`,
     );
     expect(rows.rows).toHaveLength(1);
@@ -215,16 +221,21 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
 
   test("missing, refused, or stale health consent writes no request", async () => {
     const before = await count("sign_up_request");
-    await expect(cloud.signUpPublic({ email: "missing-consent@example.test", acceptedLegal: true } as never))
-      .rejects.toMatchObject({ code: "DENIED" });
-    await expect(cloud.signUpPublic({
-      ...acceptedConsent("false-consent@example.test"),
-      acceptedHealthDataConsent: false,
-    })).rejects.toMatchObject({ code: "DENIED" });
-    await expect(cloud.signUpPublic({
-      ...acceptedConsent("stale-consent@example.test"),
-      healthDataConsentVersion: "stale-version",
-    })).rejects.toMatchObject({ code: "DENIED" });
+    await expect(
+      cloud.signUpPublic({ email: "missing-consent@example.test", acceptedLegal: true } as never),
+    ).rejects.toMatchObject({ code: "DENIED" });
+    await expect(
+      cloud.signUpPublic({
+        ...acceptedConsent("false-consent@example.test"),
+        acceptedHealthDataConsent: false,
+      }),
+    ).rejects.toMatchObject({ code: "DENIED" });
+    await expect(
+      cloud.signUpPublic({
+        ...acceptedConsent("stale-consent@example.test"),
+        healthDataConsentVersion: "stale-version",
+      }),
+    ).rejects.toMatchObject({ code: "DENIED" });
     expect(await count("sign_up_request")).toBe(before);
     expect(delivered).toEqual([]);
   });
@@ -419,11 +430,15 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
     );
     expect(hijack.status).toBeGreaterThanOrEqual(400);
 
-    // Legal acceptance is per account.
+    // Legal acceptance (terms, privacy, health-data consent) is per account.
     const legalOne = await db.execute(
-      sql`select 1 from "legal_acceptance" where "user_id" = ${userOne.id}`,
+      sql`select "document" from "legal_acceptance" where "user_id" = ${userOne.id} order by "document"`,
     );
-    expect(legalOne.rows).toHaveLength(2);
+    expect(legalOne.rows.map((row) => (row as { document: string }).document)).toEqual([
+      "health_data_consent",
+      "privacy",
+      "terms",
+    ]);
   });
 
   test("Better Auth's own create paths stay closed in cloud mode", async () => {

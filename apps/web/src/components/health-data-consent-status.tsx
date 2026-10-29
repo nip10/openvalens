@@ -20,9 +20,13 @@ export function HealthDataConsentStatus() {
   return (
     <Section title={<Trans>Health data consent</Trans>}>
       {status.isPending ? (
-        <p className="text-sm text-ink-3"><Trans>Loading consent status…</Trans></p>
+        <p className="text-sm text-ink-3">
+          <Trans>Loading consent status…</Trans>
+        </p>
       ) : status.isError ? (
-        <p className="text-sm text-ink-3"><Trans>Could not load health data consent status.</Trans></p>
+        <p className="text-sm text-ink-3">
+          <Trans>Could not load health data consent status.</Trans>
+        </p>
       ) : (
         <div className="grid gap-3 text-sm text-ink-2">
           <p>
@@ -34,10 +38,16 @@ export function HealthDataConsentStatus() {
               <Trans>No health data consent is recorded.</Trans>
             )}
             {status.data.acceptedAt ? (
-              <> <Trans>Recorded on {new Date(status.data.acceptedAt).toLocaleDateString()}.</Trans></>
+              <>
+                {" "}
+                <Trans>Recorded on {new Date(status.data.acceptedAt).toLocaleDateString()}.</Trans>
+              </>
             ) : null}
             {status.data.required && status.data.currentVersion ? (
-              <> <Trans>Current version: {status.data.currentVersion}.</Trans></>
+              <>
+                {" "}
+                <Trans>Current version: {status.data.currentVersion}.</Trans>
+              </>
             ) : null}
           </p>
           <p>
@@ -47,10 +57,16 @@ export function HealthDataConsentStatus() {
             </Trans>
           </p>
           <div className="flex flex-wrap gap-4">
-            <Link to="/exports" className="font-medium text-ink underline decoration-signal underline-offset-2">
+            <Link
+              to="/exports"
+              className="font-medium text-ink underline decoration-signal underline-offset-2"
+            >
               <Trans>Export records</Trans>
             </Link>
-            <a href="#delete-account" className="font-medium text-ink underline decoration-signal underline-offset-2">
+            <a
+              href="#delete-account"
+              className="font-medium text-ink underline decoration-signal underline-offset-2"
+            >
               <Trans>Delete account</Trans>
             </a>
           </div>

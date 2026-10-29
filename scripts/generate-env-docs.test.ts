@@ -49,7 +49,7 @@ describe("real committed schemas", () => {
   test("section variable counts", () => {
     const model = buildModel(REAL);
     expect(Object.fromEntries(model.map((entry) => [entry.id, entry.variables.length]))).toEqual({
-      server: 90,
+      server: 93,
       web: 5,
       native: 7,
       db: 2,

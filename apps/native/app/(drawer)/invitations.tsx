@@ -20,10 +20,7 @@ import {
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
-import {
-  needsHealthConsent,
-  type HealthConsentStatus,
-} from "@/lib/health-consent";
+import { needsHealthConsent, type HealthConsentStatus } from "@/lib/health-consent";
 import { client } from "@/utils/orpc";
 import { useServer } from "@/lib/server/server-url";
 import { useThemeColor } from "@/utils/theme";
@@ -99,7 +96,8 @@ export default function InvitationsScreen() {
     mutationFn: async (invitationId: string) => {
       const consent = await client.healthConsent.status({});
       if (needsHealthConsent(consent)) {
-        if (!healthConsentChecked || !consent.currentVersion) throw new Error("HEALTH_CONSENT_REQUIRED");
+        if (!healthConsentChecked || !consent.currentVersion)
+          throw new Error("HEALTH_CONSENT_REQUIRED");
         let accepted: HealthConsentStatus;
         try {
           accepted = await client.healthConsent.accept({
@@ -107,7 +105,9 @@ export default function InvitationsScreen() {
             version: consent.currentVersion,
           });
         } catch {
-          void queryClient.invalidateQueries({ queryKey: ["healthConsent", "status", serverUrl, userId] });
+          void queryClient.invalidateQueries({
+            queryKey: ["healthConsent", "status", serverUrl, userId],
+          });
           throw new Error("HEALTH_CONSENT_STALE");
         }
         if (
@@ -227,8 +227,12 @@ export default function InvitationsScreen() {
               onPress={() => setHealthConsentChecked((value) => !value)}
               className="flex-row items-start gap-2"
             >
-              <View className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${healthConsentChecked ? "border-primary bg-primary" : "border-rule bg-paper"}`}>
-                {healthConsentChecked ? <Text className="text-xs font-bold text-primary-foreground">✓</Text> : null}
+              <View
+                className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${healthConsentChecked ? "border-primary bg-primary" : "border-rule bg-paper"}`}
+              >
+                {healthConsentChecked ? (
+                  <Text className="text-xs font-bold text-primary-foreground">✓</Text>
+                ) : null}
               </View>
               <Text className="flex-1 font-sans text-sm text-ink-2">
                 {t`I agree to this health data processing.`}
@@ -270,7 +274,11 @@ export default function InvitationsScreen() {
                 invitation={invitation}
                 sessionEmail={email}
                 busy={busy}
-                acceptDisabled={consentStatus.isPending || consentStatus.isError || (needsHealthConsent(consentStatus.data) && !healthConsentChecked)}
+                acceptDisabled={
+                  consentStatus.isPending ||
+                  consentStatus.isError ||
+                  (needsHealthConsent(consentStatus.data) && !healthConsentChecked)
+                }
                 accepting={accept.isPending && accept.variables === invitation.id}
                 declining={decline.isPending && decline.variables === invitation.id}
                 onAccept={() => {

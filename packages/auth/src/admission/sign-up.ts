@@ -164,7 +164,8 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
     if (
       input?.acceptedHealthDataConsent !== true ||
       input.healthDataConsentVersion !== legal.healthDataConsent.version
-    ) throw new AdmissionError("DENIED");
+    )
+      throw new AdmissionError("DENIED");
     const canonical = canonicalizeEmail(input.email);
     if (!canonical) throw new AdmissionError("DENIED");
     if (!emailDeliveryAvailable()) throw new AdmissionError("EMAIL_UNAVAILABLE");
@@ -225,7 +226,8 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
       if (
         request.health_data_consent_version !== legal.healthDataConsent.version ||
         !toDate(request.health_data_consent_accepted_at)
-      ) return { status: "invalid" };
+      )
+        return { status: "invalid" };
 
       if (accountExists) {
         // Another link (or an invitation) created the account first. Retire
@@ -259,9 +261,10 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
         ["privacy", request.privacy_version],
         ["health_data_consent", request.health_data_consent_version],
       ] as const) {
-        const acceptedAt = document === "health_data_consent"
-          ? toDate(request.health_data_consent_accepted_at) ?? now
-          : toDate(request.accepted_at) ?? now;
+        const acceptedAt =
+          document === "health_data_consent"
+            ? (toDate(request.health_data_consent_accepted_at) ?? now)
+            : (toDate(request.accepted_at) ?? now);
         await tx.execute(
           sql`insert into "legal_acceptance" ("id", "user_id", "document", "version", "accepted_at", "source") values (${newId()}, ${userId}, ${document}, ${version}, ${acceptedAt.toISOString()}, 'sign_up')`,
         );

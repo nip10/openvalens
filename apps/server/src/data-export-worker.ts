@@ -133,7 +133,11 @@ export function createDataExportWorker(input: {
       if (fsStat.bavail * fsStat.bsize < RESERVE_BYTES)
         throw Object.assign(new Error(), { safeCode: "STORAGE_UNAVAILABLE" });
       const scope = await resolveSubject(input.db, job.subject_user_id);
-      if (!job.organization_ids.every((organizationId) => scope.subject.organizationIds.includes(organizationId)))
+      if (
+        !job.organization_ids.every((organizationId) =>
+          scope.subject.organizationIds.includes(organizationId),
+        )
+      )
         throw Object.assign(new Error(), { safeCode: "INTERRUPTED" });
       const subject = { userId: job.subject_user_id, organizationIds: [...job.organization_ids] };
       const paths: string[] = [];
@@ -167,17 +171,18 @@ export function createDataExportWorker(input: {
         },
       };
       const listAttachments = async () => {
-        const result = await input.db.execute(sql`select id, organization_id, purpose, content_type, size_bytes, sha256
+        const result = await input.db
+          .execute(sql`select id, organization_id, purpose, content_type, size_bytes, sha256
         from stored_object where ${rowFilter("stored_object", subject)} and purpose <> 'progress_photo'
         order by id limit 10001`);
         return result.rows as {
-        id: string;
-        organization_id: string;
-        purpose: string;
-        content_type: string;
-        size_bytes: number;
-        sha256: string;
-      }[];
+          id: string;
+          organization_id: string;
+          purpose: string;
+          content_type: string;
+          size_bytes: number;
+          sha256: string;
+        }[];
       };
       const objectRows = await listAttachments();
       if (objectRows.length > 10_000)
@@ -208,12 +213,14 @@ export function createDataExportWorker(input: {
         const expectedSize = Number(candidate.size_bytes);
         if (!Number.isSafeInteger(expectedSize) || expectedSize < 0)
           throw Object.assign(new Error(), { safeCode: "ATTACHMENT_UNAVAILABLE" });
-        const object = await input.storage!.getObject({
-          organizationId: candidate.organization_id,
-          objectId: candidate.id,
-        }).catch(() => {
-          throw Object.assign(new Error(), { safeCode: "ATTACHMENT_UNAVAILABLE" });
-        });
+        const object = await input
+          .storage!.getObject({
+            organizationId: candidate.organization_id,
+            objectId: candidate.id,
+          })
+          .catch(() => {
+            throw Object.assign(new Error(), { safeCode: "ATTACHMENT_UNAVAILABLE" });
+          });
         if (
           !object ||
           object.object.sizeBytes !== expectedSize ||
@@ -221,15 +228,17 @@ export function createDataExportWorker(input: {
           object.object.contentType !== candidate.content_type
         )
           throw Object.assign(new Error(), { safeCode: "ATTACHMENT_UNAVAILABLE" });
-        const ext = ({
-          "application/pdf": "pdf",
-          "application/zip": "zip",
-          "application/json": "json",
-          "image/png": "png",
-          "image/jpeg": "jpg",
-          "image/webp": "webp",
-          "image/heic": "heic",
-        } as Record<string, string>)[candidate.content_type];
+        const ext = (
+          {
+            "application/pdf": "pdf",
+            "application/zip": "zip",
+            "application/json": "json",
+            "image/png": "png",
+            "image/jpeg": "jpg",
+            "image/webp": "webp",
+            "image/heic": "heic",
+          } as Record<string, string>
+        )[candidate.content_type];
         if (!ext) throw Object.assign(new Error(), { safeCode: "ATTACHMENT_UNAVAILABLE" });
         const path = `attachments/${candidate.id}.${ext}`;
         const digest = createHash("sha256");
@@ -407,9 +416,14 @@ export function createDataExportWorker(input: {
 
   return {
     start() {
-      timer ??= setInterval(() => {
-        void tick();
-      }, 1000);
+      if (!timer) {
+        timer = setInterval(() => {
+          void tick();
+        }, 1000);
+        // The HTTP server keeps the process alive; the poll alone must not, so
+        // importing the app (CLI scripts, cold-boot tests) can still exit.
+        timer.unref?.();
+      }
       void tick();
     },
     async stop() {
@@ -452,21 +466,29 @@ export async function cleanupExportArtifacts(root: string, db?: Database): Promi
   await mkdir(root, { recursive: true, mode: 0o700 });
   await chmod(root, 0o700);
   if (db) {
-    const pending = await db.execute(sql`select id, cleanup_pending, state, subject_user_id from data_export_job
+    const pending =
+      await db.execute(sql`select id, cleanup_pending, state, subject_user_id from data_export_job
       where cleanup_pending in ('job','staging') or (subject_user_id is null and cleanup_pending is distinct from 'done')`);
-    for (const row of pending.rows as { id: string; cleanup_pending: string | null; state: string; subject_user_id: string | null }[]) {
+    for (const row of pending.rows as {
+      id: string;
+      cleanup_pending: string | null;
+      state: string;
+      subject_user_id: string | null;
+    }[]) {
       const dir = join(root, row.id);
-      const deleteWholeJob = row.cleanup_pending === "job" ||
-        ["failed", "cancelled", "expired"].includes(row.state) || row.subject_user_id === null;
+      const deleteWholeJob =
+        row.cleanup_pending === "job" ||
+        ["failed", "cancelled", "expired"].includes(row.state) ||
+        row.subject_user_id === null;
       const target = deleteWholeJob ? dir : join(dir, "staging");
       try {
         await rm(target, { recursive: true, force: true });
         await db.execute(sql`update data_export_job set cleanup_pending = ${deleteWholeJob ? "done" : null}
           where id = ${row.id}`);
       } catch {
-        await db
-          .execute(sql`update data_export_job set cleanup_pending = 'pending' where id = ${row.id}`)
-          .catch(() => undefined);
+        // Keep the 'job'/'staging' marker so the next pass retries this row.
+        // (Overwriting it with any other value would drop the row from the
+        // pending query above and leak the private archive on disk.)
       }
     }
   }

@@ -257,225 +257,225 @@ function DrawerLayout() {
         initialRouteName="(tabs)"
         drawerContent={() => <DrawerContent />}
         screenOptions={{
-        headerTintColor: themeColorForeground,
-        headerStyle: { backgroundColor: themeColorBackground },
-        headerTitleStyle: {
-          fontFamily: DISPLAY_FONT,
-          fontWeight: "600",
-          fontSize: 19,
-          color: themeColorForeground,
-        },
-        headerShadowVisible: false,
-        headerRight: renderThemeToggle,
-        drawerStyle: { backgroundColor: themeColorSidebar },
+          headerTintColor: themeColorForeground,
+          headerStyle: { backgroundColor: themeColorBackground },
+          headerTitleStyle: {
+            fontFamily: DISPLAY_FONT,
+            fontWeight: "600",
+            fontSize: 19,
+            color: themeColorForeground,
+          },
+          headerShadowVisible: false,
+          headerRight: renderThemeToggle,
+          drawerStyle: { backgroundColor: themeColorSidebar },
         }}
       >
-      <Drawer.Screen
-        name="index"
-        options={{
-          // The welcome screen carries its own wordmark; no bar title.
-          headerTitle: "",
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="(tabs)"
-        options={{
-          headerTitle,
-          drawerLabel: () => null,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="records/sleep"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="records/activity"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="records/vitals"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="records/labs"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="private-measurements"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="cycle"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="body-map"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="supplements"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="micronutrients"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="recipe-drafts"
-        options={{ headerTitle, drawerItemStyle: { display: "none" } }}
-      />
-      <Drawer.Screen
-        name="food-draft"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="nutrition-targets"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="foods"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="exports"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="workouts"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="exercise-library"
-        options={{ headerTitle, drawerItemStyle: { display: "none" } }}
-      />
-      <Drawer.Screen
-        name="coach/index"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="coach/[conversationId]"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="sharing"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="invitations"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="scores"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="preventive-care"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="insight-settings"
-        options={{
-          headerTitle: "Insight notifications",
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="profile"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="settings/devices"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="settings/modules"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="settings/telegram"
-        options={{
-          headerTitle,
-          drawerItemStyle: { display: "none" },
-        }}
-      />
-      <Drawer.Screen
-        name="admin/settings"
-        options={{
-          headerTitle: "Instance configuration",
-          drawerItemStyle: { display: "none" },
-        }}
-      />
+        <Drawer.Screen
+          name="index"
+          options={{
+            // The welcome screen carries its own wordmark; no bar title.
+            headerTitle: "",
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="(tabs)"
+          options={{
+            headerTitle,
+            drawerLabel: () => null,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="records/sleep"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="records/activity"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="records/vitals"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="records/labs"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="private-measurements"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="cycle"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="body-map"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="supplements"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="micronutrients"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="recipe-drafts"
+          options={{ headerTitle, drawerItemStyle: { display: "none" } }}
+        />
+        <Drawer.Screen
+          name="food-draft"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="nutrition-targets"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="foods"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="exports"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="workouts"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="exercise-library"
+          options={{ headerTitle, drawerItemStyle: { display: "none" } }}
+        />
+        <Drawer.Screen
+          name="coach/index"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="coach/[conversationId]"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="sharing"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="invitations"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="scores"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="preventive-care"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="insight-settings"
+          options={{
+            headerTitle: "Insight notifications",
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="profile"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="settings/devices"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="settings/modules"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="settings/telegram"
+          options={{
+            headerTitle,
+            drawerItemStyle: { display: "none" },
+          }}
+        />
+        <Drawer.Screen
+          name="admin/settings"
+          options={{
+            headerTitle: "Instance configuration",
+            drawerItemStyle: { display: "none" },
+          }}
+        />
       </Drawer>
     </View>
   );

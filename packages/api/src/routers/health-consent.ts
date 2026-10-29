@@ -17,10 +17,15 @@ const statusOutput = z.object({
   privacyUrl: z.string().nullable(),
 });
 
-const input = z.object({ acceptedHealthDataConsent: z.literal(true), version: z.string().min(1).max(64) });
+const input = z.object({
+  acceptedHealthDataConsent: z.literal(true),
+  version: z.string().min(1).max(64),
+});
 
 function current(context: Context) {
-  return context.deployment?.mode === "cloud" ? context.deployment.legal?.healthDataConsent ?? null : null;
+  return context.deployment?.mode === "cloud"
+    ? (context.deployment.legal?.healthDataConsent ?? null)
+    : null;
 }
 
 function trustedUserId(context: Context) {
@@ -56,7 +61,8 @@ async function statusFor(context: Context) {
     const acceptedAt = latest
       ? (latest.accepted_at instanceof Date
           ? latest.accepted_at
-          : new Date(String(latest.accepted_at))).toISOString()
+          : new Date(String(latest.accepted_at))
+        ).toISOString()
       : null;
     return {
       required: true,
@@ -78,11 +84,13 @@ export const healthConsentRouter = {
     .handler(({ context }) => statusFor(context)),
 
   accept: sessionProcedure
-    .use(o.middleware(async ({ context, next }) => {
-      requireAdmissionOrigin(context);
-      trustedUserId(context);
-      return next({});
-    }))
+    .use(
+      o.middleware(async ({ context, next }) => {
+        requireAdmissionOrigin(context);
+        trustedUserId(context);
+        return next({});
+      }),
+    )
     .input(input)
     .output(statusOutput)
     .handler(async ({ context, input: value }) => {

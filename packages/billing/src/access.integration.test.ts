@@ -72,7 +72,11 @@ describe.skipIf(!url)("subscription states against disposable PostgreSQL", () =>
         webhookSecret: WEBHOOK_SECRET,
         client: fake.client,
       }),
-      config: { prices: PRICES, termsUrl: "https://legal.test/terms", checkoutAcknowledgementVersion: "checkout-v1" },
+      config: {
+        prices: PRICES,
+        termsUrl: "https://legal.test/terms",
+        checkoutAcknowledgementVersion: "checkout-v1",
+      },
       webOrigin: "https://app.openvalens.test",
       email: {
         organizationName: "OpenValens",
@@ -125,7 +129,13 @@ describe.skipIf(!url)("subscription states against disposable PostgreSQL", () =>
   async function subscribedOwner(name: string) {
     const owner = await createOwner(name);
     await startTrial(db, { userId: owner.userId });
-    await billing.startCheckout({ userId: owner.userId, plan: "monthly", acceptedImmediateStart: true, acceptedWithdrawalAcknowledgement: true, acknowledgementVersion: "checkout-v1" });
+    await billing.startCheckout({
+      userId: owner.userId,
+      plan: "monthly",
+      acceptedImmediateStart: true,
+      acceptedWithdrawalAcknowledgement: true,
+      acknowledgementVersion: "checkout-v1",
+    });
     const customer = String((await row(owner.userId))!.stripe_customer_id);
     const ref = String((await row(owner.userId))!.customer_ref);
     const subscription = fake.completeCheckout({ customer, priceId: PRICES.monthly, ref });
@@ -218,7 +228,9 @@ describe.skipIf(!url)("subscription states against disposable PostgreSQL", () =>
     });
     const own = await billing.getStatus(owner.userId, owner.orgId);
     expect(own).toMatchObject({
-      viewer: "owner", ownerName: null, canManage: true,
+      viewer: "owner",
+      ownerName: null,
+      canManage: true,
       checkoutAcknowledgement: { version: "checkout-v1", termsUrl: "https://legal.test/terms" },
     });
     expect(own.prices.monthly).toEqual({ amount: 799, currency: "eur" });

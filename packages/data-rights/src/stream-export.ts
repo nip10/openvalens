@@ -79,10 +79,14 @@ export async function writeSubjectJsonFiles(
 ): Promise<ExportManifest> {
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
   if (
-    !Number.isSafeInteger(limits.maxRowBytes) || limits.maxRowBytes < 1 ||
-    !Number.isSafeInteger(limits.fetchRows) || limits.fetchRows < 1 ||
-    !Number.isSafeInteger(limits.maxMetadataBytes) || limits.maxMetadataBytes < 1
-  ) throw new TypeError("Invalid subject export limits.");
+    !Number.isSafeInteger(limits.maxRowBytes) ||
+    limits.maxRowBytes < 1 ||
+    !Number.isSafeInteger(limits.fetchRows) ||
+    limits.fetchRows < 1 ||
+    !Number.isSafeInteger(limits.maxMetadataBytes) ||
+    limits.maxMetadataBytes < 1
+  )
+    throw new TypeError("Invalid subject export limits.");
 
   const entities: ExportManifest["entities"] = [];
   const excluded: ExportManifest["excluded"] = [];
@@ -101,7 +105,9 @@ export async function writeSubjectJsonFiles(
 
       // The preflight returns only a boolean and executes in the same snapshot.
       // `table` is drawn exclusively from the checked-in registry.
-      const oversized = await tx.execute(buildRowLimitPreflightQuery(table, subject, limits.maxRowBytes));
+      const oversized = await tx.execute(
+        buildRowLimitPreflightQuery(table, subject, limits.maxRowBytes),
+      );
       if ((oversized.rows[0] as { oversized?: boolean } | undefined)?.oversized)
         throw new SubjectExportLimitError("row");
 
@@ -116,7 +122,8 @@ export async function writeSubjectJsonFiles(
           const bytes = asBytes(text);
           fileBytes += bytes.byteLength;
           metadataBytes += bytes.byteLength;
-          if (metadataBytes > limits.maxMetadataBytes) throw new SubjectExportLimitError("metadata");
+          if (metadataBytes > limits.maxMetadataBytes)
+            throw new SubjectExportLimitError("metadata");
           hash.update(bytes);
           return bytes;
         };
@@ -125,7 +132,9 @@ export async function writeSubjectJsonFiles(
         try {
           for (;;) {
             checkAbort(options.signal);
-            const result = await tx.execute(sql`fetch forward ${sql.raw(String(limits.fetchRows))} from ${sql.identifier(cursor)}`);
+            const result = await tx.execute(
+              sql`fetch forward ${sql.raw(String(limits.fetchRows))} from ${sql.identifier(cursor)}`,
+            );
             const rows = result.rows as Record<string, unknown>[];
             if (rows.length === 0) break;
             for (const raw of rows) {
@@ -168,6 +177,11 @@ export async function writeSubjectJsonFiles(
   const manifestBytes = asBytes(`${json(manifest)}\n`);
   if (metadataBytes + manifestBytes.byteLength > limits.maxMetadataBytes)
     throw new SubjectExportLimitError("metadata");
-  await sink.write("manifest.json", (async function* () { yield manifestBytes; })());
+  await sink.write(
+    "manifest.json",
+    (async function* () {
+      yield manifestBytes;
+    })(),
+  );
   return manifest;
 }

@@ -284,9 +284,8 @@ export const socialSignUpService = createSocialSignUpService({
 // Issue #58 — auth must be constructed only after the email service exists.
 export const auth = createAuth(ENV, db, {
   email,
-  healthDataConsentVersion: deploymentConfig.mode === "cloud"
-    ? deploymentConfig.legal.healthDataConsent.version
-    : null,
+  healthDataConsentVersion:
+    deploymentConfig.mode === "cloud" ? deploymentConfig.legal.healthDataConsent.version : null,
   oidc: oidcConfig.provider,
   invitationEmails,
   publicSignUp: publicSignUpService.enabled ? publicSignUpService : null,

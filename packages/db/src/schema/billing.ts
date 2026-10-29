@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
 
@@ -123,9 +132,13 @@ export const billingCheckoutAcknowledgement = pgTable(
   "billing_checkout_acknowledgement",
   {
     id: uuid("id").primaryKey(),
-    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     version: text("version").notNull(),
-    acceptedAt: timestamp("accepted_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
     immediateStartRequested: boolean("immediate_start_requested").notNull(),
     withdrawalAcknowledged: boolean("withdrawal_acknowledged").notNull(),
     stripeCheckoutSessionId: text("stripe_checkout_session_id").unique(),
@@ -135,6 +148,8 @@ export const billingCheckoutAcknowledgement = pgTable(
       "billing_checkout_acknowledgement_true_only",
       sql`${table.immediateStartRequested} = true and ${table.withdrawalAcknowledged} = true`,
     ),
-    checkoutAcknowledgementUserIdx: index("billing_checkout_acknowledgement_user_id_idx").on(table.userId),
+    checkoutAcknowledgementUserIdx: index("billing_checkout_acknowledgement_user_id_idx").on(
+      table.userId,
+    ),
   }),
 );

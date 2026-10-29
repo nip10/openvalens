@@ -34,7 +34,7 @@ export type DeploymentConfig =
        * Terms, privacy policy and separate health-data consent. Public account
        * creation records acceptance of each configured version and timestamp.
        */
-       legal: { terms: LegalDocument; privacy: LegalDocument; healthDataConsent: LegalDocument };
+      legal: { terms: LegalDocument; privacy: LegalDocument; healthDataConsent: LegalDocument };
     };
 
 /** Raw env input accepted by {@link parseDeploymentConfig}. */
@@ -124,7 +124,11 @@ export function parseDeploymentConfig(env: DeploymentEnv): DeploymentConfig {
     const value = env[key];
     if (present(value) && !isHttpUrl(value.trim())) issues.push(`${key} must be an http(s) URL`);
   }
-  for (const key of ["LEGAL_TERMS_VERSION", "LEGAL_PRIVACY_VERSION", "LEGAL_HEALTH_CONSENT_VERSION"] as const) {
+  for (const key of [
+    "LEGAL_TERMS_VERSION",
+    "LEGAL_PRIVACY_VERSION",
+    "LEGAL_HEALTH_CONSENT_VERSION",
+  ] as const) {
     const value = env[key];
     if (present(value) && value.trim().length > VERSION_MAX_LENGTH) {
       issues.push(`${key} must be at most ${VERSION_MAX_LENGTH} characters`);

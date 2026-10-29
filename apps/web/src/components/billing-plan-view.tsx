@@ -262,22 +262,22 @@ export function BillingPlanView({
                 />
                 <label htmlFor={withdrawalId} className="flex-1">
                   <Trans>
-                    I understand that if I withdraw within 14 days, I may have to pay for the service
-                    already provided.
+                    I understand that if I withdraw within 14 days, I may have to pay for the
+                    service already provided.
                   </Trans>
                 </label>
               </div>
               <p className="px-2 pb-1 text-ink-3">
-                  <Trans>
-                    Read our{" "}
-                    <a
-                      className="underline underline-offset-2"
-                      href={status.checkoutAcknowledgement.termsUrl}
-                    >
-                      Terms
-                    </a>
-                    .
-                  </Trans>
+                <Trans>
+                  Read our{" "}
+                  <a
+                    className="underline underline-offset-2"
+                    href={status.checkoutAcknowledgement.termsUrl}
+                  >
+                    Terms
+                  </a>
+                  .
+                </Trans>
               </p>
             </div>
           ) : (
