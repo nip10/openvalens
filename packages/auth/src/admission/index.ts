@@ -10,6 +10,15 @@ export { AdmissionError, isAdmissionError } from "./errors";
 export type { AdmissionErrorCode } from "./errors";
 export { createAdmissionService } from "./service";
 export { createPublicSignUpService, SIGN_UP_LINK_TTL_MS } from "./sign-up";
+export { createSocialSignUpService } from "./social-sign-up";
+export type {
+  SocialSignUpDeps,
+  SocialSignUpInput,
+  SocialSignUpLegal,
+  SocialSignUpProviderId,
+  SocialSignUpResult,
+  SocialSignUpService,
+} from "./social-sign-up";
 export type {
   CompletePublicSignUpResult,
   DeliverSignUp,

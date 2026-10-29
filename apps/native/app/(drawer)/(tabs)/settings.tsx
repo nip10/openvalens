@@ -68,6 +68,7 @@ import {
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { AiSection } from "@/components/ai-section";
 import { ServerSection } from "@/components/change-server";
+import { SignInMethodsSection } from "@/components/sign-in-methods";
 import { useAppTheme } from "@/contexts/app-theme-context";
 import { authClient } from "@/lib/auth-client";
 import { signOutOfThisPhone } from "@/lib/sign-out";
@@ -124,6 +125,9 @@ export default function SettingsScreen() {
             </View>
           </SettingsGroup>
         </Section>
+
+        {/* Issue #296 — connect and disconnect Google, Apple and OIDC. */}
+        {session?.user && <SignInMethodsSection />}
 
         <ServerSection />
 

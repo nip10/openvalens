@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { readdir } from "node:fs/promises";
 
-import { createPublicSignUpService } from "@openvalens/auth/admission";
+import { createPublicSignUpService, createSocialSignUpService } from "@openvalens/auth/admission";
 import { createDb, sql, type Database } from "@openvalens/db";
 import type { SendEmailInput } from "@openvalens/email";
 import { createStructuredLogger } from "@openvalens/observability";
@@ -208,6 +208,35 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
       sql`select count(*)::int as n from "subscription" s join "user" u on u."id" = s."user_id" where u."email" = 'rolled.back@example.com'`,
     );
     expect(left.rows).toEqual([{ n: 0 }]);
+  });
+
+  test("Google / Apple Cloud sign-up starts the same 30-day trial (#296)", async () => {
+    const social = createSocialSignUpService({
+      db,
+      deployment: {
+        mode: "cloud",
+        legal: {
+          terms: { url: "https://legal.test/terms", version: "t-1" },
+          privacy: { url: "https://legal.test/privacy", version: "p-1" },
+        },
+      },
+      onAccountCreated: onCloudAccountCreated,
+    });
+    const created = await social.createAccount({
+      providerId: "apple",
+      accountId: "synthetic-apple-sub-trial",
+      email: "relay.trial@privaterelay.appleid.com",
+      emailVerified: true,
+      name: "Synthetic Person",
+      legal: { termsVersion: "t-1", privacyVersion: "p-1", acceptedAt: new Date() },
+    });
+    expect(created.status).toBe("created");
+    const userId = created.status === "created" ? created.userId : "";
+    const subscription = (await row(userId))!;
+    expect(subscription).toMatchObject({ status: "trialing", stripe_customer_id: null });
+    const length = new Date(subscription.trial_ends_at as Date).getTime() - Date.now();
+    expect(Math.abs(length - 30 * DAY)).toBeLessThan(60_000);
+    expect(fake.calls).toHaveLength(0);
   });
 
   test("the trial starts locally at sign-up: 30 days, trialing, no Stripe customer", async () => {

@@ -115,6 +115,8 @@ apply to OpenValens 0.1.0 (pre-release; no release is tagged yet):
 - [Backups](docs/self-hosting/backup.md) — encrypted daily and pre-upgrade backups of the database and files, verify, restore; keep the backup key off the server
 - [Email](docs/self-hosting/email.md) (Resend only)
 - [Single sign-on (OIDC)](docs/self-hosting/oidc.md) — one optional provider, invite-only
+- [Google and Apple sign-in](docs/self-hosting/google-apple-sign-in.md) — Continue with Google
+  and Apple; sign-up only on OpenValens Cloud
 - [Security model and reporting](docs/self-hosting/security.md)
 - [Privacy and data rights](docs/self-hosting/privacy.md)
 - [Licensing and trademark](docs/self-hosting/licensing.md)

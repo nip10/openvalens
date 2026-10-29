@@ -53,7 +53,7 @@ import { AiWorkspaceConsentSection } from "@/components/ai-workspace-consent-sec
 import { AnalyticsConsentSection } from "@/components/analytics-consent-section";
 import { InsightNotificationsSection } from "@/components/insight-notifications-section";
 import { LanguageSection } from "@/components/language-section";
-import { OidcConnectSection } from "@/components/oidc-connect-section";
+import { SignInMethodsSection } from "@/components/sign-in-methods-section";
 import { ErrorState, InfoTip, Page, PageHeader, Section } from "@/components/page";
 import { ProfileSummarySection } from "@/components/profile-summary-card";
 import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
@@ -111,7 +111,7 @@ function SettingsPage() {
         <div className="grid min-w-0 max-w-3xl content-start gap-10">
           <div id="account" className="grid scroll-mt-10 gap-10">
             <AccountSection />
-            <OidcConnectSection />
+            <SignInMethodsSection />
           </div>
           {cloud ? (
             <div id="plan" className="scroll-mt-10">

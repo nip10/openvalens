@@ -9,6 +9,7 @@ import z from "zod";
 import { ErrorState, Icon, Sheet, ToneIcon } from "@/components/bloom";
 import { useChangeServer } from "@/components/change-server";
 import { useServerProblemCopy } from "@/components/server-choice";
+import { SocialSignInButtons } from "@/components/social-sign-in";
 import { authClient } from "@/lib/auth-client";
 import { cancelPendingMagicLink, requestMagicLink } from "@/lib/magic-link";
 import { serverLabel } from "@/lib/server/server-address";
@@ -82,11 +83,17 @@ export function SignIn() {
   }
 
   const methods = check.meta.signIn;
-  // Google and Apple sign-in buttons arrive with #296.
-  const anyMethod = methods.magicLink || methods.oidc;
+  const anyMethod = methods.magicLink || methods.oidc || methods.google || methods.apple;
   return (
     <Sheet className="gap-4 p-6">
       {methods.magicLink ? <MagicLinkSignIn /> : <SignInHeading sent={false} />}
+      {methods.google || methods.apple ? (
+        <SocialSignIn
+          google={methods.google}
+          apple={methods.apple}
+          signUpAvailable={methods.signUp}
+        />
+      ) : null}
       {methods.oidc ? <OidcSignIn /> : null}
       {anyMethod ? null : (
         <Text className="text-center font-sans text-base text-ink-3">
@@ -110,6 +117,30 @@ function SignInHeading({ sent }: { sent: boolean }) {
         <Trans>Sign in</Trans>
       </Text>
     </View>
+  );
+}
+
+/**
+ * Issue #296 — Google and Apple. Whether the iOS sheet may be used comes from
+ * `signIn.options` (`appleNative`); until it loads, Apple uses the browser.
+ */
+function SocialSignIn({
+  google,
+  apple,
+  signUpAvailable,
+}: {
+  google: boolean;
+  apple: boolean;
+  signUpAvailable: boolean;
+}) {
+  const options = useQuery(orpc.signIn.options.queryOptions({ input: {} }));
+  return (
+    <SocialSignInButtons
+      google={google}
+      apple={apple}
+      appleNative={options.data?.appleNative === true}
+      signUpAvailable={signUpAvailable}
+    />
   );
 }
 

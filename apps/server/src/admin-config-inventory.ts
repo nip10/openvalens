@@ -4,7 +4,7 @@ import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 /**
  * Explicit, ordered allowlist of the server's global configuration keys
  * (Issue #58). This is the *only* set of keys the configuration inventory can
- * ever surface; it mirrors `apps/server/.env.schema` exactly (75 keys) and is
+ * ever surface; it mirrors `apps/server/.env.schema` exactly (82 keys) and is
  * asserted against that schema by the parity test.
  *
  * The list is intentionally hand-written rather than derived from the
@@ -54,6 +54,13 @@ export const ADMIN_CONFIG_KEYS = [
   "OIDC_CLIENT_SECRET",
   "OIDC_DISCOVERY_URL",
   "OIDC_DISPLAY_NAME",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "APPLE_CLIENT_ID",
+  "APPLE_TEAM_ID",
+  "APPLE_KEY_ID",
+  "APPLE_PRIVATE_KEY",
+  "APPLE_APP_BUNDLE_ID",
   "API_MAX_BODY_BYTES",
   "STORAGE_PROVIDER",
   "STORAGE_LOCAL_DIR",

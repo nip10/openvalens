@@ -26,13 +26,19 @@ export function deploymentProfile(
 export function registerServerMetaRoute(
   app: Hono,
   options: {
-    signInOptions: { readonly oidc: object | null };
+    signInOptions: {
+      readonly oidc: object | null;
+      readonly google?: boolean;
+      readonly apple?: boolean;
+    };
     profile?: () => DeploymentProfile;
   },
 ): void {
   const meta = buildServerMeta({
     profile: (options.profile ?? deploymentProfile)(),
     oidc: options.signInOptions.oidc !== null,
+    google: options.signInOptions.google === true,
+    apple: options.signInOptions.apple === true,
   });
   app.get(SERVER_META_PATH, (c) =>
     c.json(meta, 200, {

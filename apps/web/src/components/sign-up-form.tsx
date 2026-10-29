@@ -7,6 +7,12 @@ import { useId, useState } from "react";
 import z from "zod";
 
 import { ErrorState, ToneIcon } from "@/components/page";
+import SocialSignInButtons from "@/components/social-sign-in-buttons";
+import {
+  socialProviderName,
+  socialSignUpErrorMessage,
+  type SocialProvider,
+} from "@/utils/sign-in-options";
 import {
   signUpLinkErrorMessage,
   signUpRequestErrorMessage,
@@ -22,6 +28,13 @@ export type SignUpFormProps = {
   linkError?: SignUpLinkError | null;
   /** Requests the sign-up link; resolves the same whether or not the email has an account. */
   onSubmit: (email: string) => Promise<void>;
+  /** Issue #296 — sign up with Google / Apple instead of an email link. */
+  google?: boolean;
+  apple?: boolean;
+  /** Issue #296 — a failed Google or Apple sign-up redirect, or `null`. */
+  socialError?: { provider: SocialProvider; code: string } | null;
+  /** The language the account is created in. */
+  locale?: string;
 };
 
 const linkClass =
@@ -38,6 +51,10 @@ export default function SignUpForm({
   privacy,
   linkError = null,
   onSubmit,
+  google = false,
+  apple = false,
+  socialError = null,
+  locale,
 }: SignUpFormProps) {
   const { t, i18n } = useLingui();
   const emailId = useId();
@@ -122,6 +139,23 @@ export default function SignUpForm({
             }
           />
         ) : null}
+        {socialError ? (
+          <ErrorState
+            title={i18n._(
+              socialSignUpErrorMessage(
+                socialError.code || undefined,
+                socialProviderName(socialError.provider),
+              ),
+            )}
+            action={
+              socialError.code === "account_not_linked" ? (
+                <a href="/login" className={linkClass}>
+                  <Trans>Sign in</Trans>
+                </a>
+              ) : undefined
+            }
+          />
+        ) : null}
         {requestError ? (
           <ErrorState title={i18n._(signUpRequestErrorMessage(requestError))} />
         ) : null}
@@ -183,6 +217,32 @@ export default function SignUpForm({
             {submitting ? t`Sending…` : t`Email me a sign-up link`}
           </Button>
         </form>
+
+        {google || apple ? (
+          <div className="grid gap-4">
+            <div className="flex items-center gap-3 text-sm text-ink-3">
+              <span className="h-px flex-1 bg-rule" />
+              <Trans>or</Trans>
+              <span className="h-px flex-1 bg-rule" />
+            </div>
+            <SocialSignInButtons
+              google={google}
+              apple={apple}
+              callbackURL={`${window.location.origin}/welcome`}
+              errorCallbackURL={(provider) => `${window.location.origin}/signup?via=${provider}`}
+              signUp={() => {
+                // The terms are accepted before the provider flow starts; the
+                // server records the versions it serves and the time.
+                if (!accepted) {
+                  setFieldError(t`Accept the terms of service and privacy policy to continue.`);
+                  return null;
+                }
+                setFieldError(null);
+                return { acceptLegal: true, ...(locale ? { locale } : {}) };
+              }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <p className="text-center text-sm text-ink-3">

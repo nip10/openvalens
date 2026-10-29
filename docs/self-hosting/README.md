@@ -20,19 +20,20 @@ so.
 
 ## Guides
 
-| Page                                        | Covers                                                                   |
-| ------------------------------------------- | ------------------------------------------------------------------------ |
-| [Install](install.md)                       | Requirements, `deploy/setup.sh install`, first administrator, verifying. |
-| [Configuration](configuration.md)           | `deploy/.env`, optional providers, product settings, scheduled jobs.     |
-| [Food catalogs](food-catalogs.md)           | Importing USDA and Open Food Facts data for food search and barcodes.    |
-| [Upgrading](upgrading.md)                   | `deploy/setup.sh upgrade`, failures, rolling back.                       |
-| [Backups](backup.md)                        | Encrypted daily backups, the backup key, verify, restore, new host.      |
-| [Email](email.md)                           | Resend setup (the only email transport).                                 |
-| [Single sign-on (OIDC)](oidc.md)            | One optional OIDC provider: invite-only, explicit account connection.    |
-| [Security model and reporting](security.md) | What the stack protects, what you must, how to report a vulnerability.   |
-| [Privacy and data rights](privacy.md)       | Where data lives, export and "delete everything".                        |
-| [Licensing and trademark](licensing.md)     | AGPL obligations, app-store permission, use of the name.                 |
-| [Connecting the mobile app](mobile-app.md)  | The store app on your server; building your own is optional.             |
+| Page                                                | Covers                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Install](install.md)                               | Requirements, `deploy/setup.sh install`, first administrator, verifying. |
+| [Configuration](configuration.md)                   | `deploy/.env`, optional providers, product settings, scheduled jobs.     |
+| [Food catalogs](food-catalogs.md)                   | Importing USDA and Open Food Facts data for food search and barcodes.    |
+| [Upgrading](upgrading.md)                           | `deploy/setup.sh upgrade`, failures, rolling back.                       |
+| [Backups](backup.md)                                | Encrypted daily backups, the backup key, verify, restore, new host.      |
+| [Email](email.md)                                   | Resend setup (the only email transport).                                 |
+| [Single sign-on (OIDC)](oidc.md)                    | One optional OIDC provider: invite-only, explicit account connection.    |
+| [Google and Apple sign-in](google-apple-sign-in.md) | Continue with Google and Apple; sign-up only on OpenValens Cloud.        |
+| [Security model and reporting](security.md)         | What the stack protects, what you must, how to report a vulnerability.   |
+| [Privacy and data rights](privacy.md)               | Where data lives, export and "delete everything".                        |
+| [Licensing and trademark](licensing.md)             | AGPL obligations, app-store permission, use of the name.                 |
+| [Connecting the mobile app](mobile-app.md)          | The store app on your server; building your own is optional.             |
 
 ## Reference
 

@@ -7,12 +7,19 @@ import { createAuth, setRegisteredAuth } from "@openvalens/auth";
 import {
   createAdmissionService,
   createPublicSignUpService,
+  createSocialSignUpService,
   type OnPublicAccountCreated,
 } from "@openvalens/auth/admission";
 import { deploymentCapabilities, parseDeploymentConfig } from "@openvalens/auth/deployment";
 import { PUBLIC_SIGN_UP_VERIFY_PATH } from "@openvalens/auth/public-sign-up-plugin";
 import { createWorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import { describeOidcIntegration, oidcSignInOption, parseOidcConfig } from "@openvalens/auth/oidc";
+import {
+  betterAuthTokenDecrypter,
+  createSocialTokenRevocation,
+  parseSocialSignInConfig,
+  socialSignInOptions,
+} from "@openvalens/auth/social";
 import { createDb } from "@openvalens/db";
 import type { IntegrationStatuses } from "@openvalens/config/integrations";
 import { createEmailService, describeEmailIntegration, parseEmailConfig } from "@openvalens/email";
@@ -107,8 +114,34 @@ if (oidcConfig.missingKeys.length > 0) {
   });
 }
 
-/** Public "Continue with <name>" option for the sign-in screens, or `null`. */
-export const signInOptions = Object.freeze({ oidc: oidcSignInOption(oidcConfig) });
+// Issue #296 — Sign in with Google and Apple. Each is off unless all of its
+// keys are set; an incomplete set logs the missing key *names* only. A
+// malformed value (e.g. a key that is not a P-256 `.p8`) fails the boot with
+// the key name, never the value.
+export const socialSignInConfig = parseSocialSignInConfig({
+  GOOGLE_CLIENT_ID: ENV.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: ENV.GOOGLE_CLIENT_SECRET,
+  APPLE_CLIENT_ID: ENV.APPLE_CLIENT_ID,
+  APPLE_TEAM_ID: ENV.APPLE_TEAM_ID,
+  APPLE_KEY_ID: ENV.APPLE_KEY_ID,
+  APPLE_PRIVATE_KEY: ENV.APPLE_PRIVATE_KEY,
+  APPLE_APP_BUNDLE_ID: ENV.APPLE_APP_BUNDLE_ID,
+});
+
+if (socialSignInConfig.missingKeys.length > 0) {
+  createStructuredLogger({ level: "info" }).warn("auth.social.config.incomplete", {
+    missingKeys: [...socialSignInConfig.missingKeys],
+  });
+}
+
+/**
+ * Public sign-in options for the sign-in screens: the "Continue with <name>"
+ * OIDC option (or `null`) and the Google / Apple flags. Value-free.
+ */
+export const signInOptions = Object.freeze({
+  oidc: oidcSignInOption(oidcConfig),
+  ...socialSignInOptions(socialSignInConfig),
+});
 
 // Issue #243 — one workspace-invitation email composer, shared by Better Auth
 // and the sharing router; links point at the web app (`CORS_ORIGIN`).
@@ -218,12 +251,43 @@ export const publicSignUpService = createPublicSignUpService({
   ...(onCloudAccountCreated ? { onAccountCreated: onCloudAccountCreated } : {}),
 });
 
+/**
+ * Issue #296 — Cloud sign-up with Google or Apple, through the same admission
+ * transaction shape (user, own workspace, legal acceptance, audit) and the
+ * same `onCloudAccountCreated` hook, so it starts the same 30-day trial.
+ * Inert on self-host: Google and Apple then only sign in existing accounts.
+ */
+export const socialSignUpService = createSocialSignUpService({
+  db,
+  deployment: deploymentConfig,
+  ...(onCloudAccountCreated ? { onAccountCreated: onCloudAccountCreated } : {}),
+});
+
 // Issue #58 — auth must be constructed only after the email service exists.
 export const auth = createAuth(ENV, db, {
   email,
   oidc: oidcConfig.provider,
   invitationEmails,
   publicSignUp: publicSignUpService.enabled ? publicSignUpService : null,
+  social: {
+    config: socialSignInConfig,
+    signUp: socialSignUpService.enabled ? socialSignUpService : null,
+  },
+  // Issue #296 — the last linked sign-in method may be removed only while an
+  // email link can reach the person.
+  emailSignInAvailable:
+    !emailConfig.EMAIL_DRY_RUN ||
+    (ENV.NODE_ENV === "development" && ENV.AUTH_DEV_MAGIC_LINK_CONSOLE === true),
+});
+
+/**
+ * Issue #296 — Apple token revocation on account deletion (App Store Review
+ * Guideline 5.1.1(v)). Inert when Apple is not configured.
+ */
+export const socialTokenRevocation = createSocialTokenRevocation({
+  db,
+  apple: socialSignInConfig.apple,
+  decrypt: betterAuthTokenDecrypter(auth),
 });
 
 // Issue #14 — server-side Telegram instantiation. The `@openvalens/telegram`

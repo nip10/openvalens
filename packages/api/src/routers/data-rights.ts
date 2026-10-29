@@ -7,6 +7,7 @@ import {
   previewSubjectData,
   resolveSubject,
 } from "@openvalens/data-rights";
+import type { PendingRevocation, SocialTokenRevocation } from "@openvalens/auth/social";
 import { createStructuredLogger } from "@openvalens/observability";
 import { z } from "zod";
 
@@ -26,6 +27,11 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
  * so a failed transaction never loses an object that is still indexed. If the
  * subject has objects but storage is off, deletion is refused rather than
  * orphaning their bytes.
+ *
+ * Sign in with Apple (#296): the account's Apple tokens are read before the
+ * erasure and revoked through Apple's API after it commits (App Store Review
+ * Guideline 5.1.1(v)). A failed revocation is logged as a count and never
+ * undoes the deletion.
  *
  * Cloud billing (#297): erasing a subscription row that reached Stripe queues
  * its customer (a database trigger, in the same transaction). Right after the
@@ -93,6 +99,32 @@ function raiseSelfErasureError(error: unknown): never {
   }
 }
 
+async function collectRevocation(
+  revocation: SocialTokenRevocation | undefined,
+  userId: string,
+): Promise<PendingRevocation | null> {
+  if (!revocation) return null;
+  try {
+    return await revocation.collect(userId);
+  } catch {
+    // Never block a deletion on reading provider tokens.
+    logger.warn("data_rights.provider_tokens_unreadable", {});
+    return null;
+  }
+}
+
+async function revokeAfterErasure(
+  revocation: SocialTokenRevocation | undefined,
+  pending: PendingRevocation | null,
+): Promise<{ revoked: number; failed: number } | null> {
+  if (!revocation || !pending || pending.apple.length === 0) return null;
+  try {
+    return await revocation.revoke(pending);
+  } catch {
+    return { revoked: 0, failed: pending.apple.length };
+  }
+}
+
 const sum = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0);
 
 export const dataRightsRouter = {
@@ -127,13 +159,16 @@ export const dataRightsRouter = {
       if (input.confirmation !== DELETE_CONFIRMATION)
         throw raiseApiError("INVALID_INPUT", `Type ${DELETE_CONFIRMATION} to confirm.`);
       let result;
+      let pendingRevocation: PendingRevocation | null = null;
       try {
         const actor = assertSelfServiceSession(context);
+        pendingRevocation = await collectRevocation(context.socialTokenRevocation, actor.userId);
         result = await deleteSelfSubjectData(context.db, actor, context.storage ?? null);
       } catch (error) {
         raiseSelfErasureError(error);
       }
       const { report, objects } = result;
+      const revocation = await revokeAfterErasure(context.socialTokenRevocation, pendingRevocation);
       if (context.billing) {
         try {
           await context.billing.processErasures();
@@ -152,6 +187,8 @@ export const dataRightsRouter = {
         rows: totalRows,
         objectsDeleted: objects.deleted,
         objectsFailed: objects.failed,
+        ...(revocation ? { appleTokensRevoked: revocation.revoked } : {}),
+        ...(revocation ? { appleTokensFailed: revocation.failed } : {}),
       });
       return { erasedAt: report.erasedAt, totalRows };
     }),

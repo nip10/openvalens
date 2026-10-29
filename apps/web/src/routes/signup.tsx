@@ -5,6 +5,7 @@ import z from "zod";
 
 import SignUpForm from "@/components/sign-up-form";
 import { orpc } from "@/utils/orpc";
+import { isSocialProvider, signInOptionsQueryOptions } from "@/utils/sign-in-options";
 import { SIGN_UP_LINK_ERRORS, signUpOptionsQueryOptions } from "@/utils/sign-up";
 
 /**
@@ -14,7 +15,9 @@ import { SIGN_UP_LINK_ERRORS, signUpOptionsQueryOptions } from "@/utils/sign-up"
  */
 export const Route = createFileRoute("/signup")({
   validateSearch: z.object({
-    error: z.enum(SIGN_UP_LINK_ERRORS).optional().catch(undefined),
+    // A sign-up link reason, or (with `via`) a Google / Apple error code.
+    error: z.string().max(64).optional().catch(undefined),
+    via: z.string().max(16).optional().catch(undefined),
   }),
   loader: async ({ context }) => {
     const options = await context.queryClient.ensureQueryData(signUpOptionsQueryOptions());
@@ -24,22 +27,32 @@ export const Route = createFileRoute("/signup")({
 });
 
 function SignUpPage() {
-  const { error } = Route.useSearch();
+  const { error, via } = Route.useSearch();
   const { i18n } = useLingui();
   const options = useQuery(signUpOptionsQueryOptions());
+  // Issue #296 — "Continue with Google / Apple" when the server has them.
+  const signInOptions = useQuery(signInOptionsQueryOptions());
   const terms = options.data?.terms;
   const privacy = options.data?.privacy;
   if (!terms || !privacy) return null;
+  const socialFlow = isSocialProvider(via) ? via : null;
+  const linkError = !socialFlow
+    ? (SIGN_UP_LINK_ERRORS.find((reason) => reason === error) ?? null)
+    : null;
+  const locale = i18n.locale === "pt-PT" ? "pt-PT" : "en";
 
   return (
     <SignUpForm
       terms={terms}
       privacy={privacy}
-      linkError={error ?? null}
+      linkError={linkError}
+      google={signInOptions.data?.google === true}
+      apple={signInOptions.data?.apple === true}
+      socialError={socialFlow ? { provider: socialFlow, code: error ?? "" } : null}
+      locale={locale}
       onSubmit={async (email) => {
         // The emails are written in the language this page is shown in, which
         // also becomes the new account's language.
-        const locale = i18n.locale === "pt-PT" ? "pt-PT" : "en";
         await orpc.signUp.request.call({ email, acceptedLegal: true, locale });
       }}
     />
