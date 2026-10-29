@@ -1,0 +1,50 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "OpenValens contributors",
+    "categories": ["HEALTH_AND_FITNESS"],
+    "info": {
+      "en-US": {
+        "title": "OpenValens",
+        "subtitle": "Private health record",
+        "description": "OpenValens keeps your health records in one private place: lab results, meals, workouts, sleep, body measurements and data from Apple Health.\n\nYOUR DATA, YOUR SERVER\nUse OpenValens Cloud, hosted in the EU, or connect the app to an OpenValens server you run yourself. It is the same app either way. There are no ads and no trackers, and your data is never sold.\n\nWHAT IT KEEPS\n• Labs: enter or import results and follow each marker over time, next to the reference range printed on your report.\n• Meal diary: log meals, scan food barcodes, and keep count of calories, macronutrients and water.\n• Workouts: log sets, reps and weights, and look back over your training history.\n• Sleep and activity: steps, heart rate, sleep and workouts sync from Apple Health.\n• Body: weight, body fat and measurements, with progress photos kept private.\n• Goals: set targets and check in on them.\n• Sharing: invite a partner or family member to a shared workspace, with roles you control.\n• AI assistant (optional, off until you turn it on): ask questions about your own records. It is not medical advice and can be wrong.\n\nYOURS TO TAKE WITH YOU\nExport all of your data at any time, or delete your account and all data from inside the app.\n\nFREE SOFTWARE\nOpenValens is free software under the GNU AGPL v3.0 or later. The source code of every release is available free of charge at https://github.com/nip10/openvalens.\n\nINTENDED PURPOSE\nOpenValens is a personal record-keeping and general-wellness app. It helps you store, organise and view your own health-related records (such as lab results you enter or import, body measurements, workouts, nutrition, sleep and wearable data) and track healthy habits. It shows publicly available guidance published by recognised public-health authorities, attributed and unaltered, for your information. OpenValens is not a medical device. It is not intended to diagnose, screen for, prevent, monitor, predict, treat or alleviate any disease or condition, and it does not provide medical advice. Talk to a qualified healthcare professional about your health.",
+        "keywords": [
+          "health record",
+          "lab results",
+          "food diary",
+          "workout log",
+          "sleep",
+          "apple health",
+          "self-hosted",
+          "privacy",
+          "nutrition"
+        ],
+        "promoText": "Lab results, meals, workouts, sleep and body measurements in one private record. Use OpenValens Cloud or connect the app to your own server.",
+        "releaseNotes": "First release.",
+        "marketingUrl": "https://openvalens.com",
+        "supportUrl": "https://openvalens.com/support",
+        "privacyPolicyUrl": "https://openvalens.com/privacy"
+      },
+      "pt-PT": {
+        "title": "OpenValens",
+        "subtitle": "Registo de saúde privado",
+        "description": "O OpenValens guarda os seus registos de saúde num só lugar privado: resultados de análises, refeições, treinos, sono, medidas corporais e dados do Apple Health.\n\nOS SEUS DADOS, O SEU SERVIDOR\nUse o OpenValens Cloud, alojado na UE, ou ligue a aplicação a um servidor OpenValens gerido por si. A aplicação é a mesma nos dois casos. Não há anúncios nem rastreadores, e os seus dados nunca são vendidos.\n\nO QUE GUARDA\n• Análises: introduza ou importe resultados e acompanhe cada parâmetro ao longo do tempo, ao lado do intervalo de referência indicado no seu boletim.\n• Diário alimentar: registe refeições, leia códigos de barras de alimentos e acompanhe calorias, macronutrientes e água.\n• Treinos: registe séries, repetições e cargas, e reveja o seu histórico de treino.\n• Sono e atividade: passos, frequência cardíaca, sono e treinos sincronizados a partir do Apple Health.\n• Corpo: peso, massa gorda e medidas, com fotografias de progresso guardadas em privado.\n• Objetivos: defina metas e registe o seu progresso.\n• Partilha: convide um parceiro ou familiar para um espaço de trabalho partilhado, com funções que controla.\n• Assistente de IA (opcional, desligado até o ativar): faça perguntas sobre os seus próprios registos. Não é aconselhamento médico e pode estar errado.\n\nLEVE OS SEUS DADOS CONSIGO\nExporte todos os seus dados a qualquer momento, ou elimine a sua conta e todos os dados a partir da aplicação.\n\nSOFTWARE LIVRE\nO OpenValens é software livre sob a GNU AGPL v3.0 ou posterior. O código-fonte de cada versão está disponível gratuitamente em https://github.com/nip10/openvalens.\n\nFINALIDADE PREVISTA\nO OpenValens é uma aplicação de registo pessoal e de bem-estar geral. Ajuda-o a guardar, organizar e consultar os seus próprios registos relacionados com a saúde (como resultados de análises que introduz ou importa, medidas corporais, treinos, alimentação, sono e dados de dispositivos vestíveis) e a acompanhar hábitos saudáveis. Mostra orientações publicadas por autoridades de saúde pública reconhecidas, com a fonte indicada e sem alterações, para sua informação. O OpenValens não é um dispositivo médico. Não se destina a diagnosticar, rastrear, prevenir, monitorizar, prever, tratar ou aliviar qualquer doença ou condição, e não presta aconselhamento médico. Fale com um profissional de saúde qualificado sobre a sua saúde.",
+        "keywords": [
+          "registo de saúde",
+          "análises",
+          "diário alimentar",
+          "treinos",
+          "sono",
+          "apple health",
+          "privacidade",
+          "nutrição"
+        ],
+        "promoText": "Análises, refeições, treinos, sono e medidas corporais num registo privado. Use o OpenValens Cloud ou ligue a aplicação ao seu próprio servidor.",
+        "releaseNotes": "Primeira versão.",
+        "marketingUrl": "https://openvalens.com",
+        "supportUrl": "https://openvalens.com/support",
+        "privacyPolicyUrl": "https://openvalens.com/privacy"
+      }
+    }
+  }
+}

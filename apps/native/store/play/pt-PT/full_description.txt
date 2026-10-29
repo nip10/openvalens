@@ -1,0 +1,23 @@
+O OpenValens guarda os seus registos de saúde num só lugar privado: resultados de análises, refeições, treinos, sono, medidas corporais e dados do Health Connect.
+
+OS SEUS DADOS, O SEU SERVIDOR
+Use o OpenValens Cloud, alojado na UE, ou ligue a aplicação a um servidor OpenValens gerido por si. A aplicação é a mesma nos dois casos. Não há anúncios nem rastreadores, e os seus dados nunca são vendidos.
+
+O QUE GUARDA
+• Análises: introduza ou importe resultados e acompanhe cada parâmetro ao longo do tempo, ao lado do intervalo de referência indicado no seu boletim.
+• Diário alimentar: registe refeições, leia códigos de barras de alimentos e acompanhe calorias, macronutrientes e água.
+• Treinos: registe séries, repetições e cargas, e reveja o seu histórico de treino.
+• Sono e atividade: passos, frequência cardíaca, sono e treinos sincronizados a partir do Health Connect.
+• Corpo: peso, massa gorda e medidas, com fotografias de progresso guardadas em privado.
+• Objetivos: defina metas e registe o seu progresso.
+• Partilha: convide um parceiro ou familiar para um espaço de trabalho partilhado, com funções que controla.
+• Assistente de IA (opcional, desligado até o ativar): faça perguntas sobre os seus próprios registos. Não é aconselhamento médico e pode estar errado.
+
+LEVE OS SEUS DADOS CONSIGO
+Exporte todos os seus dados a qualquer momento, ou elimine a sua conta e todos os dados a partir da aplicação.
+
+SOFTWARE LIVRE
+O OpenValens é software livre sob a GNU AGPL v3.0 ou posterior. O código-fonte de cada versão está disponível gratuitamente em https://github.com/nip10/openvalens.
+
+FINALIDADE PREVISTA
+O OpenValens é uma aplicação de registo pessoal e de bem-estar geral. Ajuda-o a guardar, organizar e consultar os seus próprios registos relacionados com a saúde (como resultados de análises que introduz ou importa, medidas corporais, treinos, alimentação, sono e dados de dispositivos vestíveis) e a acompanhar hábitos saudáveis. Mostra orientações publicadas por autoridades de saúde pública reconhecidas, com a fonte indicada e sem alterações, para sua informação. O OpenValens não é um dispositivo médico. Não se destina a diagnosticar, rastrear, prevenir, monitorizar, prever, tratar ou aliviar qualquer doença ou condição, e não presta aconselhamento médico. Fale com um profissional de saúde qualificado sobre a sua saúde.
