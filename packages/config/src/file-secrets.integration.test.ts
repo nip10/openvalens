@@ -264,6 +264,7 @@ describe("actual server schema sensitive coverage", () => {
           "LEGAL_PRIVACY_URL",
           "LEGAL_PRIVACY_VERSION",
           "LEGAL_TERMS_URL",
+          "LEGAL_CHECKOUT_ACK_VERSION",
           "LEGAL_TERMS_VERSION",
           "NODE_ENV",
           "OIDC_CLIENT_ID",

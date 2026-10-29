@@ -49,11 +49,13 @@ export type DeploymentEnv = {
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRICE_MONTHLY?: string;
   STRIPE_PRICE_ANNUAL?: string;
+  LEGAL_CHECKOUT_ACK_VERSION?: string;
 };
 
 /**
  * Keys that must be set when `DEPLOYMENT_MODE=cloud`: the legal documents
- * every sign-up records (#294) and the Stripe billing keys (#297), so Cloud
+ * every sign-up records (#294), the reviewed checkout acknowledgement version
+ * (#323), and the Stripe billing keys (#297), so Cloud
  * refuses to start without everything it needs. The Stripe values' shape is
  * checked by `parseBillingConfig` in `@openvalens/billing`.
  */
@@ -66,6 +68,7 @@ export const CLOUD_REQUIRED_KEYS = [
   "STRIPE_WEBHOOK_SECRET",
   "STRIPE_PRICE_MONTHLY",
   "STRIPE_PRICE_ANNUAL",
+  "LEGAL_CHECKOUT_ACK_VERSION",
 ] as const satisfies readonly (keyof DeploymentEnv)[];
 
 const VERSION_MAX_LENGTH = 64;

@@ -11480,6 +11480,26 @@ msgstr "Rigoroso"
 msgid "Subscribe"
 msgstr "Subscrever"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I request that my paid subscription starts immediately."
+msgstr "Peço que a minha subscrição paga comece imediatamente."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I understand that if I withdraw within 14 days, I may have to pay for the service already provided."
+msgstr "Compreendo que, se desistir no prazo de 14 dias, poderei ter de pagar pelo serviço já prestado."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Read our <0>Terms</0>."
+msgstr "Leia os nossos <0>Termos</0>."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Subscriptions are temporarily unavailable. Please try again later."
+msgstr "As subscrições estão temporariamente indisponíveis. Tente novamente mais tarde."
+
+#: apps/web/src/routes/_auth/settings/billing.tsx
+msgid "These terms have been updated. Review them and confirm again."
+msgstr "Os termos foram atualizados. Reveja-os e confirme novamente."
+
 #: packages/email/src/templates/billing.tsx
 msgid "Subscription ended"
 msgstr "Subscrição terminada"

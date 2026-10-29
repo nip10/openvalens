@@ -33,6 +33,7 @@ if (url) {
 }
 
 const WEBHOOK_SECRET = "whsec_test_billing_integration";
+const ACK = { acceptedImmediateStart: true as const, acceptedWithdrawalAcknowledgement: true as const, acknowledgementVersion: "checkout-v1" };
 const PRICES = { monthly: "price_test_monthly", annual: "price_test_annual" };
 const DAY = 86_400_000;
 
@@ -92,7 +93,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     billing = createBillingService({
       db,
       provider,
-      config: { prices: PRICES },
+      config: { prices: PRICES, termsUrl: "https://legal.test/terms", checkoutAcknowledgementVersion: "checkout-v1" },
       webOrigin: "https://app.openvalens.test",
       email: {
         organizationName: "OpenValens",
@@ -142,7 +143,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
   async function subscribedOwner(email: string, plan: "monthly" | "annual" = "monthly") {
     const userId = await createUser(email);
     await startTrial(db, { userId });
-    await billing.startCheckout({ userId, plan });
+    await billing.startCheckout({ userId, plan, ...ACK });
     const customer = String((await row(userId))!.stripe_customer_id);
     const ref = String((await row(userId))!.customer_ref);
     const subscription = fake.completeCheckout({ customer, priceId: PRICES[plan], ref });
@@ -261,6 +262,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
         monthly: { amount: 799, currency: "eur" },
         annual: { amount: 6900, currency: "eur" },
       },
+      checkoutAcknowledgement: { version: "checkout-v1", termsUrl: "https://legal.test/terms" },
     });
     expect(fake.calls.filter((c) => c.method === "customers.create")).toHaveLength(0);
   });
@@ -268,8 +270,8 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
   test("Checkout creates the customer once (email + opaque ref) and keeps the rest of the trial", async () => {
     const userId = await createUser("checkout.once@example.com");
     await startTrial(db, { userId });
-    const first = await billing.startCheckout({ userId, plan: "annual", locale: "pt-PT" });
-    const second = await billing.startCheckout({ userId, plan: "monthly" });
+    const first = await billing.startCheckout({ userId, plan: "annual", locale: "pt-PT", ...ACK });
+    const second = await billing.startCheckout({ userId, plan: "monthly", ...ACK });
     expect(first.url).toStartWith("https://checkout.stripe.test/");
     expect(second.url).toStartWith("https://checkout.stripe.test/");
 
@@ -294,6 +296,39 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
       Math.floor(new Date((await row(userId))!.trial_ends_at as Date).getTime() / 1000),
     );
     expect((await row(userId))!.status).toBe("trialing");
+    const acknowledgement = await db.execute(sql`select id, version, immediate_start_requested,
+      withdrawal_acknowledged, stripe_checkout_session_id from billing_checkout_acknowledgement
+      where user_id=${userId}`);
+    expect(acknowledgement.rows[0]).toMatchObject({
+      version: "checkout-v1",
+      immediate_start_requested: true,
+      withdrawal_acknowledged: true,
+    });
+    expect(params.metadata.acceptance_reference).toBe(
+      (acknowledgement.rows[0] as { id: string }).id,
+    );
+    expect((acknowledgement.rows[0] as { stripe_checkout_session_id: string }).stripe_checkout_session_id)
+      .toStartWith("cs_test_");
+  });
+
+  test("direct service callers cannot bypass missing or stale acknowledgements before Stripe", async () => {
+    const userId = await createUser("checkout.ack.required@example.com");
+    await startTrial(db, { userId });
+    await expect(billing.startCheckout({ userId, plan: "monthly" })).rejects.toMatchObject({
+      code: "ACKNOWLEDGEMENT_REQUIRED",
+    });
+    await expect(billing.startCheckout({
+      userId, plan: "monthly", acceptedImmediateStart: true,
+      acceptedWithdrawalAcknowledgement: false, acknowledgementVersion: "checkout-v1",
+    })).rejects.toMatchObject({ code: "ACKNOWLEDGEMENT_REQUIRED" });
+    await expect(billing.startCheckout({
+      userId, plan: "monthly", acceptedImmediateStart: true,
+      acceptedWithdrawalAcknowledgement: true, acknowledgementVersion: "old-version",
+    })).rejects.toMatchObject({ code: "ACKNOWLEDGEMENT_STALE" });
+    expect(fake.calls.filter((call) => ["customers.create", "checkout.sessions.create"].includes(call.method)))
+      .toHaveLength(0);
+    const records = await db.execute(sql`select id from billing_checkout_acknowledgement where user_id=${userId}`);
+    expect(records.rows).toHaveLength(0);
   });
 
   test("checkout.session.completed makes the owner active with plan and period", async () => {
@@ -310,7 +345,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
       canSubscribe: false,
       canManage: true,
     });
-    await expect(billing.startCheckout({ userId, plan: "monthly" })).rejects.toMatchObject({
+    await expect(billing.startCheckout({ userId, plan: "monthly", ...ACK })).rejects.toMatchObject({
       code: "ALREADY_SUBSCRIBED",
     });
     const portal = await billing.openPortal({ userId });
@@ -472,7 +507,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
   test("subscribed during the trial: no trial emails, Stripe's trial end applies", async () => {
     const userId = await createUser("early@example.com");
     await startTrial(db, { userId });
-    await billing.startCheckout({ userId, plan: "monthly" });
+    await billing.startCheckout({ userId, plan: "monthly", ...ACK });
     const { stripe_customer_id: customer, trial_ends_at } = (await row(userId))!;
     const trialEnd = new Date(trial_ends_at as Date);
     fake.completeCheckout({
@@ -497,7 +532,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
   test("an owner without a trial row can still subscribe, with no trial", async () => {
     const userId = await createUser("no.row@example.com");
     expect((await billing.getStatus(userId)).status).toBe("none");
-    await billing.startCheckout({ userId, plan: "monthly" });
+    await billing.startCheckout({ userId, plan: "monthly", ...ACK });
     expect((await row(userId))!.status).toBe("ended");
     const session = fake.calls.find((c) => c.method === "checkout.sessions.create");
     expect((session!.params as any).subscription_data).toEqual({
@@ -557,15 +592,19 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     expect((await billing.runScheduled()).eventsPruned).toBeGreaterThanOrEqual(1);
   });
 
-  test("across the suite, Stripe got only the opaque ref in metadata, and no user id or name", async () => {
+  test("Stripe metadata contains only opaque owner and acceptance references", async () => {
     const calls = [...allCalls, ...fake.calls];
     expect(calls.length).toBeGreaterThan(10);
     const users = await db.execute(sql`select "id" from "user"`);
     const userIds = new Set(users.rows.map((r) => String((r as { id: string }).id)));
     for (const call of calls) {
       for (const entry of metadataObjects(call)) {
-        expect(Object.keys(entry)).toEqual([METADATA_REF_KEY]);
+        expect(Object.keys(entry).sort()).toEqual(
+          (entry.acceptance_reference ? [METADATA_REF_KEY, "acceptance_reference"] : [METADATA_REF_KEY]).sort(),
+        );
         expect(String(entry[METADATA_REF_KEY])).toMatch(/^ovc_[0-9a-f]{32}$/);
+        if (entry.acceptance_reference)
+          expect(String(entry.acceptance_reference)).toMatch(/^[0-9a-f-]{36}$/i);
       }
       for (const value of strings(call)) {
         expect(userIds.has(value)).toBe(false);

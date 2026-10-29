@@ -38,6 +38,7 @@ const statusOutput = z.object({
   canSubscribe: z.boolean(),
   canManage: z.boolean(),
   prices: z.object({ monthly: price, annual: price }),
+  checkoutAcknowledgement: z.object({ version: z.string(), termsUrl: z.string().url() }).nullable(),
 });
 const locale = z.string().max(16).optional();
 const redirectOutput = z.object({ url: z.string() });
@@ -79,6 +80,10 @@ function mapBillingError(error: unknown, correlationId: string): never {
   switch (code) {
     case "ALREADY_SUBSCRIBED":
       throw raiseApiError("CONFLICT", "You already have a plan. Manage it instead.");
+    case "ACKNOWLEDGEMENT_REQUIRED":
+      throw raiseApiError("INVALID_INPUT", "Both checkout acknowledgements are required.");
+    case "ACKNOWLEDGEMENT_STALE":
+      throw raiseApiError("CONFLICT", "Checkout terms changed. Review them and try again.");
     case "NO_CUSTOMER":
     case "NOT_FOUND":
       throw raiseApiError("NOT_FOUND", "No plan to manage yet.");
@@ -102,7 +107,12 @@ export const billingRouter = {
     ),
 
   checkout: protectedProcedure
-    .input(z.object({ plan: z.enum(["monthly", "annual"]), locale }))
+    .input(z.object({
+      plan: z.enum(["monthly", "annual"]), locale,
+      acceptedImmediateStart: z.literal(true),
+      acceptedWithdrawalAcknowledgement: z.literal(true),
+      acknowledgementVersion: z.string().min(1).max(64),
+    }))
     .output(redirectOutput)
     .handler(async ({ context, input }) => {
       const billing = requireBilling(context);
@@ -112,6 +122,9 @@ export const billingRouter = {
         return await billing.startCheckout({
           userId: context.session.user.id,
           plan: input.plan,
+          acceptedImmediateStart: input.acceptedImmediateStart,
+          acceptedWithdrawalAcknowledgement: input.acceptedWithdrawalAcknowledgement,
+          acknowledgementVersion: input.acknowledgementVersion,
           ...(isLocale(input.locale) ? { locale: input.locale } : {}),
         });
       } catch (error) {

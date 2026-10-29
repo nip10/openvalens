@@ -256,6 +256,10 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     `),
     );
 
+    await db.execute(sql`insert into billing_checkout_acknowledgement
+      (id,user_id,version,immediate_start_requested,withdrawal_acknowledged,stripe_checkout_session_id)
+      values ('ack-export-a','user-a','checkout-v1',true,true,'cs_export_fixture')`);
+
     exported = await exportSubjectData(
       db,
       { userId: "user-a", organizationIds: ["org-a"] },
@@ -282,6 +286,14 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     for (const excluded of exported.manifest.excluded)
       expect(excluded.reason.length).toBeGreaterThan(0);
     expect(exported.manifest.excluded.map((e) => e.table)).toContain("mobile_sync_session_chunk");
+  });
+
+  test("exports checkout acknowledgement history only to its user", () => {
+    expect(parse("billing_checkout_acknowledgement")).toMatchObject([
+      { id: "ack-export-a", user_id: "user-a", version: "checkout-v1", immediate_start_requested: true, withdrawal_acknowledged: true },
+    ]);
+    const other = exportedA2.files.find((file) => file.path === "entities/billing_checkout_acknowledgement.json");
+    expect(JSON.parse(other!.content)).toEqual([]);
   });
 
   test("every exported module contributes the subject's rows (#89)", () => {

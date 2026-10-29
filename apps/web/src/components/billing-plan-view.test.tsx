@@ -27,6 +27,7 @@ const base: BillingStatus = {
   canSubscribe: true,
   canManage: false,
   prices: PRICES,
+  checkoutAcknowledgement: { version: "terms-v1", termsUrl: "/terms" },
 };
 
 function render(status: Partial<BillingStatus>, checkout: "success" | "cancelled" | null = null) {
@@ -55,6 +56,21 @@ describe("BillingPlanView", () => {
     expect(html).toInclude("Prices include VAT");
     expect(html.match(/Subscribe/g)?.length).toBe(2);
     expect(html).not.toInclude("Manage billing");
+  });
+
+  test("Checkout requires both independent acknowledgements and links the Terms", () => {
+    const html = render({});
+    expect(html.match(/type="checkbox"/g)?.length).toBe(2);
+    expect(html).toInclude("I request that my paid subscription starts immediately.");
+    expect(html).toInclude("I understand that if I withdraw within 14 days");
+    expect(html).toInclude('href="/terms"');
+    expect(html.match(/disabled=""/g)?.length).toBe(2);
+  });
+
+  test("subscriptions remain unavailable when legal acknowledgement is not configured", () => {
+    const html = render({ checkoutAcknowledgement: null });
+    expect(html).toInclude("Subscriptions are temporarily unavailable");
+    expect(html.match(/disabled=""/g)?.length).toBe(2);
   });
 
   test("active: plan, renewal date and the portal instead of Checkout", () => {

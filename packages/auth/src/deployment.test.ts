@@ -17,6 +17,7 @@ const CLOUD_ENV = {
   STRIPE_WEBHOOK_SECRET: "whsec_synthetic",
   STRIPE_PRICE_MONTHLY: "price_synthetic_monthly",
   STRIPE_PRICE_ANNUAL: "price_synthetic_annual",
+  LEGAL_CHECKOUT_ACK_VERSION: "checkout-v1",
 };
 
 describe("parseDeploymentConfig (Issue #294)", () => {
