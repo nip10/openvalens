@@ -73,6 +73,18 @@ const ingestionRunOutput = cronRunOutput.extend({
   rawArtifactsPurged: z.number(),
 });
 
+// Issue #297 — Cloud billing job counts, value-free. All zero on self-host.
+const billingRunOutput = cronRunOutput.extend({
+  cloud: z.boolean(),
+  trialRemindersSent: z.number(),
+  trialsEnded: z.number(),
+  trialEndedSent: z.number(),
+  emailsFailed: z.number(),
+  erasuresCompleted: z.number(),
+  erasuresFailed: z.number(),
+  eventsPruned: z.number(),
+});
+
 const photoCleanupRunOutput = cronRunOutput.extend({
   unavailable: z.boolean(),
   scanned: z.number(),
@@ -157,6 +169,51 @@ export const cronRouter = {
         startedAt,
         finishedAt,
         correlationId: context.correlationId,
+        ...totals,
+      };
+    }),
+
+  /**
+   * Issue #297 — OpenValens Cloud billing: the "trial ends in 3 days" and
+   * "trial ended" emails (each claimed once per owner, so overlapping runs
+   * never double-send), local trials that ran out become `ended`, the Stripe
+   * side of account erasure is retried, and old webhook event ids are pruned.
+   * A no-op on self-host. Suggested schedule: hourly.
+   */
+  billingRun: cronProcedure
+    .input(z.object({}))
+    .output(billingRunOutput)
+    .handler(async ({ context }) => {
+      const startedAt = new Date().toISOString();
+      const totals = context.billing
+        ? await context.billing.runScheduled()
+        : {
+            trialRemindersSent: 0,
+            trialsEnded: 0,
+            trialEndedSent: 0,
+            emailsFailed: 0,
+            erasuresCompleted: 0,
+            erasuresFailed: 0,
+            eventsPruned: 0,
+          };
+      const status =
+        totals.emailsFailed === 0 && totals.erasuresFailed === 0
+          ? ("ok" as const)
+          : ("failed" as const);
+      logger.info("cron.billing.completed", {
+        job: "billing.run",
+        correlationId: context.correlationId,
+        status,
+        cloud: Boolean(context.billing),
+        ...totals,
+      });
+      return {
+        status,
+        job: "billing.run",
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        correlationId: context.correlationId,
+        cloud: Boolean(context.billing),
         ...totals,
       };
     }),

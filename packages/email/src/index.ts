@@ -14,3 +14,4 @@ export * from "./templates/invitation";
 export * from "./templates/invitation-reminder";
 export * from "./templates/invitation-revoked";
 export * from "./templates/magic-link";
+export * from "./templates/billing";

@@ -709,6 +709,21 @@ describe.skipIf(!url)("data-rights delete against disposable PostgreSQL", () => 
     });
   });
 
+  test("erasing a subscribed owner queues their Stripe customer for cancellation (#297)", async () => {
+    // The erased owner's Stripe customer and subscription are queued for the
+    // billing service, which cancels now and deletes the customer; the other
+    // account's subscription is untouched and not queued.
+    const queued = (
+      await db.execute(
+        sql`select stripe_customer_id, stripe_subscription_id from billing_customer_erasure order by stripe_customer_id`,
+      )
+    ).rows;
+    expect(queued).toEqual([
+      { stripe_customer_id: "cus_seed_a", stripe_subscription_id: "sub_seed_a" },
+    ]);
+    expect(await count("subscription", sql`user_id = 'user-b'`)).toBe(1);
+  });
+
   test("instance admission singleton is untouched by subject deletion", async () => {
     const rows = (await db.execute(sql`select id, state, completed_at from instance_admission`))
       .rows as { id: string; state: string; completed_at: string | null }[];

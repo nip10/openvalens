@@ -1,6 +1,7 @@
 export * from "./admission";
 export * from "./analytics";
 export * from "./backup";
+export * from "./billing";
 export * from "./auth";
 export * from "./body";
 export * from "./clinical";

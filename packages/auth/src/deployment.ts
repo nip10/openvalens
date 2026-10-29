@@ -3,7 +3,7 @@
  *
  * `DEPLOYMENT_MODE` decides whether this server is a self-hosted instance
  * (`self-hosted`, the default) or OpenValens Cloud (`cloud`). Self-host stays
- * invite-only: nothing Cloud-only (public sign-up, and later billing and usage
+ * invite-only: nothing Cloud-only (public sign-up, billing, and later usage
  * caps) is reachable unless the operator sets `cloud` explicitly.
  *
  * The server owns the environment (`apps/server/.env.schema`); this module is
@@ -44,19 +44,28 @@ export type DeploymentEnv = {
   LEGAL_TERMS_VERSION?: string;
   LEGAL_PRIVACY_URL?: string;
   LEGAL_PRIVACY_VERSION?: string;
+  /** Cloud billing (#297); parsed in full by `@openvalens/billing`. */
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PRICE_MONTHLY?: string;
+  STRIPE_PRICE_ANNUAL?: string;
 };
 
 /**
- * Keys that must be set when `DEPLOYMENT_MODE=cloud`.
- *
- * Extension point (#297): the Stripe keys join this list when billing lands,
- * so Cloud keeps refusing to start without everything it needs.
+ * Keys that must be set when `DEPLOYMENT_MODE=cloud`: the legal documents
+ * every sign-up records (#294) and the Stripe billing keys (#297), so Cloud
+ * refuses to start without everything it needs. The Stripe values' shape is
+ * checked by `parseBillingConfig` in `@openvalens/billing`.
  */
 export const CLOUD_REQUIRED_KEYS = [
   "LEGAL_TERMS_URL",
   "LEGAL_TERMS_VERSION",
   "LEGAL_PRIVACY_URL",
   "LEGAL_PRIVACY_VERSION",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+  "STRIPE_PRICE_MONTHLY",
+  "STRIPE_PRICE_ANNUAL",
 ] as const satisfies readonly (keyof DeploymentEnv)[];
 
 const VERSION_MAX_LENGTH = 64;

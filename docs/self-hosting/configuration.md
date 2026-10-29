@@ -77,6 +77,10 @@ the value already in `deploy/.env`; add any other key by hand
 | `LEGAL_TERMS_VERSION`                        | no                   | empty               | Terms version recorded, with a timestamp, for every new account.                                                                                                                                                                                                                                                                               |
 | `LEGAL_PRIVACY_URL`                          | no                   | empty               | Privacy policy page linked from the sign-up form.                                                                                                                                                                                                                                                                                              |
 | `LEGAL_PRIVACY_VERSION`                      | no                   | empty               | Privacy policy version recorded, with a timestamp, for every new account.                                                                                                                                                                                                                                                                      |
+| `STRIPE_SECRET_KEY_FILE`                     | yes (secret file)    | empty               | `/run/secrets/STRIPE_SECRET_KEY`, the Stripe API key (a restricted `rk_` key is recommended). Required when `DEPLOYMENT_MODE=cloud`; see [billing](../billing.md).                                                                                                                                                                             |
+| `STRIPE_WEBHOOK_SECRET_FILE`                 | yes (secret file)    | empty               | `/run/secrets/STRIPE_WEBHOOK_SECRET`, the signing secret (`whsec_`) of the webhook endpoint `https://<domain>/api/billing/webhook`.                                                                                                                                                                                                            |
+| `STRIPE_PRICE_MONTHLY`                       | no                   | empty               | Stripe price id (`price_`) of the monthly plan, €7.99 with VAT included.                                                                                                                                                                                                                                                                       |
+| `STRIPE_PRICE_ANNUAL`                        | no                   | empty               | Stripe price id (`price_`) of the annual plan, €69 with VAT included.                                                                                                                                                                                                                                                                          |
 | `VITE_SENTRY_DSN`                            | no                   | —                   | Optional browser error reporting, built into the web image; also allowed in the web CSP.                                                                                                                                                                                                                                                       |
 | `API_MAX_BODY_BYTES`                         | no                   | `1048576`           | Largest accepted API request body, in bytes; bigger bodies get `413` before parsing. Photo uploads have their own 11 MiB cap (10 MiB photo plus framing).                                                                                                                                                                                      |
 | `EMAIL_REPLY_TO`                             | no                   | empty               | Reply-to address of app email; empty means the `EMAIL_FROM` address.                                                                                                                                                                                                                                                                           |
@@ -393,16 +397,17 @@ change one.
 
 ## Scheduled jobs
 
-The Compose stack does **not** schedule anything. Five jobs must be triggered
+The Compose stack does **not** schedule anything. Six jobs must be triggered
 from the host, authenticated with the generated `CRON_SECRET`:
 
-| Endpoint                      | Suggested schedule      | Job                                                        |
-| ----------------------------- | ----------------------- | ---------------------------------------------------------- |
-| `/rpc/cron/remindersDailyRun` | `5 * * * *` (hourly)    | Daily supplement, medication and event reminders           |
-| `/rpc/cron/ingestionRun`      | `15 9 * * *` (daily)    | Retry and replay of queued ingestion work                  |
-| `/rpc/cron/insightsRun`       | `20 * * * *` (hourly)   | Opt-in insight and preventive-care reminder push and email |
-| `/rpc/cron/wearablesSync`     | `*/15 * * * *` (15 min) | Cloud wearable sync; a no-op without a wearable vendor     |
-| `/rpc/cron/photoCleanupRun`   | `40 * * * *` (hourly)   | Finishes deleting removed progress photos (25 per run)     |
+| Endpoint                      | Suggested schedule      | Job                                                                    |
+| ----------------------------- | ----------------------- | ---------------------------------------------------------------------- |
+| `/rpc/cron/remindersDailyRun` | `5 * * * *` (hourly)    | Daily supplement, medication and event reminders                       |
+| `/rpc/cron/ingestionRun`      | `15 9 * * *` (daily)    | Retry and replay of queued ingestion work                              |
+| `/rpc/cron/insightsRun`       | `20 * * * *` (hourly)   | Opt-in insight and preventive-care reminder push and email             |
+| `/rpc/cron/wearablesSync`     | `*/15 * * * *` (15 min) | Cloud wearable sync; a no-op without a wearable vendor                 |
+| `/rpc/cron/photoCleanupRun`   | `40 * * * *` (hourly)   | Finishes deleting removed progress photos (25 per run)                 |
+| `/rpc/cron/billingRun`        | `50 * * * *` (hourly)   | OpenValens Cloud trial emails and Stripe erasure; a no-op on self-host |
 
 Add them to the crontab of the user who ran `deploy/setup.sh` (that user can
 read `deploy/secrets/`); replace both placeholders:
@@ -413,6 +418,7 @@ read `deploy/secrets/`); replace both placeholders:
 20 * * * *   curl -fsS -X POST https://<domain>/rpc/cron/insightsRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 */15 * * * * curl -fsS -X POST https://<domain>/rpc/cron/wearablesSync -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 40 * * * *   curl -fsS -X POST https://<domain>/rpc/cron/photoCleanupRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
+50 * * * *   curl -fsS -X POST https://<domain>/rpc/cron/billingRun -H "Authorization: Bearer $(cat /path/to/openvalens/deploy/secrets/server/CRON_SECRET)" -H 'Content-Type: application/json' -d '{"json":{}}' >/dev/null
 ```
 
 A call without the bearer token is rejected with HTTP `401`. A successful call

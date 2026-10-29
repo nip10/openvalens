@@ -6,6 +6,7 @@ import { adminSettingsRouter } from "./admin-settings";
 import { admissionRouter } from "./admission";
 import { aiRouter } from "./ai";
 import { analyticsRouter } from "./analytics";
+import { billingRouter } from "./billing";
 import { preferencesRouter } from "./preferences";
 import { bodyRouter } from "./body";
 import { clinicalRouter } from "./clinical";
@@ -62,6 +63,7 @@ type AppRouterShape = {
   admission: typeof admissionRouter;
   ai: typeof aiRouter;
   analytics: typeof analyticsRouter;
+  billing: typeof billingRouter;
   preferences: typeof preferencesRouter;
   body: typeof bodyRouter;
   clinical: typeof clinicalRouter;
@@ -115,6 +117,7 @@ export const appRouter: AppRouterShape = {
   admission: admissionRouter,
   ai: aiRouter,
   analytics: analyticsRouter,
+  billing: billingRouter,
   preferences: preferencesRouter,
   body: bodyRouter,
   clinical: clinicalRouter,

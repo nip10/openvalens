@@ -13,6 +13,10 @@ const CLOUD_ENV = {
   LEGAL_TERMS_VERSION: "2026-11-01",
   LEGAL_PRIVACY_URL: "https://openvalens.example/privacy",
   LEGAL_PRIVACY_VERSION: "2026-11-01",
+  STRIPE_SECRET_KEY: "rk_test_synthetic",
+  STRIPE_WEBHOOK_SECRET: "whsec_synthetic",
+  STRIPE_PRICE_MONTHLY: "price_synthetic_monthly",
+  STRIPE_PRICE_ANNUAL: "price_synthetic_annual",
 };
 
 describe("parseDeploymentConfig (Issue #294)", () => {
@@ -28,6 +32,32 @@ describe("parseDeploymentConfig (Issue #294)", () => {
     expect(
       parseDeploymentConfig({ DEPLOYMENT_MODE: "self-hosted", LEGAL_TERMS_URL: "not a url" }),
     ).toEqual({ mode: "self-hosted" });
+  });
+
+  test("self-host needs no Stripe key (#297)", () => {
+    expect(parseDeploymentConfig({ DEPLOYMENT_MODE: "self-hosted" })).toEqual({
+      mode: "self-hosted",
+    });
+  });
+
+  test("cloud refuses to start without the Stripe keys (#297), never echoing a value", () => {
+    for (const key of [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "STRIPE_PRICE_MONTHLY",
+      "STRIPE_PRICE_ANNUAL",
+    ] as const) {
+      expect(CLOUD_REQUIRED_KEYS).toContain(key);
+      let error: unknown;
+      try {
+        parseDeploymentConfig({ ...CLOUD_ENV, [key]: " " });
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeInstanceOf(DeploymentConfigError);
+      expect((error as Error).message).toContain(key);
+      expect((error as Error).message).not.toContain("synthetic");
+    }
   });
 
   test("an unknown mode refuses to start", () => {

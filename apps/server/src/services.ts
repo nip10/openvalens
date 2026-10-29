@@ -1,9 +1,14 @@
 import { describeAiIntegration, InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
+import type { BillingService } from "@openvalens/billing";
 import { deriveInsightUnsubscribeKey } from "@openvalens/api/insights";
 import { createProductSettingsService } from "@openvalens/api/product-settings";
 import { SignUpRateLimiter } from "@openvalens/api/sign-up";
 import { createAuth, setRegisteredAuth } from "@openvalens/auth";
-import { createAdmissionService, createPublicSignUpService } from "@openvalens/auth/admission";
+import {
+  createAdmissionService,
+  createPublicSignUpService,
+  type OnPublicAccountCreated,
+} from "@openvalens/auth/admission";
 import { deploymentCapabilities, parseDeploymentConfig } from "@openvalens/auth/deployment";
 import { PUBLIC_SIGN_UP_VERIFY_PATH } from "@openvalens/auth/public-sign-up-plugin";
 import { createWorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
@@ -116,16 +121,74 @@ export const invitationEmails = createWorkspaceInvitationEmails({
 // ─── Deployment mode (Issue #294) ───────────────────────────────
 //
 // `DEPLOYMENT_MODE` is `self-hosted` unless the operator sets `cloud`. Cloud
-// refuses to start without the settings it depends on (today the terms and
-// privacy versions every sign-up records; #297 adds the Stripe keys to
-// `CLOUD_REQUIRED_KEYS`). The thrown error names keys only, never values.
+// refuses to start without the settings it depends on: the terms and privacy
+// versions every sign-up records, and the Stripe keys (#297). The thrown error
+// names keys only, never values.
 export const deploymentConfig = parseDeploymentConfig({
   DEPLOYMENT_MODE: ENV.DEPLOYMENT_MODE,
   LEGAL_TERMS_URL: ENV.LEGAL_TERMS_URL,
   LEGAL_TERMS_VERSION: ENV.LEGAL_TERMS_VERSION,
   LEGAL_PRIVACY_URL: ENV.LEGAL_PRIVACY_URL,
   LEGAL_PRIVACY_VERSION: ENV.LEGAL_PRIVACY_VERSION,
+  STRIPE_SECRET_KEY: ENV.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET: ENV.STRIPE_WEBHOOK_SECRET,
+  STRIPE_PRICE_MONTHLY: ENV.STRIPE_PRICE_MONTHLY,
+  STRIPE_PRICE_ANNUAL: ENV.STRIPE_PRICE_ANNUAL,
 });
+
+// ─── Cloud billing (Issue #297) ─────────────────────────────────
+//
+// `@openvalens/billing` and the Stripe SDK are loaded only in Cloud: on a
+// self-hosted deployment nothing below imports them, the billing routes are not
+// mounted and the API reports billing as not found. The service is built once,
+// on first use; `index.ts` awaits it at boot in Cloud, so a malformed Stripe
+// key or price id stops the server before it serves anything.
+let billingServicePromise: Promise<BillingService> | null = null;
+
+/** The Cloud billing service, or `null` on a self-hosted deployment. */
+export function getBillingService(): Promise<BillingService | null> {
+  if (deploymentConfig.mode !== "cloud") return Promise.resolve(null);
+  billingServicePromise ??= (async () => {
+    const [billing, { createStripeProvider }] = await Promise.all([
+      import("@openvalens/billing"),
+      import("@openvalens/billing/providers/stripe"),
+    ]);
+    const config = billing.parseBillingConfig({
+      STRIPE_SECRET_KEY: ENV.STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: ENV.STRIPE_WEBHOOK_SECRET,
+      STRIPE_PRICE_MONTHLY: ENV.STRIPE_PRICE_MONTHLY,
+      STRIPE_PRICE_ANNUAL: ENV.STRIPE_PRICE_ANNUAL,
+    });
+    const locales = databaseMessageLocales(db);
+    return billing.createBillingService({
+      db,
+      provider: createStripeProvider({
+        secretKey: config.secretKey,
+        webhookSecret: config.webhookSecret,
+      }),
+      config,
+      webOrigin: ENV.CORS_ORIGIN,
+      email,
+      localeForUser: (userId) => locales.forUser(userId),
+      logger: createStructuredLogger({ level: "info" }).child({ component: "billing" }),
+    });
+  })();
+  return billingServicePromise;
+}
+
+/**
+ * The `onAccountCreated` hook of every Cloud sign-up path: starts the 30-day,
+ * card-free trial inside the account-creation transaction (one function,
+ * `onCloudAccountCreated`, shared by email sign-up and the social sign-up of
+ * #296). `undefined` on self-host.
+ */
+export const onCloudAccountCreated: OnPublicAccountCreated | undefined =
+  deploymentConfig.mode === "cloud"
+    ? async (input) => {
+        const { onCloudAccountCreated: startTrial } = await import("@openvalens/billing/trial");
+        await startTrial(input);
+      }
+    : undefined;
 
 /**
  * Public `{ mode, signUp }` for clients that adapt to the server (the web
@@ -151,7 +214,8 @@ export const publicSignUpService = createPublicSignUpService({
     url.searchParams.set("token", token);
     return url.toString();
   },
-  // #297 — start the 30-day no-card trial here (`onAccountCreated`).
+  // #297 — the 30-day no-card trial starts with the account.
+  ...(onCloudAccountCreated ? { onAccountCreated: onCloudAccountCreated } : {}),
 });
 
 // Issue #58 — auth must be constructed only after the email service exists.

@@ -1,5 +1,6 @@
 import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
 import type { AdmissionService, PublicSignUpService } from "@openvalens/auth/admission";
+import type { BillingService } from "@openvalens/billing";
 import type { DeploymentConfig } from "@openvalens/auth/deployment";
 import type { WorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import type { Session } from "@openvalens/auth";
@@ -207,6 +208,13 @@ export type Context = {
   publicSignUp?: PublicSignUpService;
   /** Issue #294 — per-IP and per-email limiter for sign-up requests. */
   signUpRateLimiter?: SignUpRateLimiter;
+  /**
+   * Issue #297 — OpenValens Cloud billing (Stripe), or `null`/absent on a
+   * self-hosted deployment, where the billing procedures answer `NOT_FOUND`
+   * and the billing job is a no-op. Only a type is imported here: the billing
+   * package and Stripe SDK are loaded by the server in Cloud only.
+   */
+  billing?: BillingService | null;
   /**
    * Issue #65 — public, value-free sign-in options the server derives from its
    * OIDC config: the provider id and button label, or `null` when OIDC is off.

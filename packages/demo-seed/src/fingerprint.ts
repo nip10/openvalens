@@ -26,7 +26,7 @@ type Column = { table_name: string; column_name: string; data_type: string };
 function compared(column: Column): boolean {
   const name = column.column_name;
   if (name === "created_at" || name === "updated_at") return false;
-  if (/hash|token|secret|fingerprint|idempotency/.test(name)) return false;
+  if (/hash|token|secret|fingerprint|idempotency|customer_ref/.test(name)) return false;
   if (column.data_type.startsWith("timestamp") || name.endsWith("_at"))
     return DATA_TIMESTAMPS.has(name);
   return true;

@@ -18,6 +18,7 @@
     "@openvalens/ai": "workspace:*",
     "@openvalens/api": "workspace:*",
     "@openvalens/auth": "workspace:*",
+    "@openvalens/billing": "workspace:*",
     "@openvalens/body": "workspace:*",
     "@openvalens/config": "workspace:*",
     "@openvalens/db": "workspace:*",

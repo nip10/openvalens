@@ -33,7 +33,17 @@ import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { INSIGHT_DELIVERY_COPY } from "@openvalens/api/presenters/insights";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Bot, ChevronRight, LayoutGrid, Plug, Send, Trash2, UserRound, Watch } from "lucide-react";
+import {
+  Bot,
+  ChevronRight,
+  CreditCard,
+  LayoutGrid,
+  Plug,
+  Send,
+  Trash2,
+  UserRound,
+  Watch,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -50,6 +60,7 @@ import { SettingsGroup, SettingsIcon } from "@/components/settings-rows";
 import { authClient } from "@/lib/auth-client";
 import { prepareOfflineSignOut } from "@/utils/sync-engine";
 import { orpc } from "@/utils/orpc";
+import { signUpOptionsQueryOptions } from "@/utils/sign-up";
 
 export const Route = createFileRoute("/_auth/settings/")({
   component: SettingsPage,
@@ -60,10 +71,13 @@ const LINK =
 
 function SettingsPage() {
   const { t, i18n } = useLingui();
+  // Issue #297 — Plan & billing exists only on OpenValens Cloud.
+  const cloud = useQuery(signUpOptionsQueryOptions()).data?.mode === "cloud";
   // The in-page index: each entry anchors a section below. Sign-in methods
   // sits under Account, the two AI switches under one entry.
   const index = [
     { id: "account", label: t`Account` },
+    ...(cloud ? [{ id: "plan", label: t`Plan & billing` }] : []),
     { id: "language", label: t`Language` },
     { id: "profile", label: t`Profile` },
     { id: "modules", label: t`Modules` },
@@ -99,6 +113,11 @@ function SettingsPage() {
             <AccountSection />
             <OidcConnectSection />
           </div>
+          {cloud ? (
+            <div id="plan" className="scroll-mt-10">
+              <PlanSection />
+            </div>
+          ) : null}
           <div id="language" className="scroll-mt-10">
             <LanguageSection />
           </div>
@@ -133,6 +152,22 @@ function SettingsPage() {
         </div>
       </div>
     </Page>
+  );
+}
+
+/** Issue #297 — the link to Settings › Plan & billing (OpenValens Cloud only). */
+function PlanSection() {
+  return (
+    <Section title={<Trans>Plan & billing</Trans>} icon={CreditCard} tone="signal">
+      <SettingsGroup className="px-0">
+        <IntegrationLink
+          to="/settings/billing"
+          icon={CreditCard}
+          label={<Trans>Plan & billing</Trans>}
+          description={<Trans>Your free trial, plan and invoices</Trans>}
+        />
+      </SettingsGroup>
+    </Section>
   );
 }
 
@@ -180,7 +215,7 @@ function IntegrationLink({
   label,
   description,
 }: {
-  to: "/settings/devices" | "/settings/telegram" | "/settings/modules";
+  to: "/settings/devices" | "/settings/telegram" | "/settings/modules" | "/settings/billing";
   icon: typeof Watch;
   label: React.ReactNode;
   description: React.ReactNode;

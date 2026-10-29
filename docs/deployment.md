@@ -282,6 +282,7 @@ Authenticated cron endpoints are exposed as oRPC procedures:
 | `/rpc/cron/insightsRun`       | `20 * * * *`   | `insights.delivery` |
 | `/rpc/cron/wearablesSync`     | `*/15 * * * *` | `wearables.sync`    |
 | `/rpc/cron/photoCleanupRun`   | `40 * * * *`   | `photo.cleanup`     |
+| `/rpc/cron/billingRun`        | `50 * * * *`   | `billing.run`       |
 
 The schedules are suggestions; nothing in the stack runs them (see
 [self-hosting configuration](self-hosting/configuration.md#scheduled-jobs) for

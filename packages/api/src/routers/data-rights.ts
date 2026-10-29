@@ -26,6 +26,11 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
  * so a failed transaction never loses an object that is still indexed. If the
  * subject has objects but storage is off, deletion is refused rather than
  * orphaning their bytes.
+ *
+ * Cloud billing (#297): erasing a subscription row that reached Stripe queues
+ * its customer (a database trigger, in the same transaction). Right after the
+ * commit the billing service cancels the Stripe subscription immediately and
+ * deletes the customer; a failure is retried by the billing job.
  */
 
 const logger = createStructuredLogger({ level: "info" });
@@ -129,6 +134,16 @@ export const dataRightsRouter = {
         raiseSelfErasureError(error);
       }
       const { report, objects } = result;
+      if (context.billing) {
+        try {
+          await context.billing.processErasures();
+        } catch {
+          // Already queued; the billing job retries. Never blocks the erasure.
+          logger.warn("data_rights.billing_erasure.deferred", {
+            correlationId: context.correlationId,
+          });
+        }
+      }
       const totalRows = sum(report.rowCounts);
       logger.info("data_rights.subject_erased", {
         correlationId: context.correlationId,

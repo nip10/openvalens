@@ -1,0 +1,20 @@
+{
+  "extends": "@openvalens/config/tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "jsx": "preserve",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../auth" },
+    { "path": "../config" },
+    { "path": "../db" },
+    { "path": "../email" },
+    { "path": "../i18n" },
+    { "path": "../observability" }
+  ]
+}
