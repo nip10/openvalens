@@ -1,5 +1,11 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { previewLine, relativeTime, truncate } from "@openvalens/api/presenters/cochat";
+import {
+  aiUsageLimitMessage,
+  aiUsageLimitOf,
+  previewLine,
+  relativeTime,
+  truncate,
+} from "@openvalens/api/presenters/cochat";
 import { Button } from "@openvalens/ui/components/button";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,6 +41,7 @@ function CoachListPage() {
 
   const start = useMutation(
     orpc.ai.chat.mutationOptions({
+      onError: () => setStarting(false),
       onSuccess: async (result) => {
         await queryClient.invalidateQueries({ queryKey: orpc.ai.listThreads.key() });
         await navigate({
@@ -60,6 +67,8 @@ function CoachListPage() {
 
   // The list is the layout's quiet left column; a conversation opens beside it.
   const hasThread = useChildMatches().length > 0;
+  // Issue #299: a used-up monthly allowance is not a failure; say when it resets.
+  const startLimit = start.isError ? aiUsageLimitOf(start.error) : false;
   const list = threads.data ?? [];
 
   return (
@@ -77,7 +86,11 @@ function CoachListPage() {
 
       <ProductSettingsStatus />
 
-      {start.isError ? (
+      {startLimit ? (
+        <p role="status" className="max-w-3xl rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-2">
+          {i18n._(aiUsageLimitMessage(startLimit.resetsOn, i18n.locale))}
+        </p>
+      ) : start.isError ? (
         <ErrorState
           title={
             <Trans>Could not start a conversation. Check that AI is enabled in Settings.</Trans>

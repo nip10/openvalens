@@ -169,6 +169,10 @@ the `_FILE` variables when the files exist. In Cloud the server refuses to start
 when any of the four is missing or malformed; the error names the key, never the
 value.
 
+With AI configured, Cloud also refuses to start without a monthly AI cost cap
+per person (`AI_MONTHLY_COST_LIMIT` and the model's prices); see
+[AI providers › Monthly usage cap](ai-providers.md#monthly-usage-cap).
+
 Schedule the billing job hourly with the other jobs (see
 [configuration](self-hosting/configuration.md#scheduled-jobs)):
 

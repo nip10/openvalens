@@ -114,6 +114,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // Member-private (`user_id`): exported to its author only; erased with the
   // author or with a workspace being erased (see export.ts row filters).
   chat_message: organization,
+  // AI usage per person per month (#299): token counts, estimated cost and
+  // call count only, no content. The person's own: exported, and erased with
+  // the account.
+  ai_usage_month: { kind: "user" },
   coach_template: {
     kind: "reference",
     reason: "Shared coach presets, not user data.",

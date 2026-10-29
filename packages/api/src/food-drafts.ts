@@ -5,6 +5,7 @@ import {
   extractStructured,
   requireAiConsent,
   type AiConfig,
+  type AiUsageMeter,
   type InMemoryRateLimiter,
 } from "@openvalens/ai";
 import type { Database } from "@openvalens/db";
@@ -18,6 +19,7 @@ import {
 import { readNutritionTargetSettings } from "@openvalens/nutrition/targets";
 import { z } from "zod";
 
+import { beginAiUsage } from "./ai-usage";
 import type {
   FoodDraftProvider,
   ParseFoodDraftInput,
@@ -81,7 +83,22 @@ export class FoodDraftError extends Error {
 
 export type FoodDraftDeps = { extract?: typeof extractStructured };
 
-type AiDeps = { config: AiConfig; rateLimiter: Pick<InMemoryRateLimiter, "check"> };
+type AiDeps = {
+  config: AiConfig;
+  rateLimiter: Pick<InMemoryRateLimiter, "check">;
+  /** Monthly AI usage cap (Issue #299); absent = nothing recorded, no cap. */
+  usage?: { meter: AiUsageMeter | undefined; correlationId: string };
+};
+
+/** Checks the monthly AI cap for the member; throws `AI_USAGE_LIMIT_REACHED`. */
+function beginUsage(ai: AiDeps, scope: NutritionScope, promptChars: number) {
+  return beginAiUsage({
+    meter: ai.usage?.meter,
+    userId: scope.userId,
+    promptChars,
+    correlationId: ai.usage?.correlationId ?? "",
+  });
+}
 
 /** True only when the request names the provider and host this server would use. */
 function confirmedFor(
@@ -151,13 +168,20 @@ export function createFoodDraftService(deps: FoodDraftDeps = {}) {
       await requireMemberAiConsent(db, scope);
       checkRate(ai, scope);
 
-      const reply = await extract({
-        config: ai.config,
-        text,
-        promptHint: PROMPT,
-        jsonShape: SHAPE,
-        schema: providerReply,
-      });
+      const usage = await beginUsage(ai, scope, text.length + PROMPT.length + SHAPE.length);
+      let reply: Awaited<ReturnType<typeof extract<z.infer<typeof providerReply>>>>;
+      try {
+        reply = await extract({
+          config: ai.config,
+          text,
+          promptHint: PROMPT,
+          jsonShape: SHAPE,
+          schema: providerReply,
+          onUsage: usage.record,
+        });
+      } finally {
+        await usage.finish();
+      }
       if (reply.status !== "ok") return { status: "unparseable", mode: "ai", candidates: [] };
       const candidates = toCandidates(reply.data.items);
       return {
@@ -199,6 +223,9 @@ export function createFoodDraftService(deps: FoodDraftDeps = {}) {
       }
       checkRate(ai, scope);
 
+      // An image costs far more than its byte count suggests; reserve for the
+      // prompt plus a generous image allowance (about 1,600 tokens).
+      const usage = await beginUsage(ai, scope, PHOTO_PROMPT.length + PHOTO_SHAPE.length + 4_800);
       let reply: Awaited<ReturnType<typeof extract<z.infer<typeof photoReply>>>>;
       try {
         reply = await extract({
@@ -208,9 +235,12 @@ export function createFoodDraftService(deps: FoodDraftDeps = {}) {
           jsonShape: PHOTO_SHAPE,
           schema: photoReply,
           image,
+          onUsage: usage.record,
         });
       } catch {
         return { status: "provider_error", candidates: [] };
+      } finally {
+        await usage.finish();
       }
       if (reply.status !== "ok") return { status: "unparseable", candidates: [] };
       const candidates = toCandidates(reply.data.items);

@@ -243,6 +243,8 @@ function createContext(
     apiKey?: string | null;
     /** Issue #59 — raw AI env overriding the default Anthropic selection. */
     aiEnv?: Parameters<typeof actualAi.parseAiConfig>[0];
+    /** Issue #299 — monthly usage meter. */
+    aiUsage?: import("@openvalens/ai").AiUsageMeter;
   } = {},
 ): Context {
   const limitPerMinute = options.limitPerMinute ?? 20;
@@ -270,8 +272,37 @@ function createContext(
     telegramClient: null,
     aiConfig,
     aiRateLimiter: new actualAi.InMemoryRateLimiter({ limitPerMinute }),
+    ...(options.aiUsage ? { aiUsage: options.aiUsage } : {}),
     honoContext: { req: { raw: { headers: new Headers() } } },
   } as unknown as Context;
+}
+
+type MeterLog = {
+  begins: Array<{ userId: string; promptChars: number }>;
+  added: Array<{ inputTokens: number; outputTokens: number; cachedInputTokens: number }>;
+  finished: number;
+};
+
+/** Issue #299 — a fake meter that records every call, or refuses when capped. */
+function fakeMeter(options: { cappedUntil?: string } = {}) {
+  const log: MeterLog = { begins: [], added: [], finished: 0 };
+  const meter: import("@openvalens/ai").AiUsageMeter = {
+    config: { monthlyLimitMicros: 1_500_000, prices: null, currency: "EUR" },
+    async begin(input) {
+      log.begins.push(input);
+      if (options.cappedUntil) throw new actualAi.AiUsageLimitError(options.cappedUntil);
+      return {
+        add: (usage) => log.added.push(usage),
+        finish: async () => {
+          log.finished += 1;
+        },
+      };
+    },
+    summary: async () => {
+      throw new Error("not used");
+    },
+  };
+  return { meter, log };
 }
 
 function callChat(context: Context, content = "hello", conversationId?: string) {
@@ -428,6 +459,89 @@ describe("ai.chat rate limit", () => {
 
     // The second call must not reach the provider.
     expect(streamChat).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ai.chat monthly usage cap (Issue #299)", () => {
+  test("refuses with AI_USAGE_LIMIT_REACHED and the reset date, without calling the provider", async () => {
+    const { db, inserts } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+    const { meter, log } = fakeMeter({ cappedUntil: "2026-11-01" });
+
+    await expect(callChat(createContext(db, { aiUsage: meter }))).rejects.toMatchObject({
+      code: "AI_USAGE_LIMIT_REACHED",
+      status: 429,
+      data: { resetsOn: "2026-11-01" },
+    });
+
+    expect(streamChat).not.toHaveBeenCalled();
+    expect(log.begins).toEqual([{ userId: USER_ID, promptChars: "hello".length }]);
+    expect(inserts.filter((insert) => insert.table === chatMessage)).toHaveLength(0);
+  });
+
+  test("records every model step the provider reported, then settles once", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+    const { meter, log } = fakeMeter();
+    streamChat.mockImplementationOnce(async (input) => {
+      const onUsage = (input as { onUsage?: (usage: MeterLog["added"][number]) => void }).onUsage;
+      onUsage?.({ inputTokens: 900, outputTokens: 40, cachedInputTokens: 0 });
+      onUsage?.({ inputTokens: 1_100, outputTokens: 120, cachedInputTokens: 800 });
+      return {
+        totalChunks: 1,
+        text: "ok",
+        usage: { inputTokens: 2_000, outputTokens: 160 },
+        model: "m",
+      };
+    });
+
+    await expect(callChat(createContext(db, { aiUsage: meter }))).resolves.toMatchObject({
+      status: "ok",
+    });
+    expect(log.added).toHaveLength(2);
+    expect(log.finished).toBe(1);
+  });
+
+  test("records usage of a failed turn that still billed", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+    const { meter, log } = fakeMeter();
+    streamChat.mockImplementationOnce(async (input) => {
+      const onUsage = (input as { onUsage?: (usage: MeterLog["added"][number]) => void }).onUsage;
+      onUsage?.({ inputTokens: 700, outputTokens: 30, cachedInputTokens: 0 });
+      throw new Error("PROVIDER_SECRET_ERROR");
+    });
+
+    await expect(callChat(createContext(db, { aiUsage: meter }))).rejects.toMatchObject({
+      code: "INTERNAL",
+    });
+    expect(log.added).toEqual([{ inputTokens: 700, outputTokens: 30, cachedInputTokens: 0 }]);
+    expect(log.finished).toBe(1);
+  });
+
+  test("extract and generateInsight are under the same cap", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "full" } });
+    const { meter } = fakeMeter({ cappedUntil: "2026-11-01" });
+    const context = createContext(db, { aiUsage: meter });
+
+    await expect(
+      appRouter.ai.extract.callable({ context })({
+        text: "synthetic text",
+        promptHint: "extract",
+        jsonShape: "{}",
+      }),
+    ).rejects.toMatchObject({ code: "AI_USAGE_LIMIT_REACHED" });
+    await expect(
+      appRouter.ai.generateInsight.callable({ context })({ topic: "sleep", snapshot: {} }),
+    ).rejects.toMatchObject({ code: "AI_USAGE_LIMIT_REACHED" });
+  });
+
+  test("the cap message is logged without any prompt text", async () => {
+    const { db } = createMockDb({ aiConsent: { enabled: true, scope: "chat" } });
+    const { meter } = fakeMeter({ cappedUntil: "2026-11-01" });
+
+    const lines = await captureLogs(() =>
+      callChat(createContext(db, { aiUsage: meter }), "MY_SECRET_QUESTION"),
+    );
+    expect(JSON.stringify(lines)).not.toContain("MY_SECRET_QUESTION");
+    expect(lines.map((line) => line.event)).toContain("ai.usage.limit_reached");
   });
 });
 

@@ -12,6 +12,8 @@ export type ORPCErrorCode =
   | "NO_MEMBERSHIP"
   | "PERMISSION_DENIED"
   | "AI_DISABLED"
+  /** The person used this month's AI budget (Issue #299). `data.resetsOn` is the reset date. */
+  | "AI_USAGE_LIMIT_REACHED"
   | "TENANT_VIOLATION"
   | "INVALID_INPUT"
   | "INTERNAL"
@@ -38,6 +40,7 @@ const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
   NO_MEMBERSHIP: 403,
   PERMISSION_DENIED: 403,
   AI_DISABLED: 403,
+  AI_USAGE_LIMIT_REACHED: 429,
   TENANT_VIOLATION: 403,
   INVALID_INPUT: 400,
   INTERNAL: 500,
