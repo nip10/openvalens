@@ -1,6 +1,7 @@
 import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
 import type { AdmissionService, PublicSignUpService } from "@openvalens/auth/admission";
 import type { DeploymentConfig } from "@openvalens/auth/deployment";
+import type { SocialTokenRevocation } from "@openvalens/auth/social";
 import type { WorkspaceInvitationEmails } from "@openvalens/auth/invitation-email";
 import type { Session } from "@openvalens/auth";
 import type { AuthzRequestContext } from "@openvalens/auth/authz/context";
@@ -67,6 +68,12 @@ export type AdminConfigInventory = readonly AdminConfigInventoryEntry[];
 /** Issue #65 — sign-in methods shown next to magic-link sign-in. */
 export type SignInOptions = {
   readonly oidc: { readonly providerId: string; readonly displayName: string } | null;
+  /** Issue #296 — "Continue with Google" is configured. */
+  readonly google?: boolean;
+  /** Issue #296 — "Continue with Apple" is configured. */
+  readonly apple?: boolean;
+  /** Issue #296 — the iOS app may use the native Apple sheet (bundle ID set). */
+  readonly appleNative?: boolean;
 };
 
 /** Public, key-free preview metadata for licensed global exercise assets. */
@@ -214,6 +221,11 @@ export type Context = {
    * absent means magic-link only.
    */
   signInOptions?: SignInOptions;
+  /**
+   * Issue #296 — revokes the account's Apple tokens when it is deleted (App
+   * Store Review Guideline 5.1.1(v)). Absent means nothing to revoke.
+   */
+  socialTokenRevocation?: SocialTokenRevocation;
   /**
    * Issue #56 — the operator's `SOURCE_CODE_URL`, linked from the settings
    * screens (AGPL-3.0 section 13). Absent means the upstream repository.

@@ -85,7 +85,8 @@ const { CycleEnabled } = await import("./cycle");
 const { TelegramSettingsPage } = await import("./settings/telegram");
 const { DeleteAccountSection } = await import("./settings/index");
 const { InsightNotificationsSection } = await import("@/components/insight-notifications-section");
-const { OidcConnectSection } = await import("@/components/oidc-connect-section");
+const { SignInMethodsSection: OidcConnectSection } =
+  await import("@/components/sign-in-methods-section");
 
 function render(node: ReactNode): string {
   return renderMarkup(<I18nProvider i18n={englishI18n}>{node}</I18nProvider>);
@@ -190,5 +191,18 @@ describe("settings", () => {
     const html = render(<OidcConnectSection />);
     expect(html).toInclude(">Connect<");
     expect(html).not.toInclude("Could not check your sign-in methods.");
+  });
+
+  test("Issue #296 — Google and Apple rows appear only when configured", () => {
+    queries = {
+      "signIn.options": ok({ oidc: null, google: true, apple: false, appleNative: false }),
+      "auth.accounts": ok([]),
+    };
+    const html = render(<OidcConnectSection />);
+    expect(html).toInclude("Google");
+    expect(html).not.toInclude("Apple");
+    expect(html).toInclude("Email link");
+    queries = { "signIn.options": ok({ oidc: null, google: false, apple: false }) };
+    expect(render(<OidcConnectSection />)).toBe("");
   });
 });

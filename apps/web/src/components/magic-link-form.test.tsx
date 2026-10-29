@@ -66,3 +66,36 @@ describe("MagicLinkForm sign-up link (Issue #294)", () => {
     expect(html).not.toInclude("New accounts require an invitation.");
   });
 });
+
+describe("MagicLinkForm Google and Apple (Issue #296)", () => {
+  test("nothing configured: no Google or Apple button", () => {
+    const html = renderToStaticMarkup(<MagicLinkForm />);
+    expect(html).not.toInclude("Continue with Google");
+    expect(html).not.toInclude("Continue with Apple");
+  });
+
+  test("shows only the providers the server advertises", () => {
+    const html = renderToStaticMarkup(<MagicLinkForm google />);
+    expect(html).toInclude("Continue with Google");
+    expect(html).not.toInclude("Continue with Apple");
+    const both = renderToStaticMarkup(<MagicLinkForm google apple />);
+    expect(both).toInclude("Continue with Apple");
+  });
+
+  test("an unknown identity: invitation copy on self-host, sign-up copy in Cloud", () => {
+    const selfHosted = renderToStaticMarkup(
+      <MagicLinkForm google socialError={{ provider: "google", code: "signup_disabled" }} />,
+    );
+    expect(selfHosted).toInclude("Ask your administrator for an invitation");
+    expect(selfHosted).not.toInclude("That sign-in link is invalid");
+    const cloud = renderToStaticMarkup(
+      <MagicLinkForm
+        apple
+        signUpAvailable
+        socialError={{ provider: "apple", code: "account_not_linked" }}
+      />,
+    );
+    expect(cloud).toInclude("No account is connected to that Apple account");
+    expect(cloud).not.toInclude("account_not_linked");
+  });
+});

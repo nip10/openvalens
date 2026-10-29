@@ -48,6 +48,9 @@ export function buildServerMeta(input: {
   profile: DeploymentProfile;
   /** True when the operator configured the one OIDC provider. */
   oidc: boolean;
+  /** Issue #296 — Google / Apple sign-in configured. */
+  google?: boolean;
+  apple?: boolean;
 }): ServerMeta {
   return {
     product: "openvalens",
@@ -58,9 +61,9 @@ export function buildServerMeta(input: {
       // Magic-link sign-in is always registered (`@openvalens/auth`).
       magicLink: true,
       oidc: input.oidc,
-      // Google and Apple sign-in arrive with #296.
-      google: false,
-      apple: false,
+      // Issue #296 — each only when its credentials are set.
+      google: input.google === true,
+      apple: input.apple === true,
       signUp: input.profile.signUp,
     },
   };

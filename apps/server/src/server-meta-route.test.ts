@@ -46,6 +46,18 @@ describe("GET /.well-known/openvalens (#295)", () => {
     expect(text).not.toContain("Acme SSO");
   });
 
+  test("Issue #296 — Google and Apple follow the server's config", async () => {
+    const response = await appWith({
+      signInOptions: { oidc: null, google: true, apple: true },
+    }).request(SERVER_META_PATH);
+    const body = (await response.json()) as ServerMeta;
+    expect(body.signIn).toMatchObject({ google: true, apple: true });
+    const off = (await (
+      await appWith({ signInOptions: { oidc: null } }).request(SERVER_META_PATH)
+    ).json()) as ServerMeta;
+    expect(off.signIn).toMatchObject({ google: false, apple: false });
+  });
+
   test("takes mode and sign-up from the deployment profile", async () => {
     const response = await appWith({
       signInOptions: { oidc: null },

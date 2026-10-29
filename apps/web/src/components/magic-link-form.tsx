@@ -11,9 +11,15 @@ import { Mail, MailCheck } from "lucide-react";
 
 import OidcSignInButton from "@/components/oidc-sign-in-button";
 import { ErrorState, ToneIcon } from "@/components/page";
+import SocialSignInButtons from "@/components/social-sign-in-buttons";
 import { authClient } from "@/lib/auth-client";
 import { validateReturnUrl } from "@/utils/return-url";
-import { oidcSignInErrorMessage } from "@/utils/sign-in-options";
+import {
+  oidcSignInErrorMessage,
+  socialProviderName,
+  socialSignInErrorMessage,
+  type SocialProvider,
+} from "@/utils/sign-in-options";
 
 export type MagicLinkFormProps = {
   linkError?: boolean;
@@ -25,6 +31,11 @@ export type MagicLinkFormProps = {
   oidc?: { providerId: string; displayName: string } | null;
   /** Issue #65 — error code from a failed OIDC redirect, or `null`. */
   oidcError?: string | null;
+  /** Issue #296 — "Continue with Google" / "Continue with Apple". */
+  google?: boolean;
+  apple?: boolean;
+  /** Issue #296 — a failed Google or Apple redirect, or `null`. */
+  socialError?: { provider: SocialProvider; code: string } | null;
 };
 
 /**
@@ -39,6 +50,9 @@ export default function MagicLinkForm({
   returnUrl,
   oidc = null,
   oidcError = null,
+  google = false,
+  apple = false,
+  socialError = null,
 }: MagicLinkFormProps) {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const { t, i18n } = useLingui();
@@ -116,6 +130,17 @@ export default function MagicLinkForm({
             )}
           />
         )}
+        {socialError !== null && (
+          <ErrorState
+            title={i18n._(
+              socialSignInErrorMessage(
+                socialError.code || undefined,
+                socialProviderName(socialError.provider),
+                signUpAvailable,
+              ),
+            )}
+          />
+        )}
         {linkError && (
           <ErrorState
             title={<Trans>That sign-in link is invalid or has expired. Request a new one.</Trans>}
@@ -165,18 +190,26 @@ export default function MagicLinkForm({
           </form.Subscribe>
         </form>
 
-        {oidc ? (
+        {oidc || google || apple ? (
           <div className="grid gap-4">
             <div className="flex items-center gap-3 text-sm text-ink-3">
               <span className="h-px flex-1 bg-rule" />
               <Trans>or</Trans>
               <span className="h-px flex-1 bg-rule" />
             </div>
-            <OidcSignInButton
-              providerId={oidc.providerId}
-              displayName={oidc.displayName}
+            <SocialSignInButtons
+              google={google}
+              apple={apple}
               callbackURL={callbackURL}
+              errorCallbackURL={(provider) => `${window.location.origin}/login?via=${provider}`}
             />
+            {oidc ? (
+              <OidcSignInButton
+                providerId={oidc.providerId}
+                displayName={oidc.displayName}
+                callbackURL={callbackURL}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

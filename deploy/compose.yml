@@ -105,6 +105,15 @@ x-server-env: &server-env
   OIDC_CLIENT_SECRET_FILE: ${OIDC_CLIENT_SECRET_FILE:-}
   OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-}
   OIDC_DISPLAY_NAME: ${OIDC_DISPLAY_NAME:-}
+  # Optional Sign in with Google and Apple (Issue #296): each is off until all of
+  # its values are set. Secrets arrive as files under deploy/secrets/server/.
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET_FILE: ${GOOGLE_CLIENT_SECRET_FILE:-}
+  APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+  APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+  APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+  APPLE_PRIVATE_KEY_FILE: ${APPLE_PRIVATE_KEY_FILE:-}
+  APPLE_APP_BUNDLE_ID: ${APPLE_APP_BUNDLE_ID:-}
   # Optional cloud wearables (Issue #60): each vendor is off until its client id
   # and client secret file are set; phone-first ingestion needs none of them.
   WEARABLES_WEBHOOKS: ${WEARABLES_WEBHOOKS:-false}

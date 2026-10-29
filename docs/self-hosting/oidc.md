@@ -86,7 +86,8 @@ server is restarted.
 
 ## Not supported
 
-More than one provider, named social buttons (Google, Apple, GitHub), SAML,
-SCIM and roles from IdP claims. The mobile app shows **Continue with <name>**
+More than one OIDC provider, other named social buttons (GitHub), SAML,
+SCIM and roles from IdP claims. Google and Apple have their own page:
+[Google and Apple sign-in](google-apple-sign-in.md). The mobile app shows **Continue with <name>**
 when OIDC is configured (#295), but signing in with OIDC on a phone is not yet
 verified on devices.

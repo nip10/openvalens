@@ -2763,7 +2763,8 @@ msgstr "Confirm your email to create your OpenValens account."
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
 #: apps/native/components/server-choice.tsx
-#: apps/web/src/components/oidc-connect-section.tsx
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Connect"
@@ -2794,14 +2795,14 @@ msgstr "Connect to the internet to manage saved meals and recipes."
 msgid "Connect to the internet to save this food. Your diary entry has not been queued."
 msgstr "Connect to the internet to save this food. Your diary entry has not been queued."
 
-#. placeholder {0}: oidc.displayName
-#: apps/web/src/components/oidc-connect-section.tsx
-msgid "Connect your {0} account to sign in with it. Email links keep working."
-msgstr "Connect your {0} account to sign in with it. Email links keep working."
+#: apps/web/src/components/sign-in-methods-section.tsx
+msgid "Connect your {name} account to sign in with it. Email links keep working."
+msgstr "Connect your {name} account to sign in with it. Email links keep working."
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
-#: apps/web/src/components/oidc-connect-section.tsx
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/index.tsx
 msgid "Connected"
@@ -2816,10 +2817,9 @@ msgstr "Connected"
 msgid "Connected to API"
 msgstr "Connected to API"
 
-#. placeholder {0}: oidc.displayName
-#: apps/web/src/components/oidc-connect-section.tsx
-msgid "Connected. You can sign in with {0}."
-msgstr "Connected. You can sign in with {0}."
+#: apps/web/src/components/sign-in-methods-section.tsx
+msgid "Connected. You can sign in with {name}."
+msgstr "Connected. You can sign in with {name}."
 
 #: packages/integrations/telegram/src/webhook.ts
 msgid "Connected. Your OpenValens daily reminders will arrive here. React with 👍 when you've done one or 👎 to skip it."
@@ -2867,6 +2867,16 @@ msgstr "Continue to your setup"
 #: apps/web/src/components/oidc-sign-in-button.tsx
 msgid "Continue with {displayName}"
 msgstr "Continue with {displayName}"
+
+#: apps/native/components/social-sign-in.tsx
+#: apps/web/src/components/social-sign-in-buttons.tsx
+msgid "Continue with Apple"
+msgstr "Continue with Apple"
+
+#: apps/native/components/social-sign-in.tsx
+#: apps/web/src/components/social-sign-in-buttons.tsx
+msgid "Continue with Google"
+msgstr "Continue with Google"
 
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
@@ -2982,7 +2992,8 @@ msgstr "Could not check this setting. Measurements stay unavailable until it can
 msgid "Could not check this setting. Try again"
 msgstr "Could not check this setting. Try again"
 
-#: apps/web/src/components/oidc-connect-section.tsx
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
 msgid "Could not check your sign-in methods."
 msgstr "Could not check your sign-in methods."
 
@@ -3059,6 +3070,14 @@ msgstr "Could not confirm. Refresh and review before trying again."
 msgid "Could not connect {displayName}. Please try again."
 msgstr "Could not connect {displayName}. Please try again."
 
+#: apps/native/components/sign-in-methods.tsx
+msgid "Could not connect {name}. Please try again."
+msgstr "Could not connect {name}. Please try again."
+
+#: apps/web/src/utils/sign-in-options.ts
+msgid "Could not create an account with {displayName}. Try again or use your email."
+msgstr "Could not create an account with {displayName}. Try again or use your email."
+
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Could not decline the invitation."
 msgstr "Could not decline the invitation."
@@ -3105,7 +3124,8 @@ msgstr "Could not discard"
 msgid "Could not disconnect this device."
 msgstr "Could not disconnect this device."
 
-#: apps/web/src/components/oidc-connect-section.tsx
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
 msgid "Could not disconnect. Sign in again and retry."
 msgstr "Could not disconnect. Sign in again and retry."
 
@@ -3622,6 +3642,10 @@ msgstr "Could not send the sign-up link. Please try again."
 msgid "Could not send. Check AI consent in Settings."
 msgstr "Could not send. Check AI consent in Settings."
 
+#: apps/native/components/social-sign-in.tsx
+msgid "Could not sign in with {name}. Please try again."
+msgstr "Could not sign in with {name}. Please try again."
+
 #: apps/native/app/(drawer)/coach/index.tsx
 #: apps/web/src/routes/_auth/coach/route.tsx
 msgid "Could not start a conversation. Check that AI is enabled in Settings."
@@ -3635,6 +3659,10 @@ msgstr "Could not start connecting. Try again."
 #: apps/web/src/components/oidc-sign-in-button.tsx
 msgid "Could not start sign-in with {displayName}. Please try again."
 msgstr "Could not start sign-in with {displayName}. Please try again."
+
+#: apps/web/src/components/social-sign-in-buttons.tsx
+msgid "Could not start sign-in with {name}. Please try again."
+msgstr "Could not start sign-in with {name}. Please try again."
 
 #: apps/native/app/(drawer)/insight-settings.tsx
 #: apps/native/components/onboarding/steps.tsx
@@ -4203,7 +4231,8 @@ msgid "Discard workout?"
 msgstr "Discard workout?"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
-#: apps/web/src/components/oidc-connect-section.tsx
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Disconnect"
@@ -4534,6 +4563,11 @@ msgstr "Email delivery"
 #: packages/api/src/presenters/insights.ts
 msgid "Email is not set up on this server."
 msgstr "Email is not set up on this server."
+
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
+msgid "Email link"
+msgstr "Email link"
 
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
@@ -6117,6 +6151,11 @@ msgstr "just now"
 msgid "kcal"
 msgstr "kcal"
 
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
+msgid "Keep at least one way to sign in: this server cannot send email links."
+msgstr "Keep at least one way to sign in: this server cannot send email links."
+
 #: packages/api/src/presenters/custom-foods.ts
 #: packages/api/src/presenters/nutrition-diary.ts
 #: packages/api/src/presenters/plain-water.ts
@@ -7335,6 +7374,18 @@ msgid "No access was given. That's fine: you can connect later in Settings › H
 msgstr "No access was given. That's fine: you can connect later in Settings › Health data."
 
 #: apps/web/src/utils/sign-in-options.ts
+msgid "No account is connected to that {displayName} account. Create an account, or sign in with an email link and connect {displayName} from Settings."
+msgstr "No account is connected to that {displayName} account. Create an account, or sign in with an email link and connect {displayName} from Settings."
+
+#: apps/native/components/social-sign-in.tsx
+msgid "No account is connected to that {name} account. Ask your administrator for an invitation, or sign in with an email link and connect {name} in Settings."
+msgstr "No account is connected to that {name} account. Ask your administrator for an invitation, or sign in with an email link and connect {name} in Settings."
+
+#: apps/native/components/social-sign-in.tsx
+msgid "No account is connected to that {name} account. Create an account first."
+msgstr "No account is connected to that {name} account. Create an account first."
+
+#: apps/web/src/utils/sign-in-options.ts
 msgid "No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings."
 msgstr "No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings."
 
@@ -7826,6 +7877,7 @@ msgstr "Not configured"
 
 #: apps/native/app/(drawer)/settings/telegram.tsx
 #: apps/native/components/health-sync-settings.tsx
+#: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Not connected"
 msgstr "Not connected"
@@ -8490,6 +8542,7 @@ msgid "Optional usage analytics via PostHog EU. Sends approved settings-action n
 msgstr "Optional usage analytics via PostHog EU. Sends approved settings-action names and a new random event ID for each event; events are not linked to your account, device, session, or workspace. No health records or free text are sent. PostHog retains events and their IDs and sees our server’s network IP, not your forwarded IP. Turning this off stops new sends; already-sent events cannot be recalled."
 
 #: apps/web/src/components/magic-link-form.tsx
+#: apps/web/src/components/sign-up-form.tsx
 msgid "or"
 msgstr "or"
 
@@ -9387,6 +9440,7 @@ msgid "Redeem invitation"
 msgstr "Redeem invitation"
 
 #: apps/web/src/components/oidc-sign-in-button.tsx
+#: apps/web/src/components/social-sign-in-buttons.tsx
 msgid "Redirecting…"
 msgstr "Redirecting…"
 
@@ -9660,6 +9714,7 @@ msgstr "Resume workout"
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/native/components/energy-estimate-card.tsx
+#: apps/native/components/sign-in-methods.tsx
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
 #: apps/web/src/components/admin-backup-status.tsx
@@ -9674,11 +9729,11 @@ msgstr "Resume workout"
 #: apps/web/src/components/insights-section.tsx
 #: apps/web/src/components/modules-settings.tsx
 #: apps/web/src/components/my-invitations-view.tsx
-#: apps/web/src/components/oidc-connect-section.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/profile-summary-card.tsx
 #: apps/web/src/components/reference-comparisons-card.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/components/workout-routines.tsx
 #: apps/web/src/routes/_auth/body-map.tsx
@@ -10743,6 +10798,11 @@ msgstr "Sign in to view your exercise history."
 msgid "Sign in with <0>{email}</0> to start using OpenValens."
 msgstr "Sign in with <0>{email}</0> to start using OpenValens."
 
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
+msgid "Sign in with a link sent to your account email."
+msgstr "Sign in with a link sent to your account email."
+
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "Sign in with email"
 msgstr "Sign in with email"
@@ -10778,13 +10838,18 @@ msgstr "Sign-in link sent"
 msgid "Sign-in links, invitations and the weekly email"
 msgstr "Sign-in links, invitations and the weekly email"
 
-#: apps/web/src/components/oidc-connect-section.tsx
+#: apps/native/components/sign-in-methods.tsx
+#: apps/web/src/components/sign-in-methods-section.tsx
 msgid "Sign-in methods"
 msgstr "Sign-in methods"
 
 #: apps/web/src/utils/sign-in-options.ts
 msgid "Sign-in with {displayName} did not complete. Try again or use an email link."
 msgstr "Sign-in with {displayName} did not complete. Try again or use an email link."
+
+#: apps/native/components/social-sign-in.tsx
+msgid "Sign-in with {name} did not finish. If it isn't connected to your account yet, sign in with an email link and connect it in Settings."
+msgstr "Sign-in with {name} did not finish. If it isn't connected to your account yet, sign in with an email link and connect it in Settings."
 
 #: apps/web/src/components/admission-form.tsx
 msgid "Signed in as {email}. Enter the token again to continue enrollment."
@@ -11482,8 +11547,16 @@ msgid "Tennis"
 msgstr "Tennis"
 
 #: apps/web/src/utils/sign-in-options.ts
+msgid "That {displayName} account cannot be connected because its email is not verified."
+msgstr "That {displayName} account cannot be connected because its email is not verified."
+
+#: apps/web/src/utils/sign-in-options.ts
 msgid "That {displayName} account is already connected to another user."
 msgstr "That {displayName} account is already connected to another user."
+
+#: apps/native/components/sign-in-methods.tsx
+msgid "That {name} account is already connected to another user."
+msgstr "That {name} account is already connected to another user."
 
 #: packages/api/src/presenters/plain-water.ts
 msgid "That amount is too large to save."
@@ -11496,6 +11569,10 @@ msgstr "That birth year is under 18. OpenValens personalisation is for adults on
 #: packages/api/src/presenters/food-draft.ts
 msgid "That description is too long. Keep it under 2,000 characters."
 msgstr "That description is too long. Keep it under 2,000 characters."
+
+#: apps/web/src/utils/sign-in-options.ts
+msgid "That email already has an account. Sign in with an email link, then connect {displayName} from Settings."
+msgstr "That email already has an account. Sign in with an email link, then connect {displayName} from Settings."
 
 #: apps/web/src/components/magic-link-form.tsx
 msgid "That sign-in link is invalid or has expired. Request a new one."
@@ -13356,6 +13433,10 @@ msgstr "You’re invited to OpenValens"
 #: apps/web/src/utils/sign-in-options.ts
 msgid "Your {displayName} account uses a different email address than this account."
 msgstr "Your {displayName} account uses a different email address than this account."
+
+#: apps/native/components/sign-in-methods.tsx
+msgid "Your {name} account uses a different email address than this account."
+msgstr "Your {name} account uses a different email address than this account."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Your 7-day average {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {recent}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usual}."

@@ -19,6 +19,7 @@
     "./authz/trusted-session": "./src/authz/trusted-session.ts",
     "./admission": "./src/admission/index.ts",
     "./oidc": "./src/oidc/index.ts",
+    "./social": "./src/social/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {

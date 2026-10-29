@@ -168,4 +168,57 @@ describe("dataRights.deleteEverything", () => {
     expect(deleteSelfSubjectData.mock.calls[0]![2]).toBe(ctx.storage);
     expect(deleteSelfSubjectData).toHaveBeenCalledTimes(1);
   });
+
+  test("Apple tokens are read before the erasure and revoked only after it commits (#296)", async () => {
+    const order: string[] = [];
+    const pending = { apple: [{ token: "synthetic-refresh", hint: "refresh_token" as const }] };
+    const socialTokenRevocation = {
+      collect: mock(async (userId: string) => {
+        order.push(`collect:${userId}`);
+        return pending;
+      }),
+      revoke: mock(async (_pending: unknown) => {
+        order.push("revoke");
+        return { revoked: 1, failed: 0 };
+      }),
+    };
+    deleteSelfSubjectData.mockImplementationOnce(async () => {
+      order.push("erase");
+      return {
+        report: {
+          erasedAt: "2026-10-04T12:00:00.000Z",
+          userId: "user-1",
+          organizationIds: [] as string[],
+          rowCounts: { metric_sample: 0, user: 1 },
+        },
+        objects: { deleted: 0, failed: 0 },
+      };
+    });
+    const ctx = { ...context(), socialTokenRevocation } as unknown as Context;
+    await call(ctx, { confirmation: "DELETE" });
+    expect(order).toEqual(["collect:user-1", "erase", "revoke"]);
+    expect(socialTokenRevocation.revoke.mock.calls[0]).toEqual([pending]);
+  });
+
+  test("a failed erasure never revokes; a failed revocation never fails the deletion (#296)", async () => {
+    const socialTokenRevocation = {
+      collect: mock(async () => ({ apple: [{ token: "t", hint: "refresh_token" as const }] })),
+      revoke: mock(async () => {
+        throw new Error("apple unreachable");
+      }),
+    };
+    deleteSelfSubjectData.mockImplementationOnce(async () => {
+      throw new dataRights.SelfErasureError("CONFLICT");
+    });
+    const failing = { ...context(), socialTokenRevocation } as unknown as Context;
+    expect(await code(call(failing, { confirmation: "DELETE" }))).toBe("CONFLICT");
+    expect(socialTokenRevocation.revoke).not.toHaveBeenCalled();
+
+    const ok = { ...context(), socialTokenRevocation } as unknown as Context;
+    expect(await call(ok, { confirmation: "DELETE" })).toEqual({
+      erasedAt: "2026-10-04T12:00:00.000Z",
+      totalRows: 4,
+    });
+    expect(socialTokenRevocation.revoke).toHaveBeenCalledTimes(1);
+  });
 });

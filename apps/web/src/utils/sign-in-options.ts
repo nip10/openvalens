@@ -20,6 +20,19 @@ export function signInOptionsQueryOptions() {
 /** Marker added to the OIDC error redirect so `/login` can tell flows apart. */
 export const OIDC_ERROR_MARKER = "oidc";
 
+/** Issue #296 — the named social providers, also used as their error markers. */
+export const SOCIAL_PROVIDERS = ["google", "apple"] as const;
+export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
+
+export function isSocialProvider(value: unknown): value is SocialProvider {
+  return value === "google" || value === "apple";
+}
+
+/** Brand names are never translated. */
+export function socialProviderName(provider: SocialProvider): string {
+  return provider === "google" ? "Google" : "Apple";
+}
+
 /**
  * Better Auth error codes that mean "this IdP identity has no account here".
  * They share one neutral message so the login page never reveals whether an
@@ -46,6 +59,39 @@ export function oidcSignInErrorMessage(
 }
 
 /**
+ * Issue #296 — message for a failed Google or Apple sign-in on `/login`. The
+ * same neutral wording whether or not the email has an account; in Cloud it
+ * points at sign-up instead of an invitation.
+ */
+export function socialSignInErrorMessage(
+  code: string | undefined,
+  displayName: string,
+  signUpAvailable: boolean,
+): MessageDescriptor {
+  if (code && NOT_ADMITTED_CODES.has(code)) {
+    return signUpAvailable
+      ? msg`No account is connected to that ${displayName} account. Create an account, or sign in with an email link and connect ${displayName} from Settings.`
+      : msg`No account is connected to that sign-in. Ask your administrator for an invitation, or sign in with an email link and connect it from Settings.`;
+  }
+  return msg`Sign-in with ${displayName} did not complete. Try again or use an email link.`;
+}
+
+/**
+ * Issue #296 — message for a failed Google or Apple sign-up on `/signup`. An
+ * email that already has an account is never linked: point the person at
+ * sign-in and Settings.
+ */
+export function socialSignUpErrorMessage(
+  code: string | undefined,
+  displayName: string,
+): MessageDescriptor {
+  if (code === "account_not_linked") {
+    return msg`That email already has an account. Sign in with an email link, then connect ${displayName} from Settings.`;
+  }
+  return msg`Could not create an account with ${displayName}. Try again or use your email.`;
+}
+
+/**
  * User-facing message for an explicit "Connect" (link) error redirect.
  * Returns a descriptor (#67); render it with `_()`.
  */
@@ -58,6 +104,8 @@ export function oidcConnectErrorMessage(
       return msg`Your ${displayName} account uses a different email address than this account.`;
     case "account_already_linked_to_different_user":
       return msg`That ${displayName} account is already connected to another user.`;
+    case "unable_to_link_account":
+      return msg`That ${displayName} account cannot be connected because its email is not verified.`;
     default:
       return msg`Could not connect ${displayName}. Please try again.`;
   }

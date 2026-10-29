@@ -1,6 +1,6 @@
 import "@/testing/varlock-test-setup";
 
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { I18nProvider } from "@lingui/react";
 import { englishI18n } from "@openvalens/i18n/testing";
 import type { ReactElement } from "react";
@@ -61,5 +61,42 @@ describe("SignUpForm", () => {
         />,
       ).split('href="/login"').length - 1,
     ).toBe(1);
+  });
+});
+
+describe("SignUpForm with Google and Apple (Issue #296)", () => {
+  const globalWithWindow = globalThis as { window?: unknown };
+  const previousWindow = globalWithWindow.window;
+  beforeAll(() => {
+    globalWithWindow.window ??= { location: { origin: "https://app.test" } };
+  });
+  afterAll(() => {
+    globalWithWindow.window = previousWindow;
+  });
+
+  test("offers the configured providers under the email form", () => {
+    const html = renderToStaticMarkup(
+      <SignUpForm terms={terms} privacy={privacy} google apple onSubmit={async () => {}} />,
+    );
+    expect(html).toInclude("Continue with Google");
+    expect(html).toInclude("Continue with Apple");
+    const none = renderToStaticMarkup(
+      <SignUpForm terms={terms} privacy={privacy} onSubmit={async () => {}} />,
+    );
+    expect(none).not.toInclude("Continue with");
+  });
+
+  test("an email that already has an account is pointed at sign-in, never linked", () => {
+    const html = renderToStaticMarkup(
+      <SignUpForm
+        terms={terms}
+        privacy={privacy}
+        google
+        socialError={{ provider: "google", code: "account_not_linked" }}
+        onSubmit={async () => {}}
+      />,
+    );
+    expect(html).toInclude("That email already has an account");
+    expect(html).toInclude('href="/login"');
   });
 });

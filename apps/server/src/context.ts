@@ -27,6 +27,7 @@ import {
   storageService,
   signInOptions,
   signUpRateLimiter,
+  socialTokenRevocation,
   telegramBotUsername,
   telegramClient,
   telegramConfig,
@@ -116,6 +117,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     foodLookup,
     // Issue #65 — public "Continue with <name>" option, or `{ oidc: null }`.
     signInOptions,
+    // Issue #296 — revoke Apple tokens when an account is deleted.
+    socialTokenRevocation,
     // Issue #56 — where users get this instance's source (AGPL-3.0 section 13).
     sourceCodeUrl: ENV.SOURCE_CODE_URL,
     // Issue #92 — insight push transport (or `null`), the web origin for
