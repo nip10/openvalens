@@ -41,6 +41,7 @@ const MAGIC_LINK_EXPIRES_IN_SECONDS = 600;
 const IMPERSONATION_EXIT_PATH = "/admin/stop-impersonating";
 /** Organization invite endpoint shared by creation and resend. */
 const ORGANIZATION_INVITE_PATH = "/organization/invite-member";
+const ORGANIZATION_ACCEPT_INVITATION_PATH = "/organization/accept-invitation";
 /** Social/OIDC sign-in start and explicit account binding (Issue #65). */
 const SOCIAL_SIGN_IN_PATH = "/sign-in/social";
 const LINK_SOCIAL_PATH = "/link-social";
@@ -117,6 +118,8 @@ export type CreateAuthOptions = {
    * Defaults to `true`.
    */
   emailSignInAvailable?: boolean;
+  /** Current Cloud health-consent version; null/omitted leaves self-host unchanged. */
+  healthDataConsentVersion?: string | null;
 };
 
 /**
@@ -185,6 +188,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
   const invitationEmails =
     options.invitationEmails ??
     createWorkspaceInvitationEmails({ email, locales, webOrigin: env.CORS_ORIGIN, logger });
+  const healthDataConsentVersion = options.healthDataConsentVersion ?? null;
   const social = options.social
     ? createSocialSignIn({
         config: options.social.config,
@@ -387,7 +391,10 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
         if (ctx.path === ORGANIZATION_INVITE_PATH) {
           let session: { user?: { id?: unknown } } | null;
           try {
-            session = await getAuthoritativeSessionFromCtx(ctx);
+            session = await getAuthoritativeSessionFromCtx<
+              Record<string, unknown>,
+              { impersonatedBy?: string | null }
+            >(ctx);
           } catch {
             throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
           }
@@ -406,6 +413,45 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
             throw new APIError("FORBIDDEN", {
               message: "That email does not belong to an existing account.",
             });
+          }
+        }
+
+        // Cloud accounts must explicitly accept the current health-data
+        // consent before a membership invitation can grant access to a record.
+        // This is deliberately before Better Auth mutates invitation/member rows.
+        if (ctx.path === ORGANIZATION_ACCEPT_INVITATION_PATH && healthDataConsentVersion) {
+          let session: {
+            user?: { id?: unknown };
+            session?: { impersonatedBy?: string | null };
+          } | null;
+          try {
+            session = await getAuthoritativeSessionFromCtx<
+              Record<string, unknown>,
+              { impersonatedBy?: string | null }
+            >(ctx);
+          } catch {
+            throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
+          }
+          const userId = session?.user?.id;
+          if (typeof userId !== "string" || userId.length === 0) {
+            throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
+          }
+          if (session?.session?.impersonatedBy) {
+            throw new APIError("FORBIDDEN", { message: "You do not have permission to perform this action." });
+          }
+          try {
+            const consent = await database.execute<{ id: string }>(sql`
+              select "id" from "legal_acceptance"
+              where "user_id" = ${userId} and "document" = 'health_data_consent'
+                and "version" = ${healthDataConsentVersion}
+              limit 1
+            `);
+            if (consent.rows.length === 0) {
+              throw new APIError("FORBIDDEN", { message: "Current health-data consent is required." });
+            }
+          } catch (error) {
+            if (error instanceof APIError) throw error;
+            throw new APIError("INTERNAL_SERVER_ERROR", { message: "Something went wrong." });
           }
         }
       }),

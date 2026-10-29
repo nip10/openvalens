@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@openvalens/ui/components/button";
 import { CreditCard, Receipt, Sparkles } from "lucide-react";
+import { useEffect, useId, useState } from "react";
 
 import { Section, StatusPill, type StatusTone } from "@/components/page";
 import { SettingsGroup, SettingsRow } from "@/components/settings-rows";
@@ -32,6 +33,7 @@ export type BillingStatus = {
   canSubscribe: boolean;
   canManage: boolean;
   prices: { monthly: BillingPrice; annual: BillingPrice };
+  checkoutAcknowledgement: { version: string; termsUrl: string } | null;
 };
 
 export type BillingPlanViewProps = {
@@ -40,7 +42,7 @@ export type BillingPlanViewProps = {
   checkout?: "success" | "cancelled" | null;
   busy: "monthly" | "annual" | "portal" | null;
   actionError: string | null;
-  onSubscribe: (plan: BillingPlan) => void;
+  onSubscribe: (plan: BillingPlan, acknowledgementVersion: string) => void;
   onManage: () => void;
 };
 
@@ -87,6 +89,25 @@ export function BillingPlanView({
   const periodEnd = day(status.currentPeriodEnd);
   const graceEnd = day(status.graceEndsAt);
   const days = status.trialDaysLeft ?? 0;
+  const acknowledgementVersion = status.checkoutAcknowledgement?.version ?? null;
+  const [acknowledgements, setAcknowledgements] = useState({
+    version: acknowledgementVersion,
+    immediateStart: false,
+    withdrawal: false,
+  });
+  const acceptedImmediateStart =
+    acknowledgements.version === acknowledgementVersion && acknowledgements.immediateStart;
+  const acceptedWithdrawalAcknowledgement =
+    acknowledgements.version === acknowledgementVersion && acknowledgements.withdrawal;
+  const immediateId = useId();
+  const withdrawalId = useId();
+  useEffect(() => {
+    setAcknowledgements({
+      version: acknowledgementVersion,
+      immediateStart: false,
+      withdrawal: false,
+    });
+  }, [acknowledgementVersion]);
 
   // #298 — a member's access comes from the workspace owner's plan: no
   // prices, no Checkout and no portal for them, only a neutral note.
@@ -205,6 +226,65 @@ export function BillingPlanView({
             </Trans>
           }
         >
+          {status.checkoutAcknowledgement ? (
+            <div className="mb-4 grid gap-1 rounded-2xl bg-paper-2 p-3 text-sm text-ink-2">
+              <div className="flex min-h-10 items-start gap-3 rounded-xl px-2 py-2">
+                <input
+                  id={immediateId}
+                  type="checkbox"
+                  checked={acceptedImmediateStart}
+                  onChange={(event) =>
+                    setAcknowledgements({
+                      version: acknowledgementVersion,
+                      immediateStart: event.target.checked,
+                      withdrawal: acceptedWithdrawalAcknowledgement,
+                    })
+                  }
+                  className="mt-1 size-4 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                />
+                <label htmlFor={immediateId} className="flex-1">
+                  <Trans>I request that my paid subscription starts immediately.</Trans>
+                </label>
+              </div>
+              <div className="flex min-h-10 items-start gap-3 rounded-xl px-2 py-2">
+                <input
+                  id={withdrawalId}
+                  type="checkbox"
+                  checked={acceptedWithdrawalAcknowledgement}
+                  onChange={(event) =>
+                    setAcknowledgements({
+                      version: acknowledgementVersion,
+                      immediateStart: acceptedImmediateStart,
+                      withdrawal: event.target.checked,
+                    })
+                  }
+                  className="mt-1 size-4 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                />
+                <label htmlFor={withdrawalId} className="flex-1">
+                  <Trans>
+                    I understand that if I withdraw within 14 days, I may have to pay for the service
+                    already provided.
+                  </Trans>
+                </label>
+              </div>
+              <p className="px-2 pb-1 text-ink-3">
+                  <Trans>
+                    Read our{" "}
+                    <a
+                      className="underline underline-offset-2"
+                      href={status.checkoutAcknowledgement.termsUrl}
+                    >
+                      Terms
+                    </a>
+                    .
+                  </Trans>
+              </p>
+            </div>
+          ) : (
+            <p role="status" className="mb-4 rounded-2xl bg-muted px-4 py-3 text-sm text-ink-2">
+              <Trans>Subscriptions are temporarily unavailable. Please try again later.</Trans>
+            </p>
+          )}
           <SettingsGroup>
             {(["monthly", "annual"] as const).map((plan) => {
               const amount = money(status.prices[plan]);
@@ -221,7 +301,19 @@ export function BillingPlanView({
                       : undefined
                   }
                 >
-                  <Button onClick={() => onSubscribe(plan)} disabled={busy !== null}>
+                  <Button
+                    onClick={() => {
+                      if (status.checkoutAcknowledgement) {
+                        onSubscribe(plan, status.checkoutAcknowledgement.version);
+                      }
+                    }}
+                    disabled={
+                      busy !== null ||
+                      !status.checkoutAcknowledgement ||
+                      !acceptedImmediateStart ||
+                      !acceptedWithdrawalAcknowledgement
+                    }
+                  >
                     {busy === plan ? t`Opening Stripe…` : t`Subscribe`}
                   </Button>
                 </SettingsRow>

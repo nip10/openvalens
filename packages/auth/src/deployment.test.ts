@@ -13,10 +13,12 @@ const CLOUD_ENV = {
   LEGAL_TERMS_VERSION: "2026-11-01",
   LEGAL_PRIVACY_URL: "https://openvalens.example/privacy",
   LEGAL_PRIVACY_VERSION: "2026-11-01",
+  LEGAL_HEALTH_CONSENT_VERSION: "health-consent-1",
   STRIPE_SECRET_KEY: "rk_test_synthetic",
   STRIPE_WEBHOOK_SECRET: "whsec_synthetic",
   STRIPE_PRICE_MONTHLY: "price_synthetic_monthly",
   STRIPE_PRICE_ANNUAL: "price_synthetic_annual",
+  LEGAL_CHECKOUT_ACK_VERSION: "checkout-v1",
 };
 
 describe("parseDeploymentConfig (Issue #294)", () => {
@@ -70,6 +72,7 @@ describe("parseDeploymentConfig (Issue #294)", () => {
       legal: {
         terms: { url: CLOUD_ENV.LEGAL_TERMS_URL, version: "2026-11-01" },
         privacy: { url: CLOUD_ENV.LEGAL_PRIVACY_URL, version: "2026-11-01" },
+        healthDataConsent: { url: CLOUD_ENV.LEGAL_PRIVACY_URL, version: "health-consent-1" },
       },
     });
   });
@@ -105,6 +108,14 @@ describe("parseDeploymentConfig (Issue #294)", () => {
     expect(error).toBeInstanceOf(DeploymentConfigError);
     expect((error as Error).message).toContain("LEGAL_TERMS_URL");
     expect((error as Error).message).not.toContain("javascript");
+  });
+
+  test("cloud requires a bounded health-consent version and uses the configured privacy URL", () => {
+    expect(CLOUD_REQUIRED_KEYS).toContain("LEGAL_HEALTH_CONSENT_VERSION");
+    expect(() => parseDeploymentConfig({ ...CLOUD_ENV, LEGAL_HEALTH_CONSENT_VERSION: "x".repeat(65) }))
+      .toThrow(/LEGAL_HEALTH_CONSENT_VERSION/);
+    const config = parseDeploymentConfig(CLOUD_ENV);
+    expect(config.mode === "cloud" && config.legal.healthDataConsent).toEqual({ url: CLOUD_ENV.LEGAL_PRIVACY_URL, version: "health-consent-1" });
   });
 });
 

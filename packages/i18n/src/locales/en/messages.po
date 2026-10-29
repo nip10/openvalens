@@ -2253,12 +2253,14 @@ msgstr "Canada"
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/change-server.tsx
+#: apps/native/components/complete-export-card.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
 #: apps/native/components/workout-session.tsx
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/components/workout-routines.tsx
@@ -2273,6 +2275,10 @@ msgstr "Canada"
 #: packages/api/src/presenters/supplements.ts
 msgid "Cancel"
 msgstr "Cancel"
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Cancel download"
+msgstr "Cancel download"
 
 #: apps/native/components/workout-routines.tsx
 msgid "Cancel editing"
@@ -2465,6 +2471,11 @@ msgstr "Checking connection..."
 msgid "Checking connection…"
 msgstr "Checking connection…"
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Checking export status…"
+msgstr "Checking export status…"
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Checking private measurement setting…"
 msgstr "Checking private measurement setting…"
@@ -2553,6 +2564,10 @@ msgstr "Choose a recipe to review"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Choose a recipe to review."
 msgstr "Choose a recipe to review."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Choose a server and sign in to request an export."
+msgstr "Choose a server and sign in to request an export."
 
 #: apps/web/src/components/exercise-library.tsx
 msgid "Choose a workout"
@@ -2919,11 +2934,47 @@ msgstr "Connected. Your OpenValens daily reminders will arrive here. React with 
 msgid "Connection lost. Check your network and try again."
 msgstr "Connection lost. Check your network and try again."
 
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "Consent could not be saved. The version may have changed; review it and try again."
+msgstr "Consent could not be saved. The version may have changed; review it and try again."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Consent is not required on this server."
+msgstr "Consent is not required on this server."
+
+#. placeholder {0}: status.data.acceptedVersion
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Consent recorded for version {0}."
+msgstr "Consent recorded for version {0}."
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Consent to health data processing to continue."
+msgstr "Consent to health data processing to continue."
+
 #. safety
 #. placeholder {0}: state.consentVersion
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Consent version {0}"
 msgstr "Consent version {0}"
+
+#. placeholder {0}: consentStatus.data?.currentVersion
+#. placeholder {0}: healthDataConsent.version
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Consent version: {0}"
+msgstr "Consent version: {0}"
+
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "Consent version: {currentVersion}"
+msgstr "Consent version: {currentVersion}"
+
+#: apps/native/components/health-data-consent-prompt.tsx
+msgid "Consent version: {version}"
+msgstr "Consent version: {version}"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Conservative"
@@ -3069,6 +3120,18 @@ msgstr "Could not activate your workspace. Please try again."
 msgid "Could not change server. Your data on this phone was kept. Try again."
 msgstr "Could not change server. Your data on this phone was kept. Try again."
 
+#: apps/native/components/health-data-consent-prompt.tsx
+msgid "Could not check health data consent."
+msgstr "Could not check health data consent."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Could not check health data consent. Retry before accepting an invitation."
+msgstr "Could not check health data consent. Retry before accepting an invitation."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Could not check health data consent. Retry before accepting this invitation."
+msgstr "Could not check health data consent. Retry before accepting this invitation."
+
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Could not check this setting."
 msgstr "Could not check this setting."
@@ -3081,6 +3144,11 @@ msgstr "Could not check this setting. Measurements stay unavailable until it can
 #: apps/native/app/(drawer)/cycle.tsx
 msgid "Could not check this setting. Try again"
 msgstr "Could not check this setting. Try again"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Could not check your export status."
+msgstr "Could not check your export status."
 
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
@@ -3219,6 +3287,10 @@ msgstr "Could not disconnect this device."
 msgid "Could not disconnect. Sign in again and retry."
 msgstr "Could not disconnect. Sign in again and retry."
 
+#: apps/native/components/complete-export-card.tsx
+msgid "Could not download the export. Check your connection and try again."
+msgstr "Could not download the export. Check your connection and try again."
+
 #: apps/native/components/workout-session-detail.tsx
 msgid "Could not edit workout"
 msgstr "Could not edit workout"
@@ -3293,6 +3365,11 @@ msgstr "Could not load goal progress."
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load goals."
 msgstr "Could not load goals."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Could not load health data consent status."
+msgstr "Could not load health data consent status."
 
 #: apps/web/src/components/insights-section.tsx
 msgid "Could not load insights."
@@ -3559,6 +3636,11 @@ msgstr "Could not open Stripe Checkout. Try again."
 #: apps/web/src/routes/_auth/settings/billing.tsx
 msgid "Could not open the billing portal. Try again."
 msgstr "Could not open the billing portal. Try again."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Could not prepare the export. You can try again."
+msgstr "Could not prepare the export. You can try again."
 
 #: apps/web/src/routes/_auth/route.tsx
 #: apps/web/src/utils/session-bootstrap.ts
@@ -3908,6 +3990,12 @@ msgstr "Cron secret"
 msgid "Current target: {currentTarget}"
 msgstr "Current target: {currentTarget}"
 
+#. placeholder {0}: status.data.currentVersion
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Current version: {0}."
+msgstr "Current version: {0}."
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Cut"
 msgstr "Cut"
@@ -4121,6 +4209,8 @@ msgid "Delete <0>{foodName}</0>"
 msgstr "Delete <0>{foodName}</0>"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
 msgid "Delete account"
 msgstr "Delete account"
 
@@ -4460,12 +4550,30 @@ msgstr "Download bundle"
 msgid "Download by domain"
 msgstr "Download by domain"
 
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download complete export ZIP"
+msgstr "Download complete export ZIP"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download everything"
+msgstr "Download everything"
+
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download is unavailable for this server address."
+msgstr "Download is unavailable for this server address."
+
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Download your clinical record as a single JSON bundle."
 msgstr "Download your clinical record as a single JSON bundle."
 
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download ZIP"
+msgstr "Download ZIP"
+
 #: apps/native/app/(drawer)/exports.tsx
+#: apps/native/components/complete-export-card.tsx
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Downloading…"
 msgstr "Downloading…"
@@ -5104,9 +5212,23 @@ msgstr "Expires"
 msgid "Expires {0}."
 msgstr "Expires {0}."
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Export preparation was cancelled."
+msgstr "Export preparation was cancelled."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/components/cloud-access-notice.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
 msgid "Export records"
 msgstr "Export records"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Export storage is unavailable right now. Try again later."
+msgstr "Export storage is unavailable right now. Try again later."
 
 #: apps/native/components/sync-status-badge.tsx
 #: apps/web/src/components/sync-status-badge.tsx
@@ -5570,6 +5692,13 @@ msgstr "Head (front)"
 msgid "Health data"
 msgstr "Health data"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Health data consent"
+msgstr "Health data consent"
+
 #: apps/native/components/cloud-access-notice.tsx
 msgid "Health sync is paused until access is back."
 msgstr "Health sync is paused until access is back."
@@ -5824,6 +5953,29 @@ msgstr "I agree to store my cycle data on this server for my own reference."
 msgid "I agree to the <0>terms of service</0> and the <1>privacy policy</1>."
 msgstr "I agree to the <0>terms of service</0> and the <1>privacy policy</1>."
 
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "I agree to this health data processing."
+msgstr "I agree to this health data processing."
+
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "I consent"
+msgstr "I consent"
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "I consent to OpenValens processing my health data to provide the service."
+msgstr "I consent to OpenValens processing my health data to provide the service."
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "I consent to OpenValens processing my health data to provide the service. Read our <0>privacy policy</0>."
+msgstr "I consent to OpenValens processing my health data to provide the service. Read our <0>privacy policy</0>."
+
 #. safety
 #. safety
 #: apps/native/components/energy-estimate-card.tsx
@@ -5889,6 +6041,11 @@ msgstr "If you didn’t ask to create an account, ignore this email. No account 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
 msgstr "If you missed a day, you can still add it until the end of {until}."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "If you no longer want OpenValens to process your health data, you can export your records and delete your account."
+msgstr "If you no longer want OpenValens to process your health data, you can export your records and delete your account."
 
 #: packages/email/src/templates/invitation-revoked.tsx
 msgid "If you still need access, contact your administrator."
@@ -6706,6 +6863,11 @@ msgstr "Load more sessions"
 #: apps/web/src/components/workout-history.tsx
 msgid "Load older sessions"
 msgstr "Load older sessions"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Loading consent status…"
+msgstr "Loading consent status…"
 
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading details…"
@@ -7669,6 +7831,11 @@ msgstr "No foods were recognised. Try naming each food, for example “two eggs 
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "No goals yet"
 msgstr "No goals yet"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "No health data consent is recorded."
+msgstr "No health data consent is recorded."
 
 #: apps/native/components/workout-history.tsx
 msgid "No history yet"
@@ -9224,10 +9391,40 @@ msgstr "Preferences"
 msgid "Preparation"
 msgstr "Preparation"
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Preparation runs in the background. When it is ready, the download is available for 24 hours."
+msgstr "Preparation runs in the background. When it is ready, the download is available for 24 hours."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Preparation stopped before it finished. You can try again."
+msgstr "Preparation stopped before it finished. You can try again."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Prepare a new export"
+msgstr "Prepare a new export"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Prepare export"
+msgstr "Prepare export"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Prepare one ZIP file with your JSON records and stored attachments."
+msgstr "Prepare one ZIP file with your JSON records and stored attachments."
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Preparing preview…"
 msgstr "Preparing preview…"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Preparing your export…"
+msgstr "Preparing your export…"
 
 #: apps/native/components/workout-routines.tsx
 msgid "Preparing…"
@@ -9492,6 +9689,14 @@ msgstr "Reach a weight"
 msgid "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
 msgstr "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "Read the privacy policy"
+msgstr "Read the privacy policy"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Read the source"
 msgstr "Read the source"
@@ -9638,6 +9843,12 @@ msgstr "Record the session as it happened. Exercise and set details are optional
 #: packages/api/src/presenters/insights.ts
 msgid "Recorded activity energy"
 msgstr "Recorded activity energy"
+
+#. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString()
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Recorded on {0}."
+msgstr "Recorded on {0}."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Recording streaks"
@@ -9842,6 +10053,11 @@ msgstr "Reps must be from 1 to 1,000."
 msgid "Reps PR"
 msgstr "Reps PR"
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Requesting…"
+msgstr "Requesting…"
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Resend code"
 msgstr "Resend code"
@@ -10024,6 +10240,14 @@ msgstr "Retry workouts"
 #: apps/native/components/workout-session.tsx
 msgid "Review against latest"
 msgstr "Review against latest"
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Review and accept the health data consent above before accepting this invitation."
+msgstr "Review and accept the health data consent above before accepting this invitation."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Review and accept the health data consent before accepting this invitation."
+msgstr "Review and accept the health data consent before accepting this invitation."
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -10331,6 +10555,14 @@ msgstr "Save or discard your active workout before starting a past session."
 msgid "Save or discard your active workout first."
 msgstr "Save or discard your active workout first."
 
+#: apps/native/components/complete-export-card.tsx
+msgid "Save or share your export"
+msgstr "Save or share your export"
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Save or share ZIP"
+msgstr "Save or share ZIP"
+
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Save period"
@@ -10465,6 +10697,7 @@ msgstr "Saving photo…"
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
@@ -10830,6 +11063,10 @@ msgstr "Sets from {trainingFrom} to {trainingTo}"
 msgid "Settings"
 msgstr "Settings"
 
+#: apps/native/components/health-data-consent-prompt.tsx
+msgid "Settings and account deletion"
+msgstr "Settings and account deletion"
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Settings saved."
 msgstr "Settings saved."
@@ -10971,8 +11208,10 @@ msgstr "Shows your usual sleep (the median of the last 28 nights) next to the Na
 msgid "Side"
 msgstr "Side"
 
+#: apps/native/components/complete-export-card.tsx
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/magic-link-form.tsx
 #: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/index.tsx
@@ -11010,6 +11249,10 @@ msgstr "Sign in to browse your workspace library."
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Sign in to create a private, session-only draft."
 msgstr "Sign in to create a private, session-only draft."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Sign in to request and download your export."
+msgstr "Sign in to request and download your export."
 
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "Sign in to see and accept workspace invitations."
@@ -11204,6 +11447,11 @@ msgstr "Some logged meals occurred within four hours of recorded workouts in thi
 #: packages/api/src/presenters/insights.ts
 msgid "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
 msgstr "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Some stored attachments could not be included. You can try again."
+msgstr "Some stored attachments could not be included. You can try again."
 
 #: apps/server/src/admission-email.ts
 msgid "Someone asked to create an OpenValens account with this email address, but it already has one."
@@ -11459,6 +11707,11 @@ msgstr "Stopped locally; server change unconfirmed. Retry turning it off."
 msgid "Stopped waiting. The request may still complete on the server."
 msgstr "Stopped waiting. The request may still complete on the server."
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Stopping…"
+msgstr "Stopping…"
+
 #: packages/api/src/presenters/workouts.ts
 msgid "Strength"
 msgstr "Strength"
@@ -11479,6 +11732,26 @@ msgstr "Strict"
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Subscribe"
 msgstr "Subscribe"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I request that my paid subscription starts immediately."
+msgstr "I request that my paid subscription starts immediately."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I understand that if I withdraw within 14 days, I may have to pay for the service already provided."
+msgstr "I understand that if I withdraw within 14 days, I may have to pay for the service already provided."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Read our <0>Terms</0>."
+msgstr "Read our <0>Terms</0>."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Subscriptions are temporarily unavailable. Please try again later."
+msgstr "Subscriptions are temporarily unavailable. Please try again later."
+
+#: apps/web/src/routes/_auth/settings/billing.tsx
+msgid "These terms have been updated. Review them and confirm again."
+msgstr "These terms have been updated. Review them and confirm again."
 
 #: packages/email/src/templates/billing.tsx
 msgid "Subscription ended"
@@ -11803,6 +12076,11 @@ msgstr "That {displayName} account is already connected to another user."
 msgid "That {name} account is already connected to another user."
 msgstr "That {name} account is already connected to another user."
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "That action did not complete. Try again."
+msgstr "That action did not complete. Try again."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "That amount is too large to save."
 msgstr "That amount is too large to save."
@@ -11868,6 +12146,10 @@ msgstr "The change will not be saved to your history."
 msgid "The coach also needs AI to be turned on for this server and your consent in Settings."
 msgstr "The coach also needs AI to be turned on for this server and your consent in Settings."
 
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "The consent version changed. Review it and try accepting the invitation again."
+msgstr "The consent version changed. Review it and try accepting the invitation again."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The date you set has arrived."
 msgstr "The date you set has arrived."
@@ -11883,6 +12165,10 @@ msgstr "the entry values."
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The evidence-check library is off. Turn it on in the preventive-care settings to see it."
 msgstr "The evidence-check library is off. Turn it on in the preventive-care settings to see it."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "The file was downloaded, but sharing is unavailable on this device."
+msgstr "The file was downloaded, but sharing is unavailable on this device."
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The food source could not be reached. Try the lookup again later, or enter the food from its label."
@@ -12185,6 +12471,16 @@ msgstr "This entry changed on another device."
 #: packages/api/src/presenters/plain-water.ts
 msgid "This entry was already removed."
 msgstr "This entry was already removed."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "This export has expired. Request a new one if you still need it."
+msgstr "This export has expired. Request a new one if you still need it."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "This export is too large to prepare. Try the exports below."
+msgstr "This export is too large to prepare. Try the exports below."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "This food changed on another device"
@@ -12600,9 +12896,12 @@ msgstr "Triceps"
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/complete-export-card.tsx
 #: apps/native/components/exercise-library.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-history.tsx
+#: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/progress-photos.tsx
 #: apps/web/src/components/workout-history.tsx
@@ -13236,6 +13535,11 @@ msgstr "Volume: {0}-reps"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Waist"
 msgstr "Waist"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Waiting to prepare your export…"
+msgstr "Waiting to prepare your export…"
 
 #: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/plain-water.ts
@@ -13879,6 +14183,11 @@ msgstr "Your decision about {title}"
 msgid "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 msgstr "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Your export is ready. It will be available for 24 hours after preparation."
+msgstr "Your export is ready. It will be available for 24 hours after preparation."
+
 #: packages/email/src/templates/billing.tsx
 msgid "Your free OpenValens Cloud trial ends on {day}."
 msgstr "Your free OpenValens Cloud trial ends on {day}."
@@ -14070,6 +14379,15 @@ msgstr "Your server checklist"
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
 msgstr "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Your session has ended. Sign in again to check your export."
+msgstr "Your session has ended. Sign in again to check your export."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Your session has ended. Sign in again to continue."
+msgstr "Your session has ended. Sign in again to continue."
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your subscription has ended. You can subscribe again at any time."

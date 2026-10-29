@@ -65,7 +65,9 @@ export type BillingErrorCode =
   | "ALREADY_SUBSCRIBED"
   /** Stripe could not be reached or refused the request. */
   | "PROVIDER_UNAVAILABLE"
-  | "NOT_FOUND";
+  | "NOT_FOUND"
+  | "ACKNOWLEDGEMENT_REQUIRED"
+  | "ACKNOWLEDGEMENT_STALE";
 
 export class BillingError extends Error {
   readonly code: BillingErrorCode;
@@ -107,6 +109,7 @@ export type BillingStatusView = {
   /** The Customer Portal is available (a Stripe customer exists). */
   canManage: boolean;
   prices: Record<BillingPlan, BillingPriceView | null>;
+  checkoutAcknowledgement: { version: string; termsUrl: string } | null;
 };
 
 export type WebhookResult =
@@ -166,6 +169,9 @@ export type BillingService = {
     userId: string;
     plan: BillingPlan;
     locale?: Locale;
+    acceptedImmediateStart?: boolean;
+    acceptedWithdrawalAcknowledgement?: boolean;
+    acknowledgementVersion?: string;
   }): Promise<{ url: string }>;
   openPortal(input: { userId: string; locale?: Locale }): Promise<{ url: string }>;
   handleWebhook(input: { rawBody: Uint8Array; signature: string | null }): Promise<WebhookResult>;
@@ -181,7 +187,7 @@ export type BillingService = {
 export type BillingServiceDeps = {
   db: Database;
   provider: BillingProvider;
-  config: Pick<BillingConfig, "prices">;
+  config: Pick<BillingConfig, "prices" | "termsUrl" | "checkoutAcknowledgementVersion">;
   /** Web app origin (`CORS_ORIGIN`): Checkout and portal return here. */
   webOrigin: string;
   email: Pick<EmailService, "sendEmail" | "organizationName"> | null;
@@ -461,6 +467,9 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
       access: state.level,
       graceEndsAt: state.graceEndsAt?.toISOString() ?? null,
       prices,
+      checkoutAcknowledgement: member
+        ? null
+        : { version: config.checkoutAcknowledgementVersion, termsUrl: config.termsUrl },
     };
     if (!row) {
       return {
@@ -494,7 +503,14 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
     userId: string;
     plan: BillingPlan;
     locale?: Locale;
+    acceptedImmediateStart?: boolean;
+    acceptedWithdrawalAcknowledgement?: boolean;
+    acknowledgementVersion?: string;
   }): Promise<{ url: string }> {
+    if (input.acceptedImmediateStart !== true || input.acceptedWithdrawalAcknowledgement !== true)
+      throw new BillingError("ACKNOWLEDGEMENT_REQUIRED");
+    if (input.acknowledgementVersion !== config.checkoutAcknowledgementVersion)
+      throw new BillingError("ACKNOWLEDGEMENT_STALE");
     const priceId = config.prices[input.plan];
     const prepared = await db.transaction(async (tx) => {
       let row = await readRow(tx, input.userId, true);
@@ -514,36 +530,50 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
       if (blocksNewCheckout(status, row.stripe_subscription_id !== null)) {
         throw new BillingError("ALREADY_SUBSCRIBED");
       }
-      let customerId = row.stripe_customer_id;
-      if (!customerId) {
+      const acceptanceReference = crypto.randomUUID();
+      await tx.execute(sql`insert into billing_checkout_acknowledgement
+        (id,user_id,version,immediate_start_requested,withdrawal_acknowledged,accepted_at)
+        values (${acceptanceReference},${input.userId},${config.checkoutAcknowledgementVersion},true,true,clock_timestamp())`);
+      let customerEmail: string | null = null;
+      if (!row.stripe_customer_id) {
         const found = await tx.execute(
           sql`select "email" from "user" where "id" = ${input.userId}`,
         );
         const address = (found.rows[0] as { email?: unknown } | undefined)?.email;
         if (typeof address !== "string" || !address) throw new BillingError("NOT_FOUND");
-        // Stripe gets the email (receipts, invoices) and the opaque reference.
-        const customer = await provider.createCustomer({
-          email: address,
-          ref: row.customer_ref,
-          idempotencyKey: `ov-customer-${row.customer_ref}`,
-        });
-        customerId = customer.id;
-        await tx.execute(
-          sql`update "subscription" set "stripe_customer_id" = ${customerId}, "updated_at" = clock_timestamp() where "id" = ${row.id}`,
-        );
+        customerEmail = address;
       }
       return {
-        customerId,
+        customerId: row.stripe_customer_id,
+        customerEmail,
+        subscriptionId: row.id,
         ref: row.customer_ref,
+        acceptanceReference,
         // Subscribing during the free trial keeps the rest of it: the first
         // charge is when the trial would have ended.
         trialEnd: status === "trialing" ? row.trial_ends_at : null,
       };
     });
 
+    // The acceptance transaction has committed before the first Stripe call.
+    // Stripe and Postgres are not a distributed transaction: a provider failure
+    // may leave a recorded request with no Checkout session.
+    let customerId = prepared.customerId;
+    if (!customerId) {
+      const customer = await provider.createCustomer({
+        email: prepared.customerEmail!,
+        ref: prepared.ref,
+        idempotencyKey: `ov-customer-${prepared.ref}`,
+      });
+      customerId = customer.id;
+      await db.execute(sql`update "subscription" set "stripe_customer_id"=${customerId},
+        "updated_at"=clock_timestamp() where "id"=${prepared.subscriptionId}`);
+    }
+
     const session = await provider.createCheckoutSession({
-      customerId: prepared.customerId,
+      customerId,
       ref: prepared.ref,
+      acceptanceReference: prepared.acceptanceReference,
       priceId,
       trialEnd: prepared.trialEnd,
       successUrl: `${billingUrl}?checkout=success`,
@@ -551,6 +581,11 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
       locale: stripeLocale(input.locale),
       idempotencyKey: `ov-checkout-${crypto.randomUUID()}`,
     });
+    if (session.id) {
+      await db.execute(sql`update billing_checkout_acknowledgement
+        set stripe_checkout_session_id=${session.id}
+        where id=${prepared.acceptanceReference} and user_id=${input.userId}`);
+    }
     logger.info("billing.checkout.started", { plan: input.plan });
     return session;
   }

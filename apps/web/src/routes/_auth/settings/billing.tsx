@@ -43,6 +43,12 @@ function BillingSettingsPage() {
   const subscribe = useMutation(
     orpc.billing.checkout.mutationOptions({
       onSuccess: ({ url }) => window.location.assign(url),
+      onError: (error) => {
+        const code = (error as { code?: string }).code;
+        if (code === "ACKNOWLEDGEMENT_STALE") {
+          void status.refetch();
+        }
+      },
     }),
   );
   const manage = useMutation(
@@ -97,7 +103,9 @@ function BillingSettingsPage() {
       ? "portal"
       : null;
   const actionError = subscribe.isError
-    ? t`Could not open Stripe Checkout. Try again.`
+    ? (subscribe.error as { code?: string }).code === "ACKNOWLEDGEMENT_STALE"
+      ? t`These terms have been updated. Review them and confirm again.`
+      : t`Could not open Stripe Checkout. Try again.`
     : manage.isError
       ? t`Could not open the billing portal. Try again.`
       : null;
@@ -110,9 +118,15 @@ function BillingSettingsPage() {
         checkout={checkout ?? null}
         busy={busy}
         actionError={actionError}
-        onSubscribe={(plan: BillingPlan) => {
+        onSubscribe={(plan: BillingPlan, acknowledgementVersion: string) => {
           manage.reset();
-          subscribe.mutate({ plan, locale });
+          subscribe.mutate({
+            plan,
+            locale,
+            acceptedImmediateStart: true,
+            acceptedWithdrawalAcknowledgement: true,
+            acknowledgementVersion,
+          });
         }}
         onManage={() => {
           subscribe.reset();

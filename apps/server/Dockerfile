@@ -15,6 +15,8 @@ RUN mkdir -p /app/.turbo/cache && chown -R bun:bun /app/.turbo
 # Issue #62 — local object storage root. A fresh named volume mounted here
 # inherits this owner and mode, so only the server user can read objects.
 RUN mkdir -p /var/lib/openvalens/storage && chown bun:bun /var/lib/openvalens/storage && chmod 0700 /var/lib/openvalens/storage
+# Private data-export archives (DATA_EXPORT_DIR); same owner/mode inheritance.
+RUN mkdir -p /var/lib/openvalens/exports && chown bun:bun /var/lib/openvalens/exports && chmod 0700 /var/lib/openvalens/exports
 
 EXPOSE 3000
 

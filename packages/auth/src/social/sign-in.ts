@@ -8,7 +8,8 @@
  *   Nothing is ever created, and a matching email never links implicitly
  *   (`disableImplicitLinking`, `disableSignUp`).
  * - **Cloud:** an unknown identity may create an account, but only when the
- *   person ticked the terms and privacy policy before the flow started, and
+ *   person ticked the terms and privacy policy and separately accepted
+ *   health-data processing before the flow started, and
  *   only through the admission core (`createSocialSignUpService`). Better
  *   Auth's own create path stays refused (`validateUserInfo`, the
  *   `user.create.before` hook). The core runs inside the provider's
@@ -79,6 +80,8 @@ const ID_TOKEN_MAX_LENGTH = 8192;
  */
 const signUpRequestSchema = z.object({
   acceptLegal: z.literal(true),
+  acceptedHealthDataConsent: z.literal(true),
+  healthDataConsentVersion: z.string().min(1).max(64),
   locale: z.string().max(16).optional(),
 });
 
@@ -86,6 +89,8 @@ type SignUpStamp = {
   termsVersion: string;
   privacyVersion: string;
   acceptedAt: string;
+  healthDataConsentVersion: string;
+  healthDataConsentAcceptedAt: string;
   locale?: Locale;
 };
 
@@ -95,7 +100,9 @@ function parseStamp(value: unknown): SignUpStamp | null {
   if (
     typeof raw.termsVersion !== "string" ||
     typeof raw.privacyVersion !== "string" ||
-    typeof raw.acceptedAt !== "string"
+    typeof raw.acceptedAt !== "string" ||
+    typeof raw.healthDataConsentVersion !== "string" ||
+    typeof raw.healthDataConsentAcceptedAt !== "string"
   ) {
     return null;
   }
@@ -103,6 +110,8 @@ function parseStamp(value: unknown): SignUpStamp | null {
     termsVersion: raw.termsVersion,
     privacyVersion: raw.privacyVersion,
     acceptedAt: raw.acceptedAt,
+    healthDataConsentVersion: raw.healthDataConsentVersion,
+    healthDataConsentAcceptedAt: raw.healthDataConsentAcceptedAt,
     ...(isLocale(raw.locale) ? { locale: raw.locale } : {}),
   };
 }
@@ -112,6 +121,8 @@ function stampToLegal(stamp: SignUpStamp): SocialSignUpLegal {
     termsVersion: stamp.termsVersion,
     privacyVersion: stamp.privacyVersion,
     acceptedAt: new Date(stamp.acceptedAt),
+    healthDataConsentVersion: stamp.healthDataConsentVersion,
+    healthDataConsentAcceptedAt: new Date(stamp.healthDataConsentAcceptedAt),
   };
 }
 
@@ -366,10 +377,14 @@ export function createSocialSignIn(deps: SocialSignInDeps): SocialSignIn {
     const request = signUpRequestSchema.safeParse(body.additionalData);
     if (!request.success) return;
     const legal = signUp.currentLegal();
-    if (!legal) return;
+    const healthDataConsent = signUp.currentHealthDataConsent();
+    if (!legal || !healthDataConsent || request.data.healthDataConsentVersion !== healthDataConsent.version) return;
+    const acceptedAt = new Date().toISOString();
     const stamp: SignUpStamp = {
       ...legal,
-      acceptedAt: new Date().toISOString(),
+      acceptedAt,
+      healthDataConsentVersion: healthDataConsent.version,
+      healthDataConsentAcceptedAt: acceptedAt,
       ...(isLocale(request.data.locale) ? { locale: request.data.locale } : {}),
     };
 

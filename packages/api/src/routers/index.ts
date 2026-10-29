@@ -23,6 +23,7 @@ import { exampleRouter } from "./example";
 import { exerciseCatalogRouter } from "./exercise-catalog";
 import { exportsRouter } from "./exports";
 import { healthRouter } from "./health";
+import { healthConsentRouter } from "./health-consent";
 import { healthRecordRouter } from "./health-record";
 import { ingestionRouter } from "./ingestion";
 import { insightsRouter } from "./insights";
@@ -81,6 +82,7 @@ type AppRouterShape = {
   exerciseCatalog: typeof exerciseCatalogRouter;
   exports: typeof exportsRouter;
   health: typeof healthRouter;
+  healthConsent: typeof healthConsentRouter;
   healthRecord: typeof healthRecordRouter;
   ingestion: typeof ingestionRouter;
   insights: typeof insightsRouter;
@@ -136,6 +138,7 @@ export const appRouter: AppRouterShape = {
   exerciseCatalog: exerciseCatalogRouter,
   exports: exportsRouter,
   health: healthRouter,
+  healthConsent: healthConsentRouter,
   healthRecord: healthRecordRouter,
   ingestion: ingestionRouter,
   insights: insightsRouter,

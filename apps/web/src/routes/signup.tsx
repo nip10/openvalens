@@ -34,7 +34,8 @@ function SignUpPage() {
   const signInOptions = useQuery(signInOptionsQueryOptions());
   const terms = options.data?.terms;
   const privacy = options.data?.privacy;
-  if (!terms || !privacy) return null;
+  const healthDataConsent = options.data?.healthDataConsent;
+  if (!terms || !privacy || !healthDataConsent) return null;
   const socialFlow = isSocialProvider(via) ? via : null;
   const linkError = !socialFlow
     ? (SIGN_UP_LINK_ERRORS.find((reason) => reason === error) ?? null)
@@ -45,6 +46,7 @@ function SignUpPage() {
     <SignUpForm
       terms={terms}
       privacy={privacy}
+      healthDataConsent={healthDataConsent}
       linkError={linkError}
       google={signInOptions.data?.google === true}
       apple={signInOptions.data?.apple === true}
@@ -53,7 +55,13 @@ function SignUpPage() {
       onSubmit={async (email) => {
         // The emails are written in the language this page is shown in, which
         // also becomes the new account's language.
-        await orpc.signUp.request.call({ email, acceptedLegal: true, locale });
+        await orpc.signUp.request.call({
+          email,
+          acceptedLegal: true,
+          acceptedHealthDataConsent: true,
+          healthDataConsentVersion: healthDataConsent.version,
+          locale,
+        });
       }}
     />
   );

@@ -25,6 +25,7 @@ export function withBuildEnv(config: ConfigContext["config"], env: BuildEnv): Ex
     ...config,
     name: config.name ?? "OpenValens",
     slug: config.slug ?? "openvalens",
+    plugins: [...new Set([...(config.plugins ?? []), "expo-sharing"])],
     ...(googleServicesFile ? { android: { ...config.android, googleServicesFile } } : {}),
     extra: projectId ? { ...extra, eas: { ...extra.eas, projectId } } : extra,
   };
