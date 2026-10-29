@@ -14,17 +14,23 @@ type Queues = {
 type FakeDb = {
   db: Database;
   inserted: Record<string, unknown>[];
+  updated: Record<string, unknown>[];
 };
 
 function createFakeDb(queues: Queues): FakeDb {
   const inserted: Record<string, unknown>[] = [];
+  const updated: Record<string, unknown>[] = [];
 
   const take = (key: keyof Queues): unknown => {
     const queue = queues[key];
     return queue && queue.length > 0 ? queue.shift() : [];
   };
 
-  const builder = (result: unknown, capture?: Record<string, unknown>[]): unknown => {
+  const builder = (
+    result: unknown,
+    capture?: Record<string, unknown>[],
+    captureSet?: Record<string, unknown>[],
+  ): unknown => {
     const node: Record<string, unknown> = {};
     const methods = [
       "values",
@@ -47,6 +53,12 @@ function createFakeDb(queues: Queues): FakeDb {
         return node;
       };
     }
+    if (captureSet) {
+      node.set = (payload: Record<string, unknown>) => {
+        captureSet.push(payload);
+        return node;
+      };
+    }
     // The fake Drizzle builder must be awaitable at any chain point.
     // oxlint-disable-next-line unicorn/no-thenable
     node.then = (resolve: (value: unknown) => unknown, reject?: (error: unknown) => unknown) =>
@@ -58,10 +70,11 @@ function createFakeDb(queues: Queues): FakeDb {
     db: {
       select: () => builder(take("select")),
       insert: () => builder(take("insert"), inserted),
-      update: () => builder(take("update")),
+      update: () => builder(take("update"), undefined, updated),
       delete: () => builder(take("delete")),
     } as unknown as Database,
     inserted,
+    updated,
   };
 }
 
@@ -119,6 +132,56 @@ describe("handleWebhookUpdate", () => {
       status: "processed",
     });
     expect(JSON.stringify(lines)).not.toContain(CHAT_ID);
+  });
+
+  test("ended Cloud access refuses reaction writes but completes dedupe bookkeeping", async () => {
+    const { db, inserted, updated } = createFakeDb({
+      insert: [[{ id: 1 }], [{ id: 99 }]],
+      select: [
+        [{ id: 8, userId: "user-owner", organizationId: "org-cloud" }],
+        [{ id: 5 }],
+        [{ locale: "en" }],
+      ],
+      // Only the webhook claim is updated to processed; health and account
+      // records are intentionally untouched while refusal bookkeeping remains.
+      update: [[], []],
+    });
+    const { logger } = createLogger();
+    const replies: string[] = [];
+
+    expect(
+      await handleWebhookUpdate({
+        db,
+        client: {
+          sendMessage: async (_chatId: string, text: string) => {
+            replies.push(text);
+            return { ok: true };
+          },
+        } as never,
+        rawUpdate: reactionUpdate(301, "✅"),
+        logger,
+        correlationId: "corr-ended",
+        canWriteWorkspace: async ({ userId, organizationId }) => {
+          expect({ userId, organizationId }).toEqual({
+            userId: "user-owner",
+            organizationId: "org-cloud",
+          });
+          return false;
+        },
+      }),
+    ).toEqual({ status: "unknown" });
+
+    expect(updated).toEqual([{ status: "processed", processedAt: expect.any(String) }]);
+    expect(inserted[1]).toMatchObject({
+      eventType: "TELEGRAM_UPDATE_PROCESSED",
+      organizationId: "org-cloud",
+      afterJson: {
+        metadata: { handled: false, errorCode: "WORKSPACE_ACCESS_ENDED" },
+      },
+    });
+    expect(replies).toEqual([
+      "Your OpenValens Cloud access has ended; your records are still there.",
+    ]);
   });
 
   test("returns replayed for an already-processed update", async () => {

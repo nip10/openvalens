@@ -71,10 +71,13 @@ export type ConnectChatInput = {
   telegramUserId: string;
   correlationId: string;
   now?: Date;
+  /** Cloud-only entitlement check, performed before token consumption or binding. */
+  canConnectWorkspace?: (input: { userId: string; organizationId: string }) => Promise<boolean>;
 };
 
 export type ConnectChatResult =
   | { status: "connected"; userId: string; organizationId: string; telegramAccountId: number }
+  | { status: "denied" }
   | { status: "invalid" };
 
 /**
@@ -87,6 +90,33 @@ export async function connectChatWithToken(
 ): Promise<ConnectChatResult> {
   if (!isConnectTokenShaped(input.token)) return { status: "invalid" };
   const nowIso = (input.now ?? new Date()).toISOString();
+
+  // Look up the token without consuming it. A denied/failed Cloud entitlement
+  // check must leave the token reusable when access is restored.
+  if (input.canConnectWorkspace) {
+    const [candidate] = await db
+      .select({
+        userId: telegramConnectToken.userId,
+        organizationId: telegramConnectToken.organizationId,
+      })
+      .from(telegramConnectToken)
+      .where(
+        and(
+          eq(telegramConnectToken.tokenHash, hashConnectToken(input.token)),
+          isNull(telegramConnectToken.usedAt),
+          gt(telegramConnectToken.expiresAt, nowIso),
+        ),
+      )
+      .limit(1);
+    if (!candidate) return { status: "invalid" };
+    if (
+      !(await input.canConnectWorkspace({
+        userId: candidate.userId,
+        organizationId: candidate.organizationId,
+      }))
+    )
+      return { status: "denied" };
+  }
 
   const result = await db.transaction(async (tx): Promise<ConnectChatResult> => {
     const [claimed] = await tx

@@ -130,6 +130,7 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
   };
   const emails: SendEmailInput[] = [];
   let failEmail = false;
+  let workspaceAccessLevel: "full" | "read_only" = "full";
   const fakeEmail: EmailService = {
     organizationName: "Health",
     sendEmail: async (input) => {
@@ -158,6 +159,10 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       push: pushAvailable ? fakePush : null,
       webOrigin: "https://app.example.test",
       insightUnsubscribeKey: deriveInsightUnsubscribeKey("x".repeat(40)),
+      deployment: { mode: "cloud" } as never,
+      billing: {
+        resolveAccess: async () => ({ level: workspaceAccessLevel }),
+      } as never,
       aiConfig: {} as never,
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,
       honoContext: { req: { raw: { headers } } },
@@ -779,6 +784,34 @@ describe.skipIf(!url)("insights over HTTP against disposable PostgreSQL", () => 
       rule_versions: ["change.resting_heart_rate@1"],
       status: "sent",
     });
+  });
+
+  test("cron: ended Cloud access creates no claim or delivery and resumes when restored", async () => {
+    await call("insights/preferences/update", {
+      pushOffer: "accepted",
+      deliveryHour: 0,
+      channels: { change: { push: true } },
+    });
+    await db.execute(sql`delete from insight_delivery where user_id = 'user-a'`);
+    const beforePushes = pushes.length;
+    workspaceAccessLevel = "read_only";
+    try {
+      expect((await runCron()).body).toMatchObject({ candidates: 1, pushSent: 0, emailSent: 0 });
+      expect(pushes).toHaveLength(beforePushes);
+      expect(
+        (
+          await db.execute(
+            sql`select count(*)::int as n from insight_delivery where user_id = 'user-a'`,
+          )
+        ).rows[0],
+      ).toEqual({ n: 0 });
+
+      workspaceAccessLevel = "full";
+      expect((await runCron()).body).toMatchObject({ pushSent: 1 });
+      expect(pushes).toHaveLength(beforePushes + 1);
+    } finally {
+      workspaceAccessLevel = "full";
+    }
   });
 
   test("cron: no push for insights of a hidden module", async () => {

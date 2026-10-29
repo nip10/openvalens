@@ -244,6 +244,25 @@ app.post("/api/integrations/telegram/webhook", async (c) => {
     rawUpdate,
     logger,
     correlationId,
+    ...(deploymentConfig.mode === "cloud"
+      ? {
+          canWriteWorkspace: async ({
+            userId,
+            organizationId,
+          }: {
+            userId: string;
+            organizationId: string;
+          }) => {
+            try {
+              const billing = await getBillingService();
+              if (!billing) return false;
+              return (await billing.resolveAccess({ userId, organizationId })).level === "full";
+            } catch {
+              return false;
+            }
+          },
+        }
+      : {}),
   });
 
   return c.json(result, 200);

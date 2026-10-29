@@ -43,6 +43,8 @@ export type HandleWebhookUpdateDeps = {
   rawUpdate: unknown;
   logger: StructuredLogger;
   correlationId: string;
+  /** Cloud-only check. Omit on self-hosted deployments to preserve behavior. */
+  canWriteWorkspace?: (input: { userId: string; organizationId: string }) => Promise<boolean>;
 };
 
 export type HandleWebhookUpdateResult = {
@@ -145,6 +147,7 @@ export function extractStartCommand(update: unknown): TelegramStartCommand | nul
 const CONNECTED_REPLY = msg`Connected. Your OpenValens daily reminders will arrive here. React with 👍 when you've done one or 👎 to skip it.`;
 const INVALID_LINK_REPLY = msg`This connect link is invalid or has expired. Open Settings → Telegram in OpenValens and connect again.`;
 const MISSING_LINK_REPLY = msg`To connect this chat, open Settings → Telegram in OpenValens and use the connect link there.`;
+const ACCESS_ENDED_REPLY = msg`Your OpenValens Cloud access has ended; your records are still there.`;
 
 async function reply(
   deps: HandleWebhookUpdateDeps,
@@ -181,7 +184,12 @@ async function processStartCommand(
     chatId: command.chatId,
     telegramUserId: command.telegramUserId,
     correlationId: deps.correlationId,
+    canConnectWorkspace: deps.canWriteWorkspace,
   });
+  if (result.status === "denied") {
+    await reply(deps, command.chatId, senderLocale, ACCESS_ENDED_REPLY);
+    return { handled: false, maskedChatId, errorCode: "WORKSPACE_ACCESS_ENDED" };
+  }
   if (result.status === "invalid") {
     await reply(deps, command.chatId, senderLocale, INVALID_LINK_REPLY);
     return { handled: false, maskedChatId, errorCode: "CONNECT_TOKEN_INVALID" };
@@ -244,6 +252,27 @@ async function processReactionUpdate(
       organizationId: account.organizationId,
       maskedChatId,
       errorCode: "REMINDER_NOT_FOUND",
+    };
+  }
+
+  if (
+    deps.canWriteWorkspace &&
+    !(await deps.canWriteWorkspace({
+      userId: account.userId,
+      organizationId: account.organizationId,
+    }))
+  ) {
+    await reply(
+      deps,
+      target.chatId,
+      await readUserLocale(db, account.userId).catch(() => "en"),
+      ACCESS_ENDED_REPLY,
+    );
+    return {
+      handled: false,
+      organizationId: account.organizationId,
+      maskedChatId,
+      errorCode: "WORKSPACE_ACCESS_ENDED",
     };
   }
 

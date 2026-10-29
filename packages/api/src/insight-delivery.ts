@@ -243,6 +243,8 @@ export type InsightDeliveryDeps = {
    * preference in `db`; tests inject a fake.
    */
   locales?: Pick<MessageLocales, "forUser">;
+  /** Cloud-only entitlement gate. Omitted for self-hosted deployments. */
+  canDeliverWorkspace?: (input: { userId: string; organizationId: string }) => Promise<boolean>;
 };
 
 /**
@@ -322,6 +324,17 @@ export async function runInsightDelivery(
     const log = { correlationId, organizationId: scope.organizationId, userId: scope.userId };
     const recipientLocale = lazyRecipientLocale(deps, scope.userId);
     try {
+      if (
+        deps.canDeliverWorkspace &&
+        !(await deps.canDeliverWorkspace({
+          userId: scope.userId,
+          organizationId: scope.organizationId,
+        }))
+      ) {
+        result.skipped += 1;
+        logger.info("insights.delivery.skipped", { ...log, reason: "workspace_access_ended" });
+        continue;
+      }
       const clock = localClock(now, candidate.time_zone);
       if (clock.hour < candidate.delivery_hour) {
         result.skipped += 1;
