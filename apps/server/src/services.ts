@@ -176,6 +176,7 @@ export const deploymentConfig = parseDeploymentConfig({
   STRIPE_WEBHOOK_SECRET: ENV.STRIPE_WEBHOOK_SECRET,
   STRIPE_PRICE_MONTHLY: ENV.STRIPE_PRICE_MONTHLY,
   STRIPE_PRICE_ANNUAL: ENV.STRIPE_PRICE_ANNUAL,
+  LEGAL_CHECKOUT_ACK_VERSION: ENV.LEGAL_CHECKOUT_ACK_VERSION,
 });
 
 // ─── Cloud billing (Issue #297) ─────────────────────────────────
@@ -200,6 +201,8 @@ export function getBillingService(): Promise<BillingService | null> {
       STRIPE_WEBHOOK_SECRET: ENV.STRIPE_WEBHOOK_SECRET,
       STRIPE_PRICE_MONTHLY: ENV.STRIPE_PRICE_MONTHLY,
       STRIPE_PRICE_ANNUAL: ENV.STRIPE_PRICE_ANNUAL,
+      LEGAL_TERMS_URL: ENV.LEGAL_TERMS_URL,
+      LEGAL_CHECKOUT_ACK_VERSION: ENV.LEGAL_CHECKOUT_ACK_VERSION,
     });
     const locales = databaseMessageLocales(db);
     return billing.createBillingService({

@@ -84,6 +84,7 @@ describe("GET /.well-known/openvalens (#295)", () => {
       LEGAL_PRIVACY_URL: "https://legal.test/privacy",
       LEGAL_PRIVACY_VERSION: "p-1",
       LEGAL_HEALTH_CONSENT_VERSION: "h-1",
+      LEGAL_CHECKOUT_ACK_VERSION: "checkout-v1",
       STRIPE_SECRET_KEY: "rk_test_synthetic",
       STRIPE_WEBHOOK_SECRET: "whsec_synthetic",
       STRIPE_PRICE_MONTHLY: "price_synthetic_m",

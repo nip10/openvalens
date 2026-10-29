@@ -11733,6 +11733,26 @@ msgstr "Strict"
 msgid "Subscribe"
 msgstr "Subscribe"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I request that my paid subscription starts immediately."
+msgstr "I request that my paid subscription starts immediately."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I understand that if I withdraw within 14 days, I may have to pay for the service already provided."
+msgstr "I understand that if I withdraw within 14 days, I may have to pay for the service already provided."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Read our <0>Terms</0>."
+msgstr "Read our <0>Terms</0>."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Subscriptions are temporarily unavailable. Please try again later."
+msgstr "Subscriptions are temporarily unavailable. Please try again later."
+
+#: apps/web/src/routes/_auth/settings/billing.tsx
+msgid "These terms have been updated. Review them and confirm again."
+msgstr "These terms have been updated. Review them and confirm again."
+
 #: packages/email/src/templates/billing.tsx
 msgid "Subscription ended"
 msgstr "Subscription ended"

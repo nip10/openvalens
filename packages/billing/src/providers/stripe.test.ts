@@ -38,10 +38,11 @@ function strings(value: unknown, found: string[] = []): string[] {
   return found;
 }
 
-describe("what Stripe receives (no PHI, metadata is only the opaque reference)", () => {
+describe("what Stripe receives (no PHI, metadata references are opaque)", () => {
   const checkout = checkoutSessionParams({
     customerId: "cus_test_1",
     ref: REF,
+    acceptanceReference: "11111111-1111-4111-8111-111111111111",
     priceId: "price_monthly",
     trialEnd: new Date(Date.now() + 10 * 86_400_000),
     successUrl: "https://app.test/settings/billing?checkout=success",
@@ -51,12 +52,16 @@ describe("what Stripe receives (no PHI, metadata is only the opaque reference)",
   });
   const customer = customerCreateParams({ email: "alex.morgan@example.com", ref: REF });
 
-  test("every metadata object has exactly one key, ov_ref, holding the reference", () => {
+  test("customer has only ov_ref; checkout adds only the opaque acceptance reference", () => {
     const metadata = [...metadataObjects(checkout), ...metadataObjects(customer)];
-    expect(metadata.length).toBe(2);
+    expect(metadata.length).toBe(3);
     for (const entry of metadata) {
-      expect(Object.keys(entry)).toEqual([METADATA_REF_KEY]);
+      expect(Object.keys(entry).sort()).toEqual(
+        (entry.acceptance_reference ? [METADATA_REF_KEY, "acceptance_reference"] : [METADATA_REF_KEY]).sort(),
+      );
       expect(entry[METADATA_REF_KEY]).toBe(REF);
+      if (entry.acceptance_reference)
+        expect(entry.acceptance_reference).toBe("11111111-1111-4111-8111-111111111111");
     }
   });
 
@@ -78,6 +83,7 @@ describe("what Stripe receives (no PHI, metadata is only the opaque reference)",
         "customer_update",
         "line_items",
         "locale",
+        "metadata",
         "mode",
         "subscription_data",
         "success_url",
@@ -90,6 +96,7 @@ describe("what Stripe receives (no PHI, metadata is only the opaque reference)",
       "subscription",
       "cus_test_1",
       REF,
+      "11111111-1111-4111-8111-111111111111",
       "price_monthly",
       "auto",
       "pt",
@@ -109,6 +116,7 @@ describe("what Stripe receives (no PHI, metadata is only the opaque reference)",
     const late = checkoutSessionParams({
       customerId: "cus_test_1",
       ref: REF,
+      acceptanceReference: "11111111-1111-4111-8111-111111111111",
       priceId: "price_monthly",
       trialEnd: new Date(Date.now() + 24 * 3600_000),
       successUrl: "https://app.test/s",
@@ -116,7 +124,10 @@ describe("what Stripe receives (no PHI, metadata is only the opaque reference)",
       locale: "en",
       idempotencyKey: "k",
     });
-    expect(late.subscription_data).toEqual({ metadata: { ov_ref: REF } });
+    expect(late.subscription_data.metadata).toEqual({
+      ov_ref: REF,
+      acceptance_reference: "11111111-1111-4111-8111-111111111111",
+    });
   });
 
   test("requests made through the adapter respect the same rule", async () => {
@@ -134,6 +145,7 @@ describe("what Stripe receives (no PHI, metadata is only the opaque reference)",
     await provider.createCheckoutSession({
       customerId: id,
       ref: REF,
+      acceptanceReference: "11111111-1111-4111-8111-111111111111",
       priceId: "price_annual",
       trialEnd: null,
       successUrl: "https://app.test/s",
@@ -143,7 +155,11 @@ describe("what Stripe receives (no PHI, metadata is only the opaque reference)",
     });
     for (const call of fake.calls) {
       for (const entry of metadataObjects(call.params)) {
-        expect(Object.keys(entry)).toEqual([METADATA_REF_KEY]);
+        expect(Object.keys(entry).sort()).toEqual(
+          (entry.acceptance_reference ? [METADATA_REF_KEY, "acceptance_reference"] : [METADATA_REF_KEY]).sort(),
+        );
+        if (entry.acceptance_reference)
+          expect(entry.acceptance_reference).toBe("11111111-1111-4111-8111-111111111111");
       }
     }
     const created = fake.calls.find((call) => call.method === "customers.create");

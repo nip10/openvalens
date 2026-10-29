@@ -122,7 +122,8 @@ export function createFakeStripe(
       sessions: {
         async create(params, options) {
           record("checkout.sessions.create", params, options);
-          return { url: `https://checkout.stripe.test/c/${nextId("cs")}` };
+          const id = nextId("cs");
+          return { id, url: `https://checkout.stripe.test/c/${id}` };
         },
       },
     },

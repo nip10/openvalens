@@ -254,6 +254,7 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // Stripe queues the customer in `billing_customer_erasure` (database
   // trigger), which cancels the subscription now and deletes the customer.
   subscription: { kind: "user" },
+  billing_checkout_acknowledgement: { kind: "user" },
   billing_webhook_event: {
     kind: "system",
     reason:

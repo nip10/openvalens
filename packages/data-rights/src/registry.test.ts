@@ -56,6 +56,14 @@ describe("data-rights registry", () => {
     }
   });
 
+  test("checkout acknowledgement history is user-owned export and erasure data", () => {
+    const entry = DATA_RIGHTS_REGISTRY.billing_checkout_acknowledgement;
+    expect(entry?.kind).toBe("user");
+    expect(isExported(entry!)).toBe(true);
+    const table = tables.find((candidate) => candidate.name === "billing_checkout_acknowledgement");
+    expect(table?.columns.map((column) => column.name)).toContain("user_id");
+  });
+
   test("credential columns of exported tables are redacted", () => {
     const unredacted: string[] = [];
     for (const t of tables) {
