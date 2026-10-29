@@ -49,6 +49,7 @@ SUITES=(
   "LABS_ROUTER_TEST_DATABASE_URL|labs_router_test|packages/api/src/routers/labs.integration.test.ts"
   "AI_TOOLS_TEST_DATABASE_URL|ai_tools_test|packages/ai/src/tools/health-tools.integration.test.ts"
   "AI_REMAINING_TOOLS_TEST_DATABASE_URL|ai_remaining_tools_test|packages/ai/src/tools/remaining-tools.integration.test.ts"
+  "AI_USAGE_TEST_DATABASE_URL|ai_usage_test|packages/ai/src/usage-store.integration.test.ts"
   "DATA_RIGHTS_TEST_DATABASE_URL|data_rights_test|packages/data-rights/src/export.integration.test.ts"
   "DATA_RIGHTS_DELETE_TEST_DATABASE_URL|data_rights_delete_test|packages/data-rights/src/delete.integration.test.ts"
   "ERASURE_REPLAY_TEST_DATABASE_URL|erasure_replay_test|packages/data-rights/src/replay.integration.test.ts"

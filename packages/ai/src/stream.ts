@@ -4,6 +4,12 @@ import { APICallError, RetryError, stepCountIs, streamText } from "ai";
 import { describeAiEndpoint, type AiConfig } from "./config";
 import { describeAiProviderError } from "./errors";
 import { createAiModel, createAnthropicModel, createOpenAiCompatibleModel } from "./model";
+import {
+  estimateTokensFromChars,
+  normalizeProviderUsage,
+  type AiUsageTokens,
+  type ProviderUsageLike,
+} from "./usage";
 
 export { createAiModel, createAnthropicModel, createOpenAiCompatibleModel };
 
@@ -23,6 +29,11 @@ export { createAiModel, createAnthropicModel, createOpenAiCompatibleModel };
  *   them via `onError` and ends `textStream` empty) as thrown errors, so a
  *   failed call is never mistaken for an empty reply;
  * - returns the aggregated text + usage so the caller can persist the turn;
+ * - reports the usage of every model step through `onUsage` as it finishes
+ *   (Issue #299), so a turn that fails after some steps still records what
+ *   the provider billed. When a step fails after text had started streaming,
+ *   the provider never reports its usage; it is then estimated from the
+ *   prompt and the streamed text length, so a partly billed failure counts;
  * - when tools are offered, runs a bounded multi-step tool loop (Issue #130):
  *   after a tool call the SDK sends the tool result back to the model so the
  *   final answer is written from it, for at most {@link AI_CHAT_MAX_STEPS}
@@ -59,11 +70,14 @@ export type StreamTextFn = (args: {
   tools?: Record<string, unknown>;
   onError?: (event: { error: unknown }) => void;
   stopWhen?: unknown;
+  onStepFinish?: (step: { usage?: ProviderUsageLike | undefined }) => void;
 }) => {
   textStream: AsyncIterable<string>;
   usage?: PromiseLike<
     { inputTokens?: number | undefined; outputTokens?: number | undefined } | undefined
   >;
+  /** Usage summed over every step of the turn (AI SDK `totalUsage`). */
+  totalUsage?: PromiseLike<ProviderUsageLike | undefined>;
 };
 
 export type StreamChatInput = {
@@ -75,6 +89,11 @@ export type StreamChatInput = {
   onChunk?: (chunk: string) => void;
   onFinish?: (result: StreamChatResult) => void;
   onError?: (error: unknown) => void;
+  /**
+   * Called once per provider call (model step) with the tokens it billed, for
+   * usage metering (Issue #299). Counts only, never content.
+   */
+  onUsage?: (usage: AiUsageTokens) => void;
   logger?: StructuredLogger;
   /** Test seam: override the AI SDK `streamText`. */
   streamTextFn?: StreamTextFn;
@@ -133,6 +152,20 @@ async function readUsage(result: {
   };
 }
 
+async function readTotalUsage(result: {
+  totalUsage?: PromiseLike<ProviderUsageLike | undefined>;
+  usage?: PromiseLike<ProviderUsageLike | undefined>;
+}): Promise<AiUsageTokens | undefined> {
+  const source = result.totalUsage ?? result.usage;
+  if (!source) return undefined;
+  try {
+    const usage = await source;
+    return usage ? normalizeProviderUsage(usage) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function streamChat(input: StreamChatInput): Promise<StreamChatResult> {
   const logger = input.logger ?? createStructuredLogger({ level: "info" });
   const modelName = input.config.AI_MODEL;
@@ -151,6 +184,19 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
 
   let totalChunks = 0;
   let text = "";
+  // Usage per finished model step (Issue #299), and the step in progress.
+  const stepUsage: AiUsageTokens = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
+  let reportedSteps = 0;
+  let stepChunks = 0;
+  let stepChars = 0;
+  const systemChars = input.system?.length ?? 0;
+  const reportUsage = (usage: AiUsageTokens) => {
+    try {
+      input.onUsage?.(usage);
+    } catch {
+      // Metering must never break a turn.
+    }
+  };
 
   try {
     const model = input.model ?? createAiModel(input.config);
@@ -159,6 +205,8 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
     const runStream = async (tools: Record<string, unknown> | undefined) => {
       let streamError: unknown;
       let failed = false;
+      stepChunks = 0;
+      stepChars = 0;
       const result = streamTextFn({
         model,
         messages: input.messages,
@@ -170,10 +218,22 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
             streamError = error;
           }
         },
+        onStepFinish: (step) => {
+          const usage = normalizeProviderUsage(step.usage);
+          reportedSteps += 1;
+          stepUsage.inputTokens += usage.inputTokens;
+          stepUsage.outputTokens += usage.outputTokens;
+          stepUsage.cachedInputTokens += usage.cachedInputTokens;
+          stepChunks = 0;
+          stepChars = 0;
+          reportUsage(usage);
+        },
       });
 
       for await (const chunk of result.textStream) {
         totalChunks += 1;
+        stepChunks += 1;
+        stepChars += chunk.length;
         text += chunk;
         input.onChunk?.(chunk);
         if (totalChunks % CHUNK_LOG_INTERVAL === 0) {
@@ -206,7 +266,18 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
       result = await runStream(undefined);
     }
 
-    const usage = await readUsage(result);
+    let usage: StreamChatUsage | undefined;
+    if (reportedSteps > 0) {
+      usage = { inputTokens: stepUsage.inputTokens, outputTokens: stepUsage.outputTokens };
+    } else {
+      // No per-step report (a test seam, or a provider wrapper without step
+      // events): fall back to the turn's final usage, recorded once.
+      const total = await readTotalUsage(result);
+      if (total) reportUsage(total);
+      usage = total
+        ? { inputTokens: total.inputTokens, outputTokens: total.outputTokens }
+        : await readUsage(result);
+    }
     const streamed: StreamChatResult = {
       totalChunks,
       text,
@@ -228,6 +299,15 @@ export async function streamChat(input: StreamChatInput): Promise<StreamChatResu
     input.onFinish?.(streamed);
     return streamed;
   } catch (error) {
+    if (stepChunks > 0) {
+      // The provider was answering when the step failed: it billed the prompt
+      // and the text so far but never reported usage for it. Estimate both.
+      reportUsage({
+        inputTokens: estimateTokensFromChars(promptLength + systemChars),
+        outputTokens: estimateTokensFromChars(stepChars),
+        cachedInputTokens: 0,
+      });
+    }
     // The observability logger reduces `Error` to `{ name, code }`; message and
     // stack are never serialized.
     logger.error("ai.chat.stream.failed", {

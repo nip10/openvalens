@@ -18,12 +18,18 @@ export type AdminConfigurationEntry = AdminConfigurationOutput["entries"][number
 
 export type AdminBackupStatusOutput = AdminSettingsOutputs["backupStatus"];
 
+export type AdminAiUsageOutput = AdminSettingsOutputs["aiUsage"];
+
 export function adminAccessQueryKey(userId: string) {
   return ["admin-settings", "access", userId] as const;
 }
 
 export function adminConfigurationQueryKey(userId: string) {
   return ["admin-settings", "configuration", userId] as const;
+}
+
+export function adminAiUsageQueryKey(userId: string) {
+  return ["admin-settings", "ai-usage", userId] as const;
 }
 
 export function adminBackupStatusQueryKey(userId: string) {

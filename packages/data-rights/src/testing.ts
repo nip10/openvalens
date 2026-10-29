@@ -113,6 +113,8 @@ export async function seedEveryModule(db: Database, who: string): Promise<void> 
     `insert into access_audit_log (organization_id, actor_user_id, event_type, created_at) values ('${org}', '${user}', 'seed', '2026-10-01')`,
     `insert into onboarding_state (organization_id, current_step) values ('${org}', 'done')`,
     `insert into user_ai_consent (user_id, granted) values ('${user}', true)`,
+    // AI usage per month (#299): counts only.
+    `insert into ai_usage_month (user_id, month, input_tokens, output_tokens, cost_micros, call_count) values ('${user}', '2026-10-01', 1200, 300, 5400, 2)`,
     `insert into wellness_profile (user_id, revision) values ('${user}', 1)`,
     `insert into wellness_profile_consent (user_id, purpose, version) values ('${user}', 'sex', 'v1')`,
     // Weight and Health Connect

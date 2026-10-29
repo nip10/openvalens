@@ -7,6 +7,7 @@ import { ENV } from "./env.server";
 import {
   aiConfig,
   aiRateLimiter,
+  aiUsageMeter,
   admissionRateLimiter,
   admissionService,
   analyticsService,
@@ -87,6 +88,7 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     // Issue #13 — AI config + process-local rate limiter.
     aiConfig,
     aiRateLimiter,
+    aiUsage: aiUsageMeter,
     // Issue #58 — value-free global configuration inventory. Built here from
     // the validated `ENV` so the API package never reads server environment.
     adminConfigInventory: buildAdminConfigInventory(ENV),

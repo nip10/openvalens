@@ -10,6 +10,7 @@ describe("codeToStatus", () => {
       NO_MEMBERSHIP: 403,
       PERMISSION_DENIED: 403,
       AI_DISABLED: 403,
+      AI_USAGE_LIMIT_REACHED: 429,
       TENANT_VIOLATION: 403,
       INVALID_INPUT: 400,
       INTERNAL: 500,

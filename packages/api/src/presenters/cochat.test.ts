@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { inEnglish } from "@openvalens/i18n/testing";
 
-import { previewLine, relativeTime, truncate } from "./cochat";
+import { aiUsageLimitMessage, aiUsageLimitOf, previewLine, relativeTime, truncate } from "./cochat";
 
 const now = new Date("2026-10-01T12:00:00.000Z");
 
@@ -46,5 +46,32 @@ describe("cochat presenter", () => {
   test("truncate: leaves short strings alone, ellipsises long ones", () => {
     expect(truncate("short", 10)).toBe("short");
     expect(truncate("a long message that needs trimming", 12)).toBe("a long mess…");
+  });
+});
+
+describe("monthly AI allowance (Issue #299)", () => {
+  test("recognises the cap error and its reset date only", () => {
+    expect(
+      aiUsageLimitOf({ code: "AI_USAGE_LIMIT_REACHED", data: { resetsOn: "2026-11-01" } }),
+    ).toEqual({ resetsOn: "2026-11-01" });
+    expect(aiUsageLimitOf({ code: "AI_USAGE_LIMIT_REACHED", data: { resetsOn: "soon" } })).toEqual({
+      resetsOn: null,
+    });
+    expect(aiUsageLimitOf({ code: "RATE_LIMITED" })).toBe(false);
+    expect(aiUsageLimitOf(new Error("x"))).toBe(false);
+    expect(aiUsageLimitOf(null)).toBe(false);
+  });
+
+  test("says when the allowance resets, as a UTC day in the person's locale", () => {
+    expect(inEnglish(aiUsageLimitMessage("2026-11-01", "en-GB"))).toBe(
+      "You have used this month's AI coach allowance. It resets on 1 November 2026.",
+    );
+    expect(inEnglish(aiUsageLimitMessage("2026-11-01", "en-US"))).toBe(
+      "You have used this month's AI coach allowance. It resets on November 1, 2026.",
+    );
+    expect(inEnglish(aiUsageLimitMessage("2026-11-01", "pt-PT"))).toContain(
+      "1 de novembro de 2026",
+    );
+    expect(inEnglish(aiUsageLimitMessage(null, "en"))).toContain("start of next month");
   });
 });

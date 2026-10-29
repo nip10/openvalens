@@ -1,4 +1,11 @@
-import { describeAiIntegration, InMemoryRateLimiter, parseAiConfig } from "@openvalens/ai";
+import {
+  assertCloudAiUsageCap,
+  createPgAiUsageMeter,
+  describeAiIntegration,
+  InMemoryRateLimiter,
+  parseAiConfig,
+  parseAiUsageConfig,
+} from "@openvalens/ai";
 import type { BillingService } from "@openvalens/billing";
 import { deriveInsightUnsubscribeKey } from "@openvalens/api/insights";
 import { createProductSettingsService } from "@openvalens/api/product-settings";
@@ -337,6 +344,15 @@ export const aiConfig = parseAiConfig(ENV);
 export const aiRateLimiter = new InMemoryRateLimiter({
   limitPerMinute: aiConfig.AI_RATE_LIMIT_PER_MINUTE,
 });
+
+// Issue #299 — monthly AI usage per person, in Postgres (shared by every
+// replica, kept across restarts). Every provider call is recorded; with
+// `AI_MONTHLY_COST_LIMIT` set, a person who used the month's budget gets
+// `AI_USAGE_LIMIT_REACHED` until the 1st (UTC). A limit without prices, or a
+// Cloud server with AI configured but no limit, refuses to start.
+export const aiUsageConfig = parseAiUsageConfig(ENV);
+assertCloudAiUsageCap({ mode: deploymentConfig.mode, ai: aiConfig, usage: aiUsageConfig });
+export const aiUsageMeter = createPgAiUsageMeter({ db, config: aiUsageConfig });
 
 // Issue #62 — server-side object storage instantiation. `STORAGE_PROVIDER`
 // selects local disk (default) or an S3-compatible bucket. When S3 is selected

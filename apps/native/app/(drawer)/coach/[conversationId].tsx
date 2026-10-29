@@ -1,5 +1,9 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { relativeTime } from "@openvalens/api/presenters/cochat";
+import {
+  aiUsageLimitMessage,
+  aiUsageLimitOf,
+  relativeTime,
+} from "@openvalens/api/presenters/cochat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button, cn, Spinner } from "heroui-native";
@@ -38,6 +42,9 @@ export default function CoachThreadScreen() {
       },
     }),
   );
+
+  // Issue #299: a used-up monthly allowance is not a failure; say when it resets.
+  const usageLimit = send.isError ? aiUsageLimitOf(send.error) : false;
 
   const submit = () => {
     const trimmed = input.trim();
@@ -155,7 +162,16 @@ export default function CoachThreadScreen() {
               </Text>
             </View>
           ) : null}
-          {send.isError ? (
+          {usageLimit ? (
+            <View
+              accessibilityRole="text"
+              className="rounded-2xl border border-rule bg-paper-2 px-4 py-3"
+            >
+              <Text className="font-sans text-sm text-ink-2">
+                {i18n._(aiUsageLimitMessage(usageLimit.resetsOn, i18n.locale))}
+              </Text>
+            </View>
+          ) : send.isError ? (
             <Text accessibilityRole="alert" className="font-sans text-sm text-destructive">
               <Trans>Could not send. Check AI consent in Settings.</Trans>
             </Text>
