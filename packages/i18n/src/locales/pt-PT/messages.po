@@ -228,6 +228,13 @@ msgstr "{0} falhas antes de reduzir a carga"
 msgid "{0} for {1, plural, one {# rep} other {# reps}}"
 msgstr "{0} para {1, plural, one {# repetição} other {# repetições}}"
 
+#. placeholder {0}: count(totals.inputTokens, locale)
+#. placeholder {1}: count(totals.cachedInputTokens, locale)
+#. placeholder {2}: count(totals.outputTokens, locale)
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "{0} in ({1} cached), {2} out"
+msgstr "{0} de entrada ({1} em cache), {2} de saída"
+
 #. placeholder {0}: formatKgDelta(i18n, weightSummary.change30d)
 #. placeholder {0}: formatKgDelta(i18n, weightSummary.change30d, settings)
 #: apps/native/app/(drawer)/(tabs)/index.tsx
@@ -697,6 +704,10 @@ msgstr "{minutes} minutos ativos"
 #: packages/api/src/presenters/activity-load.ts
 msgid "{minutes} min without an intensity are not counted."
 msgstr "{minutes} min sem intensidade não são contados."
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "{month}, resets on {resets}"
+msgstr "{month}, renova a {resets}"
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "{name} (live lookup)"
@@ -1184,6 +1195,7 @@ msgid "Access was revoked. Choose whether to keep or delete its records in the w
 msgstr "O acesso foi revogado. Escolha na aplicação web se quer manter ou eliminar os respetivos registos."
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/admin-ai-usage.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Account"
 msgstr "Conta"
@@ -1191,6 +1203,10 @@ msgstr "Conta"
 #: apps/web/src/routes/_auth/route.tsx
 msgid "Account setup failed"
 msgstr "A configuração da conta falhou"
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Accounts are shown by their opaque id only. Usage counts tokens and estimated cost, never what anyone wrote. See docs/ai-providers.md, section Monthly usage cap."
+msgstr "As contas aparecem apenas pelo seu identificador opaco. A utilização conta tokens e o custo estimado, nunca o que alguém escreveu. Consulte docs/ai-providers.md, secção Monthly usage cap."
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Achieved"
@@ -1553,6 +1569,10 @@ msgstr "Fornecedor de IA"
 #: apps/web/src/components/ai-workspace-consent-section.tsx
 msgid "AI turned off for this workspace"
 msgstr "IA desligada neste espaço de trabalho"
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "AI usage"
+msgstr "Utilização de IA"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "All {count, plural, one {# entry} other {# entries}}"
@@ -2172,6 +2192,10 @@ msgstr "Calculado de novo a partir dos seus registos de cada vez; as pontuaçõe
 msgid "Calendar"
 msgstr "Calendário"
 
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Calls"
+msgstr "Chamadas"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Caloric deficit, fat-loss focus."
 msgstr "Défice calórico, foco na perda de gordura."
@@ -2264,6 +2288,10 @@ msgstr "Cancelado, não contado"
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Cancelled. Your plan stays active until {periodEnd}."
 msgstr "Cancelado. O seu plano continua ativo até {periodEnd}."
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Cap {limit} per person per month"
+msgstr "Limite de {limit} por pessoa por mês"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Carbohydrate"
@@ -3207,6 +3235,10 @@ msgstr "Não foi possível carregar a atividade."
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Could not load AI consent."
 msgstr "Não foi possível carregar o consentimento para IA."
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Could not load AI usage."
+msgstr "Não foi possível carregar a utilização de IA."
 
 #: apps/native/app/(drawer)/clinical.tsx
 #: apps/web/src/routes/_auth/clinical.tsx
@@ -4886,6 +4918,10 @@ msgstr "A estimativa de 1RM usa a fórmula de Epley para séries com peso de 1�
 msgid "Estimated activity energy was recorded on {activityDays, plural, one {# day} other {# days}} in this {windowDays}-day window. It is shown separately from food intake."
 msgstr "Foi registada energia de atividade estimada em {activityDays, plural, one {# dia} other {# dias}} nesta janela de {windowDays} dias. É mostrada separadamente da ingestão alimentar."
 
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Estimated cost"
+msgstr "Custo estimado"
+
 #. safety
 #: packages/api/src/presenters/cycle.ts
 msgid "Estimated luteal phase (about the last 12 to 14 days before your period)"
@@ -5638,6 +5674,10 @@ msgstr "Défice de sono elevado"
 #: packages/api/src/presenters/body-map.ts
 msgid "Higher by more than {strong}"
 msgstr "Mais alto por mais de {strong}"
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Highest usage this month"
+msgstr "Maior utilização este mês"
 
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
@@ -7181,6 +7221,10 @@ msgstr "Moderado: {moderate} min"
 msgid "Modules"
 msgstr "Módulos"
 
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Month (UTC)"
+msgstr "Mês (UTC)"
+
 #. safety
 #: apps/web/src/components/billing-plan-view.tsx
 #: packages/api/src/presenters/supplements.ts
@@ -7482,6 +7526,14 @@ msgstr "Sem atividade registada"
 msgid "No activity yet"
 msgstr "Ainda sem atividade"
 
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "No AI calls yet this month."
+msgstr "Ainda não houve chamadas de IA este mês."
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "No AI prices configured, so cost is not estimated"
+msgstr "Sem preços de IA configurados, por isso o custo não é estimado"
+
 #: apps/web/src/components/admin-backup-status.tsx
 msgid "No backup service has reported to this instance. On a platform deployment (Coolify, Dokploy, a managed database), backups are your provider's database backups: see docs/deployment.md, section 5. On the self-host stack, backups run daily and before every upgrade: see docs/self-hosting/backup.md."
 msgstr "Nenhum serviço de cópias de segurança comunicou com esta instância. Numa implementação em plataforma (Coolify, Dokploy, uma base de dados gerida), as cópias de segurança são as cópias da base de dados do seu fornecedor: consulte docs/deployment.md, secção 5. Na instalação própria, as cópias de segurança são feitas diariamente e antes de cada atualização: consulte docs/self-hosting/backup.md."
@@ -7680,6 +7732,10 @@ msgstr "Nenhum módulo escolhido. O seu painel mostra a sua cronologia e pode ad
 #: apps/native/components/onboarding/steps.tsx
 msgid "No modules picked. Your Today shows the timeline and scores, and you can add a module any time in Settings › Modules."
 msgstr "Nenhum módulo escolhido. O seu Hoje mostra a cronologia e as pontuações, e pode adicionar um módulo quando quiser em Definições › Módulos."
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "No monthly cap"
+msgstr "Sem limite mensal"
 
 #: apps/native/components/exercise-library.tsx
 msgid "No muscle filters available."
@@ -8018,6 +8074,10 @@ msgstr "Agora não"
 #: packages/api/src/presenters/score.ts
 msgid "Not part of the score until OpenValens records it."
 msgstr "Não faz parte da pontuação até a OpenValens o registar."
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "not priced"
+msgstr "sem preço"
 
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
@@ -8857,6 +8917,10 @@ msgstr "Pendente"
 msgid "Pending invitations"
 msgstr "Convites pendentes"
 
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "People using AI"
+msgstr "Pessoas a usar IA"
+
 #: apps/native/app/(drawer)/foods.tsx
 msgid "per {unit}"
 msgstr "por {unit}"
@@ -9278,6 +9342,10 @@ msgstr "Proteína"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Protein reference"
 msgstr "Referência de proteína"
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Provider calls"
+msgstr "Chamadas ao fornecedor"
 
 #: apps/web/src/components/onboarding/server-checklist.tsx
 msgid "Provider set, AI off"
@@ -9833,6 +9901,7 @@ msgstr "Retomar treino"
 #: apps/native/components/sign-in-methods.tsx
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/admin-ai-usage.tsx
 #: apps/web/src/components/admin-backup-status.tsx
 #: apps/web/src/components/admin-invitations-view.tsx
 #: apps/web/src/components/admin-settings-view.tsx
@@ -12391,6 +12460,14 @@ msgstr "Valor de hoje"
 msgid "Toggle theme"
 msgstr "Alternar tema"
 
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Tokens"
+msgstr "Tokens"
+
+#: apps/web/src/components/admin-ai-usage.tsx
+msgid "Tokens in / out"
+msgstr "Tokens de entrada / saída"
+
 #. safety
 #. safety
 #: packages/api/src/presenters/micronutrients.ts
@@ -13545,6 +13622,16 @@ msgstr "Não tem convites pendentes para espaços de trabalho."
 #: apps/web/src/routes/_auth/profile.tsx
 msgid "You have unsaved changes on this page. Leave without saving them?"
 msgstr "Tem alterações por guardar nesta página. Sair sem as guardar?"
+
+#. Coach: the person's monthly AI allowance is used up; no reset date is known
+#: packages/api/src/presenters/cochat.ts
+msgid "You have used this month's AI coach allowance. It resets at the start of next month."
+msgstr "Já utilizou a quota mensal do coach de IA. Renova-se no início do próximo mês."
+
+#. Coach: the person's monthly AI allowance is used up. The date is already written out in the person's language, for example 1 November 2026
+#: packages/api/src/presenters/cochat.ts
+msgid "You have used this month's AI coach allowance. It resets on {date}."
+msgstr "Já utilizou a quota mensal do coach de IA. Renova-se a {date}."
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "You haven't added this yet."

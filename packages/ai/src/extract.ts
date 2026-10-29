@@ -19,6 +19,7 @@ import { createStructuredLogger } from "@openvalens/observability";
 
 import { describeAiEndpoint, type AiConfig } from "./config";
 import { createAiModel } from "./model";
+import { normalizeProviderUsage, type AiUsageTokens, type ProviderUsageLike } from "./usage";
 
 const structuredLogger = createStructuredLogger({ level: "info" });
 
@@ -46,6 +47,12 @@ export type ExtractInput<T = Record<string, unknown>> = {
    * Only a caller-supplied schema is sent as a provider structured output.
    */
   schema?: z.ZodType<T>;
+  /**
+   * Called once per provider call with the tokens it billed, for usage
+   * metering (Issue #299): every attempt counts, also one whose structured
+   * output failed to parse.
+   */
+  onUsage?: (usage: AiUsageTokens) => void;
   logger?: ReturnType<typeof createStructuredLogger>;
   generateTextFn?: typeof generateText;
   /** Test seam: override the model instance. */
@@ -74,6 +81,19 @@ function parseJsonObject(text: string): unknown {
     return JSON.parse(match[0]);
   } catch {
     return undefined;
+  }
+}
+
+/** Reports one call's usage; metering must never break the call. */
+function reportUsage(
+  onUsage: ((usage: AiUsageTokens) => void) | undefined,
+  usage: ProviderUsageLike | undefined,
+): void {
+  if (!onUsage || !usage) return;
+  try {
+    onUsage(normalizeProviderUsage(usage));
+  } catch {
+    // ignored
   }
 }
 
@@ -133,10 +153,13 @@ export async function extractStructured<T = Record<string, unknown>>(
       } as never);
       text = (result as { text?: string }).text ?? "";
       usage = result.usage as LanguageModelUsage | undefined;
+      reportUsage(input.onUsage, usage);
     } catch (error) {
       // A structured output that failed to parse counts as a bad attempt;
       // provider failures (network, auth, 5xx) propagate.
       if (!isOutputParseError(error)) throw error;
+      // The model answered (and billed) even though the output did not parse.
+      reportUsage(input.onUsage, (error as { usage?: ProviderUsageLike }).usage);
     }
 
     const parsed = schema.safeParse(parseJsonObject(text));
@@ -180,6 +203,8 @@ export type InsightInput = {
   snapshot: unknown;
   /** A question or topic for the model to summarise, e.g. "sleep debt". */
   topic: string;
+  /** Called with the tokens the call billed, for usage metering (#299). */
+  onUsage?: (usage: AiUsageTokens) => void;
   logger?: ReturnType<typeof createStructuredLogger>;
   generateTextFn?: typeof generateText;
   /** Test seam: override the model instance. */
@@ -213,6 +238,7 @@ export async function generateInsight(input: InsightInput): Promise<InsightResul
     prompt,
   } as never);
 
+  reportUsage(input.onUsage, result.usage as ProviderUsageLike | undefined);
   const text = (result as { text?: string }).text ?? "";
   const titleMatch = text.match(/TITLE:\s*(.+)/i);
   const bodyMatch = text.match(/BODY:\s*(.+)/i);

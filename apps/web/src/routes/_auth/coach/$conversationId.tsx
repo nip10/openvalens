@@ -1,5 +1,9 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { relativeTime } from "@openvalens/api/presenters/cochat";
+import {
+  aiUsageLimitMessage,
+  aiUsageLimitOf,
+  relativeTime,
+} from "@openvalens/api/presenters/cochat";
 import { Button } from "@openvalens/ui/components/button";
 import { Input } from "@openvalens/ui/components/input";
 import { Skeleton } from "@openvalens/ui/components/skeleton";
@@ -77,6 +81,8 @@ function CoachThreadPage() {
   }
 
   const list = messages.data;
+  // Issue #299: a used-up monthly allowance is not a failure; say when it resets.
+  const usageLimit = send.isError ? aiUsageLimitOf(send.error) : false;
 
   return (
     <section className="grid max-w-[68ch] gap-4">
@@ -141,7 +147,11 @@ function CoachThreadPage() {
             <Trans>Coach is thinking…</Trans>
           </p>
         ) : null}
-        {send.isError ? (
+        {usageLimit ? (
+          <p role="status" className="rounded-2xl bg-paper-2 px-4 py-3 text-sm text-ink-2">
+            {i18n._(aiUsageLimitMessage(usageLimit.resetsOn, i18n.locale))}
+          </p>
+        ) : send.isError ? (
           <p role="alert" className="text-sm text-destructive">
             <Trans>Could not send. Check AI consent in Settings.</Trans>
           </p>

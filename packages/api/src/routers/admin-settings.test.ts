@@ -147,6 +147,72 @@ describe("adminSettings.access", () => {
   });
 });
 
+describe("adminSettings.aiUsage (Issue #299)", () => {
+  const summary = {
+    month: "2026-10-01",
+    resetsOn: "2026-11-01",
+    currency: "EUR",
+    monthlyLimitMicros: 1_500_000,
+    pricesConfigured: true,
+    totals: {
+      accounts: 1,
+      inputTokens: 10,
+      outputTokens: 2,
+      cachedInputTokens: 0,
+      costMicros: 35,
+      callCount: 1,
+    },
+    top: [
+      {
+        userId: "usr_synthetic",
+        inputTokens: 10,
+        outputTokens: 2,
+        cachedInputTokens: 0,
+        costMicros: 35,
+        callCount: 1,
+        // A field the meter might add later is never forwarded.
+        email: "leak@example.test",
+      },
+    ],
+  };
+  const aiUsage = { config: {}, begin: async () => ({}), summary: async () => summary };
+  const adminDb = (role: string) => fakeDb([{ role, banned: false }]).db;
+
+  test("is for instance administrators only", async () => {
+    await expect(
+      appRouter.adminSettings.aiUsage.callable({
+        context: contextWith(ACTOR_SESSION, adminDb("user"), { aiUsage }),
+      })({}),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED", status: 403 });
+  });
+
+  test("returns this month's totals and top accounts by opaque id only", async () => {
+    const result = await appRouter.adminSettings.aiUsage.callable({
+      context: contextWith(ACTOR_SESSION, adminDb("admin"), { aiUsage }),
+    })({});
+    expect(result.totals.costMicros).toBe(35);
+    expect(result.top).toEqual([
+      {
+        userId: "usr_synthetic",
+        inputTokens: 10,
+        outputTokens: 2,
+        cachedInputTokens: 0,
+        costMicros: 35,
+        callCount: 1,
+      },
+    ]);
+    expect(JSON.stringify(result)).not.toContain("leak@example.test");
+  });
+
+  test("fails closed without a meter", async () => {
+    await expect(
+      appRouter.adminSettings.aiUsage.callable({
+        context: contextWith(ACTOR_SESSION, adminDb("admin")),
+      })({}),
+    ).rejects.toMatchObject({ code: "INTERNAL" });
+  });
+});
+
 describe("adminSettings.backupStatus (Issue #64)", () => {
   /** First query: the admin lookup; then the two backup status queries. */
   function backupDb(role: string) {

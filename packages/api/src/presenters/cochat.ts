@@ -65,3 +65,54 @@ export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return `${text.slice(0, max - 1).trimEnd()}…`;
 }
+
+/** Error code of a used-up monthly AI allowance (Issue #299). */
+export const AI_USAGE_LIMIT_REACHED = "AI_USAGE_LIMIT_REACHED";
+
+/**
+ * Issue #299 — whether a failed coach call hit the monthly AI allowance, and
+ * when it resets (`YYYY-MM-DD`, the first day of next month in UTC, or `null`
+ * when the server did not say). `false` for every other error.
+ */
+export function aiUsageLimitOf(error: unknown): { resetsOn: string | null } | false {
+  if (typeof error !== "object" || error === null) return false;
+  const { code, data } = error as { code?: unknown; data?: unknown };
+  if (code !== AI_USAGE_LIMIT_REACHED) return false;
+  const resetsOn =
+    typeof data === "object" && data !== null ? (data as { resetsOn?: unknown }).resetsOn : null;
+  return {
+    resetsOn:
+      typeof resetsOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(resetsOn) ? resetsOn : null,
+  };
+}
+
+/**
+ * The neutral Coach message for a used-up monthly AI allowance, with the reset
+ * date written out in `locale` (the person's language). The date is a UTC
+ * calendar day, so it is formatted in UTC and never shifts by a time zone.
+ */
+export function aiUsageLimitMessage(resetsOn: string | null, locale: string): MessageDescriptor {
+  if (!resetsOn) {
+    return msg({
+      message:
+        "You have used this month's AI coach allowance. It resets at the start of next month.",
+      comment: "Coach: the person's monthly AI allowance is used up; no reset date is known",
+    });
+  }
+  let date: string;
+  try {
+    date = new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${resetsOn}T00:00:00.000Z`));
+  } catch {
+    date = resetsOn;
+  }
+  return msg({
+    message: `You have used this month's AI coach allowance. It resets on ${date}.`,
+    comment:
+      "Coach: the person's monthly AI allowance is used up. The date is already written out in the person's language, for example 1 November 2026",
+  });
+}

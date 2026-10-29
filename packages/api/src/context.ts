@@ -1,4 +1,4 @@
-import type { AiConfig, InMemoryRateLimiter } from "@openvalens/ai";
+import type { AiConfig, AiUsageMeter, InMemoryRateLimiter } from "@openvalens/ai";
 import type { AdmissionService, PublicSignUpService } from "@openvalens/auth/admission";
 import type { BillingService } from "@openvalens/billing";
 import type { DeploymentConfig } from "@openvalens/auth/deployment";
@@ -160,6 +160,13 @@ export type Context = {
    * shared across procedures within a process.
    */
   aiRateLimiter: InMemoryRateLimiter;
+  /**
+   * Issue #299 — Postgres AI usage meter: records every provider call per
+   * person per month and enforces `AI_MONTHLY_COST_LIMIT`. The server always
+   * binds it; optional at the type level so unrelated context factories stay
+   * valid (absent = nothing recorded, no cap).
+   */
+  aiUsage?: AiUsageMeter;
   /**
    * Issue #58 — read-only, value-free view of the server's global
    * configuration keys. The server builds it from validated `ENV`; the API

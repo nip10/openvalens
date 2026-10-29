@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MailPlus, Settings2 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
+import { AdminAiUsage } from "@/components/admin-ai-usage";
 import { AdminBackupStatus } from "@/components/admin-backup-status";
 import { AdminSettingsView } from "@/components/admin-settings-view";
 import { ProductSettingsForm } from "@/components/product-settings-form";
@@ -13,6 +14,7 @@ import { authClient } from "@/lib/auth-client";
 import { isConfigPermissionDenied } from "@/utils/admin-settings-error";
 import {
   adminAccessQueryOptions,
+  adminAiUsageQueryOptions,
   adminBackupStatusQueryOptions,
   adminConfigurationQueryOptions,
 } from "@/utils/admin-settings";
@@ -93,6 +95,8 @@ function AuthenticatedAdminPage({ userId }: { userId: string }) {
       <div className="grid max-w-3xl gap-4">
         <ProductSettingsSection userId={userId} />
       </div>
+
+      {isAdmin ? <AiUsageSection userId={userId} /> : null}
 
       {isAdmin ? <BackupSection userId={userId} /> : null}
     </Page>
@@ -281,6 +285,13 @@ function ConfigurationInventory({ userId }: { userId: string }) {
   }
 
   return <AdminSettingsView accessState="granted" configState="loading" />;
+}
+
+function AiUsageSection({ userId }: { userId: string }) {
+  const usage = useQuery({ ...adminAiUsageQueryOptions(userId), enabled: !!userId });
+  if (usage.data) return <AdminAiUsage status="ready" usage={usage.data} />;
+  if (usage.isError) return <AdminAiUsage status="error" onRetry={() => void usage.refetch()} />;
+  return <AdminAiUsage status="loading" />;
 }
 
 function BackupSection({ userId }: { userId: string }) {

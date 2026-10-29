@@ -67,6 +67,7 @@ export const nutritionFoodDraftsRouter = {
         const result = await service.parse(context.db, scope, input, {
           config: context.aiConfig,
           rateLimiter: context.aiRateLimiter,
+          usage: { meter: context.aiUsage, correlationId: context.correlationId },
         });
         logger.info("nutrition.food_draft", {
           correlationId: context.correlationId,
@@ -91,6 +92,7 @@ export const nutritionFoodDraftsRouter = {
         const result = await service.parsePhoto(context.db, scope, input, {
           config: context.aiConfig,
           rateLimiter: context.aiRateLimiter,
+          usage: { meter: context.aiUsage, correlationId: context.correlationId },
         });
         logger.info("nutrition.food_draft", {
           correlationId: context.correlationId,

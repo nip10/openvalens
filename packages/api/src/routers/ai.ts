@@ -30,6 +30,7 @@ import { createStructuredLogger } from "@openvalens/observability";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { beginAiUsage } from "../ai-usage";
 import { protectedProcedure, raiseApiError, validateInput } from "../index";
 
 /**
@@ -37,7 +38,8 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
  *
  * Chat procedures:
  *
- * - `ai.chat`         — protected; rate-limited; consent-gated; takes the
+ * - `ai.chat`         — protected; rate-limited; consent-gated; under the
+ *   monthly usage cap (Issue #299, `429 AI_USAGE_LIMIT_REACHED`); takes the
  *   caller's one new message, loads the newest {@link CHAT_HISTORY_LIMIT}
  *   earlier messages of that conversation from the database as model context,
  *   and persists only the new message plus the assistant reply. The
@@ -254,6 +256,14 @@ export const aiRouter = {
       });
       const messages: AiChatMessage[] = [...history, { role: "user", content: input.message }];
 
+      // 4. Monthly usage cap (Issue #299): checked before any provider call.
+      const usage = await beginAiUsage({
+        meter: context.aiUsage,
+        userId,
+        promptChars: messages.reduce((total, message) => total + message.content.length, 0),
+        correlationId,
+      });
+
       logger.info("ai.chat.requested", {
         correlationId,
         organizationId,
@@ -287,6 +297,7 @@ export const aiRouter = {
             correlationId,
             logger,
           }),
+          onUsage: usage.record,
           logger,
         });
 
@@ -352,6 +363,8 @@ export const aiRouter = {
           throw raiseApiError("INTERNAL", "AI provider is not configured.");
         }
         throw raiseApiError("INTERNAL", "AI provider failure.");
+      } finally {
+        await usage.finish();
       }
     }),
 
@@ -494,12 +507,19 @@ export const aiRouter = {
         throw raiseApiError("INTERNAL", "Authorization failed.");
       }
       await requireAiConsent(context.db, authz.activeOrganizationId, "insights", authz.user.id);
+      const usage = await beginAiUsage({
+        meter: context.aiUsage,
+        userId: authz.user.id,
+        promptChars: input.text.length + input.promptHint.length + input.jsonShape.length,
+        correlationId: context.correlationId,
+      });
       try {
         const result = await extractStructured({
           config: context.aiConfig,
           text: input.text,
           promptHint: input.promptHint,
           jsonShape: input.jsonShape,
+          onUsage: usage.record,
         });
         return { status: result.status, data: result.data, model: result.model };
       } catch (error) {
@@ -507,6 +527,8 @@ export const aiRouter = {
           throw raiseApiError("INTERNAL", "AI provider is not configured.");
         }
         throw raiseApiError("INTERNAL", "AI extraction failed.");
+      } finally {
+        await usage.finish();
       }
     }),
 
@@ -542,11 +564,19 @@ export const aiRouter = {
         throw raiseApiError("INTERNAL", "Authorization failed.");
       }
       await requireAiConsent(context.db, authz.activeOrganizationId, "insights", authz.user.id);
+      const usage = await beginAiUsage({
+        meter: context.aiUsage,
+        userId: authz.user.id,
+        promptChars:
+          input.topic.length + Math.min(JSON.stringify(input.snapshot ?? null).length, 6000),
+        correlationId: context.correlationId,
+      });
       try {
         const result = await generateInsight({
           config: context.aiConfig,
           topic: input.topic,
           snapshot: input.snapshot,
+          onUsage: usage.record,
         });
         return {
           title: result.title,
@@ -559,6 +589,8 @@ export const aiRouter = {
           throw raiseApiError("INTERNAL", "AI provider is not configured.");
         }
         throw raiseApiError("INTERNAL", "AI insight failed.");
+      } finally {
+        await usage.finish();
       }
     }),
 

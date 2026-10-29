@@ -232,7 +232,12 @@ describe("actual server schema sensitive coverage", () => {
       expect([...explicitlyPublic].sort()).toEqual(
         [
           "AI_BASE_URL",
+          "AI_COST_CURRENCY",
           "AI_MODEL",
+          "AI_MONTHLY_COST_LIMIT",
+          "AI_PRICE_CACHED_INPUT_PER_MTOK",
+          "AI_PRICE_INPUT_PER_MTOK",
+          "AI_PRICE_OUTPUT_PER_MTOK",
           "AI_PROVIDER",
           "AI_RATE_LIMIT_PER_MINUTE",
           "AI_SUPPORTS_STRUCTURED_OUTPUTS",

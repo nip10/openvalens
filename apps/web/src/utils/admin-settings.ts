@@ -2,6 +2,7 @@ import { orpc } from "./orpc";
 
 export type {
   AdminAccessOutput,
+  AdminAiUsageOutput,
   AdminBackupStatusOutput,
   AdminConfigurationEntry,
   AdminConfigurationOutput,
@@ -9,6 +10,7 @@ export type {
 
 import {
   adminAccessQueryKey,
+  adminAiUsageQueryKey,
   adminBackupStatusQueryKey,
   adminConfigurationQueryKey,
 } from "./admin-settings-keys";
@@ -27,6 +29,17 @@ export function adminConfigurationQueryOptions(userId: string) {
     ...orpc.adminSettings.configuration.queryOptions({ input: {} }),
     queryKey: [...adminConfigurationQueryKey(userId)],
     staleTime: 0,
+    retry: 1,
+  };
+}
+
+/** Issue #299 — this month's AI usage for the admin panel; refreshed every minute. */
+export function adminAiUsageQueryOptions(userId: string) {
+  return {
+    ...orpc.adminSettings.aiUsage.queryOptions({ input: {} }),
+    queryKey: [...adminAiUsageQueryKey(userId)],
+    staleTime: 0,
+    refetchInterval: 60_000,
     retry: 1,
   };
 }

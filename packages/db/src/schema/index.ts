@@ -1,4 +1,5 @@
 export * from "./admission";
+export * from "./ai-usage";
 export * from "./analytics";
 export * from "./backup";
 export * from "./billing";

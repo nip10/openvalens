@@ -41,6 +41,29 @@ const configurationOutput = z.object({
   entries: z.array(configurationEntryOutput),
 });
 
+const aiUsageCountsShape = z.object({
+  inputTokens: z.number(),
+  outputTokens: z.number(),
+  cachedInputTokens: z.number(),
+  /** Estimated model cost in millionths of `currency`. */
+  costMicros: z.number(),
+  callCount: z.number(),
+});
+
+/**
+ * Issue #299 — this month's AI usage. Accounts are opaque user ids only:
+ * never an email, a name or anything the person wrote.
+ */
+export const aiUsageSummaryOutput = z.object({
+  month: z.string(),
+  resetsOn: z.string(),
+  currency: z.string(),
+  monthlyLimitMicros: z.number().nullable(),
+  pricesConfigured: z.boolean(),
+  totals: aiUsageCountsShape.extend({ accounts: z.number() }),
+  top: z.array(aiUsageCountsShape.extend({ userId: z.string() })),
+});
+
 /**
  * Exact same-origin guard for mutations. Reuses the admission boundary guard:
  * a missing configured origin or missing context binding fails closed
@@ -86,6 +109,31 @@ export const adminSettingsRouter = {
     .input(z.object({}))
     .output(backupStatusSchema)
     .handler(({ context }) => readBackupStatus(context.db)),
+
+  /**
+   * Issue #299 — AI usage this month (UTC): totals and the top accounts by
+   * estimated cost, by opaque id. Instance administrators only.
+   */
+  aiUsage: instanceAdminProcedure
+    .input(z.object({}))
+    .output(aiUsageSummaryOutput)
+    .handler(async ({ context }) => {
+      if (!context.aiUsage) throw raiseApiError("INTERNAL", "Something went wrong.");
+      try {
+        const summary = await context.aiUsage.summary({ top: 10 });
+        return {
+          month: summary.month,
+          resetsOn: summary.resetsOn,
+          currency: summary.currency,
+          monthlyLimitMicros: summary.monthlyLimitMicros,
+          pricesConfigured: summary.pricesConfigured,
+          totals: summary.totals,
+          top: summary.top,
+        };
+      } catch {
+        throw raiseApiError("INTERNAL", "Something went wrong.");
+      }
+    }),
 
   productSettings: protectedProcedure
     .input(z.object({}))
