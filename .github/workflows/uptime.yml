@@ -1,0 +1,93 @@
+# Uptime checks for openvalens.com and OpenValens Cloud (#308).
+#
+# Every 5 minutes (GitHub may delay scheduled runs). The first failed run opens
+# an `outage` issue and emails ALERT_EMAIL_TO through Resend; later failed runs
+# only comment on that issue, and the first healthy run closes it and emails a
+# recovery note. Secrets: RESEND_API_KEY. Variables: ALERT_EMAIL_TO,
+# ALERT_EMAIL_FROM (an address on a Resend-verified domain).
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    name: Check public endpoints
+    if: github.repository == 'nip10/openvalens'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe endpoints
+        id: probe
+        run: |
+          failures=""
+          check() { # name, url, method, expected (exact code, or "lt500")
+            local code
+            code=$(curl -s -o /tmp/body -w '%{http_code}' -X "$3" --max-time 20 --retry 2 --retry-delay 5 --retry-all-errors "$2" || echo 000)
+            if [ "$4" = lt500 ]; then
+              [ "$code" -ge 100 ] && [ "$code" -lt 500 ] && return 0
+            elif [ "$code" = "$4" ]; then
+              return 0
+            fi
+            failures="${failures}- ${1}: ${3} ${2} returned ${code}"$'\n'
+          }
+          check "Website" https://openvalens.com/ GET 200
+          check "Web app" https://app.openvalens.com/ GET 200
+          check "API auth" https://app.openvalens.com/api/auth/ok GET 200
+          check "Server check (store app)" https://app.openvalens.com/.well-known/openvalens GET 200
+          if ! grep -q '"mode"' /tmp/body 2>/dev/null; then
+            failures="${failures}- Server check (store app): response is not the API's JSON"$'\n'
+          fi
+          check "Stripe webhook route" https://app.openvalens.com/api/billing/webhook POST lt500
+          {
+            echo "failures<<EOF"
+            printf '%s' "$failures"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          printf '%s' "$failures"
+
+      - name: Open, update or close the outage issue and email
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILURES: ${{ steps.probe.outputs.failures }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_EMAIL_TO: ${{ vars.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_FROM: ${{ vars.ALERT_EMAIL_FROM }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          email() { # subject, text
+            if [ -z "$RESEND_API_KEY" ] || [ -z "$ALERT_EMAIL_TO" ] || [ -z "$ALERT_EMAIL_FROM" ]; then
+              echo "::warning::alert email not configured"; return 0
+            fi
+            jq -n --arg from "$ALERT_EMAIL_FROM" --arg to "$ALERT_EMAIL_TO" --arg subject "$1" --arg text "$2" \
+              '{from: $from, to: [$to], subject: $subject, text: $text}' \
+              | curl -sS --fail-with-body -X POST https://api.resend.com/emails \
+                  -H "Authorization: Bearer $RESEND_API_KEY" -H "Content-Type: application/json" -d @- >/dev/null \
+              || echo "::warning::alert email failed"
+          }
+          gh label create outage --color B60205 --description "Uptime check failing" 2>/dev/null || true
+          open=$(gh issue list --label outage --state open --json number --jq '.[0].number // empty')
+          if [ -n "$FAILURES" ]; then
+            if [ -z "$open" ]; then
+              gh issue create --label outage --title "Outage: uptime check failing" \
+                --body "$(printf 'Detected %s\n\n%s\n%s' "$(date -u +%FT%TZ)" "$FAILURES" "$RUN_URL")"
+              email "[OpenValens] DOWN: uptime check failing" "$(printf '%s\n%s' "$FAILURES" "$RUN_URL")"
+            else
+              gh issue comment "$open" --body "$(printf 'Still failing at %s\n\n%s' "$(date -u +%FT%TZ)" "$FAILURES")"
+            fi
+            exit 1
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --comment "Recovered at $(date -u +%FT%TZ)."
+            email "[OpenValens] RECOVERED: uptime checks pass" "All checks pass again. $RUN_URL"
+          fi
