@@ -11,6 +11,7 @@ export type BillingEnv = {
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRICE_MONTHLY?: string;
   STRIPE_PRICE_ANNUAL?: string;
+  STRIPE_PORTAL_CONFIGURATION?: string;
   LEGAL_TERMS_URL?: string;
   LEGAL_CHECKOUT_ACK_VERSION?: string;
 };
@@ -22,6 +23,12 @@ export type BillingConfig = {
   readonly secretKey: string;
   readonly webhookSecret: string;
   readonly prices: Readonly<Record<BillingPlan, string>>;
+  /**
+   * Customer Portal configuration (`bpc_`) for OpenValens, or `null` for the
+   * account's default. Set it when the Stripe account also serves another
+   * product, so the portal shows the OpenValens plans and legal links.
+   */
+  readonly portalConfiguration: string | null;
   readonly termsUrl: string;
   readonly checkoutAcknowledgementVersion: string;
 };
@@ -63,6 +70,9 @@ export function parseBillingConfig(env: BillingEnv): BillingConfig {
   if (values.STRIPE_PRICE_MONTHLY && values.STRIPE_PRICE_MONTHLY === values.STRIPE_PRICE_ANNUAL) {
     issues.push("STRIPE_PRICE_MONTHLY and STRIPE_PRICE_ANNUAL must be different prices");
   }
+  const portalConfiguration = env.STRIPE_PORTAL_CONFIGURATION?.trim() || null;
+  if (portalConfiguration && !portalConfiguration.startsWith("bpc_"))
+    issues.push("STRIPE_PORTAL_CONFIGURATION must start with `bpc_`");
   const termsUrl = env.LEGAL_TERMS_URL?.trim();
   if (!termsUrl || !/^https:\/\//i.test(termsUrl))
     issues.push("LEGAL_TERMS_URL must be an https URL");
@@ -79,6 +89,7 @@ export function parseBillingConfig(env: BillingEnv): BillingConfig {
       monthly: values.STRIPE_PRICE_MONTHLY!,
       annual: values.STRIPE_PRICE_ANNUAL!,
     }),
+    portalConfiguration,
     termsUrl: termsUrl!,
     checkoutAcknowledgementVersion: acknowledgementVersion!,
   });

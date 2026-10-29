@@ -37,6 +37,9 @@ export function customerCreateParams(input: { email: string; ref: string }) {
   } satisfies Stripe.CustomerCreateParams;
 }
 
+/** The business name shown on Checkout. */
+export const CHECKOUT_DISPLAY_NAME = "OpenValens";
+
 /** Builds the Checkout Session parameters. Exported for the privacy tests. */
 export function checkoutSessionParams(input: CheckoutSessionInput) {
   // Checkout only accepts a trial end at least 48 hours away; closer than
@@ -62,6 +65,8 @@ export function checkoutSessionParams(input: CheckoutSessionInput) {
     customer_update: { address: "auto" },
     tax_id_collection: { enabled: false },
     allow_promotion_codes: false,
+    // The name Checkout shows, also when the Stripe account's own name differs.
+    branding_settings: { display_name: CHECKOUT_DISPLAY_NAME },
     locale: input.locale,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
@@ -178,6 +183,8 @@ export function toProviderEvent(event: Stripe.Event): ProviderEvent {
 export function createStripeProvider(options: {
   secretKey: string;
   webhookSecret: string;
+  /** Customer Portal configuration (`bpc_`); `null` uses the account default. */
+  portalConfiguration?: string | null;
   /**
    * Injected in tests (a mocked Stripe API); defaults to the real SDK client.
    * Webhook signatures are always verified by the real SDK.
@@ -228,6 +235,7 @@ export function createStripeProvider(options: {
           customer: customerId,
           return_url: returnUrl,
           locale,
+          ...(options.portalConfiguration ? { configuration: options.portalConfiguration } : {}),
         });
         return { url: session.url };
       }),

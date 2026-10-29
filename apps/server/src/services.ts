@@ -201,6 +201,7 @@ export function getBillingService(): Promise<BillingService | null> {
       STRIPE_WEBHOOK_SECRET: ENV.STRIPE_WEBHOOK_SECRET,
       STRIPE_PRICE_MONTHLY: ENV.STRIPE_PRICE_MONTHLY,
       STRIPE_PRICE_ANNUAL: ENV.STRIPE_PRICE_ANNUAL,
+      STRIPE_PORTAL_CONFIGURATION: ENV.STRIPE_PORTAL_CONFIGURATION,
       LEGAL_TERMS_URL: ENV.LEGAL_TERMS_URL,
       LEGAL_CHECKOUT_ACK_VERSION: ENV.LEGAL_CHECKOUT_ACK_VERSION,
     });
@@ -210,6 +211,7 @@ export function getBillingService(): Promise<BillingService | null> {
       provider: createStripeProvider({
         secretKey: config.secretKey,
         webhookSecret: config.webhookSecret,
+        portalConfiguration: config.portalConfiguration,
       }),
       config,
       webOrigin: ENV.CORS_ORIGIN,
