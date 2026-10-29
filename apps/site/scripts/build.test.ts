@@ -221,6 +221,10 @@ describe("site copy", () => {
     expect(text).toContain("VAT included");
     expect(text).toContain("30-day free trial, no card required");
     expect(text).toContain("AI coach with a monthly usage cap");
+    expect(text).toContain("The workspace owner pays; invited members are covered");
+    expect(text).toContain("software is free");
+    expect(text).toContain("you choose and pay for hosting");
+    expect(text).not.toContain("One plan. No surprises.");
     expect(text).toContain("It never means your records are public");
     expect(text).toContain("OpenValens is not a medical device.");
   });
