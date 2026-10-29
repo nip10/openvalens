@@ -245,7 +245,7 @@ export function createDataExportWorker(input: {
             for (;;) {
               if (controller.signal.aborted)
                 throw Object.assign(new Error("Export aborted."), { name: "AbortError" });
-              let item: ReadableStreamReadResult<Uint8Array>;
+              let item: Awaited<ReturnType<typeof reader.read>>;
               try {
                 item = await reader.read();
               } catch {

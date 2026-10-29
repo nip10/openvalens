@@ -25,7 +25,7 @@ function context(options: {
   let stored = options.accepted ?? null;
   const writes: unknown[] = [];
   const db = {
-    async execute(_query: { queryChunks?: unknown[] }) {
+    async execute(query: { queryChunks?: unknown[] }) {
       if (options.acceptOnFirstQuery && writes.length === 0) {
         writes.push(query);
         stored = { version: options.version ?? VERSION, accepted_at: new Date("2026-10-29T00:00:00Z") };

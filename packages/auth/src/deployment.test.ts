@@ -114,8 +114,8 @@ describe("parseDeploymentConfig (Issue #294)", () => {
     expect(CLOUD_REQUIRED_KEYS).toContain("LEGAL_HEALTH_CONSENT_VERSION");
     expect(() => parseDeploymentConfig({ ...CLOUD_ENV, LEGAL_HEALTH_CONSENT_VERSION: "x".repeat(65) }))
       .toThrow(/LEGAL_HEALTH_CONSENT_VERSION/);
-    expect(parseDeploymentConfig(CLOUD_ENV).mode === "cloud" && parseDeploymentConfig(CLOUD_ENV).legal.healthDataConsent)
-      .toEqual({ url: CLOUD_ENV.LEGAL_PRIVACY_URL, version: "health-consent-1" });
+    const config = parseDeploymentConfig(CLOUD_ENV);
+    expect(config.mode === "cloud" && config.legal.healthDataConsent).toEqual({ url: CLOUD_ENV.LEGAL_PRIVACY_URL, version: "health-consent-1" });
   });
 });
 

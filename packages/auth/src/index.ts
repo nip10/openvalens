@@ -391,7 +391,10 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
         if (ctx.path === ORGANIZATION_INVITE_PATH) {
           let session: { user?: { id?: unknown } } | null;
           try {
-            session = await getAuthoritativeSessionFromCtx(ctx);
+            session = await getAuthoritativeSessionFromCtx<
+              Record<string, unknown>,
+              { impersonatedBy?: string | null }
+            >(ctx);
           } catch {
             throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
           }
@@ -422,7 +425,10 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
             session?: { impersonatedBy?: string | null };
           } | null;
           try {
-            session = await getAuthoritativeSessionFromCtx(ctx);
+            session = await getAuthoritativeSessionFromCtx<
+              Record<string, unknown>,
+              { impersonatedBy?: string | null }
+            >(ctx);
           } catch {
             throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
           }

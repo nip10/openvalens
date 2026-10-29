@@ -1,4 +1,4 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, type ReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { resolve, join } from "node:path";
 
@@ -7,7 +7,7 @@ import { resolveSubject } from "@openvalens/data-rights";
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type AuthorizedExportArchive = { path: string; size: number; body: NodeJS.ReadableStream };
+export type AuthorizedExportArchive = { path: string; size: number; body: ReadStream };
 
 /** Returns an opened private archive only after revalidating live user and scope. */
 export async function openAuthorizedExportArchive(input: {

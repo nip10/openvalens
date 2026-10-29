@@ -91,7 +91,7 @@ export default function SettingsScreen() {
   const displayName = session?.user ? (session.user.name ?? session.user.email) : null;
 
   return (
-    <Container scrollViewProps={{ ref: settingsScroll }}>
+    <Container scrollRef={settingsScroll}>
       <Page>
         <PageHeader title={t`Settings`} />
 

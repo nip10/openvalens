@@ -254,7 +254,6 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
         createDrizzleAuthOrgStore(tx as unknown as Database),
       );
 
-      const acceptedAt = toDate(request.accepted_at) ?? now;
       for (const [document, version] of [
         ["terms", request.terms_version],
         ["privacy", request.privacy_version],

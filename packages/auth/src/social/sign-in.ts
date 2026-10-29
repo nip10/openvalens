@@ -110,6 +110,8 @@ function parseStamp(value: unknown): SignUpStamp | null {
     termsVersion: raw.termsVersion,
     privacyVersion: raw.privacyVersion,
     acceptedAt: raw.acceptedAt,
+    healthDataConsentVersion: raw.healthDataConsentVersion,
+    healthDataConsentAcceptedAt: raw.healthDataConsentAcceptedAt,
     ...(isLocale(raw.locale) ? { locale: raw.locale } : {}),
   };
 }
