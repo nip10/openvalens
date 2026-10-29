@@ -13945,6 +13945,10 @@ msgstr "Os seus módulos"
 msgid "Your OpenValens Cloud access ended some time ago. As our privacy policy explains, accounts that stay inactive are deleted."
 msgstr "O seu acesso ao OpenValens Cloud terminou há algum tempo. Como explica a nossa política de privacidade, as contas que ficam inativas são eliminadas."
 
+#: packages/integrations/telegram/src/webhook.ts
+msgid "Your OpenValens Cloud access has ended; your records are still there."
+msgstr "O seu acesso ao OpenValens Cloud terminou; os seus registos continuam lá."
+
 #: apps/native/components/cloud-access-notice.tsx
 msgid "Your OpenValens Cloud access has ended. Your records are still here, and you can export them."
 msgstr "O seu acesso ao OpenValens Cloud terminou. Os seus registos continuam aqui e pode exportá-los."

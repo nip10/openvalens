@@ -119,17 +119,25 @@ describe.skipIf(!url)("Telegram /start connect flow (Issue #14)", () => {
   });
 
   test("read-only Cloud access refuses /start without consuming token or binding chat", async () => {
+    await db.execute(
+      sql`insert into "user" (id, email, banned) values ('user-access-gate', 'access-gate@example.test', false) on conflict (id) do nothing`,
+    );
     const { token } = await createConnectToken(db, {
-      userId: "user-a",
+      userId: "user-access-gate",
       organizationId: "org-a",
       ttlSeconds: 600,
     });
     const denied = await start(888, `/start ${token}`, "en", async ({ userId, organizationId }) => {
-      expect({ userId, organizationId }).toEqual({ userId: "user-a", organizationId: "org-a" });
+      expect({ userId, organizationId }).toEqual({
+        userId: "user-access-gate",
+        organizationId: "org-a",
+      });
       return false;
     });
     expect(denied).toEqual({ status: "unknown" });
-    expect((await accounts("user-a")).map((row) => row.telegram_chat_id)).not.toContain("888");
+    expect((await accounts("user-access-gate")).map((row) => row.telegram_chat_id)).not.toContain(
+      "888",
+    );
     expect(
       (
         await db.execute<{ used_at: string | null }>(
@@ -146,7 +154,9 @@ describe.skipIf(!url)("Telegram /start connect flow (Issue #14)", () => {
     expect(await start(888, `/start ${token}`, "en", async () => true)).toEqual({
       status: "processed",
     });
-    expect((await accounts("user-a")).map((row) => row.telegram_chat_id)).toContain("888");
+    expect((await accounts("user-access-gate")).map((row) => row.telegram_chat_id)).toContain(
+      "888",
+    );
   });
 
   test("connecting a new chat revokes the previous one", async () => {
