@@ -121,19 +121,41 @@ export type UpsertCheckinResult = {
 /**
  * Best-effort numeric parser for goal `currentValue` and `targetValue`.
  * Extracts the leading numeric prefix so forms like "82", "82 kg",
- * "24.1%", "24.1 %", "1,234" all parse. Returns `null` when no leading
- * number is present — callers should fall back to the raw string.
+ * "24.1%", "9000", "10 000 steps", "1,234" and "72,5 kg" all parse.
+ * Returns `null` when no leading number is present — callers should fall
+ * back to the raw string.
+ *
+ * Separators (#313): with both `,` and `.` the last one is the decimal; a
+ * separator repeated is grouping; a single one is a decimal unless exactly
+ * three digits follow, which is grouping for `,` in en (the default) and for
+ * `.` in pt-PT.
  */
-export function parseGoalNumeric(value: string | null): number | null {
+export function parseGoalNumeric(
+  value: string | null,
+  locale: "en" | "pt-PT" = "en",
+): number | null {
   if (value === null) return null;
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-  // Match an optional sign, digits with optional thousand separators,
-  // and an optional decimal portion. We deliberately do NOT match the
-  // trailing unit — the prefix is what callers care about.
-  const match = /^[-+]?\d{1,3}(?:,\d{3})*(?:\.\d+)?/.exec(trimmed.replace(/\s+/g, ""));
+  // Spaces group thousands ("10 000"); the trailing unit is not matched.
+  const match = /^[-+]?\d[\d.,]*/.exec(value.trim().replace(/\s+/g, ""));
   if (!match) return null;
-  const cleaned = match[0].replace(/,/g, "");
+  const token = match[0].replace(/[.,]+$/, "");
+  const lastComma = token.lastIndexOf(",");
+  const lastDot = token.lastIndexOf(".");
+  let decimal: "," | "." | null = null;
+  if (lastComma !== -1 && lastDot !== -1) {
+    decimal = lastComma > lastDot ? "," : ".";
+  } else if (lastComma !== -1 || lastDot !== -1) {
+    const separator = lastComma !== -1 ? "," : ".";
+    const repeated = token.indexOf(separator) !== token.lastIndexOf(separator);
+    const threeDigitGroup = /^[-+]?\d{1,3}[.,]\d{3}$/.test(token);
+    const groupingSeparator = locale === "pt-PT" ? "." : ",";
+    if (!repeated && !(threeDigitGroup && separator === groupingSeparator)) decimal = separator;
+  }
+  const [whole, fraction] = decimal
+    ? [token.slice(0, token.lastIndexOf(decimal)), token.slice(token.lastIndexOf(decimal) + 1)]
+    : [token, ""];
+  const cleaned =
+    whole.replace(/[.,]/g, "") + (fraction ? `.${fraction.replace(/[.,]/g, "")}` : "");
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
 }
