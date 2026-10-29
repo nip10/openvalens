@@ -1,6 +1,6 @@
 import type { RetentionEraser } from "@openvalens/billing";
 import { deleteAccountForRetention } from "@openvalens/data-rights";
-import type { Database } from "@openvalens/db";
+import { sql, type Database } from "@openvalens/db";
 import {
   createDatabaseIngestionTick,
   MOBILE_INGEST_JOB_TYPE,
@@ -24,6 +24,29 @@ import { runPreventiveReminderDelivery } from "../preventive-care-delivery";
 
 // Issue #11 — PHI-safe structured logger for cron lifecycle events.
 const logger = createStructuredLogger({ level: "info" });
+
+async function ownerIdForWorkspace(db: Database, organizationId: string): Promise<string | null> {
+  const result = await db.execute<{ user_id: string }>(sql`
+    select user_id from member
+     where organization_id = ${organizationId} and role = 'owner'
+     order by created_at, id limit 1
+  `);
+  return result.rows[0]?.user_id ?? null;
+}
+
+async function cloudWorkspaceCanDeliver(
+  context: Context,
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  if (context.deployment?.mode !== "cloud") return true;
+  if (!context.billing) return false;
+  try {
+    return (await context.billing.resolveAccess({ userId, organizationId })).level === "full";
+  } catch {
+    return false;
+  }
+}
 
 const cronRunOutput = z.object({
   status: z.enum(["ok", "failed"]),
@@ -338,6 +361,15 @@ export const cronRouter = {
         organizations += 1;
 
         try {
+          if (context.deployment?.mode === "cloud") {
+            const ownerId = await ownerIdForWorkspace(context.db, organizationId);
+            // No owner means there is no authoritative entitlement to resolve.
+            if (!ownerId || !(await cloudWorkspaceCanDeliver(context, ownerId, organizationId))) {
+              skipped += 1;
+              organizationsSucceeded += 1;
+              continue;
+            }
+          }
           const due = await createDueDailyReminders({
             db: context.db,
             logger,
@@ -442,6 +474,17 @@ export const cronRouter = {
         webOrigin: context.webOrigin,
         unsubscribeKey: context.insightUnsubscribeKey ?? null,
         displaySettings,
+        ...(context.deployment?.mode === "cloud"
+          ? {
+              canDeliverWorkspace: ({
+                userId,
+                organizationId,
+              }: {
+                userId: string;
+                organizationId: string;
+              }) => cloudWorkspaceCanDeliver(context, userId, organizationId),
+            }
+          : {}),
       };
       // Reminders first: a date the person set wins today's one push over an insight.
       const reminders = await runPreventiveReminderDelivery(deliveryDeps);

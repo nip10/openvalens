@@ -122,6 +122,7 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
     },
   };
   const emails: SendEmailInput[] = [];
+  let workspaceAccessLevel: "full" | "read_only" = "full";
   const fakeEmail: EmailService = {
     organizationName: "Health",
     sendEmail: async (input) => {
@@ -149,6 +150,10 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
       push: fakePush,
       webOrigin: "https://app.example.test",
       insightUnsubscribeKey: deriveInsightUnsubscribeKey("x".repeat(40)),
+      deployment: { mode: "cloud" } as never,
+      billing: {
+        resolveAccess: async () => ({ level: workspaceAccessLevel }),
+      } as never,
       aiConfig: {} as never,
       aiRateLimiter: { check: () => ({ allowed: true }) } as never,
       honoContext: { req: { raw: { headers } } },
@@ -394,6 +399,22 @@ describe.skipIf(!url)("preventive care over HTTP against disposable PostgreSQL",
     await call("insights/preferences/update", { channels: { reminder: { push: false } } });
     expect((await runCron()).body).toMatchObject({ remindersPushSent: 0 });
     await call("insights/preferences/update", { channels: { reminder: { push: true } } });
+
+    const pushCount = pushes.length;
+    const deliveryRowsBefore = (
+      await db.execute<{ n: number }>(sql`select count(*)::int as n from insight_delivery`)
+    ).rows[0]?.n;
+    workspaceAccessLevel = "read_only";
+    try {
+      expect((await runCron()).body).toMatchObject({ remindersPushSent: 0, remindersEmailSent: 0 });
+      expect(pushes).toHaveLength(pushCount);
+      expect(
+        (await db.execute<{ n: number }>(sql`select count(*)::int as n from insight_delivery`))
+          .rows[0]?.n,
+      ).toBe(deliveryRowsBefore);
+    } finally {
+      workspaceAccessLevel = "full";
+    }
 
     const sent = await runCron();
     expect(sent.body).toMatchObject({ remindersPushSent: 1 });

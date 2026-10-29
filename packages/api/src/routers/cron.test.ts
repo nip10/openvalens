@@ -104,6 +104,29 @@ describe("cron.remindersDailyRun", () => {
     });
   });
 
+  test("Cloud workspaces fail closed before daily reminder materialization without billing", async () => {
+    const { service: email } = createFakeEmailService();
+    const result = await appRouter.cron.remindersDailyRun.callable({
+      context: {
+        ...authorizedContext("corr-cloud-reminders"),
+        db: createCronDb(["org-read-only"]),
+        email,
+        deployment: { mode: "cloud" } as never,
+        billing: null,
+      },
+    })({});
+
+    expect(result).toMatchObject({
+      status: "ok",
+      organizations: 1,
+      organizationsSucceeded: 1,
+      organizationsFailed: 0,
+      created: 0,
+      sent: 0,
+      skipped: 1,
+    });
+  });
+
   test("still runs the worklist when the Telegram client is unconfigured (email fallback)", async () => {
     const { service: email } = createFakeEmailService();
     const result = await appRouter.cron.remindersDailyRun.callable({
