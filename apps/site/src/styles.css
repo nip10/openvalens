@@ -703,6 +703,84 @@ pre {
   list-style: none;
 }
 
+/* Legal and support pages (privacy, subprocessors, support) */
+
+.legal {
+  padding-block: 2.5rem 4rem;
+}
+
+.prose {
+  max-width: 46rem;
+}
+
+.prose h1 {
+  font-size: clamp(2.2rem, 4.4vw, 3.2rem);
+  margin-bottom: 0.75rem;
+}
+
+.prose h2 {
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  margin: 2.75rem 0 1rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.prose .meta {
+  color: var(--color-ink-3);
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0 0 1rem;
+  padding-left: 1.4rem;
+}
+
+.prose li {
+  margin-bottom: 0.4rem;
+}
+
+.prose .note {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-rule-2);
+  border-radius: var(--radius-control);
+  background: var(--color-sheet);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin: 0 0 1.25rem;
+  border: 1px solid var(--color-rule-2);
+  border-radius: var(--radius-control);
+  background: var(--color-sheet);
+}
+
+.table-scroll table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.table-scroll th,
+.table-scroll td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--color-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table-scroll th {
+  color: var(--color-ink);
+  font-weight: 600;
+  background: var(--color-paper-2);
+}
+
+.table-scroll tr:last-child td {
+  border-bottom: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

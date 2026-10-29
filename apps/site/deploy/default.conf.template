@@ -17,7 +17,14 @@ server {
         try_files /index.html =404;
     }
 
-    location ~ ^/(index\.html|styles\.css|favicon\.svg|og\.png|screenshots/) {
+    # Legal and support pages, served without the .html suffix.
+    location ~ ^/(privacy|subprocessors|support)/?$ {
+        include /etc/nginx/site-security-headers.conf;
+        add_header Cache-Control "public, max-age=3600";
+        try_files /$1.html =404;
+    }
+
+    location ~ ^/(index\.html|privacy\.html|subprocessors\.html|support\.html|styles\.css|favicon\.svg|og\.png|screenshots/) {
         include /etc/nginx/site-security-headers.conf;
         add_header Cache-Control "public, max-age=3600";
         try_files $uri =404;

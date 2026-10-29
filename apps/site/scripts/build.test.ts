@@ -216,3 +216,42 @@ describe("site copy", () => {
     expect(readme).toContain(command!);
   });
 });
+
+describe("legal and support pages", () => {
+  const PAGES = ["privacy", "subprocessors", "support"] as const;
+
+  test("each page is built and served at its clean path, not redirected to the app", async () => {
+    const conf = await readFile(
+      join(import.meta.dir, "..", "deploy", "default.conf.template"),
+      "utf8",
+    );
+    expect(conf).toContain("location ~ ^/(privacy|subprocessors|support)/?$");
+    for (const page of PAGES) {
+      const html = await readFile(join(outDir, `${page}.html`), "utf8");
+      expect(html).toContain(`<link rel="canonical" href="https://openvalens.com/${page}" />`);
+      // Absolute asset paths so /privacy/ resolves them too.
+      expect(html).toContain('href="/styles.css"');
+    }
+  });
+
+  test("the home page links to every page", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    for (const page of PAGES) expect(html).toContain(`href="/${page}"`);
+  });
+
+  test("support explains account deletion at a stable anchor (Google Play deletion URL)", async () => {
+    const html = await readFile(join(outDir, "support.html"), "utf8");
+    expect(html).toContain('id="delete-account"');
+    expect(html).toContain("Delete account and all data");
+    expect(html).toContain("hello@openvalens.com");
+  });
+
+  test("the privacy policy names the contact and leaves no draft placeholders", async () => {
+    for (const page of ["privacy", "subprocessors"]) {
+      const html = await readFile(join(outDir, `${page}.html`), "utf8");
+      expect(html).not.toMatch(/\[(CONFIRM|[A-Z][A-Z ]{3,})[^\]]*\]/);
+      expect(html).not.toMatch(/Lawyer:|Draft —/);
+    }
+    expect(await readFile(join(outDir, "privacy.html"), "utf8")).toContain("hello@openvalens.com");
+  });
+});
