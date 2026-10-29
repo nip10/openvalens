@@ -62,11 +62,11 @@ describe("built site", () => {
         html.replace(/\s+/g, " "),
       )?.[1];
     expect(html).toContain('<link rel="canonical" href="https://openvalens.com/" />');
-    expect(meta("name", "description")).toContain("Your data stays on your server.");
+    expect(meta("name", "description")).toContain("private health record");
     expect(meta("property", "og:type")).toBe("website");
     expect(meta("property", "og:site_name")).toBe("OpenValens");
     expect(meta("property", "og:title")).toBe("OpenValens, your private health record");
-    expect(meta("property", "og:description")).toContain("Your data stays on your server.");
+    expect(meta("property", "og:description")).toContain("private health record");
     expect(meta("property", "og:url")).toBe("https://openvalens.com/");
     expect(meta("property", "og:image")).toBe("https://openvalens.com/og.png");
     expect(meta("property", "og:image:width")).toBe("1200");
@@ -214,8 +214,13 @@ describe("site copy", () => {
 
   test("states the name, the privacy tagline and the intended purpose", async () => {
     const text = await pageText();
-    expect(text).toContain("Open-source, private health record.");
-    expect(text).toContain("Your data stays on your server.");
+    expect(text).toContain("A private place for your health records.");
+    expect(text).toContain("Cloud · coming soon");
+    expect(text).toContain("€7.99 / month");
+    expect(text).toContain("€69 / year");
+    expect(text).toContain("VAT included");
+    expect(text).toContain("30-day free trial, no card required");
+    expect(text).toContain("AI coach with a monthly usage cap");
     expect(text).toContain("It never means your records are public");
     expect(text).toContain("OpenValens is not a medical device.");
   });
@@ -224,7 +229,9 @@ describe("site copy", () => {
     const text = await pageText();
     expect(text).toContain("Off-site backups are opt-in.");
     expect(text).toContain("Encrypted daily backups stay on the host");
-    expect(text).toContain("no release is tagged yet");
+    expect(text).toContain("Cloud is not live yet.");
+    expect(text).toContain("Mobile apps are not published in the stores yet.");
+    expect(text).not.toContain("No hosted service.");
     expect(text).toContain("no analytics and no telemetry");
   });
 
