@@ -437,7 +437,9 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
             throw new APIError("UNAUTHORIZED", { message: "Authentication required." });
           }
           if (session?.session?.impersonatedBy) {
-            throw new APIError("FORBIDDEN", { message: "You do not have permission to perform this action." });
+            throw new APIError("FORBIDDEN", {
+              message: "You do not have permission to perform this action.",
+            });
           }
           try {
             const consent = await database.execute<{ id: string }>(sql`
@@ -447,7 +449,9 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
               limit 1
             `);
             if (consent.rows.length === 0) {
-              throw new APIError("FORBIDDEN", { message: "Current health-data consent is required." });
+              throw new APIError("FORBIDDEN", {
+                message: "Current health-data consent is required.",
+              });
             }
           } catch (error) {
             if (error instanceof APIError) throw error;

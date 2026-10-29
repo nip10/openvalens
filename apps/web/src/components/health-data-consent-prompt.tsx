@@ -41,11 +41,22 @@ export function HealthDataConsentPrompt() {
 
   if (status.isError) {
     return (
-      <section role="alert" className="mx-auto my-4 flex w-full max-w-5xl flex-wrap items-center gap-3 rounded-3xl border border-rule bg-card p-4">
-        <p className="flex-1 text-sm text-ink-2"><Trans>Could not check health data consent.</Trans></p>
-        <Button variant="outline" onClick={() => void status.refetch()}><Trans>Try again</Trans></Button>
-        <Link to="/exports" className={linkClass}><Trans>Export records</Trans></Link>
-        <a href="/settings#delete-account" className={linkClass}><Trans>Delete account</Trans></a>
+      <section
+        role="alert"
+        className="mx-auto my-4 flex w-full max-w-5xl flex-wrap items-center gap-3 rounded-3xl border border-rule bg-card p-4"
+      >
+        <p className="flex-1 text-sm text-ink-2">
+          <Trans>Could not check health data consent.</Trans>
+        </p>
+        <Button variant="outline" onClick={() => void status.refetch()}>
+          <Trans>Try again</Trans>
+        </Button>
+        <Link to="/exports" className={linkClass}>
+          <Trans>Export records</Trans>
+        </Link>
+        <a href="/settings#delete-account" className={linkClass}>
+          <Trans>Delete account</Trans>
+        </a>
       </section>
     );
   }
@@ -63,9 +74,7 @@ export function HealthDataConsentPrompt() {
           <Trans>Health data consent</Trans>
         </h2>
         <p className="text-sm text-ink-2">
-          <Trans>
-            I consent to OpenValens processing my health data to provide the service.
-          </Trans>{" "}
+          <Trans>I consent to OpenValens processing my health data to provide the service.</Trans>{" "}
           {status.data.privacyUrl ? (
             <a className={linkClass} href={status.data.privacyUrl} target="_blank" rel="noreferrer">
               <Trans>Read the privacy policy</Trans>
@@ -83,11 +92,15 @@ export function HealthDataConsentPrompt() {
           checked={checked}
           onChange={(event) => setChecked(event.target.checked)}
         />
-        <span><Trans>I agree to this health data processing.</Trans></span>
+        <span>
+          <Trans>I agree to this health data processing.</Trans>
+        </span>
       </label>
       {accept.isError ? (
         <p role="alert" className="text-sm text-destructive">
-          <Trans>Consent could not be saved. The version may have changed; review it and try again.</Trans>
+          <Trans>
+            Consent could not be saved. The version may have changed; review it and try again.
+          </Trans>
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">

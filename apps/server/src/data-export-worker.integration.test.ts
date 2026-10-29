@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { createDb, sql } from "@openvalens/db";
 import { access, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -44,7 +45,9 @@ describeDb("private data export worker", () => {
   });
   afterAll(async () => {
     await db.execute(sql`delete from "user" where id in (${subject},${attachmentSubject})`);
-    await db.execute(sql`delete from organization where id in (${subjectOrg},'export-worker-attachment-org')`);
+    await db.execute(
+      sql`delete from organization where id in (${subjectOrg},'export-worker-attachment-org')`,
+    );
     if (directory) await rm(directory, { recursive: true, force: true });
   });
 
@@ -66,10 +69,13 @@ describeDb("private data export worker", () => {
       expect(
         Bun.spawnSync(["unzip", "-t", archive], { stdout: "ignore", stderr: "ignore" }).exitCode,
       ).toBe(0);
-      const entityFile = Bun.spawnSync(["unzip", "-p", archive, "entities/plain_water_entry.json"], {
-        stdout: "pipe",
-        stderr: "ignore",
-      });
+      const entityFile = Bun.spawnSync(
+        ["unzip", "-p", archive, "entities/plain_water_entry.json"],
+        {
+          stdout: "pipe",
+          stderr: "ignore",
+        },
+      );
       expect(entityFile.exitCode).toBe(0);
       expect(JSON.parse(entityFile.stdout.toString())).toHaveLength(201);
       const authorized = await openAuthorizedExportArchive({
@@ -81,21 +87,47 @@ describeDb("private data export worker", () => {
       });
       expect(authorized?.size).toBe(archiveStat.size);
       authorized?.body.destroy();
-      expect(await openAuthorizedExportArchive({
-        db, directory, jobId: readyId, userId: "other-export-worker", impersonatedBy: null,
-      })).toBeNull();
-      expect(await openAuthorizedExportArchive({
-        db, directory, jobId: readyId, userId: subject, impersonatedBy: "operator",
-      })).toBeNull();
+      expect(
+        await openAuthorizedExportArchive({
+          db,
+          directory,
+          jobId: readyId,
+          userId: "other-export-worker",
+          impersonatedBy: null,
+        }),
+      ).toBeNull();
+      expect(
+        await openAuthorizedExportArchive({
+          db,
+          directory,
+          jobId: readyId,
+          userId: subject,
+          impersonatedBy: "operator",
+        }),
+      ).toBeNull();
       await db.execute(sql`update "user" set banned=true where id=${subject}`);
-      expect(await openAuthorizedExportArchive({
-        db, directory, jobId: readyId, userId: subject, impersonatedBy: null,
-      })).toBeNull();
+      expect(
+        await openAuthorizedExportArchive({
+          db,
+          directory,
+          jobId: readyId,
+          userId: subject,
+          impersonatedBy: null,
+        }),
+      ).toBeNull();
       await db.execute(sql`update "user" set banned=false where id=${subject}`);
-      await db.execute(sql`update data_export_job set expires_at=now()-interval '1 second' where id=${readyId}`);
-      expect(await openAuthorizedExportArchive({
-        db, directory, jobId: readyId, userId: subject, impersonatedBy: null,
-      })).toBeNull();
+      await db.execute(
+        sql`update data_export_job set expires_at=now()-interval '1 second' where id=${readyId}`,
+      );
+      expect(
+        await openAuthorizedExportArchive({
+          db,
+          directory,
+          jobId: readyId,
+          userId: subject,
+          impersonatedBy: null,
+        }),
+      ).toBeNull();
 
       const org = "export-worker-attachment-org";
       const objectId = "d5f3f4ea-0e0d-4c28-aee6-7c9ea7a0de73";
@@ -118,19 +150,30 @@ describeDb("private data export worker", () => {
       });
       expect(await Bun.file(join(directory, failedId, "archive.zip")).exists()).toBe(false);
       await db.execute(sql`delete from stored_object where id=${objectId}`);
-      const scopedJob = await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids)
+      const scopedJob =
+        await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids)
         values (${attachmentSubject},${JSON.stringify([org])}::jsonb) returning id`);
       const scopedId = (scopedJob.rows[0] as { id: string }).id;
       expect(await waitFor(scopedId)).toMatchObject({ state: "ready", failure: null });
       const scopedArchive = await openAuthorizedExportArchive({
-        db, directory, jobId: scopedId, userId: attachmentSubject, impersonatedBy: null,
+        db,
+        directory,
+        jobId: scopedId,
+        userId: attachmentSubject,
+        impersonatedBy: null,
       });
       expect(scopedArchive).not.toBeNull();
       scopedArchive?.body.destroy();
       await db.execute(sql`delete from member where id='export-worker-owner'`);
-      expect(await openAuthorizedExportArchive({
-        db, directory, jobId: scopedId, userId: attachmentSubject, impersonatedBy: null,
-      })).toBeNull();
+      expect(
+        await openAuthorizedExportArchive({
+          db,
+          directory,
+          jobId: scopedId,
+          userId: attachmentSubject,
+          impersonatedBy: null,
+        }),
+      ).toBeNull();
       await worker.stop();
       await db.execute(sql`insert into member(id,organization_id,user_id,role) values
         ('export-worker-owner',${org},${attachmentSubject},'owner')`);
@@ -154,24 +197,30 @@ describeDb("private data export worker", () => {
       const corruptWorker = createDataExportWorker({ db, storage: fakeStorage, directory });
       corruptWorker.start();
       try {
-        const validJob = await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids)
+        const validJob =
+          await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids)
           values (${attachmentSubject},${JSON.stringify([org])}::jsonb) returning id`);
         const validId = (validJob.rows[0] as { id: string }).id;
         expect(await waitFor(validId)).toMatchObject({ state: "ready", failure: null });
         const validArchive = join(directory, validId, "archive.zip");
         expect(
-          Bun.spawnSync(["unzip", "-t", validArchive], { stdout: "ignore", stderr: "ignore" }).exitCode,
+          Bun.spawnSync(["unzip", "-t", validArchive], { stdout: "ignore", stderr: "ignore" })
+            .exitCode,
         ).toBe(0);
         expect(
           Bun.spawnSync(["unzip", "-p", validArchive, `attachments/${corruptObjectId}.pdf`], {
-            stdout: "pipe", stderr: "ignore",
+            stdout: "pipe",
+            stderr: "ignore",
           }).stdout,
         ).toEqual(Buffer.from(expectedBytes));
-        const corruptJob = await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids)
+        const corruptJob =
+          await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids)
           values (${attachmentSubject},${JSON.stringify([org])}::jsonb) returning id`);
         const corruptId = (corruptJob.rows[0] as { id: string }).id;
         expect(await waitFor(corruptId)).toMatchObject({
-          state: "failed", failure: "ATTACHMENT_UNAVAILABLE", bytes: null,
+          state: "failed",
+          failure: "ATTACHMENT_UNAVAILABLE",
+          bytes: null,
         });
         expect(await Bun.file(join(directory, corruptId, "archive.zip")).exists()).toBe(false);
       } finally {
@@ -183,7 +232,8 @@ describeDb("private data export worker", () => {
   });
 
   test("cleanup retries staging separately and removes cancelled job archives", async () => {
-    const created = await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids,state,expires_at)
+    const created =
+      await db.execute(sql`insert into data_export_job(subject_user_id,organization_ids,state,expires_at)
       values (${subject},'[]'::jsonb,'ready',now()+interval '1 hour') returning id`);
     const id = (created.rows[0] as { id: string }).id;
     const jobDir = join(directory, id);
@@ -195,8 +245,11 @@ describeDb("private data export worker", () => {
     await db.execute(sql`update data_export_job set cleanup_pending='staging' where id=${id}`);
     await cleanupExportArtifacts(directory, db);
     await expect(access(join(staging, "partial"))).rejects.toThrow();
-    await expect(access(archive)).resolves.toBeUndefined();
-    await db.execute(sql`update data_export_job set state='cancelled', cleanup_pending='job' where id=${id}`);
+    // Bun resolves fs.promises.access with null, so assert existence directly.
+    expect(existsSync(archive)).toBe(true);
+    await db.execute(
+      sql`update data_export_job set state='cancelled', cleanup_pending='job' where id=${id}`,
+    );
     await cleanupExportArtifacts(directory, db);
     await expect(access(archive)).rejects.toThrow();
   });

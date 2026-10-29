@@ -217,7 +217,8 @@ export const dataRightsRouter = {
       } catch (error) {
         raiseSelfErasureError(error);
       }
-      await context.db.execute(sql`update data_export_job set state = 'expired', cleanup_pending = 'job'
+      await context.db
+        .execute(sql`update data_export_job set state = 'expired', cleanup_pending = 'job'
         where subject_user_id = ${actor.userId} and state = 'ready' and expires_at <= now()`);
       const result = await context.db
         .execute(sql`select id, state, created_at, expires_at, bytes, failure

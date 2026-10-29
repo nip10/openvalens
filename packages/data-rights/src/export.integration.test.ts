@@ -265,7 +265,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
 
     await db.execute(sql`insert into billing_checkout_acknowledgement
       (id,user_id,version,immediate_start_requested,withdrawal_acknowledged,stripe_checkout_session_id)
-      values ('ack-export-a','user-a','checkout-v1',true,true,'cs_export_fixture')`);
+      values ('00000000-0000-4000-8000-0000000000a1','user-a','checkout-v1',true,true,'cs_export_fixture')`);
 
     exported = await exportSubjectData(
       db,
@@ -297,9 +297,17 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
 
   test("exports checkout acknowledgement history only to its user", () => {
     expect(parse("billing_checkout_acknowledgement")).toMatchObject([
-      { id: "ack-export-a", user_id: "user-a", version: "checkout-v1", immediate_start_requested: true, withdrawal_acknowledged: true },
+      {
+        id: "00000000-0000-4000-8000-0000000000a1",
+        user_id: "user-a",
+        version: "checkout-v1",
+        immediate_start_requested: true,
+        withdrawal_acknowledged: true,
+      },
     ]);
-    const other = exportedA2.files.find((file) => file.path === "entities/billing_checkout_acknowledgement.json");
+    const other = exportedA2.files.find(
+      (file) => file.path === "entities/billing_checkout_acknowledgement.json",
+    );
     expect(JSON.parse(other!.content)).toEqual([]);
   });
 
@@ -309,12 +317,14 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
   });
 
   test("contains the subject's data and nothing from the other account", () => {
-    expect(parse("legal_acceptance")).toContainEqual(expect.objectContaining({
-      user_id: "user-a",
-      document: "health_data_consent",
-      version: "health-v1",
-      source: "re_consent",
-    }));
+    expect(parse("legal_acceptance")).toContainEqual(
+      expect.objectContaining({
+        user_id: "user-a",
+        document: "health_data_consent",
+        version: "health-v1",
+        source: "re_consent",
+      }),
+    );
     expect(parse("metric_sample")).toHaveLength(3);
     expect(parse("user").map((r) => r.id)).toEqual(["user-a"]);
     expect(parse("organization").map((r) => r.id)).toEqual(["org-a"]);
@@ -482,13 +492,18 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
 
   test("streamed JSON is complete, portable, and excludes storage internals", async () => {
     const outputs = new Map<string, string>();
-    const manifest = await writeSubjectJsonFiles(db, A, {
-      async write(path, chunks) {
-        let value = "";
-        for await (const chunk of chunks) value += new TextDecoder().decode(chunk);
-        outputs.set(path, value);
+    const manifest = await writeSubjectJsonFiles(
+      db,
+      A,
+      {
+        async write(path, chunks) {
+          let value = "";
+          for await (const chunk of chunks) value += new TextDecoder().decode(chunk);
+          outputs.set(path, value);
+        },
       },
-    }, { now: FIXED_NOW, limits: { fetchRows: 2 } });
+      { now: FIXED_NOW, limits: { fetchRows: 2 } },
+    );
     expect(manifest.entities.map(({ table }) => table).sort()).toEqual(
       exported.manifest.entities.map(({ table }) => table).sort(),
     );
@@ -503,17 +518,33 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
   });
 
   test("streamed export enforces row limits and aborts without a manifest", async () => {
-    const sink = { async write(_path: string, chunks: AsyncIterable<Uint8Array>) {
-      for await (const _chunk of chunks) { /* drain */ }
-    } };
-    await expect(writeSubjectJsonFiles(db, A, sink, { limits: { maxRowBytes: 1 } }))
-      .rejects.toBeInstanceOf(SubjectExportLimitError);
+    const sink = {
+      async write(_path: string, chunks: AsyncIterable<Uint8Array>) {
+        for await (const _chunk of chunks) {
+          /* drain */
+        }
+      },
+    };
+    await expect(
+      writeSubjectJsonFiles(db, A, sink, { limits: { maxRowBytes: 1 } }),
+    ).rejects.toBeInstanceOf(SubjectExportLimitError);
     const controller = new AbortController();
     controller.abort();
     const writes: string[] = [];
-    await expect(writeSubjectJsonFiles(db, A, {
-      async write(path, chunks) { writes.push(path); for await (const _chunk of chunks) {} },
-    }, { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    await expect(
+      writeSubjectJsonFiles(
+        db,
+        A,
+        {
+          async write(path, chunks) {
+            writes.push(path);
+            for await (const _chunk of chunks) {
+            }
+          },
+        },
+        { signal: controller.signal },
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
     expect(writes).toEqual([]);
   });
 

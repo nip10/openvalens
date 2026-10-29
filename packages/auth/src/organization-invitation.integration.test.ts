@@ -85,15 +85,20 @@ describe.skipIf(!url)("workspace invitation acceptance over HTTP", () => {
     cookie: string,
     path: string,
     body: Record<string, unknown>,
+    authInstance = auth,
   ): Promise<{ status: number; body: Record<string, unknown> }> {
-    const response = await auth.handler(
+    const response = await authInstance.handler(
       new Request(`${BASE}/api/auth${path}`, {
         method: "POST",
         headers: { "content-type": "application/json", cookie },
         body: JSON.stringify(body),
       }),
     );
-    return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+    const text = await response.text();
+    return {
+      status: response.status,
+      body: (text ? JSON.parse(text) : {}) as Record<string, unknown>,
+    };
   }
 
   async function listUserInvitations(
@@ -183,31 +188,61 @@ describe.skipIf(!url)("workspace invitation acceptance over HTTP", () => {
   });
 
   test("Cloud invitation acceptance requires the current explicit consent before changing membership", async () => {
-    await seedInvitation({ id: "inv-cloud-consent", organizationId: "org-1", email: "recipient@example.test" });
-    const cookie = await signIn("recipient@example.test", cloudAuth);
-    const request = () => post(cookie, "/organization/accept-invitation", { invitationId: "inv-cloud-consent" });
+    // A dedicated account: earlier tests already made recipient-1 a member.
+    await db.execute(
+      sql`insert into "user" (id, email, email_verified, role, banned)
+        values ('cloud-recipient-1', 'cloud.recipient@example.test', true, 'user', false)`,
+    );
+    await seedInvitation({
+      id: "inv-cloud-consent",
+      organizationId: "org-1",
+      email: "cloud.recipient@example.test",
+    });
+    const cookie = await signIn("cloud.recipient@example.test", cloudAuth);
+    const request = () =>
+      post(
+        cookie,
+        "/organization/accept-invitation",
+        { invitationId: "inv-cloud-consent" },
+        cloudAuth,
+      );
 
     expect((await request()).status).toBe(403);
-    expect((await db.execute(sql`select status from invitation where id = 'inv-cloud-consent'`)).rows)
-      .toEqual([{ status: "pending" }]);
-    expect((await db.execute(sql`select 1 from member where user_id = 'recipient-1' and organization_id = 'org-1'`)).rows)
-      .toHaveLength(0);
+    expect(
+      (await db.execute(sql`select status from invitation where id = 'inv-cloud-consent'`)).rows,
+    ).toEqual([{ status: "pending" }]);
+    expect(
+      (
+        await db.execute(
+          sql`select 1 from member where user_id = 'cloud-recipient-1' and organization_id = 'org-1'`,
+        )
+      ).rows,
+    ).toHaveLength(0);
 
     await db.execute(sql`
       insert into legal_acceptance (id, user_id, document, version, accepted_at, source)
-      values ('health-old', 'recipient-1', 'health_data_consent', 'old', now(), 're_consent')
+      values ('health-old', 'cloud-recipient-1', 'health_data_consent', 'old', now(), 're_consent')
     `);
     expect((await request()).status).toBe(403);
-    expect((await db.execute(sql`select status from invitation where id = 'inv-cloud-consent'`)).rows)
-      .toEqual([{ status: "pending" }]);
+    expect(
+      (await db.execute(sql`select status from invitation where id = 'inv-cloud-consent'`)).rows,
+    ).toEqual([{ status: "pending" }]);
 
     await db.execute(sql`
       insert into legal_acceptance (id, user_id, document, version, accepted_at, source)
-      values ('health-current', 'recipient-1', 'health_data_consent', 'health-v1', now(), 're_consent')
+      values ('health-current', 'cloud-recipient-1', 'health_data_consent', 'health-v1', now(), 're_consent')
     `);
     expect((await request()).status).toBe(200);
-    expect((await db.execute(sql`select status from invitation where id = 'inv-cloud-consent'`)).rows)
-      .toEqual([{ status: "accepted" }]);
+    expect(
+      (await db.execute(sql`select status from invitation where id = 'inv-cloud-consent'`)).rows,
+    ).toEqual([{ status: "accepted" }]);
+    expect(
+      (
+        await db.execute(
+          sql`select 1 from member where user_id = 'cloud-recipient-1' and organization_id = 'org-1'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
   });
 
   test("a recipient declines and does not join", async () => {

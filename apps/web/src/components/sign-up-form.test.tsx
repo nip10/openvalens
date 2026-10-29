@@ -21,14 +21,21 @@ const healthDataConsent = { url: "https://legal.test/privacy", version: "health-
 describe("SignUpForm", () => {
   test("asks for an email and links the terms and privacy policy", () => {
     const html = renderToStaticMarkup(
-      <SignUpForm terms={terms} privacy={privacy} healthDataConsent={healthDataConsent} onSubmit={async () => {}} />,
+      <SignUpForm
+        terms={terms}
+        privacy={privacy}
+        healthDataConsent={healthDataConsent}
+        onSubmit={async () => {}}
+      />,
     );
     expect(html).toInclude("Create your account");
     expect(html).toInclude('type="email"');
     expect(html).toInclude('type="checkbox"');
     expect(html).toInclude('href="https://legal.test/terms"');
     expect(html).toInclude('href="https://legal.test/privacy"');
-    expect(html).toInclude("I consent to OpenValens processing my health data to provide the service.");
+    expect(html).toInclude(
+      "I consent to OpenValens processing my health data to provide the service.",
+    );
     expect(html).toInclude('href="/login"');
   });
 
@@ -46,11 +53,23 @@ describe("SignUpForm", () => {
     ).toInclude("That sign-up link has expired");
     expect(
       renderToStaticMarkup(
-        <SignUpForm terms={terms} privacy={privacy} healthDataConsent={healthDataConsent} linkError="used" onSubmit={async () => {}} />,
+        <SignUpForm
+          terms={terms}
+          privacy={privacy}
+          healthDataConsent={healthDataConsent}
+          linkError="used"
+          onSubmit={async () => {}}
+        />,
       ),
     ).toInclude("your account exists");
     const used = renderToStaticMarkup(
-      <SignUpForm terms={terms} privacy={privacy} healthDataConsent={healthDataConsent} linkError="used" onSubmit={async () => {}} />,
+      <SignUpForm
+        terms={terms}
+        privacy={privacy}
+        healthDataConsent={healthDataConsent}
+        linkError="used"
+        onSubmit={async () => {}}
+      />,
     );
     // The used-link notice links to sign-in (in addition to the footer link).
     expect(used.split('href="/login"').length - 1).toBe(2);
@@ -80,12 +99,24 @@ describe("SignUpForm with Google and Apple (Issue #296)", () => {
 
   test("offers the configured providers under the email form", () => {
     const html = renderToStaticMarkup(
-      <SignUpForm terms={terms} privacy={privacy} healthDataConsent={healthDataConsent} google apple onSubmit={async () => {}} />,
+      <SignUpForm
+        terms={terms}
+        privacy={privacy}
+        healthDataConsent={healthDataConsent}
+        google
+        apple
+        onSubmit={async () => {}}
+      />,
     );
     expect(html).toInclude("Continue with Google");
     expect(html).toInclude("Continue with Apple");
     const none = renderToStaticMarkup(
-      <SignUpForm terms={terms} privacy={privacy} healthDataConsent={healthDataConsent} onSubmit={async () => {}} />,
+      <SignUpForm
+        terms={terms}
+        privacy={privacy}
+        healthDataConsent={healthDataConsent}
+        onSubmit={async () => {}}
+      />,
     );
     expect(none).not.toInclude("Continue with");
   });

@@ -11,19 +11,25 @@ const subject = { userId: "subject", organizationIds: [] };
 function database(bytes: Uint8Array): Database {
   let calls = 0;
   return {
-    transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback({
-      execute: async () => {
-        calls++;
-        if (calls <= 1) return { rows: [] };
-        if (calls === 2) return { rows: [{
-          id: ID,
-          content_type: "image/jpeg",
-          size_bytes: bytes.byteLength,
-          sha256: createHash("sha256").update(bytes).digest("hex"),
-        }] };
-        return { rows: [] };
-      },
-    }),
+    transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        execute: async () => {
+          calls++;
+          if (calls <= 1) return { rows: [] };
+          if (calls === 2)
+            return {
+              rows: [
+                {
+                  id: ID,
+                  content_type: "image/jpeg",
+                  size_bytes: bytes.byteLength,
+                  sha256: createHash("sha256").update(bytes).digest("hex"),
+                },
+              ],
+            };
+          return { rows: [] };
+        },
+      }),
   } as unknown as Database;
 }
 
@@ -49,19 +55,32 @@ describe("photo export abort handling", () => {
     const bytes = new Uint8Array();
     const controller = new AbortController();
     let started!: () => void;
-    const readStarted = new Promise<void>((resolve) => { started = resolve; });
+    const readStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
     let canceled = false;
     const body = {
       getReader() {
         return {
-          read() { started(); return new Promise<never>(() => {}); },
-          async cancel() { canceled = true; },
+          read() {
+            started();
+            return new Promise<never>(() => {});
+          },
+          async cancel() {
+            canceled = true;
+          },
         };
       },
     } as unknown as ReadableStream<Uint8Array>;
-    const generator = exportSubjectPhotoFiles(database(bytes), reader(body, bytes), subject, new Date(), {
-      signal: controller.signal,
-    });
+    const generator = exportSubjectPhotoFiles(
+      database(bytes),
+      reader(body, bytes),
+      subject,
+      new Date(),
+      {
+        signal: controller.signal,
+      },
+    );
     const next = generator.next();
     await readStarted;
     controller.abort();
@@ -73,11 +92,20 @@ describe("photo export abort handling", () => {
     const bytes = new TextEncoder().encode("photo");
     const controller = new AbortController();
     const body = new ReadableStream<Uint8Array>({
-      start(stream) { stream.enqueue(bytes); stream.close(); },
+      start(stream) {
+        stream.enqueue(bytes);
+        stream.close();
+      },
     });
-    const generator = exportSubjectPhotoFiles(database(bytes), reader(body, bytes), subject, new Date(), {
-      signal: controller.signal,
-    });
+    const generator = exportSubjectPhotoFiles(
+      database(bytes),
+      reader(body, bytes),
+      subject,
+      new Date(),
+      {
+        signal: controller.signal,
+      },
+    );
     const file = await generator.next();
     expect(file.value?.kind).toBe("file");
     controller.abort();

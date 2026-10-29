@@ -219,7 +219,7 @@ export function createStripeProvider(options: {
           idempotencyKey: input.idempotencyKey,
         });
         if (!session.url) throw new BillingProviderError("checkout_url_missing");
-      return { id: session.id, url: session.url };
+        return { id: session.id, url: session.url };
       }),
 
     createPortalSession: ({ customerId, returnUrl, locale }) =>

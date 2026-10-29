@@ -78,7 +78,11 @@ const PORTABLE_OBJECT_COLUMNS = [
   "created_at",
 ] as const;
 const STORED_OBJECT_REDACTED_COLUMNS = [
-  "storage_key", "storage_provider", "storage_store_id", "photo_state", "photo_write_state",
+  "storage_key",
+  "storage_provider",
+  "storage_store_id",
+  "photo_state",
+  "photo_write_state",
   "photo_deletion_requested_at",
 ] as const;
 

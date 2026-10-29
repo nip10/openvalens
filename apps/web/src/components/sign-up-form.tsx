@@ -231,7 +231,12 @@ export default function SignUpForm({
             <span>
               <Trans>
                 I consent to OpenValens processing my health data to provide the service. Read our{" "}
-                <a href={healthDataConsent.url} target="_blank" rel="noreferrer" className={linkClass}>
+                <a
+                  href={healthDataConsent.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={linkClass}
+                >
                   privacy policy
                 </a>
                 .

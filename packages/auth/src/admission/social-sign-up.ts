@@ -176,9 +176,10 @@ export function createSocialSignUpService(deps: SocialSignUpDeps): SocialSignUpS
         ["privacy", input.legal.privacyVersion],
         ["health_data_consent", input.legal.healthDataConsentVersion],
       ] as const) {
-        const acceptedAt = document === "health_data_consent"
-          ? input.legal.healthDataConsentAcceptedAt
-          : input.legal.acceptedAt;
+        const acceptedAt =
+          document === "health_data_consent"
+            ? input.legal.healthDataConsentAcceptedAt
+            : input.legal.acceptedAt;
         await tx.execute(
           sql`insert into "legal_acceptance" ("id", "user_id", "document", "version", "accepted_at", "source") values (${newId()}, ${userId}, ${document}, ${version}, ${acceptedAt.toISOString()}, 'sign_up')`,
         );
@@ -205,8 +206,7 @@ export function createSocialSignUpService(deps: SocialSignUpDeps): SocialSignUpS
     enabled: legal !== null,
     currentLegal: () =>
       legal ? { termsVersion: legal.terms.version, privacyVersion: legal.privacy.version } : null,
-    currentHealthDataConsent: () =>
-      legal ? { version: legal.healthDataConsent.version } : null,
+    currentHealthDataConsent: () => (legal ? { version: legal.healthDataConsent.version } : null),
     createAccount,
   };
 }

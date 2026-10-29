@@ -152,8 +152,8 @@ describe("billing config", () => {
     expect(() => parseBillingConfig({ ...valid, LEGAL_CHECKOUT_ACK_VERSION: "" })).toThrow(
       BillingConfigError,
     );
-    expect(() => parseBillingConfig({ ...valid, LEGAL_CHECKOUT_ACK_VERSION: "v".repeat(65) })).toThrow(
-      BillingConfigError,
-    );
+    expect(() =>
+      parseBillingConfig({ ...valid, LEGAL_CHECKOUT_ACK_VERSION: "v".repeat(65) }),
+    ).toThrow(BillingConfigError);
   });
 });

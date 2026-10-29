@@ -378,7 +378,12 @@ export function createSocialSignIn(deps: SocialSignInDeps): SocialSignIn {
     if (!request.success) return;
     const legal = signUp.currentLegal();
     const healthDataConsent = signUp.currentHealthDataConsent();
-    if (!legal || !healthDataConsent || request.data.healthDataConsentVersion !== healthDataConsent.version) return;
+    if (
+      !legal ||
+      !healthDataConsent ||
+      request.data.healthDataConsentVersion !== healthDataConsent.version
+    )
+      return;
     const acceptedAt = new Date().toISOString();
     const stamp: SignUpStamp = {
       ...legal,

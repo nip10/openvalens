@@ -112,7 +112,13 @@ export type SignUpOptions = {
 
 export function signUpOptionsFrom(deployment: DeploymentConfig | undefined): SignUpOptions {
   if (deployment?.mode !== "cloud") {
-    return { mode: "self-hosted", signUp: false, terms: null, privacy: null, healthDataConsent: null };
+    return {
+      mode: "self-hosted",
+      signUp: false,
+      terms: null,
+      privacy: null,
+      healthDataConsent: null,
+    };
   }
   return {
     mode: "cloud",

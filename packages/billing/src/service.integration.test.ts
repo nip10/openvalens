@@ -33,7 +33,11 @@ if (url) {
 }
 
 const WEBHOOK_SECRET = "whsec_test_billing_integration";
-const ACK = { acceptedImmediateStart: true as const, acceptedWithdrawalAcknowledgement: true as const, acknowledgementVersion: "checkout-v1" };
+const ACK = {
+  acceptedImmediateStart: true as const,
+  acceptedWithdrawalAcknowledgement: true as const,
+  acknowledgementVersion: "checkout-v1",
+};
 const PRICES = { monthly: "price_test_monthly", annual: "price_test_annual" };
 const DAY = 86_400_000;
 
@@ -93,7 +97,11 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     billing = createBillingService({
       db,
       provider,
-      config: { prices: PRICES, termsUrl: "https://legal.test/terms", checkoutAcknowledgementVersion: "checkout-v1" },
+      config: {
+        prices: PRICES,
+        termsUrl: "https://legal.test/terms",
+        checkoutAcknowledgementVersion: "checkout-v1",
+      },
       webOrigin: "https://app.openvalens.test",
       email: {
         organizationName: "OpenValens",
@@ -196,7 +204,12 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
       });
     const tokenOf = (link: string) => new URL(link).searchParams.get("token")!;
 
-    await signUp(false).signUpPublic({ email: "new.cloud@example.com", acceptedLegal: true, acceptedHealthDataConsent: true, healthDataConsentVersion: "h-1" });
+    await signUp(false).signUpPublic({
+      email: "new.cloud@example.com",
+      acceptedLegal: true,
+      acceptedHealthDataConsent: true,
+      healthDataConsentVersion: "h-1",
+    });
     const created = await signUp(false).completePublicSignUp(tokenOf(links.at(-1)!));
     expect(created.status).toBe("created");
     const userId = created.status === "created" ? created.userId : "";
@@ -204,7 +217,12 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     expect(fake.calls).toHaveLength(0);
 
     // A failure later in the hook rolls the account and its trial back together.
-    await signUp(true).signUpPublic({ email: "rolled.back@example.com", acceptedLegal: true, acceptedHealthDataConsent: true, healthDataConsentVersion: "h-1" });
+    await signUp(true).signUpPublic({
+      email: "rolled.back@example.com",
+      acceptedLegal: true,
+      acceptedHealthDataConsent: true,
+      healthDataConsentVersion: "h-1",
+    });
     await expect(signUp(true).completePublicSignUp(tokenOf(links.at(-1)!))).rejects.toBeDefined();
     const left = await db.execute(
       sql`select count(*)::int as n from "subscription" s join "user" u on u."id" = s."user_id" where u."email" = 'rolled.back@example.com'`,
@@ -315,8 +333,10 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     expect(params.metadata.acceptance_reference).toBe(
       (acknowledgement.rows[0] as { id: string }).id,
     );
-    expect((acknowledgement.rows[0] as { stripe_checkout_session_id: string }).stripe_checkout_session_id)
-      .toStartWith("cs_test_");
+    expect(
+      (acknowledgement.rows[0] as { stripe_checkout_session_id: string })
+        .stripe_checkout_session_id,
+    ).toStartWith("cs_test_");
   });
 
   test("direct service callers cannot bypass missing or stale acknowledgements before Stripe", async () => {
@@ -325,17 +345,32 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     await expect(billing.startCheckout({ userId, plan: "monthly" })).rejects.toMatchObject({
       code: "ACKNOWLEDGEMENT_REQUIRED",
     });
-    await expect(billing.startCheckout({
-      userId, plan: "monthly", acceptedImmediateStart: true,
-      acceptedWithdrawalAcknowledgement: false, acknowledgementVersion: "checkout-v1",
-    })).rejects.toMatchObject({ code: "ACKNOWLEDGEMENT_REQUIRED" });
-    await expect(billing.startCheckout({
-      userId, plan: "monthly", acceptedImmediateStart: true,
-      acceptedWithdrawalAcknowledgement: true, acknowledgementVersion: "old-version",
-    })).rejects.toMatchObject({ code: "ACKNOWLEDGEMENT_STALE" });
-    expect(fake.calls.filter((call) => ["customers.create", "checkout.sessions.create"].includes(call.method)))
-      .toHaveLength(0);
-    const records = await db.execute(sql`select id from billing_checkout_acknowledgement where user_id=${userId}`);
+    await expect(
+      billing.startCheckout({
+        userId,
+        plan: "monthly",
+        acceptedImmediateStart: true,
+        acceptedWithdrawalAcknowledgement: false,
+        acknowledgementVersion: "checkout-v1",
+      }),
+    ).rejects.toMatchObject({ code: "ACKNOWLEDGEMENT_REQUIRED" });
+    await expect(
+      billing.startCheckout({
+        userId,
+        plan: "monthly",
+        acceptedImmediateStart: true,
+        acceptedWithdrawalAcknowledgement: true,
+        acknowledgementVersion: "old-version",
+      }),
+    ).rejects.toMatchObject({ code: "ACKNOWLEDGEMENT_STALE" });
+    expect(
+      fake.calls.filter((call) =>
+        ["customers.create", "checkout.sessions.create"].includes(call.method),
+      ),
+    ).toHaveLength(0);
+    const records = await db.execute(
+      sql`select id from billing_checkout_acknowledgement where user_id=${userId}`,
+    );
     expect(records.rows).toHaveLength(0);
   });
 
@@ -543,8 +578,14 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     await billing.startCheckout({ userId, plan: "monthly", ...ACK });
     expect((await row(userId))!.status).toBe("ended");
     const session = fake.calls.find((c) => c.method === "checkout.sessions.create");
+    const acknowledgement = await db.execute(
+      sql`select id from billing_checkout_acknowledgement where user_id=${userId}`,
+    );
     expect((session!.params as any).subscription_data).toEqual({
-      metadata: { ov_ref: String((await row(userId))!.customer_ref) },
+      metadata: {
+        ov_ref: String((await row(userId))!.customer_ref),
+        acceptance_reference: (acknowledgement.rows[0] as { id: string }).id,
+      },
     });
     await expect(
       billing.openPortal({ userId: await createUser("x@example.com") }),
@@ -608,7 +649,10 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     for (const call of calls) {
       for (const entry of metadataObjects(call)) {
         expect(Object.keys(entry).sort()).toEqual(
-          (entry.acceptance_reference ? [METADATA_REF_KEY, "acceptance_reference"] : [METADATA_REF_KEY]).sort(),
+          (entry.acceptance_reference
+            ? [METADATA_REF_KEY, "acceptance_reference"]
+            : [METADATA_REF_KEY]
+          ).sort(),
         );
         expect(String(entry[METADATA_REF_KEY])).toMatch(/^ovc_[0-9a-f]{32}$/);
         if (entry.acceptance_reference)

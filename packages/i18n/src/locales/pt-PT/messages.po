@@ -3121,6 +3121,7 @@ msgid "Could not change server. Your data on this phone was kept. Try again."
 msgstr "Não foi possível mudar de servidor. Os seus dados neste telemóvel foram mantidos. Tente novamente."
 
 #: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
 msgid "Could not check health data consent."
 msgstr "Não foi possível verificar o consentimento para o tratamento de dados de saúde."
 
@@ -5988,9 +5989,17 @@ msgstr "Li esta informação e quero aceitar a sugestão."
 msgid "I have read this and want to review the suggestion"
 msgstr "Li esta informação e quero rever a sugestão"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I request that my paid subscription starts immediately."
+msgstr "Peço que a minha subscrição paga comece imediatamente."
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "I train regularly and want the active reference"
 msgstr "Treino regularmente e quero a referência para pessoas ativas"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "I understand that if I withdraw within 14 days, I may have to pay for the service already provided."
+msgstr "Compreendo que, se desistir no prazo de 14 dias, poderei ter de pagar pelo serviço já prestado."
 
 #. safety
 #: packages/api/src/presenters/insights.ts
@@ -9689,6 +9698,10 @@ msgstr "Atingir um peso"
 msgid "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
 msgstr "Atingir um alvo não significa que a sua saúde melhorou. Os objetivos que não definiu nunca contam contra si."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Read our <0>Terms</0>."
+msgstr "Leia os nossos <0>Termos</0>."
+
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/app/(drawer)/invitations.tsx
 #: apps/native/components/health-data-consent-prompt.tsx
@@ -11733,29 +11746,13 @@ msgstr "Rigoroso"
 msgid "Subscribe"
 msgstr "Subscrever"
 
-#: apps/web/src/components/billing-plan-view.tsx
-msgid "I request that my paid subscription starts immediately."
-msgstr "Peço que a minha subscrição paga comece imediatamente."
-
-#: apps/web/src/components/billing-plan-view.tsx
-msgid "I understand that if I withdraw within 14 days, I may have to pay for the service already provided."
-msgstr "Compreendo que, se desistir no prazo de 14 dias, poderei ter de pagar pelo serviço já prestado."
-
-#: apps/web/src/components/billing-plan-view.tsx
-msgid "Read our <0>Terms</0>."
-msgstr "Leia os nossos <0>Termos</0>."
+#: packages/email/src/templates/billing.tsx
+msgid "Subscription ended"
+msgstr "Subscrição terminada"
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Subscriptions are temporarily unavailable. Please try again later."
 msgstr "As subscrições estão temporariamente indisponíveis. Tente novamente mais tarde."
-
-#: apps/web/src/routes/_auth/settings/billing.tsx
-msgid "These terms have been updated. Review them and confirm again."
-msgstr "Os termos foram atualizados. Reveja-os e confirme novamente."
-
-#: packages/email/src/templates/billing.tsx
-msgid "Subscription ended"
-msgstr "Subscrição terminada"
 
 #: packages/api/src/nutrition-observations.ts
 msgid "Sufficient matching timestamped records from completed diary days were available."
@@ -12389,6 +12386,10 @@ msgstr "Estas definições foram alteradas noutro dispositivo. É mostrada a ver
 msgid "These settings were changed elsewhere. Reload the latest version, then make your edits again."
 msgstr "Estas definições foram alteradas noutro local. Recarregue a versão mais recente e depois volte a fazer as suas alterações."
 
+#: apps/web/src/routes/_auth/settings/billing.tsx
+msgid "These terms have been updated. Review them and confirm again."
+msgstr "Os termos foram atualizados. Reveja-os e confirme novamente."
+
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 msgid "They can no longer use it to join. You can send a new one later."
@@ -12903,6 +12904,7 @@ msgstr "Tríceps"
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/exercise-library.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/progress-photos.tsx
 #: apps/web/src/components/workout-history.tsx
 #: apps/web/src/routes/_auth/cycle.tsx

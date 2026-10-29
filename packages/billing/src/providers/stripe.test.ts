@@ -57,7 +57,10 @@ describe("what Stripe receives (no PHI, metadata references are opaque)", () => 
     expect(metadata.length).toBe(3);
     for (const entry of metadata) {
       expect(Object.keys(entry).sort()).toEqual(
-        (entry.acceptance_reference ? [METADATA_REF_KEY, "acceptance_reference"] : [METADATA_REF_KEY]).sort(),
+        (entry.acceptance_reference
+          ? [METADATA_REF_KEY, "acceptance_reference"]
+          : [METADATA_REF_KEY]
+        ).sort(),
       );
       expect(entry[METADATA_REF_KEY]).toBe(REF);
       if (entry.acceptance_reference)
@@ -156,7 +159,10 @@ describe("what Stripe receives (no PHI, metadata references are opaque)", () => 
     for (const call of fake.calls) {
       for (const entry of metadataObjects(call.params)) {
         expect(Object.keys(entry).sort()).toEqual(
-          (entry.acceptance_reference ? [METADATA_REF_KEY, "acceptance_reference"] : [METADATA_REF_KEY]).sort(),
+          (entry.acceptance_reference
+            ? [METADATA_REF_KEY, "acceptance_reference"]
+            : [METADATA_REF_KEY]
+          ).sort(),
         );
         if (entry.acceptance_reference)
           expect(entry.acceptance_reference).toBe("11111111-1111-4111-8111-111111111111");

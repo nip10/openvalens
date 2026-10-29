@@ -67,8 +67,10 @@ export function parseBillingConfig(env: BillingEnv): BillingConfig {
   if (!termsUrl || !/^https:\/\//i.test(termsUrl))
     issues.push("LEGAL_TERMS_URL must be an https URL");
   const acknowledgementVersion = env.LEGAL_CHECKOUT_ACK_VERSION?.trim();
-  if (!acknowledgementVersion) issues.push("LEGAL_CHECKOUT_ACK_VERSION is required when DEPLOYMENT_MODE=cloud");
-  else if (acknowledgementVersion.length > 64) issues.push("LEGAL_CHECKOUT_ACK_VERSION must be at most 64 characters");
+  if (!acknowledgementVersion)
+    issues.push("LEGAL_CHECKOUT_ACK_VERSION is required when DEPLOYMENT_MODE=cloud");
+  else if (acknowledgementVersion.length > 64)
+    issues.push("LEGAL_CHECKOUT_ACK_VERSION must be at most 64 characters");
   if (issues.length > 0) throw new BillingConfigError(issues);
   return Object.freeze({
     secretKey: values.STRIPE_SECRET_KEY!,

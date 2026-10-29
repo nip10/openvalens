@@ -385,7 +385,9 @@ export function AcceptInvitationView({
 
         {consentStatus.isError ? (
           <div className="flex items-center gap-3 text-sm text-destructive" role="alert">
-            <Trans>Could not check health data consent. Retry before accepting this invitation.</Trans>
+            <Trans>
+              Could not check health data consent. Retry before accepting this invitation.
+            </Trans>
             <Button variant="outline" size="sm" onClick={() => void consentStatus.refetch()}>
               <Trans>Retry</Trans>
             </Button>
@@ -394,9 +396,16 @@ export function AcceptInvitationView({
         {needsHealthConsent(consentStatus.data) ? (
           <div className="grid gap-2 rounded-2xl border border-signal/30 bg-signal-soft/40 p-4">
             <p className="text-sm text-ink-2">
-              <Trans>I consent to OpenValens processing my health data to provide the service.</Trans>{" "}
+              <Trans>
+                I consent to OpenValens processing my health data to provide the service.
+              </Trans>{" "}
               {consentStatus.data?.privacyUrl ? (
-                <a href={consentStatus.data.privacyUrl} target="_blank" rel="noreferrer" className={linkClass}>
+                <a
+                  href={consentStatus.data.privacyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={linkClass}
+                >
                   <Trans>Read the privacy policy</Trans>
                 </a>
               ) : null}
@@ -411,7 +420,9 @@ export function AcceptInvitationView({
                 checked={healthConsentChecked}
                 onChange={(event) => setHealthConsentChecked(event.target.checked)}
               />
-              <span><Trans>I agree to this health data processing.</Trans></span>
+              <span>
+                <Trans>I agree to this health data processing.</Trans>
+              </span>
             </label>
           </div>
         ) : null}
@@ -426,7 +437,13 @@ export function AcceptInvitationView({
           <Button
             className="flex-1"
             onClick={handleAccept}
-            disabled={busy || mismatch || consentStatus.isPending || consentStatus.isError || (needsHealthConsent(consentStatus.data) && !healthConsentChecked)}
+            disabled={
+              busy ||
+              mismatch ||
+              consentStatus.isPending ||
+              consentStatus.isError ||
+              (needsHealthConsent(consentStatus.data) && !healthConsentChecked)
+            }
           >
             {ownedAction.kind === "accepting" ? <Trans>Accepting…</Trans> : <Trans>Accept</Trans>}
           </Button>

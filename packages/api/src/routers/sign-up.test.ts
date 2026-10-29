@@ -65,7 +65,13 @@ describe("signUp.options", () => {
   test("self-hosted (no deployment in context) has no sign-up and no legal links", async () => {
     expect(
       await appRouter.signUp.options.callable({ context: context({ deployment: undefined }) })({}),
-    ).toEqual({ mode: "self-hosted", signUp: false, terms: null, privacy: null, healthDataConsent: null });
+    ).toEqual({
+      mode: "self-hosted",
+      signUp: false,
+      terms: null,
+      privacy: null,
+      healthDataConsent: null,
+    });
   });
 
   test("cloud exposes the mode and the terms/privacy links and versions", async () => {
@@ -129,21 +135,23 @@ describe("signUp.request", () => {
     expect(await call(context({ publicSignUp: service }), { ...body, locale: "pt-PT" })).toEqual({
       accepted: true,
     });
-    expect(service.calls).toEqual([
-      { ...body, locale: "pt-PT" },
-    ]);
+    expect(service.calls).toEqual([{ ...body, locale: "pt-PT" }]);
   });
 
   test("missing or false health-data consent is rejected before the admission core", async () => {
     const service = signUpService();
-    await expect(call(context({ publicSignUp: service }), {
-      email: "missing@example.test",
-      acceptedLegal: true,
-    })).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(call(context({ publicSignUp: service }), {
-      ...body,
-      acceptedHealthDataConsent: false,
-    })).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(
+      call(context({ publicSignUp: service }), {
+        email: "missing@example.test",
+        acceptedLegal: true,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(
+      call(context({ publicSignUp: service }), {
+        ...body,
+        acceptedHealthDataConsent: false,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
     expect(service.calls).toHaveLength(0);
   });
 

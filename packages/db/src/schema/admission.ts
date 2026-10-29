@@ -179,7 +179,10 @@ export const signUpRequest = pgTable(
     termsVersion: text("terms_version").notNull(),
     privacyVersion: text("privacy_version").notNull(),
     healthDataConsentVersion: text("health_data_consent_version"),
-    healthDataConsentAcceptedAt: timestamp("health_data_consent_accepted_at", { withTimezone: true, mode: "date" }),
+    healthDataConsentAcceptedAt: timestamp("health_data_consent_accepted_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     acceptedAt: timestamp("accepted_at", { withTimezone: true, mode: "date" }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),

@@ -14,7 +14,10 @@ export const METADATA_REF_KEY = "ov_ref";
 
 /** Stripe metadata for an opaque reference. Nothing else, ever. */
 export function metadataFor(ref: string, acceptanceReference?: string): Record<string, string> {
-  return { [METADATA_REF_KEY]: ref, ...(acceptanceReference ? { acceptance_reference: acceptanceReference } : {}) };
+  return {
+    [METADATA_REF_KEY]: ref,
+    ...(acceptanceReference ? { acceptance_reference: acceptanceReference } : {}),
+  };
 }
 
 /** What a verified webhook carries that billing needs; never the raw payload. */

@@ -107,12 +107,15 @@ export const billingRouter = {
     ),
 
   checkout: protectedProcedure
-    .input(z.object({
-      plan: z.enum(["monthly", "annual"]), locale,
-      acceptedImmediateStart: z.literal(true),
-      acceptedWithdrawalAcknowledgement: z.literal(true),
-      acknowledgementVersion: z.string().min(1).max(64),
-    }))
+    .input(
+      z.object({
+        plan: z.enum(["monthly", "annual"]),
+        locale,
+        acceptedImmediateStart: z.literal(true),
+        acceptedWithdrawalAcknowledgement: z.literal(true),
+        acknowledgementVersion: z.string().min(1).max(64),
+      }),
+    )
     .output(redirectOutput)
     .handler(async ({ context, input }) => {
       const billing = requireBilling(context);
