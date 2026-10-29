@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The build replaces this placeholder with SITE_CSP (scripts/build.ts). -->
+    <meta http-equiv="Content-Security-Policy" content="__SITE_CSP__" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Get help with OpenValens: signing in, billing, exporting and deleting your account."
+    />
+    <title>Support · OpenValens</title>
+    <link rel="canonical" href="https://openvalens.com/support" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#top">Skip to content</a>
+    <header class="wrap site-header">
+      <a class="brand" href="/"
+        ><img src="/favicon.svg" alt="" width="32" height="32" /><span>OpenValens</span></a
+      >
+      <nav aria-label="Site">
+        <a href="/">Home</a>
+        <a href="/support">Support</a>
+        <a href="/privacy">Privacy</a>
+        <a href="https://github.com/nip10/openvalens">Source</a>
+      </nav>
+    </header>
+    <main id="top" class="wrap legal">
+      <article class="prose">
+        <p class="eyebrow">Help</p>
+        <h1>Support</h1>
+        <p>
+          Write to <a href="mailto:hello@openvalens.com">hello@openvalens.com</a> from the email
+          address of your account. We reply on working days, usually within two. Tell us whether you
+          use OpenValens Cloud or your own server, and which app (web, iPhone or Android) and
+          version.
+        </p>
+        <p class="note">
+          <strong>OpenValens cannot help with medical questions.</strong> Talk to a qualified
+          healthcare professional about your health. In an emergency, call 112 (or your local
+          emergency number).
+        </p>
+
+        <h2 id="sign-in">Signing in</h2>
+        <ul>
+          <li>
+            <strong>Email link.</strong> Enter your email and open the link we send. Links expire
+            after a short time and work once; if one has expired, ask for a new one. Check your spam
+            folder if nothing arrives within a few minutes.
+          </li>
+          <li>
+            <strong>Google or Apple.</strong> Use the same method you created the account with. If
+            you chose “Hide my email” with Apple, your account uses Apple's relay address.
+          </li>
+          <li>
+            <strong>The app asks for a server.</strong> Choose <strong>OpenValens Cloud</strong> for
+            a Cloud account, or enter the address of your own server.
+          </li>
+        </ul>
+
+        <h2 id="billing">Subscription and invoices</h2>
+        <p>
+          The workspace owner manages the subscription on the web, in
+          <strong>Settings › Plan &amp; billing</strong>: plan, trial, card, invoices and
+          cancellation. Invited members are covered by the owner's plan and never pay.
+        </p>
+
+        <h2 id="export">Export your data</h2>
+        <p>
+          In <strong>Settings › Export records</strong>, prepare a complete export of your account
+          and download it as a ZIP file when it is ready. You can also download the clinical record
+          as JSON and single sections as CSV or PDF.
+        </p>
+
+        <h2 id="delete-account">Delete your account</h2>
+        <p>
+          You can delete your OpenValens Cloud account and all of its data at any time, in any
+          subscription state:
+        </p>
+        <ol>
+          <li>
+            Sign in to the app or to <a href="https://app.openvalens.com">app.openvalens.com</a>.
+          </li>
+          <li>
+            Open <strong>Settings</strong> and choose <strong>Delete account and all data</strong>.
+          </li>
+          <li>Confirm by typing the requested text. You may be asked to sign in again first.</li>
+        </ol>
+        <p>
+          <strong>What is deleted:</strong> your account and everything recorded about you (health
+          records, photos, AI conversations, sessions and push tokens), and every workspace you own
+          with everything in it. Your memberships in other people's workspaces end. An active
+          subscription is cancelled. If another person also owns one of your workspaces, the app
+          asks you to remove them or transfer the workspace first.
+        </p>
+        <p>
+          <strong>What is kept:</strong> invoices, which Stripe keeps for 10 years under Portuguese
+          tax law; ids-only security and erasure records; and backups, which are overwritten within
+          14 days. If a backup is ever restored, your deletion is applied again.
+        </p>
+        <p>
+          If you cannot sign in, write to
+          <a href="mailto:hello@openvalens.com">hello@openvalens.com</a> from the email address of
+          your account and ask us to delete it. We confirm it is you and delete it within one month.
+        </p>
+        <p>
+          To stop syncing without deleting anything, remove OpenValens's access in Apple Health or
+          Health Connect, and sign out of the app.
+        </p>
+
+        <h2 id="privacy">Privacy requests</h2>
+        <p>
+          For access, correction, objection or any other request under the GDPR, write to
+          <a href="mailto:hello@openvalens.com">hello@openvalens.com</a>. The
+          <a href="/privacy">privacy policy</a> explains what we collect and your rights.
+        </p>
+
+        <h2 id="self-hosting">Self-hosting</h2>
+        <p>
+          If you run your own server, the
+          <a href="https://github.com/nip10/openvalens/blob/main/docs/self-hosting/install.md"
+            >install guide</a
+          >
+          and
+          <a href="https://github.com/nip10/openvalens/tree/main/docs/self-hosting"
+            >self-hosting docs</a
+          >
+          cover setup, backups and upgrades. Report bugs and ask questions in
+          <a href="https://github.com/nip10/openvalens/issues">GitHub issues</a>. Your server's
+          operator, not OpenValens, is responsible for the data on it.
+        </p>
+
+        <h2 id="security">Security issues</h2>
+        <p>
+          Please do not report vulnerabilities in public issues. Follow the
+          <a href="https://github.com/nip10/openvalens/blob/main/SECURITY.md">security policy</a>.
+        </p>
+      </article>
+    </main>
+    <footer class="wrap site-footer">
+      <ul class="footer-links">
+        <li><a href="/support">Support</a></li>
+        <li><a href="/privacy">Privacy policy</a></li>
+        <li><a href="/subprocessors">Subprocessors</a></li>
+        <li>© 2026 The OpenValens contributors</li>
+      </ul>
+    </footer>
+  </body>
+</html>
