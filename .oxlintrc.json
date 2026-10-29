@@ -32,8 +32,15 @@
               "openid-client",
               "grammy",
               "telegraf",
-              "node-telegram-bot-api"
+              "node-telegram-bot-api",
+              "stripe/*"
             ],
+            "message": "Vendor SDKs may only be imported inside an integration adapter module (packages/*/src/providers/*). See docs/integrations.md (Issue #57)."
+          }
+        ],
+        "paths": [
+          {
+            "name": "stripe",
             "message": "Vendor SDKs may only be imported inside an integration adapter module (packages/*/src/providers/*). See docs/integrations.md (Issue #57)."
           }
         ]

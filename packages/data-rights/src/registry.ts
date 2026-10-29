@@ -241,6 +241,21 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
   // the legal documents an account accepted, both keyed by `user_id`.
   sign_up_request: { kind: "user", redact: ["token_hash"] },
   legal_acceptance: { kind: "user" },
+  // Cloud billing (#297). The owner's plan (status, trial end, Stripe ids) is
+  // theirs: exported, and erased with the account. Erasing a row that reached
+  // Stripe queues the customer in `billing_customer_erasure` (database
+  // trigger), which cancels the subscription now and deletes the customer.
+  subscription: { kind: "user" },
+  billing_webhook_event: {
+    kind: "system",
+    reason:
+      "Stripe event ids and types already applied (idempotency), pruned after 90 days; no payload and no link to a person.",
+  },
+  billing_customer_erasure: {
+    kind: "system",
+    reason:
+      "Outbox of Stripe customer ids of already-erased accounts, kept only until Stripe confirms the cancellation and deletion.",
+  },
   global_security_event: {
     kind: "system",
     reason:

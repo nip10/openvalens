@@ -32,6 +32,11 @@ import { protectedProcedure, raiseApiError, validateInput } from "../index";
  * erasure and revoked through Apple's API after it commits (App Store Review
  * Guideline 5.1.1(v)). A failed revocation is logged as a count and never
  * undoes the deletion.
+ *
+ * Cloud billing (#297): erasing a subscription row that reached Stripe queues
+ * its customer (a database trigger, in the same transaction). Right after the
+ * commit the billing service cancels the Stripe subscription immediately and
+ * deletes the customer; a failure is retried by the billing job.
  */
 
 const logger = createStructuredLogger({ level: "info" });
@@ -164,6 +169,16 @@ export const dataRightsRouter = {
       }
       const { report, objects } = result;
       const revocation = await revokeAfterErasure(context.socialTokenRevocation, pendingRevocation);
+      if (context.billing) {
+        try {
+          await context.billing.processErasures();
+        } catch {
+          // Already queued; the billing job retries. Never blocks the erasure.
+          logger.warn("data_rights.billing_erasure.deferred", {
+            correlationId: context.correlationId,
+          });
+        }
+      }
       const totalRows = sum(report.rowCounts);
       logger.info("data_rights.subject_erased", {
         correlationId: context.correlationId,

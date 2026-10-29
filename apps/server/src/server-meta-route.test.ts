@@ -83,6 +83,10 @@ describe("GET /.well-known/openvalens (#295)", () => {
       LEGAL_TERMS_VERSION: "t-1",
       LEGAL_PRIVACY_URL: "https://legal.test/privacy",
       LEGAL_PRIVACY_VERSION: "p-1",
+      STRIPE_SECRET_KEY: "rk_test_synthetic",
+      STRIPE_WEBHOOK_SECRET: "whsec_synthetic",
+      STRIPE_PRICE_MONTHLY: "price_synthetic_m",
+      STRIPE_PRICE_ANNUAL: "price_synthetic_a",
     });
     expect(deploymentProfile(config)).toEqual({ mode: "cloud", signUp: true });
 

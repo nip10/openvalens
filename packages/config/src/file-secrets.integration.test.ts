@@ -277,6 +277,8 @@ describe("actual server schema sensitive coverage", () => {
           "STORAGE_S3_REGION",
           "STORAGE_S3_SSE",
           "STORAGE_SIGNED_URL_TTL_SECONDS",
+          "STRIPE_PRICE_ANNUAL",
+          "STRIPE_PRICE_MONTHLY",
           "TELEGRAM_API_BASE_URL",
           "TELEGRAM_CONNECT_TOKEN_TTL_SECONDS",
           "WEARABLES_WEBHOOKS",

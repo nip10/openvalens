@@ -118,6 +118,7 @@
         "@openvalens/ai": "workspace:*",
         "@openvalens/api": "workspace:*",
         "@openvalens/auth": "workspace:*",
+        "@openvalens/billing": "workspace:*",
         "@openvalens/body": "workspace:*",
         "@openvalens/config": "workspace:*",
         "@openvalens/db": "workspace:*",
@@ -249,6 +250,7 @@
         "@openvalens/ai": "workspace:*",
         "@openvalens/audit-security": "workspace:*",
         "@openvalens/auth": "workspace:*",
+        "@openvalens/billing": "workspace:*",
         "@openvalens/body": "workspace:*",
         "@openvalens/clinical": "workspace:*",
         "@openvalens/clinical-export": "workspace:*",
@@ -311,6 +313,22 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@openvalens/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
+    },
+    "packages/billing": {
+      "name": "@openvalens/billing",
+      "dependencies": {
+        "@lingui/core": "6.9.1",
+        "@openvalens/db": "workspace:*",
+        "@openvalens/email": "workspace:*",
+        "@openvalens/i18n": "workspace:*",
+        "@openvalens/observability": "workspace:*",
+        "stripe": "23.0.1",
+      },
+      "devDependencies": {
+        "@openvalens/auth": "workspace:*",
         "@openvalens/config": "workspace:*",
         "typescript": "^6.0.3",
       },
@@ -416,6 +434,7 @@
       "dependencies": {
         "@openvalens/api": "workspace:*",
         "@openvalens/auth": "workspace:*",
+        "@openvalens/billing": "workspace:*",
         "@openvalens/db": "workspace:*",
         "@orpc/server": "catalog:",
         "drizzle-orm": "catalog:",
@@ -1151,6 +1170,8 @@
     "@openvalens/audit-security": ["@openvalens/audit-security@workspace:packages/audit-security"],
 
     "@openvalens/auth": ["@openvalens/auth@workspace:packages/auth"],
+
+    "@openvalens/billing": ["@openvalens/billing@workspace:packages/billing"],
 
     "@openvalens/body": ["@openvalens/body@workspace:packages/body"],
 
@@ -2995,6 +3016,8 @@
     "strip-bom": ["strip-bom@3.0.0", "", {}, "sha512-vavAMRXOgBVNF6nyEEmL3DBK19iRpDcoIwW+swQ+CbGiu7lju6t+JklA1MHweoWtadgt4ISVUsXLyDq34ddcwA=="],
 
     "strip-final-newline": ["strip-final-newline@4.0.0", "", {}, "sha512-aulFJcD6YK8V1G7iRB5tigAP4TsHBZZrOV8pjV++zdUwmeV8uzbY7yn6h9MswN62adStNZFuCIx4haBnRuMDaw=="],
+
+    "stripe": ["stripe@23.0.1", "", { "peerDependencies": { "@types/node": ">=20" }, "optionalPeers": ["@types/node"] }, "sha512-VFLs9IAzSZ8GIm6/vqhjqOL0fbYrSNYCpgZ3LS3YkSi/i5RnyMpu/Hf9YxPTOCYwc3mZKU3IJvuvKffQH2NLMg=="],
 
     "structured-headers": ["structured-headers@0.4.1", "", {}, "sha512-0MP/Cxx5SzeeZ10p/bZI0S6MpgD+yxAhi1BOQ34jgnMXsCq3j1t6tQnZu+KdlL7dvJTLT3g9xN8tl10TqgFMcg=="],
 

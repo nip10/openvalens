@@ -16,6 +16,7 @@
     "@openvalens/ai": "workspace:*",
     "@openvalens/audit-security": "workspace:*",
     "@openvalens/auth": "workspace:*",
+    "@openvalens/billing": "workspace:*",
     "@openvalens/body": "workspace:*",
     "@openvalens/clinical": "workspace:*",
     "@openvalens/clinical-export": "workspace:*",

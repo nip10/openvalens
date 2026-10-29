@@ -54,7 +54,10 @@ export function planDeviceDays(calendar: DemoCalendar, random: Random): DeviceDa
       workout = { activity: "yoga", title: "Yoga", start: 10, minutes: random.int(30, 50) };
     }
     // The last week is clearly better than the four before it (more sleep,
-    // more steps), so the insight rules have a real change to report.
+    // more steps), so the insight rules have a real change to report. The
+    // sleep lift must clear the change rule's noise threshold on any "today":
+    // weekday/weekend sleep differ, so the threshold moves with where the
+    // weekends fall, and a smaller lift fired only on some dates.
     const lastWeek = offset < 7;
     const base = weekend
       ? random.normal(10_500, 2_400, 4_000, 19_000)
@@ -64,13 +67,7 @@ export function planDeviceDays(calendar: DemoCalendar, random: Random): DeviceDa
     );
     const bedtime =
       (weekend ? 23.4 : 22.9) + random.normal(0, 0.35, -0.8, 1.2) - (lastWeek ? 0.4 : 0);
-    // The sleep rule must also hold on the window ending yesterday
-    // (`sustainedDays: 2`), which reaches one night further back, and must
-    // clear 3.5x the baseline noise whatever weekday "today" is: an hour more
-    // over the last eight nights fires on every date of a year (a +45 min,
-    // seven-night boost fired on about 57% of dates).
-    const betterSleep = offset < 8;
-    const duration = random.normal(weekend ? 7.9 : 7.1, 0.4, 5.6, 9.2) + (betterSleep ? 1 : 0);
+    const duration = random.normal(weekend ? 7.9 : 7.1, 0.4, 5.6, 9.2) + (lastWeek ? 1.25 : 0);
     return { offset, steps, workout, sleep: { start: bedtime - 24, end: bedtime - 24 + duration } };
   });
 }

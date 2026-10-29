@@ -49,12 +49,12 @@ describe("real committed schemas", () => {
   test("section variable counts", () => {
     const model = buildModel(REAL);
     expect(Object.fromEntries(model.map((entry) => [entry.id, entry.variables.length]))).toEqual({
-      server: 78,
+      server: 82,
       web: 5,
       native: 7,
       db: 2,
     });
-    expect(section(model, "server").variables.filter((v) => v.sensitive)).toHaveLength(23);
+    expect(section(model, "server").variables.filter((v) => v.sensitive)).toHaveLength(25);
   });
 
   test("_FILE support is limited to the documented keys", () => {
