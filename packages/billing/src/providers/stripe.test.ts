@@ -80,6 +80,7 @@ describe("what Stripe receives (no PHI, metadata references are opaque)", () => 
       [
         "allow_promotion_codes",
         "automatic_tax",
+        "branding_settings",
         "cancel_url",
         "client_reference_id",
         "customer",
@@ -101,6 +102,7 @@ describe("what Stripe receives (no PHI, metadata references are opaque)", () => 
       REF,
       "11111111-1111-4111-8111-111111111111",
       "price_monthly",
+      "OpenValens",
       "auto",
       "pt",
       "https://app.test/settings/billing?checkout=success",
@@ -170,6 +172,32 @@ describe("what Stripe receives (no PHI, metadata references are opaque)", () => 
     }
     const created = fake.calls.find((call) => call.method === "customers.create");
     expect(created?.options).toEqual({ idempotencyKey: "ov-customer-x" });
+  });
+});
+
+describe("Customer Portal configuration", () => {
+  const open = async (portalConfiguration?: string | null) => {
+    const fake = createFakeStripe();
+    const provider = createStripeProvider({
+      secretKey: "sk_test_x",
+      webhookSecret: SECRET,
+      portalConfiguration,
+      client: fake.client,
+    });
+    await provider.createPortalSession({
+      customerId: "cus_1",
+      returnUrl: "https://app.test/b",
+      locale: "en",
+    });
+    return fake.calls.find((call) => call.method === "billingPortal.sessions.create")?.params;
+  };
+
+  test("passes the configured OpenValens portal", async () => {
+    expect(await open("bpc_openvalens")).toMatchObject({ configuration: "bpc_openvalens" });
+  });
+
+  test("without one, Stripe uses the account default", async () => {
+    expect(await open(null)).not.toHaveProperty("configuration");
   });
 });
 

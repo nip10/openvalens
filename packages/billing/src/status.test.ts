@@ -142,6 +142,16 @@ describe("billing config", () => {
     expect(message).not.toContain("pk_live_secretish");
   });
 
+  test("the portal configuration is optional and must be a `bpc_` id", () => {
+    expect(parseBillingConfig(valid).portalConfiguration).toBeNull();
+    expect(
+      parseBillingConfig({ ...valid, STRIPE_PORTAL_CONFIGURATION: "bpc_123" }).portalConfiguration,
+    ).toBe("bpc_123");
+    expect(() => parseBillingConfig({ ...valid, STRIPE_PORTAL_CONFIGURATION: "pc_123" })).toThrow(
+      BillingConfigError,
+    );
+  });
+
   test("refuses the same price for both plans", () => {
     expect(() => parseBillingConfig({ ...valid, STRIPE_PRICE_ANNUAL: "price_m" })).toThrow(
       BillingConfigError,

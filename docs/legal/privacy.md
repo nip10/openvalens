@@ -12,7 +12,7 @@ This policy explains what personal data OpenValens collects, why, on what legal 
 - **the OpenValens mobile apps** for iOS and Android;
 - **this website**, `openvalens.com`.
 
-**It does not cover self-hosted servers.** The app can connect to a server you or someone else runs instead of Cloud. See [section 13](#self-hosted).
+**It does not cover self-hosted servers.** The app can connect to a server you or someone else runs instead of Cloud. See section 13.
 
 ## 1. Who is responsible
 
@@ -44,7 +44,7 @@ The controller for Cloud, the apps (when connected to Cloud) and this website is
 
 **Technical and security data.** Server and proxy logs (IP address, time, request path without query values, response status, a request id), security events (for example a sign-in or a deletion, recorded with ids only), rate-limiting counters, and browser security-policy reports reduced to host and path. Logs never contain health values.
 
-**Error reports.** If the server, web app or mobile app crashes, a report with the error type, the code location (file, function, line), the release, and the runtime and operating system name and version. Error messages, URLs, request data, user, device and session details are removed before sending ([section 7](#features)).
+**Error reports.** If the server, web app or mobile app crashes, a report with the error type, the code location (file, function, line), the release, and the runtime and operating system name and version. Error messages, URLs, request data, user, device and session details are removed before sending (section 7).
 
 **Support.** What you write to us and our replies.
 
@@ -62,7 +62,7 @@ The controller for Cloud, the apps (when connected to Cloud) and this website is
 | Security, preventing abuse, investigating incidents, error reports, keeping backups                                                             | Technical, security and error data; backups of all data                | Legitimate interest, Art. 6(1)(f): keeping the service and your data safe.           |
 | Proving consent and honouring deletions after a restore                                                                                         | Consent records, erasure records (ids and row counts)                  | Legal obligation, Art. 6(1)(c) (Art. 7(1) and Art. 17 GDPR).                         |
 
-**Explicit consent to health data.** When you create a Cloud account, and again when this consent changes, you give your explicit consent to us processing your health data to provide the service. Because keeping your health records is what Cloud does, we cannot provide Cloud without it. You can withdraw it at any time by writing to hello@openvalens.com or by deleting your account; withdrawal does not affect processing before it. When you withdraw, we stop processing your health data except to let you export it, and delete it as described in [section 8](#retention).
+**Explicit consent to health data.** When you create a Cloud account, and again when this consent changes, you give your explicit consent to us processing your health data to provide the service. Because keeping your health records is what Cloud does, we cannot provide Cloud without it. You can withdraw it at any time by writing to hello@openvalens.com or by deleting your account; withdrawal does not affect processing before it. When you withdraw, we stop processing your health data except to let you export it, and delete it as described in section 8.
 
 We do not use your data for automated decisions with legal or similarly significant effects, and we do not build advertising profiles.
 
