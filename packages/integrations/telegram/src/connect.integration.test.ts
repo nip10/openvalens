@@ -122,6 +122,9 @@ describe.skipIf(!url)("Telegram /start connect flow (Issue #14)", () => {
     await db.execute(
       sql`insert into "user" (id, email, banned) values ('user-access-gate', 'access-gate@example.test', false) on conflict (id) do nothing`,
     );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-access-gate', 'org-a', 'user-access-gate', 'member') on conflict (id) do nothing`,
+    );
     const { token } = await createConnectToken(db, {
       userId: "user-access-gate",
       organizationId: "org-a",
