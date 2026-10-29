@@ -61,7 +61,6 @@ records), never a real person's data (see [Landing site](#landing-site))._
 - Cloud hosting and public sign-up are not live yet; self-hosting is available.
 - No published container images; the install builds from source (#129).
 - Mobile apps are not published in the stores yet; wearable vendor connections are available but need provider configuration.
-  yet (#60).
 
 **Intended purpose.** OpenValens is a personal record-keeping and
 general-wellness app. It helps you store, organise and view your own
