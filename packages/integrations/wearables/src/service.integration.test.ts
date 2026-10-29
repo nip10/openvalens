@@ -60,6 +60,7 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
   const fetchedUrls: string[] = [];
   const tokenKey = deriveWearableTokenKey("synthetic-better-auth-secret-0123456789abcdef");
   let service: ReturnType<typeof createWearablesService>;
+  let serviceDeps: Parameters<typeof createWearablesService>[0];
 
   const connect = async (
     provider: WearableProviderId,
@@ -179,7 +180,7 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
     vendor.state.polarRegistered.clear();
     logLines.length = 0;
     fetchedUrls.length = 0;
-    service = createWearablesService({
+    serviceDeps = {
       db,
       adapters: mockAdapters(vendor, {
         fetch: ((input: Parameters<typeof fetch>[0], init?: RequestInit) => {
@@ -194,7 +195,8 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
         level: "debug",
         sink: (_level, line) => logLines.push(line),
       }),
-    });
+    };
+    service = createWearablesService(serviceDeps);
   });
 
   afterAll(async () => {
@@ -287,6 +289,27 @@ describe.skipIf(!url)("cloud wearables on disposable PostgreSQL", () => {
       expect(logs).not.toMatch(/"value"|8400|72\.45|61\.5/);
     },
   );
+
+  test("#298: a workspace whose Cloud access ended is not synced, and resumes from its cursor", async () => {
+    const asked: unknown[] = [];
+    let allowed = false;
+    const gated = createWearablesService({
+      ...serviceDeps,
+      canSync: async (connection) => {
+        asked.push(connection);
+        return allowed;
+      },
+    });
+    const { connectionId } = await connect("oura");
+    expect(await gated.syncConnection(connectionId)).toMatchObject({ status: "skipped" });
+    expect(asked).toEqual([{ organizationId: "org-a", userId: "u1" }]);
+    expect(await active("metric_sample")).toHaveLength(0);
+    expect((await connectionOf("oura"))!.syncedThrough).toBeNull();
+
+    allowed = true;
+    expect(await gated.syncConnection(connectionId)).toMatchObject({ status: "succeeded" });
+    expect((await active("metric_sample")).length).toBeGreaterThan(0);
+  });
 
   test("disconnect without deleteData keeps the rows, attributed to the ended connection", async () => {
     const { connectionId } = await connect("oura");

@@ -79,6 +79,15 @@ export function isPermanentSyncError(error: unknown): boolean {
   return shape?.code === "INVALID_INPUT";
 }
 
+/**
+ * Issue #298 — whether a sync error means the OpenValens Cloud workspace is
+ * read-only: nothing new is queued (the form shows the error), and queued
+ * writes stay put until access is back.
+ */
+export function isAccessReadOnlySyncError(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "ACCESS_READ_ONLY";
+}
+
 /** Whether a sync error means the session is gone, so draining should pause. */
 export function isAuthSyncError(error: unknown): boolean {
   const shape = error as { code?: unknown; status?: unknown } | null;

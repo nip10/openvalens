@@ -15,6 +15,7 @@ import {
 import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
 
+import { allowedWhenReadOnly, procedureAccessClass } from "./access-policy";
 import type { Context } from "./context";
 import { raiseApiError, type ORPCErrorCode } from "./errors";
 
@@ -35,7 +36,54 @@ const requireAuth = o.middleware(async ({ context, next }) => {
   });
 });
 
-export const protectedProcedure = publicProcedure.use(requireAuth);
+/**
+ * Issue #298 — the one entitlement check. On OpenValens Cloud it refuses a
+ * procedure that writes (or runs the AI coach) with `ACCESS_READ_ONLY` when
+ * the workspace in use has lost full access: its **owner's** trial or plan
+ * ended, or a payment stayed overdue past the grace period. Invited members
+ * follow the owner; they never pay. Reads, exports, account deletion,
+ * consent withdrawal, billing and sign-in always pass (see
+ * `./access-policy`, where unlisted procedures default to `write`).
+ *
+ * Self-host returns before anything else: it never resolves a plan and
+ * always has full access.
+ */
+export async function requireActiveAccess(input: {
+  context: Pick<Context, "deployment" | "billing" | "session">;
+  path: readonly string[];
+}): Promise<void> {
+  const { context, path } = input;
+  if (context.deployment?.mode !== "cloud") return;
+  if (allowedWhenReadOnly(procedureAccessClass(path))) return;
+  const userId = context.session?.user?.id;
+  // `requireAuth` already refused anonymous calls; nothing to resolve here.
+  if (!userId) return;
+  // Cloud always builds billing (the server exits at boot otherwise); never
+  // fail open if it is somehow missing.
+  if (!context.billing) throw raiseApiError("INTERNAL", "Something went wrong.");
+  const access = await context.billing.resolveAccess({
+    userId,
+    organizationId: context.session?.session?.activeOrganizationId ?? null,
+  });
+  if (access.level === "read_only") {
+    throw raiseApiError(
+      "ACCESS_READ_ONLY",
+      access.viewerIsOwner
+        ? "Your OpenValens Cloud access has ended. Your records are still here, and you can export them."
+        : "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export your own.",
+      { viewer: access.viewerIsOwner ? "owner" : "member" },
+    );
+  }
+}
+
+const requireActiveAccessMiddleware = o.middleware(async ({ context, next, path }) => {
+  await requireActiveAccess({ context, path });
+  return next({});
+});
+
+export const protectedProcedure = publicProcedure
+  .use(requireAuth)
+  .use(requireActiveAccessMiddleware);
 
 /**
  * Session-only procedure that *resolves* instance-administrator status

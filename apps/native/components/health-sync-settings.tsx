@@ -27,6 +27,7 @@ const ERROR_COPY: Record<string, MessageDescriptor> = {
   UNAUTHENTICATED: msg`Sign in again to sync.`,
   NO_MEMBERSHIP: msg`Your account has no organization. Sync is paused.`,
   SOURCE_FAILED: msg`Could not read your health data. Check permissions.`,
+  ACCESS_READ_ONLY: msg`Paused: this workspace's OpenValens Cloud access has ended. Sync starts again when access is back.`,
 };
 
 /** `2026-10-01 08:42` in local time, matching the timeline. */

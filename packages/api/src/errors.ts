@@ -22,7 +22,13 @@ export type ORPCErrorCode =
   /** An optional upstream data source (e.g. live food lookup) timed out or is rate-limited. Retryable. */
   | "SOURCE_UNAVAILABLE"
   /** The server cannot send email (no Resend key, or dry run), so emailed-code flows can't start. */
-  | "EMAIL_UNAVAILABLE";
+  | "EMAIL_UNAVAILABLE"
+  /**
+   * Issue #298 — OpenValens Cloud: the workspace's access has ended (trial or
+   * plan over, or payment overdue past the grace period). Reads, export and
+   * account deletion still work; writes do not until the owner subscribes.
+   */
+  | "ACCESS_READ_ONLY";
 
 /** HTTP statuses reachable through the error envelope. */
 export type ORPCErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500 | 503;
@@ -41,6 +47,7 @@ const CODE_TO_STATUS: Record<ORPCErrorCode, ORPCErrorStatus> = {
   CONFLICT: 409,
   SOURCE_UNAVAILABLE: 503,
   EMAIL_UNAVAILABLE: 503,
+  ACCESS_READ_ONLY: 403,
 };
 
 /**

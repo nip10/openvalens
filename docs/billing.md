@@ -39,8 +39,80 @@ Plan & billing are read from the Stripe prices, so Stripe is the single source.
 | `ended`    | The trial ran out and the person never subscribed                     |
 
 `effectiveStatus` in `packages/billing/src/status.ts` treats a local trial past
-its end as `ended` even before the scheduled job records it. What each state
-allows (read-only after the end, export and deletion always) is #298.
+its end as `ended` even before the scheduled job records it.
+
+## What each state allows (Issue #298)
+
+| State                                    | Read | Write | Export / delete account | AI coach |
+| ---------------------------------------- | ---- | ----- | ----------------------- | -------- |
+| `trialing`, `active`                     | yes  | yes   | yes                     | yes      |
+| `past_due`, within the grace period      | yes  | yes   | yes                     | yes      |
+| `past_due` after the grace period        | yes  | no    | yes                     | no       |
+| `canceled`, `ended`, no subscription row | yes  | no    | yes                     | no       |
+
+- **Ended means read-only, never deleted.** Every write is refused with the
+  typed error `ACCESS_READ_ONLY` (HTTP 403); reading, export (JSON, CSV, PDF,
+  clinical bundle) and account deletion always work (#89).
+- **Grace period:** `BILLING_PAST_DUE_GRACE_DAYS` (default 7) days from the
+  first failed renewal (`subscription.past_due_since`). Stripe's automatic
+  retries do not restart it; a paid invoice clears it.
+- **Access follows the workspace owner.** The check resolves the owner of the
+  active workspace and uses that person's plan: an invited member never pays
+  and is read-only exactly when the owner is. Plan & billing shows members a
+  neutral "your access comes from <owner>'s plan" note with no prices,
+  Checkout or portal, and `billing.checkout` refuses them.
+- **Self-host never runs the check**: it returns before resolving anything.
+
+### How procedures are classified
+
+`packages/api/src/access-policy.ts` gives every oRPC procedure a class:
+`read`, `write`, `ai` (refused when read-only, like `write`) or `always` (data
+rights, exports, consent withdrawal, removing someone's access, billing,
+sign-in, the access state itself). The check runs in `protectedProcedure`, so
+every authenticated procedure passes through it, and a procedure **missing
+from the map is treated as `write`** (default deny). `access-policy.test.ts`
+walks the whole router and fails when a procedure is unclassified or a listed
+one no longer exists, so a new procedure cannot ship without a reviewed class.
+Reads never query the plan; only `write`/`ai` calls on Cloud do (one indexed
+query).
+
+### Apps
+
+- **Web:** a calm banner on every signed-in page while read-only (and, for the
+  owner, during the payment grace period with its end date), linking owners to
+  Plan & billing. `access.status` is the plan-neutral read behind it.
+- **Mobile:** a neutral notice ("Your OpenValens Cloud access has ended. Your
+  records are still here, and you can export them.") with a link to the in-app
+  export screen only: no price, Subscribe button or Checkout link.
+- **Phone sync** (HealthKit / Health Connect) reads `access.status` before
+  each run and skips while read-only, without reading the health store or
+  moving its cursors, so the next run after access is back resumes where it
+  stopped. A refused batch also stops the run (`ACCESS_READ_ONLY` is fatal for
+  that run), and the offline outbox does not queue writes that would be
+  refused. Cloud wearable vendor syncs skip the workspace the same way.
+
+### Retention of ended accounts
+
+`CLOUD_ENDED_RETENTION_MONTHS` (unset by default: **nothing is ever deleted**)
+sets how long an owner may stay read-only before their account is deleted. The
+operator chooses N and states it in the privacy policy (#300). With N set, the
+hourly billing job:
+
+1. Sends one "your records will be deleted" email when the owner has been
+   read-only for N months less 30 days. It names the date (N months after the
+   end, and never less than 30 days after the email) and links to Plan &
+   billing.
+2. Deletes the account when it has been read-only for N months **and** the
+   email went out at least 30 days earlier, through the same erasure as "delete
+   everything" (database rows, stored objects, Apple tokens, the Stripe
+   customer, an erasure-ledger entry). The state is re-checked inside the
+   deletion transaction, so an owner who subscribed in the meantime is kept.
+   Subscribing again also clears the warning.
+
+The start of the clock is `subscription.ended_at` (or, past due, the end of
+the grace period). `CLOUD_ENDED_RETENTION_DRY_RUN=true` only counts and logs
+what is due (`billing.retention.dry_run`); use it to check the numbers before
+turning deletion on. Logs carry counts only.
 
 ## Set up Stripe (owner, once per Stripe account)
 
@@ -105,8 +177,9 @@ Schedule the billing job hourly with the other jobs (see
 ```
 
 It sends the trial emails (each once per owner), marks ran-out trials as
-`ended`, retries the Stripe side of account deletion and prunes webhook event
-ids older than 90 days.
+`ended`, retries the Stripe side of account deletion, prunes webhook event
+ids older than 90 days and, when configured, runs the retention of ended
+accounts (see above).
 
 To try it locally with the Stripe CLI:
 

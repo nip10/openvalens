@@ -337,6 +337,10 @@ describe("cron.billingRun (Issue #297)", () => {
       erasuresCompleted: 1,
       erasuresFailed: 1,
       eventsPruned: 3,
+      retentionWarned: 0,
+      retentionDeleted: 0,
+      retentionFailed: 0,
+      retentionDryRun: false,
     };
     const context = {
       ...authorizedContext(),
@@ -344,5 +348,69 @@ describe("cron.billingRun (Issue #297)", () => {
     } as unknown as Context;
     const result = await appRouter.cron.billingRun.callable({ context })({});
     expect(result).toMatchObject({ ...totals, cloud: true, status: "failed" });
+  });
+
+  test("#298: hands the job an account eraser and finishes the Stripe side of retention deletions", async () => {
+    let eraser: unknown;
+    let processed = 0;
+    const totals = {
+      trialRemindersSent: 0,
+      trialsEnded: 0,
+      trialEndedSent: 0,
+      emailsFailed: 0,
+      erasuresCompleted: 0,
+      erasuresFailed: 0,
+      eventsPruned: 0,
+      retentionWarned: 1,
+      retentionDeleted: 2,
+      retentionFailed: 0,
+      retentionDryRun: false,
+    };
+    const context = {
+      ...authorizedContext(),
+      billing: {
+        runScheduled: async (options: { eraseAccount?: unknown }) => {
+          eraser = options.eraseAccount;
+          return totals;
+        },
+        processErasures: async () => {
+          processed += 1;
+          return { completed: 2, failed: 0 };
+        },
+      },
+    } as unknown as Context;
+    const result = await appRouter.cron.billingRun.callable({ context })({});
+    expect(typeof eraser).toBe("function");
+    expect(processed).toBe(1);
+    expect(result).toMatchObject({ status: "ok", retentionWarned: 1, retentionDeleted: 2 });
+  });
+
+  test("#298: a dry run reports what is due and touches nothing", async () => {
+    let processed = 0;
+    const context = {
+      ...authorizedContext(),
+      billing: {
+        runScheduled: async () => ({
+          trialRemindersSent: 0,
+          trialsEnded: 0,
+          trialEndedSent: 0,
+          emailsFailed: 0,
+          erasuresCompleted: 0,
+          erasuresFailed: 0,
+          eventsPruned: 0,
+          retentionWarned: 3,
+          retentionDeleted: 1,
+          retentionFailed: 0,
+          retentionDryRun: true,
+        }),
+        processErasures: async () => {
+          processed += 1;
+          return { completed: 0, failed: 0 };
+        },
+      },
+    } as unknown as Context;
+    const result = await appRouter.cron.billingRun.callable({ context })({});
+    expect(processed).toBe(0);
+    expect(result).toMatchObject({ retentionDryRun: true, retentionDeleted: 1 });
   });
 });

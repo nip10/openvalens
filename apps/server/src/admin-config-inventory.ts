@@ -4,7 +4,7 @@ import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 /**
  * Explicit, ordered allowlist of the server's global configuration keys
  * (Issue #58). This is the *only* set of keys the configuration inventory can
- * ever surface; it mirrors `apps/server/.env.schema` exactly (82 keys) and is
+ * ever surface; it mirrors `apps/server/.env.schema` exactly (85 keys) and is
  * asserted against that schema by the parity test.
  *
  * The list is intentionally hand-written rather than derived from the
@@ -26,6 +26,9 @@ export const ADMIN_CONFIG_KEYS = [
   "STRIPE_WEBHOOK_SECRET",
   "STRIPE_PRICE_MONTHLY",
   "STRIPE_PRICE_ANNUAL",
+  "BILLING_PAST_DUE_GRACE_DAYS",
+  "CLOUD_ENDED_RETENTION_MONTHS",
+  "CLOUD_ENDED_RETENTION_DRY_RUN",
   "DATABASE_URL",
   "CRON_SECRET",
   "RESEND_API_KEY",

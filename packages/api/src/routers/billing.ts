@@ -12,7 +12,9 @@ import { protectedProcedure, raiseApiError } from "../index";
  * Every procedure answers `NOT_FOUND` on a self-hosted deployment, where the
  * billing service is never built. The billing unit is the signed-in person as
  * owner of their own workspace: people invited into someone else's workspace
- * are covered by that owner and never pay for it.
+ * are covered by that owner and never pay for it. While such a person uses
+ * that workspace, `status` answers the neutral `member` view (#298): the
+ * owner's state and name, no prices, no Checkout and no portal.
  *
  * `checkout` and `portal` return a Stripe-hosted URL the web app navigates
  * to. The mobile app never calls these (App Store Review Guideline 3.1.3(f));
@@ -23,7 +25,11 @@ const logger = createStructuredLogger({ level: "info" });
 
 const price = z.object({ amount: z.number().int(), currency: z.string() }).nullable();
 const statusOutput = z.object({
+  viewer: z.enum(["owner", "member"]),
+  ownerName: z.string().nullable(),
   status: z.enum(["none", "trialing", "active", "past_due", "canceled", "ended"]),
+  access: z.enum(["full", "read_only"]),
+  graceEndsAt: z.string().nullable(),
   plan: z.enum(["monthly", "annual"]).nullable(),
   trialEndsAt: z.string().nullable(),
   trialDaysLeft: z.number().int().nullable(),
@@ -45,6 +51,23 @@ function requireBilling(context: Context): BillingService {
 function requireOwnSession(context: { session: { session?: { impersonatedBy?: string | null } } }) {
   if (context.session.session?.impersonatedBy != null) {
     throw raiseApiError("PERMISSION_DENIED", "Billing can only be changed by the account owner.");
+  }
+}
+
+/**
+ * #298 — only the owner of the workspace in use subscribes: a member is
+ * covered by the owner's plan and is never sent to Checkout for it.
+ */
+async function requireWorkspaceOwner(
+  billing: BillingService,
+  session: { user: { id: string }; session?: { activeOrganizationId?: string | null } },
+) {
+  const access = await billing.resolveAccess({
+    userId: session.user.id,
+    organizationId: session.session?.activeOrganizationId ?? null,
+  });
+  if (!access.viewerIsOwner) {
+    throw raiseApiError("PERMISSION_DENIED", "Only the workspace owner chooses its plan.");
   }
 }
 
@@ -71,7 +94,12 @@ export const billingRouter = {
   status: protectedProcedure
     .input(z.object({}))
     .output(statusOutput)
-    .handler(async ({ context }) => requireBilling(context).getStatus(context.session.user.id)),
+    .handler(async ({ context }) =>
+      requireBilling(context).getStatus(
+        context.session.user.id,
+        context.session.session?.activeOrganizationId ?? null,
+      ),
+    ),
 
   checkout: protectedProcedure
     .input(z.object({ plan: z.enum(["monthly", "annual"]), locale }))
@@ -79,6 +107,7 @@ export const billingRouter = {
     .handler(async ({ context, input }) => {
       const billing = requireBilling(context);
       requireOwnSession(context);
+      await requireWorkspaceOwner(billing, context.session);
       try {
         return await billing.startCheckout({
           userId: context.session.user.id,

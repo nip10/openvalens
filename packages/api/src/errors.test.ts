@@ -19,6 +19,7 @@ describe("codeToStatus", () => {
       CONFLICT: 409,
       SOURCE_UNAVAILABLE: 503,
       EMAIL_UNAVAILABLE: 503,
+      ACCESS_READ_ONLY: 403,
     };
 
     for (const code of Object.keys(expected) as ORPCErrorCode[]) {

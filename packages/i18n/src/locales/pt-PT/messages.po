@@ -5055,6 +5055,10 @@ msgstr "Expira"
 msgid "Expires {0}."
 msgstr "Expira {0}."
 
+#: apps/native/components/cloud-access-notice.tsx
+msgid "Export records"
+msgstr "Exportar registos"
+
 #: apps/native/components/sync-status-badge.tsx
 #: apps/web/src/components/sync-status-badge.tsx
 msgid "Failed ({pending})"
@@ -5517,6 +5521,10 @@ msgstr "Cabeça (frente)"
 msgid "Health data"
 msgstr "Dados de saúde"
 
+#: apps/native/components/cloud-access-notice.tsx
+msgid "Health sync is paused until access is back."
+msgstr "A sincronização de saúde está em pausa até o acesso voltar."
+
 #: packages/api/src/presenters/modules.ts
 msgid "Heart & vitals"
 msgstr "Coração e sinais vitais"
@@ -5809,6 +5817,10 @@ msgstr "Se o botão não funcionar, cole esta ligação no seu navegador: {url}"
 msgid "If this email already has an account, we sent a sign-in link instead."
 msgstr "Se este email já tiver conta, enviámos antes uma ligação para iniciar sessão."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "If you also have a workspace of your own, switch to it to see its plan. Your records stay yours in every state, and you can always export or delete them."
+msgstr "Se também tiver um espaço de trabalho seu, mude para ele para ver o respetivo plano. Os seus registos continuam a ser seus em qualquer situação e pode sempre exportá-los ou eliminá-los."
+
 #: packages/api/src/presenters/insights.ts
 msgid "If you connect Telegram in Settings, the same reminders are sent there instead."
 msgstr "Se ligar o Telegram nas Definições, os mesmos lembretes são enviados para lá."
@@ -5916,6 +5928,10 @@ msgstr "No mesmo período, {metric, select, sleep_duration {o seu sono} resting_
 #: packages/api/src/presenters/insights.ts
 msgid "In the same period, your {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {direction, select, higher {higher} other {lower}} than usual. These changed at the same time; that does not mean one explains the other."
 msgstr "No mesmo período, {metric, select, sleep_duration {o seu sono} resting_heart_rate {a sua frequência cardíaca em repouso} steps {o seu número de passos} other {o seu peso}} esteve {direction, select, higher {acima} other {abaixo}} do habitual. Estas alterações aconteceram ao mesmo tempo; isso não significa que uma explique a outra."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Included"
+msgstr "Incluído"
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Includes changes waiting to sync. Totals are confirmed after sync."
@@ -8837,6 +8853,10 @@ msgstr "Em pausa"
 msgid "Paused, not counted"
 msgstr "Em pausa, não contado"
 
+#: apps/native/components/health-sync-settings.tsx
+msgid "Paused: this workspace's OpenValens Cloud access has ended. Sync starts again when access is back."
+msgstr "Em pausa: o acesso deste espaço de trabalho ao OpenValens Cloud terminou. A sincronização recomeça quando o acesso voltar."
+
 #: apps/web/src/components/billing-plan-view.tsx
 #: packages/email/src/templates/billing.tsx
 msgid "Payment failed"
@@ -9060,6 +9080,7 @@ msgstr "Subtotal de água simples"
 msgid "Plain water subtotal: {value}"
 msgstr "Subtotal de água simples: {value}"
 
+#: apps/web/src/components/access-banner.tsx
 #: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 msgid "Plan & billing"
@@ -9389,6 +9410,10 @@ msgstr "Atingir um alvo não significa que a sua saúde melhorou. Os objetivos q
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Read the source"
 msgstr "Ler a fonte"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Read-only"
+msgstr "Só de leitura"
 
 #. placeholder {0}: readiness.data.timestamp
 #: apps/native/app/(drawer)/(tabs)/index.tsx
@@ -12313,6 +12338,10 @@ msgstr "Não foi possível eliminar este treino. Tente novamente."
 msgid "This workout could not be opened. Please try again."
 msgstr "Não foi possível abrir este treino. Tente novamente."
 
+#: apps/native/components/cloud-access-notice.tsx
+msgid "This workspace's OpenValens Cloud access has ended. Its records are still here, and you can export them."
+msgstr "O acesso deste espaço de trabalho ao OpenValens Cloud terminou. Os registos continuam aqui e pode exportá-los."
+
 #. safety
 #: packages/api/src/presenters/wellness-profile.ts
 msgid "Tick the consent box to save this, or choose 'Prefer not to say'."
@@ -12355,6 +12384,10 @@ msgstr "Para criar a sua conta, abra {url} e cole o token."
 #: packages/email/src/templates/billing.tsx
 msgid "To keep adding and syncing records after that, choose a plan in Plan & billing on the web."
 msgstr "Para continuar a adicionar e sincronizar registos depois disso, escolha um plano em Plano e faturação, na web."
+
+#: packages/email/src/templates/billing.tsx
+msgid "To keep your account, subscribe in Plan & billing on the web before that day."
+msgstr "Para manter a sua conta, subscreva em Plano e faturação na web antes desse dia."
 
 #. placeholder {0}: oidc.displayName
 #: apps/web/src/routes/join.tsx
@@ -13123,6 +13156,22 @@ msgstr "Alterações de água neste dispositivo"
 msgid "We could not load this invitation. It may have expired or been revoked."
 msgstr "Não foi possível carregar este convite. Pode ter expirado ou sido revogado."
 
+#: apps/web/src/components/access-banner.tsx
+msgid "We couldn’t take your latest OpenValens Cloud payment. Update your payment method by {graceEnd} to keep adding and syncing records."
+msgstr "Não foi possível cobrar o seu último pagamento do OpenValens Cloud. Atualize o método de pagamento até {graceEnd} para continuar a adicionar e sincronizar registos."
+
+#: apps/web/src/components/access-banner.tsx
+msgid "We couldn’t take your latest OpenValens Cloud payment. Update your payment method to keep adding and syncing records."
+msgstr "Não foi possível cobrar o seu último pagamento do OpenValens Cloud. Atualize o método de pagamento para continuar a adicionar e sincronizar registos."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "We couldn’t take your latest payment, so your workspace is read-only. Update your payment method to add and sync records again."
+msgstr "Não foi possível cobrar o seu último pagamento, por isso o seu espaço de trabalho está só de leitura. Atualize o método de pagamento para voltar a adicionar e sincronizar registos."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "We couldn’t take your latest payment. Update your payment method by {graceEnd} to keep adding and syncing records."
+msgstr "Não foi possível cobrar o seu último pagamento. Atualize o método de pagamento até {graceEnd} para continuar a adicionar e sincronizar registos."
+
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "We couldn’t take your latest payment. Update your payment method to keep your plan."
 msgstr "Não conseguimos cobrar o seu último pagamento. Atualize o método de pagamento para manter o seu plano."
@@ -13604,6 +13653,32 @@ msgstr "A sua conta {name} usa um endereço de email diferente desta conta."
 msgid "Your 7-day average {metric, select, sleep_duration {sleep} resting_heart_rate {resting heart rate} steps {step count} other {weight}} was {recent}, {difference} {direction, select, higher {higher} other {lower}} than your usual of {usual}."
 msgstr "A sua média de {metric, select, sleep_duration {sono} resting_heart_rate {frequência cardíaca em repouso} steps {passos} other {peso}} nos últimos 7 dias foi de {recent}, {difference} {direction, select, higher {acima} other {abaixo}} do seu habitual de {usual}."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your access"
+msgstr "O seu acesso"
+
+#: apps/web/src/components/access-banner.tsx
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your access to this workspace comes from {owner}’s plan, which has ended. Its records are still here to read and export."
+msgstr "O seu acesso a este espaço de trabalho vem do plano de {owner}, que terminou. Os registos continuam aqui para consultar e exportar."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your access to this workspace comes from {owner}’s plan. You don’t need a plan of your own to use it."
+msgstr "O seu acesso a este espaço de trabalho vem do plano de {owner}. Não precisa de um plano seu para o usar."
+
+#: apps/web/src/components/access-banner.tsx
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your access to this workspace comes from its owner’s plan, which has ended. Its records are still here to read and export."
+msgstr "O seu acesso a este espaço de trabalho vem do plano do proprietário, que terminou. Os registos continuam aqui para consultar e exportar."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your access to this workspace comes from its owner’s plan. You don’t need a plan of your own to use it."
+msgstr "O seu acesso a este espaço de trabalho vem do plano do proprietário. Não precisa de um plano seu para o usar."
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your account and all of its records will be deleted on or after {day}. Export them before then if you want to keep a copy."
+msgstr "A sua conta e todos os seus registos serão eliminados a partir de {day}. Exporte-os antes disso se quiser guardar uma cópia."
+
 #: apps/native/components/health-sync-settings.tsx
 msgid "Your account has no organization. Sync is paused."
 msgstr "A sua conta não tem organização. A sincronização está em pausa."
@@ -13758,6 +13833,22 @@ msgid "Your modules"
 msgstr "Os seus módulos"
 
 #: packages/email/src/templates/billing.tsx
+msgid "Your OpenValens Cloud access ended some time ago. As our privacy policy explains, accounts that stay inactive are deleted."
+msgstr "O seu acesso ao OpenValens Cloud terminou há algum tempo. Como explica a nossa política de privacidade, as contas que ficam inativas são eliminadas."
+
+#: apps/native/components/cloud-access-notice.tsx
+msgid "Your OpenValens Cloud access has ended. Your records are still here, and you can export them."
+msgstr "O seu acesso ao OpenValens Cloud terminou. Os seus registos continuam aqui e pode exportá-los."
+
+#: apps/web/src/components/access-banner.tsx
+msgid "Your OpenValens Cloud access has ended. Your records are still here: you can read, export or delete them. Adding and syncing records starts again when you choose a plan."
+msgstr "O seu acesso ao OpenValens Cloud terminou. Os seus registos continuam aqui: pode consultá-los, exportá-los ou eliminá-los. Pode voltar a adicionar e sincronizar registos quando escolher um plano."
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your OpenValens Cloud records will be deleted"
+msgstr "Os seus registos do OpenValens Cloud vão ser eliminados"
+
+#: packages/email/src/templates/billing.tsx
 msgid "Your OpenValens Cloud subscription has been cancelled and is no longer active."
 msgstr "A sua subscrição do OpenValens Cloud foi cancelada e já não está ativa."
 
@@ -13823,6 +13914,10 @@ msgstr "Os seus registos"
 #: packages/email/src/templates/billing.tsx
 msgid "Your records stay in your account, and you can export them at any time."
 msgstr "Os seus registos ficam na sua conta e pode exportá-los a qualquer momento."
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your records will be deleted"
+msgstr "Os seus registos vão ser eliminados"
 
 #: apps/native/lib/workouts/rest-timer.ts
 msgid "Your rest is over."
@@ -13941,6 +14036,10 @@ msgstr "O formulário do treino mudou enquanto uma gravação pode ainda estar e
 #: apps/native/components/workout-routines.tsx
 msgid "Your workout is unchanged. Check your connection or try again."
 msgstr "O seu treino não foi alterado. Verifique a ligação ou tente novamente."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your workspace is read-only for now. You can still read, export and delete your records; adding and syncing records starts again when you choose a plan."
+msgstr "Por agora, o seu espaço de trabalho está só de leitura. Pode continuar a consultar, exportar e eliminar os seus registos; pode voltar a adicionar e sincronizar registos quando escolher um plano."
 
 #: packages/api/src/presenters/micronutrients.ts
 msgid "Zinc"

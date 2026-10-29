@@ -288,6 +288,27 @@ describe("drainHealthChanges", () => {
     expect(reads.some((r) => r.startsWith("steps:"))).toBe(false);
   });
 
+  test("#298: a read-only Cloud workspace stops the run and keeps every cursor for later", async () => {
+    const error = Object.assign(new Error("read-only"), { code: "ACCESS_READ_ONLY" });
+    const day29 = new Date(NOW.getTime() - DAY).toISOString();
+    let refuse = true;
+    const { deps, cursors, reads, sent } = fake({
+      granted: ["weight", "steps"],
+      windows: { [day29]: [weight("w-1")] },
+      failSend: () => (refuse ? error : null),
+    });
+    const summary = await drainHealthChanges(deps, { maxBatches: 100 });
+    expect(summary.fatalErrorCode).toBe("ACCESS_READ_ONLY");
+    expect(reads.some((r) => r.startsWith("steps:"))).toBe(false);
+    const parked = cursors.get("weight");
+    expect(parked?.phase).toBe("backfill");
+
+    // Access is back: the same position is resent, nothing is lost.
+    refuse = false;
+    await drainHealthChanges(deps, { maxBatches: 100 });
+    expect(sent.flatMap((batch) => batch.upserts.map((r) => r.externalRecordId))).toContain("w-1");
+  });
+
   test("a source without backfill starts at its initial token and reads changes in the same run", async () => {
     const { deps, cursors, sent, reads } = fake({
       backfill: false,

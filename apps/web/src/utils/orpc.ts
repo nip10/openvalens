@@ -3,14 +3,27 @@ import type { AppRouterClient } from "@openvalens/api/routers/index";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
-import { QueryCache, QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { ENV } from "../env";
 
+/** Issue #298 — a write refused because the workspace's Cloud access ended. */
+export function isAccessReadOnlyError(error: unknown): boolean {
+  return (error as { code?: unknown } | null)?.code === "ACCESS_READ_ONLY";
+}
+
 export function createQueryClient() {
-  return new QueryClient({
+  const created: QueryClient = new QueryClient({
     defaultOptions: { queries: { retry: shouldRetryQuery } },
+    // #298 — a refused write means the access state changed: refresh the
+    // banner so it explains why.
+    mutationCache: new MutationCache({
+      onError: (error) => {
+        if (isAccessReadOnlyError(error))
+          void created.invalidateQueries({ queryKey: orpc.access.key() });
+      },
+    }),
     queryCache: new QueryCache({
       onError: (error, query) => {
         toast.error(`Error: ${error.message}`, {
@@ -24,6 +37,7 @@ export function createQueryClient() {
       },
     }),
   });
+  return created;
 }
 
 export const queryClient = createQueryClient();

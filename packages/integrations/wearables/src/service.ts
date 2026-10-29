@@ -134,6 +134,13 @@ export type WearablesServiceDeps = {
   webhooks: boolean;
   logger?: StructuredLogger;
   now?: () => Date;
+  /**
+   * Issue #298 — OpenValens Cloud: whether the connection's workspace may
+   * take new records. `false` (access ended) skips the sync without moving
+   * its cursor, so it resumes where it stopped once access is back. Absent
+   * (self-host) always syncs.
+   */
+  canSync?: (connection: { organizationId: string; userId: string }) => Promise<boolean>;
 };
 
 type ConnectionRow = typeof wearableConnection.$inferSelect;
@@ -624,6 +631,11 @@ export function createWearablesService(deps: WearablesServiceDeps) {
       .where(eq(wearableConnection.id, connectionId))
       .limit(1);
     if (!row || row.status !== "active" || !adapters[row.provider as WearableProviderId])
+      return { status: "skipped", connectionId };
+    if (
+      deps.canSync &&
+      !(await deps.canSync({ organizationId: row.organizationId, userId: row.userId }))
+    )
       return { status: "skipped", connectionId };
     const to = now();
     const from = row.syncedThrough

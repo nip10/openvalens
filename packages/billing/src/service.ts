@@ -20,6 +20,16 @@ import {
   TRIAL_REMINDER_MS,
   type SubscriptionStatus,
 } from "./status";
+import {
+  accessState,
+  addMonths,
+  DAY_MS,
+  DEFAULT_PAST_DUE_GRACE_DAYS,
+  RETENTION_WARNING_LEAD_MS,
+  subtractMonths,
+  type AccessLevel,
+  type RetentionConfig,
+} from "./entitlement";
 import { newCustomerRef } from "./trial";
 
 /**
@@ -38,7 +48,11 @@ import { newCustomerRef } from "./trial";
  *   Stripe's current state.
  * - **Scheduled job** (`/rpc/cron/billingRun`): "trial ends in 3 days" and
  *   "trial ended" emails (each claimed once), the Stripe side of account
- *   erasure, and pruning of old event ids.
+ *   erasure, pruning of old event ids, and (#298) the retention of accounts
+ *   that stayed ended (warning email, then deletion through the caller's
+ *   account-erasure path).
+ * - **Access** (#298): what the workspace in use may do, from its owner's
+ *   plan (`resolveAccess`), for the API's entitlement middleware.
  *
  * Logs carry event types, counts and value-free error codes only — never an
  * email, a Stripe id or anything about the person.
@@ -69,8 +83,20 @@ export type BillingPriceView = {
 };
 
 export type BillingStatusView = {
-  /** `none`: this person has no subscription row (they never owned a Cloud trial). */
+  /**
+   * `owner`: the plan shown is the signed-in person's own. `member`: they are
+   * using someone else's workspace, whose owner's plan covers them; they are
+   * never offered Checkout or the portal for it (#298).
+   */
+  viewer: "owner" | "member";
+  /** The workspace owner's display name (`member` view only). */
+  ownerName: string | null;
+  /** `none`: no subscription row (the owner never had a Cloud trial). */
   status: SubscriptionStatus | "none";
+  /** What the workspace may do now (#298). */
+  access: AccessLevel;
+  /** While `past_due`: when write access stops unless the payment goes through. */
+  graceEndsAt: string | null;
   plan: BillingPlan | null;
   trialEndsAt: string | null;
   trialDaysLeft: number | null;
@@ -95,10 +121,47 @@ export type ScheduledRunResult = {
   erasuresCompleted: number;
   erasuresFailed: number;
   eventsPruned: number;
+  /** #298 retention: "your records will be deleted" emails sent (or due, in a dry run). */
+  retentionWarned: number;
+  /** #298 retention: accounts deleted (or due for deletion, in a dry run). */
+  retentionDeleted: number;
+  /** #298 retention: deletions that failed or were refused; retried next run. */
+  retentionFailed: number;
+  /** #298 retention: whether this run only counted (`CLOUD_ENDED_RETENTION_DRY_RUN`). */
+  retentionDryRun: boolean;
 };
 
+/** #298 — the access the workspace in use has, from its owner's plan. */
+export type WorkspaceAccess = {
+  level: AccessLevel;
+  status: SubscriptionStatus | "none";
+  graceEndsAt: Date | null;
+  /** Whether the signed-in person owns the workspace (and its plan). */
+  viewerIsOwner: boolean;
+  /** The owner's display name, for the neutral "access comes from" note. */
+  ownerName: string | null;
+};
+
+/**
+ * #298 — deletes an ended owner's account through the regular account-erasure
+ * path (server-side: storage objects, Apple tokens, Stripe customer). Inside
+ * its transaction it must call `stillDue(tx)` after locking the account and
+ * abort (return `"skipped"`) when it answers `false`: the owner may have
+ * subscribed again since the candidate was read.
+ */
+export type RetentionEraser = (input: {
+  userId: string;
+  stillDue: (tx: Pick<DbTransaction, "execute">) => Promise<boolean>;
+}) => Promise<"erased" | "skipped">;
+
 export type BillingService = {
-  getStatus(userId: string): Promise<BillingStatusView>;
+  /**
+   * Plan & billing for the signed-in person. With the active workspace, a
+   * person using someone else's workspace gets the neutral `member` view.
+   */
+  getStatus(userId: string, organizationId?: string | null): Promise<BillingStatusView>;
+  /** #298 — the access of the workspace in use (its owner's plan). */
+  resolveAccess(input: { userId: string; organizationId: string | null }): Promise<WorkspaceAccess>;
   startCheckout(input: {
     userId: string;
     plan: BillingPlan;
@@ -108,7 +171,11 @@ export type BillingService = {
   handleWebhook(input: { rawBody: Uint8Array; signature: string | null }): Promise<WebhookResult>;
   /** Cancels and deletes the Stripe customers of erased accounts (outbox). */
   processErasures(options?: { limit?: number }): Promise<{ completed: number; failed: number }>;
-  runScheduled(options?: { limit?: number }): Promise<ScheduledRunResult>;
+  runScheduled(options?: {
+    limit?: number;
+    /** #298 — account erasure for retention; without it nothing is deleted. */
+    eraseAccount?: RetentionEraser;
+  }): Promise<ScheduledRunResult>;
 };
 
 export type BillingServiceDeps = {
@@ -122,6 +189,10 @@ export type BillingServiceDeps = {
   localeForUser: (userId: string) => Promise<Locale>;
   logger: StructuredLogger;
   now?: () => Date;
+  /** #298 — `BILLING_PAST_DUE_GRACE_DAYS`, in days (default 7). */
+  pastDueGraceDays?: number;
+  /** #298 — `CLOUD_ENDED_RETENTION_MONTHS` / `_DRY_RUN`; off by default. */
+  retention?: RetentionConfig;
 };
 
 /** Stripe events this service acts on; anything else is acknowledged and ignored. */
@@ -151,10 +222,11 @@ type Row = {
   trial_ends_at: Date;
   current_period_end: Date | null;
   cancel_at_period_end: boolean;
+  past_due_since: Date | null;
 };
 
 const ROW_COLUMNS = sql.raw(
-  `"id", "user_id", "customer_ref", "stripe_customer_id", "stripe_subscription_id", "status", "price_id", "trial_ends_at", "current_period_end", "cancel_at_period_end"`,
+  `"id", "user_id", "customer_ref", "stripe_customer_id", "stripe_subscription_id", "status", "price_id", "trial_ends_at", "current_period_end", "cancel_at_period_end", "past_due_since"`,
 );
 
 function toDate(value: unknown): Date | null {
@@ -179,6 +251,7 @@ function toRow(raw: Record<string, unknown>): Row {
     trial_ends_at: toDate(raw.trial_ends_at) ?? new Date(0),
     current_period_end: toDate(raw.current_period_end),
     cancel_at_period_end: raw.cancel_at_period_end === true,
+    past_due_since: toDate(raw.past_due_since),
   };
 }
 
@@ -187,6 +260,8 @@ const statusInput = (row: Row) => ({
   trialEndsAt: row.trial_ends_at,
   stripeSubscriptionId: row.stripe_subscription_id,
 });
+
+const accessInput = (row: Row) => ({ ...statusInput(row), pastDueSince: row.past_due_since });
 
 /** Live Stripe statuses, preferred over ended ones when picking "the" subscription. */
 const LIVE = new Set(["active", "trialing", "past_due", "unpaid"]);
@@ -257,6 +332,8 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
   const now = deps.now ?? (() => new Date());
   const billingPath = "/settings/billing";
   const billingUrl = webUrl(deps.webOrigin, billingPath);
+  const graceMs = (deps.pastDueGraceDays ?? DEFAULT_PAST_DUE_GRACE_DAYS) * DAY_MS;
+  const retention: RetentionConfig = deps.retention ?? { months: null, dryRun: false };
 
   const priceCache = new Map<string, { at: number; value: BillingPriceView | null }>();
   async function priceView(priceId: string): Promise<BillingPriceView | null> {
@@ -291,7 +368,7 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
   async function sendBillingEmail(
     userId: string,
     kind: BillingEmailKind,
-    extra: { trialEndsAt?: Date } = {},
+    extra: { trialEndsAt?: Date; deletionDate?: Date } = {},
   ): Promise<boolean> {
     if (!deps.email) return true;
     try {
@@ -324,39 +401,92 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
     }
   }
 
-  async function getStatus(userId: string): Promise<BillingStatusView> {
+  /**
+   * The owner of a workspace: its earliest `owner` member. `null` when the
+   * workspace has no owner (or no workspace is active).
+   */
+  async function workspaceOwner(
+    organizationId: string | null,
+  ): Promise<{ userId: string; name: string | null } | null> {
+    if (!organizationId) return null;
+    const result = await db.execute(
+      sql`select m."user_id", u."name" from "member" m join "user" u on u."id" = m."user_id"
+        where m."organization_id" = ${organizationId} and m."role" = 'owner'
+        order by m."created_at", m."id" limit 1`,
+    );
+    const raw = result.rows[0] as { user_id?: unknown; name?: unknown } | undefined;
+    if (!raw || typeof raw.user_id !== "string") return null;
+    return { userId: raw.user_id, name: typeof raw.name === "string" ? raw.name : null };
+  }
+
+  async function resolveAccess(input: {
+    userId: string;
+    organizationId: string | null;
+  }): Promise<WorkspaceAccess> {
+    // Access follows the owner of the workspace in use; with no workspace,
+    // the person's own plan.
+    const owner = await workspaceOwner(input.organizationId);
+    const ownerId = owner?.userId ?? input.userId;
+    const row = await readRow(db, ownerId);
+    const state = accessState(row ? accessInput(row) : null, now(), graceMs);
+    const viewerIsOwner = ownerId === input.userId;
+    return {
+      level: state.level,
+      status: state.status,
+      graceEndsAt: state.graceEndsAt,
+      viewerIsOwner,
+      ownerName: viewerIsOwner ? null : (owner?.name ?? null),
+    };
+  }
+
+  async function getStatus(
+    userId: string,
+    organizationId: string | null = null,
+  ): Promise<BillingStatusView> {
+    const owner = await workspaceOwner(organizationId);
+    const ownerId = owner && owner.userId !== userId ? owner.userId : null;
+    const member = ownerId !== null;
     const [row, monthly, annual] = await Promise.all([
-      readRow(db, userId),
-      priceView(config.prices.monthly),
-      priceView(config.prices.annual),
+      readRow(db, ownerId ?? userId),
+      // A member is never offered a plan, so no prices for them.
+      member ? null : priceView(config.prices.monthly),
+      member ? null : priceView(config.prices.annual),
     ]);
     const prices = { monthly, annual };
+    const at = now();
+    const state = accessState(row ? accessInput(row) : null, at, graceMs);
+    const shared = {
+      viewer: member ? ("member" as const) : ("owner" as const),
+      ownerName: member ? (owner?.name ?? null) : null,
+      access: state.level,
+      graceEndsAt: state.graceEndsAt?.toISOString() ?? null,
+      prices,
+    };
     if (!row) {
       return {
+        ...shared,
         status: "none",
         plan: null,
         trialEndsAt: null,
         trialDaysLeft: null,
         currentPeriodEnd: null,
         cancelAtPeriodEnd: false,
-        canSubscribe: true,
+        canSubscribe: !member,
         canManage: false,
-        prices,
       };
     }
-    const at = now();
     const status = effectiveStatus(statusInput(row), at);
     const trialing = status === "trialing";
     return {
+      ...shared,
       status,
       plan: planForPrice(config.prices, row.price_id),
       trialEndsAt: trialing ? row.trial_ends_at.toISOString() : null,
       trialDaysLeft: trialing ? trialDaysLeft(row.trial_ends_at, at) : null,
       currentPeriodEnd: row.current_period_end?.toISOString() ?? null,
       cancelAtPeriodEnd: row.cancel_at_period_end,
-      canSubscribe: !blocksNewCheckout(status, row.stripe_subscription_id !== null),
-      canManage: row.stripe_customer_id !== null,
-      prices,
+      canSubscribe: !member && !blocksNewCheckout(status, row.stripe_subscription_id !== null),
+      canManage: !member && row.stripe_customer_id !== null,
     };
   }
 
@@ -511,6 +641,12 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
           "trial_ends_at" = ${next.trialEndsAt.toISOString()},
           "current_period_end" = ${next.currentPeriodEnd?.toISOString() ?? null},
           "cancel_at_period_end" = ${next.cancelAtPeriodEnd},
+          "past_due_since" = case when ${next.status}::text = 'past_due'
+            then coalesce("past_due_since", clock_timestamp()) end,
+          "ended_at" = case when ${next.status}::text in ('canceled', 'ended')
+            then coalesce("ended_at", clock_timestamp()) end,
+          "retention_warning_sent_at" = case when ${next.status}::text in ('canceled', 'ended', 'past_due')
+            then "retention_warning_sent_at" end,
           "updated_at" = clock_timestamp()
           where "id" = ${row.id}`,
       );
@@ -575,7 +711,124 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
     return { completed, failed };
   }
 
-  async function runScheduled(options: { limit?: number } = {}): Promise<ScheduledRunResult> {
+  /**
+   * When the row lost write access, as SQL: the recorded end for a cancelled
+   * or ended plan, the end of the grace period for one still past due. Rows
+   * with full access give `null`. (Lapsed local trials are marked `ended`
+   * with `ended_at` by step 2 before retention runs.)
+   */
+  function endedSinceSql() {
+    const graceSeconds = Math.round(graceMs / 1000);
+    return sql`(case
+      when "status" in ('canceled', 'ended') then coalesce("ended_at", "updated_at")
+      when "status" = 'past_due' then coalesce("past_due_since", "updated_at") + make_interval(secs => ${graceSeconds})
+    end)`;
+  }
+
+  /**
+   * #298 retention. With `CLOUD_ENDED_RETENTION_MONTHS` = N: once an owner has
+   * been read-only for N months less the warning lead (30 days), one warning
+   * email is claimed and sent; the account is deleted when it has been
+   * read-only for N months **and** the warning went out at least 30 days ago.
+   * Subscribing again clears the warning (webhook). A dry run counts both
+   * steps without claiming, sending or deleting. Unset: nothing happens.
+   */
+  async function runRetention(
+    at: Date,
+    limit: number,
+    eraseAccount: RetentionEraser | undefined,
+  ): Promise<{ warned: number; deleted: number; failed: number; emailsFailed: number }> {
+    const totals = { warned: 0, deleted: 0, failed: 0, emailsFailed: 0 };
+    if (retention.months === null) return totals;
+    const months = retention.months;
+    const atIso = at.toISOString();
+    const cutoffIso = subtractMonths(at, months).toISOString();
+    const warnFromIso = new Date(
+      subtractMonths(at, months).getTime() + RETENTION_WARNING_LEAD_MS,
+    ).toISOString();
+    const warnedBeforeIso = new Date(at.getTime() - RETENTION_WARNING_LEAD_MS).toISOString();
+    const endedSince = endedSinceSql();
+
+    if (retention.dryRun) {
+      const due = await db.execute(
+        sql`select
+            count(*) filter (where "retention_warning_sent_at" is null and ${endedSince} <= ${warnFromIso})::int as "warn",
+            count(*) filter (where "retention_warning_sent_at" <= ${warnedBeforeIso} and ${endedSince} <= ${cutoffIso})::int as "erase"
+          from "subscription"`,
+      );
+      const counts = due.rows[0] as { warn?: unknown; erase?: unknown } | undefined;
+      totals.warned = Number(counts?.warn ?? 0);
+      totals.deleted = Number(counts?.erase ?? 0);
+      logger.info("billing.retention.dry_run", {
+        warningsDue: totals.warned,
+        deletionsDue: totals.deleted,
+      });
+      return totals;
+    }
+
+    // Warning, claimed once per row before sending.
+    const warnings = await db.execute(
+      sql`update "subscription" set "retention_warning_sent_at" = ${atIso}
+        where "id" in (
+          select "id" from "subscription"
+          where "retention_warning_sent_at" is null and ${endedSince} <= ${warnFromIso}
+          order by "id" limit ${limit} for update skip locked)
+        returning "id", "user_id", ${endedSince} as "ended_since"`,
+    );
+    for (const raw of warnings.rows as Record<string, unknown>[]) {
+      const scheduled = addMonths(toDate(raw.ended_since) ?? at, months);
+      const earliest = new Date(at.getTime() + RETENTION_WARNING_LEAD_MS);
+      const deletionDate = scheduled > earliest ? scheduled : earliest;
+      const ok = await sendBillingEmail(String(raw.user_id), "retention_warning", { deletionDate });
+      if (ok) totals.warned += 1;
+      else {
+        totals.emailsFailed += 1;
+        await db.execute(
+          sql`update "subscription" set "retention_warning_sent_at" = null where "id" = ${String(raw.id)}`,
+        );
+      }
+    }
+
+    if (eraseAccount) {
+      const due = await db.execute(
+        sql`select "user_id" from "subscription"
+          where "retention_warning_sent_at" <= ${warnedBeforeIso} and ${endedSince} <= ${cutoffIso}
+          order by "user_id" limit ${limit}`,
+      );
+      for (const raw of due.rows as { user_id: unknown }[]) {
+        const userId = String(raw.user_id);
+        try {
+          const outcome = await eraseAccount({
+            userId,
+            stillDue: async (tx) => {
+              const check = await tx.execute(
+                sql`select 1 from "subscription" where "user_id" = ${userId}
+                  and "retention_warning_sent_at" <= ${warnedBeforeIso}
+                  and ${endedSince} <= ${cutoffIso} for update`,
+              );
+              return check.rows.length > 0;
+            },
+          });
+          if (outcome === "erased") totals.deleted += 1;
+        } catch (error) {
+          totals.failed += 1;
+          logger.warn("billing.retention.erase_failed", { code: providerCode(error) });
+        }
+      }
+    }
+    if (totals.warned > 0 || totals.deleted > 0 || totals.failed > 0) {
+      logger.info("billing.retention.processed", {
+        warned: totals.warned,
+        deleted: totals.deleted,
+        failed: totals.failed,
+      });
+    }
+    return totals;
+  }
+
+  async function runScheduled(
+    options: { limit?: number; eraseAccount?: RetentionEraser } = {},
+  ): Promise<ScheduledRunResult> {
     const limit = options.limit ?? 100;
     const at = now();
     const atIso = at.toISOString();
@@ -607,9 +860,9 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
       }
     }
 
-    // 2. Local trials that ran out become `ended`.
+    // 2. Local trials that ran out become `ended` (read-only from the trial end).
     const ended = await db.execute(
-      sql`update "subscription" set "status" = 'ended', "updated_at" = clock_timestamp()
+      sql`update "subscription" set "status" = 'ended', "ended_at" = coalesce("ended_at", "trial_ends_at"), "updated_at" = clock_timestamp()
         where "status" = 'trialing' and "stripe_subscription_id" is null and "trial_ends_at" <= ${atIso}
         returning "id"`,
     );
@@ -646,6 +899,10 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
       sql`delete from "billing_webhook_event" where "processed_at" < ${new Date(at.getTime() - EVENT_RETENTION_MS).toISOString()} returning "id"`,
     );
 
+    // 6. Retention of accounts that stayed ended (#298).
+    const kept = await runRetention(at, limit, options.eraseAccount);
+    emailsFailed += kept.emailsFailed;
+
     const result: ScheduledRunResult = {
       trialRemindersSent,
       trialsEnded: ended.rows.length,
@@ -654,6 +911,10 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
       erasuresCompleted: erasures.completed,
       erasuresFailed: erasures.failed,
       eventsPruned: pruned.rows.length,
+      retentionWarned: kept.warned,
+      retentionDeleted: kept.deleted,
+      retentionFailed: kept.failed,
+      retentionDryRun: retention.dryRun,
     };
     logger.info("billing.scheduled.completed", result);
     return result;
@@ -661,6 +922,7 @@ export function createBillingService(deps: BillingServiceDeps): BillingService {
 
   return {
     getStatus,
+    resolveAccess,
     startCheckout: (input) => wrapProvider(() => startCheckout(input)),
     openPortal: (input) => wrapProvider(() => openPortal(input)),
     handleWebhook,

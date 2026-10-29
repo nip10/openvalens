@@ -1,6 +1,7 @@
 import {
   CACHE_TTL_MS,
   SYNC_INTERVAL_MS,
+  isAccessReadOnlySyncError,
   isAuthSyncError,
   isPermanentSyncError,
   offlineScope,
@@ -181,12 +182,17 @@ export function syncNow(): Promise<void> {
 /**
  * Queues a failed `ingestMetricSample` write for retry under the current
  * account. Invalid-input and auth errors are surfaced to the form instead of
- * being queued; nothing is queued while signed out.
+ * being queued, as is a read-only Cloud workspace (#298), whose writes would
+ * only fail again; nothing is queued while signed out.
  */
 export function enqueueMetricSample(payload: MetricSamplePayload, error?: unknown): void {
   const scope = currentScope;
   if (!scope) return;
-  if (error !== undefined && (isPermanentSyncError(error) || isAuthSyncError(error))) return;
+  if (
+    error !== undefined &&
+    (isPermanentSyncError(error) || isAuthSyncError(error) || isAccessReadOnlySyncError(error))
+  )
+    return;
   const dedupeHash = payload.dedupeHash ?? queueKey(payload.metricCode, payload.observedAt);
   pushOutbox({
     scope,

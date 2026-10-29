@@ -16,7 +16,14 @@ export type BillingPlan = "monthly" | "annual";
 export type BillingPrice = { amount: number; currency: string } | null;
 
 export type BillingStatus = {
+  /** #298 — `member`: using someone else's workspace, covered by its owner's plan. */
+  viewer: "owner" | "member";
+  ownerName: string | null;
   status: "none" | "trialing" | "active" | "past_due" | "canceled" | "ended";
+  /** #298 — `read_only`: writes are paused; reading, export and deletion still work. */
+  access: "full" | "read_only";
+  /** #298 — while `past_due`: when write access stops unless the payment goes through. */
+  graceEndsAt: string | null;
   plan: BillingPlan | null;
   trialEndsAt: string | null;
   trialDaysLeft: number | null;
@@ -78,7 +85,45 @@ export function BillingPlanView({
     status.plan === "annual" ? t`Annual plan` : status.plan === "monthly" ? t`Monthly plan` : null;
   const trialEnd = day(status.trialEndsAt);
   const periodEnd = day(status.currentPeriodEnd);
+  const graceEnd = day(status.graceEndsAt);
   const days = status.trialDaysLeft ?? 0;
+
+  // #298 — a member's access comes from the workspace owner's plan: no
+  // prices, no Checkout and no portal for them, only a neutral note.
+  if (status.viewer === "member") {
+    const owner = status.ownerName;
+    const memberDescription =
+      status.access === "read_only"
+        ? owner
+          ? t`Your access to this workspace comes from ${owner}’s plan, which has ended. Its records are still here to read and export.`
+          : t`Your access to this workspace comes from its owner’s plan, which has ended. Its records are still here to read and export.`
+        : owner
+          ? t`Your access to this workspace comes from ${owner}’s plan. You don’t need a plan of your own to use it.`
+          : t`Your access to this workspace comes from its owner’s plan. You don’t need a plan of your own to use it.`;
+    return (
+      <div className="grid gap-10">
+        <Section title={<Trans>Your access</Trans>} icon={Sparkles} tone="signal">
+          <SettingsGroup>
+            <SettingsRow
+              icon={Sparkles}
+              label={
+                <StatusPill tone={status.access === "read_only" ? "neutral" : "good"}>
+                  {status.access === "read_only" ? t`Read-only` : t`Included`}
+                </StatusPill>
+              }
+              description={memberDescription}
+            />
+          </SettingsGroup>
+        </Section>
+        <p className="max-w-[60ch] text-sm text-ink-3">
+          <Trans>
+            If you also have a workspace of your own, switch to it to see its plan. Your records
+            stay yours in every state, and you can always export or delete them.
+          </Trans>
+        </p>
+      </div>
+    );
+  }
 
   let description: string;
   switch (status.status) {
@@ -95,7 +140,12 @@ export function BillingPlanView({
           : t`Your plan is active.`;
       break;
     case "past_due":
-      description = t`We couldn’t take your latest payment. Update your payment method to keep your plan.`;
+      description =
+        status.access === "read_only"
+          ? t`We couldn’t take your latest payment, so your workspace is read-only. Update your payment method to add and sync records again.`
+          : graceEnd
+            ? t`We couldn’t take your latest payment. Update your payment method by ${graceEnd} to keep adding and syncing records.`
+            : t`We couldn’t take your latest payment. Update your payment method to keep your plan.`;
       break;
     case "canceled":
       description = t`Your subscription has ended. You can subscribe again at any time.`;
@@ -134,6 +184,15 @@ export function BillingPlanView({
           />
         </SettingsGroup>
       </Section>
+
+      {status.access === "read_only" ? (
+        <p role="status" className="rounded-2xl bg-muted px-4 py-3 text-sm text-ink-2">
+          <Trans>
+            Your workspace is read-only for now. You can still read, export and delete your records;
+            adding and syncing records starts again when you choose a plan.
+          </Trans>
+        </p>
+      ) : null}
 
       {status.canSubscribe ? (
         <Section

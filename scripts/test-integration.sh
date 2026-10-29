@@ -60,6 +60,7 @@ SUITES=(
   "PUBLIC_SIGN_UP_TEST_DATABASE_URL|public_sign_up_test|packages/auth/src/public-sign-up.integration.test.ts"
   "SOCIAL_AUTH_TEST_DATABASE_URL|social_auth_test|packages/auth/src/social-auth.integration.test.ts"
   "BILLING_TEST_DATABASE_URL|billing_test|packages/billing/src/service.integration.test.ts"
+  "BILLING_ACCESS_TEST_DATABASE_URL|billing_access_test|packages/billing/src/access.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_rpc_test|packages/api/src/admission-rpc.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_cli_test|scripts/admission.integration.test.ts"
   "ADMISSION_AUTH_TEST_DATABASE_URL|admission_sharing_test|packages/api/src/routers/sharing.integration.test.ts"

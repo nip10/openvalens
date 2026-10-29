@@ -330,6 +330,7 @@
       "devDependencies": {
         "@openvalens/auth": "workspace:*",
         "@openvalens/config": "workspace:*",
+        "@openvalens/data-rights": "workspace:*",
         "typescript": "^6.0.3",
       },
     },

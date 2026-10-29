@@ -7,7 +7,11 @@ import { appRouter } from "./index";
 /** Issue #297 — `billing` RPC: Cloud only, the person's own plan, typed errors. */
 
 const STATUS: BillingStatusView = {
+  viewer: "owner",
+  ownerName: null,
   status: "trialing",
+  access: "full",
+  graceEndsAt: null,
   plan: null,
   trialEndsAt: "2026-11-28T00:00:00.000Z",
   trialDaysLeft: 30,
@@ -21,10 +25,17 @@ const STATUS: BillingStatusView = {
 function billing(overrides: Partial<BillingService> = {}) {
   const calls: unknown[] = [];
   const service: BillingService = {
-    getStatus: async (userId) => {
-      calls.push({ getStatus: userId });
+    getStatus: async (userId, organizationId) => {
+      calls.push({ getStatus: userId, organizationId });
       return STATUS;
     },
+    resolveAccess: async ({ userId }) => ({
+      level: "full",
+      status: "trialing",
+      graceEndsAt: null,
+      viewerIsOwner: userId === "user-1",
+      ownerName: null,
+    }),
     startCheckout: async (input) => {
       calls.push({ startCheckout: input });
       return { url: "https://checkout.stripe.test/c/1" };
@@ -45,7 +56,10 @@ function billing(overrides: Partial<BillingService> = {}) {
 
 function context(overrides: Record<string, unknown> = {}, impersonatedBy: string | null = null) {
   return {
-    session: { user: { id: "user-1" }, session: { id: "s-1", impersonatedBy } },
+    session: {
+      user: { id: "user-1" },
+      session: { id: "s-1", impersonatedBy, activeOrganizationId: "org-1" },
+    },
     db: {},
     correlationId: "corr-1",
     honoContext: { req: { raw: { headers: new Headers() } } },
@@ -87,9 +101,26 @@ describe("billing procedures", () => {
       }),
     ).toEqual({ url: "https://checkout.stripe.test/c/1" });
     expect(calls).toEqual([
-      { getStatus: "user-1" },
+      { getStatus: "user-1", organizationId: "org-1" },
       { startCheckout: { userId: "user-1", plan: "annual", locale: "pt-PT" } },
     ]);
+  });
+
+  test("#298: a member of someone else's workspace cannot start checkout", async () => {
+    const { service, calls } = billing({
+      resolveAccess: async () => ({
+        level: "full",
+        status: "active",
+        graceEndsAt: null,
+        viewerIsOwner: false,
+        ownerName: "Ana",
+      }),
+    });
+    const ctx = context({ billing: service });
+    await expect(
+      appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly" }),
+    ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
+    expect(calls).toEqual([]);
   });
 
   test("an impersonated session cannot start checkout or open the portal", async () => {

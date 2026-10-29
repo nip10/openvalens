@@ -204,6 +204,12 @@ export function getBillingService(): Promise<BillingService | null> {
       email,
       localeForUser: (userId) => locales.forUser(userId),
       logger: createStructuredLogger({ level: "info" }).child({ component: "billing" }),
+      // #298 — past-due grace period and retention of ended accounts.
+      pastDueGraceDays: billing.parseGraceDays(ENV.BILLING_PAST_DUE_GRACE_DAYS),
+      retention: billing.parseRetentionConfig({
+        CLOUD_ENDED_RETENTION_MONTHS: ENV.CLOUD_ENDED_RETENTION_MONTHS,
+        CLOUD_ENDED_RETENTION_DRY_RUN: ENV.CLOUD_ENDED_RETENTION_DRY_RUN,
+      }),
     });
   })();
   return billingServicePromise;
@@ -455,6 +461,23 @@ export const wearablesService =
         serverOrigin: ENV.BETTER_AUTH_URL,
         webhooks: wearablesConfig.webhooks,
         logger: createStructuredLogger({ level: "info" }),
+        // #298 — Cloud: no vendor sync into a workspace whose access ended.
+        ...(deploymentConfig.mode === "cloud"
+          ? {
+              canSync: async ({
+                organizationId,
+                userId,
+              }: {
+                organizationId: string;
+                userId: string;
+              }) => {
+                const billing = await getBillingService();
+                if (!billing) return true;
+                const access = await billing.resolveAccess({ userId, organizationId });
+                return access.level === "full";
+              },
+            }
+          : {}),
       })
     : null;
 

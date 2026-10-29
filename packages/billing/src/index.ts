@@ -2,6 +2,7 @@
 // the adapter is `@openvalens/billing/providers/stripe`, which the server
 // loads only when `DEPLOYMENT_MODE=cloud`.
 export * from "./config";
+export * from "./entitlement";
 export * from "./provider";
 export * from "./service";
 export * from "./status";

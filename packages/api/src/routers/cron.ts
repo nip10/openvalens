@@ -1,3 +1,5 @@
+import type { RetentionEraser } from "@openvalens/billing";
+import { deleteAccountForRetention } from "@openvalens/data-rights";
 import type { Database } from "@openvalens/db";
 import {
   createDatabaseIngestionTick,
@@ -15,6 +17,7 @@ import {
 } from "@openvalens/telegram";
 import { z } from "zod";
 
+import type { Context } from "../context";
 import { cronProcedure, raiseApiError } from "../index";
 import { runInsightDelivery } from "../insight-delivery";
 import { runPreventiveReminderDelivery } from "../preventive-care-delivery";
@@ -83,6 +86,11 @@ const billingRunOutput = cronRunOutput.extend({
   erasuresCompleted: z.number(),
   erasuresFailed: z.number(),
   eventsPruned: z.number(),
+  // Issue #298 — retention of accounts that stayed ended (off unless configured).
+  retentionWarned: z.number(),
+  retentionDeleted: z.number(),
+  retentionFailed: z.number(),
+  retentionDryRun: z.boolean(),
 });
 
 const photoCleanupRunOutput = cronRunOutput.extend({
@@ -94,6 +102,43 @@ const photoCleanupRunOutput = cronRunOutput.extend({
   skipped: z.number(),
   failed: z.number(),
 });
+
+/**
+ * Issue #298 — retention deletes an ended owner's account through the same
+ * erasure as "delete everything" (#89): database rows in one transaction,
+ * then stored objects, Apple token revocation and the Stripe customer. Only
+ * counts are logged.
+ */
+function retentionEraser(context: Context): RetentionEraser {
+  return async ({ userId, stillDue }) => {
+    const revocation = context.socialTokenRevocation;
+    let pending = null;
+    try {
+      pending = revocation ? await revocation.collect(userId) : null;
+    } catch {
+      pending = null;
+    }
+    const result = await deleteAccountForRetention(
+      context.db,
+      { userId, stillDue },
+      context.storage ?? null,
+    );
+    if (result.outcome === "skipped") return "skipped";
+    if (revocation && pending && pending.apple.length > 0) {
+      try {
+        await revocation.revoke(pending);
+      } catch {
+        logger.warn("cron.billing.retention.revocation_failed", {});
+      }
+    }
+    logger.info("cron.billing.retention.erased", {
+      organizations: result.report.organizationIds.length,
+      objectsDeleted: result.objects.deleted,
+      objectsFailed: result.objects.failed,
+    });
+    return "erased";
+  };
+}
 
 /**
  * Ingestion job runners by job type. `mobile_ingest_batch` retries mobile
@@ -178,6 +223,9 @@ export const cronRouter = {
    * "trial ended" emails (each claimed once per owner, so overlapping runs
    * never double-send), local trials that ran out become `ended`, the Stripe
    * side of account erasure is retried, and old webhook event ids are pruned.
+   * Issue #298: with `CLOUD_ENDED_RETENTION_MONTHS` set, owners whose access
+   * stayed ended that long are warned by email and, at least 30 days later,
+   * deleted (or only counted with `CLOUD_ENDED_RETENTION_DRY_RUN`).
    * A no-op on self-host. Suggested schedule: hourly.
    */
   billingRun: cronProcedure
@@ -186,7 +234,7 @@ export const cronRouter = {
     .handler(async ({ context }) => {
       const startedAt = new Date().toISOString();
       const totals = context.billing
-        ? await context.billing.runScheduled()
+        ? await context.billing.runScheduled({ eraseAccount: retentionEraser(context) })
         : {
             trialRemindersSent: 0,
             trialsEnded: 0,
@@ -195,9 +243,21 @@ export const cronRouter = {
             erasuresCompleted: 0,
             erasuresFailed: 0,
             eventsPruned: 0,
+            retentionWarned: 0,
+            retentionDeleted: 0,
+            retentionFailed: 0,
+            retentionDryRun: false,
           };
+      if (context.billing && totals.retentionDeleted > 0 && !totals.retentionDryRun) {
+        // The Stripe side of the deletions just made; retried next run on failure.
+        try {
+          await context.billing.processErasures();
+        } catch {
+          logger.warn("cron.billing.retention.stripe_deferred", {});
+        }
+      }
       const status =
-        totals.emailsFailed === 0 && totals.erasuresFailed === 0
+        totals.emailsFailed === 0 && totals.erasuresFailed === 0 && totals.retentionFailed === 0
           ? ("ok" as const)
           : ("failed" as const);
       logger.info("cron.billing.completed", {

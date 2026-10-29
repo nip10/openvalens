@@ -14,7 +14,11 @@ const PRICES = {
   annual: { amount: 6900, currency: "eur" },
 };
 const base: BillingStatus = {
+  viewer: "owner",
+  ownerName: null,
   status: "trialing",
+  access: "full",
+  graceEndsAt: null,
   plan: null,
   trialEndsAt: "2026-11-28T12:00:00.000Z",
   trialDaysLeft: 30,
@@ -101,5 +105,44 @@ describe("BillingPlanView", () => {
     const html = render({ prices: { monthly: null, annual: null } });
     expect(html).not.toInclude("€");
     expect(html.match(/Subscribe/g)?.length).toBe(2);
+  });
+
+  test("#298 past due: the grace end date while writes still work, then read-only", () => {
+    expect(
+      render({
+        status: "past_due",
+        graceEndsAt: "2026-11-17T12:00:00.000Z",
+        canSubscribe: false,
+        canManage: true,
+      }),
+    ).toInclude("by November 17, 2026 to keep adding and syncing records");
+    const html = render({
+      status: "past_due",
+      access: "read_only",
+      graceEndsAt: "2026-11-17T12:00:00.000Z",
+      canSubscribe: false,
+      canManage: true,
+    });
+    expect(html).toInclude("your workspace is read-only");
+    expect(html).toInclude("You can still read, export and delete your");
+  });
+
+  test("#298 member of someone else's workspace: neutral note, no prices or buttons", () => {
+    for (const access of ["full", "read_only"] as const) {
+      const html = render({
+        viewer: "member",
+        ownerName: "Ana",
+        status: access === "full" ? "active" : "canceled",
+        access,
+        canSubscribe: false,
+        canManage: false,
+        prices: { monthly: null, annual: null },
+      });
+      expect(html).toInclude("Your access to this workspace comes from Ana’s plan");
+      expect(html).not.toInclude("Subscribe");
+      expect(html).not.toInclude("Choose a plan");
+      expect(html).not.toInclude("Manage billing");
+      expect(html).not.toInclude("€");
+    }
   });
 });
