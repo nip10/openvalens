@@ -38,6 +38,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BloomMark } from "@/components/bloom";
 import { DISPLAY_FONT } from "@/components/fonts";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
 import { isRouteVisible } from "@/lib/modules/routes";
 import { useModules } from "@/lib/modules/use-modules";
 import { useThemeColor } from "@/utils/theme";
@@ -250,10 +251,12 @@ function DrawerLayout() {
   const headerTitle = _(HEADER_TITLES[titleKey] ?? msg`Cockpit`);
 
   return (
-    <Drawer
-      initialRouteName="(tabs)"
-      drawerContent={() => <DrawerContent />}
-      screenOptions={{
+    <View className="flex-1">
+      <HealthDataConsentPrompt />
+      <Drawer
+        initialRouteName="(tabs)"
+        drawerContent={() => <DrawerContent />}
+        screenOptions={{
         headerTintColor: themeColorForeground,
         headerStyle: { backgroundColor: themeColorBackground },
         headerTitleStyle: {
@@ -265,8 +268,8 @@ function DrawerLayout() {
         headerShadowVisible: false,
         headerRight: renderThemeToggle,
         drawerStyle: { backgroundColor: themeColorSidebar },
-      }}
-    >
+        }}
+      >
       <Drawer.Screen
         name="index"
         options={{
@@ -473,7 +476,8 @@ function DrawerLayout() {
           drawerItemStyle: { display: "none" },
         }}
       />
-    </Drawer>
+      </Drawer>
+    </View>
   );
 }
 

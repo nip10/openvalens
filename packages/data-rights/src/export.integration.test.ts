@@ -258,6 +258,11 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     `),
     );
 
+    await db.execute(sql`
+      insert into legal_acceptance (id, user_id, document, version, accepted_at, source)
+      values ('health-consent-export', 'user-a', 'health_data_consent', 'health-v1', now(), 're_consent')
+    `);
+
     exported = await exportSubjectData(
       db,
       { userId: "user-a", organizationIds: ["org-a"] },
@@ -292,6 +297,12 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
   });
 
   test("contains the subject's data and nothing from the other account", () => {
+    expect(parse("legal_acceptance")).toContainEqual(expect.objectContaining({
+      user_id: "user-a",
+      document: "health_data_consent",
+      version: "health-v1",
+      source: "re_consent",
+    }));
     expect(parse("metric_sample")).toHaveLength(3);
     expect(parse("user").map((r) => r.id)).toEqual(["user-a"]);
     expect(parse("organization").map((r) => r.id)).toEqual(["org-a"]);

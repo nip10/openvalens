@@ -17,6 +17,8 @@ export type SocialSignInButtonsProps = {
    * terms are not ticked) or the data asking the server to create the account.
    */
   signUp?: () => Record<string, unknown> | null;
+  /** Disable signup providers until all explicit signup consents are checked. */
+  disabled?: boolean;
 };
 
 /** Google's four-colour "G" (branding guidelines: never recoloured). */
@@ -73,6 +75,7 @@ export default function SocialSignInButtons({
   callbackURL,
   errorCallbackURL,
   signUp,
+  disabled = false,
 }: SocialSignInButtonsProps) {
   const { t } = useLingui();
   const [busy, setBusy] = useState<SocialProvider | null>(null);
@@ -106,7 +109,7 @@ export default function SocialSignInButtons({
         <button
           type="button"
           className={`${BASE} border border-[#747775] bg-white text-[#1f1f1f] hover:bg-[#f2f2f2] dark:border-[#8e918f] dark:bg-[#131314] dark:text-[#e3e3e3] dark:hover:bg-[#1f1f20]`}
-          disabled={busy !== null}
+          disabled={disabled || busy !== null}
           onClick={() => void start("google", "Google")}
         >
           <GoogleMark />
@@ -117,7 +120,7 @@ export default function SocialSignInButtons({
         <button
           type="button"
           className={`${BASE} bg-black text-white hover:bg-[#1d1d1f] dark:bg-white dark:text-black dark:hover:bg-[#f2f2f2]`}
-          disabled={busy !== null}
+          disabled={disabled || busy !== null}
           onClick={() => void start("apple", "Apple")}
         >
           <AppleMark />

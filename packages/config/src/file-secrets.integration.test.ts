@@ -263,6 +263,7 @@ describe("actual server schema sensitive coverage", () => {
           "GOOGLE_CLIENT_ID",
           "LEGAL_PRIVACY_URL",
           "LEGAL_PRIVACY_VERSION",
+          "LEGAL_HEALTH_CONSENT_VERSION",
           "LEGAL_TERMS_URL",
           "LEGAL_TERMS_VERSION",
           "NODE_ENV",
