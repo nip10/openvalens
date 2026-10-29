@@ -304,6 +304,73 @@ function isSerializationOrDeadlock(error: unknown): boolean {
   return false;
 }
 
+async function ownedOrganizationIds(tx: DbTransaction, userId: string): Promise<string[]> {
+  return (
+    await tx.execute(sql`select organization_id from member
+      where user_id = ${userId} and role = 'owner' order by organization_id`)
+  ).rows.map((row) => String((row as { organization_id: string }).organization_id));
+}
+
+/**
+ * Locks the account's memberships and the workspaces it owns, and returns the
+ * erasure subject. Refuses (`CONFLICT`) when ownership changed since
+ * `provisional` was read or a workspace has another owner.
+ */
+async function lockOwnedSubject(
+  tx: DbTransaction,
+  userId: string,
+  provisional: string[],
+): Promise<DataRightsSubject> {
+  await tx.execute(sql`select id from member where user_id = ${userId} order by id for update`);
+  const currentOwned = await ownedOrganizationIds(tx, userId);
+  if (!sameIds(provisional, currentOwned)) throw new SelfErasureError("CONFLICT");
+
+  if (provisional.length) {
+    const lockedOrgs = await tx.execute(
+      sql`select id from organization where ${inList("id", provisional)} order by id for update`,
+    );
+    const lockedIds = lockedOrgs.rows.map((row) => String((row as { id: string }).id));
+    if (!sameIds(provisional, lockedIds)) throw new SelfErasureError("CONFLICT");
+    await tx.execute(
+      sql`select id from member where ${inList("organization_id", provisional)} order by id for update`,
+    );
+  }
+
+  const finalRows = await tx.execute(sql`select m.organization_id,
+      exists (select 1 from member other where other.organization_id = m.organization_id
+        and other.role = 'owner' and other.user_id <> ${userId}) as shared
+    from member m where m.user_id = ${userId} and m.role = 'owner'
+    order by m.organization_id`);
+  const finalOwned = finalRows.rows.map((row) =>
+    String((row as { organization_id: string }).organization_id),
+  );
+  if (
+    !sameIds(provisional, finalOwned) ||
+    finalRows.rows.some((row) => (row as { shared: boolean }).shared)
+  )
+    throw new SelfErasureError("CONFLICT");
+  return { userId, organizationIds: finalOwned };
+}
+
+async function storageKeysFor(
+  tx: DbTransaction,
+  subject: DataRightsSubject,
+  storage: SelfErasureStorage | null,
+): Promise<string[]> {
+  const objects = await tx.execute(sql`select storage_key from stored_object
+    where ${inList("organization_id", subject.organizationIds)} order by storage_key`);
+  const keys = objects.rows.map((row) => String((row as { storage_key: string }).storage_key));
+  if (keys.length && !storage) throw new SelfErasureError("STORAGE_UNAVAILABLE");
+  return keys;
+}
+
+async function assertNoPhotoBlockers(tx: DbTransaction, subject: DataRightsSubject) {
+  // This ledger deliberately has no foreign keys, so serialize its writers
+  // while checking blockers and committing erasure.
+  await tx.execute(sql`lock table photo_cleanup_intent in share mode`);
+  if (await countPhotoErasureBlockers(tx, subject)) throw new PhotoErasureBlockedError();
+}
+
 /**
  * Authorize and erase the session's own account atomically. Membership and
  * organization row locks serialize SDK membership writers; no advisory-lock
@@ -321,10 +388,7 @@ export async function deleteSelfSubjectData(
     report = await db.transaction(async (tx) => {
       await tx.execute(sql`set transaction isolation level read committed`);
 
-      const provisional = (
-        await tx.execute(sql`select organization_id from member
-          where user_id = ${actor.userId} and role = 'owner' order by organization_id`)
-      ).rows.map((row) => String((row as { organization_id: string }).organization_id));
+      const provisional = await ownedOrganizationIds(tx, actor.userId);
 
       const userRows = await tx.execute(
         sql`select id from "user" where id = ${actor.userId} for update`,
@@ -346,49 +410,9 @@ export async function deleteSelfSubjectData(
       if (!session) throw new SelfErasureError("REAUTH_REQUIRED");
       if (session.impersonated_by !== null) throw new SelfErasureError("PERMISSION_DENIED");
 
-      await tx.execute(
-        sql`select id from member where user_id = ${actor.userId} order by id for update`,
-      );
-      const currentOwned = (
-        await tx.execute(sql`select organization_id from member
-          where user_id = ${actor.userId} and role = 'owner' order by organization_id`)
-      ).rows.map((row) => String((row as { organization_id: string }).organization_id));
-      if (!sameIds(provisional, currentOwned)) throw new SelfErasureError("CONFLICT");
-
-      if (provisional.length) {
-        const lockedOrgs = await tx.execute(
-          sql`select id from organization where ${inList("id", provisional)} order by id for update`,
-        );
-        const lockedIds = lockedOrgs.rows.map((row) => String((row as { id: string }).id));
-        if (!sameIds(provisional, lockedIds)) throw new SelfErasureError("CONFLICT");
-        await tx.execute(
-          sql`select id from member where ${inList("organization_id", provisional)} order by id for update`,
-        );
-      }
-
-      const finalRows = await tx.execute(sql`select m.organization_id,
-          exists (select 1 from member other where other.organization_id = m.organization_id
-            and other.role = 'owner' and other.user_id <> ${actor.userId}) as shared
-        from member m where m.user_id = ${actor.userId} and m.role = 'owner'
-        order by m.organization_id`);
-      const finalOwned = finalRows.rows.map((row) =>
-        String((row as { organization_id: string }).organization_id),
-      );
-      if (
-        !sameIds(provisional, finalOwned) ||
-        finalRows.rows.some((row) => (row as { shared: boolean }).shared)
-      )
-        throw new SelfErasureError("CONFLICT");
-
-      const subject: DataRightsSubject = { userId: actor.userId, organizationIds: finalOwned };
-      const objects = await tx.execute(sql`select storage_key from stored_object
-        where ${inList("organization_id", finalOwned)} order by storage_key`);
-      keys = objects.rows.map((row) => String((row as { storage_key: string }).storage_key));
-      if (keys.length && !storage) throw new SelfErasureError("STORAGE_UNAVAILABLE");
-      // This ledger deliberately has no foreign keys, so serialize its writers
-      // while checking blockers and committing erasure.
-      await tx.execute(sql`lock table photo_cleanup_intent in share mode`);
-      if (await countPhotoErasureBlockers(tx, subject)) throw new PhotoErasureBlockedError();
+      const subject = await lockOwnedSubject(tx, actor.userId, provisional);
+      keys = await storageKeysFor(tx, subject, storage);
+      await assertNoPhotoBlockers(tx, subject);
 
       const currentSessionRows = await tx.execute(sql`select created_at, expires_at, impersonated_by
         from "session" where id = ${actor.sessionId} and user_id = ${actor.userId}`);
@@ -430,4 +454,60 @@ export async function deleteSelfSubjectData(
   const objects =
     keys.length && storage ? await storage.deleteKeys(keys) : { deleted: 0, failed: 0 };
   return { report, objects };
+}
+
+/**
+ * Retention erasure (Issue #298): the same account deletion as
+ * {@link deleteSelfSubjectData}, started by the server instead of a fresh
+ * session, for an OpenValens Cloud owner whose access stayed ended for the
+ * retention period the operator set (`CLOUD_ENDED_RETENTION_MONTHS`).
+ *
+ * `stillDue(tx)` runs after the account row is locked and must re-check, in
+ * the same transaction, that the account is still due (the owner may have
+ * subscribed again); `false` erases nothing and answers `skipped`. The same
+ * refusals apply as for self-service erasure: a workspace with another owner,
+ * other people's private training data, unfinished photo cleanup, or stored
+ * objects while storage is off.
+ */
+export async function deleteAccountForRetention(
+  db: Database,
+  input: { userId: string; stillDue: (tx: DbTransaction) => Promise<boolean> },
+  storage: SelfErasureStorage | null,
+): Promise<
+  | { outcome: "skipped" }
+  | {
+      outcome: "erased";
+      report: DeletionReport;
+      objects: { deleted: number; failed: number };
+    }
+> {
+  let keys: string[] = [];
+  let report: DeletionReport | null;
+  try {
+    report = await db.transaction(async (tx) => {
+      await tx.execute(sql`set transaction isolation level read committed`);
+      const provisional = await ownedOrganizationIds(tx, input.userId);
+      const userRows = await tx.execute(
+        sql`select id from "user" where id = ${input.userId} for update`,
+      );
+      if (!userRows.rows.length) return null;
+      if (!(await input.stillDue(tx))) return null;
+
+      const subject = await lockOwnedSubject(tx, input.userId, provisional);
+      keys = await storageKeysFor(tx, subject, storage);
+      await assertNoPhotoBlockers(tx, subject);
+      const clock = (await tx.execute(sql`select clock_timestamp()::text as now`)).rows[0] as {
+        now: string;
+      };
+      return eraseInTransaction(tx, subject, new Date(clock.now));
+    });
+  } catch (error) {
+    if (error instanceof SelfErasureError || error instanceof PhotoErasureBlockedError) throw error;
+    if (isSerializationOrDeadlock(error)) throw new SelfErasureError("CONFLICT");
+    throw error;
+  }
+  if (!report) return { outcome: "skipped" };
+  const objects =
+    keys.length && storage ? await storage.deleteKeys(keys) : { deleted: 0, failed: 0 };
+  return { outcome: "erased", report, objects };
 }

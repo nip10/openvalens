@@ -1,6 +1,7 @@
 import type { RouterClient } from "@orpc/server";
 
 import { aboutRouter } from "./about";
+import { accessRouter } from "./access";
 import { activityRouter } from "./activity";
 import { adminSettingsRouter } from "./admin-settings";
 import { admissionRouter } from "./admission";
@@ -58,6 +59,7 @@ import { wearablesRouter } from "./wearables";
  */
 type AppRouterShape = {
   about: typeof aboutRouter;
+  access: typeof accessRouter;
   activity: typeof activityRouter;
   adminSettings: typeof adminSettingsRouter;
   admission: typeof admissionRouter;
@@ -112,6 +114,7 @@ type AppRouterShape = {
 
 export const appRouter: AppRouterShape = {
   about: aboutRouter,
+  access: accessRouter,
   activity: activityRouter,
   adminSettings: adminSettingsRouter,
   admission: admissionRouter,

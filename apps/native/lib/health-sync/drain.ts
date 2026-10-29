@@ -89,6 +89,8 @@ const FATAL_CODES = new Set([
   "UNAUTHENTICATED",
   "NO_MEMBERSHIP",
   "TENANT_VIOLATION",
+  // #298 — the Cloud workspace is read-only: stop, keep the cursors, retry later.
+  "ACCESS_READ_ONLY",
 ]);
 
 class BudgetExhausted extends Error {}

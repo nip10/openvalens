@@ -15,7 +15,7 @@ import { user } from "./auth";
 // random reference that is not the user id. No health data, names or workspace
 // names ever go to Stripe.
 
-/** Subscription states (#297). #298 gates write access on them. */
+/** Subscription states (#297). #298 gates write access on them (see `@openvalens/billing` entitlement). */
 export const SUBSCRIPTION_STATUS_VALUES = [
   "trialing",
   "active",
@@ -55,6 +55,15 @@ export const subscription = pgTable(
     trialReminderSentAt: timestamp("trial_reminder_sent_at", { withTimezone: true, mode: "date" }),
     /** When the "trial ended" email was claimed (sent once). */
     trialEndedSentAt: timestamp("trial_ended_sent_at", { withTimezone: true, mode: "date" }),
+    /** #298 — when the subscription went past due (start of the grace period). */
+    pastDueSince: timestamp("past_due_since", { withTimezone: true, mode: "date" }),
+    /** #298 — when the plan or trial ended (read-only; start of the retention clock). */
+    endedAt: timestamp("ended_at", { withTimezone: true, mode: "date" }),
+    /** #298 — when the "your records will be deleted" email was claimed (sent once). */
+    retentionWarningSentAt: timestamp("retention_warning_sent_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
@@ -66,6 +75,10 @@ export const subscription = pgTable(
     subscriptionStatusTrialIdx: index("subscription_status_trial_ends_at_idx").on(
       table.status,
       table.trialEndsAt,
+    ),
+    subscriptionStatusEndedIdx: index("subscription_status_ended_at_idx").on(
+      table.status,
+      table.endedAt,
     ),
   }),
 );

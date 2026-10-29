@@ -20,7 +20,9 @@ export type BillingEmailKind =
   | "trial_ending"
   | "trial_ended"
   | "payment_failed"
-  | "subscription_canceled";
+  | "subscription_canceled"
+  /** #298 — the account will be deleted after the retention period it has been ended for. */
+  | "retention_warning";
 
 export type BillingEmailInput = {
   kind: BillingEmailKind;
@@ -28,6 +30,8 @@ export type BillingEmailInput = {
   billingUrl: string | null;
   /** When the trial ends (`trial_ending` only). */
   trialEndsAt?: Date;
+  /** Earliest day the account is deleted (`retention_warning` only). */
+  deletionDate?: Date;
 };
 
 export type RenderedBillingEmail = {
@@ -103,6 +107,22 @@ export function renderBillingEmail(
       ];
       ctaLabel = i18n._(msg`Open Plan & billing`);
       break;
+    case "retention_warning": {
+      const day = formatDay(input.deletionDate ?? new Date(), options);
+      subject = i18n._(msg`Your OpenValens Cloud records will be deleted`);
+      title = i18n._(msg`Your records will be deleted`);
+      lines = [
+        i18n._(
+          msg`Your OpenValens Cloud access ended some time ago. As our privacy policy explains, accounts that stay inactive are deleted.`,
+        ),
+        i18n._(
+          msg`Your account and all of its records will be deleted on or after ${day}. Export them before then if you want to keep a copy.`,
+        ),
+        i18n._(msg`To keep your account, subscribe in Plan & billing on the web before that day.`),
+      ];
+      ctaLabel = i18n._(msg`Open Plan & billing`);
+      break;
+    }
   }
 
   const layout = renderLayout(

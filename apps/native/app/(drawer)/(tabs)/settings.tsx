@@ -55,6 +55,7 @@ import {
   Sheet,
   StatusPill,
 } from "@/components/bloom";
+import { CloudAccessNotice } from "@/components/cloud-access-notice";
 import { ListRow } from "@/components/list-row";
 import { Container } from "@/components/container";
 import { HealthSyncSettings } from "@/components/health-sync-settings";
@@ -87,6 +88,8 @@ export default function SettingsScreen() {
     <Container>
       <Page>
         <PageHeader title={t`Settings`} />
+
+        <CloudAccessNotice />
 
         <Section title={t`Account`} icon={UserRound} tone="signal">
           <SettingsGroup>

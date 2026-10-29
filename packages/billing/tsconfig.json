@@ -12,6 +12,7 @@
   "references": [
     { "path": "../auth" },
     { "path": "../config" },
+    { "path": "../data-rights" },
     { "path": "../db" },
     { "path": "../email" },
     { "path": "../i18n" },

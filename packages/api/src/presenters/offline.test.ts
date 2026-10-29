@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   OUTBOX_MAX_ENTRIES,
+  isAccessReadOnlySyncError,
   isAuthSyncError,
   isPermanentSyncError,
   offlineScope,
@@ -42,6 +43,13 @@ describe("offline presenter", () => {
     expect(isAuthSyncError({ code: "UNAUTHENTICATED" })).toBe(true);
     expect(isAuthSyncError({ status: 401 })).toBe(true);
     expect(isAuthSyncError({ status: 503 })).toBe(false);
+  });
+
+  test("#298: a read-only Cloud workspace is neither permanent nor queued-for-retry noise", () => {
+    expect(isAccessReadOnlySyncError({ code: "ACCESS_READ_ONLY" })).toBe(true);
+    // Kept in the outbox (not dropped) so it syncs once access is back.
+    expect(isPermanentSyncError({ code: "ACCESS_READ_ONLY" })).toBe(false);
+    expect(isAccessReadOnlySyncError({ code: "PERMISSION_DENIED" })).toBe(false);
   });
 
   test("parseTimestamp: accepts ISO strings, epoch ms and Date; rejects junk", () => {

@@ -3,7 +3,7 @@ import type { AppRouterClient } from "@openvalens/api/routers/index";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
-import { QueryCache, QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { Platform } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
@@ -14,6 +14,14 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
       console.log(error);
+    },
+  }),
+  // #298 — a write refused because the Cloud workspace is read-only: refresh
+  // the access state so the notice shows and sync pauses.
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if ((error as { code?: unknown } | null)?.code === "ACCESS_READ_ONLY")
+        void queryClient.invalidateQueries({ queryKey: orpc.access.key() });
     },
   }),
 });

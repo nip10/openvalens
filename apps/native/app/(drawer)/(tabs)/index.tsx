@@ -45,6 +45,7 @@ import { InsightsSection } from "@/components/insights-section";
 import { useModules } from "@/lib/modules/use-modules";
 import { ListRow } from "@/components/list-row";
 import { FinishSetupCard } from "@/components/finish-setup-card";
+import { CloudAccessNotice } from "@/components/cloud-access-notice";
 import { authClient } from "@/lib/auth-client";
 import { friendlyDate, pillTone } from "@/utils/friendly";
 import { orpc } from "@/utils/orpc";
@@ -292,6 +293,8 @@ export default function CockpitScreen() {
         />
 
         <FinishSetupCard />
+
+        <CloudAccessNotice />
 
         {dataPending && !snapshot.weight && !snapshot.sleep && !snapshot.activity ? (
           <Sheet>

@@ -57,8 +57,10 @@ export function effectiveStatus(row: StatusInput, now: Date): SubscriptionStatus
 }
 
 /**
- * Whether the state allows full use of the app. #298 refines `past_due` with a
- * grace period; `canceled` and `ended` keep reads, export and deletion only.
+ * Whether the state *can* allow full use of the app. `past_due` only does so
+ * within its grace period, which needs a timestamp: gate on `accessState` in
+ * `./entitlement` (#298), not on this. `canceled` and `ended` keep reads,
+ * export and deletion only.
  */
 export function hasFullAccess(status: SubscriptionStatus): boolean {
   return status === "trialing" || status === "active" || status === "past_due";
