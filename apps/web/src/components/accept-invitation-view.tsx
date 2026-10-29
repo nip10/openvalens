@@ -12,9 +12,12 @@ import {
 import { Skeleton } from "@openvalens/ui/components/skeleton";
 import { Mail, MailX, PartyPopper, Users } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ToneIcon } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
+import { client } from "@/utils/orpc";
+import { needsHealthConsent, type HealthConsentStatus } from "@/utils/health-consent";
 
 type InvitationSummary = {
   id: string;
@@ -61,6 +64,8 @@ const ROLE_LABELS: Record<string, MessageDescriptor> = {
 
 const ACCEPT_FAILED = msg`Could not accept the invitation.`;
 const DECLINE_FAILED = msg`Could not decline the invitation.`;
+const CONSENT_REQUIRED = msg`Review and accept the health data consent above before accepting this invitation.`;
+const linkClass = "font-medium text-ink underline decoration-signal underline-offset-2";
 
 function makeOwnerKey(userId: string | null, invitationId: string): string {
   return `${userId ?? "anon"}:${invitationId}`;
@@ -82,6 +87,15 @@ export function AcceptInvitationView({
   const currentOwnerRef = useRef(ownerKey);
   const activeRef = useRef<ActiveSlot | null>(null);
   const { i18n } = useLingui();
+  const queryClient = useQueryClient();
+  const healthConsentKey = ["healthConsent", "status", userId] as const;
+  const [healthConsentChecked, setHealthConsentChecked] = useState(false);
+  const consentStatus = useQuery({
+    queryKey: healthConsentKey,
+    queryFn: () => client.healthConsent.status({}),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
 
   // Commit-phase identity reset: invalidate any in-flight request owned by a
   // previous {invitationId, userId} scope before the browser paints.
@@ -91,6 +105,10 @@ export function AcceptInvitationView({
     activeRef.current = null;
     setAction({ kind: "idle", ownerKey });
   }, [invitationId, userId, ownerKey]);
+
+  useLayoutEffect(() => {
+    setHealthConsentChecked(false);
+  }, [consentStatus.data?.currentVersion]);
 
   // StrictMode-safe lifetime guard: mark this instance live on mount and dead
   // on cleanup. Late async continuations must not mutate state or navigate.
@@ -232,6 +250,37 @@ export function AcceptInvitationView({
 
     try {
       if (isStale(requestEpoch) || activeRef.current?.token !== token) return;
+      const consent = consentStatus.data;
+      if (consent && needsHealthConsent(consent)) {
+        if (!healthConsentChecked || !consent.currentVersion) {
+          setAction({ kind: "error", ownerKey: capturedOwnerKey, message: CONSENT_REQUIRED });
+          return;
+        }
+        let accepted: HealthConsentStatus;
+        try {
+          accepted = await client.healthConsent.accept({
+            acceptedHealthDataConsent: true,
+            version: consent.currentVersion,
+          });
+        } catch {
+          await queryClient.invalidateQueries({ queryKey: healthConsentKey });
+          setHealthConsentChecked(false);
+          setAction({ kind: "error", ownerKey: capturedOwnerKey, message: CONSENT_REQUIRED });
+          return;
+        }
+        if (isStale(requestEpoch) || activeRef.current?.token !== token) return;
+        if (
+          needsHealthConsent(accepted) ||
+          accepted.currentVersion !== consent.currentVersion ||
+          accepted.acceptedVersion !== consent.currentVersion
+        ) {
+          await queryClient.invalidateQueries({ queryKey: healthConsentKey });
+          setHealthConsentChecked(false);
+          setAction({ kind: "error", ownerKey: capturedOwnerKey, message: CONSENT_REQUIRED });
+          return;
+        }
+        queryClient.setQueryData(healthConsentKey, accepted);
+      }
       const { error } = await authClient.organization.acceptInvitation({ invitationId });
       if (isStale(requestEpoch) || activeRef.current?.token !== token) return;
       if (error) {
@@ -334,6 +383,50 @@ export function AcceptInvitationView({
           </p>
         ) : null}
 
+        {consentStatus.isError ? (
+          <div className="flex items-center gap-3 text-sm text-destructive" role="alert">
+            <Trans>
+              Could not check health data consent. Retry before accepting this invitation.
+            </Trans>
+            <Button variant="outline" size="sm" onClick={() => void consentStatus.refetch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          </div>
+        ) : null}
+        {needsHealthConsent(consentStatus.data) ? (
+          <div className="grid gap-2 rounded-2xl border border-signal/30 bg-signal-soft/40 p-4">
+            <p className="text-sm text-ink-2">
+              <Trans>
+                I consent to OpenValens processing my health data to provide the service.
+              </Trans>{" "}
+              {consentStatus.data?.privacyUrl ? (
+                <a
+                  href={consentStatus.data.privacyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={linkClass}
+                >
+                  <Trans>Read the privacy policy</Trans>
+                </a>
+              ) : null}
+            </p>
+            <p className="text-xs text-ink-3">
+              <Trans>Consent version: {consentStatus.data?.currentVersion}</Trans>
+            </p>
+            <label className="flex items-start gap-2 text-sm text-ink-2">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-primary"
+                checked={healthConsentChecked}
+                onChange={(event) => setHealthConsentChecked(event.target.checked)}
+              />
+              <span>
+                <Trans>I agree to this health data processing.</Trans>
+              </span>
+            </label>
+          </div>
+        ) : null}
+
         {ownedAction.kind === "error" ? (
           <p className="text-sm text-destructive" role="alert" aria-live="polite">
             {i18n._(ownedAction.message)}
@@ -341,7 +434,17 @@ export function AcceptInvitationView({
         ) : null}
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button className="flex-1" onClick={handleAccept} disabled={busy || mismatch}>
+          <Button
+            className="flex-1"
+            onClick={handleAccept}
+            disabled={
+              busy ||
+              mismatch ||
+              consentStatus.isPending ||
+              consentStatus.isError ||
+              (needsHealthConsent(consentStatus.data) && !healthConsentChecked)
+            }
+          >
             {ownedAction.kind === "accepting" ? <Trans>Accepting…</Trans> : <Trans>Accept</Trans>}
           </Button>
           <Button

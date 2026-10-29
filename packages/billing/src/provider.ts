@@ -5,16 +5,19 @@
  *
  * Privacy contract: the only identifiers ever sent are the account email
  * (required for invoices and receipts) and `ref`, an opaque random reference.
- * Metadata holds exactly `{ ov_ref }` — `metadataFor` builds it, and the tests
- * assert no other key is ever sent.
+ * Checkout metadata may additionally carry an opaque acknowledgement record
+ * reference; it never contains legal wording, version, workspace or health data.
  */
 
-/** The single metadata key OpenValens puts on Stripe objects. */
+/** Stable metadata key carrying the existing opaque owner reference. */
 export const METADATA_REF_KEY = "ov_ref";
 
 /** Stripe metadata for an opaque reference. Nothing else, ever. */
-export function metadataFor(ref: string): Record<typeof METADATA_REF_KEY, string> {
-  return { [METADATA_REF_KEY]: ref };
+export function metadataFor(ref: string, acceptanceReference?: string): Record<string, string> {
+  return {
+    [METADATA_REF_KEY]: ref,
+    ...(acceptanceReference ? { acceptance_reference: acceptanceReference } : {}),
+  };
 }
 
 /** What a verified webhook carries that billing needs; never the raw payload. */
@@ -51,6 +54,7 @@ export type ProviderPrice = {
 export type CheckoutSessionInput = {
   customerId: string;
   ref: string;
+  acceptanceReference: string;
   priceId: string;
   /** Keep the rest of a running trial: first charge at this time. */
   trialEnd: Date | null;
@@ -91,7 +95,7 @@ export interface BillingProvider {
   createCustomer(input: { email: string; ref: string; idempotencyKey: string }): Promise<{
     id: string;
   }>;
-  createCheckoutSession(input: CheckoutSessionInput): Promise<{ url: string }>;
+  createCheckoutSession(input: CheckoutSessionInput): Promise<{ id?: string; url: string }>;
   createPortalSession(input: PortalSessionInput): Promise<{ url: string }>;
   /** Every subscription of a customer, any status (newest first). */
   listSubscriptions(customerId: string): Promise<ProviderSubscription[]>;

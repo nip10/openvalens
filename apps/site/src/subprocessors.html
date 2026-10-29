@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The build replaces this placeholder with SITE_CSP (scripts/build.ts). -->
+    <meta http-equiv="Content-Security-Policy" content="__SITE_CSP__" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="The service providers that process personal data for OpenValens Cloud."
+    />
+    <title>Subprocessors · OpenValens</title>
+    <link rel="canonical" href="https://openvalens.com/subprocessors" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#top">Skip to content</a>
+    <header class="wrap site-header">
+      <a class="brand" href="/"
+        ><img src="/favicon.svg" alt="" width="32" height="32" /><span>OpenValens</span></a
+      >
+      <nav aria-label="Site">
+        <a href="/">Home</a>
+        <a href="/support">Support</a>
+        <a href="/privacy">Privacy</a>
+        <a href="https://github.com/nip10/openvalens">Source</a>
+      </nav>
+    </header>
+    <main id="top" class="wrap legal">
+      <article class="prose">
+        <p class="eyebrow">Legal</p>
+        <h1>Subprocessors</h1>
+        <p class="meta">Last updated 29 October 2026</p>
+        <p>
+          These are the service providers that process personal data for OpenValens Cloud on our
+          behalf, as described in the <a href="/privacy">privacy policy</a>. Each one works under a
+          data-processing agreement. Health records are stored only with the hosting provider, in
+          the EU. The others receive only the data listed, and the optional ones only when you use
+          the feature.
+        </p>
+        <p>
+          We announce a new subprocessor on this page at least 30 days before it starts processing
+          personal data.
+        </p>
+
+        <h2 id="always">Always used</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Purpose</th>
+                <th scope="col">Data</th>
+                <th scope="col">Location</th>
+                <th scope="col">Safeguard</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>netcup GmbH (Germany)</td>
+                <td>Hosting of the servers, database, file storage and backups of Cloud</td>
+                <td>All Cloud data, including health records</td>
+                <td>Nuremberg, Germany</td>
+                <td>None needed (EU)</td>
+              </tr>
+              <tr>
+                <td>Resend (Plus Five Five, Inc., USA)</td>
+                <td>
+                  Sending email: sign-in links, invitations, trial and billing notices, the deletion
+                  warning, opt-in insight digests
+                </td>
+                <td>
+                  Recipient email, subject and body (the opt-in weekly insights email contains
+                  insight text derived from health data)
+                </td>
+                <td>USA</td>
+                <td>EU–US Data Privacy Framework and Standard Contractual Clauses</td>
+              </tr>
+              <tr>
+                <td>Stripe Payments Europe, Ltd. (Ireland), with Stripe, Inc. (USA)</td>
+                <td>Subscription payments, invoices, VAT calculation, customer portal</td>
+                <td>
+                  Workspace owners only: email and a random customer reference; Stripe collects
+                  card, billing address and checkout device data itself
+                </td>
+                <td>EU and USA</td>
+                <td>EU–US Data Privacy Framework and Standard Contractual Clauses</td>
+              </tr>
+              <tr>
+                <td>Functional Software, Inc. (Sentry, USA)</td>
+                <td>Error reporting for the server, web app and mobile app</td>
+                <td>
+                  Reduced crash reports: exception type, code frames, release, environment, runtime
+                  and OS name and version; connection IP seen in transit
+                </td>
+                <td>USA or EU</td>
+                <td>Standard Contractual Clauses for any US processing</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="optional">Used only when you turn a feature on</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Purpose</th>
+                <th scope="col">Data</th>
+                <th scope="col">Location</th>
+                <th scope="col">Safeguard</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Anthropic, PBC (USA)</td>
+                <td>
+                  AI assistant, insights and food and recipe drafts, only after you turn on AI
+                  processing
+                </td>
+                <td>
+                  Your messages, earlier messages of the conversation, the health records needed to
+                  answer
+                </td>
+                <td>USA</td>
+                <td>Standard Contractual Clauses</td>
+              </tr>
+              <tr>
+                <td>650 Industries, Inc. (Expo, USA)</td>
+                <td>Push notification relay to Apple and Google</td>
+                <td>
+                  Expo push token, notification title and body (fixed generic text, no health
+                  values), in-app path
+                </td>
+                <td>USA</td>
+                <td>Standard Contractual Clauses</td>
+              </tr>
+              <tr>
+                <td>Apple Inc. (Apple Push Notification service)</td>
+                <td>Delivering notifications to iPhones</td>
+                <td>Device push token, notification content</td>
+                <td>USA and global</td>
+                <td>EU–US Data Privacy Framework and Standard Contractual Clauses</td>
+              </tr>
+              <tr>
+                <td>Google LLC (Firebase Cloud Messaging)</td>
+                <td>Delivering notifications to Android phones</td>
+                <td>Device push token, notification content</td>
+                <td>USA and global</td>
+                <td>EU–US Data Privacy Framework and Standard Contractual Clauses</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="not-subprocessors">Not subprocessors: services you connect yourself</h2>
+        <p>
+          These act as independent controllers under their own terms when you choose to use them. We
+          do not send them your OpenValens data.
+        </p>
+        <ul>
+          <li>
+            <strong>Google</strong> and <strong>Apple</strong> when you sign in with them (they tell
+            us your account id and email).
+          </li>
+          <li>
+            <strong>Apple Health</strong> and <strong>Health Connect</strong> on your phone, which
+            the app reads from with your permission.
+          </li>
+          <li>A <strong>wearable vendor</strong>, if you connect your account with it.</li>
+        </ul>
+      </article>
+    </main>
+    <footer class="wrap site-footer">
+      <ul class="footer-links">
+        <li><a href="/support">Support</a></li>
+        <li><a href="/privacy">Privacy policy</a></li>
+        <li><a href="/subprocessors">Subprocessors</a></li>
+        <li>© 2026 The OpenValens contributors</li>
+      </ul>
+    </footer>
+  </body>
+</html>

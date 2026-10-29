@@ -2,7 +2,7 @@
   "expo": {
     "name": "OpenValens",
     "slug": "openvalens",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "openvalens",
@@ -65,6 +65,7 @@
         }
       ],
       "expo-background-task",
+      "expo-sharing",
       "@react-native-community/datetimepicker",
       [
         "@kingstinct/react-native-healthkit",

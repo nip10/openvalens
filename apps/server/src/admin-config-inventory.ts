@@ -4,7 +4,7 @@ import { FILE_SECRET_KEYS } from "@openvalens/config/file-secrets";
 /**
  * Explicit, ordered allowlist of the server's global configuration keys
  * (Issue #58). This is the *only* set of keys the configuration inventory can
- * ever surface; it mirrors `apps/server/.env.schema` exactly (90 keys) and is
+ * ever surface; it mirrors `apps/server/.env.schema` exactly (93 keys) and is
  * asserted against that schema by the parity test.
  *
  * The list is intentionally hand-written rather than derived from the
@@ -22,10 +22,12 @@ export const ADMIN_CONFIG_KEYS = [
   "LEGAL_TERMS_VERSION",
   "LEGAL_PRIVACY_URL",
   "LEGAL_PRIVACY_VERSION",
+  "LEGAL_HEALTH_CONSENT_VERSION",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "STRIPE_PRICE_MONTHLY",
   "STRIPE_PRICE_ANNUAL",
+  "LEGAL_CHECKOUT_ACK_VERSION",
   "BILLING_PAST_DUE_GRACE_DAYS",
   "CLOUD_ENDED_RETENTION_MONTHS",
   "CLOUD_ENDED_RETENTION_DRY_RUN",
@@ -72,6 +74,7 @@ export const ADMIN_CONFIG_KEYS = [
   "API_MAX_BODY_BYTES",
   "STORAGE_PROVIDER",
   "STORAGE_LOCAL_DIR",
+  "DATA_EXPORT_DIR",
   "STORAGE_MAX_OBJECT_BYTES",
   "STORAGE_SIGNED_URL_TTL_SECONDS",
   "STORAGE_S3_ENDPOINT",

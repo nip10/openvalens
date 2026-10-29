@@ -11,6 +11,8 @@ export type BillingEnv = {
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRICE_MONTHLY?: string;
   STRIPE_PRICE_ANNUAL?: string;
+  LEGAL_TERMS_URL?: string;
+  LEGAL_CHECKOUT_ACK_VERSION?: string;
 };
 
 export type BillingPlan = "monthly" | "annual";
@@ -20,6 +22,8 @@ export type BillingConfig = {
   readonly secretKey: string;
   readonly webhookSecret: string;
   readonly prices: Readonly<Record<BillingPlan, string>>;
+  readonly termsUrl: string;
+  readonly checkoutAcknowledgementVersion: string;
 };
 
 export class BillingConfigError extends Error {
@@ -59,6 +63,14 @@ export function parseBillingConfig(env: BillingEnv): BillingConfig {
   if (values.STRIPE_PRICE_MONTHLY && values.STRIPE_PRICE_MONTHLY === values.STRIPE_PRICE_ANNUAL) {
     issues.push("STRIPE_PRICE_MONTHLY and STRIPE_PRICE_ANNUAL must be different prices");
   }
+  const termsUrl = env.LEGAL_TERMS_URL?.trim();
+  if (!termsUrl || !/^https:\/\//i.test(termsUrl))
+    issues.push("LEGAL_TERMS_URL must be an https URL");
+  const acknowledgementVersion = env.LEGAL_CHECKOUT_ACK_VERSION?.trim();
+  if (!acknowledgementVersion)
+    issues.push("LEGAL_CHECKOUT_ACK_VERSION is required when DEPLOYMENT_MODE=cloud");
+  else if (acknowledgementVersion.length > 64)
+    issues.push("LEGAL_CHECKOUT_ACK_VERSION must be at most 64 characters");
   if (issues.length > 0) throw new BillingConfigError(issues);
   return Object.freeze({
     secretKey: values.STRIPE_SECRET_KEY!,
@@ -67,6 +79,8 @@ export function parseBillingConfig(env: BillingEnv): BillingConfig {
       monthly: values.STRIPE_PRICE_MONTHLY!,
       annual: values.STRIPE_PRICE_ANNUAL!,
     }),
+    termsUrl: termsUrl!,
+    checkoutAcknowledgementVersion: acknowledgementVersion!,
   });
 }
 

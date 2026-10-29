@@ -14,6 +14,7 @@ const CLOUD: DeploymentConfig = {
   legal: {
     terms: { url: "https://legal.test/terms", version: "t-1" },
     privacy: { url: "https://legal.test/privacy", version: "p-1" },
+    healthDataConsent: { url: "https://legal.test/privacy", version: "h-1" },
   },
 };
 
@@ -51,7 +52,12 @@ function context(
   } as unknown as Context;
 }
 
-const body = { email: "new@example.test", acceptedLegal: true as const };
+const body = {
+  email: "new@example.test",
+  acceptedLegal: true as const,
+  acceptedHealthDataConsent: true as const,
+  healthDataConsentVersion: "h-1",
+};
 const call = (ctx: Context, input: unknown = body) =>
   appRouter.signUp.request.callable({ context: ctx })(input as typeof body);
 
@@ -59,7 +65,13 @@ describe("signUp.options", () => {
   test("self-hosted (no deployment in context) has no sign-up and no legal links", async () => {
     expect(
       await appRouter.signUp.options.callable({ context: context({ deployment: undefined }) })({}),
-    ).toEqual({ mode: "self-hosted", signUp: false, terms: null, privacy: null });
+    ).toEqual({
+      mode: "self-hosted",
+      signUp: false,
+      terms: null,
+      privacy: null,
+      healthDataConsent: null,
+    });
   });
 
   test("cloud exposes the mode and the terms/privacy links and versions", async () => {
@@ -68,6 +80,7 @@ describe("signUp.options", () => {
       signUp: true,
       terms: CLOUD.mode === "cloud" ? CLOUD.legal.terms : null,
       privacy: CLOUD.mode === "cloud" ? CLOUD.legal.privacy : null,
+      healthDataConsent: CLOUD.mode === "cloud" ? CLOUD.legal.healthDataConsent : null,
     });
   });
 });
@@ -106,6 +119,8 @@ describe("signUp.request", () => {
       await call(context({ publicSignUp: service }), {
         email: "secret-person@example.test",
         acceptedLegal: false,
+        acceptedHealthDataConsent: true,
+        healthDataConsentVersion: "h-1",
       });
     } catch (caught) {
       error = caught;
@@ -120,9 +135,33 @@ describe("signUp.request", () => {
     expect(await call(context({ publicSignUp: service }), { ...body, locale: "pt-PT" })).toEqual({
       accepted: true,
     });
-    expect(service.calls).toEqual([
-      { email: "new@example.test", acceptedLegal: true, locale: "pt-PT" },
-    ]);
+    expect(service.calls).toEqual([{ ...body, locale: "pt-PT" }]);
+  });
+
+  test("missing or false health-data consent is rejected before the admission core", async () => {
+    const service = signUpService();
+    await expect(
+      call(context({ publicSignUp: service }), {
+        email: "missing@example.test",
+        acceptedLegal: true,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(
+      call(context({ publicSignUp: service }), {
+        ...body,
+        acceptedHealthDataConsent: false,
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    expect(service.calls).toHaveLength(0);
+  });
+
+  test("forwards the presented health-consent version to the admission core", async () => {
+    const service = signUpService();
+    await call(context({ publicSignUp: service }), { ...body, healthDataConsentVersion: "stale" });
+    expect(service.calls[0]).toMatchObject({
+      acceptedHealthDataConsent: true,
+      healthDataConsentVersion: "stale",
+    });
   });
 
   test("answers identically whether or not the email has an account", async () => {

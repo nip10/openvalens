@@ -160,13 +160,21 @@ Do this in test mode first, then repeat in live mode.
 DEPLOYMENT_MODE=cloud
 STRIPE_PRICE_MONTHLY=price_...
 STRIPE_PRICE_ANNUAL=price_...
+LEGAL_CHECKOUT_ACK_VERSION=<lawyer-reviewed-version>
 ```
+
+Cloud startup also requires `LEGAL_CHECKOUT_ACK_VERSION` (1–64 characters).
+Set it only after the checkout acknowledgement wording has been approved; the
+server returns this exact version with the existing `LEGAL_TERMS_URL`. Each
+owner must separately confirm immediate paid-service commencement and the
+withdrawal-right implications before Checkout. Invited workspace members
+remain covered by their owner's plan and are not offered billing.
 
 The two secrets are files, as for every other secret
 (`deploy/secrets/server/STRIPE_SECRET_KEY` and
 `deploy/secrets/server/STRIPE_WEBHOOK_SECRET`); `deploy/setup.sh install` sets
 the `_FILE` variables when the files exist. In Cloud the server refuses to start
-when any of the four is missing or malformed; the error names the key, never the
+when any required Cloud legal/billing key is missing or malformed; the error names the key, never the
 value.
 
 With AI configured, Cloud also refuses to start without a monthly AI cost cap

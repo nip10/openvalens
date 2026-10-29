@@ -107,17 +107,25 @@ export type SignUpOptions = {
   signUp: boolean;
   terms: { url: string; version: string } | null;
   privacy: { url: string; version: string } | null;
+  healthDataConsent: { url: string; version: string } | null;
 };
 
 export function signUpOptionsFrom(deployment: DeploymentConfig | undefined): SignUpOptions {
   if (deployment?.mode !== "cloud") {
-    return { mode: "self-hosted", signUp: false, terms: null, privacy: null };
+    return {
+      mode: "self-hosted",
+      signUp: false,
+      terms: null,
+      privacy: null,
+      healthDataConsent: null,
+    };
   }
   return {
     mode: "cloud",
     signUp: true,
     terms: deployment.legal.terms,
     privacy: deployment.legal.privacy,
+    healthDataConsent: deployment.legal.healthDataConsent,
   };
 }
 
@@ -135,4 +143,6 @@ export const signUpRequestInput = z.object({
   locale: z.enum(LOCALES).optional().catch(undefined),
   // The person ticked "I agree to the terms of service and privacy policy".
   acceptedLegal: z.literal(true),
+  acceptedHealthDataConsent: z.literal(true),
+  healthDataConsentVersion: z.string().min(1).max(64),
 });

@@ -20,6 +20,13 @@ const STATUS: BillingStatusView = {
   canSubscribe: true,
   canManage: false,
   prices: { monthly: { amount: 799, currency: "eur" }, annual: { amount: 6900, currency: "eur" } },
+  checkoutAcknowledgement: { version: "checkout-v1", termsUrl: "https://legal.test/terms" },
+};
+
+const ACK = {
+  acceptedImmediateStart: true as const,
+  acceptedWithdrawalAcknowledgement: true as const,
+  acknowledgementVersion: "checkout-v1",
 };
 
 function billing(overrides: Partial<BillingService> = {}) {
@@ -74,7 +81,7 @@ describe("billing procedures", () => {
       code: "NOT_FOUND",
     });
     await expect(
-      appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly" }),
+      appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly", ...ACK }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(appRouter.billing.portal.callable({ context: ctx })({})).rejects.toMatchObject({
       code: "NOT_FOUND",
@@ -98,11 +105,12 @@ describe("billing procedures", () => {
       await appRouter.billing.checkout.callable({ context: ctx })({
         plan: "annual",
         locale: "pt-PT",
+        ...ACK,
       }),
     ).toEqual({ url: "https://checkout.stripe.test/c/1" });
     expect(calls).toEqual([
       { getStatus: "user-1", organizationId: "org-1" },
-      { startCheckout: { userId: "user-1", plan: "annual", locale: "pt-PT" } },
+      { startCheckout: { userId: "user-1", plan: "annual", locale: "pt-PT", ...ACK } },
     ]);
   });
 
@@ -118,7 +126,7 @@ describe("billing procedures", () => {
     });
     const ctx = context({ billing: service });
     await expect(
-      appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly" }),
+      appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly", ...ACK }),
     ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
     expect(calls).toEqual([]);
   });
@@ -127,7 +135,7 @@ describe("billing procedures", () => {
     const { service, calls } = billing();
     const ctx = context({ billing: service }, "admin-1");
     await expect(
-      appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly" }),
+      appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly", ...ACK }),
     ).rejects.toMatchObject({ code: "PERMISSION_DENIED" });
     await expect(appRouter.billing.portal.callable({ context: ctx })({})).rejects.toMatchObject({
       code: "PERMISSION_DENIED",
@@ -138,6 +146,8 @@ describe("billing procedures", () => {
   test("billing errors map to stable codes", async () => {
     const cases: [BillingError["code"], string][] = [
       ["ALREADY_SUBSCRIBED", "CONFLICT"],
+      ["ACKNOWLEDGEMENT_REQUIRED", "INVALID_INPUT"],
+      ["ACKNOWLEDGEMENT_STALE", "CONFLICT"],
       ["NO_CUSTOMER", "NOT_FOUND"],
       ["PROVIDER_UNAVAILABLE", "SOURCE_UNAVAILABLE"],
     ];
@@ -152,7 +162,7 @@ describe("billing procedures", () => {
       });
       const ctx = context({ billing: service });
       await expect(
-        appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly" }),
+        appRouter.billing.checkout.callable({ context: ctx })({ plan: "monthly", ...ACK }),
       ).rejects.toMatchObject({ code: apiCode });
       await expect(appRouter.billing.portal.callable({ context: ctx })({})).rejects.toMatchObject({
         code: apiCode,
@@ -167,5 +177,17 @@ describe("billing procedures", () => {
         plan: "lifetime",
       } as never),
     ).rejects.toBeDefined();
+  });
+
+  test("checkout rejects absent acknowledgements at the API boundary", async () => {
+    const { service, calls } = billing();
+    await expect(
+      appRouter.billing.checkout.callable({ context: context({ billing: service }) })({
+        plan: "monthly",
+        acceptedImmediateStart: true,
+        acknowledgementVersion: "checkout-v1",
+      } as never),
+    ).rejects.toBeDefined();
+    expect(calls).toEqual([]);
   });
 });

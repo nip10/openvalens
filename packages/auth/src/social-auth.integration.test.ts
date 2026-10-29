@@ -51,7 +51,14 @@ const CLOUD: DeploymentConfig = {
   legal: {
     terms: { url: "https://legal.test/terms", version: "terms-2026-11" },
     privacy: { url: "https://legal.test/privacy", version: "privacy-2026-11" },
+    healthDataConsent: { url: "https://legal.test/privacy", version: "health-consent-2026-11" },
   },
+};
+const HEALTH_CONSENT_VERSION = "health-consent-2026-11";
+const acceptedSocialConsent = {
+  acceptLegal: true,
+  acceptedHealthDataConsent: true,
+  healthDataConsentVersion: HEALTH_CONSENT_VERSION,
 };
 
 const GOOGLE_CLIENT_ID = "synthetic-client.apps.googleusercontent.com";
@@ -780,12 +787,53 @@ describe.skipIf(!url)("Google and Apple sign-in against mock providers and Postg
     expect(await countUsers()).toBe(before);
   });
 
+  test("cloud: missing or stale health consent creates no account", async () => {
+    const before = await countUsers();
+    const accountsBefore = (await db.execute(sql`select count(*)::int as count from account`))
+      .rows[0] as { count: number };
+    const requests: Array<{ tag: string; additionalData: Record<string, unknown> }> = [
+      { tag: "missing", additionalData: { acceptLegal: true } },
+      {
+        tag: "false",
+        additionalData: { ...acceptedSocialConsent, acceptedHealthDataConsent: false },
+      },
+      {
+        tag: "stale",
+        additionalData: { ...acceptedSocialConsent, healthDataConsentVersion: "old-version" },
+      },
+    ];
+    for (const provider of ["google", "apple"] as const) {
+      for (const { tag, additionalData } of requests) {
+        const result = await roundTrip(
+          cloud,
+          provider,
+          {
+            sub: `consent-required-${before}-${provider}-${tag}`,
+            email: `consent-required-${before}-${provider}-${tag}@example.test`,
+          },
+          { additionalData },
+        );
+        expect(result.location.searchParams.get("error")).toBe("signup_disabled");
+      }
+    }
+    expect(await countUsers()).toBe(before);
+    expect((await db.execute(sql`select count(*)::int as count from account`)).rows[0]).toEqual(
+      accountsBefore,
+    );
+  });
+
   test("cloud: a new Google identity with the terms ticked gets an account, workspace, legal record and trial hook", async () => {
     const { location, cookie } = await roundTrip(
       cloud,
       "google",
       { sub: "cloud-google-sub", email: "New.Person@Example.test" },
-      { additionalData: { acceptLegal: true, locale: "pt-PT" } },
+      {
+        additionalData: {
+          ...acceptedSocialConsent,
+          locale: "pt-PT",
+          healthDataConsentAcceptedAt: "1900-01-01T00:00:00.000Z",
+        },
+      },
     );
     expect(location.pathname).toBe("/dashboard");
     expect(cookie).not.toBeNull();
@@ -806,9 +854,19 @@ describe.skipIf(!url)("Google and Apple sign-in against mock providers and Postg
       )
     ).rows;
     expect(legal).toEqual([
+      { document: "health_data_consent", version: HEALTH_CONSENT_VERSION, source: "sign_up" },
       { document: "privacy", version: "privacy-2026-11", source: "sign_up" },
       { document: "terms", version: "terms-2026-11", source: "sign_up" },
     ]);
+    const consentTime = (
+      await db.execute(sql`
+      select accepted_at from legal_acceptance
+      where user_id = ${userId} and document = 'health_data_consent'
+    `)
+    ).rows[0] as { accepted_at: Date };
+    expect(new Date(consentTime.accepted_at).getTime()).toBeGreaterThan(
+      new Date("2020-01-01").getTime(),
+    );
     expect((await accounts("google", userId)).map((row) => row.account_id)).toEqual([
       "cloud-google-sub",
     ]);
@@ -854,7 +912,7 @@ describe.skipIf(!url)("Google and Apple sign-in against mock providers and Postg
       "apple",
       { sub: "cloud-apple-web", email: relay, private: true },
       {
-        additionalData: { acceptLegal: true },
+        additionalData: acceptedSocialConsent,
         user: { name: { firstName: "Rui", lastName: "Costa" }, email: relay },
       },
     );
@@ -869,7 +927,7 @@ describe.skipIf(!url)("Google and Apple sign-in against mock providers and Postg
       cloud,
       { sub: "cloud-apple-native", email: "native@example.test" },
       {
-        additionalData: { acceptLegal: true },
+        additionalData: acceptedSocialConsent,
         user: { name: { firstName: "Inês" } },
       },
     );

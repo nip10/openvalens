@@ -1,6 +1,6 @@
 # Mobile release (EAS)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-10-26
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-10-29
 
 How to build and submit the iOS and Android apps with
 [EAS Build](https://docs.expo.dev/build/introduction/) and
@@ -12,18 +12,18 @@ servers. Self-hosters building for their own instance should read
 
 ## What is already set up
 
-| Thing             | Where                               | Value                                                                   |
-| ----------------- | ----------------------------------- | ----------------------------------------------------------------------- |
-| App name          | `apps/native/app.json`              | OpenValens                                                              |
-| iOS bundle id     | `app.json` → `ios.bundleIdentifier` | `com.openvalens.app`                                                    |
-| Android package   | `app.json` → `android.package`      | `com.openvalens.app`                                                    |
-| URL scheme        | `app.json` → `scheme`               | `openvalens` (magic-link sign-in returns here)                          |
-| Marketing version | `app.json` → `version`              | `1.0.0`; bump it by hand for each store release                         |
-| Build numbers     | `eas.json` → `cli.appVersionSource` | `remote`: EAS keeps them; `production` auto-increments                  |
-| Icon and splash   | `apps/native/assets/images`         | Rendered from `assets/source/mark.svg` by `bun scripts/render-icons.ts` |
-| Server address    | chosen in the app on first launch   | Cloud or a self-hosted origin; `EXPO_PUBLIC_SERVER_URL` locks a build   |
-| Push project id   | `app.config.ts`                     | `EXPO_PUBLIC_EAS_PROJECT_ID` (optional; push is off without it)         |
-| FCM config        | `app.config.ts`                     | `GOOGLE_SERVICES_JSON` (optional; Android push only)                    |
+| Thing             | Where                               | Value                                                                              |
+| ----------------- | ----------------------------------- | ---------------------------------------------------------------------------------- |
+| App name          | `apps/native/app.json`              | OpenValens                                                                         |
+| iOS bundle id     | `app.json` → `ios.bundleIdentifier` | `com.openvalens.app`                                                               |
+| Android package   | `app.json` → `android.package`      | `com.openvalens.app`                                                               |
+| URL scheme        | `app.json` → `scheme`               | `openvalens` (magic-link sign-in returns here)                                     |
+| Marketing version | `app.json` → `version`              | The release version; `bun run release:version` sets it ([Releasing](releasing.md)) |
+| Build numbers     | `eas.json` → `cli.appVersionSource` | `remote`: EAS keeps them; `production` auto-increments                             |
+| Icon and splash   | `apps/native/assets/images`         | Rendered from `assets/source/mark.svg` by `bun scripts/render-icons.ts`            |
+| Server address    | chosen in the app on first launch   | Cloud or a self-hosted origin; `EXPO_PUBLIC_SERVER_URL` locks a build              |
+| Push project id   | `app.config.ts`                     | `EXPO_PUBLIC_EAS_PROJECT_ID` (optional; push is off without it)                    |
+| FCM config        | `app.config.ts`                     | `GOOGLE_SERVICES_JSON` (optional; Android push only)                               |
 
 ### Build profiles (`apps/native/eas.json`)
 
@@ -32,6 +32,13 @@ servers. Self-hosters building for their own instance should read
 | `development` | A dev client (`expo-dev-client`) on a simulator or an Android emulator, loading JS from Metro | internal, iOS simulator build, Android APK |
 | `preview`     | Testers' phones (TestFlight is not needed)                                                    | internal (ad hoc iOS, Android APK)         |
 | `production`  | App Store and Google Play                                                                     | store                                      |
+
+Each profile reads the EAS environment of the same name (`environment` in
+`eas.json`), which is where `EXPO_PUBLIC_EAS_PROJECT_ID` and the
+`GOOGLE_SERVICES_JSON` file secret live. `submit.production` sends iOS builds
+to TestFlight (`ascAppId`, a placeholder until #304) and Android builds to the
+Play `internal` track. Store builds of a release run from a tag in CI; see
+[Releasing](releasing.md).
 
 No profile sets a server (#295). On first launch the app asks: OpenValens
 Cloud (`https://app.openvalens.com`) or the address of a self-hosted server,
@@ -72,7 +79,8 @@ another instance add a profile (for example
 
 ## Build and submit
 
-Run from `apps/native`:
+For a release, push the tag and let `release-mobile.yml` do this
+([Releasing](releasing.md)). By hand, run from `apps/native`:
 
 ```bash
 # A simulator dev client (needs Metro: bun run dev, then open the app)
@@ -116,11 +124,11 @@ and `android/` folders this generates are not committed.
 
 ## Pre-submission checklist
 
-- [ ] `version` in `app.json` bumped; release notes written.
+- [ ] Version bumped with `bun run release:version`, release notes in `docs/releases/`, tag pushed ([Releasing](releasing.md)).
 - [ ] `cd apps/native && bun run check-types && bun test` pass; `bun run i18n:check` passes at the root.
 - [ ] `bunx expo export --platform ios --platform android` bundles without errors.
 - [ ] Icon, splash and adaptive icon look right on a device in light and dark mode (re-render with `bun scripts/render-icons.ts` if the mark changed).
-- [ ] The `production` profile points at the right server, and that server's `BETTER_AUTH_URL` / trusted origins accept the `openvalens://` scheme (magic-link sign-in returns there).
+- [ ] OpenValens Cloud (`https://app.openvalens.com`) runs a server this version supports, and its `BETTER_AUTH_URL` / trusted origins accept the `openvalens://` scheme (magic-link sign-in returns there).
 - [ ] Sign-in by magic link, Apple Health / Health Connect permission prompts and sync, and push registration tested on a real phone from a `preview` build.
 - [ ] Privacy policy URL, support URL, App Privacy (iOS) and Data safety (Google) answers filled in; Health Connect declaration submitted.
 - [ ] Screenshots for each required device size (6.9" and 6.5" iPhone, 13" iPad because `supportsTablet` is on; Play phone and 7"/10" tablet if listed).

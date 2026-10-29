@@ -85,6 +85,9 @@ export const protectedProcedure = publicProcedure
   .use(requireAuth)
   .use(requireActiveAccessMiddleware);
 
+/** Authenticated session-only routes with neither billing nor workspace gating. */
+export const sessionProcedure = publicProcedure.use(requireAuth);
+
 /**
  * Session-only procedure that *resolves* instance-administrator status
  * (Issue #58) without enforcing it.

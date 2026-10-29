@@ -58,10 +58,9 @@ records), never a real person's data (see [Landing site](#landing-site))._
   stay on the host unless you configure the off-site copy to an S3-compatible
   bucket, and keeping the backup key off the server is up to you
   ([Backups](docs/self-hosting/backup.md)).
-- No hosted service and no public sign-up: you run your own instance.
+- Cloud hosting and public sign-up are not live yet; self-hosting is available.
 - No published container images; the install builds from source (#129).
-- No store build of the mobile app, and no direct wearable-vendor connections
-  yet (#60).
+- Mobile apps are not published in the stores yet; wearable vendor connections are available but need provider configuration.
 
 **Intended purpose.** OpenValens is a personal record-keeping and
 general-wellness app. It helps you store, organise and view your own

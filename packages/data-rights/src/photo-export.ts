@@ -90,6 +90,15 @@ export type PhotoExportFile =
     };
 
 const PAGE_SIZE = 200;
+export const DEFAULT_MAX_SUBJECT_PHOTOS = 10_000;
+
+export class SubjectPhotoExportLimitError extends Error {
+  readonly code = "SUBJECT_PHOTO_EXPORT_LIMIT";
+  constructor() {
+    super("Subject photo export exceeded its configured count limit.");
+    this.name = "SubjectPhotoExportLimitError";
+  }
+}
 
 /** Same canonical opaque id grammar as `@openvalens/storage/keys`. */
 const OBJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -126,6 +135,7 @@ type ByteReader = {
 async function readBounded(
   body: ReadableStream<Uint8Array>,
   limit: number,
+  signal?: AbortSignal,
 ): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; reason: "read_failed" | "integrity" }> {
   let reader: ByteReader;
   try {
@@ -135,9 +145,27 @@ async function readBounded(
   }
   const chunks: Uint8Array[] = [];
   let total = 0;
+  const abortError = () =>
+    Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
+  if (signal?.aborted) {
+    await reader.cancel().catch(() => undefined);
+    throw abortError();
+  }
+  let onAbort: (() => void) | undefined;
+  const aborted = signal
+    ? new Promise<never>((_resolve, reject) => {
+        onAbort = () => {
+          void reader.cancel().catch(() => undefined);
+          reject(abortError());
+        };
+        signal.addEventListener("abort", onAbort, { once: true });
+      })
+    : null;
   try {
     for (;;) {
-      const result = await reader.read();
+      if (signal?.aborted) throw abortError();
+      const read = reader.read();
+      const result = aborted ? await Promise.race([read, aborted]) : await read;
       if (result.done) break;
       const value = result.value;
       if (!value) {
@@ -152,8 +180,14 @@ async function readBounded(
       chunks.push(value);
     }
   } catch {
+    if (signal?.aborted) {
+      void reader.cancel().catch(() => undefined);
+      throw abortError();
+    }
     await reader.cancel().catch(() => undefined);
     return { ok: false, reason: "read_failed" };
+  } finally {
+    if (onAbort) signal?.removeEventListener("abort", onAbort);
   }
   const bytes = new Uint8Array(total);
   let offset = 0;
@@ -169,13 +203,20 @@ async function readBounded(
  * keyset order. Only safe metadata leaves the transaction; keys, provider
  * identity and lifecycle internals are never selected here.
  */
-async function enumerateSubjectPhotos(db: Database, subjectUserId: string): Promise<Candidate[]> {
+async function enumerateSubjectPhotos(
+  db: Database,
+  subjectUserId: string,
+  maxPhotos: number,
+  signal?: AbortSignal,
+): Promise<Candidate[]> {
   return db.transaction(async (tx) => {
     // One consistent snapshot for every page; released before any byte I/O.
     await tx.execute(sql`set transaction isolation level repeatable read, read only`);
     const rows: Candidate[] = [];
     let lastId: string | null = null;
     for (;;) {
+      if (signal?.aborted)
+        throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
       const page = (
         await tx.execute(sql`
           select id, content_type, size_bytes, sha256
@@ -193,6 +234,7 @@ async function enumerateSubjectPhotos(db: Database, subjectUserId: string): Prom
         sha256: string;
       }[];
       for (const row of page) {
+        if (rows.length >= maxPhotos) throw new SubjectPhotoExportLimitError();
         rows.push({
           objectId: row.id,
           contentType: row.content_type,
@@ -218,12 +260,18 @@ export async function* exportSubjectPhotoFiles(
   reader: SubjectPhotoReader,
   subject: DataRightsSubject,
   now: Date = new Date(),
+  options: { maxPhotos?: number; signal?: AbortSignal } = {},
 ): AsyncGenerator<PhotoExportFile, void, unknown> {
-  const candidates = await enumerateSubjectPhotos(db, subject.userId);
+  const maxPhotos = options.maxPhotos ?? DEFAULT_MAX_SUBJECT_PHOTOS;
+  if (!Number.isSafeInteger(maxPhotos) || maxPhotos < 0)
+    throw new TypeError("Invalid photo export limit.");
+  const candidates = await enumerateSubjectPhotos(db, subject.userId, maxPhotos, options.signal);
   const photos: PhotoExportManifestPhoto[] = [];
   const failures: PhotoExportManifest["failures"] = [];
 
   for (const candidate of candidates) {
+    if (options.signal?.aborted)
+      throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
     if (!OBJECT_ID.test(candidate.objectId)) {
       failures.push({ objectId: candidate.objectId, reason: "unavailable" });
       continue;
@@ -249,6 +297,8 @@ export async function* exportSubjectPhotoFiles(
         objectId: candidate.objectId,
       });
     } catch {
+      if (options.signal?.aborted)
+        throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
       failures.push({ objectId: candidate.objectId, reason: "read_failed" });
       continue;
     }
@@ -270,7 +320,7 @@ export async function* exportSubjectPhotoFiles(
       continue;
     }
 
-    const read = await readBounded(photo.body, reader.maxObjectBytes);
+    const read = await readBounded(photo.body, reader.maxObjectBytes, options.signal);
     if (!read.ok) {
       failures.push({ objectId: candidate.objectId, reason: read.reason });
       continue;
@@ -282,6 +332,8 @@ export async function* exportSubjectPhotoFiles(
     }
 
     const path = `photos/${candidate.objectId}.${approved.ext}`;
+    if (options.signal?.aborted)
+      throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
     photos.push({
       objectId: candidate.objectId,
       path,
@@ -297,6 +349,8 @@ export async function* exportSubjectPhotoFiles(
     };
   }
 
+  if (options.signal?.aborted)
+    throw Object.assign(new Error("Photo export was aborted."), { name: "AbortError" });
   yield {
     kind: "manifest",
     path: PHOTO_MANIFEST_PATH,

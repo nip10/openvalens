@@ -19,8 +19,9 @@ import { AdmissionError } from "./errors";
  *
  * The flow has two steps:
  * 1. {@link PublicSignUpService.signUpPublic} — the person enters an email and
- *    ticks the terms and privacy policy. A single-use link is emailed; only
- *    its SHA-256 digest is stored, with the document versions they accepted.
+ *    ticks the terms, privacy policy and separate health-data consent. A
+ *    single-use link is emailed; only its SHA-256 digest is stored, with the
+ *    accepted document versions and timestamps.
  *    **No `user` row is created**, so an address nobody controls never becomes
  *    an account. When the email already has an account, nothing is stored and
  *    the person is emailed a pointer to sign in instead. Both cases answer the
@@ -90,6 +91,8 @@ export type SignUpPublicInput = {
   locale?: Locale;
   /** The person ticked the terms of service and privacy policy. Must be `true`. */
   acceptedLegal: boolean;
+  acceptedHealthDataConsent: boolean;
+  healthDataConsentVersion: string;
 };
 
 export type CompletePublicSignUpResult =
@@ -113,6 +116,8 @@ type RequestRow = {
   locale: unknown;
   terms_version: string;
   privacy_version: string;
+  health_data_consent_version: string | null;
+  health_data_consent_accepted_at: unknown;
   accepted_at: unknown;
   expires_at: unknown;
   consumed_at: unknown;
@@ -156,6 +161,11 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
   async function signUpPublic(input: SignUpPublicInput): Promise<{ accepted: true }> {
     if (!legal) throw new AdmissionError("DENIED");
     if (input?.acceptedLegal !== true) throw new AdmissionError("DENIED");
+    if (
+      input?.acceptedHealthDataConsent !== true ||
+      input.healthDataConsentVersion !== legal.healthDataConsent.version
+    )
+      throw new AdmissionError("DENIED");
     const canonical = canonicalizeEmail(input.email);
     if (!canonical) throw new AdmissionError("DENIED");
     if (!emailDeliveryAvailable()) throw new AdmissionError("EMAIL_UNAVAILABLE");
@@ -172,7 +182,7 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
       );
       if (await hasAccount(tx, canonical)) return "existing";
       await tx.execute(
-        sql`insert into "sign_up_request" ("id", "canonical_email", "token_hash", "locale", "terms_version", "privacy_version", "accepted_at", "expires_at", "consumed_at", "user_id", "created_at") values (${newId()}, ${canonical}, ${hashSignUpSecret(token)}, ${locale ?? null}, ${legal.terms.version}, ${legal.privacy.version}, ${now.toISOString()}, ${new Date(now.getTime() + SIGN_UP_LINK_TTL_MS).toISOString()}, null, null, clock_timestamp())`,
+        sql`insert into "sign_up_request" ("id", "canonical_email", "token_hash", "locale", "terms_version", "privacy_version", "health_data_consent_version", "health_data_consent_accepted_at", "accepted_at", "expires_at", "consumed_at", "user_id", "created_at") values (${newId()}, ${canonical}, ${hashSignUpSecret(token)}, ${locale ?? null}, ${legal.terms.version}, ${legal.privacy.version}, ${legal.healthDataConsent.version}, ${now.toISOString()}, ${now.toISOString()}, ${new Date(now.getTime() + SIGN_UP_LINK_TTL_MS).toISOString()}, null, null, clock_timestamp())`,
       );
       return "new";
     });
@@ -198,7 +208,7 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
 
     return inTransaction(db, async (tx): Promise<CompletePublicSignUpResult> => {
       const found = await tx.execute<RequestRow>(
-        sql`select "id", "canonical_email", "locale", "terms_version", "privacy_version", "accepted_at", "expires_at", "consumed_at" from "sign_up_request" where "token_hash" = ${hashSignUpSecret(token)} for update`,
+        sql`select "id", "canonical_email", "locale", "terms_version", "privacy_version", "health_data_consent_version", "health_data_consent_accepted_at", "accepted_at", "expires_at", "consumed_at" from "sign_up_request" where "token_hash" = ${hashSignUpSecret(token)} for update`,
       );
       const request = found.rows[0];
       if (!request) return { status: "invalid" };
@@ -211,6 +221,13 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
       const now = await dbNow(tx);
       const expiresAt = toDate(request.expires_at);
       if (!expiresAt || expiresAt.getTime() <= now.getTime()) return { status: "expired" };
+      // Old pending rows (created before explicit consent) and links whose
+      // consent version rotated cannot provision an account.
+      if (
+        request.health_data_consent_version !== legal.healthDataConsent.version ||
+        !toDate(request.health_data_consent_accepted_at)
+      )
+        return { status: "invalid" };
 
       if (accountExists) {
         // Another link (or an invitation) created the account first. Retire
@@ -239,11 +256,15 @@ export function createPublicSignUpService(deps: PublicSignUpDeps): PublicSignUpS
         createDrizzleAuthOrgStore(tx as unknown as Database),
       );
 
-      const acceptedAt = toDate(request.accepted_at) ?? now;
       for (const [document, version] of [
         ["terms", request.terms_version],
         ["privacy", request.privacy_version],
+        ["health_data_consent", request.health_data_consent_version],
       ] as const) {
+        const acceptedAt =
+          document === "health_data_consent"
+            ? (toDate(request.health_data_consent_accepted_at) ?? now)
+            : (toDate(request.accepted_at) ?? now);
         await tx.execute(
           sql`insert into "legal_acceptance" ("id", "user_id", "document", "version", "accepted_at", "source") values (${newId()}, ${userId}, ${document}, ${version}, ${acceptedAt.toISOString()}, 'sign_up')`,
         );

@@ -1,5 +1,5 @@
 import { cn } from "heroui-native";
-import { type PropsWithChildren } from "react";
+import { type PropsWithChildren, type Ref } from "react";
 import { ScrollView, View, type ScrollViewProps, type ViewProps } from "react-native";
 import Animated, { type AnimatedProps } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ type Props = AnimatedProps<ViewProps> & {
   className?: string;
   isScrollable?: boolean;
   scrollViewProps?: Omit<ScrollViewProps, "contentContainerStyle">;
+  scrollRef?: Ref<ScrollView>;
 };
 
 export function Container({
@@ -17,6 +18,7 @@ export function Container({
   className,
   isScrollable = true,
   scrollViewProps,
+  scrollRef,
   ...props
 }: PropsWithChildren<Props>) {
   const insets = useSafeAreaInsets();
@@ -31,6 +33,7 @@ export function Container({
     >
       {isScrollable ? (
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           contentInsetAdjustmentBehavior="automatic"

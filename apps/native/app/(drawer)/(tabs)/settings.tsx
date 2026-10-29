@@ -18,7 +18,6 @@ import {
   type CoachTemplateId,
   type CoachTone,
 } from "@openvalens/api/presenters/coach-settings";
-import { UPSTREAM_SOURCE_CODE_URL } from "@openvalens/api/source-code";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "heroui-native";
 import { router, useFocusEffect } from "expo-router";
@@ -38,12 +37,13 @@ import {
   Smartphone,
   SlidersHorizontal,
   Sun,
+  Tag,
   Trash2,
   UserRound,
   Watch,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
-import { Linking, Pressable, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import {
   ErrorState,
@@ -71,21 +71,27 @@ import { AiSection } from "@/components/ai-section";
 import { ServerSection } from "@/components/change-server";
 import { SignInMethodsSection } from "@/components/sign-in-methods";
 import { useAppTheme } from "@/contexts/app-theme-context";
+import { appBuildInfo } from "@/lib/app-version";
 import { authClient } from "@/lib/auth-client";
+import { serverLabel } from "@/lib/server/server-address";
+import { probeServer } from "@/lib/server/server-meta";
+import { useServer } from "@/lib/server/server-url";
 import { signOutOfThisPhone } from "@/lib/sign-out";
-import { orpc } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { adminAccessQueryOptions } from "@/utils/admin-settings";
 
 export default function SettingsScreen() {
   const { isDark, toggleTheme } = useAppTheme();
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const { data: session, isPending: sessionPending } = authClient.useSession();
+  const settingsScroll = useRef<ScrollView>(null);
+  const deleteAccountOffset = useRef(0);
 
   const { t } = useLingui();
   const displayName = session?.user ? (session.user.name ?? session.user.email) : null;
 
   return (
-    <Container>
+    <Container scrollRef={settingsScroll}>
       <Page>
         <PageHeader title={t`Settings`} />
 
@@ -128,6 +134,14 @@ export default function SettingsScreen() {
             </View>
           </SettingsGroup>
         </Section>
+
+        {session?.user ? (
+          <HealthDataConsentSettingsSection
+            onOpenDeleteAccount={() =>
+              settingsScroll.current?.scrollTo({ y: deleteAccountOffset.current, animated: true })
+            }
+          />
+        ) : null}
 
         {/* Issue #296 — connect and disconnect Google, Apple and OIDC. */}
         {session?.user && <SignInMethodsSection />}
@@ -229,11 +243,79 @@ export default function SettingsScreen() {
           </Sheet>
         </Section>
 
-        {session?.user && <DeleteAccountSection onSignOut={signOutOfThisPhone} />}
+        {session?.user ? (
+          <View onLayout={(event) => (deleteAccountOffset.current = event.nativeEvent.layout.y)}>
+            <DeleteAccountSection onSignOut={signOutOfThisPhone} />
+          </View>
+        ) : null}
 
         <AboutSection />
       </Page>
     </Container>
+  );
+}
+
+function HealthDataConsentSettingsSection({
+  onOpenDeleteAccount,
+}: {
+  onOpenDeleteAccount: () => void;
+}) {
+  const { t } = useLingui();
+  const server = useServer();
+  const serverUrl = server.status === "set" ? server.url : null;
+  const session = authClient.useSession();
+  const userId = session.data?.user?.id ?? null;
+  const status = useQuery({
+    queryKey: ["healthConsent", "status", serverUrl, userId],
+    queryFn: () => client.healthConsent.status({}),
+    enabled: !!serverUrl && !!userId && !session.isPending,
+    staleTime: 60_000,
+  });
+
+  return (
+    <Section title={t`Health data consent`} icon={Scale} tone="signal">
+      <Sheet className="gap-3">
+        {status.isPending ? (
+          <Text className="font-sans text-sm text-ink-3">{t`Loading consent status…`}</Text>
+        ) : status.isError ? (
+          <Text className="font-sans text-sm text-ink-3">{t`Could not load health data consent status.`}</Text>
+        ) : (
+          <>
+            <Text className="font-sans text-sm text-ink-2">
+              {!status.data.required
+                ? t`Consent is not required on this server.`
+                : status.data.accepted
+                  ? t`Consent recorded for version ${status.data.acceptedVersion}.`
+                  : t`No health data consent is recorded.`}
+              {status.data.acceptedAt
+                ? ` ${t`Recorded on ${new Date(status.data.acceptedAt).toLocaleDateString()}.`}`
+                : ""}
+              {status.data.required && status.data.currentVersion
+                ? ` ${t`Current version: ${status.data.currentVersion}.`}`
+                : ""}
+            </Text>
+            {status.data.privacyUrl ? (
+              <Pressable onPress={() => void Linking.openURL(status.data!.privacyUrl!)}>
+                <Text className="font-sans text-sm font-semibold text-signal underline">
+                  {t`Read the privacy policy`}
+                </Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+        <Text className="font-sans text-sm leading-relaxed text-ink-2">
+          {t`If you no longer want OpenValens to process your health data, you can export your records and delete your account.`}
+        </Text>
+        <View className="flex-row flex-wrap gap-2">
+          <Button variant="secondary" onPress={() => router.push("/exports")}>
+            <Button.Label>{t`Export records`}</Button.Label>
+          </Button>
+          <Button variant="secondary" onPress={onOpenDeleteAccount}>
+            <Button.Label>{t`Delete account`}</Button.Label>
+          </Button>
+        </View>
+      </Sheet>
+    </Section>
   );
 }
 
@@ -355,6 +437,28 @@ function AboutSection() {
   const about = useQuery(orpc.about.info.queryOptions({ input: {} }));
   const { t } = useLingui();
   const serverSource = about.data?.sourceCodeUrl;
+  // Issue #306 — this build's version and build number, and its source at
+  // the release tag; plus the version the connected server reports.
+  const app = appBuildInfo();
+  const server = useServer();
+  const serverUrl = server.status === "set" ? server.url : null;
+  const meta = useQuery({
+    queryKey: ["server-meta", serverUrl],
+    queryFn: () => (serverUrl ? probeServer(serverUrl) : Promise.resolve(null)),
+    enabled: !!serverUrl,
+    staleTime: 5 * 60_000,
+  });
+  const serverVersion = meta.data
+    ? meta.data.ok
+      ? meta.data.meta.serverVersion
+      : "serverVersion" in meta.data.problem
+        ? meta.data.problem.serverVersion
+        : null
+    : null;
+  const appVersion = app.version ?? t`Unknown`;
+  const build = app.build;
+  const versionText = build ? t`${appVersion} (build ${build})` : appVersion;
+  const host = serverUrl ? serverLabel(serverUrl) : "";
 
   return (
     <Section title={t`About`} icon={Info} tone="signal">
@@ -369,10 +473,30 @@ function AboutSection() {
           </Text>
         </View>
         <ListRow
+          icon={<Icon icon={Tag} size={18} color="ink-2" />}
+          title={t`App version`}
+          subtitle={versionText}
+          showDivider
+        />
+        {serverUrl ? (
+          <ListRow
+            icon={<Icon icon={Server} size={18} color="ink-2" />}
+            title={t`Server version`}
+            subtitle={
+              serverVersion
+                ? t`${serverVersion} on ${host}`
+                : meta.isPending
+                  ? t`Checking…`
+                  : t`Not available`
+            }
+            showDivider
+          />
+        ) : null}
+        <ListRow
           icon={<Icon icon={Smartphone} size={18} color="ink-2" />}
           title={t`Source code for this app`}
-          subtitle={UPSTREAM_SOURCE_CODE_URL}
-          onPress={() => void Linking.openURL(UPSTREAM_SOURCE_CODE_URL)}
+          subtitle={app.sourceUrl}
+          onPress={() => void Linking.openURL(app.sourceUrl)}
           showDivider={!!serverSource}
           trailing={<Icon icon={Code2} size={16} />}
         />

@@ -112,11 +112,14 @@ describe("billing config", () => {
     STRIPE_WEBHOOK_SECRET: "whsec_abc",
     STRIPE_PRICE_MONTHLY: "price_m",
     STRIPE_PRICE_ANNUAL: "price_a",
+    LEGAL_TERMS_URL: "https://openvalens.example/terms",
+    LEGAL_CHECKOUT_ACK_VERSION: "checkout-v1",
   };
 
   test("parses a complete set", () => {
     const config = parseBillingConfig(valid);
     expect(config.prices).toEqual({ monthly: "price_m", annual: "price_a" });
+    expect(config.checkoutAcknowledgementVersion).toBe("checkout-v1");
     expect(planForPrice(config.prices, "price_a")).toBe("annual");
     expect(planForPrice(config.prices, "price_other")).toBeNull();
   });
@@ -143,5 +146,14 @@ describe("billing config", () => {
     expect(() => parseBillingConfig({ ...valid, STRIPE_PRICE_ANNUAL: "price_m" })).toThrow(
       BillingConfigError,
     );
+  });
+
+  test("requires a server-owned bounded acknowledgement version", () => {
+    expect(() => parseBillingConfig({ ...valid, LEGAL_CHECKOUT_ACK_VERSION: "" })).toThrow(
+      BillingConfigError,
+    );
+    expect(() =>
+      parseBillingConfig({ ...valid, LEGAL_CHECKOUT_ACK_VERSION: "v".repeat(65) }),
+    ).toThrow(BillingConfigError);
   });
 });

@@ -67,7 +67,7 @@ export function workoutOrganizationInList(values: readonly string[]): SQL {
  * metadata only, not photo bytes (see `exportSubjectPhotoFiles`); storage
  * keys, provider/store identity and photo lifecycle internals stay internal.
  */
-const PHOTO_OBJECT_COLUMNS = [
+const PORTABLE_OBJECT_COLUMNS = [
   "id",
   "organization_id",
   "created_by_user_id",
@@ -77,6 +77,35 @@ const PHOTO_OBJECT_COLUMNS = [
   "sha256",
   "created_at",
 ] as const;
+const STORED_OBJECT_REDACTED_COLUMNS = [
+  "storage_key",
+  "storage_provider",
+  "storage_store_id",
+  "photo_state",
+  "photo_write_state",
+  "photo_deletion_requested_at",
+] as const;
+
+/** Stable column-level serializer shared by in-memory and streaming exports. */
+export function serializeExportRow(table: string, entry: TableEntry, row: Row): Row {
+  if (table === "stored_object") {
+    const copy: Row = {};
+    // Storage keys/provider identity and lifecycle internals are private implementation
+    // details for every object purpose, not just progress photos.
+    for (const column of PORTABLE_OBJECT_COLUMNS) if (column in row) copy[column] = row[column];
+    return copy;
+  }
+  if (!entry.redact?.length) return row;
+  const copy = { ...row };
+  for (const column of entry.redact) delete copy[column];
+  return copy;
+}
+
+export function exportRedactedColumns(table: string, entry: TableEntry): string[] {
+  return table === "stored_object"
+    ? [...STORED_OBJECT_REDACTED_COLUMNS]
+    : [...(entry.redact ?? [])];
+}
 
 /** Row filters for tables reachable only through a parent. */
 const CHILD_QUERIES: Record<string, (subject: DataRightsSubject) => SQL> = {
@@ -303,20 +332,9 @@ export async function exportSubjectData(
     const result = await db.execute(
       sql`select * from ${sql.identifier(table)} where ${rowFilter(table, subject)} order by 1`,
     );
-    const rows = (result.rows as Row[]).map((row) => {
-      // Photo rows get an explicit allowlist; non-photo stored objects keep
-      // their existing shape so this export broadening changes nothing else.
-      if (table === "stored_object" && row.purpose === "progress_photo") {
-        const copy: Row = {};
-        for (const column of PHOTO_OBJECT_COLUMNS) if (column in row) copy[column] = row[column];
-        return copy;
-      }
-      if (!entry.redact?.length) return row;
-      const copy = { ...row };
-      for (const column of entry.redact) delete copy[column];
-      return copy;
-    });
-    if (entry.redact?.length) redacted.push({ table, columns: [...entry.redact] });
+    const rows = (result.rows as Row[]).map((row) => serializeExportRow(table, entry, row));
+    const redactedColumns = exportRedactedColumns(table, entry);
+    if (redactedColumns.length) redacted.push({ table, columns: redactedColumns });
 
     const paths = [`entities/${table}.json`];
     files.push({ path: paths[0]!, content: toJson(rows) });

@@ -46,6 +46,9 @@ services:
     environment:
       CORS_ORIGIN: http://localhost:3001
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/openvalens
+      DATA_EXPORT_DIR: /var/lib/openvalens/exports
+    volumes:
+      - export_data:/var/lib/openvalens/exports
     healthcheck:
       test:
         [
@@ -88,6 +91,8 @@ services:
 volumes:
   postgres_data:
     name: openvalens_postgres_data
+  export_data:
+    name: openvalens_export_data
 
 # BuildKit makes these available only while install/build commands run.
 secrets:

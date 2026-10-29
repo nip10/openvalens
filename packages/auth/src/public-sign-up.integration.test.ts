@@ -31,6 +31,13 @@ if (url) {
 
 const BASE = "http://localhost:3000";
 const WEB = "http://localhost:3001";
+const HEALTH_CONSENT_VERSION = "health-consent-2026-11";
+const acceptedConsent = (email: string) => ({
+  email,
+  acceptedLegal: true,
+  acceptedHealthDataConsent: true,
+  healthDataConsentVersion: HEALTH_CONSENT_VERSION,
+});
 const ENV = {
   BETTER_AUTH_URL: BASE,
   BETTER_AUTH_SECRET: "s".repeat(32),
@@ -42,6 +49,7 @@ const CLOUD: DeploymentConfig = {
   legal: {
     terms: { url: "https://legal.test/terms", version: "terms-2026-11" },
     privacy: { url: "https://legal.test/privacy", version: "privacy-2026-11" },
+    healthDataConsent: { url: "https://legal.test/privacy", version: "health-consent-2026-11" },
   },
 };
 
@@ -129,7 +137,7 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
   }
 
   async function signUp(address: string) {
-    await cloud.signUpPublic({ email: address, acceptedLegal: true });
+    await cloud.signUpPublic(acceptedConsent(address));
     return useLink(lastLinkFor(address));
   }
 
@@ -164,7 +172,7 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
   test("self-hosted: sign-up refuses, the link endpoint does not exist, nothing is written", async () => {
     const usersBefore = await count("user");
     await expect(
-      selfHosted.signUpPublic({ email: "self@example.test", acceptedLegal: true }),
+      selfHosted.signUpPublic(acceptedConsent("self@example.test")),
     ).rejects.toMatchObject({ code: "DENIED" });
     expect(await selfHosted.completePublicSignUp("anything")).toEqual({ status: "invalid" });
     const response = await selfHostedAuth.handler(
@@ -182,6 +190,8 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
     const result = await cloud.signUpPublic({
       email: "Pending@Example.test",
       acceptedLegal: true,
+      acceptedHealthDataConsent: true,
+      healthDataConsentVersion: HEALTH_CONSENT_VERSION,
       locale: "pt-PT",
     });
     expect(result).toEqual({ accepted: true });
@@ -191,14 +201,43 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
 
     const link = lastLinkFor("pending@example.test");
     const token = new URL(link).searchParams.get("token")!;
-    const rows = await db.execute<{ token_hash: string; canonical_email: string; locale: string }>(
-      sql`select "token_hash", "canonical_email", "locale" from "sign_up_request"`,
+    const rows = await db.execute<{
+      token_hash: string;
+      canonical_email: string;
+      locale: string;
+      health_data_consent_version: string;
+      health_data_consent_accepted_at: unknown;
+    }>(
+      sql`select "token_hash", "canonical_email", "locale", "health_data_consent_version", "health_data_consent_accepted_at" from "sign_up_request"`,
     );
     expect(rows.rows).toHaveLength(1);
     expect(rows.rows[0]!.canonical_email).toBe("pending@example.test");
     expect(rows.rows[0]!.token_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(rows.rows[0]!.token_hash).not.toContain(token);
     expect(rows.rows[0]!.locale).toBe("pt-PT");
+    expect(rows.rows[0]!.health_data_consent_version).toBe(HEALTH_CONSENT_VERSION);
+    expect(rows.rows[0]!.health_data_consent_accepted_at).not.toBeNull();
+  });
+
+  test("missing, refused, or stale health consent writes no request", async () => {
+    const before = await count("sign_up_request");
+    await expect(
+      cloud.signUpPublic({ email: "missing-consent@example.test", acceptedLegal: true } as never),
+    ).rejects.toMatchObject({ code: "DENIED" });
+    await expect(
+      cloud.signUpPublic({
+        ...acceptedConsent("false-consent@example.test"),
+        acceptedHealthDataConsent: false,
+      }),
+    ).rejects.toMatchObject({ code: "DENIED" });
+    await expect(
+      cloud.signUpPublic({
+        ...acceptedConsent("stale-consent@example.test"),
+        healthDataConsentVersion: "stale-version",
+      }),
+    ).rejects.toMatchObject({ code: "DENIED" });
+    expect(await count("sign_up_request")).toBe(before);
+    expect(delivered).toEqual([]);
   });
 
   test("using the link creates the user, their own workspace as owner, legal records, and a session in onboarding", async () => {
@@ -227,6 +266,7 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
       sql`select "document", "version", "accepted_at" from "legal_acceptance" where "user_id" = ${alice!.id} order by "document"`,
     );
     expect(legal.rows.map((row) => [row.document, row.version])).toEqual([
+      ["health_data_consent", HEALTH_CONSENT_VERSION],
       ["privacy", "privacy-2026-11"],
       ["terms", "terms-2026-11"],
     ]);
@@ -258,7 +298,7 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
   });
 
   test("a reused link is refused and creates nothing more", async () => {
-    await cloud.signUpPublic({ email: "reuse@example.test", acceptedLegal: true });
+    await cloud.signUpPublic(acceptedConsent("reuse@example.test"));
     const link = lastLinkFor("reuse@example.test");
     expect((await useLink(link)).location).toBe(`${WEB}/welcome`);
     const users = await count("user");
@@ -269,7 +309,7 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
   });
 
   test("an expired link is refused and creates no user", async () => {
-    await cloud.signUpPublic({ email: "late@example.test", acceptedLegal: true });
+    await cloud.signUpPublic(acceptedConsent("late@example.test"));
     await db.execute(
       sql`update "sign_up_request" set "expires_at" = clock_timestamp() - interval '1 second' where "canonical_email" = 'late@example.test'`,
     );
@@ -277,6 +317,30 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
     expect(outcome.location).toBe(`${WEB}/signup?error=expired`);
     expect(outcome.cookie).toBeNull();
     expect(await userByEmail("late@example.test")).toBeNull();
+  });
+
+  test("old pending tokens without current health consent fail before account creation", async () => {
+    await cloud.signUpPublic(acceptedConsent("legacy-token@example.test"));
+    const tokenUrl = lastLinkFor("legacy-token@example.test");
+    await db.execute(sql`
+      update "sign_up_request" set "health_data_consent_version" = null,
+        "health_data_consent_accepted_at" = null
+      where "canonical_email" = 'legacy-token@example.test'
+    `);
+    const outcome = await useLink(tokenUrl);
+    expect(outcome.location).toBe(`${WEB}/signup?error=invalid`);
+    expect(await userByEmail("legacy-token@example.test")).toBeNull();
+  });
+
+  test("a pending token bound to an obsolete consent version cannot provision", async () => {
+    await cloud.signUpPublic(acceptedConsent("rotated-token@example.test"));
+    const tokenUrl = lastLinkFor("rotated-token@example.test");
+    await db.execute(sql`
+      update "sign_up_request" set "health_data_consent_version" = 'old-version'
+      where "canonical_email" = 'rotated-token@example.test'
+    `);
+    expect((await useLink(tokenUrl)).location).toBe(`${WEB}/signup?error=invalid`);
+    expect(await userByEmail("rotated-token@example.test")).toBeNull();
   });
 
   test("an unknown or missing token is refused", async () => {
@@ -295,6 +359,8 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
     const result = await cloud.signUpPublic({
       email: "EXISTING@example.test",
       acceptedLegal: true,
+      acceptedHealthDataConsent: true,
+      healthDataConsentVersion: HEALTH_CONSENT_VERSION,
     });
     expect(result).toEqual({ accepted: true });
     expect(delivered).toEqual([{ kind: "existing", email: "existing@example.test" }]);
@@ -302,9 +368,9 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
   });
 
   test("two links for one email: the first used wins, the second can never create a duplicate", async () => {
-    await cloud.signUpPublic({ email: "twice@example.test", acceptedLegal: true });
+    await cloud.signUpPublic(acceptedConsent("twice@example.test"));
     const first = lastLinkFor("twice@example.test");
-    await cloud.signUpPublic({ email: "twice@example.test", acceptedLegal: true });
+    await cloud.signUpPublic(acceptedConsent("twice@example.test"));
     const second = lastLinkFor("twice@example.test");
     expect(second).not.toBe(first);
 
@@ -315,7 +381,7 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
   });
 
   test("a failing account-created hook (the #297 trial) rolls the whole sign-up back", async () => {
-    await cloud.signUpPublic({ email: "rollback@example.test", acceptedLegal: true });
+    await cloud.signUpPublic(acceptedConsent("rollback@example.test"));
     failHook = true;
     const outcome = await useLink(lastLinkFor("rollback@example.test"));
     expect(outcome.location).toBe(`${WEB}/signup?error=invalid`);
@@ -364,11 +430,15 @@ describe.skipIf(!url)("public sign-up against disposable PostgreSQL", () => {
     );
     expect(hijack.status).toBeGreaterThanOrEqual(400);
 
-    // Legal acceptance is per account.
+    // Legal acceptance (terms, privacy, health-data consent) is per account.
     const legalOne = await db.execute(
-      sql`select 1 from "legal_acceptance" where "user_id" = ${userOne.id}`,
+      sql`select "document" from "legal_acceptance" where "user_id" = ${userOne.id} order by "document"`,
     );
-    expect(legalOne.rows).toHaveLength(2);
+    expect(legalOne.rows.map((row) => (row as { document: string }).document)).toEqual([
+      "health_data_consent",
+      "privacy",
+      "terms",
+    ]);
   });
 
   test("Better Auth's own create paths stay closed in cloud mode", async () => {

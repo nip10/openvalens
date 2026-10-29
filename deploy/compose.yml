@@ -55,8 +55,10 @@ x-server-env: &server-env
   DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
   LEGAL_TERMS_URL: ${LEGAL_TERMS_URL:-}
   LEGAL_TERMS_VERSION: ${LEGAL_TERMS_VERSION:-}
+  LEGAL_CHECKOUT_ACK_VERSION: ${LEGAL_CHECKOUT_ACK_VERSION:-}
   LEGAL_PRIVACY_URL: ${LEGAL_PRIVACY_URL:-}
   LEGAL_PRIVACY_VERSION: ${LEGAL_PRIVACY_VERSION:-}
+  LEGAL_HEALTH_CONSENT_VERSION: ${LEGAL_HEALTH_CONSENT_VERSION:-}
   # OpenValens Cloud billing (Issue #297): required when DEPLOYMENT_MODE=cloud,
   # ignored on self-host. The two secrets are files under deploy/secrets/server.
   STRIPE_SECRET_KEY_FILE: ${STRIPE_SECRET_KEY_FILE:-}
@@ -107,6 +109,7 @@ x-server-env: &server-env
   # STORAGE_S3_* settings in deploy/.env, with the keys as secret files.
   STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
   STORAGE_LOCAL_DIR: /var/lib/openvalens/storage
+  DATA_EXPORT_DIR: /var/lib/openvalens/exports
   STORAGE_MAX_OBJECT_BYTES: ${STORAGE_MAX_OBJECT_BYTES:-26214400}
   STORAGE_SIGNED_URL_TTL_SECONDS: ${STORAGE_SIGNED_URL_TTL_SECONDS:-300}
   STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
@@ -242,9 +245,10 @@ services:
     environment: *server-env
     volumes:
       - ./secrets/server:/run/secrets:ro
-      # Stored objects (photos, lab PDFs, exports). Every backup archives it
-      # with the database (docs/self-hosting/backup.md).
+      # Stored objects are backed up with the database.
       - storage:/var/lib/openvalens/storage
+      # Private export staging and downloadable archives; intentionally not backed up.
+      - exports:/var/lib/openvalens/exports
     networks:
       - app
       - db
@@ -424,5 +428,6 @@ volumes:
   postgres_data: {}
   backups: {}
   storage: {}
+  exports: {}
   caddy_data: {}
   caddy_config: {}

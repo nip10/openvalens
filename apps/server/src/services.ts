@@ -161,8 +161,9 @@ export const invitationEmails = createWorkspaceInvitationEmails({
 // ─── Deployment mode (Issue #294) ───────────────────────────────
 //
 // `DEPLOYMENT_MODE` is `self-hosted` unless the operator sets `cloud`. Cloud
-// refuses to start without the settings it depends on: the terms and privacy
-// versions every sign-up records, and the Stripe keys (#297). The thrown error
+// refuses to start without the settings it depends on: terms, privacy, the
+// separate health-data consent version every sign-up records, and Stripe keys
+// (#297). The thrown error
 // names keys only, never values.
 export const deploymentConfig = parseDeploymentConfig({
   DEPLOYMENT_MODE: ENV.DEPLOYMENT_MODE,
@@ -170,10 +171,12 @@ export const deploymentConfig = parseDeploymentConfig({
   LEGAL_TERMS_VERSION: ENV.LEGAL_TERMS_VERSION,
   LEGAL_PRIVACY_URL: ENV.LEGAL_PRIVACY_URL,
   LEGAL_PRIVACY_VERSION: ENV.LEGAL_PRIVACY_VERSION,
+  LEGAL_HEALTH_CONSENT_VERSION: ENV.LEGAL_HEALTH_CONSENT_VERSION,
   STRIPE_SECRET_KEY: ENV.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: ENV.STRIPE_WEBHOOK_SECRET,
   STRIPE_PRICE_MONTHLY: ENV.STRIPE_PRICE_MONTHLY,
   STRIPE_PRICE_ANNUAL: ENV.STRIPE_PRICE_ANNUAL,
+  LEGAL_CHECKOUT_ACK_VERSION: ENV.LEGAL_CHECKOUT_ACK_VERSION,
 });
 
 // ─── Cloud billing (Issue #297) ─────────────────────────────────
@@ -198,6 +201,8 @@ export function getBillingService(): Promise<BillingService | null> {
       STRIPE_WEBHOOK_SECRET: ENV.STRIPE_WEBHOOK_SECRET,
       STRIPE_PRICE_MONTHLY: ENV.STRIPE_PRICE_MONTHLY,
       STRIPE_PRICE_ANNUAL: ENV.STRIPE_PRICE_ANNUAL,
+      LEGAL_TERMS_URL: ENV.LEGAL_TERMS_URL,
+      LEGAL_CHECKOUT_ACK_VERSION: ENV.LEGAL_CHECKOUT_ACK_VERSION,
     });
     const locales = databaseMessageLocales(db);
     return billing.createBillingService({
@@ -279,6 +284,8 @@ export const socialSignUpService = createSocialSignUpService({
 // Issue #58 — auth must be constructed only after the email service exists.
 export const auth = createAuth(ENV, db, {
   email,
+  healthDataConsentVersion:
+    deploymentConfig.mode === "cloud" ? deploymentConfig.legal.healthDataConsent.version : null,
   oidc: oidcConfig.provider,
   invitationEmails,
   publicSignUp: publicSignUpService.enabled ? publicSignUpService : null,

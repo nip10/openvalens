@@ -31,10 +31,10 @@ export type DeploymentConfig =
   | {
       mode: "cloud";
       /**
-       * Terms of service and privacy policy (#300). Every public sign-up records
-       * acceptance of exactly these versions, with a timestamp.
+       * Terms, privacy policy and separate health-data consent. Public account
+       * creation records acceptance of each configured version and timestamp.
        */
-      legal: { terms: LegalDocument; privacy: LegalDocument };
+      legal: { terms: LegalDocument; privacy: LegalDocument; healthDataConsent: LegalDocument };
     };
 
 /** Raw env input accepted by {@link parseDeploymentConfig}. */
@@ -44,16 +44,20 @@ export type DeploymentEnv = {
   LEGAL_TERMS_VERSION?: string;
   LEGAL_PRIVACY_URL?: string;
   LEGAL_PRIVACY_VERSION?: string;
+  LEGAL_HEALTH_CONSENT_VERSION?: string;
   /** Cloud billing (#297); parsed in full by `@openvalens/billing`. */
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   STRIPE_PRICE_MONTHLY?: string;
   STRIPE_PRICE_ANNUAL?: string;
+  LEGAL_CHECKOUT_ACK_VERSION?: string;
 };
 
 /**
- * Keys that must be set when `DEPLOYMENT_MODE=cloud`: the legal documents
- * every sign-up records (#294) and the Stripe billing keys (#297), so Cloud
+ * Keys that must be set when `DEPLOYMENT_MODE=cloud`: the legal documents and
+ * separate health-data consent every sign-up records (#294), the reviewed
+ * checkout acknowledgement version (#323), and Stripe billing keys (#297),
+ * so Cloud
  * refuses to start without everything it needs. The Stripe values' shape is
  * checked by `parseBillingConfig` in `@openvalens/billing`.
  */
@@ -62,10 +66,12 @@ export const CLOUD_REQUIRED_KEYS = [
   "LEGAL_TERMS_VERSION",
   "LEGAL_PRIVACY_URL",
   "LEGAL_PRIVACY_VERSION",
+  "LEGAL_HEALTH_CONSENT_VERSION",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "STRIPE_PRICE_MONTHLY",
   "STRIPE_PRICE_ANNUAL",
+  "LEGAL_CHECKOUT_ACK_VERSION",
 ] as const satisfies readonly (keyof DeploymentEnv)[];
 
 const VERSION_MAX_LENGTH = 64;
@@ -118,7 +124,11 @@ export function parseDeploymentConfig(env: DeploymentEnv): DeploymentConfig {
     const value = env[key];
     if (present(value) && !isHttpUrl(value.trim())) issues.push(`${key} must be an http(s) URL`);
   }
-  for (const key of ["LEGAL_TERMS_VERSION", "LEGAL_PRIVACY_VERSION"] as const) {
+  for (const key of [
+    "LEGAL_TERMS_VERSION",
+    "LEGAL_PRIVACY_VERSION",
+    "LEGAL_HEALTH_CONSENT_VERSION",
+  ] as const) {
     const value = env[key];
     if (present(value) && value.trim().length > VERSION_MAX_LENGTH) {
       issues.push(`${key} must be at most ${VERSION_MAX_LENGTH} characters`);
@@ -131,6 +141,10 @@ export function parseDeploymentConfig(env: DeploymentEnv): DeploymentConfig {
     legal: {
       terms: { url: env.LEGAL_TERMS_URL!.trim(), version: env.LEGAL_TERMS_VERSION!.trim() },
       privacy: { url: env.LEGAL_PRIVACY_URL!.trim(), version: env.LEGAL_PRIVACY_VERSION!.trim() },
+      healthDataConsent: {
+        url: env.LEGAL_PRIVACY_URL!.trim(),
+        version: env.LEGAL_HEALTH_CONSENT_VERSION!.trim(),
+      },
     },
   };
 }

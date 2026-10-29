@@ -4,8 +4,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner } from "heroui-native";
 import { Mail, MailOpen } from "lucide-react-native";
-import { useState } from "react";
-import { RefreshControl, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Linking, Pressable, RefreshControl, Text, View } from "react-native";
 
 import {
   EmptyState,
@@ -20,6 +20,9 @@ import {
 import { Container } from "@/components/container";
 import { SignIn } from "@/components/sign-in";
 import { authClient } from "@/lib/auth-client";
+import { needsHealthConsent, type HealthConsentStatus } from "@/lib/health-consent";
+import { client } from "@/utils/orpc";
+import { useServer } from "@/lib/server/server-url";
 import { useThemeColor } from "@/utils/theme";
 import {
   acceptWorkspaceInvitation,
@@ -61,17 +64,28 @@ export default function InvitationsScreen() {
   const queryClient = useQueryClient();
   const foreground = useThemeColor("foreground");
   const { data: session, isPending: sessionPending } = authClient.useSession();
+  const server = useServer();
+  const serverUrl = server.status === "set" ? server.url : null;
+  const userId = session?.user?.id ?? null;
   const email = session?.user?.email?.toLowerCase() ?? null;
   const [message, setMessage] = useState<string | null>(null);
+  const [healthConsentChecked, setHealthConsentChecked] = useState(false);
   const { t, i18n } = useLingui();
   const errorMessage = (error: unknown): string =>
     error instanceof WorkspaceInvitationError ? i18n._(error.userMessage) : i18n._(ACTION_FAILED);
 
   const invitations = useQuery({
     queryKey: ["invitations", "mine", email],
-    enabled: !!email,
+    enabled: !!email && !!serverUrl,
     queryFn: () => listMyInvitations(invitationClient),
   });
+  const consentStatus = useQuery({
+    queryKey: ["healthConsent", "status", serverUrl, userId],
+    queryFn: () => client.healthConsent.status({}),
+    enabled: !!email && !!serverUrl && !!userId,
+    staleTime: 60_000,
+  });
+  useEffect(() => setHealthConsentChecked(false), [consentStatus.data?.currentVersion]);
 
   const refresh = () => {
     setMessage(null);
@@ -79,12 +93,49 @@ export default function InvitationsScreen() {
   };
 
   const accept = useMutation({
-    mutationFn: (invitationId: string) => acceptWorkspaceInvitation(invitationClient, invitationId),
+    mutationFn: async (invitationId: string) => {
+      const consent = await client.healthConsent.status({});
+      if (needsHealthConsent(consent)) {
+        if (!healthConsentChecked || !consent.currentVersion)
+          throw new Error("HEALTH_CONSENT_REQUIRED");
+        let accepted: HealthConsentStatus;
+        try {
+          accepted = await client.healthConsent.accept({
+            acceptedHealthDataConsent: true,
+            version: consent.currentVersion,
+          });
+        } catch {
+          void queryClient.invalidateQueries({
+            queryKey: ["healthConsent", "status", serverUrl, userId],
+          });
+          throw new Error("HEALTH_CONSENT_STALE");
+        }
+        if (
+          needsHealthConsent(accepted) ||
+          accepted.currentVersion !== consent.currentVersion ||
+          accepted.acceptedVersion !== consent.currentVersion
+        ) {
+          throw new Error("HEALTH_CONSENT_STALE");
+        }
+        queryClient.setQueryData(["healthConsent", "status", serverUrl, userId], accepted);
+      }
+      return acceptWorkspaceInvitation(invitationClient, invitationId);
+    },
     onSuccess: () => {
       setMessage(t`Invitation accepted. The workspace is now active.`);
       void queryClient.invalidateQueries();
     },
-    onError: (error) => setMessage(errorMessage(error)),
+    onError: (error) => {
+      if (error instanceof Error && error.message.startsWith("HEALTH_CONSENT_")) {
+        setHealthConsentChecked(false);
+        void consentStatus.refetch();
+        setMessage(
+          error.message === "HEALTH_CONSENT_STALE"
+            ? t`The consent version changed. Review it and try accepting the invitation again.`
+            : t`Review and accept the health data consent before accepting this invitation.`,
+        );
+      } else setMessage(errorMessage(error));
+    },
   });
 
   const decline = useMutation({
@@ -143,6 +194,53 @@ export default function InvitationsScreen() {
           </Sheet>
         ) : null}
 
+        {consentStatus.isError ? (
+          <Sheet className="gap-2 p-4">
+            <Text className="font-sans text-sm text-destructive">
+              {t`Could not check health data consent. Retry before accepting an invitation.`}
+            </Text>
+            <Button variant="secondary" onPress={() => void consentStatus.refetch()}>
+              <Button.Label>{t`Retry`}</Button.Label>
+            </Button>
+          </Sheet>
+        ) : null}
+        {needsHealthConsent(consentStatus.data) ? (
+          <Sheet className="gap-3 border border-signal/30 p-4">
+            <Text className="font-sans text-sm leading-relaxed text-ink-2">
+              {t`I consent to OpenValens processing my health data to provide the service.`}{" "}
+              {consentStatus.data?.privacyUrl ? (
+                <Text
+                  accessibilityRole="link"
+                  className="font-semibold text-signal underline"
+                  onPress={() => void Linking.openURL(consentStatus.data!.privacyUrl!)}
+                >
+                  {t`Read the privacy policy`}
+                </Text>
+              ) : null}
+            </Text>
+            <Text className="font-sans text-xs text-ink-3">
+              {t`Consent version: ${consentStatus.data?.currentVersion}`}
+            </Text>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: healthConsentChecked }}
+              onPress={() => setHealthConsentChecked((value) => !value)}
+              className="flex-row items-start gap-2"
+            >
+              <View
+                className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${healthConsentChecked ? "border-primary bg-primary" : "border-rule bg-paper"}`}
+              >
+                {healthConsentChecked ? (
+                  <Text className="text-xs font-bold text-primary-foreground">✓</Text>
+                ) : null}
+              </View>
+              <Text className="flex-1 font-sans text-sm text-ink-2">
+                {t`I agree to this health data processing.`}
+              </Text>
+            </Pressable>
+          </Sheet>
+        ) : null}
+
         {invitations.isPending ? (
           <Spinner />
         ) : invitations.isError ? (
@@ -176,6 +274,11 @@ export default function InvitationsScreen() {
                 invitation={invitation}
                 sessionEmail={email}
                 busy={busy}
+                acceptDisabled={
+                  consentStatus.isPending ||
+                  consentStatus.isError ||
+                  (needsHealthConsent(consentStatus.data) && !healthConsentChecked)
+                }
                 accepting={accept.isPending && accept.variables === invitation.id}
                 declining={decline.isPending && decline.variables === invitation.id}
                 onAccept={() => {
@@ -199,6 +302,7 @@ function InvitationRow({
   invitation,
   sessionEmail,
   busy,
+  acceptDisabled,
   accepting,
   declining,
   onAccept,
@@ -207,6 +311,7 @@ function InvitationRow({
   invitation: WorkspaceInvitation;
   sessionEmail: string;
   busy: boolean;
+  acceptDisabled: boolean;
   accepting: boolean;
   declining: boolean;
   onAccept: () => void;
@@ -226,7 +331,7 @@ function InvitationRow({
     >
       {state === "pending" ? (
         <View className="flex-row gap-2">
-          <Button className="flex-1" onPress={onAccept} isDisabled={busy}>
+          <Button className="flex-1" onPress={onAccept} isDisabled={busy || acceptDisabled}>
             <Button.Label>{accepting ? t`Accepting…` : t`Accept`}</Button.Label>
           </Button>
           <Button className="flex-1" variant="outline" onPress={onDecline} isDisabled={busy}>

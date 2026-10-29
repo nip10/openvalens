@@ -10,6 +10,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { ALLOWED_PHRASES, BANNED_TERMS } from "./wording-rules";
+
 import {
   auditCss,
   auditMarkup,
@@ -62,11 +64,11 @@ describe("built site", () => {
         html.replace(/\s+/g, " "),
       )?.[1];
     expect(html).toContain('<link rel="canonical" href="https://openvalens.com/" />');
-    expect(meta("name", "description")).toContain("Your data stays on your server.");
+    expect(meta("name", "description")).toContain("private health record");
     expect(meta("property", "og:type")).toBe("website");
     expect(meta("property", "og:site_name")).toBe("OpenValens");
     expect(meta("property", "og:title")).toBe("OpenValens, your private health record");
-    expect(meta("property", "og:description")).toContain("Your data stays on your server.");
+    expect(meta("property", "og:description")).toContain("private health record");
     expect(meta("property", "og:url")).toBe("https://openvalens.com/");
     expect(meta("property", "og:image")).toBe("https://openvalens.com/og.png");
     expect(meta("property", "og:image:width")).toBe("1200");
@@ -160,45 +162,6 @@ describe("auditMarkup / auditCss catch third-party resources", () => {
   });
 });
 
-/**
- * Banned marketing terms from "Legal and clinical gate decisions" (decision
- * 10). The intended-purpose statement is the one place some of them appear —
- * as negations — so it is removed before scanning.
- */
-const BANNED_TERMS = [
-  /\bdiagnos/i,
-  /\bdetect/i,
-  /\bscreen for\b/i,
-  /\bpredict/i,
-  /\binterpret/i,
-  /\btreat/i,
-  /\bcure/i,
-  /early warning/i,
-  /\bcatch .* early\b/i,
-  /(clinical|medical)[- ]grade/i,
-  /clinically (validated|proven)/i,
-  /doctor[- ]approved/i,
-  /\bFDA\b/,
-  /CE[- ]marked/i,
-  /\babnormal/i,
-  /\bat risk\b/i,
-  /risk score/i,
-  /biological age/i,
-  /AI (doctor|clinician)/i,
-  /medical advice/i,
-  /personali[sz]ed medical/i,
-  /improves? your health/i,
-  /longevity/i,
-  /optimi[sz]e your/i,
-  /\breverse\b/i,
-  /HIPAA/i,
-  /GDPR[- ]certified/i,
-  /we never share/i,
-];
-
-/** Allowed exact phrases that contain a banned term (gate decisions, "Allowed"). */
-const ALLOWED_PHRASES = [/It is not medical advice and can be wrong\./g];
-
 describe("site copy", () => {
   test("uses none of the banned terms outside the intended-purpose statement", async () => {
     const text = await pageText();
@@ -214,8 +177,17 @@ describe("site copy", () => {
 
   test("states the name, the privacy tagline and the intended purpose", async () => {
     const text = await pageText();
-    expect(text).toContain("Open-source, private health record.");
-    expect(text).toContain("Your data stays on your server.");
+    expect(text).toContain("A private place for your health records.");
+    expect(text).toContain("Cloud · coming soon");
+    expect(text).toContain("€7.99 / month");
+    expect(text).toContain("€69 / year");
+    expect(text).toContain("VAT included");
+    expect(text).toContain("30-day free trial, no card required");
+    expect(text).toContain("AI coach with a monthly usage cap");
+    expect(text).toContain("The workspace owner pays; invited members are covered");
+    expect(text).toContain("software is free");
+    expect(text).toContain("you choose and pay for hosting");
+    expect(text).not.toContain("One plan. No surprises.");
     expect(text).toContain("It never means your records are public");
     expect(text).toContain("OpenValens is not a medical device.");
   });
@@ -224,7 +196,9 @@ describe("site copy", () => {
     const text = await pageText();
     expect(text).toContain("Off-site backups are opt-in.");
     expect(text).toContain("Encrypted daily backups stay on the host");
-    expect(text).toContain("no release is tagged yet");
+    expect(text).toContain("Cloud is not live yet.");
+    expect(text).toContain("Mobile apps are not published in the stores yet.");
+    expect(text).not.toContain("No hosted service.");
     expect(text).toContain("no analytics and no telemetry");
   });
 
@@ -240,5 +214,44 @@ describe("site copy", () => {
     expect(install).toContain(command!);
     const readme = await readFile(join(import.meta.dir, "..", "..", "..", "README.md"), "utf8");
     expect(readme).toContain(command!);
+  });
+});
+
+describe("legal and support pages", () => {
+  const PAGES = ["privacy", "subprocessors", "support"] as const;
+
+  test("each page is built and served at its clean path, not redirected to the app", async () => {
+    const conf = await readFile(
+      join(import.meta.dir, "..", "deploy", "default.conf.template"),
+      "utf8",
+    );
+    expect(conf).toContain("location ~ ^/(privacy|subprocessors|support)/?$");
+    for (const page of PAGES) {
+      const html = await readFile(join(outDir, `${page}.html`), "utf8");
+      expect(html).toContain(`<link rel="canonical" href="https://openvalens.com/${page}" />`);
+      // Absolute asset paths so /privacy/ resolves them too.
+      expect(html).toContain('href="/styles.css"');
+    }
+  });
+
+  test("the home page links to every page", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    for (const page of PAGES) expect(html).toContain(`href="/${page}"`);
+  });
+
+  test("support explains account deletion at a stable anchor (Google Play deletion URL)", async () => {
+    const html = await readFile(join(outDir, "support.html"), "utf8");
+    expect(html).toContain('id="delete-account"');
+    expect(html).toContain("Delete account and all data");
+    expect(html).toContain("hello@openvalens.com");
+  });
+
+  test("the privacy policy names the contact and leaves no draft placeholders", async () => {
+    for (const page of ["privacy", "subprocessors"]) {
+      const html = await readFile(join(outDir, `${page}.html`), "utf8");
+      expect(html).not.toMatch(/\[(CONFIRM|[A-Z][A-Z ]{3,})[^\]]*\]/);
+      expect(html).not.toMatch(/Lawyer:|Draft —/);
+    }
+    expect(await readFile(join(outDir, "privacy.html"), "utf8")).toContain("hello@openvalens.com");
   });
 });

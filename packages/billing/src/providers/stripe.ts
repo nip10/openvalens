@@ -19,7 +19,8 @@ import {
  * What Stripe receives:
  * - customer: the account email and `metadata.ov_ref` (opaque reference);
  * - Checkout: that customer, `client_reference_id` = the same reference,
- *   the price, `subscription_data.metadata.ov_ref`, automatic tax, the
+ *   the price, `subscription_data.metadata.ov_ref` and opaque acceptance reference,
+ *   automatic tax, the
  *   return URLs and the interface language. Never a name, a workspace name or
  *   any health data.
  *
@@ -51,9 +52,10 @@ export function checkoutSessionParams(input: CheckoutSessionInput) {
     client_reference_id: input.ref,
     line_items: [{ price: input.priceId, quantity: 1 }],
     subscription_data: {
-      metadata: metadataFor(input.ref),
+      metadata: metadataFor(input.ref, input.acceptanceReference),
       ...(trialEnd ? { trial_end: trialEnd } : {}),
     },
+    metadata: metadataFor(input.ref, input.acceptanceReference),
     // EU VAT through Stripe Tax; the address Checkout collects for tax is
     // saved on the customer.
     automatic_tax: { enabled: true },
@@ -80,7 +82,7 @@ export type StripeClientLike = {
       create(
         params: Stripe.Checkout.SessionCreateParams,
         options?: Stripe.RequestOptions,
-      ): Promise<{ url: string | null }>;
+      ): Promise<{ id: string; url: string | null }>;
     };
   };
   billingPortal: {
@@ -217,7 +219,7 @@ export function createStripeProvider(options: {
           idempotencyKey: input.idempotencyKey,
         });
         if (!session.url) throw new BillingProviderError("checkout_url_missing");
-        return { url: session.url };
+        return { id: session.id, url: session.url };
       }),
 
     createPortalSession: ({ customerId, returnUrl, locale }) =>

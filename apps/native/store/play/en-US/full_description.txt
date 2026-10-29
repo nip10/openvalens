@@ -1,0 +1,23 @@
+OpenValens keeps your health records in one private place: lab results, meals, workouts, sleep, body measurements and data from Health Connect.
+
+YOUR DATA, YOUR SERVER
+Use OpenValens Cloud, hosted in the EU, or connect the app to an OpenValens server you run yourself. It is the same app either way. There are no ads and no trackers, and your data is never sold.
+
+WHAT IT KEEPS
+• Labs: enter or import results and follow each marker over time, next to the reference range printed on your report.
+• Meal diary: log meals, scan food barcodes, and keep count of calories, macronutrients and water.
+• Workouts: log sets, reps and weights, and look back over your training history.
+• Sleep and activity: steps, heart rate, sleep and workouts sync from Health Connect.
+• Body: weight, body fat and measurements, with progress photos kept private.
+• Goals: set targets and check in on them.
+• Sharing: invite a partner or family member to a shared workspace, with roles you control.
+• AI assistant (optional, off until you turn it on): ask questions about your own records. It is not medical advice and can be wrong.
+
+YOURS TO TAKE WITH YOU
+Export all of your data at any time, or delete your account and all data from inside the app.
+
+FREE SOFTWARE
+OpenValens is free software under the GNU AGPL v3.0 or later. The source code of every release is available free of charge at https://github.com/nip10/openvalens.
+
+INTENDED PURPOSE
+OpenValens is a personal record-keeping and general-wellness app. It helps you store, organise and view your own health-related records (such as lab results you enter or import, body measurements, workouts, nutrition, sleep and wearable data) and track healthy habits. It shows publicly available guidance published by recognised public-health authorities, attributed and unaltered, for your information. OpenValens is not a medical device. It is not intended to diagnose, screen for, prevent, monitor, predict, treat or alleviate any disease or condition, and it does not provide medical advice. Talk to a qualified healthcare professional about your health.

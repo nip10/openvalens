@@ -178,6 +178,11 @@ export const signUpRequest = pgTable(
     locale: text("locale"),
     termsVersion: text("terms_version").notNull(),
     privacyVersion: text("privacy_version").notNull(),
+    healthDataConsentVersion: text("health_data_consent_version"),
+    healthDataConsentAcceptedAt: timestamp("health_data_consent_accepted_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
     acceptedAt: timestamp("accepted_at", { withTimezone: true, mode: "date" }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
@@ -222,11 +227,11 @@ export const legalAcceptance = pgTable(
   (table) => ({
     legalAcceptanceDocumentCheck: check(
       "legal_acceptance_document_check",
-      sql`${table.document} in ('terms', 'privacy')`,
+      sql`${table.document} in ('terms', 'privacy', 'health_data_consent')`,
     ),
     legalAcceptanceSourceCheck: check(
       "legal_acceptance_source_check",
-      sql`${table.source} in ('sign_up')`,
+      sql`${table.source} in ('sign_up', 're_consent')`,
     ),
     legalAcceptanceUserDocumentVersionUnique: uniqueIndex(
       "legal_acceptance_user_document_version_key",

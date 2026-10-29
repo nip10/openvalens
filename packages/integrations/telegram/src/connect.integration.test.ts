@@ -4,7 +4,12 @@ import { createDb, sql } from "@openvalens/db";
 import { createStructuredLogger } from "@openvalens/observability";
 
 import type { TelegramClient } from "./client";
-import { createConnectToken, disconnectTelegramChat, readTelegramConnection } from "./connect";
+import {
+  createConnectToken,
+  disconnectTelegramChat,
+  hashConnectToken,
+  readTelegramConnection,
+} from "./connect";
 import { handleWebhookUpdate } from "./webhook";
 
 const url = process.env.TELEGRAM_CONNECT_TEST_DATABASE_URL;
@@ -30,12 +35,18 @@ describe.skipIf(!url)("Telegram /start connect flow (Issue #14)", () => {
   const logger = createStructuredLogger({ level: "error", sink: () => {} });
   let updateId = 1000;
 
-  const start = (chatId: number, text: string, languageCode = "en") =>
+  const start = (
+    chatId: number,
+    text: string,
+    languageCode = "en",
+    canWriteWorkspace?: (input: { userId: string; organizationId: string }) => Promise<boolean>,
+  ) =>
     handleWebhookUpdate({
       db,
       client,
       logger,
       correlationId: "corr-connect",
+      canWriteWorkspace,
       rawUpdate: {
         update_id: ++updateId,
         message: {
@@ -105,6 +116,50 @@ describe.skipIf(!url)("Telegram /start connect flow (Issue #14)", () => {
     expect(await start(222, `/start ${token}`)).toEqual({ status: "unknown" });
     expect(await accounts("user-a")).toEqual([{ telegram_chat_id: "111", status: "active" }]);
     expect(replies.at(-1)?.text).toContain("invalid or has expired");
+  });
+
+  test("read-only Cloud access refuses /start without consuming token or binding chat", async () => {
+    await db.execute(
+      sql`insert into "user" (id, email, banned) values ('user-access-gate', 'access-gate@example.test', false) on conflict (id) do nothing`,
+    );
+    await db.execute(
+      sql`insert into member (id, organization_id, user_id, role) values ('m-access-gate', 'org-a', 'user-access-gate', 'member') on conflict (id) do nothing`,
+    );
+    const { token } = await createConnectToken(db, {
+      userId: "user-access-gate",
+      organizationId: "org-a",
+      ttlSeconds: 600,
+    });
+    const denied = await start(888, `/start ${token}`, "en", async ({ userId, organizationId }) => {
+      expect({ userId, organizationId }).toEqual({
+        userId: "user-access-gate",
+        organizationId: "org-a",
+      });
+      return false;
+    });
+    expect(denied).toEqual({ status: "unknown" });
+    expect((await accounts("user-access-gate")).map((row) => row.telegram_chat_id)).not.toContain(
+      "888",
+    );
+    expect(
+      (
+        await db.execute<{ used_at: string | null }>(
+          sql`select used_at from telegram_connect_token where token_hash = ${hashConnectToken(token)}`,
+        )
+      ).rows[0]?.used_at,
+    ).toBeNull();
+    expect(replies.at(-1)?.text).toBe(
+      "Your OpenValens Cloud access has ended; your records are still there.",
+    );
+
+    // The refusal only records Telegram update/audit bookkeeping. Once access
+    // returns, the original token can still be used to bind the chat.
+    expect(await start(888, `/start ${token}`, "en", async () => true)).toEqual({
+      status: "processed",
+    });
+    expect((await accounts("user-access-gate")).map((row) => row.telegram_chat_id)).toContain(
+      "888",
+    );
   });
 
   test("connecting a new chat revokes the previous one", async () => {

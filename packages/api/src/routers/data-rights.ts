@@ -9,6 +9,7 @@ import {
 } from "@openvalens/data-rights";
 import type { PendingRevocation, SocialTokenRevocation } from "@openvalens/auth/social";
 import { createStructuredLogger } from "@openvalens/observability";
+import { sql } from "@openvalens/db";
 import { z } from "zod";
 
 import { protectedProcedure, raiseApiError, validateInput } from "../index";
@@ -63,6 +64,48 @@ const deleteOutput = z.object({
   erasedAt: z.string(),
   totalRows: z.number(),
 });
+
+const exportStatusOutput = z.object({
+  id: z.string(),
+  state: z.enum(["queued", "running", "ready", "failed", "cancelled", "expired"]),
+  createdAt: z.string(),
+  expiresAt: z.string().nullable(),
+  bytes: z.number().nullable(),
+  failure: z
+    .enum([
+      "LIMIT_EXCEEDED",
+      "ATTACHMENT_UNAVAILABLE",
+      "STORAGE_UNAVAILABLE",
+      "INTERRUPTED",
+      "INTERNAL",
+    ])
+    .nullable(),
+});
+
+type ExportJobRow = {
+  id: string;
+  state: "queued" | "running" | "ready" | "failed" | "cancelled" | "expired";
+  created_at: Date | string;
+  expires_at: Date | string | null;
+  bytes: number | null;
+  failure:
+    | "LIMIT_EXCEEDED"
+    | "ATTACHMENT_UNAVAILABLE"
+    | "STORAGE_UNAVAILABLE"
+    | "INTERRUPTED"
+    | "INTERNAL"
+    | null;
+};
+function exportStatus(row: ExportJobRow) {
+  return {
+    id: row.id,
+    state: row.state,
+    createdAt: new Date(row.created_at).toISOString(),
+    expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+    bytes: row.bytes == null ? null : Number(row.bytes),
+    failure: row.failure,
+  };
+}
 
 function sessionCreatedAt(session: { session?: { createdAt?: Date | string } }): Date {
   const value = session.session?.createdAt;
@@ -128,6 +171,79 @@ async function revokeAfterErasure(
 const sum = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0);
 
 export const dataRightsRouter = {
+  exportRequest: protectedProcedure
+    .use(validateInput(previewInput))
+    .input(previewInput)
+    .output(exportStatusOutput)
+    .handler(async ({ context }) => {
+      let actor;
+      try {
+        actor = assertSelfServiceSession(context);
+      } catch (error) {
+        raiseSelfErasureError(error);
+      }
+      const result = await context.db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtextextended(${`data-export-request:${actor.userId}`}, 0))`,
+        );
+        const active =
+          await tx.execute(sql`select id, state, created_at, expires_at, bytes, failure from data_export_job
+          where subject_user_id = ${actor.userId} and state in ('queued','running','ready')
+          and (state <> 'ready' or expires_at > now()) order by created_at desc limit 1`);
+        const existing = active.rows[0] as ExportJobRow | undefined;
+        if (existing) return existing;
+        const rate = await tx.execute(sql`select count(*)::int as n from data_export_job
+          where subject_user_id = ${actor.userId} and created_at > now() - interval '24 hours'`);
+        if (Number((rate.rows[0] as { n: number }).n) >= 3)
+          throw raiseApiError("CONFLICT", "Export request limit reached.");
+        const scope = await resolveSubject(context.db, actor.userId);
+        const created =
+          await tx.execute(sql`insert into data_export_job (subject_user_id, organization_ids)
+          values (${actor.userId}, ${JSON.stringify(scope.subject.organizationIds)}::jsonb)
+          returning id, state, created_at, expires_at, bytes, failure`);
+        return created.rows[0] as ExportJobRow;
+      });
+      return exportStatus(result);
+    }),
+
+  exportStatus: protectedProcedure
+    .use(validateInput(previewInput))
+    .input(previewInput)
+    .output(exportStatusOutput.nullable())
+    .handler(async ({ context }) => {
+      let actor;
+      try {
+        actor = assertSelfServiceSession(context);
+      } catch (error) {
+        raiseSelfErasureError(error);
+      }
+      await context.db
+        .execute(sql`update data_export_job set state = 'expired', cleanup_pending = 'job'
+        where subject_user_id = ${actor.userId} and state = 'ready' and expires_at <= now()`);
+      const result = await context.db
+        .execute(sql`select id, state, created_at, expires_at, bytes, failure
+        from data_export_job where subject_user_id = ${actor.userId} order by created_at desc limit 1`);
+      const row = result.rows[0] as ExportJobRow | undefined;
+      return row ? exportStatus(row) : null;
+    }),
+
+  exportCancel: protectedProcedure
+    .use(validateInput(z.strictObject({ jobId: z.string().uuid() })))
+    .input(z.strictObject({ jobId: z.string().uuid() }))
+    .output(z.void())
+    .handler(async ({ input, context }) => {
+      let actor;
+      try {
+        actor = assertSelfServiceSession(context);
+      } catch (error) {
+        raiseSelfErasureError(error);
+      }
+      await context.db
+        .execute(sql`update data_export_job set state = 'cancelled', attempt_id = null, cleanup_pending = 'job',
+        lease_until = null where id = ${input.jobId} and subject_user_id = ${actor.userId}
+        and state in ('queued','running','ready')`);
+    }),
+
   deletionPreview: protectedProcedure
     .use(validateInput(previewInput))
     .input(previewInput)

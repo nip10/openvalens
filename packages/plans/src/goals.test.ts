@@ -210,6 +210,34 @@ describe("goals — derived helpers", () => {
     expect(parseGoalNumeric("not a number")).toBeNull();
   });
 
+  test("parseGoalNumeric reads plain digit runs and decimal commas (#313)", () => {
+    for (const locale of ["en", "pt-PT"] as const) {
+      expect(parseGoalNumeric("9000", locale)).toBe(9000);
+      expect(parseGoalNumeric("10000 steps", locale)).toBe(10000);
+      expect(parseGoalNumeric("72,5 kg", locale)).toBe(72.5);
+      expect(parseGoalNumeric("10 000 steps", locale)).toBe(10000);
+      expect(parseGoalNumeric("-2,5", locale)).toBe(-2.5);
+    }
+    expect(parseGoalNumeric("9000")).toBe(9000);
+    expect(parseGoalNumeric("72,5 kg")).toBe(72.5);
+  });
+
+  test("parseGoalNumeric resolves a lone three-digit group by locale", () => {
+    expect(parseGoalNumeric("9,000")).toBe(9000);
+    expect(parseGoalNumeric("9,000", "en")).toBe(9000);
+    expect(parseGoalNumeric("1.500", "en")).toBe(1.5);
+    expect(parseGoalNumeric("1.500 kcal", "pt-PT")).toBe(1500);
+    expect(parseGoalNumeric("9,000", "pt-PT")).toBe(9);
+  });
+
+  test("parseGoalNumeric treats the last of mixed separators as the decimal", () => {
+    expect(parseGoalNumeric("1,234.5")).toBe(1234.5);
+    expect(parseGoalNumeric("1.234,5", "pt-PT")).toBe(1234.5);
+    expect(parseGoalNumeric("1.234,5")).toBe(1234.5);
+    expect(parseGoalNumeric("1,234,567")).toBe(1234567);
+    expect(parseGoalNumeric("1.234.567", "pt-PT")).toBe(1234567);
+  });
+
   test("deriveGoalProgress returns null when either side is missing", () => {
     expect(
       deriveGoalProgress({

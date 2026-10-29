@@ -1,6 +1,7 @@
 // The capture module must be evaluated before `./env.server.ts`, which loads
 // Varlock and injects the `CSP_MODE` schema default. See `./csp-mode-capture`.
 import "./csp-mode-capture";
+import { Readable } from "node:stream";
 import { CSP_REPORT_PATH, createCspReportHandler, resolveCspMode } from "./security-csp-report";
 import { appRouter } from "@openvalens/api/routers/index";
 import { ensureActiveOrganization, personalWorkspaceSlug } from "@openvalens/auth/authz/auth-org";
@@ -39,6 +40,8 @@ import { createContext } from "./context";
 import { reportError } from "./error-reporting";
 import { ENV } from "./env.server";
 import { registerServerMetaRoute } from "./server-meta-route";
+import { createDataExportWorker, cleanupExportArtifacts } from "./data-export-worker";
+import { openAuthorizedExportArchive } from "./data-export-download";
 import {
   auth,
   db,
@@ -93,6 +96,20 @@ function correlationIdFrom(context: unknown): string | undefined {
 }
 
 const app = new Hono();
+
+// Private subject export worker: one bounded in-process worker, fenced by DB lease.
+const dataExportWorker = createDataExportWorker({
+  db,
+  storage: storageService,
+  directory: ENV.DATA_EXPORT_DIR,
+});
+void cleanupExportArtifacts(ENV.DATA_EXPORT_DIR, db).catch(() => undefined);
+dataExportWorker.start();
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    void dataExportWorker.stop().finally(() => process.exit(0));
+  });
+}
 
 // Issue #9 — resolve the correlation id before anything else so the CORS
 // response, every downstream log line and the oRPC context share one id.
@@ -244,6 +261,25 @@ app.post("/api/integrations/telegram/webhook", async (c) => {
     rawUpdate,
     logger,
     correlationId,
+    ...(deploymentConfig.mode === "cloud"
+      ? {
+          canWriteWorkspace: async ({
+            userId,
+            organizationId,
+          }: {
+            userId: string;
+            organizationId: string;
+          }) => {
+            try {
+              const billing = await getBillingService();
+              if (!billing) return false;
+              return (await billing.resolveAccess({ userId, organizationId })).level === "full";
+            } catch {
+              return false;
+            }
+          },
+        }
+      : {}),
   });
 
   return c.json(result, 200);
@@ -268,6 +304,27 @@ app.get(`${LOCAL_DOWNLOAD_PATH_PREFIX}:objectId`, async (c) => {
     logger.error("storage.download.failed", { correlationId, ...describeStorageError(error) });
     return c.json({ error: "INTERNAL" }, 500);
   }
+});
+
+app.get("/api/data-rights/exports/:jobId/download", async (c) => {
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const archive = await openAuthorizedExportArchive({
+    db,
+    directory: ENV.DATA_EXPORT_DIR,
+    jobId: c.req.param("jobId"),
+    userId: session?.user?.id,
+    impersonatedBy: session?.session?.impersonatedBy,
+  });
+  if (!archive) return c.json({ error: "NOT_FOUND" }, 404);
+  return new Response(Readable.toWeb(archive.body) as ReadableStream, {
+    headers: {
+      "content-type": "application/zip",
+      "content-length": String(archive.size),
+      "content-disposition": 'attachment; filename="openvalens-complete-export.zip"',
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
 });
 
 // Public media route consumes only the dedicated global manifest capability.

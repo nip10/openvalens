@@ -45,14 +45,15 @@ function authorizedContext(correlationId = "test-correlation-id"): Context {
 
 /** Fake config-bound email service; its sender is the only delivery path. */
 function createFakeEmailService() {
+  const sends: SendEmailInput[] = [];
   const service = {
-    sendEmail: async (_input: SendEmailInput, _options?: SendEmailOptions) => ({
-      id: "email-1",
-      dryRun: false,
-    }),
+    sendEmail: async (input: SendEmailInput, _options?: SendEmailOptions) => {
+      sends.push(input);
+      return { id: "email-1", dryRun: false };
+    },
     organizationName: "Health",
   } as unknown as EmailService;
-  return { service };
+  return { service, sends };
 }
 
 /** A Drizzle-shaped query chain that resolves to no rows. */
@@ -67,14 +68,27 @@ function emptyQuery(): unknown {
 /** Stub DB whose `execute` returns the supplied worklist and whose selects
  * find nothing — sufficient for the cron unit tests, which never reach the
  * materializer's transactions. */
-function createCronDb(worklist: string[] = []): Database {
+function createCronDb(
+  worklist: string[] = [],
+  ownerId?: string,
+): Database & { calls: { execute: number; select: number; transaction: number } } {
+  const calls = { execute: 0, select: 0, transaction: 0 };
   return {
-    execute: async () => ({ rows: worklist.map((id) => ({ organization_id: id })) }),
-    select: () => emptyQuery(),
+    calls,
+    execute: async () => {
+      calls.execute += 1;
+      if (calls.execute === 1) return { rows: worklist.map((id) => ({ organization_id: id })) };
+      return { rows: ownerId ? [{ user_id: ownerId }] : [] };
+    },
+    select: () => {
+      calls.select += 1;
+      return emptyQuery();
+    },
     transaction: async <T>(callback: (tx: unknown) => Promise<T>) => {
+      calls.transaction += 1;
       return callback(undefined);
     },
-  } as unknown as Database;
+  } as unknown as Database & { calls: typeof calls };
 }
 
 describe("cron.remindersDailyRun", () => {
@@ -102,6 +116,50 @@ describe("cron.remindersDailyRun", () => {
       failed: 0,
       correlationId: "corr-reminders",
     });
+  });
+
+  test("Cloud workspaces with an owner fail closed before materialization without billing", async () => {
+    const { service: email, sends } = createFakeEmailService();
+    const db = createCronDb(["org-read-only"], "workspace-owner");
+    const result = await appRouter.cron.remindersDailyRun.callable({
+      context: {
+        ...authorizedContext("corr-cloud-reminders"),
+        db,
+        email,
+        deployment: { mode: "cloud" } as never,
+        billing: null,
+      },
+    })({});
+
+    expect(result).toMatchObject({
+      status: "ok",
+      organizations: 1,
+      organizationsSucceeded: 1,
+      organizationsFailed: 0,
+      created: 0,
+      sent: 0,
+      skipped: 1,
+    });
+    expect(db.calls).toEqual({ execute: 2, select: 0, transaction: 0 });
+    expect(sends).toHaveLength(0);
+  });
+
+  test("Cloud workspaces without an owner are independently skipped", async () => {
+    const { service: email, sends } = createFakeEmailService();
+    const db = createCronDb(["org-ownerless"]);
+    const result = await appRouter.cron.remindersDailyRun.callable({
+      context: {
+        ...authorizedContext("corr-ownerless-reminders"),
+        db,
+        email,
+        deployment: { mode: "cloud" } as never,
+        billing: null,
+      },
+    })({});
+
+    expect(result).toMatchObject({ organizations: 1, created: 0, sent: 0, skipped: 1 });
+    expect(db.calls).toEqual({ execute: 2, select: 0, transaction: 0 });
+    expect(sends).toHaveLength(0);
   });
 
   test("still runs the worklist when the Telegram client is unconfigured (email fallback)", async () => {

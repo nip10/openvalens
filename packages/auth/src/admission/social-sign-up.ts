@@ -39,6 +39,8 @@ export type SocialSignUpLegal = {
   termsVersion: string;
   privacyVersion: string;
   acceptedAt: Date;
+  healthDataConsentVersion: string;
+  healthDataConsentAcceptedAt: Date;
 };
 
 export type SocialSignUpInput = {
@@ -75,6 +77,7 @@ export type SocialSignUpService = {
   readonly enabled: boolean;
   /** The versions a sign-up started now accepts, or `null` when sign-up is off. */
   currentLegal(): { termsVersion: string; privacyVersion: string } | null;
+  currentHealthDataConsent(): { version: string } | null;
   createAccount(input: SocialSignUpInput): Promise<SocialSignUpResult>;
 };
 
@@ -112,11 +115,16 @@ export function createSocialSignUpService(deps: SocialSignUpDeps): SocialSignUpS
     const canonical = canonicalizeEmail(input.email);
     if (!canonical) return { status: "invalid" };
     const acceptedAt = input.legal?.acceptedAt;
+    const healthDataConsentAcceptedAt = input.legal?.healthDataConsentAcceptedAt;
     if (
       !validVersion(input.legal?.termsVersion) ||
       !validVersion(input.legal?.privacyVersion) ||
       !(acceptedAt instanceof Date) ||
-      !Number.isFinite(acceptedAt.getTime())
+      !Number.isFinite(acceptedAt.getTime()) ||
+      input.legal?.healthDataConsentVersion !== legal.healthDataConsent.version ||
+      !validVersion(input.legal?.healthDataConsentVersion) ||
+      !(healthDataConsentAcceptedAt instanceof Date) ||
+      !Number.isFinite(healthDataConsentAcceptedAt.getTime())
     ) {
       return { status: "invalid" };
     }
@@ -166,7 +174,12 @@ export function createSocialSignUpService(deps: SocialSignUpDeps): SocialSignUpS
       for (const [document, version] of [
         ["terms", input.legal.termsVersion],
         ["privacy", input.legal.privacyVersion],
+        ["health_data_consent", input.legal.healthDataConsentVersion],
       ] as const) {
+        const acceptedAt =
+          document === "health_data_consent"
+            ? input.legal.healthDataConsentAcceptedAt
+            : input.legal.acceptedAt;
         await tx.execute(
           sql`insert into "legal_acceptance" ("id", "user_id", "document", "version", "accepted_at", "source") values (${newId()}, ${userId}, ${document}, ${version}, ${acceptedAt.toISOString()}, 'sign_up')`,
         );
@@ -193,6 +206,7 @@ export function createSocialSignUpService(deps: SocialSignUpDeps): SocialSignUpS
     enabled: legal !== null,
     currentLegal: () =>
       legal ? { termsVersion: legal.terms.version, privacyVersion: legal.privacy.version } : null,
+    currentHealthDataConsent: () => (legal ? { version: legal.healthDataConsent.version } : null),
     createAccount,
   };
 }
