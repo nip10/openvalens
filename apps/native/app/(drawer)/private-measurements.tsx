@@ -326,6 +326,7 @@ function PrivateMeasurementsForSubject({ subject }: { subject: PrivateSubject })
                       {t`${labelOf(kind)} value`}
                     </Text>
                     <TextInput
+                      testID="private-measurement-value-input"
                       accessibilityLabel={t`${labelOf(kind)} value`}
                       value={value}
                       onChangeText={setValue}

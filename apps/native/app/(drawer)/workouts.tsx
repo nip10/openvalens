@@ -878,8 +878,8 @@ export default function WorkoutsScreen() {
                     {exercises.length > 0 ? (
                       <View className="gap-1">
                         <Text className="font-sans text-sm text-ink-2">
-                          {plural(exercises.length, { one: "# exercise", other: "# exercises" })} ·{" "}
-                          {plural(setCount, { one: "# set", other: "# sets" })}
+                          {t`${plural(exercises.length, { one: "# exercise", other: "# exercises" })}`}{" "}
+                          · {t`${plural(setCount, { one: "# set", other: "# sets" })}`}
                           {volumeKg > 0 ? ` · ${Math.round(volume)} ${units}` : ""}
                         </Text>
                         <Text className="font-sans text-sm text-ink-3">

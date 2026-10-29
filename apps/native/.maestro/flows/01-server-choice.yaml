@@ -1,0 +1,78 @@
+# 1. Server choice (#295): every error state, OpenValens Cloud in one tap,
+# then the local e2e server as "My own server".
+appId: com.openvalens.app
+name: 01 Server choice
+tags: [auth]
+---
+# Permissions start denied (Maestro grants all by default), so the health
+# data and notification screens show what a new install shows.
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    stopApp: true
+    permissions:
+      all: deny
+- extendedWaitUntil:
+    visible: "Where is your account?"
+    timeout: 60000
+- takeScreenshot: 01-server-choice
+
+# Empty address
+- tapOn: "Connect"
+- assertVisible: "Enter your server's address"
+
+# Not an address
+- runFlow:
+    file: ../subflows/server-address.yaml
+    env:
+      ADDRESS: "not an address"
+- assertVisible: "This is not a server address"
+- takeScreenshot: 01-server-choice-invalid
+
+# Plain HTTP to a public host
+- runFlow:
+    file: ../subflows/server-address.yaml
+    env:
+      ADDRESS: "http://example.com"
+- assertVisible: "This address does not use HTTPS"
+
+# Nothing answers
+- runFlow:
+    file: ../subflows/server-address.yaml
+    env:
+      ADDRESS: "http://localhost:9"
+- extendedWaitUntil:
+    visible: "Could not reach localhost:9"
+    timeout: 20000
+- takeScreenshot: 01-server-choice-unreachable
+
+# Something answers, but it is not OpenValens (the helper)
+- runFlow:
+    file: ../subflows/server-address.yaml
+    env:
+      ADDRESS: ${HELPER_URL}
+- extendedWaitUntil:
+    visible: ".*is not an OpenValens server"
+    timeout: 20000
+
+# OpenValens Cloud: one tap, then back to the choice without signing in
+- scrollUntilVisible:
+    element: "Use OpenValens Cloud"
+    direction: UP
+- tapOn: "Use OpenValens Cloud"
+- extendedWaitUntil:
+    visible: "Signing in to app.openvalens.com"
+    timeout: 30000
+- takeScreenshot: 01-cloud-sign-in
+- runFlow: ../subflows/change-server.yaml
+
+# My own server: the local e2e server
+- runFlow:
+    file: ../subflows/server-address.yaml
+    env:
+      ADDRESS: ${SERVER_URL}
+- extendedWaitUntil:
+    visible: "Email me a sign-in link"
+    timeout: 30000
+- assertVisible: "Signing in to localhost:.*"
+- takeScreenshot: 01-sign-in

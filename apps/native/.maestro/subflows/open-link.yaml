@@ -1,0 +1,5 @@
+# Opens LINK in the app (a magic-link callback or an app route).
+appId: com.openvalens.app
+---
+- openLink: ${LINK}
+- runFlow: accept-open-prompt.yaml

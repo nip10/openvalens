@@ -1,0 +1,35 @@
+# From the sign-in screen: "Change server" and confirm, back to the choice.
+# Alert buttons have no ids; match en and pt-PT.
+appId: com.openvalens.app
+---
+- runFlow:
+    file: find-id.yaml
+    env:
+      ID: change-server
+- tapOn:
+    id: "change-server"
+- extendedWaitUntil:
+    visible: "(Change server|Mudar de servidor)\\?"
+    timeout: 5000
+# The alert's confirm button: right of Cancel and above the screen's own
+# Change server button, which sits underneath the alert. On iOS a tap during the alert's entrance
+# animation is dropped, so wait, and tap again while it is still up.
+- waitForAnimationToEnd:
+    timeout: 2000
+- repeat:
+    times: 3
+    while:
+      visible: "(Change server|Mudar de servidor)\\?"
+    commands:
+      - tapOn:
+          text: "(?i)(change server|mudar de servidor)"
+          rightOf:
+            text: "(?i)(cancel|cancelar)"
+          above:
+            id: "change-server"
+      - waitForAnimationToEnd:
+          timeout: 2000
+- extendedWaitUntil:
+    visible:
+      id: "server-address-input"
+    timeout: 15000

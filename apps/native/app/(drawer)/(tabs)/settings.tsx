@@ -126,6 +126,7 @@ export default function SettingsScreen() {
                 size="sm"
                 onPress={() => void signOutOfThisPhone()}
                 accessibilityLabel={t`Sign out`}
+                testID="sign-out"
               >
                 <Button.Label>
                   <Trans>Sign out</Trans>

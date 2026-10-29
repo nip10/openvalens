@@ -1,0 +1,317 @@
+# Visits every tab, every drawer screen and the screens without a drawer
+# item, checks that each loads, and saves a screenshot `${PREFIX}-<screen>`.
+# Generated list; keep it in step with app/(drawer)/_layout.tsx.
+appId: com.openvalens.app
+---
+- tapOn:
+    id: "tab-training"
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-tab-01-training
+- tapOn:
+    id: "tab-cockpit"
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-tab-02-cockpit
+- tapOn:
+    id: "tab-timeline"
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-tab-03-timeline
+- tapOn:
+    id: "tab-nutrition"
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-tab-04-nutrition
+- tapOn:
+    id: "tab-body"
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-tab-05-body
+- tapOn:
+    id: "tab-settings"
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-tab-06-settings
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-cockpit
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-01-cockpit
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-coach
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-02-coach
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-scores
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-03-scores
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-preventive-care
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-04-preventive-care
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-records-sleep
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-05-records-sleep
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-records-activity
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-06-records-activity
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-records-vitals
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-07-records-vitals
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-body
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-08-body
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-records-labs
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-09-records-labs
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-cycle
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-10-cycle
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-body-map
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-11-body-map
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-private-measurements
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-12-private-measurements
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-timeline
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-13-timeline
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-meal-diary
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-14-meal-diary
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-food-draft
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-15-food-draft
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-recipe-drafts
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-16-recipe-drafts
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-micronutrients
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-17-micronutrients
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-goals
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-18-goals
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-supplements
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-19-supplements
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-exports
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-20-exports
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-sharing
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-21-sharing
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-invitations
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-22-invitations
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-profile
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-23-profile
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-settings
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-drawer-24-settings
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///nutrition-targets
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-01-nutrition-targets
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///foods
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-02-foods
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///workouts
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-03-workouts
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///routines
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-04-routines
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///exercise-library
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-05-exercise-library
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///settings/modules
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-06-settings-modules
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///settings/devices
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-07-settings-devices
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///settings/telegram
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-08-settings-telegram
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///insight-settings
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-09-insight-settings
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: openvalens:///admin/settings
+- runFlow:
+    file: check-screen.yaml
+    env:
+      SHOT: ${PREFIX}-route-10-admin-settings
+- runFlow:
+    file: drawer-go.yaml
+    env:
+      ID: drawer-cockpit

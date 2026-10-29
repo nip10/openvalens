@@ -32,4 +32,19 @@ describe("app.config.ts", () => {
     expect(config.android?.package).toBe("com.openvalens.app");
     expect(config.android?.permissions).toEqual(base.android?.permissions);
   });
+
+  test("EXPO_PUBLIC_ALLOW_LOCAL_HTTP turns on Android cleartext for a test build only", () => {
+    const buildProps = (config: ExpoConfig) =>
+      config.plugins?.find((p) => Array.isArray(p) && p[0] === "expo-build-properties");
+    expect(withBuildEnv(base, {}).plugins).toEqual(base.plugins);
+    expect(withBuildEnv(base, { EXPO_PUBLIC_ALLOW_LOCAL_HTTP: "false" }).plugins).toEqual(
+      base.plugins,
+    );
+    const config = withBuildEnv(base, { EXPO_PUBLIC_ALLOW_LOCAL_HTTP: "true" });
+    expect(buildProps(config)).toEqual([
+      "expo-build-properties",
+      { android: { minSdkVersion: 26, usesCleartextTraffic: true } },
+    ]);
+    expect(config.plugins?.length).toBe(base.plugins?.length);
+  });
 });

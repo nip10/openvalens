@@ -1,0 +1,25 @@
+# Fills set N of the (only) exercise with WEIGHT × REPS and marks it done.
+appId: com.openvalens.app
+---
+- scrollUntilVisible:
+    element:
+      id: "set-weight-${N}"
+    centerElement: true
+- tapOn:
+    id: "set-weight-${N}"
+- inputText: ${WEIGHT}
+- runFlow: hide-keyboard.yaml
+- scrollUntilVisible:
+    element:
+      id: "set-reps-${N}"
+    centerElement: true
+- tapOn:
+    id: "set-reps-${N}"
+- inputText: ${REPS}
+- runFlow: hide-keyboard.yaml
+- scrollUntilVisible:
+    element:
+      id: "set-done-${N}"
+    centerElement: true
+- tapOn:
+    id: "set-done-${N}"

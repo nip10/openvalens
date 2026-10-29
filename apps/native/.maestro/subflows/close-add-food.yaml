@@ -1,0 +1,7 @@
+# Closes the Add food sheet with Cancel (one tap, also after something was logged).
+appId: com.openvalens.app
+---
+- tapOn: "Cancel"
+- extendedWaitUntil:
+    notVisible: "Search and recents"
+    timeout: 5000

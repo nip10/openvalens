@@ -1,0 +1,10 @@
+# Restarts the app (the session is kept), so a flow does not depend on where
+# the previous one stopped. A launch opens the signed-in home screen.
+appId: com.openvalens.app
+---
+- stopApp
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Show navigation menu"
+    timeout: 30000

@@ -1,0 +1,7 @@
+appId: com.openvalens.app
+---
+- scrollUntilVisible:
+    element:
+      id: "onboarding-continue"
+- tapOn:
+    id: "onboarding-continue"

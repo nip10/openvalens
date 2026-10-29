@@ -1,0 +1,74 @@
+# 6. Log a strength workout set by set (epic #282): start, add an exercise,
+# two sets (weight × reps, marked done), finish, and find it in history.
+appId: com.openvalens.app
+name: 06 Strength workout
+tags: [logging]
+---
+- runFlow: ../subflows/fresh-start.yaml
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-cockpit
+- tapOn:
+    id: "tab-training"
+# A workout left open earlier comes back after a restart; discard it.
+- extendedWaitUntil:
+    visible: "(Start workout|Minimize workout)"
+    timeout: 20000
+- runFlow:
+    when:
+      visible: "Minimize workout"
+    commands:
+      - scrollUntilVisible:
+          element: "Discard workout"
+      - tapOn: "Discard workout"
+      - tapOn:
+          text: "(?i)discard"
+          below: "Discard workout\\?"
+- extendedWaitUntil:
+    visible: "Start workout"
+    timeout: 20000
+- tapOn: "Start workout"
+- extendedWaitUntil:
+    visible: "Add exercise"
+    timeout: 10000
+- tapOn: "Add exercise"
+- extendedWaitUntil:
+    visible: "Add an exercise"
+    timeout: 10000
+- tapOn: "Bench press"
+
+# Set 1, then set 2 (a rest timer starts after each finished set)
+- tapOn: "Add set"
+- runFlow:
+    file: ../subflows/workout-set.yaml
+    env:
+      N: "1"
+      WEIGHT: "42.5"
+      REPS: "8"
+- scrollUntilVisible:
+    element: "Add set"
+    centerElement: true
+- tapOn: "Add set"
+- runFlow:
+    file: ../subflows/workout-set.yaml
+    env:
+      N: "2"
+      WEIGHT: "45"
+      REPS: "6"
+- scrollUntilVisible:
+    element: "1 exercise, 2 sets done"
+    direction: UP
+- takeScreenshot: 06-workout-sets
+
+- scrollUntilVisible:
+    element: "Finish workout"
+- tapOn: "Finish workout"
+- scrollUntilVisible:
+    element: "Save workout"
+- takeScreenshot: 06-workout-finish
+- tapOn: "Save workout"
+- extendedWaitUntil:
+    visible: "Recent sessions"
+    timeout: 20000
+- takeScreenshot: 06-workout-saved

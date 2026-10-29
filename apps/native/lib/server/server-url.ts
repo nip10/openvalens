@@ -16,6 +16,15 @@ import { normalizeServerAddress } from "./server-address";
 
 const SERVER_URL_KEY = "openvalens.server-url.v1";
 
+/**
+ * Plain HTTP to localhost or the local network: always in a development
+ * build, and in a release build only when it was built for tests with
+ * `EXPO_PUBLIC_ALLOW_LOCAL_HTTP` (#302). A store build never sets it.
+ */
+export function allowsLocalHttp(): boolean {
+  return __DEV__ || ENV.EXPO_PUBLIC_ALLOW_LOCAL_HTTP === true;
+}
+
 export type ServerState =
   | { status: "loading" }
   | { status: "unset" }
@@ -41,6 +50,7 @@ let state: ServerState = LOCKED_URL
   ? { status: "set", url: LOCKED_URL, locked: true }
   : { status: "loading" };
 let loading: Promise<ServerState> | null = null;
+let chosenThisRun = false;
 const listeners = new Set<() => void>();
 
 function setState(next: ServerState): void {
@@ -76,7 +86,9 @@ export function loadServer(): Promise<ServerState> {
       loading = null;
       return state;
     }
-    const normalized = saved ? normalizeServerAddress(saved, { allowLocalHttp: __DEV__ }) : null;
+    const normalized = saved
+      ? normalizeServerAddress(saved, { allowLocalHttp: allowsLocalHttp() })
+      : null;
     if (state.status === "loading") {
       setState(
         normalized?.ok
@@ -102,6 +114,15 @@ export async function requireServerUrl(): Promise<string> {
   return current.url;
 }
 
+/**
+ * Whether the person picked a server since the app started (rather than it
+ * being read from storage). The screens then mount afresh and should open on
+ * the sign-in screen, not the navigators' first tab (#302).
+ */
+export function wasServerChosenThisRun(): boolean {
+  return chosenThisRun;
+}
+
 /** Saves a checked, normalised origin and switches the app to it. */
 export async function saveServerUrl(url: string): Promise<void> {
   if (LOCKED_URL) throw new Error("This build is locked to one server.");
@@ -109,6 +130,7 @@ export async function saveServerUrl(url: string): Promise<void> {
   if ((await SecureStore.getItemAsync(SERVER_URL_KEY)) !== url) {
     throw new Error("The server address could not be saved.");
   }
+  chosenThisRun = true;
   setState({ status: "set", url, locked: false });
 }
 

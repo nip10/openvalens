@@ -1,0 +1,56 @@
+# 11. Sharing and invitations: Alex invites Casey (the account from flow 02)
+# into their workspace; Casey sees the invitation and accepts it.
+appId: com.openvalens.app
+name: 11 Sharing and invitations
+tags: [sharing]
+---
+- runFlow: ../subflows/fresh-start.yaml
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-sharing
+- extendedWaitUntil:
+    visible: "Your role: .*"
+    timeout: 20000
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: ".*sam.rivera@example.com.*"
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "name@example.com"
+- tapOn: "name@example.com"
+- waitForAnimationToEnd:
+    timeout: 2000
+- inputText: "casey.lane@example.com"
+- runFlow: ../subflows/hide-keyboard.yaml
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "(Invitation sent by email\\.|Invitation saved.*)"
+    timeout: 20000
+- assertNotVisible: "Could not send invite.*"
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "Pending invitations"
+- takeScreenshot: 11-sharing-invited
+
+# Casey accepts
+- runFlow:
+    file: ../subflows/switch-account.yaml
+    env:
+      EMAIL: casey.lane@example.com
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-invitations
+- extendedWaitUntil:
+    visible: "Accept"
+    timeout: 20000
+- takeScreenshot: 11-invitation-pending
+- tapOn: "Accept"
+- extendedWaitUntil:
+    visible: "(Invitation accepted.*|You have no pending workspace invitations\\.)"
+    timeout: 20000
+- takeScreenshot: 11-invitation-accepted

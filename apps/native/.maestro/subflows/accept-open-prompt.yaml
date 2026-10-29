@@ -1,0 +1,20 @@
+# iOS asks "Open in “OpenValens”?" when a link opens the app from outside
+# (simctl openurl). Android opens it directly. Sometimes the prompt shows twice.
+appId: com.openvalens.app
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "Open in “OpenValens”?"
+          timeout: 4000
+          optional: true
+      - repeat:
+          times: 3
+          while:
+            visible: "Open in “OpenValens”?"
+          commands:
+            - tapOn: "Open"
+            - waitForAnimationToEnd:
+                timeout: 2000

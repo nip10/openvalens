@@ -1574,8 +1574,10 @@ export function AddFood({
   };
   const cancel = () => {
     const message = dismissalState.current!.dismiss();
-    if (!message) return;
+    // Always close: after a save there is nothing to announce, but Cancel
+    // must still leave the sheet (#302: it did nothing once a food was logged).
     close();
+    if (!message) return;
     announce(
       i18n._(
         message === "nothing_saved"

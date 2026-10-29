@@ -1,0 +1,80 @@
+# 7. Add a body measurement (weight, and a private waist measurement), a
+# vital reading and a lab result.
+appId: com.openvalens.app
+name: 07 Body, vitals and labs
+tags: [logging]
+---
+- runFlow: ../subflows/fresh-start.yaml
+
+# Weight, on the Body tab
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-body
+- runFlow:
+    file: ../subflows/fill-and-save.yaml
+    env:
+      INPUT: weight-value-input
+      VALUE: "66.1"
+      SAVE: "Save"
+      SHOT: 07-body-add-weight
+- extendedWaitUntil:
+    visible: "Saved"
+    timeout: 15000
+
+# A private body measurement
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-private-measurements
+- scrollUntilVisible:
+    element: "Waist"
+    timeout: 20000
+- tapOn: "Waist"
+- runFlow:
+    file: ../subflows/fill-and-save.yaml
+    env:
+      INPUT: private-measurement-value-input
+      VALUE: "78"
+      SAVE: "Save entry"
+      SHOT: 07-private-measurement
+# Saved: the form clears and the button is disabled again ("Entry saved." is
+# a screen-reader announcement, not shown on screen).
+- extendedWaitUntil:
+    visible:
+      text: "Save entry"
+      enabled: false
+    timeout: 15000
+- assertNotVisible: "Could not save.*"
+
+# A vital (the first metric offered)
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-records-vitals
+- runFlow:
+    file: ../subflows/fill-and-save.yaml
+    env:
+      INPUT: vital-value-input
+      VALUE: "56"
+      SAVE: "Save"
+      SHOT: 07-vitals-add
+- extendedWaitUntil:
+    visible: "Saved"
+    timeout: 15000
+
+# A lab result (the first marker offered)
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-records-labs
+- runFlow:
+    file: ../subflows/fill-and-save.yaml
+    env:
+      INPUT: lab-value-input
+      VALUE: "48"
+      SAVE: "Save"
+      SHOT: 07-labs-add
+- extendedWaitUntil:
+    visible: "Saved"
+    timeout: 15000

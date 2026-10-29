@@ -1,0 +1,66 @@
+# 9. Coach with the stub AI provider (the helper answers as an
+# OpenAI-compatible model). AI is opt-in: turn on the workspace switch and
+# personal consent in Settings first, then start a conversation.
+appId: com.openvalens.app
+name: 09 Coach
+tags: [ai]
+---
+- runFlow: ../subflows/fresh-start.yaml
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- scrollUntilVisible:
+    element: "Allow AI in this workspace"
+    timeout: 40000
+    centerElement: true
+- runFlow:
+    when:
+      visible:
+        text: "Allow AI in this workspace"
+        checked: false
+    commands:
+      - tapOn: "Allow AI in this workspace"
+      - waitForAnimationToEnd:
+          timeout: 3000
+- scrollUntilVisible:
+    element: "AI processing consent"
+    centerElement: true
+- runFlow:
+    when:
+      visible:
+        text: "AI processing consent"
+        checked: false
+    commands:
+      - tapOn: "AI processing consent"
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertVisible:
+    text: "AI processing consent"
+    checked: true
+- scrollUntilVisible:
+    element:
+      text: "Allow AI in this workspace"
+      checked: true
+    direction: UP
+- takeScreenshot: 09-ai-settings
+
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-coach
+- extendedWaitUntil:
+    visible: "New"
+    timeout: 20000
+- tapOn: "New"
+- extendedWaitUntil:
+    visible: "Ask the coach anything…"
+    timeout: 20000
+- tapOn: "Ask the coach anything…"
+- inputText: "How was my sleep this week?"
+- runFlow: ../subflows/hide-keyboard.yaml
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: ".*Your sleep has been steadier this week.*"
+    timeout: 60000
+- takeScreenshot: 09-coach-reply

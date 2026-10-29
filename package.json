@@ -50,6 +50,8 @@
     "db:watch": "docker compose up postgres",
     "db:stop": "docker compose stop postgres",
     "demo:seed": "bun --no-env-file packages/demo-seed/src/cli.ts",
+    "e2e:ios": "bun --no-env-file apps/native/e2e/run.ts ios",
+    "e2e:android": "bun --no-env-file apps/native/e2e/run.ts android",
     "exercises:import": "bun scripts/import-exercises.ts",
     "exercises:prepare": "bun scripts/prepare-exercises.ts",
     "exercises:media-stage": "bun scripts/stage-exercise-media.ts",

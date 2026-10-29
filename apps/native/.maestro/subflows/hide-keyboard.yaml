@@ -1,0 +1,16 @@
+# Hides the keyboard. On Android, Maestro's hideKeyboard presses Back, which
+# leaves the screen when no keyboard is up, so only do it when one is shown.
+appId: com.openvalens.app
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: "com.google.android.inputmethod.latin:id/.*"
+    commands:
+      - hideKeyboard
