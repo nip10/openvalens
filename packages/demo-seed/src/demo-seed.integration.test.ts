@@ -133,4 +133,21 @@ describe.skipIf(!url)("demo seed against disposable PostgreSQL", () => {
     await seedDemo(db, { today, cloud: false });
     expect(await demoFingerprint(db)).toEqual(first);
   }, 300_000);
+  test("--cloud gives the demo owner a trialing subscription and nothing else (#297)", async () => {
+    const result = await seedDemo(db, { today, cloud: true });
+    expect(result.cloud?.applied).toBe(true);
+    const rows = (
+      await db.execute(
+        sql`select s."status", s."stripe_customer_id", s."trial_ends_at" > now() + interval '29 days' as "fresh", u."email" from "subscription" s join "user" u on u."id" = s."user_id"`,
+      )
+    ).rows;
+    expect(rows).toEqual([
+      {
+        status: "trialing",
+        stripe_customer_id: null,
+        fresh: true,
+        email: "alex.morgan@example.com",
+      },
+    ]);
+  }, 300_000);
 });

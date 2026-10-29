@@ -52,6 +52,8 @@ describe("resolveFileSecrets", () => {
       "WEARABLES_WITHINGS_CLIENT_SECRET",
       "WEARABLES_GOOGLE_HEALTH_CLIENT_SECRET",
       "POSTHOG_PROJECT_TOKEN",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
     ]);
     // The database profile resolves only DATABASE_URL; unrelated provider files
     // cannot fail database commands.

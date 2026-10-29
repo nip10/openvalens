@@ -309,3 +309,40 @@ describe("cron.ingestionRun", () => {
     ).rejects.toMatchObject({ code: "UNAUTHENTICATED", status: 401 });
   });
 });
+
+describe("cron.billingRun (Issue #297)", () => {
+  test("requires the cron secret", async () => {
+    await expect(
+      appRouter.cron.billingRun.callable({ context: createTestContext() })({}),
+    ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+  });
+
+  test("is a no-op on self-host (no billing service)", async () => {
+    const result = await appRouter.cron.billingRun.callable({ context: authorizedContext() })({});
+    expect(result).toMatchObject({
+      status: "ok",
+      job: "billing.run",
+      cloud: false,
+      trialRemindersSent: 0,
+      erasuresCompleted: 0,
+    });
+  });
+
+  test("runs the Cloud billing job and reports its counts", async () => {
+    const totals = {
+      trialRemindersSent: 2,
+      trialsEnded: 1,
+      trialEndedSent: 1,
+      emailsFailed: 0,
+      erasuresCompleted: 1,
+      erasuresFailed: 1,
+      eventsPruned: 3,
+    };
+    const context = {
+      ...authorizedContext(),
+      billing: { runScheduled: async () => totals },
+    } as unknown as Context;
+    const result = await appRouter.cron.billingRun.callable({ context })({});
+    expect(result).toMatchObject({ ...totals, cloud: true, status: "failed" });
+  });
+});

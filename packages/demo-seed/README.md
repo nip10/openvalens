@@ -95,9 +95,12 @@ takes the same link as `SITE_SCREENSHOT_MAGIC_LINK`.
 
 ## Cloud variant
 
-`--cloud` is the hook for the App Review demo account, which needs a trialing
-subscription. Billing does not exist yet, so `markTrialingSubscription` in
-`src/cloud.ts` does nothing and says so (TODO #297).
+`--cloud` prepares the App Review demo account: Alex, the workspace owner,
+gets the same local, card-free 30-day trial a Cloud sign-up starts (#297),
+through `startTrial` in `@openvalens/billing/trial` (`src/cloud.ts`). The trial
+runs from the time you seed, not from `--today`, so it is still running while
+reviewers use the account. No Stripe customer is created. Run the server with
+`DEPLOYMENT_MODE=cloud` (and the Stripe test-mode keys) to see Plan & billing.
 
 ## Tests
 

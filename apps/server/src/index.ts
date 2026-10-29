@@ -33,6 +33,7 @@ import {
   bodyLimitMiddleware,
   resolveMaxBodyBytes,
 } from "./body-limit";
+import { registerBillingWebhookRoute } from "./billing-webhook-route";
 import { registerExerciseCatalogAssetRoute } from "./exercise-catalog-asset-route";
 import { createContext } from "./context";
 import { reportError } from "./error-reporting";
@@ -41,8 +42,10 @@ import { registerServerMetaRoute } from "./server-meta-route";
 import {
   auth,
   db,
+  deploymentConfig,
   deploymentInfo,
   exerciseCatalogAssetsEnabled,
+  getBillingService,
   getExerciseCatalogAssetService,
   signInOptions,
   storageService,
@@ -60,6 +63,16 @@ declare module "hono" {
 
 // Issue #9 — single PHI-safe structured logger for the server process.
 const logger = createStructuredLogger({ level: "info" });
+
+// Issue #297 — in Cloud, build the billing service (and load Stripe) at boot,
+// so a malformed Stripe key or price id stops the server instead of failing
+// the first checkout. The error names keys only. Self-host loads nothing.
+if (deploymentConfig.mode === "cloud") {
+  getBillingService().catch((error: unknown) => {
+    logger.error("billing.config.invalid", { error });
+    process.exit(1);
+  });
+}
 
 // Issue #127 — process-local violation-sink limiter keyed by
 // `(correlationId, origin)`. Browsers retry aggressively; the first 60/min per
@@ -267,6 +280,14 @@ registerExerciseCatalogAssetRoute(app, {
 // Issue #295 — public server check the mobile app reads before connecting.
 // Issue #294 — mode and sign-up come from the validated `DEPLOYMENT_MODE`.
 registerServerMetaRoute(app, { signInOptions, profile: () => deploymentInfo });
+
+// Issue #297 — Stripe webhook (Cloud only). Registered before the oRPC
+// catch-all; reads the raw body for signature verification.
+registerBillingWebhookRoute(app, {
+  enabled: deploymentConfig.mode === "cloud",
+  getService: getBillingService,
+  logger,
+});
 
 // Issue #60 — cloud wearable OAuth callback. Plain Hono (NOT oRPC): the
 // browser arrives here from the vendor with the one-time `code` and the

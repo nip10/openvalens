@@ -71,6 +71,8 @@ const SECRET_KEYS = [
   "WEARABLES_WITHINGS_CLIENT_SECRET",
   "WEARABLES_GOOGLE_HEALTH_CLIENT_SECRET",
   "POSTHOG_PROJECT_TOKEN",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
 ];
 
 /** `KEY=default` assignments of `apps/server/.env.schema`, in schema order. */

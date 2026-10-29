@@ -10,6 +10,7 @@
   "include": ["src/**/*.ts"],
   "references": [
     { "path": "../activity" },
+    { "path": "../billing" },
     { "path": "../vitals" },
     { "path": "../labs" },
     { "path": "../nutrition" },

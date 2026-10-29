@@ -13,6 +13,7 @@
   "dependencies": {
     "@openvalens/api": "workspace:*",
     "@openvalens/auth": "workspace:*",
+    "@openvalens/billing": "workspace:*",
     "@openvalens/db": "workspace:*",
     "@orpc/server": "catalog:",
     "drizzle-orm": "catalog:"

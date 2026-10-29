@@ -16,6 +16,7 @@ import {
   deploymentConfig,
   email,
   exerciseCatalogAssetsEnabled,
+  getBillingService,
   getExerciseCatalogAssetService,
   foodLookup,
   insightUnsubscribeKey,
@@ -100,6 +101,8 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     deployment: deploymentConfig,
     publicSignUp: publicSignUpService,
     signUpRateLimiter,
+    // Issue #297 — Cloud billing, or `null` on self-host (never loaded there).
+    billing: await getBillingService(),
     // Issue #62 — tenant-scoped object storage, or `null` when storage is off.
     storage: storageService,
     ...(exerciseCatalogAssetsEnabled

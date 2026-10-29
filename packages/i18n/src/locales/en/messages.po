@@ -356,6 +356,14 @@ msgstr "{0}. {1} reps × {2}"
 msgid "{amount, plural, one {{value} serving} other {{value} servings}}"
 msgstr "{amount, plural, one {{value} serving} other {{value} servings}}"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "{amount} per month"
+msgstr "{amount} per month"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "{amount} per year"
+msgstr "{amount} per year"
+
 #: packages/api/src/presenters/insights.ts
 msgid "{amount} steps"
 msgstr "{amount} steps"
@@ -420,6 +428,10 @@ msgstr "{days, plural, one {# day} other {# days}} of {metric, select, sleep_dur
 #: packages/email/src/templates/invitation.tsx
 msgid "{days, plural, one {This invitation expires in # day.} other {This invitation expires in # days.}}"
 msgstr "{days, plural, one {This invitation expires in # day.} other {This invitation expires in # days.}}"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "{days} days left. Your free trial ends on {trialEnd}. No card needed until you choose a plan."
+msgstr "{days} days left. Your free trial ends on {trialEnd}. No card needed until you choose a plan."
 
 #: packages/api/src/presenters/insights.ts
 msgid "{direction, select, higher {Weight trending up} other {Weight trending down}}"
@@ -1184,6 +1196,10 @@ msgstr "Account setup failed"
 msgid "Achieved"
 msgstr "Achieved"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Active"
+msgstr "Active"
+
 #. safety
 #: packages/api/src/presenters/supplements.ts
 msgctxt "medication status"
@@ -1681,6 +1697,14 @@ msgstr "An OpenValens server you or your organization runs."
 msgid "Analytics are unavailable on this server. You can still turn off sharing."
 msgstr "Analytics are unavailable on this server. You can still turn off sharing."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Annual"
+msgstr "Annual"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Annual plan"
+msgstr "Annual plan"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
 msgid "Answered"
@@ -1998,6 +2022,10 @@ msgstr "Best estimated 1RM (Epley): {0}"
 msgid "Biceps"
 msgstr "Biceps"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Billing"
+msgstr "Billing"
+
 #: apps/native/app/(drawer)/profile.tsx
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
@@ -2224,6 +2252,7 @@ msgstr "Cancel request"
 msgid "canceled"
 msgstr "canceled"
 
+#: apps/web/src/components/billing-plan-view.tsx
 #: packages/api/src/presenters/workouts.ts
 msgid "Cancelled"
 msgstr "Cancelled"
@@ -2231,6 +2260,10 @@ msgstr "Cancelled"
 #: packages/api/src/presenters/score.ts
 msgid "Cancelled, not counted"
 msgstr "Cancelled, not counted"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Cancelled. Your plan stays active until {periodEnd}."
+msgstr "Cancelled. Your plan stays active until {periodEnd}."
 
 #: packages/api/src/presenters/nutrition-diary.ts
 msgid "Carbohydrate"
@@ -2301,6 +2334,10 @@ msgstr "Change the paste, then explicitly create a replacement draft."
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 msgid "Change to {amount}"
 msgstr "Change to {amount}"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Change your card, download invoices or cancel."
+msgstr "Change your card, download invoices or cancel."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Changes apply to new entries. Meals you already logged keep the values they were saved with."
@@ -2424,6 +2461,10 @@ msgstr "Checking..."
 msgid "Checking…"
 msgstr "Checking…"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Checkout was cancelled. Nothing was charged."
+msgstr "Checkout was cancelled. Nothing was charged."
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/web/src/routes/_auth/private-measurements.tsx
 #: packages/api/src/presenters/body-map.ts
@@ -2450,6 +2491,14 @@ msgstr "Choose a group"
 #: packages/api/src/presenters/food-draft.ts
 msgid "Choose a JPEG or PNG photo up to 10 MB. Nothing was sent."
 msgstr "Choose a JPEG or PNG photo up to 10 MB. Nothing was sent."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Choose a plan"
+msgstr "Choose a plan"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Choose a plan to use OpenValens Cloud with your own workspace."
+msgstr "Choose a plan to use OpenValens Cloud with your own workspace."
 
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Choose a recipe"
@@ -3395,6 +3444,10 @@ msgstr "Could not load your periods."
 msgid "Could not load your photos."
 msgstr "Could not load your photos."
 
+#: apps/web/src/routes/_auth/settings/billing.tsx
+msgid "Could not load your plan."
+msgstr "Could not load your plan."
+
 #: apps/native/components/analytics-consent-section.tsx
 #: apps/web/src/components/analytics-consent-section.tsx
 msgid "Could not load your preference."
@@ -3433,6 +3486,14 @@ msgstr "Could not load."
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Could not make a draft. Nothing was saved."
 msgstr "Could not make a draft. Nothing was saved."
+
+#: apps/web/src/routes/_auth/settings/billing.tsx
+msgid "Could not open Stripe Checkout. Try again."
+msgstr "Could not open Stripe Checkout. Try again."
+
+#: apps/web/src/routes/_auth/settings/billing.tsx
+msgid "Could not open the billing portal. Try again."
+msgstr "Could not open the billing portal. Try again."
 
 #: apps/web/src/routes/_auth/route.tsx
 #: apps/web/src/utils/session-bootstrap.ts
@@ -5187,6 +5248,10 @@ msgstr "Fragmented"
 msgid "Free sugars"
 msgstr "Free sugars"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Free trial"
+msgstr "Free trial"
+
 #. safety
 #. safety
 #. safety
@@ -6777,6 +6842,14 @@ msgstr "Make food drafts from a spoken or typed description"
 msgid "Male"
 msgstr "Male"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Manage"
+msgstr "Manage"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Manage billing"
+msgstr "Manage billing"
+
 #: packages/api/src/presenters/custom-foods.ts
 msgid "Manage my foods"
 msgstr "Manage my foods"
@@ -7070,9 +7143,14 @@ msgid "Modules"
 msgstr "Modules"
 
 #. safety
+#: apps/web/src/components/billing-plan-view.tsx
 #: packages/api/src/presenters/supplements.ts
 msgid "Monthly"
 msgstr "Monthly"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Monthly plan"
+msgstr "Monthly plan"
 
 #: apps/native/app/(drawer)/_layout.tsx
 #: apps/web/src/components/header.tsx
@@ -7583,6 +7661,10 @@ msgstr "No personal goal set."
 #: apps/web/src/components/progress-photos.tsx
 msgid "No photos yet."
 msgstr "No photos yet."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "No plan"
+msgstr "No plan"
 
 #: packages/api/src/presenters/preventive-care.ts
 msgid "No plan recorded"
@@ -8332,6 +8414,10 @@ msgstr "Only recipe details needed to create a draft are retained. Steps, photos
 msgid "Only sessions with a recorded intensity count; sessions without one are left out, not counted as zero."
 msgstr "Only sessions with a recorded intensity count; sessions without one are left out, not counted as zero."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Only the owner of a workspace pays. People you share your workspace with don’t need a plan. Your records stay yours in every state, and you can always export or delete them."
+msgstr "Only the owner of a workspace pays. People you share your workspace with don’t need a plan. Your records stay yours in every state, and you can always export or delete them."
+
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced."
 msgstr "Only the two published figures are used, as facts, with attribution; no WHO text, table or figure is reproduced."
@@ -8389,6 +8475,10 @@ msgstr "Open OpenValens"
 msgid "Open OpenValens to see which date you set."
 msgstr "Open OpenValens to see which date you set."
 
+#: packages/email/src/templates/billing.tsx
+msgid "Open Plan & billing"
+msgstr "Open Plan & billing"
+
 #: apps/native/components/barcode-scanner.tsx
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Open Settings"
@@ -8423,6 +8513,10 @@ msgstr "Open your profile"
 #: packages/api/src/presenters/food-logger-capture.ts
 msgid "Opening camera…"
 msgstr "Opening camera…"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Opening Stripe…"
+msgstr "Opening Stripe…"
 
 #: apps/native/components/health-sync-settings.tsx
 msgid "Opens {sourceName} permissions"
@@ -8690,6 +8784,11 @@ msgstr "Paused"
 msgid "Paused, not counted"
 msgstr "Paused, not counted"
 
+#: apps/web/src/components/billing-plan-view.tsx
+#: packages/email/src/templates/billing.tsx
+msgid "Payment failed"
+msgstr "Payment failed"
+
 #: apps/native/app/(drawer)/sharing.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
 msgid "pending"
@@ -8908,9 +9007,18 @@ msgstr "Plain water subtotal"
 msgid "Plain water subtotal: {value}"
 msgstr "Plain water subtotal: {value}"
 
+#: apps/web/src/routes/_auth/settings/billing.tsx
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Plan & billing"
+msgstr "Plan & billing"
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Plays it safe; avoids pushing limits."
 msgstr "Plays it safe; avoids pushing limits."
+
+#: packages/email/src/templates/billing.tsx
+msgid "Please check your payment method in Plan & billing on the web. We will try again automatically."
+msgstr "Please check your payment method in Plan & billing on the web. We will try again automatically."
 
 #. safety
 #: packages/api/src/presenters/activity-load.ts
@@ -9024,6 +9132,10 @@ msgstr "Previous"
 #: apps/web/src/routes/_auth/nutrition.tsx
 msgid "Previous day"
 msgstr "Previous day"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Prices include VAT. Payment is handled by Stripe; you can cancel at any time."
+msgstr "Prices include VAT. Payment is handled by Stripe; you can cancel at any time."
 
 #: apps/native/components/muscle-guide.tsx
 msgid "Primary: {primaryNames}"
@@ -9530,6 +9642,10 @@ msgstr "Remove the entry."
 msgid "Removed from favourites"
 msgstr "Removed from favourites"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Renews on {periodEnd}."
+msgstr "Renews on {periodEnd}."
+
 #: apps/native/components/recipe-draft-editor.tsx
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Replace review"
@@ -9696,6 +9812,7 @@ msgstr "Resume workout"
 #: apps/web/src/routes/_auth/records/vitals.tsx
 #: apps/web/src/routes/_auth/route.tsx
 #: apps/web/src/routes/_auth/scores.tsx
+#: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 #: apps/web/src/routes/_auth/sharing.tsx
@@ -10536,6 +10653,7 @@ msgstr "Sets from {trainingFrom} to {trainingTo}"
 #: apps/web/src/components/header.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
+#: apps/web/src/routes/_auth/settings/billing.tsx
 #: apps/web/src/routes/_auth/settings/devices.tsx
 #: apps/web/src/routes/_auth/settings/index.tsx
 #: apps/web/src/routes/_auth/settings/telegram.tsx
@@ -11178,6 +11296,14 @@ msgstr "Strength volume: no weighted sets recorded."
 msgid "Strict"
 msgstr "Strict"
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Subscribe"
+msgstr "Subscribe"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Subscription ended"
+msgstr "Subscription ended"
+
 #: packages/api/src/nutrition-observations.ts
 msgid "Sufficient matching timestamped records from completed diary days were available."
 msgstr "Sufficient matching timestamped records from completed diary days were available."
@@ -11480,6 +11606,10 @@ msgstr "Template"
 #: packages/api/src/presenters/workouts.ts
 msgid "Tennis"
 msgstr "Tennis"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Thank you. Your plan shows here as soon as Stripe confirms the payment."
+msgstr "Thank you. Your plan shows here as soon as Stripe confirms the payment."
 
 #: apps/web/src/utils/sign-in-options.ts
 msgid "That {displayName} account is already connected to another user."
@@ -12145,6 +12275,10 @@ msgstr "To connect this chat, open Settings → Telegram in OpenValens and use t
 msgid "To create your account, open {url} and paste the token."
 msgstr "To create your account, open {url} and paste the token."
 
+#: packages/email/src/templates/billing.tsx
+msgid "To keep adding and syncing records after that, choose a plan in Plan & billing on the web."
+msgstr "To keep adding and syncing records after that, choose a plan in Plan & billing on the web."
+
 #. placeholder {0}: oidc.displayName
 #: apps/web/src/routes/join.tsx
 msgid "To sign in with {0} later, finish joining, sign in with the email link, then choose Connect under Settings → Sign-in methods."
@@ -12246,6 +12380,10 @@ msgstr "Training this week"
 #: packages/api/src/presenters/body-map.ts
 msgid "Traps"
 msgstr "Traps"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Trial ended"
+msgstr "Trial ended"
 
 #: packages/api/src/presenters/body-map.ts
 msgid "Triceps"
@@ -12564,6 +12702,10 @@ msgstr "Untracked"
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Up to {value} {unit}"
 msgstr "Up to {value} {unit}"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Update payment method"
+msgstr "Update payment method"
 
 #: apps/native/components/server-choice.tsx
 msgid "Update the app"
@@ -12904,6 +13046,14 @@ msgstr "Water changes on this device"
 msgid "We could not load this invitation. It may have expired or been revoked."
 msgstr "We could not load this invitation. It may have expired or been revoked."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "We couldn’t take your latest payment. Update your payment method to keep your plan."
+msgstr "We couldn’t take your latest payment. Update your payment method to keep your plan."
+
+#: packages/email/src/templates/billing.tsx
+msgid "We couldn’t take your OpenValens Cloud payment"
+msgstr "We couldn’t take your OpenValens Cloud payment"
+
 #. placeholder {0}: state.email
 #: apps/web/src/components/admission-form.tsx
 msgid "We emailed a one-time code to <0>{0}</0>. It expires in 10 minutes."
@@ -13210,6 +13360,14 @@ msgstr "You can only say a few words without pausing for breath"
 msgid "You can still keep a record, but personal guidance and references stay off."
 msgstr "You can still keep a record, but personal guidance and references stay off."
 
+#: packages/email/src/templates/billing.tsx
+msgid "You can subscribe again at any time in Plan & billing on the web."
+msgstr "You can subscribe again at any time in Plan & billing on the web."
+
+#: packages/email/src/templates/billing.tsx
+msgid "You can subscribe at any time in Plan & billing on the web."
+msgstr "You can subscribe at any time in Plan & billing on the web."
+
 #: packages/api/src/presenters/activity-load.ts
 msgid "You can talk and sing"
 msgstr "You can talk and sing"
@@ -13293,6 +13451,10 @@ msgstr "You have been invited to OpenValens."
 #: packages/email/src/templates/invitation.tsx
 msgid "You have been invited with the {role} role."
 msgstr "You have been invited with the {role} role."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "You have chosen a plan. Your first payment is on {trialEnd}, when the free trial ends."
+msgstr "You have chosen a plan. Your first payment is on {trialEnd}, when the free trial ends."
 
 #: apps/web/src/components/accept-invitation-view.tsx
 msgid "You have joined the workspace."
@@ -13452,6 +13614,22 @@ msgstr "Your decision about {title}"
 msgid "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 msgstr "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 
+#: packages/email/src/templates/billing.tsx
+msgid "Your free OpenValens Cloud trial ends on {day}."
+msgstr "Your free OpenValens Cloud trial ends on {day}."
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your free OpenValens Cloud trial has ended."
+msgstr "Your free OpenValens Cloud trial has ended."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your free trial has ended. Choose a plan to keep adding and syncing records."
+msgstr "Your free trial has ended. Choose a plan to keep adding and syncing records."
+
+#: apps/web/src/routes/_auth/settings/index.tsx
+msgid "Your free trial, plan and invoices"
+msgstr "Your free trial, plan and invoices"
+
 #: packages/email/src/templates/invitation-revoked.tsx
 msgid "Your invitation from {inviterName} to join {organizationName} has been revoked and can no longer be used."
 msgstr "Your invitation from {inviterName} to join {organizationName} has been revoked and can no longer be used."
@@ -13489,10 +13667,30 @@ msgstr "Your latest check-in for “{goalTitle}” moved toward your target."
 msgid "Your latest check-in for “{goalTitle}” reached the target you set."
 msgstr "Your latest check-in for “{goalTitle}” reached the target you set."
 
+#: packages/email/src/templates/billing.tsx
+msgid "Your latest OpenValens Cloud payment didn’t go through."
+msgstr "Your latest OpenValens Cloud payment didn’t go through."
+
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 msgid "Your modules"
 msgstr "Your modules"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your OpenValens Cloud subscription has been cancelled and is no longer active."
+msgstr "Your OpenValens Cloud subscription has been cancelled and is no longer active."
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your OpenValens Cloud subscription has ended"
+msgstr "Your OpenValens Cloud subscription has ended"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your OpenValens Cloud trial ends in 3 days"
+msgstr "Your OpenValens Cloud trial ends in 3 days"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your OpenValens Cloud trial has ended"
+msgstr "Your OpenValens Cloud trial has ended"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your own trend comes first. If you turn a comparison on, your usual value is shown next to a published guideline range, or a broad band for adults of your age group and sex, with its source named."
@@ -13501,6 +13699,14 @@ msgstr "Your own trend comes first. If you turn a comparison on, your usual valu
 #: apps/native/components/onboarding/steps.tsx
 msgid "Your phone's health app isn't available here. You can type things in, or connect later in Settings › Health data."
 msgstr "Your phone's health app isn't available here. You can type things in, or connect later in Settings › Health data."
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your plan"
+msgstr "Your plan"
+
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your plan is active."
+msgstr "Your plan is active."
 
 #: apps/native/components/onboarding/steps.tsx
 #: apps/web/src/components/onboarding/welcome-flow.tsx
@@ -13532,6 +13738,10 @@ msgstr "Your record for {title}"
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Your records"
 msgstr "Your records"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your records stay in your account, and you can export them at any time."
+msgstr "Your records stay in your account, and you can export them at any time."
 
 #: apps/native/lib/workouts/rest-timer.ts
 msgid "Your rest is over."
@@ -13572,6 +13782,10 @@ msgstr "Your server checklist"
 msgid "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
 msgstr "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
 
+#: apps/web/src/components/billing-plan-view.tsx
+msgid "Your subscription has ended. You can subscribe again at any time."
+msgstr "Your subscription has ended. You can subscribe again at any time."
+
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Your targets"
 msgstr "Your targets"
@@ -13585,6 +13799,14 @@ msgstr "Your Today"
 #: apps/web/src/components/reference-comparisons-card.tsx
 msgid "Your trend"
 msgstr "Your trend"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your trial ends soon"
+msgstr "Your trial ends soon"
+
+#: packages/email/src/templates/billing.tsx
+msgid "Your trial has ended"
+msgstr "Your trial has ended"
 
 #: packages/api/src/presenters/reference-comparison.ts
 msgid "Your usual resting heart rate, {usual} bpm, is {position, select, within {within the middle range} below {below the middle range} other {above the middle range}} for {group} in the reference group ({lower} to {upper} bpm)."
