@@ -52,15 +52,15 @@ The controller for Cloud, the apps (when connected to Cloud) and this website is
 
 ## 4. Why we use it and on what legal basis
 
-| Purpose | Data | Legal basis (GDPR) |
-| --- | --- | --- |
-| Storing, organising and showing your health records, calculating scores and insights, syncing phone health data, sharing with people you invite | Health and wellness data, phone health data | **Explicit consent**, Art. 9(2)(a) and Art. 6(1)(a). |
-| AI assistant | Your messages and the records the assistant uses to answer | **Explicit consent**, Art. 9(2)(a), given separately when you turn on AI processing. |
-| Opt-in insight emails and push notifications | Insight text (email), generic text (push), contact details, push token | Consent, Art. 6(1)(a) (and 9(2)(a) where the content is health data). |
-| Your account, sign-in, the subscription, billing emails, support | Account, billing and support data | Performance of the contract, Art. 6(1)(b). |
-| Invoices and tax records | Billing data held by Stripe | Legal obligation, Art. 6(1)(c) (Portuguese tax and accounting law). |
-| Security, preventing abuse, investigating incidents, error reports, keeping backups | Technical, security and error data; backups of all data | Legitimate interest, Art. 6(1)(f): keeping the service and your data safe. |
-| Proving consent and honouring deletions after a restore | Consent records, erasure records (ids and row counts) | Legal obligation, Art. 6(1)(c) (Art. 7(1) and Art. 17 GDPR). |
+| Purpose                                                                                                                                         | Data                                                                   | Legal basis (GDPR)                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Storing, organising and showing your health records, calculating scores and insights, syncing phone health data, sharing with people you invite | Health and wellness data, phone health data                            | **Explicit consent**, Art. 9(2)(a) and Art. 6(1)(a).                                 |
+| AI assistant                                                                                                                                    | Your messages and the records the assistant uses to answer             | **Explicit consent**, Art. 9(2)(a), given separately when you turn on AI processing. |
+| Opt-in insight emails and push notifications                                                                                                    | Insight text (email), generic text (push), contact details, push token | Consent, Art. 6(1)(a) (and 9(2)(a) where the content is health data).                |
+| Your account, sign-in, the subscription, billing emails, support                                                                                | Account, billing and support data                                      | Performance of the contract, Art. 6(1)(b).                                           |
+| Invoices and tax records                                                                                                                        | Billing data held by Stripe                                            | Legal obligation, Art. 6(1)(c) (Portuguese tax and accounting law).                  |
+| Security, preventing abuse, investigating incidents, error reports, keeping backups                                                             | Technical, security and error data; backups of all data                | Legitimate interest, Art. 6(1)(f): keeping the service and your data safe.           |
+| Proving consent and honouring deletions after a restore                                                                                         | Consent records, erasure records (ids and row counts)                  | Legal obligation, Art. 6(1)(c) (Art. 7(1) and Art. 17 GDPR).                         |
 
 **Explicit consent to health data.** When you create a Cloud account, and again when this consent changes, you give your explicit consent to us processing your health data to provide the service. Because keeping your health records is what Cloud does, we cannot provide Cloud without it. You can withdraw it at any time by writing to hello@openvalens.com or by deleting your account; withdrawal does not affect processing before it. When you withdraw, we stop processing your health data except to let you export it, and delete it as described in [section 8](#retention).
 
@@ -111,20 +111,20 @@ We do **not** sell or rent your data, share it with advertisers or data brokers,
 
 ## 8. How long we keep it
 
-| Data | Kept for |
-| --- | --- |
-| Account, health records, photos, AI conversations | While your account exists. Deleted when you delete your account. |
-| After your access ends (trial ended, subscription cancelled or unpaid) | Read-only for 6 months, then deleted. We email you at least 30 days before. |
-| Backups | Up to 14 days after deletion, then overwritten. If a backup is ever restored, your deletion is applied again. |
-| Sessions | Until you sign out or they expire. |
-| Unfinished sign-up links | Deleted about a day after they expire. |
-| Server and proxy logs | 14 days. |
-| Security events and erasure records | Ids and counts only, no content. Your user reference is removed from security events when you delete your account; erasure records are kept so a deletion can be repeated after a restore. |
-| Invoices (held by Stripe) | 10 years, as Portuguese tax law requires. They contain your billing email and address, never health data. |
-| Error reports (Sentry) | 30 days. |
-| AI requests (Anthropic) | Up to 30 days at Anthropic. |
-| Emails (Resend) | Delivery logs according to Resend's retention; we keep no copy of the content. |
-| Support emails | 2 years after the request is closed. |
+| Data                                                                   | Kept for                                                                                                                                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Account, health records, photos, AI conversations                      | While your account exists. Deleted when you delete your account.                                                                                                                           |
+| After your access ends (trial ended, subscription cancelled or unpaid) | Read-only for 6 months, then deleted. We email you at least 30 days before.                                                                                                                |
+| Backups                                                                | Up to 14 days after deletion, then overwritten. If a backup is ever restored, your deletion is applied again.                                                                              |
+| Sessions                                                               | Until you sign out or they expire.                                                                                                                                                         |
+| Unfinished sign-up links                                               | Deleted about a day after they expire.                                                                                                                                                     |
+| Server and proxy logs                                                  | 14 days.                                                                                                                                                                                   |
+| Security events and erasure records                                    | Ids and counts only, no content. Your user reference is removed from security events when you delete your account; erasure records are kept so a deletion can be repeated after a restore. |
+| Invoices (held by Stripe)                                              | 10 years, as Portuguese tax law requires. They contain your billing email and address, never health data.                                                                                  |
+| Error reports (Sentry)                                                 | 30 days.                                                                                                                                                                                   |
+| AI requests (Anthropic)                                                | Up to 30 days at Anthropic.                                                                                                                                                                |
+| Emails (Resend)                                                        | Delivery logs according to Resend's retention; we keep no copy of the content.                                                                                                             |
+| Support emails                                                         | 2 years after the request is closed.                                                                                                                                                       |
 
 ## 9. Transfers outside the EU
 

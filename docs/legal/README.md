@@ -35,10 +35,10 @@ The server records the terms and privacy versions a person accepted at
 sign-up (`legal_acceptance`, #294), so the labels must match the server
 settings exactly:
 
-| Document         | Server setting                                    | Draft label        | Published label                   |
-| ---------------- | ------------------------------------------------- | ------------------ | --------------------------------- |
-| Terms of Service | `LEGAL_TERMS_VERSION` (and `LEGAL_TERMS_URL`)     | `draft-2026-10-29` | `2026-10-29`                      |
-| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-10-29`                      |
+| Document         | Server setting                                    | Draft label        | Published label |
+| ---------------- | ------------------------------------------------- | ------------------ | --------------- |
+| Terms of Service | `LEGAL_TERMS_VERSION` (and `LEGAL_TERMS_URL`)     | `draft-2026-10-29` | `2026-10-29`    |
+| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-10-29`    |
 
 The subprocessors list and the DPA have their own "Last updated" dates but no
 server setting. A new version is needed whenever a change is material (a new

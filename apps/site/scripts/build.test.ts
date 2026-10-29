@@ -218,14 +218,14 @@ describe("site copy", () => {
 });
 
 describe("legal and support pages", () => {
-  const PAGES = ["privacy", "subprocessors", "support"] as const;
+  const PAGES = ["privacy", "subprocessors", "support", "terms"] as const;
 
   test("each page is built and served at its clean path, not redirected to the app", async () => {
     const conf = await readFile(
       join(import.meta.dir, "..", "deploy", "default.conf.template"),
       "utf8",
     );
-    expect(conf).toContain("location ~ ^/(privacy|subprocessors|support)/?$");
+    expect(conf).toContain("location ~ ^/(privacy|subprocessors|support|terms)/?$");
     for (const page of PAGES) {
       const html = await readFile(join(outDir, `${page}.html`), "utf8");
       expect(html).toContain(`<link rel="canonical" href="https://openvalens.com/${page}" />`);
@@ -247,7 +247,7 @@ describe("legal and support pages", () => {
   });
 
   test("the privacy policy names the contact and leaves no draft placeholders", async () => {
-    for (const page of ["privacy", "subprocessors"]) {
+    for (const page of ["privacy", "subprocessors", "terms"]) {
       const html = await readFile(join(outDir, `${page}.html`), "utf8");
       expect(html).not.toMatch(/\[(CONFIRM|[A-Z][A-Z ]{3,})[^\]]*\]/);
       expect(html).not.toMatch(/Lawyer:|Draft —/);
