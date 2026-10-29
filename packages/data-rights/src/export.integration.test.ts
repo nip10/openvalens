@@ -10,8 +10,10 @@ import {
   verifyExport,
   type DataExport,
 } from "./export";
+import { SubjectExportLimitError, writeSubjectJsonFiles } from "./stream-export";
 import {
   exportSubjectPhotoFiles,
+  SubjectPhotoExportLimitError,
   PHOTO_EXPORT_FORMAT,
   PHOTO_EXPORT_FORMAT_VERSION,
   type PhotoExportFile,
@@ -431,6 +433,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "push_device",
       "session",
       "sign_up_request",
+      "stored_object",
       "telegram_connect_token",
       "wearable_connection",
       "wearable_oauth_state",
@@ -452,6 +455,43 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     expect(parse("preventive_care_setting")).toHaveLength(1);
     // Reference comparisons (#96): the subject's own opt-ins only.
     expect(parse("reference_comparison_opt_in").map((r) => r.user_id)).toEqual(["user-a"]);
+  });
+
+  test("streamed JSON is complete, portable, and excludes storage internals", async () => {
+    const outputs = new Map<string, string>();
+    const manifest = await writeSubjectJsonFiles(db, A, {
+      async write(path, chunks) {
+        let value = "";
+        for await (const chunk of chunks) value += new TextDecoder().decode(chunk);
+        outputs.set(path, value);
+      },
+    }, { now: FIXED_NOW, limits: { fetchRows: 2 } });
+    expect(manifest.entities.map(({ table }) => table).sort()).toEqual(
+      exported.manifest.entities.map(({ table }) => table).sort(),
+    );
+    expect(outputs.has("manifest.json")).toBe(true);
+    const full = [...outputs.values()].join("\n");
+    expect(full).not.toContain("RAW-PHOTO-KEY-CANARY");
+    expect(full).not.toContain("RAW-COLLAB-KEY-CANARY");
+    expect(full).not.toContain(STORE_CANARY);
+    for (const entity of manifest.entities) {
+      expect(JSON.parse(outputs.get(entity.files[0]!)!)).toEqual(parse(entity.table));
+    }
+  });
+
+  test("streamed export enforces row limits and aborts without a manifest", async () => {
+    const sink = { async write(_path: string, chunks: AsyncIterable<Uint8Array>) {
+      for await (const _chunk of chunks) { /* drain */ }
+    } };
+    await expect(writeSubjectJsonFiles(db, A, sink, { limits: { maxRowBytes: 1 } }))
+      .rejects.toBeInstanceOf(SubjectExportLimitError);
+    const controller = new AbortController();
+    controller.abort();
+    const writes: string[] = [];
+    await expect(writeSubjectJsonFiles(db, A, {
+      async write(path, chunks) { writes.push(path); for await (const _chunk of chunks) {} },
+    }, { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(writes).toEqual([]);
   });
 
   test("admission grants export only the recipient scope, never the inviter's other recipients", () => {
@@ -581,8 +621,7 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
       "org-a",
     ];
     for (const canary of canaries) expect(manifestJson).not.toContain(canary);
-    // Non-photo objects legitimately keep their existing key field, so check
-    // the photo canaries specifically in the text files.
+    // Storage keys and provider identity are private for every object purpose.
     for (const canary of [RAW_PHOTO_KEY_CANARY, STORE_CANARY, "RAW-COLLAB-KEY-CANARY"])
       expect(storedObjectJson).not.toContain(canary);
     for (const canary of [RAW_PHOTO_KEY_CANARY, STORE_CANARY, "RAW-COLLAB-KEY-CANARY"])
@@ -590,11 +629,15 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     for (const file of files) expect(file.path).toMatch(/^photos\/[0-9a-f-]{36}\.(jpg|png)$/);
   });
 
-  test("non-photo stored objects keep their existing organization scope and shape", () => {
+  test("non-photo stored objects keep organization scope and redact storage internals", () => {
     const rows = parse("stored_object");
     const nonPhoto = rows.filter((row) => row.purpose !== "progress_photo");
     expect(nonPhoto.map((row) => row.id)).toEqual(["object-lab-a1", "object-lab-a2"]);
-    for (const row of nonPhoto) expect(row).toHaveProperty("storage_key");
+    for (const row of nonPhoto) {
+      expect(row).not.toHaveProperty("storage_key");
+      expect(row).not.toHaveProperty("storage_provider");
+      expect(row).not.toHaveProperty("storage_store_id");
+    }
     expect(rows.map((row) => row.id)).not.toContain("object-lab-collab");
     for (const row of rows.filter((item) => item.purpose === "progress_photo"))
       expect(row).not.toHaveProperty("storage_key");
@@ -798,5 +841,8 @@ describe.skipIf(!url)("data-rights export against disposable PostgreSQL", () => 
     } as unknown as Database;
     const broken = exportSubjectPhotoFiles(brokenDb, reader, A, FIXED_NOW);
     await expect(broken.next()).rejects.toThrow("synthetic enumeration failure");
+
+    const bounded = exportSubjectPhotoFiles(db, reader, A, FIXED_NOW, { maxPhotos: 1 });
+    await expect(bounded.next()).rejects.toBeInstanceOf(SubjectPhotoExportLimitError);
   });
 });

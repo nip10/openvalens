@@ -194,7 +194,8 @@ without it, falls back to the default.
 
 - the values the stack sets itself: `NODE_ENV` (`production`),
   `BETTER_AUTH_URL` and `CORS_ORIGIN` (from `OPENVALENS_DOMAIN`),
-  `STORAGE_LOCAL_DIR` (the `storage` volume) and the generated secrets
+  `STORAGE_LOCAL_DIR` (the `storage` volume), `DATA_EXPORT_DIR` (the private
+  non-backed-up `exports` volume) and the generated secrets
   `DATABASE_URL`, `BETTER_AUTH_SECRET`, `CRON_SECRET` and
   `TELEGRAM_WEBHOOK_SECRET`;
 - `AUTH_DEV_MAGIC_LINK_CONSOLE`, which works only in development;

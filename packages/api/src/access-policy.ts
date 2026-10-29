@@ -156,6 +156,9 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   // #89 data rights: always.
   "dataRights.deletionPreview": ALWAYS,
   "dataRights.deleteEverything": ALWAYS,
+  "dataRights.exportRequest": ALWAYS,
+  "dataRights.exportStatus": ALWAYS,
+  "dataRights.exportCancel": ALWAYS,
 
   "example.echo": R,
   "example.protectedEcho": R,

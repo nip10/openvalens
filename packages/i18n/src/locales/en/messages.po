@@ -2253,12 +2253,14 @@ msgstr "Canada"
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/ai-section.tsx
 #: apps/native/components/change-server.tsx
+#: apps/native/components/complete-export-card.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-routines.tsx
 #: apps/native/components/workout-session-detail.tsx
 #: apps/native/components/workout-session.tsx
 #: apps/native/utils/sharing-confirm.ts
 #: apps/web/src/components/ai-consent-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/sharing-confirm-dialog.tsx
 #: apps/web/src/components/wearable-devices-view.tsx
 #: apps/web/src/components/workout-routines.tsx
@@ -2273,6 +2275,10 @@ msgstr "Canada"
 #: packages/api/src/presenters/supplements.ts
 msgid "Cancel"
 msgstr "Cancel"
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Cancel download"
+msgstr "Cancel download"
 
 #: apps/native/components/workout-routines.tsx
 msgid "Cancel editing"
@@ -2465,6 +2471,11 @@ msgstr "Checking connection..."
 msgid "Checking connection…"
 msgstr "Checking connection…"
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Checking export status…"
+msgstr "Checking export status…"
+
 #: apps/native/app/(drawer)/private-measurements.tsx
 msgid "Checking private measurement setting…"
 msgstr "Checking private measurement setting…"
@@ -2553,6 +2564,10 @@ msgstr "Choose a recipe to review"
 #: packages/api/src/presenters/nutrition-templates.ts
 msgid "Choose a recipe to review."
 msgstr "Choose a recipe to review."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Choose a server and sign in to request an export."
+msgstr "Choose a server and sign in to request an export."
 
 #: apps/web/src/components/exercise-library.tsx
 msgid "Choose a workout"
@@ -3082,6 +3097,11 @@ msgstr "Could not check this setting. Measurements stay unavailable until it can
 msgid "Could not check this setting. Try again"
 msgstr "Could not check this setting. Try again"
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Could not check your export status."
+msgstr "Could not check your export status."
+
 #: apps/native/components/sign-in-methods.tsx
 #: apps/web/src/components/sign-in-methods-section.tsx
 msgid "Could not check your sign-in methods."
@@ -3218,6 +3238,10 @@ msgstr "Could not disconnect this device."
 #: apps/web/src/components/sign-in-methods-section.tsx
 msgid "Could not disconnect. Sign in again and retry."
 msgstr "Could not disconnect. Sign in again and retry."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Could not download the export. Check your connection and try again."
+msgstr "Could not download the export. Check your connection and try again."
 
 #: apps/native/components/workout-session-detail.tsx
 msgid "Could not edit workout"
@@ -3559,6 +3583,11 @@ msgstr "Could not open Stripe Checkout. Try again."
 #: apps/web/src/routes/_auth/settings/billing.tsx
 msgid "Could not open the billing portal. Try again."
 msgstr "Could not open the billing portal. Try again."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Could not prepare the export. You can try again."
+msgstr "Could not prepare the export. You can try again."
 
 #: apps/web/src/routes/_auth/route.tsx
 #: apps/web/src/utils/session-bootstrap.ts
@@ -4460,12 +4489,30 @@ msgstr "Download bundle"
 msgid "Download by domain"
 msgstr "Download by domain"
 
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download complete export ZIP"
+msgstr "Download complete export ZIP"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download everything"
+msgstr "Download everything"
+
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download is unavailable for this server address."
+msgstr "Download is unavailable for this server address."
+
 #: apps/native/app/(drawer)/exports.tsx
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Download your clinical record as a single JSON bundle."
 msgstr "Download your clinical record as a single JSON bundle."
 
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Download ZIP"
+msgstr "Download ZIP"
+
 #: apps/native/app/(drawer)/exports.tsx
+#: apps/native/components/complete-export-card.tsx
 #: apps/web/src/routes/_auth/exports.tsx
 msgid "Downloading…"
 msgstr "Downloading…"
@@ -5104,9 +5151,19 @@ msgstr "Expires"
 msgid "Expires {0}."
 msgstr "Expires {0}."
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Export preparation was cancelled."
+msgstr "Export preparation was cancelled."
+
 #: apps/native/components/cloud-access-notice.tsx
 msgid "Export records"
 msgstr "Export records"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Export storage is unavailable right now. Try again later."
+msgstr "Export storage is unavailable right now. Try again later."
 
 #: apps/native/components/sync-status-badge.tsx
 #: apps/web/src/components/sync-status-badge.tsx
@@ -9224,10 +9281,40 @@ msgstr "Preferences"
 msgid "Preparation"
 msgstr "Preparation"
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Preparation runs in the background. When it is ready, the download is available for 24 hours."
+msgstr "Preparation runs in the background. When it is ready, the download is available for 24 hours."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Preparation stopped before it finished. You can try again."
+msgstr "Preparation stopped before it finished. You can try again."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Prepare a new export"
+msgstr "Prepare a new export"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Prepare export"
+msgstr "Prepare export"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Prepare one ZIP file with your JSON records and stored attachments."
+msgstr "Prepare one ZIP file with your JSON records and stored attachments."
+
 #: apps/native/components/exercise-library.tsx
 #: apps/web/src/components/exercise-library.tsx
 msgid "Preparing preview…"
 msgstr "Preparing preview…"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Preparing your export…"
+msgstr "Preparing your export…"
 
 #: apps/native/components/workout-routines.tsx
 msgid "Preparing…"
@@ -9842,6 +9929,11 @@ msgstr "Reps must be from 1 to 1,000."
 msgid "Reps PR"
 msgstr "Reps PR"
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Requesting…"
+msgstr "Requesting…"
+
 #: apps/web/src/components/admission-form.tsx
 msgid "Resend code"
 msgstr "Resend code"
@@ -10330,6 +10422,14 @@ msgstr "Save or discard your active workout before starting a past session."
 #: apps/native/components/workout-session.tsx
 msgid "Save or discard your active workout first."
 msgstr "Save or discard your active workout first."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Save or share your export"
+msgstr "Save or share your export"
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Save or share ZIP"
+msgstr "Save or share ZIP"
 
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/web/src/routes/_auth/cycle.tsx
@@ -10971,8 +11071,10 @@ msgstr "Shows your usual sleep (the median of the last 28 nights) next to the Na
 msgid "Side"
 msgstr "Side"
 
+#: apps/native/components/complete-export-card.tsx
 #: apps/native/components/sign-in.tsx
 #: apps/web/src/components/admission-form.tsx
+#: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/magic-link-form.tsx
 #: apps/web/src/components/sign-up-form.tsx
 #: apps/web/src/routes/index.tsx
@@ -11010,6 +11112,10 @@ msgstr "Sign in to browse your workspace library."
 #: apps/web/src/components/recipe-draft-editor.tsx
 msgid "Sign in to create a private, session-only draft."
 msgstr "Sign in to create a private, session-only draft."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Sign in to request and download your export."
+msgstr "Sign in to request and download your export."
 
 #: apps/native/app/(drawer)/invitations.tsx
 msgid "Sign in to see and accept workspace invitations."
@@ -11204,6 +11310,11 @@ msgstr "Some logged meals occurred within four hours of recorded workouts in thi
 #: packages/api/src/presenters/insights.ts
 msgid "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
 msgstr "Some logged meals were recorded within four hours before sleep starts in this {windowDays}-day window. This describes timing in your records only and does not establish a relationship between meal timing and sleep."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Some stored attachments could not be included. You can try again."
+msgstr "Some stored attachments could not be included. You can try again."
 
 #: apps/server/src/admission-email.ts
 msgid "Someone asked to create an OpenValens account with this email address, but it already has one."
@@ -11458,6 +11569,11 @@ msgstr "Stopped locally; server change unconfirmed. Retry turning it off."
 #: apps/web/src/components/exercise-library.tsx
 msgid "Stopped waiting. The request may still complete on the server."
 msgstr "Stopped waiting. The request may still complete on the server."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Stopping…"
+msgstr "Stopping…"
 
 #: packages/api/src/presenters/workouts.ts
 msgid "Strength"
@@ -11803,6 +11919,11 @@ msgstr "That {displayName} account is already connected to another user."
 msgid "That {name} account is already connected to another user."
 msgstr "That {name} account is already connected to another user."
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "That action did not complete. Try again."
+msgstr "That action did not complete. Try again."
+
 #: packages/api/src/presenters/plain-water.ts
 msgid "That amount is too large to save."
 msgstr "That amount is too large to save."
@@ -11883,6 +12004,10 @@ msgstr "the entry values."
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The evidence-check library is off. Turn it on in the preventive-care settings to see it."
 msgstr "The evidence-check library is off. Turn it on in the preventive-care settings to see it."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "The file was downloaded, but sharing is unavailable on this device."
+msgstr "The file was downloaded, but sharing is unavailable on this device."
 
 #: packages/api/src/presenters/food-lookup.ts
 msgid "The food source could not be reached. Try the lookup again later, or enter the food from its label."
@@ -12185,6 +12310,16 @@ msgstr "This entry changed on another device."
 #: packages/api/src/presenters/plain-water.ts
 msgid "This entry was already removed."
 msgstr "This entry was already removed."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "This export has expired. Request a new one if you still need it."
+msgstr "This export has expired. Request a new one if you still need it."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "This export is too large to prepare. Try the exports below."
+msgstr "This export is too large to prepare. Try the exports below."
 
 #: packages/api/src/presenters/custom-foods.ts
 msgid "This food changed on another device"
@@ -12600,9 +12735,11 @@ msgstr "Triceps"
 #: apps/native/app/(drawer)/cycle.tsx
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
+#: apps/native/components/complete-export-card.tsx
 #: apps/native/components/exercise-library.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-history.tsx
+#: apps/web/src/components/complete-export-card.tsx
 #: apps/web/src/components/exercise-library.tsx
 #: apps/web/src/components/progress-photos.tsx
 #: apps/web/src/components/workout-history.tsx
@@ -13236,6 +13373,11 @@ msgstr "Volume: {0}-reps"
 #: apps/web/src/routes/_auth/private-measurements.tsx
 msgid "Waist"
 msgstr "Waist"
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Waiting to prepare your export…"
+msgstr "Waiting to prepare your export…"
 
 #: apps/native/components/workout-session.tsx
 #: packages/api/src/presenters/plain-water.ts
@@ -13879,6 +14021,11 @@ msgstr "Your decision about {title}"
 msgid "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 msgstr "Your edits changed while a save may still be in progress. Retry the original request or cancel and start a new save."
 
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Your export is ready. It will be available for 24 hours after preparation."
+msgstr "Your export is ready. It will be available for 24 hours after preparation."
+
 #: packages/email/src/templates/billing.tsx
 msgid "Your free OpenValens Cloud trial ends on {day}."
 msgstr "Your free OpenValens Cloud trial ends on {day}."
@@ -14070,6 +14217,15 @@ msgstr "Your server checklist"
 #: apps/web/src/components/wearable-devices-view.tsx
 msgid "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
 msgstr "Your server operator has not enabled any vendor. The mobile app still syncs Apple Health and Health Connect."
+
+#: apps/native/components/complete-export-card.tsx
+#: apps/web/src/components/complete-export-card.tsx
+msgid "Your session has ended. Sign in again to check your export."
+msgstr "Your session has ended. Sign in again to check your export."
+
+#: apps/native/components/complete-export-card.tsx
+msgid "Your session has ended. Sign in again to continue."
+msgstr "Your session has ended. Sign in again to continue."
 
 #: apps/web/src/components/billing-plan-view.tsx
 msgid "Your subscription has ended. You can subscribe again at any time."

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import * as dataRights from "@openvalens/data-rights";
 
 import type { Context } from "../context";
+import { requireActiveAccess } from "../index";
 
 const actual = { ...dataRights };
 const resolveSubject = mock(async (_db: unknown, userId: string) => ({
@@ -39,6 +40,9 @@ function context(
     storage?: boolean;
     impersonatedBy?: string | null;
     sessionId?: string | null;
+    db?: Context["db"];
+    deployment?: Context["deployment"];
+    billing?: Context["billing"];
   } = {},
 ): Context {
   const {
@@ -49,7 +53,9 @@ function context(
     sessionId = "session-1",
   } = options;
   return {
-    db: {},
+    db: options.db ?? ({} as Context["db"]),
+    deployment: options.deployment,
+    billing: options.billing,
     storage: storage ? { deleteKeys } : null,
     correlationId: "test",
     session: signedIn
@@ -79,6 +85,80 @@ beforeEach(() => {
   resolveSubject.mockClear();
   previewSubjectData.mockClear();
   deleteSelfSubjectData.mockClear();
+});
+
+describe("dataRights export jobs", () => {
+  test("request is self-service and allowed without billing on ended Cloud access", async () => {
+    let calls = 0;
+    const txObj = {
+      execute: async () => {
+        calls++;
+        if (calls === 2) return { rows: [] };
+        if (calls === 3) return { rows: [{ n: 0 }] };
+        return {
+          rows: [
+            {
+              id: "d5f3f4ea-0e0d-4c28-aee6-7c9ea7a0de73",
+              state: "queued",
+              created_at: new Date(),
+              expires_at: null,
+              bytes: null,
+              failure: null,
+            },
+          ],
+        };
+      },
+    };
+    const db = {
+      transaction: async (callback: (tx: typeof txObj) => Promise<unknown>) => callback(txObj),
+    } as unknown as Context["db"];
+    await requireActiveAccess({
+      context: {
+        deployment: { mode: "cloud" } as Context["deployment"],
+        billing: null,
+        session: context().session,
+      },
+      path: ["dataRights", "exportRequest"],
+    });
+    const status = await dataRightsRouter.exportRequest.callable({
+      context: context({
+        db,
+        billing: null,
+      }),
+    })({});
+    expect(status).toMatchObject({
+      id: "d5f3f4ea-0e0d-4c28-aee6-7c9ea7a0de73",
+      state: "queued",
+      bytes: null,
+    });
+    expect(resolveSubject).toHaveBeenCalledWith(db, "user-1");
+  });
+
+  test("status is limited to the signed-in subject and impersonation is refused", async () => {
+    const db = {
+      execute: async () => ({
+        rows: [
+          {
+            id: "e5f3f4ea-0e0d-4c28-aee6-7c9ea7a0de73",
+            state: "ready",
+            created_at: new Date(),
+            expires_at: new Date(Date.now() + 1000),
+            bytes: 12,
+            failure: null,
+          },
+        ],
+      }),
+    } as unknown as Context["db"];
+    const status = await dataRightsRouter.exportStatus.callable({ context: context({ db }) })({});
+    expect(status).toMatchObject({ state: "ready", bytes: 12 });
+    expect(
+      await code(
+        dataRightsRouter.exportStatus.callable({ context: context({ impersonatedBy: "admin" }) })(
+          {},
+        ),
+      ),
+    ).toBe("PERMISSION_DENIED");
+  });
 });
 
 describe("dataRights.deletionPreview", () => {

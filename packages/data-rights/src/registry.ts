@@ -219,6 +219,10 @@ export const DATA_RIGHTS_REGISTRY: Readonly<Record<string, TableEntry>> = Object
     reason:
       "Erasure records (ids and row counts only) that must outlive deleted data so restores can be re-erased.",
   },
+  data_export_job: {
+    kind: "system",
+    reason: "Export job metadata and lifecycle state; no exported health payload or archive bytes.",
+  },
 
   // Backups (#64): written by the self-host backup service, read by readiness
   // and the admin panel.
