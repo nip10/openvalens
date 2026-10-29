@@ -1,7 +1,11 @@
 # Legal documents for OpenValens Cloud
 
-> **Draft — not yet in force, not legal advice; to be reviewed** by the owner
-> and a lawyer before anything here is published or relied on. Issue #300.
+> **Status (2026-10-29):** the privacy policy, subprocessors list and terms are
+> published on openvalens.com as version `2026-10-29`; the published pages
+> (`apps/site/src/*.html`) are the source of truth and `privacy.md` and
+> `subprocessors.md` are generated copies. Still open: the company's legal
+> name, NIPC and registered address, and a lawyer's review. The DPA and data
+> map remain drafts. Issue #300.
 
 These are the first drafts of the legal documents OpenValens Cloud needs
 before launch (epic #293). Claude wrote them from the owner's decisions and
@@ -33,8 +37,8 @@ settings exactly:
 
 | Document         | Server setting                                    | Draft label        | Published label                   |
 | ---------------- | ------------------------------------------------- | ------------------ | --------------------------------- |
-| Terms of Service | `LEGAL_TERMS_VERSION` (and `LEGAL_TERMS_URL`)     | `draft-2026-10-29` | `[YYYY-MM-DD]`, set on publishing |
-| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `[YYYY-MM-DD]`, set on publishing |
+| Terms of Service | `LEGAL_TERMS_VERSION` (and `LEGAL_TERMS_URL`)     | `draft-2026-10-29` | `2026-10-29`                      |
+| Privacy policy   | `LEGAL_PRIVACY_VERSION` (and `LEGAL_PRIVACY_URL`) | `draft-2026-10-29` | `2026-10-29`                      |
 
 The subprocessors list and the DPA have their own "Last updated" dates but no
 server setting. A new version is needed whenever a change is material (a new
@@ -64,22 +68,20 @@ The store privacy labels (Apple) and Data safety form (Google) are built from
 Company facts and settings
 
 1. **Company details** for the controller block and the company information
-   section: `[COMPANY LEGAL NAME]`, `[NIPC]`, `[REGISTERED ADDRESS]`,
-   commercial registry office, VAT number, `[SUPPORT EMAIL]`,
-   `[DPO / privacy contact]`. Portugal has no German-style "Impressum", but
-   Decreto-Lei 7/2004 (e-commerce) requires this information to be easy to
-   find; the draft puts it in the terms and the privacy policy rather than in a
-   separate imprint page. Confirm that is enough.
-2. **Support address and response time** (still open in #293).
-3. **`[RETENTION MONTHS]`**: the value of `CLOUD_ENDED_RETENTION_MONTHS` (#298).
-   Until it is set, ended accounts are never deleted, which the policy cannot
-   promise as a retention period.
-4. **Backup, log and error-report retention in Cloud**: `[BACKUP RETENTION DAYS]`
-   (Coolify scheduled backups are not enabled yet, #308), `[LOG RETENTION DAYS]`
-   for proxy and server logs, and Sentry's event retention.
-5. **Minimum age** `[MINIMUM AGE]`. The drafts suggest 18 because the service
-   is a paid contract; Lei 58/2019 sets 13 as the age of digital consent in
-   Portugal.
+   section: legal name, NIPC, registered address, commercial registry office
+   and VAT number. Portugal has no German-style "Impressum", but Decreto-Lei
+   7/2004 (e-commerce) requires this information to be easy to find; the
+   documents put it in the terms and the privacy policy rather than in a
+   separate imprint page. Confirm that is enough. _Open: the owner sends the
+   details; the published pages leave the line out until then._
+2. ~~Support address and response time.~~ Decided: `hello@openvalens.com` for
+   support and privacy requests; replies on working days, usually within two.
+3. ~~`CLOUD_ENDED_RETENTION_MONTHS`.~~ Decided: 6 months.
+4. ~~Backup, log and error-report retention.~~ Decided: backups 14 days
+   (Coolify daily backups enabled 2026-10-29), logs 14 days, Sentry 30 days,
+   support email 2 years.
+5. ~~Minimum age.~~ Decided: 16. Lawyer to confirm against Lei 58/2019 and the
+   paid-contract question.
 
 Health data and consent
 
@@ -90,12 +92,10 @@ Health data and consent
    contract are intertwined (Art. 7(4)). Confirm the approach and how
    withdrawal of the health-data consent is handled (the draft: we stop
    processing and the person exports and deletes, or we delete).
-7. **Explicit consent is not recorded yet.** Sign-up records only the terms and
-   privacy versions (`legal_acceptance` rows `terms` and `privacy`). A
-   separate, unticked "I explicitly consent to OpenValens processing my health
-   data…" checkbox, recorded with its own version and timestamp, is needed on
-   web and mobile sign-up (email, Google and Apple paths) and for accounts that
-   join through an invitation. Code follow-up to #294.
+7. ~~Explicit consent is not recorded yet.~~ Shipped in #322: a separate,
+   versioned health-data consent (`LEGAL_HEALTH_CONSENT_VERSION`) is recorded at
+   sign-up on every path and before an invitation is accepted, with re-consent
+   when the version changes.
 8. **DPIA and Art. 30 record.** CNPD Regulation 1/2018 makes a DPIA mandatory
    for health data transmitted from electronic devices, whatever the scale, so
    one is needed before launch. Art. 30 records are required because the data
@@ -110,14 +110,11 @@ Health data and consent
 
 Billing and consumer law
 
-11. **Right of withdrawal and immediate start.** The draft: the 14 days start
-    when the paid subscription is concluded at Checkout, the trial itself is
-    free, and a person who asks for the paid service to start at once pays a
-    proportionate amount if they withdraw. This only works if Checkout captures
-    the express request and the acknowledgement on a durable medium; today
-    Checkout collects neither (no `consent_collection` or custom text in
-    `packages/billing`). Decide: capture the request and acknowledgement, or
-    simply refund in full on any withdrawal within 14 days. Code follow-up to #297.
+11. ~~Right of withdrawal and immediate start.~~ Shipped in #323: before
+    Checkout the person gives the versioned immediate-start and withdrawal
+    acknowledgements (`LEGAL_CHECKOUT_ACK_VERSION`, text in
+    [checkout-acknowledgements.md](checkout-acknowledgements.md)), recorded by
+    the server. Lawyer to confirm the wording.
 12. **Annual renewals.** Whether to send a renewal reminder before an annual
     plan renews (not required in Portugal as far as the draft knows, required in
     some EU countries). [CONFIRM]
@@ -133,24 +130,24 @@ Billing and consumer law
 
 Product facts to confirm
 
-16. **Full export.** The apps offer the clinical bundle (JSON, capped at 200
-    records), CSV and PDF exports. The complete export in `packages/data-rights`
-    is not reachable from the app or API yet, so the policy says a complete copy
-    is provided on request. Confirm, or ship the full export first.
+16. ~~Full export.~~ Shipped in #324: Settings › Export records prepares a
+    complete export of the account as a ZIP file.
 17. **Which optional integrations are on in Cloud**: wearable vendors (Oura,
     Whoop, Polar, Withings, Google Health), Telegram reminders, Open Food Facts
     barcode lookup, S3 object storage, the insights email digest,
     `EMAIL_AUDIT_BCC`. The drafts list them as "[CONFIRM: enabled in Cloud]".
-18. **PostHog at launch.** The code allows opt-in analytics; the drafts assume it
-    is off in Cloud at launch. If it is turned on, it moves into the main
-    subprocessor table.
+18. ~~PostHog at launch.~~ Off: no PostHog token is configured in Cloud, and
+    the privacy policy says analytics is not used. Turning it on needs a policy
+    update first.
 19. **Staff access.** Instance administrators can impersonate accounts. Decide
     the policy (the draft: only at the person's request or to investigate abuse
     or a security incident, and logged) and confirm impersonation is logged.
-20. **Every `[CONFIRM]` in [subprocessors.md](subprocessors.md)**: Hetzner data
-    centre, whether Coolify is self-hosted on the same server, the off-site
-    backup provider, Resend and Sentry regions, Anthropic contracting entity and
-    retention, Expo DPA, the support mailbox provider.
+20. **Subprocessor facts.** Resolved: hosting is netcup GmbH in Nuremberg,
+    Germany (not Hetzner), with Coolify self-hosted on the same server; there is
+    no separate support mailbox provider row until one is chosen. Still to
+    confirm: the off-site backup provider (#308, netcup or Hetzner S3), the
+    Resend and Sentry regions, the Anthropic contracting entity and retention,
+    and the Expo DPA.
 
 ## Before publishing
 

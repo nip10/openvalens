@@ -22,7 +22,7 @@ This Data Processing Agreement ("DPA") is entered into between:
 - **Customer** (controller): `[CUSTOMER LEGAL NAME]`, `[ADDRESS]`,
   `[REGISTRATION / VAT NUMBER]`, contact `[EMAIL]`; and
 - **Provider** (processor): `[COMPANY LEGAL NAME]`, `[REGISTERED ADDRESS]`,
-  Portugal, NIPC `[NIPC]`, contact `[DPO / privacy contact]`.
+  Portugal, NIPC `[NIPC]`, contact hello@openvalens.com.
 
 It forms part of the OpenValens Cloud Terms of Service (version
 `[TERMS VERSION]`) between the parties (the "Agreement"). Where they conflict
@@ -107,9 +107,9 @@ Article 33(3) GDPR requires as it becomes available.
 At any time, and at the end of the Agreement, the Customer can export its data
 with the service's export features and delete it with the account deletion
 feature. Otherwise the Provider deletes the Customer's data
-`[RETENTION MONTHS]` months after access ends, as described in the Terms, with
+6 months after access ends, as described in the Terms, with
 a warning email 30 days before. Deleted data remains in encrypted backups for
-up to `[BACKUP RETENTION DAYS]` days, and a restore re-applies the deletion.
+up to 14 days, and a restore re-applies the deletion.
 Data that Union or Member State law requires the Provider to keep (for
 example invoices) is kept only for that purpose.
 
@@ -151,7 +151,7 @@ Signed:
 
 ## Annex 2: Technical and organisational measures
 
-- Hosting in EU data centres (Hetzner); the database has no public network
+- Hosting in an EU data centre (netcup GmbH, Nuremberg, Germany); the database has no public network
   port.
 - Encryption in transit (HTTPS/TLS) for all connections; encrypted backups
   with the key kept off the server; `[CONFIRM: disk encryption at rest]`.

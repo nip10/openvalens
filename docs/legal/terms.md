@@ -1,21 +1,15 @@
 # OpenValens Cloud Terms of Service
 
-> **Draft — not yet in force, not legal advice; to be reviewed** by the owner
-> and a lawyer before publication. Placeholders in `[BRACKETS]` must be filled
-> in; `[CONFIRM]` marks facts to check; **Lawyer:** notes are questions for
-> review and are removed on publication. English only; a pt-PT version follows.
-
-**Version:** `draft-2026-10-29` (published as `[YYYY-MM-DD]`, the value of
-`LEGAL_TERMS_VERSION`) · **Applies from:** `[EFFECTIVE DATE]`
+**Version:** 2026-10-29 · **Applies from:** 29 October 2026
 
 ## 1. Who we are and what these terms cover
 
 OpenValens Cloud ("Cloud", "the service") is the hosted version of OpenValens
-at `app.openvalens.com`, run by `[COMPANY LEGAL NAME]` ("we", "us"), a company
+at `app.openvalens.com`, run by the company that operates OpenValens ("we", "us"),
 registered in Portugal (details in section 19).
 
 These terms are the contract between you and us for using Cloud, on the web
-and through the OpenValens mobile apps. Our [Privacy Policy](privacy.md)
+and through the OpenValens mobile apps. Our [Privacy Policy](https://openvalens.com/privacy)
 explains how we handle your personal data, including your health data.
 
 These terms do **not** cover:
@@ -48,7 +42,7 @@ local emergency number (112 in the EU).
 ## 3. Your account
 
 - You need an account to use Cloud. You can sign up with an email link, or
-  with Google or Apple if you prefer. You must be at least `[MINIMUM AGE]`
+  with Google or Apple if you prefer. You must be at least 16
   years old and able to enter into a contract.
 - At sign-up you accept these terms and confirm you have read the Privacy
   Policy, and you give your explicit consent to the processing of your health
@@ -56,7 +50,7 @@ local emergency number (112 in the EU).
   when.
 - Keep access to your email and sign-in methods secure. You are responsible
   for what happens in your account unless it is caused by our failure to
-  protect it. Tell us at `[SUPPORT EMAIL]` if you think someone else has
+  protect it. Tell us at hello@openvalens.com if you think someone else has
   access.
 - **Workspaces.** Your account comes with your own workspace, the place where
   your records are kept, and you are its owner. You can invite other people
@@ -71,7 +65,7 @@ local emergency number (112 in the EU).
 - The trial does not turn into a paid plan by itself. If you do not subscribe
   before it ends, your access becomes read-only (section 12).
 - One trial per person. We may refuse a new trial to someone who has already
-  had one. `[CONFIRM: is this enforced or only a policy?]`
+  had one.
 
 ## 5. Price, billing and renewal
 
@@ -93,9 +87,9 @@ local emergency number (112 in the EU).
   until you cancel. Your invoices are available in the Stripe Customer Portal
   (**Manage** under Plan & billing).
 - **Failed payments:** if a renewal cannot be collected, you keep full access
-  for `[BILLING_PAST_DUE_GRACE_DAYS, default 7]` days while Stripe retries.
+  for 7 days while Stripe retries.
   After that, your access becomes read-only until the payment succeeds.
-- **Price changes:** we will tell you by email at least `[30]` days before a
+- **Price changes:** we will tell you by email at least 30 days before a
   new price applies to you. A new price applies only from your next renewal
   after that notice, and you can cancel before it takes effect.
 
@@ -108,11 +102,12 @@ subscription within **14 days** without giving any reason.
   contract is concluded, which is when you complete Stripe Checkout. The free
   trial is not a paid contract; you can stop using it at any time without
   doing anything.
-- To withdraw, tell us clearly, for example by email to `[SUPPORT EMAIL]`, or
+- To withdraw, tell us clearly, for example by email to hello@openvalens.com, or
   using the model form in the annex. Sending it before the 14 days end is
   enough.
-- **If the paid service starts during the withdrawal period.** When you
-  subscribe, you ask us to start (or continue) the paid service immediately,
+- **If the paid service starts during the withdrawal period.** Before
+  Checkout, you confirm two separate statements, which we record with their
+  version and time: you ask us to start (or continue) the paid service immediately,
   without waiting for the 14 days to pass, and you acknowledge that if you
   withdraw you will pay for the service provided until you told us. If you
   then withdraw, we refund everything you paid **minus an amount proportionate
@@ -120,16 +115,6 @@ subscription within **14 days** without giving any reason.
   it, to the payment method you used.
 - If you subscribe during the trial and withdraw before the first charge,
   nothing is charged and nothing is owed.
-
-> **Lawyer:** (1) Directive 2011/83/EU art. 14(3) and Decreto-Lei 24/2014
-> require the express request and the acknowledgement to be made by the
-> consumer and confirmed on a durable medium. Stripe Checkout does not capture
-> either today (#297 follow-up); without it, a withdrawing consumer owes
-> nothing. (2) Alternative the owner may prefer: always refund in full on
-> withdrawal within 14 days, which avoids the proportionate calculation.
-> (3) Confirm that the period starts at Checkout, and not at the end of the
-> trial, when someone subscribes during the trial. (4) Confirm the wording of
-> the model withdrawal form and the confirmation email.
 
 ## 7. Cancellation and refunds
 
@@ -140,8 +125,7 @@ subscription within **14 days** without giving any reason.
 - Apart from the right of withdrawal (section 6) and anything consumer law
   requires, payments already made for a period that has started are not
   refunded, also when you cancel or delete your account in the middle of a
-  period. `[CONFIRM: owner's refund policy — e.g. pro-rata refund of an annual
-plan on request?]`
+  period.
 - Deleting your account cancels your subscription immediately (section 12).
 
 ## 8. Your data
@@ -153,8 +137,8 @@ plan on request?]`
   Privacy Policy.
 - **Export.** You can export your data at any time, in every subscription
   state, including after your access has ended: the clinical record as JSON,
-  selected sections as CSV or PDF, and a complete copy on request. `[CONFIRM:
-update when the complete export ships in the app]`
+  selected sections as CSV or PDF, and a complete copy of your account as a ZIP
+  file (**Settings › Export records**).
 - **Deletion.** You can delete your account and everything in workspaces you
   own at any time from **Settings › Delete account and all data**, also when
   your access is read-only.
@@ -174,7 +158,7 @@ update when the complete export ships in the app]`
   allowance** per person. When it is used up, the coach pauses until the first
   day of the next month; the rest of the service is not affected. We may
   change the allowance; if we reduce it materially we will tell you in
-  advance. `[CONFIRM: whether to state the allowance in the terms]`
+  advance.
 
 ## 10. Acceptable use
 
@@ -190,7 +174,8 @@ You agree not to:
   AI allowance), or interfere with its security, except through our security
   policy (`SECURITY.md`);
 - use automated means to create accounts or trials, or resell or sublicense
-  access to Cloud; `[CONFIRM: business use]`
+  access to Cloud. Cloud is for personal and family use; it is not offered for
+  keeping the records of clients or patients;
 - upload malware or use the AI coach to produce unlawful or harmful content.
 
 We may suspend access to stop a serious breach or to protect the service,
@@ -202,12 +187,11 @@ your data (section 8).
 
 - We work to keep Cloud available and to back up your data, but we do not
   promise uninterrupted or error-free service. We may need to pause it for
-  maintenance, and we try to do that at quiet times. `[CONFIRM: status page URL]`
+  maintenance, and we try to do that at quiet times.
 - We improve the service over time. We may add, change or remove features.
   If we remove or materially reduce a feature that is a main reason you pay
   for Cloud, we tell you in advance and you may cancel and receive a pro-rata
-  refund of any prepaid period that has not started. `[Lawyer: confirm against
-Decreto-Lei 84/2021 (digital content and services) on modifications]`
+  refund of any prepaid period that has not started.
 
 ## 12. When your access ends
 
@@ -218,8 +202,8 @@ Decreto-Lei 84/2021 (digital content and services) on modifications]`
   still sign in, read your records, **export** them and **delete** your
   account, but cannot add or change anything, and the AI coach and phone sync
   are paused. Subscribing again restores full access.
-- **Deletion after [RETENTION MONTHS] months.** If your access stays ended for
-  `[RETENTION MONTHS]` months, we delete your account and every workspace you
+- **Deletion after 6 months.** If your access stays ended for
+  6 months, we delete your account and every workspace you
   own, with all their records. We email you at least **30 days before** with
   the date. Subscribing again before then keeps everything.
 - **When you delete your account** we cancel your subscription immediately
@@ -229,7 +213,7 @@ Decreto-Lei 84/2021 (digital content and services) on modifications]`
   workspace first.
 - **When we end the contract.** We may end it for a serious or repeated breach
   of these terms (section 10), or if we stop offering Cloud. When we stop
-  offering Cloud, we give at least `[90]` days' notice, refund any prepaid
+  offering Cloud, we give at least 90 days' notice, refund any prepaid
   period that has not been used, and keep export available until the end of
   the notice period.
 
@@ -245,48 +229,42 @@ Decreto-Lei 84/2021 (digital content and services) on modifications]`
   example a self-hosted server, Google, Apple, or a wearable vendor), or for
   events outside our reasonable control.
 - To the extent the law allows, our total liability to you in any 12-month
-  period is limited to `[the amount you paid us in that period / €X]`.
+  period is limited to the amount you paid us in that period.
 - None of this limits liability for death or personal injury caused by our
   negligence, for fraud, for wilful misconduct or gross negligence, or any
   other liability the law does not allow us to limit.
 
-> **Lawyer:** check the cap and the exclusions against Decreto-Lei 446/85
-> (unfair contract terms) and Decreto-Lei 84/2021.
-
 ## 14. Your responsibility
 
 You are responsible for the accuracy of what you enter, for the people you
-invite into your workspace, and for using Cloud in line with these terms. If
-you use Cloud for business purposes, you compensate us for claims by third
-parties that result from your breach of these terms. `[CONFIRM: only if
-business use is allowed]`
+invite into your workspace, and for using Cloud in line with these terms.
 
 ## 15. Changes to these terms
 
 We may update these terms, for example when we change the service or the law
 changes. For a material change we tell you by email or in the app at least
-`[30]` days before it applies, and you can cancel before then. We record which
+30 days before it applies, and you can cancel before then. We record which
 version you accepted. Earlier versions stay available at
 `https://openvalens.com/terms`.
 
 ## 16. Complaints and disputes
 
-- Contact us first at `[SUPPORT EMAIL]`; we try to answer within
-  `[RESPONSE TIME]`.
+- Contact us first at hello@openvalens.com; we answer on working
+  days, usually within two.
 - Consumers in Portugal can also use the electronic complaints book (Livro de
   Reclamações Eletrónico) at `https://www.livroreclamacoes.pt`.
 - **Alternative dispute resolution.** You may refer a dispute to a consumer
-  arbitration centre: `[NAME, WEBSITE AND ADDRESS OF THE COMPETENT ADR
-ENTITY, e.g. CNIACC — Centro Nacional de Informação e Arbitragem de Conflitos
-de Consumo]`. Lei 144/2015 requires us to name it. `[CONFIRM: whether we
-commit to using it]`
+  arbitration centre: CNIACC — Centro Nacional de Informação e Arbitragem de
+  Conflitos de Consumo (`https://www.cniacc.pt`), or the centre for the area
+  where you live. More information on consumer ADR entities is on the
+  Portuguese Consumer Portal (`https://www.consumidor.gov.pt`).
 
 ## 17. Governing law and courts
 
 These terms are governed by **Portuguese law**. If you are a consumer living
 in another country, you also keep the protection of the mandatory consumer
 laws of your country, and you can bring proceedings in the courts of the
-country where you live. Otherwise the courts of `[CITY]`, Portugal, have
+country where you live. Otherwise the competent Portuguese courts have
 jurisdiction.
 
 ## 18. General
@@ -296,19 +274,13 @@ jurisdiction.
 - You may not transfer this contract to someone else without our agreement. We
   may transfer it to a company that takes over Cloud, and will tell you; this
   does not reduce your rights, and you may cancel.
-- These terms are offered in English and Portuguese. `[CONFIRM: which version
-prevails, if any]`
+- These terms are offered in English. If we offer a translation and the
+  versions differ, the version more favourable to you applies.
 
 ## 19. Company information
 
-|                     |                                                                                |
-| ------------------- | ------------------------------------------------------------------------------ |
-| Company             | `[COMPANY LEGAL NAME]`                                                         |
-| Registered office   | `[REGISTERED ADDRESS]`, Portugal                                               |
-| NIPC / VAT number   | `[NIPC]` / `[VAT NUMBER, PT…]`                                                 |
-| Commercial registry | `[CONSERVATÓRIA DO REGISTO COMERCIAL]` `[CONFIRM: share capital, if required]` |
-| Email               | `[SUPPORT EMAIL]`                                                              |
-| Privacy contact     | `[DPO / privacy contact]`                                                      |
+OpenValens Cloud is run by a company registered in Portugal.
+Email: hello@openvalens.com, also for privacy requests.
 
 ---
 
@@ -317,7 +289,7 @@ prevails, if any]`
 _(Complete and return this form only if you wish to withdraw from the
 contract.)_
 
-To `[COMPANY LEGAL NAME]`, `[REGISTERED ADDRESS]`, `[SUPPORT EMAIL]`:
+To OpenValens, hello@openvalens.com:
 
 I hereby give notice that I withdraw from my contract for the provision of the
 following service: OpenValens Cloud subscription (`monthly` / `annual`)
