@@ -324,6 +324,8 @@ export const PROCEDURE_ACCESS: Readonly<Record<string, ProcedureAccessClass>> = 
   "signIn.options": ALWAYS,
   "signUp.options": ALWAYS,
   "signUp.request": ALWAYS,
+  "healthConsent.status": ALWAYS,
+  "healthConsent.accept": ALWAYS,
 
   "sleep.summary": R,
   "sleep.listDailySummaries": R,

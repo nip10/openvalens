@@ -2919,11 +2919,47 @@ msgstr "Ligado. Os seus lembretes diários do OpenValens vão chegar aqui. Reaja
 msgid "Connection lost. Check your network and try again."
 msgstr "A ligação perdeu-se. Verifique a rede e tente novamente."
 
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "Consent could not be saved. The version may have changed; review it and try again."
+msgstr "Não foi possível guardar o consentimento. A versão pode ter mudado; reveja-a e tente novamente."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Consent is not required on this server."
+msgstr "Este servidor não exige consentimento."
+
+#. placeholder {0}: status.data.acceptedVersion
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Consent recorded for version {0}."
+msgstr "Consentimento registado para a versão {0}."
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Consent to health data processing to continue."
+msgstr "Dê consentimento para o tratamento dos dados de saúde para continuar."
+
 #. safety
 #. placeholder {0}: state.consentVersion
 #: apps/web/src/components/ai-consent-card.tsx
 msgid "Consent version {0}"
 msgstr "Versão do consentimento {0}"
+
+#. placeholder {0}: consentStatus.data?.currentVersion
+#. placeholder {0}: healthDataConsent.version
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/sign-up-form.tsx
+msgid "Consent version: {0}"
+msgstr "Versão do consentimento: {0}"
+
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "Consent version: {currentVersion}"
+msgstr "Versão do consentimento: {currentVersion}"
+
+#: apps/native/components/health-data-consent-prompt.tsx
+msgid "Consent version: {version}"
+msgstr "Versão do consentimento: {version}"
 
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Conservative"
@@ -3068,6 +3104,18 @@ msgstr "Não foi possível ativar o seu espaço de trabalho. Tente novamente."
 #: apps/native/components/change-server.tsx
 msgid "Could not change server. Your data on this phone was kept. Try again."
 msgstr "Não foi possível mudar de servidor. Os seus dados neste telemóvel foram mantidos. Tente novamente."
+
+#: apps/native/components/health-data-consent-prompt.tsx
+msgid "Could not check health data consent."
+msgstr "Não foi possível verificar o consentimento para o tratamento de dados de saúde."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Could not check health data consent. Retry before accepting an invitation."
+msgstr "Não foi possível verificar o consentimento para o tratamento de dados de saúde. Tente novamente antes de aceitar um convite."
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Could not check health data consent. Retry before accepting this invitation."
+msgstr "Não foi possível verificar o consentimento para o tratamento de dados de saúde. Tente novamente antes de aceitar este convite."
 
 #: apps/web/src/routes/_auth/cycle.tsx
 msgid "Could not check this setting."
@@ -3293,6 +3341,11 @@ msgstr "Não foi possível carregar o progresso dos objetivos."
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "Could not load goals."
 msgstr "Não foi possível carregar os objetivos."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Could not load health data consent status."
+msgstr "Não foi possível carregar o estado do consentimento para o tratamento de dados de saúde."
 
 #: apps/web/src/components/insights-section.tsx
 msgid "Could not load insights."
@@ -3908,6 +3961,12 @@ msgstr "Segredo do cron"
 msgid "Current target: {currentTarget}"
 msgstr "Objetivo atual: {currentTarget}"
 
+#. placeholder {0}: status.data.currentVersion
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Current version: {0}."
+msgstr "Versão atual: {0}."
+
 #: packages/api/src/presenters/coach-settings.ts
 msgid "Cut"
 msgstr "Definição"
@@ -4121,6 +4180,8 @@ msgid "Delete <0>{foodName}</0>"
 msgstr "Eliminar <0>{foodName}</0>"
 
 #: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
 msgid "Delete account"
 msgstr "Eliminar conta"
 
@@ -5104,7 +5165,11 @@ msgstr "Expira"
 msgid "Expires {0}."
 msgstr "Expira {0}."
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
 #: apps/native/components/cloud-access-notice.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
 msgid "Export records"
 msgstr "Exportar registos"
 
@@ -5570,6 +5635,13 @@ msgstr "Cabeça (frente)"
 msgid "Health data"
 msgstr "Dados de saúde"
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Health data consent"
+msgstr "Consentimento para o tratamento de dados de saúde"
+
 #: apps/native/components/cloud-access-notice.tsx
 msgid "Health sync is paused until access is back."
 msgstr "A sincronização de saúde está em pausa até o acesso voltar."
@@ -5824,6 +5896,29 @@ msgstr "Aceito guardar os meus dados do ciclo neste servidor para minha própria
 msgid "I agree to the <0>terms of service</0> and the <1>privacy policy</1>."
 msgstr "Aceito os <0>termos de serviço</0> e a <1>política de privacidade</1>."
 
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "I agree to this health data processing."
+msgstr "Aceito este tratamento dos dados de saúde."
+
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "I consent"
+msgstr "Dou o meu consentimento"
+
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "I consent to OpenValens processing my health data to provide the service."
+msgstr "Consinto que a OpenValens trate os meus dados de saúde para prestar o serviço."
+
+#: apps/web/src/components/sign-up-form.tsx
+msgid "I consent to OpenValens processing my health data to provide the service. Read our <0>privacy policy</0>."
+msgstr "Consinto que a OpenValens trate os meus dados de saúde para prestar o serviço. Leia a nossa <0>política de privacidade</0>."
+
 #. safety
 #. safety
 #: apps/native/components/energy-estimate-card.tsx
@@ -5889,6 +5984,11 @@ msgstr "Se não pediu para criar uma conta, ignore este email. Nenhuma conta é 
 #: packages/api/src/presenters/logging-streak.ts
 msgid "If you missed a day, you can still add it until the end of {until}."
 msgstr "Se não registou um dia, ainda o pode adicionar até ao fim de {until}."
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "If you no longer want OpenValens to process your health data, you can export your records and delete your account."
+msgstr "Se já não quiser que a OpenValens trate os seus dados de saúde, pode exportar os seus registos e eliminar a sua conta."
 
 #: packages/email/src/templates/invitation-revoked.tsx
 msgid "If you still need access, contact your administrator."
@@ -6706,6 +6806,11 @@ msgstr "Carregar mais sessões"
 #: apps/web/src/components/workout-history.tsx
 msgid "Load older sessions"
 msgstr "Carregar sessões anteriores"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Loading consent status…"
+msgstr "A carregar o estado do consentimento…"
 
 #: apps/web/src/components/exercise-library.tsx
 msgid "Loading details…"
@@ -7669,6 +7774,11 @@ msgstr "Não foram reconhecidos alimentos. Experimente indicar cada alimento, po
 #: apps/web/src/routes/_auth/workouts.tsx
 msgid "No goals yet"
 msgstr "Ainda não há objetivos"
+
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "No health data consent is recorded."
+msgstr "Não existe consentimento para o tratamento de dados de saúde registado."
 
 #: apps/native/components/workout-history.tsx
 msgid "No history yet"
@@ -9492,6 +9602,14 @@ msgstr "Atingir um peso"
 msgid "Reaching a target does not mean your health has improved. Goals you have not set are never counted against you."
 msgstr "Atingir um alvo não significa que a sua saúde melhorou. Os objetivos que não definiu nunca contam contra si."
 
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/native/app/(drawer)/invitations.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
+#: apps/web/src/components/accept-invitation-view.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
+msgid "Read the privacy policy"
+msgstr "Leia a política de privacidade"
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "Read the source"
 msgstr "Ler a fonte"
@@ -9638,6 +9756,12 @@ msgstr "Registe a sessão tal como aconteceu. Os detalhes dos exercícios e das 
 #: packages/api/src/presenters/insights.ts
 msgid "Recorded activity energy"
 msgstr "Energia de atividade registada"
+
+#. placeholder {0}: new Date(status.data.acceptedAt).toLocaleDateString()
+#: apps/native/app/(drawer)/(tabs)/settings.tsx
+#: apps/web/src/components/health-data-consent-status.tsx
+msgid "Recorded on {0}."
+msgstr "Registado em {0}."
 
 #: packages/api/src/presenters/insights.ts
 msgid "Recording streaks"
@@ -10024,6 +10148,14 @@ msgstr "Tentar carregar treinos"
 #: apps/native/components/workout-session.tsx
 msgid "Review against latest"
 msgstr "Rever com a versão mais recente"
+
+#: apps/web/src/components/accept-invitation-view.tsx
+msgid "Review and accept the health data consent above before accepting this invitation."
+msgstr "Reveja e aceite o consentimento para o tratamento de dados de saúde acima antes de aceitar este convite."
+
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "Review and accept the health data consent before accepting this invitation."
+msgstr "Reveja e aceite o consentimento para o tratamento de dados de saúde antes de aceitar este convite."
 
 #: apps/native/app/(drawer)/(tabs)/nutrition.tsx
 #: apps/web/src/routes/_auth/nutrition.tsx
@@ -10465,6 +10597,7 @@ msgstr "A guardar fotografia…"
 #: apps/native/app/(drawer)/workouts.tsx
 #: apps/native/components/onboarding/flow.tsx
 #: apps/native/components/workout-routines.tsx
+#: apps/web/src/components/health-data-consent-prompt.tsx
 #: apps/web/src/components/onboarding/onboarding-steps.tsx
 #: apps/web/src/components/product-settings-form.tsx
 #: apps/web/src/components/wellness-profile-editor.tsx
@@ -10829,6 +10962,10 @@ msgstr "Séries de {trainingFrom} a {trainingTo}"
 #: apps/web/src/routes/_auth/settings/telegram.tsx
 msgid "Settings"
 msgstr "Definições"
+
+#: apps/native/components/health-data-consent-prompt.tsx
+msgid "Settings and account deletion"
+msgstr "Definições e eliminação da conta"
 
 #: packages/api/src/presenters/nutrition-targets.ts
 msgid "Settings saved."
@@ -11868,6 +12005,10 @@ msgstr "A alteração não será guardada no seu histórico."
 msgid "The coach also needs AI to be turned on for this server and your consent in Settings."
 msgstr "O coach também precisa que a IA esteja ativada neste servidor e do seu consentimento nas Definições."
 
+#: apps/native/app/(drawer)/invitations.tsx
+msgid "The consent version changed. Review it and try accepting the invitation again."
+msgstr "A versão do consentimento mudou. Reveja-a e tente aceitar novamente o convite."
+
 #: packages/api/src/presenters/preventive-care.ts
 msgid "The date you set has arrived."
 msgstr "Chegou a data que definiu."
@@ -12601,6 +12742,7 @@ msgstr "Tríceps"
 #: apps/native/app/(drawer)/micronutrients.tsx
 #: apps/native/app/(drawer)/private-measurements.tsx
 #: apps/native/components/exercise-library.tsx
+#: apps/native/components/health-data-consent-prompt.tsx
 #: apps/native/components/progress-photos.tsx
 #: apps/native/components/workout-history.tsx
 #: apps/web/src/components/exercise-library.tsx

@@ -15,7 +15,8 @@ import {
  * Issue #294 — `signUp` RPC namespace (public sign-up for OpenValens Cloud).
  *
  * `options` is a public read: the deployment mode, whether anyone may sign
- * up, and in Cloud the terms and privacy links and versions the form shows.
+ * up, and in Cloud the terms, privacy and separate health-data consent links
+ * and versions the form shows.
  * The web reads it to decide whether `/signup` and "Create account" exist.
  *
  * `request` starts a sign-up. It is `NOT_FOUND` on a self-hosted deployment.
@@ -31,6 +32,7 @@ const optionsOutput = z.object({
   signUp: z.boolean(),
   terms: legalDocument.nullable(),
   privacy: legalDocument.nullable(),
+  healthDataConsent: legalDocument.nullable(),
 });
 const requestOutput = z.object({ accepted: z.literal(true) });
 
@@ -68,6 +70,8 @@ export const signUpRouter = {
         return await context.publicSignUp!.signUpPublic({
           email: input.email,
           acceptedLegal: input.acceptedLegal,
+          acceptedHealthDataConsent: input.acceptedHealthDataConsent,
+          healthDataConsentVersion: input.healthDataConsentVersion,
           ...(input.locale ? { locale: input.locale } : {}),
         });
       } catch (error) {

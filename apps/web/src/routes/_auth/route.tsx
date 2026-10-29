@@ -3,6 +3,7 @@ import { Button } from "@openvalens/ui/components/button";
 import { Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 
 import { AccessBanner } from "@/components/access-banner";
+import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
 import { LocaleSync } from "@/components/locale-sync";
 import { ErrorState, Page } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
@@ -40,6 +41,7 @@ function AuthLayout() {
     <>
       <LocaleSync />
       <AccessBanner />
+      <HealthDataConsentPrompt />
       <Outlet />
     </>
   );

@@ -181,6 +181,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
           legal: {
             terms: { url: "https://legal.test/terms", version: "t-1" },
             privacy: { url: "https://legal.test/privacy", version: "p-1" },
+            healthDataConsent: { url: "https://legal.test/privacy", version: "h-1" },
           },
         },
         verifyUrl: (token) => `https://app.test/verify?token=${token}`,
@@ -194,7 +195,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
       });
     const tokenOf = (link: string) => new URL(link).searchParams.get("token")!;
 
-    await signUp(false).signUpPublic({ email: "new.cloud@example.com", acceptedLegal: true });
+    await signUp(false).signUpPublic({ email: "new.cloud@example.com", acceptedLegal: true, acceptedHealthDataConsent: true, healthDataConsentVersion: "h-1" });
     const created = await signUp(false).completePublicSignUp(tokenOf(links.at(-1)!));
     expect(created.status).toBe("created");
     const userId = created.status === "created" ? created.userId : "";
@@ -202,7 +203,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
     expect(fake.calls).toHaveLength(0);
 
     // A failure later in the hook rolls the account and its trial back together.
-    await signUp(true).signUpPublic({ email: "rolled.back@example.com", acceptedLegal: true });
+    await signUp(true).signUpPublic({ email: "rolled.back@example.com", acceptedLegal: true, acceptedHealthDataConsent: true, healthDataConsentVersion: "h-1" });
     await expect(signUp(true).completePublicSignUp(tokenOf(links.at(-1)!))).rejects.toBeDefined();
     const left = await db.execute(
       sql`select count(*)::int as n from "subscription" s join "user" u on u."id" = s."user_id" where u."email" = 'rolled.back@example.com'`,
@@ -218,6 +219,7 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
         legal: {
           terms: { url: "https://legal.test/terms", version: "t-1" },
           privacy: { url: "https://legal.test/privacy", version: "p-1" },
+          healthDataConsent: { url: "https://legal.test/privacy", version: "h-1" },
         },
       },
       onAccountCreated: onCloudAccountCreated,
@@ -228,7 +230,13 @@ describe.skipIf(!url)("billing against disposable PostgreSQL", () => {
       email: "relay.trial@privaterelay.appleid.com",
       emailVerified: true,
       name: "Synthetic Person",
-      legal: { termsVersion: "t-1", privacyVersion: "p-1", acceptedAt: new Date() },
+      legal: {
+        termsVersion: "t-1",
+        privacyVersion: "p-1",
+        acceptedAt: new Date(),
+        healthDataConsentVersion: "h-1",
+        healthDataConsentAcceptedAt: new Date(),
+      },
     });
     expect(created.status).toBe("created");
     const userId = created.status === "created" ? created.userId : "";
