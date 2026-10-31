@@ -31,6 +31,47 @@ export const SITE_CSP_HEADER = [...CSP_DIRECTIVES, "frame-ancestors 'none'"].joi
 
 const CSP_PLACEHOLDER = "__SITE_CSP__";
 
+/**
+ * The go-live switch for OpenValens Cloud (#309). While it is `false` the
+ * pages say "Cloud · coming soon" and never link to sign-up. Set it to `true`
+ * once billing leaves Stripe test mode: the build then swaps every Cloud
+ * block to its live copy, with "Start free trial" linking to
+ * {@link CLOUD_SIGNUP_URL}.
+ *
+ * In the HTML, `<!-- cloud:soon -->…<!-- /cloud:soon -->` wraps what shows
+ * before launch and `<!-- cloud:live -->…<!-- /cloud:live -->` what replaces it.
+ */
+export const CLOUD_LIVE = false;
+
+/** Fills `__CLOUD_SIGNUP_URL__` in the pages. */
+export const CLOUD_SIGNUP_URL = "https://app.openvalens.com/signup";
+const SIGNUP_PLACEHOLDER = "__CLOUD_SIGNUP_URL__";
+
+const CLOUD_MARKER = /[ \t]*<!--\s*(\/?)cloud:(soon|live)\s*-->\n?/g;
+
+/**
+ * Keeps the Cloud blocks for one state and drops the other state's blocks,
+ * markers included. Throws on a block that is nested, stray or not closed.
+ */
+export function selectCloudBlocks(html: string, cloudLive: boolean, file = "page"): string {
+  const keep = cloudLive ? "live" : "soon";
+  let out = "";
+  let cursor = 0;
+  let open: string | undefined;
+  for (const match of html.matchAll(CLOUD_MARKER)) {
+    const [text, closing, state] = match;
+    if (!closing && open) throw new Error(`${file}: cloud:${state} opened inside cloud:${open}`);
+    if (closing && open !== state) throw new Error(`${file}: stray /cloud:${state}`);
+    // Text before an opening marker is outside any block; before a closing
+    // marker it is the block's body, kept only for the chosen state.
+    if (!open || open === keep) out += html.slice(cursor, match.index);
+    cursor = match.index + text.length;
+    open = closing ? undefined : state;
+  }
+  if (open) throw new Error(`${file}: cloud:${open} is not closed`);
+  return out + html.slice(cursor);
+}
+
 /** `_headers` (Netlify / Cloudflare Pages format); reverse proxies can mirror it. */
 export function renderHeaders(): string {
   return [
@@ -202,8 +243,15 @@ export async function auditSite(dir: string): Promise<Finding[]> {
   return findings;
 }
 
-/** Copies `src/` to `outDir`, fills in the CSP and writes `_headers`. */
-export async function buildSite(outDir: string, srcDir = SITE_SRC): Promise<void> {
+/**
+ * Copies `src/` to `outDir`, keeps the Cloud blocks for `cloudLive`, fills in
+ * the CSP and writes `_headers`.
+ */
+export async function buildSite(
+  outDir: string,
+  srcDir = SITE_SRC,
+  { cloudLive = CLOUD_LIVE }: { cloudLive?: boolean } = {},
+): Promise<void> {
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
   await cp(srcDir, outDir, { recursive: true });
@@ -212,7 +260,11 @@ export async function buildSite(outDir: string, srcDir = SITE_SRC): Promise<void
     const path = join(outDir, file);
     const html = await readFile(path, "utf8");
     if (!html.includes(CSP_PLACEHOLDER)) throw new Error(`${file}: missing ${CSP_PLACEHOLDER}`);
-    await writeFile(path, html.replaceAll(CSP_PLACEHOLDER, SITE_CSP));
+    const page = selectCloudBlocks(html, cloudLive, file);
+    await writeFile(
+      path,
+      page.replaceAll(CSP_PLACEHOLDER, SITE_CSP).replaceAll(SIGNUP_PLACEHOLDER, CLOUD_SIGNUP_URL),
+    );
   }
   await writeFile(join(outDir, "_headers"), renderHeaders());
 }

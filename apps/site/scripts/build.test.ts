@@ -17,25 +17,37 @@ import {
   auditMarkup,
   auditSite,
   buildSite,
+  CLOUD_LIVE,
+  CLOUD_SIGNUP_URL,
+  selectCloudBlocks,
   SITE_CSP,
   SITE_CSP_HEADER,
   type Finding,
 } from "./build";
 
+/** The pre-launch build ("Cloud · coming soon"), whatever CLOUD_LIVE says. */
 let outDir: string;
+/** The same site once Cloud is live. */
+let liveDir: string;
+/** The build `bun run build` ships, which follows CLOUD_LIVE. */
+let shippedDir: string;
 
 beforeAll(async () => {
   outDir = await mkdtemp(join(tmpdir(), "openvalens-site-"));
-  await buildSite(outDir);
+  liveDir = await mkdtemp(join(tmpdir(), "openvalens-site-live-"));
+  shippedDir = await mkdtemp(join(tmpdir(), "openvalens-site-shipped-"));
+  await buildSite(outDir, undefined, { cloudLive: false });
+  await buildSite(liveDir, undefined, { cloudLive: true });
+  await buildSite(shippedDir);
 });
 
 afterAll(async () => {
-  await rm(outDir, { recursive: true, force: true });
+  for (const dir of [outDir, liveDir, shippedDir]) await rm(dir, { recursive: true, force: true });
 });
 
-/** Visible text of the built page: tags, comments and entities flattened. */
-async function pageText(): Promise<string> {
-  const html = await readFile(join(outDir, "index.html"), "utf8");
+/** Visible text of a built page: tags, comments and entities flattened. */
+async function pageText(dir = outDir): Promise<string> {
+  const html = await readFile(join(dir, "index.html"), "utf8");
   return html
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<[^>]+>/g, " ")
@@ -253,5 +265,103 @@ describe("legal and support pages", () => {
       expect(html).not.toMatch(/Lawyer:|Draft —/);
     }
     expect(await readFile(join(outDir, "privacy.html"), "utf8")).toContain("hello@openvalens.com");
+  });
+});
+
+describe("Cloud go-live switch (#309)", () => {
+  const signupLink = `href="${CLOUD_SIGNUP_URL}"`;
+
+  test("before launch: Cloud is coming soon and nothing links to sign-up", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const text = await pageText(outDir);
+    expect(text).toContain("Cloud · coming soon");
+    expect(text).toContain("Self-host it");
+    expect(text).not.toContain("Start free trial");
+    expect(html).not.toContain(CLOUD_SIGNUP_URL);
+    expect(html).not.toContain("signup");
+  });
+
+  test("once live: Start free trial links to sign-up and the pre-launch copy is gone", async () => {
+    const html = await readFile(join(liveDir, "index.html"), "utf8");
+    const text = await pageText(liveDir);
+    expect(html).toContain(`<a class="button primary" ${signupLink}>Start free trial</a>`);
+    expect(text).toContain("Self-host it");
+    expect(text).toContain("€7.99 / month");
+    expect(text).toContain("30-day free trial, no card required");
+    for (const prelaunch of [
+      "Cloud · coming soon",
+      "Cloud is not live yet.",
+      "not available yet",
+      "planned",
+      "future hosted service",
+    ]) {
+      expect(text).not.toContain(prelaunch);
+    }
+    expect(html).not.toContain("future hosted service");
+  });
+
+  test("the live build passes the audit and the wording rules too", async () => {
+    expect(await auditSite(liveDir)).toEqual([]);
+    const text = await pageText(liveDir);
+    const purposeStart = text.indexOf("OpenValens is a personal record-keeping");
+    const purposeEnd = text.indexOf("about your health.", purposeStart);
+    expect(purposeStart).toBeGreaterThan(-1);
+    let scanned = text.slice(0, purposeStart) + text.slice(purposeEnd);
+    for (const phrase of ALLOWED_PHRASES) scanned = scanned.replace(phrase, " ");
+    expect(BANNED_TERMS.filter((term) => term.test(scanned)).map(String)).toEqual([]);
+  });
+
+  test("the shipped build follows CLOUD_LIVE and leaves no markers or placeholders", async () => {
+    const html = await readFile(join(shippedDir, "index.html"), "utf8");
+    expect(html.includes(signupLink)).toBe(CLOUD_LIVE);
+    expect(html.includes("Cloud · coming soon")).toBe(!CLOUD_LIVE);
+    for (const dir of [outDir, liveDir, shippedDir]) {
+      const page = await readFile(join(dir, "index.html"), "utf8");
+      expect(page).not.toMatch(/<!--\s*\/?cloud:(soon|live)\s*-->/);
+      expect(page).not.toContain("__CLOUD_SIGNUP_URL__");
+    }
+  });
+
+  test("selectCloudBlocks keeps one state and refuses broken blocks", () => {
+    const page = [
+      "a",
+      "<!-- cloud:soon -->",
+      "soon",
+      "<!-- /cloud:soon -->",
+      "<!-- cloud:live -->",
+      "live",
+      "<!-- /cloud:live -->",
+      "b",
+      "",
+    ].join("\n");
+    expect(selectCloudBlocks(page, false)).toBe("a\nsoon\nb\n");
+    expect(selectCloudBlocks(page, true)).toBe("a\nlive\nb\n");
+    expect(() => selectCloudBlocks("<!-- cloud:soon -->x", false)).toThrow("not closed");
+    expect(() => selectCloudBlocks("x<!-- /cloud:live -->", false)).toThrow("stray");
+    expect(() =>
+      selectCloudBlocks("<!-- cloud:soon --><!-- cloud:live --><!-- /cloud:live -->", true),
+    ).toThrow("inside");
+  });
+});
+
+describe("Cloud vs self-host and the store apps", () => {
+  test("compares who runs the server, where records live and the price", async () => {
+    const text = await pageText();
+    expect(text).toContain("Cloud and self-host, side by side");
+    expect(text).toContain("Who runs the server");
+    expect(text).toContain("Where your records live");
+    expect(text).toContain("In the EU, with our hosting provider in Germany");
+    expect(text).toContain("The software is free; you pay for your own hosting");
+  });
+
+  test("store apps are labels marked coming soon, never links or remote badges", async () => {
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const badges = /<ul class="store-badges"[\s\S]*?<\/ul>/.exec(html)?.[0];
+    expect(badges).toBeDefined();
+    expect(badges).toContain("App Store");
+    expect(badges).toContain("Google Play");
+    expect(badges!.match(/coming soon/g)).toHaveLength(2);
+    expect(badges).not.toMatch(/<a\b|<img\b/);
+    expect(html).not.toMatch(/apps\.apple\.com|play\.google\.com/);
   });
 });
