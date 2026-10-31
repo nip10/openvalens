@@ -1,6 +1,6 @@
 # Food catalogs
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-24
 
 Food search and barcode lookup read two public catalogs from your own
 database: USDA FoodData Central (FDC) and Open Food Facts (OFF). **A new
@@ -106,7 +106,7 @@ the imported catalogs all miss. It is off by default. To turn it on, add to
 
 ```dotenv
 FOOD_LOOKUP_PROVIDER=openfoodfacts
-FOOD_LOOKUP_USER_AGENT=OpenValens/0.1.0 (ops@example.org)
+FOOD_LOOKUP_USER_AGENT=OpenValens/0.9.0 (ops@example.org)
 ```
 
 Open Food Facts requires the user agent to name the app and an operator

@@ -1,6 +1,6 @@
 # Security model and reporting
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-16
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-16
 
 OpenValens stores personal health data. This page describes what the supported
 install ([Install](install.md)) does to protect it, what it leaves to you, and
@@ -90,7 +90,7 @@ instance [up to date](upgrading.md).
 - **Legal duties.** You operate the instance and are responsible for the
   people whose data it holds ([Privacy and data rights](privacy.md)).
 
-## Known limitations at 0.1.0
+## Known limitations at 0.9.0
 
 - Backups are encrypted and scheduled; they stay on the same host unless you
   configure the optional off-site copy to an S3-compatible bucket.

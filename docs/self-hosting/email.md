@@ -1,6 +1,6 @@
 # Email
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-24
 
 OpenValens sends email through **[Resend](https://resend.com) only**. There is
 no SMTP option and no other email provider (Issue #61); a test in

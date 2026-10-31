@@ -1,6 +1,6 @@
 # Releasing
 
-Last updated: 2026-10-29
+Last updated: 2026-10-31
 
 How a version of OpenValens is cut: the version bump, the tag, the GitHub
 Release with its notes and self-host upgrade notes, and the store builds of
@@ -156,6 +156,30 @@ release tag with `eas update --channel production`, and show the update id in
 About. **Native changes always need a store build**: a new or upgraded native
 module, a config plugin, a permission or entitlement, `app.json` native
 settings, or an Expo SDK upgrade.
+
+## The first release: v0.9.0
+
+`v0.9.0` is a beta that proves the pipeline end to end: it goes to TestFlight
+and Play internal testing only. `v1.0.0` follows for the public store launch,
+once #304, #305 and #307 are done. The version bump and the notes
+(`docs/releases/v0.9.0.md`) are already on `main`, and the install guides
+already tell self-hosters to `git checkout v0.9.0`, so **push the tag right
+after that pull request merges** (step 2 above):
+
+```bash
+git switch main && git pull --ff-only
+bun run release:version --check v0.9.0
+git tag -a v0.9.0 -m "OpenValens v0.9.0"
+git push origin v0.9.0
+```
+
+The tag does not need the store setup. `release.yml` creates the draft
+GitHub Release either way. Without `EXPO_TOKEN`, `release-mobile.yml` writes
+"Mobile release skipped" and what is missing, and ends green. Once the setup
+below is done, start the store builds for the existing tag from the Actions
+tab: **Release mobile** → **Run workflow** → tag `v0.9.0`. Use platform
+`ios` until the first Android build has been uploaded to Play by hand
+(step 6 below).
 
 ## One-time setup (owner)
 

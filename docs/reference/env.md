@@ -1,6 +1,6 @@
 # Environment reference
 
-**Applies to:** OpenValens 0.1.0
+**Applies to:** OpenValens 0.9.0
 
 > **Generated file — do not edit by hand.** Regenerate with `bun run docs:generate`; CI fails if this file is stale (`bun run docs:check`).
 

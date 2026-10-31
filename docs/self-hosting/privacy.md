@@ -1,6 +1,6 @@
 # Privacy and data rights
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-14
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-14
 
 This page is for operators. It describes where a self-hosted instance keeps
 data, what the app lets people do with their own data, and the gaps you need
@@ -46,7 +46,7 @@ complete export.
 
 A complete, machine-readable export of everything a person owns (JSON and CSV
 per table, with a manifest and checksums) is implemented in the server code
-(`packages/data-rights`) but is **not offered in the app or API at 0.1.0**
+(`packages/data-rights`) but is **not offered in the app or API at 0.9.0**
 (Issue #89). If someone asks for a complete copy of their data today, you
 cannot produce it from the app.
 

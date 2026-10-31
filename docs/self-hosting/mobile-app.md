@@ -1,6 +1,6 @@
 # Connecting the mobile app
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-28
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-28
 
 The OpenValens app from the App Store and Google Play connects to any
 OpenValens server, not only to OpenValens Cloud. You do not need to build the
@@ -60,7 +60,7 @@ The answer looks like this:
 {
   "product": "openvalens",
   "apiVersion": 1,
-  "serverVersion": "0.1.0",
+  "serverVersion": "0.9.0",
   "mode": "self-hosted",
   "signIn": { "magicLink": true, "oidc": false, "google": false, "apple": false, "signUp": false }
 }
@@ -194,5 +194,5 @@ available ([Licensing and trademark](licensing.md)).
 The server check was tested against the server's route and the app's parsing
 in unit tests. Connecting the published store app to a self-hosted instance,
 OIDC sign-in on the phone, and push from a self-hosted server to the store app
-have not been verified on a device for 0.1.0; the store apps are not published
+have not been verified on a device for 0.9.0; the store apps are not published
 yet (#306).

@@ -1,6 +1,6 @@
 # Backups
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-25
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-25
 
 A self-hosted instance backs itself up. With no extra configuration it takes
 an **encrypted backup of the database and the stored files every day** and

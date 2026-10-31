@@ -8,7 +8,9 @@ export it on a server you control. "Open" means open source (AGPL-3.0); it
 never means your records are public. An instance has no public sign-up, and
 every workspace is invite-only.
 
-> **Pre-release.** The current version is 0.1.0 and no release is tagged yet.
+> **Beta.** The current version is 0.9.0, the first tagged release
+> ([Releases](https://github.com/nip10/openvalens/releases)). Version 1.0.0
+> comes with the public store launch.
 
 ![The OpenValens dashboard: sleep, steps, heart rate and weight tiles over a 90-day weight chart](apps/site/src/screenshots/dashboard.webp)
 
@@ -90,7 +92,7 @@ it.
 ```bash
 git clone https://github.com/nip10/openvalens.git
 cd openvalens
-git checkout main            # or a release tag, once one exists
+git checkout v0.9.0          # the newest release tag
 deploy/setup.sh install
 ```
 
@@ -103,7 +105,7 @@ install guide covers the rest.
 ### Self-hosting
 
 Run your own instance with the supported Docker Compose install. The guides
-apply to OpenValens 0.1.0 (pre-release; no release is tagged yet):
+apply to OpenValens 0.9.0 (beta):
 
 - [Overview](docs/self-hosting/README.md) — start here; lists what is not covered yet
 - [Install](docs/self-hosting/install.md)
