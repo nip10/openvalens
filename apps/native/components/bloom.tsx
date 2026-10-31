@@ -533,11 +533,15 @@ export function StatTile({
         {unit ? <Text className="font-sans text-sm text-ink-3">{unit}</Text> : null}
       </View>
       {meter ? <Meter value={meter.value} tone={tone} label={meter.label} /> : null}
-      {status || note ? (
+      {status ? (
         <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
-          {status ? <StatusPill tone={status.tone}>{status.label}</StatusPill> : null}
-          {note ? <Text className="font-sans text-sm text-ink-3">{note}</Text> : null}
+          <StatusPill tone={status.tone}>{status.label}</StatusPill>
+          {note ? <Text className="shrink font-sans text-sm text-ink-3">{note}</Text> : null}
         </View>
+      ) : note ? (
+        // Outside a wrapping row: Android measured the note as one line there
+        // and clipped its second line ("Average," with the date cut off).
+        <Text className="font-sans text-sm text-ink-3">{note}</Text>
       ) : null}
     </Sheet>
   );
