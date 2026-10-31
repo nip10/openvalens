@@ -54,9 +54,11 @@ tags: [ai]
     timeout: 20000
 - tapOn: "New"
 - extendedWaitUntil:
-    visible: "Ask the coach anything…"
+    visible:
+      id: "coach-input"
     timeout: 20000
-- tapOn: "Ask the coach anything…"
+- tapOn:
+    id: "coach-input"
 - inputText: "How was my sleep this week?"
 - runFlow: ../subflows/hide-keyboard.yaml
 - tapOn: "Send"

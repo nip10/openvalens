@@ -1,6 +1,6 @@
 # Mobile end-to-end tests (Maestro)
 
-**Applies to:** the Expo app in `apps/native` · Last updated: 2026-10-29
+**Applies to:** the Expo app in `apps/native` · Last updated: 2026-10-31
 
 The mobile app has an end-to-end suite written with
 [Maestro](https://docs.maestro.dev). It drives a real build of the app on the
@@ -73,6 +73,10 @@ run.ts ─┬─ Postgres container ──── demo seed (#301, --cloud, today
   server refuses public sign-up while email is a dry run, so the helper creates
   the account the way the emailed sign-up link does (a `sign_up_request` row,
   then the real verify endpoint, which starts the 30-day trial).
+- **Health-data consent**: Cloud asks every account for a versioned
+  health-data consent (#322). The helper's sign-up records it like the web
+  sign-up does, and the stack records it for the seeded accounts after the
+  seed, so the consent prompt does not cover every screen.
 - **Read-only state**: the helper moves the owner's subscription to `ended`
   and back (`/subscription?email=…&status=ended|trialing`).
 - **The Android emulator** reaches the server and the helper through
@@ -149,6 +153,29 @@ maestro --device <udid or emulator-5554> test \
 taken during the flows, with an `index.html` that lines the same screen up
 across platform, language and theme. The data is the synthetic demo account
 only. The folder is git-ignored; share it as a zip.
+
+### Store screenshots (#307)
+
+```sh
+E2E_IOS_SIMULATOR=OpenValens-Store E2E_IOS_DEVICE_TYPE="iPhone 17 Pro Max" \
+  bun run e2e:ios -- --store            # App Store, iPhone 6.9" (1320×2868)
+bun run e2e:android -- --store          # Google Play phone screenshots
+```
+
+`--store` runs `.maestro/store/store-screenshots.yaml` on the seeded demo
+account (Alex Morgan, synthetic data) in light mode, once in English and once
+in Portuguese (Portugal), and copies the six screens (Cockpit, Labs, Meal diary,
+Training, Sleep, Body) into the store folders, replacing what is there:
+
+| Store       | Folder                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| App Store   | `apps/native/store/app-store/screenshots/<en-US\|pt-PT>/iphone-6.9/`                        |
+| Google Play | `apps/native/store/play/<en-US\|pt-PT>/images/phoneScreenshots/` (fastlane `supply` layout) |
+
+The App Store needs the 6.9" size, so use an iPhone Pro Max simulator for
+`--store` (the first run on a new simulator installs the app with a short
+incremental build). The screenshots are committed so the listing can be
+reviewed; rerun after a visible UI change.
 
 ## Adding a flow
 

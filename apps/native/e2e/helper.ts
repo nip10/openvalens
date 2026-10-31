@@ -21,6 +21,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { SQL } from "bun";
 
 import { E2E, databaseUrl, serverUrl } from "./config";
+import { E2E_LEGAL_VERSION } from "./server-env";
 
 /** Same domain-separated hash as `hashSignUpSecret` in `@openvalens/auth`. */
 function hashSignUpSecret(secret: string): string {
@@ -66,8 +67,8 @@ export function startHelper(): Helper {
     const token = randomBytes(32).toString("base64url");
     const now = new Date();
     const expires = new Date(now.getTime() + 30 * 60_000);
-    await sql`insert into "sign_up_request" ("id", "canonical_email", "token_hash", "locale", "terms_version", "privacy_version", "accepted_at", "expires_at", "consumed_at", "user_id", "created_at")
-      values (${crypto.randomUUID()}, ${email}, ${hashSignUpSecret(token)}, ${"en"}, ${"2026-11-01"}, ${"2026-11-01"}, ${now}, ${expires}, null, null, ${now})`;
+    await sql`insert into "sign_up_request" ("id", "canonical_email", "token_hash", "locale", "terms_version", "privacy_version", "health_data_consent_version", "health_data_consent_accepted_at", "accepted_at", "expires_at", "consumed_at", "user_id", "created_at")
+      values (${crypto.randomUUID()}, ${email}, ${hashSignUpSecret(token)}, ${"en"}, ${E2E_LEGAL_VERSION}, ${E2E_LEGAL_VERSION}, ${E2E_LEGAL_VERSION}, ${now}, ${now}, ${expires}, null, null, ${now})`;
     const verify = new URL("/api/auth/admission/sign-up/verify", serverUrl());
     verify.searchParams.set("token", token);
     const response = await fetch(verify, { redirect: "manual" });

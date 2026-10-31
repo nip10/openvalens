@@ -52,6 +52,10 @@ tags: [settings]
       ID: "lab-units-mmol_l"
 - tapOn:
     id: "lab-units-mmol_l"
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "United Kingdom"
 - tapOn: "United Kingdom"
 - takeScreenshot: 10-units
 - runFlow:
@@ -79,11 +83,12 @@ tags: [settings]
 - runFlow:
     file: ../subflows/find-text.yaml
     env:
-      TEXT: "Dark mode"
-- tapOn: "Dark mode"
+      TEXT: "Dark mode.*"
+- tapOn: "Dark mode.*"
+# iOS reads the row as one element ("Dark mode, On"); Android also shows the pill.
 - assertVisible: "Dark mode, On|On"
 - takeScreenshot: 10-dark-mode
-- tapOn: "Dark mode"
+- tapOn: "Dark mode.*"
 
 # Modules: hide Food & water, check the Food tab goes away, turn it back on
 - runFlow:

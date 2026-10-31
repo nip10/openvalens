@@ -27,7 +27,8 @@ appId: com.openvalens.app
     element:
       id: ${ID}
     direction: DOWN
-    centerElement: true
+    # No centerElement: items at the end of the list can never be centred.
+    visibilityPercentage: 100
 - waitForAnimationToEnd:
     timeout: 1500
 - tapOn:
@@ -39,8 +40,10 @@ appId: com.openvalens.app
     when:
       visible: "Close drawer"
     commands:
+      # The drawer may already be closing: the item is then gone.
       - tapOn:
           id: ${ID}
+          optional: true
       - waitForAnimationToEnd:
           timeout: 3000
 - assertNotVisible: "Close drawer"

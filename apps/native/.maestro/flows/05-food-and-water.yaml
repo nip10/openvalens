@@ -74,6 +74,17 @@ tags: [logging]
     visibilityPercentage: 60
     timeout: 30000
 - tapOn: "Add food to Breakfast"
+# On iOS a tap right after the scroll settles is sometimes dropped: tap again.
+- repeat:
+    times: 2
+    while:
+      notVisible: "Barcode"
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - tapOn:
+          text: "Add food to Breakfast"
+          optional: true
 - extendedWaitUntil:
     visible: "Barcode"
     timeout: 10000

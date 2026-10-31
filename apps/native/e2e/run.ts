@@ -10,10 +10,19 @@
  *   bun run e2e:ios -- --no-screenshots    # suite only
  *   bun run e2e:ios -- --screenshots-only  # tour only (signs in first)
  *   bun apps/native/e2e/run.ts stack       # just the seeded server, for writing flows
+ *   bun run e2e:ios -- --store             # store screenshots (#307) into apps/native/store/
  *
  * See docs/mobile/e2e.md.
  */
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { parseArgs } from "node:util";
@@ -40,6 +49,7 @@ const { values, positionals } = parseArgs({
     "no-screenshots": { type: "boolean", default: false },
     "screenshots-only": { type: "boolean", default: false },
     keep: { type: "boolean", default: false },
+    store: { type: "boolean", default: false },
   },
 });
 
@@ -113,6 +123,35 @@ function collectScreenshots(maestroOut: string, dest: string): number {
   return count;
 }
 
+/**
+ * Copies a store run's `store-NN-name.png` files where the stores expect them:
+ * App Store `store/app-store/screenshots/<locale>/iphone-6.9/` and Play
+ * `store/play/<locale>/images/phoneScreenshots/` (the fastlane `supply`
+ * layout, numbered 1.png, 2.png… in display order).
+ */
+function copyStoreScreenshots(maestroOut: string, platform: Platform, locale: "en" | "pt-PT") {
+  const storeLocale = locale === "en" ? "en-US" : "pt-PT";
+  const storeDir = join(NATIVE_DIR, "store");
+  const dir =
+    platform === "ios"
+      ? join(storeDir, "app-store", "screenshots", storeLocale, "iphone-6.9")
+      : join(storeDir, "play", storeLocale, "images", "phoneScreenshots");
+  const staging = join(maestroOut, "collected");
+  collectScreenshots(maestroOut, staging);
+  if (!existsSync(staging)) return { dir, count: 0 };
+  const shots = readdirSync(staging)
+    .filter((name) => name.startsWith("store-") && name.endsWith(".png"))
+    .sort();
+  if (shots.length === 0) return { dir, count: 0 };
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  shots.forEach((name, index) => {
+    const target = platform === "ios" ? name.replace(/^store-/, "") : `${index + 1}.png`;
+    cpSync(join(staging, name), join(dir, target));
+  });
+  return { dir, count: shots.length };
+}
+
 type FlowResult = { name: string; passed: boolean; message: string };
 
 function junitResults(file: string): FlowResult[] {
@@ -173,9 +212,39 @@ async function main() {
   const stack = await startStack({ metro: false, logDir: join(runDir, "logs") });
   let failed = false;
   try {
-    // ─── The suite ───────────────────────────────────────────────
     let results: FlowResult[] = [];
-    if (!values["screenshots-only"]) {
+    // ─── Store screenshots (#307) ────────────────────────────────
+    if (values.store) {
+      for (const locale of ["en", "pt-PT"] as const) {
+        log(`store screenshots: ${locale}`);
+        const out = join(runDir, "store", locale);
+        await maestro(
+          device,
+          platform,
+          [
+            "--format",
+            "junit",
+            "--output",
+            join(out, "report.xml"),
+            "--test-output-dir",
+            out,
+            join(FLOWS_DIR, "store", "store-screenshots.yaml"),
+          ],
+          { LOCALE: locale },
+        );
+        results.push(
+          ...junitResults(join(out, "report.xml")).map((r) => ({
+            ...r,
+            name: `Store screenshots ${locale}`,
+          })),
+        );
+        const copied = copyStoreScreenshots(out, platform, locale);
+        log(`${copied.count} store screenshots in ${copied.dir}`);
+      }
+    }
+
+    // ─── The suite ───────────────────────────────────────────────
+    if (!values["screenshots-only"] && !values.store) {
       const flows = selectedFlows();
       const report = join(runDir, "report.xml");
       log(`running ${flows.map((f) => basename(f)).join(", ")}`);
@@ -201,7 +270,7 @@ async function main() {
     }
 
     // ─── The screenshot tour ─────────────────────────────────────
-    if (!values["no-screenshots"]) {
+    if (!values["no-screenshots"] && !values.store) {
       for (const locale of ["en", "pt-PT"] as const) {
         for (const theme of ["light", "dark"] as const) {
           const variant = `${locale}-${theme}`;

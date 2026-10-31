@@ -46,7 +46,8 @@ tags: [onboarding]
 - extendedWaitUntil:
     visible: "How will your data arrive\\?"
     timeout: 15000
-- tapOn: "I'll type things in"
+- tapOn:
+    id: "onboarding-source-manual"
 - takeScreenshot: 03-onboarding-4-data
 - runFlow: ../subflows/onboarding-continue.yaml
 

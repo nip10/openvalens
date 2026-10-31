@@ -8,7 +8,7 @@ import { join } from "node:path";
 
 import { E2E, NATIVE_DIR, REPO_ROOT, databaseUrl, helperUrl, serverUrl } from "./config";
 import { startHelper, type Helper } from "./helper";
-import { serverEnv } from "./server-env";
+import { E2E_LEGAL_VERSION, serverEnv } from "./server-env";
 
 type Proc = ReturnType<typeof Bun.spawn>;
 
@@ -96,6 +96,23 @@ async function seed() {
   await run(["bun", "run", "demo:seed", "--today", today(), "--cloud"], {
     env: { DEMO_DATABASE_URL: databaseUrl() },
   });
+  // Seeded accounts never went through Cloud sign-up: record the health-data
+  // consent they would have given, so the consent prompt does not cover every
+  // screen. Flows that test the prompt can delete the row.
+  await run([
+    "docker",
+    "exec",
+    E2E.pgContainer,
+    "psql",
+    "-U",
+    "postgres",
+    "-d",
+    E2E.database,
+    "-c",
+    `insert into "legal_acceptance" ("id", "user_id", "document", "version", "accepted_at", "source")
+     select gen_random_uuid()::text, "id", 'health_data_consent', '${E2E_LEGAL_VERSION}', now(), 'sign_up' from "user"
+     on conflict do nothing`,
+  ]);
 }
 
 async function pipeLines(stream: ReadableStream<Uint8Array>, onLine: (line: string) => void) {

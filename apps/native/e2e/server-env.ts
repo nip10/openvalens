@@ -11,6 +11,9 @@ import { E2E, databaseUrl, helperUrl, serverUrl, webOrigin } from "./config";
  * Google button and Settings › Sign-in methods show; Google is never
  * contacted (no flow taps it).
  */
+/** Every legal document version the e2e server asks for (terms, privacy, health-data consent, checkout). */
+export const E2E_LEGAL_VERSION = "2026-11-01";
+
 export function serverEnv(): Record<string, string> {
   const web = webOrigin();
   return {
@@ -26,10 +29,12 @@ export function serverEnv(): Record<string, string> {
     CRON_SECRET: "e2e-only-cron-secret-000000000000000",
     TELEGRAM_WEBHOOK_SECRET: "e2e-only-telegram-secret-0000000000",
     DEPLOYMENT_MODE: "cloud",
-    LEGAL_TERMS_URL: `${web}/terms`,
-    LEGAL_TERMS_VERSION: "2026-11-01",
-    LEGAL_PRIVACY_URL: `${web}/privacy`,
-    LEGAL_PRIVACY_VERSION: "2026-11-01",
+    LEGAL_TERMS_URL: "https://openvalens.com/terms",
+    LEGAL_TERMS_VERSION: E2E_LEGAL_VERSION,
+    LEGAL_PRIVACY_URL: "https://openvalens.com/privacy",
+    LEGAL_PRIVACY_VERSION: E2E_LEGAL_VERSION,
+    LEGAL_HEALTH_CONSENT_VERSION: E2E_LEGAL_VERSION,
+    LEGAL_CHECKOUT_ACK_VERSION: E2E_LEGAL_VERSION,
     STRIPE_SECRET_KEY: "sk_test_e2e_not_a_real_key",
     STRIPE_WEBHOOK_SECRET: "whsec_e2e_not_a_real_secret",
     STRIPE_PRICE_MONTHLY: "price_e2e_monthly",

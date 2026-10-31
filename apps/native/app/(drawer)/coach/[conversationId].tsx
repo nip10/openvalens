@@ -184,6 +184,7 @@ export default function CoachThreadScreen() {
             onChangeText={setInput}
             placeholder={t`Ask the coach anything…`}
             accessibilityLabel={t`Ask the coach anything…`}
+            testID="coach-input"
             editable={!send.isPending}
             multiline
             className="min-h-11 max-h-32 flex-1 py-2.5 font-sans text-base text-ink"
