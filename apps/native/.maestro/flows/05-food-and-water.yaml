@@ -67,11 +67,13 @@ tags: [logging]
     element: ".*Trail mix.*"
     timeout: 20000
 
-# Barcode: only the entry point (no camera here)
+# Barcode: only the entry point (no camera here). Centre the button: on iOS
+# a tap on it at the very top edge, under the header, does nothing.
 - scrollUntilVisible:
     element: "Add food to Breakfast"
     direction: UP
-    visibilityPercentage: 60
+    visibilityPercentage: 100
+    centerElement: true
     timeout: 30000
 - tapOn: "Add food to Breakfast"
 # On iOS a tap right after the scroll settles is sometimes dropped: tap again.
