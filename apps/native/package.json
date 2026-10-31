@@ -11,7 +11,7 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "web": "expo start --web",
-    "check-types": "tsc -b ../../packages/api && tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "check-types": "tsc -b ../../packages/api && tsc --noEmit && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p e2e/tsconfig.json",
     "env:generate": "varlock codegen"
   },
   "dependencies": {

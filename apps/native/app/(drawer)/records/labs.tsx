@@ -72,6 +72,8 @@ function AddReadingForm({ markerCode, onSaved }: { markerCode: string; onSaved: 
           <View className="flex-1 gap-2">
             <Text className="font-sans text-sm text-ink-3">{t`Value`}</Text>
             <TextInput
+              testID="lab-value-input"
+              accessibilityLabel={t`Value`}
               value={value}
               onChangeText={setValue}
               placeholder="0–100000"

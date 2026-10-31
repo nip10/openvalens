@@ -56,7 +56,7 @@ export default function Home() {
               <Text className="font-sans text-sm text-ink-3">{session.user.email}</Text>
             </View>
             <Link href="/(drawer)/(tabs)" asChild>
-              <Button accessibilityLabel={t`Cockpit`}>
+              <Button accessibilityLabel={t`Cockpit`} testID="home-cockpit">
                 <Icon icon={LayoutDashboard} size={18} color="primary-foreground" />
                 <Button.Label>{t`Cockpit`}</Button.Label>
               </Button>

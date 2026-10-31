@@ -1,0 +1,56 @@
+# 2. Sign-up in Cloud mode (#294) and sign-in with a magic link.
+#
+# The app's "Create an account" opens the server's web sign-up page in the
+# browser; the account itself is created by the emailed sign-up link. The
+# suite's server sends no email, so the helper creates the account through
+# the same verify endpoint the link uses (it starts the 30-day trial). The
+# new person then signs in with a dev magic link.
+appId: com.openvalens.app
+name: 02 Sign-up and sign-in
+tags: [auth]
+---
+- extendedWaitUntil:
+    visible: "Create an account"
+    timeout: 30000
+- tapOn: "Create an account"
+# The browser opens the web sign-up page. Close it and come back.
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: 02-create-account-browser
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - stopApp: com.android.chrome
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - stopApp: com.apple.mobilesafari
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Create an account"
+    timeout: 15000
+
+- runScript:
+    file: ../scripts/helper.js
+    env:
+      HELPER_PATH: "/sign-up?email=casey.lane@example.com"
+
+# A wrong address is refused before anything is sent
+- tapOn:
+    id: "sign-in-email-input"
+- inputText: "casey"
+- pressKey: Enter
+- assertVisible: "Enter a valid email address"
+
+- runFlow:
+    file: ../subflows/sign-in.yaml
+    env:
+      EMAIL: casey.lane@example.com
+- extendedWaitUntil:
+    visible: "casey.lane@example.com"
+    timeout: 30000
+- assertVisible: "Welcome,.*"
+- takeScreenshot: 02-signed-in

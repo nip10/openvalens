@@ -126,6 +126,7 @@ export default function SettingsScreen() {
                 size="sm"
                 onPress={() => void signOutOfThisPhone()}
                 accessibilityLabel={t`Sign out`}
+                testID="sign-out"
               >
                 <Button.Label>
                   <Trans>Sign out</Trans>
@@ -219,6 +220,7 @@ export default function SettingsScreen() {
               icon={<Icon icon={isDark ? Sun : Moon} size={18} color="ink-2" />}
               title={t`Dark mode`}
               subtitle={isDark ? t`On` : t`Off`}
+              accessibilityLabel={`${t`Dark mode`}, ${isDark ? t`On` : t`Off`}`}
               onPress={toggleTheme}
               showDivider
               trailing={

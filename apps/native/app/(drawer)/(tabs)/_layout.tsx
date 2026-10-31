@@ -52,6 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="training"
         options={{
+          tabBarButtonTestID: "tab-training",
           title: t`Training`,
           href: activityEnabled ? undefined : null,
           tabBarIcon: ({ color, size }) => <Dumbbell size={size - 2} color={color} />,
@@ -60,6 +61,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          tabBarButtonTestID: "tab-cockpit",
           title: t`Cockpit`,
           tabBarIcon: ({ color, size }) => <LayoutDashboard size={size - 2} color={color} />,
         }}
@@ -67,6 +69,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="timeline"
         options={{
+          tabBarButtonTestID: "tab-timeline",
           title: t`Timeline`,
           tabBarIcon: ({ color, size }) => <History size={size - 2} color={color} />,
         }}
@@ -74,6 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="nutrition"
         options={{
+          tabBarButtonTestID: "tab-nutrition",
           title: t`Food`,
           href: foodEnabled ? undefined : null,
           tabBarActiveTintColor: themeColorFood,
@@ -83,6 +87,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="body"
         options={{
+          tabBarButtonTestID: "tab-body",
           title: t`Body`,
           href: bodyEnabled ? undefined : null,
           tabBarIcon: ({ color, size }) => <Scale size={size - 2} color={color} />,
@@ -91,6 +96,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
+          tabBarButtonTestID: "tab-settings",
           title: t`Settings`,
           tabBarIcon: ({ color, size }) => <Settings size={size - 2} color={color} />,
         }}

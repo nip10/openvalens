@@ -1,0 +1,22 @@
+# Hides the keyboard. On Android, Maestro's hideKeyboard presses Back, which
+# leaves the screen when no keyboard is up, so only do it when one is shown.
+appId: com.openvalens.app
+---
+# On iOS, Maestro's hideKeyboard cannot close a number pad (it has no return
+# key). A tap in the page's side gutter lands on the scroll view, not on a
+# control, and React Native dismisses the keyboard.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          point: "1%, 40%"
+      - waitForAnimationToEnd:
+          timeout: 1500
+- runFlow:
+    when:
+      platform: Android
+      visible:
+        id: "com.google.android.inputmethod.latin:id/.*"
+    commands:
+      - hideKeyboard

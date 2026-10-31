@@ -114,6 +114,8 @@ function AddReadingForm({ onSaved }: { onSaved: () => void }) {
           <View className="flex-1 gap-2">
             <Text className="font-sans text-sm text-ink-3">{t`Value (${unit})`}</Text>
             <TextInput
+              testID="vital-value-input"
+              accessibilityLabel={t`Value (${unit})`}
               value={value}
               onChangeText={setValue}
               placeholder={`${field.min}–${field.max}`}

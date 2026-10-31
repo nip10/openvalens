@@ -1,0 +1,39 @@
+# Signs out (Settings › Sign out) if signed in, and signs EMAIL in, ending on
+# the Cockpit. Works in any language (test ids only).
+appId: com.openvalens.app
+---
+- launchApp:
+    stopApp: false
+- runFlow:
+    when:
+      notVisible:
+        id: "sign-in-email-input"
+    commands:
+      - runFlow:
+          file: drawer-go.yaml
+          env:
+            ID: drawer-settings
+      - runFlow:
+          file: find-id.yaml
+          env:
+            ID: sign-out
+      - tapOn:
+          id: "sign-out"
+      # Signing out leaves the current screen in place; a fresh start opens
+      # the sign-in screen.
+      - stopApp
+      - launchApp:
+          stopApp: false
+- runFlow:
+    file: sign-in.yaml
+    env:
+      EMAIL: ${EMAIL}
+- extendedWaitUntil:
+    visible: ${EMAIL}
+    timeout: 30000
+- tapOn:
+    id: "home-cockpit"
+- extendedWaitUntil:
+    visible:
+      id: "tab-cockpit"
+    timeout: 20000

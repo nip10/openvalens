@@ -1,0 +1,11 @@
+# Types ADDRESS into "My own server" and submits it with the keyboard's Go key.
+appId: com.openvalens.app
+---
+- scrollUntilVisible:
+    element:
+      id: "server-address-input"
+- tapOn:
+    id: "server-address-input"
+- eraseText: 60
+- inputText: ${ADDRESS}
+- pressKey: Enter

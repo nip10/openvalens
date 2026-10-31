@@ -78,6 +78,8 @@ function AddWeightForm({ onSaved }: { onSaved: () => void }) {
         <View className="flex-1 gap-2">
           <Text className="font-sans text-sm font-medium text-ink-2">{t`Weight (${unit})`}</Text>
           <TextInput
+            testID="weight-value-input"
+            accessibilityLabel={t`Weight (${unit})`}
             value={value}
             onChangeText={setValue}
             placeholder={`${field.min}–${field.max}`}

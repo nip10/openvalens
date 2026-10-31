@@ -1,0 +1,75 @@
+# 13. Export, then delete the account. Runs as Casey (flow 02), so the demo
+# account stays for the screenshot tour.
+appId: com.openvalens.app
+name: 13 Export and delete account
+tags: [data-rights]
+---
+- runFlow:
+    file: ../subflows/switch-account.yaml
+    env:
+      EMAIL: casey.lane@example.com
+
+# Export: the whole record as one JSON bundle, then one domain as CSV
+# Casey's modules (flow 03) leave Clinical export out of the drawer; the
+# screen still opens from its link, as from the read-only notice.
+- runFlow:
+    file: ../subflows/open-link.yaml
+    env:
+      LINK: openvalens:///exports
+- extendedWaitUntil:
+    visible: "Download bundle"
+    timeout: 20000
+- tapOn: "Download bundle"
+- extendedWaitUntil:
+    visible: "Open .*\\.json"
+    timeout: 30000
+- assertNotVisible: "Could not export\\."
+- takeScreenshot: 13-export-bundle
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "Download"
+- tapOn: "Download"
+- extendedWaitUntil:
+    visible: "Open .*\\.(csv|zip)"
+    timeout: 30000
+- takeScreenshot: 13-export-domains
+
+# Delete everything: type DELETE to confirm
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "Delete account"
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "Type DELETE to confirm"
+- takeScreenshot: 13-delete-account
+- tapOn:
+    text: "Type DELETE to confirm"
+    index: 1
+- waitForAnimationToEnd:
+    timeout: 2000
+- inputText: "DELETE"
+- runFlow: ../subflows/hide-keyboard.yaml
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "Delete everything"
+- tapOn: "Delete everything"
+# Deleted and signed out: a fresh start shows the sign-in screen, and the
+# account can no longer get a sign-in link through.
+- extendedWaitUntil:
+    notVisible: "Delete everything"
+    timeout: 30000
+- stopApp
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Email me a sign-in link"
+    timeout: 30000
+- takeScreenshot: 13-deleted-signed-out

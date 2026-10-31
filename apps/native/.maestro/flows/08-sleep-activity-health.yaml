@@ -1,0 +1,67 @@
+# 8. Sleep and activity views (seeded phone and watch data), and the Apple
+# Health / Health Connect permission screen from Settings › Health data.
+appId: com.openvalens.app
+name: 08 Sleep, activity and health data
+tags: [records]
+---
+- runFlow: ../subflows/fresh-start.yaml
+
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-records-sleep
+- extendedWaitUntil:
+    visible: "Last night"
+    timeout: 20000
+- assertVisible: "7-day average"
+- scrollUntilVisible:
+    element: "In bed"
+- takeScreenshot: 08-sleep
+
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-records-activity
+- extendedWaitUntil:
+    visible: "Steps"
+    timeout: 20000
+- assertVisible: "Distance"
+- scrollUntilVisible:
+    element: "Last 30 days"
+- takeScreenshot: 08-activity
+
+# Health data: Apple Health on iOS, Health Connect on Android
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- scrollUntilVisible:
+    element: "Health data"
+    timeout: 30000
+    centerElement: true
+- takeScreenshot: 08-health-data-settings
+- runFlow:
+    when:
+      visible: "Connect"
+    commands:
+      - tapOn: "Connect"
+      - waitForAnimationToEnd:
+          timeout: 5000
+      # The system permission sheet (Health Connect or Apple Health)
+      - takeScreenshot: 08-health-permissions
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - back
+      - runFlow:
+          when:
+            platform: iOS
+            visible: "Don’t Allow"
+          commands:
+            - tapOn: "Don’t Allow"
+      - launchApp:
+          stopApp: false
+- extendedWaitUntil:
+    visible: "Health data"
+    timeout: 15000

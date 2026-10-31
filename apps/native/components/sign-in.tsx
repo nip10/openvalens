@@ -43,7 +43,13 @@ export function SignIn() {
         <Trans>Signing in to {host}</Trans>
       </Text>
       {isServerLocked() ? null : (
-        <Button variant="ghost" size="sm" onPress={changeServer} className="min-h-11">
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={changeServer}
+          className="min-h-11"
+          testID="change-server"
+        >
           <Button.Label>
             <Trans>Change server</Trans>
           </Button.Label>
@@ -281,6 +287,7 @@ function MagicLinkSignIn() {
             {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
             <Label>{t`Email`}</Label>
             <Input
+              testID="sign-in-email-input"
               value={email}
               onChangeText={setEmail}
               placeholder="email@example.com"

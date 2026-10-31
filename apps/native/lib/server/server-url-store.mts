@@ -50,4 +50,8 @@ describe("runtime server store (#295)", () => {
     expect(store.getServerUrl()).toBeNull();
     await expect(store.requireServerUrl()).rejects.toThrow("No server is chosen");
   });
+
+  test("a release build does not allow plain HTTP (only a test build may, #302)", () => {
+    expect(store.allowsLocalHttp()).toBe(false);
+  });
 });

@@ -1,0 +1,49 @@
+# Opens the drawer and taps the item with test id ID (e.g. drawer-records-sleep).
+# A full-screen modal (Add food) has no drawer button: leave it first.
+appId: com.openvalens.app
+---
+- runFlow:
+    when:
+      notVisible: "Show navigation menu"
+    commands:
+      - runFlow: close-add-food.yaml
+- runFlow:
+    when:
+      notVisible: "Show navigation menu"
+      platform: Android
+    commands:
+      - back
+- tapOn: "Show navigation menu"
+# The drawer keeps its scroll position: fling back to the top, then look down.
+- swipe:
+    start: "30%, 25%"
+    end: "30%, 90%"
+    duration: 200
+- swipe:
+    start: "30%, 25%"
+    end: "30%, 90%"
+    duration: 200
+- scrollUntilVisible:
+    element:
+      id: ${ID}
+    direction: DOWN
+    # No centerElement: items at the end of the list can never be centred.
+    visibilityPercentage: 100
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    id: ${ID}
+- waitForAnimationToEnd:
+    timeout: 3000
+# A tap that lands while the list still moves leaves the drawer open: retry.
+- runFlow:
+    when:
+      visible: "Close drawer"
+    commands:
+      # The drawer may already be closing: the item is then gone.
+      - tapOn:
+          id: ${ID}
+          optional: true
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertNotVisible: "Close drawer"

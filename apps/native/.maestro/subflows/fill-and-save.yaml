@@ -1,0 +1,27 @@
+# Types VALUE into the input with id INPUT, screenshots SHOT, taps the SAVE
+# button below it.
+appId: com.openvalens.app
+---
+- scrollUntilVisible:
+    element:
+      id: ${INPUT}
+    centerElement: true
+    timeout: 30000
+- tapOn:
+    id: ${INPUT}
+# Let focus and the keyboard settle, or the first keys are lost.
+- waitForAnimationToEnd:
+    timeout: 2000
+- eraseText: 20
+- inputText: ${VALUE}
+- runFlow: hide-keyboard.yaml
+- scrollUntilVisible:
+    element:
+      text: ${SAVE}
+      below:
+        id: ${INPUT}
+- takeScreenshot: ${SHOT}
+- tapOn:
+    text: ${SAVE}
+    below:
+      id: ${INPUT}

@@ -1,0 +1,130 @@
+# The screenshot tour (#302): every screen in one language and theme. run.ts
+# runs it four times (en and pt-PT, light and dark: the device appearance is
+# switched before each run) with PREFIX = "<locale>-<theme>". Only test ids
+# are used to move around, so it works in either language.
+#
+# 1. Signed in as the demo account: set the language, then every tab, drawer
+#    screen and sub-screen.
+# 2. Signed out: the sign-in screen and the server choice.
+# 3. A new Cloud account: each onboarding step.
+appId: com.openvalens.app
+name: Screenshot tour
+---
+- launchApp:
+    stopApp: true
+- runFlow:
+    file: ../subflows/switch-account.yaml
+    env:
+      EMAIL: alex.morgan@example.com
+
+# Language
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "language-${LOCALE}"
+- tapOn:
+    id: "language-${LOCALE}"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 1. Every signed-in screen
+- runFlow:
+    file: ../subflows/visit-all-screens.yaml
+    env:
+      PREFIX: ${PREFIX}
+
+# 2. Sign-in and server choice
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: sign-out
+- tapOn:
+    id: "sign-out"
+- stopApp
+- launchApp:
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-email-input"
+    timeout: 30000
+- takeScreenshot: ${PREFIX}-auth-01-sign-in
+- runFlow: ../subflows/change-server.yaml
+- takeScreenshot: ${PREFIX}-auth-02-server-choice
+- runFlow:
+    file: ../subflows/server-address.yaml
+    env:
+      ADDRESS: ${SERVER_URL}
+
+# 3. Onboarding, as a new Cloud account
+- runScript:
+    file: ../scripts/helper.js
+    env:
+      HELPER_PATH: "/sign-up?email=tour-${PREFIX.toLowerCase()}@example.com"
+- runFlow:
+    file: ../subflows/sign-in.yaml
+    env:
+      EMAIL: "tour-${PREFIX.toLowerCase()}@example.com"
+- extendedWaitUntil:
+    visible:
+      id: "home-cockpit"
+    timeout: 30000
+- takeScreenshot: ${PREFIX}-auth-03-signed-in
+- tapOn:
+    id: "home-cockpit"
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-continue"
+    timeout: 30000
+- takeScreenshot: ${PREFIX}-onboarding-1-welcome
+- tapOn:
+    id: "onboarding-continue"
+- extendedWaitUntil:
+    visible:
+      id: "chip-eligibility-adult"
+    timeout: 15000
+- tapOn:
+    id: "chip-eligibility-adult"
+- takeScreenshot: ${PREFIX}-onboarding-2-age
+- runFlow: ../subflows/onboarding-continue.yaml
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-module-sleep"
+    timeout: 15000
+- takeScreenshot: ${PREFIX}-onboarding-3-modules
+- runFlow: ../subflows/onboarding-continue.yaml
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: "onboarding-source-manual"
+    optional: true
+- takeScreenshot: ${PREFIX}-onboarding-4-data
+- runFlow: ../subflows/onboarding-continue.yaml
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${PREFIX}-onboarding-5-basics
+- runFlow: ../subflows/onboarding-continue.yaml
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${PREFIX}-onboarding-6-goal
+- runFlow: ../subflows/onboarding-continue.yaml
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${PREFIX}-onboarding-7-privacy
+- runFlow: ../subflows/onboarding-continue.yaml
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${PREFIX}-onboarding-8-today
+- runFlow: ../subflows/onboarding-continue.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-cockpit"
+    timeout: 20000
+- takeScreenshot: ${PREFIX}-onboarding-9-cockpit-new-account

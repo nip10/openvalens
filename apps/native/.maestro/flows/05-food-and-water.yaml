@@ -1,0 +1,132 @@
+# 5. Log food: search a saved food, quick add; log plain water. The barcode
+# scanner needs a camera and is skipped on the simulator and the emulator.
+appId: com.openvalens.app
+name: 05 Food and water
+tags: [logging]
+---
+- runFlow: ../subflows/fresh-start.yaml
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-meal-diary
+- extendedWaitUntil:
+    visible: "Meal diary"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Add food to Breakfast"
+    direction: UP
+    visibilityPercentage: 60
+    timeout: 30000
+
+# Search, pick a saved food, save it to breakfast
+- tapOn: "Add food to Breakfast"
+- extendedWaitUntil:
+    visible: "Search foods"
+    timeout: 10000
+- tapOn: "Search foods"
+- inputText: "salmon"
+- extendedWaitUntil:
+    visible: "Add Baked salmon to Breakfast"
+    timeout: 15000
+# The + logs it at once, with an Undo.
+- tapOn: "Add Baked salmon to Breakfast"
+- extendedWaitUntil:
+    visible: "Saved Baked salmon"
+    timeout: 10000
+- assertVisible: "Undo"
+- takeScreenshot: 05-food-search
+- runFlow: ../subflows/close-add-food.yaml
+- extendedWaitUntil:
+    visible: "Add food to Breakfast"
+    timeout: 15000
+- assertVisible: ".*Baked salmon.*"
+- takeScreenshot: 05-meal-diary-after-search
+
+# Quick add: a name and calories, to the snack
+- tapOn: "Add food to Breakfast"
+- extendedWaitUntil:
+    visible: "Quick add"
+    timeout: 10000
+- tapOn: "Quick add"
+- tapOn: "Food name"
+- inputText: "Trail mix"
+- tapOn: "Energy \\(kcal, optional\\)"
+- inputText: "180"
+- runFlow: ../subflows/hide-keyboard.yaml
+- scrollUntilVisible:
+    element: "Snack"
+- tapOn: "Snack"
+- takeScreenshot: 05-quick-add
+- scrollUntilVisible:
+    element: "Save to Snack"
+- tapOn: "Save to Snack"
+- extendedWaitUntil:
+    visible: "Add food to Breakfast"
+    timeout: 15000
+- scrollUntilVisible:
+    element: ".*Trail mix.*"
+    timeout: 20000
+
+# Barcode: only the entry point (no camera here). Centre the button: on iOS
+# a tap on it at the very top edge, under the header, does nothing.
+- scrollUntilVisible:
+    element: "Add food to Breakfast"
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+    timeout: 30000
+- tapOn: "Add food to Breakfast"
+# On iOS a tap right after the scroll settles is sometimes dropped: tap again.
+- repeat:
+    times: 2
+    while:
+      notVisible: "Barcode"
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - tapOn:
+          text: "Add food to Breakfast"
+          optional: true
+- extendedWaitUntil:
+    visible: "Barcode"
+    timeout: 10000
+- runFlow: ../subflows/close-add-food.yaml
+
+# Plain water
+- scrollUntilVisible:
+    element: "Add plain water"
+    timeout: 30000
+- tapOn: "Add plain water"
+- extendedWaitUntil:
+    visible: "Amount"
+    timeout: 10000
+- tapOn:
+    text: "Amount"
+    index: 0
+- inputText: "300"
+- runFlow: ../subflows/hide-keyboard.yaml
+- scrollUntilVisible:
+    element: "Save"
+- takeScreenshot: 05-water-add
+- tapOn: "Save"
+# The form closes and the entry is listed (the saved toast is brief).
+- extendedWaitUntil:
+    visible: "Add plain water"
+    timeout: 15000
+- assertVisible: "Plain water at .*: 300 ml"
+- takeScreenshot: 05-water-saved
+
+# "Describe a meal" from the drawer opens the sheet over the diary, and
+# Cancel closes it (it used to reopen itself).
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-food-draft
+- extendedWaitUntil:
+    visible: "Cancel"
+    timeout: 10000
+- takeScreenshot: 05-describe-a-meal
+- runFlow: ../subflows/close-add-food.yaml
+- extendedWaitUntil:
+    visible: "Meal diary"
+    timeout: 10000

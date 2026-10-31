@@ -65,6 +65,7 @@ export function LanguageSection() {
             {LOCALES.map((option) => (
               <Pressable
                 key={option}
+                testID={`language-${option}`}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: locale === option }}
                 accessibilityLanguage={option}
@@ -114,6 +115,7 @@ export function LanguageSection() {
             {LAB_UNIT_CHOICES.map((value) => (
               <Pressable
                 key={value}
+                testID={`lab-units-${value}`}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: labUnits === value }}
                 onPress={() => setLabUnits(value)}

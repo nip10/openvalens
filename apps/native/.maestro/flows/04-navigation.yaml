@@ -1,0 +1,14 @@
+# 4. Dashboard and every tab and drawer screen, as the seeded demo account
+# (Alex Morgan, about 90 days of synthetic data in every module).
+appId: com.openvalens.app
+name: 04 Navigation
+tags: [navigation]
+---
+- runFlow:
+    file: ../subflows/switch-account.yaml
+    env:
+      EMAIL: alex.morgan@example.com
+- runFlow:
+    file: ../subflows/visit-all-screens.yaml
+    env:
+      PREFIX: "04"

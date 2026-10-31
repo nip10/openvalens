@@ -18,6 +18,7 @@
     "lib/test-harness/run-isolated.ts",
     "components/workout-test-harness.ts",
     "scripts",
+    "e2e",
     "node_modules"
   ]
 }

@@ -1,0 +1,22 @@
+# Signs EMAIL in with a magic link, from the sign-in screen. The link comes
+# from the server's dev magic-link sink through the e2e helper, which follows
+# it to the openvalens:// callback the browser would hand the app.
+appId: com.openvalens.app
+---
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-email-input"
+    timeout: 30000
+- tapOn:
+    id: "sign-in-email-input"
+- eraseText: 60
+- inputText: ${EMAIL}
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "We sent a sign-in link to .*"
+    timeout: 20000
+- runScript: ../scripts/magic-link.js
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${output.link}

@@ -13,6 +13,7 @@ import {
   type AddressProblem,
 } from "@/lib/server/server-address";
 import { probeServer, type ServerProblem } from "@/lib/server/server-meta";
+import { allowsLocalHttp } from "@/lib/server/server-url";
 import { switchServer } from "@/lib/server/switch-server";
 
 export type ProblemCopy = { title: string; description: string };
@@ -107,7 +108,7 @@ export function ServerChoice() {
 
   const connect = () =>
     run("own", async () => {
-      const normalized = normalizeServerAddress(address, { allowLocalHttp: __DEV__ });
+      const normalized = normalizeServerAddress(address, { allowLocalHttp: allowsLocalHttp() });
       if (!normalized.ok) {
         setError(addressCopy[normalized.problem]);
         return;
@@ -179,6 +180,7 @@ export function ServerChoice() {
             {/* heroui's Label takes a plain string; a <Trans> element is not one. */}
             <Label>{t`Server address`}</Label>
             <Input
+              testID="server-address-input"
               value={address}
               onChangeText={(next) => {
                 setAddress(next);

@@ -1,0 +1,90 @@
+# 3. Onboarding (the new Cloud account from flow 02): age check, choose
+# modules, how data arrives, basics, a goal, privacy, then the dashboard.
+appId: com.openvalens.app
+name: 03 Onboarding
+tags: [onboarding]
+---
+- runFlow:
+    when:
+      visible:
+        id: "home-cockpit"
+    commands:
+      - tapOn:
+          id: "home-cockpit"
+- extendedWaitUntil:
+    visible: "Welcome to OpenValens"
+    timeout: 30000
+- takeScreenshot: 03-onboarding-1-welcome
+- tapOn:
+    id: "onboarding-continue"
+
+# Age check: the only question that can't be skipped
+- extendedWaitUntil:
+    visible: "Are you 18 or older\\?"
+    timeout: 15000
+- tapOn: "Yes, I'm 18 or older"
+- takeScreenshot: 03-onboarding-2-age
+- runFlow: ../subflows/onboarding-continue.yaml
+
+# Modules
+- extendedWaitUntil:
+    visible: "What brings you here\\?"
+    timeout: 15000
+- tapOn: "Sleep and recovery"
+- tapOn: "Activity and fitness"
+- tapOn: "Nutrition"
+- tapOn: "Body goals"
+- takeScreenshot: 03-onboarding-3-modules
+- scrollUntilVisible:
+    element:
+      id: "onboarding-module-food"
+- assertVisible:
+    id: "onboarding-module-food"
+- runFlow: ../subflows/onboarding-continue.yaml
+
+# How data arrives: typed in (no phone health permission prompt here)
+- extendedWaitUntil:
+    visible: "How will your data arrive\\?"
+    timeout: 15000
+- tapOn:
+    id: "onboarding-source-manual"
+- takeScreenshot: 03-onboarding-4-data
+- runFlow: ../subflows/onboarding-continue.yaml
+
+# Basics
+- extendedWaitUntil:
+    visible: "A few basics"
+    timeout: 15000
+- takeScreenshot: 03-onboarding-5-basics
+- runFlow: ../subflows/onboarding-continue.yaml
+
+# One goal
+- extendedWaitUntil:
+    visible: "One goal.*"
+    timeout: 15000
+- tapOn: "For example: walk most days"
+- inputText: "Walk most days"
+- pressKey: Enter
+- takeScreenshot: 03-onboarding-6-goal
+- runFlow: ../subflows/onboarding-continue.yaml
+
+# Privacy choices: all off unless turned on
+- extendedWaitUntil:
+    visible: "Your privacy choices"
+    timeout: 15000
+- takeScreenshot: 03-onboarding-7-privacy
+- runFlow: ../subflows/onboarding-continue.yaml
+
+# Done
+- extendedWaitUntil:
+    visible: "You're all set"
+    timeout: 15000
+- takeScreenshot: 03-onboarding-8-today
+- scrollUntilVisible:
+    element: "Open my dashboard"
+- tapOn: "Open my dashboard"
+- extendedWaitUntil:
+    visible:
+      id: "tab-cockpit"
+    timeout: 20000
+- assertNotVisible: "Welcome to OpenValens"

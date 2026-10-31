@@ -1,0 +1,12 @@
+# After opening a screen: wait for it to load, fail on a load error, and save a
+# screenshot named SHOT.
+appId: com.openvalens.app
+---
+- waitForAnimationToEnd:
+    timeout: 4000
+- extendedWaitUntil:
+    notVisible: "(Loading|Checking).*(…|\\.\\.\\.)"
+    timeout: 20000
+    optional: true
+- assertNotVisible: ".*(Could not load|Couldn’t load|Couldn't load|Something went wrong).*"
+- takeScreenshot: ${SHOT}

@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# e2e suite output: screenshots, Maestro reports, logs (#302)
+/e2e-artifacts
+
 # generated native folders
 /ios
 /android

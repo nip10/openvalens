@@ -1,0 +1,15 @@
+# Scrolls TEXT into the middle of the screen, looking up first (screens keep
+# their scroll position), then down.
+appId: com.openvalens.app
+---
+- scrollUntilVisible:
+    element: ${TEXT}
+    direction: UP
+    centerElement: true
+    timeout: 20000
+    optional: true
+- scrollUntilVisible:
+    element: ${TEXT}
+    direction: DOWN
+    centerElement: true
+    timeout: 40000

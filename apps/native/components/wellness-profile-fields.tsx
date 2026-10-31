@@ -46,6 +46,7 @@ export function Chips({
         return (
           <Pressable
             key={chip.key}
+            testID={`chip-${field}-${chip.key}`}
             onPress={() => onChange(toggleChip(field, chip.key, draft))}
             disabled={chip.disabled}
             accessibilityRole={field === "focus" ? "checkbox" : "radio"}

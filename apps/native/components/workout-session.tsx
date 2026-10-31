@@ -138,8 +138,8 @@ function QueuedWorkoutItem({
             : t`Sync failed`}
       </Text>
       <Text className="font-sans text-sm text-ink-2">
-        {plural(counts.exercises, { one: "# exercise", other: "# exercises" })},{" "}
-        {plural(counts.sets, { one: "# set", other: "# sets" })}
+        {t`${plural(counts.exercises, { one: "# exercise", other: "# exercises" })}`},{" "}
+        {t`${plural(counts.sets, { one: "# set", other: "# sets" })}`}
       </Text>
       {item.state === "failed" ? (
         <Button size="sm" variant="outline" onPress={() => session.retry(item.id)}>
@@ -201,6 +201,7 @@ function SetRow({
     <View className="flex-row items-center gap-2">
       <Text className="w-8 text-ink-3">{index + 1}</Text>
       <TextInput
+        testID={`set-weight-${index + 1}`}
         accessibilityLabel={label}
         keyboardType="decimal-pad"
         value={weightText}
@@ -222,6 +223,7 @@ function SetRow({
         className={`${input} min-w-0 flex-1`}
       />
       <TextInput
+        testID={`set-reps-${index + 1}`}
         accessibilityLabel={t`Reps`}
         keyboardType="number-pad"
         value={set.reps}
@@ -238,6 +240,7 @@ function SetRow({
         className={`${input} w-16 px-2`}
       />
       <Pressable
+        testID={`set-done-${index + 1}`}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: set.done }}
         accessibilityLabel={label}
@@ -366,8 +369,9 @@ export function WorkoutSession() {
                     : `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`}
                 </Text>
                 <Text className="font-sans text-sm text-ink-3">
-                  {plural(summary?.exerciseCount ?? 0, { one: "# exercise", other: "# exercises" })}
-                  , {plural(summary?.setCount ?? 0, { one: "# set done", other: "# sets done" })}
+                  {t`${plural(summary?.exerciseCount ?? 0, { one: "# exercise", other: "# exercises" })}`}
+                  ,{" "}
+                  {t`${plural(summary?.setCount ?? 0, { one: "# set done", other: "# sets done" })}`}
                 </Text>
               </View>
               <Button variant="outline" onPress={() => setMinimized(true)}>

@@ -41,6 +41,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { HealthDataConsentPrompt } from "@/components/health-data-consent-prompt";
 import { isRouteVisible } from "@/lib/modules/routes";
 import { useModules } from "@/lib/modules/use-modules";
+import { wasServerChosenThisRun } from "@/lib/server/server-url";
 import { useThemeColor } from "@/utils/theme";
 
 type DrawerItem = {
@@ -125,6 +126,13 @@ const DRAWER_GROUPS: readonly { label: MessageDescriptor; items: readonly Drawer
   },
 ];
 
+/** Stable, language-independent id for a drawer item (`drawer-records-sleep`), for e2e tests (#302). */
+function drawerItemTestId(href: DrawerItem["href"]): string {
+  if (href === "/(drawer)/(tabs)") return "drawer-cockpit";
+  if (href === "/(drawer)/(tabs)/nutrition") return "drawer-meal-diary";
+  return `drawer-${href.slice(1).replace(/\//g, "-")}`;
+}
+
 /** Header title per route; anything else is the Cockpit. */
 const HEADER_TITLES: Readonly<Record<string, MessageDescriptor>> = {
   "/timeline": msg`Timeline`,
@@ -207,6 +215,7 @@ function DrawerContent() {
                 return (
                   <Link key={item.href} href={item.href} asChild>
                     <Pressable
+                      testID={drawerItemTestId(item.href)}
                       className={cn(
                         "min-h-11 flex-row items-center gap-3 rounded-2xl px-3 py-2.5 active:bg-paper-2",
                         active && "bg-sidebar-accent",
@@ -254,7 +263,9 @@ function DrawerLayout() {
     <View className="flex-1">
       <HealthDataConsentPrompt />
       <Drawer
-        initialRouteName="(tabs)"
+        // Right after a server is chosen the screens mount afresh: open the
+        // sign-in screen (this group's index), as a launch at `/` does.
+        initialRouteName={wasServerChosenThisRun() ? "index" : "(tabs)"}
         drawerContent={() => <DrawerContent />}
         screenOptions={{
           headerTintColor: themeColorForeground,

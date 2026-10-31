@@ -1,0 +1,128 @@
+# 10. Settings: language (en, pt-PT), units and formats, theme, modules and
+# linked sign-in methods. Everything is put back at the end.
+appId: com.openvalens.app
+name: 10 Settings
+tags: [settings]
+---
+- runFlow: ../subflows/fresh-start.yaml
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+
+# Sign-in methods: the email link is always there; Google and Apple only
+# show when the server has them configured (not in this suite).
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "Sign-in methods"
+- assertVisible: "Email link"
+- takeScreenshot: 10-sign-in-methods
+
+# Language: Portuguese (Portugal), then back to English
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "language-pt-PT"
+- tapOn:
+    id: "language-pt-PT"
+- extendedWaitUntil:
+    visible: "Idioma da interface"
+    timeout: 10000
+- takeScreenshot: 10-language-pt-PT
+- tapOn:
+    id: "tab-cockpit"
+- takeScreenshot: 10-cockpit-pt-PT
+- tapOn:
+    id: "tab-settings"
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "language-en"
+- tapOn:
+    id: "language-en"
+- extendedWaitUntil:
+    visible: "Interface language"
+    timeout: 10000
+
+# Units and formats: lab units in mmol/L, dates as in the UK, then back
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "lab-units-mmol_l"
+- tapOn:
+    id: "lab-units-mmol_l"
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "United Kingdom"
+- tapOn: "United Kingdom"
+- takeScreenshot: 10-units
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-records-labs
+- extendedWaitUntil:
+    visible: "Glucose \\(fasting\\)"
+    timeout: 20000
+- assertVisible: ".*mmol/L.*"
+- takeScreenshot: 10-labs-mmol
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "lab-units-as_reported"
+- tapOn:
+    id: "lab-units-as_reported"
+- tapOn: "App default"
+
+# Theme: dark mode on, then off
+- runFlow:
+    file: ../subflows/find-text.yaml
+    env:
+      TEXT: "Dark mode.*"
+- tapOn: "Dark mode.*"
+# iOS reads the row as one element ("Dark mode, On"); Android also shows the pill.
+- assertVisible: "Dark mode, On|On"
+- takeScreenshot: 10-dark-mode
+- tapOn: "Dark mode.*"
+
+# Modules: hide Food & water, check the Food tab goes away, turn it back on
+- runFlow:
+    file: ../subflows/open-link.yaml
+    env:
+      LINK: openvalens:///settings/modules
+- extendedWaitUntil:
+    visible:
+      id: "module-switch-food"
+    timeout: 20000
+- tapOn:
+    id: "module-switch-food"
+- takeScreenshot: 10-modules
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-cockpit
+- assertNotVisible:
+    id: "tab-nutrition"
+- runFlow:
+    file: ../subflows/open-link.yaml
+    env:
+      LINK: openvalens:///settings/modules
+- extendedWaitUntil:
+    visible:
+      id: "module-switch-food"
+    timeout: 20000
+- tapOn:
+    id: "module-switch-food"
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-cockpit
+- extendedWaitUntil:
+    visible:
+      id: "tab-nutrition"
+    timeout: 15000

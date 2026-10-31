@@ -1,0 +1,23 @@
+# Maestro workspace (#302). The flows share one app session and must run in
+# order: each starts where the previous one ended. `bun run e2e:ios` /
+# `bun run e2e:android` seed the database, start the server and pass the flow
+# files to Maestro one by one in file-name order (docs/mobile/e2e.md). Only
+# `flows/` holds tests; `subflows/` and `screenshots/` are called from them.
+flows:
+  - "flows/*"
+executionOrder:
+  continueOnFailure: true
+  flowsOrder:
+    - 01 Server choice
+    - 02 Sign-up and sign-in
+    - 03 Onboarding
+    - 04 Navigation
+    - 05 Food and water
+    - 06 Strength workout
+    - 07 Body, vitals and labs
+    - 08 Sleep, activity and health data
+    - 09 Coach
+    - 10 Settings
+    - 11 Sharing and invitations
+    - 12 Read-only Cloud state
+    - 13 Export and delete account

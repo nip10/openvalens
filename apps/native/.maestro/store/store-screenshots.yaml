@@ -1,0 +1,106 @@
+# Store screenshots (#307): the seeded demo account (#301) in one language,
+# light mode. `bun run store:screenshots:<ios|android>` runs it once per
+# locale with LOCALE (en, pt-PT) and copies the files into the store folders.
+# Test ids only, so it works in either language.
+appId: com.openvalens.app
+name: Store screenshots
+---
+# A clean install: choose the local server, then sign the demo account in.
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    stopApp: true
+# A fresh `expo run:ios` install can leave the system "Open in “OpenValens”?" prompt up.
+- runFlow:
+    when:
+      visible: "Open in .*OpenValens.*\\?"
+    commands:
+      - tapOn: "Cancel"
+- extendedWaitUntil:
+    visible:
+      id: "server-address-input"
+    timeout: 30000
+- runFlow:
+    file: ../subflows/server-address.yaml
+    env:
+      ADDRESS: ${SERVER_URL}
+- runFlow:
+    file: ../subflows/sign-in.yaml
+    env:
+      EMAIL: alex.morgan@example.com
+- extendedWaitUntil:
+    visible: alex.morgan@example.com
+    timeout: 30000
+- tapOn:
+    id: "home-cockpit"
+- extendedWaitUntil:
+    visible:
+      id: "tab-cockpit"
+    timeout: 20000
+
+# Language
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "language-${LOCALE}"
+- tapOn:
+    id: "language-${LOCALE}"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- tapOn:
+    id: "tab-cockpit"
+- runFlow:
+    file: ../subflows/check-screen.yaml
+    env:
+      SHOT: store-01-cockpit
+- tapOn:
+    id: "tab-nutrition"
+- runFlow:
+    file: ../subflows/check-screen.yaml
+    env:
+      SHOT: store-03-nutrition
+- tapOn:
+    id: "tab-training"
+- runFlow:
+    file: ../subflows/check-screen.yaml
+    env:
+      SHOT: store-04-training
+- tapOn:
+    id: "tab-body"
+- runFlow:
+    file: ../subflows/check-screen.yaml
+    env:
+      SHOT: store-06-body
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-records-labs
+- runFlow:
+    file: ../subflows/check-screen.yaml
+    env:
+      SHOT: store-02-labs
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-records-sleep
+- runFlow:
+    file: ../subflows/check-screen.yaml
+    env:
+      SHOT: store-05-sleep
+
+# Leave the app in English for the next run.
+- runFlow:
+    file: ../subflows/drawer-go.yaml
+    env:
+      ID: drawer-settings
+- runFlow:
+    file: ../subflows/find-id.yaml
+    env:
+      ID: "language-en"
+- tapOn:
+    id: "language-en"
