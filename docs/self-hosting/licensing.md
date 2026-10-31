@@ -1,6 +1,6 @@
 # Licensing and trademark
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-24
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-24
 
 A summary for people who run OpenValens. The licence texts and the trademark
 policy are what count; this page does not replace them and is not legal

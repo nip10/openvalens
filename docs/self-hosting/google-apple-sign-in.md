@@ -1,6 +1,6 @@
 # Sign in with Google and Apple
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-29
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-29
 
 Besides email-link sign-in (and an optional [OIDC provider](oidc.md)), an
 instance can offer **Continue with Google** and **Continue with Apple**

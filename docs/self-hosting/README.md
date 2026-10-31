@@ -1,6 +1,6 @@
 # Self-hosting OpenValens
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-25
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-31
 
 These pages describe how to run your own OpenValens instance with the one
 supported install: the Docker Compose stack in `deploy/`, driven by
@@ -8,8 +8,8 @@ supported install: the Docker Compose stack in `deploy/`, driven by
 code of this version; where something was only partly verified, the page says
 so.
 
-> **Version.** No release has been tagged yet. Version 0.1.0 is the
-> pre-release state of `main`, and these docs describe it. The version is the
+> **Version.** These docs describe OpenValens 0.9.0, the first tagged
+> release (`v0.9.0`, a beta before 1.0). The version is the
 > `version` field of the root `package.json`; CI checks that every page here
 > states it.
 

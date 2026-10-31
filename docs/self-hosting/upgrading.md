@@ -1,6 +1,6 @@
 # Upgrading
 
-**Applies to:** OpenValens 0.1.0 · Last updated: 2026-10-25
+**Applies to:** OpenValens 0.9.0 · Last updated: 2026-10-31
 
 Upgrades are a `git checkout` followed by `deploy/setup.sh upgrade`. Every
 upgrade takes an encrypted, verified backup of the database and the stored
@@ -10,14 +10,17 @@ off the server as well.
 
 ## Upgrade
 
-No release has been tagged yet, so today an upgrade means moving to a newer
-commit of `main`. Once releases exist, check out the new release tag instead.
+Check out the new release tag, after reading its upgrade notes on the
+[Releases](https://github.com/nip10/openvalens/releases) page:
 
 ```bash
 git fetch --tags origin
-git checkout main && git pull --ff-only   # or: git checkout <new release tag>
+git checkout vX.Y.Z          # the new release tag
 deploy/setup.sh upgrade
 ```
+
+An install that followed `main` before the first release (`v0.9.0`) upgrades
+the same way: check out the tag, then run `upgrade`.
 
 Preview what it would do without changing anything:
 
